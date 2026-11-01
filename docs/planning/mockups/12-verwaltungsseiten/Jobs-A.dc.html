@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Hintergrundjobs · A Kompakte Liste</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.li{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Hintergrundjobs</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9095a3"><span class="d" style="background:#5fcf8f"></span>Live, alle 5 Sekunden</span></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Alles, was der Server im Hintergrund tut: laufende Aufgaben, Warteschlange, Zeitpläne und Fehlschläge.</p></sc-if></div>
+<sc-if value="{{ hasPaused }}" hint-placeholder-val="{{ true }}"><div role="status" style="margin-top:24px;display:flex;align-items:center;gap:12px;min-height:40px;padding:4px 6px 4px 12px;box-sizing:border-box;border-radius:8px;background:color-mix(in srgb, #e8b65a 12%, transparent);font-size:13px">
+<span style="display:flex;color:#e8b65a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 5v14M16 5v14"/></svg></span><b style="font-weight:600;white-space:nowrap">{{ pausedTitle }}</b><span style="color:#b6b9c4;flex:1;min-width:0">{{ pausedText }}</span>
+<span style="display:flex;gap:6px"><sc-for list="{{ pausedList }}" as="p" hint-placeholder-count="1"><button type="button" class="b bs" onClick="{{ p.resume }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg>{{ p.label }}</button></sc-for></span></div></sc-if>
+<div role="group" aria-label="Läufe nach Zustand" style="margin-top:24px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08)">
+<div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px"><span style="font-size:13px;color:#b6b9c4">Laufend</span><span style="font-size:18px;font-weight:600">2</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;border-left:1px solid rgba(255,255,255,0.08)"><span style="font-size:13px;color:#b6b9c4">Wartend</span><span style="font-size:18px;font-weight:600">14</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;border-left:1px solid rgba(255,255,255,0.08)"><span style="font-size:13px;color:#b6b9c4">Geplant</span><span style="font-size:18px;font-weight:600">6</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;border-left:1px solid rgba(255,255,255,0.08)"><span style="font-size:13px;color:#b6b9c4">Pausiert</span><span style="{{ pausedStyle }}">{{ pausedCount }}</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 16px;border-left:1px solid rgba(255,255,255,0.08)"><span style="font-size:13px;color:#b6b9c4">Fehlgeschlagen</span><span style="font-size:18px;font-weight:600;color:#f2777a">265</span></div></div>
+<section aria-label="Arbeiter" style="margin-top:24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:32px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">Arbeiter</h2><span style="font-size:12px;color:#9095a3">3 Pools, 7 Arbeiter</span></div><div style="display:flex;align-items:center;gap:40px;height:40px;padding:0 16px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:14px"><span style="display:inline-flex;align-items:center;gap:8px"><b style="font-weight:500">Allgemein</b><span style="color:#b6b9c4">4 Arbeiter</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px"><span class="d" style="background:#e8b65a"></span>Stau ca. 6 min</span></span>
+<span style="display:inline-flex;align-items:center;gap:8px"><b style="font-weight:500">Downloads</b><span style="color:#b6b9c4">2 Arbeiter</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px"><span class="d" style="background:#5fcf8f"></span>frei</span></span>
+<span style="display:inline-flex;align-items:center;gap:8px"><b style="font-weight:500">Benachrichtigungen</b><span style="color:#b6b9c4">1 Arbeiter</span><span style="display:inline-flex;align-items:center;gap:6px;font-size:13px"><span class="d" style="background:#5fcf8f"></span>frei</span></span></div></section>
+<section aria-label="Läuft gerade" style="margin-top:24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:32px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">Läuft gerade</h2><span style="font-size:12px;color:#9095a3">2 Läufe</span></div>
+<div role="table" aria-label="Läuft gerade"><div role="row" class="tr th" style="grid-template-columns:260px minmax(0,1fr) 250px 80px 140px 230px"><span role="columnheader">Job</span><span role="columnheader">Gegenstand</span><span role="columnheader">Fortschritt</span><span role="columnheader">Seit</span><span role="columnheader">Restzeit</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ running }}" as="r" hint-placeholder-count="2"><div role="row" class="tr" style="grid-template-columns:260px minmax(0,1fr) 250px 80px 140px 230px">
+<div role="cell"><span style="display:flex;align-items:center;gap:8px"><span style="font-weight:500">{{ r.name }}</span><sc-if value="{{ r.stopping }}" hint-placeholder-val="{{ true }}"><span class="c cw">wird angehalten</span></sc-if></span></div>
+<div role="cell">{{ r.subj }}</div>
+<div role="cell"><span style="display:flex;align-items:center;gap:8px"><span role="progressbar" aria-label="{{ r.barLabel }}" aria-valuenow="{{ r.pct }}" aria-valuemin="0" aria-valuemax="100" style="flex:1;height:6px;border-radius:3px;background:#262a35;overflow:hidden"><span style="{{ r.barStyle }}"></span></span><span style="font-size:12px;color:#b6b9c4;font-variant-numeric:tabular-nums">{{ r.txt }}</span></span></div>
+<div role="cell">{{ r.since }}</div><div role="cell" style="color:#b6b9c4">{{ r.eta }}</div>
+<div role="cell" class="ov"><button type="button" class="b bs" aria-label="{{ r.pauseAria }}" onClick="{{ r.togglePause }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 5v14M16 5v14"/></svg>{{ r.pauseLabel }}</button> <button type="button" class="b bs dz" onClick="{{ r.cancel }}">Abbrechen …</button></div>
+</div></sc-for></div></section>
+<section aria-label="Letzte Fehlschläge" style="margin-top:24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:32px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">Letzte Fehlschläge (alle Arten)</h2><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px"><span class="d" style="background:#f2777a"></span>265 fehlgeschlagen</span></div>
+<div role="table" aria-label="Letzte Fehlschläge aller Jobarten"><div role="row" class="tr th" style="grid-template-columns:210px 90px minmax(0,1fr) 120px 196px"><span role="columnheader">Jobart</span><span role="columnheader">Versuche</span><span role="columnheader">Fehler</span><span role="columnheader">Zeit</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ fails }}" as="f" hint-placeholder-count="6"><div role="row" class="tr" style="grid-template-columns:210px 90px minmax(0,1fr) 120px 196px"><div role="cell" style="font-weight:500">{{ f.name }}</div><div role="cell" style="font-variant-numeric:tabular-nums">{{ f.att }}</div>
+<div role="cell" title="{{ f.err }}" style="color:#f2777a;font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px">{{ f.err }}</div><div role="cell" style="color:#b6b9c4">{{ f.at }}</div>
+<div role="cell" class="ov"><button type="button" class="b bs" onClick="{{ f.retry }}">Erneut</button> <button type="button" class="b bs dz" onClick="{{ f.cancel }}">Abbrechen …</button></div></div></sc-for></div>
+<p style="margin:8px 0 0;font-size:12px;color:#9095a3">10 von 265 · Alle Fehlschläge einer Jobart unter «Läufe»</p></section>
+<section aria-label="Jobarten" style="margin-top:24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:32px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">Jobarten</h2><span style="font-size:12px;color:#9095a3">14 Jobarten in 4 Gruppen</span></div>
+<div role="table" aria-label="Jobarten"><div role="row" class="tr th" style="grid-template-columns:180px 104px 72px 240px 160px minmax(0,1fr) 184px"><span role="columnheader">Job</span><span role="columnheader">Zustand</span><span role="columnheader">Wartend</span><span role="columnheader">Letzter Lauf</span><span role="columnheader">Nächster Lauf</span><span role="columnheader">Ausgelöst durch</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="4"><div role="row" class="tr th" style="display:flex;min-height:32px;background:#16181f;color:#b6b9c4"><span role="rowheader">{{ g.name }} <span style="font-weight:400;color:#9095a3;text-transform:none;letter-spacing:0">· {{ g.count }}</span></span></div>
+<sc-for list="{{ g.jobs }}" as="j" hint-placeholder-count="3"><div role="row" class="tr" style="grid-template-columns:180px 104px 72px 240px 160px minmax(0,1fr) 184px">
+<div role="cell" style="font-weight:500">{{ j.name }}</div><div role="cell"><span style="display:inline-flex;align-items:center;gap:6px"><span style="{{ j.dot }}"></span>{{ j.state }}</span></div>
+<div role="cell" style="font-variant-numeric:tabular-nums">{{ j.q }}</div><div role="cell" title="{{ j.lastTitle }}" style="{{ j.lastStyle }}">{{ j.last }}</div>
+<div role="cell" style="color:#b6b9c4">{{ j.next }}</div><div role="cell" title="{{ j.trig }}" style="color:#9095a3">{{ j.trig }}</div>
+<div role="cell" class="ov"><button type="button" class="b bs" aria-label="{{ j.runLabel }}" onClick="{{ j.runNow }}">Jetzt ausführen</button> <button type="button" class="b bs bi" aria-haspopup="menu" aria-expanded="{{ j.menuAria }}" aria-label="{{ j.moreLabel }}" onClick="{{ j.toggleMenu }}" style="{{ j.moreStyle }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></button>
+<sc-if value="{{ j.menuOpen }}" hint-placeholder-val="{{ false }}"><div role="menu" aria-label="{{ j.moreLabel }}" style="{{ j.menuStyle }}">
+<button type="button" role="menuitem" class="mi" onClick="{{ j.menuPause }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 5v14M16 5v14"/></svg>{{ j.pauseLabel }}</button>
+<button type="button" role="menuitem" class="mi" style="color:#f2777a" onClick="{{ j.menuCq }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg>{{ j.cqLabel }}</button>
+<button type="button" role="menuitem" class="mi" style="color:#f2777a" onClick="{{ j.menuCa }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>Alle Läufe abbrechen …</button>
+<div role="separator" style="height:1px;margin:4px 0;background:rgba(255,255,255,0.08)"></div>
+<button type="button" role="menuitem" class="mi" onClick="{{ j.openSched }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Zeitplan …</button>
+<button type="button" role="menuitem" class="mi" onClick="{{ j.openRuns }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Läufe …</button></div></sc-if></div>
+</div></sc-for></sc-for></div></section>
+</main>
+</div>
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ schedOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ closeDlg }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ schedTitle }}" style="{{ schedBox }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ schedTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeDlg }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><p style="margin:0;font-size:13px;color:#b6b9c4">Takt, Zeitfenster und Ein/Aus. Der nächste Lauf richtet sich danach neu aus.</p><div style="display:flex;flex-direction:column"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)"><span id="zon-{{ s.id }}">Zeitplan eingeschaltet</span><button type="button" role="switch" aria-checked="{{ s.onAria }}" aria-labelledby="zon-{{ s.id }}" onClick="{{ s.toggleOn }}" style="{{ s.onTrack }}"><span style="{{ s.onKnob }}"></span></button></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)"><label for="zev-{{ s.id }}">Takt</label><select class="in" id="zev-{{ s.id }}" value="{{ s.every }}" onChange="{{ s.setEvery }}" disabled="{{ s.everyOff }}" style="width:180px"><option>alle 5 Minuten</option><option>alle 15 Minuten</option><option>alle 30 Minuten</option><option>stündlich</option><option>alle 2 Stunden</option><option>alle 6 Stunden</option><option>alle 12 Stunden</option><option>täglich</option><option>alle 2 Tage</option><option>wöchentlich</option></select></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)"><span id="zwi-{{ s.id }}">Nur in einem Zeitfenster</span><button type="button" role="switch" aria-checked="{{ s.winAria }}" aria-labelledby="zwi-{{ s.id }}" onClick="{{ s.toggleWin }}" style="{{ s.winTrack }}"><span style="{{ s.winKnob }}"></span></button></div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)"><span>Fenster</span><span style="display:flex;align-items:center;gap:8px"><label for="zfa-{{ s.id }}" style="font-size:13px;color:#b6b9c4">Von</label><input class="in" id="zfa-{{ s.id }}" type="time" value="{{ s.from }}" onChange="{{ s.setFrom }}" disabled="{{ s.winOff }}" style="width:84px">
+<label for="zfb-{{ s.id }}" style="font-size:13px;color:#b6b9c4">Bis</label><input class="in" id="zfb-{{ s.id }}" type="time" value="{{ s.to }}" onChange="{{ s.setTo }}" disabled="{{ s.winOff }}" style="width:84px"></span></div>
+<p style="margin:8px 0 0;font-size:12px;color:#9095a3">Zeitzone des Servers: Europe/Zurich. Ein Fenster darf über Mitternacht gehen. «Jetzt ausführen» ignoriert das Fenster.</p>
+<sc-if value="{{ s.hasHint }}" hint-placeholder-val="{{ false }}"><p style="margin:4px 0 0;font-size:12px;color:#b6b9c4">{{ s.hint }}</p></sc-if></div></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeDlg }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ saveSched }}">Speichern</button></div></section></div></sc-if>
+<sc-if value="{{ runsOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ closeDlg }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ runsTitle }}" style="{{ runsBox }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ runsTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeDlg }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><div role="tablist" aria-label="Läufe nach Zustand" style="display:inline-flex;flex-wrap:wrap;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08);align-self:flex-start">
+<sc-for list="{{ rv.tabs }}" as="t" hint-placeholder-count="6"><button type="button" role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }}<span style="{{ t.cstyle }}">{{ t.count }}</span></button></sc-for></div>
+<div role="table" aria-label="Läufe"><div role="row" class="tr th" style="grid-template-columns:minmax(0,1.3fr) 48px 130px 56px 72px minmax(0,1.7fr) 120px"><span role="columnheader">Gegenstand</span><span role="columnheader">Prio</span><span role="columnheader">{{ rv.timeHead }}</span><span role="columnheader">Dauer</span><span role="columnheader">Versuche</span><span role="columnheader">Fehler</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ rv.rows }}" as="rr" hint-placeholder-count="5"><div role="row" class="tr" style="grid-template-columns:minmax(0,1.3fr) 48px 130px 56px 72px minmax(0,1.7fr) 120px"><div role="cell" title="{{ rr.subj }}">{{ rr.subj }}</div><div role="cell">{{ rr.prio }}</div><div role="cell">{{ rr.at }}</div><div role="cell">{{ rr.dur }}</div><div role="cell">{{ rr.att }}</div>
+<div role="cell" title="{{ rr.err }}" style="{{ rr.errStyle }}">{{ rr.err }}</div><div role="cell" class="ov"><sc-if value="{{ rr.canRetry }}" hint-placeholder-val="{{ true }}"><button type="button" class="b bs" onClick="{{ rr.retry }}">Erneut</button></sc-if><sc-if value="{{ rr.canCancel }}" hint-placeholder-val="{{ false }}"><button type="button" class="b bs dz" onClick="{{ rr.cancel }}">Abbrechen …</button></sc-if></div></div></sc-for></div>
+<sc-if value="{{ rv.noRows }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:12px 0;font-size:13px;color:#9095a3">Keine Läufe in diesem Zustand.</p></sc-if>
+<sc-if value="{{ rv.hasRows }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:12px;color:#9095a3">{{ rv.total }}</p></sc-if></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeDlg }}">Schliessen</button></div></section></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Behalten</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">Abbrechen</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1900}}'>
+const Y = { banner: 120, running: 300, fails: 520 };
+const MAXY = { toast: 1640, confirm: 1480, sched: 1230, runs: 1080 };
+const ERR = 'ffprobe: /media/Serien/The Expanse/Season 05/The.Expanse.S05E07.2160p.WEB-DL.mkv: Invalid data found when processing input';
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const GROUPS = ['Bibliothek', 'Metadaten', 'Zustellung', 'System'];
+const OFF = { on: false, every: 'stündlich', win: false, from: '01:00', to: '06:00' };
+// The 19 job types the server registers (library/jobs.go, metadata/metadata.go, offline/job.go, notify/deliver.go,
+// admin/update.go, jobs/history.go), in their groups; schedules and triggers as in admin.jobs.types (de.json).
+const JOBS = [
+  { id: 'scan', g: 0, name: 'Bibliotheksscan', base: 'läuft', q: 0, last: 'vor 6 h · OK', next: 'in 1 h 52 min · alle 6 h', trig: 'Zeitplan alle 6 h und Start des Servers, «Scannen» auf der Bibliotheksseite, Webhook, Dateiwächter', sch: { on: true, every: 'alle 6 Stunden', win: false, from: '01:00', to: '06:00' }, c: { running: 1, queued: 0, planned: 1, failed: 0, done: 412, cancelled: 2 } },
+  { id: 'folder', g: 0, name: 'Ordnerscan', base: 'ruht', q: 0, last: 'vor 12 min · OK', next: 'bei Bedarf', trig: 'Dateiwächter bei Änderungen, Webhook', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 1288, cancelled: 0 } },
+  { id: 'probe', g: 0, name: 'Datei prüfen', base: 'läuft', q: 3, last: 'vor 1 min · OK', next: 'bei Bedarf', trig: 'vom Scan je neue Datei, «Datei prüfen» in der Pflege', c: { running: 1, queued: 3, planned: 0, failed: 0, done: 2204, cancelled: 1 } },
+  { id: 'keyframes', g: 0, name: 'Keyframe-Index', base: 'wartet', q: 11, err: ERR, last: 'vor 2 min · Fehler', next: 'bei Bedarf', trig: 'vom Scan je Datei, vor einer Wiedergabe mit Vorrang', c: { running: 0, queued: 11, planned: 0, failed: 263, done: 1893, cancelled: 4 } },
+  { id: 'sweep', g: 0, name: 'Aufräumen fehlender Titel', base: 'ruht', q: 0, last: 'vor 18 min · OK', next: 'in 42 min · stündlich', trig: 'Zeitplan stündlich und Start des Servers', sch: { on: true, every: 'stündlich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 720, cancelled: 0 } },
+  { id: 'segments', g: 0, name: 'Intro und Abspann erkennen', base: 'ruht', q: 0, last: 'vor 2 h · OK', next: 'bei Bedarf', trig: 'vom Scan je Serienstaffel', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 186, cancelled: 0 } },
+  { id: 'match', g: 1, name: 'Titel zuordnen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'vom Scan, Zuordnung von Hand, Ordner ändern', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 3088, cancelled: 0 } },
+  { id: 'meta', g: 1, name: 'Metadaten auffüllen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'nach der Zuordnung, Listenänderung am Ordner', c: { running: 0, queued: 0, planned: 0, failed: 1, done: 3120, cancelled: 0 } },
+  { id: 'votes', g: 1, name: 'Wertungen nachholen', base: 'ruht', q: 0, last: 'vor 6 h · OK', next: 'bei Bedarf', trig: 'nach jedem vollständigen Scan, solange Titel ohne Wertung warten', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 74, cancelled: 0 } },
+  { id: 'images', g: 1, name: 'Bilder holen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'nach der Zuordnung, Nachholen beim Start', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 2977, cancelled: 0 } },
+  { id: 'apply', g: 1, name: 'Metadaten anwenden', base: 'ruht', q: 0, last: 'vor 2 Tagen · OK', next: 'bei Bedarf', trig: '«Anwenden» auf der Seite Metadaten; reiht Zuordnen, Auffüllen und Bilder je Titel ein', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 4, cancelled: 0 } },
+  { id: 'trailer', g: 1, name: 'Trailer suchen', base: 'ruht', q: 0, last: 'vor 3 min · OK', next: 'bei Bedarf', trig: 'nach der Zuordnung', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 1460, cancelled: 0 } },
+  { id: 'feed', g: 1, name: 'Podcast-Feed abrufen', base: 'ruht', q: 0, last: 'vor 2 min · OK', next: 'bei Bedarf', trig: 'vom Feed-Takt je fälligem Abo, «Aktualisieren» je Podcast, neues Abo', c: { running: 0, queued: 0, planned: 0, failed: 1, done: 2210, cancelled: 0 } },
+  { id: 'podcast', g: 1, name: 'Podcast-Feeds prüfen', base: 'ruht', q: 0, last: 'vor 2 min · OK', next: 'in 3 min · alle 5 min', trig: 'Zeitplan alle 5 min: fällige Abos werden abgerufen', sch: { on: true, every: 'alle 5 Minuten', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 8640, cancelled: 0 } },
+  { id: 'trakt', g: 1, name: 'Spotlight-Liste abrufen', base: 'ruht', q: 0, last: 'vor 5 h · OK', next: 'in 19 h · täglich', trig: 'Zeitplan nach dem Takt der Seite Spotlight, «Jetzt abrufen»', hint: 'Takt und Ein/Aus sind dieselbe Einstellung wie auf der Seite Spotlight.', sch: { on: true, every: 'täglich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 61, cancelled: 0 } },
+  { id: 'dl', g: 2, name: 'Download vorbereiten', base: 'ruht', q: 0, last: 'vor 1 Tag · OK', next: 'bei Bedarf', trig: 'Download eines Profils; der Abgleich alle 10 min reiht Unfertiges nach', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 38, cancelled: 1 } },
+  { id: 'notify', g: 2, name: 'Mitteilung zustellen', base: 'ruht', q: 0, last: 'vor 8 min · OK', next: 'bei Bedarf', trig: 'jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)', c: { running: 0, queued: 0, planned: 0, failed: 0, done: 744, cancelled: 0 } },
+  { id: 'update', g: 3, name: 'Update-Prüfung', base: 'ruht', q: 0, last: 'vor 9 h · OK', next: 'in 15 h · täglich', trig: 'Zeitplan täglich, 60 s nach dem Start, «Jetzt prüfen»', hint: 'Ein/Aus ist dieselbe Einstellung wie die Update-Prüfung unter Integrationen.', sch: { on: true, every: 'täglich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 31, cancelled: 0 } },
+  { id: 'prune', g: 3, name: 'Verlauf aufräumen', base: 'ruht', q: 0, last: 'vor 20 h · OK', next: 'in 4 h · täglich', trig: 'Zeitplan täglich: erledigte Läufe älter als 30 Tage', sch: { on: true, every: 'täglich', win: false, from: '01:00', to: '06:00' }, c: { running: 0, queued: 0, planned: 1, failed: 0, done: 30, cancelled: 0 } },
+];
+const BYID = {};
+JOBS.forEach((j) => { BYID[j.id] = j; });
+const SUBJ = {
+  scan: ['Filme', 'Serien', 'Kinder'],
+  folder: ['/media/Filme/Dune Part Two (2024)', '/media/Serien/Shogun/Season 01', '/media/Kinder/Bluey/Season 03', '/media/Filme/Heat (1995)', '/media/Serien/Andor/Season 01'],
+  probe: ['Dune.Part.Two.2024.2160p.mkv', 'Shogun.S01E04.1080p.mkv', 'Arrival.2016.1080p.mkv', 'Bluey.S03E12.mkv', 'Heat.1995.Remux.mkv'],
+  keyframes: ['The.Expanse.S05E07.2160p.WEB-DL.mkv', 'Andor.S01E03.1080p.WEB.mkv', 'Heat.1995.Remux.mkv', 'Severance.S02E01.mkv', 'Bluey.S03E12.mkv'],
+  sweep: ['Filme', 'Serien', 'Kinder'],
+  segments: ['Shogun · Staffel 1', 'Bluey · Staffel 3', 'The Bear · Staffel 3', 'Andor · Staffel 1', 'Severance · Staffel 2'],
+  match: ['Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'The Bear', 'Paddington 2 (2017)'],
+  meta: ['The Bear · Staffel 3', 'Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'Paddington 2 (2017)'],
+  votes: ['Heat (1995)', 'Der Bestatter', 'Wilder', 'Mein Name ist Eugen (2005)', 'Arrival (2016)'],
+  images: ['Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'The Bear', 'Paddington 2 (2017)'],
+  apply: ['Alle Bibliotheken · Texte und Bilder', 'Kinder · Bilder'],
+  trailer: ['Dune: Part Two (2024)', 'Shogun', 'Arrival (2016)', 'Paddington 2 (2017)', 'The Bear'],
+  feed: ['Zeitblende', 'Echo der Zeit', 'Input', 'Sternstunde Philosophie', 'Wissenschaftsmagazin'],
+  podcast: ['Fällige Abos'],
+  trakt: ['Trending', 'Beliebt'],
+  dl: ['Lea · Bluey S03E12', 'Nino · Paddington 2 (2017)', 'Marco · Shogun S01E04'],
+  notify: ['E-Mail an lea@example.ch', 'Web-Push an Marco', 'Telegram an Sandra', 'E-Mail an fritz@example.ch', 'Web-Push an Lea'],
+  update: ['Release-Manifest'],
+  prune: ['Läufe älter als 30 Tage'],
+};
+const FERR = {
+  keyframes: [ERR, 'ffprobe: /media/Serien/Andor/Season 01/Andor.S01E03.1080p.WEB.mkv: moov atom not found', 'ffprobe: /media/Filme/Heat (1995)/Heat.1995.Remux.mkv: End of file',
+    'ffprobe: /media/Serien/Severance/Season 02/Severance.S02E01.mkv: Invalid data found when processing input', 'ffprobe: /media/Kinder/Bluey/Season 03/Bluey.S03E12.mkv: could not find codec parameters'],
+  meta: ['TMDB: 429 Too Many Requests (The Bear, Staffel 3)'],
+  feed: ['HTTP 404 Not Found: https://feeds.example.ch/zeitblende/podcast.xml'],
+};
+const TIMES = {
+  running: ['seit 14:32', 'seit 14:36'], queued: ['sofort', 'frühestens 15:10', 'frühestens 15:10', 'frühestens 15:25', 'frühestens 15:40'],
+  planned: ['heute 15:10', 'heute 21:00', 'morgen 03:00', 'morgen 06:00', 'morgen 09:00'], failed: ['14:31', '14:30', '14:28', '14:26', '14:25'],
+  done: ['14:02', '13:47', '13:20', '12:58', '12:31'], cancelled: ['gestern 22:10', 'gestern 21:40', '28. Okt.', '27. Okt.', '26. Okt.'],
+};
+const TABS = [['running', 'Laufend'], ['queued', 'Wartend'], ['planned', 'Geplant'], ['failed', 'Fehlgeschlagen'], ['done', 'Erledigt'], ['cancelled', 'Abgebrochen']];
+const RUNNING = [
+  { id: 'r48213', job: 'scan', subj: 'Filme', pct: 52, txt: "1'204 von 2'318", since: '4 min', eta: 'noch ca. 3 min' },
+  { id: 'r48230', job: 'probe', subj: 'Dune.Part.Two.2024.2160p.mkv', pct: 60, txt: '6 von 10', since: '38 s', eta: 'wird berechnet' },
+];
+const FAILALL = [
+  { job: 'keyframes', att: '3 / 3', err: ERR, at: 'heute 14:31' },
+  { job: 'keyframes', att: '3 / 3', err: FERR.keyframes[1], at: 'heute 14:30' },
+  { job: 'keyframes', att: '3 / 3', err: FERR.keyframes[2], at: 'heute 14:28' },
+  { job: 'meta', att: '5 / 5', err: 'TMDB: 429 Too Many Requests (The Bear, Staffel 3)', at: 'heute 14:12' },
+  { job: 'feed', att: '3 / 3', err: FERR.feed[0], at: 'heute 13:55' },
+  { job: 'keyframes', att: '3 / 3', err: FERR.keyframes[3], at: 'heute 13:41' },
+];
+const STATECOL = { 'läuft': COL.ac, 'ruht': COL.tm, 'wartet': COL.ts, 'pausiert': COL.wa };
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const track = (on) => 'display:inline-flex;justify-content:' + (on ? 'flex-end' : 'flex-start') + ';width:36px;height:20px;padding:2px;box-sizing:border-box;border:none;border-radius:10px;cursor:pointer;flex:none;background:' + (on ? COL.ac : COL.s3);
+const knob = (on) => 'width:16px;height:16px;border-radius:8px;background:' + (on ? COL.tp : COL.tm);
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+const warnOf = (id) => (id === 'scan' ? ' Die Bibliothek endet als «abgebrochen»; der nächste Scan holt nach.' : id === 'notify' ? ' Eine abgebrochene Zustellung kommt nicht an.' : id === 'dl' ? ' Die Downloads enden als «fehlgeschlagen» und werden nicht nachgeholt.' : '');
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const scheds = {};
+    JOBS.forEach((j) => { scheds[j.id] = Object.assign({}, j.sch || OFF); });
+    this.state = { help: false, toast: null, toastY: 120, paused: { trailer: true }, menu: null, confirm: null, dlg: null, draft: null, scheds, runTab: {}, sel: 'keyframes', q: '', f: 'Alle', tab: 0, open: { keyframes: true } };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(msg, y) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, toastY: Math.min(y == null ? 120 : y, MAXY.toast), confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  ask(title, text, msg, y) { this.setState({ confirm: { title, text, msg, y: Math.min(y, MAXY.confirm) }, menu: null }); }
+  isPaused(id) { return !!this.state.paused[id]; }
+  stateOf(j) { return this.isPaused(j.id) ? 'pausiert' : j.base; }
+  togglePause(j, y) {
+    const p = Object.assign({}, this.state.paused);
+    const was = !!p[j.id];
+    p[j.id] = !was;
+    this.setState({ paused: p });
+    this.say(was ? j.name + ' fortgesetzt.' : j.name + ' pausiert; laufende Läufe halten an und gehen in die Warteschlange zurück.', y);
+  }
+  runNow(j, y) { this.say(j.name + ': 1 Lauf eingereiht.', y); }
+  cancelQueued(j, y) {
+    if (!j.q) { this.say(j.name + ': nichts abzubrechen.', y); return; }
+    this.ask('Wartende Läufe von ' + j.name + ' abbrechen?', (j.q === 1 ? '1 wartender Lauf wird' : j.q + ' wartende Läufe werden') + ' abgebrochen und nicht nachgeholt.' + warnOf(j.id), j.name + ': ' + j.q + ' Läufe abgebrochen.', y);
+  }
+  cancelAll(j, y) {
+    this.ask('Alle Läufe von ' + j.name + ' abbrechen?', j.q + ' wartende und ' + j.c.running + ' laufende Läufe enden sofort. Abbrechen ist endgültig.' + warnOf(j.id), j.name + ': ' + (j.q + j.c.running) + ' Läufe abgebrochen.', y);
+  }
+  cancelRun(j, subj, y) { this.ask('Lauf von ' + j.name + ' abbrechen?', 'Der Lauf «' + subj + '» endet sofort und wird nicht nachgeholt.' + warnOf(j.id), 'Lauf «' + subj + '» abgebrochen.', y); }
+  retry(subj, y) { this.say('Lauf «' + subj + '» wartet wieder.', y); }
+  setSched(id, patch) { this.setState({ scheds: Object.assign({}, this.state.scheds, { [id]: Object.assign({}, this.state.scheds[id], patch) }) }); }
+  schedVals(j, s, set) {
+    return {
+      id: j.id, onAria: s.on ? 'true' : 'false', onTrack: track(s.on), onKnob: knob(s.on), winAria: s.win ? 'true' : 'false', winTrack: track(s.win), winKnob: knob(s.win),
+      every: s.every, from: s.from, to: s.to, winOff: !s.win, everyOff: !s.on, hasHint: !!j.hint, hint: j.hint || '',
+      toggleOn: () => set({ on: !s.on }), toggleWin: () => set({ win: !s.win }),
+      setEvery: (e) => set({ every: e.target.value }), setFrom: (e) => set({ from: e.target.value }), setTo: (e) => set({ to: e.target.value }),
+    };
+  }
+  runsVals(j, y) {
+    const tab = this.state.runTab[j.id] || (j.c.failed ? 'failed' : j.c.queued ? 'queued' : j.c.running ? 'running' : 'done');
+    const tabs = TABS.map(([k, l]) => ({ label: l, count: fmt(j.c[k]), style: segStyle(k === tab), sel: k === tab ? 'true' : 'false',
+      cstyle: 'font-variant-numeric:tabular-nums;color:' + (k === 'failed' && j.c.failed ? COL.da : COL.tm),
+      pick: () => this.setState({ runTab: Object.assign({}, this.state.runTab, { [j.id]: k }) }) }));
+    const n = j.c[tab];
+    const subj = SUBJ[j.id];
+    const fe = FERR[j.id] || ['–'];
+    const rows = [];
+    for (let i = 0; i < Math.min(n, 5); i++) {
+      const s = subj[i % subj.length];
+      const wait = tab === 'queued' || tab === 'planned';
+      rows.push({
+        subj: s, prio: tab === 'queued' && j.id === 'keyframes' && i === 0 ? '9' : '5', at: TIMES[tab][i % TIMES[tab].length],
+        dur: tab === 'running' ? (j.id === 'scan' ? '4 min' : '38 s') : wait ? '–' : ['2 s', '1 s', '4 s', '1 s', '3 s'][i],
+        att: tab === 'failed' ? (j.id === 'meta' ? '5 / 5' : '3 / 3') : wait ? '0 / 3' : '1 / 3',
+        err: tab === 'failed' ? fe[i % fe.length] : tab === 'done' ? 'OK' : tab === 'cancelled' ? 'abgebrochen von marco@example.ch' : '–',
+        errStyle: tab === 'failed' ? 'color:' + COL.da + ';font-family:' + MONO + ';font-size:12px' : 'color:' + COL.tm,
+        canRetry: tab === 'failed', canCancel: tab === 'running' || wait,
+        retry: () => this.retry(s, y), cancel: () => this.cancelRun(j, s, y),
+      });
+    }
+    return { name: j.name, tabs, rows, hasRows: n > 0, noRows: n === 0, total: n ? fmt(n) + ' insgesamt, die neuesten ' + fmt(Math.min(n, 200)) + ' gezeigt' + (n > 5 ? ' (im Mockup 5)' : '') : '',
+      timeHead: tab === 'queued' || tab === 'planned' ? 'Geplant für' : 'Start' };
+  }
+  jobVals(j, y) {
+    const st = this.stateOf(j);
+    const p = this.isPaused(j.id);
+    return {
+      id: j.id, name: j.name, state: st, dot: dot(STATECOL[st]), q: String(j.q), qText: j.q ? j.q + ' wartend' : '0 wartend',
+      last: j.err ? 'vor 2 min · Fehler: ' + j.err : j.last, lastShort: j.last, lastTitle: j.err || j.last, hasErr: !!j.err, err: j.err || '',
+      lastStyle: j.err ? 'color:' + COL.da : 'color:' + COL.ts, next: p ? 'pausiert' : j.next, trig: j.trig,
+      pauseLabel: p ? 'Fortsetzen' : 'Pausieren', cqLabel: 'Wartende abbrechen (' + j.q + ') …', runLabel: j.name + ' jetzt ausführen', moreLabel: 'Weitere Aktionen für ' + j.name,
+      togglePause: () => this.togglePause(j, y), runNow: () => this.runNow(j, y), cancelQueued: () => this.cancelQueued(j, y), cancelAll: () => this.cancelAll(j, y),
+    };
+  }
+  baseVals() {
+    const paused = JOBS.filter((j) => this.isPaused(j.id));
+    const cf = this.state.confirm;
+    const close = () => this.setState({ confirm: null });
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '',
+      toastStyle: 'position:absolute;right:32px;top:' + this.state.toastY + 'px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', confirmStyle: boxStyle(cf ? cf.y : 120, 440), closeConfirm: close,
+      confirmOk: () => this.say(cf.msg, cf.y),
+      hasPaused: paused.length > 0, pausedTitle: paused.length === 1 ? '1 Job pausiert' : paused.length + ' Jobs pausiert',
+      pausedText: 'Pausierte Jobs starten keine Läufe, bis du sie fortsetzt: ' + paused.map((j) => j.name).join(', ') + '.',
+      pausedList: paused.map((j) => ({ label: j.name + ' fortsetzen', resume: () => this.togglePause(j, Y.banner) })),
+      pausedCount: String(paused.length), pausedStyle: 'font-size:18px;line-height:22px;font-weight:600;font-variant-numeric:tabular-nums;color:' + (paused.length ? COL.wa : COL.tp),
+      pausedNames: paused.length ? paused.map((j) => j.name).join(', ') : 'keiner',
+      running: RUNNING.map((r) => {
+        const j = BYID[r.job];
+        const p = this.isPaused(j.id);
+        return Object.assign({}, r, { name: j.name, stopping: p, pauseLabel: p ? 'Fortsetzen' : 'Pausieren', barLabel: j.name + ': ' + r.pct + ' %',
+          barStyle: 'display:block;height:6px;background:' + COL.ac + ';width:' + r.pct + '%', pauseAria: p ? j.name + ' fortsetzen' : j.name + ' pausieren (hält diesen und alle laufenden Läufe des Jobs an)',
+          togglePause: () => this.togglePause(j, Y.running), cancel: () => this.cancelRun(j, r.subj, Y.running) });
+      }),
+      fails: FAILALL.map((f) => {
+        const j = BYID[f.job];
+        const s = j.name + ' (' + f.at + ')';
+        return Object.assign({}, f, { name: j.name, retry: () => this.retry(s, Y.fails), cancel: () => this.cancelRun(j, s, Y.fails) });
+      }),
+    };
+  }
+
+  renderVals() {
+    const v = this.baseVals();
+    const off = v.hasPaused ? 0 : -64;
+    let idx = 0;
+    v.groups = GROUPS.map((g, gi) => {
+      const jobs = JOBS.filter((j) => j.g === gi).map((j) => {
+        const rowY = 967 + off + (gi + 1) * 33 + idx * 41;
+        const up = idx >= 10;
+        idx += 1;
+        const o = Object.assign(this.jobVals(j, rowY - 40), {});
+        const open = this.state.menu === j.id;
+        o.menuOpen = open; o.menuAria = open ? 'true' : 'false';
+        o.moreStyle = open ? 'background:' + COL.s3 : '';
+        o.menuStyle = 'position:absolute;right:12px;' + (up ? 'bottom:34px' : 'top:34px') + ';z-index:6;width:240px;padding:4px;box-sizing:border-box;background:#1d2029;border:1px solid rgba(255,255,255,0.14);border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.55);text-align:left;white-space:normal';
+        o.toggleMenu = () => this.setState({ menu: open ? null : j.id });
+        o.menuPause = () => { this.setState({ menu: null }); this.togglePause(j, rowY - 40); };
+        o.menuCq = () => this.cancelQueued(j, rowY - 120);
+        o.menuCa = () => this.cancelAll(j, rowY - 120);
+        o.openSched = () => this.setState({ menu: null, dlg: { kind: 'sched', id: j.id, y: Math.min(Math.max(80, rowY - 220), MAXY.sched) }, draft: Object.assign({}, this.state.scheds[j.id]) });
+        o.openRuns = () => this.setState({ menu: null, dlg: { kind: 'runs', id: j.id, y: Math.min(Math.max(80, rowY - 300), MAXY.runs) } });
+        return o;
+      });
+      return { name: g, count: jobs.length + ' Jobarten', jobs };
+    });
+    v.menuAny = !!this.state.menu;
+    v.closeMenu = () => this.setState({ menu: null });
+    const d = this.state.dlg;
+    const dj = d ? BYID[d.id] : JOBS[0];
+    v.closeDlg = () => this.setState({ dlg: null });
+    v.schedOpen = !!d && d.kind === 'sched';
+    v.runsOpen = !!d && d.kind === 'runs';
+    v.schedTitle = 'Zeitplan von ' + dj.name;
+    v.runsTitle = 'Läufe von ' + dj.name;
+    v.schedBox = boxStyle(d ? d.y : 120, 460);
+    v.runsBox = boxStyle(d ? d.y : 120, 880);
+    v.s = this.schedVals(dj, this.state.draft || this.state.scheds[dj.id], (p) => this.setState({ draft: Object.assign({}, this.state.draft, p) }));
+    v.saveSched = () => { this.setSched(dj.id, this.state.draft); this.setState({ dlg: null }); this.say('Zeitplan von ' + dj.name + ' gespeichert.', d ? d.y : 120); };
+    v.rv = this.runsVals(dj, d ? d.y + 120 : 200);
+    return v;
+  }
+}
+</script>
+</body>
+</html>

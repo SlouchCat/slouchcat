@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Geräte · B Liste und Detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px}
+.mut{font-size:12px;color:#9095a3}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.li{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">3<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Geräte</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<sc-if value="{{ hasLive }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9095a3"><span style="{{ liveDot }}"></span>{{ liveText }}</span></sc-if><span style="flex:1"></span></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Browser und Geräte, die sich angemeldet haben, mit dem Fähigkeitsprofil ihres letzten Wiedergabestarts.</p></sc-if></div><div style="margin-top:24px;display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start"><section aria-label="Geräteliste" style="display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;align-self:start"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="ell">Geräte</span></h2><span class="mut">{{ countText }}</span></div>
+<div style="position:relative"><span style="position:absolute;left:9px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Geräte filtern" placeholder="Gerät oder Eigentümer" value="{{ q }}" onChange="{{ setQ }}" style="width:100%;padding-left:32px"></div>
+<div style="display:flex;flex-direction:column;gap:2px;margin:-4px -8px 0"><sc-for list="{{ items }}" as="li" hint-placeholder-count="7"><button type="button" class="li" aria-current="{{ li.cur }}" onClick="{{ li.pick }}" style="{{ li.style }}"><span class="ell" style="flex:1">{{ li.name }}</span>
+<sc-if value="{{ li.live }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#b6b9c4"><span style="{{ li.liveDot }}"></span>{{ li.liveText }}</span></sc-if><sc-if value="{{ li.idle }}" hint-placeholder-val="{{ true }}"><span class="mut">{{ li.type }}</span></sc-if></button></sc-for></div>
+<sc-if value="{{ noMatch }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0 2px">Kein Gerät passt zum Filter.</p></sc-if></section><sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}"><section aria-label="{{ dd.name }}" style="display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span><span class="ell">{{ dd.name }}</span></h2><button type="button" class="b bs dz" aria-label="{{ dd.forgetLabel }}" onClick="{{ dd.forget }}">Vergessen</button></div>
+<dl class="dl" style="grid-template-columns:100px minmax(0,1.6fr) minmax(0,1fr) 80px"><div><dt>Typ</dt><dd>{{ dd.type }}</dd></div><div><dt>Eigentümer</dt><dd class="ell" style="{{ dd.ownerStyle }}">{{ dd.owner }}</dd></div>
+<div><dt>Letzter Kontakt</dt><dd style="font-variant-numeric:tabular-nums">{{ dd.seen }}</dd></div><div><dt>Streams</dt><dd style="font-variant-numeric:tabular-nums">{{ dd.streams }}</dd></div></dl>
+<div><h3 style="margin:0;font-size:14px;font-weight:600">Fähigkeitsprofil</h3><p class="mut" style="margin:2px 0 0">Vom letzten Wiedergabestart. Danach richtet sich, ob der Server direkt abspielt, umpackt oder umrechnet.</p></div>
+<sc-if value="{{ dd.known }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;border-top:1px solid rgba(255,255,255,0.08)">
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:16px;min-height:44px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="color:#b6b9c4">Container</span><span class="row" style="gap:4px;flex-wrap:wrap"><sc-for list="{{ dd.ctList }}" as="x" hint-placeholder-count="3"><span class="c">{{ x.t }}</span></sc-for></span></div><div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:16px;min-height:44px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="color:#b6b9c4">Video</span><span class="row" style="gap:4px;flex-wrap:wrap"><sc-for list="{{ dd.vList }}" as="x" hint-placeholder-count="3"><span class="c">{{ x.t }}</span></sc-for></span></div>
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:16px;min-height:44px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="color:#b6b9c4">Audio</span><span class="row" style="gap:4px;flex-wrap:wrap"><sc-for list="{{ dd.aList }}" as="x" hint-placeholder-count="3"><span class="c">{{ x.t }}</span></sc-for></span></div><div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:16px;min-height:44px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="color:#b6b9c4">Max. Auflösung</span><span class="row"><span style="font-variant-numeric:tabular-nums">{{ dd.res }}</span><span class="c">{{ dd.cls }}</span></span></div>
+<div style="display:grid;grid-template-columns:150px minmax(0,1fr);align-items:center;gap:16px;min-height:44px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="color:#b6b9c4">HDR</span><span class="row">{{ dd.hdr }}<sc-if value="{{ dd.isHdr }}" hint-placeholder-val="{{ true }}"><span class="c ca">HDR</span></sc-if></span></div></div></sc-if>
+<sc-if value="{{ dd.unknown }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:10px 12px;border-radius:8px;background:#0b0c10;font-size:13px;color:#b6b9c4">Noch keine Wiedergabe: das Gerät hat noch kein Fähigkeitsprofil gemeldet.</p></sc-if></section></sc-if><sc-if value="{{ none }}" hint-placeholder-val="{{ false }}"><p role="status" style="margin:0;padding:12px 0;font-size:14px;color:#b6b9c4">Noch keine Geräte.</p></sc-if></div>
+</main>
+</div>
+
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const NOW = '01.11.2026, 15:42';
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const TOAST = 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+const barStyle = (pct) => 'display:block;height:6px;background:' + COL.ac + ';width:' + pct + '%';
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const same = (a, b) => a.toLowerCase().includes(b.trim().toLowerCase());
+// Geräte (GER-1): every browser that signed in, with the capability profile of its last playback start.
+const TYPES = { desktop: 'Computer', phone: 'Telefon', tablet: 'Tablet', tv: 'TV' };
+const TYPE_ORDER = ['tv', 'desktop', 'phone', 'tablet'];
+const DEVICES = [
+  { id: 'd1', name: 'TV Wohnzimmer (Chrome)', type: 'tv', owner: 'marco@example.ch · Marco', seen: '01.11.2026, 15:42', ct: ['mp4', 'webm'], v: ['h264', 'hevc', 'vp9', 'av1'], a: ['aac', 'opus', 'mp3', 'flac'], w: 3840, h: 2160, hdr: true, streams: 1 },
+  { id: 'd2', name: 'iPhone Lea (Safari, App)', type: 'phone', owner: 'lea@example.ch · Lea', seen: '01.11.2026, 15:42', ct: ['mp4', 'mov'], v: ['h264', 'hevc'], a: ['aac', 'ac3', 'eac3', 'flac', 'mp3'], w: 2556, h: 1179, hdr: true, streams: 1 },
+  { id: 'd3', name: 'iPad Nino (Safari)', type: 'tablet', owner: 'lea@example.ch · Nino', seen: '31.10.2026, 19:05', ct: ['mp4', 'mov'], v: ['h264', 'hevc'], a: ['aac', 'ac3', 'eac3', 'mp3'], w: 2360, h: 1640, hdr: false, streams: 0 },
+  { id: 'd4', name: 'MacBook Marco (Firefox)', type: 'desktop', owner: 'marco@example.ch · Marco', seen: '01.11.2026, 15:41', ct: ['mp4', 'webm'], v: ['h264', 'vp9', 'av1'], a: ['aac', 'opus', 'mp3', 'flac'], w: 3024, h: 1964, hdr: false, streams: 0 },
+  { id: 'd5', name: 'Android Sandra (Chrome)', type: 'phone', owner: 'sandra@example.ch · Sandra', seen: '29.10.2026, 21:17', ct: ['mp4', 'webm'], v: ['h264', 'hevc', 'vp9', 'av1'], a: ['aac', 'opus', 'mp3', 'flac'], w: 2400, h: 1080, hdr: true, streams: 0 },
+  { id: 'd6', name: 'Fire TV Kino (Silk)', type: 'tv', owner: 'sandra@example.ch · Sandra', seen: '01.11.2026, 15:42', ct: ['mp4', 'webm'], v: ['h264', 'hevc', 'vp9'], a: ['aac', 'ac3', 'eac3', 'opus'], w: 3840, h: 2160, hdr: true, streams: 1 },
+  { id: 'd7', name: 'Windows-PC Fritz (Edge)', type: 'desktop', owner: null, seen: '12.10.2026, 09:30', ct: null, v: null, a: null, w: 0, h: 0, hdr: undefined, streams: 0 },
+];
+const FORGET_BODY = 'Laufende Streams enden, die Sitzungen des Geräts werden abgemeldet. Ist es das Gerät, das du gerade benutzt, wirst du hier sofort abgemeldet.';
+const UNK = '–';
+const up = (l) => (l && l.length ? l.map((x) => x.toUpperCase()) : null);
+const resClass = (h) => (h >= 2160 ? '4K' : h >= 1080 ? '1080p' : h >= 720 ? '720p' : 'SD');
+function initState() { return { gone: {}, sel: 'd1', tab: 'list' }; }
+const INIT = { sel: 'd1' };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, open: {}, q: '' }, initState(), INIT);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._t);
+    clearInterval(this._iv);
+    Object.keys(this._timers || {}).forEach((k) => clearTimeout(this._timers[k]));
+  }
+  // Toast «(Mockup) …» for 2 s; closes a confirm and a menu.
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic danger confirm: { title, text, ok }; onOk runs on the red button.
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c, menu: null }); }
+  later(key, ms, fn) {
+    this._timers = this._timers || {};
+    clearTimeout(this._timers[key]);
+    this._timers[key] = setTimeout(fn, ms);
+  }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); },
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  tabsOf(list, cur, key) {
+    return list.map(([id, label, count]) => ({ label, count: String(count), sel: id === cur ? 'true' : 'false', style: tabStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  exsOf(list, cur, key) {
+    return list.map(([id, label]) => ({ label, sel: id === cur ? 'true' : 'false', style: segStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: TOAST,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+      menuAny: !!this.state.menu, closeMenu: () => this.setState({ menu: null }),
+      q: this.state.q, setQ: (e) => this.setState({ q: e.target.value }),
+      hasLive: false, liveDot: '', liveText: '',
+      sec: {},
+    };
+  }
+  forget(d) {
+    this.ask({ title: 'Gerät „' + d.name + '“ vergessen?', text: FORGET_BODY, ok: 'Gerät vergessen' }, () => {
+      const gone = Object.assign({}, this.state.gone, { [d.id]: true });
+      const left = DEVICES.filter((x) => !gone[x.id]);
+      this.setState({ gone, sel: this.state.sel === d.id ? (left[0] ? left[0].id : null) : this.state.sel });
+      this.say('Gerät „' + d.name + '“ vergessen.');
+    });
+  }
+  devices() { return DEVICES.filter((d) => !this.state.gone[d.id]); }
+  devVals(d) {
+    const chips = (l) => (up(l) || []).map((t) => ({ t }));
+    const known = !!d.ct;
+    return Object.assign(this.detVals(d.id), {
+      id: d.id, name: d.name, type: TYPES[d.type], owner: d.owner || 'Noch keine Wiedergabe', ownerStyle: 'color:' + (d.owner ? COL.tp : COL.tm),
+      seen: d.seen, streams: String(d.streams), streamsStyle: 'font-variant-numeric:tabular-nums;text-align:right;color:' + (d.streams ? COL.tp : COL.tm),
+      ct: known ? up(d.ct).join(', ') : UNK, video: known ? up(d.v).join(', ') : UNK, audio: known ? up(d.a).join(', ') : UNK,
+      ctList: chips(d.ct), vList: chips(d.v), aList: chips(d.a), known, unknown: !known,
+      res: d.w ? d.w + ' × ' + d.h : UNK, resFull: d.w ? d.w + ' × ' + d.h + ' · ' + resClass(d.h) : UNK, cls: d.h ? resClass(d.h) : UNK,
+      hdr: d.hdr === undefined ? UNK : d.hdr ? 'Ja' : 'Nein', isHdr: !!d.hdr,
+      capsShort: known ? up(d.v).join(', ') : 'noch kein Fähigkeitsprofil',
+      live: d.streams > 0, liveDot: dot(COL.su), liveText: d.streams === 1 ? '1 Stream' : d.streams + ' Streams',
+      forgetLabel: d.name + ' vergessen', forget: () => this.forget(d),
+    });
+  }
+  groupsOf(list) {
+    return TYPE_ORDER.map((t) => {
+      const ds = list.filter((d) => d.type === t);
+      const s = ds.reduce((n, d) => n + d.streams, 0);
+      return Object.assign(this.detVals('g:' + t), { name: TYPES[t], sum: (ds.length === 1 ? '1 Gerät' : ds.length + ' Geräte') + (s ? ' · ' + s + (s === 1 ? ' Stream' : ' Streams') : ''), devs: ds.map((d) => this.devVals(d)), has: ds.length > 0 });
+    }).filter((g) => g.has);
+  }
+  gerVals() {
+    const v = this.baseVals();
+    const list = this.devices();
+    v.devs = list.map((d) => this.devVals(d));
+    v.none = list.length === 0; v.some = !v.none;
+    const s = list.reduce((n, d) => n + d.streams, 0);
+    v.countText = list.length + ' Geräte · ' + s + (s === 1 ? ' Stream' : ' Streams');
+    v.sec.list = this.detVals('s_list');
+    return v;
+  }
+  renderVals() {
+    const v = this.gerVals();
+    const q = this.state.q.trim();
+    const shown = v.devs.filter((d) => !q || same(d.name + ' ' + d.owner, q));
+    v.items = shown.map((d) => Object.assign({}, d, { idle: !d.live, cur: this.state.sel === d.id ? 'true' : 'false', style: this.state.sel === d.id ? navOn : '', pick: () => this.setState({ sel: d.id }) }));
+    v.noMatch = v.some && shown.length === 0;
+    v.dd = v.devs.find((d) => d.id === this.state.sel) || v.devs[0] || this.devVals(DEVICES[0]);
+    v.hasSel = v.some;
+    return v;
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Integrationen · A Kompakte Liste</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;text-align:right}
+.li{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.sr7{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;align-items:center;min-height:56px;padding:8px 0;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,0.08)}
+.hl{font-size:12px;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl{display:flex;flex-direction:column;gap:4px;min-width:0}.fl>label,.fl>span.lb{font-size:13px;color:#b6b9c4}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:13px}
+.rg{display:inline-flex;align-items:center;gap:6px;height:24px;font-size:14px}
+.fr{display:flex;gap:8px;align-items:center}.col{display:flex;flex-direction:column;gap:12px}
+.pt{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:32px}.h2{margin:0;font-size:15px;font-weight:600}.it{margin:0;font-size:13px;color:#b6b9c4}
+.sm{display:flex;align-items:center;gap:10px;height:44px;padding:0 16px}.db{display:flex;flex-direction:column;gap:12px;padding:4px 16px 16px}
+.rs{font-size:13px;color:#b6b9c4;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Integrationen</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<span style="font-size:12px;color:#9095a3">{{ setupText }}</span></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Schlüssel der Anbieter, Versand von Benachrichtigungen und die Update-Prüfung. Geheime Werte speichert Slouchcat verschlüsselt und zeigt sie nie wieder an.</p></sc-if></div>
+<section aria-label="Schlüssel der Anbieter" style="margin-top:20px;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:16px;font-weight:600"><button type="button" aria-expanded="{{ sec.s_keys.expAria }}" onClick="{{ sec.s_keys.toggle }}" style="display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer"><span style="{{ sec.s_keys.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3"/></svg></span>Schlüssel der Anbieter</button></h2><span style="font-size:12px;color:#9095a3">{{ keysText }}</span></div><sc-if value="{{ sec.s_keys.open }}" hint-placeholder-val="{{ true }}"><div style="padding-top:4px">
+<sc-for list="{{ keys }}" as="k" hint-placeholder-count="7"><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="{{ k.fid }}">{{ k.name }}</label><span class="{{ k.chipCls }}">{{ k.chip }}</span><sc-if value="{{ k.dirty }}" hint-placeholder-val="{{ false }}"><span class="c cw">ungespeichert</span></sc-if></div><div class="hl">{{ k.help }}<sc-if value="{{ k.isTrakt }}" hint-placeholder-val="{{ false }}"> <a href="#" onClick="{{ k.toSpot }}">Stand der Trakt-Listen</a></sc-if></div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in mono" id="{{ k.fid }}" type="password" aria-label="{{ k.label }}" value="{{ k.val }}" onChange="{{ k.setVal }}" placeholder="{{ k.ph }}" disabled="{{ k.env }}" style="flex:1">
+<sc-if value="{{ k.editable }}" hint-placeholder-val="{{ true }}"><button type="button" class="b " aria-label="{{ k.saveLabel }}" onClick="{{ k.save }}">Speichern</button></sc-if>
+<sc-if value="{{ k.stored }}" hint-placeholder-val="{{ true }}"><button type="button" class="b dz" aria-label="{{ k.clearLabel }}" onClick="{{ k.clear }}">Löschen …</button></sc-if></div></div></sc-for></div></sc-if></section>
+<section aria-label="Webhooks" style="margin-top:20px;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:16px;font-weight:600"><button type="button" aria-expanded="{{ sec.s_hooks.expAria }}" onClick="{{ sec.s_hooks.toggle }}" style="display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer"><span style="{{ sec.s_hooks.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg></span>Webhooks von Radarr und Sonarr</button></h2><span style="font-size:12px;color:#9095a3">{{ hooksText }}</span></div><sc-if value="{{ sec.s_hooks.open }}" hint-placeholder-val="{{ true }}"><div style="padding-top:4px">
+<div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="nw-name">Neue Integration</label></div><div class="hl">Radarr und Sonarr melden geänderte Dateien hierher. Der Name ist frei wählbar, nur zur Unterscheidung.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in" id="nw-name" aria-label="Name" placeholder="Name, z. B. Sonarr Kinder" value="{{ nw.name }}" onChange="{{ nw.setName }}" style="flex:1">
+<select class="in" id="nw-kind" aria-label="Dienst" value="{{ nw.kind }}" onChange="{{ nw.setKind }}" style="width:120px"><option>Radarr</option><option>Sonarr</option></select>
+<button type="button" class="b bp" onClick="{{ nw.create }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Integration anlegen</button></div></div><sc-if value="{{ cr.on }}" hint-placeholder-val="{{ false }}"><section aria-label="{{ cr.title }}" style="margin:12px 0;display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-radius:8px;background:color-mix(in srgb, #5fcf8f 10%, transparent);border:1px solid color-mix(in srgb, #5fcf8f 30%, transparent)">
+<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px"><h3 style="margin:0;font-size:13px;font-weight:600">{{ cr.title }}</h3><span style="font-size:12px;color:#e8b65a">Jetzt kopieren — danach ist die Adresse nicht mehr sichtbar.</span></div>
+<div style="display:flex;gap:8px"><input class="in mono" readonly aria-label="Vollständige Adresse" value="{{ cr.url }}" style="flex:1;font-size:12px"><button type="button" class="b bs bp" onClick="{{ cr.copy }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Adresse kopieren</button><button type="button" class="b bs" onClick="{{ cr.dismiss }}">Ausblenden</button></div></section></sc-if>
+<div role="table" aria-label="Integrationen"><div role="row" class="tr th" style="grid-template-columns:300px 110px 100px minmax(0,1fr) 290px"><span role="columnheader">Name</span><span role="columnheader">Dienst</span><span role="columnheader">Adresse</span><span role="columnheader">Letzte Meldung</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ hooks }}" as="h" hint-placeholder-count="3"><div role="row" class="tr" style="grid-template-columns:300px 110px 100px minmax(0,1fr) 290px">
+<div role="cell"><span style="display:flex;align-items:center;gap:8px"><button type="button" class="b bs bi bg" aria-expanded="{{ h.expAria }}" aria-label="{{ h.expLabel }}" onClick="{{ h.toggle }}"><span style="{{ h.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span></button><span style="{{ h.nameStyle }}">{{ h.name }}</span></span></div>
+<div role="cell"><span class="c">{{ h.kind }}</span></div><div role="cell" class="mono" style="color:#b6b9c4">{{ h.tail }}</div><div role="cell" style="{{ h.seenStyle }}">{{ h.seenShort }}</div>
+<div role="cell" class="ov"><span style="display:inline-flex;gap:6px"><button type="button" class="b bs" aria-label="{{ h.renewLabel }}" onClick="{{ h.renew }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>Token erneuern …</button><button type="button" class="b bs dz" aria-label="{{ h.delLabel }}" onClick="{{ h.del }}">Löschen …</button></span></div></div>
+<sc-if value="{{ h.open }}" hint-placeholder-val="{{ true }}"><div role="row" style="padding:12px 16px 16px 48px;background:#16181f;border-bottom:1px solid rgba(255,255,255,0.08)"><div role="cell" style="display:flex;flex-direction:column;gap:16px"><div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+<div style="display:flex;align-items:center;gap:8px;min-height:24px"><h3 style="margin:0;font-size:13px;font-weight:600;color:#b6b9c4;flex:none">Pfad-Umsetzung</h3><span title="Setzt den Pfad um, den Radarr oder Sonarr meldet. Nötig, sobald derselbe Speicher auf beiden Seiten anders hängt. Der längste passende Anfang gewinnt; ohne Eintrag gilt der gemeldete Pfad unverändert. Beide Pfade müssen absolut sein und mit «/» beginnen." class="hl" style="flex:1">Pfad im Dienst → Pfad auf diesem Server; der längste passende Anfang gewinnt</span><sc-if value="{{ h.dirty }}" hint-placeholder-val="{{ false }}"><span class="c cw">ungespeichert</span></sc-if></div>
+<sc-if value="{{ h.elsewhere }}" hint-placeholder-val="{{ true }}"><div role="status" style="display:flex;align-items:center;gap:12px;padding:6px 6px 6px 12px;border-radius:8px;background:color-mix(in srgb, #e8b65a 10%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent)"><span style="flex:1;font-size:12px;color:#b6b9c4">Ein anderer Zugang hat die Pfad-Umsetzung dieser Integration inzwischen geändert. Deine Zeilen stehen noch hier und werden beim Speichern übernommen.</span><button type="button" class="b bs" onClick="{{ h.takeOver }}">Andere Fassung übernehmen</button></div></sc-if>
+<sc-for list="{{ h.maps }}" as="m" hint-placeholder-count="2"><div style="display:grid;grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) auto;gap:8px;align-items:center">
+<input class="in mono" id="{{ m.fidF }}" aria-label="Pfad im Dienst" placeholder="/mnt/medien/Filme" value="{{ m.from }}" onChange="{{ m.setFrom }}"><span style="display:flex;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+<input class="in mono" id="{{ m.fidT }}" aria-label="Pfad auf diesem Server" placeholder="/media/Filme" value="{{ m.to }}" onChange="{{ m.setTo }}"><button type="button" class="b bs bg" aria-label="{{ m.removeLabel }}" onClick="{{ m.remove }}">Entfernen</button></div></sc-for>
+<sc-if value="{{ h.noMaps }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:12px;color:#9095a3">Keine Zeile: der gemeldete Pfad gilt unverändert.</p></sc-if>
+<div style="display:flex;gap:8px"><button type="button" class="b bs" onClick="{{ h.addRow }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Zeile hinzufügen</button><span style="flex:1"></span><button type="button" class="b bs bp" aria-label="{{ h.saveLabel }}" onClick="{{ h.saveMaps }}">Speichern</button></div></div><div style="display:flex;flex-direction:column;gap:8px;min-width:0"><div style="display:flex;align-items:center;justify-content:space-between;min-height:24px"><h3 style="margin:0;font-size:13px;font-weight:600;color:#b6b9c4">{{ h.logCaption }}</h3><span style="font-size:12px;color:#9095a3">die neuesten 20</span></div>
+<sc-if value="{{ h.hasLog }}" hint-placeholder-val="{{ true }}"><div role="table" aria-label="{{ h.logCaption }}"><div role="row" class="tr th" style="grid-template-columns:64px 104px minmax(0,1fr) minmax(0,1fr) 210px"><span role="columnheader">Zeit</span><span role="columnheader">Ereignis</span><span role="columnheader">Gemeldeter Pfad</span><span role="columnheader">Umgesetzter Pfad</span><span role="columnheader">Ergebnis</span></div>
+<sc-for list="{{ h.log }}" as="e" hint-placeholder-count="5"><div role="row" class="tr" style="grid-template-columns:64px 104px minmax(0,1fr) minmax(0,1fr) 210px"><div role="rowheader">{{ e.at }}</div><div role="cell">{{ e.ev }}</div><div role="cell" title="{{ e.rep }}" class="mono" style="font-size:12px;color:#b6b9c4">{{ e.rep }}</div><div role="cell" title="{{ e.res }}" class="mono" style="font-size:12px;color:#b6b9c4">{{ e.res }}</div><div role="cell"><span class="{{ e.chipCls }}">{{ e.chip }}</span></div></div></sc-for></div></sc-if>
+<sc-if value="{{ h.noLog }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:13px;color:#9095a3">Noch keine Meldungen.</p></sc-if></div></div></div></sc-if></sc-for></div>
+<sc-if value="{{ noHooks }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:12px 0;font-size:13px;color:#9095a3">Noch keine Integration eingerichtet.</p></sc-if></div></sc-if></section>
+<section aria-label="E-Mail-Server" style="margin-top:20px;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:16px;font-weight:600"><button type="button" aria-expanded="{{ sec.s_mail.expAria }}" onClick="{{ sec.s_mail.toggle }}" style="display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer"><span style="{{ sec.s_mail.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></span>E-Mail-Server</button></h2><span class="{{ mail.chipCls }}">{{ mail.chip }}</span></div><sc-if value="{{ sec.s_mail.open }}" hint-placeholder-val="{{ true }}"><div style="padding-top:4px">
+<div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="m-host">Server und Port</label></div><div class="hl">Für Benachrichtigungen, Einladungen und Ankündigungen per E-Mail.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in" id="m-host" value="{{ mail.host }}" onChange="{{ mail.setHost }}" style="flex:1"><input class="in" id="m-port" aria-label="Port" inputmode="numeric" value="{{ mail.port }}" onChange="{{ mail.setPort }}" style="width:88px"></div></div><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="m-user">Benutzer</label></div><div class="hl">Anmeldename am E-Mail-Server, falls nötig.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in" id="m-user" value="{{ mail.user }}" onChange="{{ mail.setUser }}" style="flex:1"></div></div><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="m-pw">Passwort</label></div><div class="hl"><span id="m-pwh">{{ mail.pwHint }}</span></div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in" id="m-pw" type="password" aria-describedby="m-pwh" value="{{ mail.pw }}" onChange="{{ mail.setPw }}" style="flex:1"></div></div><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="m-from">Absender</label></div><div class="hl">Zum Beispiel Slouchcat &lt;media@example.ch&gt;.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in" id="m-from" value="{{ mail.from }}" onChange="{{ mail.setFrom }}" style="flex:1"></div></div><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><span>Verschlüsselung</span></div><div class="hl">STARTTLS für Port 587, TLS für Port 465.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><fieldset style="border:none;margin:0;padding:0;min-width:0"><legend class="sr">Verschlüsselung</legend><div style="display:flex;gap:16px;flex-wrap:wrap">
+<sc-for list="{{ mail.tls }}" as="t" hint-placeholder-count="3"><label class="rg"><input type="radio" name="mail-tls" id="{{ t.id }}" checked="{{ t.on }}" onChange="{{ t.pick }}" style="accent-color:#e8794a;margin:0">{{ t.label }}</label></sc-for></div></fieldset></div></div><div style="display:flex;align-items:center;gap:8px;height:56px;border-bottom:1px solid rgba(255,255,255,0.08)"><span style="font-size:12px;color:#9095a3">Die Testmail geht an marco@example.ch.</span><sc-if value="{{ mail.canTest }}" hint-placeholder-val="{{ true }}"><button type="button" class="b " onClick="{{ mail.test }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>Testmail senden</button></sc-if><span style="flex:1"></span>
+<sc-if value="{{ mail.stored }}" hint-placeholder-val="{{ true }}"><button type="button" class="b  dz" aria-label="E-Mail-Server löschen" onClick="{{ mail.clear }}">Löschen …</button></sc-if><button type="button" class="b  bp" onClick="{{ mail.save }}">Speichern</button></div></div></sc-if></section>
+<section aria-label="Telegram-Bot" style="margin-top:20px;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:16px;font-weight:600"><button type="button" aria-expanded="{{ sec.s_tg.expAria }}" onClick="{{ sec.s_tg.toggle }}" style="display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer"><span style="{{ sec.s_tg.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></span>Telegram-Bot</button></h2><span class="{{ tg.chipCls }}">{{ tg.chip }}</span></div><sc-if value="{{ sec.s_tg.open }}" hint-placeholder-val="{{ true }}"><div style="padding-top:4px">
+<div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><span>Bot</span></div><div class="hl">Gefunden über das gespeicherte Token.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><sc-if value="{{ tg.hasBot }}" hint-placeholder-val="{{ true }}"><span>{{ tg.bot }}</span></sc-if><sc-if value="{{ tg.noBot }}" hint-placeholder-val="{{ false }}"><span style="color:#9095a3">Kein Bot eingerichtet.</span></sc-if></div></div><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="tg-tok">Bot-Token</label></div><div class="hl">Von @BotFather. Ein neues Token ersetzt das gespeicherte. Slouchcat prüft es bei Telegram.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in mono" id="tg-tok" type="password" placeholder="Neues Token von @BotFather eingeben" value="{{ tg.tok }}" onChange="{{ tg.setTok }}" style="flex:1"><button type="button" class="b  " onClick="{{ tg.save }}">Speichern</button><sc-if value="{{ tg.stored }}" hint-placeholder-val="{{ true }}"><button type="button" class="b  dz" aria-label="Telegram-Bot löschen" onClick="{{ tg.clear }}">Löschen …</button></sc-if></div></div></div></sc-if></section>
+<section aria-label="Web-Push" style="margin-top:20px;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:16px;font-weight:600"><button type="button" aria-expanded="{{ sec.s_push.expAria }}" onClick="{{ sec.s_push.toggle }}" style="display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer"><span style="{{ sec.s_push.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>Web-Push</button></h2></div><sc-if value="{{ sec.s_push.open }}" hint-placeholder-val="{{ true }}"><div style="padding-top:4px">
+<div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><span>Zustand</span></div><div class="hl">Benachrichtigungen im Browser und in der installierten App.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px"><span class="d" style="background:#5fcf8f"></span>Schlüsselpaar vorhanden.</span></div></div><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="push-key">Öffentlicher Schlüssel</label></div><div class="hl">Neue Schlüssel: alle Geräte müssen Web-Push neu aktivieren.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in mono" id="push-key" readonly aria-label="Öffentlicher Schlüssel" value="{{ push.key }}" style="flex:1;font-size:12px"><button type="button" class="b dz" onClick="{{ push.rotate }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>Schlüssel neu erzeugen …</button></div></div></div></sc-if></section>
+<section aria-label="Server" style="margin-top:20px;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:16px;font-weight:600"><button type="button" aria-expanded="{{ sec.s_srv.expAria }}" onClick="{{ sec.s_srv.toggle }}" style="display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer"><span style="{{ sec.s_srv.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg></span>Server</button></h2></div><sc-if value="{{ sec.s_srv.open }}" hint-placeholder-val="{{ true }}"><div style="padding-top:4px">
+<div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><span>Update-Prüfung</span></div><div class="hl">Slouchcat liest einmal täglich das öffentliche Release-Manifest und zeigt einen Hinweis bei einer neuen Version. Installiert wird nichts.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><label style="display:inline-flex;align-items:center;gap:8px"><input type="checkbox" id="upd" checked="{{ upd.on }}" onChange="{{ upd.toggle }}" style="accent-color:#e8794a;margin:0;width:16px;height:16px">Täglich nach neuen Versionen suchen</label></div></div><div class="sr7"><div style="min-width:0"><div style="display:flex;align-items:center;gap:8px;font-weight:500"><label for="pub">Öffentliche Adresse</label><span class="{{ pub.chipCls }}">{{ pub.chip }}</span></div><div class="hl">Unter dieser Adresse führen die Links in E-Mails und Nachrichten zum Server.</div></div><div style="display:flex;align-items:center;gap:8px;min-width:0"><input class="in mono" id="pub" type="url" placeholder="Zum Beispiel https://media.example.ch" value="{{ pub.val }}" onChange="{{ pub.setVal }}" style="flex:1"><button type="button" class="b  " onClick="{{ pub.save }}">Speichern</button><sc-if value="{{ pub.stored }}" hint-placeholder-val="{{ true }}"><button type="button" class="b  dz" aria-label="Öffentliche Adresse löschen" onClick="{{ pub.clear }}">Löschen …</button></sc-if></div></div></div></sc-if></section>
+</main>
+</div>
+
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2520}}'>
+const INIT = { open: { h1: true, s_keys: true, s_hooks: true, s_mail: true, s_tg: true, s_push: true, s_srv: true } };
+const MAXY = { toast: 2180, confirm: 2040 };
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s2: '#1d2029', s3: '#262a35' };
+const ME = 'marco@example.ch';
+const BASE = 'https://media.example.ch/api/webhooks/arr/';
+const TOKENS = ['77c0f1e9b25a4d0c8e6b3a1f9d27c4e8', '3e9a6c1f0b7d4a25e8c3f61d9b0a7e52', 'b14d8e2a6f9c4073d5a1e8b6c2f09d3a', '9f2c7e04a1b6d38e5c0a7f9b2d4e61c7'];
+const PUBKEYS = ['BOrX4kz9Qy1m2vT7cW8eJpH3sN6aLd0fGq5uYbVxKiMw-Zr2EoUtCnS4hPj8gRl1', 'BJ7nQe2Wd5Lr0sKx9Tg3ZcVb6Hm1Yp8Fa4Ue7Ni2Ok5Ry0Ql3Xs9Dv6Cj1Gw8Pt4Bh'];
+const KEYS = [
+  { id: 'tmdb', name: 'TMDB-Token', label: 'TMDB-Lesezugriffs-Token', help: 'Beschreibungen, Poster und Altersfreigaben von themoviedb.org.', src: 'env', tail: '' },
+  { id: 'tvdb', name: 'TVDB-Schlüssel', label: 'TVDB-API-Schlüssel', help: 'Optionale zweite Quelle für Serien.', src: 'none', tail: '' },
+  { id: 'tvdbPin', name: 'TVDB-PIN', label: 'TVDB-Abonnenten-PIN', help: 'Nur für ein TVDB-Abonnement mit PIN.', src: 'none', tail: '' },
+  { id: 'youtube', name: 'YouTube-Schlüssel', label: 'YouTube-API-Schlüssel', help: 'Sucht Trailer, wenn TMDB keinen kennt.', src: 'none', tail: '' },
+  { id: 'fanart', name: 'Fanart.tv-Schlüssel', label: 'Fanart.tv-Projektschlüssel', help: 'Logos und Poster in hoher Güte als letzte Bildquelle; neue Bilder nach 7 Tagen.', src: 'stored', tail: '2b7d' },
+  { id: 'fanartClient', name: 'Persönlicher Fanart.tv-Schlüssel', label: 'Persönlicher Fanart.tv-Schlüssel', help: 'Optional: neue Bilder schon nach 2 Tagen statt nach 7.', src: 'none', tail: '' },
+  { id: 'trakt', name: 'Trakt-Client-ID', label: 'Trakt-Client-ID', help: 'Für die Reihen «Trending» und «Beliebt» der Startseite.', src: 'stored', tail: 'e41a' },
+];
+const SRC = { env: 'In deploy/.env gesetzt', stored: 'Gespeichert', none: 'Nicht gesetzt' };
+const SRCCLS = { env: 'c ca', stored: 'c cs', none: 'c' };
+const RES = { scan_queued: ['Ordner wird gelesen', 'c cs'], acknowledged: ['Test quittiert', 'c ca'], ignored: ['Ohne Wirkung', 'c'], outside_roots: ['Ausserhalb der Bibliotheken', 'c cw'], invalid_payload: ['Ohne Pfad', 'c cw'] };
+const TLS = [['starttls', 'STARTTLS'], ['tls', 'TLS'], ['none', 'Keine']];
+const CLEARBODY = 'Der gespeicherte Wert wird entfernt. Was ihn braucht, funktioniert danach nicht mehr.';
+const HOOKS = [
+  { id: 'h1', name: 'Radarr Wohnzimmer', kind: 'Radarr', tail: 'a9f3', seen: 'heute 14:02 (vor 14 min)',
+    maps: [{ from: '/mnt/medien/Filme', to: '/media/Filme' }, { from: '/mnt/medien/Kinderfilme', to: '/media/Kinder' }],
+    other: [{ from: '/mnt/medien/Filme', to: '/media/Filme' }, { from: '/mnt/medien/Kinderfilme', to: '/media/Kinder' }, { from: '/mnt/medien/Dokus', to: '/media/Dokus' }],
+    log: [['14:02', 'Download', '/mnt/medien/Filme/Dune Part Two (2024)', '/media/Filme/Dune Part Two (2024)', 'scan_queued'],
+      ['13:47', 'Rename', '/mnt/medien/Filme/Heat (1995)', '/media/Filme/Heat (1995)', 'scan_queued'],
+      ['11:20', 'Test', '–', '–', 'acknowledged'],
+      ['09:05', 'Download', '/downloads/complete/Oppenheimer (2023)', '–', 'outside_roots'],
+      ['08:41', 'Grab', '–', '–', 'ignored']] },
+  { id: 'h2', name: 'Sonarr', kind: 'Sonarr', tail: '41bd', seen: 'heute 12:18 (vor 2 h)', maps: [{ from: '/data/tv', to: '/media/Serien' }], other: null,
+    log: [['12:18', 'Download', '/data/tv/Shogun/Season 01', '/media/Serien/Shogun/Season 01', 'scan_queued'],
+      ['10:02', 'Rename', '/data/tv/The Bear/Season 03', '/media/Serien/The Bear/Season 03', 'scan_queued'],
+      ['gestern', 'SeriesDelete', '–', '–', 'invalid_payload'],
+      ['gestern', 'Test', '–', '–', 'acknowledged']] },
+  { id: 'h3', name: 'Sonarr Kinder', kind: 'Sonarr', tail: '1c09', seen: '', maps: [], other: null, log: [] },
+];
+const MAIL = { host: 'smtp.mail.ch', port: '587', user: 'media@example.ch', from: 'Slouchcat <media@example.ch>', tls: 'starttls', src: 'stored' };
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const chipOf = (src, tail) => (src === 'stored' && tail ? 'Gespeichert, endet auf ' + tail : SRC[src]);
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const keys = {};
+    KEYS.forEach((k) => { keys[k.id] = { src: k.src, tail: k.tail }; });
+    const hooks = HOOKS.map((h) => Object.assign(clone(h), { saved: clone(h.maps) }));
+    this.state = Object.assign({ help: false, toast: null, toastY: 120, confirm: null, keys, kv: {}, hooks, created: null, tok: 0, nw: { name: '', kind: 'Radarr' },
+      mail: clone(MAIL), mailPw: '', tg: { src: 'stored', bot: 'slouchcat_bot' }, tgTok: '', pushN: 0, upd: false, pub: 'stored', pubVal: 'https://media.example.ch', sel: 'h1', q: '', tab: 1, open: {} }, INIT);
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(msg, y) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, toastY: Math.min(y == null ? 120 : y, MAXY.toast), confirm: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // run() changes the state and returns the toast text.
+  ask(title, text, ok, run, y) { this.setState({ confirm: { title, text, ok, run, y: Math.min(y == null ? 120 : y, MAXY.confirm) } }); }
+  patch(key, p) { this.setState({ [key]: Object.assign({}, this.state[key], p) }); }
+  setHook(id, p) { this.setState({ hooks: this.state.hooks.map((h) => (h.id === id ? Object.assign({}, h, p) : h)) }); }
+  token() { return TOKENS[this.state.tok % TOKENS.length]; }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Native <details>: follow the browser's toggle without fighting it.
+  onToggle(id) {
+    return (e) => { const t = e && e.currentTarget; if (!t) return; const now = !!t.open; if (now !== !!this.state.open[id]) this.patch('open', { [id]: now }); };
+  }
+  // One collapsible (A: row details, C: <details>): open flag, chevron, row style.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), nameStyle: 'font-weight:' + (o ? 600 : 500), toggle: () => this.toggleOpen(id), onToggle: this.onToggle(id),
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  keyVals(k, y) {
+    const s = this.state.keys[k.id];
+    const val = this.state.kv[k.id] || '';
+    const env = s.src === 'env';
+    return {
+      id: k.id, fid: 'k-' + k.id, name: k.name, label: k.label, help: k.help, isTrakt: k.id === 'trakt', chip: chipOf(s.src, s.tail), chipCls: SRCCLS[s.src],
+      dirty: !!val, val, env, editable: !env, stored: s.src === 'stored', set: s.src !== 'none', saveLabel: k.name + ' speichern', clearLabel: k.name + ' löschen',
+      ph: env ? 'In deploy/.env gesetzt. Ändern lässt sich der Wert nur dort.' : s.src === 'stored' ? 'Leer lassen, um den gespeicherten Wert zu behalten' : 'Wert eingeben',
+      setVal: (e) => this.patch('kv', { [k.id]: e.target.value }),
+      save: () => {
+        const v = val.trim();
+        if (!v) { this.say(k.name + ': Pflichtfeld.', y); return; }
+        this.setState({ keys: Object.assign({}, this.state.keys, { [k.id]: { src: 'stored', tail: v.slice(-4) } }), kv: Object.assign({}, this.state.kv, { [k.id]: '' }) });
+        this.say(k.name + ' gespeichert.', y);
+      },
+      clear: () => this.ask(k.name + ' löschen?', CLEARBODY, 'Löschen', () => {
+        this.setState({ keys: Object.assign({}, this.state.keys, { [k.id]: { src: 'none', tail: '' } }) });
+        return k.name + ' gelöscht.';
+      }, y),
+      toSpot: (e) => { stop(e); this.say('Öffnet die Seite Spotlight.', y); },
+    };
+  }
+  hookVals(h, y) {
+    const set = (p) => this.setHook(h.id, p);
+    const rows = (fn) => set({ maps: fn(h.maps) });
+    const maps = h.maps.map((m, i) => ({
+      from: m.from, to: m.to, fidF: h.id + '-f' + i, fidT: h.id + '-t' + i, removeLabel: 'Zeile für ' + (m.from || 'eine leere Zeile') + ' entfernen',
+      setFrom: (e) => rows((a) => a.map((x, j) => (j === i ? { from: e.target.value, to: x.to } : x))),
+      setTo: (e) => rows((a) => a.map((x, j) => (j === i ? { from: x.from, to: e.target.value } : x))),
+      remove: () => rows((a) => a.filter((x, j) => j !== i)),
+    }));
+    const log = h.log.map((r) => ({ at: r[0], ev: r[1], rep: r[2], res: r[3], chip: RES[r[4]][0], chipCls: RES[r[4]][1] }));
+    return Object.assign(this.detVals(h.id), {
+      id: h.id, name: h.name, kind: h.kind, tail: '…' + h.tail, tailText: 'Adresse endet auf …' + h.tail,
+      seen: h.seen ? 'Letzte Meldung: ' + h.seen : 'Hat noch nie etwas gemeldet.', seenShort: h.seen || 'Hat noch nie etwas gemeldet.', ago: h.seen ? h.seen.replace(/^.*\((.*)\)$/, '$1') : 'noch nie', seenStyle: 'color:' + (h.seen ? COL.ts : COL.tm),
+      statDot: dot(h.seen ? COL.su : COL.tm), stat: h.seen ? 'meldet' : 'noch still',
+      maps, noMaps: !maps.length, elsewhere: !!h.other, dirty: JSON.stringify(h.maps) !== JSON.stringify(h.saved),
+      takeOver: () => set({ maps: clone(h.other), saved: clone(h.other), other: null }),
+      addRow: () => rows((a) => a.concat([{ from: '', to: '' }])),
+      saveMaps: () => {
+        const clean = h.maps.map((m) => ({ from: m.from.trim(), to: m.to.trim() }));
+        if (clean.some((m) => m.from[0] !== '/' || m.to[0] !== '/')) { this.say('Gib einen absoluten Pfad an, er beginnt mit /.', y); return; }
+        set({ maps: clean, saved: clone(clean), other: null });
+        this.say('Pfad-Umsetzung gespeichert.', y);
+      },
+      log, hasLog: log.length > 0, noLog: !log.length, logCaption: 'Meldungen von ' + h.name,
+      renewLabel: 'Token von ' + h.name + ' erneuern', delLabel: h.name + ' löschen', saveLabel: 'Pfad-Umsetzung von ' + h.name + ' speichern',
+      expLabel: 'Details zu ' + h.name,
+      renew: () => this.ask('Token von «' + h.name + '» erneuern?', 'Die bisherige Adresse hört sofort auf zu arbeiten. Die neue wird einmal angezeigt und muss in Radarr oder Sonarr neu eingetragen werden.', 'Erneuern', () => {
+        const t = this.token();
+        this.setState({ hooks: this.state.hooks.map((x) => (x.id === h.id ? Object.assign({}, x, { tail: t.slice(-4) }) : x)), created: { id: h.id, name: h.name, url: BASE + t }, tok: this.state.tok + 1 });
+        return 'Token von «' + h.name + '» erneuert.';
+      }, y),
+      del: () => this.ask('«' + h.name + '» löschen?', 'Die Adresse hört sofort auf zu arbeiten, und das Meldungsprotokoll verschwindet mit.', 'Löschen', () => {
+        const rest = this.state.hooks.filter((x) => x.id !== h.id);
+        const cr = this.state.created;
+        this.setState({ hooks: rest, created: cr && cr.id === h.id ? null : cr, sel: this.state.sel === h.id ? (rest[0] ? rest[0].id : 'new') : this.state.sel });
+        return '«' + h.name + '» gelöscht.';
+      }, y),
+    });
+  }
+  newVals(y) {
+    const nw = this.state.nw;
+    return {
+      name: nw.name, kind: nw.kind, setName: (e) => this.patch('nw', { name: e.target.value }), setKind: (e) => this.patch('nw', { kind: e.target.value }),
+      create: () => {
+        const name = nw.name.trim();
+        if (!name) { this.say('Name: Pflichtfeld.', y); return; }
+        const t = this.token();
+        const id = 'n' + this.state.tok;
+        const h = { id, name, kind: nw.kind, tail: t.slice(-4), seen: '', maps: [], saved: [], other: null, log: [] };
+        this.setState({ hooks: this.state.hooks.concat([h]), created: { id, name, url: BASE + t }, tok: this.state.tok + 1, nw: { name: '', kind: 'Radarr' }, sel: id, open: Object.assign({}, this.state.open, { [id]: true }) });
+        this.say('Integration «' + name + '» angelegt.', y);
+      },
+    };
+  }
+  crVals(y) {
+    const c = this.state.created;
+    return { on: !!c, here: !!c && c.id === this.state.sel, title: c ? 'Adresse für «' + c.name + '»' : '', url: c ? c.url : '',
+      copy: () => this.say('Adresse kopiert.', y), dismiss: () => this.setState({ created: null }) };
+  }
+  mailVals(y) {
+    const m = this.state.mail;
+    const set = (f) => (e) => this.patch('mail', { [f]: e.target.value });
+    const stored = m.src === 'stored';
+    return {
+      host: m.host, port: m.port, user: m.user, from: m.from, pw: this.state.mailPw, stored, canTest: m.src !== 'none', chip: SRC[m.src], chipCls: SRCCLS[m.src],
+      summary: m.src === 'none' ? 'nicht eingerichtet' : 'eingerichtet · ' + m.host + ':' + m.port,
+      pwHint: stored ? 'Leer lassen, um das gespeicherte Passwort zu behalten.' : 'Wird verschlüsselt gespeichert und nie wieder angezeigt.',
+      setHost: set('host'), setPort: set('port'), setUser: set('user'), setFrom: set('from'), setPw: (e) => this.setState({ mailPw: e.target.value }),
+      tls: TLS.map(([v, l]) => ({ label: l, id: 'tls-' + v, on: m.tls === v, pick: () => this.patch('mail', { tls: v }) })),
+      save: () => {
+        const p = Number(m.port);
+        if (!m.host.trim() || !m.from.trim()) { this.say('Server und Absender: Pflichtfeld.', y); return; }
+        if (!(Number.isInteger(p) && p > 0 && p < 65536)) { this.say('Port: Ungültiger Wert.', y); return; }
+        this.setState({ mail: Object.assign({}, m, { src: 'stored' }), mailPw: '' });
+        this.say('E-Mail-Server gespeichert.', y);
+      },
+      clear: () => this.ask('E-Mail-Server löschen?', CLEARBODY, 'Löschen', () => {
+        this.setState({ mail: { host: '', port: '587', user: '', from: '', tls: 'starttls', src: 'none' }, mailPw: '' });
+        return 'E-Mail-Server gelöscht.';
+      }, y),
+      test: () => this.say('Testmail an ' + ME + ' gesendet.', y),
+    };
+  }
+  tgVals(y) {
+    const g = this.state.tg;
+    return {
+      tok: this.state.tgTok, hasBot: !!g.bot, noBot: !g.bot, bot: 'Bot: @' + g.bot, stored: g.src === 'stored', chip: SRC[g.src], chipCls: SRCCLS[g.src],
+      summary: g.bot ? 'eingerichtet · @' + g.bot : 'nicht eingerichtet',
+      setTok: (e) => this.setState({ tgTok: e.target.value }),
+      save: () => {
+        if (!this.state.tgTok.trim()) { this.say('Bot-Token: Pflichtfeld.', y); return; }
+        this.setState({ tg: { src: 'stored', bot: 'slouchcat_bot' }, tgTok: '' });
+        this.say('Telegram-Bot gespeichert.', y);
+      },
+      clear: () => this.ask('Telegram-Bot löschen?', CLEARBODY, 'Löschen', () => { this.setState({ tg: { src: 'none', bot: '' }, tgTok: '' }); return 'Telegram-Bot gelöscht.'; }, y),
+    };
+  }
+  pushVals(y) {
+    return {
+      key: PUBKEYS[this.state.pushN % PUBKEYS.length],
+      rotate: () => this.ask('Neue Web-Push-Schlüssel erzeugen?', 'Alle Geräte verlieren ihr Abo und müssen Web-Push in den Einstellungen neu aktivieren.', 'Neu erzeugen', () => {
+        this.setState({ pushN: this.state.pushN + 1 });
+        return 'Neue Schlüssel erzeugt. Die Geräte müssen Web-Push neu aktivieren.';
+      }, y),
+    };
+  }
+  updVals(y) {
+    const on = this.state.upd;
+    return { on, word: on ? 'an' : 'aus', toggle: (e) => { const c = !!(e && e.target ? e.target.checked : !on); this.setState({ upd: c }); this.say(c ? 'Update-Prüfung eingeschaltet.' : 'Update-Prüfung ausgeschaltet.', y); } };
+  }
+  pubVals(y) {
+    const src = this.state.pub;
+    const val = this.state.pubVal;
+    return {
+      val, stored: src === 'stored', chip: SRC[src], chipCls: SRCCLS[src], summary: src === 'none' ? 'nicht gesetzt' : val,
+      setVal: (e) => this.setState({ pubVal: e.target.value }),
+      save: () => {
+        const v = val.trim();
+        if (!v) { this.say('Adresse: Pflichtfeld.', y); return; }
+        if (!/^https?:\/\/[^\s?#]+$/i.test(v)) { this.say('Gib eine Adresse mit http:// oder https:// an.', y); return; }
+        this.setState({ pub: 'stored', pubVal: v });
+        this.say('Öffentliche Adresse gespeichert.', y);
+      },
+      clear: () => this.ask('Öffentliche Adresse löschen?', CLEARBODY, 'Löschen', () => { this.setState({ pub: 'none', pubVal: '' }); return 'Öffentliche Adresse gelöscht.'; }, y),
+    };
+  }
+  baseVals(Y) {
+    const s = this.state;
+    const cf = s.confirm;
+    const keysSet = KEYS.filter((k) => s.keys[k.id].src !== 'none').length;
+    const on = (id) => s.keys[id].src !== 'none';
+    const chans = (s.mail.src !== 'none' ? 1 : 0) + (s.tg.src !== 'none' ? 1 : 0) + 1;
+    const setup = [on('tmdb'), on('tvdb'), on('youtube'), on('trakt'), s.mail.src !== 'none', true, s.tg.src !== 'none', s.upd].filter(Boolean).length;
+    return {
+      helpOpen: s.help, helpAria: s.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !s.help }),
+      setupText: setup + ' / 8 eingerichtet', keysText: keysSet + ' von 7 gesetzt', hooksText: s.hooks.length === 1 ? '1 Integration' : s.hooks.length + ' Integrationen',
+      chansText: chans + ' von 3 Kanälen', setupN: setup, keysN: keysSet, chans,
+      hasToast: !!s.toast, toast: s.toast || '',
+      toastStyle: 'position:absolute;right:32px;top:' + s.toastY + 'px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(cf ? cf.y : 120, 440),
+      closeConfirm: () => this.setState({ confirm: null }), confirmOk: () => { const msg = cf.run(); this.say(msg, cf.y); },
+      keys: KEYS.map((k, i) => this.keyVals(k, Y.keys + i * Y.keyStep)),
+      hooks: s.hooks.map((h, i) => this.hookVals(h, Y.hooks + i * Y.hookStep)), noHooks: s.hooks.length === 0,
+      nw: this.newVals(Y.hooks), cr: this.crVals(Y.hooks), mail: this.mailVals(Y.mail), tg: this.tgVals(Y.tg), push: this.pushVals(Y.push),
+      upd: this.updVals(Y.srv), pub: this.pubVals(Y.srv),
+    };
+  }
+
+  renderVals() {
+    // Rows below an opened integration or the one-time address move down: recompute the y of each action.
+    const s = this.state;
+    let y = 650;
+    const ys = s.hooks.map((h) => { const r = y; y += 41 + (s.open[h.id] ? 500 : 0); return r; });
+    const dy = y - 773 + (s.created ? 100 : 0);
+    const v = this.baseVals({ keys: 120, keyStep: 56, hooks: 600, hookStep: 41, mail: 900 + dy, tg: 1230 + dy, push: 1400 + dy, srv: 1570 + dy });
+    v.hooks = s.hooks.map((h, i) => this.hookVals(h, ys[i] + (s.created ? 100 : 0)));
+    v.sec = {};
+    ['s_keys', 's_hooks', 's_mail', 's_tg', 's_push', 's_srv'].forEach((id) => { v.sec[id] = this.detVals(id); });
+    return v;
+  }
+}
+</script>
+</body>
+</html>

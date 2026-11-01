@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Statistik · C Reiter und Klappbereiche</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px}
+.mut{font-size:12px;color:#9095a3}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+.tl{color:inherit;text-decoration:none}.tl:hover{color:#e8794a}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Statistiken</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<span style="flex:1"></span><div role="radiogroup" aria-label="Zeitraum" style="display:inline-flex;align-items:center;gap:8px"><span class="mut" aria-hidden="true">Zeitraum</span>
+<div style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.14)"><sc-for list="{{ periods }}" as="p" hint-placeholder-count="4"><button type="button" role="radio" aria-checked="{{ p.aria }}" onClick="{{ p.pick }}" style="{{ p.style }}">{{ p.label }}</button></sc-for></div></div></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Was in letzter Zeit geschaut wurde, über alle Konten und Profile.</p></sc-if></div><sc-if value="{{ isErr }}" hint-placeholder-val="{{ false }}"><div style="margin-top:24px"><sc-if value="{{ isErr }}" hint-placeholder-val="{{ false }}"><div role="status" style="display:flex;align-items:center;gap:10px;min-height:40px;padding:4px 8px 4px 12px;box-sizing:border-box;border-radius:8px;background:color-mix(in srgb, #f2777a 10%, transparent);border:1px solid color-mix(in srgb, #f2777a 30%, transparent);font-size:13px"><span style="display:flex;color:#f2777a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span><span style="flex:1;min-width:0"><b style="font-weight:600">Die Statistik liess sich nicht laden.</b> <span style="color:#b6b9c4">Der Server antwortet gerade nicht.</span></span><button type="button" class="b bs" onClick="{{ retry }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>Erneut versuchen</button></div></sc-if></div></sc-if><sc-if value="{{ isData }}" hint-placeholder-val="{{ true }}"><div aria-busy="{{ busyAria }}" style="{{ bodyStyle }}"><section aria-label="Wiedergabe" style="margin-top:24px"><dl style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0">
+<sc-for list="{{ pb.tiles }}" as="x" hint-placeholder-count="4"><div style="display:flex;flex-direction:column;justify-content:center;gap:2px;height:56px;padding:0 14px;box-sizing:border-box;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;min-width:0">
+<dt class="row" style="gap:6px;font-size:12px;color:#b6b9c4"><span style="{{ x.dot }}"></span><span class="ell">{{ x.label }}</span></dt><dd class="row" style="margin:0;gap:8px"><b style="font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap">{{ x.value }}</b><span class="mut ell">{{ x.note }}</span></dd></div></sc-for></dl></section><section aria-label="Bereiche der Statistik" style="margin-top:16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;height:48px;padding:0 8px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)">
+<div role="tablist" aria-label="Bereiche der Statistik" style="display:flex;gap:4px"><sc-for list="{{ ctabs }}" as="t" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }}<sc-if value="{{ t.hasCount }}" hint-placeholder-val="{{ true }}"> <span class="c" style="height:18px;padding:0 6px">{{ t.count }}</span></sc-if></button></sc-for></div>
+<div style="display:flex;align-items:center;height:48px;padding-right:8px"></div></div><div role="tabpanel" aria-label="{{ tabName }}" style="padding:0 16px 12px"><sc-if value="{{ isTop }}" hint-placeholder-val="{{ true }}"><sc-if value="{{ topSome }}" hint-placeholder-val="{{ true }}"><div role="table" aria-label="Meistgesehen"><div role="row" class="tr th" style="grid-template-columns:72px minmax(0,1fr) 130px 140px;padding-left:28px"><span role="columnheader">Platz</span><span role="columnheader">Titel</span><span role="columnheader" style="text-align:right">Wiedergaben</span><span role="columnheader" style="text-align:right">Schauzeit</span></div>
+<sc-for list="{{ kinds }}" as="g" hint-placeholder-count="4"><details open="{{ g.open }}" onToggle="{{ g.onToggle }}" style="border-top:1px solid rgba(255,255,255,0.08)">
+<summary style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px"><span style="{{ g.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><h3 style="margin:0;font-size:14px;font-weight:600">{{ g.name }}</h3><span class="mut">{{ g.sum }}</span></summary>
+<div role="rowgroup" style="padding-bottom:4px"><sc-for list="{{ g.rows }}" as="t" hint-placeholder-count="5"><div role="row" class="tr" style="grid-template-columns:72px minmax(0,1fr) 130px 140px;padding-left:28px;min-height:44px">
+<div role="cell" class="num" style="text-align:left;color:#b6b9c4">{{ t.rankDot }}</div><div role="rowheader"><span class="row" style="gap:10px"><span aria-hidden="true" style="{{ t.thumb }}"></span><a href="#" class="tl" onClick="{{ t.open }}" title="{{ t.label }}">{{ t.label }}</a></span></div>
+<div role="cell" class="num">{{ t.plays }}</div><div role="cell" class="num">{{ t.watched }}</div></div></sc-for></div></details></sc-for></div>
+<p class="mut" style="margin:8px 0 0">Platz über alle Arten, höchstens 20 Titel. Ein Klick auf den Titel öffnet ihn in der Verwaltung.</p></sc-if><sc-if value="{{ topNone }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:12px 0;font-size:14px;color:#b6b9c4">In diesem Zeitraum wurde nichts geschaut.</p></sc-if></sc-if><sc-if value="{{ isProf }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ profSome }}" hint-placeholder-val="{{ true }}"><div style="padding:12px 0 8px"><figure aria-labelledby="fc-cprof" style="margin:0;display:flex;flex-direction:column;gap:6px"><figcaption id="fc-cprof" class="mut">Schauzeit je Profil als Diagramm</figcaption>
+<div aria-hidden="true" style="display:flex;align-items:flex-end;gap:10px;height:136px;padding:0 4px;border-bottom:1px solid rgba(255,255,255,0.14);background:repeating-linear-gradient(to top, rgba(255,255,255,0.08) 0 1px, transparent 1px 34px)">
+<sc-for list="{{ profiles }}" as="p" hint-placeholder-count="6"><div title="{{ p.tip }}" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;min-width:0;height:100%"><span class="ell" style="font-size:11px;color:#b6b9c4;text-align:center;font-variant-numeric:tabular-nums">{{ p.watched }}</span><span style="{{ p.col }}"></span></div></sc-for></div>
+<div aria-hidden="true" style="display:flex;gap:10px;padding:0 4px"><sc-for list="{{ profiles }}" as="p" hint-placeholder-count="6"><span class="ell mut" style="flex:1;text-align:center">{{ p.name }}</span></sc-for></div></figure></div>
+<div role="table" aria-label="Schauzeit je Profil"><div role="row" class="tr th" style="grid-template-columns:minmax(0,1fr) 124px 124px;padding-left:28px"><span role="columnheader">Profil</span><span role="columnheader" style="text-align:right">Wiedergaben</span><span role="columnheader" style="text-align:right">Schauzeit</span></div>
+<sc-for list="{{ accounts }}" as="a" hint-placeholder-count="4"><details open="{{ a.open }}" onToggle="{{ a.onToggle }}" style="border-top:1px solid rgba(255,255,255,0.08)">
+<summary style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px"><span style="{{ a.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><h3 style="margin:0;font-size:14px;font-weight:600">{{ a.email }}</h3><span class="mut">{{ a.sum }}</span></summary>
+<div role="rowgroup" style="padding-bottom:4px"><sc-for list="{{ a.rows }}" as="p" hint-placeholder-count="2"><div role="row" class="tr" title="{{ p.tip }}" style="grid-template-columns:minmax(0,1fr) 124px 124px;padding-left:28px">
+<div role="rowheader" style="font-weight:500">{{ p.name }}</div><div role="cell" class="num">{{ p.plays }}</div><div role="cell" class="num">{{ p.watched }}</div></div></sc-for></div></details></sc-for></div></sc-if><sc-if value="{{ profNone }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:12px 0;font-size:14px;color:#b6b9c4">Kein Profil hat in diesem Zeitraum geschaut.</p></sc-if></sc-if><sc-if value="{{ isDev }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ devSome }}" hint-placeholder-val="{{ true }}"><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start;padding:12px 0 4px"><figure aria-labelledby="fc-cdev" style="margin:0;display:flex;flex-direction:column;gap:6px"><figcaption id="fc-cdev" class="mut">Schauzeit je Gerätetyp als Diagramm</figcaption>
+<div aria-hidden="true" style="display:flex;align-items:flex-end;gap:10px;height:136px;padding:0 4px;border-bottom:1px solid rgba(255,255,255,0.14);background:repeating-linear-gradient(to top, rgba(255,255,255,0.08) 0 1px, transparent 1px 34px)">
+<sc-for list="{{ devices }}" as="g" hint-placeholder-count="5"><div title="{{ g.tip }}" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;min-width:0;height:100%"><span class="ell" style="font-size:11px;color:#b6b9c4;text-align:center;font-variant-numeric:tabular-nums">{{ g.watched }}</span><span style="{{ g.col }}"></span></div></sc-for></div>
+<div aria-hidden="true" style="display:flex;gap:10px;padding:0 4px"><sc-for list="{{ devices }}" as="g" hint-placeholder-count="5"><span class="ell mut" style="flex:1;text-align:center">{{ g.name }}</span></sc-for></div></figure><div role="table" aria-label="Geräte"><div role="row" class="tr th" style="grid-template-columns:minmax(0,1fr) 124px 124px"><span role="columnheader">Gerätetyp</span><span role="columnheader" style="text-align:right">Geräte</span><span role="columnheader" style="text-align:right">Schauzeit</span></div>
+<sc-for list="{{ devices }}" as="g" hint-placeholder-count="5"><div role="row" class="tr" style="grid-template-columns:minmax(0,1fr) 124px 124px"><div role="rowheader"><span style="font-weight:500">{{ g.name }}</span></div><div role="cell" class="num">{{ g.count }}</div><div role="cell" class="num">{{ g.watched }}</div></div></sc-for></div></div></sc-if><sc-if value="{{ devNone }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:12px 0;font-size:14px;color:#b6b9c4">Kein Gerät hat in diesem Zeitraum geschaut.</p></sc-if></sc-if></div></section></div></sc-if><div style="margin-top:32px;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup, Beispiel wechseln:</span>
+<div role="tablist" aria-label="Beispiel" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ exs }}" as="x" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ x.sel }}" onClick="{{ x.pick }}" style="{{ x.style }}">{{ x.label }}</button></sc-for></div></div>
+</main>
+</div>
+
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":980}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const NOW = '01.11.2026, 15:42';
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const TOAST = 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+const barStyle = (pct) => 'display:block;height:6px;background:' + COL.ac + ';width:' + pct + '%';
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const same = (a, b) => a.toLowerCase().includes(b.trim().toLowerCase());
+// Statistik (STA-1, STA-2): what was watched in 7, 30, 90 or 365 days, over every account and profile.
+// The numbers of a period come from statsOf(days): a 30-day base scaled by the period, with a fixed jitter
+// so that order and lists change between periods (as the server's would).
+const PERIODS = [7, 30, 90, 365];
+const IDX = { 7: 0, 30: 1, 90: 2, 365: 3 };
+const SCALE = { 7: 0.24, 30: 1, 90: 2.75, 365: 10.4 };
+const KINDS = { movie: 'Film', series: 'Serie', audiobook: 'Hörbuch', podcast: 'Podcast' };
+const KIND_GROUPS = [['series', 'Serien'], ['movie', 'Filme'], ['audiobook', 'Hörbücher'], ['podcast', 'Podcasts']];
+// itemId, title, year, kind, plays in 30 days, minutes per play, poster colours (stand-in for the image), optional weight per period
+const TITLES = [
+  ['i5104', 'Bluey', 2018, 'series', 44, 8, ['#1f5f8b', '#7fc4dd'], [0.6, 1, 1.1, 1.2]],
+  ['i3311', 'Shogun', 2024, 'series', 21, 55, ['#3a1f1a', '#b0563a'], [2.4, 1, 0.9, 0.6]],
+  ['i3870', 'The Bear', 2022, 'series', 16, 30, ['#2b2b2b', '#4f7fa8'], [1, 1, 0.9, 0.5]],
+  ['i4022', 'Tschugger', 2021, 'series', 9, 25, ['#1e3524', '#6f9b52'], [1.8, 1, 1, 1]],
+  ['i3519', 'Severance', 2022, 'series', 8, 50, ['#14303b', '#5aa0b5']],
+  ['i3477', 'Andor', 2022, 'series', 7, 45, ['#2c2420', '#8c6a4a']],
+  ['i1208', 'Dune: Part Two', 2024, 'movie', 6, 150, ['#4a2a12', '#d49a4c'], [0.2, 1, 1.5, 1.9]],
+  ['i3655', 'Slow Horses', 2022, 'series', 6, 45, ['#262c33', '#7d8a96']],
+  ['i1355', 'Paddington 2', 2017, 'movie', 5, 95, ['#5a1f1c', '#d0654c']],
+  ['i4107', 'Der Bestatter', 2013, 'series', 5, 48, ['#22262e', '#6b7686']],
+  ['i7001', 'Echo der Zeit', 0, 'podcast', 5, 35, ['#3b1733', '#c0507e']],
+  ['i3302', 'The Expanse', 2015, 'series', 4, 44, ['#0f1d36', '#4067b0']],
+  ['i1077', 'Arrival', 2016, 'movie', 3, 110, ['#2d3438', '#9aa9ad']],
+  ['i1291', 'Past Lives', 2023, 'movie', 3, 100, ['#2f2540', '#a283c4']],
+  ['i1263', 'Oppenheimer', 2023, 'movie', 3, 160, ['#3a1d0c', '#e0782e'], [0, 0.8, 1.4, 2.4]],
+  ['i1014', 'Heat', 1995, 'movie', 2, 150, ['#14243a', '#3f78b4']],
+  ['i1288', 'Anatomie eines Falls', 2023, 'movie', 2, 140, ['#2c2a22', '#a39a73']],
+  ['i8012', 'Die Vermessung der Welt', 2005, 'audiobook', 2, 70, ['#203a33', '#5fb39a']],
+  ['i1033', 'WALL·E', 2008, 'movie', 2, 90, ['#3b2d17', '#c9a24c']],
+  ['i7004', 'Zeitblende', 0, 'podcast', 2, 40, ['#2a1f3d', '#8a6cc8']],
+  ['i1199', 'Der Goalie bin ig', 2014, 'movie', 1, 90, ['#1f2f2a', '#6a9a7c']],
+  ['i3720', 'Wilder', 2017, 'series', 1, 48, ['#19262b', '#4f8796']],
+  ['i1342', 'Mein Name ist Eugen', 2005, 'movie', 1, 100, ['#3a2b14', '#c4904a']],
+  ['i8020', 'Der Schwarm', 2004, 'audiobook', 1, 60, ['#0e2a3a', '#3f8db8']],
+];
+// profileId, name, account, plays in 30 days, hours in 30 days
+const PROFILES = [
+  [1, 'Marco', 'marco@example.ch', 48, 41.3], [3, 'Lea', 'lea@example.ch', 39, 33.6], [4, 'Nino', 'lea@example.ch', 61, 27.2],
+  [5, 'Sandra', 'sandra@example.ch', 25, 22.4], [2, 'Kinder', 'marco@example.ch', 18, 9.1], [6, 'Fritz', 'fritz@example.ch', 5, 4.2],
+];
+// type, distinct devices in 7/30/90/365 days, share of the watch time per period
+const DEVICES = [
+  ['tv', [2, 3, 3, 3], [0.58, 0.56, 0.55, 0.53]], ['desktop', [1, 2, 2, 3], [0.17, 0.18, 0.18, 0.19]], ['phone', [2, 3, 3, 4], [0.15, 0.14, 0.14, 0.14]],
+  ['tablet', [1, 1, 2, 2], [0.1, 0.09, 0.09, 0.1]], ['other', [0, 0, 1, 1], [0, 0, 0.02, 0.02]], ['unknown', [0, 0, 0, 0], [0, 0.03, 0.02, 0.02]],
+];
+const DTYPES = { tv: 'TV', desktop: 'Computer', phone: 'Telefon', tablet: 'Tablet', other: 'Anderes', unknown: 'Unbekannt' };
+const SHARE = { direct: [0.58, 0.61, 0.63, 0.6], remux: [0.19, 0.17, 0.16, 0.17], hw: [0.8, 0.83, 0.86, 0.79] };
+const PB_COL = { direct: COL.su, remux: COL.wa, transcode: COL.ac };
+const jit = (i, d) => 0.8 + (((i + 3) * 37 + d * 13) % 41) / 100;
+const dur = (min) => { const m0 = Math.round(min); const h = Math.floor(m0 / 60); const m = m0 % 60; return h ? (m ? h + ' h ' + m + ' min' : h + ' h') : m + ' min'; };
+const pct = (x) => Math.round(x * 100) + ' %';
+const plays = (n) => (n === 1 ? '1 Wiedergabe' : fmt(n) + ' Wiedergaben');
+const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+const EMPTY = { top: [], watch: [], plays: 0, min: 0, pb: { direct: 0, remux: 0, transcode: 0, tShare: 0, hw: 0 }, devices: [] };
+
+function statsOf(d) {
+  const s = SCALE[d];
+  const k = IDX[d];
+  const watch = PROFILES.map((p, i) => {
+    const n = Math.round(p[3] * s * jit(i, d));
+    return { id: p[0], name: p[1], email: p[2], plays: n, min: n ? p[4] * 60 * s * jit(i + 7, d) : 0 };
+  }).filter((p) => p.plays > 0).sort((a, b) => b.min - a.min);
+  const n = watch.reduce((a, p) => a + p.plays, 0);
+  const min = watch.reduce((a, p) => a + p.min, 0);
+  const top = TITLES.map((t, i) => {
+    const c = Math.round(t[4] * s * jit(i, d + 2) * (t[7] ? t[7][k] : 1));
+    return { id: t[0], title: t[1], year: t[2], kind: t[3], plays: c, min: c * t[5] * (0.62 + jit(i, d + 5) * 0.25), pal: t[6] };
+  }).filter((t) => t.plays > 0).sort((a, b) => b.plays - a.plays || b.min - a.min).slice(0, 20);
+  const direct = Math.round(n * SHARE.direct[k]);
+  const remux = Math.round(n * SHARE.remux[k]);
+  const transcode = n - direct - remux;
+  const devices = DEVICES.map(([type, counts, share], i) => ({ type, count: counts[k], min: min * share[k] * jit(i + 3, d) }))
+    .filter((x) => x.min > 0).sort((a, b) => b.min - a.min);
+  const raw = devices.reduce((a, x) => a + x.min, 0);
+  devices.forEach((x) => { x.min = (x.min * min) / raw; });  // device times add up to the profile times
+  return { top, watch, plays: n, min, pb: { direct, remux, transcode, tShare: n ? transcode / n : 0, hw: transcode ? SHARE.hw[k] : 0 }, devices };
+}
+
+// Wann geschaut wird (B, new, needs Stats.byHour and Stats.byWeekday): played time per weekday and hour
+// in the server's time zone. A watch event counts in the hour it was played; the cells add up to the profile times.
+const WDAYS = [['Mo', 'Montag'], ['Di', 'Dienstag'], ['Mi', 'Mittwoch'], ['Do', 'Donnerstag'], ['Fr', 'Freitag'], ['Sa', 'Samstag'], ['So', 'Sonntag']];
+const HOUR_W = [0.6, 0.3, 0.1, 0.05, 0.03, 0.05, 0.4, 1.2, 1, 0.5, 0.4, 0.6, 0.9, 0.8, 0.9, 1.3, 1.8, 2.2, 2.6, 3.4, 4.6, 4.4, 3, 1.6];
+const WDAY_W = [0.8, 0.75, 0.85, 0.9, 1.25, 1.6, 1.55];
+const span = (h) => h + '–' + (h + 1) + ' Uhr';
+function whenOf(d, min) {
+  // grid[day][hour] in minutes; weekends shift time to the morning and afternoon (children).
+  const raw = WDAY_W.map((w, i) => HOUR_W.map((x, h) => w * x * (i >= 5 && h >= 8 && h <= 17 ? 1.7 : 1) * (0.85 + (((i + 1) * 31 + h * 7 + d) % 29) / 100)));
+  const sum = raw.reduce((a, r) => a + r.reduce((b, x) => b + x, 0), 0);
+  return raw.map((r) => r.map((x) => (min ? (x * min) / sum : 0)));
+}
+const perStyle = (s) => 'display:inline-flex;align-items:center;height:26px;padding:0 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const hbar = (f) => 'display:block;height:8px;border-radius:4px;background:' + COL.ac + ';width:' + Math.max(2, Math.round(f * 100)) + '%';
+const vcol = (f) => 'display:block;width:100%;max-width:44px;margin:0 auto;border-radius:4px 4px 0 0;background:' + COL.ac + ';height:' + Math.max(3, Math.round(f * 112)) + 'px';
+const art = (p) => 'linear-gradient(to top, rgba(11,12,16,0.82), transparent 62%), radial-gradient(120% 90% at 85% 0%, rgba(255,255,255,0.18), transparent 60%), linear-gradient(155deg,' + p[0] + ',' + p[1] + ')';
+const posterStyle = (p) => 'position:relative;display:flex;align-items:flex-end;aspect-ratio:2 / 3;padding:8px;box-sizing:border-box;border-radius:6px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);background:' + art(p);
+const backStyle = (p) => 'position:relative;display:flex;flex-direction:column;justify-content:space-between;height:150px;padding:10px 12px;box-sizing:border-box;border-radius:8px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);color:' + COL.tp + ';text-decoration:none;background:' + art(p);
+const heat = (f) => 'display:block;height:18px;border-radius:3px;background:' + (f > 0 ? 'color-mix(in srgb, ' + COL.ac + ' ' + Math.max(6, Math.round(f * 100)) + '%, ' + COL.s2 + ')' : COL.s2);
+const thumbStyle = (p) => 'display:block;flex:none;width:20px;height:30px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);background:linear-gradient(155deg,' + p[0] + ',' + p[1] + ')';
+const rankStyle = (i) => 'position:absolute;left:6px;top:6px;display:grid;place-items:center;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:11px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;' + (i < 3 ? 'background:' + COL.ac + ';color:' + COL.oa : 'background:rgba(11,12,16,0.72);color:' + COL.tp);
+function initState() { return { days: 30, busy: false, ex: 'data', all: false, view: 'tiles', tab: 'top' }; }
+const INIT = { open: { 'k:series': true, 'k:movie': false, 'a:marco@example.ch': true, 'a:lea@example.ch': true, 'a:sandra@example.ch': true, 'a:fritz@example.ch': true } };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, open: {}, q: '' }, initState(), INIT);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._t);
+    clearInterval(this._iv);
+    Object.keys(this._timers || {}).forEach((k) => clearTimeout(this._timers[k]));
+  }
+  // Toast «(Mockup) …» for 2 s; closes a confirm and a menu.
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic danger confirm: { title, text, ok }; onOk runs on the red button.
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c, menu: null }); }
+  later(key, ms, fn) {
+    this._timers = this._timers || {};
+    clearTimeout(this._timers[key]);
+    this._timers[key] = setTimeout(fn, ms);
+  }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); },
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  tabsOf(list, cur, key) {
+    return list.map(([id, label, count]) => ({ label, count: count == null ? '' : String(count), hasCount: count != null, sel: id === cur ? 'true' : 'false', style: tabStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  exsOf(list, cur, key) {
+    return list.map(([id, label]) => ({ label, sel: id === cur ? 'true' : 'false', style: segStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: TOAST,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+      menuAny: !!this.state.menu, closeMenu: () => this.setState({ menu: null }),
+                  sec: {},
+    };
+  }
+  pickDays(d) {
+    if (d === this.state.days) return;
+    // keepPreviousData: the old numbers stay, dimmed, while the next period loads.
+    this.setState({ days: d, busy: true });
+    this.later('busy', 450, () => this.setState({ busy: false }));
+  }
+  titleVals(t, i) {
+    const label = t.year ? t.title + ' (' + t.year + ')' : t.title;
+    const rank = String(i + 1);
+    return {
+      id: t.id, rank, rankDot: rank + '.', label, name: t.title, kind: KINDS[t.kind], kindKey: t.kind, plays: fmt(t.plays), playsText: plays(t.plays), watched: dur(t.min),
+      tip: label + ': ' + dur(t.min), aria: 'Platz ' + rank + ': ' + label + ', ' + plays(t.plays) + ', ' + dur(t.min),
+      poster: posterStyle(t.pal), back: backStyle(t.pal), thumb: thumbStyle(t.pal), rankStyle: rankStyle(i),
+      open: (e) => { stop(e); this.say('Öffnet „' + label + '“ in der Verwaltung (/admin/items/' + t.id + ').'); },
+    };
+  }
+  barsOf(list, label) {
+    const max = Math.max(1, ...list.map((x) => x.min));
+    return list.map((x) => {
+      const name = label(x);
+      return Object.assign({}, x, { plays: fmt(x.plays), count: x.count == null ? '' : String(x.count), watched: dur(x.min), tip: name + ': ' + dur(x.min), bar: hbar(x.min / max), col: vcol(x.min / max) });
+    });
+  }
+  staVals() {
+    const v = this.baseVals();
+    const ex = this.state.ex;
+    const st = ex === 'data' ? statsOf(this.state.days) : EMPTY;
+    v.periods = PERIODS.map((d) => ({ label: d + ' Tage', aria: d === this.state.days ? 'true' : 'false', style: perStyle(d === this.state.days), pick: () => this.pickDays(d) }));
+    v.busyAria = this.state.busy ? 'true' : 'false';
+    v.bodyStyle = 'transition:opacity .2s;opacity:' + (this.state.busy ? 0.5 : 1);
+    v.isErr = ex === 'error'; v.isData = !v.isErr;
+    v.retry = () => { this.setState({ ex: 'data', busy: true }); this.later('busy', 450, () => this.setState({ busy: false })); };
+    v.exs = this.exsOf([['data', 'Daten'], ['empty', 'Leer'], ['error', 'Fehler']], ex, 'ex');
+    // Meistgesehen
+    const top = st.top.map((t, i) => this.titleVals(t, i));
+    v.top = top;
+    v.topShown = this.state.all ? top : top.slice(0, 10);
+    v.podium = top.slice(0, 3);
+    v.rest = this.state.all ? top.slice(3) : top.slice(3, 10);
+    v.hasMore = top.length > 10; v.allAria = this.state.all ? 'true' : 'false';
+    v.moreLabel = this.state.all ? 'Weniger zeigen' : 'Alle ' + top.length + ' zeigen';
+    v.toggleAll = () => this.setState({ all: !this.state.all });
+    v.topNone = top.length === 0; v.topSome = !v.topNone;
+    v.topCount = top.length + ' Titel';
+    v.views = [['tiles', 'Kacheln'], ['table', 'Tabelle']].map(([id, l]) => ({ label: l, aria: id === this.state.view ? 'true' : 'false', style: perStyle(id === this.state.view), pick: () => this.setState({ view: id }) }));
+    v.isTiles = this.state.view === 'tiles'; v.isTable = !v.isTiles;
+    v.kinds = KIND_GROUPS.map(([k, l]) => {
+      const rows = top.filter((t) => t.kindKey === k);
+      const p = st.top.filter((t) => t.kind === k);
+      return Object.assign(this.detVals('k:' + k), { name: l, rows, has: rows.length > 0,
+        sum: rows.length + ' Titel · ' + plays(p.reduce((a, t) => a + t.plays, 0)) + ' · ' + dur(p.reduce((a, t) => a + t.min, 0)) });
+    }).filter((g) => g.has);
+    // Schauzeit je Profil
+    v.profiles = this.barsOf(st.watch, (p) => p.name + ' (' + p.email + ')');
+    v.profNone = v.profiles.length === 0; v.profSome = !v.profNone;
+    v.profSum = v.profiles.length + ' Profile · ' + dur(st.min);
+    const accts = [];
+    v.profiles.forEach((p) => { if (accts.indexOf(p.email) < 0) accts.push(p.email); });
+    v.accounts = accts.map((a) => {
+      const rows = v.profiles.filter((p) => p.email === a);
+      const raw = st.watch.filter((p) => p.email === a);
+      return Object.assign(this.detVals('a:' + a), { email: a, rows,
+        sum: (rows.length === 1 ? '1 Profil' : rows.length + ' Profile') + ' · ' + plays(raw.reduce((x, p) => x + p.plays, 0)) + ' · ' + dur(raw.reduce((x, p) => x + p.min, 0)) });
+    });
+    // Wiedergabe
+    const pb = st.pb;
+    const share = (c) => pct(st.plays ? c / st.plays : 0) + ' aller Wiedergaben';
+    v.pb = {
+      total: plays(st.plays),
+      tiles: [
+        { label: 'Direct Play', value: plays(pb.direct), note: share(pb.direct), dot: dot(PB_COL.direct) },
+        { label: 'Remux', value: plays(pb.remux), note: share(pb.remux), dot: dot(PB_COL.remux) },
+        { label: 'Transcode', value: plays(pb.transcode), note: pct(pb.tShare) + ' aller Wiedergaben', dot: dot(PB_COL.transcode) },
+        { label: 'Transcode auf dem Grafikchip', value: pct(pb.hw), note: 'Anteil der Transcodes', dot: dot('transparent') + ';box-shadow:inset 0 0 0 2px ' + COL.ac },
+      ],
+      segs: ['direct', 'remux', 'transcode'].map((k) => ({ style: 'display:block;height:100%;background:' + PB_COL[k] + ';width:' + (st.plays ? (pb[k] / st.plays) * 100 : 0) + '%' })),
+    };
+    // Geräte
+    v.devices = this.barsOf(st.devices.map((x) => Object.assign({}, x, { name: DTYPES[x.type] })), (x) => x.name);
+    v.devNone = v.devices.length === 0; v.devSome = !v.devNone;
+    const nd = st.devices.reduce((a, x) => a + x.count, 0);
+    v.devSum = (nd === 1 ? '1 Gerät' : nd + ' Geräte') + ' · ' + dur(st.min);
+    // Wann geschaut wird
+    const grid = whenOf(this.state.days, st.min);
+    const byHour = HOUR_W.map((x, h) => grid.reduce((a, r) => a + r[h], 0));
+    const byDay = grid.map((r) => r.reduce((a, x) => a + x, 0));
+    const hMax = Math.max(1, ...byHour); const dMax = Math.max(1, ...byDay);
+    const cMax = Math.max(1, ...grid.map((r) => Math.max(...r)));
+    let pk = [0, 0];
+    grid.forEach((r, i) => r.forEach((x, h) => { if (x > grid[pk[0]][pk[1]]) pk = [i, h]; }));
+    const ph = byHour.indexOf(Math.max(...byHour)); const pd = byDay.indexOf(Math.max(...byDay));
+    v.when = {
+      has: st.min > 0, none: !(st.min > 0),
+      hours: byHour.map((m, h) => ({ label: h % 3 === 0 ? String(h) : '', tip: span(h) + ': ' + dur(m), col: vcol(m / hMax).replace('max-width:44px', 'max-width:22px') })),
+      days: byDay.map((m, i) => ({ name: WDAYS[i][1], short: WDAYS[i][0], watched: dur(m), tip: WDAYS[i][1] + ': ' + dur(m), bar: hbar(m / dMax) })),
+      rows: grid.map((r, i) => ({ short: WDAYS[i][0], cells: r.map((m, h) => ({ tip: WDAYS[i][1] + ', ' + span(h) + ': ' + dur(m), style: heat(m / cMax) })) })),
+      ticks: HOUR_W.map((x, h) => ({ label: h % 3 === 0 ? String(h) : '' })),
+      hourSum: 'Am meisten ' + span(ph), daySum: 'Am meisten am ' + WDAYS[pd][1],
+      peak: 'Spitze: ' + WDAYS[pk[0]][1] + ', ' + span(pk[1]),
+      hourAria: 'Schauzeit nach Tageszeit, am meisten ' + span(ph) + ' mit ' + dur(byHour[ph]),
+    };
+    v.sec.heat = this.detVals('s_heat');
+    v.sec.top = this.detVals('s_top'); v.sec.prof = this.detVals('s_prof'); v.sec.pb = this.detVals('s_pb'); v.sec.dev = this.detVals('s_dev');
+    return v;
+  }
+  renderVals() {
+    const v = this.staVals();
+    const tab = this.state.tab;
+    v.ctabs = this.tabsOf([['top', 'Meistgesehen', v.top.length], ['prof', 'Schauzeit je Profil', v.profiles.length], ['dev', 'Geräte', v.devices.length]], tab, 'tab');
+    v.isTop = tab === 'top'; v.isProf = tab === 'prof'; v.isDev = tab === 'dev';
+    v.tabName = { top: 'Meistgesehen', prof: 'Schauzeit je Profil', dev: 'Geräte' }[tab];
+    return v;
+  }
+}
+</script>
+</body>
+</html>
