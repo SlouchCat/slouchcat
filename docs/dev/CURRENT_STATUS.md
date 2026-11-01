@@ -29,7 +29,21 @@ $ go tool golangci-lint run ./internal/metadata/... ./internal/admin/... ./inter
 
 `task ci` lief in dieser Sitzung nicht lokal (der Entwicklungsrechner hatte am 1. November 2026 keinen
 Zugriff auf das Arbeitsverzeichnis unter `/mnt/Nerdcloud`, Klon unter `~/src/slouchcat`); der
-CI-Lauf des Pull Requests ist der Beleg. Offen: Lauf «Nur Bilder» auf CT 190 mit dem Fix-Image.
+CI-Lauf des Pull Requests war der Beleg (PR #59, 17 Checks grün, gemergt als `6d562b8`).
+
+**Beleg auf CT 190 (1. November 2026, 16:25 bis 16:32).** CT 190 auf `metadaten-6d562b8`
+(`v1.5.0-21-g6d562b8`, auf dem CT gebaut aus `git archive 6d562b8`, Sicherung `.env.bak-vor-fix-6d562b8`,
+keine Migration). «Nur Bilder» auf der Bibliothek «test» (304 Titel, nur TMDB) mit der Logo-Kette
+testweise auf `en, de` (Lauf 137118), dann zurück auf `de, en` (Lauf 137853):
+
+```
+item filled … providers=["tmdb"] fetched=1      329 bzw. 279 Zeilen, 0 «provenance only»
+Toy Story 4, Over the Hedge: Logo de → en → de
+job failed 0, level=ERROR 0
+```
+
+Vor dem Fix endeten dieselben Kinder mit `item provenance recorded … fields=0` und ohne Anfrage.
+Die Einstellungen stehen danach wieder wie vor dem Beleg.
 
 ## Konzept 10 «Metadaten-Einstellungen»: umgesetzt, Pull Request offen (31. Oktober 2026)
 
