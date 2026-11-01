@@ -1,5 +1,51 @@
 # Aktueller Stand
 
+## Konzept 11 «Übersicht der Verwaltung»: im Bau, Schritte 0, 1 und 4 fertig (2. November 2026)
+
+Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
+`docs/planning/11-verwaltung-uebersicht.md` Abschnitt 11.8 mit OMC (`executor` je Schritt,
+`code-reviewer` je Schritt, Befunde vor dem nächsten Schritt behoben). Marcos Auftrag vom
+1. November 2026: «Bitte starte mit der Entwicklung von Konzept 11.»
+
+- **Schritt 0** (`cb7cf17`): Frage 17 im Entscheidungsprotokoll, ADR 0019, Papier verankert.
+- **Schritt 1** (`4c25656`, `4ea3f0c`, `a0b360a`): Fix `JobCounts.paused` im Handler mit Test;
+  Vertrag **1.7.0** additiv mit `JobCounts.active`, `nextRun`, `failedByType`,
+  `AdminStream.posterUrl` (Serienposter bei Folgen), `Dashboard.attention.abortedScans` und
+  `Dashboard.counts` (60-s-Speicher mit Generationszähler und einer Berechnung je Ablauf, geleert
+  bei Änderungen über Pflege, Bibliotheken, Konten, Einrichtung und angenommene Einladungen).
+  Review: freigegeben, sechs kleinere Befunde behoben.
+- **Schritt 4** (`68d8abd`, `00e6e78`): `ui/AdminSideNav` mit Band, Zahlen und Pillen (ein
+  Tab-Halt, Pfeil hoch/runter, Pos1/Ende), `AdminSideNavMenu` (Blatt am Handy), `DashCard`,
+  `TaskRow`, `StreamRow`, `ActivityFeed`, sechs Symbole, Stories und 15 neue Referenzbilder;
+  Kontrasttest für alle acht Profilfarben (Band und Pillen ≥ 4,5:1, keine Ausnahme nötig). Noch
+  nicht im Gerüst; die alte `AdminNav` läuft bis Schritt 5. Review: freigegeben, zwölf kleinere
+  Befunde behoben. Entscheid für Schritt 5: die Leiste wird im Gerüst lazy geladen (Startbündel,
+  P-10).
+
+**Belege.** Auf dem Zweig mit Schritt 1 und 4 zusammen:
+
+```
+$ task web:lint
+All matched files use Prettier code style!
+$ task web:test
+web test:  Test Files  92 passed (92)
+web test:       Tests  729 passed (729)
+```
+
+Schritt 1 (Agentenlauf): `task ci:web` grün; `task ci:server` grün bis auf
+`internal/library` `TestPodcastFolderPairsFileWithFeedEpisodeAfterProbe`, der auf dem Basis-Commit
+`cb7cf17` lokal genauso fehlschlägt (`published_at from the tag = 1793573258173, want
+1760335200000`; vermutlich ffmpeg 6.1.1 des Entwicklungsrechners, die CI auf `main` ist grün);
+nach den Review-Befunden `go test` für `admin`, `api`, `auth`, `store` ok,
+`golangci-lint` `0 issues.`, `task server:gen:check` ohne Abweichung. Schritt 4 (Agentenlauf):
+`task web:storybook:test` in Docker `215 passed`. Beispielantwort von `GET /admin/dashboard` aus
+dem Handlertest: `jobs.active`, `jobs.failedByType` mit geschwärztem Fehler, `jobs.nextRun`,
+`attention.abortedScans`, `counts {accounts, maintenanceOpen, titles}`, `streams[].posterUrl` mit
+dem Hash des Serienposters. e2e lief noch nicht (keine Änderung der Oberfläche bis Schritt 5).
+
+**Offen:** Schritte 2 (Aktivitätsprotokoll), 3 (Neustart), 5 (Gerüst und Übersicht), 6
+(Abnahme auf CT 190); der lokale Podcast-Test separat.
+
 ## Nachtrag Konzept 10: «Nur Bilder» bei Ordnern mit einer Quelle (1. November 2026)
 
 Zweig `claude/fix-apply-images-single-source` ab `main` `da5d854` (Merge von PR #58). Befund vom
