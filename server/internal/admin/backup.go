@@ -272,6 +272,7 @@ func (s *Service) CreateBackup(ctx context.Context, req model.BackupRequest) (mo
 	}
 	s.log.InfoContext(ctx, "backup created", "name", name, "size_bytes", info.Size(),
 		"includes_secrets", req.IncludeSecrets, "duration_ms", time.Since(start).Milliseconds())
+	s.RecordActivity(ctx, model.ActivityEvent{Kind: model.ActivityBackupCreated, Detail: model.ActivityDetail{SizeBytes: info.Size()}})
 	return model.Backup{Name: name, CreatedAt: at, SizeBytes: info.Size(), IncludesSecrets: req.IncludeSecrets,
 		Encrypted: req.IncludeSecrets, Version: s.backups.version, Kind: model.BackupManual}, nil
 }

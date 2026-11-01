@@ -102,6 +102,7 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 			return model.PlaybackInfo{}, err
 		}
 	}
+	s.recordStart(ctx, session, item)
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
 	mime := cmp.Or(enc.Type, defaultEnclosureType)
 	info := model.PlaybackInfo{

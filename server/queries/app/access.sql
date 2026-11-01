@@ -43,6 +43,10 @@ UPDATE profiles SET pin_hash = @pin_hash, updated_at = @now WHERE id = @id;
 -- name: DeleteProfile :exec
 DELETE FROM profiles WHERE id = @id;
 
+-- name: DeleteActivityEventsByProfile :exec
+-- The activity log keeps nothing of a deleted profile (concept 11, ADR 0019).
+DELETE FROM activity_events WHERE profile_id = @profile_id;
+
 -- name: ListProfileLibrariesByAccount :many
 SELECT pl.profile_id, pl.library_id FROM profile_libraries AS pl
 JOIN profiles AS p ON p.id = pl.profile_id
@@ -116,6 +120,11 @@ WHERE id = @id;
 
 -- name: DeleteAccount :execrows
 DELETE FROM accounts WHERE id = @id;
+
+-- name: DeleteActivityEventsByAccount :exec
+-- The activity log keeps nothing of a deleted account (concept 11, ADR 0019): its rows go with it,
+-- including those of its profiles.
+DELETE FROM activity_events WHERE account_id = @account_id;
 
 -- name: ListAccountLibraries :many
 SELECT library_id FROM account_libraries WHERE account_id = @account_id ORDER BY library_id;

@@ -102,6 +102,71 @@ type Dashboard struct {
 	Browse       BrowseHealth // the folder browser of the library form (idea 02)
 	Attention    DashboardAttention
 	Counts       DashboardCounts
+	Activity     []ActivityEntry // the activity log, newest first, at most 6 (concept 11)
+}
+
+// Known kinds of the activity log (concept 11 section 11.4, ADR 0019). The contract has no enum
+// for them, so a new kind breaks no client; admin.RecordActivity refuses a kind not listed here.
+const (
+	ActivityPlaybackStarted   = "playback_started"
+	ActivityPlaybackCompleted = "playback_completed"
+	ActivityPlaybackStopped   = "playback_stopped"
+	ActivityScanStarted       = "scan_started"
+	ActivityScanDone          = "scan_done"
+	ActivityScanFailed        = "scan_failed"
+	ActivityScanAborted       = "scan_aborted"
+	ActivityJobFailed         = "job_failed"
+	ActivityBackupCreated     = "backup_created"
+	ActivityBackupRestored    = "backup_restored"
+	ActivityServerStarted     = "server_started"
+	ActivityServerRestart     = "server_restart"
+)
+
+// What started a full scan (ActivityDetail.Trigger).
+const (
+	ScanTriggerManual   = "manual"
+	ScanTriggerSchedule = "schedule"
+	ScanTriggerWatcher  = "watcher"
+)
+
+// ActivityEvent is one event for the activity log, handed to admin.RecordActivity by the hooks in
+// playback, library, jobs, admin and main. Zero values mean "none".
+type ActivityEvent struct {
+	Kind      string
+	At        time.Time // zero: now
+	AccountID int64
+	ProfileID int64
+	ItemID    string
+	LibraryID int64
+	Subject   string // name of the title or the library at the time of the event; empty: read from ItemID
+	Detail    ActivityDetail
+}
+
+// ActivityDetail holds the few numbers and fixed codes of an event (ActivityEntry.detail): no
+// secret, no path, no IP address and no free error text (rule 10). Reason is one of
+// root_missing, root_empty, loss_over_threshold, cancelled or error; By is admin or revoked.
+type ActivityDetail struct {
+	NewTitles *int   `json:"newTitles,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
+	Version   string `json:"version,omitempty"`
+	Trigger   string `json:"trigger,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+	JobType   string `json:"jobType,omitempty"`
+	Count     int    `json:"count,omitempty"`
+	By        string `json:"by,omitempty"`
+}
+
+// ActivityEntry is one row of the activity log as the dashboard shows it. Account and profile
+// are read when the log is read; empty when there was none or it is gone.
+type ActivityEntry struct {
+	ID           int64
+	At           time.Time
+	Kind         string
+	ProfileName  string
+	AccountEmail string
+	ItemTitle    string
+	LibraryName  string
+	Detail       ActivityDetail
 }
 
 // DashboardAttention is what needs the administrator's attention (concept 11).

@@ -45,6 +45,9 @@ const (
 
 type libraryPayload struct {
 	LibraryID int64 `json:"libraryId"`
+	// Trigger says what queued a full scan (model.ScanTrigger*, for the activity log of concept
+	// 11): the first one wins while the job waits under its key. Empty in older jobs.
+	Trigger string `json:"trigger,omitempty"`
 }
 
 // pathScanPayload names the directories a path scan reads: per root of the library, directories

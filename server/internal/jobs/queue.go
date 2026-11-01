@@ -138,6 +138,8 @@ type Queue struct {
 	db  *sql.DB
 	q   *systemq.Queries
 	now func() time.Time
+	// pruneTasks are the further cleanups of jobs.prune (AddPruneTask).
+	pruneTasks []func(ctx context.Context) (int64, error)
 }
 
 // NewQueue returns a queue on db. now is the clock; nil means time.Now.

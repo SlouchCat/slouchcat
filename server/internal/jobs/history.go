@@ -52,9 +52,17 @@ func (q *Queue) MedianDuration(ctx context.Context, typ string) (median time.Dur
 	return time.Duration(m) * time.Millisecond, len(ms), len(ms) >= MedianMinRuns, nil
 }
 
+// AddPruneTask registers a further cleanup that jobs.prune runs after the history of the runs:
+// fn deletes what is due in batches and returns how many rows went (admin registers the activity
+// log, concept 11). The queue knows nothing about the tables of fn, and no new job type is needed.
+// Call it before the workers run.
+func (q *Queue) AddPruneTask(fn func(ctx context.Context) (int64, error)) {
+	q.pruneTasks = append(q.pruneTasks, fn)
+}
+
 // Prune removes the done and cancelled runs older than HistoryAge, except the newest HistoryKeep
-// of every type, in batches of PruneBatch rows, and returns how many rows it deleted. It checks
-// ctx between batches.
+// of every type, in batches of PruneBatch rows, then runs the tasks of AddPruneTask, and returns
+// how many rows it deleted. It checks ctx between batches.
 func (q *Queue) Prune(ctx context.Context) (int64, error) {
 	types, err := q.q.ListHistoryJobTypes(ctx)
 	if err != nil {
@@ -75,6 +83,13 @@ func (q *Queue) Prune(ctx context.Context) (int64, error) {
 			if n < PruneBatch {
 				break
 			}
+		}
+	}
+	for _, task := range q.pruneTasks {
+		n, err := task(ctx)
+		total += n
+		if err != nil {
+			return total, err
 		}
 	}
 	return total, nil

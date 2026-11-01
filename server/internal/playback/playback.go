@@ -71,6 +71,9 @@ type Service struct {
 	subFlights map[string]*subtitleFlight // running conversions per playback id and track
 	subSlots   chan struct{}              // maxSubtitleConversions slots
 	starts     startLocks                 // stream counts of starts under a stream limit
+
+	// activity is the writer of the activity log (WithActivity, concept 11); nil = none.
+	activity func(ctx context.Context, e model.ActivityEvent)
 }
 
 // Option configures New.
@@ -116,6 +119,39 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 		_, _ = rand.Read(s.key) // crypto/rand.Read never fails
 	}
 	return s
+}
+
+// WithActivity sets the writer of the activity log (admin.RecordActivity, concept 11): starts,
+// newly completed titles and the administration's stops are reported to it. fn logs its own
+// errors, so a failed write never aborts the playback. Call it before the service is used.
+func (s *Service) WithActivity(fn func(ctx context.Context, e model.ActivityEvent)) *Service {
+	s.activity = fn
+	return s
+}
+
+// recordStart reports a playback start to the activity log without waiting for the write, so the
+// time to the first frame does not grow; the write outlives the request (context.WithoutCancel).
+func (s *Service) recordStart(ctx context.Context, session model.Session, item model.ItemSummary) {
+	if s.activity == nil {
+		return
+	}
+	e := model.ActivityEvent{
+		Kind: model.ActivityPlaybackStarted, At: s.now(), AccountID: session.Account.ID, ProfileID: session.Profile.ID,
+		ItemID: item.ID, Subject: item.Title,
+	}
+	go s.activity(context.WithoutCancel(ctx), e)
+}
+
+// recordStopped reports the administration's stop of playback sessions to the activity log, one
+// event per session; by is admin (stopped on the streams page) or revoked (its device forgotten).
+func (s *Service) recordStopped(ctx context.Context, by string, accountID, profileID int64, itemID string) {
+	if s.activity == nil {
+		return
+	}
+	s.activity(ctx, model.ActivityEvent{
+		Kind: model.ActivityPlaybackStopped, AccountID: accountID, ProfileID: profileID, ItemID: itemID,
+		Detail: model.ActivityDetail{By: by},
+	})
 }
 
 // MimeType returns the media type of a file for the client's canPlayType check. MP4 files with
@@ -292,7 +328,8 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 	if err := validate(ev); err != nil {
 		return model.Progress{}, err
 	}
-	if _, err := s.vis.Summary(ctx, visibility.Profile(profile), itemID); err != nil {
+	item, err := s.vis.Summary(ctx, visibility.Profile(profile), itemID)
+	if err != nil {
 		return model.Progress{}, err
 	}
 	now := s.now()
@@ -373,6 +410,13 @@ func (s *Service) report(ctx context.Context, profile model.Profile, itemID stri
 	}
 	if err := tx.Commit(); err != nil {
 		return model.Progress{}, fmt.Errorf("commit progress: %w", err)
+	}
+	if completed && (!hasCur || cur.Completed == 0) && s.activity != nil {
+		// The title counts as seen now (90 % rule) and did not before: once per transition.
+		s.activity(ctx, model.ActivityEvent{
+			Kind: model.ActivityPlaybackCompleted, At: now, AccountID: profile.AccountID, ProfileID: profile.ID,
+			ItemID: item.ID, Subject: item.Title,
+		})
 	}
 	rate := ev.PlaybackRate
 	if rate == nil && hasCur {

@@ -126,7 +126,33 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 		}
 		out.Errors = append(out.Errors, entry)
 	}
+	out.Activity = make([]gen.ActivityEntry, 0, len(d.Activity))
+	for _, a := range d.Activity {
+		out.Activity = append(out.Activity, toActivityEntry(a))
+	}
 	return gen.GetDashboard200JSONResponse(out), nil
+}
+
+// toActivityEntry maps an entry of the activity log (concept 11); empty fields stay absent.
+func toActivityEntry(a model.ActivityEntry) gen.ActivityEntry {
+	d := a.Detail
+	out := gen.ActivityEntry{
+		Id: a.ID, At: a.At.UTC(), Kind: a.Kind, ProfileName: optString(a.ProfileName), AccountEmail: optString(a.AccountEmail),
+		ItemTitle: optString(a.ItemTitle), LibraryName: optString(a.LibraryName),
+		Detail: gen.ActivityDetail{
+			NewTitles: d.NewTitles, Version: optString(d.Version), Trigger: optString(d.Trigger), Reason: optString(d.Reason),
+			JobType: optString(d.JobType), By: optString(d.By),
+		},
+	}
+	if d.SizeBytes > 0 {
+		size := d.SizeBytes
+		out.Detail.SizeBytes = &size
+	}
+	if d.Count > 0 {
+		count := d.Count
+		out.Detail.Count = &count
+	}
+	return out
 }
 
 func (s *server) RetryJob(ctx context.Context, req gen.RetryJobRequestObject) (gen.RetryJobResponseObject, error) {

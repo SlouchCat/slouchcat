@@ -5064,9 +5064,10 @@ paths:
         failed jobs grouped by type (and, for older clients, the last ten failed jobs), free and total
         space of the config and cache directories, the state of every integration (keys, e-mail, Web
         Push, Telegram, update check), the newest 50 errors of the server log (redacted, newest first),
-        the update state, what needs the administrator's attention (scans the loss protection aborted)
-        and the counts of the sidebar (titles, accounts, open maintenance cases; recomputed at most every
-        60 seconds and at once after a change on the maintenance, libraries or accounts pages).
+        the update state, what needs the administrator's attention (scans the loss protection aborted),
+        the counts of the sidebar (titles, accounts, open maintenance cases; recomputed at most every
+        60 seconds and at once after a change on the maintenance, libraries or accounts pages) and the
+        six newest entries of the activity log.
       tags: [admin]
       x-visibility: admin
       responses:
@@ -10929,7 +10930,7 @@ components:
     Dashboard:
       type: object
       description: The admin overview (A-3); no `ItemRef`.
-      required: [streams, jobs, storage, integrations, webhooks, errors, update, attention, counts]
+      required: [streams, jobs, storage, integrations, webhooks, errors, update, attention, counts, activity]
       properties:
         streams:
           type: array
@@ -10965,6 +10966,85 @@ components:
           $ref: "#/components/schemas/DashboardAttention"
         counts:
           $ref: "#/components/schemas/DashboardCounts"
+        activity:
+          type: array
+          maxItems: 6
+          description: The newest entries of the activity log, newest first; empty instead of absent.
+          items:
+            $ref: "#/components/schemas/ActivityEntry"
+
+    ActivityEntry:
+      type: object
+      description: |
+        One entry of the activity log (concept 11, ADR 0019). The server sends no sentences: the client
+        builds the sentence from `kind` and the fields, with a general sentence for a kind it does not
+        know. Known kinds: `playback_started`, `playback_completed`, `playback_stopped`, `scan_started`,
+        `scan_done`, `scan_failed`, `scan_aborted`, `job_failed`, `backup_created`, `backup_restored`,
+        `server_started`, `server_restart`. The log keeps 30 days and at most 2'000 entries; the entries
+        of a deleted account or profile are deleted with it.
+      required: [id, at, kind, detail]
+      properties:
+        id:
+          type: integer
+          format: int64
+        at:
+          type: string
+          format: date-time
+        kind:
+          type: string
+          description: Kind of the event. No enum, so a new kind breaks no client.
+          examples: ["playback_started"]
+        profileName:
+          type: string
+          description: Name of the profile, read now; absent without a profile or after it was deleted.
+        accountEmail:
+          type: string
+          description: E-mail address of the account, read now; absent without an account.
+        itemTitle:
+          type: string
+          description: Title of the item at the time of the event (playback kinds).
+        libraryName:
+          type: string
+          description: Name of the library at the time of the event (scan kinds).
+        detail:
+          $ref: "#/components/schemas/ActivityDetail"
+
+    ActivityDetail:
+      type: object
+      description: |
+        The few numbers and fixed codes of an entry; no secret, no path, no IP address and no free error
+        text. Every field is optional and set only by the kinds it belongs to.
+      properties:
+        newTitles:
+          type: integer
+          minimum: 0
+          description: Titles the full scan added (`scan_done`).
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Size of the archive (`backup_created`).
+        version:
+          type: string
+          description: Version of the server (`server_started`).
+        trigger:
+          type: string
+          description: What started the full scan (`scan_started`) - `manual`, `schedule` or `watcher`.
+        reason:
+          type: string
+          description: |
+            Fixed code of a failed or aborted scan (`scan_failed`, `scan_aborted`) - `root_missing`,
+            `root_empty`, `loss_over_threshold`, `cancelled` or `error`.
+        jobType:
+          type: string
+          description: Job type of `job_failed`.
+        count:
+          type: integer
+          minimum: 1
+          description: Failures of the job type in this hour (`job_failed`).
+        by:
+          type: string
+          description: Who ended the playback (`playback_stopped`) - `admin` (stopped on the streams page) or `revoked` (its device forgotten).
 
     DashboardAttention:
       type: object

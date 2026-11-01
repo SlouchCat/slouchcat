@@ -352,3 +352,57 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 		t.Errorf("guest: notice = %+v, want none", n)
 	}
 }
+
+// Concept 11 step 2 (contract 1.7.0): Dashboard.activity over HTTP. Without events the list is
+// empty, not absent; after a scan and a playback the entries come newest first with the profile
+// name, the e-mail address and the title read by the server, and no sentence.
+func TestDashboardActivityOverHTTP(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h, ctx := pf.f, pf.h, context.Background()
+	pf.pb.WithActivity(pf.admin.RecordActivity)
+	dashboard := func() (gen.Dashboard, string) {
+		t.Helper()
+		rec := send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var d gen.Dashboard
+		decode(t, rec, &d)
+		return d, rec.Body.String()
+	}
+	if d, body := dashboard(); len(d.Activity) != 0 || !strings.Contains(body, `"activity":[]`) {
+		t.Fatalf("activity without events = %s", body)
+	}
+	newTitles := 3
+	pf.admin.RecordActivity(ctx, model.ActivityEvent{
+		Kind: model.ActivityScanDone, At: time.Now().Add(-time.Minute), LibraryID: f.LibraryID(), Subject: "Filme",
+		Detail: model.ActivityDetail{NewTitles: &newTitles},
+	})
+	movie := f.Rated(12)
+	if _, code, _ := play(t, h, "p18", movie.ID, `{}`); code != http.StatusOK {
+		t.Fatalf("play = %d", code)
+	}
+	var d gen.Dashboard
+	var body string
+	deadline := time.Now().Add(5 * time.Second)
+	for d, body = dashboard(); len(d.Activity) < 2 && time.Now().Before(deadline); d, body = dashboard() {
+		time.Sleep(20 * time.Millisecond) // the start is written in the background
+	}
+	if len(d.Activity) != 2 {
+		t.Fatalf("activity = %s", body)
+	}
+	p, s := d.Activity[0], d.Activity[1]
+	if p.Kind != model.ActivityPlaybackStarted || deref(p.ProfileName) != f.P18.Name || deref(p.AccountEmail) != f.Account.Email ||
+		p.ItemTitle == nil || *p.ItemTitle == "" || p.LibraryName != nil || p.At.Location() != time.UTC {
+		t.Errorf("playback entry = %+v", p)
+	}
+	if s.Kind != model.ActivityScanDone || deref(s.LibraryName) != "Filme" || s.ItemTitle != nil || s.ProfileName != nil ||
+		s.Detail.NewTitles == nil || *s.Detail.NewTitles != 3 || s.Detail.Reason != nil {
+		t.Errorf("scan entry = %+v", s)
+	}
+	if !p.At.After(s.At) || p.Id == s.Id {
+		t.Errorf("not newest first: %v, %v", p.At, s.At)
+	}
+	if !strings.Contains(body, `"detail":{}`) || !strings.Contains(body, `"detail":{"newTitles":3}`) {
+		t.Errorf("detail fields not omitted when empty: %s", body)
+	}
+}

@@ -41,3 +41,26 @@ func TestWorkerOnFinalFailure(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 }
+
+// Concept 11: a second hook (the activity log next to notify.JobFailed) hears of the same final
+// failure, after the first one.
+func TestWorkerOnFinalFailureRunsEveryHook(t *testing.T) {
+	q, _ := newTestQueue(t)
+	w := NewWorker(q, "w1", discard)
+	w.Handle("a", func(context.Context, *Job) error { return errTest })
+	got := make(chan string, 4)
+	w.OnFinalFailure(func(_ context.Context, j Job, _ error) { got <- "notify:" + j.Type })
+	w.OnFinalFailure(func(_ context.Context, j Job, _ error) { got <- "activity:" + j.Type })
+	startWorker(t, w)
+	waitForState(t, q, mustEnqueue(t, q, NewJob{Type: "a", MaxAttempts: 1}), StateFailed)
+	for _, want := range []string{"notify:a", "activity:a"} {
+		select {
+		case r := <-got:
+			if r != want {
+				t.Errorf("hook call = %q, want %q", r, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("no call %q", want)
+		}
+	}
+}

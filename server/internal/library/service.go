@@ -55,6 +55,8 @@ type Service struct {
 	newEpisodes func(ctx context.Context, ids []string) error
 	// scanAborted is told when the loss protection aborts a scan (optional, M8).
 	scanAborted func(ctx context.Context, libraryName, reason string) error
+	// activity is the writer of the activity log (WithActivity, concept 11; optional).
+	activity func(ctx context.Context, e model.ActivityEvent)
 	// rootRemoved is told when an administrator removed a library folder (optional, idea 02,
 	// E12): the project keeps no audit table, so the notification and the Warn line are the
 	// only trace of it.
@@ -117,6 +119,21 @@ func WithMetadataCheck(check func(ctx context.Context, libraryID int64) (int, er
 // logged; the scan goes on.
 func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
 	return func(s *Service) { s.newEpisodes = fn }
+}
+
+// WithActivity sets the writer of the activity log (admin.RecordActivity, concept 11): the start
+// and the end of full scans, failed and aborted scans (path scans too) are reported to it. fn logs
+// its own errors. Call it before Start and before the workers run.
+func (s *Service) WithActivity(fn func(ctx context.Context, e model.ActivityEvent)) *Service {
+	s.activity = fn
+	return s
+}
+
+// recordActivity reports e to the activity log when one is set.
+func (s *Service) recordActivity(ctx context.Context, e model.ActivityEvent) {
+	if s.activity != nil {
+		s.activity(ctx, e)
+	}
 }
 
 // WithScanAborted runs fn when the loss protection aborts a full or path scan, with the library's
@@ -353,7 +370,7 @@ func (s *Service) QueueScan(ctx context.Context, id int64) (model.Library, error
 	if _, err := s.Get(ctx, id); err != nil {
 		return model.Library{}, err
 	}
-	if _, err := s.enqueueScan(ctx, id, 0, prioScan); err != nil {
+	if _, err := s.enqueueScan(ctx, id, 0, prioScan, model.ScanTriggerManual); err != nil {
 		return model.Library{}, err
 	}
 	return s.Get(ctx, id)
@@ -481,20 +498,20 @@ func (s *Service) scannable(ctx context.Context, libraryID int64) (bool, error) 
 	return len(roots) > 0, nil
 }
 
-// enqueueScan queues scan.library with prio and marks the library queued. A scan that already
-// waits under the key is raised to prio and never lowered (RaiseQueuedPriority), so a manual run
-// overtakes the scheduled one. It returns the job, or the zero job when the library has no folder
+// enqueueScan queues scan.library with prio and marks the library queued; trigger is what queued
+// it (model.ScanTrigger*). A scan that already waits under the key is raised to prio and never
+// lowered (RaiseQueuedPriority), so a manual run overtakes the scheduled one. It returns the job, or the zero job when the library has no folder
 // to walk: queueing one would leave the library "queued" for good, and letting it run would end
 // in "done" with zero files, which reads like a successful scan of an empty folder (idea 02,
 // step 14).
-func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.Duration, prio int) (jobs.Job, error) {
+func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.Duration, prio int, trigger string) (jobs.Job, error) {
 	switch ok, err := s.scannable(ctx, libraryID); {
 	case err != nil:
 		return jobs.Job{}, err
 	case !ok:
 		return jobs.Job{}, nil
 	}
-	payload, err := json.Marshal(libraryPayload{libraryID})
+	payload, err := json.Marshal(libraryPayload{LibraryID: libraryID, Trigger: trigger})
 	if err != nil {
 		return jobs.Job{}, err
 	}
@@ -517,7 +534,7 @@ func (s *Service) enqueueScan(ctx context.Context, libraryID int64, delay time.D
 // of that library is already running, the change may have been missed by its walk, so the scan
 // is queued again once the running one has finished.
 func (s *Service) triggerScan(ctx context.Context, libraryID int64) {
-	j, err := s.enqueueScan(ctx, libraryID, jobs.DebounceWindow, prioScan)
+	j, err := s.enqueueScan(ctx, libraryID, jobs.DebounceWindow, prioScan, model.ScanTriggerWatcher)
 	if err != nil {
 		if ctx.Err() == nil {
 			s.log.WarnContext(ctx, "queue scan after change", "library_id", libraryID, "err", err)
@@ -788,7 +805,7 @@ func (s *Service) runScans(ctx context.Context, _ *jobs.Queue, prio int) ([]int6
 	}
 	ids := make([]int64, 0, len(libs))
 	for _, l := range libs {
-		j, err := s.enqueueScan(ctx, l.ID, 0, prio)
+		j, err := s.enqueueScan(ctx, l.ID, 0, prio, model.ScanTriggerSchedule)
 		if err != nil {
 			return ids, fmt.Errorf("queue scan of library %d: %w", l.ID, err)
 		}

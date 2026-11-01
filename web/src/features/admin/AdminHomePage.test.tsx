@@ -81,6 +81,17 @@ const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard => ({
   // Contract 1.7.0 (concept 11); the overview does not show them yet.
   attention: { abortedScans: [] },
   counts: { titles: 1200, accounts: 3, maintenanceOpen: 4 },
+  activity: [
+    {
+      id: 1,
+      at: '2026-10-21T09:12:00Z',
+      kind: 'playback_started',
+      profileName: 'Marco',
+      accountEmail: 'owner@example.test',
+      itemTitle: 'Alien',
+      detail: {},
+    },
+  ],
   ...overrides,
 });
 

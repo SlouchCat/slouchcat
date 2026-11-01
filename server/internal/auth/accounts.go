@@ -135,6 +135,11 @@ func (s *Service) DeleteAccount(ctx context.Context, accountID int64, end func(c
 	if _, err := s.write.DeleteAccount(ctx, acc.ID); err != nil {
 		return fmt.Errorf("delete account: %w", err)
 	}
+	// The activity log keeps nothing of the account (concept 11): an event written after this
+	// finds no account and is dropped (admin.RecordActivity).
+	if err := s.write.DeleteActivityEventsByAccount(ctx, nullInt(acc.ID)); err != nil {
+		return fmt.Errorf("delete activity of account: %w", err)
+	}
 	if end != nil {
 		if err := end(ctx, acc.ID); err != nil {
 			return err

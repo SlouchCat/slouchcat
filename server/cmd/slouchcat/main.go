@@ -292,6 +292,15 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			browse.New(log, browse.WithConfinedTo(browse.ResolveRoots(cfg.BrowseRoots, log))))
 	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, started)
 	keys.admin = adminSvc
+	// The activity log of the overview (concept 11, ADR 0019) lives in admin; playback and library
+	// exist before it, so their hooks are set here, before any request or worker runs. jobs.prune
+	// cleans it up. A restore swapped in at this start is recorded in the restored database.
+	playbackSvc.WithActivity(adminSvc.RecordActivity)
+	libSvc.WithActivity(adminSvc.RecordActivity)
+	queue.AddPruneTask(adminSvc.PruneActivity)
+	if db.Restored {
+		adminSvc.RecordActivity(ctx, model.ActivityEvent{Kind: model.ActivityBackupRestored})
+	}
 	// The channels (M8): admin stores the SMTP, Telegram and VAPID settings that notify reads, and
 	// notify checks tokens, sends test mails, rotates the push keys and reports the channel state
 	// for the dashboard.
@@ -336,6 +345,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
 		registry.Attach(worker, jobs.PoolGeneral)
 		worker.OnFinalFailure(notifySvc.JobFailed)
+		worker.OnFinalFailure(adminSvc.RecordJobFailure)
 		workers.Go(func() { worker.Run(ctx) })
 	}
 	// A worker of its own for download preparations: workers claim only the job types attached
@@ -343,6 +353,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	downloadWorker := jobs.NewWorker(queue, "download-1", log)
 	registry.Attach(downloadWorker, jobs.PoolDownload)
 	downloadWorker.OnFinalFailure(notifySvc.JobFailed)
+	downloadWorker.OnFinalFailure(adminSvc.RecordJobFailure)
 	workers.Go(func() { downloadWorker.Run(ctx) })
 	// Notification deliveries (M8) on a worker of their own: a slow mail server never holds up
 	// scans. Run polls Telegram while link codes are open and prunes old deliveries.
@@ -401,6 +412,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	log.Info("listening", "addr", ln.Addr().String(), "startup_ms", time.Since(started).Milliseconds())
+	adminSvc.RecordActivity(ctx, model.ActivityEvent{Kind: model.ActivityServerStarted, Detail: model.ActivityDetail{Version: version}})
 
 	select {
 	case err := <-serveErr:

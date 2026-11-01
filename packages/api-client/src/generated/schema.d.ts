@@ -2609,9 +2609,10 @@ export interface paths {
          *     failed jobs grouped by type (and, for older clients, the last ten failed jobs), free and total
          *     space of the config and cache directories, the state of every integration (keys, e-mail, Web
          *     Push, Telegram, update check), the newest 50 errors of the server log (redacted, newest first),
-         *     the update state, what needs the administrator's attention (scans the loss protection aborted)
-         *     and the counts of the sidebar (titles, accounts, open maintenance cases; recomputed at most every
-         *     60 seconds and at once after a change on the maintenance, libraries or accounts pages).
+         *     the update state, what needs the administrator's attention (scans the loss protection aborted),
+         *     the counts of the sidebar (titles, accounts, open maintenance cases; recomputed at most every
+         *     60 seconds and at once after a change on the maintenance, libraries or accounts pages) and the
+         *     six newest entries of the activity log.
          */
         get: operations["getDashboard"];
         put?: never;
@@ -5879,6 +5880,64 @@ export interface components {
             browse?: components["schemas"]["BrowseHealth"];
             attention: components["schemas"]["DashboardAttention"];
             counts: components["schemas"]["DashboardCounts"];
+            /** @description The newest entries of the activity log, newest first; empty instead of absent. */
+            activity: components["schemas"]["ActivityEntry"][];
+        };
+        /**
+         * @description One entry of the activity log (concept 11, ADR 0019). The server sends no sentences: the client
+         *     builds the sentence from `kind` and the fields, with a general sentence for a kind it does not
+         *     know. Known kinds: `playback_started`, `playback_completed`, `playback_stopped`, `scan_started`,
+         *     `scan_done`, `scan_failed`, `scan_aborted`, `job_failed`, `backup_created`, `backup_restored`,
+         *     `server_started`, `server_restart`. The log keeps 30 days and at most 2'000 entries; the entries
+         *     of a deleted account or profile are deleted with it.
+         */
+        ActivityEntry: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            at: string;
+            /**
+             * @description Kind of the event. No enum, so a new kind breaks no client.
+             * @example playback_started
+             */
+            kind: string;
+            /** @description Name of the profile, read now; absent without a profile or after it was deleted. */
+            profileName?: string;
+            /** @description E-mail address of the account, read now; absent without an account. */
+            accountEmail?: string;
+            /** @description Title of the item at the time of the event (playback kinds). */
+            itemTitle?: string;
+            /** @description Name of the library at the time of the event (scan kinds). */
+            libraryName?: string;
+            detail: components["schemas"]["ActivityDetail"];
+        };
+        /**
+         * @description The few numbers and fixed codes of an entry; no secret, no path, no IP address and no free error
+         *     text. Every field is optional and set only by the kinds it belongs to.
+         */
+        ActivityDetail: {
+            /** @description Titles the full scan added (`scan_done`). */
+            newTitles?: number;
+            /**
+             * Format: int64
+             * @description Size of the archive (`backup_created`).
+             */
+            sizeBytes?: number;
+            /** @description Version of the server (`server_started`). */
+            version?: string;
+            /** @description What started the full scan (`scan_started`) - `manual`, `schedule` or `watcher`. */
+            trigger?: string;
+            /**
+             * @description Fixed code of a failed or aborted scan (`scan_failed`, `scan_aborted`) - `root_missing`,
+             *     `root_empty`, `loss_over_threshold`, `cancelled` or `error`.
+             */
+            reason?: string;
+            /** @description Job type of `job_failed`. */
+            jobType?: string;
+            /** @description Failures of the job type in this hour (`job_failed`). */
+            count?: number;
+            /** @description Who ended the playback (`playback_stopped`) - `admin` (stopped on the streams page) or `revoked` (its device forgotten). */
+            by?: string;
         };
         /**
          * @description What needs the administrator's attention (concept 11). The server decides what counts (rule

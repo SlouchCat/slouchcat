@@ -146,6 +146,9 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 	if d.Counts, err = s.dashboardCounts(ctx); err != nil {
 		return model.Dashboard{}, err
 	}
+	if d.Activity, err = s.recentActivity(ctx); err != nil {
+		return model.Dashboard{}, err
+	}
 	d.Config = s.storage(ctx, s.ops.system.ConfigDir)
 	d.Cache = s.storage(ctx, s.ops.system.CacheDir)
 	if d.Update, err = s.UpdateState(ctx); err != nil {
