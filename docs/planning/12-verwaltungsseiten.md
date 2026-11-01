@@ -616,9 +616,10 @@ Kopfband und Auf-/Zuklappen, Auswahl statt Verschieben):
 - Sicherung: automatische Sicherungen legt der Server nur vor einer Migration
   (`pre-migration-…`) und vor einer Wiederherstellung (`pre-restore-…`) an.
 
-**Zusammenlegen (Hinweise aus 2c und 2d, kein Entscheid):** Startseitenreihen, Spotlight und
-Cat's Empfehlungen könnten eine Seite «Startseite» mit drei Reitern werden; Sammlungen bleibt
-eigenständig. Benachrichtigungen bleibt getrennt von Integrationen, beide verlinken einander.
+**Zusammenlegen (Hinweise aus 2c und 2d):** Startseitenreihen, Spotlight und Cat's Empfehlungen
+könnten eine Seite «Startseite» mit drei Reitern werden. **Marco (1. November 2026): «Getrennt
+lassen».** Die drei Seiten bleiben eigene Einträge der Verwaltungsleiste wie in Konzept 11.
+Sammlungen bleibt eigenständig. Benachrichtigungen bleibt getrennt von Integrationen, beide verlinken einander.
 Ankündigungen steht inhaltlich näher bei Benachrichtigungen als bei der Kuratierung.
 
 **Korrektur Hintergrundjobs (alle Varianten, auch das gewählte C):** Das Mockup zeigt 14
