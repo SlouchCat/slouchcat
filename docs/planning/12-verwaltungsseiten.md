@@ -539,7 +539,9 @@ eigener Commit, `task ci` grün.
 
 ### 10.2 Änderungswünsche an den Mockups
 
-(Noch keine.)
+| Datum | Seite | Wunsch | Umsetzung |
+|---|---|---|---|
+| 1. November 2026 | Metadaten (A, B, C) | «Ich möchte das mit den Sprachen bei Metadaten als Dropdown oder anders gelöst. Mir gefällt das mit dem Hin-und-her-Schieben nicht.» Interview: **feste Plätze**, auch für die Bildsprachen. | Je Rang eine Auswahl («1. Sprache», «2. Sprache» …); die Reihenfolge ergibt sich aus dem Platz. Wählt man eine Sprache, die schon auf einem anderen Platz steht, tauschen die beiden die Plätze (Hinweis darunter). «Weitere Sprache» fügt einen Platz an, «×» entfernt ihn. Bildsprachen gleich, mit «Ohne Text» als Eintrag. Die Regeln aus MET-2 (Standard braucht Deutsch, Bibliothek Deutsch oder Englisch) bleiben. |
 
 ### 10.3 Wahl je Seite
 
