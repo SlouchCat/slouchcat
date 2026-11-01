@@ -5,7 +5,16 @@
 // CSS, and anything in '@/ui' lands in the start bundle.
 export { AriaButton } from './AriaButton';
 export { AccentPicker } from './AccentPicker';
+export { ActivityFeed, type ActivityEntry, type ActivityTone } from './ActivityFeed';
 export { AdminNav, type AdminNavGroup, type AdminNavLink } from './AdminNav';
+export {
+  AdminSideNav,
+  type AdminSideNavEntry,
+  type AdminSideNavGroup,
+  type AdminSideNavProps,
+  type AdminSideNavTone,
+} from './AdminSideNav';
+export { AdminSideNavMenu, type AdminSideNavMenuProps } from './AdminSideNavMenu';
 export { BarChart, type BarDatum } from './BarChart';
 export { CheckboxGroup } from './CheckboxGroup';
 export { CodeBlock } from './CodeBlock';

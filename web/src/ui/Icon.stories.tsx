@@ -43,6 +43,12 @@ const names: IconName[] = [
   'chart',
   'archive',
   'spotlight',
+  'grid',
+  'film',
+  'server',
+  'power',
+  'disk',
+  'activity',
 ];
 
 const meta = {
@@ -54,15 +60,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** Every icon in the three sizes; the rows wrap, so all of them stay inside the screenshot. */
 export const All: Story = {
   render: () => (
     <Stack gap={4}>
       {(['sm', 'md', 'lg'] as const).map((size) => (
-        <Stack key={size} direction="row" gap={4}>
+        <div key={size} style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--sc-space-4)' }}>
           {names.map((name) => (
             <Icon key={name} name={name} size={size} />
           ))}
-        </Stack>
+        </div>
       ))}
     </Stack>
   ),
