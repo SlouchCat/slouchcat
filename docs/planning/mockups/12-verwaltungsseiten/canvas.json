@@ -12,7 +12,7 @@
  "boards": {
   "Main.dc.html": {
    "x": 0,
-   "y": 45020,
+   "y": 45530,
    "w": 1440,
    "h": 2370,
    "title": "A · Hintergrundjobs",
@@ -20,7 +20,7 @@
   },
   "A-Integrationen.dc.html": {
    "x": 1520,
-   "y": 45020,
+   "y": 45530,
    "w": 1440,
    "h": 2370,
    "title": "A · Integrationen",
@@ -28,7 +28,7 @@
   },
   "A-Konten.dc.html": {
    "x": 3040,
-   "y": 45020,
+   "y": 45530,
    "w": 1440,
    "h": 1310,
    "title": "A · Konten",
@@ -36,7 +36,7 @@
   },
   "B-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 48110,
+   "y": 48620,
    "w": 1440,
    "h": 1710,
    "title": "B · Hintergrundjobs",
@@ -44,7 +44,7 @@
   },
   "B-Integrationen.dc.html": {
    "x": 1520,
-   "y": 48110,
+   "y": 48620,
    "w": 1440,
    "h": 1500,
    "title": "B · Integrationen",
@@ -52,7 +52,7 @@
   },
   "B-Konten.dc.html": {
    "x": 3040,
-   "y": 48110,
+   "y": 48620,
    "w": 1440,
    "h": 1300,
    "title": "B · Konten",
@@ -60,7 +60,7 @@
   },
   "C-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 50540,
+   "y": 51050,
    "w": 1440,
    "h": 1810,
    "title": "C · Hintergrundjobs",
@@ -68,7 +68,7 @@
   },
   "C-Integrationen.dc.html": {
    "x": 1520,
-   "y": 50540,
+   "y": 51050,
    "w": 1440,
    "h": 1530,
    "title": "C · Integrationen",
@@ -76,7 +76,7 @@
   },
   "C-Konten.dc.html": {
    "x": 3040,
-   "y": 50540,
+   "y": 51050,
    "w": 1440,
    "h": 1430,
    "title": "C · Konten",
@@ -624,7 +624,7 @@
   },
   "Sta-B.dc.html": {
    "w": 1440,
-   "h": 1450,
+   "h": 1960,
    "title": "B · Raster",
    "expand": "fill",
    "is_interactive": true,
@@ -647,7 +647,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 43390
+   "y": 43900
   },
   "Sic-B.dc.html": {
    "w": 1440,
@@ -656,7 +656,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 43390
+   "y": 43900
   },
   "Sic-C.dc.html": {
    "w": 1440,
@@ -665,7 +665,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 43390
+   "y": 43900
   }
  },
  "order": [
@@ -860,76 +860,76 @@
   "row16": {
    "x": 0,
    "y": 29720,
-   "text": "Startseitenreihen · neu",
+   "text": "Startseitenreihen · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row17": {
    "x": 0,
    "y": 31370,
-   "text": "Spotlight · neu",
+   "text": "Spotlight · gewählt: A",
    "kind": "title1",
    "maxW": 4480
   },
   "row18": {
    "x": 0,
    "y": 33790,
-   "text": "Cat's Empfehlungen · neu",
+   "text": "Cat's Empfehlungen · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row19": {
    "x": 0,
    "y": 35510,
-   "text": "Sammlungen · neu",
+   "text": "Sammlungen · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row20": {
    "x": 0,
    "y": 37340,
-   "text": "Ankündigungen · neu",
+   "text": "Ankündigungen · gewählt: B",
    "kind": "title1",
    "maxW": 4480
   },
   "row21": {
    "x": 0,
    "y": 38970,
-   "text": "Benachrichtigungen · neu",
+   "text": "Benachrichtigungen · gewählt: A",
    "kind": "title1",
    "maxW": 4480
   },
   "row22": {
    "x": 0,
    "y": 40920,
-   "text": "Statistik · neu",
+   "text": "Statistik · gewählt: B, ergänzt um Tageszeit und Wochentag",
    "kind": "title1",
    "maxW": 4480
   },
   "row23": {
    "x": 0,
-   "y": 43090,
-   "text": "Sicherung · neu",
+   "y": 43600,
+   "text": "Sicherung · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row24": {
    "x": 0,
-   "y": 44720,
+   "y": 45230,
    "text": "Grundmuster A (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row25": {
    "x": 0,
-   "y": 47810,
+   "y": 48320,
    "text": "Grundmuster B (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row26": {
    "x": 0,
-   "y": 50240,
+   "y": 50750,
    "text": "Grundmuster C (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480

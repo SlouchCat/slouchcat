@@ -546,6 +546,7 @@ eigener Commit, `task ci` grün.
 | 1. November 2026 | Integrationen (A) | «Schon viel besser. Kannst du in Integrationen Variante A die Titel noch auf- und zuklappbar machen?» | Das Kopfband jedes Blocks ist ein Knopf mit Pfeil (`aria-expanded`); ein Klick klappt den Block zu oder auf, alle sechs starten offen. Beim Bau gilt S-13: Ungespeichertes in einem zugeklappten Block bleibt erhalten. **Marco: «Genau so machen wir’s.»** |
 | 1. November 2026 | Konten, Profile | «Macht es nicht Sinn, dass die Profile und Konten im gleichen sind? Immerhin sind ja Profile an Konten gekoppelt. Bitte prüfe dies und mach nochmals Vorschläge.» | Geprüft: Die Profil-Endpunkte (`/profiles`, `/profiles/{id}`, `…/pin`, `…/watch-time`) sind `x-visibility: account`, gelten also nur für das **eigene** Konto; die Verwaltung sieht von fremden Konten nur die Profilnamen (`AccountsPage.tsx:315-318`). `/settings/profiles` bleibt für jedes Konto nötig (Hauptprofil jedes Kontos verwaltet seine Profile, PRO-0). Darum drei Vorschläge auf Basis von Konten C ohne neue Funktion: KP-1 Profile im aufgeklappten Konto, KP-2 eigener Reiter «Meine Profile», KP-3 Konten mit eingerückten Profilzeilen. Profile fremder Konten bleiben zum Lesen; sie zu bearbeiten wäre neue Funktion mit Vertragsänderung (Regel 11) und braucht einen eigenen Entscheid. |
 | 1. November 2026 | Streams | «Streams möchte ich andere Vorschläge.» | Drei neue Vorschläge Str-D bis Str-F mit anderem Aufbau als A bis C. |
+| 1. November 2026 | Statistik (B) | «Ergänzen um Zeit, wann wird gestreamt, Wochentage ebenfalls.» | Neues Feld «Wann geschaut wird» unter Profilen und Geräten: links «Nach Tageszeit» (24 Balken, Stunde in der Zeitzone des Servers), rechts «Nach Wochentag» (7 Balken Montag bis Sonntag), darunter zugeklappt «Woche und Stunde» als Raster 7 × 24 mit der Spitze im Kopf. Folgt dem Zeitraum (STA-1). **Neue Funktion** über A-8 hinaus: braucht im Vertrag die Felder `Stats.byHour` (24 Werte `watchedMs`) und `Stats.byWeekday` (7 Werte, Montag zuerst), additiv in Vertrag 1.7.0, gerechnet im Server aus den Schauereignissen in der Zeitzone des Servers (`TZ`). Für den Bau hat jedes Diagramm eine Tabelle als Alternative. Geht in Frage 18. |
 
 ### 10.3 Wahl je Seite
 
@@ -562,14 +563,14 @@ eigener Commit, `task ci` grün.
 | Geräte | **C «Reiter und Klappbereiche»** (Reiter Geräte und Fähigkeiten, je Typ ein Klappbereich) | 1. November 2026 |
 | Streams | **D «Kacheln» mit der Leiste «Serverlast» aus E** (Marco korrigierte zuerst gemeldetes «A»). Kachelbild = **Hintergrundbild quer** des Films bzw. der Serie: neues Feld `AdminStream.backdropUrl` (additiv, Vertrag 1.7.0, Hash wie `posterUrl` aus Konzept 11, bei Folgen das Bild der Serie). Zähler Transcode HW/SW, Remux, Direct und Bandbreite als Summe der Bitraten im Client aus `AdminStream`. **Marco: «genehmigt».** | 1. November 2026 |
 | Podcasts | **C «Reiter und Klappbereiche»** (Reiter je Bibliothek, je Podcast ein Klappbereich) | 1. November 2026 |
-| Startseitenreihen | offen (A, B «Liste und Vorschau», C) | – |
-| Spotlight | offen (A, B, C) | – |
-| Cat's Empfehlungen | offen (A, B, C) | – |
-| Sammlungen | offen (A, B, C) | – |
-| Ankündigungen | offen (A, B, C) | – |
-| Benachrichtigungen | offen (A, B, C) | – |
-| Statistik | offen (A, B «Raster», C) | – |
-| Sicherung | offen (A, B, C) | – |
+| Startseitenreihen | **C «Reiter und Klappbereiche»** | 1. November 2026 |
+| Spotlight | **A «Kompakte Liste»** | 1. November 2026 |
+| Cat's Empfehlungen | **C «Reiter und Klappbereiche»** | 1. November 2026 |
+| Sammlungen | **C «Reiter und Klappbereiche»** | 1. November 2026 |
+| Ankündigungen | **B «Liste und Detail»** | 1. November 2026 |
+| Benachrichtigungen | **A «Kompakte Liste»** | 1. November 2026 |
+| Statistik | **B «Raster»**, ergänzt um «Wann geschaut wird» (10.2) | 1. November 2026 |
+| Sicherung | **C «Reiter und Klappbereiche»** (Reiter Sicherungen, Neue Sicherung, Aus Datei wiederherstellen; je Art ein Klappbereich) | 1. November 2026 |
 
 **Abweichungen der Vorschläge vom Grundmuster (Phase 2a):**
 

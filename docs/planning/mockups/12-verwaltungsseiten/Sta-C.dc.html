@@ -193,12 +193,25 @@ function statsOf(d) {
   return { top, watch, plays: n, min, pb: { direct, remux, transcode, tShare: n ? transcode / n : 0, hw: transcode ? SHARE.hw[k] : 0 }, devices };
 }
 
+// Wann geschaut wird (B, new, needs Stats.byHour and Stats.byWeekday): played time per weekday and hour
+// in the server's time zone. A watch event counts in the hour it was played; the cells add up to the profile times.
+const WDAYS = [['Mo', 'Montag'], ['Di', 'Dienstag'], ['Mi', 'Mittwoch'], ['Do', 'Donnerstag'], ['Fr', 'Freitag'], ['Sa', 'Samstag'], ['So', 'Sonntag']];
+const HOUR_W = [0.6, 0.3, 0.1, 0.05, 0.03, 0.05, 0.4, 1.2, 1, 0.5, 0.4, 0.6, 0.9, 0.8, 0.9, 1.3, 1.8, 2.2, 2.6, 3.4, 4.6, 4.4, 3, 1.6];
+const WDAY_W = [0.8, 0.75, 0.85, 0.9, 1.25, 1.6, 1.55];
+const span = (h) => h + '–' + (h + 1) + ' Uhr';
+function whenOf(d, min) {
+  // grid[day][hour] in minutes; weekends shift time to the morning and afternoon (children).
+  const raw = WDAY_W.map((w, i) => HOUR_W.map((x, h) => w * x * (i >= 5 && h >= 8 && h <= 17 ? 1.7 : 1) * (0.85 + (((i + 1) * 31 + h * 7 + d) % 29) / 100)));
+  const sum = raw.reduce((a, r) => a + r.reduce((b, x) => b + x, 0), 0);
+  return raw.map((r) => r.map((x) => (min ? (x * min) / sum : 0)));
+}
 const perStyle = (s) => 'display:inline-flex;align-items:center;height:26px;padding:0 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
 const hbar = (f) => 'display:block;height:8px;border-radius:4px;background:' + COL.ac + ';width:' + Math.max(2, Math.round(f * 100)) + '%';
 const vcol = (f) => 'display:block;width:100%;max-width:44px;margin:0 auto;border-radius:4px 4px 0 0;background:' + COL.ac + ';height:' + Math.max(3, Math.round(f * 112)) + 'px';
 const art = (p) => 'linear-gradient(to top, rgba(11,12,16,0.82), transparent 62%), radial-gradient(120% 90% at 85% 0%, rgba(255,255,255,0.18), transparent 60%), linear-gradient(155deg,' + p[0] + ',' + p[1] + ')';
 const posterStyle = (p) => 'position:relative;display:flex;align-items:flex-end;aspect-ratio:2 / 3;padding:8px;box-sizing:border-box;border-radius:6px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);background:' + art(p);
 const backStyle = (p) => 'position:relative;display:flex;flex-direction:column;justify-content:space-between;height:150px;padding:10px 12px;box-sizing:border-box;border-radius:8px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.1);color:' + COL.tp + ';text-decoration:none;background:' + art(p);
+const heat = (f) => 'display:block;height:18px;border-radius:3px;background:' + (f > 0 ? 'color-mix(in srgb, ' + COL.ac + ' ' + Math.max(6, Math.round(f * 100)) + '%, ' + COL.s2 + ')' : COL.s2);
 const thumbStyle = (p) => 'display:block;flex:none;width:20px;height:30px;border-radius:3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);background:linear-gradient(155deg,' + p[0] + ',' + p[1] + ')';
 const rankStyle = (i) => 'position:absolute;left:6px;top:6px;display:grid;place-items:center;min-width:22px;height:22px;padding:0 5px;box-sizing:border-box;border-radius:11px;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;' + (i < 3 ? 'background:' + COL.ac + ';color:' + COL.oa : 'background:rgba(11,12,16,0.72);color:' + COL.tp);
 function initState() { return { days: 30, busy: false, ex: 'data', all: false, view: 'tiles', tab: 'top' }; }
@@ -335,6 +348,26 @@ class Component extends DCLogic {
     v.devNone = v.devices.length === 0; v.devSome = !v.devNone;
     const nd = st.devices.reduce((a, x) => a + x.count, 0);
     v.devSum = (nd === 1 ? '1 Gerät' : nd + ' Geräte') + ' · ' + dur(st.min);
+    // Wann geschaut wird
+    const grid = whenOf(this.state.days, st.min);
+    const byHour = HOUR_W.map((x, h) => grid.reduce((a, r) => a + r[h], 0));
+    const byDay = grid.map((r) => r.reduce((a, x) => a + x, 0));
+    const hMax = Math.max(1, ...byHour); const dMax = Math.max(1, ...byDay);
+    const cMax = Math.max(1, ...grid.map((r) => Math.max(...r)));
+    let pk = [0, 0];
+    grid.forEach((r, i) => r.forEach((x, h) => { if (x > grid[pk[0]][pk[1]]) pk = [i, h]; }));
+    const ph = byHour.indexOf(Math.max(...byHour)); const pd = byDay.indexOf(Math.max(...byDay));
+    v.when = {
+      has: st.min > 0, none: !(st.min > 0),
+      hours: byHour.map((m, h) => ({ label: h % 3 === 0 ? String(h) : '', tip: span(h) + ': ' + dur(m), col: vcol(m / hMax).replace('max-width:44px', 'max-width:22px') })),
+      days: byDay.map((m, i) => ({ name: WDAYS[i][1], short: WDAYS[i][0], watched: dur(m), tip: WDAYS[i][1] + ': ' + dur(m), bar: hbar(m / dMax) })),
+      rows: grid.map((r, i) => ({ short: WDAYS[i][0], cells: r.map((m, h) => ({ tip: WDAYS[i][1] + ', ' + span(h) + ': ' + dur(m), style: heat(m / cMax) })) })),
+      ticks: HOUR_W.map((x, h) => ({ label: h % 3 === 0 ? String(h) : '' })),
+      hourSum: 'Am meisten ' + span(ph), daySum: 'Am meisten am ' + WDAYS[pd][1],
+      peak: 'Spitze: ' + WDAYS[pk[0]][1] + ', ' + span(pk[1]),
+      hourAria: 'Schauzeit nach Tageszeit, am meisten ' + span(ph) + ' mit ' + dur(byHour[ph]),
+    };
+    v.sec.heat = this.detVals('s_heat');
     v.sec.top = this.detVals('s_top'); v.sec.prof = this.detVals('s_prof'); v.sec.pb = this.detVals('s_pb'); v.sec.dev = this.detVals('s_dev');
     return v;
   }
