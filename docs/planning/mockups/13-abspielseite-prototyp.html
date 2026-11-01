@@ -1,0 +1,960 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Abspielseite Prototyp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: prototype switches on top, the player screen (16:9 desktop or landscape phone) in the
+     middle, the list of proposals the current view shows underneath.
+     Tokens: Slouchcat design tokens (packages/design-tokens), profile accent "ember". Single dark look on purpose. */
+  :root {
+    color-scheme: dark;
+    --bg-base: #0b0c10; --bg-elevated: #13151b;
+    --surface-1: #16181f; --surface-2: #1d2029; --surface-3: #262a35;
+    --text-primary: #f3f3f5; --text-secondary: #b6b9c4; --text-muted: #9095a3;
+    --border-subtle: #ffffff14; --focus: #f3f3f5; --track: #ffffff33; --buffered: #ffffff66;
+    --warning: #e8b65a; --success: #5fcf8f;
+    --scrim-solid: #0b0c10f5; --scrim-strong: #0b0c10cc; --scrim-medium: #0b0c1080; --scrim-clear: #0b0c1000;
+    --panel: #13151bed; --media: #000000; --phone-body: #1a1b21;
+    --accent: #e8794a; --on-accent: #1c0d06; --accent-soft: #e8794a33;
+    --sub-yellow: #f5e663; --sub-white: #ffffff; --sub-box: #000000c0; --sub-half: #00000080;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --r-md: 8px; --r-lg: 12px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg-base); color: var(--text-primary); font-family: var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 48px; line-height: 1.45;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+  .intro h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--text-secondary); max-width: 75ch; font-size: .9rem; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .group > span { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--surface-1); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button, .pbtn {
+    font: inherit; font-size: .82rem; color: var(--text-secondary); background: transparent; border: 0;
+    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text-primary); }
+  .pbtn { background: var(--surface-1); }
+  .pbtn:hover, .seg button:hover { color: var(--text-primary); }
+  label.chk { display: inline-flex; gap: 6px; align-items: center; font-size: .82rem; color: var(--text-secondary); cursor: pointer; }
+  label.chk input { accent-color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  /* ---------- device frames ---------- */
+  .device { width: 100%; }
+  .screen {
+    position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--media);
+    border-radius: 10px; overflow: hidden; container-type: inline-size; user-select: none;
+  }
+  .device.phone { max-width: 860px; margin: 0 auto; background: var(--phone-body); padding: 10px 14px; border-radius: 34px; }
+  .device.phone .screen { aspect-ratio: 812 / 375; border-radius: 22px; }
+  .stage { position: absolute; inset: 0; --u: calc(100cqw / 80); font-size: calc(var(--u) * .875); }
+  .device.phone .stage { --u: calc(100cqw / 50); }
+  .frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--media); transition: opacity .25s; }
+  .stage[data-chrome="hidden"] { cursor: none; }
+
+  /* subtitles */
+  .subs { position: absolute; left: 0; right: 0; bottom: 9%; display: flex; justify-content: center; pointer-events: none; transition: bottom .3s; }
+  .stage[data-chrome="shown"] .subs { bottom: 30%; }
+  .stage[data-variant="today"][data-chrome="shown"] .subs { bottom: 16%; }
+  .subs[data-pos="high"] { bottom: 18%; }
+  .stage[data-chrome="shown"] .subs[data-pos="high"] { bottom: 36%; }
+  .stage[data-tray="open"] .subs, .stage[data-tray="open"] .skipbtn { bottom: 58%; }
+  .subs span { max-width: 70%; text-align: center; font-weight: 600; line-height: 1.25; padding: .1em .45em; border-radius: 4px; }
+  .subs .tag { position: absolute; bottom: -1.6em; font-size: calc(var(--u) * .6); color: var(--text-muted); font-weight: 400; background: none; }
+
+  /* chrome */
+  .top, .bottom { position: absolute; left: 0; right: 0; transition: opacity .3s, transform .3s; }
+  .top { top: 0; display: flex; align-items: flex-start; gap: calc(var(--u) * .75);
+    padding: calc(var(--u) * 1.25) calc(var(--u) * 2) calc(var(--u) * 4);
+    background: linear-gradient(to bottom, var(--scrim-strong), var(--scrim-clear)); }
+  .bottom { bottom: 0; display: flex; flex-direction: column; gap: calc(var(--u) * .5);
+    padding: calc(var(--u) * 5) calc(var(--u) * 2) calc(var(--u) * 1.25);
+    background: linear-gradient(to top, var(--scrim-solid) 0%, var(--scrim-strong) 45%, var(--scrim-clear) 100%); }
+  .stage[data-chrome="hidden"] .top { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+  .stage[data-chrome="hidden"] .bottom { opacity: 0; transform: translateY(8px); pointer-events: none; }
+  .titleblock { display: grid; gap: calc(var(--u) * .3); min-width: 0; }
+  .logo { height: calc(var(--u) * 3.2); max-width: calc(var(--u) * 18); object-fit: contain; object-position: left center; filter: drop-shadow(0 2px 6px #000a); }
+  .ctx { color: var(--text-secondary); font-size: calc(var(--u) * .85); }
+  .ctx b { color: var(--text-primary); font-weight: 600; }
+  .ttext { font-size: calc(var(--u) * 1.25); font-weight: 600; }
+  .spacer { flex: 1; }
+
+  .ib { display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--u) * .4);
+    min-width: calc(var(--u) * 2.75); height: calc(var(--u) * 2.75); padding: 0 calc(var(--u) * .5);
+    border: 0; border-radius: 999px; background: transparent; color: var(--text-primary); font: inherit; font-size: calc(var(--u) * .85); cursor: pointer; }
+  .ib:hover { background: #ffffff1f; }
+  .ib[aria-pressed="true"] { background: #ffffff26; }
+  .ib svg { width: calc(var(--u) * 1.4); height: calc(var(--u) * 1.4); flex: none; }
+  .ib.big svg { width: calc(var(--u) * 2); height: calc(var(--u) * 2); }
+  .ib.big { min-width: calc(var(--u) * 3.5); height: calc(var(--u) * 3.5); }
+  .ib .lbl { white-space: nowrap; }
+  .ib .dim { color: var(--text-muted); }
+
+  .meta { display: flex; align-items: baseline; gap: calc(var(--u) * 1); font-size: calc(var(--u) * .85); color: var(--text-secondary); }
+  .meta .now { color: var(--text-primary); font-weight: 600; }
+  .timebtn { font: inherit; color: var(--text-secondary); background: none; border: 0; cursor: pointer; font-variant-numeric: tabular-nums; padding: 2px 4px; border-radius: 6px; }
+  .timebtn:hover { color: var(--text-primary); background: #ffffff14; }
+
+  /* seek bar */
+  .seek { position: relative; height: calc(var(--u) * 1.5); display: flex; align-items: center; cursor: pointer; }
+  .track { position: relative; width: 100%; height: calc(var(--u) * .3); border-radius: 99px; background: var(--track); transition: height .15s; }
+  .seek:hover .track { height: calc(var(--u) * .5); }
+  .track > i { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
+  .track .buf { background: var(--buffered); }
+  .track .seg-intro { background: #ffffff59; border-radius: 0; }
+  .track .prog { background: var(--accent); }
+  .track .tick { width: 2px; background: var(--bg-base); border-radius: 0; }
+  .knob { position: absolute; top: 50%; width: calc(var(--u) * 1); height: calc(var(--u) * 1); border-radius: 50%; background: var(--accent); transform: translate(-50%, -50%); box-shadow: 0 0 0 3px #0006; }
+  .preview { position: absolute; bottom: calc(var(--u) * 2); transform: translateX(-50%); display: none; flex-direction: column; align-items: center; gap: 4px; pointer-events: none; z-index: 3; }
+  .seek:hover .preview { display: flex; }
+  .preview img { width: calc(var(--u) * 13); aspect-ratio: 16/9; object-fit: cover; border-radius: 6px; border: 2px solid var(--text-primary); background: var(--surface-2); }
+  .preview .pv-t { font-size: calc(var(--u) * .85); font-weight: 600; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px #000; }
+  .preview .pv-c { font-size: calc(var(--u) * .75); color: var(--text-secondary); text-shadow: 0 1px 3px #000; }
+
+  .ctrl { display: flex; align-items: center; gap: calc(var(--u) * .35); }
+  .vol { display: inline-flex; align-items: center; gap: calc(var(--u) * .3); }
+  .vol input { width: 0; opacity: 0; transition: width .2s, opacity .2s; accent-color: var(--accent); }
+  .vol:hover input, .vol:focus-within input, .vol.open input { width: calc(var(--u) * 7); opacity: 1; }
+  .vol .pct { font-size: calc(var(--u) * .75); color: var(--text-muted); width: calc(var(--u) * 2.4); font-variant-numeric: tabular-nums; }
+  .clock { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-size: calc(var(--u) * .85); margin-left: calc(var(--u) * .5); }
+
+  .tabs { display: flex; gap: calc(var(--u) * 1.5); padding-top: calc(var(--u) * .25); }
+  .tab { font: inherit; font-size: calc(var(--u) * .85); color: var(--text-secondary); background: none; border: 0; padding: calc(var(--u) * .35) 0; cursor: pointer; border-bottom: 2px solid transparent; }
+  .tab:hover { color: var(--text-primary); }
+  .tab[aria-selected="true"] { color: var(--text-primary); border-bottom-color: var(--accent); }
+  .tray { display: flex; gap: calc(var(--u) * .9); overflow-x: auto; padding: calc(var(--u) * .6) 2px calc(var(--u) * .4); scrollbar-width: thin; }
+  .card { flex: none; width: calc(var(--u) * 12); display: grid; gap: calc(var(--u) * .3); background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+  .card .th { position: relative; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--surface-2); outline: 2px solid transparent; }
+  .card .th img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card .th .no { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--u) * 1.6); font-weight: 700; color: var(--text-muted); }
+  .card[aria-current="true"] .th { outline-color: var(--accent); }
+  .card .bar2 { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); }
+  .card .c1 { font-size: calc(var(--u) * .8); font-weight: 600; }
+  .card .c2 { font-size: calc(var(--u) * .72); color: var(--text-muted); }
+  .card .badge { position: absolute; top: 6px; left: 6px; font-size: calc(var(--u) * .65); background: var(--accent); color: var(--on-accent); border-radius: 4px; padding: 1px 6px; font-weight: 700; }
+  .person { flex: none; width: calc(var(--u) * 7.5); display: grid; justify-items: center; gap: 4px; text-align: center; }
+  .person .av { width: calc(var(--u) * 4.5); height: calc(var(--u) * 4.5); border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); font-weight: 700; font-size: calc(var(--u) * 1.1); color: var(--text-secondary); }
+  .person .c1 { font-size: calc(var(--u) * .78); font-weight: 600; }
+  .person .c2 { font-size: calc(var(--u) * .7); color: var(--text-muted); }
+  .info { display: flex; gap: calc(var(--u) * 1.2); padding-top: calc(var(--u) * .6); max-width: calc(var(--u) * 52); }
+  .info img { width: calc(var(--u) * 6); border-radius: 6px; flex: none; align-self: flex-start; }
+  .info p { margin: 0 0 6px; font-size: calc(var(--u) * .82); color: var(--text-secondary); }
+  .info .facts { font-size: calc(var(--u) * .75); color: var(--text-muted); }
+
+  .skipbtn { position: absolute; right: calc(var(--u) * 2); bottom: 34%; font: inherit; font-size: calc(var(--u) * .9); font-weight: 600;
+    background: var(--text-primary); color: var(--bg-base); border: 0; border-radius: 6px; padding: calc(var(--u) * .6) calc(var(--u) * 1.1); cursor: pointer; }
+  .osd { position: absolute; top: 18%; left: 50%; transform: translateX(-50%); background: var(--scrim-strong); border-radius: 99px; padding: calc(var(--u) * .5) calc(var(--u) * 1.1); font-size: calc(var(--u) * .9); display: none; align-items: center; gap: 8px; }
+  .osd.on { display: flex; }
+  .osd .m { width: calc(var(--u) * 8); height: 4px; background: var(--track); border-radius: 9px; overflow: hidden; }
+  .osd .m i { display: block; height: 100%; background: var(--accent); }
+
+  /* side panel (desktop) / sheet (phone) */
+  .panel { position: absolute; top: calc(var(--u) * 1); right: calc(var(--u) * 1); bottom: calc(var(--u) * 8.5); width: calc(var(--u) * 22);
+    background: var(--panel); backdrop-filter: blur(14px); border-radius: var(--r-lg); display: flex; flex-direction: column; overflow: hidden; z-index: 5;
+    box-shadow: 0 10px 40px #0009; }
+  .device.phone .panel { top: auto; left: calc(var(--u) * 6); right: calc(var(--u) * 6); width: auto; height: 86%; bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .ph { display: flex; align-items: center; gap: 6px; padding: calc(var(--u) * .8) calc(var(--u) * .8) calc(var(--u) * .4) calc(var(--u) * 1.1); }
+  .ph h2 { font-size: calc(var(--u) * 1); margin: 0; flex: 1; }
+  .pb { overflow-y: auto; overflow-x: hidden; padding: 0 calc(var(--u) * .6) calc(var(--u) * 1); scrollbar-width: thin; }
+  .hint { margin: 0 calc(var(--u) * .5) calc(var(--u) * .6); font-size: calc(var(--u) * .75); color: var(--text-secondary); background: var(--surface-2); border-radius: 8px; padding: calc(var(--u) * .5) calc(var(--u) * .7); }
+  .hint.warn { border-left: 3px solid var(--warning); }
+  .hint.ok { border-left: 3px solid var(--success); }
+  .gl { font-size: calc(var(--u) * .68); text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); margin: calc(var(--u) * .8) calc(var(--u) * .5) calc(var(--u) * .3); }
+  .row { width: 100%; display: flex; align-items: center; gap: calc(var(--u) * .7); padding: calc(var(--u) * .5) calc(var(--u) * .5); border: 0; background: none; color: inherit; font: inherit; text-align: left; border-radius: 8px; cursor: pointer; }
+  .row:hover { background: #ffffff12; }
+  .row .ck { width: calc(var(--u) * 1.1); height: calc(var(--u) * 1.1); flex: none; color: var(--accent); }
+  .row .ck svg { width: 100%; height: 100%; display: block; }
+  .row .tx { flex: 1; min-width: 0; display: grid; }
+  .row .t1 { font-size: calc(var(--u) * .9); }
+  .row[aria-checked="true"] .t1 { font-weight: 700; }
+  .row .t2 { font-size: calc(var(--u) * .72); color: var(--text-muted); }
+  .row .val { font-size: calc(var(--u) * .78); color: var(--text-secondary); white-space: nowrap; }
+  .row .chev { width: calc(var(--u) * 1); height: calc(var(--u) * 1); color: var(--text-muted); }
+  .row[disabled] { opacity: .45; cursor: default; }
+  .pill { font-size: calc(var(--u) * .62); border-radius: 4px; padding: 1px 5px; margin-left: 4px; vertical-align: 1px; font-weight: 600; }
+  .pill.w { background: #e8b65a2e; color: var(--warning); }
+  .pill.n { background: var(--surface-3); color: var(--text-secondary); }
+  .opts { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 calc(var(--u) * .5); }
+  .opt { font: inherit; font-size: calc(var(--u) * .78); background: var(--surface-2); color: var(--text-secondary); border: 0; border-radius: 99px; padding: calc(var(--u) * .35) calc(var(--u) * .8); cursor: pointer; }
+  .opt[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .sw { display: flex; align-items: center; gap: 10px; padding: calc(var(--u) * .55) calc(var(--u) * .5); cursor: pointer; }
+  .sw .tx { flex: 1; display: grid; }
+  .sw input { accent-color: var(--accent); width: calc(var(--u) * 1.1); height: calc(var(--u) * 1.1); }
+  .offset { display: flex; align-items: center; gap: 10px; padding: 0 calc(var(--u) * .5); }
+  .offset output { min-width: 5ch; text-align: center; font-variant-numeric: tabular-nums; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * .6); }
+  .panel.wide { width: calc(var(--u) * 36); }
+  .stage[data-variant="B"] .panel { bottom: calc(var(--u) * 5.5); }
+
+  /* today menu */
+  .menu { position: absolute; right: calc(var(--u) * 2); bottom: calc(var(--u) * 3.6); width: calc(var(--u) * 16); max-height: 70%; overflow-y: auto; background: var(--bg-elevated); border-radius: 8px; padding: 6px; z-index: 5; box-shadow: 0 8px 30px #000a; }
+  .menu .mh { font-size: calc(var(--u) * .65); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; padding: 6px 8px 2px; }
+  .menu button { display: block; width: 100%; text-align: left; font: inherit; font-size: calc(var(--u) * .75); background: none; border: 0; color: var(--text-primary); padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+  .menu button:hover { background: var(--surface-2); }
+  .menu button[aria-checked="true"]::before { content: "✓ "; color: var(--accent); }
+
+  /* today variant (as on the screenshot of 1 November 2026) */
+  .stage[data-variant="today"] .top { padding: calc(var(--u) * .6) calc(var(--u) * 1); align-items: center; }
+  .stage[data-variant="today"] .ttext { font-size: calc(var(--u) * .7); }
+  .stage[data-variant="today"] .bottom { padding: calc(var(--u) * 3) calc(var(--u) * .6) calc(var(--u) * .5); gap: 2px; }
+  .stage[data-variant="today"] .ib { font-size: calc(var(--u) * .6); min-width: calc(var(--u) * 1.8); height: calc(var(--u) * 1.8); }
+  .stage[data-variant="today"] .ib svg { width: calc(var(--u) * .8); height: calc(var(--u) * .8); }
+  .stage[data-variant="today"] .clock { font-size: calc(var(--u) * .55); }
+  .stage[data-variant="today"] .track { height: 2px; }
+
+  /* phone layout */
+  .device.phone .bottom { padding-left: calc(var(--u) * 1.5); padding-right: calc(var(--u) * 1.5); }
+  .mid { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: calc(var(--u) * 3); transition: opacity .3s; }
+  .stage[data-chrome="hidden"] .mid { opacity: 0; pointer-events: none; }
+  .mid .ib { background: #0000004d; }
+  .tapzone { position: absolute; top: 15%; bottom: 30%; width: 35%; }
+  .tapzone.l { left: 0; } .tapzone.r { right: 0; }
+  .ripple { position: absolute; top: 40%; font-weight: 700; font-size: calc(var(--u) * 1); background: #0008; padding: 6px 14px; border-radius: 99px; pointer-events: none; animation: fade .7s forwards; }
+  @keyframes fade { from { opacity: 1; } to { opacity: 0; } }
+  .lockov { position: absolute; inset: 0; z-index: 8; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8%; }
+  .lockbtn { font: inherit; font-size: calc(var(--u) * .85); background: var(--scrim-strong); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 99px; padding: 8px 16px; display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+  .lockbtn svg { width: 1.2em; height: 1.2em; }
+
+  /* pause view */
+  .pausev { position: absolute; inset: 0; z-index: 4; background: linear-gradient(90deg, var(--scrim-solid) 0%, var(--scrim-strong) 40%, var(--scrim-clear) 75%);
+    display: flex; flex-direction: column; justify-content: center; gap: calc(var(--u) * .7); padding: 0 calc(var(--u) * 5); animation: fadein .4s; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  .pausev .lbl { font-size: calc(var(--u) * .7); text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); }
+  .pausev .logo { height: calc(var(--u) * 5); max-width: calc(var(--u) * 26); }
+  .pausev p { margin: 0; max-width: calc(var(--u) * 30); color: var(--text-secondary); font-size: calc(var(--u) * .9); }
+  .pausev .facts { color: var(--text-muted); font-size: calc(var(--u) * .8); }
+
+  .nextcard { position: absolute; right: calc(var(--u) * 2); top: calc(var(--u) * 6); width: calc(var(--u) * 22); background: var(--panel); border-radius: var(--r-lg); overflow: hidden; z-index: 4; box-shadow: 0 10px 40px #000a; }
+  .nextcard img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--surface-2); }
+  .nextcard .nb { padding: calc(var(--u) * .8); display: grid; gap: calc(var(--u) * .4); }
+  .nextcard .k { font-size: calc(var(--u) * .7); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .nextcard .nt { font-weight: 700; }
+  .nextcard .na { display: flex; gap: 8px; }
+  .nextcard .go { font: inherit; font-weight: 700; white-space: nowrap; background: var(--text-primary); color: var(--bg-base); border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; position: relative; overflow: hidden; }
+  .nextcard .go i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); }
+  .nextcard .no2 { font: inherit; white-space: nowrap; background: var(--surface-3); color: var(--text-primary); border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+
+  .help { position: absolute; inset: 0; z-index: 9; background: var(--scrim-solid); display: grid; place-items: center; }
+  .help .box { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 6px 14px; font-size: calc(var(--u) * .85); }
+  .help kbd { font-family: inherit; background: var(--surface-3); border-radius: 4px; padding: 1px 7px; text-align: center; font-size: .9em; }
+  .help h2 { grid-column: 1 / -1; margin: 0 0 8px; font-size: calc(var(--u) * 1.1); }
+
+  /* notes */
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .note { background: var(--surface-1); border-radius: var(--r-lg); padding: 14px 16px; min-width: 0; }
+  .note h3 { margin: 0 0 6px; font-size: .9rem; }
+  .note ul { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: .84rem; display: grid; gap: 3px; }
+  .note b { color: var(--text-primary); font-weight: 600; }
+  .note code { font-size: .8em; background: var(--surface-3); padding: 0 4px; border-radius: 4px; }
+  .foot { color: var(--text-muted); font-size: .78rem; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 4h3.5v16H7zM13.5 4H17v16h-3.5z" fill="currentColor"/></symbol>
+    <symbol id="i-rw" viewBox="0 0 24 24"><path d="M12 5a7.5 7.5 0 1 1-7.3 9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 2v6L7.5 5z" fill="currentColor"/><text x="12" y="16.3" font-size="7" text-anchor="middle" fill="currentColor" font-family="system-ui" font-weight="700">10</text></symbol>
+    <symbol id="i-ff" viewBox="0 0 24 24"><path d="M12 5a7.5 7.5 0 1 0 7.3 9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 2v6l4.5-3z" fill="currentColor"/><text x="12" y="16.3" font-size="7" text-anchor="middle" fill="currentColor" font-family="system-ui" font-weight="700">30</text></symbol>
+    <symbol id="i-ff10" viewBox="0 0 24 24"><path d="M12 5a7.5 7.5 0 1 0 7.3 9.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 2v6l4.5-3z" fill="currentColor"/><text x="12" y="16.3" font-size="7" text-anchor="middle" fill="currentColor" font-family="system-ui" font-weight="700">10</text></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M6 5v14M19 5L9 12l10 7z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M18 5v14M5 5l10 7-10 7z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-vol1" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-cc" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.5 10.2a2.3 2.3 0 1 0 0 3.6M17 10.2a2.3 2.3 0 1 0 0 3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    <symbol id="i-audio" viewBox="0 0 24 24"><path d="M4 12h2M8 8v8M12 5v14M16 9v6M20 11v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-pip" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="12" y="11" width="7" height="6" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-full" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.8-.9 1.4v.3M12 16.5v.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Abspielseite – Konzept 13</h1>
+    <p>Klickbarer Prototyp mit Bildern aus deiner Bibliothek (Einzelbilder aus den Dateien auf CT 190) und den echten Ton- und Untertitelspuren der Dateien. Untertiteltext ist ein Beispiel. Alles ist anklickbar; Tasten: Leertaste, ← →, ↑ ↓, M, ?</p>
+  </div>
+
+  <div class="bar" role="toolbar" aria-label="Prototyp">
+    <div class="group"><span>Variante</span><div class="seg" id="sw-variant">
+      <button data-v="A">A Streamingdienst</button><button data-v="B">B Kino ruhig</button><button data-v="today">Heute</button></div></div>
+    <div class="group"><span>Titel</span><div class="seg" id="sw-title">
+      <button data-v="br">Blade Runner 2049</button><button data-v="dune">Dune: Part Two</button><button data-v="silo">Silo S1:E4</button></div></div>
+    <div class="group"><span>Gerät</span><div class="seg" id="sw-device">
+      <button data-v="desktop">Desktop</button><button data-v="phone">Handy</button></div></div>
+  </div>
+  <div class="bar">
+    <label class="chk"><input type="checkbox" id="opt-stage3" checked> Stufe 3: Kapitelbilder und Vorschau beim Spulen</label>
+    <label class="chk"><input type="checkbox" id="opt-prefs" checked> Stufe 2: Sprachen des Profils (Deutsch, Englisch)</label>
+    <label class="chk"><input type="checkbox" id="opt-autohide"> Leiste nach 3 s ausblenden</label>
+    <button class="pbtn" id="btn-end" type="button">Zum Abspann springen</button>
+  </div>
+
+  <div class="device" id="device">
+    <div class="screen"><div class="stage" id="stage" tabindex="0" aria-label="Player"></div></div>
+  </div>
+
+  <div class="notes" id="notes"></div>
+  <p class="foot">Konzept: <code>docs/planning/13-abspielseite.md</code>. Bilder nur im Artefakt, nicht im Repository.</p>
+</div>
+
+<script>
+(() => {
+  // ---------- data (real track lists and chapters from the files on CT 190) ----------
+  const LANG = { ger:'Deutsch', eng:'Englisch', ita:'Italienisch', chi:'Chinesisch', fre:'Französisch', spa:'Spanisch', cat:'Katalanisch', cze:'Tschechisch', tur:'Türkisch', jpn:'Japanisch', ukr:'Ukrainisch', slo:'Slowakisch', hun:'Ungarisch', tha:'Thai', rus:'Russisch', pol:'Polnisch', por:'Portugiesisch', may:'Malaiisch', bul:'Bulgarisch', dan:'Dänisch', gre:'Griechisch', est:'Estnisch', fin:'Finnisch', heb:'Hebräisch', hrv:'Kroatisch', ind:'Indonesisch', ice:'Isländisch', lit:'Litauisch', lav:'Lettisch', mac:'Mazedonisch', nob:'Norwegisch', nor:'Norwegisch', dut:'Niederländisch', rum:'Rumänisch', slv:'Slowenisch', srp:'Serbisch', swe:'Schwedisch', ara:'Arabisch', hin:'Hindi', kor:'Koreanisch', tam:'Tamil', tel:'Telugu', vie:'Vietnamesisch' };
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const duneAudioRaw = [['ita','5.1',''],['chi','Stereo',''],['fre','5.1',''],['spa','5.1','Lateinamerika'],['cat','5.1','Spanien'],['spa','5.1',''],['cze','5.1',''],['tur','5.1',''],['jpn','5.1',''],['ukr','5.1',''],['slo','5.1',''],['ger','5.1',''],['eng','5.1','USA'],['hun','5.1',''],['tha','5.1',''],['rus','5.1',''],['pol','5.1',''],['por','5.1','Brasilien'],['may','Stereo','Malaysia']];
+  const duneSubRaw = ['eng|USA','eng|USA, für Hörgeschädigte','bul','cat|Spanien','cze','dan','ger','gre','spa|Lateinamerika','spa','est','fin','fre','heb','hrv','hun','ind','ice','ita','lit','lav','mac','may|Malaysia','nob','dut','pol','por|Brasilien','por','rum','rus','slo','slv','srp|lateinisch','swe','tha','tur','ukr','chi|vereinfacht','chi|traditionell, Hongkong','chi|traditionell, Taiwan','ger|für Hörgeschädigte','spa|Lateinamerika, für Hörgeschädigte','ita|für Hörgeschädigte'];
+  const siloSubRaw = ['ger|erzwungen|f','ger','ara','bul','chi|vereinfacht','chi|traditionell','cze','dan','gre','eng','spa','spa','est','fin','fre','fre','heb','hin','hun','ind','ita','jpn','kor','lit','lav','may','dut','nor','pol','por','por','rus','slo','slv','swe','tam','tel','tha','tur','ukr','vie','chi|Kantonesisch'];
+
+  const TITLES = {
+    br: {
+      kind: 'movie', name: 'Blade Runner 2049', logo: 'img/br-logo.png', poster: 'img/br-poster.jpg',
+      dur: 9808, start: 3911, facts: '2017 · 2 Std. 43 Min. · ab 12 · Science-Fiction, Drama',
+      about: 'Los Angeles, 2049. Der Blade Runner K stösst bei einem Auftrag auf ein lange vergrabenes Geheimnis. Seine Suche führt ihn zu Rick Deckard, der seit dreissig Jahren verschwunden ist.',
+      file: 'MKV · HEVC 10 Bit 1920×800 · 3,7 Mbit/s · 2 Tonspuren DTS 5.1 · 6 Untertitel (1 Text, 5 Bild)',
+      chapters: [0,756,1409,2221,2570,2965,3516,3851,4547,5112,5775,6655,7297,7720,8202,8867].map((s, i) => ({ s, name: 'Kapitel ' + (i + 1), raw: rawTime(s), img: 'img/ch' + pad(i + 1) + '.jpg' })),
+      audio: [ { lang:'ger', fmt:'DTS 5.1', def:true, conv:true }, { lang:'eng', fmt:'DTS 5.1', conv:true } ],
+      subs: [ { lang:'ger', note:'erzwungen', kind:'Text', forced:true, def:true }, { lang:'ger', note:'erzwungen', kind:'Bild (DVD)', burn:true }, { lang:'ger', kind:'Bild (DVD)', burn:true }, { lang:'eng', kind:'Bild (DVD)', burn:true }, { lang:'ger', kind:'Bild (Blu-ray)', burn:true }, { lang:'eng', kind:'Bild (Blu-ray)', burn:true } ],
+      original: '1080p HEVC 10 Bit · 3,7 Mbit/s',
+      reason: 'Bild läuft direkt. Ton wird umgewandelt: DTS kann dieser Browser nicht (wird AAC 5.1).',
+      cast: [['Ryan Gosling','K'],['Harrison Ford','Rick Deckard'],['Ana de Armas','Joi'],['Sylvia Hoeks','Luv'],['Robin Wright','Lt. Joshi'],['Jared Leto','Niander Wallace'],['Mackenzie Davis','Mariette'],['Dave Bautista','Sapper Morton']],
+      frameAt(p) { return this.chapters[chapterIndex(this.chapters, p)].img; },
+    },
+    dune: {
+      kind: 'movie', name: 'Dune: Part Two', logo: 'img/dune2-logo.png', poster: 'img/dune2-poster.jpg',
+      dur: 9947, start: 3840, facts: '2024 · 2 Std. 46 Min. · ab 12 · Science-Fiction, Abenteuer',
+      about: 'Paul Atreides schliesst sich den Fremen an und will Rache an denen, die seine Familie vernichtet haben. Er muss zwischen der Liebe zu Chani und dem Schicksal des bekannten Universums wählen.',
+      file: 'MKV · HEVC 10 Bit 1920×800 · 7,9 Mbit/s · 19 Tonspuren E-AC-3 · 43 Untertitel (Text)',
+      realChapters: [{ s:0, name:'Chapter 1' }, { s:9471, name:'Credits' }, { s:9944, name:'Chapter 2' }],
+      autoChapters: Array.from({ length: 17 }, (_, k) => ({ s: k * 600, name: k === 16 ? 'Abspann' : 'ab ' + clock(k * 600), auto: true, img: 'img/du' + pad(k) + '.jpg' })),
+      audio: duneAudioRaw.map(([lang, ch, region], i) => ({ lang, region, fmt: 'Dolby Digital Plus ' + ch, def: i === 12, conv: true })),
+      subs: duneSubRaw.map((s) => { const [lang, note] = s.split('|'); return { lang, note, kind: 'Text' }; }),
+      original: '1080p HEVC 10 Bit · 7,9 Mbit/s',
+      reason: 'Bild läuft direkt. Ton wird umgewandelt: Dolby Digital Plus (E-AC-3) kann dieser Browser nicht (wird AAC 5.1).',
+      cast: [['Timothée Chalamet','Paul Atreides'],['Zendaya','Chani'],['Rebecca Ferguson','Jessica'],['Javier Bardem','Stilgar'],['Josh Brolin','Gurney Halleck'],['Austin Butler','Feyd-Rautha'],['Florence Pugh','Prinzessin Irulan'],['Stellan Skarsgård','Baron Harkonnen']],
+      frameAt(p) { return 'img/du' + pad(Math.min(16, Math.floor(p / 600))) + '.jpg'; },
+    },
+    silo: {
+      kind: 'episode', name: 'Silo', series: 'Silo', code: 'S1:E4', ep: 'Wahrheit', logo: 'img/silo-logo.png', poster: 'img/silo-e4.jpg',
+      dur: 2706, start: 280, facts: 'Staffel 1 · Folge 4 · 49 Min. · ab 16 · Drama, Science-Fiction',
+      about: 'Juliette sucht im Silo nach Verbündeten, um herauszufinden, was hinter den jüngsten Todesfällen steckt.',
+      file: 'MKV · HEVC 1920×960 · 2 Tonspuren E-AC-3 5.1 (Atmos) · 42 Untertitel (Text) · keine Kapitel',
+      intro: [265, 356],
+      realChapters: [],
+      autoChapters: [0,600,1200,1800,2400].map((s, k) => ({ s, name: 'ab ' + clock(s), auto: true, img: 'img/sf' + k + '.jpg' })),
+      audio: [ { lang:'ger', fmt:'Dolby Digital Plus 5.1 (Atmos)', def:true, conv:true }, { lang:'eng', fmt:'Dolby Digital Plus 5.1 (Atmos)', conv:true } ],
+      subs: siloSubRaw.map((s) => { const [lang, note, f] = s.split('|'); return { lang, note, kind: 'Text', forced: f === 'f', def: f === 'f' }; }),
+      original: '1080p HEVC · 6,1 Mbit/s',
+      reason: 'Bild läuft direkt. Ton wird umgewandelt: Dolby Digital Plus (E-AC-3) kann dieser Browser nicht (wird AAC 5.1).',
+      cast: [['Rebecca Ferguson','Juliette Nichols'],['Tim Robbins','Bernard Holland'],['Common','Robert Sims'],['Rashida Jones','Allison Becker'],['David Oyelowo','Holston Becker'],['Harriet Walter','Martha Walker'],['Chinaza Uche','Paul Billings'],['Avi Nash','Lukas Kyle']],
+      episodes: [['Freiheitstag',62,1],['Der Weg nach draussen',52,1],['Maschinen',66,1],['Wahrheit',49,.1],['Der Hausmeistersohn',54,0],['Das Relikt',55,0],['Die letzte Flammenwächterin',51,0],['Hanna',48,0],['Die Lüge',48,0],['Draussen',49,0]],
+      frameAt(p) { return 'img/sf' + Math.min(4, Math.floor(p / 600)) + '.jpg'; },
+    },
+  };
+
+  function rawTime(s) { return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s / 60) % 60) + ':' + pad(s % 60) + '.000'; }
+  function clock(s) { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return h ? h + ':' + pad(m) + ':' + pad(x) : m + ':' + pad(x); }
+  function chapterIndex(list, p) { let i = 0; list.forEach((c, k) => { if (p >= c.s) i = k; }); return i; }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const icon = (id) => `<svg aria-hidden="true"><use href="#i-${id}"/></svg>`;
+  const langName = (t) => LANG[t.lang] || t.lang;
+
+  // ---------- state ----------
+  const S = {
+    variant: 'A', title: 'br', device: 'desktop', playing: true, pos: 0, vol: 0.8, muted: false,
+    audio: 0, sub: -1, subStyle: { size: 'M', bg: 'shadow', color: 'white', pos: 'low' }, offset: 0, speed: 1,
+    quality: 'auto', night: false, stereo: false, boost: false, panel: null, tab: null, remain: false,
+    locked: false, help: false, menu: null, countdown: null, chromeShown: true, pausedAt: null, rememberAudio: true, moreAudio: false, moreSubs: false,
+  };
+  const stage = document.getElementById('stage');
+  const device = document.getElementById('device');
+  const T = () => TITLES[S.title];
+  const stage3 = () => document.getElementById('opt-stage3').checked;
+  const prefs = () => document.getElementById('opt-prefs').checked;
+  const modern = () => S.variant !== 'today';
+
+  function chapters() {
+    const t = T();
+    if (t.chapters) return stage3() ? t.chapters : t.chapters.map((c) => ({ ...c, img: null }));
+    if (!modern()) return t.realChapters;
+    return t.autoChapters.map((c) => ({ ...c, img: stage3() ? c.img : null }));
+  }
+
+  function defaultAudio() {
+    const t = T();
+    if (modern() && prefs()) { const g = t.audio.findIndex((a) => a.lang === 'ger'); if (g >= 0) return g; }
+    const d = t.audio.findIndex((a) => a.def); return d >= 0 ? d : 0;
+  }
+  function defaultSub() { const t = T(); return t.subs.findIndex((s) => s.def && s.forced); }
+
+  function setTitle(id) {
+    S.title = id; const t = T();
+    S.pos = t.start; S.audio = defaultAudio(); S.sub = defaultSub(); S.panel = null; S.tab = null; S.menu = null;
+    S.countdown = null; S.playing = true; S.pausedAt = null; S.moreAudio = false; S.moreSubs = false; S.quality = 'auto';
+  }
+
+  // ---------- rendering ----------
+  function audioLabel(a) { return langName(a) + (a.region ? ' (' + a.region + ')' : ''); }
+  function subLabel(s) { return langName(s) + (s.note ? ' · ' + s.note : ''); }
+
+  function topHTML() {
+    const t = T();
+    if (!modern()) {
+      const plain = t.kind === 'episode' ? t.ep : t.name;
+      return `<button class="ib" data-act="noop" aria-label="Zurück">${icon('back')}</button><span class="ttext">${esc(plain)}</span>`;
+    }
+    const ctx = t.kind === 'episode'
+      ? `<div class="ctx"><b>${t.code}</b> · ${esc(t.ep)}</div>`
+      : `<div class="ctx">${esc(t.facts.split(' · ').slice(0, 1).join(''))} · ${esc(t.facts.split(' · ')[3] || '')}</div>`;
+    const title = S.variant === 'A'
+      ? `<img class="logo" src="${t.logo}" alt="${esc(t.name)}">${ctx}`
+      : `<span class="ttext">${esc(t.kind === 'episode' ? t.series + ' · ' + t.code + ' · ' + t.ep : t.name)}</span>`;
+    const right = S.device === 'phone'
+      ? `<button class="ib" data-act="panel" data-v="subs" aria-label="Untertitel">${icon('cc')}</button>
+         <button class="ib" data-act="panel" data-v="audio" aria-label="Ton">${icon('audio')}</button>
+         <button class="ib" data-act="panel" data-v="settings" aria-label="Einstellungen">${icon('gear')}</button>
+         <button class="ib" data-act="lock" aria-label="Bildschirm sperren">${icon('lock')}</button>`
+      : (S.variant === 'A' ? `<button class="ib" data-act="osd" data-v="Bild-in-Bild" aria-label="Bild-in-Bild">${icon('pip')}</button><button class="ib" data-act="osd" data-v="Vollbild" aria-label="Vollbild">${icon('full')}</button>` : '');
+    return `<button class="ib" data-act="noop" aria-label="Zurück">${icon('back')}</button><div class="titleblock">${title}</div><span class="spacer"></span>${right}`;
+  }
+
+  function seekHTML() {
+    const t = T(), ch = chapters(), d = t.dur;
+    const pct = (s) => (100 * s / d).toFixed(3) + '%';
+    let inner = `<i class="buf" style="left:0;width:${pct(Math.min(d, S.pos + 240))}"></i>`;
+    if (t.intro && modern()) inner += `<i class="seg-intro" style="left:${pct(t.intro[0])};width:${pct(t.intro[1] - t.intro[0])}"></i>`;
+    inner += `<i class="prog" style="left:0;width:${pct(S.pos)}"></i>`;
+    if (modern()) ch.forEach((c) => { if (c.s > 0) inner += `<i class="tick" style="left:${pct(c.s)}"></i>`; });
+    return `<div class="seek" data-act="seek" role="slider" aria-label="Wiedergabeposition" aria-valuetext="${clock(S.pos)} von ${clock(d)}" tabindex="0">
+      <div class="track">${inner}</div><span class="knob" style="left:${pct(S.pos)}"></span>
+      <div class="preview" id="pv"><img id="pv-img" alt=""><span class="pv-t" id="pv-t"></span><span class="pv-c" id="pv-c"></span></div></div>`;
+  }
+
+  function timeText() {
+    const t = T();
+    if (!modern()) return `${clock(S.pos)} / ${clock(t.dur)}`;
+    const left = (t.dur - S.pos) / S.speed;
+    const end = new Date(Date.now() + left * 1000);
+    return S.remain ? `−${clock(left)} · endet um ${pad(end.getHours())}:${pad(end.getMinutes())}` : `${clock(S.pos)} / ${clock(t.dur)}`;
+  }
+
+  function volIcon() { return S.muted || S.vol === 0 ? 'mute' : S.vol < 0.5 ? 'vol1' : 'vol'; }
+  function volHTML() {
+    const max = S.boost ? 150 : 100;
+    return `<span class="vol" id="vol"><button class="ib" data-act="mute" aria-label="${S.muted ? 'Ton an' : 'Stumm'} (M)" id="vol-btn">${icon(volIcon())}</button>
+      <input type="range" id="vol-range" min="0" max="${max}" step="5" value="${Math.round(S.vol * 100)}" aria-label="Lautstärke">
+      <span class="pct" id="vol-pct">${S.muted ? 'stumm' : Math.round(S.vol * 100) + ' %'}</span></span>`;
+  }
+
+  function currentQualityLabel() {
+    if (S.quality === 'auto') return 'Auto · 1080p';
+    if (S.quality === 'original') return 'Original';
+    return S.quality;
+  }
+
+  function controlsHTML() {
+    const t = T(), a = t.audio[S.audio], s = t.subs[S.sub];
+    if (!modern()) {
+      const hasCh = chapters().length > 0;
+      return `<div class="ctrl"><button class="ib" data-act="play" aria-label="${S.playing ? 'Pause' : 'Abspielen'}">${icon(S.playing ? 'pause' : 'play')}</button>
+        <span class="clock" id="clock">${timeText()}</span><span class="spacer"></span>
+        <button class="ib" data-act="osd" data-v="Vollbild" aria-label="Vollbild">${icon('full')}</button>
+        <button class="ib" data-act="osd" data-v="Stream-Info" aria-label="Stream-Info">${icon('info')}</button>
+        <button class="ib" data-act="menu" data-v="tracks">Spuren</button>
+        ${hasCh ? '<button class="ib" data-act="menu" data-v="chapters">Kapitel</button>' : ''}
+        <button class="ib" data-act="menu" data-v="quality">Automatisch (1080p)</button></div>`;
+    }
+    if (S.device === 'phone') {
+      return `<div class="ctrl"><span class="clock" id="clock" style="margin:0"><button class="timebtn" data-act="remain">${timeText()}</button></span><span class="spacer"></span>
+        ${volHTML()}
+        ${t.kind === 'episode' ? `<button class="ib" data-act="next" aria-label="Nächste Folge">${icon('next')}</button>` : ''}
+        <button class="ib" data-act="osd" data-v="Bild-in-Bild" aria-label="Bild-in-Bild">${icon('pip')}</button></div>`;
+    }
+    const subWord = s ? langName(s) + (s.forced ? ' (erzw.)' : '') : 'Aus';
+    const left = `<button class="ib" data-act="prev" aria-label="${t.kind === 'episode' ? 'Vorherige Folge' : 'Vorheriges Kapitel'}">${icon('prev')}</button>
+      <button class="ib" data-act="rw" aria-label="10 Sekunden zurück">${icon('rw')}</button>
+      <button class="ib big" data-act="play" aria-label="${S.playing ? 'Pause' : 'Abspielen'}">${icon(S.playing ? 'pause' : 'play')}</button>
+      <button class="ib" data-act="ff" aria-label="30 Sekunden vor">${icon('ff')}</button>
+      <button class="ib" data-act="next" aria-label="${t.kind === 'episode' ? 'Nächste Folge' : 'Nächstes Kapitel'}">${icon('next')}</button>
+      ${volHTML()}`;
+    if (S.variant === 'B') {
+      return `<div class="ctrl"><button class="ib big" data-act="play" aria-label="${S.playing ? 'Pause' : 'Abspielen'}">${icon(S.playing ? 'pause' : 'play')}</button>
+        <button class="ib" data-act="rw" aria-label="10 Sekunden zurück">${icon('rw')}</button>
+        <button class="ib" data-act="ff10" aria-label="10 Sekunden vor">${icon('ff10')}</button>${volHTML()}
+        <span class="clock" id="clock"><button class="timebtn" data-act="remain" title="Restzeit umschalten">${timeText()}</button></span>
+        <span class="spacer"></span>
+        <button class="ib" data-act="panel" data-v="both" aria-pressed="${S.panel === 'both'}">${icon('cc')}<span class="lbl">Ton &amp; Untertitel</span></button>
+        <button class="ib" data-act="panel" data-v="settings" aria-label="Einstellungen" aria-pressed="${String(S.panel || '').startsWith('settings')}">${icon('gear')}</button>
+        <button class="ib" data-act="osd" data-v="Vollbild" aria-label="Vollbild">${icon('full')}</button></div>`;
+    }
+    return `<div class="ctrl">${left}<span class="spacer"></span>
+      <button class="ib" data-act="panel" data-v="subs" aria-pressed="${S.panel === 'subs'}" title="Untertitel (U)">${icon('cc')}<span class="lbl">${esc(subWord)}</span></button>
+      <button class="ib" data-act="panel" data-v="audio" aria-pressed="${S.panel === 'audio'}" title="Ton (T)">${icon('audio')}<span class="lbl">${esc(langName(a))}</span></button>
+      <button class="ib" data-act="panel" data-v="settings" aria-pressed="${String(S.panel || '').startsWith('settings')}" title="Einstellungen">${icon('gear')}<span class="lbl dim">${currentQualityLabel()}</span></button>
+      <button class="ib" data-act="help" aria-label="Tastenkürzel (?)">${icon('help')}</button></div>`;
+  }
+
+  function tabsHTML() {
+    if (S.variant !== 'A' || S.device === 'phone') return '';
+    const t = T();
+    const tabs = [['chapters', 'Kapitel'], ...(t.kind === 'episode' ? [['next', 'Als Nächstes']] : []), ['cast', 'Besetzung'], ['info', 'Info']];
+    let tray = '';
+    if (S.tab === 'chapters') tray = chapterCards();
+    if (S.tab === 'next') tray = episodeCards();
+    if (S.tab === 'cast') tray = `<div class="tray">${t.cast.map(([n, r]) => `<div class="person"><span class="av">${n.split(' ').map((w) => w[0]).slice(0, 2).join('')}</span><span class="c1">${esc(n)}</span><span class="c2">${esc(r)}</span></div>`).join('')}</div>`;
+    if (S.tab === 'info') tray = `<div class="info"><img src="${t.poster}" alt=""><div><p>${esc(t.about)}</p><div class="facts">${esc(t.facts)}<br>${esc(t.file)}</div></div></div>`;
+    return `<div class="tabs" role="tablist">${tabs.map(([id, l]) => `<button class="tab" role="tab" data-act="tab" data-v="${id}" aria-selected="${S.tab === id}">${l}</button>`).join('')}</div>${tray}`;
+  }
+
+  function chapterCards() {
+    const ch = chapters(), cur = chapterIndex(ch, S.pos), t = T();
+    if (!ch.length) return `<div class="tray"><span class="c2">Diese Datei hat keine Kapitel.</span></div>`;
+    return `<div class="tray">${ch.map((c, i) => {
+      const end = i + 1 < ch.length ? ch[i + 1].s : t.dur;
+      const prog = i === cur ? (100 * (S.pos - c.s) / (end - c.s)) : 0;
+      return `<button class="card" data-act="chapter" data-v="${c.s}" aria-current="${i === cur}">
+        <span class="th">${c.img ? `<img src="${c.img}" alt="">` : `<span class="no">${i + 1}</span>`}${c.auto ? '<span class="badge" style="background:var(--surface-3);color:var(--text-secondary)">automatisch</span>' : ''}${prog ? `<i class="bar2" style="width:${prog}%"></i>` : ''}</span>
+        <span class="c1">${esc(c.name)}</span><span class="c2">${clock(c.s)} · ${Math.round((end - c.s) / 60)} Min.</span></button>`;
+    }).join('')}</div>`;
+  }
+
+  function episodeCards() {
+    const t = T();
+    return `<div class="tray">${t.episodes.map(([name, min, p], i) => `<button class="card" data-act="episode" data-v="${i}" aria-current="${i === 3}">
+      <span class="th"><img src="img/silo-e${i + 1}.jpg" alt="">${i === 3 ? '<span class="badge">Läuft</span>' : ''}${p ? `<i class="bar2" style="width:${p * 100}%"></i>` : ''}</span>
+      <span class="c1">${i + 1}. ${esc(name)}</span><span class="c2">${min} Min.${p === 1 ? ' · gesehen' : ''}</span></button>`).join('')}</div>`;
+  }
+
+  function metaHTML() {
+    if (!modern() || S.device === 'phone') return '';
+    const t = T(), ch = chapters(), c = ch.length ? ch[chapterIndex(ch, S.pos)] : null;
+    const left = t.kind === 'episode' ? `<span class="now">${t.series}</span><span>${t.code} · ${esc(t.ep)}</span>` : `<span class="now">${esc(t.name)}</span>${c && !c.auto ? `<span>${esc(c.name)}</span>` : ''}`;
+    if (S.variant === 'B') return '';
+    return `<div class="meta">${left}<span class="spacer"></span><button class="timebtn" data-act="remain" id="clock" title="Restzeit umschalten">${timeText()}</button></div>`;
+  }
+
+  function subsHTML() {
+    const t = T(), s = t.subs[S.sub];
+    if (!s) return '';
+    const st = S.subStyle;
+    const size = { S: 1.05, M: 1.4, L: 1.8, XL: 2.3 }[st.size];
+    const color = st.color === 'yellow' ? 'var(--sub-yellow)' : 'var(--sub-white)';
+    const bg = st.bg === 'box' ? 'var(--sub-box)' : st.bg === 'half' ? 'var(--sub-half)' : 'transparent';
+    const shadow = st.bg === 'shadow' ? '0 0 4px #000, 0 2px 3px #000' : st.bg === 'none' ? 'none' : 'none';
+    const text = s.forced ? (S.title === 'br' ? '[Beispiel] Erzwungener Untertitel: nur fremdsprachige Stellen.' : '[Beispiel] Nur Stellen in fremder Sprache.') : '[Beispiel] So sieht ein Untertitel in diesem Stil aus.';
+    return `<div class="subs" data-pos="${modern() ? st.pos : 'low'}"><span style="font-size:calc(var(--u) * ${modern() ? size : 1.2});color:${modern() ? color : 'var(--sub-white)'};background:${modern() ? bg : 'transparent'};text-shadow:${modern() ? shadow : '0 0 4px #000'}">${esc(text)}</span></div>`;
+  }
+
+  function rowHTML(act, v, checked, t1, t2, extra = '') {
+    return `<button class="row" role="menuitemradio" aria-checked="${checked}" data-act="${act}" data-v="${v}">
+      <span class="ck">${checked ? icon('check') : ''}</span><span class="tx"><span class="t1">${t1}${extra}</span>${t2 ? `<span class="t2">${t2}</span>` : ''}</span></button>`;
+  }
+
+  function audioRows() {
+    const t = T(), mine = prefs() ? ['ger', 'eng'] : ['ger', 'eng'];
+    const idx = t.audio.map((a, i) => i);
+    const first = idx.filter((i) => mine.includes(t.audio[i].lang)).sort((a, b) => mine.indexOf(t.audio[a].lang) - mine.indexOf(t.audio[b].lang));
+    const rest = idx.filter((i) => !first.includes(i)).sort((a, b) => langName(t.audio[a]).localeCompare(langName(t.audio[b]), 'de'));
+    const allConv = t.audio.every((a) => a.conv);
+    const row = (i) => { const a = t.audio[i]; return rowHTML('audio', i, i === S.audio, esc(audioLabel(a)), esc(a.fmt) + (a.def ? ' · Standard der Datei' : ''), a.conv && !allConv ? '<span class="pill w">wird umgewandelt</span>' : ''); };
+    let h = (allConv ? `<p class="hint warn">Alle Tonspuren dieser Datei wandelt der Server für diesen Browser um (${esc(t.audio[0].fmt.replace(/ (\d\.\d|Stereo).*$/, ''))} → AAC). Das Bild läuft direkt.</p>` : '') + `<div class="gl">${prefs() ? 'Deine Sprachen' : 'Sprache der App, dann Englisch'}</div>${first.map(row).join('')}`;
+    if (rest.length) {
+      h += `<button class="row" data-act="more-audio"><span class="ck"></span><span class="tx"><span class="t1">Weitere Sprachen (${rest.length})</span></span><svg class="chev" style="transform:rotate(${S.moreAudio ? 90 : 0}deg)"><use href="#i-chev"/></svg></button>`;
+      if (S.moreAudio) h += rest.map(row).join('');
+    }
+    return h;
+  }
+
+  function subRows() {
+    const t = T(), mine = ['ger', 'eng'];
+    const idx = t.subs.map((s, i) => i);
+    const first = idx.filter((i) => mine.includes(t.subs[i].lang)).sort((a, b) => mine.indexOf(t.subs[a].lang) - mine.indexOf(t.subs[b].lang) || (t.subs[b].forced ? 1 : 0) - (t.subs[a].forced ? 1 : 0));
+    const rest = idx.filter((i) => !first.includes(i)).sort((a, b) => langName(t.subs[a]).localeCompare(langName(t.subs[b]), 'de'));
+    const row = (i) => { const s = t.subs[i]; return rowHTML('sub', i, i === S.sub, esc(subLabel(s)), esc(s.kind) + (s.def ? ' · Standard der Datei' : ''), s.burn ? '<span class="pill w">wird eingebrannt</span>' : ''); };
+    let h = rowHTML('sub', -1, S.sub === -1, 'Aus', '');
+    h += `<div class="gl">Deine Sprachen</div>${first.map(row).join('')}`;
+    if (rest.length) {
+      h += `<button class="row" data-act="more-subs"><span class="ck"></span><span class="tx"><span class="t1">Weitere Sprachen (${rest.length})</span></span><svg class="chev" style="transform:rotate(${S.moreSubs ? 90 : 0}deg)"><use href="#i-chev"/></svg></button>`;
+      if (S.moreSubs) h += rest.map(row).join('');
+    }
+    return h;
+  }
+
+  function opts(key, list) {
+    return `<div class="opts">${list.map(([v, l]) => `<button class="opt" data-act="style" data-k="${key}" data-v="${v}" aria-pressed="${S.subStyle[key] === v}">${l}</button>`).join('')}</div>`;
+  }
+
+  function panelHTML() {
+    if (!S.panel || !modern()) return '';
+    const t = T();
+    const head = (title, back) => `<div class="ph">${back ? `<button class="ib" data-act="panel" data-v="${back}" aria-label="Zurück">${icon('back')}</button>` : ''}<h2>${title}</h2><button class="ib" data-act="close" aria-label="Schliessen">${icon('x')}</button></div>`;
+    let body = '', title = '', back = null, wide = false;
+    const a = t.audio[S.audio];
+    if (S.panel === 'audio') {
+      title = 'Ton';
+      body = (prefs() && a.lang === 'ger' && !t.audio[S.audio].def ? `<p class="hint ok">Deutsch gewählt nach den Sprachen deines Profils. Die Datei selbst würde ${esc(audioLabel(t.audio.find((x) => x.def) || t.audio[0]))} spielen.</p>` : '')
+        + audioRows()
+        + `<div class="gl">Für dieses Profil</div><label class="sw"><input type="checkbox" data-act="remember" ${S.rememberAudio ? 'checked' : ''}><span class="tx"><span class="t1" style="font-size:calc(var(--u)*.85)">${t.kind === 'episode' ? 'Für diese Serie merken' : 'Als Standard merken'}</span><span class="t2" style="font-size:calc(var(--u)*.7);color:var(--text-muted)">Stufe 2 · V-14</span></span></label>`
+        + `<button class="row" data-act="panel" data-v="settings:sound"><span class="ck"></span><span class="tx"><span class="t1">Ton-Optionen</span><span class="t2">Nachtmodus, Stereo, Verstärkung</span></span><svg class="chev"><use href="#i-chev"/></svg></button>`;
+    } else if (S.panel === 'subs') {
+      title = 'Untertitel';
+      body = subRows() + `<button class="row" data-act="panel" data-v="settings:style"><span class="ck"></span><span class="tx"><span class="t1">Stil und Versatz</span><span class="t2">Grösse ${S.subStyle.size} · ${({ none:'ohne Hintergrund', shadow:'Schatten', half:'halbtransparent', box:'Box' })[S.subStyle.bg]}${S.offset ? ' · ' + (S.offset > 0 ? '+' : '') + S.offset.toFixed(1) + ' s' : ''}</span></span><svg class="chev"><use href="#i-chev"/></svg></button>`;
+    } else if (S.panel === 'both') {
+      title = 'Ton & Untertitel'; wide = S.device !== 'phone';
+      body = `<div class="${wide ? 'two' : ''}"><div><div class="gl" style="font-size:calc(var(--u)*.8);color:var(--text-primary)">Ton</div>${audioRows()}</div><div><div class="gl" style="font-size:calc(var(--u)*.8);color:var(--text-primary)">Untertitel</div>${subRows()}</div></div>`;
+    } else if (S.panel === 'settings') {
+      title = 'Einstellungen';
+      body = `<p class="hint warn">${esc(t.reason)}</p>`
+        + navRow('settings:quality', 'Qualität', currentQualityLabel())
+        + navRow('settings:speed', 'Geschwindigkeit', S.speed === 1 ? 'Normal' : String(S.speed).replace('.', ',') + '×')
+        + navRow('settings:style', 'Untertitel-Stil', 'Grösse ' + S.subStyle.size)
+        + navRow('settings:sound', 'Ton-Optionen', S.night ? 'Nachtmodus' : S.stereo ? 'Stereo' : 'Normal')
+        + (S.variant === 'B' || S.device === 'phone' ? navRow('settings:chapters', 'Kapitel', chapters().length + ' Kapitel') : '')
+        + navRow('settings:info', 'Stream-Info', 'Direkt · Ton AAC');
+    } else if (S.panel === 'settings:quality') {
+      title = 'Qualität'; back = 'settings';
+      const q = [
+        ['original', 'Original', esc(t.original) + ' · direkt, ohne Umwandlung'],
+        ['auto', 'Automatisch', 'zurzeit 1080p · wählt nach Gerät, Profil und Verbindung'],
+        ['2160p', '2160p (4K) · 25 Mbit/s', 'nur bei 4K-Quellen · diese Datei ist 1080p', true],
+        ['1080p', '1080p · 8 Mbit/s', 'ca. 3,6 GB pro Stunde'],
+        ['720p', '720p · 4 Mbit/s', 'ca. 1,8 GB pro Stunde'],
+        ['480p', '480p · 2 Mbit/s', 'ca. 0,9 GB pro Stunde'],
+        ['360p', '360p · 1 Mbit/s', 'ca. 0,45 GB pro Stunde · Datensparen'],
+      ];
+      body = `<p class="hint warn">${esc(t.reason)}</p>` + q.map(([id, l, d, dis]) => dis
+        ? `<button class="row" disabled><span class="ck"></span><span class="tx"><span class="t1">${l}</span><span class="t2">${d}</span></span></button>`
+        : rowHTML('quality', id, S.quality === id, l, d)).join('')
+        + `<label class="sw"><input type="checkbox" checked><span class="tx"><span class="t1" style="font-size:calc(var(--u)*.85)">Wahl für dieses Gerät merken</span><span class="t2" style="font-size:calc(var(--u)*.7);color:var(--text-muted)">V-17</span></span></label>`;
+    } else if (S.panel === 'settings:speed') {
+      title = 'Geschwindigkeit'; back = 'settings';
+      body = [0.5, 0.75, 1, 1.25, 1.5, 2].map((v) => rowHTML('speed', v, S.speed === v, v === 1 ? 'Normal' : String(v).replace('.', ',') + '×', '')).join('');
+    } else if (S.panel === 'settings:style') {
+      title = 'Untertitel-Stil'; back = S.variant === 'A' ? 'subs' : 'settings';
+      body = `<div class="gl">Grösse</div>${opts('size', [['S', 'S'], ['M', 'M'], ['L', 'L'], ['XL', 'XL']])}
+        <div class="gl">Hintergrund</div>${opts('bg', [['none', 'Keiner'], ['shadow', 'Schatten'], ['half', 'Halbtransparent'], ['box', 'Box']])}
+        <div class="gl">Farbe</div>${opts('color', [['white', 'Weiss'], ['yellow', 'Gelb']])}
+        <div class="gl">Position</div>${opts('pos', [['low', 'Unten'], ['high', 'Etwas höher']])}
+        <div class="gl">Zeitversatz (nur Text-Untertitel)</div>
+        <div class="offset"><button class="opt" data-act="offset" data-v="-0.1">−0,1 s</button><output>${(S.offset > 0 ? '+' : '') + S.offset.toFixed(1).replace('.', ',')} s</output><button class="opt" data-act="offset" data-v="0.1">+0,1 s</button><button class="opt" data-act="offset" data-v="0">Zurücksetzen</button></div>
+        <p class="hint" style="margin-top:calc(var(--u)*.8)">Gilt für dieses Gerät. ${S.sub < 0 ? 'Untertitel sind aus: wähle einen, um den Stil im Bild zu sehen.' : 'Die Vorschau siehst du im Bild.'}</p>`;
+    } else if (S.panel === 'settings:sound') {
+      title = 'Ton-Optionen'; back = S.variant === 'A' ? 'audio' : 'settings';
+      body = sw('night', S.night, 'Nachtmodus', 'Leise Stellen lauter, laute leiser. Läuft im Browser, ohne Umwandlung.')
+        + sw('stereo', S.stereo, 'Stereo erzwingen', 'Für Kopfhörer. Der Server liefert den Ton als AAC-Stereo.')
+        + sw('boost', S.boost, 'Lautstärke über 100 %', 'Regler geht bis 150 %. Kann bei lauten Stellen verzerren.');
+    } else if (S.panel === 'settings:chapters') {
+      title = 'Kapitel'; back = 'settings';
+      const ch = chapters(), cur = chapterIndex(ch, S.pos);
+      body = ch.map((c, i) => rowHTML('chapter', c.s, i === cur, esc(c.name), clock(c.s))).join('') || '<p class="hint">Diese Datei hat keine Kapitel.</p>';
+    } else if (S.panel === 'settings:info') {
+      title = 'Stream-Info'; back = 'settings';
+      body = `<p class="hint">${esc(t.file)}</p><p class="hint">Modus: HLS (Remux) · Video direkt · Ton ${esc(t.audio[S.audio].fmt)} → AAC 5.1 · Hardware (QSV) · Puffer 24 s · 0 verlorene Bilder</p>`;
+    }
+    return `<aside class="panel${wide ? ' wide' : ''}" role="dialog" aria-label="${title}">${head(title, back)}<div class="pb" role="menu">${body}</div></aside>`;
+  }
+  function navRow(v, l, val) { return `<button class="row" data-act="panel" data-v="${v}"><span class="ck"></span><span class="tx"><span class="t1">${l}</span></span><span class="val">${esc(val)}</span><svg class="chev"><use href="#i-chev"/></svg></button>`; }
+  function sw(k, on, l, d) { return `<label class="sw"><input type="checkbox" data-act="toggle" data-k="${k}" ${on ? 'checked' : ''}><span class="tx"><span class="t1" style="font-size:calc(var(--u)*.88)">${l}</span><span class="t2" style="font-size:calc(var(--u)*.72);color:var(--text-muted)">${d}</span></span></label>`; }
+
+  function todayMenuHTML() {
+    if (modern() || !S.menu) return '';
+    const t = T();
+    if (S.menu === 'tracks') {
+      return `<div class="menu" role="menu"><div class="mh">Ton</div>${t.audio.map((a, i) => `<button role="menuitemradio" aria-checked="${i === S.audio}" data-act="audio" data-v="${i}">${esc(langName(a))}${a.region ? ' (' + esc(a.region) + ')' : ''}${a.def ? ' · Standard' : ''}</button>`).join('')}
+        <div class="mh">Untertitel</div><button role="menuitemradio" aria-checked="${S.sub === -1}" data-act="sub" data-v="-1">Aus</button>${t.subs.map((s, i) => `<button role="menuitemradio" aria-checked="${i === S.sub}" data-act="sub" data-v="${i}">${esc(langName(s))}${s.note ? ' (' + esc(s.note) + ')' : ''}</button>`).join('')}</div>`;
+    }
+    if (S.menu === 'quality') {
+      return `<div class="menu" role="menu">${['Automatisch (1080p)', '1080p', '720p', '480p', '360p'].map((l, i) => `<button role="menuitemradio" aria-checked="${i === 0}" data-act="closemenu">${l}</button>`).join('')}</div>`;
+    }
+    if (S.menu === 'chapters') {
+      const ch = chapters(), cur = chapterIndex(ch, S.pos);
+      return `<div class="menu" role="menu">${ch.map((c, i) => `<button role="menuitemradio" aria-checked="${i === cur}" data-act="chapter" data-v="${c.s}">${esc(c.raw || c.name)} · ${clock(c.s)}</button>`).join('')}</div>`;
+    }
+    return '';
+  }
+
+  function overlaysHTML() {
+    const t = T();
+    let h = `<div class="osd" id="osd"></div>`;
+    if (S.device === 'phone' && modern()) {
+      h += `<div class="tapzone l" data-act="dbl" data-v="-10"></div><div class="tapzone r" data-act="dbl" data-v="10"></div>
+        <div class="mid"><button class="ib big" data-act="rw" aria-label="10 Sekunden zurück">${icon('rw')}</button>
+        <button class="ib big" data-act="play" aria-label="${S.playing ? 'Pause' : 'Abspielen'}" style="min-width:calc(var(--u)*4.5);height:calc(var(--u)*4.5)">${icon(S.playing ? 'pause' : 'play')}</button>
+        <button class="ib big" data-act="ff10" aria-label="10 Sekunden vor">${icon('ff10')}</button></div>`;
+    }
+    if (t.intro && S.pos >= t.intro[0] && S.pos < t.intro[1] - 1 && !S.countdown) h += `<button class="skipbtn" data-act="skipintro">Intro überspringen</button>`;
+    if (S.countdown !== null && t.kind === 'episode') {
+      const n = t.episodes[4];
+      h += `<section class="nextcard" aria-label="Nächste Folge"><img src="img/silo-e5.jpg" alt=""><div class="nb"><span class="k">Nächste Folge · S1:E5</span><span class="nt">${esc(n[0])}</span>
+        <div class="na"><button class="go" data-act="playnext"><i style="width:${(10 - S.countdown) * 10}%"></i><span style="position:relative">Jetzt ansehen · ${S.countdown} s</span></button><button class="no2" data-act="cancelnext">Abspann ansehen</button></div></div></section>`;
+    }
+    if (!S.playing && modern() && S.pausedAt && Date.now() - S.pausedAt > 1500 && !S.panel) {
+      const ch = chapters(), c = ch.length ? ch[chapterIndex(ch, S.pos)] : null;
+      h += `<div class="pausev" data-act="play"><span class="lbl">Pausiert · ${clock(S.pos)}${c && !c.auto ? ' · ' + esc(c.name) : ''}</span><img class="logo" src="${t.logo}" alt="${esc(t.name)}">
+        ${t.kind === 'episode' ? `<div class="ctx"><b>${t.code}</b> · ${esc(t.ep)}</div>` : ''}<p>${esc(t.about)}</p><span class="facts">${esc(t.facts)}</span></div>`;
+    }
+    if (S.locked) h += `<div class="lockov"><button class="lockbtn" data-act="unlock">${icon('lock')} Gesperrt · zum Entsperren tippen und halten</button></div>`;
+    if (S.help) h += `<div class="help" data-act="help"><div class="box"><h2>Tastenkürzel</h2>
+      <kbd>Leertaste</kbd><span>Abspielen / Pause</span><kbd>M</kbd><span>Stumm</span>
+      <kbd>← →</kbd><span>10 s zurück / vor</span><kbd>↑ ↓</kbd><span>Lautstärke</span>
+      <kbd>⇧← ⇧→</kbd><span>Kapitel zurück / vor</span><kbd>&lt; &gt;</kbd><span>Geschwindigkeit</span>
+      <kbd>T</kbd><span>Ton</span><kbd>U</kbd><span>Untertitel</span>
+      <kbd>C</kbd><span>Kapitel</span><kbd>Q</kbd><span>Qualität</span>
+      <kbd>0–9</kbd><span>Springe auf 0–90 %</span><kbd>N</kbd><span>Nächste Folge</span>
+      <kbd>F</kbd><span>Vollbild</span><kbd>I</kbd><span>Stream-Info</span>
+      <kbd>?</kbd><span>Diese Hilfe</span><kbd>Esc</kbd><span>Schliessen / Zurück</span></div></div>`;
+    return h;
+  }
+
+  function render() {
+    const t = T();
+    device.className = 'device' + (S.device === 'phone' ? ' phone' : '');
+    stage.dataset.variant = S.variant;
+    stage.dataset.tray = S.tab && S.variant === 'A' && S.device !== 'phone' ? 'open' : '';
+    stage.dataset.chrome = S.chromeShown || !S.playing || S.panel || S.menu || S.tab || S.countdown !== null ? 'shown' : 'hidden';
+    stage.innerHTML = `<img class="frame" id="frame" src="${t.frameAt(S.pos)}" alt="">
+      ${subsHTML()}
+      <div class="top">${topHTML()}</div>
+      ${overlaysHTML()}
+      <div class="bottom">${metaHTML()}${seekHTML()}${controlsHTML()}${tabsHTML()}</div>
+      ${panelHTML()}${todayMenuHTML()}`;
+    document.querySelectorAll('.seg').forEach((g) => {
+      const key = { 'sw-variant': 'variant', 'sw-title': 'title', 'sw-device': 'device' }[g.id];
+      g.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === S[key])));
+    });
+    document.getElementById('btn-end').hidden = t.kind !== 'episode';
+    renderNotes();
+  }
+
+  // Partial update while playing, so hover and sliders survive.
+  function tickUpdate() {
+    const t = T();
+    const frame = document.getElementById('frame');
+    const src = t.frameAt(S.pos);
+    if (frame && !frame.src.endsWith(src)) frame.src = src;
+    const pct = (100 * S.pos / t.dur).toFixed(3) + '%';
+    stage.querySelectorAll('.track .prog').forEach((e) => (e.style.width = pct));
+    stage.querySelectorAll('.knob').forEach((e) => (e.style.left = pct));
+    stage.querySelectorAll('.track .buf').forEach((e) => (e.style.width = (100 * Math.min(t.dur, S.pos + 240) / t.dur).toFixed(3) + '%'));
+    stage.querySelectorAll('#clock, .timebtn').forEach((e) => { if (e.classList.contains('timebtn')) e.textContent = timeText(); else if (!e.querySelector('.timebtn')) e.textContent = timeText(); });
+  }
+
+  function osd(html) {
+    const o = document.getElementById('osd'); if (!o) return;
+    o.innerHTML = html; o.classList.add('on');
+    clearTimeout(osd.t); osd.t = setTimeout(() => o.classList.remove('on'), 1200);
+  }
+  function volOsd() { osd(`${icon(volIcon()).replace('<svg', '<svg style="width:1.3em;height:1.3em"')} ${S.muted ? 'Stumm' : 'Lautstärke ' + Math.round(S.vol * 100) + ' %'}<span class="m"><i style="width:${S.muted ? 0 : Math.min(100, S.vol * 100 / (S.boost ? 1.5 : 1))}%"></i></span>`); }
+
+  function seekTo(p) { const t = T(); S.pos = Math.max(0, Math.min(t.dur - 1, p)); maybeCountdown(); }
+  function maybeCountdown() {
+    const t = T();
+    if (t.kind === 'episode' && S.pos >= t.dur - 60 && S.countdown === null && !maybeCountdown.cancelled) S.countdown = 10;
+  }
+  function changeVol(d) { const max = S.boost ? 1.5 : 1; S.vol = Math.round(Math.min(max, Math.max(0, S.vol + d)) * 20) / 20; S.muted = S.vol === 0; syncVol(); volOsd(); }
+  function syncVol() {
+    const r = document.getElementById('vol-range'), p = document.getElementById('vol-pct'), b = document.getElementById('vol-btn');
+    if (r) { r.max = S.boost ? 150 : 100; r.value = Math.round(S.vol * 100); }
+    if (p) p.textContent = S.muted ? 'stumm' : Math.round(S.vol * 100) + ' %';
+    if (b) b.innerHTML = icon(volIcon());
+  }
+  function jumpChapter(dir) {
+    const ch = chapters(); if (!ch.length) return;
+    const i = chapterIndex(ch, S.pos);
+    const target = dir < 0 ? (S.pos - ch[i].s > 5 ? i : Math.max(0, i - 1)) : Math.min(ch.length - 1, i + 1);
+    seekTo(ch[target].s); render(); osd(esc(ch[target].name) + ' · ' + clock(ch[target].s));
+  }
+
+  // ---------- events ----------
+  stage.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-act]'); if (!el || !stage.contains(el)) return;
+    const act = el.dataset.act, v = el.dataset.v, t = T();
+    poke();
+    switch (act) {
+      case 'play': S.playing = !S.playing; S.pausedAt = S.playing ? null : Date.now(); if (!S.playing) setTimeout(render, 1600); break;
+      case 'rw': seekTo(S.pos - 10); osd('−10 s'); tickUpdate(); return;
+      case 'ff': seekTo(S.pos + 30); osd('+30 s'); tickUpdate(); return;
+      case 'ff10': seekTo(S.pos + 10); osd('+10 s'); tickUpdate(); return;
+      case 'prev': if (t.kind === 'episode') { osd('Vorherige Folge: S1:E3 Maschinen'); return; } jumpChapter(-1); return;
+      case 'next': if (t.kind === 'episode') { seekTo(t.dur - 55); render(); return; } jumpChapter(1); return;
+      case 'mute': S.muted = !S.muted; syncVol(); volOsd(); return;
+      case 'remain': S.remain = !S.remain; tickUpdate(); return;
+      case 'panel': S.panel = S.panel === v ? null : v; S.tab = null; break;
+      case 'close': S.panel = null; break;
+      case 'tab': S.tab = S.tab === v ? null : v; S.panel = null; break;
+      case 'audio': S.audio = Number(v); S.menu = null; osd('Ton: ' + esc(audioLabel(t.audio[S.audio])) + ' · wird umgestellt …'); break;
+      case 'sub': S.sub = Number(v); S.menu = null; osd(S.sub < 0 ? 'Untertitel aus' : 'Untertitel: ' + esc(subLabel(t.subs[S.sub]))); break;
+      case 'more-audio': S.moreAudio = !S.moreAudio; break;
+      case 'more-subs': S.moreSubs = !S.moreSubs; break;
+      case 'quality': S.quality = v; osd('Qualität: ' + esc(currentQualityLabel()) + ' · wird umgestellt …'); break;
+      case 'speed': S.speed = Number(v); osd('Geschwindigkeit ' + (S.speed === 1 ? 'normal' : String(S.speed).replace('.', ',') + '×')); break;
+      case 'style': S.subStyle[el.dataset.k] = v; if (S.sub < 0) S.sub = Math.max(0, T().subs.findIndex((s) => s.lang === 'ger' && !s.forced)); break;
+      case 'offset': S.offset = v === '0' ? 0 : Math.round((S.offset + Number(v)) * 10) / 10; break;
+      case 'chapter': seekTo(Number(v)); S.menu = null; break;
+      case 'episode': if (Number(v) !== 3) osd('Spielt S1:E' + (Number(v) + 1) + ' · ' + esc(t.episodes[Number(v)][0])); return;
+      case 'skipintro': seekTo(t.intro[1]); break;
+      case 'playnext': osd('Startet S1:E5 · Der Hausmeistersohn'); S.countdown = null; break;
+      case 'cancelnext': S.countdown = null; maybeCountdown.cancelled = true; break;
+      case 'menu': S.menu = S.menu === v ? null : v; break;
+      case 'closemenu': S.menu = null; break;
+      case 'lock': S.locked = true; S.panel = null; break;
+      case 'unlock': return;
+      case 'help': S.help = !S.help; break;
+      case 'dbl': return;
+      case 'osd': osd(esc(v) + (v === 'Bild-in-Bild' ? ' · das Video läuft in einem kleinen Fenster weiter' : '')); return;
+      case 'seek': {
+        const r = el.getBoundingClientRect(); seekTo(t.dur * (e.clientX - r.left) / r.width); break;
+      }
+      default: return;
+    }
+    render();
+  });
+
+  stage.addEventListener('change', (e) => {
+    const el = e.target;
+    if (el.dataset.act === 'toggle') { S[el.dataset.k] = el.checked; if (el.dataset.k === 'boost' && !el.checked && S.vol > 1) S.vol = 1; render(); }
+    if (el.dataset.act === 'remember') S.rememberAudio = el.checked;
+  });
+  stage.addEventListener('input', (e) => {
+    if (e.target.id !== 'vol-range') return;
+    S.vol = Number(e.target.value) / 100; S.muted = S.vol === 0; syncVol(); volOsd();
+  });
+  stage.addEventListener('dblclick', (e) => {
+    const z = e.target.closest('.tapzone'); if (!z) return;
+    seekTo(S.pos + Number(z.dataset.v)); tickUpdate();
+    const r = document.createElement('span'); r.className = 'ripple'; r.textContent = (Number(z.dataset.v) > 0 ? '+' : '−') + '10 s';
+    r.style[z.classList.contains('l') ? 'left' : 'right'] = '14%'; stage.appendChild(r); setTimeout(() => r.remove(), 800);
+  });
+  // Long press unlocks the phone lock (V-13).
+  let holdTimer;
+  stage.addEventListener('pointerdown', (e) => { if (e.target.closest('[data-act="unlock"]')) holdTimer = setTimeout(() => { S.locked = false; render(); }, 700); });
+  stage.addEventListener('pointerup', () => clearTimeout(holdTimer));
+  stage.addEventListener('wheel', (e) => { if (!modern() || e.target.closest('.panel, .tray, .menu')) return; e.preventDefault(); changeVol(e.deltaY < 0 ? 0.05 : -0.05); }, { passive: false });
+  stage.addEventListener('pointermove', (e) => {
+    poke();
+    const seek = e.target.closest('.seek'); if (!seek) return;
+    const t = T(), r = seek.getBoundingClientRect(), f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), p = t.dur * f;
+    const pv = document.getElementById('pv'); if (!pv) return;
+    pv.style.left = Math.min(r.width - 60, Math.max(60, f * r.width)) + 'px';
+    const img = document.getElementById('pv-img');
+    const showImg = modern() && stage3();
+    img.style.display = showImg ? '' : 'none';
+    if (showImg) { const src = t.frameAt(p); if (!img.src.endsWith(src)) img.src = src; }
+    document.getElementById('pv-t').textContent = clock(p);
+    const ch = chapters(); const c = ch.length && modern() ? ch[chapterIndex(ch, p)] : null;
+    document.getElementById('pv-c').textContent = c ? c.name : '';
+  });
+
+  // Controls hide after 3 s without input while playing (optional in the prototype).
+  let hideTimer;
+  function poke() {
+    if (!S.chromeShown) { S.chromeShown = true; stage.dataset.chrome = 'shown'; }
+    clearTimeout(hideTimer);
+    if (document.getElementById('opt-autohide').checked) hideTimer = setTimeout(() => { if (S.playing && !S.panel && !S.tab && !S.menu) { S.chromeShown = false; stage.dataset.chrome = 'hidden'; } }, 3000);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.target.matches('input, textarea') || e.altKey || e.ctrlKey || e.metaKey) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    const map = {
+      ' ': () => { S.playing = !S.playing; S.pausedAt = S.playing ? null : Date.now(); if (!S.playing) setTimeout(render, 1600); render(); },
+      ArrowLeft: () => { if (e.shiftKey) return jumpChapter(-1); seekTo(S.pos - 10); tickUpdate(); osd('−10 s'); },
+      ArrowRight: () => { if (e.shiftKey) return jumpChapter(1); seekTo(S.pos + 10); tickUpdate(); osd('+10 s'); },
+      ArrowUp: () => changeVol(0.05), ArrowDown: () => changeVol(-0.05),
+      m: () => { S.muted = !S.muted; syncVol(); volOsd(); },
+      t: () => { S.panel = 'audio'; render(); }, u: () => { S.panel = 'subs'; render(); },
+      q: () => { S.panel = 'settings:quality'; render(); },
+      c: () => { if (S.variant === 'A' && S.device !== 'phone') { S.tab = 'chapters'; S.panel = null; } else S.panel = 'settings:chapters'; render(); },
+      '?': () => { S.help = !S.help; render(); },
+      '<': () => { S.speed = Math.max(0.5, S.speed - 0.25); osd('Geschwindigkeit ' + String(S.speed).replace('.', ',') + '×'); },
+      '>': () => { S.speed = Math.min(2, S.speed + 0.25); osd('Geschwindigkeit ' + String(S.speed).replace('.', ',') + '×'); },
+      Escape: () => { S.help = false; S.panel = null; S.tab = null; S.menu = null; render(); },
+    };
+    if (/^[0-9]$/.test(k) && modern()) { e.preventDefault(); seekTo(T().dur * Number(k) / 10); render(); return; }
+    if (!map[k]) return;
+    if (!modern() && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Escape'].includes(k)) return;
+    if (k === ' ' && e.target.closest('button')) return;
+    e.preventDefault(); poke(); map[k]();
+  });
+
+  // prototype switches
+  document.getElementById('sw-variant').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.variant = b.dataset.v; S.panel = null; S.tab = null; S.menu = null; S.audio = defaultAudio(); render(); });
+  document.getElementById('sw-title').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; maybeCountdown.cancelled = false; setTitle(b.dataset.v); render(); });
+  document.getElementById('sw-device').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.device = b.dataset.v; S.panel = null; S.tab = null; S.locked = false; render(); });
+  document.getElementById('opt-stage3').addEventListener('change', render);
+  document.getElementById('opt-prefs').addEventListener('change', () => { S.audio = defaultAudio(); render(); });
+  document.getElementById('opt-autohide').addEventListener('change', poke);
+  document.getElementById('btn-end').addEventListener('click', () => { maybeCountdown.cancelled = false; S.countdown = null; S.playing = true; seekTo(T().dur - 55); render(); });
+
+  // Playback clock: one tick per second.
+  setInterval(() => {
+    if (S.countdown !== null) {
+      S.countdown -= 1;
+      if (S.countdown <= 0) { S.countdown = null; maybeCountdown.cancelled = true; osd('Startet S1:E5 · Der Hausmeistersohn'); }
+      render(); return;
+    }
+    if (!S.playing) return;
+    const t = T();
+    const before = chapterIndex(chapters(), S.pos);
+    S.pos = Math.min(t.dur - 1, S.pos + S.speed);
+    const wasCountdown = S.countdown;
+    maybeCountdown();
+    const introEdge = t.intro && (Math.abs(S.pos - t.intro[0]) < 1.5 || Math.abs(S.pos - (t.intro[1] - 1)) < 1.5);
+    if (wasCountdown !== S.countdown || introEdge || before !== chapterIndex(chapters(), S.pos)) render(); else tickUpdate();
+  }, 1000);
+
+  // Hide images that are not there (the repository copy ships without film stills).
+  document.addEventListener('error', (e) => { if (e.target.tagName === 'IMG') e.target.style.visibility = 'hidden'; }, true);
+
+  // ---------- notes under the screen ----------
+  function renderNotes() {
+    const n = document.getElementById('notes');
+    const V = {
+      A: [
+        ['Oben', ['<b>V-1</b> Logo statt Text, darunter <b>S1:E4 · Folgentitel</b> bei Serien.', 'Bild-in-Bild (<b>V-9</b>) und Vollbild rechts.']],
+        ['Unten links', ['<b>V-2</b> Kapitel/Folge zurück, −10, Pause, +30, Kapitel/Folge vor.', '<b>V-3</b> Lautstärke: Symbol stummt (M), Regler klappt beim Zeigen auf, Mausrad über dem Bild.']],
+        ['Unten rechts', ['<b>V-5</b> Untertitel und Ton getrennt, gewählte Sprache als Wort.', 'Zahnrad: Qualität (<b>V-15</b>), Geschwindigkeit (<b>V-7</b>), Untertitel-Stil (<b>V-6</b>), Ton-Optionen (<b>V-16</b>).', '<b>?</b> zeigt alle Tasten (<b>V-12</b>).']],
+        ['Zeitleiste und Reiter', ['<b>V-8</b> Kapitelmarken, Vorschau beim Ziehen (<b>V-21</b>, Stufe 3).', '<b>V-4</b> Klick auf die Zeit: Restzeit und Endzeit.', 'Reiter Kapitel, Als Nächstes, Besetzung, Info (<b>V-11</b>).', 'Pause: nach 1,5 s die Pause-Ansicht (<b>V-10</b>).']],
+      ],
+      B: [
+        ['Eine Zeile', ['Pause, −10, +10, Lautstärke, Zeit, dann rechts <b>ein</b> Knopf «Ton &amp; Untertitel» und das Zahnrad.', 'Titel als Text, kein Logo.']],
+        ['Weniger Reiter', ['Kapitel liegen im Zahnrad (zwei Klicks).', 'Besetzung und «Als Nächstes» nur in der Pause-Ansicht bzw. am Ende.']],
+        ['Gleich wie A', ['Spurensortierung nach Profil, Untertitel-Stil, Qualität mit Klartext, Ton-Optionen.']],
+      ],
+      today: [
+        ['So ist es heute', ['Titel ohne Serie und Folge (P-2).', 'Keine Lautstärke mit der Maus, nur ↑/↓ (P-1).', '«Spuren» zeigt Ton und Untertitel in Dateireihenfolge – bei Dune 19 + 43 Einträge, Deutsch an 12. Stelle (P-4).', 'Kapitel von Blade Runner als <code>00:12:36.172</code> (P-6).', 'Dune startet auf Englisch, weil die Datei es so markiert (P-5).']],
+      ],
+    };
+    const phone = S.device === 'phone' && modern() ? [['Handy (V-13)', ['Grosse Knöpfe in der Mitte, Doppeltipp links/rechts springt 10 s.', 'Ton, Untertitel, Einstellungen oben rechts, Panels als Blatt von unten.', 'Schloss sperrt das Bild für Kinder; Entsperren mit langem Druck.', 'iPhone: Lautstärke nur mit den Tasten des Telefons (Safari erlaubt keinen Regler).']]] : [];
+    n.innerHTML = [...phone, ...V[S.variant]].map(([h, items]) => `<div class="note"><h3>${h}</h3><ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul></div>`).join('');
+  }
+
+  setTitle('br');
+  render();
+  poke();
+})();
+</script>
+
+</body>
+</html>
