@@ -121,6 +121,31 @@ func TestUpdateAccountOverHTTP(t *testing.T) {
 	}
 }
 
+// Concept 11 (side finding): the dashboard carries the number of paused job types, 0 before and 1
+// after pausing one type, so the tile "Pausiert" can appear.
+func TestDashboardMapsPausedJobTypes(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	paused := func() int {
+		t.Helper()
+		rec := send(t, pf.h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var d gen.Dashboard
+		decode(t, rec, &d)
+		if d.Jobs.Paused == nil {
+			t.Fatalf("dashboard without jobs.paused: %s", rec.Body.String())
+		}
+		return *d.Jobs.Paused
+	}
+	if n := paused(); n != 0 {
+		t.Errorf("paused before = %d, want 0", n)
+	}
+	wantStatus(t, send(t, pf.h, http.MethodPost, BasePath+"/admin/job-types/download.prepare/pause", "p18", "", nil), http.StatusOK)
+	if n := paused(); n != 1 {
+		t.Errorf("paused after pausing download.prepare = %d, want 1", n)
+	}
+}
+
 // A-3, A-5 on the contract fixture: the administration answers have their shape, and after a
 // check of the mock manifest the main account's session carries the update notice while a guest's
 // does not.

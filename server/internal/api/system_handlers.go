@@ -70,9 +70,10 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
+	paused := d.Jobs.Paused
 	out := gen.Dashboard{
 		Streams:      make([]gen.AdminStream, 0, len(d.Streams)),
-		Jobs:         gen.JobCounts{Queued: d.Jobs.Queued, Running: d.Jobs.Running, Failed: d.Jobs.Failed},
+		Jobs:         gen.JobCounts{Queued: d.Jobs.Queued, Running: d.Jobs.Running, Failed: d.Jobs.Failed, Paused: &paused},
 		Integrations: make([]gen.IntegrationStatus, 0, len(d.Integrations)),
 		Errors:       make([]gen.ErrorEntry, 0, len(d.Errors)),
 		Update:       toUpdateState(d.Update),
