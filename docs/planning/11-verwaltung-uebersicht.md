@@ -1,6 +1,9 @@
 # Konzept: Übersicht der Verwaltung (Seite `/admin`)
 
-- **Status: Fassung 2, zur Auswahl durch Marco.** Marco hat am 31. Oktober 2026 am Bildschirmfoto
+- **Status: Fassung 3 (1. November 2026), Bauplan für Variante B (Abschnitt 11).** Fassungen 1
+  und 2 legten vier Varianten zur Wahl vor; ihr Text bleibt unten stehen, damit die Wahl
+  nachvollziehbar ist. **Wo Abschnitt 11 etwas anderes sagt als die Abschnitte 4 bis 8, gilt
+  Abschnitt 11.** Vorgeschichte: Marco hat am 31. Oktober 2026 am Bildschirmfoto
   der heutigen Übersicht gesagt: «Ich bin mit der Übersicht der Verwaltungsseite überhaupt nicht
   einverstanden. Es soll einfach, übersichtlich, symmetrisch und klar sein.» Die Struktur darf sich
   ändern, das Aussehen muss zum Rest der App passen; Emby dient als Vorbild. Dieses Papier legt
@@ -9,16 +12,16 @@
   Fassung 1 geprüft (1 Blocker, 8 Major, 8 Minor; Abschnitt 11); Fassung 2 arbeitet alle ein.
   **Marco hat am 31. Oktober 2026 Variante B «Seitenleiste wie Emby» gewählt**, mit dem Wunsch,
   die Gruppentitel deutlich stärker und farbig zu markieren (Abschnitt 10.1). **Alle Fragen F-1
-  bis F-9 sind beantwortet** (Abschnitt 10.2). Die genauen Umsetzungsschritte für B folgen in
-  Fassung 3. **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
-- **Datum: 31. Oktober 2026, Fassung 2 vom selben Tag**
-- **Wogegen dieses Konzept verankert ist:** `main`, Stand **`d3d73bc`** («Merge pull request #57»),
-  Vertragsfassung **1.5.0**. Konzept 10 (Metadaten) ist gemergt, aber nicht umgesetzt; es hat
-  **Vertrag 1.6.0, ADR 0018, Frage 16, Migrationen 00028–00030** reserviert und bringt eine
-  18. Verwaltungsseite «Metadaten» in der Gruppe Bibliothek (`10-metadaten-einstellungen.md:627-630`).
-  Dieses Papier setzt **10 vor 11** voraus. Die nächsten freien Nummern sind darum **Frage 17,
-  ADR 0019 (nur falls nötig), Vertrag 1.7.0**. Wird 11 vor 10 gebaut, tauschen die beiden ihre
-  Vertragsfassungen; das legt Schritt 0 fest. Eine Migration braucht keine Variante.
+  bis F-9 sind beantwortet** (Abschnitt 10.2). Fassung 3 legt die Umsetzungsschritte für B fest
+  (Abschnitt 11). **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
+- **Datum: 31. Oktober 2026; Fassung 2 vom selben Tag; Fassung 3 vom 1. November 2026**
+- **Wogegen dieses Konzept verankert ist:** Fassung 3 auf `main` **`6d562b8`** («Merge pull
+  request #59»), Vertragsfassung **1.6.0**. Konzept 10 (Metadaten) ist umgesetzt und gemergt
+  (PR #58, `da5d854`): Vertrag 1.6.0, ADR 0018, Frage 16, Migrationen 00028–00030 und die
+  18. Verwaltungsseite «Metadaten» sind in `main`. Damit sind die nächsten freien Nummern sicher:
+  **Frage 17, ADR 0019, Migration 00031, Vertrag 1.7.0** (additiv). (Fassung 2 war gegen
+  `d3d73bc` und Vertrag 1.5.0 verankert; die Zeilenangaben in den Abschnitten 1 bis 8 beziehen
+  sich auf diesen Stand.)
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
   und `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 
@@ -243,10 +246,12 @@ Variante B ersetzt das durch die Verwaltungsleiste (5, B); Variante C durch Aufk
 
 ## 8. Grober Ablauf nach der Wahl (Variante D)
 
+> **Überholt durch Abschnitt 11** (Marco hat B gewählt). Bleibt als Vergleich stehen.
+
 Die genauen Schritte schreibt Fassung 3, wenn Marco gewählt hat. Grob:
 
 0. Frage 17 ins Entscheidungsprotokoll (Lesart A-3 für Speicher und Fehlerliste, Abweichung von
-   Konzept 09 Abschnitt 4 Punkt 4, A2-N12), Reihenfolge zu Konzept 10, Idee «Aktivitätsprotokoll
+   Konzept 09 Abschnitt 2 Punkt 4, A2-N12), Reihenfolge zu Konzept 10, Idee «Aktivitätsprotokoll
    und Neustart» nach `docs/ideas/`.
 1. Vertrag 1.7.0: Felder aus 6.2, `x-visibility: admin`, `task gen`, Vertrags- und Schematests,
    neue Abfrage für den neuesten Fehler je Jobart, `storage_linux.go` und `storage_other.go`.
@@ -318,7 +323,7 @@ und Abstände sind von den Tokens abgeschrieben. Das Server-Protokoll (F-3) zeig
 | Nr. | Antwort | Folge |
 |---|---|---|
 | F-1 | **B «Seitenleiste wie Emby»** | 10.1 |
-| F-2 | **Ja, wie empfohlen.** | Tabelle mit Erneut/Abbrechen nur auf «Hintergrundjobs»; Übersicht je Jobart eine Zeile mit Link. Abweichung von Konzept 09 Abschnitt 4 Punkt 4, in Frage 17. |
+| F-2 | **Ja, wie empfohlen.** | Tabelle mit Erneut/Abbrechen nur auf «Hintergrundjobs»; Übersicht je Jobart eine Zeile mit Link. Abweichung von Konzept 09 Abschnitt 2 Punkt 4, in Frage 17. |
 | F-3 | **Zugeklappt unten, wie empfohlen.** | Abschnitt «Server-Protokoll» ganz unten, zugeklappt mit Anzahl; Abnahme A-3 unverändert. |
 | F-4 | **Nein, immer zwei Balken** (abweichend von der Empfehlung). | `/config` und `/cache` bleiben getrennt, auch bei gleichen Zahlen. Das Feld `storage.shared` (6.2) und G-6 entfallen; A-3 bleibt wörtlich erfüllt. |
 | F-5 | **Ja, wie empfohlen.** | `jobs.active`, `jobs.nextRun` (6.2). |
@@ -327,7 +332,422 @@ und Abstände sind von den Tokens abgeschrieben. Das Server-Protokoll (F-3) zeig
 | F-8 | **Ja, wie empfohlen.** | Hinweis «Scan abgebrochen» in der Karte Hinweise mit Link zu Bibliotheken; `attention.abortedScans` (6.2). |
 | F-9 | **3 «Band».** | Keine neuen Farb-Tokens; Titel als getöntes Band in der Profilfarbe, Einträge eingerückt. |
 
-## 11. Review-Protokoll
+## 11. Umsetzung von Variante B (Fassung 3)
+
+Grundlage: Marcos Wahl und Antworten (10.1, 10.2) und der Prototyp mit den Schaltern
+«Gruppentitel 3 Band», «Zahlen wenige», «Aktivität & Neustart mit». Zeilenangaben in diesem
+Abschnitt beziehen sich auf `main` `6d562b8`. Der OMC-Kritiker hat diesen Abschnitt geprüft
+(Abschnitt 12, Fassung 2 → 3); die Befunde sind eingearbeitet.
+
+### 11.1 Zielbild
+
+**Gerüst.** Auf jeder Seite unter `/admin/*` steht für ein Administratorkonto mit Hauptprofil
+links die **Verwaltungsleiste** statt der Seitenleiste der App, am selben Platz und in derselben
+Breite (`--sc-size-sidenav-width`). Sie steht ab 768 px **immer** da, auch wenn das Gerät die
+App-Seitenleiste ausgeblendet hat (`slouchcat.sidenav = hidden`). Das Menü-Symbol oben links
+öffnet auf `/admin/*` die Schublade der App (`SideNavMenu`); so bleibt die App-Navigation einen
+Klick entfernt, ohne zweite Leiste. Ausserhalb von `/admin/*` ändert sich nichts.
+
+**Verwaltungsleiste** (von oben nach unten):
+
+1. «Zurück zur App» (Symbol `back`, Ziel `/`).
+2. «Übersicht» (`/admin`). Steht eine neue Version bereit, trägt dieser Eintrag das Abzeichen, das
+   heute am Eintrag «Verwaltung» der App-Leiste hängt (A-5).
+3. Vier Gruppen in der Reihenfolge von `adminGroups` (`sections.ts:8`): Bibliothek, Konten,
+   Kuratierung, System. Der **Gruppentitel ist ein Band** (F-9, Stil 3): über die ganze Breite,
+   0,8125 rem, fett, Grossbuchstaben, mit Gruppensymbol, Hintergrund die Profilfarbe zu 16 %,
+   Schrift in der Profilfarbe. Die Einträge darunter sind eingerückt.
+4. Je Gruppe ihre Seiten aus `adminSections` mit Symbol (Abweichung von N-2, 11.2), **alle
+   18 Seiten**, also auch «Profile» und «Benachrichtigungen» (beide unter `/settings/*`; ein Klick
+   verlässt die Verwaltung, dort steht wieder die App-Seitenleiste). Die Leiste hat damit
+   **20 Einträge** (Zurück, Übersicht, 18 Seiten).
+5. **Zahlen nach F-7** rechts am Eintrag, gedämpft: Bibliotheken (Titel gesamt), Konten (Anzahl),
+   Integrationen (eingerichtet / gesamt), Hintergrundjobs (laufend, nur wenn > 0). **Alarm-Pillen**
+   in Farbe: Pflege (offene Fälle, Warnfarbe), Streams (laufend, Akzent), Hintergrundjobs
+   (fehlgeschlagen, Fehlerfarbe; ersetzt dann die Zahl «laufend»), Integrationen (stumme Webhooks,
+   Warnfarbe; ersetzt dann «x / y»). Jede Zahl hat einen ausgeschriebenen Namen für
+   Bildschirmleser («12 Titel brauchen Pflege»).
+
+**Handy (unter 768 px):** keine Leiste. Oben auf jeder Verwaltungsseite steht statt der heutigen
+`AdminNav`-Zeile ein Knopf «Verwaltung · *Seitenname*», der die Verwaltungsleiste als Blatt öffnet
+(gleiche Bauart wie `SideNavDrawer`: Fokusfalle nur solange offen, Esc schliesst, Fokus zurück auf
+den Knopf).
+
+**Übersicht `/admin`.** Kopf: Titel «Verwaltung» (h1 wie heute; viele Specs prüfen ihn), rechts
+klein «Live, alle 5 Sekunden». Kein Erklärsatz (P-6). Darunter **sechs gleiche Karten in zwei
+Spalten**, je Reihe gleich hoch, jede Karte füllt ihre Zelle (P-1). Die Spaltenzahl richtet sich
+nach der Inhaltsbreite (Container-Abfrage, G-1): zwei Spalten ab rund 44 rem, sonst eine.
+
+| Links | Rechts |
+|---|---|
+| **Server:** Version, Laufzeit, Transcoding (Grafikchip), Dateiwächter, Update-Zustand; Knöpfe «Nach Updates suchen» und «Neu starten» | **Jetzt läuft:** bis drei Streams mit Poster, Titel, Profil, Gerät, Modus, Fortschritt; leer «Gerade läuft nichts.»; Link «Alle Streams» |
+| **Aufgaben:** Wartend, Laufend, Fehlgeschlagen, Pausiert (nur > 0); bis drei laufende Aufgaben mit Fortschritt und Restzeit, sonst der nächste geplante Lauf; Fehlschläge je Jobart (höchstens drei Zeilen, neuester Fehler einzeilig gekürzt); Link «Hintergrundjobs» | **Letzte Aktivität:** die sechs neuesten Einträge aus dem Aktivitätsprotokoll (11.4) mit Symbol, Satz und relativer Zeit |
+| **Speicher:** zwei Balken, `/config` und `/cache` (F-4, immer zwei) | **Hinweise:** alles, was zu tun ist (Liste unten), sonst «Keine Hinweise.»; im Kopf die **Zahl der Hinweise** |
+
+Ganz unten **«Server-Protokoll»** als zugeklapptes `<details>` mit der Anzahl im Titel
+(«Server-Protokoll · 3 Fehler»); offen die heutige Fehlerliste (bis 50, `ErrorsTile`). Neue Fehler
+werden wie heute angesagt (`role="status"`), auch wenn zugeklappt.
+
+**Hinweise** (Reihenfolge = Dringlichkeit; jeder Hinweis eine Zeile mit Link oder Knopf):
+fehlgeschlagene Jobs («265 fehlgeschlagen», Link Hintergrundjobs), pausierte Jobarten, Integration
+mit Fehler (je Integration, «Trakt: Fehler», Link Integrationen), stumme Webhooks, abgebrochener
+Scan je Bibliothek (F-8, Link Bibliotheken; «Verlust akzeptieren» bleibt dort), verlorene
+Ordnerplätze, fehlender Grafikchip und voller Dateiwächter (je mit Befehl wie heute in
+`SystemState`), Speicher über 90 %, neue Version (mit Link wie heute), Entwicklungsstand. Damit
+ein neuer Fehler nicht doppelt angesagt wird, sagt die Karte Hinweise nur ihre **Zahl** an
+(«3 Hinweise»); den Fehlertext sagt das Server-Protokoll an.
+
+**Neustart auf der Übersicht:** Nach «Neu starten» und Bestätigung ersetzt die Warteanzeige
+(`RestartPanel`, 11.5) das Kartenraster; Titel, Leiste und Kopf bleiben stehen.
+
+**Was wegfällt:** die Tabelle «Letzte fehlgeschlagene Jobs» mit Erneut/Abbrechen (F-2; sie ist auf
+«Hintergrundjobs»), die 18 Bereichskarten `ManagementCards` (die Leiste ersetzt sie), die Kacheln
+«Integrationen» und «Webhooks» (11.2, Punkt 3), die horizontale `AdminNav`.
+
+### 11.2 Abweichungen (gehen in Frage 17)
+
+1. **N-2 (Entscheid 14):** Die Verwaltungsleiste trägt Symbole; die App-Seitenleiste bleibt ohne.
+2. **Konzept 09 Abschnitt 2 Punkt 4 (`09-hintergrundjobs.md:226`) und Entscheid 15:** Die zehn
+   letzten Fehlschläge mit Erneut/Abbrechen stehen nicht mehr auf der Übersicht, sondern nur auf
+   «Hintergrundjobs» (F-2). Die Warnung «Pausiert» bleibt (Karte Aufgaben und Hinweis).
+3. **A-3 (Plan `03-plan-v1.md:585`) und Entscheid 10 (e) (Webhooks-Kachel):** Mit «Letzte
+   Aktivität» hat die Übersicht keine eigene Kachel für Integrationen und Webhooks mehr (so im
+   Prototyp, Schalter «Aktivität & Neustart: mit»). Lesart für die Abnahme: **Integrationsstatus**
+   = Zahl «x / y» in der Leiste und **jede Integration mit Fehler als Hinweis**; die volle Liste je
+   Integration steht auf der Seite «Integrationen». **Webhooks** = stumme Webhooks als Hinweis und
+   als Pille an «Integrationen»; die **Webhooks-Kachel aus Entscheid 10 (e) entfällt**. Der
+   A-3-Test provoziert weiter einen Trakt-Fehler und erwartet ihn in < 10 s **in den Hinweisen**
+   («Trakt: Fehler») und im aufgeklappten Server-Protokoll. **Beides bestätigt Marco vor
+   Schritt 0** (11.9, O-1).
+4. **A2-N12:** Der abgebrochene Scan erscheint als Hinweis mit Link; «Verlust akzeptieren» bleibt auf
+   der Seite Bibliotheken (F-8).
+5. **Neue Funktionen nach F-6:** Aktivitätsprotokoll und Neustart-Knopf. Kein Nicht-Ziel (Spec
+   «Non-Goals» nennt beides nicht); sie kommen aus Marcos Antwort, nicht aus der Spec. ADR 0019
+   hält Tabelle, Ereignisarten, Aufbewahrung, Datenschutz und den Neustartweg fest.
+6. **Prototyp-Zeilen, die das Protokoll nicht so zeigt:** Der Prototyp zeigt für jede Wiedergabe
+   den Start; gebaut wird Start (höchstens einmal je 30 min und Titel) und «fertig geschaut»
+   (11.4), aber kein Ende bei jedem Stopp, weil jeder Ton-, Untertitel- oder Qualitätswechsel eine
+   neue Sitzung ist (`PlayerPage.tsx:171-214`). Eingehende Webhooks stehen nicht im Protokoll; sie
+   haben ihr eigenes auf «Integrationen» (`webhook_events`, ADR 0010).
+
+### 11.3 Vertrag 1.7.0 (additiv)
+
+Nichts wird entfernt oder im Typ geändert. **Pflicht** (`required`) in der Antwort sind die
+neuen Felder `JobCounts.active`, `JobCounts.failedByType`, `Dashboard.attention`,
+`Dashboard.counts`, `Dashboard.activity` (je leere Liste statt fehlend); **optional** sind
+`JobCounts.nextRun` (fehlt ohne aktiven Zeitplan) und `AdminStream.posterUrl` (fehlt ohne Poster).
+`JobCounts.recentFailed` bleibt im Vertrag und wird weiter gefüllt (fremde Clients); die eigene
+Oberfläche liest es nicht mehr. Die Beschreibung von `getDashboard` (`api/openapi.yaml:5062-5065`,
+«last ten failed jobs») wird nachgeführt.
+
+| Ort | Neu | Herkunft im Server |
+|---|---|---|
+| `JobCounts.active` | `JobRun[]`, höchstens 3, neueste zuerst | Neue Abfrage `ListRunningJobs` (alle Arten, `LIMIT 3`); Abbildung über `admin.jobRun` (`server/internal/admin/jobtypes.go:258`) mit derselben Schätzung wie auf «Hintergrundjobs». |
+| `JobCounts.nextRun` | `{type, at}`, optional | Frühestes `NextRunAt` über `s.jobctl.sched.Schedules` (`server/internal/jobs/scheduler.go:316`); `admin` hält den Scheduler schon über `WithJobControl` (`main.go:332`, `jobtypes.go:43-50`). Ohne ausgeschaltete Zeitpläne und ohne pausierte Jobarten. |
+| `JobCounts.failedByType` | `{type, count, lastError, lastFailedAt}[]`, nach `lastFailedAt` absteigend | Neue Abfrage `ListFailedJobsNewestPerType` (Fensterfunktion `ROW_NUMBER() OVER (PARTITION BY type ORDER BY updated_at DESC)` plus Anzahl je Art) in `server/queries/system/admin_dashboard.sql`. |
+| `AdminStream.posterUrl` | Bild-URL mit Hash, optional | Für Folgen das Poster der Serie; dafür liefert `AdminStreamItems` (`server/queries/system/admin.sql:283-295`) zusätzlich die Id der Serie. Hash wie bei `posterHashes` (`server/internal/admin/images.go:74`). |
+| `Dashboard.attention` | `{abortedScans: {libraryId, name, reason}[]}` | Bibliotheken mit `last_scan_state = 'aborted'`, `last_scan_error <> 'cancelled'` und ohne `loss_accepted_at`. Das ist **strenger** als die heutige Bedingung des Knopfs auf «Bibliotheken» (`LibrariesPage.tsx:338` prüft `lossAcceptedAt` nicht); der Knopf wird in Schritt 5 an dieselbe Bedingung angeglichen. Der Server entscheidet (Regel 12). |
+| `Dashboard.counts` | `{titles, accounts, maintenanceOpen}` | `titles` = Summe der Titelzahlen aller Bibliotheken (wie `LibraryScan.itemCount`); `accounts` = `CountAccounts` (`server/queries/app/auth.sql:4`); `maintenanceOpen` = Summe der **fünf billigen Pflegezähler** (`AdminCountUnmatched`, `…NoImages`, `…Unrated`, `…Orphaned`, `…Unplayable`, `server/queries/system/admin.sql:30-118`). Die sechste Pflegeart `rating_mismatch` prüft alle Titel gegen den Anbieter und zählt **nicht** mit; die Pille heisst darum «Titel brauchen Pflege», nicht «alle Pflegefälle». Der Server rechnet die drei Zahlen höchstens alle **60 s** neu (Zwischenspeicher in `admin.Service`), weil die Leiste auf jeder Verwaltungsseite pollt; jede Änderung über die Pflege-, Bibliotheks- und Kontoseiten leert den Speicher. |
+| `Dashboard.activity` | `ActivityEntry[]`, höchstens 6 | Aktivitätsprotokoll (11.4). |
+| `POST /admin/server/restart` | `restartServer`, `x-visibility: admin`, **202** mit neuem Schema `RestartAccepted {restartAt}`; **409** mit Problem-Code `restart_pending` (Neustart oder Wiederherstellung steht aus) oder `backup_busy` (eine Sicherung wird gerade geschrieben) | 11.5 |
+
+`ActivityEntry`: `{id, at, kind, profileName?, accountEmail?, itemTitle?, libraryName?, detail}`
+mit `detail` als Objekt `{newTitles?, sizeBytes?, version?, trigger?, reason?, jobType?,
+count?, by?}`. **`kind` ist ein String ohne Enum** (wie `JobTypeName`, «No enum, so a new type
+breaks no client»); die bekannten Werte stehen in der Beschreibung. **Der Server schickt keine
+fertigen Sätze**: die Oberfläche baut den Satz aus `kind` und den Feldern über
+`de.json`/`en.json` (Regel 9); für eine unbekannte Art zeigt sie einen allgemeinen Satz
+(«Ereignis auf dem Server»).
+
+Integrationen «x / y» und Streams zählt die Oberfläche aus `Dashboard.integrations` und
+`Dashboard.streams`; dafür braucht es kein Feld.
+
+**Nebenbefund (Fehler in `main`):** Der Handler bildet `JobCounts.paused` nicht ab
+(`server/internal/api/system_handlers.go:75` setzt nur `Queued`, `Running`, `Failed`), obwohl das
+Modell den Wert füllt (`server/internal/admin/dashboard.go:94`). Die Kachel «Pausiert»
+(`AdminHomePage.tsx:547`) erscheint darum nie. Schritt 1 behebt das mit einem eigenen Commit und
+einem Test.
+
+### 11.4 Aktivitätsprotokoll «Letzte Aktivität»
+
+(Name «Aktivitätsprotokoll», damit es nicht mit dem Ereignisprotokoll der Webhooks aus
+Entscheid 10 verwechselt wird.)
+
+**Warum eine eigene Tabelle (Alternative geprüft):** Man könnte die Liste aus vorhandenen Tabellen
+zusammensetzen (`playback_sessions`, Jobverlauf, `webhook_events`). Das scheitert an drei Stellen:
+Serverstart, Neustart und Sicherungen stehen nirgends; `playback_sessions` hat eine Zeile je
+Spurwechsel und keine Zeile «fertig geschaut»; die Quellen haben verschiedene Aufbewahrung
+(Jobverlauf 30 Tage, Sitzungen anders) und brauchten eine UNION mit Regeln je Quelle. Eine kleine
+Tabelle mit einer Aufbewahrung ist einfacher. Das steht so in ADR 0019.
+
+**Tabelle** (Migration **00031** nach Vorlage, `STRICT` wie 00027 und 00030, Zeit als INTEGER
+Unix-Millisekunden wie überall):
+
+```
+activity_events(
+  id INTEGER PRIMARY KEY,
+  at INTEGER NOT NULL,             -- Unix ms, UTC
+  kind TEXT NOT NULL,              -- bekannte Werte siehe unten, geprüft in Go, kein CHECK
+  account_id INTEGER, profile_id INTEGER,
+  item_id TEXT, library_id TEXT,
+  subject TEXT,                    -- Titel bzw. Bibliotheksname zum Zeitpunkt des Ereignisses
+  detail TEXT NOT NULL DEFAULT '{}' -- JSON, nur die Felder aus ActivityEntry.detail
+) STRICT
+INDEX activity_events_at ON activity_events(at DESC)
+INDEX activity_events_account ON activity_events(account_id)
+```
+
+Keine Fremdschlüssel auf Titel und Bibliotheken: ein Eintrag überlebt das Löschen eines Titels
+oder einer Bibliothek, `subject` hält den Namen fest. **Konto und Profil dagegen werden nicht
+festgehalten:** E-Mail und Profilname liest der Server beim Lesen über `account_id`/`profile_id`
+dazu, und beim Löschen eines Kontos oder Profils (`auth.DeleteAccount`, `accounts.go:110`;
+`auth.DeleteProfile`, `profiles.go:460`) löscht er dessen Einträge mit. So bleibt nach dem
+Löschen eines Kontos nichts von seinem Schauen im Protokoll. Kein Geheimnis, kein Pfad, keine
+IP-Adresse und kein freier Fehlertext im Protokoll (Regel 10): `detail.reason` nimmt nur feste
+Codes (`root_missing`, `root_empty`, `loss_over_threshold`, `cancelled`, `error`).
+
+**Ereignisarten** (`kind`) und wo sie entstehen:
+
+| `kind` | Quelle | Regel gegen Flut |
+|---|---|---|
+| `playback_started` | Ende von `playback.Start` (`server/internal/playback/sessions.go:104`), nach der Prüfung auf Abmeldung (`:224-229`), ohne auf den Schreibvorgang zu warten (`context.WithoutCancel`, eigene Goroutine), damit die Zeit bis zum ersten Bild nicht wächst | nur, wenn dasselbe Profil denselben Titel in den letzten **30 min** nicht schon gestartet hat (Spur-, Qualitäts- und Versionswechsel sind neue Sitzungen) |
+| `playback_completed` | Fortschritt (`playback.go:300`), wenn ein Titel **neu** als gesehen gilt (90-%-Regel, vorher nicht gesehen) | einmal je Übergang |
+| `playback_stopped` | nur Stopp durch die Verwaltung und Widerruf (`StopStream`, `EndDevice`, `devices.go:121-140`; `stopped_by` `admin`/`revoked`); diese beenden mehrere Sitzungen in einem `UPDATE`, darum mit `RETURNING` je Sitzung eine Zeile | Stopp durch den Zuschauer und Abmelden schreiben nichts |
+| `scan_started` | `library/scanner.go`, vollständiger Scan einer Bibliothek; `detail.trigger` (`manual`, `schedule`, `watcher`) | Pfad-Scans (Dateiwächter, Webhook, `pathscan.go:99`) schreiben nichts |
+| `scan_done` | `finish` (`scanner.go:395`), vollständiger Scan; `detail.newTitles` | wie oben |
+| `scan_failed`, `scan_aborted` | `endScan` (`scanner.go:319`); Abbruch von Hand in `runCancellable` (`scanner.go:221-243`) mit `reason = cancelled` | auch für Pfad-Scans, aber höchstens einer je Bibliothek und Stunde |
+| `job_failed` | zweiter Haken an `worker.OnFinalFailure` (`server/internal/jobs/worker.go:63`, heute für `notifySvc.JobFailed`); `detail.jobType`, `detail.count` | zusammengefasst: **eine** Zeile je Jobart und Stunde, deren `count` hochzählt |
+| `backup_created`, `backup_restored` | `admin.CreateBackup` (`backup.go:213`, mit `detail.sizeBytes`), `admin.restore` (`backup.go:548`) | – |
+| `server_started` | `main.go`, nach «listening» (`:403`), mit `detail.version` | – |
+| `server_restart` | `restartServer` (11.5), mit Konto | – |
+
+**Schreiben:** Der Schreiber ist `(*admin.Service).RecordActivity(ctx, model.ActivityEvent)`.
+`playback`, `library` und `jobs` bekommen ihn wie die heutigen Haken als `WithActivity(func)` bzw.
+`OnFinalFailure` in `main.go` (Muster `WithScanAborted`, `main.go:282`); kein neues Paket
+importiert `store/systemq` (Regel 2 bleibt unberührt). Ein Fehler beim Schreiben wird als WARN
+geloggt und **bricht die eigentliche Handlung nie ab**.
+
+**Aufräumen:** `jobs.prune` (`server/internal/jobs/history.go`) bekommt einen Haken für weitere
+Aufräumarbeiten; `admin` meldet dort das Löschen der Einträge an, die älter als **30 Tage** sind,
+und hält höchstens **2'000** Zeilen, in Stapeln wie `PruneJobs`. So kennt `jobs` die neue Tabelle
+nicht, und es entsteht keine neue Jobart und keine neue Karte auf «Hintergrundjobs».
+
+**Lesen:** nur über `Dashboard.activity` (die sechs neuesten). Wer das Dashboard sieht, sieht das
+Protokoll: jedes Administratorkonto mit Hauptprofil (`x-visibility: admin`). Eine eigene Seite mit
+dem ganzen Protokoll baut dieses Konzept **nicht** (nicht verlangt; spätere Idee).
+
+### 11.5 Neustart
+
+- **Server:** Die Neustart-Funktion, die heute nur die Wiederherstellung bekommt (`WithRestart`,
+  `backup.go:109`, verdrahtet als `requestRestart`, `main.go:224-228, 288`), wird eine Option von
+  `admin.Service` für beide Wege. Neu ist ein Merker `restartPending` (`atomic.Bool`) im
+  Sicherungszustand (`backupState`, `backup.go:75-81`), den Wiederherstellung und Neustart setzen.
+  `restartServer` versucht `mu.TryLock()`: hält eine laufende Sicherung die Sperre, antwortet er
+  **409 `backup_busy`** (sonst würde der Neustart die Sicherung abschneiden); ist der Merker schon
+  gesetzt, **409 `restart_pending`**. Die Wiederherstellung antwortet ebenso mit 409
+  `restart_pending`, solange der Merker steht. Sonst schreibt `restartServer` `server_restart` ins
+  Protokoll, plant den Neustart wie die Wiederherstellung mit `time.AfterFunc(1s, …)` und antwortet
+  sofort 202 mit `restartAt`. Der Ablauf danach ist der heutige: geordnet herunterfahren,
+  `syscall.Exec` auf das eigene Programm (gleiche PID); nur wenn das scheitert, Exit 0 und Docker
+  startet neu (`restart: unless-stopped`, `deploy/compose.yaml:21`).
+- **Oberfläche:** Knopf «Neu starten» in der Karte Server, `ConfirmDialog` mit Satz je Lage
+  («2 laufende Streams brechen ab. Laufende Downloads für unterwegs werden unterbrochen.» bzw.
+  «Gerade läuft nichts.»). Danach ersetzt die Warteanzeige das Kartenraster (11.1). Die Anzeige
+  `RestartPanel` zieht aus `BackupPage.tsx:260-334` in eine eigene Datei
+  `features/admin/RestartPanel.tsx` und wird allgemein: Eingaben `{acceptedAt, title, body, notice?,
+  onBack}`. Die Wiederherstellung übergibt wie heute ihre Texte (Version, Geheimnisse) und
+  `reloadToLogin()`, weil die zurückgeholte Datenbank eigene Sitzungen hat. **Der Neustart
+  übergibt `location.reload()`**: die Sitzung bleibt gültig, Marco landet wieder auf der
+  Übersicht. `restart.ts` bleibt. Laufende Wiedergaben brechen ab; der Zuschauer startet den Titel
+  neu, die Position kommt aus dem gespeicherten Fortschritt.
+- **Test:** Der Vertrags- und der Handlertest laufen mit einer Attrappe für die Neustart-Funktion;
+  auch der Eintrag `restartServer` in `adminRegistry` (`contract_access_test.go:187` ff.)
+  verdrahtet die Attrappe, damit der Zugriffstest keinen Neustart auslöst. Kein Test startet den
+  Prozess wirklich neu.
+
+### 11.6 Oberfläche im Detail
+
+- **Neuer Baustein `ui/AdminSideNav`** (senkrechte Leiste) und **`ui/AdminSideNavMenu`** (Blatt am
+  Handy). Die heutige horizontale `ui/AdminNav` bleibt bis Schritt 5 unverändert in Gebrauch und
+  wird dort mit ihren Stories und den drei Referenzbildern `ui-adminnav--*` gelöscht. So bleibt
+  `task ci` auch nach Schritt 4 grün.
+- **`AdminSideNav`:** `nav` mit `aria-label` «Verwaltung», Gruppentitel als `span` im Band mit
+  `id`, die Liste darunter mit `aria-labelledby` (wie heute `AdminNav.tsx:105-110`; keine
+  Überschriften, damit vor dem h1 der Seite keine vier Überschriften stehen). Einträge mit Symbol,
+  Zahl oder Pille, `aria-current="page"` am aktuellen. **Tastatur wie heute ein einziger
+  Tab-Halt** (roving tabindex über alle 20 Einträge), aber senkrecht: **Pfeil hoch/runter**,
+  Pos1/Ende, Enter folgt dem Link; Tab verlässt die Leiste zum Inhalt. Der Baustein ist rein
+  darstellend: er bekommt Einträge, Zahlen und Pillen als Eingaben und liest keine Daten.
+- **Container `features/admin/AdminShellNav.tsx`:** liest `dashboardQuery` (gleicher Schlüssel
+  `['admin','dashboard']`, `queries.ts:329-333`), baut aus `adminSections` und den Zahlen die
+  Eingaben für `AdminSideNav` bzw. `AdminSideNavMenu` und übernimmt `focusCarry` aus
+  `AdminLayout`. Auf der Übersicht pollt die Seite alle 5 s wie heute; auf allen anderen
+  Verwaltungsseiten pollt der Container alle **30 s**. Ohne Daten (laden, Fehler) zeigt die Leiste
+  keine Zahlen, aber alle Einträge.
+- **Gerüst (`AppLayout.tsx`):** `adminShell = isAdmin && pathname beginnt mit /admin`. Ist es wahr
+  und breit, rendert das Layout `AdminShellNav` statt `SideNav` (`AppLayout.tsx:284`) und zählt die
+  App-Leiste als «nicht gezeigt», damit das Menü-Symbol die Schublade öffnet
+  (`AppLayout.tsx:141-145`). In dieser Schublade fehlt auf `/admin/*` der Knopf «Seitenleiste
+  einblenden» (`show` nur ausserhalb von `/admin`, `AppLayout.tsx:297-301`), weil er dort nichts
+  bewirkt.
+- **Kein Springen beim Laden:** `index.html:11-12` setzt vor dem ersten Bild zusätzlich
+  `data-shell="admin"`, wenn der Pfad mit `/admin` beginnt; `global.css` gibt dann ab 768 px die
+  Leistenbreite frei, auch bei `data-sidenav="hidden"`. `AppLayout` hält das Attribut beim
+  Seitenwechsel aktuell.
+- **`AdminLayout.tsx`:** liefert im `PageNav` am Handy nur den Knopf «Verwaltung · *Seite*» mit dem
+  Blatt; breit nichts (die Leiste steht im Gerüst).
+- **Band-Farbe ohne neue Farb-Tokens (F-9):** Der Band-Selektor selbst definiert
+  `--sc-band-tint: color-mix(in srgb, var(--sc-accent) 16%, transparent)` und benutzt
+  `background-color: var(--sc-band-tint)` und `color: var(--sc-accent)`. Weil die Variable am Band
+  und nicht an `:root` steht, färbt eine Story mit anderer Profilfarbe am Rahmen das Band richtig
+  um. stylelint (`declaration-strict-value`, nur `var(--sc-…)` in Farbeigenschaften) bleibt
+  zufrieden, weil die `color-mix`-Zeile eine eigene Variable ist. **Prüfung:** ein Unit-Test
+  rechnet für **alle acht Profilfarben** den Kontrast der Schrift auf dem Band über `bg-elevated`
+  aus und verlangt ≥ 4,5:1. Fällt eine Farbe darunter, nimmt das Band für diese Farbe
+  `text-primary` als Schrift (Liste im Test, keine neue Farbe).
+- **Symbole:** neu in `ui/Icon.tsx`: `grid` (Übersicht), `film` (Gruppe Bibliothek), `server`
+  (Gruppe System, Karte Server), `power` (Neu starten), `disk` (Speicher), `activity` (Letzte
+  Aktivität). Konten nimmt `users`, Kuratierung `star`, Hinweise `warning`. Pfade aus dem Prototyp
+  (`11-verwaltung-prototyp.html`), gleiche Strichstärke wie die vorhandenen.
+- **Weitere `ui`-Bausteine mit Story:** `ActivityFeed` (Zeilen mit Symbol, Satz, Zeit), `TaskRow`
+  (Jobart, Gegenstand, `ProgressBar`, Restzeit), `StreamRow` (Poster, Titel, Profil · Gerät,
+  Modus, Fortschritt), `DashCard` (Panel, das seine Zelle füllt: Kopf mit Symbol, Titel, optional
+  Zahl; Fuss mit Link oder Knöpfen). Vorhandene `Panel`, `StorageMeter`, `StatTile`,
+  `ProgressBar`, `StatusDot`, `ConfirmDialog` werden benutzt, nicht kopiert.
+- **Texte:** neue Schlüssel unter `admin.nav.*` (Zurück zur App, Blatt-Knopf, Zahlennamen),
+  `admin.home.*` (Karten, Hinweise, Server-Protokoll, Neustart-Dialog), `admin.activity.*` (ein Satz
+  je `kind` und ein allgemeiner) und `admin.restart.*`, je Deutsch und Englisch. Nicht mehr
+  gebrauchte Schlüssel (`admin.home.intro`, Kacheln Integrationen/Webhooks, Tabelle Fehlschläge)
+  werden entfernt, nicht liegen gelassen.
+
+### 11.7 Tests, die sich ändern
+
+- **Server:** Vertragstest (`server/internal/api/contract_test.go`, `TestContractOpenAPI`),
+  `TestContractCoversEveryOperation` mit `restartServer` (`contract_access_test.go:187` ff., Zugriff
+  nur `admin`, Attrappe), Handlertests für alle neuen Felder, Test `paused` (Nebenbefund),
+  Abfragetests für `ListRunningJobs` und `ListFailedJobsNewestPerType`, Migrationstest 00031 gegen
+  den eingefrorenen Stand `testdata/db/metadaten.sql`, **neuer eingefrorener Stand
+  `testdata/db/verwaltung.sql`** mit mindestens einer Zeile je bekannter Art und
+  `frozen_verwaltung_test.go` (nach `testdata/db/README.md`, wie bei Konzept 09 und 10), Tests
+  der Flut-Regeln (zweiter Start binnen 30 min schreibt nichts; Spurwechsel schreibt nichts;
+  Pfad-Scan schreibt nichts; `job_failed` zählt hoch), Löschtest (Konto gelöscht → seine Einträge
+  weg), Test «Schreibfehler im Protokoll bricht `playback.Start` nicht ab», Prune-Test (30 Tage,
+  2'000), Neustart-Tests (202, 409 `restart_pending`, 409 `backup_busy`, Attrappe aufgerufen,
+  Protokolleintrag), Zähler-Speicher (60 s, geleert nach Pflegeänderung).
+- **Unit (web):** `AdminHomePage.test.tsx` umgeschrieben (sechs Karten, Hinweise, Server-Protokoll
+  zugeklappt, Neustart-Dialog, Warteanzeige statt Raster); der Block «admin navigation (A-2)»
+  (`:410-509`) prüft die Leiste mit **20 Einträgen**, senkrechte Pfeile und den Wegfall der
+  «Hauptnavigation» auf `/admin/*` (bisher `:481-491`); der Abzeichentest A-5 (`:514-528`, heute
+  am Eintrag «Verwaltung» der App-Leiste auf `/admin/devices`) prüft das Abzeichen am Eintrag
+  «Übersicht». Die Seitentests, die `navigation 'Verwaltung'` abfragen (`HomeRowsPage`,
+  `PodcastsPage`, `SpotlightPage`, `CollectionsPage`, `PicksPage`, `DevicesStreamsPages`), behalten
+  ihre Abfrage; sie rendern die Leiste jetzt aus dem Gerüst statt aus `AdminLayout` und brauchen
+  dafür eine Testhilfe, die beides montiert, und Dashboard-Attrappen mit den neuen Feldern.
+  `BackupPage.test.tsx` und `restart.test.ts` laufen gegen das allgemeine `RestartPanel`; Kontrasttest
+  der Profilfarben; Test der Satzbildung je `kind` mit unbekannter Art.
+- **e2e:** `admin-home.spec.ts` umgeschrieben (der A-3-Test steht heute bei `:167-199`): Leiste
+  (Reihenfolge `NAV_PAGES` mit Profile und Benachrichtigungen, ein Tab-Halt, Pfeil hoch/runter,
+  Pos1/Ende, Enter, Zurück), Karten, A-3 mit Trakt-Fehler in den Hinweisen und im aufgeklappten
+  Server-Protokoll < 10 s, Neustart-Dialog bis «Abbrechen» (kein echter Neustart), Handy-Blatt,
+  sichtbarer Fokus, keine Fokusfalle. **Anpassen** (Pfeil rechts → Pfeil runter,
+  Tab-Reihenfolge): `admin-spotlight.spec.ts:48-80`, `admin-jobs.spec.ts:49-86`,
+  `admin-libraries.spec.ts:28-29`, `admin-item.spec.ts:111-112`. **Prüfen, sollten unverändert
+  laufen** (`aria-current` in `nav 'Verwaltung'`): `admin-integrations`, `admin-home-rows`,
+  `admin-collections`, `admin-podcasts`, `admin-picks`, `admin-metadata`; h1 «Verwaltung»:
+  `admin-webhooks`, `admin-spotlight`, `admin-jobs`; Kopf-Eintrag «Verwaltung»: `profiles`,
+  `invitations`, `sidenav`. `sidenav.spec.ts` bekommt einen Fall «`/admin` bei ausgeblendeter
+  App-Leiste: Verwaltungsleiste da, kein Springen» (Vorlage `:306`).
+- **Storybook-Referenzbilder** (`web/e2e-storybook/__screenshots__/`, auf CT 190 erzeugt, Weg ohne
+  Docker): neu `ui-adminsidenav--*` (`Default`, `Counts`, `ArrowKeys` mit `press:Tab+ArrowDown`,
+  `Accents` mit zwei Profilfarben), `ui-adminsidenavmenu--phone`, `ui-activityfeed--*`,
+  `ui-taskrow--*`, `ui-streamrow--*`, `ui-dashcard--*`; geändert `ui-icon--all`; gelöscht in
+  Schritt 5 `ui-adminnav--default`, `--arrow-keys`, `--narrow`.
+
+### 11.8 Schnitt in Schritte
+
+Jeder Schritt ein Commit auf einem Zweig ab `main` `6d562b8` (oder dem dann aktuellen `main`),
+`task ci` grün (inklusive e2e), DoD-Belege in `docs/dev/CURRENT_STATUS.md`.
+
+```
+0 Papiere → 1 Vertrag 1.7.0 und Dashboard-Felder (+ Fix paused)
+  → 2 Aktivitätsprotokoll (00031, eingefrorener Stand) → 3 Neustart
+  → 4 ui-Bausteine mit Stories (noch nicht eingebaut)
+  → 5 Gerüst, Leiste, Übersicht, alle Tests, alte AdminNav weg
+  → 6 Abnahme auf CT 190, Messung, Doku
+```
+
+**Schritt 0 — Papiere.** Frage 17 ins Entscheidungsprotokoll (F-1 bis F-9, die sechs Abweichungen
+aus 11.2 mit Marcos Bestätigung zu O-1, ausdrücklich auch der Wegfall der Webhooks-Kachel aus
+Entscheid 10 (e)); ADR 0019 «Verwaltungsleiste, Aktivitätsprotokoll, Neustart» (Teilnachfolger von
+Entscheid 14 N-2 für `/admin/*`; ergänzt ADR 0009 um das Aktivitätsprotokoll neben dem Fehlerring
+und grenzt es gegen das Webhook-Ereignisprotokoll aus ADR 0010 ab; geprüfte Alternative und
+Datenschutz aus 11.4); dieses Papier auf den dann aktuellen `main` verankern. DoD: Doku-Commit,
+`task ci` grün. **0,5 Tage.**
+
+**Schritt 1 — Vertrag 1.7.0 und Dashboard-Felder.** Zuerst eigener Commit «fix(api): map paused
+job count on the dashboard» mit Test. Dann OpenAPI (11.3 ohne `activity` und `restartServer`),
+`task gen`, Abfragen `ListRunningJobs` und `ListFailedJobsNewestPerType`, `AdminStreamItems` mit
+Serien-Id, `jobs.active`, `jobs.nextRun`, `jobs.failedByType`, `posterUrl`,
+`attention.abortedScans`, `counts` mit 60-s-Speicher und Leeren, Handler, Tests; Dashboard-Attrappen
+in den Web-Tests um die Pflichtfelder ergänzen. Die Oberfläche ändert sich noch nicht. DoD:
+Vertrags- und Handlertests grün, Antwort von `GET /admin/dashboard` als Beleg. **2,5 Tage.**
+
+**Schritt 2 — Aktivitätsprotokoll.** Migration 00031 mit Test, eingefrorener Stand
+`verwaltung.sql` mit Test, `RecordActivity` mit den Flut-Regeln, Haken in `playback`, `library`,
+`jobs` (`OnFinalFailure`), `admin` (Sicherung) und `main.go`, Löschen mit Konto und Profil,
+Aufräum-Haken in `jobs.prune`, `Dashboard.activity` im Vertrag, Tests (11.7). DoD: nach einem
+lokalen Scan und einer Wiedergabe stehen die Einträge im Dashboard (Beleg: Antwort). **3 Tage.**
+
+**Schritt 3 — Neustart.** `restartServer` im Vertrag, Neustart-Funktion als Option von
+`admin.Service`, `restartPending` und `TryLock`, 409-Codes auch für die Wiederherstellung,
+Protokolleintrag, `RestartPanel` allgemein und ausgelagert (Sicherung benutzt es weiter), Tests.
+DoD: lokaler Neustart über `curl` mit Beleg (202, zweiter Aufruf 409, Server wieder da, Einträge
+`server_restart` und `server_started`). **1,5 Tage.**
+
+**Schritt 4 — ui-Bausteine.** Symbole, `AdminSideNav` mit Band, Zahlen, Pillen und senkrechtem
+Tastaturmodell, `AdminSideNavMenu`, `DashCard`, `TaskRow`, `StreamRow`, `ActivityFeed`, je Story;
+Kontrasttest der acht Profilfarben. Noch nicht im Gerüst eingebaut; die alte `AdminNav` läuft
+weiter. DoD: `task ci` grün, Referenzbilder auf CT 190 erzeugt. **3 Tage.**
+
+**Schritt 5 — Gerüst, Leiste, Übersicht.** `AdminShellNav`, `AppLayout`, `index.html`,
+`global.css`, `AdminLayout`, `AdminHomePage` neu nach 11.1, Neustart-Dialog und Warteanzeige,
+Bedingung «Verlust akzeptieren» angleichen, Texte de/en, alte `AdminNav` mit Stories und
+Referenzbildern löschen, alle Tests aus 11.7. DoD: `task ci` grün in Chromium und Firefox,
+Tastaturtest der Übersicht und der Leiste grün, Regel 9 (Lint) grün. **3,5 Tage.**
+
+**Schritt 6 — Abnahme und Doku.** Image bauen und auf CT 190 bringen (Weg aus dem CT-190-Stand),
+Abnahme durch Marco am Desktop (mit und ohne ausgeblendete App-Leiste) und am Handy; Messung:
+Dauer von `GET /admin/dashboard` mit `counts` (p95 kalt und warm) und Zeilen in
+`activity_events` nach einem Tag in `docs/perf/verwaltung.md`; Prototyp gegen die gebaute Seite
+abgleichen; `CURRENT_STATUS.md`, Release-Notes 1.7.0. **1 Tag.**
+
+**Aufwand (Arbeitstage, Schätzung):** 0: 0,5 · 1: 2,5 · 2: 3 · 3: 1,5 · 4: 3 · 5: 3,5 · 6: 1 ·
+**Summe 15** (Spanne 14 bis 18). Fassung 2 schätzte B auf 10 bis 14 Tage plus 3 bis 4 für
+Protokoll und Neustart.
+
+### 11.9 Offene Punkte
+
+| Nr. | Punkt | Vorschlag |
+|---|---|---|
+| O-1 | Ohne Kachel «Integrationen und Webhooks» gilt A-3 in der Lesart aus 11.2 Punkt 3, und die Webhooks-Kachel aus Entscheid 10 (e) entfällt. **Braucht Marcos Ja vor Schritt 0.** | Ja, wie im gewählten Prototyp. Die Alternative wäre eine siebte und achte Karte (Raster 2 × 4) oder Integrationen statt «Letzte Aktivität»; beides widerspricht Marcos Wahl «mit Aktivität». |
+| O-2 | Doppelte Nennung: Fehlschläge stehen in der Karte Aufgaben **und** als Hinweis. | Gewollt: die Karte zeigt **was** fehlschlägt (je Jobart), der Hinweis sagt **dass** etwas zu tun ist. G-8 gilt hier nicht streng. Der Bau klärt es am Bild. |
+| O-3 | Profile und Benachrichtigungen liegen unter `/settings/*`; ein Klick in der Leiste verlässt die Verwaltung. | So lassen; die Seiten gelten für jedes Konto, nicht nur die Verwaltung. |
+
+### 11.10 Risiken
+
+- **Grösster Umbau des Gerüsts seit Konzept 08:** jede Verwaltungsseite ändert ihre Navigation; die
+  Tests in 11.7 sind die Liste, die vollständig grün werden muss. Schritt 4 baut die Leiste darum
+  zuerst allein mit Stories.
+- **Pflegezähler auf grossen Beständen:** fünf Zählabfragen über `items`; mit 60-s-Speicher selten,
+  aber der erste Aufruf nach dem Start ist kalt. Schritt 6 misst; ist er über 200 ms, liefert der
+  Server beim ersten Mal `counts` ohne Pflegezahl und rechnet im Hintergrund.
+- **Protokoll wird trotz Regeln laut:** die Flut-Regeln in 11.4 sind eine Schätzung. Zeigt der
+  Beobachtungstag auf CT 190 sechs gleichartige Zeilen, wird die Regel der Art enger; die
+  Obergrenze 2'000 hält die Tabelle in jedem Fall klein.
+- **Neustart während eines Streams oder Downloads:** der Dialog nennt beides; der Zuschauer startet
+  den Titel neu, die Position bleibt.
+
+## 12. Review-Protokoll
 
 ### Fassung 1 → 2 (OMC-Kritiker, 31. Oktober 2026)
 
@@ -345,3 +765,21 @@ Befund: 1 Blocker, 8 Major, 8 Minor. Alle Zeilenangaben der Fassung 1 stimmten.
 | M-7 D wiederholte Angaben, Symmetrie zu hoch bewertet | Kennzahlenreihe in D gestrichen, G-8, Bewertung ●●. |
 | M-8 Konzept 10 und Navigationstests fehlten | Kopf und 7: 18 Seiten, Reihenfolge 10 vor 11; Tastaturmodell, Referenzbilder und alle Specs in 8. |
 | Minor 1–8 | Zustand «Alles gut»; tote Links entfernt; Verlauf am Rand der Reiter; Hilfstext entfernt; P-1 Ursache berichtigt; D-Beschreibung = Prototyp, neuester Fehler je Jobart; 19,4 GB; Texte und Seiten ausserhalb `/admin` in 7 und 8. Fragen F-2/F-3 getrennt, F-4 ohne Technik. |
+
+### Fassung 2 → 3 (OMC-Kritiker, 1. November 2026)
+
+Geprüft wurde Abschnitt 11. Befund: kein Blocker, 9 Major, 24 Minor. Die Zeilenangaben stimmten
+bis auf wenige; die Nummern Frage 17, ADR 0019, Migration 00031 und Vertrag 1.7.0 sind frei.
+
+| Befund | Was Fassung 3 tut |
+|---|---|
+| M-1 Schritt 4 hätte `AdminNav` umgebaut, während `AdminLayout` sie noch horizontal braucht (CI rot) | Neuer Baustein `AdminSideNav`; die alte `AdminNav` fällt erst in Schritt 5 (11.6, 11.8). |
+| M-2 Ereignisarten passten nicht zum Prototyp | `playback_completed`, `scan_started`, `job_failed` (zusammengefasst), `detail` als Objekt mit Zahlen; verbleibende Abweichung als Punkt 6 in 11.2. |
+| M-3 Flut durch Spurwechsel und Pfad-Scans | Flut-Regeln je Art (11.4), Webhooks nicht im Protokoll. |
+| M-4 `RestartPanel` war auf die Wiederherstellung zugeschnitten | Allgemeine Eingaben, Neustart lädt die Seite neu statt zur Anmeldung; Ort auf der Übersicht (11.1, 11.5). |
+| M-5 409 ohne Zustand | `restartPending`, `TryLock`, Codes `restart_pending` und `backup_busy` (11.5). |
+| M-6 kein eingefrorener DB-Stand | `testdata/db/verwaltung.sql` mit Test (11.7, Schritt 2). |
+| M-7 Alternative nicht geprüft, Namenskollision | Abschnitt «Warum eine eigene Tabelle»; Name «Aktivitätsprotokoll»; ADR 0019 grenzt gegen ADR 0010 ab. |
+| M-8 geschlossenes Enum | `kind` als String ohne Enum und ohne CHECK, allgemeiner Satz für Unbekanntes. |
+| M-9 Datenabfrage in `ui/` | Container `features/admin/AdminShellNav.tsx`, `ui` bleibt darstellend. |
+| Minor 1–24 | Scheduler über `WithJobControl`; 20 Einträge; 18 Karten; Abschnitt 2 statt 4 in Konzept 09; «umschreiben» statt «neu»; Schema `RestartAccepted`; Pflicht- und optionale Felder getrennt; fünf billige Pflegezähler ohne `rating_mismatch`; Speicher leeren; Serien-Id in `AdminStreamItems`; strengere Bedingung und Angleichung; Abbruch in `runCancellable`; nur feste Fehlercodes; `RETURNING` für Mehrfach-Stopps; Start-Eintrag am Ende von `Start`, ohne Warten; Aufräum-Haken statt Kopplung; INTEGER-Zeit und `STRICT`; Löschen mit Konto und Profil, Namen per Join; Abzeichentest A-5; Knopf «Seitenleiste einblenden» auf `/admin` weg; Aussage zur räumlichen Navigation gestrichen; `--sc-band-tint` am Band; `span` statt `h2`; Beschreibung von `getDashboard`, eine Ansage je Fehler, ADR 0010, Aufwand 15 Tage. |
