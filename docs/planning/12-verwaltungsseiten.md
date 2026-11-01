@@ -5,8 +5,9 @@
   gesagt: «Im Prinzip möchte ich alle Seiten in der Verwaltung überarbeiten. Es ist mir alles
   irgendwie zu gross und zu unübersichtlich.» Dieses Papier legt ein **Seitenmuster** fest, das
   alle bestehenden Verwaltungsseiten umbaut und für **jede künftige Verwaltungsseite** gilt.
-  Zuerst wählt Marco das Grundmuster (drei Varianten, Abschnitt 6); danach folgen je Seite drei
-  Vorschläge, gruppenweise (Abschnitt 8).
+  Die drei Grundmuster (Abschnitt 6) sind Bausteine, keine Vorgabe für alle Seiten: Marco
+  entscheidet **je Seite einzeln anhand eines klickbaren Mockups** mit drei Vorschlägen
+  (Marco, 1. November 2026; Abschnitt 8).
 - **Datum:** 1. November 2026.
 - **Verankert gegen:** `main` **`5e0e63d`** («Merge pull request #61», Konzept 11 als Papier),
   Vertragsfassung **1.6.0**. Konzept 11 reserviert Frage 17, ADR 0019, Migration 00031 und
@@ -226,8 +227,12 @@ Zusammenfassung in einer Zeile, wenn zu. **Stärke:** kurze Seiten, Zustand auf 
 den Zusammenfassungen. **Schwäche:** Inhalt hinter Reitern nicht mit Strg+F auffindbar; ein
 Klick mehr.
 
-**Mischung ist erlaubt:** Marco kann ein Grundmuster wählen und je Seitentyp abweichen
-(zum Beispiel C für Einstellungsseiten, A für Tabellenseiten). Das hält Abschnitt 10 fest.
+**Entscheid je Seite:** Marco hat am 1. November 2026 zuerst C gewählt und den Entscheid gleich
+wieder zurückgezogen: «Ich möchte für jede Seite einzeln entscheiden aufgrund eines klickbaren
+Mockups.» Die Varianten A, B und C sind darum die drei Vorschläge **je Seite**; passt ein Muster
+zu einer Seite nicht, ersetzt der Vorschlag es durch eine begründete Alternative. Die Regeln
+S-1 bis S-15 und die Dichte gelten für jede Wahl. Wählt Marco für verschiedene Seiten
+verschiedene Muster, entstehen die Bausteine aller gewählten Muster (5.2).
 
 **Mockup:** Design-Canvas «Verwaltungsseiten Grundmuster» (claude.ai, privat, mit Kommentaren);
 neun Zeichenflächen, Zeilen = Varianten, Spalten = Seiten. Abweichend von der bisherigen Regel
@@ -471,9 +476,10 @@ offenem Dialog)
 ## 8. Ablauf
 
 ```
-Phase 1  Grundmuster: 3 Varianten an 3 Seiten  → Marcos Wahl (F-1 bis F-4)
-Phase 2  Seiten gruppenweise, je 3 Vorschläge  → Wahl und Änderungswünsche je Seite
-         2a  Hintergrundjobs, Metadaten, Integrationen, Bibliotheken, Pflege (+ Titel)
+Phase 1  Grundmuster: 3 Varianten an 3 Seiten (statisch)  → erledigt, kein globaler Entscheid
+Phase 2  Je Seite 3 klickbare Vorschläge (A, B, C)       → Wahl und Änderungswünsche je Seite
+         Pilot  Hintergrundjobs (Format der klickbaren Mockups prüfen)
+         2a  Metadaten, Integrationen, Bibliotheken, Pflege (+ Titel)
          2b  Konten, Profile, Geräte, Streams, Podcasts
          2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen
          2d  Benachrichtigungen, Statistik, Sicherung
@@ -482,6 +488,10 @@ Phase 4  Bau zusammen mit Konzept 11 und den weiteren Konzepten (auf Marcos Wort
 ```
 
 Phase 2a nimmt die Seiten, die Marco am meisten stören (Interview, 1. November 2026).
+
+**Klickbar** heisst: Reiter, Klappbereiche, Menüs «Weitere Aktionen», Dialoge und die Auswahl
+in Liste und Detail reagieren auf Klicks; Daten bleiben erfunden, nichts wird gespeichert. Jede
+Seite ist eine eigene Seite im Design-Canvas mit drei Zeichenflächen.
 
 **Änderungswünsche:** Marco kommentiert direkt im Design-Canvas an der Stelle, die er ändern
 will. Jeder Wunsch wird eingearbeitet und hier im Abschnitt 10 mit Datum festgehalten; erst wenn
@@ -506,7 +516,7 @@ eigener Commit, `task ci` grün.
 
 | Nr. | Frage | Empfehlung |
 |---|---|---|
-| F-1 | Welches Grundmuster: A «Kompakte Liste», B «Liste und Detail», C «Reiter und Klappbereiche», oder eine Mischung je Seitentyp? | Offen bis zum Mockup. |
+| F-1 | ~~Welches Grundmuster für alle Seiten?~~ Ersetzt durch: welche Variante **je Seite** (Abschnitt 10.3)? | Je Seite am klickbaren Mockup. |
 | F-2 | Passt die kompakte Dichte (5.1), oder kleiner/grösser? | Wie vorgeschlagen. |
 | F-3 | Erklärsatz nur noch hinter dem Hilfe-Knopf (S-2)? | **Ja.** |
 | F-4 | Höchstens zwei sichtbare Zeilenaktionen, Rest im Menü (S-6)? | **Ja.** |
@@ -530,6 +540,12 @@ eigener Commit, `task ci` grün.
 ### 10.2 Änderungswünsche an den Mockups
 
 (Noch keine.)
+
+### 10.3 Wahl je Seite
+
+| Seite | Wahl | Datum |
+|---|---|---|
+| Hintergrundjobs | offen (Pilot) | |
 
 ## 11. Review-Protokoll
 

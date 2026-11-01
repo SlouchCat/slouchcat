@@ -1,19 +1,184 @@
-{"v":3,"createdOnFiles":{"v":1,"at":"2026-11-01T17:02:36Z"},"title":"Verwaltungsseiten Grundmuster","launch":{"view":"canvas"},"pages":[],
-"boards":{
-"Main.dc.html":{"x":0,"y":0,"w":1440,"h":2370,"title":"A · Hintergrundjobs","expand":"fill"},
-"A-Integrationen.dc.html":{"x":1520,"y":0,"w":1440,"h":2370,"title":"A · Integrationen","expand":"fill"},
-"A-Konten.dc.html":{"x":3040,"y":0,"w":1440,"h":1310,"title":"A · Konten","expand":"fill"},
-"B-Hintergrundjobs.dc.html":{"x":0,"y":2790,"w":1440,"h":1710,"title":"B · Hintergrundjobs","expand":"fill"},
-"B-Integrationen.dc.html":{"x":1520,"y":2790,"w":1440,"h":1500,"title":"B · Integrationen","expand":"fill"},
-"B-Konten.dc.html":{"x":3040,"y":2790,"w":1440,"h":1300,"title":"B · Konten","expand":"fill"},
-"C-Hintergrundjobs.dc.html":{"x":0,"y":4920,"w":1440,"h":1810,"title":"C · Hintergrundjobs","expand":"fill"},
-"C-Integrationen.dc.html":{"x":1520,"y":4920,"w":1440,"h":1530,"title":"C · Integrationen","expand":"fill"},
-"C-Konten.dc.html":{"x":3040,"y":4920,"w":1440,"h":1430,"title":"C · Konten","expand":"fill"}
-},
-"order":["Main.dc.html","A-Integrationen.dc.html","A-Konten.dc.html","B-Hintergrundjobs.dc.html","B-Integrationen.dc.html","B-Konten.dc.html","C-Hintergrundjobs.dc.html","C-Integrationen.dc.html","C-Konten.dc.html"],
-"notes":{
-"rowA":{"x":0,"y":-300,"text":"Variante A «Kompakte Liste»","kind":"title1","maxW":4480},
-"rowB":{"x":0,"y":2490,"text":"Variante B «Liste und Detail»","kind":"title1","maxW":4480},
-"rowC":{"x":0,"y":4620,"text":"Variante C «Reiter und Klappbereiche»","kind":"title1","maxW":4480}
-},
-"designSystems":[]}
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-01T17:02:36Z"
+ },
+ "title": "Verwaltungsseiten Grundmuster",
+ "launch": {
+  "view": "canvas",
+  "page": "jobs"
+ },
+ "pages": [
+  {
+   "id": "grundmuster",
+   "name": "Grundmuster"
+  },
+  {
+   "id": "jobs",
+   "name": "Hintergrundjobs"
+  }
+ ],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 2370,
+   "title": "A · Hintergrundjobs",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "A-Integrationen.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 2370,
+   "title": "A · Integrationen",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "A-Konten.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 1310,
+   "title": "A · Konten",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "B-Hintergrundjobs.dc.html": {
+   "x": 0,
+   "y": 2790,
+   "w": 1440,
+   "h": 1710,
+   "title": "B · Hintergrundjobs",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "B-Integrationen.dc.html": {
+   "x": 1520,
+   "y": 2790,
+   "w": 1440,
+   "h": 1500,
+   "title": "B · Integrationen",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "B-Konten.dc.html": {
+   "x": 3040,
+   "y": 2790,
+   "w": 1440,
+   "h": 1300,
+   "title": "B · Konten",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "C-Hintergrundjobs.dc.html": {
+   "x": 0,
+   "y": 4920,
+   "w": 1440,
+   "h": 1810,
+   "title": "C · Hintergrundjobs",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "C-Integrationen.dc.html": {
+   "x": 1520,
+   "y": 4920,
+   "w": 1440,
+   "h": 1530,
+   "title": "C · Integrationen",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "C-Konten.dc.html": {
+   "x": 3040,
+   "y": 4920,
+   "w": 1440,
+   "h": 1430,
+   "title": "C · Konten",
+   "expand": "fill",
+   "page": "grundmuster"
+  },
+  "Jobs-A.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1700,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "jobs"
+  },
+  "Jobs-B.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 1190,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "jobs"
+  },
+  "Jobs-C.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 1230,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "jobs"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "A-Integrationen.dc.html",
+  "A-Konten.dc.html",
+  "B-Hintergrundjobs.dc.html",
+  "B-Integrationen.dc.html",
+  "B-Konten.dc.html",
+  "C-Hintergrundjobs.dc.html",
+  "C-Integrationen.dc.html",
+  "C-Konten.dc.html",
+  "Jobs-A.dc.html",
+  "Jobs-B.dc.html",
+  "Jobs-C.dc.html"
+ ],
+ "notes": {
+  "rowA": {
+   "x": 0,
+   "y": -300,
+   "text": "Variante A «Kompakte Liste»",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "grundmuster"
+  },
+  "rowB": {
+   "x": 0,
+   "y": 2490,
+   "text": "Variante B «Liste und Detail»",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "grundmuster"
+  },
+  "rowC": {
+   "x": 0,
+   "y": 4620,
+   "text": "Variante C «Reiter und Klappbereiche»",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "grundmuster"
+  },
+  "jobsTitle": {
+   "x": 0,
+   "y": -300,
+   "text": "Hintergrundjobs · klickbar",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "jobs"
+  }
+ },
+ "designSystems": []
+}
