@@ -560,7 +560,7 @@ eigener Commit, `task ci` grün.
 | Konten | **C «Reiter und Klappbereiche»**; Zusammenlegung mit Profile wird geprüft (Vorschläge KP-1 bis KP-3) | 1. November 2026 |
 | Profile | offen (Mockup in Verwaltungsdichte; beim Bau gilt S-1: App-Seitenleiste, heutige Dichte) | |
 | Geräte | **C «Reiter und Klappbereiche»** (Reiter Geräte und Fähigkeiten, je Typ ein Klappbereich) | 1. November 2026 |
-| Streams | offen: Marco möchte **andere Vorschläge** (Str-D bis Str-F) | |
+| Streams | **A «Kompakte Liste» mit der Leiste «Serverlast» aus E** (Zähler Transcode HW/SW, Remux, Direct, Bandbreite als Summe der Bitraten; im Client aus `AdminStream` gerechnet, ohne Vertragsänderung) | 1. November 2026 |
 | Podcasts | **C «Reiter und Klappbereiche»** (Reiter je Bibliothek, je Podcast ein Klappbereich) | 1. November 2026 |
 
 **Abweichungen der Vorschläge vom Grundmuster (Phase 2a):**
