@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Startseitenreihen · B Liste und Vorschau</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px}
+.mut{font-size:12px;color:#9095a3}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.li{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+textarea.in{height:auto;padding:8px 10px;line-height:1.5;resize:vertical}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Startseitenreihen</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<sc-if value="{{ hasLive }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9095a3"><span style="{{ liveDot }}"></span>{{ liveText }}</span></sc-if><span style="flex:1"></span></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Reihenfolge der Reihen auf der Startseite, für alle Profile. Ausgeblendete und leere Reihen erscheinen nicht.</p></sc-if></div><div style="margin-top:24px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px;align-items:start"><section aria-label="Reihen der Startseite" style="display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;align-self:start"><div style="border-radius:9px 9px 0 0;display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg></span><span class="ell">Reihen der Startseite</span></h2><span class="mut">{{ countText }}</span></div><ol aria-label="Plätze der Startseite" style="list-style:none;margin:-4px -10px 0;padding:0;display:flex;flex-direction:column;gap:2px">
+<sc-for list="{{ rows }}" as="r" hint-placeholder-count="8"><li onClick="{{ r.pick }}" style="{{ r.slotStyle }}"><span style="font-size:13px;font-weight:600;color:#9095a3;font-variant-numeric:tabular-nums">{{ r.pos }}.</span>
+<span class="row" style="gap:8px"><select class="in" aria-label="{{ r.slotLabel }}" value="{{ r.key }}" onChange="{{ r.setSlot }}" style="width:220px"><option value="spotlight">Spotlight</option><option value="picks">Cat's Empfehlungen</option><option value="continue">Weiterschauen</option><option value="recent">Neu hinzugefügt</option><option value="released">Kürzlich veröffentlicht</option><option value="watchlist">Merkliste</option><option value="collections">Sammlungen</option><option value="genres">Genres</option></select><sc-if value="{{ r.isStage }}" hint-placeholder-val="{{ false }}"><span class="c ca" title="Spotlight erscheint als Bühne mit Hintergrundbild">Bühne</span></sc-if></span><label style="display:inline-flex;align-items:center;gap:6px;font-size:14px;cursor:pointer"><input type="checkbox" checked="{{ r.hidden }}" onChange="{{ r.setHide }}" aria-label="{{ r.hideLabel }}" style="accent-color:#e8794a;margin:0">Ausblenden</label></li></sc-for></ol>
+<p class="mut" style="margin:0">Je Platz eine Reihe. Wählst du eine Reihe, die schon auf einem anderen Platz steht, tauschen die beiden die Plätze.</p><div style="display:flex;align-items:center;gap:12px;min-height:48px;margin-top:0;padding:8px 0 4px;box-sizing:border-box;border-top:1px solid rgba(255,255,255,0.08)">
+<span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#b6b9c4;flex:none"><span style="{{ saveDot }}"></span>{{ saveState }}</span>
+<span role="status" style="flex:1;min-width:0;font-size:13px;color:#b6b9c4">{{ msg }}</span>
+<button type="button" class="b" disabled="{{ discardDis }}" onClick="{{ discard }}">Verwerfen</button><button type="button" class="b bp" disabled="{{ saveDis }}" onClick="{{ save }}">{{ saveLabel }}</button></div></section><section aria-label="Vorschau der Startseite" style="display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;align-self:start"><div style="border-radius:9px 9px 0 0;display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span><span class="ell">Vorschau der Startseite</span></h2><span class="mut">für alle Profile</span></div><div style="border:1px solid rgba(255,255,255,0.14);border-radius:8px;background:#0b0c10;overflow:hidden"><div aria-hidden="true" style="display:flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-bottom:1px solid rgba(255,255,255,0.08)">
+<span style="display:block;border-radius:2px;background:#e8794a;width:10px;height:10px;border-radius:3px"></span><span style="display:block;border-radius:2px;background:#b6b9c4;width:46px;height:5px"></span><span style="flex:1"></span><span style="display:block;border-radius:2px;background:#262a35;width:110px;height:10px;border-radius:5px"></span><span style="display:block;border-radius:2px;background:#e8794a;width:10px;height:10px;border-radius:5px"></span></div>
+<div style="display:flex;flex-direction:column;gap:2px;padding:6px"><sc-for list="{{ rows }}" as="r" hint-placeholder-count="8"><button type="button" onClick="{{ r.pick }}" aria-label="{{ r.name }}, Platz {{ r.pos }}, {{ r.stateText }}" style="{{ r.pvStyle }}">
+<span class="row" style="justify-content:space-between;font-size:11px;font-weight:600;color:#b6b9c4"><span>{{ r.pos }}. {{ r.name }}</span><sc-if value="{{ r.hidden }}" hint-placeholder-val="{{ false }}"><span style="font-weight:500;color:#9095a3">ausgeblendet</span></sc-if></span>
+<span aria-hidden="true" style="display:block;width:100%">
+<sc-if value="{{ r.isStage }}" hint-placeholder-val="{{ true }}"><span style="display:flex;align-items:flex-end;gap:10px;height:56px;padding:7px 8px;box-sizing:border-box;border-radius:5px;background:linear-gradient(100deg,#0b0c10 0%,rgba(11,12,16,.55) 45%,transparent 75%),linear-gradient(135deg,#6a4030,#2a3d5a 60%,#1d2029)">
+<span style="display:flex;flex-direction:column;gap:4px;flex:1"><span style="display:block;border-radius:2px;background:#f3f3f5;width:96px;height:8px"></span><span style="display:block;border-radius:2px;background:#9095a3;width:150px;height:5px"></span><span class="row" style="gap:4px;margin-top:2px"><span style="display:block;border-radius:2px;background:#e8794a;width:34px;height:12px;border-radius:3px"></span><span style="display:block;border-radius:2px;background:#262a35;width:28px;height:12px;border-radius:3px"></span></span></span>
+<span class="row" style="gap:3px"><sc-for list="{{ r.tiles }}" as="p" hint-placeholder-count="4"><span style="{{ p.style }};width:18px;height:27px"></span></sc-for></span></span></sc-if>
+<sc-if value="{{ r.isPoster }}" hint-placeholder-val="{{ false }}"><span class="row" style="gap:5px;overflow:hidden"><sc-for list="{{ r.posters }}" as="p" hint-placeholder-count="7"><span style="{{ p.style }}"></span></sc-for></span></sc-if>
+<sc-if value="{{ r.isWide }}" hint-placeholder-val="{{ false }}"><span class="row" style="gap:5px;overflow:hidden"><sc-for list="{{ r.tiles }}" as="p" hint-placeholder-count="4"><span style="{{ p.style }};position:relative"><span style="position:absolute;left:4px;right:4px;bottom:3px;height:2px;border-radius:1px;background:#e8794a;opacity:.8"></span></span></sc-for></span></sc-if>
+<sc-if value="{{ r.isGenre }}" hint-placeholder-val="{{ false }}"><span class="row" style="gap:5px;overflow:hidden"><sc-for list="{{ r.genresList }}" as="g" hint-placeholder-count="5"><span style="display:inline-flex;align-items:center;height:20px;padding:0 9px;border-radius:10px;background:#262a35;font-size:10px;color:#b6b9c4">{{ g.t }}</span></sc-for></span></sc-if>
+</span></button></sc-for></div></div>
+<p class="mut" style="margin:8px 0 0">Schema mit Platzhaltern. Auf der echten Startseite fehlen ausgeblendete Reihen, und leere Reihen entfallen ebenfalls (zum Beispiel eine leere Merkliste).</p></section></div><p style="margin:16px 0 0;display:flex;align-items:center;gap:8px;font-size:13px;color:#b6b9c4"><span style="display:flex;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg></span>
+<span>Welche Trakt-Liste Spotlight zeigt, wann sie zuletzt abgerufen wurde und ob Trakt eingerichtet ist, steht unter «Spotlight». <a href="#" onClick="{{ toSpotlight }}">Zur Seite «Spotlight»</a></span></p>
+</main>
+</div>
+
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="{{ cOkStyle }}" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":930}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const NOW = '01.11.2026, 15:42';
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const TOAST = 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+const barStyle = (pct) => 'display:block;height:6px;background:' + COL.ac + ';width:' + pct + '%';
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const same = (a, b) => a.toLowerCase().includes(b.trim().toLowerCase());
+// Startseitenreihen (REI-1): order and «Ausblenden» of the eight start page rows for every profile, one «Speichern».
+// kind draws the row in the schematic preview: stage (Spotlight is the stage at its place), poster, wide tiles, genre pills.
+const ROWS = {
+  spotlight: { name: 'Spotlight', kind: 'stage', what: 'Die Trakt-Liste, geschnitten mit der Bibliothek. Erscheint als Bühne mit Hintergrundbild, an ihrem Platz; unter der Mindestzahl Treffer fehlt sie.', page: 'Spotlight' },
+  picks: { name: "Cat's Empfehlungen", kind: 'poster', what: 'Von Hand gepflegt, mit Notiz, Zielprofil und Zeitfenster.', page: "Cat's Empfehlungen" },
+  continue: { name: 'Weiterschauen', kind: 'wide', what: 'Angefangene Titel des Profils.' },
+  recent: { name: 'Neu hinzugefügt', kind: 'poster', what: 'Die zuletzt in eine Bibliothek gekommenen Titel.' },
+  released: { name: 'Kürzlich veröffentlicht', kind: 'poster', what: 'Nach Erscheinungsdatum der letzten zwölf Monate; eine Serie nach ihrer neusten Folge.' },
+  watchlist: { name: 'Merkliste', kind: 'poster', what: 'Die Merkliste des Profils.' },
+  collections: { name: 'Sammlungen', kind: 'wide', what: 'Eigene Sammlungen und die von TMDB.', page: 'Sammlungen' },
+  genres: { name: 'Genres', kind: 'genre', what: 'Die Genres der sichtbaren Titel.' },
+};
+const STORED = { order: ['spotlight', 'picks', 'continue', 'recent', 'released', 'watchlist', 'collections', 'genres'], hidden: { collections: true, genres: true } };
+const MOVED = (name, pos) => name + ' steht jetzt an Stelle ' + pos + '.';
+const SAVE_HINT = ' Speichere, damit es gilt.';
+// Gradient placeholders for the posters of the preview (the build draws the real posters of the row).
+const TINTS = ['#3b2a4a', '#24405a', '#4a3324', '#28473d', '#4a2830', '#33384f', '#46402a'];
+const thumbs = (n, w, h) => TINTS.slice(0, n).map((c, i) => ({ style: 'flex:none;width:' + w + 'px;height:' + h + 'px;border-radius:3px;background:linear-gradient(160deg,' + c + ',' + TINTS[(i + 3) % 7] + ')' }));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function initState() { return { order: STORED.order.slice(), hidden: Object.assign({}, STORED.hidden), saved: clone(STORED), busy: false, msg: null, sel: 'spotlight', tab: 'rows' }; }
+const INIT = { sel: 'spotlight' };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, open: {}, q: '' }, initState(), INIT);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._t);
+    clearInterval(this._iv);
+    Object.keys(this._timers || {}).forEach((k) => clearTimeout(this._timers[k]));
+  }
+  // Toast «(Mockup) …» for 2 s; closes a confirm and a menu.
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic confirm: { title, text, ok, safe }; onOk runs on the action button (red, or accent when safe).
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c, menu: null }); }
+  later(key, ms, fn) {
+    this._timers = this._timers || {};
+    clearTimeout(this._timers[key]);
+    this._timers[key] = setTimeout(fn, ms);
+  }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); },
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  tabsOf(list, cur, key) {
+    return list.map(([id, label, count]) => ({ label, count: String(count), sel: id === cur ? 'true' : 'false', style: tabStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  exsOf(list, cur, key) {
+    return list.map(([id, label]) => ({ label, sel: id === cur ? 'true' : 'false', style: segStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: TOAST,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', cOkStyle: 'font-weight:600;' + (cf && cf.safe ? 'background:' + COL.ac + ';border-color:' + COL.ac : 'background:' + COL.da + ';border-color:' + COL.da) + ';color:' + COL.oa, confirmStyle: boxStyle(150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+      menuAny: !!this.state.menu, closeMenu: () => this.setState({ menu: null }),
+      q: this.state.q, setQ: (e) => this.setState({ q: e.target.value }),
+      hasLive: false, liveDot: '', liveText: '',
+      sec: {},
+    };
+  }
+  // A and C: «Position» per row; the row moves there and the rows between shift by one.
+  moveTo(key, pos) {
+    const order = this.state.order.filter((k) => k !== key);
+    order.splice(pos - 1, 0, key);
+    this.setState({ order, msg: MOVED(ROWS[key].name, pos) + SAVE_HINT });
+  }
+  // B: fixed slots; picking a row that sits on another slot swaps the two (as the language slots of Metadaten).
+  putAt(slot, key) {
+    const order = this.state.order.slice();
+    const from = order.indexOf(key);
+    const other = order[slot];
+    if (from === slot) return;
+    order[slot] = key; order[from] = other;
+    this.setState({ order, sel: key, msg: MOVED(ROWS[key].name, slot + 1) + ' ' + MOVED(ROWS[other].name, from + 1) + SAVE_HINT });
+  }
+  setHidden(key, on) { this.setState({ hidden: Object.assign({}, this.state.hidden, { [key]: on }), msg: null }); }
+  isDirty() {
+    const s = this.state.saved;
+    return s.order.join() !== this.state.order.join() || STORED.order.some((k) => !!s.hidden[k] !== !!this.state.hidden[k]);
+  }
+  discard() { const s = this.state.saved; this.setState({ order: s.order.slice(), hidden: Object.assign({}, s.hidden), msg: null }); this.say('Änderungen verworfen.'); }
+  save() {
+    this.setState({ busy: true });
+    this.later('save', 900, () => { this.setState({ busy: false, msg: null, saved: { order: this.state.order.slice(), hidden: Object.assign({}, this.state.hidden) } }); this.say('Die Startseite ist gespeichert.'); });
+  }
+  rowVals(key, i) {
+    const r = ROWS[key];
+    const hid = !!this.state.hidden[key];
+    const sel = this.state.sel === key;
+    return Object.assign(this.detVals('r:' + key), {
+      key, name: r.name, what: r.what, pos: String(i + 1), posId: 'pos-' + key, posLabel: 'Position von ' + r.name, slotLabel: 'Reihe auf Platz ' + (i + 1),
+      setPos: (e) => this.moveTo(key, Number(e.target.value)), setSlot: (e) => this.putAt(i, e.target.value),
+      hidden: hid, shown: !hid, hideLabel: r.name + ' ausblenden', setHide: (e) => this.setHidden(key, !!e.target.checked),
+      stateText: hid ? 'ausgeblendet' : 'sichtbar', stateDot: dot(hid ? COL.tm : COL.su), nameStyle: 'font-weight:500;color:' + (hid ? COL.tm : COL.tp),
+      isStage: r.kind === 'stage', isPoster: r.kind === 'poster', isWide: r.kind === 'wide', isGenre: r.kind === 'genre',
+      hasPage: !!r.page, pageName: r.page || '', toPage: (e) => { if (e && e.preventDefault) e.preventDefault(); this.say('Öffnet die Seite ' + r.page + '.'); },
+      sel, selCur: sel ? 'true' : 'false', pick: () => this.setState({ sel: key }),
+      slotStyle: 'display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:44px;padding:0 10px;border-radius:6px;' + (sel ? 'background:' + COL.s2 + ';box-shadow:inset 3px 0 0 ' + COL.ac : ''),
+      pvStyle: 'display:flex;flex-direction:column;gap:5px;padding:7px 8px;border-radius:6px;cursor:pointer;text-align:left;width:100%;box-sizing:border-box;font:inherit;color:inherit;'
+        + (hid ? 'opacity:.45;border:1px dashed rgba(255,255,255,0.22);background:transparent;' : 'border:1px solid transparent;background:transparent;') + (sel ? 'border-color:' + COL.ac + ';' : ''),
+      posters: thumbs(7, 24, 34), tiles: thumbs(4, 60, 32), genresList: ['Drama', 'Komödie', 'Krimi', 'Animation', 'Doku'].map((t) => ({ t })),
+    });
+  }
+  reiVals() {
+    const v = this.baseVals();
+    const order = this.state.order;
+    v.rows = order.map((k, i) => this.rowVals(k, i));
+    const hid = order.filter((k) => this.state.hidden[k]).length;
+    v.countText = (8 - hid) + ' sichtbar · ' + hid + ' ausgeblendet';
+    const dirty = this.isDirty();
+    v.dirty = dirty; v.clean = !dirty; v.busy = this.state.busy;
+    v.saveDis = !dirty || this.state.busy; v.discardDis = !dirty || this.state.busy;
+    v.saveLabel = this.state.busy ? 'Wird gespeichert …' : 'Speichern';
+    v.saveState = dirty ? 'Ungespeicherte Änderungen' : 'Gespeichert'; v.saveDot = dot(dirty ? COL.wa : COL.su);
+    v.save = () => this.save(); v.discard = () => this.discard();
+    v.hasMsg = !!this.state.msg; v.msg = this.state.msg || '';
+    v.toSpotlight = (e) => { if (e && e.preventDefault) e.preventDefault(); this.say('Öffnet die Seite Spotlight.'); };
+    v.sec.rows = this.detVals('s_rows');
+    v.sec.pv = this.detVals('s_pv');
+    return v;
+  }
+  renderVals() { return this.reiVals(); }
+}
+</script>
+</body>
+</html>

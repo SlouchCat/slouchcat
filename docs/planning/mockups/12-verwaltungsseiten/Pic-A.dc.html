@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Cat's Empfehlungen · A Kompakte Liste</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mut{font-size:12px;color:#9095a3}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.stk{display:flex;flex-direction:column;gap:1px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci{background:color-mix(in srgb, #7cc0ea 14%, transparent);color:#7cc0ea}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}.mi:disabled{opacity:.45;cursor:default}
+.mh{padding:6px 8px 2px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.li{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:4px 10px;box-sizing:border-box;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.lab{font-size:13px;color:#b6b9c4}
+.pos{width:64px;height:28px;padding:0 6px;font-variant-numeric:tabular-nums}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Cat's Empfehlungen</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<span style="flex:1"></span><button type="button" class="b bp" onClick="{{ openAdd }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Hinzufügen</button></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Von Hand ausgesuchte Titel als eigene Reihe der Startseite. Für alle Profile oder für einzelne; jedes Profil sieht nur Titel seiner Altersstufe und nur im gewählten Zeitraum.</p></sc-if></div><section aria-label="Empfehlungen in der Reihenfolge der Reihe" style="padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;margin-top:24px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:16px;font-weight:600"><button type="button" aria-expanded="{{ sec.list.expAria }}" onClick="{{ sec.list.toggle }}" style="display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer"><span style="{{ sec.list.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg></span>Empfehlungen in der Reihenfolge der Reihe</button></h2><span class="mut">{{ countText }}</span></div><sc-if value="{{ sec.list.open }}" hint-placeholder-val="{{ true }}"><div style="padding-top:4px"><sc-if value="{{ some }}" hint-placeholder-val="{{ true }}"><div role="table" aria-label="Empfehlungen in der Reihenfolge der Reihe"><div role="row" class="tr th" style="grid-template-columns:88px minmax(0,2fr) 92px minmax(0,1.5fr) 250px 214px"><span role="columnheader">Nr.</span><span role="columnheader">Titel</span><span role="columnheader">Für</span><span role="columnheader">Notiz</span><span role="columnheader">Zeitraum</span><span role="columnheader"><span class="sr">Aktionen</span></span></div>
+<sc-for list="{{ picks }}" as="p" hint-placeholder-count="7"><div role="row" class="tr" style="grid-template-columns:88px minmax(0,2fr) 92px minmax(0,1.5fr) 250px 214px;min-height:56px">
+<div role="cell" style="overflow:visible"><select class="in pos" aria-label="{{ p.posLabel }}" value="{{ p.pos }}" onChange="{{ p.setPos }}"><option value="1" hidden="{{ p.ph.o1 }}" disabled="{{ p.ph.o1 }}">1</option><option value="2" hidden="{{ p.ph.o2 }}" disabled="{{ p.ph.o2 }}">2</option><option value="3" hidden="{{ p.ph.o3 }}" disabled="{{ p.ph.o3 }}">3</option><option value="4" hidden="{{ p.ph.o4 }}" disabled="{{ p.ph.o4 }}">4</option><option value="5" hidden="{{ p.ph.o5 }}" disabled="{{ p.ph.o5 }}">5</option><option value="6" hidden="{{ p.ph.o6 }}" disabled="{{ p.ph.o6 }}">6</option><option value="7" hidden="{{ p.ph.o7 }}" disabled="{{ p.ph.o7 }}">7</option><option value="8" hidden="{{ p.ph.o8 }}" disabled="{{ p.ph.o8 }}">8</option><option value="9" hidden="{{ p.ph.o9 }}" disabled="{{ p.ph.o9 }}">9</option><option value="10" hidden="{{ p.ph.o10 }}" disabled="{{ p.ph.o10 }}">10</option><option value="11" hidden="{{ p.ph.o11 }}" disabled="{{ p.ph.o11 }}">11</option><option value="12" hidden="{{ p.ph.o12 }}" disabled="{{ p.ph.o12 }}">12</option><option value="13" hidden="{{ p.ph.o13 }}" disabled="{{ p.ph.o13 }}">13</option><option value="14" hidden="{{ p.ph.o14 }}" disabled="{{ p.ph.o14 }}">14</option><option value="15" hidden="{{ p.ph.o15 }}" disabled="{{ p.ph.o15 }}">15</option></select></div><div role="rowheader"><span class="row" style="gap:10px"><span aria-hidden="true" style="{{ p.posterS }}">{{ p.initial }}</span><span class="stk"><span class="ell" style="font-weight:500">{{ p.title }}</span><span class="ell mut">{{ p.meta }}</span></span></span></div><div role="cell" style="color:#b6b9c4">{{ p.forName }}</div><div role="cell"><span class="ell" title="{{ p.note }}" style="color:#b6b9c4">{{ p.note }}</span></div><div role="cell"><span class="stk"><span class="row" style="gap:6px"><sc-if value="{{ p.hasDot }}" hint-placeholder-val="{{ true }}"><span style="{{ p.winDot }}"></span></sc-if><span class="ell">{{ p.winText }}</span></span><sc-if value="{{ p.hasWord }}" hint-placeholder-val="{{ false }}"><span class="mut" style="padding-left:14px">{{ p.winWord }}</span></sc-if></span></div>
+<div role="cell" class="ov"><span style="display:inline-flex;gap:6px"><button type="button" class="b bs" aria-label="{{ p.editLabel }}" onClick="{{ p.edit }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Bearbeiten</button><button type="button" class="b bs bg dz" aria-label="{{ p.removeLabel }}" onClick="{{ p.remove }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>Entfernen</button></span></div></div></sc-for></div></sc-if><sc-if value="{{ none }}" hint-placeholder-val="{{ false }}"><div role="status" class="row" style="gap:12px;padding:12px 0"><span style="font-size:14px;color:#b6b9c4">Noch keine Empfehlung. Ohne Empfehlung zeigt die Startseite kein Karussell.</span>
+<button type="button" class="b bs bp" onClick="{{ openAdd }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Hinzufügen</button></div></sc-if><p style="display:flex;align-items:center;gap:8px;margin:0;padding:12px 0;font-size:13px;color:#b6b9c4"><span style="display:flex;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span>
+<span>Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter <a href="#" onClick="{{ toRows }}">Startseite</a> ein.</span></p></div></sc-if></section><div style="margin-top:32px;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup, Beispiel wechseln:</span>
+<div role="tablist" aria-label="Beispiel" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ exs }}" as="x" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ x.sel }}" onClick="{{ x.pick }}" style="{{ x.style }}">{{ x.label }}</button></sc-for></div></div>
+</main>
+</div>
+<sc-if value="{{ addOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ closeAdd }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ addTitle }}" style="{{ addBox }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ addTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeAdd }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><p style="margin:0;font-size:13px;color:#b6b9c4">Suche einen Titel und wähle, für wen er empfohlen wird. Neue Empfehlungen kommen ans Ende.</p><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start"><div class="col">
+<div class="col" style="gap:4px"><label for="pa-q" class="lab">Titel suchen</label><div style="position:relative"><span style="position:absolute;left:9px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" id="pa-q" type="search" autocomplete="off" spellcheck="false" value="{{ af.q }}" onChange="{{ af.setQ }}" aria-describedby="pa-qh" placeholder="zum Beispiel Kevin" style="width:100%;padding-left:32px"></div>
+<span id="pa-qh" class="mut">Ab zwei Zeichen: Filme, Serien, Folgen, Hörbücher und Podcasts.</span></div>
+<sc-if value="{{ af.hasHits }}" hint-placeholder-val="{{ false }}"><ul aria-label="Gefundene Titel" style="list-style:none;margin:0;padding:0;border:1px solid rgba(255,255,255,0.08);border-radius:8px;overflow:hidden"><sc-for list="{{ af.hits }}" as="h" hint-placeholder-count="3"><li style="display:flex;align-items:center;gap:8px;min-height:40px;padding:2px 6px 2px 10px;border-bottom:1px solid rgba(255,255,255,0.08)"><span class="stk" style="flex:1"><span class="ell">{{ h.title }}</span><span class="mut">{{ h.meta }}</span></span><button type="button" class="b bs" aria-label="{{ h.label }}" onClick="{{ h.pick }}">Wählen</button></li></sc-for></ul></sc-if>
+<sc-if value="{{ af.noHits }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0">Kein passender Titel gefunden.</p></sc-if>
+<div aria-live="polite" class="col" style="gap:8px"><sc-if value="{{ af.hasChosen }}" hint-placeholder-val="{{ false }}"><p style="display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border-radius:8px;background:#0b0c10;font-size:14px"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span><span class="ell"><span style="font-weight:600">{{ af.chosenText }}</span><span style="color:#9095a3">{{ af.chosenMeta }}</span></span></p></sc-if>
+<sc-if value="{{ af.noChosen }}" hint-placeholder-val="{{ true }}"><p class="mut" style="margin:0;font-size:13px">Noch kein Titel gewählt.</p></sc-if>
+<sc-if value="{{ af.missing }}" hint-placeholder-val="{{ false }}"><p class="row" style="margin:0;padding:8px 10px;border-radius:8px;background:color-mix(in srgb, #e8b65a 10%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent);font-size:13px"><span style="display:flex;color:#e8b65a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>Den Titel aus dem Link gibt es nicht mehr. Suche ihn neu.</p></sc-if>
+<sc-if value="{{ af.hasTitleErr }}" hint-placeholder-val="{{ false }}"><p role="alert" class="row" style="margin:0;font-size:13px;color:#f2777a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>{{ af.titleErr }}</p></sc-if></div></div>
+<div class="col"><fieldset style="border:none;margin:0;padding:0;min-width:0"><legend class="lab" style="padding:0;margin-bottom:4px">Für</legend><div style="display:flex;gap:16px;flex-wrap:wrap">
+<sc-for list="{{ af.targets }}" as="o" hint-placeholder-count="4"><label style="display:inline-flex;align-items:center;gap:6px;height:24px;font-size:14px"><input type="checkbox" checked="{{ o.on }}" onChange="{{ o.toggle }}" style="accent-color:#e8794a;margin:0">{{ o.label }}</label></sc-for></div>
+<span class="mut" style="display:block;margin-top:4px">Alle Profile oder einzelne. Ein Profil sieht die Empfehlung nur, wenn es den Titel sehen darf.</span>
+<sc-if value="{{ af.hasTargetErr }}" hint-placeholder-val="{{ false }}"><span role="alert" style="display:block;margin-top:4px;font-size:12px;color:#f2777a">{{ af.targetErr }}</span></sc-if></fieldset>
+<div class="col" style="gap:4px"><label for="pa-note" class="lab">Notiz</label><input class="in" id="pa-note" type="text" maxlength="280" autocomplete="off" value="{{ af.note }}" onChange="{{ af.setNote }}" style="width:100%"><span class="mut">Erscheint im Karussell unter dem Titel, höchstens 280 Zeichen.</span></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><div class="col" style="gap:4px"><label for="pa-from" class="lab">Sichtbar ab</label><input class="in" id="pa-from" type="datetime-local" value="{{ af.from }}" onChange="{{ af.setFrom }}" style="width:100%"><span class="mut">Leer lassen: ab sofort und ohne Ende.</span></div>
+<div class="col" style="gap:4px"><label for="pa-to" class="lab">Sichtbar bis</label><input class="in" id="pa-to" type="datetime-local" value="{{ af.to }}" onChange="{{ af.setTo }}" aria-invalid="{{ af.toInvalid }}" style="width:100%"><sc-if value="{{ af.hasToErr }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ af.toErr }}</span></sc-if></div></div></div></div></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeAdd }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ submitAdd }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Hinzufügen</button></div></section></div></sc-if><sc-if value="{{ editOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ closeEdit }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ editTitle }}" style="{{ editBox }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ editTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeEdit }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><div class="col" style="gap:4px"><label for="{{ ed.f.noteId }}" class="lab">Notiz</label><input class="in" id="{{ ed.f.noteId }}" type="text" maxlength="280" autocomplete="off" value="{{ ed.f.note }}" onChange="{{ ed.f.setNote }}" style="width:100%">
+<span class="mut">Erscheint im Karussell unter dem Titel, höchstens 280 Zeichen.</span></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><div class="col" style="gap:4px"><label for="{{ ed.f.fromId }}" class="lab">Sichtbar ab</label><input class="in" id="{{ ed.f.fromId }}" type="datetime-local" value="{{ ed.f.from }}" onChange="{{ ed.f.setFrom }}" style="width:100%"><span class="mut">Leer lassen: ab sofort und ohne Ende.</span></div>
+<div class="col" style="gap:4px"><label for="{{ ed.f.toId }}" class="lab">Sichtbar bis</label><input class="in" id="{{ ed.f.toId }}" type="datetime-local" value="{{ ed.f.to }}" onChange="{{ ed.f.setTo }}" aria-invalid="{{ ed.f.invalid }}" style="width:100%">
+<sc-if value="{{ ed.f.hasErr }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ ed.f.err }}</span></sc-if></div></div></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeEdit }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ ed.f.save }}">Speichern</button></div></section></div></sc-if>
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', sky: '#9aa7c7', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10' };
+// The mockup's "now": 1 November 2026, 15:42 (datetime-local strings compare as text).
+const NOW = '2026-11-01T15:42';
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const TOAST = 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+const same = (a, b) => a.toLowerCase().includes(b.trim().toLowerCase());
+const KIND = { movie: 'Film', series: 'Serie', episode: 'Folge', audiobook: 'Hörbuch', podcast: 'Podcast' };
+// Poster tile drawn as a gradient (built: the w200 poster through getAdminItemImage).
+const posterCss = (p, w, h, fs) => 'display:inline-flex;align-items:flex-end;flex:none;box-sizing:border-box;width:' + w + 'px;height:' + h + 'px;padding:3px;border-radius:4px;background:linear-gradient(160deg,' + p[0] + ',' + p[1] + ');color:rgba(255,255,255,0.92);font-size:' + fs + 'px;font-weight:700;line-height:1;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12)';
+// The titles the search finds (GET /admin/items/search); members and picks refer to them by id.
+const CATALOG = [
+  { id: 'du1', title: 'Dune', kind: 'movie', year: 2021, p: ['#c98a4b', '#2b1a0d'] },
+  { id: 'du2', title: 'Dune: Part Two', kind: 'movie', year: 2024, p: ['#d39a55', '#3a2211'] },
+  { id: 'hp1', title: 'Harry Potter und der Stein der Weisen', kind: 'movie', year: 2001, p: ['#9c3b2f', '#1d0f0c'] },
+  { id: 'hp2', title: 'Harry Potter und die Kammer des Schreckens', kind: 'movie', year: 2002, p: ['#3f6b4f', '#0f1a13'] },
+  { id: 'hp3', title: 'Harry Potter und der Gefangene von Askaban', kind: 'movie', year: 2004, p: ['#4a5f7a', '#10151d'] },
+  { id: 'hp4', title: 'Harry Potter und der Feuerkelch', kind: 'movie', year: 2005, p: ['#b0582d', '#1f0e07'] },
+  { id: 'hp5', title: 'Harry Potter und der Orden des Phönix', kind: 'movie', year: 2007, p: ['#5a4c7d', '#13101d'] },
+  { id: 'hp6', title: 'Harry Potter und der Halbblutprinz', kind: 'movie', year: 2009, p: ['#6b7a5a', '#141811'] },
+  { id: 'hp7', title: 'Harry Potter und die Heiligtümer des Todes – Teil 1', kind: 'movie', year: 2010, p: ['#5b5f66', '#121316'] },
+  { id: 'hp8', title: 'Harry Potter und die Heiligtümer des Todes – Teil 2', kind: 'movie', year: 2011, p: ['#7a4a3a', '#170d0a'] },
+  { id: 'lo1', title: 'Der Herr der Ringe: Die Gefährten', kind: 'movie', year: 2001, p: ['#7b8a4e', '#171a0e'] },
+  { id: 'lo2', title: 'Der Herr der Ringe: Die zwei Türme', kind: 'movie', year: 2002, p: ['#8a6a3e', '#1a130b'] },
+  { id: 'lo3', title: 'Der Herr der Ringe: Die Rückkehr des Königs', kind: 'movie', year: 2003, p: ['#c9a35a', '#251b0b'] },
+  { id: 'ho1', title: 'Der Hobbit: Eine unerwartete Reise', kind: 'movie', year: 2012, p: ['#6d8a5e', '#141a11'] },
+  { id: 'ho2', title: 'Der Hobbit: Smaugs Einöde', kind: 'movie', year: 2013, p: ['#b5542f', '#200d07'] },
+  { id: 'ho3', title: 'Der Hobbit: Die Schlacht der Fünf Heere', kind: 'movie', year: 2014, p: ['#8a7d6a', '#191612'] },
+  { id: 'ts1', title: 'Toy Story', kind: 'movie', year: 1995, p: ['#4f8fd6', '#13253d'] },
+  { id: 'ts2', title: 'Toy Story 2', kind: 'movie', year: 1999, p: ['#e0b44a', '#2d220a'] },
+  { id: 'ts3', title: 'Toy Story 3', kind: 'movie', year: 2010, p: ['#5aa3c9', '#0f2230'] },
+  { id: 'ts4', title: 'A Toy Story: Alles hört auf kein Kommando', kind: 'movie', year: 2019, p: ['#7cc0ea', '#1f4b73'] },
+  { id: 'px1', title: 'Knick Knack', kind: 'movie', year: 1989, p: ['#6fb3c9', '#123038'] },
+  { id: 'px2', title: 'Teilweise wolkig', kind: 'movie', year: 2009, p: ['#9cc4e4', '#1f3550'] },
+  { id: 'px3', title: 'La Luna', kind: 'movie', year: 2011, p: ['#3c5aa6', '#0b1229'] },
+  { id: 'px4', title: 'Lava', kind: 'movie', year: 2014, p: ['#d4683a', '#2a0f06'] },
+  { id: 'px5', title: 'Piper', kind: 'movie', year: 2016, p: ['#8fc1b5', '#163029'] },
+  { id: 'px6', title: 'Bao', kind: 'movie', year: 2018, p: ['#e8b65a', '#3a2709'] },
+  { id: 'ch1', title: 'Heidi', kind: 'movie', year: 2015, p: ['#7fb069', '#18260f'] },
+  { id: 'ch2', title: 'Die Schweizermacher', kind: 'movie', year: 1978, p: ['#d0453a', '#2a0b09'] },
+  { id: 'ch3', title: 'Mein Name ist Eugen', kind: 'movie', year: 2005, p: ['#c9a24a', '#2a200a'] },
+  { id: 'ch4', title: 'Wolkenbruchs wunderliche Reise in die Arme einer Schickse', kind: 'movie', year: 2018, p: ['#5f8fb0', '#101d27'] },
+  { id: 'ch5', title: 'Zwingli', kind: 'movie', year: 2019, p: ['#6b5a4a', '#16110d'] },
+  { id: 'xm1', title: 'Drei Nüsse für Aschenbrödel', kind: 'movie', year: 1973, p: ['#b8c9d9', '#1c2a38'] },
+  { id: 'xm2', title: 'Kevin – Allein zu Haus', kind: 'movie', year: 1990, p: ['#c0392b', '#2a0906'] },
+  { id: 'xm3', title: 'Tatsächlich … Liebe', kind: 'movie', year: 2003, p: ['#d97a8a', '#2d1016'] },
+  { id: 'xm4', title: 'Der Polarexpress', kind: 'movie', year: 2004, p: ['#3b5f8a', '#0b1422'] },
+  { id: 'xm5', title: 'Die Muppets Weihnachtsgeschichte', kind: 'movie', year: 1992, p: ['#4f9a5a', '#0e2111'] },
+  { id: 'xm6', title: 'Schöne Bescherung', kind: 'movie', year: 1989, p: ['#a83a2c', '#220b08'] },
+  { id: 'xm7', title: 'Elf', kind: 'movie', year: 2003, p: ['#5aa05a', '#102410'] },
+  { id: 'xm8', title: 'Arthur Weihnachtsmann', kind: 'movie', year: 2011, p: ['#d9a441', '#2b1f08'] },
+  { id: 'xm9', title: 'Klaus', kind: 'movie', year: 2019, p: ['#c4683c', '#26100a'] },
+  { id: 'op1', title: 'Oppenheimer', kind: 'movie', year: 2023, p: ['#d8843a', '#1a0d05'] },
+  { id: 'sh1', title: 'Shōgun', kind: 'series', year: 2024, p: ['#b0443c', '#1c0d0c'] },
+  { id: 'bl1', title: 'Bluey', kind: 'series', year: 2018, p: ['#7cc0ea', '#1f4b73'] },
+  { id: 'bl2', title: 'Schlafenszeit', kind: 'episode', year: 2020, parent: 'Bluey', p: ['#6f9fd8', '#18294a'] },
+  { id: 'tg1', title: 'Tschugger', kind: 'series', year: 2021, p: ['#8a9a3a', '#1a1e08'] },
+  { id: 'dd1', title: 'Die drei ??? und der Super-Papagei', kind: 'audiobook', year: 1979, p: ['#2f6fb0', '#0b1a2c'] },
+  { id: 'ec1', title: 'Echo der Zeit', kind: 'podcast', year: 2026, p: ['#c8102e', '#2a0309'] },
+];
+const item = (id) => CATALOG.find((c) => c.id === id);
+// titleMeta: "Film · 2024 · Serie X", what tells two hits of the same name apart.
+const metaOf = (c) => [KIND[c.kind], c.year, c.parent].filter(Boolean).join(' · ');
+// formatDateTime (de-CH): 01.12.2026, 08:00.
+const fdate = (s) => s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(0, 4) + ', ' + s.slice(11, 16);
+// The «Stelle» select: options above the length of the list are hidden.
+const phOf = (n) => { const o = {}; for (let k = 1; k <= 15; k++) o['o' + k] = k > n; return o; };
+// Search hits from two characters on, at most six (the server returns the best hits).
+// Hits whose title starts with the term come first, then those with a word starting with it.
+const rank = (c, q) => { const t = c.title.toLowerCase(); const w = q.trim().toLowerCase(); return t.startsWith(w) ? 0 : (' ' + t).includes(' ' + w) ? 1 : 2; };
+const searchHits = (q, exclude, kinds) => (q.trim().length < 2 ? [] : CATALOG.filter((c) => (!kinds || kinds.includes(c.kind)) && !exclude.includes(c.id) && same(c.title + ' ' + (c.parent || ''), q))
+  .sort((a, b) => rank(a, q) - rank(b, q)).slice(0, 6));
+// Cat's Empfehlungen (PIC-1 to PIC-4): the picks in the order of the carousel. Add (title search, Für, Notiz, Sichtbar ab/bis;
+// ?add= preselects the title), a «Stelle» select instead of «Nach oben»/«Nach unten», edit note and window, remove with confirm.
+// The own account's profiles (manageProfilesQuery); a pick is for all profiles or for one.
+const PROFILES = [{ id: 1, name: 'Marco' }, { id: 2, name: 'Kino' }, { id: 3, name: 'Noah' }];
+const PICKS = [
+  { id: 11, item: 'du2', prof: null, note: 'Endlich in 4K auf dem grossen Fernseher.', from: '', to: '' },
+  { id: 12, item: 'sh1', prof: 1, note: 'Die beste Serie des Jahres.', from: '', to: '' },
+  { id: 13, item: 'bl1', prof: 3, note: 'Neue Folgen der dritten Staffel.', from: '', to: '2026-11-30T23:59' },
+  { id: 14, item: 'xm1', prof: null, note: 'Für die Adventszeit.', from: '2026-12-01T00:00', to: '2026-12-26T23:59' },
+  { id: 15, item: 'ch1', prof: 3, note: '', from: '2026-11-15T08:00', to: '' },
+  { id: 16, item: 'op1', prof: 2, note: 'Am besten mit Dolby Atmos.', from: '2026-10-01T00:00', to: '2026-10-31T23:59' },
+  { id: 17, item: 'dd1', prof: 3, note: 'Für die Autofahrt ins Tessin.', from: '', to: '' },
+];
+const PRESET = 'xm2'; // ?add= from the title page of «Kevin – Allein zu Haus»
+const END_ERR = 'Das Ende muss nach dem Beginn liegen.';
+const EXAMPLES = [['list', 'Liste'], ['add', 'Über Link ?add='], ['gone', 'Link ohne Titel'], ['empty', 'Leer']];
+const clonePicks = () => PICKS.map((p) => Object.assign({}, p));
+const freshAdd = (chosen, missing) => ({ q: '', chosen: chosen || null, missing: !!missing, targets: ['all'], note: '', from: '', to: '', err: {} });
+function initState() { return { picks: clonePicks(), nextId: 18, add: null, addOpen: false, edit: null, drafts: {}, ex: 'list', sel: 13, tab: 'all' }; }
+const INIT = { open: { s_list: true } };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, open: {} }, initState(), INIT);
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  // Toast «(Mockup) …» for 2 s; closes a confirm and a menu.
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic danger confirm: { title, text, ok }; onOk runs on the red button.
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c, menu: null }); }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); },
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  tabsOf(list, cur, key) {
+    return list.map(([id, label, count]) => ({ label, count: String(count), sel: id === cur ? 'true' : 'false', style: tabStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: TOAST,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+      menuAny: !!this.state.menu, closeMenu: () => this.setState({ menu: null }),
+      sec: {},
+    };
+  }
+  name(p) { return item(p.item).title; }
+  // Zeitraum: text, state (expired, scheduled, limited, open) and the dot; the word names the two states in which the row is missing.
+  winOf(p) {
+    const text = p.from && p.to ? fdate(p.from) + ' bis ' + fdate(p.to) : p.from ? 'Ab ' + fdate(p.from) : p.to ? 'Bis ' + fdate(p.to) : 'Immer';
+    const st = p.to && p.to <= NOW ? 'expired' : p.from && p.from > NOW ? 'scheduled' : p.to ? 'limited' : 'open';
+    const c = { expired: COL.wa, scheduled: COL.sky, limited: COL.su }[st];
+    const word = st === 'expired' ? 'Abgelaufen' : st === 'scheduled' ? 'Geplant' : '';
+    const short = st === 'expired' ? 'Abgelaufen' : st === 'scheduled' ? 'Geplant ab ' + fdate(p.from).slice(0, 10) : st === 'limited' ? 'Bis ' + fdate(p.to).slice(0, 10) : p.from ? 'Ab ' + fdate(p.from).slice(0, 10) : 'Immer';
+    return { winText: text, winState: st, hasDot: !!c, winDot: c ? dot(c) : '', hasWord: !!word, winWord: word, winShort: short };
+  }
+  draftOf(p) { return this.state.drafts[p.id] || { note: p.note, from: p.from, to: p.to, err: '' }; }
+  setDraft(p, obj) { this.patch('drafts', { [p.id]: Object.assign({}, this.draftOf(p), obj, { err: '' }) }); }
+  dropDraft(id) { const d = Object.assign({}, this.state.drafts); delete d[id]; return d; }
+  saveDraft(p) {
+    const d = this.draftOf(p);
+    if (d.to && d.from && d.to <= d.from) { this.patch('drafts', { [p.id]: Object.assign({}, d, { err: END_ERR }) }); return; }
+    this.setState({ picks: this.state.picks.map((x) => (x.id === p.id ? Object.assign({}, x, { note: d.note.trim(), from: d.from, to: d.to }) : x)), drafts: this.dropDraft(p.id), edit: null });
+    this.say(this.name(p) + ' ist gespeichert.');
+  }
+  // Note and window of a pick (edit dialog in A, detail in B, fold in C); an emptied field clears the value.
+  fVals(p) {
+    const d = this.draftOf(p);
+    const dirty = d.note !== p.note || d.from !== p.from || d.to !== p.to;
+    return { note: d.note, from: d.from, to: d.to, err: d.err, hasErr: !!d.err, invalid: d.err ? 'true' : 'false', dirty, clean: !dirty,
+      noteId: 'pn' + p.id, fromId: 'pf' + p.id, toId: 'pt' + p.id,
+      setNote: (e) => this.setDraft(p, { note: e.target.value }), setFrom: (e) => this.setDraft(p, { from: e.target.value }), setTo: (e) => this.setDraft(p, { to: e.target.value }),
+      save: () => this.saveDraft(p), reset: () => this.setState({ drafts: this.dropDraft(p.id) }) };
+  }
+  // «Stelle»: the pick jumps to the chosen place, the others close up (one PUT /admin/picks/order with the new order).
+  move(id, n) {
+    const l = this.state.picks.slice();
+    const i = l.findIndex((x) => x.id === id);
+    if (i < 0 || i === n - 1) return;
+    const [p] = l.splice(i, 1);
+    l.splice(n - 1, 0, p);
+    this.setState({ picks: l });
+    this.say(this.name(p) + ' steht jetzt an Stelle ' + n + '.');
+  }
+  remove(p) {
+    this.ask({ title: this.name(p) + " aus Cat's Empfehlungen entfernen?", text: 'Der Titel bleibt in der Bibliothek, nur die Empfehlung verschwindet.', ok: 'Entfernen' }, () => {
+      const left = this.state.picks.filter((x) => x.id !== p.id);
+      this.setState({ picks: left, drafts: this.dropDraft(p.id), sel: this.state.sel === p.id ? (left[0] ? left[0].id : null) : this.state.sel });
+      this.say(this.name(p) + ' ist nicht mehr empfohlen.');
+    });
+  }
+  openAdd() { this.setState({ addOpen: true, add: this.state.add || freshAdd(), menu: null }); }
+  // The link's title is used once: closing drops ?add= (the example switch goes back to «Liste»).
+  closeAdd() { this.setState({ addOpen: false, add: null, ex: this.state.ex === 'empty' ? 'empty' : 'list' }); }
+  toggleTarget(id) {
+    const a = this.state.add || freshAdd();
+    const on = a.targets.includes(id);
+    const next = on ? a.targets.filter((x) => x !== id) : a.targets.concat([id]);
+    // «Alle Profile» and single profiles exclude each other: the last choice wins.
+    const fixed = next.includes('all') && !a.targets.includes('all') ? ['all'] : next.length > 1 ? next.filter((x) => x !== 'all') : next;
+    this.setState({ add: Object.assign({}, a, { targets: fixed, err: Object.assign({}, a.err, { targets: '' }) }) });
+  }
+  patchAdd(obj) { this.setState({ add: Object.assign({}, this.state.add || freshAdd(), obj) }); }
+  submitAdd() {
+    const a = this.state.add || freshAdd();
+    const err = {};
+    if (!a.chosen) err.title = 'Wähle zuerst einen Titel.';
+    if (!a.targets.length) err.targets = 'Wähle «Alle Profile» oder mindestens ein Profil.';
+    if (a.to && a.from && a.to <= a.from) err.to = END_ERR;
+    if (Object.keys(err).length) { this.patchAdd({ err }); return; }
+    let id = this.state.nextId;
+    // One pick per chosen profile, or one for all; new picks go to the end.
+    const made = (a.targets.includes('all') ? [null] : a.targets.map(Number)).map((prof) => ({ id: id++, item: a.chosen, prof, note: a.note.trim(), from: a.from, to: a.to }));
+    this.setState({ picks: this.state.picks.concat(made), nextId: id, add: null, addOpen: false, sel: made[0].id, ex: 'list' });
+    this.say(item(a.chosen).title + " ist in Cat's Empfehlungen.");
+  }
+  addVals() {
+    const a = this.state.add || freshAdd();
+    const hits = searchHits(a.q, a.chosen ? [a.chosen] : []);
+    const ch = a.chosen ? item(a.chosen) : null;
+    const e = a.err || {};
+    return {
+      q: a.q, setQ: (ev) => this.patchAdd({ q: ev.target.value }),
+      hits: hits.map((c) => ({ title: c.title, meta: metaOf(c), label: c.title + ' wählen', pick: () => this.patchAdd({ chosen: c.id, missing: false, q: '', err: Object.assign({}, e, { title: '' }) }) })),
+      hasHits: hits.length > 0, noHits: a.q.trim().length >= 2 && hits.length === 0,
+      hasChosen: !!ch, noChosen: !ch, chosenText: ch ? 'Gewählt: ' + ch.title : '', chosenMeta: ch ? ' · ' + metaOf(ch) : '',
+      missing: a.missing && !ch, titleErr: e.title || '', hasTitleErr: !!e.title && !ch,
+      targets: [{ id: 'all', name: 'Alle Profile' }].concat(PROFILES.map((p) => ({ id: String(p.id), name: p.name }))).map((o) => ({ label: o.name, on: a.targets.includes(o.id), toggle: () => this.toggleTarget(o.id) })),
+      targetErr: e.targets || '', hasTargetErr: !!e.targets,
+      note: a.note, setNote: (ev) => this.patchAdd({ note: ev.target.value }),
+      from: a.from, setFrom: (ev) => this.patchAdd({ from: ev.target.value, err: Object.assign({}, e, { to: '' }) }),
+      to: a.to, setTo: (ev) => this.patchAdd({ to: ev.target.value, err: Object.assign({}, e, { to: '' }) }), toErr: e.to || '', hasToErr: !!e.to, toInvalid: e.to ? 'true' : 'false',
+    };
+  }
+  pVals(p, i, ph) {
+    const c = item(p.item);
+    const pr = PROFILES.find((x) => x.id === p.prof);
+    const f = this.fVals(p);
+    const on = this.state.sel === p.id && !this.state.addOpen;
+    return Object.assign(this.detVals('p' + p.id), this.winOf(p), {
+      id: p.id, title: c.title, meta: metaOf(c), initial: c.title.charAt(0),
+      posterS: posterCss(c.p, 28, 42, 11), posterM: posterCss(c.p, 20, 30, 9), posterL: posterCss(c.p, 64, 96, 22),
+      heroS: 'display:flex;align-items:flex-end;gap:16px;height:150px;margin:0 -16px;padding:16px;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,0.08);background:linear-gradient(to top, rgba(22,24,31,0.96), rgba(22,24,31,0.25) 75%), radial-gradient(120% 100% at 85% 0%, rgba(255,255,255,0.14), transparent 60%), linear-gradient(140deg,' + c.p[0] + ',' + c.p[1] + ')',
+      forName: pr ? pr.name : 'Alle', note: p.note ? '«' + p.note + '»' : '–', hasNote: !!p.note,
+      nr: String(i + 1), pos: String(i + 1), ph, posLabel: 'Stelle von ' + c.title, setPos: (e) => this.move(p.id, Number(e.target.value)),
+      editLabel: c.title + ' bearbeiten', edit: () => this.setState({ edit: p.id, drafts: this.dropDraft(p.id) }), removeLabel: c.title + ' entfernen', remove: () => this.remove(p),
+      f, changed: f.dirty, cur: on ? 'true' : 'false', style: on ? navOn : '', pick: () => this.setState({ sel: p.id, addOpen: false }),
+    });
+  }
+  picksVals() {
+    const v = this.baseVals();
+    const l = this.state.picks;
+    const ph = phOf(l.length);
+    v.picks = l.map((p, i) => this.pVals(p, i, ph));
+    v.none = l.length === 0; v.some = !v.none;
+    const planned = v.picks.filter((p) => p.winState === 'scheduled').length;
+    const entries = l.length === 1 ? '1 Eintrag' : l.length + ' Einträge';
+    v.countText = planned ? entries + ' · ' + planned + ' geplant' : entries;
+    v.af = this.addVals(); v.addOpen = this.state.addOpen; v.addBox = boxStyle(72, 780);
+    v.openAdd = () => this.openAdd(); v.closeAdd = () => this.closeAdd(); v.submitAdd = () => this.submitAdd();
+    const e = l.find((x) => x.id === this.state.edit);
+    v.editOpen = !!e; v.ed = e ? v.picks[l.indexOf(e)] : this.pVals(PICKS[0], 0, ph); v.editTitle = e ? this.name(e) + ' bearbeiten' : ''; v.editBox = boxStyle(120, 520);
+    v.closeEdit = () => this.setState({ edit: null, drafts: this.dropDraft(this.state.edit) });
+    v.toRows = (ev) => { if (ev && ev.preventDefault) ev.preventDefault(); this.say('Öffnet die Seite Startseitenreihen.'); };
+    v.exs = EXAMPLES.map(([id, label]) => ({ label, sel: this.state.ex === id ? 'true' : 'false', style: segStyle(this.state.ex === id), pick: () => this.pickEx(id) }));
+    v.sec.list = this.detVals('s_list');
+    return v;
+  }
+  pickEx(id) {
+    const picks = id === 'empty' ? [] : this.state.picks.length ? this.state.picks : clonePicks();
+    const add = id === 'add' ? freshAdd(PRESET) : id === 'gone' ? freshAdd(null, true) : null;
+    this.setState({ ex: id, picks, add, addOpen: !!add, edit: null, drafts: {}, sel: picks.length ? (picks.find((p) => p.id === this.state.sel) ? this.state.sel : picks[0].id) : null });
+  }
+  renderVals() {
+    const v = this.picksVals();
+    v.addTitle = 'Empfehlung hinzufügen';
+    return v;
+  }
+}
+</script>
+</body>
+</html>

@@ -12,7 +12,7 @@
  "boards": {
   "Main.dc.html": {
    "x": 0,
-   "y": 30020,
+   "y": 45020,
    "w": 1440,
    "h": 2370,
    "title": "A · Hintergrundjobs",
@@ -20,7 +20,7 @@
   },
   "A-Integrationen.dc.html": {
    "x": 1520,
-   "y": 30020,
+   "y": 45020,
    "w": 1440,
    "h": 2370,
    "title": "A · Integrationen",
@@ -28,7 +28,7 @@
   },
   "A-Konten.dc.html": {
    "x": 3040,
-   "y": 30020,
+   "y": 45020,
    "w": 1440,
    "h": 1310,
    "title": "A · Konten",
@@ -36,7 +36,7 @@
   },
   "B-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 33110,
+   "y": 48110,
    "w": 1440,
    "h": 1710,
    "title": "B · Hintergrundjobs",
@@ -44,7 +44,7 @@
   },
   "B-Integrationen.dc.html": {
    "x": 1520,
-   "y": 33110,
+   "y": 48110,
    "w": 1440,
    "h": 1500,
    "title": "B · Integrationen",
@@ -52,7 +52,7 @@
   },
   "B-Konten.dc.html": {
    "x": 3040,
-   "y": 33110,
+   "y": 48110,
    "w": 1440,
    "h": 1300,
    "title": "B · Konten",
@@ -60,7 +60,7 @@
   },
   "C-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 35540,
+   "y": 50540,
    "w": 1440,
    "h": 1810,
    "title": "C · Hintergrundjobs",
@@ -68,7 +68,7 @@
   },
   "C-Integrationen.dc.html": {
    "x": 1520,
-   "y": 35540,
+   "y": 50540,
    "w": 1440,
    "h": 1530,
    "title": "C · Integrationen",
@@ -76,7 +76,7 @@
   },
   "C-Konten.dc.html": {
    "x": 3040,
-   "y": 35540,
+   "y": 50540,
    "w": 1440,
    "h": 1430,
    "title": "C · Konten",
@@ -450,6 +450,222 @@
    "is_interactive": true,
    "x": 1520,
    "y": 16970
+  },
+  "Rei-A.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 30020
+  },
+  "Rei-B.dc.html": {
+   "w": 1440,
+   "h": 930,
+   "title": "B · Liste und Vorschau",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 30020
+  },
+  "Rei-C.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 30020
+  },
+  "Spo-A.dc.html": {
+   "w": 1440,
+   "h": 1700,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 31670
+  },
+  "Spo-B.dc.html": {
+   "w": 1440,
+   "h": 1020,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 31670
+  },
+  "Spo-C.dc.html": {
+   "w": 1440,
+   "h": 1210,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 31670
+  },
+  "Pic-A.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 34090
+  },
+  "Pic-B.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 34090
+  },
+  "Pic-C.dc.html": {
+   "w": 1440,
+   "h": 1000,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 34090
+  },
+  "Sam-A.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 35810
+  },
+  "Sam-B.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 35810
+  },
+  "Sam-C.dc.html": {
+   "w": 1440,
+   "h": 1110,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 35810
+  },
+  "Ank-A.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 37640
+  },
+  "Ank-B.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 37640
+  },
+  "Ank-C.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 37640
+  },
+  "Ben-A.dc.html": {
+   "w": 1440,
+   "h": 1230,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 39270
+  },
+  "Ben-B.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 39270
+  },
+  "Ben-C.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 39270
+  },
+  "Sta-A.dc.html": {
+   "w": 1440,
+   "h": 1410,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 41220
+  },
+  "Sta-B.dc.html": {
+   "w": 1440,
+   "h": 1450,
+   "title": "B · Raster",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 41220
+  },
+  "Sta-C.dc.html": {
+   "w": 1440,
+   "h": 980,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 41220
+  },
+  "Sic-A.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 43390
+  },
+  "Sic-B.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 1520,
+   "y": 43390
+  },
+  "Sic-C.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 3040,
+   "y": 43390
   }
  },
  "order": [
@@ -494,6 +710,30 @@
   "Pod-A.dc.html",
   "Pod-B.dc.html",
   "Pod-C.dc.html",
+  "Rei-A.dc.html",
+  "Rei-B.dc.html",
+  "Rei-C.dc.html",
+  "Spo-A.dc.html",
+  "Spo-B.dc.html",
+  "Spo-C.dc.html",
+  "Pic-A.dc.html",
+  "Pic-B.dc.html",
+  "Pic-C.dc.html",
+  "Sam-A.dc.html",
+  "Sam-B.dc.html",
+  "Sam-C.dc.html",
+  "Ank-A.dc.html",
+  "Ank-B.dc.html",
+  "Ank-C.dc.html",
+  "Ben-A.dc.html",
+  "Ben-B.dc.html",
+  "Ben-C.dc.html",
+  "Sta-A.dc.html",
+  "Sta-B.dc.html",
+  "Sta-C.dc.html",
+  "Sic-A.dc.html",
+  "Sic-B.dc.html",
+  "Sic-C.dc.html",
   "Main.dc.html",
   "A-Integrationen.dc.html",
   "A-Konten.dc.html",
@@ -620,20 +860,76 @@
   "row16": {
    "x": 0,
    "y": 29720,
-   "text": "Grundmuster A (alt, nicht klickbar)",
+   "text": "Startseitenreihen · neu",
    "kind": "title1",
    "maxW": 4480
   },
   "row17": {
    "x": 0,
-   "y": 32810,
-   "text": "Grundmuster B (alt, nicht klickbar)",
+   "y": 31370,
+   "text": "Spotlight · neu",
    "kind": "title1",
    "maxW": 4480
   },
   "row18": {
    "x": 0,
-   "y": 35240,
+   "y": 33790,
+   "text": "Cat's Empfehlungen · neu",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row19": {
+   "x": 0,
+   "y": 35510,
+   "text": "Sammlungen · neu",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row20": {
+   "x": 0,
+   "y": 37340,
+   "text": "Ankündigungen · neu",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row21": {
+   "x": 0,
+   "y": 38970,
+   "text": "Benachrichtigungen · neu",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row22": {
+   "x": 0,
+   "y": 40920,
+   "text": "Statistik · neu",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row23": {
+   "x": 0,
+   "y": 43090,
+   "text": "Sicherung · neu",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row24": {
+   "x": 0,
+   "y": 44720,
+   "text": "Grundmuster A (alt, nicht klickbar)",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row25": {
+   "x": 0,
+   "y": 47810,
+   "text": "Grundmuster B (alt, nicht klickbar)",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row26": {
+   "x": 0,
+   "y": 50240,
    "text": "Grundmuster C (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480

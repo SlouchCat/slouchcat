@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Sicherung · C Reiter und Klappbereiche</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px}
+.mut{font-size:12px;color:#9095a3}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+.tl{color:inherit;text-decoration:none}.tl:hover{color:#e8794a}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Sicherung</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<span style="flex:1"></span></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Datenbank und Einstellungen sichern und wiederherstellen. Medien sind nie Teil einer Sicherung.</p></sc-if></div><sc-if value="{{ hasDone }}" hint-placeholder-val="{{ false }}"><div style="margin-top:16px"><sc-if value="{{ hasDone }}" hint-placeholder-val="{{ false }}"><div role="status" style="display:flex;align-items:center;gap:10px;min-height:40px;padding:4px 8px 4px 12px;box-sizing:border-box;border-radius:8px;background:color-mix(in srgb, #5fcf8f 10%, transparent);border:1px solid color-mix(in srgb, #5fcf8f 30%, transparent);font-size:13px"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span><span style="flex:1;min-width:0">{{ doneText }}</span></div></sc-if></div></sc-if><sc-if value="{{ restarting }}" hint-placeholder-val="{{ false }}"><section aria-labelledby="restart-heading" style="margin-top:24px;display:flex;flex-direction:column;gap:12px;max-width:760px;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 id="restart-heading" style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg></span><span class="ell">Server startet neu</span></h2></div>
+<p style="margin:0">{{ rs.body }}</p>
+<sc-if value="{{ rs.noSecrets }}" hint-placeholder-val="{{ true }}"><div style="display:flex;gap:10px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb, #e8b65a 10%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent);font-size:13px"><span style="display:flex;color:#e8b65a;padding-top:1px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span><span>Die Sicherung enthält keine Zugangsdaten: Gib die Schlüssel, den E-Mail-Server und den Telegram-Bot danach unter <a href="#">Integrationen</a> neu ein.</span></div></sc-if>
+<p role="status" class="row" style="margin:0;gap:10px;font-size:14px;font-weight:500"><sc-if value="{{ rs.waiting }}" hint-placeholder-val="{{ true }}"><span style="{{ rs.spin }}"></span></sc-if><sc-if value="{{ rs.back }}" hint-placeholder-val="{{ false }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span></sc-if><sc-if value="{{ rs.gaveUp }}" hint-placeholder-val="{{ false }}"><span style="display:flex;color:#e8b65a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span></sc-if>{{ rs.status }}</p>
+<sc-if value="{{ rs.gaveUp }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:8px;background:color-mix(in srgb, #e8b65a 10%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent)">
+<b style="font-weight:600">Der Server kommt nicht zurück</b><span style="font-size:13px;color:#b6b9c4">Der Neustart dauert ungewöhnlich lange. Sieh im Log des Containers nach (<code style="font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px">docker logs slouchcat</code>) und lade diese Seite neu, sobald der Server läuft.</span>
+<span><button type="button" class="b bs" onClick="{{ rs.retry }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>Erneut prüfen</button></span></div></sc-if>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:6px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup: {{ rs.mock }}</span><span style="flex:1"></span>
+<div role="tablist" aria-label="Ausgang im Mockup" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ rs.outs }}" as="o" hint-placeholder-count="2"><button type="button" role="tab" aria-selected="{{ o.sel }}" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div>
+<sc-if value="{{ rs.canReset }}" hint-placeholder-val="{{ false }}"><button type="button" class="b bs" onClick="{{ rs.reset }}">Zurück zur Seite</button></sc-if></div></section></sc-if><sc-if value="{{ notRestarting }}" hint-placeholder-val="{{ true }}"><section aria-label="Sicherung" style="margin-top:24px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px"><div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;height:48px;padding:0 8px;border-radius:9px 9px 0 0;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)">
+<div role="tablist" aria-label="Sicherung" style="display:flex;gap:4px"><sc-for list="{{ ctabs }}" as="t" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }}<sc-if value="{{ t.hasCount }}" hint-placeholder-val="{{ true }}"> <span class="c" style="height:18px;padding:0 6px">{{ t.count }}</span></sc-if></button></sc-for></div>
+<div style="display:flex;align-items:center;height:48px;padding-right:8px"></div></div><div role="tabpanel" aria-label="{{ tabName }}" style="padding:0 16px 12px"><sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}"><sc-if value="{{ some }}" hint-placeholder-val="{{ true }}"><div role="table" aria-label="Sicherungen"><div role="row" class="tr th" style="grid-template-columns:minmax(0,1fr) 148px 80px 104px 136px 196px;padding-left:28px"><span role="columnheader">Datei</span><span role="columnheader">Erstellt</span><span role="columnheader" style="text-align:right">Grösse</span><span role="columnheader">Schlüssel</span><span role="columnheader">Verschlüsselt</span><span role="columnheader"><span class="sr">Aktionen</span></span></div>
+<sc-for list="{{ kinds }}" as="g" hint-placeholder-count="2"><details open="{{ g.open }}" onToggle="{{ g.onToggle }}" style="border-top:1px solid rgba(255,255,255,0.08)">
+<summary style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px"><span style="{{ g.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><h3 style="margin:0;font-size:14px;font-weight:600">{{ g.name }}</h3><span class="mut">{{ g.sum }}</span></summary>
+<div role="rowgroup" style="padding-bottom:4px"><sc-if value="{{ g.isAuto }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0 0 4px 28px">Automatische Sicherungen legt der Server vor einem Update und vor einer Wiederherstellung an.</p></sc-if>
+<sc-for list="{{ g.rows }}" as="b" hint-placeholder-count="4"><div role="row" class="tr" style="grid-template-columns:minmax(0,1fr) 148px 80px 104px 136px 196px;padding-left:28px"><div role="rowheader" class="mono" title="{{ b.name }}"><span class="row" style="gap:8px"><span class="ell">{{ b.name }}</span><sc-if value="{{ b.isNew }}" hint-placeholder-val="{{ false }}"><span class="c cs">neu</span></sc-if></span></div><div role="cell" style="color:#b6b9c4;font-variant-numeric:tabular-nums">{{ b.at }}</div><div role="cell" class="num">{{ b.size }}</div><div role="cell"><span class="row" style="gap:6px"><sc-if value="{{ b.sec }}" hint-placeholder-val="{{ true }}"><span style="display:flex;color:#b6b9c4"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3"/></svg></span></sc-if>{{ b.secrets }}</span></div><div role="cell"><span class="row" style="gap:6px"><sc-if value="{{ b.enc }}" hint-placeholder-val="{{ true }}"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span></sc-if>{{ b.encrypted }}</span></div><div role="cell" class="ov"><button type="button" class="b bs" aria-label="{{ b.dlLabel }}" onClick="{{ b.download }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>Herunterladen</button> <button type="button" class="b bs bi" aria-label="{{ b.menuLabel }}" aria-haspopup="menu" aria-expanded="{{ b.menuAria }}" onClick="{{ b.toggleMenu }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></button><sc-if value="{{ b.menuOpen }}" hint-placeholder-val="{{ false }}"><div role="menu" aria-label="{{ b.menuLabel }}" style="{{ b.menuStyle }}"><button type="button" role="menuitem" class="mi" aria-label="{{ b.rsLabel }}" onClick="{{ b.restore }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>Wiederherstellen …</button><div role="separator" style="height:1px;margin:4px 0;background:rgba(255,255,255,0.08)"></div><button type="button" role="menuitem" class="mi" aria-label="{{ b.rmLabel }}" onClick="{{ b.remove }}" style="color:#f2777a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>Löschen …</button></div></sc-if></div></div></sc-for></div></details></sc-for></div></sc-if><sc-if value="{{ none }}" hint-placeholder-val="{{ false }}"><p role="status" style="margin:0;padding:12px 0;font-size:14px;color:#b6b9c4">Noch keine Sicherungen.</p></sc-if></sc-if><sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:12px;max-width:620px;padding:16px 0 8px"><p style="margin:0;font-size:13px;color:#b6b9c4">Die Sicherung enthält die Datenbank mit Konten, Profilen, Fortschritt und Einstellungen. Medien gehören nie dazu.</p>
+<fieldset style="border:none;margin:0;padding:0;min-width:0"><legend style="padding:0;margin-bottom:6px;font-size:13px;color:#b6b9c4">Umfang</legend><div class="col" style="gap:6px">
+<label class="row" style="font-size:14px;cursor:pointer"><input type="radio" name="scope-c" checked="{{ cr.without }}" onChange="{{ cr.pickWithout }}" style="accent-color:#e8794a;margin:0">Ohne Schlüssel (empfohlen)</label>
+<label class="row" style="font-size:14px;cursor:pointer"><input type="radio" name="scope-c" checked="{{ cr.with }}" onChange="{{ cr.pickWith }}" style="accent-color:#e8794a;margin:0">Mit Schlüsseln</label></div>
+<p style="margin:8px 0 0;font-size:12px;line-height:1.5;color:#9095a3">{{ cr.hint }}</p></fieldset>
+<sc-if value="{{ cr.with }}" hint-placeholder-val="{{ false }}"><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px"><div class="col" style="gap:4px"><label for="cr-p1-c" style="font-size:13px;color:#b6b9c4">Passphrase</label><input class="in" id="cr-p1-c" type="password" value="{{ cr.p1 }}" onChange="{{ cr.setP1 }}" aria-describedby="cr-p1-c-h" aria-invalid="{{ cr.err1.inv }}" style="{{ cr.err1.style }}">
+<span id="cr-p1-c-h" class="mut">Mindestens 12 Zeichen. Bewahre sie getrennt von der Sicherung auf.</span><sc-if value="{{ cr.err1.has }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ cr.err1.text }}</span></sc-if></div><div class="col" style="gap:4px"><label for="cr-p2-c" style="font-size:13px;color:#b6b9c4">Passphrase wiederholen</label><input class="in" id="cr-p2-c" type="password" value="{{ cr.p2 }}" onChange="{{ cr.setP2 }}" aria-describedby="cr-p2-c-h" aria-invalid="{{ cr.err2.inv }}" style="{{ cr.err2.style }}">
+<span id="cr-p2-c-h" class="mut">Zur Kontrolle ein zweites Mal.</span><sc-if value="{{ cr.err2.has }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ cr.err2.text }}</span></sc-if></div></div></sc-if><div class="row"><button type="button" class="b bp" disabled="{{ cr.busy }}" onClick="{{ cr.submit }}">{{ cr.submitLabel }}</button></div></div></sc-if><sc-if value="{{ isUpload }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:12px;max-width:620px;padding:16px 0 8px"><div style="display:flex;gap:10px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb, #e8b65a 10%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent);font-size:13px"><span style="display:flex;color:#e8b65a;padding-top:1px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span><span>Die Wiederherstellung ersetzt alle Daten dieses Servers durch den Stand der Sicherung. Danach startet der Server neu, und alle werden abgemeldet.</span></div><div class="col" style="gap:4px"><span id="up-fl-c" style="font-size:13px;color:#b6b9c4">Sicherungsdatei</span>
+<div class="row" style="gap:10px;min-height:32px"><button type="button" class="b bs" aria-labelledby="up-fl-c up-fn-c" onClick="{{ up.pickFile }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Datei auswählen …</button><span id="up-fn-c" class="ell" style="{{ up.fileStyle }}">{{ up.fileText }}</span></div>
+<span class="mut">Eine Datei slouchcat-backup-….tar.gz oder, mit Schlüsseln, ….tar.gz.age. Im Mockup wählt der Knopf abwechselnd eine von zwei Beispieldateien.</span></div><div class="col" style="gap:4px"><label for="up-pass-c" style="font-size:13px;color:#b6b9c4">Passphrase</label><input class="in" id="up-pass-c" type="password" value="{{ up.pass }}" onChange="{{ up.setPass }}" aria-describedby="up-pass-c-h">
+<span id="up-pass-c-h" class="mut">Nur für eine verschlüsselte Sicherung (….tar.gz.age).</span></div><div class="row"><button type="button" class="b" disabled="{{ up.notReady }}" onClick="{{ up.submit }}" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600">{{ up.submitLabel }}</button></div></div></sc-if></div></section><div style="margin-top:32px;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup, Beispiel wechseln:</span>
+<div role="tablist" aria-label="Beispiel" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ exs }}" as="x" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ x.sel }}" onClick="{{ x.pick }}" style="{{ x.style }}">{{ x.label }}</button></sc-for></div></div></sc-if>
+</main>
+</div>
+<sc-if value="{{ nr.open }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ nr.close }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ nr.title }}" style="{{ nrBox }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 class="ell" style="margin:0;font-size:15px;font-weight:600">{{ nr.title }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ nr.close }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><div style="display:flex;gap:10px;padding:10px 12px;border-radius:8px;background:color-mix(in srgb, #e8b65a 10%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent);font-size:13px"><span style="display:flex;color:#e8b65a;padding-top:1px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span><span>Die Wiederherstellung ersetzt alle Daten dieses Servers durch den Stand der Sicherung. Danach startet der Server neu, und alle werden abgemeldet.</span></div><div class="col" style="gap:4px"><label for="nr-pass" style="font-size:13px;color:#b6b9c4">Passphrase</label><input class="in" id="nr-pass" type="password" value="{{ nr.pass }}" onChange="{{ nr.setPass }}" aria-describedby="nr-pass-h" aria-required="true">
+<span id="nr-pass-h" class="mut">Diese Sicherung ist verschlüsselt.</span></div></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bg" onClick="{{ nr.close }}">Abbrechen</button><button type="button" class="b" disabled="{{ nr.notReady }}" onClick="{{ nr.submit }}" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600">{{ nr.submitLabel }}</button></div></section></div></sc-if>
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const NOW = '01.11.2026, 15:42';
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const TOAST = 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+const barStyle = (pct) => 'display:block;height:6px;background:' + COL.ac + ';width:' + pct + '%';
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const same = (a, b) => a.toLowerCase().includes(b.trim().toLowerCase());
+// Sicherung (SIC-1 to SIC-4): archives in the backup directory, a new backup with or without secrets, restore
+// of a listed or an uploaded backup, and the restart panel that polls /healthz every 2 s (restart.ts).
+// Names follow server/internal/admin/backup.go and store/migrate.go; times are local (UTC+1/+2).
+const MIN_PASS = 12;
+const BACKUPS = [
+  { name: 'slouchcat-backup-1.6.0-20261101T091512Z.tar.gz.age', at: '01.11.2026, 10:15', size: '48 MB', kind: 'manual', sec: true, enc: true, v: '1.6.0' },
+  { name: 'slouchcat-backup-1.6.0-20261028T184003Z.tar.gz', at: '28.10.2026, 19:40', size: '23 MB', kind: 'manual', sec: false, enc: false, v: '1.6.0' },
+  { name: 'pre-restore-1.6.0-20261026T201412.000Z.sqlite', at: '26.10.2026, 21:14', size: '62 MB', kind: 'auto', sec: true, enc: false, v: '1.6.0' },
+  { name: 'pre-migration-1.5.0-20261024T203307.000Z.db', at: '24.10.2026, 22:33', size: '60 MB', kind: 'auto', sec: true, enc: false, v: '1.5.0' },
+  { name: 'slouchcat-backup-1.5.0-20261019T070000Z.tar.gz', at: '19.10.2026, 09:00', size: '22 MB', kind: 'manual', sec: false, enc: false, v: '1.5.0' },
+  { name: 'pre-migration-1.4.2-20261008T190512.000Z.db', at: '08.10.2026, 21:05', size: '58 MB', kind: 'auto', sec: false, enc: false, v: '1.4.2' },
+  { name: 'slouchcat-backup-1.4.2-20260930T161845Z.tar.gz.age', at: '30.09.2026, 18:18', size: '45 MB', kind: 'manual', sec: true, enc: true, v: '1.4.2' },
+];
+// Two sample files the mock file field picks in turn.
+const FILES = [
+  { name: 'slouchcat-backup-1.6.0-20261030T211500Z.tar.gz.age', size: '49 MB', v: '1.6.0', sec: true },
+  { name: 'slouchcat-backup-1.5.0-20261012T080000Z.tar.gz', size: '22 MB', v: '1.5.0', sec: false },
+];
+const KIND = { manual: 'Manuell', auto: 'Automatisch' };
+const T_CREATE_WITHOUT = 'Zugangsdaten wie die Schlüssel für TMDB und Trakt, der E-Mail-Server, der Telegram-Bot und die Web-Push-Schlüssel bleiben draussen. Nach einer Wiederherstellung gibst du sie neu ein. Adressen privater Podcast-Feeds bleiben samt ihrem Zugangscode drin, damit die Abos danach weiterlaufen.';
+const T_CREATE_WITH = 'Die Sicherung enthält auch den Schlüssel zu den Zugangsdaten. Darum wird das ganze Archiv mit einer Passphrase verschlüsselt (mindestens 12 Zeichen). Ohne die Passphrase lässt es sich nicht wiederherstellen.';
+const T_CONFIRM = 'Konten, Profile, Fortschritt und Einstellungen werden durch den Stand der Sicherung ersetzt. Danach startet der Server neu, und alle werden abgemeldet.';
+const T_DELETE = 'Die Datei wird aus dem Sicherungsordner des Servers gelöscht. Heruntergeladene Kopien bleiben.';
+const OK_RESTORE = 'Ersetzen und neu starten';
+const BACK_AFTER = 6;   // s until the mock server answers
+const GIVE_UP = 10;     // s until the mock gives up (real: 90 s, RESTART_GIVE_UP_MS)
+const yn = (b) => (b ? 'Ja' : 'Nein');
+const freshCr = () => ({ mode: 'without', p1: '', p2: '', e1: '', e2: '', busy: false });
+const freshUp = () => ({ file: -1, pass: '', busy: false });
+const spin = 'display:inline-block;flex:none;width:14px;height:14px;box-sizing:border-box;border-radius:7px;border:2px solid ' + COL.s3 + ';border-top-color:' + COL.ac + ';animation:spin 0.9s linear infinite';
+const errOf = (e) => ({ has: !!e, text: e, inv: e ? 'true' : 'false', style: e ? 'border-color:' + COL.da : '' });
+function initState() {
+  return { list: BACKUPS.map((b) => Object.assign({}, b)), dlg: null, cr: freshCr(), up: freshUp(), nr: { name: null, pass: '', busy: false }, done: null, restart: null,
+    out: 'ok', sel: BACKUPS[0].name, filter: 'all', tab: 'list', ex: 'data', made: 0, inline: '' };
+}
+const INIT = { inline: 'forms', open: { 'g:manual': true, 'g:auto': true } };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, open: {}, q: '' }, initState(), INIT);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._t);
+    clearInterval(this._iv);
+    Object.keys(this._timers || {}).forEach((k) => clearTimeout(this._timers[k]));
+  }
+  // Toast «(Mockup) …» for 2 s; closes a confirm and a menu.
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic danger confirm: { title, text, ok }; onOk runs on the red button.
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c, menu: null }); }
+  later(key, ms, fn) {
+    this._timers = this._timers || {};
+    clearTimeout(this._timers[key]);
+    this._timers[key] = setTimeout(fn, ms);
+  }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); },
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  tabsOf(list, cur, key) {
+    return list.map(([id, label, count]) => ({ label, count: count == null ? '' : String(count), hasCount: count != null, sel: id === cur ? 'true' : 'false', style: tabStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  exsOf(list, cur, key) {
+    return list.map(([id, label]) => ({ label, sel: id === cur ? 'true' : 'false', style: segStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: TOAST,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+      menuAny: !!this.state.menu, closeMenu: () => this.setState({ menu: null }),
+                  sec: {},
+    };
+  }
+  start() { this.setState({ done: null, menu: null }); }
+  download(b) { this.say('„' + b.name + '“ wird heruntergeladen (' + b.size + ').'); }
+  remove(b) {
+    this.ask({ title: 'Sicherung „' + b.name + '“ löschen?', text: T_DELETE, ok: 'Sicherung löschen' }, () => {
+      const list = this.state.list.filter((x) => x.name !== b.name);
+      this.setState({ list, done: 'Sicherung „' + b.name + '“ gelöscht.', sel: this.state.sel === b.name ? (list[0] ? list[0].name : null) : this.state.sel });
+    });
+  }
+  restore(b) {
+    this.start();
+    if (b.enc) {
+      // An encrypted backup asks for its passphrase first: a dialog (A, C) or inline in the detail (B).
+      this.setState({ nr: { name: b.name, pass: '', busy: false }, dlg: this.state.inline === 'named' ? null : 'named', sel: b.name });
+      return;
+    }
+    this.ask({ title: 'Alle Daten ersetzen?', text: 'Konten, Profile, Fortschritt und Einstellungen werden durch den Stand von „' + b.name + '“ ersetzt. Danach startet der Server neu, und alle werden abgemeldet.', ok: OK_RESTORE },
+      () => this.restartWith(b.v, b.sec));
+  }
+  // The restore was accepted (202): the page shows the restart panel and polls every 2 s.
+  restartWith(version, secrets) {
+    clearInterval(this._iv);
+    this.setState({ dlg: null, menu: null, restart: { version, secrets, ticks: 0, gaveUp: false, back: false, gone: false }, nr: { name: null, pass: '', busy: false }, up: freshUp() });
+    this._iv = setInterval(() => this.tick(), 2000);
+  }
+  tick() {
+    const r = this.state.restart;
+    if (!r || r.back || r.gaveUp) return;
+    const ticks = r.ticks + 1;
+    if (this.state.out === 'ok' && ticks * 2 >= BACK_AFTER) {
+      clearInterval(this._iv);
+      this.setState({ restart: Object.assign({}, r, { ticks, back: true }) });
+      this.later('login', 1500, () => { this.setState({ restart: Object.assign({}, this.state.restart, { gone: true }) }); this.say('Weiterleitung zur Anmeldung (/login). Alle sind abgemeldet.'); });
+    } else if (this.state.out === 'slow' && ticks * 2 >= GIVE_UP) {
+      clearInterval(this._iv);
+      this.setState({ restart: Object.assign({}, r, { ticks, gaveUp: true }) });
+    } else this.setState({ restart: Object.assign({}, r, { ticks }) });
+  }
+  waitAgain() {
+    // «Erneut prüfen»: a new wait of 90 s; in the mock the server answers this time.
+    this.setState({ out: 'ok', restart: Object.assign({}, this.state.restart, { ticks: 0, gaveUp: false }) });
+    clearInterval(this._iv);
+    this._iv = setInterval(() => this.tick(), 2000);
+  }
+  rsVals() {
+    const r = this.state.restart || { version: '', secrets: true, ticks: 0, gaveUp: false, back: false, gone: false };
+    const waiting = !r.back && !r.gaveUp;
+    return {
+      body: 'Die Sicherung (Version ' + r.version + ') ist geprüft und wird beim Start eingespielt. Sobald der Server wieder antwortet, öffnet sich die Anmeldung.',
+      noSecrets: !r.secrets, waiting, back: r.back, gaveUp: r.gaveUp && !r.back, canReset: r.gone || r.gaveUp, spin,
+      status: r.back ? 'Der Server ist zurück. Die Anmeldung wird geöffnet …' : r.gaveUp ? 'Seit 90 Sekunden antwortet kein neuer Server.' : 'Warte auf den Server …',
+      mock: 'Abfrage von /healthz alle 2 s: ' + r.ticks + (r.ticks === 1 ? ' Abfrage' : ' Abfragen') + ', ' + r.ticks * 2 + ' s' + (r.gaveUp ? ', aufgegeben' : r.back ? ', neuer Server antwortet' : ''),
+      outs: [['ok', 'Server antwortet nach 6 s'], ['slow', 'Server antwortet nicht (Abbruch nach 90 s, im Mockup 10 s)']].map(([id, l]) => ({ label: l, sel: id === this.state.out ? 'true' : 'false', style: segStyle(id === this.state.out), pick: () => this.setState({ out: id }) })),
+      retry: () => this.waitAgain(),
+      reset: () => { clearInterval(this._iv); this.setState({ restart: null, out: 'ok' }); },
+    };
+  }
+  crVals() {
+    const c = this.state.cr;
+    const set = (o) => this.patch('cr', o);
+    const w = c.mode === 'with';
+    return {
+      open: this.state.dlg === 'create', without: !w, with: w, hint: w ? T_CREATE_WITH : T_CREATE_WITHOUT,
+      pickWithout: () => set({ mode: 'without', e1: '', e2: '' }), pickWith: () => set({ mode: 'with' }),
+      p1: c.p1, p2: c.p2, setP1: (e) => set({ p1: e.target.value, e1: '' }), setP2: (e) => set({ p2: e.target.value, e2: '' }),
+      e1: c.e1, e2: c.e2, err1: errOf(c.e1), err2: errOf(c.e2), title: 'Sicherung erstellen',
+      busy: c.busy, submitLabel: c.busy ? 'Wird erstellt …' : 'Sicherung erstellen',
+      close: () => this.setState({ dlg: null, cr: freshCr() }),
+      submit: () => {
+        if (c.busy) return;
+        if (w) {
+          const e1 = c.p1.length >= MIN_PASS ? '' : 'Mindestens 12 Zeichen.';
+          const e2 = c.p2 === c.p1 ? '' : 'Die Passphrasen stimmen nicht überein.';
+          if (e1 || e2) { set({ e1, e2 }); return; }
+        }
+        set({ busy: true });
+        this.later('create', 1200, () => {
+          const n = this.state.made;
+          const mm = String(42 + n).padStart(2, '0');
+          const b = { name: 'slouchcat-backup-1.6.0-20261101T14' + mm + '12Z.tar.gz' + (w ? '.age' : ''), at: '01.11.2026, 15:' + mm, size: w ? '49 MB' : '23 MB', kind: 'manual', sec: w, enc: w, v: '1.6.0', fresh: true };
+          this.setState({ list: [b].concat(this.state.list), dlg: null, cr: freshCr(), made: n + 1, done: 'Sicherung „' + b.name + '“ erstellt.', sel: b.name, tab: 'list', filter: 'all' });
+        });
+      },
+    };
+  }
+  upVals() {
+    const u = this.state.up;
+    const f = FILES[u.file];
+    const ready = !!f && !u.busy;
+    return {
+      open: this.state.dlg === 'upload', title: 'Sicherung aus einer Datei wiederherstellen', fileText: f ? f.name + ' · ' + f.size : 'Keine Datei ausgewählt', fileStyle: 'font-size:13px;color:' + (f ? COL.tp : COL.tm) + (f ? ';font-family:' + MONO : ''),
+      pickFile: () => this.patch('up', { file: (u.file + 1) % FILES.length }),
+      pass: u.pass, setPass: (e) => this.patch('up', { pass: e.target.value }), ready, notReady: !ready, busy: u.busy,
+      submitLabel: u.busy ? 'Wird geprüft …' : 'Wiederherstellen',
+      close: () => this.setState({ dlg: null, up: freshUp() }),
+      submit: () => {
+        if (!ready) return;
+        this.ask({ title: 'Alle Daten ersetzen?', text: T_CONFIRM, ok: OK_RESTORE }, () => {
+          this.patch('up', { busy: true });
+          this.later('check', 1000, () => this.restartWith(f.v, f.sec));
+        });
+      },
+    };
+  }
+  nrVals(b) {
+    const n = this.state.nr;
+    const mine = b && n.name === b.name;
+    const pass = mine ? n.pass : '';
+    const busy = mine && n.busy;
+    const ready = pass !== '' && !busy;
+    return {
+      open: this.state.dlg === 'named', title: '„' + (n.name || '') + '“ wiederherstellen', pass, ready, notReady: !ready, busy,
+      submitLabel: busy ? 'Wird geprüft …' : 'Wiederherstellen',
+      setPass: (e) => this.setState({ nr: { name: b ? b.name : n.name, pass: e.target.value, busy: false } }),
+      close: () => this.setState({ dlg: null, nr: { name: null, pass: '', busy: false } }),
+      submit: () => {
+        if (!ready) return;
+        const bk = this.state.list.find((x) => x.name === (b ? b.name : n.name));
+        this.ask({ title: 'Alle Daten ersetzen?', text: T_CONFIRM, ok: OK_RESTORE }, () => {
+          this.setState({ nr: Object.assign({}, this.state.nr, { busy: true }) });
+          this.later('check', 1000, () => this.restartWith(bk.v, bk.sec));
+        });
+      },
+    };
+  }
+  backupVals(b, i, n) {
+    const m = this.state.menu === b.name;
+    return {
+      id: b.name, name: b.name, at: b.at, size: b.size, kind: KIND[b.kind], kindTone: b.kind === 'auto' ? '' : 'ca', isAuto: b.kind === 'auto',
+      secrets: yn(b.sec), encrypted: yn(b.enc), sec: b.sec, enc: b.enc, version: b.v, isNew: !!b.fresh,
+      dlLabel: b.name + ' herunterladen', rsLabel: b.name + ' wiederherstellen', rmLabel: b.name + ' löschen', menuLabel: 'Weitere Aktionen für ' + b.name,
+      menuOpen: m, menuAria: m ? 'true' : 'false',
+      menuStyle: 'position:absolute;right:12px;' + (i >= 3 && i >= n - 2 ? 'bottom:36px' : 'top:36px') + ';z-index:6;width:220px;padding:4px;box-sizing:border-box;background:' + COL.s2 + ';border:1px solid rgba(255,255,255,0.14);border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.55);text-align:left',
+      toggleMenu: () => this.setState({ menu: m ? null : b.name }),
+      download: () => this.download(b), restore: () => this.restore(b), remove: () => this.remove(b),
+    };
+  }
+  sicVals() {
+    const v = this.baseVals();
+    const list = this.state.ex === 'empty' ? [] : this.state.list;
+    v.backups = list.map((b, i) => this.backupVals(b, i, list.length));
+    v.none = list.length === 0; v.some = !v.none;
+    const ns = list.filter((b) => b.sec).length;
+    v.countText = (list.length === 1 ? '1 Sicherung' : list.length + ' Sicherungen') + ' · ' + ns + ' mit Schlüsseln';
+    v.hasDone = !!this.state.done; v.doneText = this.state.done || '';
+    v.restarting = !!this.state.restart; v.notRestarting = !v.restarting;
+    v.rs = this.rsVals();
+    v.cr = this.crVals(); v.up = this.upVals();
+    const nb = this.state.list.find((b) => b.name === this.state.nr.name);
+    v.nr = this.nrVals(nb || null);
+    v.openCreate = () => { this.start(); if (this.state.inline === 'forms') this.setState({ tab: 'create' }); else this.setState({ dlg: 'create', cr: freshCr() }); };
+    v.openUpload = () => { this.start(); if (this.state.inline === 'forms') this.setState({ tab: 'upload' }); else this.setState({ dlg: 'upload', up: freshUp() }); };
+    v.crBox = boxStyle(96, 540); v.upBox = boxStyle(110, 540); v.nrBox = boxStyle(130, 500);
+    v.exs = this.exsOf([['data', 'Sieben Sicherungen'], ['empty', 'Noch keine']], this.state.ex, 'ex');
+    v.sec.list = this.detVals('s_list');
+    return v;
+  }
+  renderVals() {
+    const v = this.sicVals();
+    const tab = this.state.tab;
+    v.ctabs = this.tabsOf([['list', 'Sicherungen', v.backups.length], ['create', 'Neue Sicherung', null], ['upload', 'Aus Datei wiederherstellen', null]], tab, 'tab');
+    v.isList = tab === 'list'; v.isCreate = tab === 'create'; v.isUpload = tab === 'upload';
+    v.tabName = { list: 'Sicherungen', create: 'Neue Sicherung', upload: 'Aus Datei wiederherstellen' }[tab];
+    v.kinds = [['manual', 'Manuell'], ['auto', 'Automatisch']].map(([k, l]) => {
+      const rows = v.backups.filter((b) => (k === 'auto') === b.isAuto);
+      const enc = rows.filter((b) => b.enc).length;
+      return Object.assign(this.detVals('g:' + k), { name: l, rows, isAuto: k === 'auto', has: rows.length > 0,
+        sum: (rows.length === 1 ? '1 Sicherung' : rows.length + ' Sicherungen') + (k === 'manual' ? ' · ' + enc + ' verschlüsselt' : '') + (rows[0] ? ' · neueste ' + rows[0].at : '') });
+    }).filter((g) => g.has);
+    return v;
+  }
+}
+</script>
+</body>
+</html>

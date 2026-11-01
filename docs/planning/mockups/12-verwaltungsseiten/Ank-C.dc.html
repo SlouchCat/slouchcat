@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Ankündigungen · C Reiter und Klappbereiche</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px}
+.mut{font-size:12px;color:#9095a3}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.li{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+textarea.in{height:auto;padding:8px 10px;line-height:1.5;resize:vertical}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Ankündigungen</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<sc-if value="{{ hasLive }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9095a3"><span style="{{ liveDot }}"></span>{{ liveText }}</span></sc-if><span style="flex:1"></span><button type="button" class="b bp" onClick="{{ openNew }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Neue Ankündigung</button></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Neuigkeiten für alle: Jedes Profil sieht eine veröffentlichte Ankündigung beim nächsten Start, und die Konten bekommen sie über ihre Kanäle.</p></sc-if></div><section aria-label="Ankündigungen" style="margin-top:24px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden"><div role="tablist" aria-label="Ankündigungen nach Zustand" style="display:flex;align-items:flex-end;gap:4px;height:48px;padding:0 8px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)">
+<sc-for list="{{ ctabs }}" as="t" hint-placeholder-count="4"><button type="button" role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }} <span class="c" style="height:18px;padding:0 6px">{{ t.count }}</span></button></sc-for></div><div role="tabpanel" aria-label="{{ tabName }}"><sc-if value="{{ hasRows }}" hint-placeholder-val="{{ true }}"><div aria-hidden="true" style="display:grid;grid-template-columns:20px minmax(0,1fr) 150px 150px 170px;gap:12px;align-items:center;min-height:44px;padding:0 16px;min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3"><span></span><span>Titel</span><span>Erstellt</span><span>Veröffentlicht</span><span>Gelesen</span></div>
+<sc-for list="{{ rows }}" as="a" hint-placeholder-count="5"><details open="{{ a.open }}" onToggle="{{ a.onToggle }}" style="{{ a.dstyle }}"><summary style="display:grid;grid-template-columns:20px minmax(0,1fr) 150px 150px 170px;gap:12px;align-items:center;min-height:44px;padding:0 16px"><span style="{{ a.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span>
+<span class="ell" style="font-weight:600">{{ a.title }}</span><span style="font-size:13px;color:#b6b9c4;font-variant-numeric:tabular-nums">{{ a.created }}</span><span style="font-size:13px;color:#b6b9c4"><sc-if value="{{ a.isPub }}" hint-placeholder-val="{{ true }}"><span style="font-variant-numeric:tabular-nums">{{ a.pubText }}</span></sc-if><sc-if value="{{ a.isDraft }}" hint-placeholder-val="{{ false }}"><span class="c" style="background:transparent;border:1px solid rgba(255,255,255,0.14)">Entwurf</span></sc-if></span>
+<span style="font-size:13px;color:#b6b9c4;font-variant-numeric:tabular-nums">{{ a.shortAck }}<sc-if value="{{ a.isPub }}" hint-placeholder-val="{{ true }}"> gelesen</sc-if></span></summary>
+<div class="col" style="padding:4px 16px 16px 48px"><div class="col" style="gap:8px;max-width:72ch"><sc-for list="{{ a.paras }}" as="p" hint-placeholder-count="2"><p style="margin:0;font-size:14px;line-height:1.55;white-space:pre-line">{{ p.t }}</p></sc-for></div>
+<sc-if value="{{ a.isPub }}" hint-placeholder-val="{{ true }}"><div class="row" style="gap:12px"><span class="mut">Gelesen</span><sc-if value="{{ a.isPub }}" hint-placeholder-val="{{ true }}"><span class="row" style="gap:8px"><span role="progressbar" aria-label="Gelesen" aria-valuenow="{{ a.ackPct }}" aria-valuemin="0" aria-valuemax="100" style="flex:1;max-width:72px;height:6px;border-radius:3px;background:#262a35;overflow:hidden"><span style="{{ a.ackBar }}"></span></span><span style="font-size:13px;font-variant-numeric:tabular-nums">{{ a.ackText }}</span></span></sc-if><sc-if value="{{ a.isDraft }}" hint-placeholder-val="{{ false }}"><span class="mut">{{ a.notSent }}</span></sc-if></div></sc-if>
+<sc-if value="{{ a.isDraft }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0">Beim Veröffentlichen: {{ reach }}</p></sc-if>
+<div class="row" style="gap:8px"><sc-if value="{{ a.isDraft }}" hint-placeholder-val="{{ false }}"><button type="button" class="b " aria-label="{{ a.editLabel }}" onClick="{{ a.edit }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Bearbeiten</button><button type="button" class="b " aria-label="{{ a.publishLabel }}" onClick="{{ a.publish }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>Veröffentlichen</button></sc-if><button type="button" class="b  dz" aria-label="{{ a.deleteLabel }}" onClick="{{ a.remove }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>Löschen</button></div></div></details></sc-for></sc-if><sc-if value="{{ tabEmpty }}" hint-placeholder-val="{{ false }}"><p role="status" style="margin:0;padding:12px 16px;font-size:14px;color:#b6b9c4">{{ tabEmptyText }}</p></sc-if></div></section>
+</main>
+</div>
+<sc-if value="{{ formOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ closeForm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ f.heading }}" style="{{ formBox }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ f.heading }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeForm }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><div class="col" style="gap:4px"><div class="row" style="justify-content:space-between"><label for="af-title" style="font-size:13px;color:#b6b9c4">Titel</label><span class="mut" style="font-variant-numeric:tabular-nums">{{ f.titleCount }}</span></div>
+<input class="in" id="af-title" type="text" autocomplete="off" value="{{ f.title }}" onChange="{{ f.setTitle }}" aria-invalid="{{ f.tInv }}" style="width:100%">
+<sc-if value="{{ f.eTitleOn }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ f.eTitle }}</span></sc-if></div>
+<div class="col" style="gap:4px"><label for="af-body" style="font-size:13px;color:#b6b9c4">Text</label><textarea class="in" id="af-body" rows="7" value="{{ f.body }}" onChange="{{ f.setBody }}" aria-invalid="{{ f.bInv }}" aria-describedby="af-hint" style="width:100%;box-sizing:border-box"></textarea>
+<sc-if value="{{ f.eBodyOn }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ f.eBody }}</span></sc-if><span id="af-hint" class="mut">{{ f.bodyHint }}</span></div>
+<sc-if value="{{ f.isNew }}" hint-placeholder-val="{{ true }}"><fieldset style="border:none;margin:0;padding:0;min-width:0"><legend style="padding:0;margin-bottom:4px;font-size:13px;color:#b6b9c4">Veröffentlichung</legend>
+<label style="display:inline-flex;align-items:center;gap:6px;height:24px;font-size:14px;cursor:pointer"><input type="checkbox" checked="{{ f.pub }}" onChange="{{ f.setPub }}" aria-describedby="af-reach" style="accent-color:#e8794a;margin:0">Sofort veröffentlichen</label>
+<p id="af-reach" class="mut" style="margin:2px 0 0">{{ reach }}</p></fieldset></sc-if>
+<sc-if value="{{ f.isEdit }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0">Veröffentlichen geht danach in der Zeile des Entwurfs.</p></sc-if></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeForm }}">Abbrechen</button><button type="button" class="b bp" disabled="{{ f.busy }}" onClick="{{ submit }}">{{ f.submitLabel }}</button></div></section></div></sc-if>
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="{{ cOkStyle }}" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const NOW = '01.11.2026, 15:42';
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const TOAST = 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+const barStyle = (pct) => 'display:block;height:6px;background:' + COL.ac + ';width:' + pct + '%';
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const same = (a, b) => a.toLowerCase().includes(b.trim().toLowerCase());
+// Ankündigungen (ANK-1 to ANK-3): news of the main user. Drafts can be changed and published; «Gelesen» counts the
+// profiles that pressed «Verstanden» in the announcement dialog of the app (AnnouncementDialog.tsx). Six profiles exist.
+const PROFILES = 6;
+const MAX_TITLE = 120;
+const MAX_BODY = 4000;
+const ANNS = [
+  { id: 5, title: 'Profile mit PIN schützen', created: '01.11.2026, 10:02', pub: null, ack: 0,
+    body: 'Ihr könnt euer Profil jetzt mit einer PIN aus 4 bis 8 Ziffern schützen. Das geht beim Profil unter «PIN festlegen».\n\nDas Hauptprofil eines Kontos kann eine vergessene PIN wieder entfernen.' },
+  { id: 4, title: 'Weihnachtsfilme ab 1. Dezember', created: '30.10.2026, 21:14', pub: null, ack: 0,
+    body: 'Ab dem 1. Dezember gibt es unter Sammlungen «Weihnachten» mit 24 Filmen für die ganze Familie.\n\nWünsche für die Liste gerne an Marco.' },
+  { id: 3, title: 'Wartung am Samstagabend', created: '28.10.2026, 19:05', pub: '28.10.2026, 19:12', ack: 4,
+    body: 'Am Samstag, 7. November, ist Slouchcat ab 22 Uhr für etwa eine Stunde nicht erreichbar. Der Server bekommt eine grössere Festplatte.\n\nWas ihr gerade schaut, merkt sich Slouchcat; danach geht es an derselben Stelle weiter.' },
+  { id: 2, title: 'Hörbücher sind da', created: '12.10.2026, 20:31', pub: '12.10.2026, 20:40', ack: 6,
+    body: 'Ab heute gibt es die Bibliothek «Hörbücher». Ihr findet sie in der Seitenleiste.\nDie Stelle merkt sich Slouchcat wie bei Filmen, auch zwischen Handy und Fernseher.' },
+  { id: 1, title: 'Willkommen bei Slouchcat', created: '14.09.2026, 18:20', pub: '14.09.2026, 18:22', ack: 5,
+    body: 'Hallo zusammen\n\nSlouchcat ersetzt ab sofort den alten Medienserver. Meldet euch mit der E-Mail-Adresse aus der Einladung an und wählt euer Profil.\n\nFragen gehen an Marco.' },
+];
+const REACH = 'Jedes Profil sieht sie beim nächsten Start, und sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat. Gäste bekommen sie standardmässig per E-Mail.';
+const PUBLISH_BODY = 'Jedes Profil sieht die Ankündigung beim nächsten Start. Sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat; Gäste bekommen sie standardmässig per E-Mail. Danach lässt sie sich nicht mehr ändern.';
+const DELETE_BODY = 'Die Ankündigung und ihre Lesebestätigungen werden gelöscht. Schon verschickte Nachrichten bleiben bei den Empfängern.';
+const MENU = 'position:absolute;right:12px;top:36px;z-index:6;width:200px;padding:4px;box-sizing:border-box;background:#1d2029;border:1px solid rgba(255,255,255,0.14);border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.55);text-align:left';
+const q = (t) => '„' + t + '“';
+const paras = (body) => body.split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean).map((t) => ({ t }));
+const freshForm = (a) => ({ id: a ? a.id : null, title: a ? a.title : '', body: a ? a.body : '', pub: false, err: {}, busy: false });
+function initState() { return { anns: ANNS.map((a) => Object.assign({}, a)), dlg: null, form: freshForm(null), sel: 3, mode: 'view', tab: 'all' }; }
+const INIT = { tab: 'all', open: { a5: true } };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, open: {}, q: '' }, initState(), INIT);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._t);
+    clearInterval(this._iv);
+    Object.keys(this._timers || {}).forEach((k) => clearTimeout(this._timers[k]));
+  }
+  // Toast «(Mockup) …» for 2 s; closes a confirm and a menu.
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic confirm: { title, text, ok, safe }; onOk runs on the action button (red, or accent when safe).
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c, menu: null }); }
+  later(key, ms, fn) {
+    this._timers = this._timers || {};
+    clearTimeout(this._timers[key]);
+    this._timers[key] = setTimeout(fn, ms);
+  }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); },
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  tabsOf(list, cur, key) {
+    return list.map(([id, label, count]) => ({ label, count: String(count), sel: id === cur ? 'true' : 'false', style: tabStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  exsOf(list, cur, key) {
+    return list.map(([id, label]) => ({ label, sel: id === cur ? 'true' : 'false', style: segStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: TOAST,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', cOkStyle: 'font-weight:600;' + (cf && cf.safe ? 'background:' + COL.ac + ';border-color:' + COL.ac : 'background:' + COL.da + ';border-color:' + COL.da) + ';color:' + COL.oa, confirmStyle: boxStyle(150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+      menuAny: !!this.state.menu, closeMenu: () => this.setState({ menu: null }),
+      q: this.state.q, setQ: (e) => this.setState({ q: e.target.value }),
+      hasLive: false, liveDot: '', liveText: '',
+      sec: {},
+    };
+  }
+  openNew() { this.setState({ dlg: 'form', form: freshForm(null), mode: 'new', menu: null }); }
+  openEdit(a) { this.setState({ dlg: 'form', form: freshForm(a), mode: 'edit', sel: a.id, menu: null }); }
+  closeForm() { this.setState({ dlg: null, form: freshForm(null), mode: 'view' }); }
+  submit() {
+    const f = this.state.form;
+    const t = f.title.trim();
+    const b = f.body.trim();
+    const err = { title: !t ? 'Pflichtfeld.' : t.length > MAX_TITLE ? 'Zu lang.' : '', body: !b ? 'Pflichtfeld.' : b.length > MAX_BODY ? 'Zu lang.' : '' };
+    if (err.title || err.body) { this.patch('form', { err }); return; }
+    this.patch('form', { err: {}, busy: true });
+    this.later('save', 800, () => {
+      let anns = this.state.anns;
+      let id = f.id;
+      if (id) anns = anns.map((a) => (a.id === id ? Object.assign({}, a, { title: t, body: b }) : a));
+      else { id = Math.max.apply(null, anns.map((a) => a.id).concat([0])) + 1; anns = [{ id, title: t, body: b, created: NOW, pub: f.pub ? NOW : null, ack: 0 }].concat(anns); }
+      // C: a new one that the open tab would hide shows under «Alle».
+      const tab = !f.id && this.state.tab === (f.pub ? 'draft' : 'pub') ? 'all' : this.state.tab;
+      this.setState({ anns, dlg: null, form: freshForm(null), mode: 'view', sel: id, tab });
+      this.say(q(t) + (f.pub ? ' ist veröffentlicht.' : ' ist als Entwurf gespeichert.'));
+    });
+  }
+  publish(a) {
+    this.ask({ title: q(a.title) + ' veröffentlichen?', text: PUBLISH_BODY, ok: 'Veröffentlichen', safe: true }, () => {
+      this.setState({ anns: this.state.anns.map((x) => (x.id === a.id ? Object.assign({}, x, { pub: NOW, ack: 0 }) : x)) });
+      this.say(q(a.title) + ' ist veröffentlicht.');
+    });
+  }
+  remove(a) {
+    this.ask({ title: q(a.title) + ' löschen?', text: DELETE_BODY, ok: 'Ankündigung löschen' }, () => {
+      const left = this.state.anns.filter((x) => x.id !== a.id);
+      this.setState({ anns: left, sel: this.state.sel === a.id ? (left[0] ? left[0].id : null) : this.state.sel, mode: 'view' });
+      this.say(q(a.title) + ' ist gelöscht.');
+    });
+  }
+  aVals(a) {
+    const draft = !a.pub;
+    const m = this.state.menu === a.id;
+    const pct = Math.round((a.ack / PROFILES) * 100);
+    return Object.assign(this.detVals('a' + a.id), {
+      id: a.id, title: a.title, created: a.created, isDraft: draft, isPub: !draft, pubText: a.pub || '', paras: paras(a.body), body: a.body,
+      ackText: a.ack + ' von ' + PROFILES + ' Profilen', ackPct: String(pct), ackBar: barStyle(pct), notSent: 'Noch nicht verschickt',
+      shortAck: draft ? '–' : a.ack + ' / ' + PROFILES, pvMeta: 'Veröffentlicht am ' + (a.pub || NOW).slice(0, 10),
+      editLabel: q(a.title) + ' bearbeiten', publishLabel: q(a.title) + ' veröffentlichen', deleteLabel: q(a.title) + ' löschen', moreLabel: 'Weitere Aktionen für ' + q(a.title),
+      edit: () => this.openEdit(a), publish: () => this.publish(a), remove: () => this.remove(a),
+      menuOpen: m, menuAria: m ? 'true' : 'false', menuStyle: MENU, toggleMenu: () => this.setState({ menu: m ? null : a.id }),
+      sel: this.state.sel === a.id, cur: this.state.sel === a.id ? 'true' : 'false', pick: () => this.setState({ sel: a.id, mode: 'view', form: freshForm(null) }),
+      itemStyle: this.state.sel === a.id && this.state.mode !== 'new' ? navOn : '',
+    });
+  }
+  formVals() {
+    const f = this.state.form;
+    const e = f.err || {};
+    const isNew = !f.id;
+    return {
+      isNew, isEdit: !isNew, heading: isNew ? 'Neue Ankündigung' : 'Entwurf bearbeiten', title: f.title, body: f.body, pub: f.pub, busy: f.busy,
+      titleCount: f.title.length + ' / ' + MAX_TITLE, bodyHint: 'Höchstens ' + MAX_BODY + ' Zeichen. Zeilenumbrüche bleiben erhalten.',
+      eTitle: e.title || '', eTitleOn: !!e.title, tInv: e.title ? 'true' : 'false', eBody: e.body || '', eBodyOn: !!e.body, bInv: e.body ? 'true' : 'false',
+      setTitle: (ev) => this.patch('form', { title: ev.target.value, err: Object.assign({}, e, { title: '' }) }),
+      setBody: (ev) => this.patch('form', { body: ev.target.value, err: Object.assign({}, e, { body: '' }) }),
+      setPub: (ev) => this.patch('form', { pub: !!ev.target.checked }),
+      submitLabel: f.busy ? 'Wird gespeichert …' : f.pub ? 'Veröffentlichen' : 'Als Entwurf speichern',
+      // Live preview of what a profile will see (B).
+      pvTitle: f.title.trim() || 'Titel der Ankündigung', pvParas: paras(f.body).length ? paras(f.body) : [{ t: 'Der Text erscheint hier, so wie ihn die Profile sehen.' }],
+      pvMeta: 'Veröffentlicht am ' + NOW.slice(0, 10), pvTitleStyle: 'margin:0;font-size:18px;font-weight:600;color:' + (f.title.trim() ? COL.tp : COL.tm),
+    };
+  }
+  ankVals() {
+    const v = this.baseVals();
+    const list = this.state.anns;
+    v.anns = list.map((a) => this.aVals(a));
+    v.none = list.length === 0; v.some = !v.none;
+    const d = list.filter((a) => !a.pub).length;
+    v.countText = list.length + ' Ankündigungen · ' + d + (d === 1 ? ' Entwurf' : ' Entwürfe');
+    v.reach = REACH;
+    v.f = this.formVals();
+    v.formOpen = this.state.dlg === 'form'; v.formBox = boxStyle(96, 560);
+    v.openNew = () => this.openNew(); v.closeForm = () => this.closeForm(); v.submit = () => this.submit();
+    v.sec.list = this.detVals('s_list');
+    return v;
+  }
+  renderVals() {
+    const v = this.ankVals();
+    const tab = this.state.tab;
+    const of = { all: () => true, draft: (a) => a.isDraft, pub: (a) => a.isPub };
+    v.ctabs = this.tabsOf([['all', 'Alle'], ['draft', 'Entwürfe'], ['pub', 'Veröffentlicht']].map(([id, l]) => [id, l, v.anns.filter(of[id]).length]), tab, 'tab');
+    v.tabName = { all: 'Alle', draft: 'Entwürfe', pub: 'Veröffentlicht' }[tab];
+    v.rows = v.anns.filter(of[tab]);
+    v.hasRows = v.rows.length > 0; v.tabEmpty = !v.hasRows;
+    v.tabEmptyText = v.none ? 'Noch keine Ankündigungen.' : tab === 'draft' ? 'Keine Entwürfe.' : 'Noch nichts veröffentlicht.';
+    return v;
+  }
+}
+</script>
+</body>
+</html>

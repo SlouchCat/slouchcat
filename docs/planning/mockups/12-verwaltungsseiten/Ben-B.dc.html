@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Benachrichtigungen · B Liste und Detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.mut{font-size:12px;color:#9095a3}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sr7{display:grid;grid-template-columns:240px minmax(0,1fr);align-items:center;gap:16px;min-height:52px;padding:8px 0;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,0.08)}
+.sr7 .hl{margin-top:2px;font-size:12px;color:#9095a3}
+.ck{display:inline-flex;align-items:center;gap:6px;height:24px;font-size:14px}.ck input{accent-color:#e8794a;margin:0;width:16px;height:16px}
+.lk{display:inline-flex;align-items:center;gap:6px;padding:0;border:none;background:none;color:#e8794a;font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}.lk:hover{color:#f3f3f5}
+.li{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:6px 10px;box-sizing:border-box;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil {{ who.name }}" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">{{ who.init }}</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Benachrichtigungskanäle</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<sc-if value="{{ hasLive }}" hint-placeholder-val="{{ false }}"><span role="status" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9095a3"><span style="{{ liveDot }}"></span>{{ liveText }}</span></sc-if></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;max-width:720px;font-size:13px;color:#b6b9c4">Neue Folgen deiner Favoriten, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.</p></sc-if></div><sc-if value="{{ ro }}" hint-placeholder-val="{{ false }}"><div style="margin-top:16px;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;background:color-mix(in srgb, #e8794a 8%, transparent);border:1px solid color-mix(in srgb, #e8794a 30%, transparent)">
+<span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span><div style="flex:1;min-width:0"><p style="margin:0;font-weight:600">Nur im Hauptprofil</p><p style="margin:2px 0 0;font-size:13px;color:#b6b9c4">Die Kanäle gelten für das ganze Konto; ändern lassen sie sich im Hauptprofil. Wechsle dorthin, um Kanäle ein- oder auszuschalten.</p></div>
+<button type="button" class="b" onClick="{{ switchProfile }}">Profil wechseln</button></div></sc-if><div style="margin-top:20px;display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;align-items:start"><section aria-label="Kanäle" style="display:flex;flex-direction:column;min-width:0;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;align-self:start"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span><span class="ell">Kanäle</span></h2></div>
+<div role="list" style="display:flex;flex-direction:column;gap:2px;margin:8px -8px 4px"><sc-for list="{{ items }}" as="li" hint-placeholder-count="3"><div role="listitem"><button type="button" class="li" aria-current="{{ li.cur }}" onClick="{{ li.pick }}" style="{{ li.style }}"><span style="display:flex;color:#e8794a"><sc-if value="{{ li.isEmail }}" hint-placeholder-val="{{ true }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></sc-if><sc-if value="{{ li.isTg }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></sc-if><sc-if value="{{ li.isPush }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></sc-if></span>
+<span style="flex:1;min-width:0"><span style="display:block;font-weight:500">{{ li.name }}</span><span class="mut ell" style="display:block">{{ li.summary }}</span></span><sc-if value="{{ li.dirty }}" hint-placeholder-val="{{ false }}"><span class="row" style="gap:6px;font-size:12px;color:#e8b65a"><span class="d" style="background:#e8b65a"></span><span class="sr">Ungespeicherte Änderungen</span></span></sc-if><span class="c" style="{{ li.stateStyle }}">{{ li.stateText }}</span></button></div></sc-for></div></section><section aria-label="{{ dd.name }}" style="display:flex;flex-direction:column;min-width:0;padding:0 16px 4px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><sc-if value="{{ dd.isEmail }}" hint-placeholder-val="{{ true }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></sc-if><sc-if value="{{ dd.isTg }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></sc-if><sc-if value="{{ dd.isPush }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></sc-if></span><span class="ell">{{ dd.name }}</span></h2><div class="row" style="gap:12px"><sc-if value="{{ dd.dirty }}" hint-placeholder-val="{{ false }}"><span class="row" style="gap:6px;font-size:12px;color:#e8b65a"><span class="d" style="background:#e8b65a"></span>Ungespeicherte Änderungen</span></sc-if><span class="c" style="{{ dd.stateStyle }}">{{ dd.stateText }}</span></div></div><sc-if value="{{ dd.rw }}" hint-placeholder-val="{{ true }}"><sc-if value="{{ dd.unavail }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:12px;margin:12px 0 4px;padding:10px 14px;border-radius:8px;background:#1d2029;border:1px solid rgba(255,255,255,0.08)">
+<span style="display:flex;color:#b6b9c4"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span><span style="flex:1;font-size:13px;color:#b6b9c4">Der Hauptbenutzer richtet diesen Kanal in der Verwaltung unter Integrationen ein.</span>
+<sc-if value="{{ dd.adminLink }}" hint-placeholder-val="{{ false }}"><button type="button" class="b" onClick="{{ dd.openInt }}">Integrationen öffnen<svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button></sc-if></div></sc-if><div class="sr7" style=""><div style="min-width:0"><div style="font-weight:500"><span id="on-{{ dd.id }}">Aktiv</span></div><div class="hl">Gilt für das ganze Konto mit allen Profilen.</div></div><div class="row" style="flex-wrap:wrap;gap:8px 12px"><button type="button" role="switch" aria-checked="{{ dd.swAria }}" aria-labelledby="on-{{ dd.id }}" disabled="{{ dd.dis }}" onClick="{{ dd.toggleOn }}" style="{{ dd.swTrack }}"><span style="{{ dd.swKnob }}"></span></button></div></div><sc-if value="{{ dd.isEmail }}" hint-placeholder-val="{{ true }}"><div class="sr7" style=""><div style="min-width:0"><div style="font-weight:500"><label for="addr-{{ dd.id }}">E-Mail-Adresse</label></div><div class="hl">Standard ist die Adresse deines Kontos.</div></div><div class="row" style="flex-wrap:wrap;gap:8px 12px"><input class="in" id="addr-{{ dd.id }}" type="email" value="{{ dd.addr }}" onChange="{{ dd.setAddr }}" disabled="{{ dd.dis }}" aria-invalid="{{ dd.invalid }}" aria-describedby="addr-err" style="{{ dd.addrStyle }}"><sc-if value="{{ dd.hasErr }}" hint-placeholder-val="{{ false }}"><span id="addr-err" role="alert" style="font-size:12px;color:#f2777a">{{ dd.err }}</span></sc-if></div></div></sc-if><sc-if value="{{ dd.tgOn }}" hint-placeholder-val="{{ false }}"><div class="sr7" style=""><div style="min-width:0"><div style="font-weight:500">Verknüpfung</div><div class="hl">Verbindet das Konto mit deinem Chat beim Bot.</div></div><div class="row" style="flex-wrap:wrap;gap:8px 12px"><span role="status" class="c" style="{{ dd.tg.chipStyle }}">{{ dd.tg.chipText }}</span><span style="flex:1"></span><sc-if value="{{ dd.tg.canLink }}" hint-placeholder-val="{{ true }}"><button type="button" class="b" onClick="{{ dd.tg.link }}">{{ dd.tg.linkLabel }}</button></sc-if><sc-if value="{{ dd.tg.canUnlink }}" hint-placeholder-val="{{ false }}"><button type="button" class="b bg" onClick="{{ dd.tg.unlink }}">Verknüpfung lösen</button></sc-if></div></div><sc-if value="{{ dd.tg.hasCode }}" hint-placeholder-val="{{ false }}"><div style="margin:-1px 0 12px 256px;display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:8px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)">
+<p style="margin:0;font-size:14px">{{ dd.tg.lead }} <code style="font-family:ui-monospace, Menlo, Consolas, monospace;font-size:15px;font-weight:600;padding:2px 8px;border-radius:5px;background:#262a35;letter-spacing:.06em">/start {{ dd.tg.code }}</code></p>
+<sc-if value="{{ dd.tg.noBot }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:12px;color:#e8b65a">Der Name des Bots fehlt: Der Hauptbenutzer muss zuerst das Bot-Token unter Integrationen eingeben.</p></sc-if>
+<div class="row" style="flex-wrap:wrap;gap:6px 16px"><span class="mut">{{ dd.tg.exp }}</span><span class="row mut" style="gap:6px"><span class="d" style="background:#e8b65a"></span>{{ dd.tg.pollText }}</span><span style="flex:1"></span>
+<sc-if value="{{ dd.tg.hasBot }}" hint-placeholder-val="{{ true }}"><button type="button" class="lk" onClick="{{ dd.tg.open }}">In Telegram öffnen<svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></button></sc-if></div></div></sc-if></sc-if><sc-if value="{{ dd.pushOn }}" hint-placeholder-val="{{ false }}"><div class="sr7" style="align-items:start;padding:12px 0"><div><h3 id="pd-{{ dd.id }}" style="margin:0;font-size:14px;font-weight:600">Angemeldete Geräte</h3>
+<div class="hl">{{ dd.push.countText }}</div></div><div style="display:flex;flex-direction:column;gap:10px;min-width:0"><sc-if value="{{ dd.push.unsupported }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:color-mix(in srgb, #e8b65a 10%, transparent);border:1px solid color-mix(in srgb, #e8b65a 30%, transparent);font-size:13px">
+<span style="display:flex;color:#e8b65a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span>Dieser Browser kann hier keine Push-Nachrichten empfangen. Nötig sind ein aktueller Browser und eine Verbindung über HTTPS.</div></sc-if>
+<sc-if value="{{ dd.push.some }}" hint-placeholder-val="{{ true }}"><div role="list" aria-labelledby="pd-{{ dd.id }}" style="border-top:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ dd.push.devs }}" as="p" hint-placeholder-count="3">
+<div role="listitem" style="display:grid;grid-template-columns:minmax(0,1fr) 170px 110px 96px;align-items:center;gap:8px;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)"><span class="ell" style="{{ p.nameStyle }}">{{ p.name }}</span>
+<span class="mut" style="font-variant-numeric:tabular-nums">{{ p.date }}</span><span><sc-if value="{{ p.me }}" hint-placeholder-val="{{ false }}"><span class="c ca">Dieses Gerät</span></sc-if></span>
+<span style="text-align:right"><button type="button" class="b bs bg" aria-label="{{ p.removeLabel }}" onClick="{{ p.remove }}">Entfernen</button></span></div></sc-for></div></sc-if>
+<sc-if value="{{ dd.push.none }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:14px;color:#b6b9c4">Noch kein Gerät angemeldet.</p></sc-if>
+<div class="row" style="flex-wrap:wrap;gap:8px 16px"><sc-if value="{{ dd.push.canSub }}" hint-placeholder-val="{{ false }}"><button type="button" class="b" onClick="{{ dd.push.sub }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Auf diesem Gerät aktivieren</button></sc-if>
+<span class="mut" style="flex:1;min-width:280px">Auf iPhone und iPad gibt es Web-Push nur in der installierten App: im Teilen-Menü «Zum Home-Bildschirm» wählen und Slouchcat von dort öffnen.</span></div></div></div></sc-if><div class="sr7" style=""><div style="min-width:0"><div style="font-weight:500"><span id="ev-{{ dd.id }}">Ereignisse</span></div><div class="hl">{{ dd.evHelp }}</div></div><div class="row" style="flex-wrap:wrap;gap:8px 12px"><div role="group" aria-labelledby="ev-{{ dd.id }}" class="row" style="flex-wrap:wrap;gap:8px 20px"><sc-for list="{{ dd.evs }}" as="e" hint-placeholder-count="4"><label class="ck"><input type="checkbox" checked="{{ e.on }}" disabled="{{ e.dis }}" onChange="{{ e.toggle }}">{{ e.label }}</label></sc-for></div></div></div><div class="row" style="min-height:52px;gap:8px"><span style="flex:1"></span>
+<button type="button" class="b" disabled="{{ dd.dis }}" onClick="{{ dd.test }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>Testnachricht</button><button type="button" class="b bp" disabled="{{ dd.dis }}" onClick="{{ dd.save }}">Speichern</button></div></sc-if><sc-if value="{{ dd.ro }}" hint-placeholder-val="{{ false }}"><dl class="dl" style="grid-template-columns:repeat(3,minmax(0,1fr));padding:12px 0"><sc-for list="{{ dd.facts }}" as="f" hint-placeholder-count="2">
+<div><dt>{{ f.k }}</dt><dd class="ell">{{ f.v }}</dd></div></sc-for></dl></sc-if></section></div><div style="margin-top:32px;display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px;padding:8px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup, Beispiel wechseln:</span>
+<div role="tablist" aria-label="Beispiel" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ exs }}" as="x" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ x.sel }}" onClick="{{ x.pick }}" style="{{ x.style }}">{{ x.label }}</button></sc-for></div>
+<span role="group" aria-label="Fälle" class="row" style="gap:14px"><span>Fälle:</span><sc-for list="{{ cases }}" as="k" hint-placeholder-count="4"><label class="ck" style="font-size:12px;color:#b6b9c4"><input type="checkbox" checked="{{ k.on }}" onChange="{{ k.toggle }}" style="width:14px;height:14px">{{ k.label }}</label></sc-for></span></div>
+</main>
+</div>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":530}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10', bd2: 'rgba(255,255,255,0.14)' };
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const toastStyle = (y) => 'position:absolute;right:32px;top:' + y + 'px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+// Chip tones as in the real page: success when on, outline otherwise.
+const chipOn = 'background:color-mix(in srgb, #5fcf8f 14%, transparent);color:' + COL.su;
+const chipOut = 'background:transparent;border:1px solid ' + COL.bd2 + ';color:' + COL.ts;
+const swTrack = (on, dis) => 'display:inline-flex;justify-content:' + (on ? 'flex-end' : 'flex-start') + ';width:36px;height:20px;padding:2px;box-sizing:border-box;border:none;border-radius:10px;flex:none;cursor:' + (dis ? 'default' : 'pointer') + ';opacity:' + (dis ? 0.45 : 1) + ';background:' + (on ? COL.ac : COL.s3);
+const swKnob = (on) => 'width:16px;height:16px;border-radius:8px;background:' + (on ? COL.tp : COL.tm);
+// Benachrichtigungen (/settings/notifications, BEN-1..BEN-5): the account's channels E-Mail, Telegram, Web-Push.
+const EVENTS = [['new_content', 'Neue Inhalte'], ['errors', 'Fehler'], ['invitations', 'Einladungen'], ['announcements', 'Ankündigungen']];
+const CHANNELS = [['email', 'E-Mail'], ['telegram', 'Telegram'], ['push', 'Web-Push']];
+const BOT = 'SlouchcatBot';
+const CHAT = '48213977';
+// Six letters from A-Z and 2-9, valid 15 minutes (server/internal/notify/telegram_link.go).
+const CODES = [['K7QM2X', '01.11.2026, 15:57'], ['P4HZ9C', '01.11.2026, 15:58'], ['W8RT3N', '01.11.2026, 15:59']];
+const ME = 'Firefox 144 · Linux';
+const ACCOUNTS = {
+  marco: { email: 'marco@example.ch',
+    ch: { email: { enabled: true, events: ['new_content', 'errors', 'announcements'] }, telegram: { enabled: false, events: ['errors'] }, push: { enabled: true, events: ['new_content', 'invitations', 'announcements'] } },
+    tg: { linked: false, code: '', exp: '' },
+    devs: [{ id: 'p1', name: ME, date: '12.10.2026', me: true }, { id: 'p2', name: 'Safari 26 · iOS', date: '03.09.2026', me: false }, { id: 'p3', name: null, date: '21.06.2026', me: false }] },
+  lea: { email: 'lea@example.ch',
+    ch: { email: { enabled: true, events: ['new_content', 'invitations'] }, telegram: { enabled: true, events: ['new_content', 'announcements'] }, push: { enabled: false, events: ['new_content'] } },
+    tg: { linked: true, code: '', exp: '' }, devs: [] },
+};
+// Mockup only: whose session it is (BEN-5, ALL-1) and server or browser cases.
+const ROLES = [['admin', 'Hauptprofil (Administrator)'], ['other', 'Anderes Profil des Kontos'], ['user', 'Konto ohne Verwaltung']];
+const WHO = { admin: { name: 'Marco', init: 'M', acc: 'marco' }, other: { name: 'Lina', init: 'L', acc: 'marco' }, user: { name: 'Lea', init: 'L', acc: 'lea' } };
+const CASES = [['mailOff', 'E-Mail-Server fehlt'], ['tgOff', 'Kein Bot-Token'], ['noBot', 'Bot-Name fehlt'], ['noPush', 'Browser ohne Push']];
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const copy = (o) => JSON.parse(JSON.stringify(o));
+function load(acc) {
+  const a = ACCOUNTS[acc];
+  const saved = copy(a.ch);
+  saved.email.address = a.email;
+  return { saved, draft: {}, err: {}, tg: copy(a.tg), devs: copy(a.devs), codeN: 0, polls: 0 };
+}
+function initState() { return Object.assign({ role: 'admin', cases: {}, sel: 'email', tab: 'email' }, load('marco')); }
+const INIT = { sel: 'email' };
+const Y = { email: 140, telegram: 140, push: 140 };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, toastY: 72, confirm: null, open: {} }, initState(), INIT);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._t);
+    clearInterval(this._iv);
+  }
+  // Toast «(Mockup) …» for 2 s near the action (y in px from the top of the page); closes a confirm.
+  say(msg, y) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, toastY: y || 72, confirm: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic danger confirm: { title, text, ok, y }; onOk runs on the red button.
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c }); }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, shut: !o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); } };
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: toastStyle(this.state.toastY),
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(cf ? cf.y : 150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+    };
+  }
+  setRole(role) {
+    clearInterval(this._iv);
+    this.setState(Object.assign({ role }, load(WHO[role].acc)));
+  }
+  toggleCase(k) { this.patch('cases', { [k]: !this.state.cases[k] }); }
+  avail(id) { const c = this.state.cases; return id === 'email' ? !c.mailOff : id === 'telegram' ? !c.tgOff : true; }
+  cur(id) { return this.state.draft[id] || this.state.saved[id]; }
+  change(id, p) {
+    this.setState({ draft: Object.assign({}, this.state.draft, { [id]: Object.assign({}, this.cur(id), p) }), err: Object.assign({}, this.state.err, { [id]: '' }) });
+  }
+  toggleEv(id, ev) {
+    const on = this.cur(id).events;
+    const next = on.includes(ev) ? on.filter((e) => e !== ev) : on.concat([ev]);
+    this.change(id, { events: EVENTS.map(([e]) => e).filter((e) => next.includes(e)) });
+  }
+  save(id) {
+    const d = this.cur(id);
+    if (id === 'email' && !EMAIL_RE.test(d.address.trim())) { this.patch('err', { [id]: 'Keine gültige E-Mail-Adresse.' }); return; }
+    const draft = Object.assign({}, this.state.draft); delete draft[id];
+    this.setState({ saved: Object.assign({}, this.state.saved, { [id]: d }), draft });
+    this.say('Gespeichert.', Y[id]);
+  }
+  // Telegram (BEN-2): a code opens, the page asks every 3 s; in the mockup the bot answers after the 2nd poll (6 s).
+  tgLink() {
+    const n = this.state.codeN;
+    this.setState({ tg: { linked: false, code: CODES[n % 3][0], exp: CODES[n % 3][1] }, codeN: n + 1, polls: 0 });
+    clearInterval(this._iv);
+    this._iv = setInterval(() => this.poll(), 3000);
+  }
+  poll() {
+    if (!this.state.tg.code) { clearInterval(this._iv); return; }
+    const polls = this.state.polls + 1;
+    if (polls < 2) { this.setState({ polls }); return; }
+    clearInterval(this._iv);
+    this.setState({ polls, tg: { linked: true, code: '', exp: '' } });
+    this.say('Telegram meldet: verknüpft mit Chat ' + CHAT + '.', Y.telegram);
+  }
+  tgUnlink() {
+    const linked = this.state.tg.linked;
+    this.ask({ title: linked ? 'Verknüpfung lösen?' : 'Code verwerfen?', y: Y.telegram,
+      text: linked ? 'Telegram-Nachrichten gehen nicht mehr an Chat ' + CHAT + '. Neu verknüpfen geht jederzeit mit einem neuen Code.' : 'Der offene Code ' + this.state.tg.code + ' gilt sofort nicht mehr.',
+      ok: 'Verknüpfung lösen' }, () => {
+      clearInterval(this._iv);
+      this.setState({ tg: { linked: false, code: '', exp: '' } });
+      this.say('Die Verknüpfung ist gelöst.', Y.telegram);
+    });
+  }
+  // Web-Push (BEN-3).
+  pushRemove(d) { this.setState({ devs: this.state.devs.filter((x) => x.id !== d.id) }); this.say('Das Gerät ist entfernt.', Y.push); }
+  pushSub() {
+    this.setState({ devs: this.state.devs.concat([{ id: 'p' + (this.state.devs.length + 9), name: ME, date: '01.11.2026', me: true }]) });
+    this.say('Dieses Gerät erhält jetzt Push-Nachrichten.', Y.push);
+  }
+  chVals(id, name) {
+    const s = this.state;
+    const admin = s.role === 'admin';
+    const avail = this.avail(id);
+    const dis = !avail;
+    const saved = s.saved[id];
+    const d = this.cur(id);
+    const st = !avail ? 'Nicht eingerichtet' : saved.enabled ? 'Aktiv' : 'Aus';
+    const evs = EVENTS.filter(([e]) => admin || e !== 'errors');
+    const evText = (l) => (l.length ? EVENTS.filter(([e]) => l.includes(e)).map(([, t]) => t).join(', ') : 'Keine');
+    const dirty = !!s.draft[id] && JSON.stringify(s.draft[id]) !== JSON.stringify(saved);
+    const c = { id, name, isEmail: id === 'email', isTg: id === 'telegram', isPush: id === 'push', avail, unavail: !avail, dis, adminLink: !avail && admin,
+      stateText: st, stateStyle: avail && saved.enabled ? chipOn : chipOut, rw: s.role !== 'other', ro: s.role === 'other',
+      on: d.enabled, swAria: d.enabled ? 'true' : 'false', swTrack: swTrack(d.enabled, dis), swKnob: swKnob(d.enabled),
+      toggleOn: () => { if (avail) this.change(id, { enabled: !this.cur(id).enabled }); },
+      addr: d.address || '', setAddr: (e) => this.change(id, { address: e.target.value }), err: s.err[id] || '', hasErr: !!s.err[id], invalid: s.err[id] ? 'true' : 'false',
+      addrStyle: 'width:320px;max-width:100%' + (s.err[id] ? ';border-color:' + COL.da : ''),
+      evs: evs.map(([e, t]) => ({ label: t, on: d.events.includes(e), dis, toggle: () => this.toggleEv(id, e) })),
+      evText: evText(d.events), evHelp: admin ? 'Wofür eine Nachricht kommt. «Fehler» gibt es nur für Administratoren.' : 'Wofür eine Nachricht kommt.',
+      dirty, save: () => this.save(id), test: () => this.say('Testnachricht gesendet.', Y[id]),
+      openInt: () => this.say('Öffnet Verwaltung › Integrationen.', Y[id]),
+      summary: !avail ? 'Nicht eingerichtet' : id === 'email' ? saved.address : id === 'telegram' ? (s.tg.linked ? 'Verknüpft' : s.tg.code ? 'Code offen' : 'Nicht verknüpft') : s.devs.length + (s.devs.length === 1 ? ' Gerät' : ' Geräte'),
+      sec: this.detVals('b_' + id), fx: this.detVals('x_' + id), fe: this.detVals('e_' + id) };
+    c.tgOn = c.isTg && avail; c.pushOn = c.isPush && avail;
+    // Telegram
+    const tg = s.tg;
+    const bot = s.cases.noBot ? '' : BOT;
+    c.tg = { linked: tg.linked, chipText: tg.linked ? 'Verknüpft mit Chat ' + CHAT : 'Nicht verknüpft', chipStyle: tg.linked ? chipOn : chipOut,
+      hasCode: !tg.linked && !!tg.code, code: tg.code, exp: 'Der Code gilt bis ' + tg.exp + '.', hasBot: !!bot, noBot: !bot,
+      lead: bot ? 'Sende dem Bot @' + bot + ' die Nachricht' : 'Sende dem Slouchcat-Bot die Nachricht',
+      canLink: !tg.linked, linkLabel: tg.code ? 'Code erneuern' : 'Verknüpfen', canUnlink: tg.linked || !!tg.code,
+      link: () => this.tgLink(), unlink: () => this.tgUnlink(), open: () => this.say('Öffnet t.me/' + bot + '?start=' + tg.code + ' in Telegram.', Y.telegram),
+      pollText: 'Wartet auf die Nachricht, Abfrage alle 3 Sekunden' + (s.polls ? ' (' + s.polls + '. Abfrage ohne Antwort)' : '') };
+    c.tgSum = tg.linked ? 'Verknüpft mit Chat ' + CHAT : tg.code ? 'Code ' + tg.code + ' offen bis ' + tg.exp.slice(-5) : 'Nicht verknüpft';
+    // Web-Push
+    const sup = !s.cases.noPush;
+    c.push = { devs: s.devs.map((x) => ({ name: x.name || 'Unbekanntes Gerät', nameStyle: x.name ? '' : 'color:' + COL.ts + ';font-style:italic', date: 'Angemeldet am ' + x.date, me: x.me,
+      removeLabel: (x.name || 'Unbekanntes Gerät') + ' entfernen', remove: () => this.pushRemove(x) })),
+      some: s.devs.length > 0, none: s.devs.length === 0, supported: sup, unsupported: !sup, canSub: sup && !s.devs.some((x) => x.me), sub: () => this.pushSub(),
+      countText: s.devs.length === 1 ? '1 Gerät' : s.devs.length + ' Geräte' };
+    c.pushSum = c.push.countText + (s.devs.some((x) => x.me) ? ', dieses dabei' : '');
+    // BEN-5: the same channel as facts for another profile of the account.
+    const facts = [['Ereignisse', evText(saved.events)]];
+    if (id === 'email' && saved.address) facts.push(['E-Mail-Adresse', saved.address]);
+    if (id === 'telegram' && avail) facts.push(['Verknüpfung', tg.linked ? 'Verknüpft' : 'Nicht verknüpft']);
+    if (id === 'push' && avail) facts.push(['Angemeldete Geräte', String(s.devs.length)]);
+    c.facts = facts.map(([k, v]) => ({ k, v }));
+    return c;
+  }
+  benVals() {
+    const v = this.baseVals();
+    const s = this.state;
+    const w = WHO[s.role];
+    v.chans = CHANNELS.map(([id, name]) => this.chVals(id, name));
+    v.ro = s.role === 'other'; v.rw = !v.ro;
+    v.who = { name: w.name, init: w.init };
+    v.switchProfile = () => this.say('Öffnet die Profilwahl.', 120);
+    v.hasLive = !!s.tg.code && !s.tg.linked && this.avail('telegram') && v.rw;
+    v.liveDot = dot(COL.wa); v.liveText = 'Telegram-Code offen, Abfrage alle 3 Sekunden';
+    v.exs = ROLES.map(([id, label]) => ({ label, sel: id === s.role ? 'true' : 'false', style: segStyle(id === s.role), pick: () => this.setRole(id) }));
+    v.cases = CASES.map(([k, label]) => ({ label, on: !!s.cases[k], toggle: () => this.toggleCase(k) }));
+    return v;
+  }
+  renderVals() {
+    const v = this.benVals();
+    v.items = v.chans.map((c) => Object.assign({}, c, { cur: this.state.sel === c.id ? 'true' : 'false', style: this.state.sel === c.id ? navOn : '', pick: () => this.setState({ sel: c.id }) }));
+    v.dd = v.chans.find((c) => c.id === this.state.sel);
+    return v;
+  }
+}
+</script>
+</body>
+</html>

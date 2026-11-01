@@ -481,8 +481,8 @@ Phase 2  Je Seite 3 klickbare Vorschläge (A, B, C)       → Wahl und Änderung
          Pilot  Hintergrundjobs (Format angenommen)
          2a  Metadaten, Integrationen, Bibliotheken, Pflege (+ Titel)   → veröffentlicht
          2b  Konten, Profile, Geräte, Streams, Podcasts                   → veröffentlicht
-         2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen
-         2d  Benachrichtigungen, Statistik, Sicherung
+         2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen  → veröffentlicht
+         2d  Benachrichtigungen, Statistik, Sicherung                     → veröffentlicht
 Phase 3  Fassung «Bauplan»: Schritte, Tests, Frage 18, ggf. ADR 0020; OMC-Kritiker
 Phase 4  Bau zusammen mit Konzept 11 und den weiteren Konzepten (auf Marcos Wort)
 ```
@@ -562,6 +562,14 @@ eigener Commit, `task ci` grün.
 | Geräte | **C «Reiter und Klappbereiche»** (Reiter Geräte und Fähigkeiten, je Typ ein Klappbereich) | 1. November 2026 |
 | Streams | **D «Kacheln» mit der Leiste «Serverlast» aus E** (Marco korrigierte zuerst gemeldetes «A»). Kachelbild = **Hintergrundbild quer** des Films bzw. der Serie: neues Feld `AdminStream.backdropUrl` (additiv, Vertrag 1.7.0, Hash wie `posterUrl` aus Konzept 11, bei Folgen das Bild der Serie). Zähler Transcode HW/SW, Remux, Direct und Bandbreite als Summe der Bitraten im Client aus `AdminStream`. **Marco: «genehmigt».** | 1. November 2026 |
 | Podcasts | **C «Reiter und Klappbereiche»** (Reiter je Bibliothek, je Podcast ein Klappbereich) | 1. November 2026 |
+| Startseitenreihen | offen (A, B «Liste und Vorschau», C) | – |
+| Spotlight | offen (A, B, C) | – |
+| Cat's Empfehlungen | offen (A, B, C) | – |
+| Sammlungen | offen (A, B, C) | – |
+| Ankündigungen | offen (A, B, C) | – |
+| Benachrichtigungen | offen (A, B, C) | – |
+| Statistik | offen (A, B «Raster», C) | – |
+| Sicherung | offen (A, B, C) | – |
 
 **Abweichungen der Vorschläge vom Grundmuster (Phase 2a):**
 
@@ -584,6 +592,41 @@ Kopfband und Auf-/Zuklappen, Auswahl statt Verschieben):
   Klappbereich. Die Positionen laufen im Mockup alle 5 s weiter, pausiert bei offener Rückfrage.
 - Podcasts B: «Feed abonnieren» öffnet im Detail statt als Dialog; C hat Reiter je Bibliothek.
 - Profile: Schauzeit über 30 Tage und PIN mit 4 bis 8 Ziffern wie im Code.
+
+**Phase 2c und 2d** (gleiche Bausteine wie 2b: Felder mit Kopfband, Auswahl «Stelle» statt
+«Nach oben»/«Nach unten», Bilder statt Farbflächen, Bezeichnungen aus `de.json`):
+
+- Startseitenreihen B heisst «Liste und Vorschau»: rechts steht eine Vorschau der Startseite
+  statt eines Detailbereichs. «Verwerfen» (ungespeicherte Reihenfolge zurücksetzen) und eine
+  Kurzbeschreibung je Reihe sind neu in der Oberfläche, ohne neue Funktion (geht in Frage 18).
+- Statistik B heisst «Raster»: Wiedergabe als Streifen, Platz 1 bis 3 als Kacheln mit
+  Hintergrundbild, Profile und Geräte nebeneinander als Diagramm mit Tabelle.
+- Spotlight: die Ränge der angehefteten Titel sind eine Auswahl, begrenzt auf «Höchstens».
+- Sammlungen: TMDB-Sammlungen bleiben nur zum Lesen; «Löschen» ist für sie aus, wie im Code.
+- Benachrichtigungen: «Verknüpfung lösen» (Telegram) bekommt eine Rückfrage; heute löst ein
+  Klick sofort (geht in Frage 18).
+- Seitentitel: die Mockups zeigen «Startseitenreihen», «Benachrichtigungskanäle» und
+  «Statistiken» wie die heutigen `h1`; die Verwaltungsleiste aus Konzept 11 sagt «Startseite»,
+  «Benachrichtigungen» und «Statistik». Beim Bau gleicht Frage 18 Leiste und `h1` an.
+- Bildfelder, die der Vertrag noch nicht hat (additiv, Hash wie `posterUrl`, Vertrag 1.7.0):
+  `StatTitle.posterUrl` (Statistik A, C) und `StatTitle.backdropUrl` (Statistik B),
+  `AdminCollectionItem.posterUrl` (Sammlungen), wahlweise `AdminPick.backdropUrl`
+  (Cat's Empfehlungen). Ohne diese Felder zeigt der Bau die Farbfläche mit Titel.
+- Sicherung: automatische Sicherungen legt der Server nur vor einer Migration
+  (`pre-migration-…`) und vor einer Wiederherstellung (`pre-restore-…`) an.
+
+**Zusammenlegen (Hinweise aus 2c und 2d, kein Entscheid):** Startseitenreihen, Spotlight und
+Cat's Empfehlungen könnten eine Seite «Startseite» mit drei Reitern werden; Sammlungen bleibt
+eigenständig. Benachrichtigungen bleibt getrennt von Integrationen, beide verlinken einander.
+Ankündigungen steht inhaltlich näher bei Benachrichtigungen als bei der Kuratierung.
+
+**Korrektur Hintergrundjobs (alle Varianten, auch das gewählte C):** Das Mockup zeigt 14
+erfundene oder vereinfachte Jobarten, darunter «Sicherung» mit täglichem Zeitplan,
+«Vorschaubilder» und «Untertitel». Diese gibt es im Server nicht. Es fehlen «Datei prüfen»,
+«Aufräumen fehlender Titel», «Intro und Abspann erkennen», «Titel zuordnen», «Wertungen
+nachholen», «Trailer suchen» und «Podcast-Feed abrufen». Massgebend für den Bau sind die 18
+Jobarten aus `admin.jobs.types` in `de.json` (Registry des Servers); die Wahl C betrifft nur
+den Aufbau (JOB-1 bis JOB-8 unverändert).
 
 ## 11. Review-Protokoll
 

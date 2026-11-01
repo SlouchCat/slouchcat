@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Spotlight · B Liste und Detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px}
+.mut{font-size:12px;color:#9095a3}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ell{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.li{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.dl{display:grid;gap:12px 16px;margin:0}.dl dt{font-size:12px;color:#9095a3}.dl dd{margin:2px 0 0;font-size:14px;min-width:0}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Spotlight</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<sc-if value="{{ hasLive }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9095a3"><span style="{{ liveDot }}"></span>{{ liveText }}</span></sc-if><span style="flex:1"></span></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Eine öffentliche Trakt-Liste als Reihe der Startseite. Gezeigt werden nur Titel, die in der eigenen Bibliothek stehen; jedes Profil sieht nur, was seine Altersstufe erlaubt.</p></sc-if></div><div style="margin-top:16px"><sc-if value="{{ st.hasMissing }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ st.callS }}"><span style="{{ st.icoS }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span><span>{{ st.missing }}</span></div></sc-if></div><div style="margin-top:16px;display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start"><section aria-label="Spotlight-Liste" style="display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;align-self:start"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span><span class="ell">Quelle und Einträge</span></h2></div><button type="button" class="li" aria-current="{{ srcCur }}" onClick="{{ pickSrc }}" style="{{ srcStyle }};margin:0 -8px;width:calc(100% + 16px)"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></span><span style="flex:1;font-weight:500">Quelle</span><span style="{{ st.rowS }}"><span style="width:6px;height:6px;border-radius:3px;background:currentColor"></span>{{ st.row }}</span></button>
+<div style="position:relative"><span style="position:absolute;left:9px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Einträge filtern" placeholder="Titel filtern" value="{{ q }}" onChange="{{ setQ }}" style="width:100%;padding-left:32px"></div>
+<div style="margin:-4px -8px 0"><sc-for list="{{ groups }}" as="g" hint-placeholder-count="2"><div><p style="display:flex;align-items:center;justify-content:space-between;height:28px;margin:4px 0 0;padding:0 10px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3"><span>{{ g.name }}</span><span>{{ g.count }}</span></p>
+<sc-for list="{{ g.items }}" as="li" hint-placeholder-count="6"><button type="button" class="li" aria-current="{{ li.cur }}" onClick="{{ li.pick }}" style="{{ li.style }}"><span class="mut" style="width:18px;text-align:right;flex:none;font-variant-numeric:tabular-nums">{{ li.rank }}</span><span aria-hidden="true" style="{{ li.posterS }}">{{ li.initial }}<sc-if value="{{ li.noPoster }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"/></svg></sc-if></span><span class="ell" style="flex:1;{{ li.titleS }}">{{ li.title }}</span><span style="{{ li.metaS }}">{{ li.meta }}</span></button></sc-for></div></sc-for></div><sc-if value="{{ noMatch }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0 2px">Kein Eintrag passt zum Filter.</p></sc-if><sc-if value="{{ noEntries }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0 2px;white-space:normal">Noch keine Einträge. Rufe die Liste ab, sobald Trakt eingerichtet ist.</p></sc-if></section><div><sc-if value="{{ isSrc }}" hint-placeholder-val="{{ false }}"><section aria-label="Quelle" style="display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></span><span class="ell">Quelle</span></h2><span style="{{ st.rowS }}"><span style="width:6px;height:6px;border-radius:3px;background:currentColor"></span>{{ st.row }}</span></div><div><div style="display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><div class="col" style="gap:2px"><span id="sp-on-l" style="font-weight:500">Auf der Startseite zeigen</span><span class="mut" style="white-space:normal">Gilt erst mit «Speichern», zusammen mit der Quelle.</span></div>
+<div class="row" style="min-height:32px"><button type="button" role="switch" aria-checked="{{ f.onAria }}" aria-labelledby="sp-on-l" onClick="{{ f.toggle }}" style="{{ f.swS }}"><span style="{{ f.knobS }}"></span></button><span style="color:#b6b9c4">{{ f.onWord }}</span></div></div>
+<div style="display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><div class="col" style="gap:2px"><span id="sp-list-l" style="font-weight:500">Trakt-Liste</span><span class="mut" style="white-space:normal">Öffentliche Listen, kein Trakt-Login. <a href="#" onClick="{{ st.toKey }}">Schlüssel unter Integrationen</a></span></div>
+<div class="col" style="gap:10px"><div role="radiogroup" aria-labelledby="sp-list-l" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px"><sc-for list="{{ f.lists }}" as="o" hint-placeholder-count="7"><label style="display:inline-flex;align-items:center;gap:6px;min-height:24px;font-size:14px"><input type="radio" name="sp-list" checked="{{ o.on }}" onChange="{{ o.pick }}" style="accent-color:#e8794a;margin:0">{{ o.label }}</label></sc-for></div>
+<sc-if value="{{ f.needsUrl }}" hint-placeholder-val="{{ false }}"><div class="col" style="gap:4px"><label for="sp-url" style="font-size:13px;color:#b6b9c4">Adresse der Liste</label><input class="in" id="sp-url" type="url" autocomplete="off" spellcheck="false" value="{{ f.url }}" onChange="{{ f.setUrl }}" aria-invalid="{{ f.urlInvalid }}" aria-describedby="sp-url-h" style="width:100%;font-family:ui-monospace, Menlo, Consolas, monospace;font-size:13px">
+<sc-if value="{{ f.hasUrlErr }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ f.urlErr }}</span></sc-if><span id="sp-url-h" class="mut" style="white-space:normal">Eine öffentliche Liste auf trakt.tv, etwa https://trakt.tv/users/name/lists/name-der-liste. Merklisten (Watchlists) gehen nicht.</span></div></sc-if></div></div>
+<div style="display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><div class="col" style="gap:2px"><span id="sp-media-l" style="font-weight:500">Medienart</span><span class="mut" style="white-space:normal">{{ f.mediaHint }}</span></div><div role="radiogroup" aria-labelledby="sp-media-l" class="row" style="gap:16px;min-height:32px"><sc-for list="{{ f.media }}" as="o" hint-placeholder-count="3"><label style="display:inline-flex;align-items:center;gap:6px;min-height:24px;font-size:14px"><input type="radio" name="sp-media" checked="{{ o.on }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}" style="accent-color:#e8794a;margin:0">{{ o.label }}</label></sc-for></div></div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px"><sc-for list="{{ f.nums }}" as="n" hint-placeholder-count="4"><div style="display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.08)">
+<div class="col" style="gap:2px"><label for="{{ n.id }}" style="font-weight:500">{{ n.label }}</label><span id="{{ n.hid }}" class="mut" style="white-space:normal">{{ n.hint }}</span><sc-if value="{{ n.hasErr }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ n.err }}</span></sc-if></div>
+<input class="in" id="{{ n.id }}" type="number" value="{{ n.val }}" onChange="{{ n.set }}" aria-invalid="{{ n.invalid }}" aria-describedby="{{ n.hid }}" style="width:96px;text-align:right"></div></sc-for></div></div><div class="col" style="gap:12px"><div class="col" style="gap:4px"><p class="row" style="flex-wrap:wrap;gap:6px;margin:0;font-size:13px;color:#b6b9c4"><span style="{{ st.dot }}"></span><sc-if value="{{ st.fetching }}" hint-placeholder-val="{{ false }}"><span class="c ca"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>wird abgerufen</span></sc-if><sc-if value="{{ st.idle }}" hint-placeholder-val="{{ true }}"><span>{{ st.fetched }}</span></sc-if><span aria-hidden="true">·</span><span>{{ st.hits }}</span><span aria-hidden="true">·</span><a href="#" onClick="{{ st.toKey }}">{{ st.keyText }}</a></p></div>
+<div class="row" style="justify-content:flex-end"><sc-if value="{{ f.dirty }}" hint-placeholder-val="{{ false }}"><span class="c cw">Ungespeicherte Änderungen</span></sc-if><button type="button" class="b" disabled="{{ st.fetching }}" onClick="{{ st.fetch }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>{{ st.fetchLabel }}</button><button type="button" class="b bp" onClick="{{ f.save }}">Speichern</button></div></div></section></sc-if><sc-if value="{{ isEntry }}" hint-placeholder-val="{{ true }}"><section aria-label="{{ de.title }}" style="display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;height:48px;margin:0 -16px;padding:0 16px;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="display:flex;align-items:center;gap:10px;margin:0;font-size:16px;font-weight:600;min-width:0"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg></span><span class="ell">{{ de.title }}</span></h2><span class="row" style="gap:6px;font-size:13px;color:#b6b9c4"><span style="{{ de.stateDot }}"></span>{{ de.stateWord }}</span></div><div class="row" style="align-items:flex-start;gap:16px"><span aria-hidden="true" style="{{ de.bigPosterS }}">{{ de.initial }}<sc-if value="{{ de.noPoster }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4"/></svg></sc-if></span>
+<dl class="dl" style="flex:1;grid-template-columns:repeat(3,minmax(0,1fr))"><div><dt>Rang</dt><dd>{{ de.rankText }}</dd></div><div><dt>Medienart</dt><dd>{{ de.meta }}</dd></div><div><dt>Status</dt><dd>{{ de.stateWord }}</dd></div>
+<div style="grid-column:1 / -1"><dt>Eigene Notiz</dt><dd style="color:#b6b9c4">{{ de.noteOr }}</dd></div></dl></div><sc-if value="{{ de.lib }}" hint-placeholder-val="{{ true }}"><div style="display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:start;padding:12px 0;border-top:1px solid rgba(255,255,255,0.08)"><div class="col" style="gap:2px"><span id="sp-rank-l" style="font-weight:500">Platz in der Reihe</span><span class="mut" style="white-space:normal">1 ist der erste Platz. Der Platz gilt für die ganze Liste; ein Profil mit weniger Treffern sieht den Titel früher.</span></div><div class="col" style="gap:8px"><sc-if value="{{ de.pinned }}" hint-placeholder-val="{{ false }}"><div class="row"><span class="c ca"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 17v5"/><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/></svg>{{ de.pinText }}</span><button type="button" class="b bs" aria-label="{{ de.unpinAria }}" onClick="{{ de.unpin }}">Lösen</button></div></sc-if><sc-if value="{{ de.notPinned }}" hint-placeholder-val="{{ true }}"><div role="radiogroup" aria-label="Platz in der Reihe" style="display:flex;flex-wrap:wrap;gap:6px"><sc-for list="{{ de.slots }}" as="sl" hint-placeholder-count="12"><button type="button" role="radio" aria-checked="{{ sl.sel }}" aria-disabled="{{ sl.dis }}" title="{{ sl.tip }}" aria-label="{{ sl.tip }}" onClick="{{ sl.pick }}" style="{{ sl.style }}"><span>{{ sl.n }}</span><span style="font-size:10px;font-weight:700;opacity:0.8">{{ sl.mark }}</span></button></sc-for></div><div class="row"><button type="button" class="b bs" aria-label="{{ de.pinAria }}" onClick="{{ de.pinNow }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 17v5"/><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/></svg>Anheften</button><span class="mut">{{ de.pickText }}</span><sc-if value="{{ de.hasPinErr }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ de.pinErr }}</span></sc-if></div></sc-if></div></div>
+<div style="display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:start;padding:12px 0;border-top:1px solid rgba(255,255,255,0.08)"><div class="col" style="gap:2px"><span style="font-weight:500">Auf der Startseite</span><span class="mut">Ein ausgeblendeter Titel fehlt in der Reihe aller Profile.</span></div><div class="row"><span class="row" style="gap:6px;min-width:120px"><span style="{{ de.stateDot }}"></span>{{ de.stateWord }}</span><button type="button" class="b bs" aria-label="{{ de.hideAria }}" onClick="{{ de.toggleHide }}">{{ de.hideText }}</button></div></div>
+<div style="display:grid;grid-template-columns:200px minmax(0,1fr);gap:16px;align-items:start;padding:12px 0;border-top:1px solid rgba(255,255,255,0.08)"><div class="col" style="gap:2px"><label for="sp-bnote" style="font-weight:500">Notiz</label><span id="sp-bnote-h" class="mut" style="white-space:normal">Höchstens 280 Zeichen. Leer entfernt die Notiz.</span></div><div class="col" style="gap:4px">
+<div class="row"><input class="in" id="sp-bnote" type="text" autocomplete="off" maxlength="280" value="{{ de.noteVal }}" onChange="{{ de.setNote }}" aria-describedby="sp-bnote-h" style="flex:1"><button type="button" class="b" onClick="{{ de.saveNote }}">Speichern</button></div><span class="mut" style="align-self:flex-end;font-variant-numeric:tabular-nums">{{ de.noteCount }}</span></div></div></sc-if><sc-if value="{{ de.notLib }}" hint-placeholder-val="{{ false }}"><p class="row" style="margin:0;padding:10px 12px;border-radius:8px;background:#0b0c10;font-size:13px;color:#b6b9c4"><span style="display:flex;color:#e8b65a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span>Nicht in der Bibliothek, erscheint nicht auf der Startseite. Ohne Titel in der Bibliothek gibt es nichts anzuheften oder auszublenden.</p></sc-if><sc-if value="{{ isOrphan }}" hint-placeholder-val="{{ false }}"><div class="col" style="gap:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)"><p class="mut" style="margin:0;white-space:normal">Anpassungen an Titeln, die nicht mehr in der Liste stehen. Sie wirken erst wieder, wenn der Titel zurückkehrt.</p><div class="row"><span style="flex:1;color:#b6b9c4">Anpassung: {{ de.override }}</span><button type="button" class="b bs dz" aria-label="{{ de.removeAria }}" onClick="{{ de.remove }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>Entfernen</button></div></div></sc-if></section></sc-if></div></div><p style="margin:20px 0 0;font-size:13px;color:#b6b9c4">Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter «Startseite» ein. <a href="#" onClick="{{ toRows }}">Zur Seite «Startseite»</a></p><div style="margin-top:32px;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup, Beispiel wechseln:</span>
+<div role="tablist" aria-label="Beispiel" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ exs }}" as="x" hint-placeholder-count="2"><button type="button" role="tab" aria-selected="{{ x.sel }}" onClick="{{ x.pick }}" style="{{ x.style }}">{{ x.label }}</button></sc-for></div></div>
+</main>
+</div>
+
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1020}}'>
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bg: '#0b0c10' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const NOW = '01.11.2026, 15:42';
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const segStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const navOn = 'background:' + COL.s3 + ';box-shadow:inset 3px 0 0 ' + COL.ac;
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const TOAST = 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp;
+const barStyle = (pct) => 'display:block;height:6px;background:' + COL.ac + ';width:' + pct + '%';
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const same = (a, b) => a.toLowerCase().includes(b.trim().toLowerCase());
+// Spotlight (SPO-1 to SPO-5): the Trakt list as a row of the start page. Source form with the switch
+// «Auf der Startseite zeigen» (saved with the form), state of the fetch, entries, orphaned overrides.
+const LISTS = [['trending', 'Trending bei Trakt'], ['popular', 'Beliebt bei Trakt'], ['watched_weekly', 'Meistgesehen (letzte Woche)'],
+  ['collected_monthly', 'Meistgesammelt (letzter Monat)'], ['anticipated', 'Am meisten erwartet'], ['boxoffice', 'Kinocharts'], ['url', 'Öffentliche Liste per Adresse']];
+const MEDIA_LABEL = { movie: 'Nur Filme', show: 'Nur Serien', both: 'Filme und Serien' };
+const MEDIUM = { movie: 'Film', show: 'Serie' };
+// listKinds of GET /admin/spotlight: boxoffice is films only, url needs an address and filters after the fetch.
+const kindOf = (key) => ({ media: key === 'boxoffice' ? ['movie'] : ['movie', 'show', 'both'], needsUrl: key === 'url', filters: key === 'url' });
+const NUMS = [['itemCount', 'Höchstens', 'Titel in der Reihe, je Profil (5–20)', 5, 20], ['minHits', 'Ausblenden unter', 'Treffern in der Bibliothek, je Profil (0–10)', 0, 10],
+  ['intervalHours', 'Abruf alle … Stunden', '6 bis 48 Stunden', 6, 48], ['rotationSeconds', 'Takt der Bühne … Sekunden', '3 bis 15 Sekunden', 3, 15]];
+const E = (id, pos, title, media, year, lib, poster, o) => Object.assign({ id, pos, title, media, year, lib, poster, pinned: null, hidden: false, note: null }, o || {});
+// Trakt «Trending», films and series, as fetched on 1 November 2026; nine of twelve are in the library.
+const ENTRIES = [
+  E('e1', 1, 'The Odyssey', 'movie', 2026, true, ['#5a8fb0', '#10202e']),
+  E('e2', 2, 'Stranger Things', 'show', 2016, true, ['#c0392b', '#1a0707']),
+  E('e3', 3, 'Project Hail Mary', 'movie', 2026, true, ['#e0a64a', '#2a1a06'], { pinned: 1 }),
+  E('e4', 4, 'Spider-Man: Brand New Day', 'movie', 2026, false, null),
+  E('e5', 5, 'Fallout', 'show', 2024, true, ['#8fa34a', '#1e2410'], { note: 'Staffel 2 ganz in der Bibliothek' }),
+  E('e6', 6, 'Toy Story 5', 'movie', 2026, true, ['#5fb0e8', '#173a66'], { pinned: 2, note: 'Für die Kinderprofile weit vorne' }),
+  E('e7', 7, 'Severance', 'show', 2022, true, ['#6fb3a8', '#0e2422'], { hidden: true }),
+  E('e8', 8, 'Supergirl', 'movie', 2026, false, null),
+  E('e9', 9, 'The Last of Us', 'show', 2023, true, ['#7d8a5c', '#151a10']),
+  E('e10', 10, 'Michael', 'movie', 2026, true, ['#b9b2a5', '#1c1a17']),
+  E('e11', 11, 'Wednesday', 'show', 2022, true, ['#8d7ab8', '#120e1c']),
+  E('e12', 12, 'The Mandalorian and Grogu', 'movie', 2026, false, null),
+];
+// Overrides whose title left the list (position 0, no poster in the real table).
+const ORPHANS = [
+  E('o1', 0, 'Wicked: For Good', 'movie', 2025, true, null, { hidden: true }),
+  E('o2', 0, 'Pluribus', 'show', 2025, true, null, { pinned: 4, note: 'Neue Staffel ab Januar' }),
+];
+const CFG = { enabled: true, listKey: 'trending', listUrl: '', media: 'both', itemCount: 12, minHits: 5, intervalHours: 12, rotationSeconds: 8 };
+// Mockup-only examples for the sentence «warum die Reihe fehlt» (SpotlightPage.tsx:81-90).
+const EXAMPLES = [
+  ['ok', 'Aktiv', {}],
+  ['nokey', 'Kein Schlüssel', { configured: false, last: null, listed: false }],
+  ['off', 'Aus', { cfg: { enabled: false } }],
+  ['failed', 'Fehler', { err: 'trakt: GET /shows/trending: HTTP 503 Service Unavailable', last: '31.10.2026, 21:00' }],
+  ['empty', 'Leer', { cfg: { listKey: 'url', listUrl: 'https://trakt.tv/users/slouchcat-demo/lists/filmabend-dezember' }, listed: false }],
+  ['below', 'Unter Mindesttreffern', { cfg: { minHits: 10 } }],
+];
+const MISSING = {
+  noKey: 'Ohne Trakt-Schlüssel fehlt die Reihe auf der Startseite.',
+  off: 'Spotlight ist ausgeschaltet: Die Reihe fehlt auf der Startseite.',
+  failed: 'Die Reihe fehlt auf der Startseite, bis ein Abruf gelingt.',
+  empty: 'Die Liste ist leer: Die Reihe fehlt auf der Startseite.',
+  below: (h, m) => 'Nur ' + h + ' Treffer in der Bibliothek, weniger als die verlangten ' + m + ': Die Reihe fehlt auf der Startseite. Profile mit weniger sichtbaren Titeln können sie auch sonst nicht bekommen.',
+};
+const MAX_NOTE = 280;
+const RANK_HINT = '1 ist der erste Platz. Der Platz gilt für die ganze Liste; ein Profil mit weniger Treffern sieht den Titel früher.';
+const NOT_IN_LIB = 'Nicht in der Bibliothek, erscheint nicht auf der Startseite';
+const hasOverride = (e) => e.pinned != null || e.hidden || e.note != null;
+const draftOf = (c) => ({ enabled: c.enabled, listKey: c.listKey, listUrl: c.listUrl, media: c.media, itemCount: String(c.itemCount), minHits: String(c.minHits), intervalHours: String(c.intervalHours), rotationSeconds: String(c.rotationSeconds) });
+const effMedia = (d) => { const k = kindOf(d.listKey); return k.media.indexOf(d.media) >= 0 ? d.media : k.media[0]; };
+// A poster tile: gradient placeholder for posterUrl (w200), grey with a film icon when there is none.
+const posterS = (p, w, h, dim) => 'display:inline-flex;align-items:' + (p ? 'flex-end' : 'center') + ';justify-content:' + (p ? 'flex-start' : 'center') + ';flex:none;box-sizing:border-box;width:' + w + 'px;height:' + h + 'px;padding:3px;border-radius:' + (w > 40 ? 6 : 3) + 'px;color:' + (p ? '#fff' : COL.tm) + ';font-size:' + Math.round(w / 2.2) + 'px;font-weight:700;line-height:1;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.12);opacity:' + (dim ? 0.5 : 1) + ';background:' + (p ? 'linear-gradient(160deg,' + p[0] + ',' + p[1] + ')' : COL.s3);
+const slotS = (sel, taken) => 'display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:36px;height:44px;box-sizing:border-box;border-radius:6px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;cursor:' + (taken ? 'not-allowed' : 'pointer') + ';border:1px solid ' + (sel ? COL.ac : 'rgba(255,255,255,0.14)') + ';background:' + (sel ? COL.ac : taken ? COL.s3 : COL.bg) + ';color:' + (sel ? COL.oa : taken ? COL.tm : COL.tp);
+const switchS = (on) => 'display:inline-flex;justify-content:' + (on ? 'flex-end' : 'flex-start') + ';width:36px;height:20px;padding:2px;box-sizing:border-box;border:none;border-radius:10px;cursor:pointer;flex:none;background:' + (on ? COL.ac : COL.s3);
+const knobS = (on) => 'width:16px;height:16px;border-radius:8px;background:' + (on ? COL.tp : COL.tm);
+function exState(id) {
+  const x = EXAMPLES.find((e) => e[0] === id)[2];
+  const cfg = Object.assign({}, CFG, x.cfg || {});
+  return { ex: id, cfg, draft: draftOf(cfg), ferr: {}, configured: x.configured !== false, last: x.last === undefined ? '01.11.2026, 09:00' : x.last, err: x.err || null,
+    listed: x.listed !== false, entries: ENTRIES.map((e) => Object.assign({}, e)), orphans: ORPHANS.map((e) => Object.assign({}, e)), fetching: false, polling: false, dlg: null, notes: {}, picks: {} };
+}
+function initState() { return exState('ok'); }
+const INIT = { sel: 'e5' };
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, open: {}, q: '' }, initState(), INIT);
+  }
+  componentWillUnmount() {
+    clearTimeout(this._t);
+    clearInterval(this._iv);
+    Object.keys(this._timers || {}).forEach((k) => clearTimeout(this._timers[k]));
+  }
+  // Toast «(Mockup) …» for 2 s; closes a confirm and a menu.
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // One generic danger confirm: { title, text, ok }; onOk runs on the red button.
+  ask(c, onOk) { this._ok = onOk; this.setState({ confirm: c, menu: null }); }
+  later(key, ms, fn) {
+    this._timers = this._timers || {};
+    clearTimeout(this._timers[key]);
+    this._timers[key] = setTimeout(fn, ms);
+  }
+  patch(key, obj) { this.setState({ [key]: Object.assign({}, this.state[key], obj) }); }
+  toggleOpen(id) { this.patch('open', { [id]: !this.state.open[id] }); }
+  // Foldable block or <details>: open flag, chevron, button toggle and the details toggle event.
+  detVals(id) {
+    const o = !!this.state.open[id];
+    return { open: o, expAria: o ? 'true' : 'false', chev: chev(o), toggle: () => this.toggleOpen(id),
+      onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== !!this.state.open[id]) this.toggleOpen(id); },
+      dstyle: 'border-top:1px solid rgba(255,255,255,0.08);' + (o ? 'background:' + COL.s2 : '') };
+  }
+  tabsOf(list, cur, key) {
+    return list.map(([id, label, count]) => ({ label, count: String(count), sel: id === cur ? 'true' : 'false', style: tabStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  exsOf(list, cur, key) {
+    return list.map(([id, label]) => ({ label, sel: id === cur ? 'true' : 'false', style: segStyle(id === cur), pick: () => this.setState({ [key]: id }) }));
+  }
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '', toastStyle: TOAST,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(150, 460),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { const f = this._ok; this._ok = null; this.setState({ confirm: null }); if (f) f(); },
+      menuAny: !!this.state.menu, closeMenu: () => this.setState({ menu: null }),
+      q: this.state.q, setQ: (e) => this.setState({ q: e.target.value }),
+      hasLive: false, liveDot: '', liveText: '',
+      sec: {},
+    };
+  }
+  setEx(id) { this.setState(Object.assign(exState(id), { menu: null, confirm: null })); }
+  setDraft(k, val) { this.setState({ draft: Object.assign({}, this.state.draft, { [k]: val }), ferr: Object.assign({}, this.state.ferr, { [k]: null }) }); }
+  listed() { return this.state.listed ? this.state.entries : []; }
+  // Without a list (no key, empty list) the overrides of former entries are orphans too.
+  orphanList() { return (this.state.listed ? [] : this.state.entries.filter(hasOverride)).concat(this.state.orphans); }
+  findAny(id) { return this.state.entries.find((e) => e.id === id) || this.state.orphans.find((e) => e.id === id); }
+  dirty() { const a = this.state.draft, b = draftOf(this.state.cfg); return Object.keys(a).some((k) => String(a[k]) !== String(b[k])); }
+  save() {
+    const d = this.state.draft, k = kindOf(d.listKey), ferr = {};
+    const num = (key, lo, hi) => { const t = String(d[key]).trim(), n = Number(t); if (!t) ferr[key] = 'Pflichtfeld.'; else if (!Number.isInteger(n) || n < lo || n > hi) ferr[key] = 'Ungültiger Wert.'; return n; };
+    const cfg = { enabled: d.enabled, listKey: d.listKey, media: effMedia(d), listUrl: k.needsUrl ? d.listUrl.trim() : this.state.cfg.listUrl };
+    NUMS.forEach(([key, , , lo, hi]) => { cfg[key] = num(key, lo, hi); });
+    if (k.needsUrl && !cfg.listUrl) ferr.listUrl = 'Pflichtfeld.';
+    else if (k.needsUrl && !/^https?:\/\/\S+$/i.test(cfg.listUrl)) ferr.listUrl = 'Gib eine Adresse mit http:// oder https:// an.';
+    if (Object.keys(ferr).length) { this.setState({ ferr }); return; }
+    this.setState({ cfg, draft: draftOf(cfg), ferr: {} });
+    this.say('Spotlight ist gespeichert.');
+  }
+  // «Jetzt abrufen»: 2 s «wird abgerufen», then the new time; the page asks every 2 s for 30 s.
+  fetchNow() {
+    this.setState({ fetching: true, polling: true });
+    this.say('Die Liste wird abgerufen.');
+    this.later('fetch', 2000, () => this.setState(this.state.configured ? { fetching: false, last: NOW, err: null } : { fetching: false }));
+    this.later('poll', 30000, () => this.setState({ polling: false }));
+  }
+  upd(id, obj) {
+    const f = (l) => l.map((e) => (e.id === id ? Object.assign({}, e, obj) : e));
+    this.setState({ entries: f(this.state.entries), orphans: f(this.state.orphans), dlg: null });
+  }
+  unpin(e) { this.upd(e.id, { pinned: null }); this.say(e.title + ' ist nicht mehr angeheftet.'); }
+  toggleHide(e) { this.upd(e.id, { hidden: !e.hidden }); this.say(e.hidden ? e.title + ' wird wieder gezeigt.' : e.title + ' ist ausgeblendet.'); }
+  removeOrphan(e) {
+    if (this.state.orphans.some((o) => o.id === e.id)) this.setState({ orphans: this.state.orphans.filter((o) => o.id !== e.id) });
+    else this.upd(e.id, { pinned: null, hidden: false, note: null });
+    this.say('Die Anpassung für ' + e.title + ' ist entfernt.');
+  }
+  pin(e, rank) {
+    if (!rank) { this.patch('dlg', { err: 'Pflichtfeld.' }); return; }
+    if (this.listed().some((x) => x.id !== e.id && x.pinned === rank)) { this.patch('dlg', { err: 'Diesen Platz hat schon ein anderer Eintrag der Liste.' }); return; }
+    this.upd(e.id, { pinned: rank });
+    this.patch('picks', { [e.id]: null });
+    this.say(e.title + ' ist auf Platz ' + rank + ' angeheftet.');
+  }
+  // An unchanged note closes without a request; an emptied one removes the note.
+  saveNote(e, text) {
+    const n = text.trim() || null;
+    if (n === (e.note || null)) { this.setState({ dlg: null }); return; }
+    this.upd(e.id, { note: n });
+    this.patch('notes', { [e.id]: undefined });
+    this.say(n ? 'Die Notiz zu ' + e.title + ' ist gespeichert.' : 'Die Notiz zu ' + e.title + ' ist entfernt.');
+  }
+  // The places of the row as fixed slots; a slot another entry holds is shown taken (409 rank_taken).
+  slotsFor(e, rank, pick) {
+    const out = [];
+    for (let n = 1; n <= this.state.cfg.itemCount; n++) {
+      const h = this.listed().find((x) => x.id !== e.id && x.pinned === n);
+      out.push({ n: String(n), sel: rank === n ? 'true' : 'false', dis: !!h, style: slotS(rank === n, !!h), tip: h ? 'Platz ' + n + ': ' + h.title : 'Platz ' + n,
+        mark: h ? h.title[0] : '', pick: () => { if (!h) pick(n); } });
+    }
+    return out;
+  }
+  eVals(e) {
+    const pinned = e.pinned != null, note = e.note != null;
+    return {
+      id: e.id, title: e.title, rank: String(e.pos), meta: MEDIUM[e.media] + ' · ' + e.year, lib: e.lib, notLib: !e.lib, hidden: e.hidden,
+      posterS: posterS(e.poster, 22, 33, e.hidden), bigPosterS: posterS(e.poster, 96, 144, e.hidden), initial: e.poster ? e.title[0] : '', noPoster: !e.poster,
+      titleS: 'font-weight:500;opacity:' + (e.hidden ? 0.5 : 1),
+      stateWord: !e.lib ? 'Nicht in der Bibliothek' : e.hidden ? 'Ausgeblendet' : 'Sichtbar', stateDot: dot(!e.lib ? COL.wa : e.hidden ? COL.tm : COL.su),
+      pinned, notPinned: !pinned, pinText: pinned ? 'Angeheftet auf Platz ' + e.pinned : '',
+      hasNote: note, noNote: !note, noteText: note ? '«' + e.note + '»' : '', noteOr: note ? '«' + e.note + '»' : '–',
+      hideText: e.hidden ? 'Einblenden' : 'Ausblenden', hideAria: e.title + (e.hidden ? ' einblenden' : ' ausblenden'), hideIcon: e.hidden,
+      pinAria: e.title + ' anheften', unpinAria: e.title + ' lösen', noteAria: 'Notiz zu ' + e.title, removeAria: 'Anpassung für ' + e.title + ' entfernen',
+      override: [e.hidden ? 'Ausgeblendet' : null, pinned ? 'Angeheftet auf Platz ' + e.pinned : null, note ? '«' + e.note + '»' : null].filter(Boolean).join(' · '),
+      openPin: () => this.setState({ dlg: { mode: 'pin', id: e.id, rank: null, err: null } }),
+      openNote: () => this.setState({ dlg: { mode: 'note', id: e.id, note: e.note || '', err: null } }),
+      unpin: () => this.unpin(e), toggleHide: () => this.toggleHide(e), remove: () => this.removeOrphan(e),
+    };
+  }
+  spoVals() {
+    const v = this.baseVals();
+    const s = this.state, c = s.cfg, d = s.draft, k = kindOf(d.listKey), media = effMedia(d), list = this.listed();
+    const hits = list.filter((e) => e.lib).length, dirty = this.dirty();
+    const missing = !s.configured ? MISSING.noKey : !c.enabled ? MISSING.off : s.err ? MISSING.failed : s.last && list.length === 0 ? MISSING.empty : hits < c.minHits ? MISSING.below(hits, c.minHits) : null;
+    const bad = !s.configured || !!s.err;
+    v.st = {
+      dot: dot(bad ? COL.da : missing ? COL.wa : COL.su), fetching: s.fetching, idle: !s.fetching,
+      fetched: s.err ? 'Letzter Abruf fehlgeschlagen: ' + s.err : s.last ? 'Zuletzt abgerufen ' + s.last : 'Noch nie abgerufen',
+      hits: hits + ' von ' + list.length + ' Titeln in der Bibliothek', keyText: s.configured ? 'Schlüssel gesetzt' : 'Kein Schlüssel',
+      toKey: (ev) => { if (ev && ev.preventDefault) ev.preventDefault(); this.say('Öffnet Integrationen beim Schlüssel «Trakt-Client-ID».'); },
+      missing: missing || '', hasMissing: !!missing, tone: bad ? COL.da : COL.wa,
+      callS: 'display:flex;align-items:flex-start;gap:10px;padding:8px 12px;border-radius:8px;font-size:14px;background:color-mix(in srgb, ' + (bad ? COL.da : COL.wa) + ' 10%, transparent);border:1px solid color-mix(in srgb, ' + (bad ? COL.da : COL.wa) + ' 30%, transparent)',
+      icoS: 'display:flex;padding-top:2px;color:' + (bad ? COL.da : COL.wa),
+      row: missing ? 'Fehlt auf der Startseite' : 'Auf der Startseite', rowS: 'display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;white-space:nowrap;background:color-mix(in srgb, ' + (bad ? COL.da : missing ? COL.wa : COL.su) + ' 14%, transparent);color:' + (bad ? COL.da : missing ? COL.wa : COL.su),
+      fetch: () => this.fetchNow(), fetchLabel: s.fetching ? 'Wird abgerufen …' : 'Jetzt abrufen',
+      listName: LISTS.find((l) => l[0] === c.listKey)[1] + ' · ' + MEDIA_LABEL[c.media],
+    };
+    v.hasLive = s.polling; v.liveDot = dot(dirty ? COL.tm : COL.su); v.liveText = dirty ? 'Abfragen pausiert, Formular geändert' : 'Live, alle 2 Sekunden';
+    const locked = k.media.length === 1;
+    v.f = {
+      on: d.enabled, onWord: d.enabled ? 'An' : 'Aus', onAria: d.enabled ? 'true' : 'false', swS: switchS(d.enabled), knobS: knobS(d.enabled), toggle: () => this.setDraft('enabled', !d.enabled),
+      lists: LISTS.map(([id, label]) => ({ label, on: d.listKey === id, pick: () => this.setDraft('listKey', id) })),
+      needsUrl: k.needsUrl, url: d.listUrl, setUrl: (ev) => this.setDraft('listUrl', ev.target.value), urlErr: s.ferr.listUrl || '', hasUrlErr: !!s.ferr.listUrl, urlInvalid: s.ferr.listUrl ? 'true' : 'false',
+      media: k.media.map((m) => ({ label: MEDIA_LABEL[m], on: media === m, dis: locked, pick: () => this.setDraft('media', m) })),
+      mediaHint: locked ? 'Diese Liste gibt die Medienart vor.' : k.filters ? 'Die Liste mischt Filme und Serien: Die Medienart filtert ihre Einträge nach dem Abruf.' : '', hasMediaHint: locked || k.filters,
+      nums: NUMS.map(([key, label, hint]) => ({ id: 'sp-' + key, hid: 'sp-' + key + '-h', label, hint, val: d[key], set: (ev) => this.setDraft(key, ev.target.value), err: s.ferr[key] || '', hasErr: !!s.ferr[key], invalid: s.ferr[key] ? 'true' : 'false' })),
+      dirty, save: () => this.save(),
+    };
+    v.entries = list.map((e) => this.eVals(e));
+    v.hasEntries = list.length > 0; v.noEntries = !v.hasEntries;
+    v.entryCount = list.length + ' Einträge · ' + hits + ' in der Bibliothek';
+    v.orphans = this.orphanList().map((e) => this.eVals(e));
+    v.hasOrphans = v.orphans.length > 0; v.orphanCount = String(v.orphans.length);
+    v.toRows = (ev) => { if (ev && ev.preventDefault) ev.preventDefault(); this.say('Öffnet die Seite Startseitenreihen.'); };
+    const dl = s.dlg, de = dl ? this.findAny(dl.id) : null;
+    v.pinOpen = !!(dl && dl.mode === 'pin'); v.noteOpen = !!(dl && dl.mode === 'note');
+    v.dTitle = de ? (dl.mode === 'pin' ? de.title + ' anheften' : 'Notiz zu ' + de.title) : '';
+    v.dBox = boxStyle(130, 540); v.closeDlg = () => this.setState({ dlg: null });
+    v.dErr = dl && dl.err ? dl.err : ''; v.hasDErr = !!(dl && dl.err);
+    v.slots = de && dl.mode === 'pin' ? this.slotsFor(de, dl.rank, (n) => this.patch('dlg', { rank: n, err: null })) : [];
+    v.pinChoice = dl && dl.rank ? 'Platz ' + dl.rank + ' gewählt' : 'Noch kein Platz gewählt';
+    v.noteVal = dl && dl.mode === 'note' ? dl.note : ''; v.noteCount = v.noteVal.length + ' / ' + MAX_NOTE;
+    v.setNote = (ev) => this.patch('dlg', { note: ev.target.value.slice(0, MAX_NOTE) });
+    v.submitPin = () => { if (de && dl.mode === 'pin') this.pin(de, dl.rank); }; v.submitNote = () => { if (de && dl.mode === 'note') this.saveNote(de, dl.note); };
+    v.exs = this.exsOf(EXAMPLES, s.ex, 'ex').map((x, i) => Object.assign(x, { pick: () => this.setEx(EXAMPLES[i][0]) }));
+    return v;
+  }
+  renderVals() {
+    const v = this.spoVals();
+    const s = this.state, q = s.q.trim(), sel = s.sel;
+    const all = v.entries.concat(v.orphans);
+    const li = (e, meta, metaC) => ({ title: e.title, rank: e.rank === '0' ? '' : e.rank, posterS: e.posterS, initial: e.initial, noPoster: e.noPoster, titleS: e.titleS, meta, metaS: 'flex:none;font-size:12px;color:' + metaC,
+      cur: sel === e.id ? 'true' : 'false', style: sel === e.id ? navOn : '', pick: () => this.setState({ sel: e.id }) });
+    const f = (l) => l.filter((e) => !q || same(e.title, q));
+    v.groups = [['Einträge der Liste', f(v.entries).map((e) => li(e, e.notLib ? 'Nicht in der Bibliothek' : e.pinned ? 'Platz ' + this.findAny(e.id).pinned : e.hidden ? 'Ausgeblendet' : '', e.notLib ? COL.wa : e.pinned ? COL.ac : COL.tm))],
+      ['Verwaiste Anpassungen', f(v.orphans).map((e) => li(e, 'verwaist', COL.tm))]].filter((g) => g[1].length).map(([name, items]) => ({ name, count: String(items.length), items }));
+    v.noMatch = !!q && v.groups.length === 0;
+    const found = all.find((e) => e.id === sel);
+    v.isSrc = sel === 'src' || !found; v.isEntry = !v.isSrc;
+    v.srcCur = v.isSrc ? 'true' : 'false'; v.srcStyle = v.isSrc ? navOn : ''; v.pickSrc = () => this.setState({ sel: 'src' });
+    const de = found || all[0] || this.eVals(ENTRIES[0]);
+    const raw = this.findAny(de.id) || ENTRIES[0];
+    const pick = s.picks[de.id] || null;
+    const nv = s.notes[de.id] !== undefined ? s.notes[de.id] : raw.note || '';
+    v.isOrphan = !!found && v.orphans.some((o) => o.id === de.id);
+    v.de = Object.assign({}, de, { lib: de.lib && !v.isOrphan, notLib: de.notLib && !v.isOrphan, rankText: v.isOrphan ? 'nicht mehr in der Liste' : de.rank + ' bei Trakt',
+      slots: this.slotsFor(raw, pick, (n) => this.patch('picks', { [de.id]: n })), pickText: pick ? 'Platz ' + pick + ' gewählt' : 'Noch kein Platz gewählt',
+      pinErr: !pick && s.pinTried === de.id ? 'Pflichtfeld.' : '', hasPinErr: !pick && s.pinTried === de.id,
+      pinNow: () => { if (!pick) { this.setState({ pinTried: de.id }); return; } this.setState({ pinTried: null }); this.pin(raw, pick); },
+      noteVal: nv, noteCount: nv.length + ' / ' + MAX_NOTE, setNote: (ev) => this.patch('notes', { [de.id]: ev.target.value.slice(0, MAX_NOTE) }), saveNote: () => this.saveNote(raw, nv) });
+    v.pinOpen = false; v.noteOpen = false;
+    return v;
+  }
+}
+</script>
+</body>
+</html>
