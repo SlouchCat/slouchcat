@@ -359,20 +359,28 @@ func (s *Service) CheckKey(ctx context.Context, key string) error {
 	return s.client.CheckKey(ctx, key)
 }
 
-// itemPayload is the payload of both jobs.
+// itemPayload is the payload of both jobs. Images marks a fill queued by metadata.apply for
+// the images: it fetches the records and decides the image kinds again even for a folder with
+// one provider, which an ordinary fill leaves to the match (section 1.1 of concept 10).
 type itemPayload struct {
 	ItemID string `json:"itemId"`
+	Images bool   `json:"images,omitempty"`
 }
 
 func parsePayload(j *jobs.Job) (string, error) {
+	p, err := parseItemPayload(j)
+	return p.ItemID, err
+}
+
+func parseItemPayload(j *jobs.Job) (itemPayload, error) {
 	var p itemPayload
 	if err := json.Unmarshal(j.Payload, &p); err != nil {
-		return "", fmt.Errorf("%s payload: %w", j.Type, err)
+		return itemPayload{}, fmt.Errorf("%s payload: %w", j.Type, err)
 	}
 	if !isULID(p.ItemID) {
-		return "", fmt.Errorf("%s payload: invalid itemId %q", j.Type, p.ItemID)
+		return itemPayload{}, fmt.Errorf("%s payload: invalid itemId %q", j.Type, p.ItemID)
 	}
-	return p.ItemID, nil
+	return p, nil
 }
 
 // logRequest records an outbound provider request at debug level: provider, host and path, never
