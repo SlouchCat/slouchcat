@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Metadaten · C Reiter und Klappbereiche</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.t{width:100%;border-collapse:collapse;table-layout:fixed}
+.t th{height:32px;padding:0 12px;text-align:left;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t td{height:40px;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:40px;padding:4px 0;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,0.08)}
+.row>div:first-child{min-width:0}
+.lb{font-size:14px}.hn{display:block;font-size:12px;color:#9095a3;margin-top:1px}
+.cap{margin:0;font-size:12px;color:#9095a3}
+.si{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;padding:7px 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;text-align:left;cursor:pointer}.si:hover{background:#1d2029}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;min-height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Metadaten</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button><span style="flex:1"></span><button type="button" class="b bs" onClick="{{ openAll }}">{{ openAllLabel }}</button></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:4px;margin-top:8px"><p style="margin:0;font-size:13px;color:#b6b9c4">Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Güte, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für alle Bibliotheken; eine Bibliothek kann bei Sprachen und Bildern abweichen.</p><p class="cap" style="display:flex;gap:16px;flex-wrap:wrap"><span>Die Reihenfolge der Quellen steht je Ordner unter <a href="#">Bibliotheken</a>.</span><span>Die Zeitpläne stehen unter <a href="#">Hintergrundjobs</a>.</span></p></div></sc-if></div>
+<div role="tablist" aria-label="Geltung" style="display:flex;gap:4px;margin-top:24px;border-bottom:1px solid rgba(255,255,255,0.08)">
+<sc-for list="{{ ctabs }}" as="t" hint-placeholder-count="5"><button type="button" role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }}<span style="{{ t.chip }}">{{ t.count }}</span><sc-if value="{{ t.dirty }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:#e8b65a;flex:none"><span class="sr">geändert</span></span></sc-if></button></sc-for></div>
+<div role="tabpanel" aria-label="{{ scopeName }}" style="margin-top:12px"><p class="cap" style="margin:0 0 12px">{{ scopeHint }} <span style="color:#b6b9c4">{{ scopeTitles }}</span></p><div style="background:#16181f;border-radius:10px;overflow:hidden"><div style="border-top:none"><div style="display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px 0 8px"><h3 style="margin:0;flex:1;min-width:0;font-size:14px;font-weight:600">
+<button type="button" aria-expanded="{{ acc.texts.aria }}" aria-controls="m-acc-texts" onClick="{{ acc.texts.toggle }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 8px;border:none;background:none;color:#f3f3f5;font:inherit;text-align:left;cursor:pointer"><span style="{{ acc.texts.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="flex:none;width:200px">Sprachen</span>
+<span style="flex:1;min-width:0;font-size:13px;font-weight:400;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ acc.texts.sum }}</span></button></h3>
+<sc-if value="{{ acc.texts.dirty }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:#e8b65a;flex:none"><span class="sr">geändert</span></span></sc-if><sc-if value="{{ txLocked }}" hint-placeholder-val="{{ false }}"><span class="c">wie Server</span></sc-if><sc-if value="{{ isLib }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:10px;flex:none"><span id="m-txd" style="font-size:13px;color:#b6b9c4">abweichend</span><button type="button" role="switch" aria-checked="{{ txDev.aria }}" aria-labelledby="m-txd" disabled="{{ txDev.dis }}" onClick="{{ txDev.toggle }}" style="{{ txDev.track }}"><span style="{{ txDev.knob }}"></span></button></span></sc-if></div><sc-if value="{{ acc.texts.open }}" hint-placeholder-val="{{ false }}"><div id="m-acc-texts" style="padding:0 16px 16px 50px"><div class="row" style="align-items:flex-start;padding:8px 0"><div style="width:200px;flex:none"><span class="lb">Metadaten-Sprachen</span><span class="hn">Reihenfolge = Rückfall</span></div><div style="flex:1;min-width:0"><div role="group" aria-label="{{ tx.label }}" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0">
+<ol style="display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;{{ tx.dim }}"><sc-for list="{{ tx.items }}" as="c" hint-placeholder-count="3"><li style="display:inline-flex;align-items:center;gap:1px;height:32px;padding:0 2px 0 10px;box-sizing:border-box;border-radius:6px;background:#1d2029;border:1px solid rgba(255,255,255,0.08)"><span style="font-size:12px;color:#9095a3;font-variant-numeric:tabular-nums">{{ c.pos }}</span><span style="font-weight:500;margin:0 4px 0 3px">{{ c.name }}</span>
+<button type="button" class="b bs bi bg" aria-label="{{ c.upLabel }}" disabled="{{ c.upDis }}" onClick="{{ c.up }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m15 6-6 6 6 6"/></svg></button><button type="button" class="b bs bi bg" aria-label="{{ c.downLabel }}" disabled="{{ c.downDis }}" onClick="{{ c.down }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></button><button type="button" class="b bs bi bg" aria-label="{{ c.rmLabel }}" disabled="{{ c.rmDis }}" onClick="{{ c.rm }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></li></sc-for></ol>
+<sc-if value="{{ tx.editable }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:6px"><select class="in" aria-label="Sprache wählen: {{ tx.label }}" value="{{ tx.addVal }}" onChange="{{ tx.setAdd }}" style="width:176px"><option value="">Sprache hinzufügen</option><option value="de">Deutsch</option><option value="de-CH">Deutsch (Schweiz)</option><option value="en">Englisch</option><option value="fr">Französisch</option><option value="it">Italienisch</option><option value="ja">Japanisch</option><option value="nl">Niederländisch</option><option value="pt">Portugiesisch</option><option value="es">Spanisch</option></select><button type="button" class="b" disabled="{{ tx.addDis }}" onClick="{{ tx.add }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Hinzufügen</button></span></sc-if>
+<sc-if value="{{ tx.hasHint }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#e8b65a">{{ tx.addHint }}</span></sc-if></div></div></div><p class="cap" style="margin-top:8px">Fehlt ein Text in der Sprache des Profils, zeigt Slouchcat die erste vorhandene der Liste, dann den Dateinamen. Der Standard braucht Deutsch; eine Bibliothek braucht Deutsch oder Englisch. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.</p>
+<p class="cap" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px"><sc-if value="{{ hasUnknown }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:6px;color:#e8b65a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>{{ unknown }}</span></sc-if><span>{{ youtube }}</span></p></div></sc-if></div><div style="border-top:1px solid rgba(255,255,255,0.08)"><div style="display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px 0 8px"><h3 style="margin:0;flex:1;min-width:0;font-size:14px;font-weight:600">
+<button type="button" aria-expanded="{{ acc.images.aria }}" aria-controls="m-acc-images" onClick="{{ acc.images.toggle }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 8px;border:none;background:none;color:#f3f3f5;font:inherit;text-align:left;cursor:pointer"><span style="{{ acc.images.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="flex:none;width:200px">Bilder</span>
+<span style="flex:1;min-width:0;font-size:13px;font-weight:400;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ acc.images.sum }}</span></button></h3>
+<sc-if value="{{ acc.images.dirty }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:#e8b65a;flex:none"><span class="sr">geändert</span></span></sc-if><sc-if value="{{ imLocked }}" hint-placeholder-val="{{ false }}"><span class="c">wie Server</span></sc-if><sc-if value="{{ isLib }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;align-items:center;gap:10px;flex:none"><span id="m-imd" style="font-size:13px;color:#b6b9c4">abweichend</span><button type="button" role="switch" aria-checked="{{ imDev.aria }}" aria-labelledby="m-imd" disabled="{{ imDev.dis }}" onClick="{{ imDev.toggle }}" style="{{ imDev.track }}"><span style="{{ imDev.knob }}"></span></button></span></sc-if></div><sc-if value="{{ acc.images.open }}" hint-placeholder-val="{{ false }}"><div id="m-acc-images" style="padding:0 16px 16px 50px"><div class="row"><div><span class="lb">Poster und Hintergrund</span><span class="hn">Poster: Filme, Serien, Hörbücher, Podcasts · Hintergrund: Filme, Serien</span></div><span class="c">immer</span></div>
+<div style="{{ imDim }}"><sc-for list="{{ kinds }}" as="k" hint-placeholder-count="3"><label class="row" style="cursor:pointer;justify-content:flex-start;gap:10px"><input type="checkbox" checked="{{ k.on }}" disabled="{{ k.dis }}" onChange="{{ k.toggle }}" style="accent-color:#e8794a;margin:0;width:16px;height:16px"><span><span class="lb">{{ k.label }}</span><span class="hn">{{ k.hint }}</span></span></label></sc-for></div>
+<p class="cap" style="margin-top:8px">Art, Banner und Disc gibt es bewusst nicht: keine Seite zeigt sie.</p><p style="margin:16px 0 0;font-size:13px;font-weight:600;color:#b6b9c4">Bildsprache</p><sc-for list="{{ chains }}" as="ch" hint-placeholder-count="3"><div class="row" style="align-items:flex-start;padding:8px 0"><div style="width:200px;flex:none;padding-top:6px"><span class="lb">{{ ch.title }}</span></div><div style="flex:1;min-width:0"><div role="group" aria-label="{{ ch.label }}" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0">
+<ol style="display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;{{ ch.dim }}"><sc-for list="{{ ch.items }}" as="c" hint-placeholder-count="3"><li style="display:inline-flex;align-items:center;gap:1px;height:32px;padding:0 2px 0 10px;box-sizing:border-box;border-radius:6px;background:#1d2029;border:1px solid rgba(255,255,255,0.08)"><span style="font-size:12px;color:#9095a3;font-variant-numeric:tabular-nums">{{ c.pos }}</span><span style="font-weight:500;margin:0 4px 0 3px">{{ c.name }}</span>
+<button type="button" class="b bs bi bg" aria-label="{{ c.upLabel }}" disabled="{{ c.upDis }}" onClick="{{ c.up }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m15 6-6 6 6 6"/></svg></button><button type="button" class="b bs bi bg" aria-label="{{ c.downLabel }}" disabled="{{ c.downDis }}" onClick="{{ c.down }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></button><button type="button" class="b bs bi bg" aria-label="{{ c.rmLabel }}" disabled="{{ c.rmDis }}" onClick="{{ c.rm }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M18 6 6 18M6 6l12 12"/></svg></button></li></sc-for></ol>
+<sc-if value="{{ ch.editable }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:6px"><select class="in" aria-label="Sprache wählen: {{ ch.label }}" value="{{ ch.addVal }}" onChange="{{ ch.setAdd }}" style="width:176px"><option value="">Sprache hinzufügen</option><option value="__none__">Ohne Text</option><option value="de">Deutsch</option><option value="de-CH">Deutsch (Schweiz)</option><option value="en">Englisch</option><option value="fr">Französisch</option><option value="it">Italienisch</option><option value="ja">Japanisch</option><option value="nl">Niederländisch</option><option value="pt">Portugiesisch</option><option value="es">Spanisch</option></select><button type="button" class="b" disabled="{{ ch.addDis }}" onClick="{{ ch.add }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 5v14M5 12h14"/></svg>Hinzufügen</button></span></sc-if>
+<sc-if value="{{ ch.hasHint }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#e8b65a">{{ ch.addHint }}</span></sc-if></div></div></div></sc-for>
+<p class="cap" style="margin-top:8px">Reihenfolge, in der ein Bild gewählt wird. «Ohne Text» ist ein Bild ohne Schrift. Innerhalb einer Sprache gewinnt das bestbewertete Bild.</p></div></sc-if></div><sc-if value="{{ isServer }}" hint-placeholder-val="{{ true }}"><div style="border-top:1px solid rgba(255,255,255,0.08)"><div style="display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px 0 8px"><h3 style="margin:0;flex:1;min-width:0;font-size:14px;font-weight:600">
+<button type="button" aria-expanded="{{ acc.quality.aria }}" aria-controls="m-acc-quality" onClick="{{ acc.quality.toggle }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 8px;border:none;background:none;color:#f3f3f5;font:inherit;text-align:left;cursor:pointer"><span style="{{ acc.quality.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="flex:none;width:200px">Güte</span>
+<span style="flex:1;min-width:0;font-size:13px;font-weight:400;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ acc.quality.sum }}</span></button></h3>
+<sc-if value="{{ acc.quality.dirty }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:#e8b65a;flex:none"><span class="sr">geändert</span></span></sc-if></div><sc-if value="{{ acc.quality.open }}" hint-placeholder-val="{{ false }}"><div id="m-acc-quality" style="padding:0 16px 16px 50px"><div class="row"><div><span class="lb">Mindestbreite Poster</span></div><div role="radiogroup" aria-label="Mindestbreite Poster" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08);flex:none"><sc-for list="{{ posterSeg }}" as="o" hint-placeholder-count="4"><button type="button" role="radio" aria-checked="{{ o.sel }}" disabled="{{ o.dis }}" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div><div class="row"><div><span class="lb">Mindestbreite Hintergrund</span></div><div role="radiogroup" aria-label="Mindestbreite Hintergrund" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08);flex:none"><sc-for list="{{ backSeg }}" as="o" hint-placeholder-count="4"><button type="button" role="radio" aria-checked="{{ o.sel }}" disabled="{{ o.dis }}" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div><div class="row"><div><span id="m-vote" class="lb">Nach Bewertung wählen</span><span class="hn">Bestbewertetes Bild der Sprache statt des ersten Treffers.</span></div><button type="button" role="switch" aria-checked="{{ byVote.aria }}" aria-labelledby="m-vote" disabled="{{ byVote.dis }}" onClick="{{ byVote.toggle }}" style="{{ byVote.track }}"><span style="{{ byVote.knob }}"></span></button></div><p class="cap" style="margin-top:8px">Gibt es kein Bild in der Mindestbreite, nimmt Slouchcat das beste kleinere. Ausgelieferte Grössen (Poster 200/400/800, Hintergrund 780/1280/1920, Logo 400/800) sind fest.</p></div></sc-if></div></sc-if><sc-if value="{{ isServer }}" hint-placeholder-val="{{ true }}"><div style="border-top:1px solid rgba(255,255,255,0.08)"><div style="display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px 0 8px"><h3 style="margin:0;flex:1;min-width:0;font-size:14px;font-weight:600">
+<button type="button" aria-expanded="{{ acc.sources.aria }}" aria-controls="m-acc-sources" onClick="{{ acc.sources.toggle }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 8px;border:none;background:none;color:#f3f3f5;font:inherit;text-align:left;cursor:pointer"><span style="{{ acc.sources.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="flex:none;width:200px">Quellen</span>
+<span style="flex:1;min-width:0;font-size:13px;font-weight:400;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ acc.sources.sum }}</span></button></h3>
+<sc-if value="{{ acc.sources.dirty }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:#e8b65a;flex:none"><span class="sr">geändert</span></span></sc-if></div><sc-if value="{{ acc.sources.open }}" hint-placeholder-val="{{ false }}"><div id="m-acc-sources" style="padding:0 16px 16px 50px"><div class="row"><div><span id="m-adult" class="lb">TMDB: Erwachseneninhalte bei der Suche</span><span class="hn">Sonst erscheinen sie nie in der Zuordnung.</span></div><button type="button" role="switch" aria-checked="{{ adult.aria }}" aria-labelledby="m-adult" disabled="{{ adult.dis }}" onClick="{{ adult.toggle }}" style="{{ adult.track }}"><span style="{{ adult.knob }}"></span></button></div><div class="row"><div><span id="m-local" class="lb">Lokale Dateien als Quelle</span><span class="hn">poster.jpg, fanart.jpg, logo.png neben dem Titel; vor allen Anbietern. 211 Titel mit Bilddateien.</span></div><button type="button" role="switch" aria-checked="{{ local.aria }}" aria-labelledby="m-local" disabled="{{ local.dis }}" onClick="{{ local.toggle }}" style="{{ local.track }}"><span style="{{ local.knob }}"></span></button></div><div class="row"><div><span id="m-fan" class="lb">Fanart.tv als Bildquelle</span><span class="hn">Logos und Poster in hoher Güte. Braucht einen Schlüssel: <a href="#">Schlüssel unter Integrationen</a></span></div><button type="button" role="switch" aria-checked="{{ fanart.aria }}" aria-labelledby="m-fan" disabled="{{ fanart.dis }}" onClick="{{ fanart.toggle }}" style="{{ fanart.track }}"><span style="{{ fanart.knob }}"></span></button></div><p class="cap" style="margin-top:8px">Zu kleine oder abgeschaltete Dateien bleiben als Kandidaten in der Bildwahl je Titel. Reihenfolge der Quellen je Ordner unter <a href="#">Bibliotheken</a>.</p></div></sc-if></div></sc-if><sc-if value="{{ isServer }}" hint-placeholder-val="{{ true }}"><div style="border-top:1px solid rgba(255,255,255,0.08)"><div style="display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px 0 8px"><h3 style="margin:0;flex:1;min-width:0;font-size:14px;font-weight:600">
+<button type="button" aria-expanded="{{ acc.rating.aria }}" aria-controls="m-acc-rating" onClick="{{ acc.rating.toggle }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 8px;border:none;background:none;color:#f3f3f5;font:inherit;text-align:left;cursor:pointer"><span style="{{ acc.rating.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="flex:none;width:200px">Altersfreigabe</span>
+<span style="flex:1;min-width:0;font-size:13px;font-weight:400;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ acc.rating.sum }}</span></button></h3>
+<sc-if value="{{ acc.rating.dirty }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:#e8b65a;flex:none"><span class="sr">geändert</span></span></sc-if></div><sc-if value="{{ acc.rating.open }}" hint-placeholder-val="{{ false }}"><div id="m-acc-rating" style="padding:0 16px 16px 50px"><div class="row"><div><label for="m-country" class="lb">Land</label><span class="hn">Wird zuerst gelesen; danach DE, AT, CH, GB, US. Stufen FSK 0/6/12/16/18.</span></div><select class="in" id="m-country" value="{{ country }}" onChange="{{ setCountry }}" style="width:200px"><option value="DE">Deutschland (DE)</option><option value="AT">Österreich (AT)</option><option value="CH">Schweiz (CH)</option><option value="GB">Grossbritannien (GB)</option><option value="US">USA (US)</option></select></div><p class="cap" style="margin-top:8px">Ein neuer Titel bekommt die Stufe des zuerst gelesenen Landes. Eine gespeicherte Stufe wird nie gesenkt; senken geht nur je Titel in der Pflege.</p></div></sc-if></div></sc-if><sc-if value="{{ isServer }}" hint-placeholder-val="{{ true }}"><div style="border-top:1px solid rgba(255,255,255,0.08)"><div style="display:flex;align-items:center;gap:12px;min-height:48px;padding:0 16px 0 8px"><h3 style="margin:0;flex:1;min-width:0;font-size:14px;font-weight:600">
+<button type="button" aria-expanded="{{ acc.apply.aria }}" aria-controls="m-acc-apply" onClick="{{ acc.apply.toggle }}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 8px;border:none;background:none;color:#f3f3f5;font:inherit;text-align:left;cursor:pointer"><span style="{{ acc.apply.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="m9 6 6 6-6 6"/></svg></span><span style="flex:none;width:200px">Anwenden</span>
+<span style="flex:1;min-width:0;font-size:13px;font-weight:400;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ acc.apply.sum }}</span></button></h3>
+<sc-if value="{{ acc.apply.dirty }}" hint-placeholder-val="{{ false }}"><span style="display:inline-block;width:8px;height:8px;border-radius:4px;background:#e8b65a;flex:none"><span class="sr">geändert</span></span></sc-if></div><sc-if value="{{ acc.apply.open }}" hint-placeholder-val="{{ false }}"><div id="m-acc-apply" style="padding:0 16px 16px 50px"><div class="row"><div><span class="lb">Was</span></div><div role="radiogroup" aria-label="Was" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08);flex:none"><sc-for list="{{ whatSeg }}" as="o" hint-placeholder-count="4"><button type="button" role="radio" aria-checked="{{ o.sel }}" disabled="{{ o.dis }}" onClick="{{ o.pick }}" style="{{ o.style }}">{{ o.label }}</button></sc-for></div></div><div class="row"><div><label for="m-where" class="lb">Wo</label></div><select class="in" id="m-where" value="{{ where }}" onChange="{{ setWhere }}" style="width:240px"><option value="all">Alle Bibliotheken (1'284 Titel)</option><option value="1">Filme (612 Titel)</option><option value="2">Serien (388 Titel)</option><option value="3">Kinder (214 Titel)</option><option value="4">Anime (70 Titel)</option></select></div><div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap"><button type="button" class="b bp" onClick="{{ run }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg>{{ runLabel }}</button><a href="#" style="font-size:13px">Zu den Hintergrundjobs</a></div>
+<p class="cap" role="status" style="margin-top:8px">{{ applyStatus }} <span>Aktualisiert alle 10 s.</span></p>
+<p class="cap" style="margin-top:2px">Neue Titel nutzen die Einstellungen sofort; bestehende erst nach dem Lauf (unter Hintergrundjobs mit Fortschritt, Pause und Abbruch).</p></div></sc-if></div></sc-if></div></div>
+<div role="region" aria-label="Speichern" style="position:sticky;bottom:12px;z-index:4;display:flex;align-items:center;gap:12px;height:56px;margin-top:24px;padding:0 12px 0 16px;box-sizing:border-box;border-radius:10px;background:#1d2029;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.45)">
+<sc-if value="{{ dirty }}" hint-placeholder-val="{{ false }}"><span class="c cw">geändert</span></sc-if><span style="{{ saveTextStyle }}">{{ saveText }}</span><span style="flex:1"></span>
+<button type="button" class="b bg" disabled="{{ nothing }}" onClick="{{ discard }}">Verwerfen</button><button type="button" class="b bp" disabled="{{ nothing }}" onClick="{{ save }}">Speichern</button></div>
+</main>
+</div>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const EXTRA = { open: {} };
+const Y = { save: 560, apply: 560 };
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06' };
+const NAMES = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', it: 'Italienisch', es: 'Spanisch', ja: 'Japanisch', nl: 'Niederländisch', pt: 'Portugiesisch', 'de-CH': 'Deutsch (Schweiz)', '': 'Ohne Text' };
+const PROV = [
+  { id: 'TVDB', langs: ['de', 'en', 'fr', 'it', 'es', 'ja', 'nl', 'pt'] },
+  { id: 'ANILIST', langs: ['en', 'ja'] },
+];
+const LIBS = [
+  { id: '1', name: 'Filme', titles: 612 },
+  { id: '2', name: 'Serien', titles: 388 },
+  { id: '3', name: 'Kinder', titles: 214, own: { textsDeviate: true, textLangs: ['de'] } },
+  { id: '4', name: 'Anime', titles: 70, own: { textsDeviate: true, textLangs: ['ja', 'en', 'de'], imagesDeviate: true, imageKinds: ['logo', 'season_poster', 'episode_still'], imageLangs: { poster: ['ja', 'en', ''], backdrop: ['', 'ja', 'en'], logo: ['ja', 'en'] } } },
+];
+const ALL_TITLES = 1284;
+const SERVER0 = { textLangs: ['de', 'en', 'fr'], imageLangs: { poster: ['de', 'en', ''], backdrop: ['', 'de', 'en'], logo: ['de', 'en'] }, imageKinds: ['logo', 'season_poster'],
+  minPoster: 1000, minBackdrop: 1920, byVote: true, tmdbAdult: false, localImages: true, fanart: true, country: 'CH' };
+const KINDS = [
+  ['logo', 'Logo', 'Titelschriftzug auf Detailseite und Spotlight statt des Text-Titels'],
+  ['season_poster', 'Staffelposter', 'Sonst das Serienposter'],
+  ['episode_still', 'Folgenbild', "Standbild je Folge; bei 40'000 Folgen rund 12 GB Cache"],
+];
+const CHAINS = [['poster', 'Poster'], ['backdrop', 'Hintergrund'], ['logo', 'Logo']];
+const POSTER_W = [0, 500, 1000, 1500, 2000];
+const BACK_W = [0, 1280, 1920, 3840];
+const COUNTRY = { DE: 'Deutschland (DE)', AT: 'Österreich (AT)', CH: 'Schweiz (CH)', GB: 'Grossbritannien (GB)', US: 'USA (US)' };
+const WHAT = [['both', 'Texte und Bilder'], ['texts', 'Nur Texte'], ['images', 'Nur Bilder']];
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const nm = (c) => (c in NAMES ? NAMES[c] : c);
+const move = (l, a, b) => { const o = l.slice(); const [x] = o.splice(a, 1); o.splice(b, 0, x); return o; };
+const track = (on, dis) => 'display:inline-flex;justify-content:' + (on ? 'flex-end' : 'flex-start') + ';width:36px;height:20px;padding:2px;box-sizing:border-box;border:none;border-radius:10px;flex:none;cursor:' + (dis ? 'default;opacity:.5' : 'pointer') + ';background:' + (on ? COL.ac : COL.s3);
+const knob = (on) => 'width:16px;height:16px;border-radius:8px;background:' + (on ? COL.tp : COL.tm);
+const segStyle = (s) => 'display:inline-flex;align-items:center;height:26px;padding:0 10px;border:none;border-radius:5px;font-size:13px;cursor:pointer;white-space:nowrap;background:' + (s ? COL.s3 : 'transparent') + ';color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500);
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const DIM = 'opacity:.55';
+const devLabel = (l) => (l.textsDeviate && l.imagesDeviate ? 'Sprachen und Bilder abweichend' : l.textsDeviate ? 'Sprachen abweichend' : l.imagesDeviate ? 'Bilder abweichend' : 'wie Server');
+const AREAS = { texts: ['textLangs', 'textsDeviate'], images: ['imageLangs', 'imageKinds', 'imagesDeviate'], quality: ['minPoster', 'minBackdrop', 'byVote'], sources: ['tmdbAdult', 'localImages', 'fanart'], rating: ['country'] };
+
+function libSeed(l) {
+  const o = l.own || {};
+  return { textsDeviate: !!o.textsDeviate, textLangs: clone(o.textLangs || SERVER0.textLangs), imagesDeviate: !!o.imagesDeviate,
+    imageLangs: clone(o.imageLangs || SERVER0.imageLangs), imageKinds: clone(o.imageKinds || SERVER0.imageKinds) };
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const saved = { server: clone(SERVER0), libs: {} };
+    LIBS.forEach((l) => { saved.libs[l.id] = libSeed(l); });
+    this.state = Object.assign({ help: false, toast: null, toastY: 120, scope: 'server', saved, draft: clone(saved), add: {}, what: 'both', where: 'all',
+      lastRun: '30.10.2026, 22:14, Erledigt', waitMatch: 0, waitImg: 14 }, EXTRA);
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(msg, y) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, toastY: y == null ? 120 : y });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  isLib() { return this.state.scope !== 'server'; }
+  libOf(s) { return LIBS.find((l) => l.id === s); }
+  cur(d) { return this.isLib() ? d.libs[this.state.scope] : d.server; }
+  edit(fn) { const d = clone(this.state.draft); fn(this.cur(d), d); this.setState({ draft: d }); }
+  editServer(fn) { const d = clone(this.state.draft); fn(d.server); this.setState({ draft: d }); }
+  effective() {
+    const d = this.state.draft;
+    if (!this.isLib()) return { t: d.server, i: d.server, txOk: true, imOk: true };
+    const l = d.libs[this.state.scope];
+    return { t: l.textsDeviate ? l : d.server, i: l.imagesDeviate ? l : d.server, txOk: l.textsDeviate, imOk: l.imagesDeviate, l };
+  }
+  setList(key, list) { this.edit((t) => { if (key === 'text') t.textLangs = list; else t.imageLangs[key] = list; }); }
+  chips(key, label, list, ok, isText) {
+    const ui = list.filter((c) => c === 'de' || c === 'en').length;
+    const addVal = this.state.add[key] || '';
+    const code = addVal === '__none__' ? '' : addVal;
+    const present = addVal !== '' && list.indexOf(code) >= 0;
+    return {
+      label, editable: ok, dim: ok ? '' : DIM, addVal, addDis: !ok || addVal === '' || present, hasHint: present, addHint: present ? nm(code) + ' ist schon in der Liste.' : '',
+      summary: list.map(nm).join(', '),
+      setAdd: (e) => this.setState({ add: Object.assign({}, this.state.add, { [key]: e.target.value }) }),
+      add: () => { this.setList(key, list.concat([code])); this.setState({ add: Object.assign({}, this.state.add, { [key]: '' }) }); },
+      items: list.map((c, i) => ({
+        pos: (i + 1) + '.', name: nm(c), upLabel: nm(c) + ' nach vorne', downLabel: nm(c) + ' nach hinten', rmLabel: nm(c) + ' entfernen',
+        upDis: !ok || i === 0, downDis: !ok || i === list.length - 1, rmDis: !ok || list.length <= 1 || (isText && (c === 'de' || c === 'en') && ui <= 1),
+        up: () => this.setList(key, move(list, i, i - 1)), down: () => this.setList(key, move(list, i, i + 1)), rm: () => this.setList(key, list.filter((_, j) => j !== i)),
+      })),
+    };
+  }
+  sw(on, fn, dis) { return { aria: on ? 'true' : 'false', track: track(on, dis), knob: knob(on), dis: !!dis, toggle: fn }; }
+  seg(opts, curv, fn, dis) { return opts.map(([v, l]) => ({ label: l, sel: v === curv ? 'true' : 'false', style: segStyle(v === curv), dis: !!dis, pick: () => fn(v) })); }
+  dirtyNames() {
+    const { draft, saved } = this.state;
+    const o = [];
+    if (!same(draft.server, saved.server)) o.push('Standard');
+    LIBS.forEach((l) => { if (!same(draft.libs[l.id], saved.libs[l.id])) o.push(l.name); });
+    return o;
+  }
+  scopeDirty(s) { const { draft, saved } = this.state; return s === 'server' ? !same(draft.server, saved.server) : !same(draft.libs[s], saved.libs[s]); }
+  areaDirty(a) {
+    const { draft, saved } = this.state;
+    const d = this.isLib() ? draft.libs[this.state.scope] : draft.server;
+    const s = this.isLib() ? saved.libs[this.state.scope] : saved.server;
+    return AREAS[a].some((k) => k in d && !same(d[k], s[k]));
+  }
+  save(y) {
+    const names = this.dirtyNames();
+    const srv = names.indexOf('Standard') >= 0;
+    const libs = LIBS.filter((l) => names.indexOf(l.name) >= 0);
+    const n = srv ? ALL_TITLES : libs.reduce((a, l) => a + l.titles, 0);
+    this.setState({ saved: clone(this.state.draft) });
+    this.say((srv ? 'Gespeichert. ' : 'Gespeichert für ' + libs.map((l) => l.name).join(', ') + '. ') + fmt(n) + ' Titel betroffen – jetzt anwenden?', y);
+  }
+  discard(y) { this.setState({ draft: clone(this.state.saved), add: {} }); this.say('Änderungen verworfen.', y); }
+  run(y) {
+    const l = this.libOf(this.state.where);
+    const n = l ? l.titles : ALL_TITLES;
+    const w = this.state.what;
+    this.setState({ lastRun: 'heute 15:02, Wartend', waitMatch: w === 'images' ? 0 : n, waitImg: 14 + (w === 'texts' ? 0 : n) });
+    this.say('Lauf 48311 eingereiht: ' + fmt(n) + ' Titel. Fortschritt unter Hintergrundjobs.', y);
+  }
+  vals(Y) {
+    const st = this.state;
+    const e = this.effective();
+    const srv = st.draft.server;
+    const lib = this.isLib() ? this.libOf(st.scope) : null;
+    const names = this.dirtyNames();
+    const tl = e.t.textLangs;
+    const primaries = {};
+    tl.forEach((c) => { primaries[c.split('-')[0]] = 1; });
+    const unknown = PROV.map((p) => [p.id, tl.filter((c) => p.langs.indexOf(c) < 0)]).filter((x) => x[1].length).map((x) => x[0] + ' kennt nicht: ' + x[1].map(nm).join(', '));
+    const kinds = e.i.imageKinds;
+    const where = this.libOf(st.where);
+    return {
+      helpOpen: st.help, helpAria: st.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !st.help }),
+      hasToast: !!st.toast, toast: st.toast || '',
+      toastStyle: 'position:absolute;right:32px;top:' + st.toastY + 'px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp,
+      isServer: !lib, isLib: !!lib, scopeName: lib ? lib.name : 'Standard', scopeTitles: fmt(lib ? lib.titles : ALL_TITLES) + ' Titel',
+      scopeHint: lib ? lib.name + ' übernimmt den Standard. Schalte «abweichend» ein, um Sprachen oder Bilder nur für diese Bibliothek zu ändern.' : 'Gilt für alle Bibliotheken ohne eigene Abweichung.',
+      scopeSeg: this.seg([['server', 'Standard']].concat(LIBS.map((l) => [l.id, l.name])), st.scope, (v) => this.setState({ scope: v })),
+      scope: st.scope, setScope: (ev) => this.setState({ scope: ev.target.value }),
+      txDev: this.sw(!!(e.l && e.l.textsDeviate), () => this.edit((t) => { t.textsDeviate = !t.textsDeviate; })),
+      imDev: this.sw(!!(e.l && e.l.imagesDeviate), () => this.edit((t) => { t.imagesDeviate = !t.imagesDeviate; })),
+      txLocked: !e.txOk, imLocked: !e.imOk, txDim: e.txOk ? '' : DIM, imDim: e.imOk ? '' : DIM,
+      tx: this.chips('text', 'Metadaten-Sprachen', tl, e.txOk, true),
+      hasUnknown: unknown.length > 0, unknown: unknown.join(' · '),
+      youtube: tl.length + ' Sprachen: bis zu ' + Math.floor(100 / Math.max(1, Object.keys(primaries).length)) + " Titel am Tag mit YouTube-Trailersuche (Kontingent 10'000).",
+      kinds: KINDS.map(([k, l, h]) => ({ label: l, hint: h, on: kinds.indexOf(k) >= 0, dis: !e.imOk,
+        toggle: () => this.edit((t) => { const on = t.imageKinds.indexOf(k) >= 0; t.imageKinds = KINDS.map((x) => x[0]).filter((x) => (x === k ? !on : t.imageKinds.indexOf(x) >= 0)); }) })),
+      kindsSummary: ['Poster', 'Hintergrund'].concat(KINDS.filter((x) => kinds.indexOf(x[0]) >= 0).map((x) => x[1])).join(', '),
+      chains: CHAINS.map(([k, l]) => Object.assign(this.chips(k, 'Bildsprache ' + l, e.i.imageLangs[k], e.imOk, false), { kind: k, title: 'Bildsprache ' + l })),
+      posterSeg: this.seg(POSTER_W.map((w) => [w, w ? w + ' px' : 'egal']), srv.minPoster, (v) => this.editServer((t) => { t.minPoster = v; })),
+      backSeg: this.seg(BACK_W.map((w) => [w, w ? w + ' px' : 'egal']), srv.minBackdrop, (v) => this.editServer((t) => { t.minBackdrop = v; })),
+      byVote: this.sw(srv.byVote, () => this.editServer((t) => { t.byVote = !t.byVote; })),
+      adult: this.sw(srv.tmdbAdult, () => this.editServer((t) => { t.tmdbAdult = !t.tmdbAdult; })),
+      local: this.sw(srv.localImages, () => this.editServer((t) => { t.localImages = !t.localImages; })),
+      fanart: this.sw(srv.fanart, () => this.editServer((t) => { t.fanart = !t.fanart; })),
+      country: srv.country, setCountry: (ev) => { const v = ev.target.value; this.editServer((t) => { t.country = v; }); },
+      qualitySummary: 'Poster ' + (srv.minPoster ? 'ab ' + srv.minPoster + ' px' : 'egal') + ', Hintergrund ' + (srv.minBackdrop ? 'ab ' + srv.minBackdrop + ' px' : 'egal') + (srv.byVote ? ', nach Bewertung' : ', erster Treffer'),
+      sourcesSummary: [srv.localImages ? 'Lokale Dateien' : '', srv.fanart ? 'Fanart.tv' : '', srv.tmdbAdult ? 'TMDB mit Erwachseneninhalten' : ''].filter(Boolean).join(', ') || 'nur die Quellen der Ordner',
+      countrySummary: COUNTRY[srv.country],
+      whatSeg: this.seg(WHAT, st.what, (v) => this.setState({ what: v })),
+      where: st.where, setWhere: (ev) => this.setState({ where: ev.target.value }),
+      runLabel: 'Jetzt anwenden', run: () => this.run(Y.apply),
+      applyStatus: 'Noch wartend: ' + fmt(st.waitMatch) + ' Zuordnungen, ' + fmt(st.waitImg) + ' Bilder. Letzter Lauf: ' + st.lastRun + '.',
+      applySummary: (where ? where.name : 'Alle Bibliotheken') + ' · ' + WHAT.find((x) => x[0] === st.what)[1] + ' · ' + fmt(where ? where.titles : ALL_TITLES) + ' Titel',
+      dirty: names.length > 0, clean: names.length === 0, nothing: names.length === 0,
+      saveText: names.length ? 'Ungespeicherte Änderungen: ' + names.join(', ') : 'Gespeichert',
+      saveTextStyle: 'font-size:13px;color:' + (names.length ? COL.tp : COL.tm),
+      save: () => this.save(Y.save), discard: () => this.discard(Y.save),
+    };
+  }
+
+  renderVals() {
+    const v = this.vals(Y);
+    const st = this.state;
+    const scopes = [['server', 'Standard']].concat(LIBS.map((l) => [l.id, l.name]));
+    v.ctabs = scopes.map(([id, name]) => {
+      const s = id === st.scope;
+      const l = id === 'server' ? null : st.draft.libs[id];
+      const count = l ? (l.textsDeviate || l.imagesDeviate ? 'abweichend' : 'wie Server') : "1'284 Titel";
+      const dev = l && (l.textsDeviate || l.imagesDeviate);
+      return { label: name, sel: s ? 'true' : 'false', style: tabStyle(s), dirty: this.scopeDirty(id), count, pick: () => this.setState({ scope: id }),
+        chip: 'display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:9px;font-size:12px;font-weight:500;' + (dev ? 'background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a' : 'background:#262a35;color:#b6b9c4') };
+    });
+    const lib = this.isLib();
+    const pre = (locked) => (lib ? (locked ? 'wie Server · ' : 'abweichend · ') : '');
+    const sums = { texts: pre(v.txLocked) + v.tx.summary, images: pre(v.imLocked) + v.kindsSummary + ' · Poster: ' + v.chains[0].summary, quality: v.qualitySummary, sources: v.sourcesSummary, rating: v.countrySummary, apply: v.applySummary + ' · Letzter Lauf ' + st.lastRun };
+    const keys = lib ? ['texts', 'images'] : Object.keys(sums);
+    const allOpen = keys.every((k) => st.open[k]);
+    v.acc = {};
+    Object.keys(sums).forEach((k) => {
+      const o = !!st.open[k];
+      v.acc[k] = { open: o, aria: o ? 'true' : 'false', sum: sums[k], dirty: k !== 'apply' && this.areaDirty(k),
+        chev: 'display:flex;color:' + COL.tm + ';transform:rotate(' + (o ? 90 : 0) + 'deg)',
+        toggle: () => this.setState({ open: Object.assign({}, st.open, { [k]: !o }) }) };
+    });
+    v.openAllLabel = allOpen ? 'Alle zuklappen' : 'Alle aufklappen';
+    v.openAll = () => { const n = {}; keys.forEach((k) => { n[k] = !allOpen; }); this.setState({ open: Object.assign({}, st.open, n) }); };
+    return v;
+  }
+}
+</script>
+</body>
+</html>

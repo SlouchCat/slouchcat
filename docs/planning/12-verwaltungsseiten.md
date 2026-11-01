@@ -478,8 +478,8 @@ offenem Dialog)
 ```
 Phase 1  Grundmuster: 3 Varianten an 3 Seiten (statisch)  → erledigt, kein globaler Entscheid
 Phase 2  Je Seite 3 klickbare Vorschläge (A, B, C)       → Wahl und Änderungswünsche je Seite
-         Pilot  Hintergrundjobs (Format der klickbaren Mockups prüfen)
-         2a  Metadaten, Integrationen, Bibliotheken, Pflege (+ Titel)
+         Pilot  Hintergrundjobs (Format angenommen)
+         2a  Metadaten, Integrationen, Bibliotheken, Pflege (+ Titel)   → veröffentlicht
          2b  Konten, Profile, Geräte, Streams, Podcasts
          2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen
          2d  Benachrichtigungen, Statistik, Sicherung
@@ -545,7 +545,24 @@ eigener Commit, `task ci` grün.
 
 | Seite | Wahl | Datum |
 |---|---|---|
-| Hintergrundjobs | offen (Pilot) | |
+| Hintergrundjobs | offen (Pilot; Format der klickbaren Mockups am 1. November 2026 angenommen) | |
+| Metadaten | offen | |
+| Integrationen | offen | |
+| Bibliotheken | offen | |
+| Pflege | offen | |
+| Titel (Unterseite von Pflege) | offen | |
+
+**Abweichungen der Vorschläge vom Grundmuster (Phase 2a):**
+
+- Metadaten B: die Liste links sind die **Einstellungsbereiche** (Sprachen, Bilder, Güte,
+  Quellen, Altersfreigabe, Anwenden), die Geltung ist eine Auswahl im Kopf; C hat Reiter **je
+  Geltung** (Standard und jede Bibliothek). Keine Menüs und Dialoge nötig.
+- Bibliotheken C: Reiter **nach Art** (Alle, Video, Hörbücher, Podcasts), je Bibliothek ein
+  Klappbereich; Bibliothek hinzufügen und neue Ordner als Dialog. Die Bestätigung durch Eintippen
+  verlangt wie heute den **Pfad** (`ConfirmInputDialog`).
+- Pflege C: im Reiter je **Bibliothek** ein Klappbereich (heute nicht gruppiert).
+- Titel B: die Bildwahl steht im Detail statt in einem Dialog.
+- Bezeichnungen folgen `de.json` (zum Beispiel «Erneut scannen», «Bereinigen», «Aktualisieren»).
 
 ## 11. Review-Protokoll
 

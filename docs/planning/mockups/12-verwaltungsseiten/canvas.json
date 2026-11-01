@@ -17,6 +17,26 @@
   {
    "id": "jobs",
    "name": "Hintergrundjobs"
+  },
+  {
+   "id": "met",
+   "name": "Metadaten"
+  },
+  {
+   "id": "int",
+   "name": "Integrationen"
+  },
+  {
+   "id": "bib",
+   "name": "Bibliotheken"
+  },
+  {
+   "id": "pfl",
+   "name": "Pflege"
+  },
+  {
+   "id": "tit",
+   "name": "Titel (Unterseite von Pflege)"
   }
  ],
  "boards": {
@@ -130,6 +150,156 @@
    "expand": "fill",
    "is_interactive": true,
    "page": "jobs"
+  },
+  "Met-A.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1410,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "met"
+  },
+  "Met-B.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "met"
+  },
+  "Met-C.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "met"
+  },
+  "Int-A.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 2260,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "int"
+  },
+  "Int-B.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "int"
+  },
+  "Int-C.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "int"
+  },
+  "Bib-A.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "bib"
+  },
+  "Bib-B.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "bib"
+  },
+  "Bib-C.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "bib"
+  },
+  "Pfl-A.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "pfl"
+  },
+  "Pfl-B.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "pfl"
+  },
+  "Pfl-C.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "pfl"
+  },
+  "Tit-A.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 1450,
+   "title": "A · Kompakte Liste",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "tit"
+  },
+  "Tit-B.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "B · Liste und Detail",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "tit"
+  },
+  "Tit-C.dc.html": {
+   "x": 3040,
+   "y": 0,
+   "w": 1440,
+   "h": 910,
+   "title": "C · Reiter und Klappbereiche",
+   "expand": "fill",
+   "is_interactive": true,
+   "page": "tit"
   }
  },
  "order": [
@@ -144,7 +314,22 @@
   "C-Konten.dc.html",
   "Jobs-A.dc.html",
   "Jobs-B.dc.html",
-  "Jobs-C.dc.html"
+  "Jobs-C.dc.html",
+  "Met-A.dc.html",
+  "Met-B.dc.html",
+  "Met-C.dc.html",
+  "Int-A.dc.html",
+  "Int-B.dc.html",
+  "Int-C.dc.html",
+  "Bib-A.dc.html",
+  "Bib-B.dc.html",
+  "Bib-C.dc.html",
+  "Pfl-A.dc.html",
+  "Pfl-B.dc.html",
+  "Pfl-C.dc.html",
+  "Tit-A.dc.html",
+  "Tit-B.dc.html",
+  "Tit-C.dc.html"
  ],
  "notes": {
   "rowA": {
@@ -178,6 +363,46 @@
    "kind": "title1",
    "maxW": 4480,
    "page": "jobs"
+  },
+  "metTitle": {
+   "x": 0,
+   "y": -300,
+   "text": "Metadaten · klickbar",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "met"
+  },
+  "intTitle": {
+   "x": 0,
+   "y": -300,
+   "text": "Integrationen · klickbar",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "int"
+  },
+  "bibTitle": {
+   "x": 0,
+   "y": -300,
+   "text": "Bibliotheken · klickbar",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "bib"
+  },
+  "pflTitle": {
+   "x": 0,
+   "y": -300,
+   "text": "Pflege · klickbar",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "pfl"
+  },
+  "titTitle": {
+   "x": 0,
+   "y": -300,
+   "text": "Titel (Unterseite von Pflege) · klickbar",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "tit"
   }
  },
  "designSystems": []

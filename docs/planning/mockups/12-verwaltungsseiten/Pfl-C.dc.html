@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Pflege · C Reiter und Klappbereiche</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.i{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.h2{margin:0;font-size:15px;font-weight:600}.tx{font-size:13px;color:#b6b9c4}.tm{font-size:12px;color:#9095a3}.tm3{font-size:13px;color:#9095a3}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.li{display:flex;align-items:center;gap:8px;width:100%;height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.lk{color:#f3f3f5;text-decoration:none;font-weight:500}.lk:hover{color:#e8794a;text-decoration:underline}
+.mo{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:12px;color:#b6b9c4}
+input[type=checkbox],input[type=radio]{accent-color:#e8794a;margin:0;width:16px;height:16px}
+.rl{display:inline-flex;align-items:center;gap:6px;height:28px;font-size:14px;cursor:pointer}
+.lg{padding:0;margin:0 0 4px;font-size:13px;color:#b6b9c4}
+fieldset{border:none;margin:0;padding:0;min-width:0}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Pflege</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Titel und Dateien, die Aufmerksamkeit brauchen.</p></sc-if></div>
+<div role="tablist" aria-label="Problemarten" style="margin-top:24px;display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,0.08)">
+<sc-for list="{{ ktabs }}" as="t" hint-placeholder-count="7"><button type="button" role="tab" aria-selected="{{ t.sel }}" onClick="{{ t.pick }}" style="{{ t.style }}">{{ t.label }} <span style="{{ t.chip }}">{{ t.count }}</span></button></sc-for></div>
+<div role="tabpanel" aria-label="{{ iv.name }}" style="margin-top:16px;display:flex;flex-direction:column;gap:12px"><p style="margin:0;font-size:13px;color:#b6b9c4">{{ iv.hint }}</p><sc-if value="{{ iv.hasOutcome }}" hint-placeholder-val="{{ false }}"><div role="status" style="display:flex;align-items:center;gap:10px;min-height:36px;padding:0 12px;border-radius:8px;background:color-mix(in srgb, #5fcf8f 10%, transparent);border:1px solid color-mix(in srgb, #5fcf8f 30%, transparent);font-size:13px"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M20 6 9 17l-5-5"/></svg></span>{{ iv.outcome }}</div></sc-if><sc-if value="{{ iv.isList }}" hint-placeholder-val="{{ true }}"><div style="display:flex;flex-direction:column;gap:12px"><sc-if value="{{ iv.tools }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:8px;min-height:32px">
+<sc-for list="{{ iv.acts }}" as="a" hint-placeholder-count="2"><button type="button" class="{{ a.cls }}" disabled="{{ a.dis }}" title="{{ a.tip }}" onClick="{{ a.run }}">{{ a.label }}</button></sc-for>
+<span style="flex:1"></span><span aria-live="polite" style="font-size:13px;color:#9095a3;font-variant-numeric:tabular-nums">{{ iv.selTxt }}</span><button type="button" class="b bg" onClick="{{ iv.toggleAll }}">{{ iv.allLabel }}</button></div></sc-if><sc-for list="{{ iv.libs }}" as="lg" hint-placeholder-count="3"><details open="{{ lg.open }}" onToggle="{{ lg.onToggle }}" style="background:#16181f;border-radius:10px"><summary style="display:flex;align-items:center;gap:10px;height:44px;padding:0 16px"><span style="{{ lg.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="m9 6 6 6-6 6"/></svg></span><h3 style="margin:0;font-size:14px;font-weight:600">{{ lg.name }}</h3><span class="tm3">{{ lg.sum }}</span></summary>
+<div style="padding:0 16px 8px"><div role="table" aria-label="Auswahl"><div role="row" class="tr th" style="grid-template-columns:40px minmax(0,1.1fr) 84px minmax(0,1.7fr) minmax(0,1fr)"><span role="columnheader"><span class="sr">Auswahl</span></span><span role="columnheader">Titel</span><span role="columnheader">Art</span><span role="columnheader">Pfad</span><span role="columnheader">Befund</span></div>
+<sc-for list="{{ lg.rows }}" as="r" hint-placeholder-count="6"><div role="row" class="tr" style="grid-template-columns:40px minmax(0,1.1fr) 84px minmax(0,1.7fr) minmax(0,1fr);{{ r.rowStyle }}">
+<div role="cell" style="display:flex;align-items:center"><sc-if value="{{ iv.selectable }}" hint-placeholder-val="{{ true }}"><input type="checkbox" checked="{{ r.checked }}" onChange="{{ r.toggle }}" aria-label="{{ r.selLabel }}"></sc-if></div>
+<div role="cell"><a href="#" class="lk" title="Titel verwalten" onClick="{{ r.open }}">{{ r.title }}</a></div><div role="cell" style="color:#b6b9c4">{{ r.kind }}</div>
+<div role="cell" class="mo" title="{{ r.path }}">{{ r.path }}</div><div role="cell" title="{{ r.det }}" style="{{ r.detStyle }}">{{ r.det }}</div></div></sc-for></div></div></details></sc-for><sc-if value="{{ iv.hasRows }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:12px;min-height:32px"><span style="font-size:12px;color:#9095a3;font-variant-numeric:tabular-nums">{{ iv.shown }}</span>
+<sc-if value="{{ iv.hasMore }}" hint-placeholder-val="{{ true }}"><button type="button" class="b" onClick="{{ iv.more }}">Mehr laden</button></sc-if></div></sc-if>
+<sc-if value="{{ iv.empty }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:10px 12px;border-radius:8px;background:#1d2029;font-size:13px;color:#b6b9c4">Nichts zu tun.</p></sc-if></div></sc-if><sc-if value="{{ iv.isDup }}" hint-placeholder-val="{{ false }}"><div style="display:flex;flex-direction:column;gap:12px"><sc-for list="{{ dups }}" as="g" hint-placeholder-count="3"><details open="{{ g.open }}" onToggle="{{ g.onToggle }}" style="background:#16181f;border-radius:10px"><summary style="display:flex;align-items:center;gap:10px;height:44px;padding:0 16px"><span style="{{ g.chev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="m9 6 6 6-6 6"/></svg></span><h3 id="{{ g.id }}" style="margin:0;font-size:14px;font-weight:600">{{ g.name }}</h3><span class="tx">{{ g.reason }}</span><span style="font-size:13px;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">· {{ g.sum }}</span></summary>
+<div style="padding:0 16px 16px"><div role="list" style="display:flex;flex-direction:column;gap:6px;margin-top:8px"><sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2"><div role="listitem" style="display:flex;flex-direction:column;gap:2px;padding:8px 12px;border-radius:8px;background:#0b0c10">
+<span style="display:flex;align-items:center;gap:8px"><a href="#" class="lk" title="Titel verwalten" onClick="{{ it.open }}">{{ it.title }}</a><span class="tx">{{ it.kind }}</span><sc-if value="{{ it.keep }}" hint-placeholder-val="{{ true }}"><span class="c cs">bleibt</span></sc-if></span>
+<sc-for list="{{ it.files }}" as="fl" hint-placeholder-count="1"><span style="display:flex;gap:12px;min-width:0"><span class="mo" title="{{ fl.path }}" style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ fl.path }}</span><span style="flex:none;font-size:12px;color:#9095a3">{{ fl.size }}</span></span></sc-for>
+<sc-if value="{{ it.noFiles }}" hint-placeholder-val="{{ false }}"><span class="tm">Keine Datei</span></sc-if></div></sc-for></div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-top:12px"><fieldset><legend class="lg">Behalten</legend><div style="display:flex;gap:16px;flex-wrap:wrap"><sc-for list="{{ g.opts }}" as="o" hint-placeholder-count="2"><label class="rl"><input type="radio" name="{{ g.id }}-keep" checked="{{ o.checked }}" onChange="{{ o.pick }}">{{ o.label }}</label></sc-for></div></fieldset>
+<button type="button" class="b bp" onClick="{{ g.merge }}">Zusammenführen</button></div></div></details></sc-for>
+<sc-if value="{{ noDups }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:10px 12px;border-radius:8px;background:#1d2029;font-size:13px;color:#b6b9c4">Keine Duplikate gefunden.</p></sc-if></div></sc-if></div>
+</main>
+</div>
+<sc-if value="{{ mv.open }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ mv.close }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="Titel zuordnen" style="{{ mv.box }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 class="h2">Titel zuordnen</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ mv.close }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><p style="margin:0;font-size:13px;color:#b6b9c4">Suche den Titel bei TMDB oder TVDB und wähle den passenden Eintrag.</p>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:12px"><div style="display:flex;flex-direction:column;gap:4px"><label for="m-q" class="tx">Suchbegriff</label><input class="in" id="m-q" type="text" value="{{ mv.q }}" onChange="{{ mv.setQ }}"></div>
+<div style="display:flex;flex-direction:column;gap:4px"><label for="m-yr" class="tx">Jahr (optional)</label><input class="in" id="m-yr" type="text" value="{{ mv.yr }}" onChange="{{ mv.setYr }}"></div></div>
+<sc-if value="{{ mv.hasErr }}" hint-placeholder-val="{{ false }}"><p role="alert" style="margin:0;font-size:13px;color:#f2777a">{{ mv.err }}</p></sc-if>
+<div style="display:flex;gap:32px"><fieldset><legend class="lg">Anbieter</legend><div style="display:flex;gap:16px;flex-wrap:wrap"><sc-for list="{{ mv.provs }}" as="o" hint-placeholder-count="2"><label class="rl"><input type="radio" name="m-prov" checked="{{ o.checked }}" onChange="{{ o.pick }}">{{ o.label }}</label></sc-for></div></fieldset><fieldset><legend class="lg">Art</legend><div style="display:flex;gap:16px;flex-wrap:wrap"><sc-for list="{{ mv.kinds }}" as="o" hint-placeholder-count="2"><label class="rl"><input type="radio" name="m-kind" checked="{{ o.checked }}" onChange="{{ o.pick }}" disabled="{{ o.dis }}">{{ o.label }}</label></sc-for></div></fieldset></div>
+<div style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="b bg" onClick="{{ mv.close }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ mv.search }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Suchen</button></div>
+<sc-if value="{{ mv.noRes }}" hint-placeholder-val="{{ false }}"><p role="status" style="margin:0;padding:8px 12px;border-radius:8px;background:#1d2029;font-size:13px;color:#b6b9c4">Keine Treffer.</p></sc-if>
+<sc-if value="{{ mv.hasRes }}" hint-placeholder-val="{{ true }}"><section aria-labelledby="m-res" style="display:flex;flex-direction:column;gap:8px;padding-top:4px;border-top:1px solid rgba(255,255,255,0.08)"><h3 id="m-res" style="margin:8px 0 0;font-size:13px;font-weight:600;color:#b6b9c4">Treffer</h3>
+<div role="list" style="display:flex;flex-direction:column;gap:6px"><sc-for list="{{ mv.res }}" as="c" hint-placeholder-count="2"><div role="listitem"><button type="button" aria-label="{{ c.aria }}" onClick="{{ c.pick }}" style="display:flex;gap:12px;width:100%;padding:8px;box-sizing:border-box;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:#1d2029;text-align:left;cursor:pointer">
+<span style="{{ c.poster }}"></span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><b style="font-weight:600">{{ c.title }}</b><sc-if value="{{ c.hasOrig }}" hint-placeholder-val="{{ false }}"><span class="tm">{{ c.orig }}</span></sc-if><span style="font-size:13px;color:#b6b9c4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">{{ c.overview }}</span></span></button></div></sc-for></div></section></sc-if></div></section></div></sc-if>
+<sc-if value="{{ rv.open }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ rv.close }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="Freigabe zuweisen" style="{{ rv.box }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 class="h2">Freigabe zuweisen</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ rv.close }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><p style="margin:0;font-size:13px;color:#b6b9c4">{{ rv.desc }}</p><fieldset><legend class="lg">Altersfreigabe</legend><div style="display:flex;gap:16px;flex-wrap:wrap"><sc-for list="{{ rv.opts }}" as="o" hint-placeholder-count="2"><label class="rl"><input type="radio" name="pfl-rating" checked="{{ o.checked }}" onChange="{{ o.pick }}">{{ o.label }}</label></sc-for></div></fieldset><p aria-live="polite" style="margin:0;min-height:20px;font-size:13px;color:#9095a3">{{ rv.sum }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bg" onClick="{{ rv.close }}">Abbrechen</button><button type="button" class="b bp" disabled="{{ rv.dis }}" onClick="{{ rv.submit }}">Zuweisen</button></div></section></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 class="h2">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="{{ cOkStyle }}" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const Y = 120;
+const MAXY = { toast: 1000, confirm: 900, dlg: 700 };
+// Pflege (MaintenancePage.tsx): seven issue kinds, lists with selection, actions, duplicates.
+const PAGE = 8; // built: 50 per page (ISSUE_PAGE); the mockup pages by 8
+const KINDS = [
+  { id: 'unmatched', label: 'Nicht zugeordnet', hint: 'Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.' },
+  { id: 'no_images', label: 'Ohne Bilder', hint: 'Zugeordnete Titel ohne Poster. Eine Aktualisierung lädt die Bilder neu.' },
+  { id: 'unrated', label: 'Ohne Freigabe', hint: 'Titel ohne Freigabe sehen nur Profile mit FSK 18. Weise eine Freigabe zu, um sie freizugeben.' },
+  { id: 'orphaned', label: 'Verwaist', hint: 'Titel ohne Datei oder mit fehlenden Dateien, leere Staffeln und Serien.' },
+  { id: 'unplayable', label: 'Nicht abspielbar', hint: 'Dateien, die sich nicht lesen lassen. Prüfe sie erneut oder entferne sie aus der Bibliothek.' },
+  { id: 'rating_mismatch', label: 'Freigabe abweichend', hint: 'Die gespeicherte Freigabe weicht von der berechneten ab. Eine Freigabe-Änderung oder der nächste Scan korrigiert sie. Hier gibt es nichts auszuwählen.' },
+  { id: 'duplicates', label: 'Duplikate', hint: 'Titel, die doppelt vorkommen. Wähle den Titel, der bleiben soll, und führe die anderen mit ihm zusammen.' },
+];
+const KBYID = {};
+KINDS.forEach((k) => { KBYID[k.id] = k; });
+const LIBS = ['Filme', 'Serien', 'Kinder', 'Podcasts'];
+// title, year, kind, library, path, detail
+const I = (t, y, k, lib, path, det) => ({ t, y, k, lib, path: path || '', det: det || '' });
+const F = '/media/Filme/';
+const ISSUES = {
+  unmatched: [
+    I('Mein Name ist Eugen', 2005, 'Film', 'Filme', F + 'Mein Name ist Eugen (2005)/Mein.Name.ist.Eugen.2005.1080p.BluRay.mkv', 'Mehrere Treffer bei TMDB'),
+    I('Tschugger', null, 'Serie', 'Serien', '/media/Serien/Tschugger', 'Kein Treffer bei TVDB'),
+    I('Die Schweizermacher', 1978, 'Film', 'Filme', F + 'Die Schweizermacher (1978)/Die.Schweizermacher.1978.720p.mkv', 'Kein Treffer bei TMDB'),
+    I('Wilder', null, 'Serie', 'Serien', '/media/Serien/Wilder', 'Mehrere Treffer bei TVDB'),
+    I('Heidi', 2015, 'Film', 'Kinder', '/media/Kinder/Heidi (2015)/Heidi.2015.1080p.mkv', 'Mehrere Treffer bei TMDB'),
+    I('Davos 1917 · S01E03', null, 'Folge', 'Serien', '/media/Serien/Davos 1917/Season 01/Davos.1917.S01E03.mkv', 'Folge bei TVDB nicht gefunden'),
+    I('Platzspitzbaby', 2020, 'Film', 'Filme', F + 'Platzspitzbaby (2020)/Platzspitzbaby.2020.1080p.WEB.mkv', 'Kein Treffer bei TMDB'),
+    I('Schellen-Ursli', 2015, 'Film', 'Kinder', '/media/Kinder/Schellen-Ursli (2015)/Schellen-Ursli.2015.mkv', 'Kein Treffer bei TMDB'),
+    I('Bon Schuur Ticino', 2023, 'Film', 'Filme', F + 'Bon Schuur Ticino (2023)/Bon.Schuur.Ticino.2023.1080p.mkv', 'Kein Treffer bei TMDB'),
+    I('Der Bestatter', null, 'Serie', 'Serien', '/media/Serien/Der Bestatter', 'Mehrere Treffer bei TVDB'),
+    I('Die göttliche Ordnung', 2017, 'Film', 'Filme', F + 'Die goettliche Ordnung (2017)/Die.goettliche.Ordnung.2017.mkv', 'Kein Treffer bei TMDB'),
+    I('Mario', 2018, 'Film', 'Filme', F + 'Mario (2018)/Mario.2018.1080p.mkv', 'Mehrere Treffer bei TMDB'),
+  ],
+  no_images: [
+    I('Arrival', 2016, 'Film', 'Filme', '', 'Poster fehlt · TMDB: 429 Too Many Requests'),
+    I('The Bear', null, 'Serie', 'Serien', '', 'Poster fehlt'),
+    I('Paddington 2', 2017, 'Film', 'Kinder', '', 'Poster und Hintergrund fehlen'),
+  ],
+  unrated: [
+    ['Aftersun', 2022], ['Perfect Days', 2023], ['Past Lives', 2023], ['Heat', 1995], ['Drii Winter', 2022], ['Monte Verità', 2021],
+    ['Zwingli', 2019], ['Moskau Einfach!', 2020], ['Sami, Joe und ich', 2020], ['Der Goalie bin ig', 2014], ['Lovely Louise', 2013],
+  ].map(([t, y]) => I(t, y, 'Film', 'Filme'))
+    .concat(['Shogun', 'Andor', 'Severance', 'Slow Horses', 'Frieden', 'Neumatt', 'Seitentriebe'].map((t) => I(t, null, 'Serie', 'Serien')))
+    .concat([['Ernest und Célestine', 2012, 'Film'], ['Der Grüffelo', 2009, 'Film'], ['Pingu', null, 'Serie'], ['Peterchens Mondfahrt', 2021, 'Film'], ['Die Schule der magischen Tiere', 2021, 'Film']]
+      .map(([t, y, k]) => I(t, y, k, 'Kinder'))),
+  orphaned: [
+    I('Heat', 1995, 'Film', 'Filme', F + 'Heat (1995)/Heat.1995.Remux.mkv', 'Datei fehlt'),
+    I('Andor · Staffel 2', null, 'Staffel', 'Serien', '', 'Leere Staffel'),
+    I('Frieden', null, 'Serie', 'Serien', '', 'Serie ohne Folgen'),
+  ],
+  unplayable: [
+    I('The Expanse · S05E07', null, 'Folge', 'Serien', '/media/Serien/The Expanse/Season 05/The.Expanse.S05E07.2160p.WEB-DL.mkv', 'ffprobe: Invalid data found when processing input'),
+    I('Andor · S01E03', null, 'Folge', 'Serien', '/media/Serien/Andor/Season 01/Andor.S01E03.1080p.WEB.mkv', 'ffprobe: moov atom not found'),
+    I('Heat', 1995, 'Film', 'Filme', F + 'Heat (1995)/Heat.1995.Remux.mkv', 'ffprobe: End of file'),
+    I('Bluey · S03E12', null, 'Folge', 'Kinder', '/media/Kinder/Bluey/Season 03/Bluey.S03E12.mkv', 'ffprobe: could not find codec parameters'),
+  ],
+  rating_mismatch: [
+    I('Shogun', null, 'Serie', 'Serien', '', 'gespeichert FSK 16 · berechnet FSK 18'),
+    I('Arrival', 2016, 'Film', 'Filme', '', 'gespeichert FSK 6 · berechnet FSK 12'),
+    I('Bluey · S03E05', null, 'Folge', 'Kinder', '', 'gespeichert FSK 6 · berechnet FSK 0'),
+  ],
+};
+const DUPS = [
+  { reason: 'Gleiche Anbieter-ID', items: [
+    { t: 'Dune: Part Two (2024)', k: 'Film', files: [[F + 'Dune Part Two (2024)/Dune.Part.Two.2024.2160p.UHD.REMUX.mkv', '61,8 GB']] },
+    { t: 'Dune: Part Two (2024)', k: 'Film', files: [['/media/Filme-Archiv/Dune.Part.Two.2024.1080p.WEB-DL.mkv', '7,4 GB']] }] },
+  { reason: 'Gleicher Titel und gleiches Jahr', items: [
+    { t: 'Heidi (2015)', k: 'Film', files: [['/media/Kinder/Heidi (2015)/Heidi.2015.1080p.mkv', '9,1 GB']] },
+    { t: 'Heidi (2015)', k: 'Film', files: [[F + 'Heidi (2015)/Heidi.2015.720p.mkv', '4,2 GB']] },
+    { t: 'Heidi (2015)', k: 'Film', files: [[F + 'Heidi 2015 Extended/Heidi.2015.Extended.mkv', '10,3 GB'], [F + 'Heidi 2015 Extended/Heidi.2015.Making-of.mkv', '812 MB']] }] },
+  { reason: 'Datei und Feed derselben Folge', items: [
+    { t: 'Echo der Zeit · 30. Oktober 2026', k: 'Podcast-Folge', files: [['/media/Podcasts/Echo der Zeit/2026-10-30 Echo der Zeit.mp3', '38 MB']] },
+    { t: 'Echo der Zeit · 30. Oktober 2026', k: 'Podcast-Folge', files: [] }] },
+];
+// Search results of the match dialog, by lower-case query (k: movie | series, h: poster hue).
+const MATCH = {
+  'mein name ist eugen': [{ t: 'Mein Name ist Eugen', y: 2005, k: 'movie', h: 28, d: 'Vier Berner Buben reissen von zu Hause aus und suchen in Zürich den legendären Fritzli Bühler.' }],
+  'tschugger': [{ t: 'Tschugger', y: 2021, k: 'series', h: 200, d: 'Der Walliser Polizist Bax will den ganz grossen Fall lösen und richtet vor allem Chaos an.' }],
+  'wilder': [{ t: 'Wilder', y: 2017, k: 'series', h: 220, d: 'Kantonspolizistin Rosa Wilder ermittelt in ihrem Heimatdorf in einem Entführungsfall.' },
+    { t: 'Billy Wilder Speaks', y: 2006, k: 'movie', h: 40, d: 'Gespräche mit dem Regisseur über seine Filme.' }],
+  'heidi': [{ t: 'Heidi', y: 2015, k: 'movie', h: 100, d: 'Das Waisenkind Heidi lebt beim Grossvater auf der Alp, bis es nach Frankfurt geholt wird.' },
+    { t: 'Heidi', y: 2005, k: 'movie', h: 120, o: 'Heidi', d: 'Animierte Verfilmung des Romans von Johanna Spyri.' },
+    { t: 'Heidi', y: 1952, k: 'movie', h: 60, d: 'Schweizer Verfilmung mit Elsbeth Sigmund.' },
+    { t: 'Heidi', y: 2019, k: 'series', h: 140, o: 'Heidi, bienvenida a casa', d: 'Neue Abenteuer in den Bergen.' }],
+  'der bestatter': [{ t: 'Der Bestatter', y: 2013, k: 'series', h: 260, d: 'Ein ehemaliger Polizist übernimmt ein Bestattungsunternehmen in Aarau und löst nebenbei Fälle.' }],
+  'mario': [{ t: 'Mario', y: 2018, k: 'movie', h: 330, d: 'Zwei Fussballer im selben Team verlieben sich und müssen sich zwischen Karriere und Liebe entscheiden.' },
+    { t: 'Mario', y: 2018, k: 'movie', h: 300, o: 'Mario', d: 'Kurzfilm.' }],
+};
+const initState = () => ({ kind: 'unmatched', sel: {}, shown: {}, gone: {}, outcome: {}, r: null, target: {}, merged: {}, open: { 'dup:0': true } });
+
+// Shared by Pflege and Titel: toast, generic confirm, help toggle, the match dialog (MatchDialog.tsx).
+// The page data file defines MATCH, initState() and Y/MAXY before this; the page methods and renderVals follow.
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bd: 'rgba(255,255,255,0.08)' };
+const MONO = 'ui-monospace, Menlo, Consolas, monospace';
+const RATINGS = [0, 6, 12, 16, 18];
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const chipStyle = (tone) => 'display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:9px;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;' + (tone === 'w' ? 'background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a' : tone === 'm' ? 'background:transparent;color:#9095a3' : 'background:#262a35;color:#b6b9c4');
+const navOn = 'background:#262a35;box-shadow:inset 3px 0 0 #e8794a';
+// Coloured placeholder for a poster or image candidate.
+const tile = (hue, w, h) => 'display:block;flex:none;width:' + w + ';height:' + h + ';border-radius:4px;background:linear-gradient(160deg,hsl(' + hue + ' 42% 40%),hsl(' + ((hue + 40) % 360) + ' 38% 15%))';
+const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+const plural = (n, one, other) => (n === 1 ? one : other).replace('{n}', String(n));
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, toastY: 120, confirm: null, m: null }, initState());
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(msg, y) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, toastY: Math.min(y == null ? 120 : y, MAXY.toast), confirm: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // o: { title, text, ok, msg, danger, y, done }
+  ask(o) { this.setState({ confirm: Object.assign({}, o, { y: Math.min(o.y, MAXY.confirm) }) }); }
+  openLink(what, y) { return (e) => { stop(e); this.say('Öffnet ' + what + '.', y); }; }
+
+  // ---- match dialog: search, year, provider, kind, candidates
+  openMatch(t, y) {
+    this.setState({ m: { key: t.key, q: t.title, yr: t.year ? String(t.year) : '', prov: 'tmdb', kind: t.kind === 'Serie' ? 'series' : 'movie', res: null, err: '', y: Math.min(y, MAXY.dlg) } });
+  }
+  setM(p) { if (this.state.m) this.setState({ m: Object.assign({}, this.state.m, p) }); }
+  matchVals() {
+    const m = this.state.m || { q: '', yr: '', prov: 'tmdb', kind: 'movie', res: null, err: '', y: 120 };
+    const tvdb = m.prov === 'tvdb';
+    const kind = tvdb ? 'series' : m.kind;
+    const search = () => {
+      const yr = m.yr.trim();
+      if (yr && !(/^\d{4}$/.test(yr) && +yr >= 1800 && +yr <= 2100)) { this.setM({ err: 'Ein Jahr zwischen 1800 und 2100.', res: null }); return; }
+      const list = (MATCH[m.q.trim().toLowerCase()] || []).filter((c) => c.k === kind && (!yr || String(c.y) === yr));
+      this.setM({ err: '', res: list });
+    };
+    const res = (m.res || []).map((c) => {
+      const title = c.t + ' (' + c.y + ')';
+      return { title, orig: c.o || '', hasOrig: !!c.o, overview: c.d, poster: tile(c.h, '46px', '69px'), aria: title + ' zuordnen',
+        pick: () => {
+          const done = 'Zuordnung gespeichert, die Metadaten werden geladen.';
+          this.setState({ m: null });
+          if (this.onMatched) this.onMatched(m.key, done, m.y); else this.say(done, m.y);
+        } };
+    });
+    const opt = (label, on, pick, dis) => ({ label, checked: on, pick, dis: !!dis });
+    return {
+      open: !!this.state.m, box: boxStyle(m.y, 560), close: () => this.setState({ m: null }),
+      q: m.q, yr: m.yr, setQ: (e) => this.setM({ q: e.target.value }), setYr: (e) => this.setM({ yr: e.target.value }),
+      provs: [opt('TMDB', !tvdb, () => this.setM({ prov: 'tmdb' })), opt('TVDB', tvdb, () => this.setM({ prov: 'tvdb' }))],
+      kinds: [opt('Film', kind === 'movie', () => this.setM({ kind: 'movie' }), tvdb), opt('Serie', kind === 'series', () => this.setM({ kind: 'series' }))],
+      hasErr: !!m.err, err: m.err, search, res, hasRes: res.length > 0, noRes: !!m.res && m.res.length === 0,
+    };
+  }
+
+  baseVals() {
+    const cf = this.state.confirm;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '',
+      toastStyle: 'position:absolute;right:32px;top:' + this.state.toastY + 'px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(cf ? cf.y : 120, 440),
+      cOkStyle: cf && cf.danger ? 'background:' + COL.da + ';border-color:' + COL.da + ';color:' + COL.oa + ';font-weight:600' : 'background:' + COL.ac + ';border-color:' + COL.ac + ';color:' + COL.oa + ';font-weight:600',
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { if (!cf) return; if (cf.done) cf.done(); this.say(cf.msg, cf.y); },
+      mv: this.matchVals(),
+    };
+  }
+
+  // ---- Pflege
+  rowsOf(k) {
+    return (ISSUES[k] || []).map((it, i) => Object.assign({ key: k + ':' + i }, it)).filter((it) => !this.state.gone[it.key]);
+  }
+  totalOf(k) { return k === 'duplicates' ? DUPS.filter((g, i) => !this.state.merged[i]).length : this.rowsOf(k).length; }
+  patch(name, k, v) { this.setState({ [name]: Object.assign({}, this.state[name], { [k]: v }) }); }
+  finish(k, text, removeKeys, y) {
+    const gone = Object.assign({}, this.state.gone);
+    (removeKeys || []).forEach((key) => { gone[key] = true; });
+    this.setState({ gone, r: null, sel: Object.assign({}, this.state.sel, { [k]: [] }), outcome: Object.assign({}, this.state.outcome, { [k]: text }) });
+    this.say(text, y);
+  }
+  onMatched(key, text, y) { this.finish('unmatched', text, [key], y); }
+  kindTabs(style) {
+    return KINDS.map((K) => {
+      const n = this.totalOf(K.id);
+      const on = this.state.kind === K.id;
+      return { id: K.id, label: K.label, count: String(n), sel: on ? 'true' : 'false', cur: on ? 'true' : 'false', on,
+        style: style(on), chip: chipStyle(n ? '' : 'm'), dot: 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + (n ? COL.wa : COL.su),
+        pick: () => this.setState({ kind: K.id }) };
+    });
+  }
+  // The active issue kind: hint, outcome, selection, actions, rows, "X von Y", "Mehr laden".
+  issueVals(y) {
+    const k = this.state.kind;
+    const K = KBYID[k];
+    const rows = this.rowsOf(k);
+    const n = Math.min(this.state.shown[k] || PAGE, rows.length);
+    const vis = rows.slice(0, n);
+    const selKeys = (this.state.sel[k] || []).filter((key) => vis.some((r) => r.key === key));
+    const chosen = vis.filter((r) => selKeys.indexOf(r.key) >= 0);
+    const none = chosen.length === 0;
+    const one = chosen.length === 1 ? chosen[0] : null;
+    const canMatch = !!one && (one.k === 'Film' || one.k === 'Serie');
+    const files = chosen.filter((r) => r.path).length;
+    const refreshText = plural(chosen.length, '{n} Titel wird aktualisiert.', '{n} Titel werden aktualisiert.');
+    const act = (label, cls, dis, run, tip) => ({ label, cls: 'b ' + cls, dis, run, tip: dis ? tip || 'Erst Titel auswählen' : '' });
+    const refresh = (label) => act(label, '', none, () => this.finish(k, refreshText, [], y));
+    const keys = chosen.map((r) => r.key);
+    const acts = {
+      unmatched: [act('Zuordnen', 'bp', !canMatch, () => one && this.openMatch({ key: one.key, title: one.t, year: one.y, kind: one.k }, y), 'Genau einen Film oder eine Serie auswählen'), refresh('Aktualisieren')],
+      no_images: [refresh('Aktualisieren')],
+      unrated: [act('Freigabe zuweisen', 'bp', none, () => this.setState({ r: { val: null, keys, y: Math.min(y, MAXY.dlg) } }))],
+      orphaned: [act('Bereinigen', 'dz', none, () => this.ask({ title: 'Titel bereinigen?', danger: true, ok: 'Bereinigen', y,
+        text: plural(chosen.length, 'Der ausgewählte Titel wird aus der Bibliothek entfernt. Dateien auf der Platte bleiben unberührt.', 'Die {n} ausgewählten Titel werden aus der Bibliothek entfernt. Dateien auf der Platte bleiben unberührt.'),
+        msg: 'Entfernt: ' + chosen.length + ' Titel, ' + plural(files, '{n} Datei', '{n} Dateien') + '.', done: () => this.finish(k, 'Entfernt: ' + chosen.length + ' Titel, ' + plural(files, '{n} Datei', '{n} Dateien') + '.', keys, y) }))],
+      unplayable: [refresh('Erneut prüfen'), act('Entfernen', 'dz', none, () => this.ask({ title: 'Dateien entfernen?', danger: true, ok: 'Entfernen', y,
+        text: plural(chosen.length, 'Die ausgewählte Datei wird aus der Bibliothek entfernt und bei künftigen Scans übersprungen. Auf der Platte bleibt sie.', 'Die {n} ausgewählten Dateien werden aus der Bibliothek entfernt und bei künftigen Scans übersprungen. Auf der Platte bleiben sie.'),
+        msg: 'Entfernt: 0 Titel, ' + plural(chosen.length, '{n} Datei', '{n} Dateien') + '.', done: () => this.finish(k, 'Entfernt: 0 Titel, ' + plural(chosen.length, '{n} Datei', '{n} Dateien') + '.', keys, y) }))],
+    };
+    const selectable = k !== 'rating_mismatch' && k !== 'duplicates';
+    const mapRow = (r) => {
+      const on = selKeys.indexOf(r.key) >= 0;
+      const title = r.y ? r.t + ' (' + r.y + ')' : r.t;
+      return { key: r.key, title, kind: r.k, path: r.path || '–', det: r.det || '–', lib: r.lib, checked: on, selLabel: r.t + ' auswählen',
+        rowStyle: on ? 'background:color-mix(in srgb, #e8794a 8%, transparent)' : '',
+        detStyle: k === 'unplayable' ? 'color:' + COL.da + ';font-family:' + MONO + ';font-size:12px' : 'color:' + COL.ts,
+        toggle: () => this.patch('sel', k, on ? selKeys.filter((x) => x !== r.key) : selKeys.concat([r.key])),
+        open: this.openLink('Titel verwalten «' + title + '» (/admin/items/…)', y) };
+    };
+    const all = vis.length > 0 && chosen.length === vis.length;
+    const o = this.state.outcome[k];
+    return {
+      name: K.label, hint: K.hint, count: plural(rows.length, '{n} Eintrag', '{n} Einträge'), isDup: k === 'duplicates', isList: k !== 'duplicates',
+      selectable, tools: selectable && vis.length > 0, hasOutcome: !!o, outcome: o || '',
+      acts: acts[k] || [], selTxt: chosen.length + ' ausgewählt', allLabel: all ? 'Auswahl aufheben' : 'Alle auswählen',
+      toggleAll: () => this.patch('sel', k, all ? [] : vis.map((r) => r.key)),
+      rows: vis.map(mapRow), hasRows: vis.length > 0, empty: k !== 'duplicates' && rows.length === 0,
+      shown: n + ' von ' + rows.length, hasMore: rows.length > n, more: () => this.patch('shown', k, n + PAGE),
+      // C: one collapsible per library; the first one starts open unless toggled
+      libs: LIBS.filter((lib) => vis.some((r) => r.lib === lib)).map((lib, li) => {
+        const lr = vis.filter((r) => r.lib === lib);
+        const id = k + ':' + lib;
+        const open = id in this.state.open ? !!this.state.open[id] : li === 0;
+        const s = lr.filter((r) => selKeys.indexOf(r.key) >= 0).length;
+        return { name: lib, n: lr.length, sum: plural(lr.length, '{n} Eintrag', '{n} Einträge') + (s ? ' · ' + s + ' ausgewählt' : ''), rows: lr.map(mapRow), open,
+          chev: 'display:flex;color:' + COL.tm + ';transform:rotate(' + (open ? 90 : 0) + 'deg)',
+          onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== open) this.patch('open', id, !!t.open); } };
+      }),
+    };
+  }
+  dupVals(y) {
+    let pos = 0;
+    return DUPS.map((g, gi) => ({ g, gi })).filter((x) => !this.state.merged[x.gi]).map(({ g, gi }) => {
+      pos += 1;
+      const target = this.state.target[gi] || 0;
+      const id = 'dup:' + gi;
+      const open = !!this.state.open[id];
+      const tt = g.items[target].t.replace(/ \(\d{4}\)$/, '');
+      const others = g.items.length - 1;
+      return { id: 'dup' + gi, name: 'Gruppe ' + pos, reason: g.reason, sum: g.items[0].t + ' · ' + g.items.length + ' Titel', open,
+        chev: 'display:flex;color:' + COL.tm + ';transform:rotate(' + (open ? 90 : 0) + 'deg)',
+        onToggle: (e) => { const t = e && e.currentTarget; if (t && !!t.open !== open) this.patch('open', id, !!t.open); },
+        items: g.items.map((it, i) => ({ title: it.t, kind: it.k, files: it.files.map(([p, s]) => ({ path: p, size: s })), noFiles: it.files.length === 0,
+          open: this.openLink('Titel verwalten «' + it.t + '» (/admin/items/…)', y), keep: i === target })),
+        opts: g.items.map((it, i) => ({ label: (i + 1) + ': ' + it.t.replace(/ \(\d{4}\)$/, ''), checked: i === target, pick: () => this.patch('target', gi, i) })),
+        merge: () => this.ask({ title: 'Titel zusammenführen?', ok: 'Zusammenführen', y, msg: 'Titel zusammengeführt.',
+          text: others === 1 ? 'Dateien, Extras, Trailer und Fortschritt des anderen Titels wandern zu «' + tt + '». Der andere Titel wird gelöscht.'
+            : 'Dateien, Extras, Trailer und Fortschritt der ' + others + ' anderen Titel wandern zu «' + tt + '». Die anderen Titel werden gelöscht.',
+          done: () => this.setState({ merged: Object.assign({}, this.state.merged, { [gi]: true }), outcome: Object.assign({}, this.state.outcome, { duplicates: 'Titel zusammengeführt.' }) }) }) };
+    });
+  }
+  ratingVals() {
+    const r = this.state.r || { val: null, keys: [], y: 120 };
+    const n = r.keys.length;
+    return { open: !!this.state.r, box: boxStyle(r.y, 440), close: () => this.setState({ r: null }),
+      desc: plural(n, 'Gilt für {n} ausgewählten Titel.', 'Gilt für {n} ausgewählte Titel.'),
+      opts: RATINGS.map((a) => ({ label: 'FSK ' + a, checked: r.val === a, pick: () => this.setState({ r: Object.assign({}, r, { val: a }) }) })),
+      hasSum: r.val != null, sum: r.val == null ? '' : plural(n, '{n} Titel erhält FSK ' + r.val + '.', '{n} Titel erhalten FSK ' + r.val + '.'),
+      dis: r.val == null, submit: () => this.finish('unrated', plural(n, 'Freigabe für {n} Titel gesetzt.', 'Freigabe für {n} Titel gesetzt.'), r.keys, r.y) };
+  }
+  pflVals(y) {
+    const v = this.baseVals();
+    v.iv = this.issueVals(y);
+    v.dups = this.dupVals(y);
+    v.noDups = v.dups.length === 0;
+    v.rv = this.ratingVals();
+    return v;
+  }
+
+  renderVals() {
+    const v = this.pflVals(Y);
+    v.ktabs = this.kindTabs((on) => tabStyle(on).replace('padding:0 12px', 'padding:0 10px'));
+    return v;
+  }
+}
+</script>
+</body>
+</html>

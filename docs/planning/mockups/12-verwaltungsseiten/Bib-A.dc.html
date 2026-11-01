@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Bibliotheken · A Kompakte Liste</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.gh{display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)}
+.ol{position:absolute;inset:0}.bk{position:absolute;inset:0;background:rgba(0,0,0,0.55)}.h2{margin:0;font-size:15px;font-weight:600}
+.dl{position:absolute;left:calc(50% + 120px);transform:translateX(-50%);max-width:calc(100% - 300px);max-height:720px;display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2}
+.dh{display:flex;align-items:center;justify-content:space-between;flex:none;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.db{display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0;min-height:0;overflow-y:auto}
+.df{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:none;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)}
+.i,.j{flex:none;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}.i{width:16px;height:16px}.col{display:flex;flex-direction:column}.row{display:flex;align-items:center}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;text-align:right}
+.li{display:flex;align-items:center;gap:8px;width:100%;min-height:36px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.lk{display:block;min-width:0;max-width:100%;padding:0;border:none;background:none;color:#f3f3f5;font:inherit;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.lk{text-decoration:underline dotted #9095a3;text-underline-offset:4px}.lk:hover{text-decoration:underline}
+.mono{font-family:ui-monospace, Menlo, Consolas, monospace;font-size:13px}.mut{font-size:12px;color:#9095a3}.lab{font-size:13px;color:#b6b9c4}
+.fs{border:none;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:4px}.fs>legend{padding:0;margin-bottom:4px}
+.rl{display:inline-flex;align-items:center;gap:6px;font-size:14px}.rl input,.pr input{accent-color:#e8794a;margin:0}
+.fc{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:#0b0c10}
+.pr{display:flex;align-items:center;gap:10px;min-height:36px;padding:0 4px 0 8px;border-bottom:1px solid rgba(255,255,255,0.08);font-size:14px}
+.nt{display:flex;align-items:flex-start;gap:8px;padding:8px 12px;border-radius:8px;font-size:13px;line-height:1.45}
+.nw{background:color-mix(in srgb, #e8b65a 10%, transparent)}.ni{background:#1d2029}
+.eb{align-items:center;gap:10px;min-height:40px;padding:4px 6px 4px 12px;box-sizing:border-box}.ei{display:flex;color:#b6b9c4}.nw .ei{color:#e8b65a}
+</style>
+</helmet>
+<div style="position:relative;background:#0b0c10;color:#f3f3f5">
+<header class="row" style="gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg class="j" aria-hidden="true" viewBox="0 0 24 24" width="20" height="20"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg class="j" aria-hidden="true" viewBox="0 0 24 24" width="18" height="18"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" class="gh"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" aria-current="page"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" class="gh"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" class="gh"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" class="gh"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div><div class="row" style="gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Bibliotheken</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button>
+<sc-if value="{{ anyScan }}" hint-placeholder-val="{{ true }}"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#9095a3"><span class="d" style="background:#5fcf8f"></span>Live, alle 5 Sekunden</span></sc-if><span style="flex:1"></span><button type="button" class="b bp" onClick="{{ openAdd }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Bibliothek hinzufügen</button></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;font-size:13px;color:#b6b9c4">Ordner, die Slouchcat beobachtet, und der Stand ihrer Scans.</p></sc-if></div>
+<section aria-label="Alle Bibliotheken" style="margin-top:24px"><div class="row" style="justify-content:space-between;gap:12px;height:32px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 class="h2">Alle Bibliotheken</h2><span class="mut">{{ sumText }}</span></div>
+<div role="table" aria-label="Bibliotheken"><div role="row" class="tr th" style="grid-template-columns:110px 140px 220px 110px minmax(0,1fr) 150px 196px"><span role="columnheader">Bibliothek</span><span role="columnheader">Art · Standard</span><span role="columnheader">Zustand · letzter Scan</span><span role="columnheader">Titel · Dateien</span><span role="columnheader">Ordner</span><span role="columnheader">Metadaten</span><span role="columnheader" style="text-align:right">Aktionen</span></div>
+<sc-for list="{{ libs }}" as="l" hint-placeholder-count="5"><div role="row" class="tr" style="grid-template-columns:110px 140px 220px 110px minmax(0,1fr) 150px 196px"><div role="cell" style="font-weight:600">{{ l.name }}</div><div role="cell" style="color:#b6b9c4">{{ l.artText }}</div>
+<div role="cell"><span class="row" style="gap:8px"><span style="{{ l.dot }}"></span><span title="{{ l.fin }}">{{ l.state }}</span><sc-if value="{{ l.showBar }}" hint-placeholder-val="{{ false }}"><span class="row" style="gap:8px"><span role="progressbar" aria-label="{{ l.barText }}" aria-valuenow="{{ l.pct }}" aria-valuemin="0" aria-valuemax="100" style="width:64px;flex:none;height:6px;border-radius:3px;background:#262a35;overflow:hidden;display:block"><span style="{{ l.barStyle }}"></span></span><span class="mut" style="font-variant-numeric:tabular-nums" title="{{ l.barText }}">{{ l.pctText }}</span></span></sc-if><sc-if value="{{ l.showFin }}" hint-placeholder-val="{{ true }}"><span class="mut" title="{{ l.fin }}">{{ l.finShort }}</span></sc-if></span></div><div role="cell" title="{{ l.counts }}" style="font-variant-numeric:tabular-nums">{{ l.countsShort }}</div>
+<div role="cell"><span class="row" style="gap:6px;min-width:0"><button type="button" class="lk" aria-label="{{ l.foldersLabel }}" title="{{ l.rootsTitle }}" onClick="{{ l.openFolders }}"><sc-if value="{{ l.single }}" hint-placeholder-val="{{ true }}"><code class="mono">{{ l.firstPath }}</code> <span class="mut">{{ l.firstMeta }}</span></sc-if><sc-if value="{{ l.multi }}" hint-placeholder-val="{{ false }}">{{ l.rootCount }} <span class="mut">· {{ l.rootSum }}</span></sc-if><sc-if value="{{ l.none }}" hint-placeholder-val="{{ false }}"><span class="mut">Kein Ordner: Titel aus Feeds</span></sc-if></button><sc-if value="{{ l.net }}" hint-placeholder-val="{{ false }}"><span class="c cw">Netzlaufwerk</span></sc-if></span></div>
+<div role="cell"><sc-if value="{{ l.isVideo }}" hint-placeholder-val="{{ true }}"><a href="#" title="{{ l.meta }}" onClick="{{ l.openMeta }}">{{ l.metaShort }}</a></sc-if><sc-if value="{{ l.isAudio }}" hint-placeholder-val="{{ false }}"><span class="mut">–</span></sc-if></div><div role="cell" class="ov"><sc-if value="{{ l.idle }}" hint-placeholder-val="{{ true }}"><button type="button" class="b bs" disabled="{{ l.scanDis }}" onClick="{{ l.rescan }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>Erneut scannen</button></sc-if><sc-if value="{{ l.scanning }}" hint-placeholder-val="{{ false }}"><button type="button" class="b bs dz" onClick="{{ l.cancel }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Scan abbrechen</button></sc-if> <sc-if value="{{ l.isAudio }}" hint-placeholder-val="{{ false }}"><button type="button" class="b bs bi" aria-label="{{ l.ratingLabel }}" title="Standardstufe ändern" onClick="{{ l.openRating }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg></button></sc-if></div></div>
+<sc-if value="{{ l.hasErr }}" hint-placeholder-val="{{ true }}"><div role="row" style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.08)"><div role="cell"><sc-if value="{{ l.hasErr }}" hint-placeholder-val="{{ false }}"><div role="status" class="{{ l.errCls }}"><span class="ei"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg></span><span style="flex:1;min-width:0">{{ l.errText }}</span>
+<sc-if value="{{ l.canAccept }}" hint-placeholder-val="{{ true }}"><button type="button" class="b bs" onClick="{{ l.acceptLoss }}">Verlust akzeptieren …</button></sc-if></div></sc-if></div></div></sc-if></sc-for></div></section>
+</main>
+</div>
+<sc-if value="{{ mdOpen }}" hint-placeholder-val="{{ false }}"><div class="ol" style="z-index:20"><div class="bk" onClick="{{ closeDlg }}"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ mdTitle }}" class="dl" style="{{ mdBox }}"><div class="dh"><h2 class="h2">{{ mdTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeDlg }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div class="db"><sc-if value="{{ fdOpen }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:13px;color:#b6b9c4">Eine Bibliothek kann mehrere Ordner haben. Scan und Überwachung nehmen einen neuen Ordner sofort auf.</p><sc-if value="{{ fd.noRoots }}" hint-placeholder-val="{{ false }}"><div class="nt nw">{{ fd.noRootsText }}</div></sc-if>
+<sc-if value="{{ fd.hasRoots }}" hint-placeholder-val="{{ true }}"><ul style="list-style:none;margin:0;padding:0;border-top:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ fd.roots }}" as="r" hint-placeholder-count="2"><li class="row" style="gap:8px;min-height:56px;padding:6px 0;box-sizing:border-box;border-bottom:1px solid rgba(255,255,255,0.08)">
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px"><code class="mono" title="{{ r.path }}" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.path }}</code>
+<span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:#b6b9c4"><sc-if value="{{ r.showContent }}" hint-placeholder-val="{{ true }}"><span class="c">{{ r.content }}</span></sc-if><span>{{ r.chain }}</span><span class="c">{{ r.fs }}</span><sc-if value="{{ r.net }}" hint-placeholder-val="{{ false }}"><span class="c cw"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>Netzlaufwerk</span></sc-if><span class="mut">{{ r.info }}</span></span></div>
+<button type="button" class="b bs" aria-label="{{ r.changeLabel }}" onClick="{{ r.change }}">Ändern</button><button type="button" class="b bs dz" aria-label="{{ r.removeLabel }}" onClick="{{ r.remove }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>Entfernen</button></li></sc-for></ul></sc-if><div class="row" style="gap:8px;min-height:28px"><h3 style="margin:0;font-size:14px;font-weight:600">Neue Ordner</h3></div></sc-if><sc-if value="{{ afOpen }}" hint-placeholder-val="{{ false }}"><div class="col" style="gap:4px"><label for="al-name" class="lab">Name</label><input class="in" id="al-name" type="text" value="{{ af.name }}" onChange="{{ af.setName }}" style="max-width:360px"></div>
+<fieldset class="fs"><legend class="lab">Inhalt</legend><div style="display:flex;gap:16px;height:24px"><sc-for list="{{ af.kinds }}" as="k" hint-placeholder-count="3"><label class="rl"><input type="radio" name="al-kind" checked="{{ k.on }}" onChange="{{ k.pick }}">{{ k.label }}</label></sc-for></div><sc-if value="{{ af.hasHint }}" hint-placeholder-val="{{ true }}"><span class="mut">{{ af.hint }}</span></sc-if></fieldset>
+<span class="lab">Ordner</span><sc-if value="{{ af.noCards }}" hint-placeholder-val="{{ false }}"><p class="mut" style="margin:0">Noch kein Ordner. Eine Podcast-Bibliothek darf auch ohne Ordner bleiben; die Titel kommen dann aus den Feed-Abos.</p></sc-if></sc-if><sc-if value="{{ chOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:13px;color:#b6b9c4">{{ ch.desc }}</p></sc-if><div class="col" style="gap:10px"><sc-for list="{{ cv.cards }}" as="c" hint-placeholder-count="1"><section class="fc" aria-label="{{ c.title }}">
+<div class="row" style="gap:8px;height:28px"><span style="font-size:14px;font-weight:600">{{ c.title }}</span><span class="c">{{ c.content }}</span><span style="flex:1"></span><sc-if value="{{ c.canRemove }}" hint-placeholder-val="{{ false }}"><button type="button" class="b bs bg" aria-label="{{ c.removeLabel }}" onClick="{{ c.remove }}">Entfernen</button></sc-if></div>
+<sc-if value="{{ c.edit }}" hint-placeholder-val="{{ true }}"><div class="col" style="gap:4px"><label for="{{ c.pid }}" class="lab">Ordner</label><div style="display:flex;gap:8px"><input class="in mono" id="{{ c.pid }}" type="text" placeholder="/media/Filme" value="{{ c.path }}" onChange="{{ c.setPath }}" style="flex:1"><button type="button" class="b" onClick="{{ c.browse }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Durchsuchen …</button></div></div></sc-if>
+<sc-if value="{{ c.isVideo }}" hint-placeholder-val="{{ true }}"><fieldset class="fs"><legend class="lab">Inhalt</legend><div style="display:flex;gap:16px;height:24px"><label class="rl"><input type="radio" name="{{ c.rname }}" checked="{{ c.isMovie }}" onChange="{{ c.pickMovie }}">Filme</label><label class="rl"><input type="radio" name="{{ c.rname }}" checked="{{ c.isSeries }}" onChange="{{ c.pickSeries }}">Serien</label></div><span class="mut">Filme als Einzeldateien, Serien in Staffelordnern.</span></fieldset></sc-if>
+<sc-if value="{{ c.pv.fixed }}" hint-placeholder-val="{{ false }}"><div class="col" style="gap:2px"><span class="lab">Metadatenquellen</span><span><b style="font-weight:600">{{ c.pv.fixedName }}</b> <span class="mut">Für diesen Inhalt gibt es heute nur diese Quelle.</span></span></div></sc-if>
+<sc-if value="{{ c.pv.multi }}" hint-placeholder-val="{{ true }}"><fieldset class="fs"><legend class="lab">Metadatenquellen</legend><div role="list" style="border-top:1px solid rgba(255,255,255,0.08)">
+<sc-for list="{{ c.pv.rows }}" as="p" hint-placeholder-count="2"><div role="listitem" class="pr" style="{{ p.rowStyle }}"><input type="checkbox" aria-label="{{ p.name }}" checked="{{ p.on }}" onChange="{{ p.toggle }}"><span style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">{{ p.name }}<sc-if value="{{ p.on }}" hint-placeholder-val="{{ true }}"><span class="{{ p.chipCls }}">{{ p.chip }}</span></sc-if><span class="mut">{{ p.hint }}</span></span>
+<button type="button" class="b bs bi bg" aria-label="{{ p.upLabel }}" disabled="{{ p.upDis }}" onClick="{{ p.up }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg></button><button type="button" class="b bs bi bg" aria-label="{{ p.downLabel }}" disabled="{{ p.downDis }}" onClick="{{ p.down }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button></div></sc-for></div>
+<span class="mut">Der erste Eintrag erkennt den Titel, die weiteren füllen nur auf. Reihenfolge mit den Pfeilen oder den Pfeiltasten.</span>
+<sc-if value="{{ c.pv.hasErr }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:#f2777a">{{ c.pv.err }}</span></sc-if></fieldset></sc-if></section></sc-for>
+<sc-if value="{{ cv.canAdd }}" hint-placeholder-val="{{ true }}"><div><button type="button" class="b" onClick="{{ cv.add }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>{{ cv.addLabel }}</button></div></sc-if></div><sc-if value="{{ afOpen }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ af.isAudio }}" hint-placeholder-val="{{ false }}"><fieldset class="fs"><legend class="lab">Standard-Altersstufe</legend><div style="display:flex;gap:16px;height:24px"><sc-for list="{{ af.ratings }}" as="o" hint-placeholder-count="5"><label class="rl"><input type="radio" name="al-rating" checked="{{ o.on }}" onChange="{{ o.pick }}">{{ o.label }}</label></sc-for></div><span class="mut">Gilt für jeden Titel dieser Bibliothek. Einzelne Titel lassen sich danach nur strenger einstufen.</span></fieldset></sc-if></sc-if><sc-if value="{{ chOpen }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ ch.contentChanges }}" hint-placeholder-val="{{ false }}"><div class="nt nw">Der Inhalt wechselt: das wirkt wie Ordner entfernen und neu anlegen. Die Titel dieses Ordners werden weich gelöscht und neu angelegt, Offline-Pakete sind weg, Fortschritt und Merkliste hängen an den alten Titeln.</div></sc-if>
+<sc-if value="{{ ch.identChanges }}" hint-placeholder-val="{{ false }}"><div class="nt ni">{{ ch.identText }}</div></sc-if><sc-if value="{{ ch.fillers }}" hint-placeholder-val="{{ false }}"><div class="nt ni">Nur die Auffüller ändern sich: die Titel werden neu aufgefüllt, nichts wird gelöscht.</div></sc-if></sc-if></div><div class="df"><sc-if value="{{ fdOpen }}" hint-placeholder-val="{{ true }}"><div class="row" style="flex:1;gap:8px"><sc-if value="{{ fd.nf.hasCards }}" hint-placeholder-val="{{ false }}"><button type="button" class="b bp" disabled="{{ fd.nf.bad }}" onClick="{{ fd.addRoots }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>{{ fd.nf.submitLabel }}</button></sc-if><span style="flex:1"></span><button type="button" class="b" onClick="{{ closeDlg }}">Schliessen</button></div></sc-if>
+<sc-if value="{{ chOpen }}" hint-placeholder-val="{{ false }}"><button type="button" class="b" onClick="{{ ch.cancel }}">Abbrechen</button><button type="button" class="b bp" disabled="{{ ch.blocked }}" onClick="{{ ch.save }}">Speichern</button></sc-if><sc-if value="{{ afOpen }}" hint-placeholder-val="{{ false }}"><button type="button" class="b" onClick="{{ closeDlg }}">Abbrechen</button><sc-if value="{{ af.blocked }}" hint-placeholder-val="{{ true }}"><span class="mut">{{ af.why }}</span></sc-if><button type="button" class="b bp" disabled="{{ af.blocked }}" onClick="{{ af.submit }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>{{ af.submitLabel }}</button></sc-if></div></section></div></sc-if>
+<sc-if value="{{ rtOpen }}" hint-placeholder-val="{{ false }}"><div class="ol" style="z-index:20"><div class="bk" onClick="{{ closeDlg }}"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ rtTitle }}" class="dl" style="{{ rtBox }}"><div class="dh"><h2 class="h2">{{ rtTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeDlg }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div class="db"><p style="margin:0;font-size:13px;color:#b6b9c4">Alle Titel, deren Stufe von der Bibliothek kommt, folgen sofort. Von Hand gesetzte Stufen bleiben.</p>
+<fieldset class="fs"><legend class="lab">Standard-Altersstufe</legend><div style="display:flex;gap:16px;height:24px"><sc-for list="{{ rt.opts }}" as="o" hint-placeholder-count="5"><label class="rl"><input type="radio" name="rt" checked="{{ o.on }}" onChange="{{ o.pick }}">{{ o.label }}</label></sc-for></div></fieldset></div><div class="df"><button type="button" class="b" onClick="{{ closeDlg }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ rt.save }}">Speichern</button></div></section></div></sc-if>
+<sc-if value="{{ tcOpen }}" hint-placeholder-val="{{ false }}"><div class="ol" style="z-index:25"><div class="bk" onClick="{{ closeSub }}"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ tcTitle }}" class="dl" style="{{ tcBox }}"><div class="dh"><h2 class="h2">{{ tcTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeSub }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div class="db"><p style="margin:0;font-size:13px">{{ tc.leadA }}<code class="mono">{{ tc.path }}</code>{{ tc.leadB }}</p>
+<ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#b6b9c4"><sc-for list="{{ tc.cons }}" as="q" hint-placeholder-count="6"><li>{{ q.t }}</li></sc-for></ul>
+<div class="col" style="gap:4px"><label for="tc-typed" class="lab">Tippe den Pfad, um zu bestätigen</label><input class="in mono" id="tc-typed" type="text" autocomplete="off" value="{{ tc.typed }}" onChange="{{ tc.setTyped }}"><sc-if value="{{ tc.noMatch }}" hint-placeholder-val="{{ true }}"><span class="mut">{{ tc.mismatch }}</span></sc-if></div></div><div class="df"><button type="button" class="b" onClick="{{ closeSub }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" disabled="{{ tc.noMatch }}" onClick="{{ tc.confirm }}">{{ tc.okLabel }}</button></div></section></div></sc-if>
+<sc-if value="{{ brOpen }}" hint-placeholder-val="{{ false }}"><div class="ol" style="z-index:25"><div class="bk" onClick="{{ closeSub }}"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ brTitle }}" class="dl" style="{{ brBox }}"><div class="dh"><h2 class="h2">{{ brTitle }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ closeSub }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div class="db"><div><p class="mono" style="margin:0;font-weight:600">{{ br.where }}</p><sc-if value="{{ br.hasInfo }}" hint-placeholder-val="{{ false }}"><span class="mut">{{ br.info }}</span></sc-if></div>
+<sc-if value="{{ br.net }}" hint-placeholder-val="{{ false }}"><div class="nt nw"><span><b style="font-weight:600">Netzfreigabe erkannt.</b> Änderungen in diesem Ordner erkennt Slouchcat nicht sofort, sondern durch einen regelmässigen Abgleich. Damit neue Titel ohne Verzögerung erscheinen, empfehlen sich Webhooks aus Radarr und Sonarr.</span></div></sc-if>
+<div role="listbox" aria-label="Ordner in diesem Verzeichnis" class="col" style="gap:2px;padding:4px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:#0b0c10"><sc-for list="{{ br.entries }}" as="e" hint-placeholder-count="3"><button type="button" role="option" aria-selected="{{ e.sel }}" class="li" style="{{ e.style }}" onClick="{{ e.pick }}"><span style="display:flex;color:#9095a3"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><span class="mono" style="flex:1;font-size:14px">{{ e.name }}</span><span class="mut">{{ e.note }}</span><sc-if value="{{ e.isDir }}" hint-placeholder-val="{{ true }}"><span style="display:flex;color:#9095a3"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></span></sc-if></button></sc-for></div>
+<div><button type="button" class="b bs bg" disabled="{{ br.atRoots }}" onClick="{{ br.up }}"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>Eine Ebene höher</button></div></div><div class="df"><button type="button" class="b" onClick="{{ closeSub }}">Abbrechen</button><button type="button" class="b bp" disabled="{{ br.noPick }}" onClick="{{ br.ok }}">OK</button></div></section></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div class="ol" style="z-index:30"><div class="bk" onClick="{{ closeConfirm }}"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" class="dl" style="top:140px;width:460px"><div class="db" style="gap:8px"><h2 class="h2">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div class="df"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="background:#f2777a;border-color:#f2777a;color:#1c0d06;font-weight:600" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;min-height:36px;max-width:560px;padding:6px 14px;box-sizing:border-box;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px"><span style="display:flex;color:#5fcf8f"><svg class="i" aria-hidden="true" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const KIND = { video: 'Video', audiobooks: 'Hörbücher', podcasts: 'Podcasts' };
+const CONTENT = { movie: 'Filme', series: 'Serien', audiobook: 'Hörbücher', podcast: 'Podcasts' };
+const CONTENTS = { video: ['movie', 'series'], audiobooks: ['audiobook'], podcasts: ['podcast'] };
+const PROV = { tmdb: 'TMDB', tvdb: 'TVDB', anilist: 'AniList', local: 'Lokale Dateien' };
+const ALLOWED = { movie: ['tmdb', 'local'], series: ['tmdb', 'tvdb', 'anilist', 'local'], audiobook: ['local'], podcast: ['local'] };
+const IDENT = { tmdb: 1, tvdb: 1, anilist: 1 };
+const PHINT = { anilist: 'liefert kein Deutsch', local: 'nur Auffüller' };
+const DEFPROV = { movie: ['tmdb'], series: ['tmdb', 'tvdb'], audiobook: ['local'], podcast: ['local'] };
+const RATINGS = [0, 6, 12, 16, 18];
+const STATE = { queued: 'Wartet auf Scan', running: 'Scan läuft', done: 'Aktuell', failed: 'Scan fehlgeschlagen', aborted: 'Scan gestoppt' };
+const DOT = { queued: '#e8794a', running: '#e8794a', done: '#5fcf8f', failed: '#f2777a', aborted: '#e8b65a' };
+const ERRS = {
+  loss_over_threshold: 'Mehr als 20 % der Dateien fehlen. Zum Schutz wurde nichts gelöscht.',
+  cancelled: 'Der Scan wurde abgebrochen. Der nächste Scan läuft wieder normal.',
+};
+const WATCH = { inotify: 'Änderungen werden sofort erkannt', poll: 'Änderungen werden regelmässig abgefragt', inotify_poll: 'Sofort erkannt, zusätzlich regelmässig abgefragt' };
+const META = { like: 'wie Server', texts: 'Sprachen abweichend' };
+const CONSEQ = [
+  'Die Titel werden weich gelöscht: Sie verschwinden aus allen Listen, aber Fortschritt, Merkliste und Picks bleiben an ihnen hängen. Ein Titel, von dem eine Datei in einem anderen Ordner dieser Bibliothek liegt, bleibt sichtbar.',
+  'Wirklich weg sind die Offline-Downloads: Geräte, die einen dieser Titel geladen haben, löschen das Paket beim nächsten Abgleich.',
+  'Eine laufende Wiedergabe aus diesem Ordner bricht mitten im Strom ab.',
+  'Die Umsetzungstabelle von Radarr und Sonarr zeigt für diesen Pfad danach ins Leere; Meldungen dazu werden abgelehnt.',
+  'Legst du denselben Ordner binnen 30 Tagen wieder an, kommen Titel mit TMDB-, TVDB- oder IMDb-Id samt ihren Benutzerdaten zurück. Titel ohne solche Id werden neu angelegt.',
+  'Liegt der Ordner ausserhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen.',
+];
+const R = (id, path, content, prov, fs, watch, items, files, net) => ({ id, path, content, prov, fs, watch, items, files, net: !!net });
+const LIBS = [
+  { id: 1, name: 'Filme', kind: 'video', st: 'running', items: 612, files: 1931, seen: 1004, fin: '01.11.2026, 08:14', meta: 'like',
+    roots: [R(11, '/media/Filme', 'movie', ['tmdb'], 'ext4', 'inotify', 612, 1931)] },
+  { id: 2, name: 'Serien', kind: 'video', st: 'done', items: 148, files: 3412, fin: '01.11.2026, 06:02', meta: 'like',
+    roots: [R(21, '/media/Serien', 'series', ['tmdb', 'tvdb'], 'ext4', 'inotify', 96, 2210), R(22, '/mnt/nas/Serien-Archiv', 'series', ['tmdb', 'tvdb'], 'nfs4', 'poll', 31, 846, 1),
+      R(23, '/media/Anime', 'series', ['anilist', 'tmdb'], 'ext4', 'inotify', 21, 356)] },
+  { id: 3, name: 'Kinder', kind: 'video', st: 'aborted', err: 'loss_over_threshold', items: 214, files: 1106, fin: '31.10.2026, 22:40', meta: 'texts',
+    roots: [R(31, '/media/Kinder/Filme', 'movie', ['tmdb'], 'ext4', 'inotify', 88, 102), R(32, '/media/Kinder/Serien', 'series', ['tmdb', 'tvdb'], 'fuse.mergerfs', 'inotify_poll', 126, 1004)] },
+  { id: 4, name: 'Hörbücher', kind: 'audiobooks', rating: 6, st: 'done', items: 186, files: 2940, fin: '01.11.2026, 06:05',
+    roots: [R(41, '/media/Hoerbuecher', 'audiobook', ['local'], 'ext4', 'inotify', 186, 2940)] },
+  { id: 5, name: 'Podcasts', kind: 'podcasts', rating: 12, st: 'done', items: 124, files: 0, fin: '01.11.2026, 14:20', roots: [] },
+];
+const TREE = [
+  { path: '/media', fs: 'ext4', watch: 'inotify', kids: ['Anime', 'Dokus', 'Filme', 'Hoerbuecher', 'Kinder', 'Konzerte', 'Serien'] },
+  { path: '/mnt/nas', fs: 'nfs4', watch: 'poll', net: true, kids: ['Dokus-Archiv', 'Fotos', 'Serien-Archiv'] },
+];
+let SEQ = 100;
+const up = (o, p) => Object.assign({}, o, p);
+const fmt = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+const dot = (c) => 'display:inline-block;width:8px;height:8px;border-radius:4px;flex:none;background:' + c;
+const chain = (prov) => prov.map((p) => PROV[p]).join(' › ');
+const nOrdner = (n) => n + ' Ordner';
+const boxStyle = (y, w) => 'top:' + y + 'px;width:' + w + 'px';
+const SELON = 'background:#262a35;box-shadow:inset 3px 0 0 #e8794a';
+const treeOf = (path) => TREE.findIndex((t) => path === t.path || path.indexOf(t.path + '/') === 0);
+const newCard = (kind, list) => {
+  const used = list.map((c) => c.content);
+  const content = CONTENTS[kind].find((c) => used.indexOf(c) < 0) || CONTENTS[kind][0];
+  SEQ += 1;
+  return { key: SEQ, path: '', content, prov: DEFPROV[content].slice() };
+};
+const freshForm = () => ({ name: '', kind: 'video', rating: 0, folders: [newCard('video', [])] });
+const provError = (content, prov) => {
+  if (ALLOWED[content].length < 2 || IDENT[prov[0]]) return null;
+  if (!prov.length) return 'Wähle mindestens eine Quelle.';
+  return PROV[prov[0]] + ' kann keinen Titel erkennen. Setze ' + ALLOWED[content].filter((p) => IDENT[p]).map((p) => PROV[p]).join(' oder ') + ' an die erste Stelle.';
+};
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { help: false, toast: null, confirm: null, dlg: null, sub: null, libs: JSON.parse(JSON.stringify(LIBS)), cards: {}, form: freshForm(), sel: 2, tab: 0, open: { 2: true }, rdraft: {} };
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(msg, patch) {
+    clearTimeout(this._t);
+    this.setState(up({ toast: '(Mockup) ' + msg, confirm: null }, patch));
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  lib(id) { return this.state.libs.find((l) => l.id === id) || this.state.libs[1]; }
+  libsWith(id, f) { return this.state.libs.map((l) => (l.id === id ? up(l, f(l)) : l)); }
+  patchLib(id, p) { this.setState({ libs: this.libsWith(id, () => p) }); }
+  setSub(p) { this.setState({ sub: up(this.state.sub, p) }); }
+  // ---- folder cards (FolderList): owner 'form' is the add-library form, otherwise a library id
+  cardsOf(owner) { return owner === 'form' ? this.state.form.folders : this.state.cards[owner] || []; }
+  setCards(owner, list) {
+    if (owner === 'form') this.setState({ form: up(this.state.form, { folders: list }) });
+    else this.setState({ cards: up(this.state.cards, { [owner]: list }) });
+  }
+  provVals(content, prov, set) {
+    const all = ALLOWED[content];
+    const order = prov.filter((p) => all.indexOf(p) >= 0).concat(all.filter((p) => prov.indexOf(p) < 0));
+    const err = provError(content, prov);
+    const rows = order.map((id) => {
+      const pos = prov.indexOf(id);
+      const mv = (d) => { const n = prov.slice(); n[pos] = prov[pos + d]; n[pos + d] = id; set(n); };
+      return { name: PROV[id], on: pos >= 0, chip: pos === 0 ? (IDENT[id] ? 'erkennt Titel' : 'kann nicht erkennen') : 'füllt auf',
+        chipCls: pos > 0 ? 'c' : IDENT[id] ? 'c cs' : 'c cd', hint: PHINT[id] || '', rowStyle: pos < 0 ? 'opacity:.62' : '',
+        upLabel: PROV[id] + ' nach oben', downLabel: PROV[id] + ' nach unten', upDis: pos <= 0, downDis: pos < 0 || pos === prov.length - 1,
+        toggle: () => set(pos >= 0 ? prov.filter((p) => p !== id) : order.filter((p) => p === id || prov.indexOf(p) >= 0)), up: () => mv(-1), down: () => mv(1) };
+    });
+    return { multi: all.length > 1, fixed: all.length < 2, fixedName: chain(all), rows, hasErr: !!err, err };
+  }
+  cardsVals(owner, kind, minN) {
+    const list = this.cardsOf(owner);
+    const n = list.length;
+    const cards = list.map((c, i) => {
+      const set = (p) => this.setCards(owner, list.map((x) => (x.key === c.key ? up(x, p) : x)));
+      const pick = (content) => () => set({ content, prov: DEFPROV[content].slice() });
+      return { title: 'Ordner ' + (i + 1), content: CONTENT[c.content], path: c.path, pid: 'p' + c.key, rname: 'r' + c.key, removeLabel: 'Ordner ' + (i + 1) + ' entfernen',
+        edit: true, canRemove: n > minN, isVideo: kind === 'video', isMovie: c.content === 'movie', isSeries: c.content === 'series', pickMovie: pick('movie'), pickSeries: pick('series'),
+        setPath: (e) => set({ path: e.target.value }), browse: () => this.openBrowse(owner, c.key, c.path),
+        remove: () => this.setCards(owner, list.filter((x) => x.key !== c.key)), pv: this.provVals(c.content, c.prov, (p) => set({ prov: p })) };
+    });
+    return { cards, hasCards: n > 0, canAdd: true, addLabel: n ? 'Weiteren Ordner hinzufügen' : 'Ordner hinzufügen', add: () => this.setCards(owner, list.concat([newCard(kind, list)])),
+      bad: list.some((c) => !c.path.trim() || provError(c.content, c.prov)), submitLabel: nOrdner(n) + ' hinzufügen' };
+  }
+  rootsFrom(list) {
+    return list.map((c) => { SEQ += 1; const t = TREE[treeOf(c.path.trim())] || TREE[0]; return R(SEQ, c.path.trim(), c.content, c.prov, t.fs, t.watch, 0, 0, t.net); });
+  }
+  // ---- add library (LibraryFields); after(id) returns the state patch of the variant
+  formVals(after) {
+    const f = this.state.form;
+    const setF = (p) => this.setState({ form: up(f, p) });
+    const ff = this.cardsVals('form', f.kind, f.kind === 'podcasts' ? 0 : 1);
+    const n = f.folders.length;
+    const noName = !f.name.trim();
+    return { name: f.name, setName: (e) => setF({ name: e.target.value }), ff, noCards: n === 0, isAudio: f.kind !== 'video',
+      kinds: Object.keys(KIND).map((k) => ({ label: KIND[k], on: f.kind === k, pick: () => setF({ kind: k, folders: k === 'podcasts' ? [] : [newCard(k, [])] }) })),
+      hasHint: f.kind !== 'audiobooks', hint: f.kind === 'podcasts' ? 'Ordner optional: Du kannst Feeds auch ohne Ordner unter Podcasts abonnieren.' : 'Ordner dieser Bibliothek dürfen Filme oder Serien enthalten, auch gemischt.',
+      ratings: RATINGS.map((r) => ({ label: 'FSK ' + r, on: f.rating === r, pick: () => setF({ rating: r }) })),
+      submitLabel: n ? 'Bibliothek mit ' + n + (n === 1 ? ' Ordner' : ' Ordnern') + ' hinzufügen' : 'Bibliothek ohne Ordner hinzufügen',
+      blocked: noName || ff.bad, why: noName ? 'Gib der Bibliothek einen Namen.' : 'Jeder Ordner braucht einen Pfad und eine Quelle, die Titel erkennt.',
+      submit: () => {
+        SEQ += 1;
+        const lib = { id: SEQ, name: f.name.trim(), kind: f.kind, st: 'queued', items: 0, files: 0, fin: '', meta: 'like', roots: this.rootsFrom(f.folders) };
+        if (f.kind !== 'video') lib.rating = f.rating;
+        this.say('Bibliothek «' + lib.name + '» hinzugefügt; der erste Scan wartet.', up({ libs: this.state.libs.concat([lib]), form: freshForm() }, after(lib.id)));
+      } };
+  }
+  // ---- one library as every view needs it (BIB-1 to BIB-4)
+  libVals(l) {
+    const scanning = l.st === 'running' || l.st === 'queued';
+    const pct = l.files ? Math.round((l.seen || 0) / l.files * 100) : 0;
+    const n = l.roots.length;
+    const per = {};
+    l.roots.forEach((r) => { per[r.content] = (per[r.content] || 0) + 1; });
+    const first = l.roots[0];
+    const hasErr = !!l.err && l.st === 'aborted';
+    const seen = fmt(l.seen || 0) + ' von ' + fmt(l.files) + ' Dateien';
+    return {
+      name: l.name, kind: KIND[l.kind], isVideo: l.kind === 'video', isAudio: l.kind !== 'video', hasRating: l.rating != null,
+      ratingChip: 'Standard: FSK ' + l.rating, artText: KIND[l.kind] + (l.rating != null ? ' · FSK ' + l.rating : ''),
+      state: STATE[l.st], dot: dot(DOT[l.st]), scanning, idle: !scanning, scanDis: l.kind !== 'podcasts' && n === 0,
+      showBar: l.st === 'running' && l.files > 0, pct, pctText: pct + ' %', barStyle: 'display:block;height:6px;background:#e8794a;width:' + pct + '%', barText: seen,
+      counts: 'Titel: ' + fmt(l.items) + ' · Dateien: ' + fmt(l.files), countsShort: fmt(l.items) + ' · ' + fmt(l.files),
+      showFin: !!l.fin && l.st !== 'running', fin: l.fin ? 'Letzter Scan: ' + l.fin : 'Noch kein Scan', finShort: l.fin.slice(0, 6) + l.fin.slice(11), finFull: l.fin || '–',
+      listStat: l.st === 'running' ? pct + ' %' : STATE[l.st],
+      hasErr, errText: hasErr ? ERRS[l.err] : '', errCls: l.err === 'cancelled' ? 'nt eb ni' : 'nt eb nw', canAccept: hasErr && l.err !== 'cancelled',
+      single: n === 1, multi: n > 1, none: n === 0, firstPath: first ? first.path : '', firstMeta: first ? (l.kind === 'video' ? CONTENT[first.content] + ' · ' : '') + chain(first.prov) : '',
+      rootCount: nOrdner(n), rootSum: Object.keys(per).map((c) => per[c] + ' ' + CONTENT[c]).join(', '), net: l.roots.some((r) => r.net), rootsTitle: l.roots.map((r) => r.path).join(', '),
+      meta: 'Metadaten: ' + META[l.meta || 'like'], metaShort: l.kind === 'video' ? META[l.meta] : '–',
+      openMeta: (e) => { if (e && e.preventDefault) e.preventDefault(); this.say('Öffnet Metadaten mit ?library=' + l.id + ' (' + l.name + ').'); },
+      rescan: () => { this.patchLib(l.id, { st: 'running', err: null, seen: Math.round(l.files * 0.03) }); this.say('Scan von ' + l.name + ' gestartet.'); },
+      cancel: () => { this.patchLib(l.id, { st: 'aborted', err: 'cancelled' }); this.say('Scan von ' + l.name + ' abgebrochen.'); },
+      acceptLoss: () => this.setState({ confirm: { title: 'Fehlende Dateien entfernen?', ok: 'Entfernen und scannen',
+        text: 'Der nächste Scan entfernt die fehlenden Titel aus der Bibliothek, Fortschritte zu diesen Titeln gehen verloren. Tu das nur, wenn die Dateien absichtlich gelöscht wurden.',
+        run: () => this.patchLib(l.id, { st: 'running', err: null, seen: 120 }), msg: l.name + ': fehlende Titel werden entfernt, der Scan läuft.' } }),
+      openRating: () => this.setState({ dlg: { kind: 'rating', lib: l.id, val: l.rating } }),
+      foldersLabel: 'Ordner von ' + l.name + ' bearbeiten', ratingLabel: 'Standardstufe von ' + l.name + ' ändern',
+    };
+  }
+  // ---- folders of one library (BIB-2, BIB-5)
+  rootsVals(l) {
+    const n = l.roots.length;
+    const list = this.cardsOf(l.id);
+    return { hasRoots: n > 0, noRoots: n === 0, rootCount: nOrdner(n),
+      noRootsText: l.kind === 'podcasts' ? 'Kein Ordner: Die Titel kommen aus abonnierten Feeds.' : 'Diese Bibliothek hat keinen Ordner. Es wird nichts gescannt, bis du einen hinzufügst.',
+      roots: l.roots.map((r) => ({ path: r.path, content: CONTENT[r.content], showContent: l.kind === 'video', chain: chain(r.prov), fs: 'Dateisystem ' + r.fs, net: r.net,
+        info: WATCH[r.watch] + ' · Titel: ' + fmt(r.items) + ' · Dateien: ' + fmt(r.files), changeLabel: 'Ordner ' + r.path + ' ändern', removeLabel: 'Ordner ' + r.path + ' entfernen',
+        change: () => this.setState({ sub: { kind: 'change', lib: l.id, root: r.id, content: r.content, prov: r.prov.slice(), typed: '' } }),
+        remove: () => this.setState({ sub: { kind: 'remove', lib: l.id, root: r.id, typed: '' } }) })),
+      nf: this.cardsVals(l.id, l.kind, 0),
+      addRoots: () => { this.setCards(l.id, []); this.patchLib(l.id, { roots: l.roots.concat(this.rootsFrom(list)) }); this.say(nOrdner(list.length) + ' zu ' + l.name + ' hinzugefügt; Scan und Überwachung nehmen sie sofort auf.'); } };
+  }
+  // ---- second-level dialogs: change, typed confirmation, browse
+  typedVals(sb, l, r, leadA, leadB) {
+    const cons = l.roots.length === 1 ? CONSEQ.concat(['Es ist der letzte Ordner: ' + l.name + ' bleibt bestehen, hat danach aber keinen Ordner mehr und scannt nichts.']) : CONSEQ;
+    return { leadA, path: r.path, leadB, cons: cons.map((t) => ({ t })), typed: sb.typed || '', setTyped: (e) => this.setSub({ typed: e.target.value }),
+      mismatch: 'Tippe ' + r.path + ' genau so ab, dann wird der Knopf aktiv.', noMatch: sb.typed !== r.path };
+  }
+  subVals() {
+    const sb = this.state.sub || {};
+    const v = { closeSub: () => this.setState({ sub: null }) };
+    const l = this.lib(sb.lib);
+    const r = l.roots.find((x) => x.id === sb.root) || l.roots[0] || R(0, '', 'movie', ['tmdb'], 'ext4', 'inotify', 0, 0);
+    const ch = sb.kind === 'change' ? sb : { content: r.content, prov: r.prov };
+    const cc = ch.content !== r.content;
+    const lc = ch.prov.join() !== r.prov.join();
+    const apply = (msg) => this.say(msg, { sub: null, libs: this.libsWith(l.id, (x) => ({ roots: x.roots.map((y) => (y.id === r.id ? up(y, { content: ch.content, prov: ch.prov }) : y)) })) });
+    const pick = (c) => () => this.setSub({ content: c, prov: (r.content === c ? r.prov : DEFPROV[c]).slice() });
+    // «Ordner ändern» is drawn as one folder card (fixed path) where the variant draws its cards
+    v.chOpen = sb.kind === 'change' && !sb.confirming;
+    v.ch = { desc: 'Inhalt und Metadatenquellen von ' + r.path + '.', cancel: v.closeSub,
+      cv: { hasCards: true, canAdd: false, cards: [{ title: r.path, content: CONTENT[ch.content], edit: false, canRemove: false, isVideo: l.kind === 'video', rname: 'rch',
+        isMovie: ch.content === 'movie', isSeries: ch.content === 'series', pickMovie: pick('movie'), pickSeries: pick('series'), pv: this.provVals(ch.content, ch.prov, (p) => this.setSub({ prov: p })) }] },
+      contentChanges: cc, identChanges: !cc && ch.prov[0] !== r.prov[0] && !!IDENT[ch.prov[0]], fillers: !cc && lc && ch.prov[0] === r.prov[0],
+      identText: 'Der Erkenner wechselt: Staffel- und Folgentexte werden nach ' + PROV[ch.prov[0]] + ' neu zugeordnet. Die Folgen selbst bleiben, Fortschritt und Merkliste hängen weiter an ihnen.',
+      blocked: (!cc && !lc) || !!provError(ch.content, ch.prov), save: () => (cc ? this.setSub({ confirming: true, typed: '' }) : apply('Der Ordner ' + r.path + ' ist geändert.')) };
+    const conf = sb.kind === 'change' && sb.confirming;
+    v.tcOpen = conf || sb.kind === 'remove';
+    v.tcTitle = conf ? 'Inhalt wirklich wechseln?' : 'Ordner wirklich entfernen?';
+    v.tcBox = boxStyle(96, 580);
+    v.tc = conf
+      ? up(this.typedVals(sb, l, r, 'Du wechselst den Inhalt von ', ' (Bibliothek ' + l.name + ') von ' + CONTENT[r.content] + ' zu ' + CONTENT[ch.content] + '. Das wirkt wie Ordner entfernen und neu anlegen; bis zu ' + fmt(r.items) + ' Titel werden weich gelöscht und neu angelegt. Was das heisst:'),
+        { okLabel: 'Inhalt wechseln', confirm: () => apply('Der Inhalt von ' + r.path + ' wechselt zu ' + CONTENT[ch.content] + '; der Ordner wird neu gelesen.') })
+      : up(this.typedVals(sb, l, r, 'Du entfernst ', ' aus der Bibliothek ' + l.name + '. Bis zu ' + fmt(r.items) + ' Titel verschwinden damit aus allen Listen. Was das heisst:'),
+        { okLabel: 'Ordner entfernen', confirm: () => this.say('Ordner ' + r.path + ' entfernt; ' + fmt(r.items) + ' Titel sind weich gelöscht.',
+          { sub: null, libs: this.libsWith(l.id, (x) => ({ roots: x.roots.filter((y) => y.id !== r.id), items: x.items - r.items, files: x.files - r.files })) }) });
+    // folder browser: shared roots, then one level of folders below them
+    const t = TREE[sb.at];
+    const owned = {};
+    this.state.libs.forEach((x) => x.roots.forEach((y) => { owned[y.path] = x.name; }));
+    v.brOpen = sb.kind === 'browse';
+    v.brBox = boxStyle(112, 560);
+    v.brTitle = 'Ordner auswählen';
+    v.br = { atRoots: !t, where: t ? t.path : 'Freigegebene Ordner', hasInfo: !!t, info: t ? 'Dateisystem ' + t.fs + ' · ' + WATCH[t.watch] : '', net: !!(t && t.net), noPick: !t,
+      up: () => this.setSub({ at: -1, pick: '' }),
+      ok: () => { const p = sb.pick || t.path; this.setCards(sb.owner, this.cardsOf(sb.owner).map((c) => (c.key === sb.key ? up(c, { path: p }) : c))); v.closeSub(); },
+      entries: t
+        ? t.kids.map((name) => { const p = t.path + '/' + name; const on = sb.pick === p;
+          return { name, note: owned[p] ? 'Gehört zu Bibliothek ' + owned[p] : '', sel: on ? 'true' : 'false', style: on ? SELON : '', isDir: false, pick: () => this.setSub({ pick: p }) }; })
+        : TREE.map((x, i) => ({ name: x.path, note: x.net ? 'Netzlaufwerk' : '', sel: 'false', style: '', isDir: true, pick: () => this.setSub({ at: i, pick: '' }) })) };
+    return v;
+  }
+  openBrowse(owner, key, path) {
+    const p = path.trim();
+    const i = treeOf(p);
+    this.setState({ sub: { kind: 'browse', owner, key, at: i, pick: i >= 0 && p !== TREE[i].path ? p : '' } });
+  }
+  baseVals() {
+    const libs = this.state.libs;
+    const cf = this.state.confirm;
+    const d = this.state.dlg || {};
+    const rl = this.lib(d.lib);
+    return up(this.subVals(), {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      anyScan: libs.some((l) => l.st === 'running' || l.st === 'queued'), sumText: libs.length + ' Bibliotheken · ' + fmt(libs.reduce((a, l) => a + l.items, 0)) + ' Titel',
+      hasToast: !!this.state.toast, toast: this.state.toast || '',
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '',
+      closeConfirm: () => this.setState({ confirm: null }), confirmOk: () => { cf.run(); this.say(cf.msg); }, closeDlg: () => this.setState({ dlg: null, sub: null }),
+      rtOpen: d.kind === 'rating', rtTitle: 'Standardstufe von ' + rl.name, rtBox: boxStyle(120, 440),
+      rt: { opts: RATINGS.map((r) => ({ label: 'FSK ' + r, on: d.val === r, pick: () => this.setState({ dlg: up(d, { val: r }) }) })),
+        save: () => this.say('Die Standardstufe von ' + rl.name + ' ist jetzt FSK ' + d.val + '.', { dlg: null, libs: this.libsWith(rl.id, () => ({ rating: d.val })) }) },
+    });
+  }
+
+  renderVals() {
+    const v = this.baseVals();
+    const MDTITLE = 'Ordner von ';
+    v.af = this.formVals(() => ({ dlg: null }));
+    const d = this.state.dlg || {};
+    const fl = this.lib(d.lib);
+    v.afOpen = d.kind === 'add'; v.fdOpen = d.kind === 'folders' && !v.chOpen; v.mdOpen = v.fdOpen || v.afOpen || v.chOpen;
+    v.mdTitle = v.chOpen ? 'Ordner ändern' : v.afOpen ? 'Bibliothek hinzufügen' : MDTITLE + fl.name;
+    v.mdBox = boxStyle(72, v.fdOpen ? 780 : 680);
+    v.fd = this.rootsVals(fl);
+    v.openAdd = () => this.setState({ dlg: { kind: 'add' }, sub: null });
+    v.cv = v.chOpen ? v.ch.cv : v.afOpen ? v.af.ff : v.fd.nf;
+    v.libs = this.state.libs.map((l) => up(this.libVals(l), { openFolders: () => this.setState({ dlg: { kind: 'folders', lib: l.id } }) }));
+    return v;
+  }
+}
+</script>
+</body>
+</html>
