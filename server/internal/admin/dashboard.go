@@ -2,12 +2,16 @@ package admin
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // Dashboard of M8 (A-3, design section 1): running streams, job counters with the newest failed
@@ -17,6 +21,23 @@ import (
 
 // recentFailedLimit is how many failed jobs the dashboard lists.
 const recentFailedLimit = 10
+
+// Concept 11: the running jobs the overview lists, and how long the counts of the sidebar are
+// kept. The sidebar polls the dashboard on every admin page; the counts read every title.
+const (
+	activeJobsLimit    = 3
+	dashboardCountsTTL = 60 * time.Second
+)
+
+// countsCache keeps the counts of the sidebar for dashboardCountsTTL. gen grows with every
+// ForgetDashboardCounts, so a computation that overlapped a change does not store its result.
+type countsCache struct {
+	mu   sync.Mutex
+	gen  uint64
+	at   time.Time
+	ok   bool
+	vals model.DashboardCounts
+}
 
 // Jobs is implemented by *jobs.Queue: the counters, the failed jobs and their administration.
 type Jobs interface {
@@ -101,6 +122,17 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 	for _, j := range failed {
 		d.Jobs.RecentFailed = append(d.Jobs.RecentFailed, jobSummary(j))
 	}
+	if err := s.dashboardJobs(ctx, &d.Jobs); err != nil {
+		return model.Dashboard{}, err
+	}
+	libs, err := s.read.ListLibraries(ctx)
+	if err != nil {
+		return model.Dashboard{}, fmt.Errorf("list libraries: %w", err)
+	}
+	d.Attention = dashboardAttention(libs)
+	if d.Counts, err = s.dashboardCounts(ctx, libs); err != nil {
+		return model.Dashboard{}, err
+	}
 	d.Config = s.storage(ctx, s.ops.system.ConfigDir)
 	d.Cache = s.storage(ctx, s.ops.system.CacheDir)
 	if d.Update, err = s.UpdateState(ctx); err != nil {
@@ -128,6 +160,171 @@ func (s *Service) Dashboard(ctx context.Context) (model.Dashboard, error) {
 		}
 	}
 	return d, nil
+}
+
+// dashboardJobs adds the running jobs, the next scheduled run and the failures by type of
+// concept 11 to the job counters.
+func (s *Service) dashboardJobs(ctx context.Context, jc *model.JobCounts) error {
+	now := s.now()
+	running, err := s.sys.ListRunningJobs(ctx, activeJobsLimit)
+	if err != nil {
+		return fmt.Errorf("list running jobs: %w", err)
+	}
+	jc.Active = make([]model.JobRun, 0, len(running))
+	medians := map[string]*typeStats{} // the estimate of "Hintergrundjobs" needs the median of the type
+	for _, r := range running {
+		st, ok := medians[r.Type]
+		if !ok && s.jobctl != nil {
+			st = &typeStats{}
+			if st.median, _, st.medianOK, err = s.jobctl.reg.Queue().MedianDuration(ctx, r.Type); err != nil {
+				return err
+			}
+			medians[r.Type] = st
+		}
+		jc.Active = append(jc.Active, s.jobRun(ctx, jobs.FromRow(r), st, now))
+	}
+	if jc.NextRun, err = s.nextScheduledRun(ctx); err != nil {
+		return err
+	}
+	rows, err := s.sys.ListFailedJobsNewestPerType(ctx)
+	if err != nil {
+		return fmt.Errorf("list failed jobs by type: %w", err)
+	}
+	jc.FailedByType = make([]model.JobTypeFailures, 0, len(rows))
+	for _, r := range rows {
+		jc.FailedByType = append(jc.FailedByType, model.JobTypeFailures{
+			Type: r.Type, Count: int(r.FailedCount), LastError: logging.RedactString(r.LastError.String),
+			LastFailedAt: time.UnixMilli(r.UpdatedAt).UTC(),
+		})
+	}
+	return nil
+}
+
+// nextScheduledRun returns the earliest next run over the switched-on schedules of registered,
+// unpaused schedule types; nil without one or without WithJobControl.
+func (s *Service) nextScheduledRun(ctx context.Context) (*model.JobNextRun, error) {
+	if s.jobctl == nil {
+		return nil, nil
+	}
+	schedules, err := s.jobctl.sched.Schedules(ctx)
+	if err != nil {
+		return nil, err
+	}
+	typeRows, err := s.sys.ListJobTypes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list job types: %w", err)
+	}
+	paused := map[string]bool{}
+	for _, r := range typeRows {
+		paused[r.Type] = r.PausedAt.Valid
+	}
+	var next *model.JobNextRun
+	for _, sc := range schedules {
+		if !sc.Enabled || paused[sc.Type] || sc.NextRunAt.IsZero() {
+			continue
+		}
+		if t, ok := s.jobctl.reg.Lookup(sc.Type); !ok || !t.Scheduled() {
+			continue
+		}
+		if next == nil || sc.NextRunAt.Before(next.At) {
+			next = &model.JobNextRun{Type: sc.Type, At: sc.NextRunAt.UTC()}
+		}
+	}
+	return next, nil
+}
+
+// dashboardAttention lists the libraries whose last scan the loss protection aborted and whose
+// loss nobody accepted: state aborted, a reason other than cancelled (the administrator's own
+// cancellation) and no loss_accepted_at. The server decides this, the client shows it (rule 12).
+func dashboardAttention(libs []appq.Library) model.DashboardAttention {
+	out := model.DashboardAttention{AbortedScans: []model.AbortedScan{}}
+	for _, l := range libs {
+		if l.LastScanState != "aborted" || !l.LastScanError.Valid || l.LastScanError.String == abortCancelled || l.LossAcceptedAt.Valid {
+			continue
+		}
+		out.AbortedScans = append(out.AbortedScans, model.AbortedScan{LibraryID: l.ID, Name: l.Name, Reason: l.LastScanError.String})
+	}
+	return out
+}
+
+// abortCancelled is the abort reason of a scan the administrator cancelled (package library).
+const abortCancelled = "cancelled"
+
+// dashboardCounts returns the counts of the sidebar, recomputed at most every dashboardCountsTTL
+// and at once after ForgetDashboardCounts.
+func (s *Service) dashboardCounts(ctx context.Context, libs []appq.Library) (model.DashboardCounts, error) {
+	now := s.now()
+	c := &s.counts
+	c.mu.Lock()
+	if c.ok && now.Sub(c.at) < dashboardCountsTTL {
+		vals := c.vals
+		c.mu.Unlock()
+		return vals, nil
+	}
+	gen := c.gen
+	c.mu.Unlock()
+
+	vals, err := s.computeDashboardCounts(ctx, libs, now)
+	if err != nil {
+		return model.DashboardCounts{}, err
+	}
+	c.mu.Lock()
+	if c.gen == gen {
+		c.vals, c.at, c.ok = vals, now, true
+	}
+	c.mu.Unlock()
+	return vals, nil
+}
+
+// ForgetDashboardCounts drops the kept counts of the sidebar; the next dashboard recomputes them.
+// The maintenance, libraries and accounts pages call it after every change (concept 11).
+func (s *Service) ForgetDashboardCounts() {
+	s.counts.mu.Lock()
+	s.counts.gen++
+	s.counts.ok = false
+	s.counts.mu.Unlock()
+}
+
+func (s *Service) computeDashboardCounts(ctx context.Context, libs []appq.Library, now time.Time) (model.DashboardCounts, error) {
+	var out model.DashboardCounts
+	for _, l := range libs {
+		n, err := s.sys.CountLibraryItems(ctx, l.ID)
+		if err != nil {
+			return out, fmt.Errorf("count items of library %d: %w", l.ID, err)
+		}
+		out.Titles += int(n)
+	}
+	accounts, err := s.read.CountAccounts(ctx)
+	if err != nil {
+		return out, fmt.Errorf("count accounts: %w", err)
+	}
+	out.Accounts = int(accounts)
+	// The five cheap maintenance counters of every library; rating_mismatch asks the provider for
+	// every title and does not count.
+	all := sql.NullInt64{}
+	unmatched, err := s.sys.AdminCountUnmatched(ctx, systemq.AdminCountUnmatchedParams{PendingBefore: now.Add(-pendingAfter).UnixMilli(), LibraryID: all})
+	if err != nil {
+		return out, fmt.Errorf("count unmatched: %w", err)
+	}
+	counters := []struct {
+		name  string
+		count func(context.Context, interface{}) (int64, error)
+	}{
+		{IssueNoImages, s.sys.AdminCountNoImages},
+		{IssueUnrated, s.sys.AdminCountUnrated},
+		{IssueOrphaned, s.sys.AdminCountOrphaned},
+		{IssueUnplayable, s.sys.AdminCountUnplayable},
+	}
+	open := unmatched
+	for _, c := range counters {
+		n, err := c.count(ctx, all)
+		if err != nil {
+			return out, fmt.Errorf("count %s: %w", c.name, err)
+		}
+		open += n
+	}
+	out.MaintenanceOpen = int(open)
+	return out, nil
 }
 
 // storage returns the space of dir's file system; zero sizes when it cannot be read.

@@ -2,13 +2,17 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -143,6 +147,102 @@ func TestDashboardMapsPausedJobTypes(t *testing.T) {
 	wantStatus(t, send(t, pf.h, http.MethodPost, BasePath+"/admin/job-types/download.prepare/pause", "p18", "", nil), http.StatusOK)
 	if n := paused(); n != 1 {
 		t.Errorf("paused after pausing download.prepare = %d, want 1", n)
+	}
+}
+
+// Concept 11 (contract 1.7.0): every new field of getDashboard over HTTP. A running and a failed
+// job, an aborted scan, a stream of an episode with the poster of its series, and the counts of
+// the sidebar, whose account count follows a deletion on the accounts page at once.
+func TestDashboardOverviewOverHTTP(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h, ctx := pf.f, pf.h, context.Background()
+	dashboard := func() (gen.Dashboard, string) {
+		t.Helper()
+		rec := send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var d gen.Dashboard
+		decode(t, rec, &d)
+		return d, rec.Body.String()
+	}
+	d, body := dashboard()
+	for _, field := range []string{`"active":[]`, `"failedByType":[]`, `"attention":{"abortedScans":[]}`, `"counts":{`} {
+		if !strings.Contains(body, field) {
+			t.Errorf("empty dashboard lacks %s: %s", field, body)
+		}
+	}
+	accounts := d.Counts.Accounts
+	if accounts != 3 || d.Counts.Titles <= 0 || d.Counts.MaintenanceOpen < 0 {
+		t.Errorf("counts = %+v, want the three accounts of the fixture and its titles", d.Counts)
+	}
+
+	// One running and one failed job of notify.deliver.
+	running, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "notify.deliver"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if j, err := pf.queue.Claim(ctx, "w", []string{"notify.deliver"}); err != nil || j == nil || j.ID != running {
+		t.Fatalf("claim: %v, %v", j, err)
+	}
+	if _, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "download.prepare", MaxAttempts: 1}); err != nil {
+		t.Fatal(err)
+	}
+	j, err := pf.queue.Claim(ctx, "w", []string{"download.prepare"})
+	if err != nil || j == nil {
+		t.Fatalf("claim: %v, %v", j, err)
+	}
+	if err := pf.queue.Fail(ctx, "w", j, errors.New("token=dash-FAKE-token broke")); err != nil {
+		t.Fatal(err)
+	}
+	// The scan of the fixture's library was aborted by the loss protection.
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE libraries SET last_scan_state = 'aborted', last_scan_error = 'root_missing' WHERE id = (SELECT min(id) FROM libraries)`); err != nil {
+		t.Fatal(err)
+	}
+	var libID int64
+	var libName string
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT id, name FROM libraries ORDER BY id LIMIT 1`).Scan(&libID, &libName); err != nil {
+		t.Fatal(err)
+	}
+	// An episode streams; its series has a poster.
+	if _, err := f.DB.Write.ExecContext(ctx, `INSERT INTO images (item_id, kind, size, format, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at)
+	    VALUES (?, 'poster', ?, 'jpeg', 'https://example.org/p.jpg', 'p.jpg', 'seriesHash', 'image/jpeg', 200, 300, 1, 1)
+	    ON CONFLICT (item_id, kind, size, format) DO UPDATE SET content_hash = excluded.content_hash`, f.Show.Series.ID, model.AdminPosterSize); err != nil {
+		t.Fatal(err)
+	}
+	if _, code, _ := play(t, h, "p18", f.Show.E1.ID, `{}`); code != http.StatusOK {
+		t.Fatalf("play = %d", code)
+	}
+
+	d, body = dashboard()
+	if len(d.Jobs.Active) != 1 || d.Jobs.Active[0].Id != running || d.Jobs.Active[0].Type != "notify.deliver" || d.Jobs.Active[0].State != gen.JobRunStateRunning {
+		t.Errorf("active = %+v", d.Jobs.Active)
+	}
+	if len(d.Jobs.FailedByType) != 1 {
+		t.Fatalf("failed by type = %+v", d.Jobs.FailedByType)
+	}
+	fb := d.Jobs.FailedByType[0]
+	if fb.Type != "download.prepare" || fb.Count != 1 || fb.LastError == nil || strings.Contains(*fb.LastError, "dash-FAKE-token") ||
+		fb.LastFailedAt.IsZero() || fb.LastFailedAt.Location() != time.UTC {
+		t.Errorf("failure = %+v (%v)", fb, deref(fb.LastError))
+	}
+	if strings.Contains(body, "dash-FAKE-token") {
+		t.Error("the dashboard carries the secret of the failed job")
+	}
+	if n := d.Jobs.NextRun; n != nil && (n.Type == "" || n.At.IsZero()) {
+		t.Errorf("next run = %+v", n)
+	}
+	want := gen.AbortedScan{LibraryId: libID, Name: libName, Reason: "root_missing"}
+	if len(d.Attention.AbortedScans) != 1 || d.Attention.AbortedScans[0] != want {
+		t.Errorf("aborted scans = %+v, want %+v", d.Attention.AbortedScans, want)
+	}
+	wantPoster := BasePath + "/admin/items/" + f.Show.Series.ID + "/images/poster/" + model.AdminPosterSize + "?v=seriesHash"
+	if len(d.Streams) != 1 || d.Streams[0].ItemId != f.Show.E1.ID || deref(d.Streams[0].PosterUrl) != wantPoster {
+		t.Errorf("streams = %+v, want E1 with the series poster %s", d.Streams, wantPoster)
+	}
+
+	wantStatus(t, send(t, h, http.MethodDelete, BasePath+"/admin/accounts/"+strconv.FormatInt(f.Guest.ID, 10), "p18", "", nil), http.StatusNoContent)
+	if d, _ = dashboard(); d.Counts.Accounts != accounts-1 {
+		t.Errorf("accounts after deleting one = %d, want %d at once", d.Counts.Accounts, accounts-1)
 	}
 }
 

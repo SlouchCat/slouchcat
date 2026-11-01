@@ -33,7 +33,21 @@ const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard => ({
       lastActivityAt: '2026-10-21T09:10:00Z',
     },
   ],
-  jobs: { queued: 12, running: 1, failed: 1, recentFailed: [failedJob] },
+  jobs: {
+    queued: 12,
+    running: 1,
+    failed: 1,
+    recentFailed: [failedJob],
+    active: [],
+    failedByType: [
+      {
+        type: 'metadata.match',
+        count: 1,
+        lastError: 'tmdb: HTTP 503',
+        lastFailedAt: '2026-10-21T09:15:00Z',
+      },
+    ],
+  },
   storage: {
     config: { path: '/config', totalBytes: 100e9, freeBytes: 60e9 },
     cache: { path: '/cache', totalBytes: 500e9, freeBytes: 450e9 },
@@ -64,6 +78,9 @@ const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard => ({
     available: true,
     url: 'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
   },
+  // Contract 1.7.0 (concept 11); the overview does not show them yet.
+  attention: { abortedScans: [] },
+  counts: { titles: 1200, accounts: 3, maintenanceOpen: 4 },
   ...overrides,
 });
 
@@ -221,7 +238,14 @@ describe('admin overview (A-2, A-3)', () => {
           json(
             dashboard({
               streams: [],
-              jobs: { queued: 0, running: 0, failed: 0, recentFailed: [] },
+              jobs: {
+                queued: 0,
+                running: 0,
+                failed: 0,
+                recentFailed: [],
+                active: [],
+                failedByType: [],
+              },
               errors: [],
               update: {
                 enabled: true,
@@ -289,7 +313,16 @@ describe('admin overview (A-2, A-3)', () => {
       routes({
         'GET /admin/dashboard': () => json(listed),
         'POST /admin/jobs/7/retry': () => {
-          listed = dashboard({ jobs: { queued: 13, running: 1, failed: 0, recentFailed: [] } });
+          listed = dashboard({
+            jobs: {
+              queued: 13,
+              running: 1,
+              failed: 0,
+              recentFailed: [],
+              active: [],
+              failedByType: [],
+            },
+          });
           return json({ ...failedJob, state: 'queued', attempts: 0 });
         },
       }),

@@ -186,6 +186,7 @@ type Service struct {
 	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)
 	webhooks      Integrations  // nil until WithIntegrations (M9)
+	counts        countsCache   // the counts of the admin sidebar (concept 11, dashboard.go)
 }
 
 // New returns the service. getenv is normally os.Getenv.
@@ -449,6 +450,7 @@ func (s *Service) GetLibrary(ctx context.Context, id int64) (model.Library, erro
 
 // CreateLibrary validates the request and creates the library, which queues its first scan.
 func (s *Service) CreateLibrary(ctx context.Context, req model.LibraryRequest) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if verr := validateLibrary(nil, "", req); verr != nil {
 		return model.Library{}, verr
 	}
@@ -458,6 +460,7 @@ func (s *Service) CreateLibrary(ctx context.Context, req model.LibraryRequest) (
 // ScanLibrary queues a full scan. A podcast library fetches every subscription of the library
 // (M6) and, when it has folders, scans them as well (ADR 0015).
 func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if lib, err := s.read.GetLibrary(ctx, id); err == nil && lib.Kind == model.LibraryPodcasts {
 		if s.podcasts == nil {
 			return model.Library{}, ErrNotConfigured
@@ -475,6 +478,7 @@ func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, err
 
 // AcceptLibraryLoss lifts the loss protection for the next scan and queues it.
 func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	return s.libraries.AcceptLoss(ctx, id)
 }
 
@@ -482,6 +486,7 @@ func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Librar
 // rules, the overlap check and the browsable-root rule live in package library; this only refuses
 // what is not a folder request at all.
 func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	if len(roots) == 0 {
 		verr = verr.Add("roots", "required")
@@ -495,6 +500,7 @@ func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []
 // UpdateLibraryRoot changes the content or the provider list of a folder (ADR 0015). The rules
 // and the typed confirmation of a content change live in package library.
 func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	if upd.Content == nil && upd.Providers == nil {
 		verr = verr.Add("body", "required")
@@ -565,6 +571,7 @@ func (s *Service) ListMetadataProviders(ctx context.Context) ([]model.MetadataPr
 // library, never here: a confirmation checked against another value from the same request would
 // confirm nothing.
 func (s *Service) RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64, confirmPath string) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	switch {
 	case strings.TrimSpace(confirmPath) == "":
@@ -640,6 +647,7 @@ const maxRatingItems = 5000
 // SetItemRating per title, in transactions of at most 500 titles (B-9, AN-1). Unknown and deleted
 // ids are skipped and not counted; duplicates count once. The caller re-checks open streams once.
 func (s *Service) SetItemsRating(ctx context.Context, itemIDs []string, rating *int) (int, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	switch {
 	case len(itemIDs) == 0:

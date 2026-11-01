@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // failFinally claims job id of type "a" or "b" and fails it with one attempt left.
@@ -83,4 +84,77 @@ func TestStatsListFailedAndRetry(t *testing.T) {
 	if got, err := q.Get(ctx, first); err != nil || got.State != StateFailed {
 		t.Errorf("failed job after the refused retry: %+v, %v", got, err)
 	}
+}
+
+// Concept 11: the queries of the overview. ListRunningJobs lists the running jobs of every type,
+// the newest start first, at most the limit; ListFailedJobsNewestPerType has one row per type with
+// the newest failure and the number of failures, the type with the newest failure first.
+func TestDashboardOverviewQueries(t *testing.T) {
+	ctx := context.Background()
+	q, clk := newTestQueue(t)
+
+	// Failures: a at 0 s ("a old"), b at 1 s, a at 2 s ("a new"): a is newest with two failures.
+	mustEnqueue(t, q, NewJob{Type: "a", MaxAttempts: 1})
+	failFinally(t, q, "a old")
+	clk.Advance(time.Second)
+	mustEnqueue(t, q, NewJob{Type: "b", MaxAttempts: 1})
+	failFinally(t, q, "b broke")
+	clk.Advance(time.Second)
+	aNew := mustEnqueue(t, q, NewJob{Type: "a", MaxAttempts: 1})
+	failFinally(t, q, "a new")
+
+	rows, err := q.q.ListFailedJobsNewestPerType(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 || rows[0].Type != "a" || rows[0].FailedCount != 2 || rows[0].LastError.String != "a new" ||
+		rows[0].UpdatedAt != clk.Now().UnixMilli() || rows[1].Type != "b" || rows[1].FailedCount != 1 || rows[1].LastError.String != "b broke" {
+		t.Fatalf("failed by type = %+v, want a (2, a new) then b (1, b broke)", rows)
+	}
+	// A retried failure leaves the group; b now has the newest failure.
+	if _, err := q.Retry(ctx, aNew); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = q.q.ListFailedJobsNewestPerType(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 || rows[0].Type != "b" || rows[1].Type != "a" || rows[1].FailedCount != 1 || rows[1].LastError.String != "a old" {
+		t.Fatalf("after the retry: %+v, want b then a (1, a old)", rows)
+	}
+
+	// Running: the retried a job and four more, started one second apart; a queued one stays out.
+	var started []int64
+	for range 4 {
+		mustEnqueue(t, q, NewJob{Type: "b"})
+	}
+	for range 5 {
+		clk.Advance(time.Second)
+		j := mustClaim(t, q, "w")
+		if j == nil {
+			t.Fatal("nothing to claim")
+		}
+		started = append(started, j.ID)
+	}
+	mustEnqueue(t, q, NewJob{Type: "a"})
+	running, err := q.q.ListRunningJobs(ctx, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(running) != 3 || running[0].ID != started[4] || running[1].ID != started[3] || running[2].ID != started[2] {
+		t.Fatalf("running = %v, want the last three started %v, newest first", ids(running), started[2:])
+	}
+	for _, r := range running {
+		if r.State != string(StateRunning) {
+			t.Errorf("job %d is %s, want running", r.ID, r.State)
+		}
+	}
+}
+
+func ids(rows []systemq.Job) []int64 {
+	out := make([]int64, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.ID)
+	}
+	return out
 }

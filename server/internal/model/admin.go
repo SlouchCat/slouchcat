@@ -100,6 +100,27 @@ type Dashboard struct {
 	Errors       []ErrorEntry  // newest first, at most 50
 	Update       UpdateState
 	Browse       BrowseHealth // the folder browser of the library form (idea 02)
+	Attention    DashboardAttention
+	Counts       DashboardCounts
+}
+
+// DashboardAttention is what needs the administrator's attention (concept 11).
+type DashboardAttention struct {
+	AbortedScans []AbortedScan // scans the loss protection aborted, loss not accepted
+}
+
+// AbortedScan is a library whose last scan the loss protection aborted.
+type AbortedScan struct {
+	LibraryID int64
+	Name      string
+	Reason    string // abort code (root_missing, root_empty, loss_over_threshold) or a message
+}
+
+// DashboardCounts are the counts of the admin sidebar (concept 11), at most 60 s old.
+type DashboardCounts struct {
+	Titles          int // items of every library, like LibraryScan.ItemCount
+	Accounts        int
+	MaintenanceOpen int // the five cheap maintenance counters, without rating_mismatch
 }
 
 // JobCounts counts the active and failed jobs, with the newest failed ones.
@@ -109,6 +130,23 @@ type JobCounts struct {
 	Failed       int
 	Paused       int          // paused job types (concept 09)
 	RecentFailed []JobSummary // newest first, at most 10
+	Active       []JobRun     // running jobs, newest start first, at most 3 (concept 11)
+	NextRun      *JobNextRun  // earliest next run of a switched-on schedule of an unpaused type; nil without
+	FailedByType []JobTypeFailures
+}
+
+// JobNextRun is the next scheduled run of a job type.
+type JobNextRun struct {
+	Type string
+	At   time.Time
+}
+
+// JobTypeFailures are the failed jobs of one type with the newest failure.
+type JobTypeFailures struct {
+	Type         string
+	Count        int
+	LastError    string // redacted
+	LastFailedAt time.Time
 }
 
 // Background jobs of concept 09 (ADR 0017): a job type and its runs as the page "Hintergrundjobs"

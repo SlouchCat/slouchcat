@@ -236,6 +236,9 @@ type AdminService interface {
 	SystemInfo(ctx context.Context) (model.SystemInfo, error)
 	// Dashboard returns the admin overview (A-3).
 	Dashboard(ctx context.Context) (model.Dashboard, error)
+	// ForgetDashboardCounts drops the kept counts of the admin sidebar after a change on the
+	// accounts page (concept 11); the next dashboard recomputes them.
+	ForgetDashboardCounts()
 	// RetryJob queues a failed job again (model.ErrNotFound, model.ErrJobNotFailed); CancelJob
 	// cancels a queued or running one (model.ErrNotFound for an unknown or ended job).
 	RetryJob(ctx context.Context, id int64) (model.JobSummary, error)

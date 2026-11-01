@@ -26,3 +26,24 @@ SET state = 'queued', attempts = 0, run_after = @now, lease_owner = NULL, lease_
 WHERE jobs.id = @id AND jobs.state = 'failed'
   AND (jobs.idempotency_key IS NULL OR NOT EXISTS (
       SELECT 1 FROM jobs AS a WHERE a.idempotency_key = jobs.idempotency_key AND a.state IN ('queued', 'running')));
+
+-- name: ListRunningJobs :many
+-- The running jobs of every type, the newest start first (concept 11, JobCounts.active).
+SELECT * FROM jobs
+WHERE state = 'running'
+ORDER BY started_at DESC, id DESC
+LIMIT @limit_count;
+
+-- name: ListFailedJobsNewestPerType :many
+-- Per type the newest failed job with the number of failed jobs of the type, the type with the
+-- newest failure first (concept 11, JobCounts.failedByType).
+SELECT type, failed_count, last_error, updated_at
+FROM (
+    SELECT type, last_error, updated_at, id,
+           ROW_NUMBER() OVER (PARTITION BY type ORDER BY updated_at DESC, id DESC) AS rn,
+           COUNT(*) OVER (PARTITION BY type) AS failed_count
+    FROM jobs
+    WHERE state = 'failed'
+) AS f
+WHERE rn = 1
+ORDER BY updated_at DESC, id DESC;

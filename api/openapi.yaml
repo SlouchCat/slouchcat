@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.6.0
+  version: 1.7.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -5060,10 +5060,13 @@ paths:
       summary: Running streams, jobs, storage, integrations, errors and update state (A-3)
       description: |
         One request for the admin overview, polled every few seconds: the running streams (as
-        `listStreams`), the job counters with the last ten failed jobs, free and total space of the
-        config and cache directories, the state of every integration (keys, e-mail, Web Push, Telegram,
-        update check), the newest 50 errors of the server log (redacted, newest first) and the update
-        state.
+        `listStreams`), the job counters with up to three running jobs, the next scheduled run, the
+        failed jobs grouped by type (and, for older clients, the last ten failed jobs), free and total
+        space of the config and cache directories, the state of every integration (keys, e-mail, Web
+        Push, Telegram, update check), the newest 50 errors of the server log (redacted, newest first),
+        the update state, what needs the administrator's attention (scans the loss protection aborted)
+        and the counts of the sidebar (titles, accounts, open maintenance cases; recomputed at most every
+        60 seconds and at once after a change on the maintenance, libraries or accounts pages).
       tags: [admin]
       x-visibility: admin
       responses:
@@ -8534,6 +8537,11 @@ components:
         durationMs:
           type: integer
           format: int64
+        posterUrl:
+          type: string
+          description: |
+            The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
+            absent when no poster is stored.
 
     ProgressEvent:
       type: object
@@ -10921,7 +10929,7 @@ components:
     Dashboard:
       type: object
       description: The admin overview (A-3); no `ItemRef`.
-      required: [streams, jobs, storage, integrations, webhooks, errors, update]
+      required: [streams, jobs, storage, integrations, webhooks, errors, update, attention, counts]
       properties:
         streams:
           type: array
@@ -10953,6 +10961,61 @@ components:
           $ref: "#/components/schemas/UpdateState"
         browse:
           $ref: "#/components/schemas/BrowseHealth"
+        attention:
+          $ref: "#/components/schemas/DashboardAttention"
+        counts:
+          $ref: "#/components/schemas/DashboardCounts"
+
+    DashboardAttention:
+      type: object
+      description: |
+        What needs the administrator's attention (concept 11). The server decides what counts (rule
+        12); the client only shows it. Every list is empty instead of absent.
+      required: [abortedScans]
+      properties:
+        abortedScans:
+          type: array
+          description: |
+            Libraries whose last scan the loss protection aborted and whose loss nobody accepted yet:
+            last scan state `aborted`, a reason other than `cancelled` and no `lossAcceptedAt`.
+          items:
+            $ref: "#/components/schemas/AbortedScan"
+
+    AbortedScan:
+      type: object
+      required: [libraryId, name, reason]
+      properties:
+        libraryId:
+          type: integer
+          format: int64
+        name:
+          type: string
+          description: Name of the library.
+        reason:
+          type: string
+          description: Abort code of the scan (`root_missing`, `root_empty`, `loss_over_threshold`) or a message.
+
+    DashboardCounts:
+      type: object
+      description: |
+        The counts of the admin sidebar (concept 11). The server recomputes them at most every 60
+        seconds; a change on the maintenance, libraries or accounts pages recomputes them at once.
+      required: [titles, accounts, maintenanceOpen]
+      properties:
+        titles:
+          type: integer
+          minimum: 0
+          description: The titles of every library, summed like `LibraryScan.itemCount`.
+        accounts:
+          type: integer
+          minimum: 0
+        maintenanceOpen:
+          type: integer
+          minimum: 0
+          description: |
+            Titles that need maintenance: the sum of the issue kinds `unmatched`, `no_images`,
+            `unrated`, `orphaned` and `unplayable`. `rating_mismatch` does not count, because it
+            checks every title against the provider.
 
     BrowseHealth:
       type: object
@@ -10972,7 +11035,7 @@ components:
 
     JobCounts:
       type: object
-      required: [queued, running, failed, recentFailed]
+      required: [queued, running, failed, recentFailed, active, failedByType]
       properties:
         queued:
           type: integer
@@ -10990,9 +11053,58 @@ components:
         recentFailed:
           type: array
           maxItems: 10
-          description: The last failed jobs, newest first.
+          description: |
+            The last failed jobs, newest first. Kept for other clients; the overview of the web client
+            reads `failedByType`.
           items:
             $ref: "#/components/schemas/JobSummary"
+        active:
+          type: array
+          maxItems: 3
+          description: |
+            Up to three running jobs of every type, the newest start first, with the subject and the
+            estimate of the page "Hintergrundjobs" (`listJobTypes`).
+          items:
+            $ref: "#/components/schemas/JobRun"
+        nextRun:
+          $ref: "#/components/schemas/JobNextRun"
+        failedByType:
+          type: array
+          description: The failed jobs grouped by type, the type with the newest failure first.
+          items:
+            $ref: "#/components/schemas/JobTypeFailures"
+
+    JobNextRun:
+      type: object
+      description: |
+        The earliest next run over every switched-on schedule of a job type that is not paused;
+        absent without such a schedule.
+      required: [type, at]
+      properties:
+        type:
+          $ref: "#/components/schemas/JobTypeName"
+        at:
+          type: string
+          format: date-time
+
+    JobTypeFailures:
+      type: object
+      description: The failed jobs of one type with the newest failure.
+      required: [type, count, lastFailedAt]
+      properties:
+        type:
+          $ref: "#/components/schemas/JobTypeName"
+        count:
+          type: integer
+          minimum: 1
+          description: Failed jobs of the type.
+        lastError:
+          type: string
+          description: Error of the newest failed job of the type, redacted; absent when it has none.
+        lastFailedAt:
+          type: string
+          format: date-time
+          description: When the newest failed job of the type failed (its last update).
 
     JobSummary:
       type: object

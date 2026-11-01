@@ -81,7 +81,14 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 			Total: d.Webhooks.Total, EventsLast24h: d.Webhooks.EventsLast24h,
 			Silent: append([]string{}, d.Webhooks.Silent...),
 		},
-		Browse: &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
+		Browse:    &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
+		Attention: gen.DashboardAttention{AbortedScans: make([]gen.AbortedScan, 0, len(d.Attention.AbortedScans))},
+		Counts: gen.DashboardCounts{
+			Titles: d.Counts.Titles, Accounts: d.Counts.Accounts, MaintenanceOpen: d.Counts.MaintenanceOpen,
+		},
+	}
+	for _, a := range d.Attention.AbortedScans {
+		out.Attention.AbortedScans = append(out.Attention.AbortedScans, gen.AbortedScan{LibraryId: a.LibraryID, Name: a.Name, Reason: a.Reason})
 	}
 	for _, st := range d.Streams {
 		out.Streams = append(out.Streams, toAdminStream(st))
@@ -89,6 +96,19 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 	out.Jobs.RecentFailed = make([]gen.JobSummary, 0, len(d.Jobs.RecentFailed))
 	for _, j := range d.Jobs.RecentFailed {
 		out.Jobs.RecentFailed = append(out.Jobs.RecentFailed, toJobSummary(j))
+	}
+	out.Jobs.Active = make([]gen.JobRun, 0, len(d.Jobs.Active))
+	for _, r := range d.Jobs.Active {
+		out.Jobs.Active = append(out.Jobs.Active, toJobRun(r))
+	}
+	if n := d.Jobs.NextRun; n != nil {
+		out.Jobs.NextRun = &gen.JobNextRun{Type: n.Type, At: n.At.UTC()}
+	}
+	out.Jobs.FailedByType = make([]gen.JobTypeFailures, 0, len(d.Jobs.FailedByType))
+	for _, f := range d.Jobs.FailedByType {
+		out.Jobs.FailedByType = append(out.Jobs.FailedByType, gen.JobTypeFailures{
+			Type: f.Type, Count: f.Count, LastError: optString(f.LastError), LastFailedAt: f.LastFailedAt.UTC(),
+		})
 	}
 	out.Storage.Config = gen.StorageInfo{Path: d.Config.Path, TotalBytes: d.Config.TotalBytes, FreeBytes: d.Config.FreeBytes}
 	out.Storage.Cache = gen.StorageInfo{Path: d.Cache.Path, TotalBytes: d.Cache.TotalBytes, FreeBytes: d.Cache.FreeBytes}

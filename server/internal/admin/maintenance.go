@@ -422,6 +422,7 @@ func (s *Service) ListDuplicates(ctx context.Context, libraryID *int64) ([]model
 // all; after a failure the merged sources are gone and a repeated request merges the rest. The
 // triggers recompute availability and ratings. The answer is the administration view of the target.
 func (s *Service) MergeItems(ctx context.Context, targetID string, sourceIDs []string) (model.AdminItem, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	switch {
 	case len(sourceIDs) == 0:
@@ -552,6 +553,7 @@ func (s *Service) mergeSource(ctx context.Context, check func(*systemq.Queries, 
 // library, which also soft-deletes titles left without a file. It returns the removed titles
 // (both ways) and files.
 func (s *Service) CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []string) (items, files int, err error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	switch {
 	case len(itemIDs) == 0 && len(mediaFileIDs) == 0:

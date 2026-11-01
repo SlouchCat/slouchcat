@@ -282,9 +282,10 @@ UPDATE items SET deleted_at = @now, updated_at = @now WHERE id = @id AND deleted
 
 -- name: AdminStreamItems :many
 -- Title (German text, else English, else the first language by rank, else the parsed title; ADR 0018)
--- with, for an episode, the series title and the season and episode numbers.
+-- with, for an episode, the series id and title and the season and episode numbers.
 SELECT i.id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.season_number, i.episode_number, i.episode_end,
-       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = s.id ORDER BY tr.rank, tr.lang LIMIT 1), s.title, '') AS series_title
+       p.season_number AS parent_season_number, COALESCE(sd.title, se.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = s.id ORDER BY tr.rank, tr.lang LIMIT 1), s.title, '') AS series_title,
+       s.id AS series_id
 FROM items AS i
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
