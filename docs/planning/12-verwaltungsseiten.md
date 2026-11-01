@@ -544,6 +544,8 @@ eigener Commit, `task ci` grün.
 | 1. November 2026 | Metadaten (A, B, C) | «Ich möchte das mit den Sprachen bei Metadaten als Dropdown oder anders gelöst. Mir gefällt das mit dem Hin-und-her-Schieben nicht.» Interview: **feste Plätze**, auch für die Bildsprachen. | Je Rang eine Auswahl («1. Sprache», «2. Sprache» …); die Reihenfolge ergibt sich aus dem Platz. Wählt man eine Sprache, die schon auf einem anderen Platz steht, tauschen die beiden die Plätze (Hinweis darunter). «Weitere Sprache» fügt einen Platz an, «×» entfernt ihn. Bildsprachen gleich, mit «Ohne Text» als Eintrag. Die Regeln aus MET-2 (Standard braucht Deutsch, Bibliothek Deutsch oder Englisch) bleiben. **Marco: «Ja, besser so.»** |
 | 1. November 2026 | Integrationen (A) | «Jedoch sollen die Titel klarer unterscheidbar sein. Jeder Block sollte klarer sein.» | Jeder Abschnitt (Schlüssel, Webhooks, E-Mail, Telegram, Web-Push, Server) ist ein eigenes Feld (`surface-1`, Rahmen, Radius 10) mit Kopfband in der Profilfarbe zu 12 %, Symbol und Titel 16 px; 20 px Abstand zwischen den Feldern. Für den Bau: dieselbe Band-Technik wie die Gruppentitel der Verwaltungsleiste (Konzept 11, F-9), ohne neue Farb-Tokens. |
 | 1. November 2026 | Integrationen (A) | «Schon viel besser. Kannst du in Integrationen Variante A die Titel noch auf- und zuklappbar machen?» | Das Kopfband jedes Blocks ist ein Knopf mit Pfeil (`aria-expanded`); ein Klick klappt den Block zu oder auf, alle sechs starten offen. Beim Bau gilt S-13: Ungespeichertes in einem zugeklappten Block bleibt erhalten. **Marco: «Genau so machen wir’s.»** |
+| 1. November 2026 | Konten, Profile | «Macht es nicht Sinn, dass die Profile und Konten im gleichen sind? Immerhin sind ja Profile an Konten gekoppelt. Bitte prüfe dies und mach nochmals Vorschläge.» | Geprüft: Die Profil-Endpunkte (`/profiles`, `/profiles/{id}`, `…/pin`, `…/watch-time`) sind `x-visibility: account`, gelten also nur für das **eigene** Konto; die Verwaltung sieht von fremden Konten nur die Profilnamen (`AccountsPage.tsx:315-318`). `/settings/profiles` bleibt für jedes Konto nötig (Hauptprofil jedes Kontos verwaltet seine Profile, PRO-0). Darum drei Vorschläge auf Basis von Konten C ohne neue Funktion: KP-1 Profile im aufgeklappten Konto, KP-2 eigener Reiter «Meine Profile», KP-3 Konten mit eingerückten Profilzeilen. Profile fremder Konten bleiben zum Lesen; sie zu bearbeiten wäre neue Funktion mit Vertragsänderung (Regel 11) und braucht einen eigenen Entscheid. |
+| 1. November 2026 | Streams | «Streams möchte ich andere Vorschläge.» | Drei neue Vorschläge Str-D bis Str-F mit anderem Aufbau als A bis C. |
 
 ### 10.3 Wahl je Seite
 
@@ -555,11 +557,11 @@ eigener Commit, `task ci` grün.
 | Bibliotheken | **C «Reiter und Klappbereiche»** (Reiter nach Art, je Bibliothek ein Klappbereich) | 1. November 2026 |
 | Pflege | **C «Reiter und Klappbereiche»** (Reiter je Problemart, je Bibliothek ein Klappbereich) | 1. November 2026 |
 | Titel (Unterseite von Pflege) | **C «Reiter und Klappbereiche»** (Reiter Metadaten, Bilder, Dateien, Trailer) | 1. November 2026 |
-| Konten | offen | |
+| Konten | **C «Reiter und Klappbereiche»**; Zusammenlegung mit Profile wird geprüft (Vorschläge KP-1 bis KP-3) | 1. November 2026 |
 | Profile | offen (Mockup in Verwaltungsdichte; beim Bau gilt S-1: App-Seitenleiste, heutige Dichte) | |
-| Geräte | offen | |
-| Streams | offen | |
-| Podcasts | offen | |
+| Geräte | **C «Reiter und Klappbereiche»** (Reiter Geräte und Fähigkeiten, je Typ ein Klappbereich) | 1. November 2026 |
+| Streams | offen: Marco möchte **andere Vorschläge** (Str-D bis Str-F) | |
+| Podcasts | **C «Reiter und Klappbereiche»** (Reiter je Bibliothek, je Podcast ein Klappbereich) | 1. November 2026 |
 
 **Abweichungen der Vorschläge vom Grundmuster (Phase 2a):**
 
