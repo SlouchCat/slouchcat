@@ -7,8 +7,9 @@
   1. November 2026 in zwei Interviewrunden alle acht Fragen entschieden (**F-1 bis F-8**,
   Abschnitt 11.1); sieben folgen der Empfehlung, F-4 (Nachholen per Knopf **und** einplanbar,
   einmalig wie wiederkehrend) erweitert sie. Offene Punkte ohne Blockerwirkung stehen als **O-1
-  bis O-19** mit Empfehlung in 11.2; **O-7, O-17 und O-18 sind Rückfragen an Marco**, weil sie F-3
-  enger auslegen als sein Wortlaut. Der OMC-Kritiker hat Fassung 1 geprüft (REVISE, 0/6/22);
+  bis O-19** mit Empfehlung in 11.2. In einer dritten Runde hat Marco am selben Tag **O-7
+  (höchstens 3), O-17 (24 h Ruhe) und O-18 (Audio ausgenommen) wie empfohlen** und **O-3
+  abweichend** entschieden: **alles in einem PR**, kein Patch 1.6.1 vorab. Der OMC-Kritiker hat Fassung 1 geprüft (REVISE, 0/6/22);
   Fassung 2 arbeitet alle Befunde ein, die Abwägungen stehen in Abschnitt 13.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Datum: 1. November 2026 (Fassung 1 und 2).**
@@ -23,7 +24,7 @@
   beim Baubeginn in Bau-Reihenfolge vergeben** (goose verlangt lückenlose Reihenfolge, die Regel
   «Vertrag = Tag» eine aufsteigende Version). Wo dieses Papier vorläufig **Migration 00032** und
   **Vertrag 1.8.0** schreibt, sind das Platzhalter für «die nächste freie»; wird es vor 11, 12
-  und 13 gebaut, sind es **00031 und 1.7.0** (Schritt 1 allein: Patch 1.6.1, O-3). Frage- und
+  und 13 gebaut, sind es **00031 und 1.7.0** (ein gemeinsamer PR, O-3). Frage- und
   ADR-Nummer sind blosse Reservationen und dürfen bleiben. Die Empfehlung lautet **vorziehen**
   (10.1): das Papier behebt einen Fehler, den jeder Start einer Datei ohne Index spürt.
   Nummernlage siehe **O-1**.
@@ -1013,11 +1014,9 @@ mit `maxrate` ohne `-b:v`». DoD: `task ci`; auf CT 190 im Container mit dem neu
 6000; MaxKbps: 8000`; Bitrate, gleitende 4-s-Spitze und SSIM gegen Anhang A.3; dieselbe Messung für
 480p und 360p mit der Regel für kleine Raten (6.9, O-13) und, falls O-2 «ja», für `h264_vaapi`
 auf der UHD 630; der CBR-Zweig der Downloads ist unverändert (`download_test.go` ohne Änderung).
-Ergebnis als Teil 1 von `docs/perf/wiedergabestart.md`. Auslieferung als Patch 1.6.1 (O-3): dann
-gehören in denselben PR `info.version` 1.6.1 in `api/openapi.yaml`, die Versionsstellen nach
-`docs/dev/HANDOVER.md:122-124` (`deploy/.env.example:5`, `deploy/compose.yaml:16`,
-`deploy/README.md`, `docs/INSTALLATION.md`, der Release-Abschnitt in `HANDOVER.md`) und der
-Entwurf der Release-Notes; den Tag pusht Marco selbst.
+Ergebnis als Teil 1 von `docs/perf/wiedergabestart.md`. Kein eigener Patch (O-3, Marco: «Alles
+zusammen»): Schritt 1 ist ein eigener Commit im gemeinsamen PR; `info.version` und die
+Versionsstellen nach `docs/dev/HANDOVER.md:122-124` hebt erst Schritt 6 mit dem Vertrag.
 
 ### Schritt 2 — Paket `mediaindex`
 
@@ -1119,8 +1118,9 @@ Papier behebt einen Fehler, der jeden Zuschauer trifft, dessen Datei keinen Inde
 jede siebte bis achte Datei), und ein unscharfes Bild bei **jedem** QSV-Transcode. **Schritt 1
 taugt als eigener, sofort lieferbarer Schritt**: er berührt nur den QSV-Zweig in
 `pipeline.go` und seine Golden-Tests, braucht weder Vertrag noch Migration, ist auf CI als
-Golden-Test und auf CT 190 messbar prüfbar und lässt sich allein zurücknehmen. Vorschlag: Schritt 0
-und 1 als erster PR (Patch 1.6.1, O-3), Schritte 2 bis 8 als zweiter PR. Wird vorgezogen, bekommen
+Golden-Test und auf CT 190 messbar prüfbar und lässt sich allein zurücknehmen. **Marco hat am
+1. November 2026 entschieden: alles zusammen in einem PR** (O-3); Schritt 1 bleibt ein eigener
+Commit und wird als erster gebaut, damit die QSV-Messung früh vorliegt. Wird vorgezogen, bekommen
 Migration und Vertrag beim Baubeginn die dann nächsten Nummern (00031, 1.7.0), und 11 rückt nach
 (Kopf).
 
@@ -1150,11 +1150,11 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist (Schritt 0).
 |---|---|---|
 | **O-1** | **Nummernlage.** Das parallel entstandene `docs/planning/13-abspielseite.md` (Zweig `claude/konzept-abspielseite`, `b222dbf`) war zuerst eingecheckt und hält Datei 13, Frage 19 und ggf. ADR 0021. | Dieses Papier ist **Konzept 14** mit **Frage 20 und ADR 0022**; Migration und Vertrag werden beim Baubeginn in Bau-Reihenfolge vergeben (Kopf). Erledigt mit Fassung 1 |
 | **O-2** | **VAAPI analog auf 0,75 × R?** Heute VBR mit Ziel = Deckel; auf AMD nicht gemessen | **Ja, in Schritt 1**, gemessen auf dem iHD-VAAPI-Pfad der UHD 630; AMD bleibt als ungemessenes Restrisiko in `docs/perf/` vermerkt. Der Deckel bleibt, nur das Mittel sinkt um 25 % |
-| **O-3** | **Schritt 1 als Patch 1.6.1?** Die Regel lautet «jede Anhebung von `info.version` wird getaggt» (`docs/dev/HANDOVER.md:122-124`) | **Ja**, `info.version` auf 1.6.1 ohne Schemaänderung, damit Tag und Vertrag gleich bleiben |
+| **O-3** | **Schritt 1 als Patch 1.6.1?** Die Regel lautet «jede Anhebung von `info.version` wird getaggt» (`docs/dev/HANDOVER.md:122-124`) | **Marco (1.11.2026): Nein, alles zusammen in einem PR.** Schritt 1 bleibt ein eigener Commit, kein Patch 1.6.1 |
 | **O-4** | **Termin während einer Pause** | **verfällt mit Log** (6.7), wie die Pause Takt-Läufe auslässt; Alternative «nach dem Fortsetzen nachholen» überrascht mit einem Lauf zur falschen Zeit |
 | **O-5** | **Verpasster Termin** (Server aus) | **nachholen, wenn ≤ 24 h verpasst**, sonst verfallen (6.7); weicht bewusst von «Takt holt nicht nach» ab, weil ein Termin ein Versprechen ist |
 | **O-6** | **Vorgabe des Zeitplans `keyframes.backfill`** | **aus, Takt 7 Tage**; Marco schaltet ihn oder einen Termin ein (F-4). Mit Rang 1 im `probe.file` entstehen neue Lücken nur noch bei Dateien ohne Cues |
-| **O-7** | **Rückfrage an Marco – Obergrenze der Wiedergabe-Aufträge trotz Pause.** F-3 lautet «läuft trotzdem», ohne Zahl. Eine Obergrenze legt F-3 enger aus | **3** wartend oder laufend, atomar geprüft (6.4); der vierte wird normal eingereiht und wartet auf das Fortsetzen (9.4). Schützt die Pause gegen einen Zuschauer, der viele Titel ohne Index anklickt. Ohne Obergrenze: jeder Wiedergabe-Auftrag läuft, nacheinander im Pool `index` |
+| **O-7** | **Rückfrage an Marco – Obergrenze der Wiedergabe-Aufträge trotz Pause.** F-3 lautet «läuft trotzdem», ohne Zahl. Eine Obergrenze legt F-3 enger aus | **3** wartend oder laufend, atomar geprüft (6.4); der vierte wird normal eingereiht und wartet auf das Fortsetzen (9.4). Schützt die Pause gegen einen Zuschauer, der viele Titel ohne Index anklickt. Ohne Obergrenze: jeder Wiedergabe-Auftrag läuft, nacheinander im Pool `index` **Marco (1.11.2026): Ja, höchstens 3.** |
 | **O-8** | **Offline-Download ohne Index**: wie lange warten? | **24 h** ab `downloads.created_at`, mit wachsendem Abstand (10 min, 30 min, dann stündlich), Zustand bleibt `queued` ohne Fehlercode; dann kodieren (6.8); der Download-Arbeiter liest nie selbst (I-3) |
 | **O-9** | **265 fehlgeschlagene `probe.keyframes`** auf CT 190, Ursache unbelegt | in Schritt 0 `jobs.last_error` auslesen; passt eine Klasse nicht in 6.3 (z. B. Zeitgrenze, NFS-Code), die Tabelle dort ergänzen. Nach dem Umbau holt sie der Nachhol-Lauf billig über die Cues |
 | **O-10** | **11 DB-Zeilen ohne Datei** unter `/srv/media` | nicht hier; als Befund an die Pflege (`unplayable`/Sweep) bzw. ein eigenes Issue. Für die Abnahme genügt ein Scan vorher, der `missing_since` setzt; dann zählen sie nicht als «ausstehend» (Schritt 8) |
@@ -1164,8 +1164,8 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist (Schritt 0).
 | **O-14** | **Datenvolumen** im WAN steigt auf QSV um den Faktor 2 bis 4 (8) | hinnehmen (Folge von F-5); Profile mit Bandbreitengrenze bleiben geschützt; in die Release-Notes |
 | **O-15** | **Überschneidung mit Konzept 11 und 13** (Streams-Seite; Gründe im Player V-15; Trickplay V-21 am Keyframe-Durchlauf) | Codes und Texte der Gründe gehören einer Stelle (Locale-Schlüssel des Players); wer zuerst baut, legt sie an. Trickplay hängt sich, falls gewählt, an den Pool `index` (ein Leser je Datei), nicht an `probe.file` |
 | **O-16** | **Was setzt die Titel-Aktualisierung in der Pflege zurück?** (`metadata.Service.Refresh`, «Aktualisieren», auf der Jobseite «Datei prüfen in der Pflege»; reiht `probe.file` für jede Datei des Titels ein, bei einer Staffel für die Serie, auch für viele Titel auf einmal) | **Nur `none`** (geändert in Fassung 2, 4.2): so lässt sich eine als unmöglich markierte Datei ohne Dateiänderung neu versuchen, aber eine Metadaten-Aktualisierung leert nie einen gültigen Index, löst keine Volllesung und keinen Sitzungsabbruch aus. Fassung 1 wollte jeden Index leeren |
-| **O-17** | **Rückfrage an Marco – kein neuer Wiedergabe-Auftrag nach einem Fehlschlag.** Ist der letzte Volllese-Job einer Datei in den letzten 24 h endgültig fehlgeschlagen, reiht die Wiedergabe nicht neu ein (6.4). Auch das legt F-3 enger aus | **Ja, 24 h**: verhindert, dass wiederholte Starts einer Datei mit NAS-Fehler immer neue Volllesungen trotz Pause auslösen; der Nachhol-Lauf versucht es wieder. Ohne Sperre: jeder Start einer solchen Datei reiht einen Auftrag ein (die Idempotenz hält es bei einem gleichzeitig) |
-| **O-18** | **Rückfrage an Marco – Hörbücher und Podcast-Folgen** bleiben von den automatischen Wegen ausgenommen (wie heute in `probe.file`), auch vom Nachhol-Lauf und der Zählung; eine Podcast-Folge mit Video bekommt ihren Index nur beim ersten Abspielen, und der erste Start transcodiert | **Ja, so lassen**: Podcast-Folgen mit Video sind selten, grosse Podcast-Ordner häufig. Alternativ: Podcast-Folgen mit H.264/HEVC wie Filme behandeln (kostet beim Einlesen 0,4–1,1 s je Folge) |
+| **O-17** | **Rückfrage an Marco – kein neuer Wiedergabe-Auftrag nach einem Fehlschlag.** Ist der letzte Volllese-Job einer Datei in den letzten 24 h endgültig fehlgeschlagen, reiht die Wiedergabe nicht neu ein (6.4). Auch das legt F-3 enger aus | **Ja, 24 h**: verhindert, dass wiederholte Starts einer Datei mit NAS-Fehler immer neue Volllesungen trotz Pause auslösen; der Nachhol-Lauf versucht es wieder. Ohne Sperre: jeder Start einer solchen Datei reiht einen Auftrag ein (die Idempotenz hält es bei einem gleichzeitig) **Marco (1.11.2026): Ja, 24 h Ruhe.** |
+| **O-18** | **Rückfrage an Marco – Hörbücher und Podcast-Folgen** bleiben von den automatischen Wegen ausgenommen (wie heute in `probe.file`), auch vom Nachhol-Lauf und der Zählung; eine Podcast-Folge mit Video bekommt ihren Index nur beim ersten Abspielen, und der erste Start transcodiert | **Ja, so lassen**: Podcast-Folgen mit Video sind selten, grosse Podcast-Ordner häufig. Alternativ: Podcast-Folgen mit H.264/HEVC wie Filme behandeln (kostet beim Einlesen 0,4–1,1 s je Folge) **Marco (1.11.2026): Ja, ausnehmen.** |
 | **O-19** | **NVENC hält die Leiter nur im Mittel** (`-cq` verwirft den VBV-Puffer; Aladdin lokal 11,1 Mbit/s gleitend bei R = 8) | nicht in diesem Papier; als Befund in `docs/perf/wiedergabestart.md` vermerken und bei Bedarf eigenes Thema (z. B. `-rc vbr` mit Puffer statt `-cq`), sobald ein Profil mit Bandbreitengrenze auf NVENC klemmt |
 
 ---
