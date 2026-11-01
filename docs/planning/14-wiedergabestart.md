@@ -1,14 +1,17 @@
 # Konzept: Schneller Wiedergabestart – Keyframe-Index aus dem Container, Transcode ohne Wartezeit, scharfes QSV
 
-- **Status: Fassung 1 (1. November 2026), Entscheide gefallen, noch nicht freigegeben.** Auslöser
+- **Status: Fassung 2 (1. November 2026), Kritiker-Review eingearbeitet (0 Blocker, 6 Major,
+  22 Minor), noch nicht freigegeben.** Auslöser
   ist ein Befund auf dem Testserver CT 190 vom 1. November 2026: Der Start von «Silo» S01E03 in
   Firefox dauerte **20 s**, und das Bild danach war auf QSV sichtbar unscharf (1.1). Marco hat am
   1. November 2026 in zwei Interviewrunden alle acht Fragen entschieden (**F-1 bis F-8**,
   Abschnitt 11.1); sieben folgen der Empfehlung, F-4 (Nachholen per Knopf **und** einplanbar,
   einmalig wie wiederkehrend) erweitert sie. Offene Punkte ohne Blockerwirkung stehen als **O-1
-  bis O-16** mit Empfehlung in 11.2. Ein Kritiker-Review dieser Fassung steht aus.
+  bis O-19** mit Empfehlung in 11.2; **O-7, O-17 und O-18 sind Rückfragen an Marco**, weil sie F-3
+  enger auslegen als sein Wortlaut. Der OMC-Kritiker hat Fassung 1 geprüft (REVISE, 0/6/22);
+  Fassung 2 arbeitet alle Befunde ein, die Abwägungen stehen in Abschnitt 13.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
-- **Datum: 1. November 2026.**
+- **Datum: 1. November 2026 (Fassung 1 und 2).**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`5e0e63d`** («Merge pull request
   #61», Konzept 11), Vertragsfassung **1.6.0** (`api/openapi.yaml:4`), letzte Migration
   **`00030_library_metadata.sql`**, letzte ADR **`0018-metadaten-sprachen-bilder-freigabeland.md`**.
@@ -75,8 +78,9 @@ Drei Umstände kamen zusammen:
    Konzept 09, Entscheid 15 F-1). Damit lief auch der von der Wiedergabe mit Priorität 9
    eingereihte Auftrag nicht; der nächste Start hätte wieder 20 s gewartet.
 3. **Der Transcode auf QSV war unscharf.** `-global_quality 23` zusammen mit `-maxrate` ohne
-   `-b:v` lässt `h264_qsv` stillschweigend **CQP mit QP 26** wählen; gemessen 0,5 bis 1,4 Mbit/s
-   bei 1080p, Hautporen und Gewebe weggewaschen (1.4, Anhang A.3).
+   `-b:v` lässt `h264_qsv` stillschweigend **CQP mit QP 26** wählen; gemessen im Mittel
+   **1,7 Mbit/s** bei 1080p (je Clip 0,7 bis 3,9 Mbit/s, Anhang A.3), Hautporen und Gewebe
+   weggewaschen (1.4).
 
 Die 20 s liegen weit über W-3 (Spec: «Ein 4K-HEVC-Film startet im Handy-Browser in unter fünf
 Sekunden»). Ohne die Wartezeit wäre derselbe Start in rund 0,4 s fertig gewesen.
@@ -113,9 +117,9 @@ Eine Volllesung von 3 bis 6 GB belegt einen der allgemeinen Arbeiter für 1,6 bi
 
 | Backend | Argumente heute (HLS, nicht CBR) | Was ffmpeg daraus macht | Bewertung |
 |---|---|---|---|
-| QSV | `-preset veryfast -global_quality 23 -look_ahead 0 -maxrate R -bufsize 2R` (`transcode/pipeline.go:389-395`) | `select_rc_mode()` in `libavcodec/qsvenc.c`: `global_quality` mit `maxrate` ist nicht ICQ, ohne `-b:v` nicht VBR → **CQP, QP 26**, der Wert 23 wird verworfen; auf CT 190 mit `-loglevel verbose` belegt (`RateControlMethod: CQP`) | **Fehler**: 0,7 bis 1,7 Mbit/s im Mittel bei 1080p, SSIM 0,9816, sichtbar weich |
+| QSV | `-preset veryfast -global_quality 23 -look_ahead 0 -maxrate R -bufsize 2R` (`transcode/pipeline.go:389-395`) | `select_rc_mode()` in `libavcodec/qsvenc.c`: `global_quality` mit `maxrate` ist nicht ICQ, ohne `-b:v` nicht VBR → **CQP, QP 26**, der Wert 23 wird verworfen; auf CT 190 mit `-loglevel verbose` belegt (`RateControlMethod: CQP`) | **Fehler**: im Mittel 1,7 Mbit/s bei 1080p (je Clip 0,7 bis 3,9), SSIM 0,9816, sichtbar weich |
 | VAAPI | `-rc_mode VBR -b:v R -maxrate R -bufsize 2R` (`:420-421`) | VBR mit `target_percentage = 100`: Ziel = Deckel | scharf, aber fast immer am Deckel (8 Mbit/s bei 1080p) |
-| NVENC | `-rc vbr -cq 23 -b:v 0 -maxrate R -bufsize 2R` (`:358-364`) | «CQ mode»: Qualität mit Deckel `maxrate`; `bufsize` wird verworfen | korrekt |
+| NVENC | `-rc vbr -cq 23 -b:v 0 -maxrate R -bufsize 2R` (`:358-364`) | «CQ mode»: Qualität mit Deckel `maxrate`; `bufsize` wird verworfen (VBV = 0) | Modus richtig gewählt; der Deckel wirkt aber ohne Puffer nur ungefähr: Aladdin 11,1 Mbit/s gleitend über 4 s bei R = 8 (Anhang A.3). Nicht Gegenstand dieses Papiers (O-19) |
 | libx264 | `-crf 23 -maxrate R -bufsize 2R` (`:424-431`) | CRF mit VBV-Deckel | korrekt |
 
 Der Kommentar zur Ratensteuerung (`pipeline.go:301-305`, «constant quality capped») stimmt für QSV
@@ -136,7 +140,9 @@ ein Bild ohne Ratensteuerung und hätte den Fehler nie bemerkt. Die Leiter steht
 | Z-5 | **Kein `singleflight`.** Zwei gleichzeitige Starts derselben Datei lesen sie zweimal | `sessions.go:522-548` | doppelte NAS-Last |
 | Z-6 | **Offline rechnet synchron ohne Zeitgrenze** im Download-Arbeiter | `offline/job.go:263-279` | eine zweite Volllesung neben dem Job, F-2 verletzt |
 | Z-7 | **265 fehlgeschlagene `probe.keyframes`** auf CT 190 (Konzept 11, 1.1); Ursache nicht im Code belegt | – | O-9 |
-| Z-8 | **11 DB-Zeilen ohne Datei** unter `/srv/media` (Messung, Anhang A.1) | – | O-10, nicht Thema dieses Papiers |
+| Z-8 | **11 DB-Zeilen ohne Datei** unter `/srv/media` (Messung, Anhang A.1) | – | O-10, nicht Thema dieses Papiers; sie zählen nicht als «ausstehend», sobald `missing_since` gesetzt ist (4.1) |
+| Z-9 | **Wettlauf Probe gegen Dateiänderung.** Ändert sich eine Datei, während `probe.file` oder `probe.keyframes` läuft, kann der Scanner keinen neuen Job gleichen Schlüssels einreihen (`queries/system/jobs.sql:3-7`, `ON CONFLICT … WHERE state IN ('queued','running') DO NOTHING`); der laufende schreibt Probe und Index der **alten** Version (`library/write.go:368-372`) | heute heilt es der nächste Überschreib-Lauf | mit endgültigem Index (I-1) nicht mehr; darum bindet 4.2 jedes Schreiben an die Dateiversion |
+| Z-10 | **VC-1 ohne Keyframe-Flags.** Die drei VC-1-Dateien haben vollständige Cues, aber ffprobe meldet keine `K`-Pakete; der Segment-Muxer schneidet nur an `K` | Messung, Anhang A.1 | nicht remuxbar; VC-1 spielt ohnehin nur als Transcode (`playback/decide.go:250-259`, `directVideo`) |
 
 ### 1.6 Was die Messung zeigt
 
@@ -180,21 +186,49 @@ Bibliothek** (F-7); Cues nur nach **Plausibilität und Stichprobe** (F-8).
 | – | **unmöglich**: die Volllesung fand keinen Keyframe oder die Datei ist kaputt (`transcode.FileError`) | endgültig für diese Dateiversion | – | `none` |
 
 Jede Quelle 1 oder 2 muss vor dem Speichern **zwei Prüfungen** bestehen (F-8, 6.2): die
-Plausibilitätsregeln (Schwellen aus der Messung, mit Faktor ≥ 3 Abstand zum Beobachteten) und die
-Stichprobe gegen echte Keyframes per ffprobe.
+Plausibilitätsregeln (Schwellen aus der Messung mit Abstand zum Beobachteten: grösste Lücke 30 s
+gegen gemessene 10,68 s, Faktor 2,8; die Endlücke ist für den Remux harmlos und darum weit gefasst)
+und die Stichprobe gegen echte Keyframes per ffprobe.
+
+**Nur indexwürdige Dateien.** Rang 1 bis 3 laufen nur für eine Datei, die überhaupt remuxt werden
+kann und für die `probe.file` heute schon einen Index vorsieht: vorhanden (`missing_since IS
+NULL`), Videocodec **H.264, HEVC, AV1 oder VP9** (die Codecs, die `directVideo` je kennt,
+`playback/decide.go:250-259`; eine Funktion `transcode.CopyableVideo(codec)` für beide Stellen),
+und der Titel ist kein Hörbuch und keine Podcast-Folge (dieselbe Regel wie
+`library/probe.go:165-171`). VC-1, MPEG-2, MPEG-4 Part 2 und Ähnliches werden nie remuxt (Grund
+`video_codec`); sie bekommen keinen Index, keine Volllesung und erscheinen in keiner Zählung
+(Z-10). Diese Definition gilt gleich für Einlesen, Nachhol-Lauf und Abdeckung (4.1). Hörbücher und
+Podcast-Folgen sind nur von diesen **automatischen** Wegen ausgenommen (wie heute, um grosse
+Podcast-Ordner nicht mit Jobs zu fluten); startet jemand eine Podcast-Folge mit Video, rechnet der
+Wiedergabe-Auftrag ihren Index wie heute (2.3).
 
 ### 2.2 Einlesen: der Index entsteht mit der Probe
 
 ```text
 probe.file (Pool general, Priorität 3)
-  ffprobe wie heute ─► Datei hat Video und Container mkv/webm/mp4/m4v/mov?
-     nein ─► wie heute (Hörbuch, Podcast, Audio: kein Index)
-     ja   ─► mediaindex.Read (über paths, Zeitgrenze 10 s)
-              ├─ Index + Plausibilität ok ─► transcode.VerifyKeyframes (3 Stichproben)
-              │      ok     ─► in derselben Transaktion speichern, source = cues | mp4
-              │      falsch ─► kein Index, probe.keyframes einreihen (Volllesung)
-              └─ kein Index / unplausibel ─► probe.keyframes einreihen (Volllesung)
+  Dateiversion (size, mtime) aus der Zeile merken
+  ffprobe wie heute ─► indexwürdig (2.1) und Container mkv/webm/mp4/m4v/mov?
+     nein ─► wie heute (kein Index)
+     ja   ─► mediaindex.Read (über paths, Zeitgrenze 10 s)        ┐ alles VOR BeginTx:
+              ├─ Index + Plausibilität ok ─► VerifyKeyframes      │ Dateizugriff, Parser,
+              │      ok     ─► Ergebnis: Index, source = cues|mp4 │ ffprobe-Stichprobe
+              │      falsch ─► Ergebnis: Volllese-Job nötig       │
+              └─ kein Index / unplausibel ─► Volllese-Job nötig    ┘
+  BeginTx (BEGIN IMMEDIATE, der einzige Schreiber)
+     Probe, Spuren, Sidecars wie heute, nur wenn size/mtime noch stimmen (4.2)
+     SetMediaFileKeyframes mit dem fertigen Ergebnis, oder probe.keyframes einreihen
+  Commit
 ```
+
+**Die Schreibtransaktion enthält keinen Dateizugriff.** Der Server hat genau eine
+Schreibverbindung mit `BEGIN IMMEDIATE` (`store/store.go:72`, `_txlock=immediate`, eine
+Verbindung); `handleProbe` hält seine Transaktion heute von `library/probe.go:118` bis `:179`.
+Lägen Parser (bis 10 s) und Stichprobe (geschätzt 0,3 bis 1 s) darin, warteten alle Schreiber des Servers,
+auch `Start`, Fortschritt und Heartbeats. Darum wird alles, was liest oder einen Prozess startet,
+**vor** `BeginTx` gerechnet; die Transaktion schreibt nur fertige Werte. Hat sich die Datei
+zwischen Merken und Schreiben geändert (die Bedingung auf size/mtime trifft keine Zeile), gibt der
+Handler einen vorübergehenden Fehler zurück und läuft nach dem Backoff mit der neuen Version
+(Z-9).
 
 Das gilt **auch beim Reprobe** einer geänderten Datei. Ändert der Scanner Grösse oder mtime einer
 Datei, leert er den Index sofort (Z-1, 4.2): zwischen Änderung und Reprobe gibt es keinen Index,
@@ -208,6 +242,7 @@ also wird transcodiert, nie mit dem alten Index remuxt.
 | Remux-Kandidat, Index da (`cues`, `mp4`, `scan`) | **Remux** | – |
 | Remux-Kandidat, kein Index (`keyframes_source IS NULL`) | **sofort Transcode**, `reason = keyframes_pending` (F-1) | `probe.keyframes` mit Priorität 9 einreihen oder einen wartenden anheben (`RaiseQueuedPriority`), **auch bei Pause** (F-3, 6.5); der nächste Start remuxt |
 | Remux-Kandidat, Index unmöglich (`none`) | **sofort Transcode**, neuer Grund `keyframes_unavailable` | nichts (Z-3) |
+| Remux-Kandidat, aber nicht indexwürdig (Hörbuch, Podcast-Folge mit Video) | sofort Transcode, `keyframes_pending` | `probe.keyframes` mit Priorität 9 wie heute: diese Titel bekommen ihren Index nur auf Abruf (die Ausnahme in `probe.file` spart heute einen Job je Datei grosser Podcast-Ordner) |
 
 `Start` liest kein Byte der Datei mehr, das über das hinausgeht, was `Decide` aus der Probe
 weiss. Damit entfallen `KeyframeTimeout`, die Option `WithKeyframeIndex` und mit ihnen die
@@ -218,7 +253,7 @@ bündeln; die Idempotenz des Job-Schlüssels sorgt für einen Auftrag je Datei.
 
 | Jobart | Neu? | Auslöser | Pool | Priorität | Was ein Lauf tut |
 |---|---|---|---|---|---|
-| `probe.file` | erweitert | Scan, Reprobe, «Datei prüfen» | `general` | 3 | wie heute, dazu Rang 1/2 mit Prüfungen (2.2) |
+| `probe.file` | erweitert | Scan, Reprobe, Titel-Aktualisierung in der Pflege | `general` | 3 | wie heute, dazu Rang 1/2 mit Prüfungen (2.2) |
 | `probe.keyframes` | **neu geschnitten**: der **Volllese-Job** | `probe.file` ohne brauchbaren Index (1), Wiedergabe (9, trotz Pause), Nachhol-Lauf (1), Offline (5) | **neu `index`, genau 1 Arbeiter** (F-2) | 1 / 5 / 9 | Index schon da → fertig; sonst erst Rang 1/2 versuchen (billig, schützt den Altbestand an wartenden Jobs), dann Volllesung; Fehlerklassen (6.3) |
 | `keyframes.backfill` | **neu** | Knopf «Jetzt ausführen» auf der Seite Hintergrundjobs, Zeitplan wiederkehrend und einmalig (F-4, F-6) | `general` | 2, von Hand 7 | ein langer Lauf mit Fortschritt: geht alle Videodateien ohne Index durch, versucht Rang 1/2, reiht nur für den Rest `probe.keyframes` ein (6.6) |
 
@@ -229,7 +264,10 @@ Volllesung**. Die schnelle Arbeit verschwindet aus ihm in `probe.file` und `keyf
 ### 2.5 Was sich ändert
 
 **Für den Zuschauer:** Start einer Datei ohne Index in rund 1 s statt 20 s, der nächste Start
-remuxt; schärferes Bild bei jedem QSV-Transcode. Sonst nichts.
+remuxt; schärferes Bild bei jedem QSV-Transcode. In einem seltenen Fall gibt es eine kurze
+Unterbrechung: wird eine Datei während einer Remux-Wiedergabe ersetzt und muss die Sitzung neu
+aufgebaut werden, startet der Player die Wiedergabe an derselben Stelle selbst neu (6.4, 7.4),
+statt wie heute mit falschen Segmenten weiterzulaufen.
 
 **Für den Administrator:** die Streams-Seite zeigt je Stream den **Grund** der Umwandlung; die
 Bibliotheksseite zeigt je Bibliothek die **Index-Abdeckung** («2 112 von 2 419 Videodateien,
@@ -241,11 +279,11 @@ nachholen»** mit «Jetzt ausführen» und Zeitplan, im Zeitplan-Dialog jedes Ze
 
 | Nr. | Invariante | Wer sie hält |
 |---|---|---|
-| I-1 | **Ein gespeicherter Index ändert sich je Dateiversion nicht mehr.** Geschrieben wird nur, wenn `keyframes_source IS NULL`; geleert nur, wenn sich die Datei ändert (Grösse, mtime) oder der Administrator «Datei prüfen» drückt | eine Schreibfunktion in `library` (4.2), Rebuild-Regel (6.4) |
+| I-1 | **Ein gespeicherter Index ändert sich je Dateiversion nicht mehr, und er gehört zu genau der Version, aus der er gerechnet wurde.** Geschrieben wird nur, wenn `keyframes_source IS NULL` **und** Grösse und mtime der Zeile noch die sind, die der Job vor dem Lesen gemerkt hat; geleert nur, wenn sich die Datei ändert (Grösse oder mtime, gleich über welchen Pfad der Scanner sie erkennt). Einzige Ausnahme: `none` darf die Titel-Aktualisierung in der Pflege zurücksetzen (O-16) | eine Schreibfunktion in `library` (4.2), Rebuild-Regel (6.4) |
 | I-2 | **Jeder Eintrag ist ein echter Video-Keyframe**, seine Zeit stimmt auf 2 ms mit der pts überein, die ffmpeg beim Demuxen sieht, und **Eintrag 0 ist der erste Video-Keyframe der Datei** (Basis von Segment 0, `pipeline.go:164-170`) | Spurfilter, Plausibilität, Stichprobe (6.2) |
 | I-3 | **Höchstens eine Volllesung gleichzeitig** im ganzen Server | Pool `index` mit einem Arbeiter; Offline liest nicht mehr selbst (6.8) |
 | I-4 | **`Start` wartet nie auf einen Index** | 6.4 |
-| I-5 | **Die Bitratengrenzen der Leiter und des Profils halten** (gleitende 4-s-Spitze ≤ R) | QSV-Argumente (6.9), Messung (Anhang A.3) |
+| I-5 | **Ziel, keine Garantie: die Bitratengrenzen der Leiter und des Profils halten auf QSV.** `-maxrate R -bufsize 2R` erlaubt über 4 s rechnerisch bis 1,5 R; gemessen lag die gleitende 4-s-Spitze bei höchstens 7,9 Mbit/s (R = 8), 2-s-Spitzen bis 8,8 Mbit/s. Das ist ein Messbefund über fünf Clips, keine Invariante; Schritt 1 und 8 messen nach | QSV-Argumente (6.9), Messung (Anhang A.3) |
 
 ---
 
@@ -255,13 +293,14 @@ nachholen»** mit «Jetzt ausführen» und Zeitplan, im Zeitplan-Dialog jedes Ze
 |---|---|---|
 | Spec W-3 (4K-HEVC im Handy-Browser < 5 s) | 20 s bei fehlendem Index | **Erfüllt**: Remux rund 0,4 s, Transcode rund 1 s, 4K-HDR auf QSV 2,4 bis 3,1 s (8). Keine Spec-Änderung |
 | ADR 0003, «Konsequenzen»: «der Aufrufer berechnet den Index zuerst (`Runner.Keyframes`) oder kodiert um» | `Start` rechnet synchron | **Nur noch «kodiert um»**; der Index kommt aus dem Container oder dem Volllese-Job. ADR 0022 ist Teilnachfolger dieses Absatzes; Schnittregeln, Toleranz 2 ms und Spulmodell bleiben wörtlich |
-| **Entscheid 15 F-1 (Konzept 09, ADR 0017): «Pause ist ein Merkmal der Jobart», `ClaimJob` nimmt keine Läufe pausierter Jobarten** | ohne Ausnahme | **Abweichung für genau einen Fall (F-3):** ein von der Wiedergabe ausgelöster `probe.keyframes`-Auftrag wird **trotz Pause** beansprucht und von einer Pause **nicht** angehalten. Begründung: die Pause schützt das NAS vor der Masse der Volllesungen; ein einzelner Auftrag, den ein Zuschauer gerade braucht, ist genau die Arbeit, für die der Index existiert, und Marco hat «Wiedergabe geht vor» entschieden. Die Abweichung ist eng: nur dieser Auftrag, nur über ein Merkmal am Lauf (`jobs.override_pause`, 4.3), das nur `QueueKeyframesForPlayback` setzt, höchstens drei solche Aufträge gleichzeitig (9.4, O-7), und die Seite zeigt ihn als «für Wiedergabe, trotz Pause». ADR 0022 hält die Abweichung fest, ADR 0017 bekommt einen Hinweis |
+| **Entscheid 15 F-1 (Konzept 09, ADR 0017): «Pause ist ein Merkmal der Jobart», `ClaimJob` nimmt keine Läufe pausierter Jobarten** | ohne Ausnahme | **Abweichung für genau einen Fall (F-3):** ein von der Wiedergabe ausgelöster `probe.keyframes`-Auftrag wird **trotz Pause** beansprucht und von einer Pause **nicht** angehalten. Begründung: die Pause schützt das NAS vor der Masse der Volllesungen; ein einzelner Auftrag, den ein Zuschauer gerade braucht, ist genau die Arbeit, für die der Index existiert, und Marco hat «Wiedergabe geht vor» entschieden. Die Abweichung ist eng: nur dieser Auftrag, nur über ein Merkmal am Lauf (`jobs.override_pause`, 4.3), das nur `QueueKeyframesForPlayback` setzt, und die Seite zeigt ihn als «für Wiedergabe, trotz Pause». Zwei weitere Einschränkungen legen F-3 **enger aus als Marcos Wortlaut** («läuft trotzdem») und sind darum Rückfragen, nicht Umsetzung: höchstens drei solche Aufträge gleichzeitig (O-7) und kein neuer Auftrag nach einem Fehlschlag in den letzten 24 h (O-17). ADR 0022 hält die Abweichung fest, ADR 0017 bekommt einen Hinweis |
 | ADR 0017, Pools `general`, `download`, `notify` | drei Pools, keine Grenze je Jobart | **Vierter Pool `index` mit genau einem Arbeiter** (F-2). Kein neuer Claim-Mechanismus; der Pool trennt zudem die minutenlange Volllesung von den allgemeinen Arbeitern |
 | Konzept 09 F-4, ADR 0017: «Intervalle statt cron-Ausdrücken», «verpasste Läufe holen nicht nach» | Takt, Fenster, Ein/Aus | **Erweitert um den einmaligen Termin** (F-6): ein Datum mit Uhrzeit je Zeitplan-Jobart, unabhängig vom Takt. Kein cron. Der Termin ist ein Versprechen, kein Takt; ein verpasster Termin wird darum einmal nachgeholt, wenn er höchstens 24 h zurückliegt (O-5) |
 | ADR 0002, fünf Zustände, `MaxAttempts` | – | **Unverändert.** «Index unmöglich» ist ein Merkmal der Datei (`keyframes_source = 'none'`), kein Jobzustand |
 | Entscheid vom 26. Oktober 2026 (`RaiseQueuedPriority`, kein Abbruch) | `QueueKeyframesForPlayback` bricht ab (Z-4) | **Eingehalten**: Anheben statt Abbrechen |
 | Plan 3.5 (Spulen, Remux an Quell-Keyframes) | Index aus der Volllesung | Index meist aus dem Container; ADR 0022 |
-| CLAUDE.md Regel 2 (SQL auf `media_files` nur in erlaubten Paketen) | – | Schreibfunktion in `library`, Zählung der Abdeckung in `library` oder `admin`; der Lesepfad der Wiedergabe bleibt `GetVisibleMediaFileProbe` (enthält `visible_items`) und bekommt nur die Spalte `keyframes_source` dazu |
+| CLAUDE.md Regel 2 (SQL auf `media_files` nur in erlaubten Paketen) | – | Schreibfunktion in `library`, Zählung der Abdeckung in `library` oder `admin`; der Lesepfad der Wiedergabe bleibt `GetVisibleMediaFileProbe` (enthält `visible_items`, `queries/scoped/playback.sql:5-9`, liefert heute `id, probe, keyframes`) und bekommt die Spalten `keyframes_source` und `keyframes_at` dazu (`visibility.MediaFileProbe`, `visibility/playback.go:25-28`, ebenso); die Download-Quelle `GetDownloadSource` (`queries/system/offline.sql:220`) bekommt `keyframes_source` |
+| Vertrag der HLS-Endpunkte (`/playback/sessions/{id}/…`, `api/openapi.yaml:1914`) | 401 (Token widerrufen) und 404 | **Neue Antwort 409** mit Problem-Code `playback_source_changed`, wenn eine Remux-Sitzung nach einer Dateiänderung nicht neu aufgebaut werden kann (6.4); `x-visibility: scoped` bleibt |
 | CLAUDE.md Regel 3 (`os/exec` nur in `transcode`) | – | Der Parser (`internal/mediaindex`) startet keinen Prozess; die Stichprobe ist eine neue Methode von `transcode.Runner` |
 | CLAUDE.md Regel 4 (Dateien nur über `paths`) | – | `probe.file` öffnet die Datei über die Wurzel, die es für die Sidecars schon offen hat (`library/probe.go:87-92`) |
 | CLAUDE.md Regel 11 (keine Nicht-Ziele, nichts vorziehen) | – | Kein Nicht-Ziel berührt |
@@ -292,21 +331,26 @@ ALTER TABLE media_files ADD COLUMN keyframes_source TEXT
 ```
 
 Bedeutung: `NULL` = noch kein Index für diese Dateiversion; `cues`, `mp4`, `scan` = Index da (Blob
-mit ≥ 1 Eintrag); `none` = unmöglich (Blob NULL). Als **Videodatei** zählt eine Zeile mit
-`video_codec IS NOT NULL AND missing_since IS NULL`; Audio-Dateien bekommen nie einen Index und
-erscheinen in keiner Zählung.
+mit ≥ 1 Eintrag); `none` = unmöglich (Blob NULL). Gezählt werden nur **indexwürdige Dateien**
+nach 2.1: `missing_since IS NULL AND video_codec IN ('h264','hevc','av1','vp9')` und der Titel
+(`items.kind`) ist weder `audiobook` noch `podcast_episode`. Dieselbe Bedingung steht als eine
+SQL-Vorlage in `library` und wird von Zählung, Nachhol-Lauf und `probe.file` geteilt, damit
+«ausstehend» und «wird nachgeholt» nie auseinanderlaufen. Dateien ohne Video, mit einem nicht
+remuxbaren Codec oder ohne Datei auf der Platte erscheinen in keiner Zählung.
 
 ### 4.2 Schreibregeln
 
-Es gibt **eine** Schreibfunktion in `library` (`StoreKeyframes`, heute `library/jobs.go:118-127`),
-die alle drei Wege nutzen (`probe.file`, `probe.keyframes`, `keyframes.backfill`); Wiedergabe und
-Offline schreiben nicht mehr (6.4, 6.8).
+Es gibt **eine** Schreibfunktion in `library` (`StoreKeyframes`, heute `library/jobs.go:118-127`
+mit `*sql.DB`; neu mit einem `DBTX`, damit `probe.file` sie in seiner Transaktion nutzt, und mit
+Quelle und gemerkter Dateiversion als Parameter), die alle drei Wege nutzen (`probe.file`,
+`probe.keyframes`, `keyframes.backfill`); Wiedergabe und Offline schreiben nicht mehr (6.4, 6.8).
 
 | Query (`queries/system/items.sql`) | Neu | Regel |
 |---|---|---|
-| `SetMediaFileKeyframes` (ersetzt `UpdateMediaFileKeyframes`) | setzt `keyframes`, `keyframes_at`, `keyframes_source` | `WHERE id = ? AND keyframes_source IS NULL` – **endgültig** (I-1); 0 Zeilen heisst «schon da» und ist kein Fehler |
-| `UpdateMediaFileLocation` | Parameter `@reset_index` | bei `changed` (Grösse oder mtime anders, `scanner.go:726-734`) zusätzlich `keyframes = NULL, keyframes_at = NULL, keyframes_source = NULL`; ein Umbenennen oder Verschieben ohne Änderung **behält** den Index (Z-1) |
-| `ResetMediaFileKeyframes` | neu | nur von «Datei prüfen» (`metadata/manage.go:193`): leert den Index, damit eine als `none` markierte oder misstrauisch gewordene Datei neu gerechnet wird (O-16) |
+| `SetMediaFileKeyframes` (ersetzt `UpdateMediaFileKeyframes`) | setzt `keyframes`, `keyframes_at`, `keyframes_source` | `WHERE id = @id AND keyframes_source IS NULL AND size = @size AND mtime = @mtime` – **endgültig und an die Version gebunden** (I-1, Z-9). `@size`/`@mtime` liest der Job **vor** dem Lesen der Datei aus seiner Zeile. 0 Zeilen heisst «Index schon da oder Datei inzwischen geändert» und ist kein Fehler: der Scanner hat bei einer Änderung den Index geleert und `probe.file` für die neue Version eingereiht |
+| `UpdateMediaFileProbe` | gleiche Versionsbedingung | `AND size = @size AND mtime = @mtime`; 0 Zeilen → `probe.file` meldet einen vorübergehenden Fehler und läuft nach dem Backoff mit der neuen Version (2.2). Behebt den Wettlauf auch für die Probe selbst (Z-9) |
+| `UpdateMediaFileLocation` | Parameter `@reset_index` | **in `library/write.go` entschieden, nicht in `scanner.go`**: `reset_index = op.disk.size != op.known.Size \|\| op.disk.mtime != op.known.Mtime`, gleich über welchen Weg der Scanner die Datei zugeordnet hat (Pfad, `scanner.go:726-734`, oder Identität dev/inode/Grösse mit anderer mtime, `:785-786`). Dann zusätzlich `keyframes = NULL, keyframes_at = NULL, keyframes_source = NULL`; ein Umbenennen oder Verschieben ohne Änderung **behält** den Index (Z-1) |
+| `ResetUnavailableKeyframes` | neu | `SET keyframes_source = NULL WHERE id = @id AND keyframes_source = 'none'` – **nur `none`**. Gerufen von der Titel-Aktualisierung in der Pflege (`metadata.Service.Refresh`, `metadata/manage.go:163-200`; in der Oberfläche «Aktualisieren», auf der Jobseite «Datei prüfen in der Pflege», `web/src/locales/de.json:2357`), die heute schon `probe.file` für jede Datei des Titels einreiht. Gültige Indizes (`cues`, `mp4`, `scan`) bleiben stehen (I-1): eine Aktualisierung von Metadaten, auch einer ganzen Serie oder vieler Titel auf einmal, löst keine Volllesung und keinen Sitzungsabbruch aus (O-16) |
 
 ### 4.3 `jobs.override_pause`
 
@@ -318,7 +362,8 @@ ALTER TABLE jobs ADD COLUMN override_pause INTEGER NOT NULL DEFAULT 0
 Erwogen und verworfen: eine Schwelle über die Priorität («Priorität ≥ 9 läuft trotz Pause»). Sie
 braucht keine Migration, koppelt aber zwei Bedeutungen an eine Zahl; die nächste Jobart mit
 Priorität 9 erbte die Ausnahme unbemerkt. Das Merkmal am Lauf ist ausdrücklich, testbar und in der
-Oberfläche zeigbar.
+Oberfläche zeigbar. Gesetzt wird es nicht über ein Feld von `jobs.NewJob`, sondern über eine
+eigene Methode (6.5), damit die Regel «nur die Wiedergabe» maschinell prüfbar ist.
 
 ### 4.4 Einmaliger Termin: `job_schedules.once_at`
 
@@ -330,7 +375,9 @@ Erwogen und verworfen: eine eigene Tabelle `job_schedule_once` mit beliebig viel
 Termin je Jobart reicht für «heute Nacht einmal nachholen», und `job_schedules` hat schon eine
 Zeile je Zeitplan-Jobart. Der Takt (`every_ms NOT NULL`, CHECK 5 min bis 7 d) bleibt Pflicht;
 wer nur einmalig will, schaltet den Takt aus (`enabled = 0`), der Termin feuert trotzdem (6.7).
-`ADD COLUMN` braucht keinen Umbau der STRICT-Tabelle.
+`ADD COLUMN` braucht keinen Umbau der STRICT-Tabelle. Gespeichert wird der Zeitpunkt in ms UTC;
+der Server rechnet ihn aus der Wandzeit, die der Administrator in der Zeitzone des Servers eingibt
+(5.2), in seiner `time.Location` um – nie der Browser.
 
 ### 4.5 Migrationsplan 00032 (vorläufig; Schritte, kein fertiges SQL)
 
@@ -340,16 +387,21 @@ Nach `migrations/TEMPLATE.sql.txt`: `-- +goose NO TRANSACTION`, `PRAGMA foreign_
 1. `ALTER TABLE media_files ADD COLUMN keyframes_source` (4.1).
 2. Bestand: `UPDATE media_files SET keyframes_source = 'scan' WHERE length(keyframes) > 1` – ein
    Blob mit mindestens einem Eintrag kam bisher immer aus der Volllesung. Blobs mit nur dem
-   Versionsbyte (die drei VC-1-Dateien und Audio-Dateien) bleiben `NULL`: der Nachhol-Lauf
-   versucht die Cues (die VC-1-Dateien haben vollständige, Anhang A.1). Kein Blob wird gelöscht.
-3. `CREATE INDEX media_files_keyframes ON media_files (keyframes_source) WHERE video_codec IS NOT
-   NULL` – trägt die Zählung (5.2) und die Suche des Nachhol-Laufs.
+   Versionsbyte bleiben `NULL`: Audio-Dateien und die drei VC-1-Dateien sind nicht indexwürdig
+   (2.1, Z-10) und werden nie angefasst; die VC-1-Dateien haben zwar Cues, aber ohne
+   `K`-Pakete wären sie nicht remuxbar. Kein Blob wird gelöscht.
+3. `CREATE INDEX media_files_keyframes ON media_files (keyframes_source) WHERE missing_since IS
+   NULL AND video_codec IN ('h264','hevc','av1','vp9')` – trägt die Zählung (5.2) und die Suche
+   des Nachhol-Laufs (die Bedingung auf `items.kind` kommt über den Join).
 4. `ALTER TABLE jobs ADD COLUMN override_pause` (4.3).
 5. `ALTER TABLE job_schedules ADD COLUMN once_at` (4.4).
 
 Danach: `task gen` (sqlc: `systemq`, `scopedq`, `appq`), ein eingefrorener Stand
-`testdata/db/wiedergabestart.sql` mit Test nach dem Muster von `frozen_m11_test.go` (Altblob v1
-mit Quelle `scan`, leerer Blob mit Quelle NULL, `once_at` NULL). Der Server sichert vorher wie
+`testdata/db/wiedergabestart.sql` mit Test nach dem Muster von
+`internal/store/frozen_hintergrundjobs_test.go`. Der Stand trägt die **Daten dieses Konzepts**:
+`keyframes_source` in allen vier Werten (`cues`, `mp4`, `scan`, `none`) und NULL, ein leerer
+v1-Blob mit Quelle NULL, ein Lauf mit `override_pause = 1`, eine Zeitplanzeile mit gesetztem
+`once_at`; der Test prüft Werte, CHECKs und dass der Index `media_files_keyframes` existiert. Der Server sichert vorher wie
 immer mit `VACUUM INTO` (Regel 5). Die Migration löscht nichts und erzwingt keine Neuberechnung;
 eine Migration, die Indizes leert, wäre für I-1 gefährlich.
 
@@ -359,55 +411,72 @@ eine Migration, die Indizes leert, wäre für I-1 gefährlich.
 
 ### 5.1 Operationen
 
-Keine neue Operation. Geändert werden die Antworten von vier bestehenden (`x-visibility: admin`
-wie bisher) und die Beschreibung des Grundes:
+Keine neue Operation. Geändert werden die Antworten bestehender Operationen und die Beschreibung
+des Grundes:
 
-| Operation | Änderung |
-|---|---|
-| `listLibraries`, `getLibrary` (und alle Antworten mit `Library`) | neues optionales Feld `keyframeIndex` (5.2) |
-| `listJobTypes`, `updateJobSchedule` | `JobSchedule.onceAt`; `JobScheduleUpdate.onceAt`, `clearOnce`; `JobPool.pool` kennt `index`; neue Jobart `keyframes.backfill` erscheint in der Liste |
-| `listJobRuns` (und `JobRun` überall) | neues optionales Feld `overridesPause` |
-| `Transcoding.reason`, `AdminStream.reason` | Beschreibung um `keyframes_unavailable` ergänzt (`api/openapi.yaml:8351-8361`, `:8523`); Typ bleibt `string` |
+| Operation | `x-visibility` | Änderung |
+|---|---|---|
+| `listLibraries`, `getLibrary` (und alle Antworten mit `Library`) | `admin` | neues optionales Feld `keyframeIndex` (5.2) |
+| `listJobTypes`, `updateJobSchedule` | `admin` | `JobSchedule.once`; `JobScheduleUpdate.onceLocal`, `clearOnce`; `JobPool.pool` kennt `index`; neue Jobart `keyframes.backfill` erscheint in der Liste |
+| `listJobRuns` (und `JobRun` überall) | `admin` | neues optionales Feld `overridesPause` |
+| HLS-Endpunkte der Sitzung (Playlist, `init.mp4`, `seg/{n}`; `api/openapi.yaml:1914` ff.) | `scoped` (unverändert) | neue Antwort **409** `playback_source_changed` (6.4, 7.4) |
+| `Transcoding.reason`, `AdminStream.reason` | – | Beschreibung um `keyframes_unavailable` ergänzt (`api/openapi.yaml:8351-8361`, `:8523`); Typ bleibt `string` |
 
 Jede geänderte Operation bekommt ihren Fall im Vertragstest (`TestContractCoversEveryOperation`
-deckt sie schon; neu sind Beispiele mit den Feldern), der Schema-Test prüft `x-visibility` wie
-bisher.
+deckt sie schon; neu sind Beispiele mit den Feldern und die 409 der HLS-Endpunkte), der
+Schema-Test prüft `x-visibility` wie bisher. Offline-Downloads brauchen **keinen** neuen Code:
+ein Download, der auf den Index wartet, bleibt `queued` ohne `error` (6.8).
 
 ### 5.2 Schemata
 
 ```yaml
 LibraryKeyframeIndex:
   type: object
-  description: Keyframe index of the video files of the library (concept 13, F-7).
+  description: Keyframe index of the files of the library that can be remuxed (concept 14, F-7).
   required: [videoFiles, indexed, pending, unavailable]
   properties:
-    videoFiles:  { type: integer, description: Present files with a video stream. }
+    videoFiles:  { type: integer, description: Present files with H.264, HEVC, AV1 or VP9 video outside audiobooks and podcasts. }
     indexed:     { type: integer, description: Files with an index (Matroska cues, MP4 tables or full read). }
     pending:     { type: integer, description: Files without an index yet; the next playback transcodes. }
     unavailable: { type: integer, description: Files whose index cannot be built; they are always transcoded. }
 ```
 
 `Library.keyframeIndex` ist **optional**: es fehlt bei Audio-Bibliotheken. Die Zählung ist eine
-Abfrage je Liste (`GROUP BY library_id, keyframes_source` über `media_files` und `items`, Index aus
-4.5); bei 2 419 Dateien auf CT 190 unter einer Millisekunde, gemessen in Schritt 8.
+Abfrage je Liste (`GROUP BY library_id, keyframes_source` über `media_files` und `items` mit der
+Bedingung aus 4.1, Index aus 4.5); bei 2 419 Dateien auf CT 190 erwartet unter einer
+Millisekunde, gemessen in Schritt 8.
 
-`JobSchedule.onceAt` (`date-time`, optional; fehlt ohne Termin). `JobScheduleUpdate.onceAt`
-(`date-time`) und `clearOnce` (`boolean`, nach dem Muster von `clearWindow`, weil ein JSON-`null`
-für die generierten Clients nicht von einem fehlenden Feld zu unterscheiden ist). Prüfung im
-Server: frühestens jetzt + 1 min, spätestens jetzt + 366 Tage, sonst 422 mit dem neuen
-Problem-Code `once_out_of_range`; für Jobarten ohne Zeitplan 409 wie bei den übrigen Feldern.
+**Termin.** `datetime-local` im Browser liefert eine Wandzeit ohne Zone, und der Container läuft
+oft in einer anderen Zone als der Browser. Darum spricht der Vertrag in der **Wandzeit des
+Servers**, wie das Zeitfenster schon in Minuten der Server-Zeitzone spricht:
+
+- `JobSchedule.once` (optional; fehlt ohne Termin): `{ local: string, at: date-time }` –
+  `local` im Format `YYYY-MM-DDTHH:MM` in `JobSchedule.timeZone`, `at` derselbe Zeitpunkt als
+  Instant (für Anzeige und Sortierung).
+- `JobScheduleUpdate.onceLocal` (`string`, `pattern: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$'`) und
+  `clearOnce` (`boolean`, nach dem Muster von `clearWindow`, weil ein JSON-`null` für die
+  generierten Clients nicht von einem fehlenden Feld zu unterscheiden ist). Der Server rechnet
+  `onceLocal` in seiner `time.Location` um; eine Wandzeit, die es wegen der Sommerzeit nicht oder
+  doppelt gibt, nimmt Go nach seiner Regel (`time.Date`), das ist hingenommen.
+- Prüfung im Server: frühestens jetzt + 1 min, spätestens jetzt + 366 Tage; sonst **422
+  `validation_failed`** mit Feld `onceLocal` und Wert `out_of_range` (Formfehler:
+  `invalid_value`), nach dem Muster der bestehenden Prüfung (`jobs/scheduler.go:274-282`,
+  `api/openapi.yaml:5380`); kein eigener Problem-Code. Für Jobarten ohne Zeitplan 409 wie bei den
+  übrigen Feldern.
 
 `JobPool.pool` (`api/openapi.yaml:11245`) und die Pool-Angabe der Jobart (`:11189`): `enum`
 erweitert um `index`. `JobRun.overridesPause` (`boolean`, optional; nur bei `true` gesetzt).
+HLS-Endpunkte: `409` mit `Problem`, `code: playback_source_changed`.
 
 ### 5.3 Ist das eine brechende Anhebung?
 
-Nein, mit einer Anmerkung. Neue optionale Felder und eine neue Jobart (Jobnamen sind ein String
-ohne Enum) brechen keinen Client. **Die Erweiterung des Enums `pool` in einer Antwort** kann einen
-fremden Client mit erschöpfender Fallunterscheidung stören; die eigene Oberfläche wird aus
-demselben Vertrag generiert und im selben Image ausgeliefert, fremde Clients für die
-Verwaltungs-API sind nicht bekannt. Darum Nebenversion, keine Hauptversion. Release-Notes-Zeile
-nennt den neuen Pool.
+Nein, mit einer Anmerkung. Neue optionale Felder, eine neue Antwort 409 und eine neue Jobart
+(Jobnamen sind ein String ohne Enum) brechen keinen Client; ein alter Player behandelt die 409 wie
+heute jeden fatalen Netzwerkfehler (ein Ladeversuch, dann Fehlermeldung). **Die Erweiterung des
+Enums `pool` in einer Antwort** kann einen fremden Client mit erschöpfender Fallunterscheidung
+stören; die eigene Oberfläche wird aus demselben Vertrag generiert und im selben Image
+ausgeliefert, fremde Clients für die Verwaltungs-API sind nicht bekannt. Darum Nebenversion,
+keine Hauptversion. Release-Notes-Zeile nennt den neuen Pool.
 
 ---
 
@@ -481,7 +550,16 @@ MP4-Fixtures in Schritt 2 mehr Sonderfälle zeigen als erwartet (O-12).
 **Lesen auf `*os.File` ist nicht per Kontext abbrechbar.** Ein hängendes NFS blockiert die
 Goroutine. Darum ruft `library` den Parser in einer eigenen Goroutine mit Zeitgrenze **10 s**
 (gemessenes Maximum 0,76 s); läuft sie ab, gilt die Datei als «kein Index» und der Volllese-Job
-übernimmt. Die Goroutine endet, wenn der Lesezugriff zurückkehrt.
+übernimmt. Die Goroutine endet, wenn der Lesezugriff zurückkehrt. Im Nachhol-Lauf, der viele
+Dateien nacheinander öffnet, bliebe bei einem hängenden NFS je Datei eine Goroutine samt offener
+Datei liegen; darum beendet der Lauf sich nach **drei Zeitüberschreitungen in Folge** mit einem
+Fehler (Backoff der Queue), statt weiterzumachen (6.6).
+
+**Tests ohne `os/exec` im Paket.** depguard verbietet `os/exec` in allen Paketen ausser
+`internal/transcode`, Tests eingeschlossen (`.golangci.yml:28-34`). `mediaindex` testet darum nur
+mit eingecheckten Byte-Fixtures; der Kreuztest gegen ffprobe und die mit ffmpeg erzeugten
+Testdateien liegen in `internal/transcode/mediaindex_cross_test.go`, das `mediaindex` importiert
+(Schritt 2).
 
 ### 6.2 Prüfung vor dem Speichern (F-8)
 
@@ -490,42 +568,53 @@ Goroutine. Darum ruft `library` den Parser in einer eigenen Goroutine mit Zeitgr
 | Prüfung | «brauchbar» | beobachtetes Maximum |
 |---|---|---|
 | Einträge der Videospur | ≥ 2 **und** ≥ 1 je 60 s Dauer | min. 5,7 je min |
-| grösste Lücke | ≤ 30 s | 10,68 s |
+| grösste innere Lücke | ≤ 30 s | 10,68 s (Faktor 2,8) |
 | erster Eintrag | ≤ 5 s | 0,083 s |
-| Endlücke (Dauer − letzter Eintrag) | ≤ 60 s **und** ≤ 5 % der Dauer | 42,3 s / 1,1 % |
+| Endlücke (Dauer − letzter Eintrag) | ≤ max(60 s, 2 × grösste innere Lücke) | 42,3 s |
 | letzter Eintrag | ≤ Dauer + 1 s | erfüllt |
 | sortiert, keine Duplikate, keine negativen Zeiten | Pflicht | erfüllt |
 | Grösse des Cues-Elements (Leseschutz) | ≤ 8 MiB | 2,03 MB |
 
 Eine Lücke bis 30 s ist für den Remux korrekt (die Segmente werden länger,
 `EXT-X-TARGETDURATION` folgt dem längsten Segment, `playlist.go:11-15`), nur das Spulen wird
-gröber; darüber lieber die Volllesung.
+gröber; darüber lieber die Volllesung. **Die Endlücke ist für den Remux harmlos**:
+`keyframeStarts` hängt den Rest nach dem letzten Keyframe an das letzte Segment
+(`transcode/plan.go:291-301`); die Regel fängt nur grob abgeschnittene Cues ab. Fassung 1 hatte
+zusätzlich «≤ 5 % der Dauer» und hätte damit das eigene e2e-Medium verworfen: «H264 MKV Long»
+dauert 90 s, der letzte Keyframe liegt bei 75 s (`testdata/generate-media.sh:224-231`), Endlücke
+15 s = 16,7 %; mit der neuen Regel (max(60 s, 2 × 15 s) = 60 s) wird es aus den Cues indiziert
+(Test in Schritt 3).
 
 **Stichprobe** (neue Methode `transcode.Runner.VerifyKeyframes(ctx, abs string, at
-[]time.Duration) error`): drei ffprobe-Aufrufe mit `-read_intervals`, `-select_streams v:0`,
-`-show_entries packet=pts_time,flags`:
+[]time.Duration) error`): **ein** ffprobe-Aufruf mit mehreren Intervallen,
+`-select_streams v:0 -show_entries packet=pts_time,flags -read_intervals "%+#30,T1%+#1,T2%+#1"`
+(spart je Datei zwei Prozessstarts und zwei NFS-Öffnungen):
 
-1. **Anfang**: die ersten 30 Videopakete der Datei (`-read_intervals %+#30`); das erste mit `K`
-   muss Eintrag 0 sein (I-2, Basis von Segment 0).
-2. **Zwei zufällige Einträge** (Zufall mit der Dateikennung als Saat, also in Tests
-   wiederholbar): je `-read_intervals T%+#1` ab dem Eintrag; das erste Paket muss `K` tragen und
-   auf **2 ms** mit dem Eintrag übereinstimmen (`remuxCutDelta`, `pipeline.go:25`).
+1. **Anfang** (`%+#30`): die ersten 30 Videopakete der Datei; das erste mit `K` muss Eintrag 0
+   sein (I-2, Basis von Segment 0).
+2. **Zwei zufällige Einträge** T1, T2 (Zufall mit der Dateikennung als Saat, also in Tests
+   wiederholbar; `T%+#1`): das erste Paket ab dem Eintrag muss `K` tragen und auf **2 ms** mit
+   dem Eintrag übereinstimmen (`remuxCutDelta`, `pipeline.go:25`).
 
 Abweichung → Index verwerfen, Volllese-Job einreihen, Warnung im Log (Muxer aus
 `MuxingApp`/`WritingApp`, ohne Pfad ausserhalb der Wurzel). Die Kosten sind nicht gemessen;
-geschätzt 0,2 bis 0,5 s je Aufruf über NFS, also 0,5 bis 1,5 s je Datei beim Einlesen. Schritt 3
-misst sie (DoD), Schritt 8 legt sie nach `docs/perf/`. Argumente festgenagelt in einem
-Golden-Test wie `pipeline_test.go`.
+geschätzt 0,3 bis 1 s je Datei über NFS (ein Prozess, drei Seeks). Schritt 3 misst sie (DoD),
+Schritt 8 legt sie nach `docs/perf/`; die Wirkung auf einen Erstimport steht in 8. Argumente
+festgenagelt in einem Golden-Test wie `pipeline_test.go`.
 
 ### 6.3 Der Volllese-Job `probe.keyframes`
 
 - **Pool `index`, genau ein Arbeiter** (`cmd/slouchcat/main.go`, neben `download-1` und
   `notify-1`; die Seite zeigt «1 Arbeiter», nicht einstellbar, Konzept 09 F-9). Er läuft
   **zusätzlich** zu den allgemeinen Arbeitern: eine Volllesung von Minuten belegt keinen
-  `general`-Arbeiter mehr.
+  `general`-Arbeiter mehr. Der Arbeiter `index-1` bekommt wie die allgemeinen
+  `OnFinalFailure(notifySvc.JobFailed)` (`cmd/slouchcat/main.go:338`); heute meldet sich ein
+  endgültig fehlgeschlagener `probe.keyframes` so, und das soll mit dem Umzug nicht still
+  verloren gehen.
 - **Handler** (`library/probe.go` `handleKeyframes`, umgebaut):
-  1. `keyframes_source` schon gesetzt → fertig, `jobs.Skip` (I-1; deckt Wiedergabe- und
-     Nachhol-Aufträge, die ein `probe.file` überholt hat).
+  1. Zeile laden, Dateiversion (size, mtime) merken. `keyframes_source` schon gesetzt oder Codec
+     nicht remuxbar (2.1) → fertig, `jobs.Skip` (I-1; deckt Wiedergabe- und Nachhol-Aufträge,
+     die ein `probe.file` überholt hat).
   2. Rang 1/2 mit Prüfungen versuchen (gleiche Funktion wie `probe.file`, 6.2). Das macht die
      auf CT 190 noch wartenden Altjobs billig, ohne sie anzufassen.
   3. Volllesung `Runner.Keyframes` mit Zeitgrenze **2 h** (27,5 GB bei 15 MB/s ≈ 31 min, Faktor 4
@@ -534,37 +623,67 @@ Golden-Test wie `pipeline_test.go`.
 
 | Ergebnis | Wirkung |
 |---|---|
-| Keyframes gefunden | speichern, `source = scan` |
+| Keyframes gefunden | speichern, `source = scan`, mit der gemerkten Dateiversion (4.2); hat sich die Datei während der Minuten der Volllesung geändert, trifft das Schreiben keine Zeile und der Lauf endet `done` ohne Index (der Scanner hat die neue Version eingereiht) |
 | Volllesung ohne Keyframe (Datei ohne Keyframe-Flags) | `source = none`, `done` |
 | `transcode.FileError` (ffprobe meldet kaputte Daten) | `source = none`, `done`, **ohne** Wiederholung (wie `handleProbe`, `probe.go:77-86`) |
-| Datei fehlt (`missing_since` gesetzt, `ENOENT`) | `done`, nichts speichern (der Sweep kümmert sich) |
+| Datei fehlt (`missing_since` gesetzt, `ENOENT`) | `done`, nichts speichern (der Sweep kümmert sich). Solange `missing_since` noch nicht gesetzt ist, zählt die Datei als «ausstehend»; das betrifft die 11 Zeilen aus Z-8 bis zum nächsten Scan (O-10) |
 | alles andere (NFS, Zeitgrenze, Abbruch) | Fehler → Backoff, nach 5 Versuchen `failed`, `source` bleibt NULL; der nächste Nachhol-Lauf versucht es wieder, nicht jede Wiedergabe (6.4) |
 
 Fortschritt: wie heute nur die Notiz (Datei relativ zur Wurzel).
 
 ### 6.4 Wiedergabe
 
-- **`prepare`** (`sessions.go:489-516`) fragt den Index nur noch nach: `(blob, source)` aus
-  `GetVisibleMediaFileProbe`. Fälle wie 2.3. `ensureKeyframes` wird zu einer reinen
-  Nachschlage-Funktion; `KeyframeTimeout`, `keyframeTimeout`, `WithKeyframeIndex`
-  (`main.go:521`) entfallen.
+- **`prepare`** (`sessions.go:489-516`) fragt den Index nur noch nach: `(blob, source,
+  keyframes_at)` aus `GetVisibleMediaFileProbe` (3, Regel 2). Fälle wie 2.3. `ensureKeyframes`
+  wird zu einer reinen Nachschlage-Funktion; `KeyframeTimeout`, `keyframeTimeout`,
+  `WithKeyframeIndex` (`main.go:521`) entfallen.
 - **`queueKeyframes`** (`sessions.go:551-555`) ruft `library.QueueKeyframesForPlayback` wie heute
-  mit `context.WithoutCancel`. Diese Funktion (`library/jobs.go:91-116`) wird neu geschrieben:
-  `Enqueue` mit Priorität 9 und `OverridePause: true`; hält ein **wartender** Job den Schlüssel,
-  hebt die neue Query `RaiseQueuedJobForPlayback` ihn auf `max(priority, 9)` und setzt
-  `override_pause = 1` (kein Abbruch mehr, Z-4); ein **laufender** bleibt, wie er ist. Obergrenze:
-  sind schon drei Aufträge mit `override_pause = 1` wartend oder laufend, wird ohne Ausnahme
-  eingereiht (9.4, O-7). Für `source = 'none'` wird nichts eingereiht.
-- **Kein neuer Auftrag nach einem Fehlschlag**: ist der letzte `probe.keyframes` dieser Datei in
-  den letzten 24 h `failed`, reiht die Wiedergabe nicht neu ein; das übernimmt der Nachhol-Lauf.
-  So kann ein Zuschauer, der eine kaputte Datei fünfmal startet, nicht fünf Volllesungen auslösen.
+  mit `context.WithoutCancel`. Diese Funktion (`library/jobs.go:91-116`) wird neu geschrieben und
+  ruft die eigene Queue-Methode `EnqueueOverridingPause` (6.5). Ein Statement, kein Zählen und
+  Einreihen in zwei Schritten (sonst entstehen bei gleichzeitigen Starts vier Ausnahmen):
+
+  ```sql
+  -- jobs.sql, InsertJobOverridingPause (behind Queue.EnqueueOverridingPause): the exception only below the cap (O-7)
+  INSERT INTO jobs (type, priority, idempotency_key, payload, override_pause, run_after, …)
+  VALUES (@type, 9, @key, @payload,
+          (SELECT count(*) < 3 FROM jobs WHERE override_pause = 1 AND state IN ('queued','running')),
+          @now, …)
+  ON CONFLICT (idempotency_key) WHERE state IN ('queued','running') DO NOTHING;
+  ```
+
+  Hält ein **wartender** Job den Schlüssel, hebt die neue Query `RaiseQueuedJobForPlayback` ihn
+  auf `max(priority, 9)`, setzt `override_pause` nach derselben Obergrenze und **`run_after =
+  min(run_after, now)`**: ein Job im Backoff (bis 80 s) soll für die Wiedergabe nicht warten (kein
+  Abbruch mehr, Z-4). Ein **laufender** bleibt, wie er ist. Beide Statements laufen auf der einen
+  Schreibverbindung, SQLite serialisiert sie; die Obergrenze ist damit atomar. Für `source =
+  'none'` wird nichts eingereiht.
+- **Kein neuer Auftrag nach einem Fehlschlag** (Rückfrage O-17): ist der letzte
+  `probe.keyframes` dieser Datei in den letzten 24 h `failed`, reiht die Wiedergabe nicht neu ein;
+  das übernimmt der Nachhol-Lauf. So kann ein Zuschauer, der eine kaputte Datei fünfmal startet,
+  nicht fünf Volllesungen auslösen.
 - **Rebuild** (`sessions.go:644-711`): eine als Transcode begonnene Sitzung bleibt Transcode
   (`recordedDecision`, `ForceTranscode`, `:746`), wie heute. Eine als **Remux** begonnene Sitzung
-  prüft vor dem Neuplanen: fehlt der Index oder ist `keyframes_at` **jünger als die Sitzung**, hat
-  sich die Datei geändert (I-1 lässt keinen anderen Weg zu); die Sitzung wird beendet und der
-  Segment-Abruf antwortet wie bei einer abgelaufenen Sitzung, der Player startet neu. Heute
-  wartet dieser Fall bis 20 s und transcodiert dann auf dem 4-s-Raster, das zur Playlist des
-  Clients nicht passt (Z-2).
+  prüft vor dem Neuplanen: fehlt der Index oder ist `keyframes_at` **jünger als `started_at` der
+  Sitzung** (`migrations/00005_playback_sessions.sql:22`), hat sich die Datei geändert (I-1 lässt
+  keinen anderen Weg zu; seit Fassung 2 setzt die Titel-Aktualisierung nur `none` zurück, also
+  nie einen Index, mit dem remuxt wurde). Dann beendet der Server die Sitzung und antwortet an
+  Playlist, `init.mp4` und `seg/{n}` mit **409 `playback_source_changed`**; der Player startet die
+  Wiedergabe an der aktuellen Stelle neu (7.4). Heute wartet dieser Fall bis 20 s und
+  transcodiert dann auf dem 4-s-Raster, das zur Playlist des Clients nicht passt (Z-2).
+
+  **Warum ein eigener Code und ein Neustart im Client** (Kritik M-3): Der Player kennt heute nur
+  zwei Wege. Ein 401 ruft `onRevoked()` und beendet die Wiedergabe mit «von der Verwaltung
+  beendet» oder «Zeitlimit» (`web/src/features/player/VideoPlayer.tsx:214-219`, `:591-594`); ein
+  404 ist ein fataler Netzwerkfehler mit einem `startLoad()` und danach `setFailed(true)`
+  (`:595-604`). Beides wäre für «die Datei wurde ersetzt» falsch oder unnötig hart. Der Player
+  hat aber schon den Weg, eine neue Sitzung an einer Position zu beginnen: den Wechsel von
+  Version, Spur oder Qualität (`leaveSession`, `switchPlayback`, `:715-730`). Ein Neustart mit
+  unveränderter Wahl ist darum wenige Zeilen Client-Code und einen Vertragseintrag teuer; die
+  Alternative «ehrlich beschreiben und mit eigener Meldung abbrechen» brauchte ebenfalls einen
+  Code und eine Client-Änderung, liesse den Zuschauer aber selbst neu starten. Der Fall ist
+  selten (Dateiwechsel während einer Remux-Wiedergabe **und** ein Rebuild durch Leerlauf oder
+  Neustart), darum genügt ein einziger automatischer Versuch: scheitert auch der, zeigt der Player
+  die gewöhnliche Fehlermeldung.
 - **Sicherheitsnetz** `startHLS` bei `ErrNoKeyframes` (`sessions.go:400-417`) bleibt.
 
 ### 6.5 Pause-Ausnahme im Claim (F-3)
@@ -578,11 +697,14 @@ AND (j.override_pause = 1
 Dazu drei Stellen:
 
 1. **Pause hält ihn nicht an.** `runList.cancelType` (`jobs/registry.go:216-232`) überspringt
-   Läufe mit `OverridePause`; ebenso die Pausenprüfung im Heartbeat (Rückfall nach ADR 0017).
-2. **Nur ein Setzer.** `jobs.NewJob` bekommt `OverridePause bool`; gesetzt wird es nur in
-   `library.QueueKeyframesForPlayback`. Ein Test im Paket `library` prüft das Merkmal, ein
-   `forbidigo`-Muster auf `OverridePause:` ausserhalb von `library/jobs.go` macht die Regel
-   maschinell (Regel «eine Regel an einer Stelle»).
+   Läufe mit `override_pause`; ebenso die Pausenprüfung im Heartbeat (`jobs/worker.go:122-126`,
+   Rückfall nach ADR 0017).
+2. **Nur ein Setzer.** Kein öffentliches Feld an `jobs.NewJob` (das Paket `jobs` liest und
+   schreibt das Merkmal selbst, ein Muster auf einen Feldnamen wäre nicht durchsetzbar), sondern
+   eine eigene Methode `Queue.EnqueueOverridingPause(ctx, NewJob)` samt
+   `RaiseQueuedJobForPlayback`. Ein `forbidigo`-Muster `EnqueueOverridingPause` gilt in allen
+   Paketen ausser `internal/jobs` und `internal/library` (`.golangci.yml`, wie das Muster für
+   `os/exec`), und ein Test im Paket `library` prüft, dass `QueueKeyframesForPlayback` sie ruft.
 3. **Sichtbar.** `JobRun.overridesPause` (5.2); die Seite zeigt unter «Läuft gerade» den Zusatz
    «für Wiedergabe, trotz Pause», und der Pausen-Banner der Jobart sagt «Wiedergabe-Aufträge
    laufen trotzdem».
@@ -608,14 +730,21 @@ jobs.Type{
   gibt es seit Konzept 09.
 - **Run** reiht genau **einen** Lauf ein (Schlüssel `keyframes.backfill`) und hebt einen wartenden
   an (Vertrag von `Type.Run`, `registry.go:71-74`).
-- **Handler**: Cursor über `media_files` mit `video_codec IS NOT NULL AND missing_since IS NULL
-  AND keyframes_source IS NULL`, nach `id`, Batches à 200; je Datei Rang 1/2 mit Prüfungen;
-  gelingt es, speichern; sonst `probe.keyframes` mit Priorität 1 einreihen (Idempotenz verhindert
-  Doppelte). Fortschritt `done/total` mit Notiz (Datei relativ zur Wurzel), wie Konzept 09 6.2.
+- **Handler**: Cursor über die indexwürdigen Dateien mit `keyframes_source IS NULL` (dieselbe
+  Bedingung wie die Zählung, 4.1), nach `id`, Batches à 200; je Datei Dateiversion merken, Rang 1/2
+  mit Prüfungen **ausserhalb** jeder Transaktion, dann eine kurze Schreibtransaktion je Datei
+  (M-1-Regel aus 2.2); gelingt es, speichern; sonst `probe.keyframes` mit Priorität 1 einreihen
+  (Idempotenz verhindert Doppelte). Fortschritt `done/total` mit Notiz (Datei relativ zur Wurzel),
+  wie Konzept 09 6.2. Drei Zeitüberschreitungen des Parsers in Folge (hängendes NFS, 6.1) beenden
+  den Lauf mit Fehler; die Queue wiederholt ihn nach dem Backoff.
 - **Pause und Abbruch** wie jede Jobart: der Lauf ist wieder `queued`, der nächste Claim beginnt
   von vorn und überspringt Erledigtes (die Bedingung `IS NULL` ist der Fortschritt).
-- **Erwartung CT 190:** 298 Dateien × Median 58 ms + Stichprobe ≈ 5 bis 8 min, gelesen rund
-  46 MB statt 390 GB; danach drei Volllese-Jobs für keine Datei (alle 298 haben Cues).
+- **Erwartung CT 190:** 298 MKV × (Median 58 ms Cues + geschätzt 0,3–1 s Stichprobe) ≈ 2 bis
+  5 min, gelesen rund 46 MB statt 390 GB. Weil alle 298 Cues für die Videospur haben, sollte kein
+  Volllese-Job folgen; der eine MP4 ohne Index läuft über Rang 2. Die drei VC-1-Dateien sind nicht
+  indexwürdig (Z-10) und werden nicht angefasst, die 11 Zeilen ohne Datei (Z-8) enden je ohne
+  Index, bis der Scan `missing_since` setzt. Abnahme ist darum «ausstehend = 0» nach einem Scan
+  und einem Nachhol-Lauf (Schritt 8), nicht «alles indexiert».
 
 ### 6.7 Scheduler: einmaliger Termin (F-6)
 
@@ -623,8 +752,11 @@ Erweiterung von `jobs/scheduler.go` (Regeln dort im Paketkommentar, je mit Test)
 
 - **Fällig** ist eine Zeile, wenn `enabled = 1 AND next_run_at <= now` (wie heute) **oder**
   `once_at IS NOT NULL AND once_at <= now`.
-- **Feuern über den Termin**: `Run` mit der normalen Priorität der Jobart, dann `once_at = NULL`,
-  `last_fired_at = now`; **`next_run_at` bleibt** (ein Termin verschiebt den Takt nicht, wie
+- **Feuern über den Termin**: `Run` mit der normalen Priorität der Jobart, dann
+  `UPDATE job_schedules SET once_at = NULL, last_fired_at = @now WHERE type = @type AND once_at =
+  @fired_once_at` – die Bedingung auf den gelesenen Wert verhindert, dass ein Termin, den der
+  Administrator zwischen Lesen und Feuern neu gesetzt hat (`MarkJobScheduleFired` folgt dem Lesen
+  der fälligen Zeilen, `jobs/scheduler.go:208-243`), mitgelöscht wird; **`next_run_at` bleibt** (ein Termin verschiebt den Takt nicht, wie
   «Jetzt ausführen», Konzept 09 F-5). Fallen Termin und Takt in denselben Tick, feuert `Run`
   einmal (die Idempotenz von `Run` deckt es ohnehin).
 - **Das Zeitfenster gilt nicht** für den Termin: wer 03:30 sagt, meint 03:30.
@@ -633,14 +765,17 @@ Erweiterung von `jobs/scheduler.go` (Regeln dort im Paketkommentar, je mit Test)
   «Termin ausgelassen, Jobart pausiert»), wie die Pause Takt-Läufe auslässt (O-4).
 - **Verpasst** (Server war aus): beim Start feuert ein Termin, der **höchstens 24 h** zurückliegt,
   einmal nach `StartDelay` der Jobart oder sofort; ältere verfallen mit Log (O-5).
-- **`UpdateSchedule`** nimmt `onceAt`/`clearOnce` entgegen; der Scheduler liest die Zeile bei
+- **`UpdateSchedule`** nimmt `onceLocal`/`clearOnce` entgegen und rechnet die Wandzeit in der
+  `time.Location` des Schedulers in ms UTC um (5.2); der Scheduler liest die Zeile bei
   jedem Tick, ein Termin wirkt also spätestens 60 s nach seiner Zeit.
-- Zeitzone: gespeichert in ms UTC, angezeigt in der Zeitzone des Servers (`JobSchedule.timeZone`
-  gibt es schon).
+- Zeitzone: gespeichert in ms UTC, ein- und ausgegeben als Wandzeit in der Zeitzone des Servers
+  (`JobSchedule.timeZone` gibt es schon), dazu der Instant `once.at`.
 
 Tests mit injizierter Uhr: «feuert am Termin», «Termin verschiebt `next_run_at` nicht», «Termin
 ignoriert das Fenster», «Termin feuert bei `enabled = 0`», «Termin bei Pause verfällt», «verpasster
-Termin ≤ 24 h feuert beim Start, älterer nicht», «Termin und Takt im selben Tick feuern einmal».
+Termin ≤ 24 h feuert beim Start, älterer nicht», «Termin und Takt im selben Tick feuern einmal»,
+«ein zwischen Lesen und Feuern neu gesetzter Termin bleibt stehen», «Wandzeit in Europe/Zurich
+wird korrekt in UTC gespeichert».
 
 ### 6.8 Offline-Downloads
 
@@ -650,7 +785,19 @@ Termin ≤ 24 h feuert beim Start, älterer nicht», «Termin und Takt im selben
 |---|---|
 | da | Remux-Plan wie heute |
 | `none` | kodieren wie heute ohne Index (`decideWith(…, false)`, `offline/profiles.go:165`) |
-| fehlt | `probe.keyframes` mit Priorität 5 einreihen (**ohne** Pause-Ausnahme: F-3 gilt der Wiedergabe), Lauf mit `jobs.Skip` beenden und den Nachfolger mit `run_after` + 10 min einreihen, wie beim Warten auf Budget (`job.go:103`); nach **24 h** seit dem Auftrag kodieren (O-8) |
+| fehlt | `probe.keyframes` mit Priorität 5 einreihen (**ohne** Pause-Ausnahme: F-3 gilt der Wiedergabe), Lauf mit `jobs.Skip` beenden und den Nachfolger mit wachsendem Abstand einreihen (10 min, 30 min, dann stündlich), wie beim Warten auf Budget (`job.go:103`); nach **24 h** seit `downloads.created_at` (`migrations/00013_offline.sql:55`) kodieren (O-8) |
+
+Einzelheiten:
+
+- **Zustand während des Wartens:** der Download bleibt `queued`, `error` bleibt leer. Damit
+  braucht es keinen neuen Fehlercode im Vertrag (`DownloadState.error`, `api/openapi.yaml:9579`);
+  der Client zeigt wie beim Warten auf Budget «wartet». Ein eigener Code «wartet auf den
+  Keyframe-Index» wäre genauer, ist aber eine Vertragsänderung ohne Nutzen für den Zuschauer.
+- **Lesepfad:** `GetDownloadSource` (`queries/system/offline.sql:220`) liefert zusätzlich
+  `keyframes_source`, damit `none` von «fehlt» zu unterscheiden ist.
+- **Verlauf:** der wachsende Abstand ergibt rund 26 übersprungene Läufe je Download und Tag statt
+  144 bei festen 10 min; sie zählen als `skipped` und fallen nach 30 Tagen mit `jobs.prune`
+  (Konzept 09, 4.4).
 
 `offline.Encoder.Keyframes` (`offline/offline.go:55-62`) entfällt. `planFingerprint`
 (`job.go:336`) bleibt: ein Download, der nach dem Warten remuxt statt kodiert, beginnt bei Segment 0,
@@ -667,8 +814,18 @@ was richtig ist.
 ```
 
 1080p: `-b:v 6000000 -maxrate 8000000 -bufsize 16000000`; 720p: `-b:v 3000000 -maxrate 4000000
--bufsize 8000000`. **Kein `-global_quality` mehr im HLS-Zweig.** Der CBR-Zweig der Downloads
-(`-b:v R`, `:389-392`) bleibt unverändert, ebenso `download_test.go:48-60`. Der Server darf die
+-bufsize 8000000`. **Kein `-global_quality` mehr im HLS-Zweig.** Heute teilen HLS- und CBR-Zweig
+`-preset veryfast` (`pipeline.go:392-393`); **`faster` gilt nur im HLS-Zweig**, der CBR-Zweig der
+Downloads (`-preset veryfast -b:v R`, `:389-393`) bleibt Byte für Byte, wie er ist, ebenso
+`download_test.go:48-60`.
+
+**Kleine Raten.** Profilgrenzen können R weit unter die Leiter drücken
+(`playback/quality.go:127`, `max(min(r.Bitrate, limit − audio), 1)`). Regel:
+`b = max(0,75 · R, min(R − 1 kbit/s, 1 Mbit/s))`. Über 1,33 Mbit/s ist das 0,75 · R; darunter
+rückt das Ziel gegen R, bleibt aber immer 1 kbit/s darunter, denn `b == maxrate` liesse
+`select_rc_mode()` CBR wählen. Hintergrund ist Jellyfins Untergrenze «Bit rate under 1000k is not
+allowed in h264_qsv»; ob die UHD 630 sie braucht, misst Schritt 1 bei 480p (R = 2 Mbit/s) und 360p
+(R = 1 Mbit/s) (O-13). Der Server darf die
 Kombination «`global_quality` mit `maxrate` ohne `-b:v`» nie wieder erzeugen; ein Test prüft das
 für alle Backends und Leiterstufen.
 
@@ -676,7 +833,7 @@ Gemessen auf CT 190 (Anhang A.3, Mittel über vier Clips): **SSIM 0,9816 → 0,9
 48,3 dB**, gleitende 4-s-Spitze **≤ 7,9 Mbit/s** bei R = 8, VBV-Puffer höchstens zu 9 % belegt,
 Tempo **11,9 bis 13,0 × Echtzeit** je Stream (heute 14,4 bis 16,3 ×), erstes Segment **0,35 bis
 0,40 s** (heute 0,29 bis 0,38 s). Begründung des Entscheids: nur diese Einstellung hält
-gleichzeitig Qualität **und** die Bitratengrenzen der Leiter und des Profils (I-5). ICQ wäre auf
+gleichzeitig Qualität **und**, gemessen, die Bitratengrenzen der Leiter und des Profils (I-5: Messbefund, keine Garantie). ICQ wäre auf
 ruhigem Material sparsamer (Silo 1,3 statt 5,9 Mbit/s), kennt aber keinen Deckel (Aladdin bis 11
 Mbit/s gleitend); 0,5 × R fällt bei harten Szenen unter den heutigen Stand (SSIM P5 0,923), 1,0 × R
 reisst die Leiter (bis 10,5 Mbit/s); `look_ahead 1` bricht ohne `-extra_hw_frames` den
@@ -687,8 +844,10 @@ HEVC-QSV-Decoder nach 22 Bildern ab; `-extbrc 1` setzt doppelt so viele IDR-Bild
 `target_percentage` 75 ist dort der übliche Weg. Auf CT 190 ist der Intel-iHD-VAAPI-Pfad messbar
 (DoD Schritt 1).
 
-**NVENC** bleibt (`-rc vbr -cq 23 -b:v 0 -maxrate R`; korrekt, `bufsize` wird im CQ-Modus
-verworfen und darf stehen bleiben). **libx264** bleibt. Der Kommentar `pipeline.go:301-305` wird
+**NVENC** bleibt (`-rc vbr -cq 23 -b:v 0 -maxrate R`; der Modus ist richtig, `bufsize` wird im
+CQ-Modus verworfen und darf stehen bleiben). Ehrlich vermerkt: ohne VBV-Puffer hält NVENC die
+Leiter nur im Mittel; Aladdin erreichte lokal 11,1 Mbit/s gleitend über 4 s bei R = 8 (Anhang A.3).
+Das ist ein eigener Befund (O-19), nicht Gegenstand dieses Papiers. **libx264** bleibt. Der Kommentar `pipeline.go:301-305` wird
 je Backend richtiggestellt.
 
 ---
@@ -699,9 +858,13 @@ je Backend richtiggestellt.
 
 `web/src/features/admin/StreamsPage.tsx:75-130` bekommt die Spalte **«Grund»** nach «Modus»;
 leer bei Direct Play. Der Text kommt aus denselben Schlüsseln wie die Stream-Info des Players
-(`StreamInfo.tsx:15`, `de.json`/`en.json` um `:585`), damit ein Grund nur einen Text hat; neu ist
-`keyframes_unavailable` («Kein Keyframe-Index möglich») neben `keyframes_pending` («Keyframe-Index
-fehlt noch»). Ein unbekannter Code erscheint roh (Server und Client können für einen Moment
+(`StreamInfo.tsx:15`, `de.json`/`en.json` um `:585`), damit ein Grund nur einen Text hat. Zwei
+Änderungen an den Texten: neu `keyframes_unavailable` («Kein Keyframe-Index möglich»), und
+**geändert** der Text von `keyframes_pending` von heute «Keyframe-Index wird erstellt»
+(`web/src/locales/de.json:585`) zu «Keyframe-Index fehlt noch» – bei pausierter Jobart oder nach
+einem Fehlschlag wird er nämlich gerade nicht erstellt. `keyframes_unavailable` kommt zudem in die
+Liste `reasons` der Stream-Info (`web/src/features/player/StreamInfo.tsx:9-23`), sonst zeigt der
+Player ihn nicht. Ein unbekannter Code erscheint roh (Server und Client können für einen Moment
 verschieden alt sein). Keine Vertragsänderung ausser der Beschreibung (5.1). Der bestehende
 Playwright-Test der Seite bekommt die Spalte; eine neue Seite entsteht nicht (Regel 8 betrifft neue
 Seiten, der Tastaturtest wird trotzdem nachgeführt).
@@ -721,14 +884,31 @@ zusätzlich zur heutigen Abfrage der Seite.
 - **Karte `probe.keyframes`** heisst neu «Keyframe-Index (ganze Datei lesen)»; der Pool «Index ·
   1 Arbeiter» steht im Kopf neben den anderen Pools.
 - **Zeitplan-Dialog** (`JobScheduleDialog.tsx`) aller Zeitplan-Jobs: neuer Abschnitt **«Einmalig
-  am»** mit Datum und Uhrzeit (natives `input type="datetime-local"`, Zeitzone des Servers als
-  Hinweis, wie beim Fenster) und «Termin entfernen»; die Karte zeigt «Termin: Sa, 8. Nov., 03:30»
-  neben «Nächster Lauf». Fehler `once_out_of_range` mit eigenem Text.
+  am»** mit Datum und Uhrzeit (natives `input type="datetime-local"`). Der eingegebene Wert ist
+  eine **Wandzeit in der Zeitzone des Servers** und geht unverändert als `onceLocal` an den Server
+  (5.2); der Browser rechnet nichts um, der Dialog nennt die Zone («Zeitzone des Servers:
+  Europe/Zurich») wie beim Fenster. Dazu «Termin entfernen» (`clearOnce`); die Karte zeigt
+  «Termin: Sa, 8. Nov., 03:30» aus `once.local` neben «Nächster Lauf». Der Fehler
+  `validation_failed` mit Feld `onceLocal` und Wert `out_of_range` bekommt einen eigenen Text
+  («Termin muss zwischen jetzt und einem Jahr liegen»).
 - **Pause**: der Banner einer pausierten Jobart mit Wiedergabe-Ausnahme sagt «Wiedergabe-Aufträge
   laufen trotzdem»; Läufe mit `overridesPause` zeigen den Zusatz «für Wiedergabe, trotz Pause».
 - Texte nur aus `web/src/locales/{de,en}.json` (Regel 9), Farben nur aus Tokens; Komponenten aus
   `web/src/ui`. Playwright: `admin-jobs.spec.ts` um den Weg Tab → «Einmalig am» → Enter → Escape
   erweitern (sichtbarer Fokus, keine Fokusfalle); Storybook-Baselines des Dialogs neu.
+
+### 7.4 Player: Neustart bei `playback_source_changed`
+
+`web/src/features/player/VideoPlayer.tsx` behandelt im `Hls.Events.ERROR`-Handler (`:589-606`)
+vor dem 401-Zweig eine Antwort **409 mit `playback_source_changed`**: einmal je Sitzung ruft er den
+bestehenden Wechselweg mit unveränderter Wahl an der aktuellen Position (`leaveSession`,
+`switchPlayback`, `:715-730`); der Server legt eine neue Sitzung mit dem neuen Index oder als
+Transcode an. Ein zweites 409 in der neuen Sitzung zeigt die gewöhnliche Fehlermeldung. Kein neuer
+Text nötig; während des Neustarts zeigt der Player wie bei einem Spurwechsel den Ladezustand. Tests:
+Vitest mit einem simulierten 409 im Fehler-Handler (ein Neustart, Position übergeben, kein
+`onRevoked`), dazu ein Server-Test in `playback` (Rebuild mit jüngerem Index → 409). Ein
+Playwright-Test ist nicht vorgesehen: den Fall müsste der Test durch Ersetzen einer Datei während
+einer Remux-Wiedergabe und einen Rebuild erzwingen, was im e2e-Stack nicht verlässlich geht.
 
 ---
 
@@ -737,23 +917,26 @@ zusätzlich zur heutigen Abfrage der Seite.
 | Fall | Heute (CT 190) | Nach dem Umbau | Beleg |
 |---|---|---|---|
 | Start, Remux-Kandidat **ohne** Index | **20 016 ms** + 350 ms bis `seg/0` | **≈ 1 s** (Transcode: erstes Segment 0,35–0,40 s plus Sitzung und Playlist) | 1.1; Anhang A.3 |
-| nächster Start derselben Datei | wieder bis 20 s, wenn der Job pausiert war | **≈ 0,4 s** (Remux) | Index nach 0,1–1,5 s (Rang 1/2) oder nach der Volllesung |
+| nächster Start derselben Datei | wieder bis 20 s, wenn der Job pausiert war | **≈ 0,4 s** (Remux) | Index nach 0,1–1 s (Rang 1/2) oder nach der Volllesung |
 | Start mit Index | ≈ 0,35 s bis `seg/0` | unverändert | 1.1 |
 | 4K-HDR, Transcode auf QSV | erstes Segment 2,4–3,1 s (CPU-Tonemapping) | unverändert (nicht Ziel dieses Papiers) | Anhang A.3 |
-| Einlesen einer neuen MKV (`probe.file`) | ffprobe wie heute, dann Job mit Priorität 1, ggf. Tage später | + 36–757 ms Cues (Median 58–123) + geschätzt 0,5–1,5 s Stichprobe | Anhang A.1; Schätzung, Schritt 3 misst |
-| Bestand nachholen (298 Dateien) | 2,6 h (42 MB/s) bis 7,2 h (15 MB/s) Volllesung | **23,6 s** Cues + Stichprobe, rund 5–8 min | Anhang A.1 |
+| Einlesen einer neuen MKV (`probe.file`) | ffprobe wie heute, dann Job mit Priorität 1, ggf. Tage später | + 36–757 ms Cues (Median 58–123) + geschätzt 0,3–1 s Stichprobe (ein ffprobe-Aufruf), alles vor der Schreibtransaktion | Anhang A.1; Schätzung, Schritt 3 misst |
+| Erstimport einer ganzen Bibliothek (2 419 Dateien wie CT 190) | ffprobe je Datei, danach Tage an Volllese-Jobs | zusätzlich rund 0,4–1,1 s je Datei im Pool `general`, bei vier Arbeitern **rund 4 bis 11 min** mehr für den ganzen Import; dafür entfallen die Volllesungen (auf CT 190 Stunden bis Tage) | Schätzung aus Anhang A.1 und 6.2, Schritt 8 misst |
+| Bestand nachholen (298 Dateien) | 2,6 h (42 MB/s) bis 7,2 h (15 MB/s) Volllesung | **23,6 s** Cues, mit Stichprobe rund 2–5 min | Anhang A.1; Stichprobe geschätzt |
 | NAS-Last je Datei | ganze Datei (3–27 GB) | Median 68–153 KB, P95 0,8–1,3 MB; 0,012 % der Bytes | Anhang A.1 |
 | gleichzeitige Volllesungen | bis zur Arbeiterzahl (4) plus Offline | **höchstens 1** | I-3 |
 | QSV-Tempo je Stream | 14,4–16,3 × Echtzeit | 11,9–13,0 ×; zwei Streams je 6,9–7,5 × | Anhang A.3 |
-| QSV-Bitrate 1080p im Mittel | 0,7–3,9 Mbit/s (CQP, schwankt mit dem Material) | ≈ 6 Mbit/s (0,75 × R), Spitze ≤ 7,9 | Anhang A.3 |
+| QSV-Bitrate 1080p im Mittel | im Mittel 1,7 Mbit/s, je Clip 0,7–3,9 (CQP, schwankt mit dem Material) | ≈ 6 Mbit/s (0,75 × R), gleitende 4-s-Spitze gemessen ≤ 7,9 | Anhang A.3 |
 
-**W-3** ist für SDR-Quellen mit grossem Abstand erfüllt, für 4K-HDR auf QSV mit rund 2 s Abstand;
-zwei gleichzeitige 4K-HDR-Streams auf 1080p laufen auf den 6 Kernen des CT nur mit 1,09 ×
+**W-3** ist für SDR-Quellen voraussichtlich mit grossem Abstand erfüllt, für 4K-HDR auf QSV
+voraussichtlich mit rund 2 s Abstand. «Voraussichtlich», weil die Zahlen aus einem einzelnen
+ffmpeg ohne Sitzung, Playlist und Ton stammen (Anhang A.3); Schritt 8 misst den ganzen Start im
+Browser. Zwei gleichzeitige 4K-HDR-Streams auf 1080p laufen auf den 6 Kernen des CT nur mit 1,09 ×
 Echtzeit je Stream. Das ist das CPU-Tonemapping, nicht die Ratensteuerung; ein Gewinn dort braucht
 GPU-Tonemapping und ist ein eigenes Thema.
 
 **Datenvolumen.** QSV liefert neu fast konstant 0,75 × R: bei 1080p rund 2,7 GB je Stunde statt
-0,3 bis 1,8 GB. Profile mit Bandbreitengrenze bleiben geschützt (R ist dann deren Wert); im LAN ist
+im Mittel 0,8 GB (je nach Material 0,3 bis 1,8 GB). Profile mit Bandbreitengrenze bleiben geschützt (R ist dann deren Wert); im LAN ist
 es der Preis für das scharfe Bild (F-5).
 
 **Messung** nach `docs/perf/wiedergabestart.md`: Schritt 1 (QSV und VAAPI auf CT 190, inkl. 480p
@@ -793,8 +976,10 @@ Nur der Server setzt `override_pause`, und nur über `QueueKeyframesForPlayback`
 dahin öffnet nur ein Zuschauer mit gültiger Sitzung, gewähltem Profil und sichtbarem Titel (`Start`
 prüft Sichtbarkeit wie heute; nicht sichtbar heisst 404). Ein Zuschauer, der dreihundert Titel
 ohne Index anklickt, könnte trotzdem Marcos Pause aushebeln; darum **höchstens drei** Aufträge mit
-Ausnahme gleichzeitig (O-7), kein neuer Auftrag nach einem Fehlschlag in den letzten 24 h (6.4),
-und die Volllesung bleibt auf einen Arbeiter begrenzt (I-3).
+Ausnahme gleichzeitig, atomar in einem Statement geprüft (6.4; Rückfrage O-7), kein neuer Auftrag
+nach einem Fehlschlag in den letzten 24 h (6.4; Rückfrage O-17), und die Volllesung bleibt auf
+einen Arbeiter begrenzt (I-3). Ohne die zwei Rückfragen bliebe nur die dritte Schranke: dann liefe
+während einer Pause höchstens eine Volllesung nach der anderen, aber beliebig viele.
 
 ### 9.5 Protokoll und Sichtbarkeit
 
@@ -826,41 +1011,60 @@ Ohne Vertrag, ohne Migration. `transcode/pipeline.go` (QSV-Zweig, ggf. VAAPI-Zwe
 mit `maxrate` ohne `-b:v`». DoD: `task ci`; auf CT 190 im Container mit dem neuen Image ein
 30-s-Ausschnitt von Silo mit `-loglevel verbose` zeigt `RateControlMethod: VBR`, `TargetKbps:
 6000; MaxKbps: 8000`; Bitrate, gleitende 4-s-Spitze und SSIM gegen Anhang A.3; dieselbe Messung für
-480p und 360p (O-13) und, falls O-2 «ja», für `h264_vaapi` auf der UHD 630. Ergebnis als Teil 1
-von `docs/perf/wiedergabestart.md`. Auslieferung als Patch 1.6.1 möglich (O-3).
+480p und 360p mit der Regel für kleine Raten (6.9, O-13) und, falls O-2 «ja», für `h264_vaapi`
+auf der UHD 630; der CBR-Zweig der Downloads ist unverändert (`download_test.go` ohne Änderung).
+Ergebnis als Teil 1 von `docs/perf/wiedergabestart.md`. Auslieferung als Patch 1.6.1 (O-3): dann
+gehören in denselben PR `info.version` 1.6.1 in `api/openapi.yaml`, die Versionsstellen nach
+`docs/dev/HANDOVER.md:122-124` (`deploy/.env.example:5`, `deploy/compose.yaml:16`,
+`deploy/README.md`, `docs/INSTALLATION.md`, der Release-Abschnitt in `HANDOVER.md`) und der
+Entwurf der Release-Notes; den Tag pusht Marco selbst.
 
 ### Schritt 2 — Paket `mediaindex`
 
-`internal/mediaindex` (Matroska, MP4, `Check`), Golden-Fixtures **ohne echte Medien im Repo**:
-(a) kleine Dateien, die der Test mit ffmpeg erzeugt (wie `transcode/hls_ffmpeg_test.go`; MKV und MP4
-mit unregelmässigen Keyframes nach `testdata/generate-media.sh:212-231`, MP4 mit B-Frames und
-Edit-Liste, MP4 mit `faststart` und ohne), (b) wenige handgebaute Byte-Fixtures von einigen KB für
-Sonderfälle (zweiter SeekHead, Audio-Cues vor Video-Cues, Cues ohne Video, fehlende Cues,
-unbekannte Segmentgrösse, Cues > 8 MiB angekündigt, leere Edit, `ctts` Version 1 negativ,
-fragmentiertes MP4). Kreuztest: `mediaindex.Read` == `transcode.Runner.Keyframes` für jede
-erzeugte Datei (±1 ms). Fuzz-Ziele. DoD: `task ci`; `go test ./internal/mediaindex/ -run . -v`;
-`go test -fuzz FuzzReadMatroska -fuzztime 60s` und `FuzzReadMP4` ohne Fund.
+`internal/mediaindex` (Matroska, MP4, `Check`), Fixtures **ohne echte Medien im Repo** und
+**ohne `os/exec` im Paket** (6.1): (a) im Paket `mediaindex` nur handgebaute Byte-Fixtures von
+einigen KB unter `internal/mediaindex/testdata/` (zweiter SeekHead, Audio-Cues vor Video-Cues im
+selben CuePoint, Cues ohne Video, fehlende Cues, unbekannte Segmentgrösse, Cues > 8 MiB
+angekündigt, leere Edit, `ctts` Version 1 negativ, fragmentiertes MP4, Endlücke wie «H264 MKV
+Long»); (b) im Paket `transcode` der Kreuztest `internal/transcode/mediaindex_cross_test.go`: er
+erzeugt mit ffmpeg kleine Dateien (MKV und MP4 mit unregelmässigen Keyframes nach
+`testdata/generate-media.sh:212-231`, MP4 mit B-Frames und Edit-Liste, MP4 mit `faststart` und
+ohne) und prüft `mediaindex.Read` == `Runner.Keyframes` (±1 ms) sowie `mediaindex.Check` = ok.
+Fuzz-Ziele mit (a) als Saat. DoD: `task ci`; `go test ./internal/mediaindex/ -run . -v`;
+`go test ./internal/mediaindex -run '^$' -fuzz '^FuzzReadMatroska$' -fuzztime 60s` und dasselbe
+für `'^FuzzReadMP4$'`, je ohne Fund.
 
 ### Schritt 3 — Migration, Schreibregeln, Einlesen
 
 Migration 00032 (4.5), `task gen`, eingefrorener Stand `testdata/db/wiedergabestart.sql` mit
-Test; `SetMediaFileKeyframes` (endgültig), `UpdateMediaFileLocation` mit `@reset_index`,
-`ResetMediaFileKeyframes` für «Datei prüfen»; `transcode.Runner.VerifyKeyframes` mit Golden-Test;
-`probe.file` rechnet Rang 1/2 mit Prüfungen in der Probe-Transaktion und reiht `probe.keyframes` nur
-ohne brauchbaren Index ein. Tests: «Cues gespeichert, kein Volllese-Job», «Cues unplausibel →
-Volllese-Job», «Stichprobe findet Nicht-Keyframe → Volllese-Job», «Datei geändert → Index leer»,
-«umbenannt → Index bleibt», «zweites Schreiben ändert nichts» (I-1), Anpassung
-`library/probe_test.go`. DoD zusätzlich: Dauer von `probe.file` über 50 Dateien auf CT 190
-(Stichprobenkosten, 6.2).
+Test (4.5); `transcode.CopyableVideo` für `decide.go` und `library`; `SetMediaFileKeyframes` und
+`UpdateMediaFileProbe` mit Versionsbedingung, `UpdateMediaFileLocation` mit `@reset_index` aus
+`write.go`, `ResetUnavailableKeyframes` in `metadata.Service.Refresh`; `StoreKeyframes` mit `DBTX`,
+Quelle und Version; `transcode.Runner.VerifyKeyframes` (ein Aufruf, mehrere Intervalle) mit
+Golden-Test; `probe.file` rechnet Rang 1/2 mit Prüfungen **vor** `BeginTx` und schreibt in der
+Transaktion nur. Tests: «Cues gespeichert, kein Volllese-Job», «e2e-Medium ‹H264 MKV Long› wird
+aus Cues indiziert» (M-4), «Cues unplausibel → Volllese-Job», «Stichprobe findet Nicht-Keyframe →
+Volllese-Job», «VC-1 und Hörbuch werden nicht indiziert, nicht gezählt», «Datei geändert → Index
+leer, auch über den Identitätspfad mit anderer mtime», «umbenannt → Index bleibt», «zweites
+Schreiben ändert nichts» (I-1), «Index der alten Version wird nach einem Reset nicht gespeichert»
+und «Probe der alten Version wird nicht geschrieben, Lauf wiederholt sich» (Z-9), «Refresh lässt
+`cues`/`scan` stehen und leert `none`» (M-5), «während der Parser blockiert, gelingt ein anderer
+Schreibzugriff» (der Test hält einen Fake-Parser an und schreibt parallel eine Sitzungszeile; so
+ist «kein Dateizugriff in der Transaktion» prüfbar), Anpassung `library/probe_test.go`. DoD
+zusätzlich: Dauer von `probe.file` über 50 Dateien auf CT 190 (Stichprobenkosten, 6.2).
 
 ### Schritt 4 — Jobarten, Pool, Pause-Ausnahme, einmaliger Termin
 
-Pool `index` mit einem Arbeiter (`main.go`, `WithJobControl`-Zählung); `handleKeyframes` neu
-(6.3, Fehlerklassen, `none`); `keyframes.backfill` mit `Run`, Handler, Fortschritt (6.6);
-`override_pause` in `ClaimJob`, `cancelType`, Heartbeat; `QueueKeyframesForPlayback` mit Anheben,
-Ausnahme und Obergrenze; `forbidigo`-Muster; Scheduler mit `once_at` (6.7). Tests: «pausiert,
-aber Wiedergabe-Auftrag wird beansprucht», «Pause hält Wiedergabe-Auftrag nicht an», «vierter
-Wiedergabe-Auftrag ohne Ausnahme», «Wiedergabe hebt wartenden Scan-Auftrag an statt abzubrechen»,
+Pool `index` mit einem Arbeiter und `OnFinalFailure` (`main.go`, `WithJobControl`-Zählung);
+`handleKeyframes` neu (6.3, Fehlerklassen, `none`, Versionsbedingung); `keyframes.backfill` mit
+`Run`, Handler, Fortschritt, Abbruch nach drei Zeitüberschreitungen (6.6); `override_pause` in
+`ClaimJob`, `cancelType`, Heartbeat; `Queue.EnqueueOverridingPause` und
+`RaiseQueuedJobForPlayback` (Obergrenze atomar, `run_after = min(run_after, now)`);
+`QueueKeyframesForPlayback` darauf umgestellt; `forbidigo`-Muster; Scheduler mit `once_at`
+(6.7). Tests: «pausiert, aber Wiedergabe-Auftrag wird beansprucht», «Pause hält
+Wiedergabe-Auftrag nicht an», «vierter Wiedergabe-Auftrag ohne Ausnahme, auch bei vier
+gleichzeitigen Starts», «Anheben eines Jobs im Backoff setzt `run_after` auf jetzt»,
+«endgültig fehlgeschlagener Volllese-Job meldet `JobFailed`», «Wiedergabe hebt wartenden Scan-Auftrag an statt abzubrechen»,
 «Pool `index` führt nie zwei Läufe gleichzeitig», «FileError → none ohne Wiederholung»,
 «Nachhol-Lauf speichert Cues und reiht nur den Rest ein», «Nachhol-Lauf nach Pause überspringt
 Erledigtes», die Scheduler-Tests aus 6.7; `claim_bench_test.go` vorher/nachher.
@@ -873,21 +1077,26 @@ lesen (6.8). Tests in `playback/sessions_test.go`: `TestRemuxComputesMissingKeyf
 entfällt, ersetzt durch «Start ohne Index transcodiert sofort und reiht Priorität 9 mit Ausnahme
 ein» (Start ohne Wartezeit: der Test schlägt fehl, wenn `Start` länger als 100 ms auf einen
 Fake-Index wartet); `TestRemuxFallsBackWhileKeyframesPending` (`:610`) angepasst; neu «Index
-unmöglich → Transcode ohne Auftrag», «Rebuild mit jüngerem Index beendet die Sitzung»; Offline:
-«ohne Index wartet und reiht ein», «nach 24 h kodiert». e2e `web/e2e/hls.spec.ts:52` (Remux beim
+unmöglich → Transcode ohne Auftrag», «Rebuild mit jüngerem Index antwortet 409
+`playback_source_changed`»; Offline: «ohne Index bleibt `queued` ohne Fehler und reiht ein»,
+«Abstand wächst», «nach 24 h seit `created_at` kodiert». e2e `web/e2e/hls.spec.ts:52` (Remux beim
 ersten Abspielen von `H264_MKV_LONG_TITLE`) bleibt grün, weil der Index jetzt beim Einlesen aus den
-Cues entsteht; wird er rot, ist das ein Befund für Schritt 3, kein Grund, den Test zu lockern.
+Cues entsteht und die Endlücken-Regel das Medium annimmt (6.2, Test in Schritt 3); wird er rot,
+ist das ein Befund für Schritt 3, kein Grund, den Test zu lockern.
 
 ### Schritt 6 — Vertrag 1.8.0 und Server-Handler
 
-`api/openapi.yaml` (5), `task gen`, Abbildung in `admin`/`library` (Zählung, `onceAt`,
-`clearOnce`, `once_out_of_range`, Pool `index`, `overridesPause`), Vertragstest, Fixtures
+`api/openapi.yaml` (5), `task gen`, Abbildung in `admin`/`library`/`playback` (Zählung,
+`once`/`onceLocal`/`clearOnce` mit `validation_failed`, Pool `index`, `overridesPause`, 409
+`playback_source_changed` an den HLS-Endpunkten), Vertragstest, Fixtures
 (`web/src/test/fixtures.ts`, `web/e2e/fixtures.ts`). Web-Minimum: der api-client kompiliert.
 
 ### Schritt 7 — Oberfläche
 
-Streams-Spalte (7.1), Abdeckung auf der Bibliotheksseite (7.2), Karte, Pool, Dialog-Feld,
-Pausen-Texte (7.3); Sprachdateien; Playwright-Tastaturtests (`admin-jobs.spec.ts`, Streams- und
+Streams-Spalte und geänderter Text von `keyframes_pending`, `keyframes_unavailable` in
+`StreamInfo` (7.1), Abdeckung auf der Bibliotheksseite (7.2), Karte, Pool, Dialog-Feld mit
+Wandzeit der Server-Zeitzone, Pausen-Texte (7.3), Neustart des Players bei 409 mit Vitest (7.4);
+Sprachdateien; Playwright-Tastaturtests (`admin-jobs.spec.ts`, Streams- und
 Bibliotheksseite) nachgeführt; Storybook-Baselines. DoD: `task ci`; `pnpm -C web test locales`;
 Playwright-Lauf der betroffenen Specs mit Ausgabe.
 
@@ -896,8 +1105,10 @@ Playwright-Lauf der betroffenen Specs mit Ausgabe.
 Image bauen, CT 190 umstellen (Weg wie Konzept 09, 10.1). Marco nimmt ab: Silo S01E03 in Firefox
 mit pausiertem `probe.keyframes` starten (Transcode in ≈ 1 s, Auftrag läuft trotz Pause, zweiter
 Start remuxt), «Keyframe-Index nachholen» drücken und den Fortschritt sehen, einen Termin «heute
-23:00» setzen und am Morgen im Verlauf finden, Abdeckung auf der Bibliotheksseite «vollständig»,
-Bild auf dem Handy scharf. Messung nach `docs/perf/wiedergabestart.md` (8). Rohdaten der Recherche
+23:00» setzen und am Morgen im Verlauf finden, Bild auf dem Handy scharf. Abdeckung: nach einem
+Scan (setzt `missing_since` für die 11 Zeilen ohne Datei, Z-8) und einem Nachhol-Lauf zeigt jede
+Videobibliothek **«ausstehend = 0»**; «nicht möglich» darf grösser als 0 sein und wird mit
+Dateinamen im Messbericht aufgeführt. Messung nach `docs/perf/wiedergabestart.md` (8). Rohdaten der Recherche
 (Anhang A, heute im Scratchpad) als Tabellen dorthin übernehmen. `docs/dev/CURRENT_STATUS.md`,
 Release-Notes-Zeile (neuer Pool, 5.3).
 
@@ -943,16 +1154,19 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist (Schritt 0).
 | **O-4** | **Termin während einer Pause** | **verfällt mit Log** (6.7), wie die Pause Takt-Läufe auslässt; Alternative «nach dem Fortsetzen nachholen» überrascht mit einem Lauf zur falschen Zeit |
 | **O-5** | **Verpasster Termin** (Server aus) | **nachholen, wenn ≤ 24 h verpasst**, sonst verfallen (6.7); weicht bewusst von «Takt holt nicht nach» ab, weil ein Termin ein Versprechen ist |
 | **O-6** | **Vorgabe des Zeitplans `keyframes.backfill`** | **aus, Takt 7 Tage**; Marco schaltet ihn oder einen Termin ein (F-4). Mit Rang 1 im `probe.file` entstehen neue Lücken nur noch bei Dateien ohne Cues |
-| **O-7** | **Obergrenze der Wiedergabe-Aufträge trotz Pause** | **3** wartend oder laufend; der vierte wird normal eingereiht (9.4) |
-| **O-8** | **Offline-Download ohne Index**: wie lange warten? | **24 h**, dann kodieren (6.8); der Download-Arbeiter liest nie selbst (I-3) |
+| **O-7** | **Rückfrage an Marco – Obergrenze der Wiedergabe-Aufträge trotz Pause.** F-3 lautet «läuft trotzdem», ohne Zahl. Eine Obergrenze legt F-3 enger aus | **3** wartend oder laufend, atomar geprüft (6.4); der vierte wird normal eingereiht und wartet auf das Fortsetzen (9.4). Schützt die Pause gegen einen Zuschauer, der viele Titel ohne Index anklickt. Ohne Obergrenze: jeder Wiedergabe-Auftrag läuft, nacheinander im Pool `index` |
+| **O-8** | **Offline-Download ohne Index**: wie lange warten? | **24 h** ab `downloads.created_at`, mit wachsendem Abstand (10 min, 30 min, dann stündlich), Zustand bleibt `queued` ohne Fehlercode; dann kodieren (6.8); der Download-Arbeiter liest nie selbst (I-3) |
 | **O-9** | **265 fehlgeschlagene `probe.keyframes`** auf CT 190, Ursache unbelegt | in Schritt 0 `jobs.last_error` auslesen; passt eine Klasse nicht in 6.3 (z. B. Zeitgrenze, NFS-Code), die Tabelle dort ergänzen. Nach dem Umbau holt sie der Nachhol-Lauf billig über die Cues |
-| **O-10** | **11 DB-Zeilen ohne Datei** unter `/srv/media` | nicht hier; als Befund an die Pflege (`unplayable`/Sweep) bzw. ein eigenes Issue |
+| **O-10** | **11 DB-Zeilen ohne Datei** unter `/srv/media` | nicht hier; als Befund an die Pflege (`unplayable`/Sweep) bzw. ein eigenes Issue. Für die Abnahme genügt ein Scan vorher, der `missing_since` setzt; dann zählen sie nicht als «ausstehend» (Schritt 8) |
 | **O-11** | **Wiedergabe-Auftrag wartet hinter einer laufenden Volllesung** (ein Arbeiter im Pool `index`) bis zu einigen Minuten | **hinnehmen**: der Start transcodiert ohnehin sofort; nur der zweite Start remuxt etwas später. Erst wenn das in der Abnahme stört: Nachhol-Volllesung zugunsten eines Wiedergabe-Auftrags anhalten (Release wie bei der Pause) |
 | **O-12** | **MP4-Leser Eigenbau oder `abema/go-mp4`** | **Eigenbau** (6.1); Rückfall auf `abema/go-mp4`, wenn die Fixtures in Schritt 2 mehr Sonderfälle zeigen, als 250 Zeilen tragen |
-| **O-13** | **0,75 × R bei 480p (2 Mbit/s) und 360p (1 Mbit/s) nicht gemessen** | in Schritt 1 messen; Jellyfins Untergrenze von 1 Mbit/s für `h264_qsv` im Blick behalten (`-b:v` wäre bei 360p 0,75 Mbit/s) und bei Bedarf dort `-b:v` = R − 1 setzen |
+| **O-13** | **0,75 × R bei 480p (2 Mbit/s), 360p (1 Mbit/s) und kleinen Profilgrenzen nicht gemessen** | Regel aus 6.9: `b = max(0,75 · R, min(R − 1 kbit/s, 1 Mbit/s))` (unter 1,33 Mbit/s nahe an R, nie gleich R, weil das CBR wäre); in Schritt 1 bei 480p und 360p messen. Zeigt die Messung, dass die UHD 630 keine Untergrenze braucht, fällt der zweite Teil weg und es gilt überall 0,75 · R |
 | **O-14** | **Datenvolumen** im WAN steigt auf QSV um den Faktor 2 bis 4 (8) | hinnehmen (Folge von F-5); Profile mit Bandbreitengrenze bleiben geschützt; in die Release-Notes |
 | **O-15** | **Überschneidung mit Konzept 11 und 13** (Streams-Seite; Gründe im Player V-15; Trickplay V-21 am Keyframe-Durchlauf) | Codes und Texte der Gründe gehören einer Stelle (Locale-Schlüssel des Players); wer zuerst baut, legt sie an. Trickplay hängt sich, falls gewählt, an den Pool `index` (ein Leser je Datei), nicht an `probe.file` |
-| **O-16** | **«Datei prüfen» setzt den Index zurück?** | **Ja** (4.2): einziger Weg, ein `none` ohne Dateiänderung neu zu rechnen; eine laufende Remux-Sitzung fängt die Rebuild-Regel ab (6.4) |
+| **O-16** | **Was setzt die Titel-Aktualisierung in der Pflege zurück?** (`metadata.Service.Refresh`, «Aktualisieren», auf der Jobseite «Datei prüfen in der Pflege»; reiht `probe.file` für jede Datei des Titels ein, bei einer Staffel für die Serie, auch für viele Titel auf einmal) | **Nur `none`** (geändert in Fassung 2, 4.2): so lässt sich eine als unmöglich markierte Datei ohne Dateiänderung neu versuchen, aber eine Metadaten-Aktualisierung leert nie einen gültigen Index, löst keine Volllesung und keinen Sitzungsabbruch aus. Fassung 1 wollte jeden Index leeren |
+| **O-17** | **Rückfrage an Marco – kein neuer Wiedergabe-Auftrag nach einem Fehlschlag.** Ist der letzte Volllese-Job einer Datei in den letzten 24 h endgültig fehlgeschlagen, reiht die Wiedergabe nicht neu ein (6.4). Auch das legt F-3 enger aus | **Ja, 24 h**: verhindert, dass wiederholte Starts einer Datei mit NAS-Fehler immer neue Volllesungen trotz Pause auslösen; der Nachhol-Lauf versucht es wieder. Ohne Sperre: jeder Start einer solchen Datei reiht einen Auftrag ein (die Idempotenz hält es bei einem gleichzeitig) |
+| **O-18** | **Rückfrage an Marco – Hörbücher und Podcast-Folgen** bleiben von den automatischen Wegen ausgenommen (wie heute in `probe.file`), auch vom Nachhol-Lauf und der Zählung; eine Podcast-Folge mit Video bekommt ihren Index nur beim ersten Abspielen, und der erste Start transcodiert | **Ja, so lassen**: Podcast-Folgen mit Video sind selten, grosse Podcast-Ordner häufig. Alternativ: Podcast-Folgen mit H.264/HEVC wie Filme behandeln (kostet beim Einlesen 0,4–1,1 s je Folge) |
+| **O-19** | **NVENC hält die Leiter nur im Mittel** (`-cq` verwirft den VBV-Puffer; Aladdin lokal 11,1 Mbit/s gleitend bei R = 8) | nicht in diesem Papier; als Befund in `docs/perf/wiedergabestart.md` vermerken und bei Bedarf eigenes Thema (z. B. `-rc vbr` mit Puffer statt `-cq`), sobald ein Profil mit Bandbreitengrenze auf NVENC klemmt |
 
 ---
 
@@ -980,7 +1194,8 @@ Siehe 8 und O-14. Die Spitze bleibt unter der Leiter; das Mittel steigt.
 ### 12.4 Hängendes NFS beim Einlesen
 
 `probe.file` wartet höchstens 10 s auf den Parser; die Goroutine bleibt bis zur Rückkehr des
-Lesezugriffs bestehen. Bei einem ganz hängenden NFS hängen ohnehin alle Leser; das ist heute nicht
+Lesezugriffs bestehen. Der Nachhol-Lauf bricht nach drei Zeitüberschreitungen in Folge ab, damit
+sich keine offenen Dateien stapeln (6.6). Bei einem ganz hängenden NFS hängen ohnehin alle Leser; das ist heute nicht
 anders.
 
 ### 12.5 Drei Konzepte fassen dieselben Dateien an
@@ -993,6 +1208,62 @@ O-1, O-15). Migration und Vertrag werden beim Baubeginn in Bau-Reihenfolge verge
 
 Die Kosten der Stichprobe (geschätzt), QSV bei 480p und 360p, VAAPI auf AMD, MakeMKV-Dateien,
 MP4 mit `moov` am Anfang (alle 12 gemessenen hatten es am Ende), Container ausser MKV und MP4.
+
+---
+
+## 13. Review
+
+### 13.1 Kritiker-Review von Fassung 1 (OMC-Critic, 1. November 2026)
+
+Urteil **REVISE, 0 Blocker, 6 Major, 22 Minor**, geprüft gegen den Code im Worktree
+`konzept-wiedergabestart-14` (`af61226` auf `5e0e63d`). Jeder Befund wurde vor dem Einarbeiten am
+Code nachgeprüft; alle trafen zu. Fassung 2 arbeitet alle ein. **Ganz widersprochen wird keinem
+Befund**; wo der Kritiker zwei Wege offenliess oder eine Massnahme vorschlug, die sich anders
+besser umsetzen lässt, steht die Abwägung in der Spalte «Einarbeitung» und ist mit **(Abwägung)**
+markiert.
+
+| Nr. | Befund (kurz) | Nachgeprüft | Einarbeitung in Fassung 2 |
+|---|---|---|---|
+| M-1 | Parser und Stichprobe in der Schreibtransaktion von `probe.file`; ein Schreiber mit `BEGIN IMMEDIATE` | `store/store.go:72`, `library/probe.go:118-179` | 2.2 neu (alles Lesende vor `BeginTx`, Transaktion schreibt nur), 6.6 (eine kurze Transaktion je Datei), Schritt 3. **(Abwägung)** Statt eines Tests «Transaktion enthält keinen Dateizugriff», der sich so nicht formulieren lässt, ein Nebenläufigkeitstest: während ein Fake-Parser blockiert, muss ein anderer Schreibzugriff gelingen |
+| M-2 | Wettlauf alter Job gegen Reset macht einen veralteten Index endgültig | `queries/system/jobs.sql:3-7`, `library/write.go:368-372` | Z-9 neu; I-1 an die Dateiversion gebunden; `SetMediaFileKeyframes` **und** `UpdateMediaFileProbe` mit `size = @size AND mtime = @mtime` (4.2); Verhalten bei 0 Zeilen je Job (2.2, 6.3); zwei Tests in Schritt 3. **(Abwägung)** size + mtime statt einer neuen Spalte `file_version`: es ist genau das Änderungskriterium des Scanners, braucht keine Spalte und keinen Zähler |
+| M-3 | Rebuild-Regel: 401/404 starten den Player nicht neu | `VideoPlayer.tsx:214-219`, `:589-606` | **Entschieden für Variante (a)**: 409 `playback_source_changed` an Playlist, `init.mp4`, `seg/{n}` (3, 5.1, 5.2) und ein automatischer Neustart über den bestehenden Wechselweg (`:715-730`), höchstens einmal (6.4, 7.4). Begründung in 6.4: der Weg existiert schon, (b) bräuchte ebenfalls Code und Client-Änderung und liesse den Zuschauer selbst neu starten. 2.5 ehrlich nachgeführt |
+| M-4 | Endlücke «≤ 5 %» verwirft «H264 MKV Long»; «Faktor ≥ 3» falsch | `testdata/generate-media.sh:224-231`, `transcode/plan.go:291-301` | Regel jetzt «≤ max(60 s, 2 × grösste innere Lücke)» (6.2), Begründung «Endlücke für den Remux harmlos»; Faktor-Aussage in 2.1 und 6.2 korrigiert; Test «e2e-Medium wird aus Cues indiziert» in Schritt 3, Byte-Fixture in Schritt 2 |
+| M-5 | «Datei prüfen» ist `metadata.Service.Refresh`; Rücksetzen leert gültige Indizes in Serie | `metadata/manage.go:158-200`, `de.json:2357` | `ResetUnavailableKeyframes` setzt **nur `none`** zurück (4.2), Name der Aktion korrigiert (2.4, 4.2, O-16), I-1 nachgeführt, Test in Schritt 3 |
+| M-6 | Abnahme «vollständig» unerreichbar; VC-1-Aussage widerspricht I-2; Podcast-/Zählregel uneinheitlich | `research/cues-messung.md:86`, `library/probe.go:165-171`, `playback/decide.go:247-260` | «Indexwürdig» in 2.1 und 4.1 definiert (vorhanden, H.264/HEVC/AV1/VP9, kein Hörbuch, keine Podcast-Folge), gleiche Bedingung für Einlesen, Nachhol-Lauf und Zählung; VC-1 als Z-10, in 4.5, 6.6 und A.1 korrigiert; Abnahme «ausstehend = 0» nach Scan und Nachhol-Lauf (Schritt 8, O-10). **(Abwägung)** Nicht remuxbare Codecs werden aus der Zählung genommen statt als `none` markiert: sie brauchen nie einen Index, und «nicht möglich» soll nur Dateien zeigen, bei denen ein Remux an der Datei scheitert. Hörbücher und Podcast-Folgen als Rückfrage O-18 |
+| m-1 | Rebuild braucht `keyframes_at` im Lesepfad | `queries/scoped/playback.sql:5-9` | 3 (Zeile Regel 2), 6.4 |
+| m-2 | ffmpeg-Kreuztest in `mediaindex` verletzt depguard | `.golangci.yml:28-34` | Kreuztest nach `internal/transcode/mediaindex_cross_test.go`, `mediaindex` nur mit Byte-Fixtures (6.1, Schritt 2) |
+| m-3 | Identitätspfad des Scanners setzt nicht zurück | `library/scanner.go:785-786` | `reset_index` in `write.go` aus size/mtime, unabhängig vom Pfad (4.2); Test in Schritt 3 |
+| m-4 | Offline-Warten unvollständig | `offline/job.go:96-125`, `api/openapi.yaml:9579` | 6.8: Zustand `queued` ohne Fehler, 24 h ab `created_at`, `GetDownloadSource` mit Quelle, wachsender Abstand. **(Abwägung)** Kein neuer Fehlercode: der Kritiker nannte ihn als Möglichkeit, er brächte eine Vertragsänderung ohne Nutzen für den Zuschauer |
+| m-5 | Zeitzone von `onceAt` im Browser fehleranfällig | – | Vertrag in Wandzeit der Server-Zone (`onceLocal`, `once.local`, `once.at`), Umrechnung im Server (4.4, 5.2, 6.7, 7.3) |
+| m-6 | `once_out_of_range` bricht das Muster | `jobs/scheduler.go:274-282` | 422 `validation_failed`, Feld `onceLocal`, Wert `out_of_range` (5.2, 7.3) |
+| m-7 | Wettlauf Termin-Feuern gegen `UpdateSchedule` | `jobs/scheduler.go:208-243` | `… WHERE once_at = @fired_once_at` und Test (6.7) |
+| m-8 | `forbidigo` auf `OverridePause:` nicht umsetzbar | `.golangci.yml:61-66` | eigene Methode `Queue.EnqueueOverridingPause`, Muster auf die Methode ausserhalb `jobs`/`library` (4.3, 6.5) |
+| m-9 | Obergrenze 3 nicht atomar | – | ein Statement mit Unterabfrage, auf der einen Schreibverbindung (6.4); Test mit vier gleichzeitigen Starts (Schritt 4) |
+| m-10 | O-7 und 24-h-Sperre engen F-3 ein | – | beide als **Rückfragen an Marco** markiert (O-7, O-17; Kopf, 3, 9.4) |
+| m-11 | Stichprobe als ein ffprobe-Aufruf; Erstimport fehlt in 8 | – | ein Aufruf mit drei Intervallen (6.2), Schätzung 0,3–1 s; Zeile «Erstimport» in 8 |
+| m-12 | Preset im CBR-Zweig unklar | `transcode/pipeline.go:392-393` | `faster` nur im HLS-Zweig, CBR Byte für Byte unverändert (6.9, Schritt 1) |
+| m-13 | I-5 ist ein Messbefund; NVENC reisst die Leiter | `research/qsv-messung.md` | I-5 als «Ziel, keine Garantie» (2.6, 6.9); NVENC-Befund in 1.4, 6.9 und O-19 |
+| m-14 | Uneinheitliche Zahlen zu «heute» | Anhang A.3 | eine Zahl aus A.3: im Mittel 1,7 Mbit/s, je Clip 0,7–3,9 (1.1, 1.4, 8) |
+| m-15 | O-13 «`-b:v` = R − 1» unverständlich | `playback/quality.go:127` | konkrete Regel `b = max(0,75 · R, min(R − 1 kbit/s, 1 Mbit/s))` mit Begründung (6.9, O-13) |
+| m-16 | Versionsstellen für 1.6.1 fehlen | `docs/dev/HANDOVER.md:122-124` | DoD von Schritt 1 ergänzt |
+| m-17 | Index-Arbeiter ohne Fehlermeldung | `cmd/slouchcat/main.go:338` | `OnFinalFailure` für `index-1` (6.3, Schritt 4) |
+| m-18 | Eingefrorener Stand zu dünn | `store/frozen_hintergrundjobs_test.go` | Stand mit allen Quellwerten, `override_pause = 1`, `once_at`, Index (4.5) |
+| m-19 | Hängendes NFS im Nachhol-Lauf | – | Abbruch nach drei Zeitüberschreitungen in Folge (6.1, 6.6, 12.4) |
+| m-20 | Falscher Konzeptverweis im Schema | – | «concept 14, F-7» (5.2) |
+| m-21 | Text von `keyframes_pending` stillschweigend geändert; `reasons`-Liste | `de.json:585`, `StreamInfo.tsx:9-23` | Änderung ausdrücklich genannt, `keyframes_unavailable` in `reasons` (7.1, Schritt 7) |
+| m-22 | Kleinigkeiten: Fuzz-Befehl, «drei Volllese-Jobs», W-3 «voraussichtlich», `StoreKeyframes` mit `DBTX`, `run_after` beim Anheben | – | Fuzz-Befehl mit Paketpfad (Schritt 2); Satz in 6.6 ersetzt; W-3 als «voraussichtlich, Schritt 8 misst» (8); `StoreKeyframes` mit `DBTX`, Quelle und Version (4.2); `run_after = min(run_after, now)` (6.4) |
+
+Vom Kritiker als in Ordnung bestätigt und unverändert: Remux-Schnitt und I-2 (`pipeline.go:164-170`,
+`:25`), die drei Stellen der Pause-Ausnahme, der neue Pool, Regeln 2 und 7, die Migration mit `ADD
+COLUMN`, die betroffenen QSV-Golden-Strings.
+
+### 13.2 Was Marco aus Fassung 2 neu entscheiden muss
+
+Drei Rückfragen, weil sie F-3 enger auslegen oder den Umfang festlegen: **O-7** (Obergrenze 3),
+**O-17** (24-h-Sperre nach Fehlschlag), **O-18** (Hörbücher und Podcast-Folgen bleiben ausgenommen).
+Geändert und zur Kenntnis: **O-13** (konkrete Regel für kleine Raten), **O-16** (nur `none` wird
+zurückgesetzt), **O-8** (Warten ohne Fehlercode, wachsender Abstand). Neu als Befund ohne
+Entscheid in diesem Papier: **O-19** (NVENC-Deckel).
 
 ---
 
@@ -1032,7 +1303,7 @@ Rohdaten und Skripte liegen bis Schritt 8 im Scratchpad der Recherche-Sitzung
 | Wandzeit kalt | Median 58 ms, P95 336 ms, Maximum 756 ms |
 | gelesen | Median 68 KB, P95 794 KB, Maximum 2,09 MB; Summe 46 MB bei 390 GB (0,012 %) |
 | Summe Wandzeit | 23,6 s (Volllesung: 2,6 h bei 42 MB/s, 3,6 h bei 30, 7,2 h bei 15) |
-| VC-1 (3 Dateien, Blob leer) | 10 271 bis 19 994 Cues, Lücke 0,584 s, brauchbar |
+| VC-1 (3 Dateien, Blob leer) | 10 271 bis 19 994 Cues, Lücke 0,584 s; plausibel, aber ffprobe meldet keine `K`-Pakete, also nicht remuxbar und nach 2.1 nicht indexwürdig (Z-10) |
 
 **Nach Muxer:** ffmpeg und HandBrake schreiben eine Cue je GOP (Lücke fest 10,0 s bzw. 10,427 s),
 mkvmerge eine je Video-Keyframe inkl. Szenenwechsel (Medianlücke 2–3 s) und zusätzlich Cues für
@@ -1123,4 +1394,13 @@ zu unterscheiden.
 | Offline | `offline/job.go:191` `planFor`, `:263-279` `keyframes`, `:336` `planFingerprint`; `offline/offline.go:55-62` |
 | Admin-Streams | `web/src/features/admin/StreamsPage.tsx:17-22`, `:75-130`; `web/src/features/player/StreamInfo.tsx:15` |
 | Vertrag | `api/openapi.yaml:4` Version, `:8351-8361` `Transcoding.reason`, `:8523` `AdminStream.reason`, `:9342` `Library`, `:11129` `JobSchedule`, `:11161` `JobScheduleUpdate`, `:11189`/`:11245` Pool-Enum |
+| Einzige Schreibverbindung | `store/store.go:72` (`_txlock=immediate`, eine Verbindung); Probe-Transaktion `library/probe.go:118`–`:179` |
+| Job-Idempotenz | `queries/system/jobs.sql:3-7` (`ON CONFLICT … WHERE state IN ('queued','running')`) |
+| Scanner-Identitätspfad | `library/scanner.go:785-786`; Reprobe-Einreihung `library/write.go:368-372` |
+| Titel-Aktualisierung | `metadata/manage.go:158-200` `Service.Refresh` (Einreihen von `probe.file` `:193`) |
+| Remux-Codecs | `playback/decide.go:247-260` `directVideo` |
+| Player-Fehlerwege | `web/src/features/player/VideoPlayer.tsx:214-219` `onRevoked`, `:589-606` Fehler-Handler, `:715-730` `leaveSession`/`switchPlayback` |
+| Sitzungsbeginn | `migrations/00005_playback_sessions.sql:22` `started_at` |
+| Offline-Zustände | `migrations/00013_offline.sql:40-41`, `:55`; `api/openapi.yaml:9579` `error` |
+| Index-Arbeiter und Meldung | `cmd/slouchcat/main.go:338` `OnFinalFailure` |
 | Tests heute | `transcode/pipeline_test.go:57`, `:59`, `:122-125`; `transcode/download_test.go:48-60`; `playback/sessions_test.go:572`, `:610`; `web/e2e/hls.spec.ts:52`; `testdata/generate-media.sh:212-231` |
