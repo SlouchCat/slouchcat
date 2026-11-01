@@ -542,17 +542,18 @@ eigener Commit, `task ci` grün.
 | Datum | Seite | Wunsch | Umsetzung |
 |---|---|---|---|
 | 1. November 2026 | Metadaten (A, B, C) | «Ich möchte das mit den Sprachen bei Metadaten als Dropdown oder anders gelöst. Mir gefällt das mit dem Hin-und-her-Schieben nicht.» Interview: **feste Plätze**, auch für die Bildsprachen. | Je Rang eine Auswahl («1. Sprache», «2. Sprache» …); die Reihenfolge ergibt sich aus dem Platz. Wählt man eine Sprache, die schon auf einem anderen Platz steht, tauschen die beiden die Plätze (Hinweis darunter). «Weitere Sprache» fügt einen Platz an, «×» entfernt ihn. Bildsprachen gleich, mit «Ohne Text» als Eintrag. Die Regeln aus MET-2 (Standard braucht Deutsch, Bibliothek Deutsch oder Englisch) bleiben. **Marco: «Ja, besser so.»** |
+| 1. November 2026 | Integrationen (A) | «Jedoch sollen die Titel klarer unterscheidbar sein. Jeder Block sollte klarer sein.» | Jeder Abschnitt (Schlüssel, Webhooks, E-Mail, Telegram, Web-Push, Server) ist ein eigenes Feld (`surface-1`, Rahmen, Radius 10) mit Kopfband in der Profilfarbe zu 12 %, Symbol und Titel 16 px; 20 px Abstand zwischen den Feldern. Für den Bau: dieselbe Band-Technik wie die Gruppentitel der Verwaltungsleiste (Konzept 11, F-9), ohne neue Farb-Tokens. |
 
 ### 10.3 Wahl je Seite
 
 | Seite | Wahl | Datum |
 |---|---|---|
-| Hintergrundjobs | offen (Pilot; Format der klickbaren Mockups am 1. November 2026 angenommen) | |
+| Hintergrundjobs | **C «Reiter und Klappbereiche»** (Reiter je Jobgruppe und «Fehlschläge», Jobarten als Klappbereiche) | 1. November 2026 |
 | Metadaten | **B «Liste und Detail»** (Liste der Einstellungsbereiche, Geltung im Kopf), mit Sprachen als feste Plätze (10.2); «Sonst soweit eigentlich gut» | 1. November 2026 |
-| Integrationen | offen | |
-| Bibliotheken | offen | |
-| Pflege | offen | |
-| Titel (Unterseite von Pflege) | offen | |
+| Integrationen | **A «Kompakte Liste»**, jeder Block als eigenes Feld mit getöntem Kopfband (10.2) | 1. November 2026 |
+| Bibliotheken | **C «Reiter und Klappbereiche»** (Reiter nach Art, je Bibliothek ein Klappbereich) | 1. November 2026 |
+| Pflege | **C «Reiter und Klappbereiche»** (Reiter je Problemart, je Bibliothek ein Klappbereich) | 1. November 2026 |
+| Titel (Unterseite von Pflege) | **C «Reiter und Klappbereiche»** (Reiter Metadaten, Bilder, Dateien, Trailer) | 1. November 2026 |
 
 **Abweichungen der Vorschläge vom Grundmuster (Phase 2a):**
 

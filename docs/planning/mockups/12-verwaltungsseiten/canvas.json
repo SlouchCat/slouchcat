@@ -12,7 +12,7 @@
  "boards": {
   "Main.dc.html": {
    "x": 0,
-   "y": 13260,
+   "y": 13520,
    "w": 1440,
    "h": 2370,
    "title": "A · Hintergrundjobs",
@@ -20,7 +20,7 @@
   },
   "A-Integrationen.dc.html": {
    "x": 1520,
-   "y": 13260,
+   "y": 13520,
    "w": 1440,
    "h": 2370,
    "title": "A · Integrationen",
@@ -28,7 +28,7 @@
   },
   "A-Konten.dc.html": {
    "x": 3040,
-   "y": 13260,
+   "y": 13520,
    "w": 1440,
    "h": 1310,
    "title": "A · Konten",
@@ -36,7 +36,7 @@
   },
   "B-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 16350,
+   "y": 16610,
    "w": 1440,
    "h": 1710,
    "title": "B · Hintergrundjobs",
@@ -44,7 +44,7 @@
   },
   "B-Integrationen.dc.html": {
    "x": 1520,
-   "y": 16350,
+   "y": 16610,
    "w": 1440,
    "h": 1500,
    "title": "B · Integrationen",
@@ -52,7 +52,7 @@
   },
   "B-Konten.dc.html": {
    "x": 3040,
-   "y": 16350,
+   "y": 16610,
    "w": 1440,
    "h": 1300,
    "title": "B · Konten",
@@ -60,7 +60,7 @@
   },
   "C-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 18780,
+   "y": 19040,
    "w": 1440,
    "h": 1810,
    "title": "C · Hintergrundjobs",
@@ -68,7 +68,7 @@
   },
   "C-Integrationen.dc.html": {
    "x": 1520,
-   "y": 18780,
+   "y": 19040,
    "w": 1440,
    "h": 1530,
    "title": "C · Integrationen",
@@ -76,7 +76,7 @@
   },
   "C-Konten.dc.html": {
    "x": 3040,
-   "y": 18780,
+   "y": 19040,
    "w": 1440,
    "h": 1430,
    "title": "C · Konten",
@@ -140,7 +140,7 @@
    "x": 0,
    "y": 4850,
    "w": 1440,
-   "h": 2260,
+   "h": 2520,
    "title": "A · Kompakte Liste",
    "expand": "fill",
    "is_interactive": true
@@ -165,7 +165,7 @@
   },
   "Bib-A.dc.html": {
    "x": 0,
-   "y": 7830,
+   "y": 8090,
    "w": 1440,
    "h": 910,
    "title": "A · Kompakte Liste",
@@ -174,7 +174,7 @@
   },
   "Bib-B.dc.html": {
    "x": 1520,
-   "y": 7830,
+   "y": 8090,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -183,7 +183,7 @@
   },
   "Bib-C.dc.html": {
    "x": 3040,
-   "y": 7830,
+   "y": 8090,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -192,7 +192,7 @@
   },
   "Pfl-A.dc.html": {
    "x": 0,
-   "y": 9460,
+   "y": 9720,
    "w": 1440,
    "h": 910,
    "title": "A · Kompakte Liste",
@@ -201,7 +201,7 @@
   },
   "Pfl-B.dc.html": {
    "x": 1520,
-   "y": 9460,
+   "y": 9720,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -210,7 +210,7 @@
   },
   "Pfl-C.dc.html": {
    "x": 3040,
-   "y": 9460,
+   "y": 9720,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -219,7 +219,7 @@
   },
   "Tit-A.dc.html": {
    "x": 0,
-   "y": 11090,
+   "y": 11350,
    "w": 1440,
    "h": 1450,
    "title": "A · Kompakte Liste",
@@ -228,7 +228,7 @@
   },
   "Tit-B.dc.html": {
    "x": 1520,
-   "y": 11090,
+   "y": 11350,
    "w": 1440,
    "h": 910,
    "title": "B · Liste und Detail",
@@ -237,7 +237,7 @@
   },
   "Tit-C.dc.html": {
    "x": 3040,
-   "y": 11090,
+   "y": 11350,
    "w": 1440,
    "h": 910,
    "title": "C · Reiter und Klappbereiche",
@@ -298,42 +298,42 @@
   },
   "row3": {
    "x": 0,
-   "y": 7530,
+   "y": 7790,
    "text": "Bibliotheken",
    "kind": "title1",
    "maxW": 4480
   },
   "row4": {
    "x": 0,
-   "y": 9160,
+   "y": 9420,
    "text": "Pflege",
    "kind": "title1",
    "maxW": 4480
   },
   "row5": {
    "x": 0,
-   "y": 10790,
+   "y": 11050,
    "text": "Titel (Unterseite von Pflege)",
    "kind": "title1",
    "maxW": 4480
   },
   "row6": {
    "x": 0,
-   "y": 12960,
+   "y": 13220,
    "text": "Grundmuster A (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row7": {
    "x": 0,
-   "y": 16050,
+   "y": 16310,
    "text": "Grundmuster B (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row8": {
    "x": 0,
-   "y": 18480,
+   "y": 18740,
    "text": "Grundmuster C (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
