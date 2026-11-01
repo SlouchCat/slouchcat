@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import row from './DashRow.module.css';
 import { PosterFallback } from './PosterFallback';
 import { ProgressBar } from './ProgressBar';
 import styles from './StreamRow.module.css';
@@ -32,7 +33,7 @@ export function StreamRow({
 }: StreamRowProps) {
   const { t } = useTranslation();
   return (
-    <div className={styles.row}>
+    <div className={row.row}>
       <span className={styles.poster}>
         {posterUrl ? (
           <img
@@ -49,13 +50,13 @@ export function StreamRow({
           <PosterFallback />
         )}
       </span>
-      <span className={styles.text}>
-        <span className={styles.title}>{title}</span>
-        <span className={styles.line}>{[profile, device].join(t('format.separator'))}</span>
-        <span className={styles.line}>{mode}</span>
-        <span className={styles.progress}>
+      <span className={row.text}>
+        <span className={row.title}>{title}</span>
+        <span className={row.line}>{[profile, device].join(t('format.separator'))}</span>
+        <span className={row.line}>{mode}</span>
+        <span className={row.progress}>
           <ProgressBar value={progress} label={progressLabel} />
-          {progressText && <span className={styles.figure}>{progressText}</span>}
+          {progressText && <span className={row.figure}>{progressText}</span>}
         </span>
       </span>
     </div>

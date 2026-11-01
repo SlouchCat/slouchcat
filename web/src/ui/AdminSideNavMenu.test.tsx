@@ -66,6 +66,19 @@ describe('admin sheet on a phone (concept 11, 11.1)', () => {
     expect(trigger()).toHaveFocus();
   });
 
+  it('closes when Enter follows an entry and returns the focus to the button', async () => {
+    const user = userEvent.setup();
+    render(<AdminSideNavMenu {...props} />);
+    await user.tab();
+    await user.keyboard('{Enter}');
+    const dialog = await screen.findByRole('dialog');
+    await user.keyboard('{ArrowDown}');
+    expect(within(dialog).getByRole('link', { name: 'Pflege' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(trigger()).toHaveFocus();
+  });
+
   it('closes with its close button and after following an entry, focus back on the button', async () => {
     const user = userEvent.setup();
     render(<AdminSideNavMenu {...props} />);

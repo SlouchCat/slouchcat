@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
+import styles from './DashRow.module.css';
 import { ProgressBar } from './ProgressBar';
-import styles from './TaskRow.module.css';
 
 interface TaskRowProps {
   /** The job type's name ("Keyframe-Index"). */
@@ -29,14 +29,16 @@ export function TaskRow({
   const { t } = useTranslation();
   return (
     <div className={styles.row}>
-      <span className={styles.title}>
-        {subject ? [type, subject].join(t('format.separator')) : type}
+      <span className={styles.text}>
+        <span className={styles.title}>
+          {subject ? [type, subject].join(t('format.separator')) : type}
+        </span>
+        <span className={styles.progress}>
+          <ProgressBar value={progress} label={progressLabel} />
+          {progressText && <span className={styles.figure}>{progressText}</span>}
+        </span>
+        {remaining && <span className={styles.line}>{remaining}</span>}
       </span>
-      <span className={styles.progress}>
-        <ProgressBar value={progress} label={progressLabel} />
-        {progressText && <span className={styles.figure}>{progressText}</span>}
-      </span>
-      {remaining && <span className={styles.note}>{remaining}</span>}
     </div>
   );
 }

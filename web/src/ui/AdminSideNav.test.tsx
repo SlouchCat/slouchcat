@@ -5,7 +5,7 @@ import { accentNames, tokens, type AccentName } from '@slouchcat/design-tokens';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { AdminSideNav, type AdminSideNavProps } from './AdminSideNav';
+import { AdminSideNav, type AdminSideNavEntry, type AdminSideNavProps } from './AdminSideNav';
 import { LinkRouterProvider } from './AppLink';
 
 const props = (overrides: Partial<AdminSideNavProps> = {}): AdminSideNavProps => ({
@@ -147,6 +147,24 @@ describe('admin sidebar (concept 11, 11.6)', () => {
     expect(focusCarry.current).toBeNull();
   });
 
+  it('scrolls the current entry into view in the column', () => {
+    const scroll = vi.spyOn(Element.prototype, 'scrollIntoView');
+    render(<AdminSideNav {...props()} />);
+    expect(scroll).toHaveBeenCalledOnce();
+    expect(scroll.mock.contexts[0]).toBe(screen.getByRole('link', { name: /^Pflege/ }));
+    expect(scroll).toHaveBeenCalledWith({ block: 'nearest' });
+    scroll.mockRestore();
+  });
+
+  it('requires a spoken name for a number, pill or badge (type check)', () => {
+    const entry = (value: AdminSideNavEntry) => value;
+    // @ts-expect-error A count without accessibleLabel would vanish for screen readers.
+    entry({ href: '/a', label: 'A', icon: 'grid', count: '3' });
+    // @ts-expect-error The same for an alarm pill.
+    entry({ href: '/a', label: 'A', icon: 'grid', alarm: { value: '3', tone: 'danger' } });
+    expect(entry({ href: '/a', label: 'A', icon: 'grid' }).label).toBe('A');
+  });
+
   it('puts the Tab stop on the first entry when no page is current', () => {
     render(<AdminSideNav {...props({ groups: [] })} />);
     expect(screen.getByRole('link', { name: 'Zurück zur App' })).toHaveAttribute('tabindex', '0');
@@ -183,40 +201,54 @@ const tint = (accent: readonly number[], percent: number, ground: readonly numbe
 // Vitest hands CSS modules over as class names, so the stylesheet is read from disk.
 const css = readFileSync(join(import.meta.dirname, 'AdminSideNav.module.css'), 'utf8');
 
-/** The band's tint as the stylesheet defines it. */
-const BAND_TINT = Number(
-  /--sc-band-tint:\s*color-mix\(in srgb, var\(--sc-accent\) (\d+)%, transparent\)/.exec(css)?.[1],
-);
+/** A tint as the stylesheet defines it: `<variable>: color-mix(in srgb, var(<tone>) p%, …)`. */
+const tintOf = (variable: string, tone: string) =>
+  Number(
+    new RegExp(
+      `${variable}:\\s*color-mix\\(in srgb, var\\(${tone}\\) (\\d+)%, transparent\\)`,
+    ).exec(css)?.[1],
+  );
 
-/** The lighter tint concept 12 will need. */
-const SUBTLE_TINT = 12;
+const BAND_TINT = tintOf('--sc-band-tint', '--sc-accent');
+const PILL_TINT = tintOf('--sc-pill-tint', '--sc-pill-tone');
 
 /**
- * Accents whose own colour is too weak on its band: the band takes text-primary for them. None
- * today (lowest: ember, 5.04:1 at 16 %); a new or changed accent that drops below 4.5:1 fails
- * here and has to be added to this list and to the band's rule.
+ * Accents whose own colour is too weak on its band: the band would take text-primary for them.
+ * None today (lowest: ember, 5.04:1 at 16 %). Adding an accent here is not enough on its own: CSS
+ * only sees `--sc-accent`, not its name, so the band also needs a hook for it (e.g. a
+ * `data-accent` attribute set by the session); otherwise the UI does not change.
  */
 const PRIMARY_TEXT: readonly AccentName[] = [];
 
 const MIN_RATIO = 4.5;
 
-describe('band contrast for every profile accent (F-9)', () => {
-  it('reads the tint from the stylesheet', () => {
+const ground = channels(tokens.color.bg.elevated);
+
+/** Text in `tone` on `tone` at `percent` over the column (bg-elevated). */
+const cases: [string, readonly number[], readonly number[], number][] = [
+  ...accentNames.map((name): [string, number[], number[], number] => {
+    const accent = channels(tokens.color.accent[name].base);
+    const text = PRIMARY_TEXT.includes(name) ? channels(tokens.color.text.primary) : accent;
+    return [`band ${name}`, text, accent, BAND_TINT];
+  }),
+  ...accentNames.map((name): [string, number[], number[], number] => {
+    const accent = channels(tokens.color.accent[name].base);
+    return [`accent pill ${name}`, accent, accent, PILL_TINT];
+  }),
+  ...(['warning', 'danger'] as const).map((tone): [string, number[], number[], number] => {
+    const colour = channels(tokens.color.state[tone]);
+    return [`${tone} pill`, colour, colour, PILL_TINT];
+  }),
+];
+
+describe('band and pill contrast for every profile accent (F-9, F-7)', () => {
+  it('reads the tints from the stylesheet', () => {
     expect(BAND_TINT).toBe(16);
+    expect(PILL_TINT).toBe(16);
   });
 
-  it.each([BAND_TINT, SUBTLE_TINT])(
-    'band text at %i %% over bg-elevated meets 4.5:1',
-    (percent) => {
-      const ground = channels(tokens.color.bg.elevated);
-      const rows = accentNames.map((name) => {
-        const accent = channels(tokens.color.accent[name].base);
-        const band = tint(accent, percent, ground);
-        const text = PRIMARY_TEXT.includes(name) ? channels(tokens.color.text.primary) : accent;
-        return { name, ratio: Number(contrast(text, band).toFixed(2)) };
-      });
-      expect(rows).toHaveLength(8);
-      expect(rows.filter((row) => row.ratio < MIN_RATIO)).toEqual([]);
-    },
-  );
+  it.each(cases)('%s meets 4.5:1 over bg-elevated', (_, text, tone, percent) => {
+    const ratio = contrast(text, tint(tone, percent, ground));
+    expect(ratio, `${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(MIN_RATIO);
+  });
 });

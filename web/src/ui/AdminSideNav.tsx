@@ -14,24 +14,40 @@ import { Icon, type IconName } from './Icon';
 /** Colour of an alarm pill (F-7): open cases, running streams, failed jobs, silent webhooks. */
 export type AdminSideNavTone = 'warning' | 'accent' | 'danger';
 
-export interface AdminSideNavEntry {
+interface AdminSideNavLink {
   href: string;
   label: string;
   icon: IconName;
   current?: boolean;
-  /** Muted number at the end of the entry ("2.318", "3 / 8"), formatted by the page. */
-  count?: string;
-  /** Coloured pill at the end instead of the count. */
-  alarm?: { value: string; tone: AdminSideNavTone };
-  /** Small badge after the name ("Update"); `accessibleLabel` names it. */
-  badge?: string;
-  /**
-   * Accessible name when the entry says more than `label`: the spelled-out number, pill or badge
-   * ("Pflege, 12 Titel brauchen Pflege"). On screen the number stays short and is hidden from
-   * screen readers.
-   */
-  accessibleLabel?: string;
 }
+
+/**
+ * One entry of the sidebar. On screen a number, pill or badge stays short and is hidden from
+ * screen readers, so `accessibleLabel` is required as soon as one of the three is set.
+ */
+export type AdminSideNavEntry = AdminSideNavLink &
+  (
+    | {
+        count?: undefined;
+        alarm?: undefined;
+        badge?: undefined;
+        /** Accessible name when it says more than `label`. */
+        accessibleLabel?: string;
+      }
+    | {
+        /** Muted number at the end of the entry ("2.318", "3 / 8"), formatted by the page. */
+        count?: string;
+        /** Coloured pill at the end instead of the count. */
+        alarm?: { value: string; tone: AdminSideNavTone };
+        /** Small badge after the name ("Update"). */
+        badge?: string;
+        /**
+         * The spoken name with the spelled-out number, pill or badge ("Pflege, 12 Titel brauchen
+         * Pflege").
+         */
+        accessibleLabel: string;
+      }
+  );
 
 export interface AdminSideNavGroup {
   /** Shown in the band above the group's entries ("Bibliothek"). */
@@ -55,8 +71,10 @@ export interface AdminSideNavProps {
 }
 
 interface AdminSideNavContentProps extends AdminSideNavProps {
-  /** The rendering's own layout: the column or the sheet's list. */
+  /** Extra layout of the rendering: the column's; the sheet adds none. */
   className?: string;
+  /** Scrolls the current page's entry into view (the column, which scrolls on its own). */
+  revealCurrent?: boolean;
 }
 
 function EntryContent({ entry }: { entry: AdminSideNavEntry }) {
@@ -100,6 +118,7 @@ export function AdminSideNavContent({
   // A name ending in Ref tells the React compiler that writing `.current` is fine.
   focusCarry: focusCarryRef,
   className,
+  revealCurrent = false,
 }: AdminSideNavContentProps) {
   const id = useId();
   const entries = [...top, ...groups.flatMap((group) => group.entries)];
@@ -107,10 +126,8 @@ export function AdminSideNavContent({
     (_, index) =>
       top.length + groups.slice(0, index).reduce((sum, group) => sum + group.entries.length, 0),
   );
-  const current = Math.max(
-    0,
-    entries.findIndex((entry) => entry.current),
-  );
+  const currentIndex = entries.findIndex((entry) => entry.current);
+  const current = Math.max(0, currentIndex);
   const [focused, setFocused] = useState<number | null>(null);
   const refs = useRef<(HTMLAnchorElement | null)[]>([]);
   const navRef = useRef<HTMLElement>(null);
@@ -134,6 +151,13 @@ export function AdminSideNavContent({
       if (index >= 0) focusCarryRef.current = index;
     };
   }, [focusCarryRef]);
+
+  // On mount and whenever the page changes: the current entry may sit below the column's fold.
+  useLayoutEffect(() => {
+    if (revealCurrent && currentIndex >= 0) {
+      refs.current[currentIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [revealCurrent, currentIndex]);
 
   const move = (to: number) => {
     const next = (to + entries.length) % entries.length;
@@ -175,7 +199,12 @@ export function AdminSideNavContent({
   );
 
   return (
-    <nav ref={navRef} aria-label={label} className={className} onBlur={onBlur}>
+    <nav
+      ref={navRef}
+      aria-label={label}
+      className={className ? `${styles.nav} ${className}` : styles.nav}
+      onBlur={onBlur}
+    >
       <ul className={styles.list}>{top.map((entry, index) => link(entry, index, styles.entry))}</ul>
       {groups.map((group, groupIndex) => {
         const bandId = `${id}-${groupIndex}`;
@@ -207,5 +236,5 @@ export function AdminSideNavContent({
  * props.
  */
 export function AdminSideNav(props: AdminSideNavProps) {
-  return <AdminSideNavContent {...props} className={`${styles.nav} ${styles.column}`} />;
+  return <AdminSideNavContent {...props} className={styles.column} revealCurrent />;
 }

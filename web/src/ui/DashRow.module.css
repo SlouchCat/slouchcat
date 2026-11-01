@@ -1,11 +1,20 @@
+/* The rows inside the overview's cards (TaskRow, StreamRow): a quiet surface with lines of text. */
 .row {
   display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
+  gap: var(--sc-space-3);
+  align-items: center;
   min-width: 0;
   padding: var(--sc-space-3);
   border-radius: var(--sc-radius-lg);
   background-color: var(--sc-color-surface-1);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .title {
@@ -16,10 +25,19 @@
   white-space: nowrap;
 }
 
+.line {
+  overflow: hidden;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .progress {
   display: flex;
   gap: var(--sc-space-3);
   align-items: center;
+  margin-block: var(--sc-space-1);
 }
 
 .figure {
@@ -29,13 +47,5 @@
   font-size: var(--sc-font-size-xs);
   font-variant-numeric: tabular-nums;
   text-align: right;
-  white-space: nowrap;
-}
-
-.note {
-  overflow: hidden;
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-  text-overflow: ellipsis;
   white-space: nowrap;
 }

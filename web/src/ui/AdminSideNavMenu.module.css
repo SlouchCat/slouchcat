@@ -1,4 +1,7 @@
-/* The button at the top of an admin page on a phone: "Verwaltung · page", full width. */
+/*
+ * The button at the top of an admin page on a phone: "Verwaltung · page", full width. The sheet it
+ * opens takes the drawer's styles from SideNav.module.css.
+ */
 .trigger {
   display: flex;
   gap: var(--sc-space-3);
@@ -39,70 +42,4 @@
   font-weight: var(--sc-font-weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* The sheet: a panel from the left over a scrim, like the app's drawer (SideNav.module.css). */
-.scrim {
-  position: fixed;
-  z-index: var(--sc-z-modal);
-  inset: 0;
-  background-color: var(--sc-color-bg-overlay);
-}
-
-.scrim[data-entering] {
-  animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
-}
-
-.sheet {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  display: flex;
-  width: min(82vw, 20rem);
-  background-color: var(--sc-color-bg-elevated);
-}
-
-.sheet[data-entering] {
-  animation: slide var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
-}
-
-.dialog {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  outline: none;
-}
-
-.body {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  min-width: 0;
-  overflow-y: auto;
-  padding: var(--sc-space-3) var(--sc-space-3) var(--sc-space-6);
-}
-
-.head {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.nav {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-}
-
-@keyframes fade {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes slide {
-  from {
-    transform: translateX(-100%);
-  }
 }

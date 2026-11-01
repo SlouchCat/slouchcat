@@ -13,7 +13,7 @@ export interface ActivityEntry {
   /** Relative time as shown ("vor 5 min"). */
   time: string;
   /** The moment as ISO 8601, for the <time> element. */
-  dateTime?: string;
+  dateTime: string;
 }
 
 interface ActivityFeedProps {

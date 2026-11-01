@@ -66,7 +66,9 @@ export const adminSideNavArgs: AdminSideNavProps = {
 };
 
 /** Numbers after F-7: few muted counts, coloured pills for what needs a look. */
-const numbers: Record<string, Partial<AdminSideNavEntry>> = {
+type Numbers = Pick<AdminSideNavEntry, 'count' | 'alarm' | 'badge'> & { accessibleLabel: string };
+
+const numbers: Record<string, Numbers> = {
   '#admin': { badge: 'Update', accessibleLabel: 'Übersicht, Update auf Version 1.7.0 verfügbar' },
   '#libraries': { count: '2.318', accessibleLabel: 'Bibliotheken, 2.318 Titel' },
   '#maintenance': {
@@ -85,11 +87,11 @@ const numbers: Record<string, Partial<AdminSideNavEntry>> = {
   },
 };
 
-const withNumbers = (entry: AdminSideNavEntry): AdminSideNavEntry => ({
-  ...entry,
-  ...numbers[entry.href],
-  current: entry.href === '#libraries',
-});
+const withNumbers = (entry: AdminSideNavEntry): AdminSideNavEntry => {
+  const current = entry.href === '#libraries';
+  const extra = numbers[entry.href];
+  return extra ? { ...entry, ...extra, current } : { ...entry, current };
+};
 
 const meta = {
   title: 'UI/AdminSideNav',

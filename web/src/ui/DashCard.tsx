@@ -11,6 +11,8 @@ interface DashCardProps {
   count?: string;
   /** Spoken form of the number ("3 Hinweise"); without it the number is read as shown. */
   countLabel?: string;
+  /** Announces a changed number (role="status"), e.g. the number of notices on the overview. */
+  countLive?: boolean;
   /** The card's way on: a link or buttons, at the bottom of the card. */
   footer?: ReactNode;
   children: ReactNode;
@@ -21,7 +23,15 @@ interface DashCardProps {
  * so the cards of a row are equally high. Head with icon, title and an optional number; the footer
  * sits at the bottom whatever the body's height.
  */
-export function DashCard({ icon, title, count, countLabel, footer, children }: DashCardProps) {
+export function DashCard({
+  icon,
+  title,
+  count,
+  countLabel,
+  countLive = false,
+  footer,
+  children,
+}: DashCardProps) {
   const id = useId();
   return (
     <Panel as="section" aria-labelledby={id}>
@@ -33,7 +43,7 @@ export function DashCard({ icon, title, count, countLabel, footer, children }: D
           {title}
         </h2>
         {count !== undefined && (
-          <span className={styles.count}>
+          <span className={styles.count} role={countLive ? 'status' : undefined}>
             <span aria-hidden={countLabel ? true : undefined}>{count}</span>
             {countLabel && <VisuallyHidden>{countLabel}</VisuallyHidden>}
           </span>

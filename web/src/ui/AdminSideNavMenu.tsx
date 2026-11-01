@@ -5,8 +5,9 @@ import { AdminSideNavContent, type AdminSideNavProps } from './AdminSideNav';
 import styles from './AdminSideNavMenu.module.css';
 import { Button } from './Button';
 import { Icon } from './Icon';
+import sheet from './SideNav.module.css';
 
-export interface AdminSideNavMenuProps extends AdminSideNavProps {
+export interface AdminSideNavMenuProps extends Omit<AdminSideNavProps, 'focusCarry'> {
   /** First part of the button ("Verwaltung"). */
   buttonLabel: string;
   /** The current page's name after it ("Bibliotheken"). */
@@ -18,9 +19,10 @@ export interface AdminSideNavMenuProps extends AdminSideNavProps {
 
 /**
  * The administration's sidebar on a phone (concept 11, 11.1): a button "Verwaltung · page" that
- * opens the same entries as a modal sheet from the left, built like SideNavDrawer. While it is open
- * the focus stays inside (react-aria), Escape, the close button and a press on the scrim close it,
- * and the focus returns to the button. Following an entry closes it as well.
+ * opens the same entries as a modal sheet from the left, built like SideNavDrawer and with its
+ * styles. While it is open the focus stays inside (react-aria), Escape, the close button and a
+ * press on the scrim close it, and the focus returns to the button. Following an entry closes it
+ * as well. Only the column carries the focus over between pages (`focusCarry`), not the sheet.
  */
 export function AdminSideNavMenu({
   buttonLabel,
@@ -76,13 +78,13 @@ export function AdminSideNavMenu({
         </span>
         <Icon name="chevronDown" />
       </button>
-      <ModalOverlay className={styles.scrim} isOpen={open} isDismissable onOpenChange={setOpen}>
-        <Modal className={styles.sheet}>
-          <Dialog id={id} className={styles.dialog} aria-label={menuLabel}>
+      <ModalOverlay className={sheet.scrim} isOpen={open} isDismissable onOpenChange={setOpen}>
+        <Modal className={sheet.drawer}>
+          <Dialog id={id} className={sheet.dialog} aria-label={menuLabel}>
             {/* Clicks only bubble up from the links, which keep their own keyboard handling. */}
             {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-            <div ref={focusTabStop} className={styles.body} onClick={closeOnFollow}>
-              <div className={styles.head}>
+            <div ref={focusTabStop} className={sheet.drawerBody} onClick={closeOnFollow}>
+              <div className={sheet.drawerHead}>
                 <Button
                   variant="ghost"
                   icon="close"
@@ -91,7 +93,7 @@ export function AdminSideNavMenu({
                   onPress={() => setOpen(false)}
                 />
               </div>
-              <AdminSideNavContent {...props} className={styles.nav} />
+              <AdminSideNavContent {...props} />
             </div>
           </Dialog>
         </Modal>
