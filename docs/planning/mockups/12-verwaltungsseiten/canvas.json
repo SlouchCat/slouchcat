@@ -12,7 +12,7 @@
  "boards": {
   "Main.dc.html": {
    "x": 0,
-   "y": 24930,
+   "y": 26560,
    "w": 1440,
    "h": 2370,
    "title": "A · Hintergrundjobs",
@@ -20,7 +20,7 @@
   },
   "A-Integrationen.dc.html": {
    "x": 1520,
-   "y": 24930,
+   "y": 26560,
    "w": 1440,
    "h": 2370,
    "title": "A · Integrationen",
@@ -28,7 +28,7 @@
   },
   "A-Konten.dc.html": {
    "x": 3040,
-   "y": 24930,
+   "y": 26560,
    "w": 1440,
    "h": 1310,
    "title": "A · Konten",
@@ -36,7 +36,7 @@
   },
   "B-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 28020,
+   "y": 29650,
    "w": 1440,
    "h": 1710,
    "title": "B · Hintergrundjobs",
@@ -44,7 +44,7 @@
   },
   "B-Integrationen.dc.html": {
    "x": 1520,
-   "y": 28020,
+   "y": 29650,
    "w": 1440,
    "h": 1500,
    "title": "B · Integrationen",
@@ -52,7 +52,7 @@
   },
   "B-Konten.dc.html": {
    "x": 3040,
-   "y": 28020,
+   "y": 29650,
    "w": 1440,
    "h": 1300,
    "title": "B · Konten",
@@ -60,7 +60,7 @@
   },
   "C-Hintergrundjobs.dc.html": {
    "x": 0,
-   "y": 30450,
+   "y": 32080,
    "w": 1440,
    "h": 1810,
    "title": "C · Hintergrundjobs",
@@ -68,7 +68,7 @@
   },
   "C-Integrationen.dc.html": {
    "x": 1520,
-   "y": 30450,
+   "y": 32080,
    "w": 1440,
    "h": 1530,
    "title": "C · Integrationen",
@@ -76,7 +76,7 @@
   },
   "C-Konten.dc.html": {
    "x": 3040,
-   "y": 30450,
+   "y": 32080,
    "w": 1440,
    "h": 1430,
    "title": "C · Konten",
@@ -332,7 +332,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 21670
+   "y": 23300
   },
   "Str-B.dc.html": {
    "w": 1440,
@@ -341,7 +341,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 21670
+   "y": 23300
   },
   "Str-C.dc.html": {
    "w": 1440,
@@ -350,7 +350,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 21670
+   "y": 23300
   },
   "Pod-A.dc.html": {
    "w": 1440,
@@ -359,7 +359,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 23300
+   "y": 24930
   },
   "Pod-B.dc.html": {
    "w": 1440,
@@ -368,7 +368,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 23300
+   "y": 24930
   },
   "Pod-C.dc.html": {
    "w": 1440,
@@ -377,7 +377,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 23300
+   "y": 24930
   },
   "Str-D.dc.html": {
    "w": 1440,
@@ -386,7 +386,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
-   "y": 20040
+   "y": 21670
   },
   "Str-E.dc.html": {
    "w": 1440,
@@ -395,7 +395,7 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 1520,
-   "y": 20040
+   "y": 21670
   },
   "Str-F.dc.html": {
    "w": 1440,
@@ -404,12 +404,21 @@
    "expand": "fill",
    "is_interactive": true,
    "x": 3040,
-   "y": 20040
+   "y": 21670
   },
   "Str-A2.dc.html": {
    "w": 1440,
    "h": 910,
    "title": "A · mit Serverlast",
+   "expand": "fill",
+   "is_interactive": true,
+   "x": 0,
+   "y": 20040
+  },
+  "Str-D2.dc.html": {
+   "w": 1440,
+   "h": 910,
+   "title": "D · Kacheln mit Serverlast",
    "expand": "fill",
    "is_interactive": true,
    "x": 0,
@@ -444,6 +453,7 @@
   "Ger-A.dc.html",
   "Ger-B.dc.html",
   "Ger-C.dc.html",
+  "Str-D2.dc.html",
   "Str-A2.dc.html",
   "Str-D.dc.html",
   "Str-E.dc.html",
@@ -531,48 +541,55 @@
   "row10": {
    "x": 0,
    "y": 18110,
-   "text": "Streams · gewählt: A mit Serverlast aus E",
+   "text": "Streams · gewählt: D mit Serverlast aus E",
    "kind": "title1",
    "maxW": 4480
   },
   "row11": {
    "x": 0,
    "y": 19740,
-   "text": "Streams · neue Vorschläge D, E, F",
+   "text": "Streams · A mit Serverlast (verworfen)",
    "kind": "title1",
    "maxW": 4480
   },
   "row12": {
    "x": 0,
    "y": 21370,
-   "text": "Streams (erste Runde A, B, C)",
+   "text": "Streams · neue Vorschläge D, E, F",
    "kind": "title1",
    "maxW": 4480
   },
   "row13": {
    "x": 0,
    "y": 23000,
-   "text": "Podcasts · gewählt: C",
+   "text": "Streams (erste Runde A, B, C)",
    "kind": "title1",
    "maxW": 4480
   },
   "row14": {
    "x": 0,
    "y": 24630,
-   "text": "Grundmuster A (alt, nicht klickbar)",
+   "text": "Podcasts · gewählt: C",
    "kind": "title1",
    "maxW": 4480
   },
   "row15": {
    "x": 0,
-   "y": 27720,
-   "text": "Grundmuster B (alt, nicht klickbar)",
+   "y": 26260,
+   "text": "Grundmuster A (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
   },
   "row16": {
    "x": 0,
-   "y": 30150,
+   "y": 29350,
+   "text": "Grundmuster B (alt, nicht klickbar)",
+   "kind": "title1",
+   "maxW": 4480
+  },
+  "row17": {
+   "x": 0,
+   "y": 31780,
    "text": "Grundmuster C (alt, nicht klickbar)",
    "kind": "title1",
    "maxW": 4480
