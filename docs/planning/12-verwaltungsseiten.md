@@ -480,7 +480,7 @@ Phase 1  Grundmuster: 3 Varianten an 3 Seiten (statisch)  → erledigt, kein glo
 Phase 2  Je Seite 3 klickbare Vorschläge (A, B, C)       → Wahl und Änderungswünsche je Seite
          Pilot  Hintergrundjobs (Format angenommen)
          2a  Metadaten, Integrationen, Bibliotheken, Pflege (+ Titel)   → veröffentlicht
-         2b  Konten, Profile, Geräte, Streams, Podcasts
+         2b  Konten, Profile, Geräte, Streams, Podcasts                   → veröffentlicht
          2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen
          2d  Benachrichtigungen, Statistik, Sicherung
 Phase 3  Fassung «Bauplan»: Schritte, Tests, Frage 18, ggf. ADR 0020; OMC-Kritiker
@@ -555,6 +555,11 @@ eigener Commit, `task ci` grün.
 | Bibliotheken | **C «Reiter und Klappbereiche»** (Reiter nach Art, je Bibliothek ein Klappbereich) | 1. November 2026 |
 | Pflege | **C «Reiter und Klappbereiche»** (Reiter je Problemart, je Bibliothek ein Klappbereich) | 1. November 2026 |
 | Titel (Unterseite von Pflege) | **C «Reiter und Klappbereiche»** (Reiter Metadaten, Bilder, Dateien, Trailer) | 1. November 2026 |
+| Konten | offen | |
+| Profile | offen (Mockup in Verwaltungsdichte; beim Bau gilt S-1: App-Seitenleiste, heutige Dichte) | |
+| Geräte | offen | |
+| Streams | offen | |
+| Podcasts | offen | |
 
 **Abweichungen der Vorschläge vom Grundmuster (Phase 2a):**
 
@@ -567,6 +572,16 @@ eigener Commit, `task ci` grün.
 - Pflege C: im Reiter je **Bibliothek** ein Klappbereich (heute nicht gruppiert).
 - Titel B: die Bildwahl steht im Detail statt in einem Dialog.
 - Bezeichnungen folgen `de.json` (zum Beispiel «Erneut scannen», «Bereinigen», «Aktualisieren»).
+
+**Phase 2b** (Marcos Rückmeldungen aus 2a von Anfang an eingebaut: Blöcke als eigene Felder mit
+Kopfband und Auf-/Zuklappen, Auswahl statt Verschieben):
+
+- Geräte C: Reiter «Geräte» und «Fähigkeiten» teilen die breite Tabelle; je Gerätetyp ein
+  Klappbereich.
+- Streams C: Zustandsleiste und Reiter je Modus (Direct, Remux, Transcode), je Stream ein
+  Klappbereich. Die Positionen laufen im Mockup alle 5 s weiter, pausiert bei offener Rückfrage.
+- Podcasts B: «Feed abonnieren» öffnet im Detail statt als Dialog; C hat Reiter je Bibliothek.
+- Profile: Schauzeit über 30 Tage und PIN mit 4 bis 8 Ziffern wie im Code.
 
 ## 11. Review-Protokoll
 
