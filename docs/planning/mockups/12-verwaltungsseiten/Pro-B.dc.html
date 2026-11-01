@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Profile · B Liste und Detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0b0c10;color:#f3f3f5;font:14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;color-scheme:dark}
+a{color:#e8794a}a:hover{color:#f3f3f5}
+:focus-visible{outline:2px solid #e8794a;outline-offset:2px}
+button,input,select{font:inherit;color:inherit}
+summary{list-style:none;cursor:pointer}summary::-webkit-details-marker{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.b{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;box-sizing:border-box;border-radius:6px;border:1px solid rgba(255,255,255,0.08);background:#1d2029;color:#f3f3f5;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;flex:none}
+.b:hover{background:#262a35}.b:disabled{opacity:.45;cursor:default}
+.bp{background:#e8794a;border-color:#e8794a;color:#1c0d06;font-weight:600}.bp:hover{background:#f08a5d}
+.bs{height:28px;padding:0 10px}.bi{width:32px;padding:0}.bs.bi{width:28px}
+.bg{background:transparent;border-color:transparent;color:#b6b9c4}.dz{color:#f2777a}
+.in{height:32px;box-sizing:border-box;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:#0b0c10;color:#f3f3f5;font-size:14px;min-width:0}
+.c{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;box-sizing:border-box;border-radius:11px;background:#262a35;color:#b6b9c4;font-size:12px;font-weight:500;white-space:nowrap;flex:none}
+.cs{background:color-mix(in srgb, #5fcf8f 14%, transparent);color:#5fcf8f}.cw{background:color-mix(in srgb, #e8b65a 14%, transparent);color:#e8b65a}
+.cd{background:color-mix(in srgb, #f2777a 14%, transparent);color:#f2777a}.ca{background:color-mix(in srgb, #e8794a 16%, transparent);color:#e8794a}
+.d{display:inline-block;width:8px;height:8px;border-radius:4px;flex:none}
+.n{display:flex;align-items:center;gap:10px;height:32px;padding:0 12px 0 24px;color:#b6b9c4;text-decoration:none;font-size:14px}
+.n:hover{background:#1d2029;color:#f3f3f5}.n[aria-current="page"]{background:#262a35;color:#f3f3f5;box-shadow:inset 3px 0 0 #e8794a}
+.i{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.co{background:transparent;border:1px solid rgba(255,255,255,0.14)}
+.tm{font-size:12px;color:#9095a3}.tx{font-size:13px;color:#b6b9c4}
+.tr{display:grid;align-items:center;min-height:40px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.tr>*{padding:0 12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th{min-height:32px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3}
+.tr>.ov{overflow:visible;position:relative;display:flex;justify-content:flex-end;gap:6px}
+.mi{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 8px;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:13px;text-align:left;cursor:pointer}.mi:hover{background:#262a35}
+.li{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:6px 10px;box-sizing:border-box;border:none;border-radius:6px;background:transparent;color:#f3f3f5;font-size:14px;text-align:left;cursor:pointer}.li:hover{background:#1d2029}
+.av{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:14px;font-size:13px;font-weight:700;flex:none}
+.hb{display:flex;align-items:center;gap:10px;padding:0;border:none;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}
+.fl{display:flex;flex-direction:column;gap:4px;min-width:0}.fl>label,.lg{font-size:13px;color:#b6b9c4;padding:0}
+.rl{display:inline-flex;align-items:center;gap:6px;height:28px;font-size:14px;cursor:pointer}
+.er{margin:0;font-size:12px;color:#f2777a}
+input[type=checkbox],input[type=radio]{accent-color:#e8794a;margin:0;width:16px;height:16px}
+input:disabled+span{opacity:.45}
+fieldset{border:none;margin:0;padding:0;min-width:0}
+dl{margin:0}dt{font-size:12px;color:#9095a3}dd{margin:2px 0 0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</helmet>
+<div style="position:relative;min-height:910px;background:#0b0c10;color:#f3f3f5">
+<header style="display:flex;align-items:center;gap:12px;height:56px;padding:0 16px;box-sizing:border-box;background:#0b0c10;border-bottom:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bi bg" aria-label="Menü öffnen"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#f3f3f5;text-decoration:none;font-size:17px;font-weight:700"><span aria-hidden="true" style="display:grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#e8794a;color:#1c0d06;font-size:13px;font-weight:800">S</span>Slouchcat</a>
+<div style="flex:1;display:flex;justify-content:center"><div style="position:relative;width:100%;max-width:440px"><span style="position:absolute;left:10px;top:8px;color:#9095a3;display:flex"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></span><input class="in" type="search" aria-label="Suchen" placeholder="Filme, Serien und Personen suchen" style="width:100%;padding-left:34px;background:#16181f"></div></div>
+<button type="button" class="b bi bg" aria-label="Mitteilungen"><svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></button><button type="button" aria-label="Profil Marco" style="width:32px;height:32px;border-radius:16px;border:none;background:#e8794a;color:#1c0d06;font-size:14px;font-weight:700;cursor:pointer">M</button></header>
+<div style="display:grid;grid-template-columns:240px minmax(0,1fr)">
+<nav aria-label="Verwaltung" style="background:#13151b;border-right:1px solid rgba(255,255,255,0.08);padding:12px 0 24px">
+<ul style="list-style:none;margin:0;padding:0"><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg><span>Zurück zur App</span></a></li><li><a href="#" class="n" style="padding-left:12px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Übersicht</span></a></li></ul>
+<p id="g-Bibliothek" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>Bibliothek</p>
+<ul aria-labelledby="g-Bibliothek" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Bibliotheken</span><span style="margin-left:auto;font-size:12px;color:#9095a3">1'284<span class="sr"> Titel</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></svg><span>Podcasts</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg><span>Pflege</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8b65a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">12<span class="sr"> Titel brauchen Pflege</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span>Metadaten</span></a></li></ul>
+<p id="g-Konten" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/></svg>Konten</p>
+<ul aria-labelledby="g-Konten" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Konten</span><span style="margin-left:auto;font-size:12px;color:#9095a3">4<span class="sr"> Konten</span></span></a></li><li><a href="#" class="n" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><span>Profile</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span>Geräte</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M7 4l13 8-13 8z"/></svg><span>Streams</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#e8794a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">2<span class="sr"> Streams laufen</span></span></a></li></ul>
+<p id="g-Kuratierung" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17v4M17 19h4"/></svg>Kuratierung</p>
+<ul aria-labelledby="g-Kuratierung" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3l-5.5 2.9 1-6.2L3 9.6l6.2-.9z"/></svg><span>Spotlight</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/></svg><span>Cat's Empfehlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M12 2 2 7l10 5 10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg><span>Sammlungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/></svg><span>Startseitenreihen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/></svg><span>Ankündigungen</span></a></li></ul>
+<p id="g-System" style="display:flex;align-items:center;gap:8px;height:28px;margin:12px 0 4px;padding:0 12px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#e8794a;background:color-mix(in srgb, #e8794a 16%, transparent)"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01M6 17h.01"/></svg>System</p>
+<ul aria-labelledby="g-System" style="list-style:none;margin:0;padding:0"><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg><span>Hintergrundjobs</span><span style="margin-left:auto;min-width:18px;height:18px;padding:0 6px;box-sizing:border-box;border-radius:9px;background:#f2777a;color:#1c0d06;font-size:12px;font-weight:700;line-height:18px;text-align:center">265<span class="sr"> Jobs fehlgeschlagen</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M9 2v6M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0z"/><path d="M12 18v4"/></svg><span>Integrationen</span><span style="margin-left:auto;font-size:12px;color:#9095a3">5 / 8<span class="sr"> eingerichtet</span></span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Benachrichtigungen</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg><span>Statistik</span></a></li><li><a href="#" class="n"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9"/><path d="M10 13h4"/></svg><span>Sicherung</span></a></li></ul>
+</nav>
+<main style="min-width:0;max-width:1200px;box-sizing:border-box;padding:24px 32px">
+<div style="display:flex;align-items:center;gap:12px;height:32px"><h1 style="margin:0;font-size:24px;line-height:32px;font-weight:600">Profile</h1>
+<button type="button" class="b bi bg" aria-label="Hilfe zu dieser Seite" aria-expanded="{{ helpAria }}" onClick="{{ toggleHelp }}" style="width:24px;height:24px;border-radius:12px;color:#9095a3"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></button><span style="flex:1"></span><sc-if value="{{ isPrimary }}" hint-placeholder-val="{{ true }}"><button type="button" class="b bp" onClick="{{ add }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M12 5v14M5 12h14"/></svg>Profil hinzufügen</button></sc-if></div>
+<sc-if value="{{ helpOpen }}" hint-placeholder-val="{{ false }}"><p style="margin:8px 0 0;max-width:720px;font-size:13px;color:#b6b9c4">Jede Person im Haushalt bekommt ein eigenes Profil mit Altersfreigabe, Sprache, Farbe und Bibliotheken.</p></sc-if>
+<sc-if value="{{ isPrimary }}" hint-placeholder-val="{{ true }}"><div style="margin-top:20px;display:grid;grid-template-columns:260px minmax(0,1fr);gap:16px;align-items:start"><nav aria-label="Profile dieses Kontos" style="display:flex;flex-direction:column;gap:2px;padding:8px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px">
+<p style="display:flex;align-items:center;justify-content:space-between;height:28px;margin:0;padding:0 10px;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9095a3">Profile<span>{{ count }}</span></p>
+<sc-for list="{{ items }}" as="p" hint-placeholder-count="4"><button type="button" class="li" aria-current="{{ p.cur }}" onClick="{{ p.pick }}" style="{{ p.style }}"><span class="av" aria-hidden="true" style="{{ p.avStyle }}">{{ p.initial }}</span><span style="display:flex;flex-direction:column;flex:1;min-width:0"><span style="font-weight:500">{{ p.name }}</span><span style="font-size:12px;color:#9095a3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.meta }}</span></span>
+<sc-if value="{{ p.dirty }}" hint-placeholder-val="{{ false }}"><span class="c cw" style="height:18px;padding:0 6px">Geändert</span></sc-if></button></sc-for></nav><section aria-label="{{ detailLabel }}" style="min-width:0;padding:0 16px 16px;background:#16181f;border:1px solid rgba(255,255,255,0.08);border-radius:10px"><sc-if value="{{ viewing }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:10px;height:48px;margin:0 -16px;padding:0 16px;border-radius:9px 9px 0 0;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><span class="av" aria-hidden="true" style="{{ d.avStyle }}">{{ d.initial }}</span><h2 id="pd-{{ d.id }}" style="margin:0;font-size:16px;font-weight:600">{{ d.name }}</h2><sc-if value="{{ d.isPrimary }}" hint-placeholder-val="{{ false }}"><span class="c ca">Hauptprofil</span></sc-if><span style="flex:1"></span>
+<button type="button" class="b bs" aria-describedby="pd-{{ d.id }}" onClick="{{ d.edit }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Bearbeiten</button><button type="button" class="b bs" aria-describedby="pd-{{ d.id }}" onClick="{{ d.setPin }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M16 7l3 3"/></svg>{{ d.pinLabel }}</button><sc-if value="{{ d.hasMenu }}" hint-placeholder-val="{{ true }}"><span style="position:relative;display:inline-flex"><button type="button" class="b bs bi" aria-haspopup="menu" aria-expanded="{{ d.menuAria }}" aria-label="Weitere Aktionen für {{ d.name }}" onClick="{{ d.toggleMenu }}" style="{{ d.moreStyle }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><circle cx="5" cy="12" r="1.5" style="fill:currentColor;stroke:none"/><circle cx="12" cy="12" r="1.5" style="fill:currentColor;stroke:none"/><circle cx="19" cy="12" r="1.5" style="fill:currentColor;stroke:none"/></svg></button>
+<sc-if value="{{ d.menuOpen }}" hint-placeholder-val="{{ false }}"><div role="menu" aria-label="Weitere Aktionen für {{ d.name }}" style="{{ d.menuStyle }}">
+<sc-if value="{{ d.hasPin }}" hint-placeholder-val="{{ true }}"><button type="button" role="menuitem" class="mi" onClick="{{ d.removePin }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>PIN entfernen …</button></sc-if>
+<sc-if value="{{ d.canDelete }}" hint-placeholder-val="{{ true }}"><div role="separator" style="{{ d.sepStyle }}"></div><button type="button" role="menuitem" class="mi" style="color:#f2777a" onClick="{{ d.del }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>Löschen …</button></sc-if></div></sc-if></span></sc-if></div>
+<div style="padding:16px 0"><dl style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 16px"><sc-for list="{{ d.facts }}" as="x" hint-placeholder-count="7"><div style="min-width:0"><dt>{{ x.k }}</dt><dd title="{{ x.v }}"><sc-if value="{{ x.dot }}" hint-placeholder-val="{{ false }}"><span style="{{ x.dot }}"></span></sc-if>{{ x.v }}</dd></div></sc-for></dl></div>
+<div style="display:flex;align-items:center;gap:10px;height:40px;border-top:1px solid rgba(255,255,255,0.08)"><span style="display:flex;color:#e8794a"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span><h3 id="{{ d.rep.hid }}" style="margin:0;font-size:14px;font-weight:600">{{ d.rep.title }}</h3><span style="flex:1"></span>
+<button type="button" class="b bs bg" aria-expanded="{{ d.repAria }}" onClick="{{ d.toggleReport }}"><span style="{{ d.repChev }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="m9 6 6 6-6 6"/></svg></span>{{ d.repLabel }}</button></div>
+<sc-if value="{{ d.repOpen }}" hint-placeholder-val="{{ true }}"><div style="padding:4px 0 4px"><section aria-labelledby="{{ d.rep.hid }}" style="display:flex;flex-direction:column;gap:8px;min-width:0"><div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap"><span class="tm">Minuten pro Tag in den letzten 30 Tagen.</span>
+<sc-for list="{{ d.rep.facts }}" as="x" hint-placeholder-count="3"><span style="font-size:13px;font-variant-numeric:tabular-nums">{{ x.t }}</span></sc-for></div>
+<div role="img" aria-label="{{ d.rep.aria }}" style="position:relative;display:grid;grid-template-columns:repeat(30,minmax(0,1fr));align-items:end;gap:3px;height:112px;padding-right:56px;border-bottom:1px solid rgba(255,255,255,0.14)">
+<sc-for list="{{ d.rep.bars }}" as="b" hint-placeholder-count="30"><span title="{{ b.tip }}" style="{{ b.style }}"></span></sc-for>
+<sc-if value="{{ d.rep.hasLimit }}" hint-placeholder-val="{{ true }}"><span style="{{ d.rep.line }}"></span><span style="{{ d.rep.lineLabel }}">{{ d.rep.limitText }}</span></sc-if></div>
+<div aria-hidden="true" style="display:grid;grid-template-columns:repeat(30,minmax(0,1fr));gap:3px;padding-right:56px;margin-top:-4px"><sc-for list="{{ d.rep.bars }}" as="b" hint-placeholder-count="30"><span style="font-size:11px;color:#9095a3;white-space:nowrap;overflow:visible">{{ b.tick }}</span></sc-for></div></section></div></sc-if></sc-if><sc-if value="{{ editing }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;height:48px;margin:0 -16px;padding:0 16px;border-radius:9px 9px 0 0;background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid rgba(255,255,255,0.08)"><span class="av" aria-hidden="true" style="{{ editAv }}">{{ editInitial }}</span><h2 style="margin:0;font-size:16px;font-weight:600">{{ f.title }}</h2><span style="flex:1"></span><span class="tm">Ungespeichertes bleibt beim Wechsel des Profils erhalten.</span></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px 0"><sc-if value="{{ f.hasErr }}" hint-placeholder-val="{{ false }}"><p role="alert" style="margin:0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb, #f2777a 12%, transparent);font-size:13px;color:#f2777a">Bitte prüfe die markierten Felder.</p></sc-if><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start"><div style="display:flex;flex-direction:column;gap:14px;min-width:0"><div class="fl"><label for="pf-name">Name</label><input class="in" id="pf-name" type="text" value="{{ f.name }}" onChange="{{ f.setName }}" style="width:100%" maxlength="60" autocomplete="off"><sc-if value="{{ f.eNameOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ f.eName }}</p></sc-if></div><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Altersfreigabe</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.ratings }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-rating" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div><span class="tm">{{ f.ratingHint }}</span></fieldset><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Sprache</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.langs }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-lang" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div></fieldset><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Sprache der Beschreibungen</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.metas }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-meta" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div><span class="tm">Titel, Beschreibungen und Genres; die Oberfläche folgt der Sprache oben.</span></fieldset><div class="fl"><span class="lg" id="pf-acc">Farbe</span><div role="radiogroup" aria-labelledby="pf-acc" style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ f.accents }}" as="a" hint-placeholder-count="8"><button type="button" role="radio" aria-checked="{{ a.checkedA }}" aria-label="{{ a.label }}" title="{{ a.label }}" onClick="{{ a.pick }}" style="{{ a.style }}"><sc-if value="{{ a.checked }}" hint-placeholder-val="{{ false }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M20 6 9 17l-5-5"/></svg></sc-if></button></sc-for></div></div></div>
+<div style="display:flex;flex-direction:column;gap:14px;min-width:0"><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Bibliotheken</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.libModes }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-libmode" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div></fieldset><sc-if value="{{ f.some }}" hint-placeholder-val="{{ true }}"><fieldset class="fl" style="margin-top:-8px"><legend class="lg" style="margin-bottom:2px">Bibliotheken wählen</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.libs }}" as="l" hint-placeholder-count="3"><label class="rl"><input type="checkbox" checked="{{ l.checked }}" onChange="{{ l.pick }}"><span>{{ l.label }}</span></label></sc-for></div>
+<sc-if value="{{ f.eLibsOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ f.eLibs }}</p></sc-if></fieldset></sc-if>
+<fieldset style="display:flex;flex-direction:column;gap:12px;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:8px"><legend style="padding:0 6px;font-size:13px;font-weight:600;color:#f3f3f5">Wiedergabe-Limits</legend><fieldset class="fl"><legend class="lg" style="margin-bottom:2px">Höchste Qualität</legend><div style="display:flex;gap:4px 16px;flex-wrap:wrap"><sc-for list="{{ f.heights }}" as="o" hint-placeholder-count="3"><label class="rl"><input type="radio" name="pf-h" checked="{{ o.checked }}" disabled="{{ o.dis }}" onChange="{{ o.pick }}"><span>{{ o.label }}</span></label></sc-for></div></fieldset><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:2px 12px;align-items:center"><label for="pf-br" style="font-size:13px;color:#b6b9c4">Bandbreite (kbit/s)</label><input class="in" id="pf-br" type="text" inputmode="numeric" value="{{ f.br }}" onChange="{{ f.setBr }}">
+<span class="tm" style="grid-column:1 / -1">200 bis 200.000. Leer heisst ohne Limit.</span><sc-if value="{{ f.eBrOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert" style="grid-column:1 / -1">{{ f.eBr }}</p></sc-if></div><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:2px 12px;align-items:center"><label for="pf-st" style="font-size:13px;color:#b6b9c4">Gleichzeitige Streams</label><input class="in" id="pf-st" type="text" inputmode="numeric" value="{{ f.st }}" onChange="{{ f.setSt }}">
+<span class="tm" style="grid-column:1 / -1">1 bis 16. Leer heisst ohne Limit.</span><sc-if value="{{ f.eStOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert" style="grid-column:1 / -1">{{ f.eSt }}</p></sc-if></div><div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:2px 12px;align-items:center"><label for="pf-w" style="font-size:13px;color:#b6b9c4">Schauzeit pro Tag (Minuten)</label><input class="in" id="pf-w" type="text" inputmode="numeric" value="{{ f.w }}" onChange="{{ f.setW }}">
+<span class="tm" style="grid-column:1 / -1">1 bis 1.440. Leer heisst ohne Limit.</span><sc-if value="{{ f.eWOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert" style="grid-column:1 / -1">{{ f.eW }}</p></sc-if></div><sc-if value="{{ f.capped }}" hint-placeholder-val="{{ false }}"><p style="margin:0;padding:8px 12px;border-radius:8px;background:#1d2029;font-size:13px;color:#b6b9c4">{{ f.cappedText }}</p></sc-if></fieldset>
+<sc-if value="{{ f.isNew }}" hint-placeholder-val="{{ true }}"><div class="fl"><label for="pf-pin">PIN (optional)</label><input class="in" id="pf-pin" type="password" value="{{ f.pin }}" onChange="{{ f.setPin }}" style="width:160px" inputmode="numeric" maxlength="8" autocomplete="one-time-code"><span class="tm">4 bis 8 Ziffern. Ohne die PIN lässt sich das Profil nicht öffnen.</span><sc-if value="{{ f.ePinOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ f.ePin }}</p></sc-if></div></sc-if></div></div></div><div style="display:flex;justify-content:flex-end;gap:8px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bg" onClick="{{ f.cancel }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ f.save }}">{{ f.saveLabel }}</button></div></sc-if></section></div></sc-if>
+<sc-if value="{{ notPrimary }}" hint-placeholder-val="{{ false }}"><div role="note" style="margin-top:24px;display:flex;align-items:flex-start;gap:12px;max-width:760px;padding:14px 16px;border-radius:10px;background:#16181f;border:1px solid rgba(255,255,255,0.08)">
+<span style="display:flex;color:#e8794a;padding-top:2px"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg></span><div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:0"><h2 style="margin:0;font-size:15px;font-weight:600">Nur im Hauptprofil</h2><p style="margin:0;font-size:13px;color:#b6b9c4">Profile verwaltest du im Hauptprofil dieses Kontos. Wechsle dorthin, um Profile anzulegen oder zu ändern.</p></div>
+<a href="#" class="b" onClick="{{ toPicker }}" style="text-decoration:none">Profil wechseln</a></div></sc-if>
+<div style="margin-top:32px;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px dashed rgba(255,255,255,0.14);border-radius:8px;font-size:12px;color:#9095a3"><span>Nur im Mockup, Beispiel wechseln:</span>
+<div role="tablist" aria-label="Beispiel" style="display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:#0b0c10;border:1px solid rgba(255,255,255,0.08)"><sc-for list="{{ exs }}" as="x" hint-placeholder-count="3"><button type="button" role="tab" aria-selected="{{ x.sel }}" onClick="{{ x.pick }}" style="{{ x.style }}">{{ x.label }}</button></sc-for></div></div>
+</main>
+</div>
+<sc-if value="{{ pn.open }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:20"><div onClick="{{ pn.close }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="dialog" aria-modal="true" aria-label="{{ pn.title }}" style="{{ pn.box }}"><div style="display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 8px 0 16px;border-bottom:1px solid rgba(255,255,255,0.08)"><h2 style="margin:0;font-size:15px;font-weight:600">{{ pn.title }}</h2><button type="button" class="b bi bg" aria-label="Schliessen" onClick="{{ pn.close }}"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:16px;min-width:0"><div class="fl"><label for="pin-new">Neue PIN</label><input class="in" id="pin-new" type="password" value="{{ pn.val }}" onChange="{{ pn.set }}" style="width:160px" inputmode="numeric" maxlength="8" autocomplete="one-time-code"><span class="tm">4 bis 8 Ziffern. Ohne die PIN lässt sich das Profil nicht öffnen.</span><sc-if value="{{ pn.errOn }}" hint-placeholder-val="{{ false }}"><p class="er" role="alert">{{ pn.err }}</p></sc-if></div></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b bg" onClick="{{ pn.close }}">Abbrechen</button><button type="button" class="b bp" onClick="{{ pn.save }}">PIN speichern</button></div></section></div></sc-if>
+<sc-if value="{{ menuAny }}" hint-placeholder-val="{{ false }}"><div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:5"></div></sc-if>
+<sc-if value="{{ hasConfirm }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;z-index:30"><div onClick="{{ closeConfirm }}" style="position:absolute;inset:0;background:rgba(0,0,0,0.55)"></div>
+<section role="alertdialog" aria-modal="true" aria-label="{{ cTitle }}" style="{{ confirmStyle }}"><div style="display:flex;flex-direction:column;gap:8px;padding:16px"><h2 style="margin:0;font-size:15px;font-weight:600">{{ cTitle }}</h2><p style="margin:0;font-size:13px;color:#b6b9c4">{{ cText }}</p></div>
+<div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08)"><button type="button" class="b" onClick="{{ closeConfirm }}">Abbrechen</button><button type="button" class="b" style="{{ cOkStyle }}" onClick="{{ confirmOk }}">{{ cOk }}</button></div></section></div></sc-if>
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="{{ toastStyle }}"><span style="display:flex;color:#5fcf8f"><svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" class="i"><path d="M20 6 9 17l-5-5"/></svg></span>{{ toast }}</div></sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":910}}'>
+const INIT = { sel: 3, reports: { 3: true } };
+const INLINE = true;
+const MENU_PIN = false;
+const MENU = () => 'position:absolute;right:0;top:34px;z-index:6;width:220px;padding:4px;box-sizing:border-box;background:#1d2029;border:1px solid rgba(255,255,255,0.14);border-radius:8px;box-shadow:0 16px 40px rgba(0,0,0,0.55);text-align:left;white-space:normal';
+// Profile (/settings/profiles): data, form, PIN, report, chips, confirm, toast. The variant (PRE) defines INIT, INLINE and MENU
+// before this; its renderVals() follows after it.
+const COL = { ac: '#e8794a', tp: '#f3f3f5', ts: '#b6b9c4', tm: '#9095a3', da: '#f2777a', wa: '#e8b65a', su: '#5fcf8f', bg: '#0b0c10', el: '#13151b', s1: '#16181f', s2: '#1d2029', s3: '#262a35', oa: '#1c0d06', bd: 'rgba(255,255,255,0.08)', bd2: 'rgba(255,255,255,0.14)' };
+// The 8 profile colours (accent tokens): name, label (de.json accent.*), base, on.
+const ACCENTS = [['ember', 'Glut', '#e8794a', '#1c0d06'], ['coral', 'Koralle', '#f0857a', '#1f0b09'], ['amber', 'Bernstein', '#e3b24f', '#1d1404'], ['lime', 'Limette', '#a3d465', '#111a06'],
+  ['teal', 'Türkis', '#45c2b1', '#04191a'], ['sky', 'Himmel', '#62aef0', '#06121f'], ['violet', 'Violett', '#a993f5', '#120c24'], ['rose', 'Rosa', '#ec77a3', '#1f0812']];
+const ACC = {}; ACCENTS.forEach((a) => { ACC[a[0]] = a; });
+const LIBS = [{ id: 1, name: 'Filme' }, { id: 2, name: 'Serien' }, { id: 3, name: 'Kinder' }];
+const UI_LANG = { de: 'Deutsch', en: 'English' };
+// Metadata languages the server offers (ADR 0018), named in the interface language (Intl.DisplayNames).
+const META_LANGS = ['de', 'en', 'fr', 'it'];
+const LANG_NAME = { de: { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', it: 'Italienisch' }, en: { de: 'German', en: 'English', fr: 'French', it: 'Italian' } };
+const RATINGS = [0, 6, 12, 16, 18];
+const HEIGHTS = ['360', '480', '720', '1080'];
+const lim = (w) => ({ h: '', br: '', st: '', w: w || '' });
+// Minutes per day, 3 Oct to 1 Nov 2026 (today, a Sunday).
+const PROFILES = [
+  { id: 1, name: 'Marco', primary: true, accent: 'ember', rating: 18, lang: 'de', meta: '', pin: false, all: true, libs: [], lim: lim(),
+    mins: [140, 155, 45, 0, 60, 95, 30, 120, 150, 0, 75, 40, 55, 90, 160, 110, 35, 60, 0, 80, 45, 130, 145, 50, 70, 0, 65, 40, 150, 85] },
+  { id: 2, name: 'Kino', primary: false, accent: 'violet', rating: 16, lang: 'de', meta: 'en', pin: true, all: true, libs: [], lim: lim(),
+    mins: [175, 0, 0, 0, 0, 0, 128, 182, 96, 0, 0, 0, 0, 141, 0, 168, 0, 0, 0, 0, 0, 190, 0, 0, 0, 0, 0, 122, 176, 0] },
+  { id: 3, name: 'Lea', primary: false, accent: 'teal', rating: 12, lang: 'de', meta: '', pin: false, all: false, libs: [1, 3], lim: lim('120'),
+    mins: [120, 110, 45, 60, 35, 75, 90, 120, 95, 50, 40, 65, 30, 85, 120, 120, 55, 45, 70, 60, 95, 105, 120, 40, 35, 50, 65, 80, 120, 45] },
+  { id: 4, name: 'Nino', primary: false, accent: 'sky', rating: 6, lang: 'de', meta: '', pin: true, all: false, libs: [3], lim: lim(),
+    mins: [55, 60, 20, 25, 0, 30, 35, 60, 45, 25, 20, 30, 0, 40, 55, 60, 30, 15, 25, 20, 35, 60, 50, 20, 25, 0, 30, 35, 60, 30] },
+];
+// Mockup-only examples (bottom switch): the account's ceiling, and PRO-0 (a profile other than the primary one is active).
+const EXAMPLES = [{ label: 'Hauptprofil', max: 18, h: '' }, { label: 'Konto begrenzt (FSK 16, 720p)', max: 16, h: '720' }, { label: 'Anderes Profil aktiv', max: 18, h: '' }];
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const pad = (n) => (n < 10 ? '0' : '') + n;
+const dayOf = (i) => new Date(Date.UTC(2026, 9, 3) + i * 864e5);
+const longDay = (i) => { const d = dayOf(i); return pad(d.getUTCDate()) + '.' + pad(d.getUTCMonth() + 1) + '.' + d.getUTCFullYear(); };
+const shortDay = (i) => { const d = dayOf(i); return d.getUTCDate() + '.' + (d.getUTCMonth() + 1) + '.'; };
+const boxStyle = (y, w) => 'position:absolute;left:calc(50% + 120px);transform:translateX(-50%);top:' + y + 'px;width:' + w + 'px;max-width:calc(100% - 300px);display:flex;flex-direction:column;background:#16181f;border:1px solid rgba(255,255,255,0.14);border-radius:10px;box-shadow:0 24px 48px rgba(0,0,0,0.5);z-index:2';
+const tabStyle = (s) => 'display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 12px;border:none;background:none;font-size:14px;cursor:pointer;color:' + (s ? COL.tp : COL.ts) + ';font-weight:' + (s ? 600 : 500) + ';box-shadow:' + (s ? 'inset 0 -2px 0 ' + COL.ac : 'none');
+const chev = (o) => 'display:flex;color:' + COL.tm + ';transition:transform .15s;transform:rotate(' + (o ? 90 : 0) + 'deg)';
+const band = 'background:color-mix(in srgb, #e8794a 12%, transparent);border-bottom:1px solid ' + COL.bd;
+const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+const num = (v, min, max) => v === '' || (/^\d+$/.test(v) && +v >= min && +v <= max);
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = Object.assign({ help: false, toast: null, confirm: null, menu: null, profiles: clone(PROFILES), nextId: 5, ex: 0,
+      form: null, drafts: {}, sel: 1, prevSel: 1, pin: null, reports: {}, open: {}, tab: 0, secOpen: true }, clone(INIT));
+  }
+  componentWillUnmount() { clearTimeout(this._t); }
+  say(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: '(Mockup) ' + msg, confirm: null, menu: null });
+    this._t = setTimeout(() => this.setState({ toast: null }), 2000);
+  }
+  // o: { title, text, ok, danger, run }; run() changes the state and returns the toast text.
+  ask(o) { this.setState({ confirm: o, menu: null }); }
+  flip(key, id) { this.setState({ [key]: Object.assign({}, this.state[key], { [id]: !this.state[key][id] }) }); }
+  setProfile(id, p) { this.setState({ profiles: this.state.profiles.map((x) => (x.id === id ? Object.assign({}, x, p) : x)) }); }
+  acct() { return EXAMPLES[this.state.ex]; }
+
+  // ---- facts of a profile (PRO-2), as ProfileSettingsPage.tsx:146-177 shows them
+  effective(p) {
+    const a = this.acct(); const l = Object.assign({}, p.lim);
+    if (a.h && (!l.h || +l.h > +a.h)) l.h = a.h;
+    return l;
+  }
+  limitParts(l) {
+    const out = [];
+    if (l.h) out.push('bis ' + l.h + 'p');
+    if (l.br) out.push(l.br + ' kbit/s');
+    if (l.st) out.push(l.st + (l.st === '1' ? ' Stream' : ' Streams'));
+    if (l.w) out.push(l.w + ' min pro Tag');
+    return out;
+  }
+  ratingText(p) { const m = this.acct().max; return p.rating > m ? 'FSK ' + p.rating + ' · Konto höchstens FSK ' + m : 'FSK ' + p.rating; }
+  libText(p) { return p.all ? 'Alle Bibliotheken' : p.libs.length ? p.libs.map((id) => LIBS.find((l) => l.id === id).name).join(', ') : 'Keine Bibliothek'; }
+  metaText(p) { return p.meta ? LANG_NAME[p.lang][p.meta] : 'Wie Oberfläche'; }
+  chipsOf(p) {
+    const out = [];
+    const above = p.rating > this.acct().max;
+    out.push({ label: this.ratingText(p), cls: 'c co' + (above ? ' cw' : ''), lock: false });
+    out.push({ label: UI_LANG[p.lang], cls: 'c', lock: false });
+    if (p.meta) out.push({ label: 'Sprache der Beschreibungen: ' + LANG_NAME[p.lang][p.meta], cls: 'c co', lock: false });
+    if (p.pin) out.push({ label: 'PIN', cls: 'c', lock: true });
+    this.limitParts(this.effective(p)).forEach((t) => out.push({ label: t, cls: 'c co', lock: false }));
+    return out;
+  }
+
+  // ---- WatchReport.tsx: Heute, Total, Limit, 30 bars, limit line
+  reportVals(p, key) {
+    const mins = p.mins; const total = mins.reduce((a, b) => a + b, 0); const today = mins[mins.length - 1];
+    const limit = p.lim.w ? +p.lim.w : null; const max = Math.max(60, limit || 0, ...mins) * 1.12; const H = 112;
+    const a = ACC[p.accent];
+    const bars = mins.map((m, i) => ({ tip: longDay(i) + ': ' + m + ' min', tick: (mins.length - 1 - i) % 7 === 0 ? shortDay(i) : '',
+      style: 'display:block;height:' + (m ? Math.max(2, Math.round((m / max) * H)) : 0) + 'px;border-radius:2px 2px 0 0;background:' + (i === mins.length - 1 ? a[2] : 'color-mix(in srgb, ' + a[2] + ' 55%, #262a35)') }));
+    const facts = [{ t: 'Heute: ' + today + ' min' }, { t: 'Total: ' + total + ' min' }];
+    if (limit) facts.push({ t: 'Limit: ' + limit + ' min pro Tag' });
+    const y = limit ? Math.round((limit / max) * H) : 0;
+    return { hid: 'rep-' + key + '-' + p.id, title: 'Schauzeit von ' + p.name, facts, bars, aria: 'Schauzeit pro Tag, ' + facts.map((f) => f.t).join(', '), hasLimit: !!limit,
+      line: 'position:absolute;left:0;right:56px;bottom:' + y + 'px;border-top:1px dashed ' + COL.ts + ';pointer-events:none',
+      lineLabel: 'position:absolute;right:0;bottom:' + (y - 8) + 'px;width:52px;font-size:11px;color:' + COL.ts + ';font-variant-numeric:tabular-nums',
+      limitText: limit ? limit + ' min' : '', summary: facts.map((f) => f.t).join(' · ') };
+  }
+
+  // ---- one profile for every variant
+  profVals(p, i) {
+    const a = ACC[p.accent];
+    const open = this.state.menu === p.id;
+    const rep = !!this.state.reports[p.id];
+    const eff = this.limitParts(this.effective(p));
+    const above = p.rating > this.acct().max;
+    return {
+      id: p.id, name: p.name, initial: p.name.slice(0, 1).toUpperCase(), avStyle: 'background:' + a[2] + ';color:' + a[3], accentLabel: a[1],
+      isPrimary: p.primary, hasPin: p.pin, noPin: !p.pin, canDelete: !p.primary, hasMenu: p.pin || !p.primary,
+      chips: this.chipsOf(p), ratingText: this.ratingText(p), ratingStyle: above ? 'color:' + COL.wa + ';white-space:normal;line-height:1.25;font-size:13px' : '',
+      langText: UI_LANG[p.lang], metaText: this.metaText(p), limText: eff.length ? eff.join(' · ') : 'Ohne Limit', libText: this.libText(p),
+      limStyle: eff.length ? '' : 'color:' + COL.tm,
+      summary: this.chipsOf(p).map((c) => c.label).join(' · ') + ' · ' + this.libText(p),
+      facts: [{ k: 'Altersfreigabe', v: this.ratingText(p) }, { k: 'Sprache', v: UI_LANG[p.lang] }, { k: 'Sprache der Beschreibungen', v: this.metaText(p) },
+        { k: 'Farbe', v: a[1], dot: 'display:inline-block;width:10px;height:10px;border-radius:5px;margin-right:6px;background:' + a[2] }, { k: 'PIN', v: p.pin ? 'Gesetzt' : 'Keine' },
+        { k: 'Bibliotheken', v: this.libText(p) }, { k: 'Wiedergabe-Limits', v: eff.length ? eff.join(' · ') : 'Ohne Limit' }].map((x) => Object.assign({ dot: '' }, x)),
+      rep: this.reportVals(p, 'r'), repOpen: rep, repAria: rep ? 'true' : 'false', repLabel: rep ? 'Schauzeit ausblenden' : 'Schauzeit anzeigen',
+      toggleReport: () => this.flip('reports', p.id),
+      edit: () => this.openForm(p), pinLabel: p.pin ? 'PIN ändern' : 'PIN setzen', setPin: () => this.openPin(p),
+      menuOpen: open, menuAria: open ? 'true' : 'false', toggleMenu: () => this.setState({ menu: open ? null : p.id }),
+      moreStyle: open ? 'background:' + COL.s3 : '', menuStyle: MENU(i), sepStyle: p.pin || MENU_PIN ? 'height:1px;margin:4px 0;background:' + COL.bd : 'display:none',
+      menuPin: () => { this.setState({ menu: null }); this.openPin(p); },
+      removePin: () => this.ask({ title: 'PIN von ' + p.name + ' entfernen?', text: 'Danach kann jeder dieses Profil ohne PIN öffnen.', ok: 'PIN entfernen',
+        run: () => { this.setProfile(p.id, { pin: false }); return 'PIN von ' + p.name + ' entfernt.'; } }),
+      del: () => this.ask({ title: 'Profil „' + p.name + '“ löschen?', text: 'Fortschritt und Einstellungen dieses Profils gehen verloren. Das lässt sich nicht rückgängig machen.', ok: 'Profil löschen', danger: true,
+        run: () => this.removeProfile(p) }),
+    };
+  }
+  removeProfile(p) {
+    const drafts = Object.assign({}, this.state.drafts); delete drafts[p.id];
+    this.setState({ profiles: this.state.profiles.filter((x) => x.id !== p.id), drafts, sel: this.state.sel === p.id ? 1 : this.state.sel });
+    return 'Profil „' + p.name + '“ gelöscht.';
+  }
+
+  // ---- ProfileForm.tsx: a dialog (A, C) or the detail itself (B, INLINE; drafts survive a change of selection, S-13)
+  formFrom(p) {
+    if (p) return { id: p.id, name: p.name, rating: p.rating, lang: p.lang, meta: p.meta, accent: p.accent, all: p.all, libs: p.libs.slice(), h: p.lim.h, br: p.lim.br, st: p.lim.st, w: p.lim.w, pin: '', err: {} };
+    const free = ACCENTS.find((a) => !this.state.profiles.some((x) => x.accent === a[0]));
+    return { id: null, name: '', rating: this.acct().max, lang: 'de', meta: '', accent: free ? free[0] : 'ember', all: true, libs: [], h: '', br: '', st: '', w: '', pin: '', err: {} };
+  }
+  getForm() { return INLINE ? this.state.drafts[this.state.sel] || null : this.state.form; }
+  patchForm(p) {
+    const cur = this.getForm();
+    if (!cur) return;
+    const f = Object.assign({}, cur, p);
+    if (INLINE) this.setState({ drafts: Object.assign({}, this.state.drafts, { [this.state.sel]: f }) }); else this.setState({ form: f });
+  }
+  openForm(p) {
+    const key = p ? p.id : 'new';
+    if (!INLINE) { this.setState({ form: this.formFrom(p), menu: null }); return; }
+    const drafts = Object.assign({}, this.state.drafts);
+    if (!drafts[key]) drafts[key] = this.formFrom(p);
+    this.setState({ drafts, sel: key, prevSel: key === 'new' && this.state.sel !== 'new' ? this.state.sel : this.state.prevSel, menu: null });
+  }
+  closeForm(saved) {
+    if (!INLINE) { this.setState({ form: null }); return; }
+    const drafts = Object.assign({}, this.state.drafts); delete drafts[this.state.sel];
+    const sel = saved != null ? saved : this.state.sel === 'new' ? this.state.prevSel : this.state.sel;
+    this.setState({ drafts, sel });
+  }
+  saveForm() {
+    const f = this.getForm(); const err = {};
+    if (!f) return;
+    if (!f.name.trim()) err.name = 'Pflichtfeld.';
+    if (!f.all && !f.libs.length) err.libs = 'Wähle mindestens eine Bibliothek.';
+    if (!num(f.br.trim(), 200, 200000)) err.br = 'Erlaubt sind 200 bis 200.000.';
+    if (!num(f.st.trim(), 1, 16)) err.st = 'Erlaubt sind 1 bis 16.';
+    if (!num(f.w.trim(), 1, 1440)) err.w = 'Erlaubt sind 1 bis 1.440.';
+    if (f.id == null && f.pin && !/^\d{4,8}$/.test(f.pin)) err.pin = 'Die PIN besteht aus 4 bis 8 Ziffern.';
+    if (Object.keys(err).length) { this.patchForm({ err }); return; }
+    const data = { name: f.name.trim(), rating: f.rating, lang: f.lang, meta: f.meta, accent: f.accent, all: f.all, libs: f.all ? [] : f.libs.slice(), lim: { h: f.h, br: f.br.trim(), st: f.st.trim(), w: f.w.trim() } };
+    if (f.id == null) {
+      const id = this.state.nextId;
+      const p = Object.assign({ id, primary: false, pin: !!f.pin, mins: PROFILES[0].mins.map(() => 0) }, data);
+      this.setState({ profiles: this.state.profiles.concat([p]), nextId: id + 1 });
+      this.closeForm(id);
+      this.say('Profil „' + data.name + '“ angelegt.');
+    } else {
+      this.setProfile(f.id, data);
+      this.closeForm(f.id);
+      this.say('Profil gespeichert.');
+    }
+  }
+  formVals() {
+    const f = this.getForm(); const has = !!f;
+    const g = f || this.formFrom(null);
+    const e = g.err || {};
+    const opt = (label, on, pick, dis) => ({ label, checked: on, pick, dis: !!dis });
+    const max = this.acct().max;
+    const orig = g.id != null ? this.state.profiles.find((x) => x.id === g.id) : null;
+    const capped = !!orig && this.acct().h !== '' && (!orig.lim.h || +orig.lim.h > +this.acct().h);
+    const field = (k) => (ev) => this.patchForm({ [k]: ev.target.value });
+    return {
+      dlgOpen: has && !INLINE, box: boxStyle(72, 780), isNew: g.id == null, title: g.id == null ? 'Neues Profil' : 'Profil bearbeiten', saveLabel: g.id == null ? 'Profil anlegen' : 'Speichern',
+      cancel: () => this.closeForm(), save: () => this.saveForm(), hasErr: Object.keys(e).length > 0,
+      name: g.name, setName: field('name'), eName: e.name || '', eNameOn: !!e.name,
+      ratings: RATINGS.map((r) => opt('FSK ' + r, g.rating === r, () => this.patchForm({ rating: r }), r > max)),
+      ratingHint: 'Titel mit höherer Freigabe bleiben für dieses Profil unsichtbar.',
+      langs: ['de', 'en'].map((l) => opt(UI_LANG[l], g.lang === l, () => this.patchForm({ lang: l, meta: g.meta === l ? '' : g.meta }))),
+      metas: [opt('Wie Oberfläche', g.meta === '', () => this.patchForm({ meta: '' }))].concat(META_LANGS.filter((c) => c !== g.lang).map((c) => opt(LANG_NAME[g.lang][c], g.meta === c, () => this.patchForm({ meta: c })))),
+      accents: ACCENTS.map((a) => { const on = g.accent === a[0]; return { label: a[1], checked: on, checkedA: on ? 'true' : 'false', pick: () => this.patchForm({ accent: a[0] }),
+        style: 'display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border:none;border-radius:14px;cursor:pointer;background:' + a[2] + ';color:' + a[3] + ';box-shadow:' + (on ? '0 0 0 2px #16181f, 0 0 0 4px ' + a[2] : 'none') }; }),
+      libModes: [opt('Alle', g.all, () => this.patchForm({ all: true })), opt('Auswahl', !g.all, () => this.patchForm({ all: false }))], some: !g.all,
+      libs: LIBS.map((l) => { const on = g.libs.includes(l.id); return { label: l.name, checked: on, pick: () => this.patchForm({ libs: on ? g.libs.filter((x) => x !== l.id) : g.libs.concat([l.id]) }) }; }),
+      eLibs: e.libs || '', eLibsOn: !!e.libs,
+      heights: [opt('Ohne Limit', g.h === '', () => this.patchForm({ h: '' }))].concat(HEIGHTS.map((h) => opt(h + 'p', g.h === h, () => this.patchForm({ h })))),
+      br: g.br, setBr: field('br'), eBr: e.br || '', eBrOn: !!e.br, st: g.st, setSt: field('st'), eSt: e.st || '', eStOn: !!e.st, w: g.w, setW: field('w'), eW: e.w || '', eWOn: !!e.w,
+      capped, cappedText: capped ? 'Das Konto begrenzt dieses Profil: ' + this.limitParts(this.effective(orig)).join(' · ') + '.' : '',
+      pin: g.pin, setPin: (ev) => this.patchForm({ pin: ev.target.value.replace(/\D/g, '').slice(0, 8) }), ePin: e.pin || '', ePinOn: !!e.pin,
+    };
+  }
+
+  // ---- PinSetDialog.tsx
+  openPin(p) { this.setState({ pin: { id: p.id, name: p.name, val: '', err: '' }, menu: null }); }
+  pinVals() {
+    const s = this.state.pin || { name: '', val: '', err: '' };
+    return { open: !!this.state.pin, title: 'PIN für ' + s.name, box: boxStyle(160, 420), val: s.val, err: s.err, errOn: !!s.err,
+      set: (ev) => this.setState({ pin: Object.assign({}, this.state.pin, { val: ev.target.value.replace(/\D/g, '').slice(0, 8), err: '' }) }),
+      close: () => this.setState({ pin: null }),
+      save: () => {
+        if (!/^\d{4,8}$/.test(s.val)) { this.setState({ pin: Object.assign({}, s, { err: 'Die PIN besteht aus 4 bis 8 Ziffern.' }) }); return; }
+        this.setProfile(s.id, { pin: true }); this.setState({ pin: null }); this.say('PIN für ' + s.name + ' gespeichert.');
+      } };
+  }
+
+  pageVals() {
+    const cf = this.state.confirm; const ex = this.state.ex;
+    return {
+      helpOpen: this.state.help, helpAria: this.state.help ? 'true' : 'false', toggleHelp: () => this.setState({ help: !this.state.help }),
+      isPrimary: ex !== 2, notPrimary: ex === 2, toPicker: (e) => { stop(e); this.say('Öffnet die Profilwahl.'); },
+      add: () => this.openForm(null),
+      profiles: this.state.profiles.map((p, i) => this.profVals(p, i)), count: this.state.profiles.length,
+      countText: this.state.profiles.length + ' Profile · ' + this.state.profiles.filter((p) => p.pin).length + ' mit PIN',
+      f: this.formVals(), pn: this.pinVals(),
+      menuAny: this.state.menu != null, closeMenu: () => this.setState({ menu: null }),
+      hasToast: !!this.state.toast, toast: this.state.toast || '',
+      toastStyle: 'position:absolute;right:32px;top:72px;z-index:40;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:8px;background:#262a35;border:1px solid rgba(255,255,255,0.14);box-shadow:0 12px 32px rgba(0,0,0,0.5);font-size:13px;color:' + COL.tp,
+      hasConfirm: !!cf, cTitle: cf ? cf.title : '', cText: cf ? cf.text : '', cOk: cf ? cf.ok : '', confirmStyle: boxStyle(180, 440),
+      cOkStyle: 'border-color:transparent;font-weight:600;color:' + COL.oa + ';background:' + (cf && cf.danger ? COL.da : COL.ac),
+      closeConfirm: () => this.setState({ confirm: null }),
+      confirmOk: () => { if (cf) this.say(cf.run()); },
+      exs: EXAMPLES.map((x, i) => ({ label: x.label, sel: i === ex ? 'true' : 'false', pick: () => this.setState({ ex: i, menu: null, form: null, pin: null }),
+        style: 'height:24px;padding:0 10px;border:none;border-radius:5px;font-size:12px;cursor:pointer;background:' + (i === ex ? COL.s3 : 'transparent') + ';color:' + (i === ex ? COL.tp : COL.ts) })),
+    };
+  }
+
+  renderVals() {
+    const v = this.pageVals();
+    const s = this.state;
+    const sel = s.sel === 'new' || v.profiles.some((p) => p.id === s.sel) ? s.sel : 1;
+    const item = (p, id) => ({ id, name: p.name, initial: p.initial, avStyle: p.avStyle, meta: p.meta, cur: sel === id ? 'true' : 'false', dirty: !!s.drafts[id],
+      style: sel === id ? 'background:#262a35;box-shadow:inset 3px 0 0 #e8794a' : '', pick: () => this.setState({ sel: id, menu: null }) });
+    v.items = v.profiles.map((p) => item(Object.assign({}, p, { meta: (p.isPrimary ? 'Hauptprofil · ' : '') + p.ratingText + (p.hasPin ? ' · PIN' : '') }), p.id));
+    if (s.drafts.new) v.items.push(item({ name: s.drafts.new.name || 'Neues Profil', initial: '+', avStyle: 'background:#262a35;color:#b6b9c4', meta: 'Noch nicht angelegt' }, 'new'));
+    v.d = v.profiles.find((p) => p.id === sel) || v.profiles[0];
+    v.d.repChev = chev(v.d.repOpen);
+    v.editing = !!s.drafts[sel]; v.viewing = !v.editing;
+    const fa = ACC[(s.drafts[sel] || {}).accent || 'ember'];
+    v.editAv = 'background:' + fa[2] + ';color:' + fa[3];
+    v.editInitial = ((s.drafts[sel] || {}).name || '+').slice(0, 1).toUpperCase();
+    v.detailLabel = v.editing ? v.f.title : v.d.name;
+    return v;
+  }
+}
+</script>
+</body>
+</html>
