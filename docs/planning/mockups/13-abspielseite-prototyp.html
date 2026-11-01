@@ -291,20 +291,20 @@
 <div class="wrap">
   <div class="intro">
     <h1>Abspielseite – Konzept 13</h1>
-    <p>Klickbarer Prototyp mit Bildern aus deiner Bibliothek (Einzelbilder aus den Dateien auf CT 190) und den echten Ton- und Untertitelspuren der Dateien. Untertiteltext ist ein Beispiel. Alles ist anklickbar; Tasten: Leertaste, ← →, ↑ ↓, M, ?</p>
+    <p>Klickbarer Prototyp mit Bildern aus deiner Bibliothek (Einzelbilder aus den Dateien auf CT 190) und den echten Ton- und Untertitelspuren der Dateien. Untertiteltext ist ein Beispiel. Alles ist anklickbar; Tasten: Leertaste, ← →, ↑ ↓, M, T, U, C, [ ], 0–9, ?</p>
   </div>
 
   <div class="bar" role="toolbar" aria-label="Prototyp">
     <div class="group"><span>Variante</span><div class="seg" id="sw-variant">
-      <button data-v="A">A Streamingdienst</button><button data-v="B">B Kino ruhig</button><button data-v="today">Heute</button></div></div>
+      <button data-v="A">A Streamingdienst (gewählt)</button><button data-v="today">Heute</button></div></div>
     <div class="group"><span>Titel</span><div class="seg" id="sw-title">
       <button data-v="br">Blade Runner 2049</button><button data-v="dune">Dune: Part Two</button><button data-v="silo">Silo S1:E4</button></div></div>
     <div class="group"><span>Gerät</span><div class="seg" id="sw-device">
       <button data-v="desktop">Desktop</button><button data-v="phone">Handy</button></div></div>
   </div>
   <div class="bar">
-    <label class="chk"><input type="checkbox" id="opt-stage3" checked> Stufe 3: Kapitelbilder und Vorschau beim Spulen</label>
-    <label class="chk"><input type="checkbox" id="opt-prefs" checked> Stufe 2: Sprachen des Profils (Deutsch, Englisch)</label>
+    <label class="chk"><input type="checkbox" id="opt-stage3" checked> Stufe 3: Kapitelbilder (auch beim Zeigen auf die Zeitleiste)</label>
+    <label class="chk"><input type="checkbox" id="opt-prefs" checked> Stufe 2: Profil hat Deutsch als Tonsprache (aus: Originalton)</label>
     <label class="chk"><input type="checkbox" id="opt-autohide"> Leiste nach 3 s ausblenden</label>
     <button class="pbtn" id="btn-end" type="button">Zum Abspann springen</button>
   </div>
@@ -339,6 +339,7 @@
       original: '1080p HEVC 10 Bit · 3,7 Mbit/s',
       reason: 'Bild läuft direkt. Ton wird umgewandelt: DTS kann dieser Browser nicht (wird AAC 5.1).',
       cast: [['Ryan Gosling','K'],['Harrison Ford','Rick Deckard'],['Ana de Armas','Joi'],['Sylvia Hoeks','Luv'],['Robin Wright','Lt. Joshi'],['Jared Leto','Niander Wallace'],['Mackenzie Davis','Mariette'],['Dave Bautista','Sapper Morton']],
+      orig: 'eng',
       frameAt(p) { return this.chapters[chapterIndex(this.chapters, p)].img; },
     },
     dune: {
@@ -353,6 +354,7 @@
       original: '1080p HEVC 10 Bit · 7,9 Mbit/s',
       reason: 'Bild läuft direkt. Ton wird umgewandelt: Dolby Digital Plus (E-AC-3) kann dieser Browser nicht (wird AAC 5.1).',
       cast: [['Timothée Chalamet','Paul Atreides'],['Zendaya','Chani'],['Rebecca Ferguson','Jessica'],['Javier Bardem','Stilgar'],['Josh Brolin','Gurney Halleck'],['Austin Butler','Feyd-Rautha'],['Florence Pugh','Prinzessin Irulan'],['Stellan Skarsgård','Baron Harkonnen']],
+      orig: 'eng',
       frameAt(p) { return 'img/du' + pad(Math.min(16, Math.floor(p / 600))) + '.jpg'; },
     },
     silo: {
@@ -369,6 +371,7 @@
       reason: 'Bild läuft direkt. Ton wird umgewandelt: Dolby Digital Plus (E-AC-3) kann dieser Browser nicht (wird AAC 5.1).',
       cast: [['Rebecca Ferguson','Juliette Nichols'],['Tim Robbins','Bernard Holland'],['Common','Robert Sims'],['Rashida Jones','Allison Becker'],['David Oyelowo','Holston Becker'],['Harriet Walter','Martha Walker'],['Chinaza Uche','Paul Billings'],['Avi Nash','Lukas Kyle']],
       episodes: [['Freiheitstag',62,1],['Der Weg nach draussen',52,1],['Maschinen',66,1],['Wahrheit',49,.1],['Der Hausmeistersohn',54,0],['Das Relikt',55,0],['Die letzte Flammenwächterin',51,0],['Hanna',48,0],['Die Lüge',48,0],['Draussen',49,0]],
+      orig: 'eng',
       frameAt(p) { return 'img/sf' + Math.min(4, Math.floor(p / 600)) + '.jpg'; },
     },
   };
@@ -401,12 +404,22 @@
     return t.autoChapters.map((c) => ({ ...c, img: stage3() ? c.img : null }));
   }
 
-  function defaultAudio() {
+  // F-4: profile language, else original language, else the file's default track.
+  function audioChoice() {
     const t = T();
-    if (modern() && prefs()) { const g = t.audio.findIndex((a) => a.lang === 'ger'); if (g >= 0) return g; }
-    const d = t.audio.findIndex((a) => a.def); return d >= 0 ? d : 0;
+    if (modern()) {
+      if (prefs()) { const g = t.audio.findIndex((a) => a.lang === 'ger'); if (g >= 0) return [g, 'profile']; }
+      const o = t.audio.findIndex((a) => a.lang === t.orig); if (o >= 0) return [o, 'original'];
+    }
+    const d = t.audio.findIndex((a) => a.def); return [d >= 0 ? d : 0, 'file'];
   }
-  function defaultSub() { const t = T(); return t.subs.findIndex((s) => s.def && s.forced); }
+  function defaultAudio() { return audioChoice()[0]; }
+  // F-3 "Nur erzwungen": the forced text track in the language of the chosen audio. Today: none.
+  function defaultSub() {
+    if (!modern()) return -1;
+    const t = T(), lang = t.audio[S.audio].lang;
+    return t.subs.findIndex((s) => s.forced && s.lang === lang && s.kind === 'Text');
+  }
 
   function setTitle(id) {
     S.title = id; const t = T();
@@ -433,8 +446,7 @@
     const right = S.device === 'phone'
       ? `<button class="ib" data-act="panel" data-v="subs" aria-label="Untertitel">${icon('cc')}</button>
          <button class="ib" data-act="panel" data-v="audio" aria-label="Ton">${icon('audio')}</button>
-         <button class="ib" data-act="panel" data-v="settings" aria-label="Einstellungen">${icon('gear')}</button>
-         <button class="ib" data-act="lock" aria-label="Bildschirm sperren">${icon('lock')}</button>`
+         <button class="ib" data-act="panel" data-v="settings" aria-label="Einstellungen">${icon('gear')}</button>`
       : (S.variant === 'A' ? `<button class="ib" data-act="osd" data-v="Bild-in-Bild" aria-label="Bild-in-Bild">${icon('pip')}</button><button class="ib" data-act="osd" data-v="Vollbild" aria-label="Vollbild">${icon('full')}</button>` : '');
     return `<button class="ib" data-act="noop" aria-label="Zurück">${icon('back')}</button><div class="titleblock">${title}</div><span class="spacer"></span>${right}`;
   }
@@ -613,10 +625,11 @@
     const a = t.audio[S.audio];
     if (S.panel === 'audio') {
       title = 'Ton';
-      body = (prefs() && a.lang === 'ger' && !t.audio[S.audio].def ? `<p class="hint ok">Deutsch gewählt nach den Sprachen deines Profils. Die Datei selbst würde ${esc(audioLabel(t.audio.find((x) => x.def) || t.audio[0]))} spielen.</p>` : '')
+      const why = audioChoice();
+      body = (why[0] === S.audio ? `<p class="hint ok">${why[1] === 'profile' ? 'Deutsch, weil dein Profil Deutsch als Tonsprache hat.' : why[1] === 'original' ? esc(audioLabel(a)) + ' (Originalton), weil dein Profil keine Tonsprache festlegt.' : 'Standardspur der Datei.'}</p>` : '')
         + audioRows()
         + `<div class="gl">Für dieses Profil</div><label class="sw"><input type="checkbox" data-act="remember" ${S.rememberAudio ? 'checked' : ''}><span class="tx"><span class="t1" style="font-size:calc(var(--u)*.85)">${t.kind === 'episode' ? 'Für diese Serie merken' : 'Als Standard merken'}</span><span class="t2" style="font-size:calc(var(--u)*.7);color:var(--text-muted)">Stufe 2 · V-14</span></span></label>`
-        + `<button class="row" data-act="panel" data-v="settings:sound"><span class="ck"></span><span class="tx"><span class="t1">Ton-Optionen</span><span class="t2">Nachtmodus, Stereo, Verstärkung</span></span><svg class="chev"><use href="#i-chev"/></svg></button>`;
+        + `<button class="row" data-act="panel" data-v="settings:sound"><span class="ck"></span><span class="tx"><span class="t1">Ton-Optionen</span><span class="t2">Nachtmodus, Verstärkung</span></span><svg class="chev"><use href="#i-chev"/></svg></button>`;
     } else if (S.panel === 'subs') {
       title = 'Untertitel';
       body = subRows() + `<button class="row" data-act="panel" data-v="settings:style"><span class="ck"></span><span class="tx"><span class="t1">Stil und Versatz</span><span class="t2">Grösse ${S.subStyle.size} · ${({ none:'ohne Hintergrund', shadow:'Schatten', half:'halbtransparent', box:'Box' })[S.subStyle.bg]}${S.offset ? ' · ' + (S.offset > 0 ? '+' : '') + S.offset.toFixed(1) + ' s' : ''}</span></span><svg class="chev"><use href="#i-chev"/></svg></button>`;
@@ -629,7 +642,7 @@
         + navRow('settings:quality', 'Qualität', currentQualityLabel())
         + navRow('settings:speed', 'Geschwindigkeit', S.speed === 1 ? 'Normal' : String(S.speed).replace('.', ',') + '×')
         + navRow('settings:style', 'Untertitel-Stil', 'Grösse ' + S.subStyle.size)
-        + navRow('settings:sound', 'Ton-Optionen', S.night ? 'Nachtmodus' : S.stereo ? 'Stereo' : 'Normal')
+        + navRow('settings:sound', 'Ton-Optionen', S.night ? 'Nachtmodus' : S.boost ? 'bis 150 %' : 'Normal')
         + (S.variant === 'B' || S.device === 'phone' ? navRow('settings:chapters', 'Kapitel', chapters().length + ' Kapitel') : '')
         + navRow('settings:info', 'Stream-Info', 'Direkt · Ton AAC');
     } else if (S.panel === 'settings:quality') {
@@ -637,7 +650,7 @@
       const q = [
         ['original', 'Original', esc(t.original) + ' · direkt, ohne Umwandlung'],
         ['auto', 'Automatisch', 'zurzeit 1080p · wählt nach Gerät, Profil und Verbindung'],
-        ['2160p', '2160p (4K) · 25 Mbit/s', 'nur bei 4K-Quellen · diese Datei ist 1080p', true],
+        ['2160p', '2160p (4K) · 25 Mbit/s', 'nur bei 4K-Quellen ohne HDR und mit Grafikchip · diese Datei ist 1080p', true],
         ['1080p', '1080p · 8 Mbit/s', 'ca. 3,6 GB pro Stunde'],
         ['720p', '720p · 4 Mbit/s', 'ca. 1,8 GB pro Stunde'],
         ['480p', '480p · 2 Mbit/s', 'ca. 0,9 GB pro Stunde'],
@@ -662,7 +675,6 @@
     } else if (S.panel === 'settings:sound') {
       title = 'Ton-Optionen'; back = S.variant === 'A' ? 'audio' : 'settings';
       body = sw('night', S.night, 'Nachtmodus', 'Leise Stellen lauter, laute leiser. Läuft im Browser, ohne Umwandlung.')
-        + sw('stereo', S.stereo, 'Stereo erzwingen', 'Für Kopfhörer. Der Server liefert den Ton als AAC-Stereo.')
         + sw('boost', S.boost, 'Lautstärke über 100 %', 'Regler geht bis 150 %. Kann bei lauten Stellen verzerren.');
     } else if (S.panel === 'settings:chapters') {
       title = 'Kapitel'; back = 'settings';
@@ -714,11 +726,10 @@
       h += `<div class="pausev" data-act="play"><span class="lbl">Pausiert · ${clock(S.pos)}${c && !c.auto ? ' · ' + esc(c.name) : ''}</span><img class="logo" src="${t.logo}" alt="${esc(t.name)}">
         ${t.kind === 'episode' ? `<div class="ctx"><b>${t.code}</b> · ${esc(t.ep)}</div>` : ''}<p>${esc(t.about)}</p><span class="facts">${esc(t.facts)}</span></div>`;
     }
-    if (S.locked) h += `<div class="lockov"><button class="lockbtn" data-act="unlock">${icon('lock')} Gesperrt · zum Entsperren tippen und halten</button></div>`;
     if (S.help) h += `<div class="help" data-act="help"><div class="box"><h2>Tastenkürzel</h2>
       <kbd>Leertaste</kbd><span>Abspielen / Pause</span><kbd>M</kbd><span>Stumm</span>
       <kbd>← →</kbd><span>10 s zurück / vor</span><kbd>↑ ↓</kbd><span>Lautstärke</span>
-      <kbd>⇧← ⇧→</kbd><span>Kapitel zurück / vor</span><kbd>&lt; &gt;</kbd><span>Geschwindigkeit</span>
+      <kbd>⇧← ⇧→</kbd><span>Kapitel zurück / vor</span><kbd>[ ]</kbd><span>Geschwindigkeit</span>
       <kbd>T</kbd><span>Ton</span><kbd>U</kbd><span>Untertitel</span>
       <kbd>C</kbd><span>Kapitel</span><kbd>Q</kbd><span>Qualität</span>
       <kbd>0–9</kbd><span>Springe auf 0–90 %</span><kbd>N</kbd><span>Nächste Folge</span>
@@ -887,8 +898,8 @@
       q: () => { S.panel = 'settings:quality'; render(); },
       c: () => { if (S.variant === 'A' && S.device !== 'phone') { S.tab = 'chapters'; S.panel = null; } else S.panel = 'settings:chapters'; render(); },
       '?': () => { S.help = !S.help; render(); },
-      '<': () => { S.speed = Math.max(0.5, S.speed - 0.25); osd('Geschwindigkeit ' + String(S.speed).replace('.', ',') + '×'); },
-      '>': () => { S.speed = Math.min(2, S.speed + 0.25); osd('Geschwindigkeit ' + String(S.speed).replace('.', ',') + '×'); },
+      '[': () => { S.speed = Math.max(0.5, S.speed - 0.25); osd('Geschwindigkeit ' + String(S.speed).replace('.', ',') + '×'); },
+      ']': () => { S.speed = Math.min(2, S.speed + 0.25); osd('Geschwindigkeit ' + String(S.speed).replace('.', ',') + '×'); },
       Escape: () => { S.help = false; S.panel = null; S.tab = null; S.menu = null; render(); },
     };
     if (/^[0-9]$/.test(k) && modern()) { e.preventDefault(); seekTo(T().dur * Number(k) / 10); render(); return; }
@@ -899,11 +910,11 @@
   });
 
   // prototype switches
-  document.getElementById('sw-variant').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.variant = b.dataset.v; S.panel = null; S.tab = null; S.menu = null; S.audio = defaultAudio(); render(); });
+  document.getElementById('sw-variant').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.variant = b.dataset.v; S.panel = null; S.tab = null; S.menu = null; S.audio = defaultAudio(); S.sub = defaultSub(); render(); });
   document.getElementById('sw-title').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; maybeCountdown.cancelled = false; setTitle(b.dataset.v); render(); });
   document.getElementById('sw-device').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S.device = b.dataset.v; S.panel = null; S.tab = null; S.locked = false; render(); });
   document.getElementById('opt-stage3').addEventListener('change', render);
-  document.getElementById('opt-prefs').addEventListener('change', () => { S.audio = defaultAudio(); render(); });
+  document.getElementById('opt-prefs').addEventListener('change', () => { S.audio = defaultAudio(); S.sub = defaultSub(); render(); });
   document.getElementById('opt-autohide').addEventListener('change', poke);
   document.getElementById('btn-end').addEventListener('click', () => { maybeCountdown.cancelled = false; S.countdown = null; S.playing = true; seekTo(T().dur - 55); render(); });
 
@@ -934,8 +945,8 @@
       A: [
         ['Oben', ['<b>V-1</b> Logo statt Text, darunter <b>S1:E4 · Folgentitel</b> bei Serien.', 'Bild-in-Bild (<b>V-9</b>) und Vollbild rechts.']],
         ['Unten links', ['<b>V-2</b> Kapitel/Folge zurück, −10, Pause, +30, Kapitel/Folge vor.', '<b>V-3</b> Lautstärke: Symbol stummt (M), Regler klappt beim Zeigen auf, Mausrad über dem Bild.']],
-        ['Unten rechts', ['<b>V-5</b> Untertitel und Ton getrennt, gewählte Sprache als Wort.', 'Zahnrad: Qualität (<b>V-15</b>), Geschwindigkeit (<b>V-7</b>), Untertitel-Stil (<b>V-6</b>), Ton-Optionen (<b>V-16</b>).', '<b>?</b> zeigt alle Tasten (<b>V-12</b>).']],
-        ['Zeitleiste und Reiter', ['<b>V-8</b> Kapitelmarken, Vorschau beim Ziehen (<b>V-21</b>, Stufe 3).', '<b>V-4</b> Klick auf die Zeit: Restzeit und Endzeit.', 'Reiter Kapitel, Als Nächstes, Besetzung, Info (<b>V-11</b>).', 'Pause: nach 1,5 s die Pause-Ansicht (<b>V-10</b>).']],
+        ['Unten rechts', ['<b>V-5</b> Untertitel und Ton getrennt, gewählte Sprache als Wort.', 'Zahnrad: Qualität mit Original und 2160p (<b>V-15</b>), Geschwindigkeit (<b>V-7</b>), Untertitel-Stil (<b>V-6</b>), Nachtmodus und 150 % (<b>V-16</b>).', '<b>?</b> zeigt alle Tasten (<b>V-12</b>).']],
+        ['Zeitleiste und Reiter', ['<b>V-8</b> Kapitelmarken; beim Zeigen Zeit, Kapitel und Kapitelbild (<b>V-19</b>, Stufe 3). Trickplay kommt später (F-7).', '<b>V-4</b> Klick auf die Zeit: Restzeit und Endzeit.', 'Reiter Kapitel, Als Nächstes, Besetzung, Info (<b>V-11</b>).', 'Pause: nach 1,5 s die Pause-Ansicht (<b>V-10</b>).']],
       ],
       B: [
         ['Eine Zeile', ['Pause, −10, +10, Lautstärke, Zeit, dann rechts <b>ein</b> Knopf «Ton &amp; Untertitel» und das Zahnrad.', 'Titel als Text, kein Logo.']],
@@ -946,7 +957,7 @@
         ['So ist es heute', ['Titel ohne Serie und Folge (P-2).', 'Keine Lautstärke mit der Maus, nur ↑/↓ (P-1).', '«Spuren» zeigt Ton und Untertitel in Dateireihenfolge – bei Dune 19 + 43 Einträge, Deutsch an 12. Stelle (P-4).', 'Kapitel von Blade Runner als <code>00:12:36.172</code> (P-6).', 'Dune startet auf Englisch, weil die Datei es so markiert (P-5).']],
       ],
     };
-    const phone = S.device === 'phone' && modern() ? [['Handy (V-13)', ['Grosse Knöpfe in der Mitte, Doppeltipp links/rechts springt 10 s.', 'Ton, Untertitel, Einstellungen oben rechts, Panels als Blatt von unten.', 'Schloss sperrt das Bild für Kinder; Entsperren mit langem Druck.', 'iPhone: Lautstärke nur mit den Tasten des Telefons (Safari erlaubt keinen Regler).']]] : [];
+    const phone = S.device === 'phone' && modern() ? [['Handy (V-13)', ['Grosse Knöpfe in der Mitte, Doppeltipp links/rechts springt 10 s.', 'Ton, Untertitel, Einstellungen oben rechts, Panels als Blatt von unten.', 'iPhone: Lautstärke nur mit den Tasten des Telefons (Safari erlaubt keinen Regler).']]] : [];
     n.innerHTML = [...phone, ...V[S.variant]].map(([h, items]) => `<div class="note"><h3>${h}</h3><ul>${items.map((i) => `<li>${i}</li>`).join('')}</ul></div>`).join('');
   }
 
