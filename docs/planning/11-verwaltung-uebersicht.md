@@ -374,26 +374,32 @@ Klick entfernt, ohne zweite Leiste. Ausserhalb von `/admin/*` ändert sich nicht
 den Knopf).
 
 **Übersicht `/admin`.** Kopf: Titel «Verwaltung» (h1 wie heute; viele Specs prüfen ihn), rechts
-klein «Live, alle 5 Sekunden». Kein Erklärsatz (P-6). Darunter **sechs gleiche Karten in zwei
-Spalten**, je Reihe gleich hoch, jede Karte füllt ihre Zelle (P-1). Die Spaltenzahl richtet sich
+klein «Live, alle 5 Sekunden». Kein Erklärsatz (P-6). Darunter **acht gleiche Karten in zwei
+Spalten** (vier Reihen), je Reihe gleich hoch, jede Karte füllt ihre Zelle (P-1). Die Spaltenzahl richtet sich
 nach der Inhaltsbreite (Container-Abfrage, G-1): zwei Spalten ab rund 44 rem, sonst eine.
 
 | Links | Rechts |
 |---|---|
 | **Server:** Version, Laufzeit, Transcoding (Grafikchip), Dateiwächter, Update-Zustand; Knöpfe «Nach Updates suchen» und «Neu starten» | **Jetzt läuft:** bis drei Streams mit Poster, Titel, Profil, Gerät, Modus, Fortschritt; leer «Gerade läuft nichts.»; Link «Alle Streams» |
 | **Aufgaben:** Wartend, Laufend, Fehlgeschlagen, Pausiert (nur > 0); bis drei laufende Aufgaben mit Fortschritt und Restzeit, sonst der nächste geplante Lauf; Fehlschläge je Jobart (höchstens drei Zeilen, neuester Fehler einzeilig gekürzt); Link «Hintergrundjobs» | **Letzte Aktivität:** die sechs neuesten Einträge aus dem Aktivitätsprotokoll (11.4) mit Symbol, Satz und relativer Zeit |
+| **Integrationen:** acht Punkte mit Name und Zustand («Trakt: Fehler»), im Kopf «x / y eingerichtet»; Link «Integrationen einrichten» (heute `IntegrationsTile`) | **Webhooks:** eingerichtet, Meldungen in 24 h, still seit 7 Tagen (heute `WebhooksTile`, Entscheid 10 (e)); Link «Webhooks verwalten» |
 | **Speicher:** zwei Balken, `/config` und `/cache` (F-4, immer zwei) | **Hinweise:** alles, was zu tun ist (Liste unten), sonst «Keine Hinweise.»; im Kopf die **Zahl der Hinweise** |
+
+Marco hat am 1. November 2026 entschieden, dass Integrationen und Webhooks **eigene Karten
+behalten** (O-1, Antwort «Nein, behalten»). Mit «Letzte Aktivität» sind es darum acht Karten; das
+Raster bleibt symmetrisch (2 × 4).
 
 Ganz unten **«Server-Protokoll»** als zugeklapptes `<details>` mit der Anzahl im Titel
 («Server-Protokoll · 3 Fehler»); offen die heutige Fehlerliste (bis 50, `ErrorsTile`). Neue Fehler
 werden wie heute angesagt (`role="status"`), auch wenn zugeklappt.
 
 **Hinweise** (Reihenfolge = Dringlichkeit; jeder Hinweis eine Zeile mit Link oder Knopf):
-fehlgeschlagene Jobs («265 fehlgeschlagen», Link Hintergrundjobs), pausierte Jobarten, Integration
-mit Fehler (je Integration, «Trakt: Fehler», Link Integrationen), stumme Webhooks, abgebrochener
+fehlgeschlagene Jobs («265 fehlgeschlagen», Link Hintergrundjobs), pausierte Jobarten, abgebrochener
 Scan je Bibliothek (F-8, Link Bibliotheken; «Verlust akzeptieren» bleibt dort), verlorene
 Ordnerplätze, fehlender Grafikchip und voller Dateiwächter (je mit Befehl wie heute in
-`SystemState`), Speicher über 90 %, neue Version (mit Link wie heute), Entwicklungsstand. Damit
+`SystemState`), Speicher über 90 %, neue Version (mit Link wie heute), Entwicklungsstand.
+Integrationsfehler und stumme Webhooks stehen **nicht** in den Hinweisen, sondern in ihren eigenen
+Karten (G-8). Damit
 ein neuer Fehler nicht doppelt angesagt wird, sagt die Karte Hinweise nur ihre **Zahl** an
 («3 Hinweise»); den Fehlertext sagt das Server-Protokoll an.
 
@@ -401,8 +407,8 @@ ein neuer Fehler nicht doppelt angesagt wird, sagt die Karte Hinweise nur ihre *
 (`RestartPanel`, 11.5) das Kartenraster; Titel, Leiste und Kopf bleiben stehen.
 
 **Was wegfällt:** die Tabelle «Letzte fehlgeschlagene Jobs» mit Erneut/Abbrechen (F-2; sie ist auf
-«Hintergrundjobs»), die 18 Bereichskarten `ManagementCards` (die Leiste ersetzt sie), die Kacheln
-«Integrationen» und «Webhooks» (11.2, Punkt 3), die horizontale `AdminNav`.
+«Hintergrundjobs»), die 18 Bereichskarten `ManagementCards` (die Leiste ersetzt sie), die horizontale `AdminNav`.
+Die Kacheln «Integrationen» und «Webhooks» bleiben als Karten (O-1).
 
 ### 11.2 Abweichungen (gehen in Frage 17)
 
@@ -410,15 +416,11 @@ ein neuer Fehler nicht doppelt angesagt wird, sagt die Karte Hinweise nur ihre *
 2. **Konzept 09 Abschnitt 2 Punkt 4 (`09-hintergrundjobs.md:226`) und Entscheid 15:** Die zehn
    letzten Fehlschläge mit Erneut/Abbrechen stehen nicht mehr auf der Übersicht, sondern nur auf
    «Hintergrundjobs» (F-2). Die Warnung «Pausiert» bleibt (Karte Aufgaben und Hinweis).
-3. **A-3 (Plan `03-plan-v1.md:585`) und Entscheid 10 (e) (Webhooks-Kachel):** Mit «Letzte
-   Aktivität» hat die Übersicht keine eigene Kachel für Integrationen und Webhooks mehr (so im
-   Prototyp, Schalter «Aktivität & Neustart: mit»). Lesart für die Abnahme: **Integrationsstatus**
-   = Zahl «x / y» in der Leiste und **jede Integration mit Fehler als Hinweis**; die volle Liste je
-   Integration steht auf der Seite «Integrationen». **Webhooks** = stumme Webhooks als Hinweis und
-   als Pille an «Integrationen»; die **Webhooks-Kachel aus Entscheid 10 (e) entfällt**. Der
-   A-3-Test provoziert weiter einen Trakt-Fehler und erwartet ihn in < 10 s **in den Hinweisen**
-   («Trakt: Fehler») und im aufgeklappten Server-Protokoll. **Beides bestätigt Marco vor
-   Schritt 0** (11.9, O-1).
+3. **Keine Abweichung bei A-3 und Entscheid 10 (e)** (O-1, Marcos Antwort vom 1. November
+   2026): Integrationen und Webhooks behalten ihre Karten. Die Abnahme A-3 und ihr Test bleiben,
+   wie sie sind (`admin-home.spec.ts`: Trakt-Fehler in der Region «Integrationen» < 10 s), dazu
+   neu im aufgeklappten Server-Protokoll. Der Prototyp zeigte bei «Aktivität & Neustart: mit» nur
+   sechs Karten; die Seite bekommt acht.
 4. **A2-N12:** Der abgebrochene Scan erscheint als Hinweis mit Link; «Verlust akzeptieren» bleibt auf
    der Seite Bibliotheken (F-8).
 5. **Neue Funktionen nach F-6:** Aktivitätsprotokoll und Neustart-Knopf. Kein Nicht-Ziel (Spec
@@ -613,11 +615,13 @@ dem ganzen Protokoll baut dieses Konzept **nicht** (nicht verlangt; spätere Ide
   (Jobart, Gegenstand, `ProgressBar`, Restzeit), `StreamRow` (Poster, Titel, Profil · Gerät,
   Modus, Fortschritt), `DashCard` (Panel, das seine Zelle füllt: Kopf mit Symbol, Titel, optional
   Zahl; Fuss mit Link oder Knöpfen). Vorhandene `Panel`, `StorageMeter`, `StatTile`,
-  `ProgressBar`, `StatusDot`, `ConfirmDialog` werden benutzt, nicht kopiert.
+  `ProgressBar`, `StatusDot`, `ConfirmDialog` werden benutzt, nicht kopiert. Die heutigen
+  `IntegrationsTile` und `WebhooksTile` (`AdminHomePage.tsx:157-216`) ziehen mit ihrem Inhalt in
+  `DashCard` um.
 - **Texte:** neue Schlüssel unter `admin.nav.*` (Zurück zur App, Blatt-Knopf, Zahlennamen),
   `admin.home.*` (Karten, Hinweise, Server-Protokoll, Neustart-Dialog), `admin.activity.*` (ein Satz
   je `kind` und ein allgemeiner) und `admin.restart.*`, je Deutsch und Englisch. Nicht mehr
-  gebrauchte Schlüssel (`admin.home.intro`, Kacheln Integrationen/Webhooks, Tabelle Fehlschläge)
+  gebrauchte Schlüssel (`admin.home.intro`, Tabelle Fehlschläge, Bereichskarten)
   werden entfernt, nicht liegen gelassen.
 
 ### 11.7 Tests, die sich ändern
@@ -634,7 +638,7 @@ dem ganzen Protokoll baut dieses Konzept **nicht** (nicht verlangt; spätere Ide
   weg), Test «Schreibfehler im Protokoll bricht `playback.Start` nicht ab», Prune-Test (30 Tage,
   2'000), Neustart-Tests (202, 409 `restart_pending`, 409 `backup_busy`, Attrappe aufgerufen,
   Protokolleintrag), Zähler-Speicher (60 s, geleert nach Pflegeänderung).
-- **Unit (web):** `AdminHomePage.test.tsx` umgeschrieben (sechs Karten, Hinweise, Server-Protokoll
+- **Unit (web):** `AdminHomePage.test.tsx` umgeschrieben (acht Karten, Hinweise, Server-Protokoll
   zugeklappt, Neustart-Dialog, Warteanzeige statt Raster); der Block «admin navigation (A-2)»
   (`:410-509`) prüft die Leiste mit **20 Einträgen**, senkrechte Pfeile und den Wegfall der
   «Hauptnavigation» auf `/admin/*` (bisher `:481-491`); der Abzeichentest A-5 (`:514-528`, heute
@@ -647,8 +651,8 @@ dem ganzen Protokoll baut dieses Konzept **nicht** (nicht verlangt; spätere Ide
   der Profilfarben; Test der Satzbildung je `kind` mit unbekannter Art.
 - **e2e:** `admin-home.spec.ts` umgeschrieben (der A-3-Test steht heute bei `:167-199`): Leiste
   (Reihenfolge `NAV_PAGES` mit Profile und Benachrichtigungen, ein Tab-Halt, Pfeil hoch/runter,
-  Pos1/Ende, Enter, Zurück), Karten, A-3 mit Trakt-Fehler in den Hinweisen und im aufgeklappten
-  Server-Protokoll < 10 s, Neustart-Dialog bis «Abbrechen» (kein echter Neustart), Handy-Blatt,
+  Pos1/Ende, Enter, Zurück), Karten, A-3 mit Trakt-Fehler in der Karte «Integrationen» (wie heute) und im
+  aufgeklappten Server-Protokoll < 10 s, Neustart-Dialog bis «Abbrechen» (kein echter Neustart), Handy-Blatt,
   sichtbarer Fokus, keine Fokusfalle. **Anpassen** (Pfeil rechts → Pfeil runter,
   Tab-Reihenfolge): `admin-spotlight.spec.ts:48-80`, `admin-jobs.spec.ts:49-86`,
   `admin-libraries.spec.ts:28-29`, `admin-item.spec.ts:111-112`. **Prüfen, sollten unverändert
@@ -676,9 +680,8 @@ Jeder Schritt ein Commit auf einem Zweig ab `main` `6d562b8` (oder dem dann aktu
   → 6 Abnahme auf CT 190, Messung, Doku
 ```
 
-**Schritt 0 — Papiere.** Frage 17 ins Entscheidungsprotokoll (F-1 bis F-9, die sechs Abweichungen
-aus 11.2 mit Marcos Bestätigung zu O-1, ausdrücklich auch der Wegfall der Webhooks-Kachel aus
-Entscheid 10 (e)); ADR 0019 «Verwaltungsleiste, Aktivitätsprotokoll, Neustart» (Teilnachfolger von
+**Schritt 0 — Papiere.** Frage 17 ins Entscheidungsprotokoll (F-1 bis F-9, O-1, die Abweichungen 1, 2, 4,
+5 und 6 aus 11.2; A-3 und Entscheid 10 (e) bleiben unberührt); ADR 0019 «Verwaltungsleiste, Aktivitätsprotokoll, Neustart» (Teilnachfolger von
 Entscheid 14 N-2 für `/admin/*`; ergänzt ADR 0009 um das Aktivitätsprotokoll neben dem Fehlerring
 und grenzt es gegen das Webhook-Ereignisprotokoll aus ADR 0010 ab; geprüfte Alternative und
 Datenschutz aus 11.4); dieses Papier auf den dann aktuellen `main` verankern. DoD: Doku-Commit,
@@ -729,7 +732,7 @@ Protokoll und Neustart.
 
 | Nr. | Punkt | Vorschlag |
 |---|---|---|
-| O-1 | Ohne Kachel «Integrationen und Webhooks» gilt A-3 in der Lesart aus 11.2 Punkt 3, und die Webhooks-Kachel aus Entscheid 10 (e) entfällt. **Braucht Marcos Ja vor Schritt 0.** | Ja, wie im gewählten Prototyp. Die Alternative wäre eine siebte und achte Karte (Raster 2 × 4) oder Integrationen statt «Letzte Aktivität»; beides widerspricht Marcos Wahl «mit Aktivität». |
+| O-1 | Ohne Kachel «Integrationen und Webhooks» hätten A-3 eine neue Lesart gebraucht und die Webhooks-Kachel aus Entscheid 10 (e) wäre entfallen. | **Entschieden 1. November 2026: Marco «Nein, behalten».** Integrationen und Webhooks bleiben eigene Karten, die Übersicht hat acht Karten (2 × 4, 11.1). |
 | O-2 | Doppelte Nennung: Fehlschläge stehen in der Karte Aufgaben **und** als Hinweis. | Gewollt: die Karte zeigt **was** fehlschlägt (je Jobart), der Hinweis sagt **dass** etwas zu tun ist. G-8 gilt hier nicht streng. Der Bau klärt es am Bild. |
 | O-3 | Profile und Benachrichtigungen liegen unter `/settings/*`; ein Klick in der Leiste verlässt die Verwaltung. | So lassen; die Seiten gelten für jedes Konto, nicht nur die Verwaltung. |
 

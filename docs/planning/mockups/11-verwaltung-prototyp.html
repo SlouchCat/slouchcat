@@ -657,7 +657,7 @@ const state = { variant: 'B', titles: '3', counts: 'wenige', activity: 'mit', lo
 const data = () => Object.assign({}, BASE, STATES[state.mode], state.rare ? RARE : {});
 const DESCRIPTIONS = {
   A: '<b>A · Ruhiges Raster.</b> Navigation in zwei sauberen Zeilen: Bereiche als Reiter, ein Klick öffnet darunter ihre Seiten. Oben vier gleich grosse Kennzahlen, darunter vier gleich hohe Karten. Hinweise nur, wenn etwas zu tun ist.',
-  B: '<b>B · Seitenleiste wie Emby (gewählt).</b> In der Verwaltung ersetzt die Liste der Verwaltungsseiten die Seitenleiste der App (oben «Zurück zur App»), auf dem Handy ein Menü-Knopf. Sechs gleiche Karten, darunter das zugeklappte Server-Protokoll. Schalter «Nur B»: Gruppentitel (3 Band gewählt), Zahlen in der Leiste (keine / wenige / viele), Aktivität &amp; Neustart (mit / ohne). Ein Klick auf eine Seite markiert sie in der Leiste.',
+  B: '<b>B · Seitenleiste wie Emby (gewählt).</b> In der Verwaltung ersetzt die Liste der Verwaltungsseiten die Seitenleiste der App (oben «Zurück zur App»), auf dem Handy ein Menü-Knopf. Acht gleiche Karten (Integrationen und Webhooks behalten ihre Karten, O-1), darunter das zugeklappte Server-Protokoll. Schalter «Nur B»: Gruppentitel (3 Band gewählt), Zahlen in der Leiste (keine / wenige / viele), Aktivität &amp; Neustart (mit / ohne). Ein Klick auf eine Seite markiert sie in der Leiste.',
   C: '<b>C · Status + Kacheln.</b> Oben ein Satz, ob alles in Ordnung ist, mit vier Kennzahlen. Darunter alle Verwaltungsbereiche als Startrampe, jede Seite mit einer Live-Zeile. Die Übersicht ist der Einstieg, nicht das Messgerät.',
   D: '<b>D · Cockpit (Mischung, Empfehlung).</b> Navigation aus A, Hinweise nur wenn nötig, dann sechs gleiche Live-Karten in drei Reihen (Jetzt läuft, Aufgaben, Speicher, Server, Integrationen, Webhooks), unten alle Bereiche aus C. Jede Angabe steht nur einmal.'
 };
@@ -908,18 +908,24 @@ function serverLog(d) {
 }
 
 function variantB(d) {
-  const list = issues(d);
+  const withActivity = state.activity === 'mit';
+  /* O-1 (1 Nov 2026): integrations and webhooks keep their own cards, so their problems are not repeated as hints (G-8). */
+  const list = withActivity ? issues(d).filter((x) => x.go !== 'Integrationen') : issues(d);
   const alerts = list.length
     ? `<ul class="rows">${list.map((x) => `<li class="rowi"><span class="dot ${x.tone === 'info' ? 'info' : x.tone}" aria-hidden="true"></span><span class="rt"><b>${x.title}</b>${x.sub ? `<span>${x.sub.replace(/<[^>]+>/g, '')}</span>` : ''}</span>${x.go ? link(x.go, x.action) : ''}</li>`).join('')}</ul>`
     : `<div class="empty">${ic('check')}Keine Hinweise.</div>`;
   const tasks = `${jobCounters(d)}${d.jobs.failed ? failedByTypeRows(d, true) : d.runningJobs.length ? runningRows(d, 3) : `<div class="empty">${ic('check')}Gerade läuft keine Aufgabe.<span class="xs"${gap('nächster Lauf (heute /admin/job-types)')}>Als Nächstes: ${JOB_NAMES[d.next.type]}, ${d.next.at}</span></div>`}`;
-  const withActivity = state.activity === 'mit';
   const server = `${serverFacts(d)}<span class="inline">${versionBadge(d)} Geprüft ${d.update.checked}.</span>`;
   const serverFoot = `<button class="btn" data-go="Nach Updates suchen">${ic('refresh', 'sm')}Nach Updates suchen</button>${withActivity ? `<button class="btn ghost" data-go="Neu starten"${gap('Neustart-Endpunkt')}>${ic('power', 'sm')}Neu starten</button>` : ''}`;
   const feed = `<ul class="feed"${gap('Aktivitätsprotokoll')}>${d.activity.map((a) => `<li><span class="fi ${a.tone}">${ic(a.icon, 'sm')}</span><span class="ft" title="${a.text}">${a.text}</span><time>${a.at}</time></li>`).join('')}</ul>`;
   const fourth = withActivity
     ? card('activity', 'Letzte Aktivität', '', feed, '')
     : card('plug', 'Integrationen und Webhooks', '', `${integrationList(d)}<div class="divider"></div><div class="stack">${webhookLine(d)}</div>`, link('Integrationen', 'Integrationen einrichten'));
+  /* With the activity card, integrations and webhooks get a row of their own: eight cards, 2 x 4. */
+  const third = withActivity
+    ? `${card('plug', 'Integrationen', `<span class="badge">${configured(d)} / ${d.integrations.length}</span>`, integrationList(d, true), link('Integrationen', 'Integrationen einrichten'))}
+      ${card('webhook', 'Webhooks', '', webhookBody(d), link('Integrationen', 'Webhooks verwalten'))}`
+    : '';
   const body = `<button class="bmenu" data-act="adminsheet" aria-haspopup="dialog"><span>${ic('grid')}Verwaltung <small>· Übersicht</small></span>${ic('chevD')}</button>
     ${titleRow()}
     <div class="g2">
@@ -927,6 +933,7 @@ function variantB(d) {
       ${card('play', 'Jetzt läuft', '', streamRows(d, true), link('Streams', 'Alle Streams'))}
       ${card('refresh', 'Aufgaben', '', tasks, link('Hintergrundjobs', 'Hintergrundjobs'))}
       ${fourth}
+      ${third}
       ${card('disk', 'Speicher', '', storageTwo(d), '')}
       ${card('alert', 'Hinweise', `<span class="badge ${list.length ? list[0].tone === 'info' ? 'accent' : list[0].tone : 'success'}">${list.length}</span>`, `<div role="status">${alerts}</div>`, '')}
     </div>
