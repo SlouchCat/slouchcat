@@ -829,4 +829,21 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path === '/admin/picks')).toBe(false);
   });
+
+  it('the list fails to load: the error offers «Erneut versuchen»', async () => {
+    let fail = true;
+    mockApi({
+      ...routes,
+      'GET /admin/picks': () => (fail ? problem(500, 'internal') : json([heatPick])),
+    });
+    renderApp('/admin/picks');
+    const user = userEvent.setup();
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    fail = false;
+    await user.click(retry);
+    expect(
+      await screen.findByRole('table', { name: 'Empfehlungen in der Reihenfolge der Reihe' }),
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).not.toBeInTheDocument();
+  });
 });

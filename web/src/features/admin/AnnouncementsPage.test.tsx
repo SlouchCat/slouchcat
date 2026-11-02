@@ -613,6 +613,22 @@ describe('admin announcements (A-7)', () => {
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
+
+  it('the list fails to load: the error offers «Erneut versuchen»', async () => {
+    let fail = true;
+    mockApi(
+      routes(() => [published], {
+        'GET /admin/announcements': () => (fail ? problem(500, 'internal') : json([published])),
+      }),
+    );
+    renderApp('/admin/announcements');
+    const user = userEvent.setup();
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByRole('listbox', { name: 'Ankündigungen' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).not.toBeInTheDocument();
+  });
 });
 
 /** Mocks the API with `list` and opens the page. */

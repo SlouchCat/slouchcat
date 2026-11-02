@@ -649,4 +649,20 @@ describe('admin backup (A-4)', () => {
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
+
+  it('the list fails to load: the error offers «Erneut versuchen»', async () => {
+    let fail = true;
+    mockApi(
+      routes(() => [plain], {
+        'GET /admin/backups': () => (fail ? problem(500, 'internal') : json([plain])),
+      }),
+    );
+    renderApp('/admin/backup');
+    const user = userEvent.setup();
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByRole('table', { name: 'Sicherungen: Manuell' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).not.toBeInTheDocument();
+  });
 });

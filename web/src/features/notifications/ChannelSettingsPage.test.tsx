@@ -769,4 +769,20 @@ describe('notification channels page', () => {
       );
     });
   });
+
+  it('the channels fail to load: the error offers «Erneut versuchen»', async () => {
+    let fail = true;
+    mockApi({
+      ...page,
+      'GET /me/channels': () =>
+        fail ? problem(500, 'internal') : json(settings(email, push, telegram)),
+    });
+    renderApp('/settings/notifications');
+    const user = userEvent.setup();
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    fail = false;
+    await user.click(retry);
+    expect(await block('E-Mail')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Erneut versuchen' })).not.toBeInTheDocument();
+  });
 });
