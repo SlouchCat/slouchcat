@@ -22,15 +22,17 @@ SELECT count(*) FROM activity_events
 WHERE kind = 'playback_started' AND at >= @since AND profile_id = @profile_id AND item_id = @item_id;
 
 -- name: CountRecentLibraryActivity :one
--- Flood rule of scan_failed and scan_aborted: an event of the kind for the library since @since.
+-- Flood rule of scan_failed and scan_aborted: an event of the kind and the reason for the library
+-- since @since (a manual cancellation does not hide a real abort within the hour).
 SELECT count(*) FROM activity_events
-WHERE kind = @kind AND at >= @since AND library_id = @library_id;
+WHERE kind = @kind AND at >= @since AND library_id = @library_id
+  AND json_extract(detail, '$.reason') = CAST(@reason AS TEXT);
 
 -- name: BumpJobFailedActivity :execrows
 -- Flood rule of job_failed: the row of the job type in the current hour (at >= @since) counts one
--- failure more and moves to the time of the newest one.
+-- failure more and moves to the time of the newest one (never back, should two arrive out of order).
 UPDATE activity_events
-SET at = @at, detail = json_set(detail, '$.count', COALESCE(json_extract(detail, '$.count'), 1) + 1)
+SET at = MAX(at, @at), detail = json_set(detail, '$.count', COALESCE(json_extract(detail, '$.count'), 1) + 1)
 WHERE id = (
     SELECT a.id FROM activity_events AS a
     WHERE a.kind = 'job_failed' AND a.at >= @since AND json_extract(a.detail, '$.jobType') = CAST(@job_type AS TEXT)

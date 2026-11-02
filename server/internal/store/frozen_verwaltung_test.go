@@ -14,8 +14,8 @@ import (
 // (server_started with its version, scan_started with the trigger of the schedule, scan_done with
 // newTitles) and the rows written by SQL (playback of the owner's profile with the title as
 // subject, a stop by the administration, a failed and a cancelled scan with their fixed codes, an
-// aggregated job_failed with its count, a backup with its size, a restart and a restore), and the
-// two indexes. TestFrozenStatesMigrate replays it like every state; this test checks that each of
+// aggregated job_failed with its count, a backup with its size, a restart and a restore), the two
+// indexes and the two delete triggers. TestFrozenStatesMigrate replays it like every state; this test checks that each of
 // those is really in it and that no row carries a path.
 func TestFrozenVerwaltungStateCoversTheConcept(t *testing.T) {
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "verwaltung.sql"))
@@ -52,6 +52,8 @@ func TestFrozenVerwaltungStateCoversTheConcept(t *testing.T) {
 		"backup with its size":                  `SELECT count(*) FROM activity_events WHERE kind = 'backup_created' AND json_extract(detail, '$.sizeBytes') > 0`,
 		"index on the time":                     `SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'activity_events_at'`,
 		"index on the account":                  `SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'activity_events_account'`,
+		"trigger on deleted accounts":           `SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND name = 'activity_events_account_deleted'`,
+		"trigger on deleted profiles":           `SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND name = 'activity_events_profile_deleted'`,
 	} {
 		var n int
 		if err := db.Read.QueryRow(query).Scan(&n); err != nil {

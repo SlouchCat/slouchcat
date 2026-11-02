@@ -25,7 +25,8 @@ const (
 	// activityStartWindow: a profile's start of the same title is written once in this window
 	// (track, quality and version switches are new playback sessions).
 	activityStartWindow = 30 * time.Minute
-	// activityScanWindow: at most one scan_failed and one scan_aborted per library in this window.
+	// activityScanWindow: at most one scan_failed and one scan_aborted per library and reason in
+	// this window.
 	activityScanWindow = time.Hour
 	// activityRetention and activityKeep bound the log; activityPruneBatch rows per statement.
 	activityRetention  = 30 * 24 * time.Hour
@@ -53,7 +54,7 @@ var (
 
 // RecordActivity writes an event to the activity log with the flood rule of its kind:
 // playback_started once per profile and title in 30 minutes, scan_failed and scan_aborted once
-// per library and hour, job_failed one row per job type and clock hour whose count grows. An
+// per library, reason and hour, job_failed one row per job type and clock hour whose count grows. An
 // event of a deleted profile or account is dropped. Errors are logged as WARN, never returned.
 func (s *Service) RecordActivity(ctx context.Context, e model.ActivityEvent) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), activityWriteTimeout)
@@ -97,7 +98,7 @@ func (s *Service) recordActivity(ctx context.Context, e model.ActivityEvent) err
 		}
 	case model.ActivityScanFailed, model.ActivityScanAborted:
 		n, err := q.CountRecentLibraryActivity(ctx, systemq.CountRecentLibraryActivityParams{
-			Kind: e.Kind, Since: at.Add(-activityScanWindow).UnixMilli(), LibraryID: nullID(e.LibraryID),
+			Kind: e.Kind, Since: at.Add(-activityScanWindow).UnixMilli(), LibraryID: nullID(e.LibraryID), Reason: e.Detail.Reason,
 		})
 		if err != nil || n > 0 {
 			return err

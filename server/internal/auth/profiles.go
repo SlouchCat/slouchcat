@@ -482,9 +482,6 @@ func (s *Service) DeleteProfile(ctx context.Context, session model.Session, id i
 		return fmt.Errorf("delete profile: %w", err)
 	}
 	// The activity log keeps nothing of the profile (concept 11); see DeleteAccount.
-	if err := s.write.DeleteActivityEventsByProfile(ctx, nullInt(row.ID)); err != nil {
-		return fmt.Errorf("delete activity of profile: %w", err)
-	}
 	if end != nil { // a stream opened by a request that was already past its checks
 		if err := end(ctx, row.ID); err != nil {
 			return err

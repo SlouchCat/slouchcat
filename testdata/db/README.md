@@ -202,5 +202,7 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `subject`), ein zweiter Start und sein `playback_stopped` (`by` `admin`), `scan_failed` (`reason` `error`),
   `scan_aborted` (`reason` `cancelled`), ein zusammengefasstes `job_failed` (`metadata.match`, `count` 2),
   `backup_created` (`sizeBytes`), `server_restart` mit Konto und `backup_restored`. Dann `server/bin/slouchcat dump`.
-  `TestFrozenVerwaltungStateCoversTheConcept` prüft, dass jede bekannte Art und jede dieser Datenarten vorhanden ist
-  und keine Zeile einen Pfad trägt.
+  Nach dem Review von Schritt 2 trägt 00031 zwei `AFTER DELETE`-Trigger auf `accounts` und `profiles`; der Stand wurde
+  darum ohne Änderung der Daten neu geschrieben (Stand eingespielt, die zwei Trigger angelegt, erneut `dump`).
+  `TestFrozenVerwaltungStateCoversTheConcept` prüft, dass jede bekannte Art und jede dieser Datenarten und die beiden
+  Trigger vorhanden sind und keine Zeile einen Pfad trägt.

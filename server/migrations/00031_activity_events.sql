@@ -5,7 +5,9 @@
 -- name of the title or the library at the time of the event, so an entry outlives the deletion of
 -- either; there are deliberately no foreign keys on items and libraries. Account and profile are
 -- kept as ids only: the e-mail address and the profile name are read when the log is read, and
--- deleting an account or a profile deletes its rows (auth.DeleteAccount, auth.DeleteProfile).
+-- deleting an account or a profile deletes its rows in the same statement (the two AFTER DELETE
+-- triggers below, so every delete path is covered, ADR 0019 privacy). A later migration that
+-- rebuilds accounts or profiles drops the trigger with the table and must create it again.
 -- detail is a JSON object with the few numbers and fixed codes of ActivityEntry.detail; no secret,
 -- no path, no IP address and no free error text (rule 10). Rows older than 30 days, and beyond the
 -- newest 2'000, are removed by the cleanup hook of jobs.prune.
@@ -29,6 +31,20 @@ CREATE TABLE activity_events (
 
 CREATE INDEX activity_events_at ON activity_events (at DESC);
 CREATE INDEX activity_events_account ON activity_events (account_id);
+
+-- +goose StatementBegin
+CREATE TRIGGER activity_events_account_deleted AFTER DELETE ON accounts
+BEGIN
+    DELETE FROM activity_events WHERE account_id = OLD.id;
+END;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE TRIGGER activity_events_profile_deleted AFTER DELETE ON profiles
+BEGIN
+    DELETE FROM activity_events WHERE profile_id = OLD.id;
+END;
+-- +goose StatementEnd
 
 COMMIT;
 PRAGMA foreign_key_check;

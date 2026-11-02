@@ -148,7 +148,9 @@ func (s *Service) EndDevice(ctx context.Context, deviceID string) error {
 	for _, r := range rows {
 		s.end(r.ID)
 	}
-	// One event per ended session (the UPDATE ends several at once, RETURNING names each).
+	// One event per ended session (the UPDATE ends several at once, RETURNING names each). The row
+	// keeps stopped_by admin (the administration acted); the log says revoked, because forgetting
+	// the device revoked it, unlike a stop of one stream on the streams page.
 	for _, r := range rows {
 		s.recordStopped(ctx, model.StoppedByRevoked, r.AccountID, r.ProfileID, r.ItemID)
 	}

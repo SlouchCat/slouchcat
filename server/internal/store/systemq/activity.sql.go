@@ -24,7 +24,7 @@ func (q *Queries) ActivityItemTitle(ctx context.Context, id string) (string, err
 
 const bumpJobFailedActivity = `-- name: BumpJobFailedActivity :execrows
 UPDATE activity_events
-SET at = ?1, detail = json_set(detail, '$.count', COALESCE(json_extract(detail, '$.count'), 1) + 1)
+SET at = MAX(at, ?1), detail = json_set(detail, '$.count', COALESCE(json_extract(detail, '$.count'), 1) + 1)
 WHERE id = (
     SELECT a.id FROM activity_events AS a
     WHERE a.kind = 'job_failed' AND a.at >= ?2 AND json_extract(a.detail, '$.jobType') = CAST(?3 AS TEXT)
@@ -33,13 +33,13 @@ WHERE id = (
 `
 
 type BumpJobFailedActivityParams struct {
-	At      int64
+	At      interface{}
 	Since   int64
 	JobType string
 }
 
 // Flood rule of job_failed: the row of the job type in the current hour (at >= @since) counts one
-// failure more and moves to the time of the newest one.
+// failure more and moves to the time of the newest one (never back, should two arrive out of order).
 func (q *Queries) BumpJobFailedActivity(ctx context.Context, arg BumpJobFailedActivityParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, bumpJobFailedActivity, arg.At, arg.Since, arg.JobType)
 	if err != nil {
@@ -75,17 +75,25 @@ func (q *Queries) CountActivityProfile(ctx context.Context, id int64) (int64, er
 const countRecentLibraryActivity = `-- name: CountRecentLibraryActivity :one
 SELECT count(*) FROM activity_events
 WHERE kind = ?1 AND at >= ?2 AND library_id = ?3
+  AND json_extract(detail, '$.reason') = CAST(?4 AS TEXT)
 `
 
 type CountRecentLibraryActivityParams struct {
 	Kind      string
 	Since     int64
 	LibraryID sql.NullInt64
+	Reason    string
 }
 
-// Flood rule of scan_failed and scan_aborted: an event of the kind for the library since @since.
+// Flood rule of scan_failed and scan_aborted: an event of the kind and the reason for the library
+// since @since (a manual cancellation does not hide a real abort within the hour).
 func (q *Queries) CountRecentLibraryActivity(ctx context.Context, arg CountRecentLibraryActivityParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countRecentLibraryActivity, arg.Kind, arg.Since, arg.LibraryID)
+	row := q.db.QueryRowContext(ctx, countRecentLibraryActivity,
+		arg.Kind,
+		arg.Since,
+		arg.LibraryID,
+		arg.Reason,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err

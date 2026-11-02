@@ -1717,3 +1717,11 @@ BEGIN
 END;
 CREATE INDEX activity_events_at ON activity_events (at DESC);
 CREATE INDEX activity_events_account ON activity_events (account_id);
+CREATE TRIGGER activity_events_account_deleted AFTER DELETE ON accounts
+BEGIN
+    DELETE FROM activity_events WHERE account_id = OLD.id;
+END;
+CREATE TRIGGER activity_events_profile_deleted AFTER DELETE ON profiles
+BEGIN
+    DELETE FROM activity_events WHERE profile_id = OLD.id;
+END;

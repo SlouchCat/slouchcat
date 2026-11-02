@@ -100,27 +100,6 @@ func (q *Queries) DeleteAccountLibraries(ctx context.Context, accountID int64) e
 	return err
 }
 
-const deleteActivityEventsByAccount = `-- name: DeleteActivityEventsByAccount :exec
-DELETE FROM activity_events WHERE account_id = ?1
-`
-
-// The activity log keeps nothing of a deleted account (concept 11, ADR 0019): its rows go with it,
-// including those of its profiles.
-func (q *Queries) DeleteActivityEventsByAccount(ctx context.Context, accountID sql.NullInt64) error {
-	_, err := q.db.ExecContext(ctx, deleteActivityEventsByAccount, accountID)
-	return err
-}
-
-const deleteActivityEventsByProfile = `-- name: DeleteActivityEventsByProfile :exec
-DELETE FROM activity_events WHERE profile_id = ?1
-`
-
-// The activity log keeps nothing of a deleted profile (concept 11, ADR 0019).
-func (q *Queries) DeleteActivityEventsByProfile(ctx context.Context, profileID sql.NullInt64) error {
-	_, err := q.db.ExecContext(ctx, deleteActivityEventsByProfile, profileID)
-	return err
-}
-
 const deleteDevice = `-- name: DeleteDevice :execrows
 DELETE FROM devices WHERE id = ?1
 `

@@ -74,6 +74,11 @@ type Service struct {
 
 	// activity is the writer of the activity log (WithActivity, concept 11); nil = none.
 	activity func(ctx context.Context, e model.ActivityEvent)
+	// activityMu guards activityDone; activityWG counts the start events still being written
+	// (WaitActivity).
+	activityMu   sync.Mutex
+	activityDone bool
+	activityWG   sync.WaitGroup
 }
 
 // Option configures New.
@@ -139,7 +144,30 @@ func (s *Service) recordStart(ctx context.Context, session model.Session, item m
 		Kind: model.ActivityPlaybackStarted, At: s.now(), AccountID: session.Account.ID, ProfileID: session.Profile.ID,
 		ItemID: item.ID, Subject: item.Title,
 	}
-	go s.activity(context.WithoutCancel(ctx), e)
+	s.activityMu.Lock()
+	defer s.activityMu.Unlock()
+	if s.activityDone {
+		return // shutting down: the database closes after WaitActivity
+	}
+	s.activityWG.Go(func() { s.activity(context.WithoutCancel(ctx), e) })
+}
+
+// WaitActivity waits until the start events being written are done, or until ctx ends, and drops
+// every later one. The server calls it on shutdown before the database closes; each write is
+// bounded by the writer itself (admin.RecordActivity, 5 s).
+func (s *Service) WaitActivity(ctx context.Context) {
+	s.activityMu.Lock()
+	s.activityDone = true
+	s.activityMu.Unlock()
+	done := make(chan struct{})
+	go func() {
+		s.activityWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+	}
 }
 
 // recordStopped reports the administration's stop of playback sessions to the activity log, one

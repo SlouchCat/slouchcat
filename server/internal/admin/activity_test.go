@@ -101,14 +101,24 @@ func TestRecordActivityFloodRules(t *testing.T) {
 	}
 	abort("root_missing")
 	a.now = a.now.Add(30 * time.Minute)
-	abort("root_empty")
+	abort("root_missing")
 	if n := a.count(t, `kind = 'scan_aborted'`); n != 1 {
-		t.Errorf("second abort within the hour: %d rows, want 1", n)
+		t.Errorf("second abort with the same reason within the hour: %d rows, want 1", n)
+	}
+	// A manual cancellation does not hide a real abort within the hour, nor the other way round.
+	abort("cancelled")
+	abort("loss_over_threshold")
+	if n := a.count(t, `kind = 'scan_aborted'`); n != 3 {
+		t.Errorf("aborts with other reasons within the hour: %d rows, want 3", n)
 	}
 	a.now = a.now.Add(31 * time.Minute)
+	abort("root_missing")
+	if n := a.count(t, `kind = 'scan_aborted'`); n != 4 {
+		t.Errorf("abort after an hour: %d rows, want 4", n)
+	}
 	abort("open /media/Filme: permission denied")
-	if n := a.count(t, `kind = 'scan_aborted'`); n != 2 {
-		t.Errorf("abort after an hour: %d rows, want 2", n)
+	if n := a.count(t, `kind = 'scan_aborted'`); n != 5 {
+		t.Errorf("abort with a free text: %d rows, want 5", n)
 	}
 	if n := a.count(t, `kind = 'scan_aborted' AND json_extract(detail, '$.reason') = 'error'`); n != 1 {
 		t.Error("a free error text was not replaced by the code error")
@@ -143,10 +153,37 @@ func TestRecordActivityFloodRules(t *testing.T) {
 		t.Errorf("job_failed rows with count 1 = %d, want 2", n)
 	}
 
+	// A failure reported late (an older at) never moves the row back in time.
+	late := a.now.Add(-5 * time.Minute)
+	if _, err := a.f.DB.Write.ExecContext(a.ctx, `UPDATE activity_events SET at = ? WHERE kind = 'job_failed' AND at = ?`, a.now.UnixMilli(), a.now.UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	a.svc.RecordActivity(a.ctx, model.ActivityEvent{Kind: model.ActivityJobFailed, At: late, Detail: model.ActivityDetail{JobType: "metadata.match"}})
+	if n := a.count(t, `kind = 'job_failed' AND at = ? AND json_extract(detail, '$.count') = 2`, a.now.UnixMilli()); n != 1 {
+		t.Errorf("a late failure moved the row back or did not count")
+	}
+
 	before := a.count(t, `1`)
 	a.svc.RecordActivity(a.ctx, model.ActivityEvent{Kind: "something_new"})
 	if a.count(t, `1`) != before || !strings.Contains(a.logs.String(), "activity not recorded") {
 		t.Error("an unknown kind was written or not logged")
+	}
+}
+
+// Concurrent starts of the same profile and title (two tabs, a double click) write one row: the
+// flood check and the insert run in one write transaction.
+func TestConcurrentStartsWriteOneRow(t *testing.T) {
+	a := newActivityFixture(t)
+	movie := a.f.Rated(12)
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			a.svc.RecordActivity(a.ctx, model.ActivityEvent{Kind: model.ActivityPlaybackStarted, AccountID: a.f.Account.ID, ProfileID: a.f.P18.ID, ItemID: movie.ID})
+		})
+	}
+	wg.Wait()
+	if n := a.count(t, `kind = 'playback_started'`); n != 1 {
+		t.Errorf("rows after 8 concurrent starts = %d, want 1", n)
 	}
 }
 
@@ -324,6 +361,14 @@ func TestActivityDeletedWithAccountAndProfile(t *testing.T) {
 	}
 	if n := a.count(t, `1`); n != 2 {
 		t.Errorf("rows left = %d, want P18's start and the scan", n)
+	}
+	// The trigger of migration 00031 covers every delete path, not only package auth.
+	a.svc.RecordActivity(a.ctx, model.ActivityEvent{Kind: model.ActivityPlaybackStarted, AccountID: a.f.Account.ID, ProfileID: a.f.P12.ID, ItemID: movie.ID})
+	if _, err := a.f.DB.Write.ExecContext(a.ctx, `DELETE FROM profiles WHERE id = ?`, a.f.P12.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n := a.count(t, `profile_id = ?`, a.f.P12.ID); n != 0 {
+		t.Errorf("rows of a profile deleted by SQL = %d", n)
 	}
 	a.now = a.now.Add(time.Hour)
 	a.svc.RecordActivity(a.ctx, model.ActivityEvent{Kind: model.ActivityPlaybackCompleted, AccountID: a.f.Guest.ID, ProfileID: a.f.PG.ID, ItemID: movie.ID})
