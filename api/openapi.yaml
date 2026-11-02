@@ -5696,6 +5696,12 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: A restart or another restore is already scheduled (`restart_pending`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "422":
           description: |
             `backup_invalid` (not an archive of Slouchcat, damaged or failing the integrity check),
@@ -5738,10 +5744,48 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "409":
+          description: A restart or another restore is already scheduled (`restart_pending`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "422":
           description: |
             `backup_invalid`, `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server` (see
             `restoreBackupUpload`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/server/restart:
+    post:
+      operationId: restartServer
+      summary: Restart the server (concept 11)
+      description: |
+        Schedules a restart like a restore does: the server shuts down in order about a second after
+        the answer and starts the same program again (if that fails, it exits and the container
+        starts it again). Running streams and offline downloads are cut off; their clients start them
+        again. The restart is recorded in the activity log with the account. The client polls
+        `getHealth` from `restartAt` on; the session stays valid.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "202":
+          description: Scheduled; the server restarts now.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestartAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: |
+            `backup_busy` while a backup or a restore is running (the restart would cut it off),
+            `restart_pending` while a restart or a restore is already scheduled.
           content:
             application/problem+json:
               schema:
@@ -11878,6 +11922,15 @@ components:
           format: password
           maxLength: 1024
           writeOnly: true
+
+    RestartAccepted:
+      type: object
+      required: [restartAt]
+      properties:
+        restartAt:
+          type: string
+          format: date-time
+          description: When the server restarts; the client polls `getHealth` from then on.
 
     RestoreResult:
       type: object

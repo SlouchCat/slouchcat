@@ -95,9 +95,11 @@ func TestContractBackupFlow(t *testing.T) {
 	if res.Version != "test" || res.IncludesSecrets || time.Until(res.RestartAt) <= 0 {
 		t.Errorf("restore result %+v", res)
 	}
+	// The upload scheduled the restart (a fake in the fixture): a second restore waits for it
+	// (concept 11).
 	rec = send(t, h, http.MethodPost, BasePath+"/admin/backups/"+created.Name+"/restore", "p18", `{}`, nil)
-	if rec.Code != http.StatusAccepted {
-		t.Errorf("restore from the list: %d %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusConflict || problemCode(t, rec) != "restart_pending" {
+		t.Errorf("restore from the list while the restart is pending: %d %s, want 409 restart_pending", rec.Code, rec.Body.String())
 	}
 
 	if rec := send(t, h, http.MethodDelete, BasePath+"/admin/backups/"+created.Name, "p18", "", nil); rec.Code != http.StatusNoContent {

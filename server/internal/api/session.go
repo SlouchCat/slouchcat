@@ -439,6 +439,10 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "passphrase_wrong", "The passphrase does not open the backup.")
 	case errors.Is(err, model.ErrBackupInvalid):
 		p.write(w, r, http.StatusUnprocessableEntity, "backup_invalid", "The file is not an intact Slouchcat backup.")
+	case errors.Is(err, model.ErrRestartPending):
+		p.write(w, r, http.StatusConflict, "restart_pending", "A restart or a restore is already scheduled; the server restarts shortly.")
+	case errors.Is(err, model.ErrBackupBusy):
+		p.write(w, r, http.StatusConflict, "backup_busy", "A backup or a restore is running; restart once it is done.")
 	case errors.Is(err, model.ErrBackupNewerThanServer):
 		p.write(w, r, http.StatusUnprocessableEntity, "backup_newer_than_server", "The backup comes from a newer server version.")
 	case errors.Is(err, model.ErrEmailNotConfigured):

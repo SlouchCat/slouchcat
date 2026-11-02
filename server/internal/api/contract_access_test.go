@@ -330,6 +330,8 @@ var adminRegistry = map[string]adminCall{
 		header: map[string]string{"Content-Type": "multipart/form-data; boundary=registry"}, ownerStatus: http.StatusUnprocessableEntity},
 	"restoreBackup": {contract: "POST /admin/backups/{name}/restore", path: "/admin/backups/missing.tar.gz/restore", body: `{}`,
 		ownerStatus: http.StatusNotFound},
+	// Concept 11: the fixture's restart function is a fake (profileFixture.restarts).
+	"restartServer":       {contract: "POST /admin/server/restart", path: "/admin/server/restart", ownerStatus: http.StatusAccepted},
 	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
 	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
 	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
@@ -550,6 +552,9 @@ func TestContractAdminOperations(t *testing.T) {
 
 	ids := keysOf(adminRegistry)
 	sort.Strings(ids)
+	// restartServer leaves the fixture with a scheduled restart, which the restores then answer
+	// with restart_pending (concept 11): it runs last.
+	ids = append(slices.DeleteFunc(ids, func(id string) bool { return id == "restartServer" }), "restartServer")
 	for _, id := range ids {
 		call := adminRegistry[id]
 		if ops[id].vis != "admin" {

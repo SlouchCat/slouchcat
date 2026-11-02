@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -79,6 +80,9 @@ type backupState struct {
 	version    string
 	restart    func() // nil until WithRestart
 	scryptLogN int
+	// restartPending is set once a restore or a restart scheduled the restart (concept 11): a
+	// second one answers model.ErrRestartPending until the process restarts.
+	restartPending atomic.Bool
 }
 
 // backupManifest is manifest.json of an archive. IncludesFeedCredentials is always true: the feed
@@ -103,9 +107,10 @@ func (s *Service) WithBackups(configDir, serverVersion string) *Service {
 	return s
 }
 
-// WithRestart sets the function that restarts the server after a staged restore (main: graceful
-// shutdown, then the same binary again), and returns the receiver. Without it a staged restore is
-// applied at the next start.
+// WithRestart sets the function that restarts the server (main: graceful shutdown, then the same
+// binary again), used after a staged restore and by RestartServer, and returns the receiver.
+// Without it a staged restore is applied at the next start and RestartServer answers
+// ErrNotConfigured.
 func (s *Service) WithRestart(restart func()) *Service {
 	s.backups.restart = restart
 	return s
@@ -547,8 +552,14 @@ func (s *Service) RestoreBackup(ctx context.Context, name, passphrase string) (m
 // restore unpacks a backup into <config>/restore with unpack, checks it, stages it and schedules
 // the restart. The restore directory is removed on every path.
 func (s *Service) restore(ctx context.Context, unpack func(dir string) (backupManifest, error)) (model.RestoreResult, error) {
+	if s.backups.restartPending.Load() {
+		return model.RestoreResult{}, model.ErrRestartPending // checked before the upload is read
+	}
 	s.backups.mu.Lock()
 	defer s.backups.mu.Unlock()
+	if s.backups.restartPending.Load() { // a restart was scheduled while this restore waited
+		return model.RestoreResult{}, model.ErrRestartPending
+	}
 	start := time.Now()
 	dir := filepath.Join(s.backups.configDir, store.RestoreDir)
 	if err := os.RemoveAll(dir); err != nil {
@@ -587,6 +598,7 @@ func (s *Service) restore(ctx context.Context, unpack func(dir string) (backupMa
 	s.log.InfoContext(ctx, "backup staged for restore", "version", m.Version, "includes_secrets", m.IncludesSecrets,
 		"duration_ms", time.Since(start).Milliseconds())
 	if s.backups.restart != nil {
+		s.backups.restartPending.Store(true)
 		time.AfterFunc(restartDelay, s.backups.restart)
 	} else {
 		s.log.WarnContext(ctx, "no restart configured: the staged restore is applied at the next start")
@@ -741,4 +753,26 @@ func (s *Service) removeAll(ctx context.Context, dir string) {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// RestartServer schedules a restart of the server for the administration (concept 11, ADR 0019)
+// like a restore does: after restartDelay main shuts down in order and starts the same binary
+// again. A backup or restore that holds the lock answers ErrBackupBusy (the restart would cut it
+// off), a restart or restore already scheduled ErrRestartPending. The restart is recorded in the
+// activity log with the account that asked for it.
+func (s *Service) RestartServer(ctx context.Context, accountID int64) (model.RestartAccepted, error) {
+	if s.backups.restart == nil {
+		return model.RestartAccepted{}, ErrNotConfigured
+	}
+	if !s.backups.mu.TryLock() {
+		return model.RestartAccepted{}, model.ErrBackupBusy
+	}
+	defer s.backups.mu.Unlock()
+	if !s.backups.restartPending.CompareAndSwap(false, true) {
+		return model.RestartAccepted{}, model.ErrRestartPending
+	}
+	s.RecordActivity(ctx, model.ActivityEvent{Kind: model.ActivityServerRestart, AccountID: accountID})
+	s.log.InfoContext(ctx, "restart requested by the administration", "account_id", accountID)
+	time.AfterFunc(restartDelay, s.backups.restart)
+	return model.RestartAccepted{RestartAt: s.now().Add(restartAnnounced)}, nil
 }

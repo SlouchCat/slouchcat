@@ -406,3 +406,51 @@ func TestDashboardActivityOverHTTP(t *testing.T) {
 		t.Errorf("detail fields not omitted when empty: %s", body)
 	}
 }
+
+// Concept 11 step 3: restartServer over HTTP with the fixture's fake restart. 202 with restartAt,
+// the fake runs about a second later, a second call and a restore answer 409 restart_pending,
+// and the dashboard lists server_restart with the account that asked.
+func TestRestartServerOverHTTP(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	h := pf.h
+	rec := send(t, h, http.MethodPost, BasePath+"/admin/backups", "p18", `{"includeSecrets":false}`, nil)
+	wantStatus(t, rec, http.StatusCreated)
+	var backup gen.Backup
+	decode(t, rec, &backup)
+
+	before := time.Now()
+	rec = send(t, h, http.MethodPost, BasePath+"/admin/server/restart", "p18", "", nil)
+	wantStatus(t, rec, http.StatusAccepted)
+	var res gen.RestartAccepted
+	decode(t, rec, &res)
+	if !res.RestartAt.After(before) || res.RestartAt.Location() != time.UTC {
+		t.Errorf("restartAt = %v, want after %v in UTC", res.RestartAt, before)
+	}
+	for _, path := range []string{"/admin/server/restart", "/admin/backups/" + backup.Name + "/restore"} {
+		rec = send(t, h, http.MethodPost, BasePath+path, "p18", "", nil)
+		if rec.Code != http.StatusConflict || problemCode(t, rec) != "restart_pending" {
+			t.Errorf("%s while pending: %d %s, want 409 restart_pending", path, rec.Code, rec.Body.String())
+		}
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for pf.restarts.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if n := pf.restarts.Load(); n != 1 {
+		t.Errorf("fake restart called %d times, want 1", n)
+	}
+	rec = send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+	wantStatus(t, rec, http.StatusOK)
+	var d gen.Dashboard
+	decode(t, rec, &d)
+	var restarts []gen.ActivityEntry
+	for _, a := range d.Activity {
+		if a.Kind == model.ActivityServerRestart {
+			restarts = append(restarts, a)
+		}
+	}
+	if len(restarts) != 1 || deref(restarts[0].AccountEmail) != pf.f.Account.Email || restarts[0].ProfileName != nil {
+		t.Errorf("server_restart entries = %+v, want one of %s", restarts, pf.f.Account.Email)
+	}
+}

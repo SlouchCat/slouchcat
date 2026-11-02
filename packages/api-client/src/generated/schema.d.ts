@@ -3008,6 +3008,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/server/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart the server (concept 11)
+         * @description Schedules a restart like a restore does: the server shuts down in order about a second after
+         *     the answer and starts the same program again (if that fails, it exits and the container
+         *     starts it again). Running streams and offline downloads are cut off; their clients start them
+         *     again. The restart is recorded in the activity log with the account. The client polls
+         *     `getHealth` from `restartAt` on; the session stays valid.
+         */
+        post: operations["restartServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/update": {
         parameters: {
             query?: never;
@@ -6408,6 +6432,13 @@ export interface components {
         RestoreRequest: {
             /** Format: password */
             passphrase?: string;
+        };
+        RestartAccepted: {
+            /**
+             * Format: date-time
+             * @description When the server restarts; the client polls `getHealth` from then on.
+             */
+            restartAt: string;
         };
         RestoreResult: {
             /**
@@ -12821,6 +12852,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
+            /** @description A restart or another restore is already scheduled (`restart_pending`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /**
              * @description `backup_invalid` (not an archive of Slouchcat, damaged or failing the integrity check),
              *     `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server`, `validation_failed`
@@ -12872,11 +12912,54 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description A restart or another restore is already scheduled (`restart_pending`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /**
              * @description `backup_invalid`, `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server` (see
              *     `restoreBackupUpload`).
              */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restartServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scheduled; the server restarts now. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestartAccepted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `backup_busy` while a backup or a restore is running (the restart would cut it off),
+             *     `restart_pending` while a restart or a restore is already scheduled.
+             */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -19,6 +19,8 @@ var (
 	ErrPassphraseWrong       = errors.New("passphrase wrong")             // 422 passphrase_wrong
 	ErrBackupInvalid         = errors.New("backup invalid")               // 422 backup_invalid
 	ErrBackupNewerThanServer = errors.New("backup newer than server")     // 422 backup_newer_than_server
+	ErrRestartPending        = errors.New("restart pending")              // 409 restart_pending (concept 11)
+	ErrBackupBusy            = errors.New("backup busy")                  // 409 backup_busy (concept 11)
 	ErrEmailNotConfigured    = errors.New("email not configured")         // 422 email_not_configured
 	ErrEmailSendFailed       = errors.New("email send failed")            // 502 email_send_failed (see SendError)
 	ErrTelegramTokenInvalid  = errors.New("telegram token invalid")       // 422 telegram_token_invalid
@@ -522,6 +524,11 @@ type BackupRequest struct {
 }
 
 // RestoreResult answers a staged restore; the server restarts at RestartAt.
+// RestartAccepted is the answer of a requested restart (concept 11): when the server restarts.
+type RestartAccepted struct {
+	RestartAt time.Time
+}
+
 type RestoreResult struct {
 	RestartAt       time.Time
 	Version         string
