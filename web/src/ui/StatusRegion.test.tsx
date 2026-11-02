@@ -34,6 +34,15 @@ describe('StatusRegion', () => {
     expect(before).not.toBeInTheDocument();
   });
 
+  it('never reuses a key, also after the region was emptied', () => {
+    const { result } = renderHook(() => useStatusMessage());
+    act(() => result.current[1]('Gespeichert.'));
+    const first = result.current[0]?.key;
+    act(() => result.current[1](null));
+    act(() => result.current[1]('Gespeichert.'));
+    expect(result.current[0]?.key).not.toBe(first);
+  });
+
   it('empties the region with say(null)', () => {
     const { result } = renderHook(() => useStatusMessage());
     act(() => result.current[1]('Gelöscht.', 'warning'));

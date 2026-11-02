@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Notice } from './Notice';
 import styles from './StatusRegion.module.css';
 
@@ -46,12 +46,15 @@ export function useStatusMessage(): [
   say: (text: ReactNode | null, tone?: StatusMessage['tone']) => void,
 ] {
   const [message, setMessage] = useState<StatusMessage | null>(null);
-  const say = useCallback(
-    (text: ReactNode | null, tone?: StatusMessage['tone']) =>
-      setMessage((current) =>
-        text === null ? null : { text, tone, key: (current?.key ?? 0) + 1 },
-      ),
-    [],
-  );
+  // Counts every message ever said, also across an empty region: a key is never used twice.
+  const said = useRef(0);
+  const say = useCallback((text: ReactNode | null, tone?: StatusMessage['tone']) => {
+    if (text === null) {
+      setMessage(null);
+      return;
+    }
+    said.current += 1;
+    setMessage({ text, tone, key: said.current });
+  }, []);
   return [message, say];
 }
