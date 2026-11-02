@@ -28,7 +28,7 @@ func (s *Service) ListTopPicks(ctx context.Context) ([]model.AdminPick, error) {
 	for _, r := range rows {
 		out = append(out, toAdminPick(systemq.AdminGetTopPickRow(r)))
 	}
-	if err := withPosters(ctx, s.sys, out); err != nil {
+	if err := withPosters(ctx, s.sys, out, pickPoster); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -103,7 +103,7 @@ func (s *Service) CreateTopPicks(ctx context.Context, req model.PickRequest) ([]
 		}
 		out = append(out, toAdminPick(row))
 	}
-	if err := withPosters(ctx, q, out); err != nil {
+	if err := withPosters(ctx, q, out, pickPoster); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -161,7 +161,7 @@ func (s *Service) UpdateTopPick(ctx context.Context, id int64, upd model.PickUpd
 		return model.AdminPick{}, fmt.Errorf("get top pick %d: %w", id, err)
 	}
 	out := []model.AdminPick{toAdminPick(row)}
-	if err := withPosters(ctx, q, out); err != nil {
+	if err := withPosters(ctx, q, out, pickPoster); err != nil {
 		return model.AdminPick{}, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -240,6 +240,9 @@ func (s *Service) checkCurationItem(ctx context.Context, q *systemq.Queries, fie
 	}
 	return nil, nil
 }
+
+// pickPoster names the title of a pick and its poster hash for withPosters.
+func pickPoster(p *model.AdminPick) (string, *string) { return p.ItemID, &p.PosterHash }
 
 func toAdminPick(r systemq.AdminGetTopPickRow) model.AdminPick {
 	p := model.AdminPick{

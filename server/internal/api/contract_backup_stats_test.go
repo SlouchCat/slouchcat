@@ -111,7 +111,7 @@ func TestContractBackupFlow(t *testing.T) {
 }
 
 // M8 statistics (A-8): the owner gets every list as an array (never null) and plain StatTitles; a
-// period other than 7, 30, 90 or 365 days is refused.
+// period other than 7, 30, 90 or 365 days is refused. Contract 1.8.0 adds the grid of the week.
 func TestContractStatsShape(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -130,6 +130,11 @@ func TestContractStatsShape(t *testing.T) {
 	decode(t, rec, &st)
 	if st.Days != 30 {
 		t.Errorf("days = %d, want the default 30", st.Days)
+	}
+	// Contract 1.8.0 (concept 12): the grid of the week is always 672 values, also without events.
+	if !bytes.HasPrefix(raw["watchTimeByQuarterHour"], []byte("[")) || len(st.WatchTimeByQuarterHour) != 7*96 ||
+		st.TimeWindowDays != 30 || st.TimeZone == "" {
+		t.Errorf("grid of %d values, window %d, zone %q; want 672, 30 and a zone", len(st.WatchTimeByQuarterHour), st.TimeWindowDays, st.TimeZone)
 	}
 	for _, path := range []string{"/admin/stats?days=8", "/admin/stats?days=0"} {
 		rec := send(t, pf.h, http.MethodGet, BasePath+path, "p18", "", nil)

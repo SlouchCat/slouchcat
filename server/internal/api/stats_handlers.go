@@ -32,11 +32,15 @@ func (s *server) GetStats(ctx context.Context, req gen.GetStatsRequestObject) (g
 			Direct: st.Playback.Direct, Remux: st.Playback.Remux, Transcode: st.Playback.Transcode,
 			TranscodeShare: st.Playback.TranscodeShare, HardwareShare: st.Playback.HardwareShare,
 		},
-		Devices: make([]gen.StatDevice, 0, len(st.Devices)),
+		Devices:                make([]gen.StatDevice, 0, len(st.Devices)),
+		WatchTimeByQuarterHour: st.WatchTimeByQuarterHour,
+		TimeWindowDays:         st.TimeWindowDays,
+		TimeZone:               st.TimeZone,
 	}
 	for _, t := range st.TopTitles {
 		out.TopTitles = append(out.TopTitles, gen.StatTitle{
 			ItemId: t.ItemID, Title: t.Title, Kind: gen.ItemKind(t.Kind), Year: t.Year, Plays: t.Plays, WatchedMs: t.WatchedMs,
+			PosterUrl: adminPosterURL(t.ImageItemID, t.PosterHash), BackdropUrl: adminBackdropURL(t.ImageItemID, t.BackdropHash),
 		})
 	}
 	for _, p := range st.WatchTime {

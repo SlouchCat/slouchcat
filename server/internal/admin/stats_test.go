@@ -101,11 +101,25 @@ func seedStats(t *testing.T, db *sql.DB) {
 	}
 }
 
+// zurich is the zone the statistics tests pin (concept 12: the grid of the week).
+var zurich = mustZone("Europe/Zurich")
+
+func mustZone(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
 // expectedStats computes the statistics from the raw rows in Go, without the queries of
-// admin_stats.sql.
-func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
+// admin_stats.sql; the grid of the week in loc.
+func expectedStats(t *testing.T, db *sql.DB, days int, loc *time.Location) model.Stats {
 	t.Helper()
 	from, to := statsNow.Add(-time.Duration(days)*day).UnixMilli(), statsNow.UnixMilli()
+	window := min(days, 90)
+	fromWindow := statsNow.Add(-time.Duration(window) * day).UnixMilli()
+	grid := make([]int64, 7*96)
 	type event struct {
 		id, profile, played, server int64
 		item                        string
@@ -120,6 +134,10 @@ func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
 			}
 			if e.server >= from && e.server <= to {
 				events = append(events, e)
+			}
+			if e.server >= fromWindow && e.server <= to {
+				local := time.UnixMilli(e.server).In(loc)
+				grid[((int(local.Weekday())+6)%7)*96+local.Hour()*4+local.Minute()/15] += e.played
 			}
 			return nil
 		})
@@ -141,7 +159,8 @@ func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
 		return fmt.Sprint("event ", e.id)
 	}
 
-	out := model.Stats{Days: days, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{}}
+	out := model.Stats{Days: days, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{},
+		WatchTimeByQuarterHour: grid, TimeWindowDays: window, TimeZone: loc.String()}
 	type agg struct {
 		watched int64
 		plays   map[string]bool
@@ -173,7 +192,8 @@ func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
 			}
 		}
 		kind, _ := lookup("SELECT kind FROM items WHERE id = ?", item)
-		st := model.StatTitle{ItemID: item, Title: title, Kind: kind, Plays: len(a.plays), WatchedMs: a.watched}
+		// The fixture's episode has no series and no title has an image: the images are its own.
+		st := model.StatTitle{ItemID: item, Title: title, Kind: kind, Plays: len(a.plays), WatchedMs: a.watched, ImageItemID: item}
 		if y, ok := lookup("SELECT year FROM items WHERE id = ?", item); ok {
 			var year int
 			_, _ = fmt.Sscan(y, &year)
@@ -264,6 +284,7 @@ func TestStatsMatchRawData(t *testing.T) {
 	ctx := context.Background()
 	st := newStack(t, "0.9.0")
 	st.svc.now = func() time.Time { return statsNow }
+	st.svc.WithLocation(zurich)
 	seedStats(t, st.db.Write)
 
 	for _, days := range []int{7, 30, 90, 365} {
@@ -271,7 +292,7 @@ func TestStatsMatchRawData(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := expectedStats(t, st.db.Read, days)
+		want := expectedStats(t, st.db.Read, days, zurich)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("days %d:\n got %+v\nwant %+v", days, got, want)
 		}
@@ -309,11 +330,13 @@ func TestStatsMatchRawData(t *testing.T) {
 func TestStatsEmptyAndInvalid(t *testing.T) {
 	ctx := context.Background()
 	st := newStack(t, "0.9.0")
+	st.svc.WithLocation(time.UTC)
 	got, err := st.svc.Stats(ctx, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := model.Stats{Days: 7, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{}}
+	want := model.Stats{Days: 7, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{},
+		WatchTimeByQuarterHour: make([]int64, 7*96), TimeWindowDays: 7, TimeZone: "UTC"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("empty database: %+v, want zeros and empty lists", got)
 	}

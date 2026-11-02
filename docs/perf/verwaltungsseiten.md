@@ -1,6 +1,6 @@
 # Messwerte: Verwaltungsseiten (Konzept 12, ADR 0020)
 
-Konzept `docs/planning/12-verwaltungsseiten.md`.
+Konzept `docs/planning/12-verwaltungsseiten.md`, Abschnitte 3, 11.4 und 11.7.
 
 ## Ausgangsmessung (K12-2a)
 
@@ -57,3 +57,44 @@ Konten (/admin/accounts) at 1440 px: 353 px to the first work row
 
 Bei 900 px Fensterhöhe liegen heute rund 53 % (Hintergrundjobs), 48 % (Integrationen) und 39 %
 (Konten) des sichtbaren Bereichs über der ersten Arbeitszeile.
+
+## Statistik-Abfrage (K12-1)
+
+Vertrag 1.8.0 ergänzt `GET /api/v1/admin/stats` um `watchTimeByQuarterHour` (672 Viertelstunden der
+Woche in der Zeitzone des Servers) mit der neuen Abfrage `StatsWatchTimeByQuarter` über
+`progress_events` (`SUM(played_ms)` je UTC-Viertelstunde, höchstens 90 Tage). Sie läuft als fünfter
+Block neben den vier bisherigen; dazu kommen zwei kleine Abfragen für Poster und Hintergrundbilder
+der höchstens 20 meistgesehenen Titel.
+
+Gemessen mit `BenchmarkStatsMillionEvents` (`server/internal/admin/stats_bench_test.go`), gleicher
+Bestand wie in `docs/perf/M8.md` (1'000'000 Fortschrittsereignisse über 400 Tage, 3 Profile,
+50 Geräte, 5'000 Titel), am Service ohne HTTP, 40 Läufe je Zeitraum, Entwicklungsrechner
+(Intel i7-14700K, 28 Threads), 2. November 2026, ohne andere Last:
+
+```bash
+cd server && go test -run '^$' -bench StatsMillionEvents -benchtime 40x ./internal/admin/
+```
+
+| Zeitraum | p50 vorher (`main` 4c860bc) | p95 vorher | p50 neu | p95 neu |
+|---|---|---|---|---|
+| 7 Tage | 25.3 ms | 29.3 ms | 36.8 ms | 41.2 ms |
+| 30 Tage | 107.2 ms | 110.3 ms | 145.8 ms | 152.1 ms |
+| 90 Tage | 296.0 ms | 303.8 ms | 394.2 ms | 404.3 ms |
+| 365 Tage | 834.1 ms | 884.5 ms | 870.4 ms | 885.7 ms |
+
+Die neue Abfrage allein (mit der Zuordnung zu Wochentag und Uhrzeit in Go):
+
+| Fenster | p50 | p95 |
+|---|---|---|
+| 7 Tage | 6.5 ms | 6.7 ms |
+| 30 Tage | 33.6 ms | 34.3 ms |
+| 90 Tage | 102.0 ms | 105.2 ms |
+
+Bewertung: Bis 90 Tage kostet das Raster etwa so viel wie die Abfrage allein (p95 +12 ms bei 7
+Tagen, +100 ms bei 90 Tagen), obwohl die fünf Blöcke nebeneinander laufen; die Blöcke teilen sich
+Speicher und Seiten-Cache des reinen Go-SQLite. Bei 365 Tagen bleibt das Raster bei 90 Tagen
+Fenster und verschwindet hinter dem längsten Block (p95 unverändert). Mit dem Faktor 2.5 für
+CT 190 aus M3 liegen 90 Tage bei rund 1 s, ein Jahr unverändert bei rund 2.2 s. Ein Haushalt mit
+einigen tausend Ereignissen im Jahr bleibt weit darunter. Ein abdeckender Index
+`(server_time, played_ms)` würde die Gruppierung verkürzen, braucht aber eine Migration und ist bei
+diesen Werten nicht nötig.

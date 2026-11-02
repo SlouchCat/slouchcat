@@ -205,6 +205,7 @@ func toAdminCollection(c model.AdminCollection) gen.AdminCollection {
 	for _, it := range c.Items {
 		items = append(items, gen.AdminCollectionItem{
 			ItemId: it.ItemID, Kind: gen.ItemKind(it.Kind), Title: it.Title, Year: it.Year, Position: it.Position,
+			PosterUrl: adminPosterURL(it.ItemID, it.PosterHash),
 		})
 	}
 	return gen.AdminCollection{

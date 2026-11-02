@@ -573,7 +573,16 @@ type Stats struct {
 	WatchTime []StatProfile
 	Playback  StatPlayback
 	Devices   []StatDevice
+	// WatchTimeByQuarterHour is the played time per quarter hour of the week (StatsQuarterHours
+	// values, Monday 00:00 first) over the last TimeWindowDays days in the time zone TimeZone
+	// (concept 12, 11.4).
+	WatchTimeByQuarterHour []int64
+	TimeWindowDays         int
+	TimeZone               string // IANA name
 }
+
+// StatsQuarterHours is the length of Stats.WatchTimeByQuarterHour: 7 days of 96 quarter hours.
+const StatsQuarterHours = 7 * 96
 
 // StatTitle is a watched title (no ItemRef: the administration view is unfiltered).
 type StatTitle struct {
@@ -583,6 +592,12 @@ type StatTitle struct {
 	Year      *int
 	Plays     int
 	WatchedMs int64
+	// ImageItemID names the title whose images the row shows: the title itself, for an episode its
+	// series (concept 12, 11.4). PosterHash and BackdropHash are the content hashes of its
+	// AdminPosterSize poster and AdminBackdropSize backdrop; "" = none stored.
+	ImageItemID  string
+	PosterHash   string
+	BackdropHash string
 }
 
 // StatProfile is the watch time of a profile.

@@ -219,6 +219,9 @@ func collectionWithItems(ctx context.Context, q *systemq.Queries, id string) (mo
 			ItemID: m.ItemID, Kind: m.Kind, Title: m.Title, Year: optInt(m.Year), Position: int(m.Position),
 		})
 	}
+	if err := withPosters(ctx, q, c.Items, func(m *model.AdminCollectionItem) (string, *string) { return m.ItemID, &m.PosterHash }); err != nil {
+		return model.AdminCollection{}, fmt.Errorf("posters of %s: %w", id, err)
+	}
 	return c, nil
 }
 

@@ -372,14 +372,15 @@ WHERE im.item_id = @item_id AND im.kind = @kind AND im.size = @size AND im.size 
 ORDER BY im.format = 'webp' DESC
 LIMIT 1;
 
--- name: AdminListPosters :many
--- The poster of each title in one size (one row per title, the JPEG row: the URL only needs the
--- content hash, the handler picks the format by Accept); titles without that poster are absent.
--- @size comes before the slice: sqlc numbers it ?2 otherwise, which the expanded slice takes.
+-- name: AdminListImages :many
+-- The image of one kind (poster, backdrop) in one size of each title (one row per title, the JPEG
+-- row: the URL only needs the content hash, the handler picks the format by Accept); titles without
+-- that image are absent. @size and @kind come before the slice: sqlc numbers them after it
+-- otherwise, which the expanded slice takes.
 SELECT im.item_id, im.content_hash
 FROM images AS im
 JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
-WHERE im.size = @size AND im.kind = 'poster' AND im.format = 'jpeg' AND im.item_id IN (sqlc.slice('item_ids'));
+WHERE im.size = @size AND im.kind = @kind AND im.format = 'jpeg' AND im.item_id IN (sqlc.slice('item_ids'));
 
 -- name: AdminListFileAndFeedEpisodes :many
 -- Podcast episodes of one podcast that may be the same episode twice (ADR 0015, concept 4.5): a
