@@ -70,29 +70,31 @@ export function HeatGrid({ title, values, formatValue }: HeatGridProps) {
         ))}
         {t('ui.heatGrid.more')}
       </div>
-      <table className={styles.table}>
-        <caption>{title}</caption>
-        <thead>
-          <tr>
-            <th scope="col">{t('ui.heatGrid.day')}</th>
-            {HOURS.map((hour) => (
-              <th key={hour} scope="col">
-                {hourLabel(hour)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {DAYS.map((day, row) => (
-            <tr key={day}>
-              <th scope="row">{t(`ui.weekdays.long.${day}`)}</th>
+      <div className={styles.table}>
+        <table>
+          <caption>{title}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{t('ui.heatGrid.day')}</th>
               {HOURS.map((hour) => (
-                <td key={hour}>{formatValue(value(row, hour))}</td>
+                <th key={hour} scope="col">
+                  {hourLabel(hour)}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {DAYS.map((day, row) => (
+              <tr key={day}>
+                <th scope="row">{t(`ui.weekdays.long.${day}`)}</th>
+                {HOURS.map((hour) => (
+                  <td key={hour}>{formatValue(value(row, hour))}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

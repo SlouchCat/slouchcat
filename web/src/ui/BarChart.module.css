@@ -113,7 +113,8 @@
   background-color: var(--sc-accent);
 }
 
-/* The numbers for screen readers (the bars are hidden from them). */
+/* The numbers for screen readers (the bars are hidden from them). The wrapper hides the
+   table: Gecko clips only the inner table box, not the caption beside it in the table wrapper. */
 .table {
   position: absolute;
   overflow: hidden;

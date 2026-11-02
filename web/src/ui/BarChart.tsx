@@ -51,23 +51,25 @@ export function BarChart({
   const percent = (value: number) => `${Math.min(100, (value / max) * 100)}%`;
   const ticks = new Set([0, Math.floor((bars.length - 1) / 2), bars.length - 1]);
   const table = (
-    <table className={styles.table}>
-      <caption>{title}</caption>
-      <thead>
-        <tr>
-          <th scope="col">{columns[0]}</th>
-          <th scope="col">{columns[1]}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {bars.map((bar) => (
-          <tr key={bar.key}>
-            <th scope="row">{bar.label}</th>
-            <td>{bar.valueText}</td>
+    <div className={styles.table}>
+      <table>
+        <caption>{title}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{columns[0]}</th>
+            <th scope="col">{columns[1]}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {bars.map((bar) => (
+            <tr key={bar.key}>
+              <th scope="row">{bar.label}</th>
+              <td>{bar.valueText}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
   if (horizontal) {
     return (

@@ -88,6 +88,19 @@ test('A-8: a playback shows up in the statistics; period, tables, grid and Back 
   await expect(
     page.getByRole('table', { name: 'Geräte', exact: true }).getByRole('rowheader').first(),
   ).toBeVisible();
+  // The charts' tables are for screen readers only, their captions too: nothing of them is
+  // painted where they stand (Firefox once clipped the table but not its caption).
+  const caption = page
+    .getByRole('table', { name: 'Schauzeit je Profil als Diagramm' })
+    .locator('caption');
+  await caption.scrollIntoViewIfNeeded();
+  expect(
+    await caption.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + 2, box.top + box.height / 2);
+      return hit === null ? 'nothing' : element.contains(hit) ? 'caption' : 'other';
+    }),
+  ).toBe('other');
 
   // «Wann geschaut wird»: the window, the server's zone, the peak and both charts as tables.
   const when = page.getByRole('region', { name: 'Wann geschaut wird' });

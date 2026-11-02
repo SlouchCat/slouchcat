@@ -58,7 +58,8 @@
   width: var(--sc-space-3);
 }
 
-/* The numbers for screen readers (the cells are hidden from them). */
+/* The numbers for screen readers (the cells are hidden from them). The wrapper hides the
+   table: Gecko clips only the inner table box, not the caption beside it in the table wrapper. */
 .table {
   position: absolute;
   overflow: hidden;
