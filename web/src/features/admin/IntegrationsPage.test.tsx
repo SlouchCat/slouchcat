@@ -314,27 +314,36 @@ describe('integrations (A-2)', () => {
         .map((mutation) => JSON.stringify(mutation.state.variables ?? null))
         .filter((variables) => secrets.some((secret) => variables.includes(secret)));
 
+    // Text goes in by paste, one input event per field: this test is about the cache, and typing
+    // its ~100 characters key by key re-rendered the whole page each time, which took 4 s of the
+    // 5 s test timeout in a full parallel run and timed out twice.
+    const fill = async (field: HTMLElement, text: string) => {
+      await user.clear(field);
+      await user.click(field);
+      await user.paste(text);
+    };
+
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    await user.type(within(keys).getByLabelText('YouTube-API-Schlüssel'), secrets[0]!);
+    await fill(within(keys).getByLabelText('YouTube-API-Schlüssel'), secrets[0]!);
     await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
     expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
 
     const email = section('E-Mail-Server');
-    await user.type(within(email).getByLabelText('Server'), 'smtp.example.ch');
-    await user.type(within(email).getByLabelText('Passwort'), secrets[1]!);
-    await user.type(within(email).getByLabelText(/Absender/), 'media@example.ch');
+    await fill(within(email).getByLabelText('Server'), 'smtp.example.ch');
+    await fill(within(email).getByLabelText('Passwort'), secrets[1]!);
+    await fill(within(email).getByLabelText(/Absender/), 'media@example.ch');
     await user.click(within(email).getByRole('button', { name: 'Speichern' }));
     expect(await within(email).findByText('E-Mail-Server gespeichert.')).toBeVisible();
 
-    // A refused token does not stay either.
+    // A refused token does not stay either. `gcTime: 0` drops a settled mutation on a zero
+    // timeout, which can come after the render that marks the field, so the check waits for it.
     const telegram = section('Telegram-Bot');
     const token = within(telegram).getByLabelText('Bot-Token');
-    await user.type(token, secrets[2]!);
+    await fill(token, secrets[2]!);
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));
-    expect(held()).toEqual([]);
-    await user.clear(token);
-    await user.type(token, secrets[3]!);
+    await waitFor(() => expect(held()).toEqual([]));
+    await fill(token, secrets[3]!);
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     expect(await within(telegram).findByText('Telegram-Bot gespeichert.')).toBeVisible();
     await waitFor(() => expect(held()).toEqual([]));
