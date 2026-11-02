@@ -414,11 +414,14 @@ const jobsRoute = createRoute({
 const metadataRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/metadata',
-  // `?library=<id>` opens the page on that library's deviation (the link on the library card).
-  validateSearch: (search: Record<string, unknown>): { library?: number } =>
-    typeof search.library === 'number' && Number.isInteger(search.library) && search.library > 0
+  // `?library=<id>` opens the page on that library's deviation (the link on the library card);
+  // `?item=` is the selected settings area (concept 12, S-14).
+  validateSearch: (search: Record<string, unknown>): AdminSearch & { library?: number } => ({
+    ...adminSearch(search),
+    ...(typeof search.library === 'number' && Number.isInteger(search.library) && search.library > 0
       ? { library: search.library }
-      : {},
+      : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/admin/MetadataPage'), 'MetadataPage'),
 });
 
