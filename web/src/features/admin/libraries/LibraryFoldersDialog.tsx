@@ -214,7 +214,7 @@ export function LibraryFoldersDialog({
           )}
 
           <Form className={styles.add} onSubmit={onSubmit} validationErrors={addErrors?.fields}>
-            <h3 className={styles.addTitle}>{t('admin.libraries.folders.new')}</h3>
+            <h3>{t('admin.libraries.folders.new')}</h3>
             {addErrors?.form && <Notice tone="danger">{addErrors.form}</Notice>}
             <FolderList
               kind={library.kind}

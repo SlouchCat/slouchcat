@@ -61,9 +61,7 @@ export function MasterDetail({ label, items, selectedId, onSelect, children }: M
   };
   const option = (item: MasterDetailItem) => (
     <ListBoxItem key={item.id} id={item.id} textValue={item.label} className={styles.item}>
-      <Text slot="label" className={styles.label}>
-        {item.label}
-      </Text>
+      <Text slot="label">{item.label}</Text>
       {item.description && (
         <Text slot="description" className={styles.description}>
           {item.description}
