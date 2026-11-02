@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ids } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { adminShell, renderAdminPage } from '@/test/admin';
 
 const manualId = '01JB8Z6Q4M7N9P2R3S5T7V9X1A';
 const tmdbId = '01JB8Z6Q4M7N9P2R3S5T7V9X2B';
@@ -39,8 +40,8 @@ describe('admin collections page (M7, E-6)', () => {
   });
 
   it('lists the collections with source and count; TMDB ones cannot be changed', async () => {
-    mockApi({ ...signedIn, 'GET /admin/collections': () => json([tmdb, manual]) });
-    renderApp('/admin/collections');
+    mockApi({ ...signedIn, ...adminShell, 'GET /admin/collections': () => json([tmdb, manual]) });
+    const { nav } = await renderAdminPage('/admin/collections');
 
     const table = await screen.findByRole('table', { name: 'Sammlungen' });
     const rows = within(table).getAllByRole('row');
@@ -58,9 +59,7 @@ describe('admin collections page (M7, E-6)', () => {
     }
     expect(within(rows[2]!).getByText('Manuell')).toBeVisible();
     expect(within(rows[2]!).getByRole('button', { name: 'Filmabend umbenennen' })).toBeEnabled();
-    expect(
-      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
-    ).toHaveTextContent('Sammlungen');
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Sammlungen');
   });
 
   it('creates and renames a manual collection; a server problem shows at the name', async () => {

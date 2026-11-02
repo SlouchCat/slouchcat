@@ -1,15 +1,15 @@
 import { paths } from '@/app/paths';
 import type { IconName } from '@/ui';
 
-// Every page of the administration (A-2 "an einem Ort"), in the groups of the admin navigation and
-// of the overview's cards. Pages outside /admin (profiles and notification channels belong to the
-// account) appear as cards only: the admin navigation lives in the /admin layout.
+// Every page of the administration (A-2 "an einem Ort"), in the groups of the admin sidebar
+// (AdminShellNav, concept 11). Profiles and notification channels belong to the account and live
+// under /settings: their entries leave the administration, where the app's column stands again.
 
 export const adminGroups = ['library', 'accounts', 'curation', 'system'] as const;
 export type AdminGroup = (typeof adminGroups)[number];
 
 export interface AdminSection {
-  /** Key of the texts `admin.sections.<key>.title` and `.description`. */
+  /** Key of the text `admin.sections.<key>.title`. */
   key:
     | 'libraries'
     | 'podcasts'

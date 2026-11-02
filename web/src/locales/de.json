@@ -1483,87 +1483,91 @@
         "accounts": "Konten",
         "curation": "Kuratierung",
         "system": "System"
+      },
+      "back": "Zurück zur App",
+      "updateLabel": "Übersicht, Update auf Version {{version}} verfügbar",
+      "sheet": {
+        "label": "Seiten der Verwaltung",
+        "close": "Seiten der Verwaltung schliessen"
+      },
+      "counts": {
+        "titles_one": "{{name}}, {{formatted}} Titel",
+        "titles_other": "{{name}}, {{formatted}} Titel",
+        "maintenance_one": "{{name}}, {{formatted}} Titel braucht Pflege",
+        "maintenance_other": "{{name}}, {{formatted}} Titel brauchen Pflege",
+        "accounts_one": "{{name}}, {{formatted}} Konto",
+        "accounts_other": "{{name}}, {{formatted}} Konten",
+        "streams_one": "{{name}}, {{formatted}} läuft",
+        "streams_other": "{{name}}, {{formatted}} laufen",
+        "jobsRunning_one": "{{name}}, {{formatted}} läuft",
+        "jobsRunning_other": "{{name}}, {{formatted}} laufen",
+        "jobsFailed_one": "{{name}}, {{formatted}} fehlgeschlagen",
+        "jobsFailed_other": "{{name}}, {{formatted}} fehlgeschlagen",
+        "silent_one": "{{name}}, {{formatted}} Webhook still",
+        "silent_other": "{{name}}, {{formatted}} Webhooks still",
+        "integrations": "{{name}}, {{configured}} von {{total}} eingerichtet",
+        "ofTotal": "{{count}} / {{total}}"
       }
     },
     "sections": {
       "libraries": {
-        "title": "Bibliotheken",
-        "description": "Ordner, Scans und Standard-Altersstufen."
+        "title": "Bibliotheken"
       },
       "podcasts": {
-        "title": "Podcasts",
-        "description": "Feeds abonnieren und ihre Folgen."
+        "title": "Podcasts"
       },
       "maintenance": {
-        "title": "Pflege",
-        "description": "Titel ohne Zuordnung, Bilder oder Freigabe, Duplikate."
+        "title": "Pflege"
       },
       "accounts": {
-        "title": "Konten",
-        "description": "Alle Konten mit Rolle, Grenzen, Profilen und Kanälen."
+        "title": "Konten"
       },
       "profiles": {
-        "title": "Profile",
-        "description": "Die Profile dieses Kontos, PINs und Schauzeit."
+        "title": "Profile"
       },
       "devices": {
-        "title": "Geräte",
-        "description": "Angemeldete Browser und was sie abspielen können."
+        "title": "Geräte"
       },
       "streams": {
-        "title": "Streams",
-        "description": "Laufende Wiedergaben ansehen und beenden."
+        "title": "Streams"
       },
       "spotlight": {
-        "title": "Spotlight",
-        "description": "Die wählbare Trakt-Liste auf der Startseite und ihre Einträge."
+        "title": "Spotlight"
       },
       "picks": {
-        "title": "Cat's Empfehlungen",
-        "description": "Das Karussell der Startseite."
+        "title": "Cat's Empfehlungen"
       },
       "collections": {
-        "title": "Sammlungen",
-        "description": "Eigene Sammlungen und die von TMDB."
+        "title": "Sammlungen"
       },
       "homeRows": {
-        "title": "Startseite",
-        "description": "Reihenfolge der Reihen auf der Startseite."
+        "title": "Startseite"
       },
       "announcements": {
-        "title": "Ankündigungen",
-        "description": "Mitteilungen an alle Profile."
+        "title": "Ankündigungen"
       },
       "jobs": {
-        "title": "Hintergrundjobs",
-        "description": "Laufende und geplante Jobs, Pause, Abbruch und Zeitpläne."
+        "title": "Hintergrundjobs"
       },
       "integrations": {
-        "title": "Integrationen",
-        "description": "Schlüssel, E-Mail, Telegram, Web-Push und Update-Prüfung."
+        "title": "Integrationen"
       },
       "notifications": {
-        "title": "Benachrichtigungen",
-        "description": "Deine Kanäle: E-Mail, Web-Push und Telegram."
+        "title": "Benachrichtigungen"
       },
       "stats": {
-        "title": "Statistiken",
-        "description": "Meistgesehen, Schauzeit, Wiedergabearten und Geräte."
+        "title": "Statistiken"
       },
       "backup": {
-        "title": "Sicherung",
-        "description": "Daten sichern und wiederherstellen."
+        "title": "Sicherung"
       },
       "metadata": {
-        "title": "Metadaten",
-        "description": "Sprachen, Bildarten, Bildsprache, Freigabeland."
+        "title": "Metadaten"
       }
     },
     "home": {
       "title": "Verwaltung",
-      "intro": "Der Zustand des Servers, alle 5 Sekunden aktualisiert, und alle Verwaltungsseiten an einem Ort.",
-      "state": "Zustand des Servers",
-      "manage": "Alle Verwaltungsseiten",
+      "live": "Live, alle 5 Sekunden",
       "update": {
         "title": "Version {{version}} ist verfügbar",
         "body": "Du verwendest {{current}}. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.",
@@ -1575,42 +1579,26 @@
         }
       },
       "streams": {
-        "title": "Streams",
-        "count": "Laufende Streams",
+        "title": "Jetzt läuft",
         "empty": "Gerade läuft nichts.",
-        "entry": "{{profile}}: {{title}}",
-        "all": "Alle Streams"
+        "all": "Alle Streams",
+        "progress": "Fortschritt {{title}}"
       },
       "jobs": {
-        "title": "Hintergrundjobs",
+        "title": "Aufgaben",
         "queued": "Wartend",
         "running": "Laufend",
         "failed": "Fehlgeschlagen",
-        "recent": "Fehlgeschlagene Jobs",
-        "columns": {
-          "type": "Job",
-          "attempts": "Versuche",
-          "error": "Letzter Fehler",
-          "at": "Zeit",
-          "actions": "Aktionen"
-        },
-        "attempts": "{{attempts}} von {{max}}",
-        "noError": "–",
-        "retry": {
-          "action": "Erneut",
-          "label": "Job {{type}} ({{id}}) erneut einreihen"
-        },
-        "cancel": {
-          "action": "Abbrechen",
-          "label": "Job {{type}} ({{id}}) abbrechen",
-          "title": "Job {{type}} abbrechen?",
-          "body": "Slouchcat versucht diesen Job nicht mehr.",
-          "confirm": "Job abbrechen"
-        },
-        "retried": "Job {{type}} wartet wieder.",
-        "cancelled": "Job {{type}} abgebrochen.",
-        "all": "Alle Jobs",
-        "paused": "Pausiert"
+        "paused": "Pausiert",
+        "all": "Hintergrundjobs",
+        "active": "Laufende Aufgaben",
+        "progress": "Fortschritt {{name}}",
+        "next": "Gerade läuft keine Aufgabe. Als Nächstes: {{type}}, {{date}}",
+        "idle": "Gerade läuft keine Aufgabe.",
+        "failedByType": "Fehlgeschlagen je Jobart",
+        "failedType_one": "{{type}}: {{count}} fehlgeschlagen",
+        "failedType_other": "{{type}}: {{count}} fehlgeschlagen",
+        "attempts": "{{attempts}} von {{max}}"
       },
       "storage": {
         "title": "Speicher",
@@ -1629,8 +1617,8 @@
           "disabled": "Ausgeschaltet"
         },
         "entry": "{{name}}: {{state}}",
-        "checked": "Geprüft: {{date}}",
-        "manage": "Integrationen einrichten"
+        "manage": "Integrationen einrichten",
+        "count": "{{count}} von {{total}} eingerichtet"
       },
       "webhooks": {
         "title": "Webhooks",
@@ -1643,16 +1631,57 @@
       "server": {
         "title": "Server",
         "version": "Version",
-        "started": "Gestartet"
+        "uptime": "Läuft seit",
+        "update": "Updates",
+        "updateCurrent": "Aktuell",
+        "updateAvailable": "Version {{version}} verfügbar",
+        "updateDevelopment": "Entwicklungsstand",
+        "updateFailed": "Letzte Prüfung fehlgeschlagen",
+        "updateOff": "Prüfung ausgeschaltet",
+        "checked": "Zuletzt geprüft: {{date}}",
+        "check": "Nach Updates suchen",
+        "checkedNow": "Nach Updates gesucht."
+      },
+      "restart": {
+        "action": "Neu starten",
+        "title": "Server neu starten?",
+        "streams_one": "{{count}} laufender Stream bricht ab. Laufende Downloads für unterwegs werden unterbrochen.",
+        "streams_other": "{{count}} laufende Streams brechen ab. Laufende Downloads für unterwegs werden unterbrochen.",
+        "idle": "Gerade läuft nichts. Laufende Downloads für unterwegs werden unterbrochen.",
+        "confirm": "Neu starten",
+        "waitTitle": "Server startet neu",
+        "waitBody": "Slouchcat fährt geordnet herunter und startet wieder. Sobald der Server antwortet, lädt die Seite neu."
+      },
+      "activity": {
+        "title": "Letzte Aktivität",
+        "empty": "Noch keine Aktivität."
+      },
+      "hints": {
+        "title": "Hinweise",
+        "count_one": "{{count}} Hinweis",
+        "count_other": "{{count}} Hinweise",
+        "none": "Keine Hinweise.",
+        "failed_one": "{{formatted}} Hintergrundjob fehlgeschlagen",
+        "failed_other": "{{formatted}} Hintergrundjobs fehlgeschlagen",
+        "paused_one": "{{count}} Jobart pausiert",
+        "paused_other": "{{count}} Jobarten pausiert",
+        "toJobs": "Zu den Hintergrundjobs",
+        "scan": "Scan der Bibliothek «{{name}}» abgebrochen",
+        "scanOther": "Der Verlustschutz hat den Scan abgebrochen.",
+        "toLibraries": "Zu den Bibliotheken",
+        "storage": "{{path}} ist zu über 90 % belegt"
       },
       "errors": {
-        "title": "Fehler",
+        "title": "Server-Protokoll",
         "intro": "Die letzten 50 Fehler aus dem Server-Log, die neusten zuerst.",
         "list": "Fehler aus dem Server-Log",
         "empty": "Keine Fehler seit dem Start.",
         "job": "Job {{id}} ({{type}})",
         "new_one": "{{count}} neuer Fehler",
-        "new_other": "{{count}} neue Fehler"
+        "new_other": "{{count}} neue Fehler",
+        "none": "keine Fehler",
+        "count_one": "{{count}} Fehler",
+        "count_other": "{{count}} Fehler"
       },
       "browse": {
         "title": "Ordner-Browser blockiert",
@@ -2554,6 +2583,31 @@
         "country_unknown": "Unbekanntes Land.",
         "source_unknown": "Diese Bildquelle ist kein Kandidat des Titels."
       }
+    },
+    "activity": {
+      "someone": "Ein Profil",
+      "someTitle": "einen Titel",
+      "someLibrary": "eine Bibliothek",
+      "playbackStarted": "{{profile}} hat «{{title}}» gestartet",
+      "playbackCompleted": "{{profile}} hat «{{title}}» fertig geschaut",
+      "playbackStopped": "Wiedergabe von «{{title}}» ({{profile}}) beendet",
+      "playbackRevoked": "Wiedergabe von «{{title}}» ({{profile}}) beendet, Gerät vergessen",
+      "scanStarted": "Scan von «{{library}}» gestartet",
+      "scanDone_one": "Scan von «{{library}}» fertig: {{count}} neuer Titel",
+      "scanDone_other": "Scan von «{{library}}» fertig: {{count}} neue Titel",
+      "scanFailed": "Scan von «{{library}}» fehlgeschlagen",
+      "scanAborted": "Scan von «{{library}}» vom Verlustschutz abgebrochen",
+      "scanCancelled": "Scan von «{{library}}» von Hand abgebrochen",
+      "jobFailed_one": "{{type}}: {{count}} Job fehlgeschlagen",
+      "jobFailed_other": "{{type}}: {{count}} Jobs fehlgeschlagen",
+      "backupCreated": "Sicherung erstellt",
+      "backupCreatedSize": "Sicherung erstellt ({{size}})",
+      "backupRestored": "Sicherung zurückgeholt",
+      "serverStarted": "Server gestartet",
+      "serverStartedVersion": "Server gestartet, Version {{version}}",
+      "serverRestart": "Server neu gestartet",
+      "serverRestartBy": "Neustart durch {{account}}",
+      "unknown": "Ereignis auf dem Server"
     }
   },
   "language": {

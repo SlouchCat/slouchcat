@@ -1,47 +1,22 @@
-import { Outlet, useLocation } from '@tanstack/react-router';
-import { useRef } from 'react';
-import { useTranslation } from 'react-i18next';
-import { paths } from '@/app/paths';
+import { Outlet } from '@tanstack/react-router';
 import { useActiveSession } from '@/app/session';
+import { useWideScreen } from '@/lib/useWideScreen';
 import { PageNav } from '@/ui';
-import { AdminNav, type AdminNavGroup } from '@/ui/aria';
-import { adminGroups, adminSections, isSectionPath } from './sections';
+import { AdminShellMenu } from './AdminShellNav';
 
 /**
- * Parent of every /admin page (A-2): the admin navigation at the top of each page, for an
- * administrator's primary profile. Anyone else gets the pages' own "only for administrators"
- * notice without it.
+ * Parent of every /admin page (A-2). From 768 px the administration's sidebar stands in the
+ * shell's column (AppLayout, concept 11); on a phone every page starts with the button
+ * «Verwaltung · page» that opens the same entries as a sheet. Anyone but an administrator's
+ * primary profile gets the pages' own "only for administrators" notice without either.
  */
 export function AdminLayout() {
-  const { t } = useTranslation();
   const session = useActiveSession();
-  const { pathname } = useLocation();
-  // The focused link of the navigation, carried from one admin page to the next.
-  const focusCarry = useRef<number | null>(null);
+  const wide = useWideScreen();
   if (session.account.role !== 'admin' || !session.profile.isPrimary) return <Outlet />;
-
-  const groups: AdminNavGroup[] = [
-    {
-      links: [
-        { href: paths.admin, label: t('admin.nav.overview'), current: pathname === paths.admin },
-      ],
-    },
-    ...adminGroups.map((group) => ({
-      label: t(`admin.nav.groups.${group}`),
-      links: adminSections
-        .filter((section) => section.group === group && section.href.startsWith(`${paths.admin}/`))
-        .map((section) => ({
-          href: section.href,
-          label: t(`admin.sections.${section.key}.title`),
-          current: isSectionPath(section, pathname),
-        })),
-    })),
-  ];
-
+  // The same tree in both widths, so turning a tablet keeps the page and its state.
   return (
-    <PageNav
-      nav={<AdminNav label={t('admin.nav.label')} groups={groups} focusCarry={focusCarry} />}
-    >
+    <PageNav nav={wide ? null : <AdminShellMenu />}>
       <Outlet />
     </PageNav>
   );

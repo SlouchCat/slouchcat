@@ -1,99 +1,116 @@
-import type { Dashboard, JobSummary, SystemInfo } from '@slouchcat/api-client';
+import type { Dashboard, SystemInfo } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
+import { dashboardFixture, renderAdminPage } from '@/test/admin';
 
-// The administration's overview (A-2, A-3): the dashboard asked every 5 s, failed jobs queued
-// again or cancelled, a card for every admin page; the admin navigation above every /admin page
-// and one "Verwaltung" entry in the header.
+// The administration (concept 11, A-2, A-3): the sidebar in the shell's column on every /admin
+// page (20 entries, numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet on a phone, and the
+// overview with eight equal cards asked every 5 s, the hints, the collapsed server log and the
+// restart.
 
-const failedJob: JobSummary = {
-  id: 7,
-  type: 'metadata.match',
-  state: 'failed',
-  attempts: 5,
-  maxAttempts: 5,
-  lastError: 'tmdb: HTTP 503',
-  updatedAt: '2026-10-21T09:15:00Z',
-};
-
-const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard => ({
-  streams: [
-    {
-      id: 'ps-1',
-      accountEmail: 'owner@example.test',
-      profileName: 'Marco',
-      itemId: '01JB8Z6Q4M7N9P2R3S5T7V9W1X',
-      itemTitle: 'Heat',
-      mediaFileId: 'mf-1',
-      mode: 'transcode',
-      hardware: true,
-      startedAt: '2026-10-21T09:00:00Z',
-      lastActivityAt: '2026-10-21T09:10:00Z',
-    },
-  ],
-  jobs: {
-    queued: 12,
-    running: 1,
-    failed: 1,
-    recentFailed: [failedJob],
-    active: [],
-    failedByType: [
+const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard =>
+  dashboardFixture({
+    streams: [
       {
-        type: 'metadata.match',
-        count: 1,
-        lastError: 'tmdb: HTTP 503',
-        lastFailedAt: '2026-10-21T09:15:00Z',
+        id: 'ps-1',
+        accountEmail: 'owner@example.test',
+        profileName: 'Marco',
+        device: { id: 'd-1', name: 'Wohnzimmer' },
+        itemId: '01JB8Z6Q4M7N9P2R3S5T7V9W1X',
+        itemTitle: 'Heat',
+        mediaFileId: 'mf-1',
+        mode: 'transcode',
+        hardware: true,
+        startedAt: '2026-10-21T09:00:00Z',
+        lastActivityAt: '2026-10-21T09:10:00Z',
+        positionMs: 1_800_000,
+        durationMs: 7_200_000,
       },
     ],
-  },
-  storage: {
-    config: { path: '/config', totalBytes: 100e9, freeBytes: 60e9 },
-    cache: { path: '/cache', totalBytes: 500e9, freeBytes: 450e9 },
-  },
-  integrations: [
-    { key: 'tmdb', state: 'configured' },
-    { key: 'trakt', state: 'error', detail: 'HTTP 503', checkedAt: '2026-10-21T09:00:00Z' },
-    { key: 'email', state: 'missing' },
-    { key: 'updateCheck', state: 'disabled' },
-  ],
-  // M9: two integrations, one of them silent for a week (I-8).
-  webhooks: { total: 2, eventsLast24h: 3, silent: ['Sonarr'] },
-  errors: [
-    {
-      at: '2026-10-21T09:15:00Z',
-      source: 'metadata.match',
-      message: 'match failed: tmdb: HTTP 503',
-      jobId: 7,
-      jobType: 'metadata.match',
+    jobs: {
+      queued: 12,
+      running: 1,
+      failed: 1,
+      recentFailed: [],
+      active: [
+        {
+          id: 40,
+          type: 'probe.keyframes',
+          state: 'running',
+          priority: 0,
+          attempts: 1,
+          maxAttempts: 3,
+          updatedAt: '2026-10-21T09:14:00Z',
+          subject: 'Oppenheimer (2023)',
+          skipped: false,
+          progress: { done: 12, total: 40 },
+          estimatedSecondsLeft: 180,
+          estimate: 'measured',
+        },
+      ],
+      failedByType: [
+        {
+          type: 'metadata.match',
+          count: 1,
+          lastError: 'tmdb: HTTP 503',
+          lastFailedAt: '2026-10-21T09:15:00Z',
+        },
+      ],
     },
-    { at: '2026-10-21T09:00:00Z', source: 'trakt', message: 'trakt refresh: HTTP 503' },
-  ],
-  update: {
-    enabled: true,
-    currentVersion: '0.9.0',
-    latestVersion: '0.9.1',
-    development: false,
-    available: true,
-    url: 'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
-  },
-  // Contract 1.7.0 (concept 11); the overview does not show them yet.
-  attention: { abortedScans: [] },
-  counts: { titles: 1200, accounts: 3, maintenanceOpen: 4 },
-  activity: [
-    {
-      id: 1,
-      at: '2026-10-21T09:12:00Z',
-      kind: 'playback_started',
-      profileName: 'Marco',
-      accountEmail: 'owner@example.test',
-      itemTitle: 'Alien',
-      detail: {},
+    integrations: [
+      { key: 'tmdb', state: 'configured' },
+      { key: 'trakt', state: 'error', detail: 'HTTP 503', checkedAt: '2026-10-21T09:00:00Z' },
+      { key: 'email', state: 'missing' },
+      { key: 'updateCheck', state: 'disabled' },
+    ],
+    // M9: two integrations, one of them silent for a week (I-8).
+    webhooks: { total: 2, eventsLast24h: 3, silent: ['Sonarr'] },
+    errors: [
+      {
+        at: '2026-10-21T09:15:00Z',
+        source: 'metadata.match',
+        message: 'match failed: tmdb: HTTP 503',
+        jobId: 7,
+        jobType: 'metadata.match',
+      },
+      { at: '2026-10-21T09:00:00Z', source: 'trakt', message: 'trakt refresh: HTTP 503' },
+    ],
+    update: {
+      enabled: true,
+      currentVersion: '0.9.0',
+      latestVersion: '0.9.1',
+      development: false,
+      available: true,
+      url: 'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
     },
-  ],
-  ...overrides,
-});
+    counts: { titles: 1200, accounts: 3, maintenanceOpen: 4 },
+    activity: [
+      {
+        id: 1,
+        at: '2026-10-21T09:12:00Z',
+        kind: 'playback_started',
+        profileName: 'Marco',
+        accountEmail: 'owner@example.test',
+        itemTitle: 'Alien',
+        detail: {},
+      },
+    ],
+    ...overrides,
+  });
+
+const quiet = (overrides: Partial<Dashboard> = {}): Dashboard =>
+  dashboard({
+    streams: [],
+    jobs: { queued: 0, running: 0, failed: 0, recentFailed: [], active: [], failedByType: [] },
+    webhooks: { total: 0, eventsLast24h: 0, silent: [] },
+    errors: [],
+    update: { enabled: true, currentVersion: '0.9.0', development: false, available: false },
+    counts: { titles: 1200, accounts: 3, maintenanceOpen: 0 },
+    activity: [],
+    ...overrides,
+  });
 
 const system: SystemInfo = {
   version: '0.9.0+abc1234',
@@ -118,41 +135,109 @@ const routes = (extra: Routes = {}): Routes => ({
   ...extra,
 });
 
-describe('admin overview (A-2, A-3)', () => {
+/** The cards of the overview by their headings, in the order of the grid. */
+const cardTitles = () =>
+  screen
+    .getAllByRole('heading', { level: 2 })
+    .map((heading) => heading.textContent)
+    .filter((title) => title !== 'Server-Protokoll');
+
+const termsOf = (region: HTMLElement) =>
+  within(region)
+    .getAllByRole('term')
+    .map((term) => [term.textContent, term.nextElementSibling?.textContent]);
+
+describe('admin overview (concept 11, A-3)', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
-  it('shows streams, jobs, storage, integrations, server and errors', async () => {
+  it('shows eight cards in two columns: server, streams, tasks, activity, integrations, webhooks, storage, hints', async () => {
     mockApi(routes());
     renderApp('/admin');
     expect(await screen.findByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    expect(screen.getByText('Live, alle 5 Sekunden')).toBeVisible();
+    const server = await screen.findByRole('region', { name: 'Server' });
+    expect(cardTitles()).toEqual([
+      'Server',
+      'Jetzt läuft',
+      'Aufgaben',
+      'Letzte Aktivität',
+      'Integrationen',
+      'Webhooks',
+      'Speicher',
+      'Hinweise',
+    ]);
 
-    const streams = await screen.findByRole('region', { name: 'Streams' });
-    expect(within(streams).getByText('Laufende Streams')).toBeVisible();
-    expect(within(streams).getByText('1')).toBeVisible();
-    expect(within(streams).getByText('Marco: Heat · Transcode (HW)')).toBeVisible();
+    expect(await within(server).findByText('0.9.0+abc1234')).toBeVisible();
+    expect(within(server).getByText('Intel Quick Sync (QSV)')).toBeVisible();
+    expect(within(server).getByText('58.982 von 65.536 (90 %)')).toBeVisible();
+    expect(within(server).getByText('Version 0.9.1 verfügbar')).toBeVisible();
+    expect(within(server).getByRole('button', { name: 'Nach Updates suchen' })).toBeVisible();
+    expect(within(server).getByRole('button', { name: 'Neu starten' })).toBeVisible();
+    // The warnings with their commands moved to the hints.
+    expect(within(server).queryByText('Das inotify-Limit ist knapp')).not.toBeInTheDocument();
+
+    const streams = screen.getByRole('region', { name: 'Jetzt läuft' });
+    expect(within(streams).getByText('Heat')).toBeVisible();
+    expect(within(streams).getByText('Marco · Wohnzimmer')).toBeVisible();
+    expect(within(streams).getByText('Transcode (HW)')).toBeVisible();
+    expect(within(streams).getByRole('progressbar', { name: 'Fortschritt Heat' })).toHaveAttribute(
+      'aria-valuenow',
+      '25',
+    );
+    expect(within(streams).getByText('0:30:00 / 2:00:00')).toBeVisible();
     expect(within(streams).getByRole('link', { name: 'Alle Streams' })).toHaveAttribute(
       'href',
       '/admin/streams',
     );
 
-    const jobs = screen.getByRole('region', { name: 'Hintergrundjobs' });
-    // Each counter is a term with its number (StatTile).
-    expect(
-      within(jobs)
-        .getAllByRole('term')
-        .map((term) => [term.textContent, term.nextElementSibling?.textContent]),
-    ).toEqual([
+    const tasks = screen.getByRole('region', { name: 'Aufgaben' });
+    expect(termsOf(tasks)).toEqual([
       ['Wartend', '12'],
       ['Laufend', '1'],
       ['Fehlgeschlagen', '1'],
     ]);
-    const failed = screen.getByRole('table', { name: 'Fehlgeschlagene Jobs' });
-    const row = within(failed).getByRole('rowheader', { name: 'metadata.match' }).closest('tr')!;
-    expect(within(row).getByText('5 von 5')).toBeVisible();
-    expect(within(row).getByText('tmdb: HTTP 503')).toBeVisible();
+    const running = within(tasks).getByRole('list', { name: 'Laufende Aufgaben' });
+    expect(within(running).getByText('Keyframe-Index · Oppenheimer (2023)')).toBeVisible();
+    expect(
+      within(running).getByRole('progressbar', { name: 'Fortschritt Keyframe-Index' }),
+    ).toHaveAttribute('aria-valuenow', '30');
+    expect(within(running).getByText('12 von 40')).toBeVisible();
+    expect(within(running).getByText('noch ca. 3 min')).toBeVisible();
+    const failed = within(tasks).getByRole('list', { name: 'Fehlgeschlagen je Jobart' });
+    expect(within(failed).getByText('Titel zuordnen: 1 fehlgeschlagen')).toBeVisible();
+    expect(within(failed).getByText('tmdb: HTTP 503')).toBeVisible();
+    expect(within(tasks).getByRole('link', { name: 'Hintergrundjobs' })).toHaveAttribute(
+      'href',
+      '/admin/jobs',
+    );
+    // F-2: no table with «Erneut» and «Abbrechen» on the overview any more.
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+
+    const activity = screen.getByRole('list', { name: 'Letzte Aktivität' });
+    expect(within(activity).getByRole('listitem')).toHaveTextContent('Marco hat «Alien» gestartet');
+
+    const integrations = screen.getByRole('region', { name: 'Integrationen' });
+    expect(within(integrations).getByText('1 von 4 eingerichtet')).toBeInTheDocument();
+    expect(within(integrations).getByText('TMDB: Eingerichtet')).toBeVisible();
+    expect(within(integrations).getByText('Trakt: Fehler')).toBeVisible();
+    expect(within(integrations).getByText('HTTP 503')).toBeVisible();
+    expect(within(integrations).getByText('E-Mail: Nicht eingerichtet')).toBeVisible();
+    expect(within(integrations).getByText('Update-Prüfung: Ausgeschaltet')).toBeVisible();
+    expect(
+      within(integrations).getByRole('link', { name: 'Integrationen einrichten' }),
+    ).toHaveAttribute('href', '/admin/integrations');
+
+    const webhooks = screen.getByRole('region', { name: 'Webhooks' });
+    expect(
+      within(webhooks).getByText(
+        '3 Meldungen im Protokoll der letzten 24 Stunden, von 2 Integrationen.',
+      ),
+    ).toBeVisible();
+    expect(within(webhooks).getByText('Seit sieben Tagen ohne Meldung: Sonarr')).toBeVisible();
+    expect(within(webhooks).getByRole('link', { name: 'Webhooks verwalten' })).toBeVisible();
 
     const storage = screen.getByRole('region', { name: 'Speicher' });
     const config = within(storage).getByRole('meter', { name: 'Konfiguration (/config)' });
@@ -166,57 +251,89 @@ describe('admin overview (A-2, A-3)', () => {
       'aria-valuenow',
       '10',
     );
-    expect(within(storage).getByText('Frei: 450 GB von 500 GB')).toBeVisible();
 
-    const integrations = screen.getByRole('region', { name: 'Integrationen' });
-    expect(within(integrations).getByText('TMDB: Eingerichtet')).toBeVisible();
-    expect(within(integrations).getByText('Trakt: Fehler')).toBeVisible();
-    expect(within(integrations).getByText('HTTP 503')).toBeVisible();
-    expect(within(integrations).getByText('E-Mail: Nicht eingerichtet')).toBeVisible();
-    expect(within(integrations).getByText('Update-Prüfung: Ausgeschaltet')).toBeVisible();
+    // The old overview's parts are gone: intro, cards of every page.
+    expect(screen.queryByText(/an einem Ort/)).not.toBeInTheDocument();
     expect(
-      within(integrations).getByRole('link', { name: 'Integrationen einrichten' }),
-    ).toHaveAttribute('href', '/admin/integrations');
-
-    const server = await screen.findByRole('region', { name: 'Server' });
-    expect(within(server).getByText('0.9.0+abc1234')).toBeVisible();
-    expect(within(server).getByText('Intel Quick Sync (QSV)')).toBeVisible();
-    expect(within(server).getByText('58.982 von 65.536 (90 %)')).toBeVisible();
-    expect(within(server).getByText('Das inotify-Limit ist knapp')).toBeVisible();
-    expect(
-      within(server).getByRole('group', { name: 'Befehl für das inotify-Limit' }),
-    ).toHaveTextContent('sysctl fs.inotify.max_user_watches=524288');
-
-    const errors = screen.getByRole('list', { name: 'Fehler aus dem Server-Log' });
-    // The list itself is not live: a poll announces a short count instead (below).
-    expect(errors).not.toHaveAttribute('aria-live');
-    const entries = within(errors).getAllByRole('listitem');
-    expect(entries).toHaveLength(2);
-    expect(entries[0]).toHaveTextContent('match failed: tmdb: HTTP 503');
-    expect(entries[0]).toHaveTextContent('Job 7 (metadata.match)');
-    expect(entries[1]).toHaveTextContent('trakt refresh: HTTP 503');
+      screen.queryByRole('region', { name: 'Alle Verwaltungsseiten' }),
+    ).not.toBeInTheDocument();
   });
 
-  it('announces a newer version with its release notes (A-5)', async () => {
-    mockApi(routes());
-    renderApp('/admin');
-    const notice = await screen.findByText('Version 0.9.1 ist verfügbar');
-    const box = notice.closest('[role="status"]')!;
-    expect(box).toHaveTextContent('Du verwendest 0.9.0.');
-    expect(
-      within(box as HTMLElement).getByRole('link', { name: /Versionshinweise/ }),
-    ).toHaveAttribute(
-      'href',
-      'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
-    );
-  });
-
-  it('names a development build instead of offering an update for it', async () => {
+  it('lists what needs doing, most urgent first, and announces only their number', async () => {
     mockApi(
       routes({
         'GET /admin/dashboard': () =>
           json(
             dashboard({
+              jobs: { ...dashboard().jobs, failed: 265, paused: 2 },
+              attention: {
+                abortedScans: [{ libraryId: 1, name: 'Filme', reason: 'loss_over_threshold' }],
+              },
+              browse: { lostSlots: 1, slots: 4 },
+              storage: {
+                config: { path: '/config', totalBytes: 100e9, freeBytes: 5e9 },
+                cache: { path: '/cache', totalBytes: 500e9, freeBytes: 450e9 },
+              },
+            }),
+          ),
+        'GET /admin/system': () =>
+          json({ ...system, gpu: { ...system.gpu, hardwareEncode: false, backend: 'software' } }),
+      }),
+    );
+    renderApp('/admin');
+    const hints = await screen.findByRole('region', { name: 'Hinweise' });
+    await waitFor(() => expect(within(hints).getAllByRole('listitem')).toHaveLength(8));
+    expect(
+      within(hints)
+        .getAllByRole('listitem')
+        .map((item) => item.querySelector('span > span:last-child')?.textContent),
+    ).toEqual([
+      '265 Hintergrundjobs fehlgeschlagen',
+      '2 Jobarten pausiert',
+      'Scan der Bibliothek «Filme» abgebrochen',
+      'Ordner-Browser blockiert',
+      'Kein Grafikchip erkannt',
+      'Das inotify-Limit ist knapp',
+      '/config ist zu über 90 % belegt',
+      'Version 0.9.1 ist verfügbar',
+    ]);
+    expect(
+      within(hints).getAllByRole('link', { name: 'Zu den Hintergrundjobs' })[0],
+    ).toHaveAttribute('href', '/admin/jobs');
+    expect(within(hints).getByRole('link', { name: 'Zu den Bibliotheken' })).toHaveAttribute(
+      'href',
+      '/admin/libraries',
+    );
+    expect(
+      within(hints).getByText(
+        'Mehr als 20 % der Dateien fehlen. Zum Schutz wurde nichts gelöscht.',
+      ),
+    ).toBeVisible();
+    expect(
+      within(hints).getByRole('group', { name: 'Befehl für das inotify-Limit' }),
+    ).toHaveTextContent('sysctl fs.inotify.max_user_watches=524288');
+    expect(
+      within(hints).getByRole('group', { name: 'Compose-Befehl für Intel' }),
+    ).toHaveTextContent('docker compose -f compose.yaml -f compose.intel.yaml up -d');
+    expect(within(hints).getByRole('link', { name: /Versionshinweise/ })).toHaveAttribute(
+      'href',
+      'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
+    );
+    // Integration errors and silent webhooks stay in their own cards (G-8).
+    expect(within(hints).queryByText(/Trakt/)).not.toBeInTheDocument();
+    expect(within(hints).queryByText(/Sonarr/)).not.toBeInTheDocument();
+    // The head's number is the live region (the command blocks have their own for «kopiert»).
+    expect(within(hints).getByText('8 Hinweise').closest('[role="status"]')).toHaveTextContent(
+      '8 Hinweise',
+    );
+  });
+
+  it('names a development build as a hint instead of offering an update for it', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            quiet({
               update: {
                 enabled: true,
                 currentVersion: 'spotlight-marker-f92c09f',
@@ -230,25 +347,27 @@ describe('admin overview (A-2, A-3)', () => {
       }),
     );
     renderApp('/admin');
-    expect(await screen.findByText('Du verwendest einen Entwicklungsstand')).toBeVisible();
-    const box = screen.getByRole('region', { name: 'Zustand des Servers' });
-    expect(box).toHaveTextContent(
+    const hints = await screen.findByRole('region', { name: 'Hinweise' });
+    expect(await within(hints).findByText('Du verwendest einen Entwicklungsstand')).toBeVisible();
+    expect(hints).toHaveTextContent(
       'spotlight-marker-f92c09f ist kein veröffentlichtes Release, darum gibt es keinen Vergleich und keinen Update-Hinweis. Zuletzt veröffentlicht: 1.1.0.',
     );
-    expect(screen.getByRole('link', { name: /Versionshinweise/ })).toHaveAttribute(
+    expect(within(hints).getByRole('link', { name: /Versionshinweise/ })).toHaveAttribute(
       'href',
       'https://github.com/SlouchCat/slouchcat/releases/tag/v1.1.0',
     );
     expect(screen.queryByText(/ist verfügbar/)).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('region', { name: 'Server' })).getByText('Entwicklungsstand'),
+    ).toBeVisible();
   });
 
-  it('shows no update hint, an empty stream list and no failed jobs when all is quiet', async () => {
+  it('when all is quiet: nothing plays, the next run, no hints, no errors, no activity', async () => {
     mockApi(
       routes({
         'GET /admin/dashboard': () =>
           json(
-            dashboard({
-              streams: [],
+            quiet({
               jobs: {
                 queued: 0,
                 running: 0,
@@ -256,50 +375,115 @@ describe('admin overview (A-2, A-3)', () => {
                 recentFailed: [],
                 active: [],
                 failedByType: [],
+                nextRun: { type: 'podcast.poll', at: '2026-10-21T12:00:00Z' },
               },
-              errors: [],
-              update: {
-                enabled: true,
-                currentVersion: '0.9.0',
-                development: false,
-                available: false,
-              },
+            }),
+          ),
+        'GET /admin/system': () => json({ ...system, inotify: { ...system.inotify, warn: false } }),
+      }),
+    );
+    renderApp('/admin');
+    expect(await screen.findByText('Gerade läuft nichts.')).toBeVisible();
+    expect(
+      screen.getByText(/^Gerade läuft keine Aufgabe\. Als Nächstes: Podcast-Feeds prüfen, /),
+    ).toBeVisible();
+    expect(screen.getByText('Noch keine Aktivität.')).toBeVisible();
+    expect(screen.getByText('Keine Integration eingerichtet.')).toBeVisible();
+    const hints = screen.getByRole('region', { name: 'Hinweise' });
+    await waitFor(() => expect(within(hints).getByText('Keine Hinweise.')).toBeVisible());
+    expect(within(hints).getByRole('status')).toHaveTextContent('0 Hinweise');
+    const log = screen.getByRole('region', { name: 'Server-Protokoll' });
+    expect(log).toHaveTextContent('Server-Protokoll · keine Fehler');
+    expect(within(log).getByText('Keine Fehler seit dem Start.')).not.toBeVisible();
+    // The live region of the count is there before the first error comes.
+    expect(within(log).getByRole('status')).toBeEmptyDOMElement();
+  });
+
+  it('builds a sentence for every kind of the activity log, and a general one for a new kind', async () => {
+    const at = '2026-10-21T09:00:00Z';
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            quiet({
+              activity: [
+                {
+                  id: 1,
+                  at,
+                  kind: 'playback_completed',
+                  profileName: 'Lena',
+                  itemTitle: 'Dune',
+                  detail: {},
+                },
+                {
+                  id: 2,
+                  at,
+                  kind: 'playback_stopped',
+                  profileName: 'Lena',
+                  itemTitle: 'Dune',
+                  detail: { by: 'revoked' },
+                },
+                { id: 3, at, kind: 'scan_done', libraryName: 'Filme', detail: { newTitles: 3 } },
+                {
+                  id: 4,
+                  at,
+                  kind: 'scan_aborted',
+                  libraryName: 'Serien',
+                  detail: { reason: 'cancelled' },
+                },
+                { id: 5, at, kind: 'job_failed', detail: { jobType: 'probe.keyframes', count: 4 } },
+                { id: 6, at, kind: 'telescope_aligned', detail: {} },
+              ],
             }),
           ),
       }),
     );
     renderApp('/admin');
-    expect(await screen.findByText('Gerade läuft nichts.')).toBeVisible();
-    expect(screen.getByText('Keine Fehler seit dem Start.')).toBeVisible();
-    expect(screen.queryByText(/ist verfügbar/)).not.toBeInTheDocument();
-    expect(screen.queryByRole('table', { name: 'Fehlgeschlagene Jobs' })).not.toBeInTheDocument();
-    expect(screen.getByRole('list', { name: 'Fehler aus dem Server-Log' })).toBeEmptyDOMElement();
-    // The live region of the count is there before the first error comes.
-    const errors = screen.getByRole('region', { name: 'Fehler' });
-    expect(within(errors).getByRole('status')).toBeEmptyDOMElement();
+    const feed = await screen.findByRole('list', { name: 'Letzte Aktivität' });
+    expect(
+      within(feed)
+        .getAllByRole('listitem')
+        .map((item) => item.firstElementChild?.nextElementSibling?.textContent),
+    ).toEqual([
+      'Lena hat «Dune» fertig geschaut',
+      'Wiedergabe von «Dune» (Lena) beendet, Gerät vergessen',
+      'Scan von «Filme» fertig: 3 neue Titel',
+      'Scan von «Serien» von Hand abgebrochen',
+      'Keyframe-Index: 4 Jobs fehlgeschlagen',
+      'Ereignis auf dem Server',
+    ]);
+    expect(within(feed).getAllByRole('listitem')[0]!.querySelector('time')).toHaveAttribute(
+      'datetime',
+      at,
+    );
   });
 
-  it('asks again every 5 s; new errors go on top and are announced as a count', async () => {
+  it('keeps the server log collapsed; a poll every 5 s announces new errors as a count', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const older = { at: '2026-10-21T09:20:00Z', source: 'library', message: 'scan aborted' };
-    let current = dashboard({ errors: [] });
+    let current = quiet();
     const { calls } = mockApi(routes({ 'GET /admin/dashboard': () => json(current) }));
     renderApp('/admin');
-    await screen.findByRole('region', { name: 'Hintergrundjobs' });
-    const tile = screen.getByRole('region', { name: 'Fehler' });
-    const status = within(tile).getByRole('status');
+    const log = await screen.findByRole('region', { name: 'Server-Protokoll' });
+    const status = within(log).getByRole('status');
     const polls = () => calls.filter((call) => call.path === '/admin/dashboard').length;
-    expect(polls()).toBe(1);
-    current = dashboard({ errors: [older] });
+    await waitFor(() => expect(polls()).toBeGreaterThanOrEqual(1));
+    const before = polls();
+    current = quiet({ errors: [older] });
     await act(() => vi.advanceTimersByTimeAsync(5000));
-    await waitFor(() => expect(polls()).toBe(2));
-    const errors = screen.getByRole('list', { name: 'Fehler aus dem Server-Log' });
+    await waitFor(() => expect(polls()).toBeGreaterThan(before));
+    const errors = within(log).getByRole('list', {
+      hidden: true,
+      name: 'Fehler aus dem Server-Log',
+    });
     const first = await within(errors).findByText('scan aborted');
-    expect(first).toBeVisible();
+    // Collapsed: the list is there but not shown; its count is read out all the same.
+    expect(first).not.toBeVisible();
     expect(status).toHaveTextContent(/^1 neuer Fehler$/);
+    expect(log).toHaveTextContent('Server-Protokoll · 1 Fehler');
 
     // Two more on top (newest first): the older entry keeps its node, only the count is read.
-    current = dashboard({
+    current = quiet({
       errors: [
         { at: '2026-10-21T09:22:00Z', source: 'transcode', message: 'ffmpeg exited' },
         { at: '2026-10-21T09:21:00Z', source: 'library', message: 'scan aborted' },
@@ -307,88 +491,101 @@ describe('admin overview (A-2, A-3)', () => {
       ],
     });
     await act(() => vi.advanceTimersByTimeAsync(5000));
-    await waitFor(() => expect(within(errors).getAllByRole('listitem')).toHaveLength(3));
+    await waitFor(() => expect(errors.querySelectorAll('li')).toHaveLength(3));
     expect(status).toHaveTextContent(/^2 neue Fehler$/);
-    expect(within(errors).getAllByRole('listitem')[2]).toContainElement(first);
+    expect(errors.querySelectorAll('li')[2]).toContainElement(first);
 
-    // A poll without news keeps the last count and the nodes.
-    await act(() => vi.advanceTimersByTimeAsync(5000));
-    await waitFor(() => expect(polls()).toBe(4));
-    expect(status).toHaveTextContent(/^2 neue Fehler$/);
-    expect(within(errors).getAllByRole('listitem')[2]).toContainElement(first);
+    // Opened, the list shows; the list itself is not live.
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    await user.click(within(log).getByText('Server-Protokoll'));
+    expect(first).toBeVisible();
+    expect(errors).not.toHaveAttribute('aria-live');
+    expect(errors.querySelectorAll('li')[0]).toHaveTextContent('ffmpeg exited');
   });
 
-  it('queues a failed job again; focus goes to the jobs', async () => {
-    let listed = dashboard();
+  it('restart: the dialog names the streams; «Abbrechen» keeps the server running', async () => {
+    const { calls } = mockApi(routes());
+    renderApp('/admin');
+    const user = userEvent.setup();
+    const server = await screen.findByRole('region', { name: 'Server' });
+    const restart = within(server).getByRole('button', { name: 'Neu starten' });
+    act(() => restart.focus());
+    await user.keyboard('{Enter}');
+    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
+    expect(dialog).toHaveTextContent(
+      '1 laufender Stream bricht ab. Laufende Downloads für unterwegs werden unterbrochen.',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(restart).toHaveFocus());
+    expect(calls.some((call) => call.path === '/admin/server/restart')).toBe(false);
+  });
+
+  it('restart without streams: the waiting panel replaces the cards, title and sidebar stay', async () => {
     const { calls } = mockApi(
       routes({
-        'GET /admin/dashboard': () => json(listed),
-        'POST /admin/jobs/7/retry': () => {
-          listed = dashboard({
-            jobs: {
-              queued: 13,
-              running: 1,
-              failed: 0,
-              recentFailed: [],
-              active: [],
-              failedByType: [],
-            },
-          });
-          return json({ ...failedJob, state: 'queued', attempts: 0 });
-        },
+        'GET /admin/dashboard': () => json(quiet()),
+        'POST /admin/server/restart': () => json({ restartAt: '2026-10-21T09:30:01Z' }, 202),
+        // The old process still answers: the panel keeps waiting.
+        'GET /healthz': () => json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
       }),
     );
     renderApp('/admin');
     const user = userEvent.setup();
-    await user.click(
-      await screen.findByRole('button', { name: 'Job metadata.match (7) erneut einreihen' }),
+    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
+    expect(dialog).toHaveTextContent(
+      'Gerade läuft nichts. Laufende Downloads für unterwegs werden unterbrochen.',
     );
-    await waitFor(() =>
-      expect(
-        calls.some((call) => call.method === 'POST' && call.path === '/admin/jobs/7/retry'),
-      ).toBe(true),
-    );
-    expect(await screen.findByText('Job metadata.match wartet wieder.')).toBeVisible();
-    await waitFor(() =>
-      expect(screen.queryByRole('table', { name: 'Fehlgeschlagene Jobs' })).toBeNull(),
-    );
-    expect(screen.getByRole('heading', { name: 'Hintergrundjobs' })).toHaveFocus();
-  });
+    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
 
-  it('cancels a failed job after the confirmation; a refusal shows its message', async () => {
-    let refuse = true;
-    const { calls } = mockApi(
-      routes({
-        'DELETE /admin/jobs/7': () =>
-          refuse ? problem(404, 'not_found') : new Response(null, { status: 204 }),
-      }),
-    );
-    renderApp('/admin');
-    const user = userEvent.setup();
-    const cancel = await screen.findByRole('button', { name: 'Job metadata.match (7) abbrechen' });
-    await user.click(cancel);
-    let dialog = await screen.findByRole('alertdialog', { name: 'Job metadata.match abbrechen?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Job abbrechen' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Nicht gefunden.');
-    // «Erneut einreihen» is refused as well (no route: 404).
-    await user.click(
-      screen.getByRole('button', { name: 'Job metadata.match (7) erneut einreihen' }),
-    );
-    await waitFor(() =>
-      expect(calls.filter((call) => call.path === '/admin/jobs/7/retry')).toHaveLength(1),
-    );
-    expect(await screen.findByRole('alert')).toHaveTextContent('Nicht gefunden.');
-
-    refuse = false;
-    await user.click(screen.getByRole('button', { name: 'Job metadata.match (7) abbrechen' }));
-    dialog = await screen.findByRole('alertdialog', { name: 'Job metadata.match abbrechen?' });
-    await user.click(within(dialog).getByRole('button', { name: 'Job abbrechen' }));
-    expect(await screen.findByText('Job metadata.match abgebrochen.')).toBeVisible();
-    // The next action clears the old refusal, also the one of the other button.
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Server startet neu' });
+    await waitFor(() => expect(heading).toHaveFocus());
     expect(
-      calls.filter((call) => call.method === 'DELETE' && call.path === '/admin/jobs/7'),
-    ).toHaveLength(2);
+      calls.filter((call) => call.method === 'POST' && call.path === '/admin/server/restart'),
+    ).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent('Warte auf den Server …');
+    expect(screen.queryByRole('region', { name: 'Server' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Hinweise' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+    expect(screen.getByRole('navigation', { name: 'Verwaltung' })).toBeVisible();
+  });
+
+  it('a refused restart says why and keeps the cards', async () => {
+    mockApi(routes({ 'POST /admin/server/restart': () => problem(409, 'backup_busy') }));
+    renderApp('/admin');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Gerade läuft eine Sicherung oder Wiederherstellung.',
+    );
+    expect(screen.getByRole('region', { name: 'Server' })).toBeVisible();
+  });
+
+  it('«Nach Updates suchen» asks the server and reads the dashboard again; a refusal shows', async () => {
+    let enabled = true;
+    const { calls } = mockApi(
+      routes({
+        'POST /admin/update/check': () =>
+          enabled ? json(dashboard().update) : problem(422, 'update_check_disabled'),
+      }),
+    );
+    renderApp('/admin');
+    const user = userEvent.setup();
+    const check = await screen.findByRole('button', { name: 'Nach Updates suchen' });
+    const polls = () => calls.filter((call) => call.path === '/admin/dashboard').length;
+    const before = polls();
+    await user.click(check);
+    expect(await screen.findByText('Nach Updates gesucht.')).toBeVisible();
+    await waitFor(() => expect(polls()).toBeGreaterThan(before));
+    enabled = false;
+    await user.click(check);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Die Update-Prüfung ist ausgeschaltet.',
+    );
+    expect(screen.queryByText('Nach Updates gesucht.')).not.toBeInTheDocument();
   });
 
   it('a failing dashboard request offers a retry', async () => {
@@ -403,138 +600,197 @@ describe('admin overview (A-2, A-3)', () => {
     expect(await screen.findByText('Etwas ist schiefgelaufen. Versuche es erneut.')).toBeVisible();
     fail = false;
     await user.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
-    expect(await screen.findByRole('region', { name: 'Hintergrundjobs' })).toBeVisible();
-  });
-
-  it('links every admin page as a card, in the groups of the navigation (A-2)', async () => {
-    mockApi(routes());
-    renderApp('/admin');
-    const manage = await screen.findByRole('region', { name: 'Alle Verwaltungsseiten' });
-    const cards = (group: string) =>
-      within(within(manage).getByRole('region', { name: group }))
-        .getAllByRole('link')
-        .map((link) => [
-          document.getElementById(link.getAttribute('aria-labelledby') ?? '')?.textContent,
-          link.getAttribute('href'),
-        ]);
-    expect(cards('Bibliothek')).toEqual([
-      ['Bibliotheken', '/admin/libraries'],
-      ['Podcasts', '/admin/podcasts'],
-      ['Pflege', '/admin/maintenance'],
-      ['Metadaten', '/admin/metadata'],
-    ]);
-    expect(cards('Konten')).toEqual([
-      ['Konten', '/admin/accounts'],
-      ['Profile', '/settings/profiles'],
-      ['Geräte', '/admin/devices'],
-      ['Streams', '/admin/streams'],
-    ]);
-    expect(cards('Kuratierung')).toEqual([
-      ['Spotlight', '/admin/spotlight'],
-      ["Cat's Empfehlungen", '/admin/picks'],
-      ['Sammlungen', '/admin/collections'],
-      ['Startseite', '/admin/home-rows'],
-      ['Ankündigungen', '/admin/announcements'],
-    ]);
-    expect(cards('System')).toEqual([
-      ['Hintergrundjobs', '/admin/jobs'],
-      ['Integrationen', '/admin/integrations'],
-      ['Benachrichtigungen', '/settings/notifications'],
-      ['Statistiken', '/admin/stats'],
-      ['Sicherung', '/admin/backup'],
-    ]);
-    // The title names a card, its line describes it.
-    const integrations = within(manage).getByRole('link', { name: 'Integrationen' });
-    expect(integrations).toHaveAccessibleDescription(
-      'Schlüssel, E-Mail, Telegram, Web-Push und Update-Prüfung.',
-    );
+    expect(await screen.findByRole('region', { name: 'Aufgaben' })).toBeVisible();
   });
 });
 
-describe('admin navigation (A-2)', () => {
-  afterEach(() => vi.unstubAllGlobals());
+/** Every entry of the sidebar, in its order, with its path (11.1: 20 entries). */
+const SIDEBAR = [
+  ['Zurück zur App', '/'],
+  ['Übersicht', '/admin'],
+  ['Bibliotheken', '/admin/libraries'],
+  ['Podcasts', '/admin/podcasts'],
+  ['Pflege', '/admin/maintenance'],
+  ['Metadaten', '/admin/metadata'],
+  ['Konten', '/admin/accounts'],
+  ['Profile', '/settings/profiles'],
+  ['Geräte', '/admin/devices'],
+  ['Streams', '/admin/streams'],
+  ['Spotlight', '/admin/spotlight'],
+  ["Cat's Empfehlungen", '/admin/picks'],
+  ['Sammlungen', '/admin/collections'],
+  ['Startseite', '/admin/home-rows'],
+  ['Ankündigungen', '/admin/announcements'],
+  ['Hintergrundjobs', '/admin/jobs'],
+  ['Integrationen', '/admin/integrations'],
+  ['Benachrichtigungen', '/settings/notifications'],
+  ['Statistiken', '/admin/stats'],
+  ['Sicherung', '/admin/backup'],
+] as const;
 
-  it('puts the admin pages above every /admin page; ← → Home End move, one Tab stop', async () => {
-    mockApi({ ...signedIn, 'GET /admin/devices': () => json([]) });
-    renderApp('/admin/devices');
-    const nav = await screen.findByRole('navigation', { name: 'Verwaltung' });
+describe('admin sidebar (A-2, concept 11)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  });
+
+  it('stands in the column with 20 entries and their numbers; ↑ ↓ Home End move, one Tab stop', async () => {
+    mockApi(routes({ 'GET /admin/devices': () => json([]) }));
+    const { nav } = await renderAdminPage('/admin/devices');
     const links = within(nav).getAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual([
-      'Übersicht',
-      'Bibliotheken',
-      'Podcasts',
-      'Pflege',
-      'Metadaten',
-      'Konten',
-      'Geräte',
-      'Streams',
-      'Spotlight',
-      "Cat's Empfehlungen",
-      'Sammlungen',
-      'Startseite',
-      'Ankündigungen',
-      'Hintergrundjobs',
-      'Integrationen',
-      'Statistiken',
-      'Sicherung',
-    ]);
-    expect(within(nav).getByRole('list', { name: 'Konten' })).toBeVisible();
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(SIDEBAR.map(([, href]) => href));
+    expect(links.map((link) => link.querySelector('span')?.textContent)).toEqual(
+      SIDEBAR.map(([name]) => name),
+    );
+    for (const group of ['Bibliothek', 'Konten', 'Kuratierung', 'System']) {
+      expect(within(nav).getByRole('list', { name: group })).toBeVisible();
+    }
+    // F-7: few muted counts, coloured pills for what needs a look, each with a spoken name.
+    expect(
+      await within(nav).findByRole('link', { name: 'Bibliotheken, 1.200 Titel' }),
+    ).toHaveTextContent('1.200');
+    expect(
+      within(nav).getByRole('link', { name: 'Pflege, 4 Titel brauchen Pflege' }),
+    ).toBeVisible();
+    expect(within(nav).getByRole('link', { name: 'Konten, 3 Konten' })).toBeVisible();
+    expect(within(nav).getByRole('link', { name: 'Streams, 1 läuft' })).toBeVisible();
+    expect(
+      within(nav).getByRole('link', { name: 'Hintergrundjobs, 1 fehlgeschlagen' }),
+    ).toBeVisible();
+    expect(within(nav).getByRole('link', { name: 'Integrationen, 1 Webhook still' })).toBeVisible();
+    expect(within(nav).getByRole('link', { name: 'Podcasts' })).toBeVisible();
+
     const devices = within(nav).getByRole('link', { name: 'Geräte' });
     expect(devices).toHaveAttribute('aria-current', 'page');
     // Roving tabIndex: only the current page's link is in the Tab order.
     expect(links.filter((link) => link.tabIndex === 0)).toEqual([devices]);
 
     devices.focus();
-    fireEvent.keyDown(devices, { key: 'ArrowRight' });
-    const streams = within(nav).getByRole('link', { name: 'Streams' });
+    fireEvent.keyDown(devices, { key: 'ArrowDown' });
+    const streams = within(nav).getByRole('link', { name: 'Streams, 1 läuft' });
     expect(streams).toHaveFocus();
     expect(streams.tabIndex).toBe(0);
     expect(devices.tabIndex).toBe(-1);
-    fireEvent.keyDown(streams, { key: 'ArrowLeft' });
+    fireEvent.keyDown(streams, { key: 'ArrowUp' });
     expect(devices).toHaveFocus();
     fireEvent.keyDown(devices, { key: 'End' });
     expect(within(nav).getByRole('link', { name: 'Sicherung' })).toHaveFocus();
-    fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
-    expect(within(nav).getByRole('link', { name: 'Übersicht' })).toHaveFocus();
-    fireEvent.keyDown(document.activeElement!, { key: 'ArrowLeft' });
+    // The arrows wrap, like the old navigation.
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(within(nav).getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
     expect(within(nav).getByRole('link', { name: 'Sicherung' })).toHaveFocus();
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
-    expect(within(nav).getByRole('link', { name: 'Übersicht' })).toHaveFocus();
-    // Leaving the row puts the Tab stop back on the current page.
+    expect(within(nav).getByRole('link', { name: 'Zurück zur App' })).toHaveFocus();
+    // Leaving the column puts the Tab stop back on the current page.
     act(() => (document.activeElement as HTMLElement).blur());
     expect(devices.tabIndex).toBe(0);
   });
 
-  it('Enter follows a link; maintenance stays current on a title page', async () => {
-    mockApi({
-      ...signedIn,
-      'GET /admin/devices': () => json([]),
-      'GET /admin/streams': () => json([]),
-    });
-    const { router } = renderApp('/admin/devices');
-    const user = userEvent.setup();
-    const nav = await screen.findByRole('navigation', { name: 'Verwaltung' });
-    await user.click(within(nav).getByRole('link', { name: 'Streams' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/streams'));
-    expect(within(nav).getByRole('link', { name: 'Streams' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-  });
-
-  it('collapses the header to one "Verwaltung" entry, current on every /admin page', async () => {
+  it('shows the entries without numbers while the dashboard cannot be read', async () => {
     mockApi({ ...signedIn, 'GET /admin/devices': () => json([]) });
-    renderApp('/admin/devices');
-    const header = await screen.findByRole('navigation', { name: 'Hauptnavigation' });
-    expect(within(header).getByRole('link', { name: 'Verwaltung' })).toHaveAttribute(
+    const { nav } = await renderAdminPage('/admin/devices');
+    expect(within(nav).getAllByRole('link')).toHaveLength(20);
+    expect(within(nav).getByRole('link', { name: 'Bibliotheken' })).toHaveTextContent(
+      /^Bibliotheken$/,
+    );
+    expect(within(nav).getByRole('link', { name: 'Integrationen' })).toBeVisible();
+  });
+
+  it('counts running jobs and set-up integrations when nothing failed or went silent', async () => {
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () => json(quiet({ jobs: { ...quiet().jobs, running: 2 } })),
+        'GET /admin/devices': () => json([]),
+      }),
+    );
+    const { nav } = await renderAdminPage('/admin/devices');
+    expect(
+      await within(nav).findByRole('link', { name: 'Hintergrundjobs, 2 laufen' }),
+    ).toHaveTextContent('2');
+    expect(
+      within(nav).getByRole('link', { name: 'Integrationen, 1 von 4 eingerichtet' }),
+    ).toHaveTextContent('1 / 4');
+    expect(within(nav).getByRole('link', { name: 'Pflege' })).toBeVisible();
+    expect(within(nav).getByRole('link', { name: 'Streams' })).toBeVisible();
+  });
+
+  it('Enter follows a link and the sidebar stays; maintenance stays current on a title page', async () => {
+    mockApi(
+      routes({
+        'GET /admin/devices': () => json([]),
+        'GET /admin/streams': () => json([]),
+      }),
+    );
+    const { nav, router } = await renderAdminPage('/admin/devices');
+    const user = userEvent.setup();
+    await user.click(within(nav).getByRole('link', { name: /^Streams/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/streams'));
+    expect(within(nav).getByRole('link', { name: /^Streams/ })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(within(header).queryByRole('link', { name: 'Geräte' })).not.toBeInTheDocument();
-    expect(within(header).getByRole('link', { name: 'Profile' })).toBeVisible();
+    // The shell keeps the same sidebar between the admin pages.
+    expect(screen.getByRole('navigation', { name: 'Verwaltung' })).toBe(nav);
+    await act(() => router.navigate({ to: '/admin/items/$itemId', params: { itemId: 'x1' } }));
+    expect(within(nav).getByRole('link', { name: /^Pflege/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 
-  it('a profile that is not the main account primary gets the notice without the navigation', async () => {
+  it('replaces the app column on /admin/*, also when it is hidden; the menu opens the app drawer', async () => {
+    localStorage.setItem('slouchcat.sidenav', 'hidden');
+    mockApi(
+      routes({ 'GET /admin/devices': () => json([]), 'GET /home': () => json({ rows: [] }) }),
+    );
+    const { router } = await renderAdminPage('/admin/devices');
+    expect(document.documentElement.dataset.shell).toBe('admin');
+    expect(screen.queryByRole('navigation', { name: 'Hauptnavigation' })).not.toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Menü' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Menü' });
+    expect(within(drawer).getByRole('link', { name: 'Verwaltung' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    // Showing the app's column would change nothing here.
+    expect(
+      within(drawer).queryByRole('button', { name: 'Seitenleiste einblenden' }),
+    ).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+
+    // Outside /admin the app's own shell is back.
+    await act(() => router.navigate({ to: '/' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('navigation', { name: 'Verwaltung' })).not.toBeInTheDocument(),
+    );
+    expect(document.documentElement.dataset.shell).toBeUndefined();
+  });
+
+  it('on a phone: the button «Verwaltung · page» opens the entries as a sheet', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    mockApi(routes({ 'GET /admin/devices': () => json([]) }));
+    renderApp('/admin/devices');
+    const user = userEvent.setup();
+    const button = await screen.findByRole('button', { name: 'Verwaltung · Geräte' });
+    expect(screen.queryByRole('navigation', { name: 'Verwaltung' })).not.toBeInTheDocument();
+    await user.click(button);
+    const sheet = await screen.findByRole('dialog', { name: 'Seiten der Verwaltung' });
+    const nav = within(sheet).getByRole('navigation', { name: 'Verwaltung' });
+    expect(within(nav).getAllByRole('link')).toHaveLength(20);
+    expect(within(nav).getByRole('link', { name: 'Geräte' })).toHaveFocus();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(button).toHaveFocus();
+  });
+
+  it('a profile that is not the main account primary gets the notice without the sidebar', async () => {
     const guest = {
       ...session,
       account: { ...session.account, role: 'user' as const, isOwner: false },
@@ -548,6 +804,7 @@ describe('admin navigation (A-2)', () => {
         name: 'Verwaltung',
       }),
     ).not.toBeInTheDocument();
+    expect(document.documentElement.dataset.shell).toBeUndefined();
     expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
 });
@@ -555,21 +812,33 @@ describe('admin navigation (A-2)', () => {
 describe('update badge (A-5)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('shows the main account a badge with the version that links to the overview', async () => {
+  it("shows the main account the badge on the sidebar's «Übersicht», linking to the overview", async () => {
     mockApi({
-      ...routes(),
+      ...routes({ 'GET /admin/devices': () => json([]) }),
       'GET /auth/session': () =>
         json({ ...session, updateAvailable: { version: '0.9.1', url: 'https://example.test' } }),
     });
-    const { router } = renderApp('/admin/devices');
+    const { nav, router } = await renderAdminPage('/admin/devices');
     const user = userEvent.setup();
-    // The badge sits on the side navigation's "Verwaltung" entry (concept 08).
-    const badge = await screen.findByRole('link', {
-      name: 'Verwaltung, Update auf Version 0.9.1 verfügbar',
+    const badge = within(nav).getByRole('link', {
+      name: 'Übersicht, Update auf Version 0.9.1 verfügbar',
     });
     expect(badge).toHaveTextContent('Update');
     await user.click(badge);
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
+  });
+
+  it("outside the administration the app column's «Verwaltung» keeps the badge", async () => {
+    mockApi({
+      'GET /auth/session': () =>
+        json({ ...session, updateAvailable: { version: '0.9.1', url: 'https://example.test' } }),
+      'GET /home': () => json({ rows: [] }),
+    });
+    renderApp('/');
+    const nav = await screen.findByRole('navigation', { name: 'Hauptnavigation' });
+    expect(
+      within(nav).getByRole('link', { name: 'Verwaltung, Update auf Version 0.9.1 verfügbar' }),
+    ).toHaveAttribute('href', '/admin');
   });
 
   it('shows no badge without a newer version or for another profile', async () => {

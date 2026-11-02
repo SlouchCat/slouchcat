@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de.json';
 import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
+import { adminShell, renderAdminPage } from '@/test/admin';
 
 type SpotlightConfig = components['schemas']['SpotlightConfig'];
 type SpotlightEntry = components['schemas']['SpotlightEntry'];
@@ -108,6 +109,7 @@ function spotlightApi(overrides: Record<string, unknown> = {}) {
   };
   return mockApi({
     ...signedIn,
+    ...adminShell,
     'GET /admin/trakt': () => json(status),
     'GET /admin/spotlight': () => json(config),
     'GET /admin/spotlight/entries': () => json({ listKey: 'trending', entries, orphans }),
@@ -129,12 +131,10 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
 
   it('shows the switch, the source with the state of the fetch, and the entries', async () => {
     spotlightApi();
-    renderApp('/admin/spotlight');
+    const { nav } = await renderAdminPage('/admin/spotlight');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
-    expect(
-      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
-    ).toHaveTextContent('Spotlight');
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Spotlight');
     expect(await screen.findByRole('switch', { name: 'Auf der Startseite zeigen' })).toBeChecked();
 
     const card = await source();

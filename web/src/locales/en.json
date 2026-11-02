@@ -1483,87 +1483,91 @@
         "accounts": "Accounts",
         "curation": "Curation",
         "system": "System"
+      },
+      "back": "Back to the app",
+      "updateLabel": "Overview, update to version {{version}} available",
+      "sheet": {
+        "label": "Administration pages",
+        "close": "Close administration pages"
+      },
+      "counts": {
+        "titles_one": "{{name}}, {{formatted}} title",
+        "titles_other": "{{name}}, {{formatted}} titles",
+        "maintenance_one": "{{name}}, {{formatted}} title needs maintenance",
+        "maintenance_other": "{{name}}, {{formatted}} titles need maintenance",
+        "accounts_one": "{{name}}, {{formatted}} account",
+        "accounts_other": "{{name}}, {{formatted}} accounts",
+        "streams_one": "{{name}}, {{formatted}} playing",
+        "streams_other": "{{name}}, {{formatted}} playing",
+        "jobsRunning_one": "{{name}}, {{formatted}} running",
+        "jobsRunning_other": "{{name}}, {{formatted}} running",
+        "jobsFailed_one": "{{name}}, {{formatted}} failed",
+        "jobsFailed_other": "{{name}}, {{formatted}} failed",
+        "silent_one": "{{name}}, {{formatted}} webhook silent",
+        "silent_other": "{{name}}, {{formatted}} webhooks silent",
+        "integrations": "{{name}}, {{configured}} of {{total}} set up",
+        "ofTotal": "{{count}} / {{total}}"
       }
     },
     "sections": {
       "libraries": {
-        "title": "Libraries",
-        "description": "Folders, scans and default age ratings."
+        "title": "Libraries"
       },
       "podcasts": {
-        "title": "Podcasts",
-        "description": "Subscribed feeds and their episodes."
+        "title": "Podcasts"
       },
       "maintenance": {
-        "title": "Maintenance",
-        "description": "Titles without match, images or rating, duplicates."
+        "title": "Maintenance"
       },
       "accounts": {
-        "title": "Accounts",
-        "description": "Every account with its role, limits, profiles and channels."
+        "title": "Accounts"
       },
       "profiles": {
-        "title": "Profiles",
-        "description": "The profiles of this account, PINs and watch time."
+        "title": "Profiles"
       },
       "devices": {
-        "title": "Devices",
-        "description": "Signed-in browsers and what they can play."
+        "title": "Devices"
       },
       "streams": {
-        "title": "Streams",
-        "description": "See and stop running playbacks."
+        "title": "Streams"
       },
       "spotlight": {
-        "title": "Spotlight",
-        "description": "The Trakt list shown on the start page and its entries."
+        "title": "Spotlight"
       },
       "picks": {
-        "title": "Cat's picks",
-        "description": "The carousel of the home page."
+        "title": "Cat's picks"
       },
       "collections": {
-        "title": "Collections",
-        "description": "Own collections and those from TMDB."
+        "title": "Collections"
       },
       "homeRows": {
-        "title": "Home page",
-        "description": "Order of the rows on the start page."
+        "title": "Home page"
       },
       "announcements": {
-        "title": "Announcements",
-        "description": "Messages to every profile."
+        "title": "Announcements"
       },
       "jobs": {
-        "title": "Background jobs",
-        "description": "Running and scheduled jobs, pause, cancel and schedules."
+        "title": "Background jobs"
       },
       "integrations": {
-        "title": "Integrations",
-        "description": "Keys, e-mail, Telegram, Web Push and the update check."
+        "title": "Integrations"
       },
       "notifications": {
-        "title": "Notifications",
-        "description": "Your channels: e-mail, Web Push and Telegram."
+        "title": "Notifications"
       },
       "stats": {
-        "title": "Statistics",
-        "description": "Most watched, watch time, playback modes and devices."
+        "title": "Statistics"
       },
       "backup": {
-        "title": "Backup",
-        "description": "Back up and restore the data."
+        "title": "Backup"
       },
       "metadata": {
-        "title": "Metadata",
-        "description": "Languages, image kinds, image language, rating country."
+        "title": "Metadata"
       }
     },
     "home": {
       "title": "Administration",
-      "intro": "The state of the server, refreshed every 5 seconds, and every administration page in one place.",
-      "state": "State of the server",
-      "manage": "All administration pages",
+      "live": "Live, every 5 seconds",
       "update": {
         "title": "Version {{version}} is available",
         "body": "You are running {{current}}. Slouchcat installs nothing itself: get the new image with docker compose pull and restart with docker compose up -d.",
@@ -1575,42 +1579,26 @@
         }
       },
       "streams": {
-        "title": "Streams",
-        "count": "Running streams",
+        "title": "Now playing",
         "empty": "Nothing is playing right now.",
-        "entry": "{{profile}}: {{title}}",
-        "all": "All streams"
+        "all": "All streams",
+        "progress": "Progress {{title}}"
       },
       "jobs": {
-        "title": "Background jobs",
+        "title": "Tasks",
         "queued": "Queued",
         "running": "Running",
         "failed": "Failed",
-        "recent": "Failed jobs",
-        "columns": {
-          "type": "Job",
-          "attempts": "Attempts",
-          "error": "Last error",
-          "at": "Time",
-          "actions": "Actions"
-        },
-        "attempts": "{{attempts}} of {{max}}",
-        "noError": "–",
-        "retry": {
-          "action": "Retry",
-          "label": "Queue job {{type}} ({{id}}) again"
-        },
-        "cancel": {
-          "action": "Cancel",
-          "label": "Cancel job {{type}} ({{id}})",
-          "title": "Cancel job {{type}}?",
-          "body": "Slouchcat stops trying this job.",
-          "confirm": "Cancel job"
-        },
-        "retried": "Job {{type}} is queued again.",
-        "cancelled": "Job {{type}} cancelled.",
-        "all": "All jobs",
-        "paused": "Paused"
+        "paused": "Paused",
+        "all": "Background jobs",
+        "active": "Running tasks",
+        "progress": "Progress {{name}}",
+        "next": "No task is running. Next: {{type}}, {{date}}",
+        "idle": "No task is running.",
+        "failedByType": "Failed by job type",
+        "failedType_one": "{{type}}: {{count}} failed",
+        "failedType_other": "{{type}}: {{count}} failed",
+        "attempts": "{{attempts}} of {{max}}"
       },
       "storage": {
         "title": "Storage",
@@ -1629,8 +1617,8 @@
           "disabled": "Switched off"
         },
         "entry": "{{name}}: {{state}}",
-        "checked": "Checked: {{date}}",
-        "manage": "Set up integrations"
+        "manage": "Set up integrations",
+        "count": "{{count}} of {{total}} set up"
       },
       "webhooks": {
         "title": "Webhooks",
@@ -1643,16 +1631,57 @@
       "server": {
         "title": "Server",
         "version": "Version",
-        "started": "Started"
+        "uptime": "Running for",
+        "update": "Updates",
+        "updateCurrent": "Up to date",
+        "updateAvailable": "Version {{version}} available",
+        "updateDevelopment": "Development build",
+        "updateFailed": "Last check failed",
+        "updateOff": "Check switched off",
+        "checked": "Last checked: {{date}}",
+        "check": "Check for updates",
+        "checkedNow": "Checked for updates."
+      },
+      "restart": {
+        "action": "Restart",
+        "title": "Restart the server?",
+        "streams_one": "{{count}} running stream stops. Running downloads for on the go are interrupted.",
+        "streams_other": "{{count}} running streams stop. Running downloads for on the go are interrupted.",
+        "idle": "Nothing is playing right now. Running downloads for on the go are interrupted.",
+        "confirm": "Restart",
+        "waitTitle": "Server is restarting",
+        "waitBody": "Slouchcat shuts down in order and starts again. As soon as the server answers, the page reloads."
+      },
+      "activity": {
+        "title": "Recent activity",
+        "empty": "No activity yet."
+      },
+      "hints": {
+        "title": "Notices",
+        "count_one": "{{count}} notice",
+        "count_other": "{{count}} notices",
+        "none": "No notices.",
+        "failed_one": "{{formatted}} background job failed",
+        "failed_other": "{{formatted}} background jobs failed",
+        "paused_one": "{{count}} job type paused",
+        "paused_other": "{{count}} job types paused",
+        "toJobs": "To the background jobs",
+        "scan": "Scan of the library “{{name}}” aborted",
+        "scanOther": "The loss protection aborted the scan.",
+        "toLibraries": "To the libraries",
+        "storage": "{{path}} is more than 90 % full"
       },
       "errors": {
-        "title": "Errors",
+        "title": "Server log",
         "intro": "The last 50 errors of the server log, newest first.",
         "list": "Errors of the server log",
         "empty": "No errors since the start.",
         "job": "Job {{id}} ({{type}})",
         "new_one": "{{count}} new error",
-        "new_other": "{{count}} new errors"
+        "new_other": "{{count}} new errors",
+        "none": "no errors",
+        "count_one": "{{count}} error",
+        "count_other": "{{count}} errors"
       },
       "browse": {
         "title": "Folder browser blocked",
@@ -2554,6 +2583,31 @@
         "country_unknown": "Unknown country.",
         "source_unknown": "This image source is not a candidate of the title."
       }
+    },
+    "activity": {
+      "someone": "A profile",
+      "someTitle": "a title",
+      "someLibrary": "a library",
+      "playbackStarted": "{{profile}} started “{{title}}”",
+      "playbackCompleted": "{{profile}} finished “{{title}}”",
+      "playbackStopped": "Playback of “{{title}}” ({{profile}}) stopped",
+      "playbackRevoked": "Playback of “{{title}}” ({{profile}}) stopped, device forgotten",
+      "scanStarted": "Scan of “{{library}}” started",
+      "scanDone_one": "Scan of “{{library}}” done: {{count}} new title",
+      "scanDone_other": "Scan of “{{library}}” done: {{count}} new titles",
+      "scanFailed": "Scan of “{{library}}” failed",
+      "scanAborted": "Scan of “{{library}}” aborted by the loss protection",
+      "scanCancelled": "Scan of “{{library}}” cancelled by hand",
+      "jobFailed_one": "{{type}}: {{count}} job failed",
+      "jobFailed_other": "{{type}}: {{count}} jobs failed",
+      "backupCreated": "Backup created",
+      "backupCreatedSize": "Backup created ({{size}})",
+      "backupRestored": "Backup restored",
+      "serverStarted": "Server started",
+      "serverStartedVersion": "Server started, version {{version}}",
+      "serverRestart": "Server restarted",
+      "serverRestartBy": "Restart by {{account}}",
+      "unknown": "Event on the server"
     }
   },
   "language": {
