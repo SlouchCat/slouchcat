@@ -51,7 +51,7 @@ export default defineConfig({
     // Focus behaviour that differs between engines; the screenshots stay Chromium's.
     {
       name: 'firefox',
-      testMatch: 'unsaved-changes.spec.ts',
+      testMatch: 'dialog-focus.spec.ts',
       use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 720 } },
     },
   ],

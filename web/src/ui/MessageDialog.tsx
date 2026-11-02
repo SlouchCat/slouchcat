@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { useDensityPortalProps } from './adminDensity';
 import { AriaButton } from './AriaButton';
+import { focusOnMount } from './focusOnMount';
 import dialogStyles from './Dialog.module.css';
 import styles from './MessageDialog.module.css';
 
@@ -99,7 +100,12 @@ export function MessageDialog({
             <AriaButton variant="ghost" onPress={onDismiss}>
               {dismissLabel}
             </AriaButton>
-            <AriaButton variant="primary" autoFocus isPending={isPending} onPress={onConfirm}>
+            <AriaButton
+              variant="primary"
+              ref={focusOnMount}
+              isPending={isPending}
+              onPress={onConfirm}
+            >
               {confirmLabel}
             </AriaButton>
           </div>

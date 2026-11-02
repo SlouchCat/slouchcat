@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { AriaButton } from './AriaButton';
 import { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
 import { PinField } from './PinField';
@@ -98,3 +99,37 @@ export const Controlled: Story = {
 
 /** The same in the compact density: AdminDensityScope marks the dialog's portal. */
 export const ControlledCompact: Story = { ...Controlled, globals: { density: 'compact' } };
+
+/**
+ * The typed confirmation opened by Enter on a plain `<button>` (a "virtual" click for react-aria):
+ * the focus still starts in the field (e2e-storybook/dialog-focus.spec.ts).
+ */
+function TypedConfirmationFromButton() {
+  const [isOpen, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Ordner entfernen
+      </button>
+      <ConfirmInputDialog
+        isOpen={isOpen}
+        onOpenChange={setOpen}
+        title="Ordner wirklich entfernen?"
+        expected="/media/Filme-2"
+        inputLabel="Tippe den Pfad, um zu bestätigen"
+        mismatchText="Tippe /media/Filme-2 genau so ab, dann wird der Knopf aktiv."
+        confirmLabel="Ordner entfernen"
+        cancelLabel="Abbrechen"
+        onConfirm={() => setOpen(false)}
+      >
+        <p>
+          Du entfernst <code>/media/Filme-2</code> aus der Bibliothek Filme.
+        </p>
+      </ConfirmInputDialog>
+    </>
+  );
+}
+
+export const TypedConfirmationOpenedByButton: Story = {
+  render: () => <TypedConfirmationFromButton />,
+};
