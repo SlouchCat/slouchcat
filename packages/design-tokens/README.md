@@ -46,7 +46,9 @@ nichts. `size.control.height` (44 px) bleibt als Mindestmass für Berührung und
 
 Die kompakten Werte stehen als `--sc-density-compact-*` bereit. Eingeschaltet werden sie erst in K12-8:
 unter `[data-shell="admin"]` mit `@media (min-width: 48rem) and (pointer: fine)` werden die
-Komponententokens auf sie umgelegt; Touch und Handy behalten 44 px.
+Komponententokens auf sie umgelegt, und zwar nur auf dem Inhaltsbereich `#content` und auf den
+Portalen der Dialoge aus Verwaltungsseiten (`AdminDensityScope`), nie auf `:root`: App-Kopf und
+Verwaltungsleiste behalten ihre Masse. Touch und Handy behalten 44 px.
 
 ## Akzentfarben zur Laufzeit
 

@@ -15,7 +15,8 @@ kompakter Dichte.
   übernimmt Server und globales Setup der e2e-Suite (`web/e2e/start-server.mjs`, frische
   Konfiguration, Hauptkonto mit Hauptprofil, Bibliotheken aus `testdata/media`) und läuft nur in
   Chromium. Nicht Teil von `task ci`.
-- Aufruf nach `task build` und `task testdata:media`, auf einem eigenen Port (8096 bleibt frei):
+- Aufruf nach `task build` und `task testdata:media`, auf einem eigenen Port (8096 bleibt frei),
+  nicht gleichzeitig mit `task e2e` laufen lassen (beide schreiben dieselbe Sitzung `owner.json`):
 
   ```bash
   cd web && SLOUCHCAT_E2E_PORT=8197 node_modules/.bin/playwright test -c perf.config.ts

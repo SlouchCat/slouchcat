@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import base from './playwright.config';
+import { ARTEFACTS } from './e2e/env';
 
 // Measurements of the administration pages (concept 12, section 3): not part of `task ci`. It reuses
 // the e2e server and global setup of playwright.config.ts (fresh server, main account, libraries)
@@ -12,6 +13,8 @@ export default defineConfig({
   ...base,
   testDir: './e2e-perf',
   retries: 0,
+  // Own folder: a run never empties the results of the e2e suite.
+  outputDir: `${ARTEFACTS}perf-results`,
   reporter: 'list',
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });

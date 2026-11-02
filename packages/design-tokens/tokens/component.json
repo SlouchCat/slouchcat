@@ -73,7 +73,7 @@
       },
       "table": {
         "cell-padding-y": {
-          "$value": "0.5625rem",
+          "$value": "9px",
           "$description": "9 px: a row of 14 px text at line height 1.5 (21 px) is 39 px, 40 px with the border between rows."
         }
       },
