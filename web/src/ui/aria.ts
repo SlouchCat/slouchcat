@@ -46,7 +46,7 @@ export {
   providerListError,
 } from './ProviderList';
 export { RadioGroup } from './RadioGroup';
-export { SelectableList, type SelectableItem } from './SelectableList';
+export { SelectableList, SelectCheck, type SelectableItem } from './SelectableList';
 export { StatTile } from './StatTile';
 export { StorageMeter, type StoragePart } from './StorageMeter';
 export { Switch } from './Switch';

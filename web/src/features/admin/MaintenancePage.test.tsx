@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Call } from '@/test/api';
+import { library } from '@/test/fixtures';
 
 const id = (n: number) => `01JB8Z6Q4M7N9P2R3S5T7V9X${String(n).padStart(2, '0')}`;
 
@@ -18,7 +19,7 @@ const issue = (kind: IssueKind, n: number, extra: Partial<Issue> = {}): Issue =>
 const initial: Record<IssueKind, Issue[]> = {
   unmatched: [
     issue('unmatched', 1, { title: 'Slouchcat Test H264', year: 2024 }),
-    issue('unmatched', 2, { itemKind: 'episode', title: 'Episode 1' }),
+    issue('unmatched', 2, { itemKind: 'episode', title: 'Episode 1', libraryId: 2 }),
   ],
   no_images: [],
   unrated: [issue('unrated', 3, { title: 'Slouchcat Test Unrated' }), issue('unrated', 4)],
@@ -36,6 +37,8 @@ const initial: Record<IssueKind, Issue[]> = {
 
 let lists = { ...initial };
 
+const libraries = [library(), library({ id: 2, name: 'Serien' })];
+
 const groups: DuplicateGroup[] = [
   {
     reason: 'file_hash',
@@ -45,6 +48,7 @@ const groups: DuplicateGroup[] = [
         kind: 'movie',
         title: 'Slouchcat Test H264',
         year: 2024,
+        libraryId: 1,
         files: [{ id: 'mf-a', path: 'H264/a.mp4', sizeBytes: 1_000_000, available: true }],
       },
       {
@@ -52,8 +56,16 @@ const groups: DuplicateGroup[] = [
         kind: 'movie',
         title: 'Slouchcat Test H264 Copy',
         year: 2024,
+        libraryId: 2,
         files: [{ id: 'mf-b', path: 'Copy/a.mp4', sizeBytes: 1_000_000, available: true }],
       },
+    ],
+  },
+  {
+    reason: 'title_year',
+    items: [
+      { itemId: id(10), kind: 'series', title: 'Das Boot', year: 1985, files: [] },
+      { itemId: id(11), kind: 'series', title: 'Das Boot', year: 1985, files: [] },
     ],
   },
 ];
@@ -81,11 +93,15 @@ function setup(extra: Record<string, (call: Call) => Response> = {}) {
     ...signedIn,
     'GET /admin/maintenance/issues': () => issuesRoute(lastUrl()),
     'GET /admin/maintenance/duplicates': () => json(groups),
+    'GET /admin/libraries': () => json(libraries),
     ...extra,
   });
   lastUrl = withQuery(api.fetchMock);
   return api;
 }
+
+const panel = () => screen.getByRole('tabpanel');
+const title = () => screen.getByRole('heading', { level: 1, name: 'Pflege' });
 
 describe('maintenance page', () => {
   afterEach(() => {
@@ -93,24 +109,80 @@ describe('maintenance page', () => {
     lists = { ...initial };
   });
 
-  it('shows a tab per issue kind with its count and lists the first one', async () => {
+  it('shows a tab per issue kind with its count and lists the first one by library', async () => {
     setup();
     renderApp('/admin/maintenance');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Pflege' })).toBeVisible();
     const tabs = screen.getByRole('tablist', { name: 'Problemarten' });
     await waitFor(() =>
-      expect(within(tabs).getByRole('tab', { name: 'Nicht zugeordnet (2)' })).toBeVisible(),
+      expect(within(tabs).getByRole('tab', { name: 'Nicht zugeordnet 2 Einträge' })).toBeVisible(),
     );
-    expect(within(tabs).getByRole('tab', { name: 'Nicht abspielbar (1)' })).toBeVisible();
-    expect(within(tabs).getByRole('tab', { name: 'Ohne Bilder (0)' })).toBeVisible();
-    expect(within(tabs).getByRole('tab', { name: 'Duplikate (1)' })).toBeVisible();
+    expect(within(tabs).getByRole('tab', { name: 'Nicht abspielbar 1 Eintrag' })).toBeVisible();
+    expect(within(tabs).getByRole('tab', { name: 'Ohne Bilder 0 Einträge' })).toBeVisible();
+    expect(within(tabs).getByRole('tab', { name: 'Ohne Freigabe 2 Einträge' })).toBeVisible();
+    expect(within(tabs).getByRole('tab', { name: 'Verwaist 1 Eintrag' })).toBeVisible();
+    expect(within(tabs).getByRole('tab', { name: 'Freigabe abweichend 1 Eintrag' })).toBeVisible();
+    expect(await within(tabs).findByRole('tab', { name: 'Duplikate 2 Gruppen' })).toBeVisible();
+    // The intro sits behind the help button (S-2); the tab's hint stays visible.
+    expect(within(panel()).getByText(/^Ohne Zuordnung fehlen Beschreibung/)).toBeVisible();
 
     const link = await screen.findByRole('link', { name: 'Slouchcat Test H264 (2024)' });
     expect(link).toHaveAttribute('href', `/admin/items/${id(1)}`);
+    // One section per library, named from the library list, each with its own table.
+    expect(screen.getByRole('button', { name: 'Filme 1 Eintrag' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    const movies = screen.getByRole('group', { name: 'Filme 1 Eintrag' });
+    expect(within(movies).getByRole('table', { name: 'Nicht zugeordnet in Filme' })).toBeVisible();
+    expect(within(movies).getByRole('link', { name: 'Slouchcat Test H264 (2024)' })).toBeVisible();
+    const series = screen.getByRole('group', { name: 'Serien 1 Eintrag' });
+    expect(within(series).getByRole('link', { name: 'Episode 1' })).toBeVisible();
+    expect(within(series).getByText('Folge')).toBeVisible();
+    expect(screen.getByText('2 von 2')).toBeVisible();
   });
 
-  it('unplayable: select, remove after confirmation, the list reloads', async () => {
+  it('groups the loaded issues in the order of the libraries; an unknown library comes last', async () => {
+    const user = userEvent.setup();
+    lists.unrated = [
+      issue('unrated', 20, { libraryId: 9 }),
+      issue('unrated', 21, { libraryId: 2 }),
+      issue('unrated', 22, { libraryId: 1 }),
+      issue('unrated', 23, { libraryId: 2 }),
+    ];
+    setup();
+    renderApp('/admin/maintenance?tab=unrated');
+    await screen.findByRole('link', { name: 'Titel 20' });
+
+    const headings = within(panel()).getAllByRole('heading', { level: 3 });
+    expect(headings).toHaveLength(3);
+    expect(headings[0]).toHaveAccessibleName('Filme 1 Eintrag');
+    expect(headings[1]).toHaveAccessibleName('Serien 2 Einträge');
+    expect(headings[2]).toHaveAccessibleName('Bibliothek 9 1 Eintrag');
+    const series = screen.getByRole('group', { name: 'Serien 2 Einträge' });
+    expect(
+      within(series)
+        .getAllByRole('link')
+        .map((link) => link.textContent),
+    ).toEqual(['Titel 21', 'Titel 23']);
+
+    // A section folds away with its button; the others stay open, the selection stays.
+    await user.click(within(series).getByRole('checkbox', { name: 'Titel 21 auswählen' }));
+    // The section's heading line counts its selected entries.
+    expect(within(panel()).getAllByText('1 ausgewählt')).toHaveLength(2);
+    const toggle = screen.getByRole('button', { name: 'Serien 2 Einträge' });
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('link', { name: 'Titel 21' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Titel 22' })).toBeVisible();
+    expect(within(panel()).getAllByText('1 ausgewählt')).toHaveLength(2);
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('checkbox', { name: 'Titel 21 auswählen' })).toBeChecked();
+  });
+
+  it('unplayable: select, remove after confirmation, the list reloads and the h1 takes the focus', async () => {
     const user = userEvent.setup();
     const { calls } = setup({
       'POST /admin/maintenance/cleanup': () => {
@@ -119,15 +191,19 @@ describe('maintenance page', () => {
       },
     });
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /Nicht abspielbar/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Nicht abspielbar/ }));
 
     const row = await screen.findByRole('link', { name: 'Slouchcat Test Broken' });
     expect(row).toBeVisible();
+    // Path and finding in full (S-5).
     expect(screen.getByText('invalid data found when processing input')).toBeVisible();
+    expect(
+      screen.getByText('Slouchcat Test Broken (2024)/Slouchcat Test Broken.mkv'),
+    ).toBeVisible();
     const remove = screen.getByRole('button', { name: 'Entfernen' });
     expect(remove).toBeDisabled();
     await user.click(screen.getByRole('checkbox', { name: 'Slouchcat Test Broken auswählen' }));
-    expect(screen.getByText('1 ausgewählt')).toBeVisible();
+    expect(within(panel()).getAllByText('1 ausgewählt')[0]).toBeVisible();
     await user.click(remove);
     const dialog = await screen.findByRole('alertdialog', { name: 'Dateien entfernen?' });
     expect(within(dialog).getByText(/^Die ausgewählte Datei wird/)).toBeVisible();
@@ -142,13 +218,39 @@ describe('maintenance page', () => {
     await waitFor(() =>
       expect(screen.queryByRole('link', { name: 'Slouchcat Test Broken' })).not.toBeInTheDocument(),
     );
+    await waitFor(() => expect(title()).toHaveFocus());
+  });
+
+  it('a confirmation stays when its rows go meanwhile and still acts on them', async () => {
+    const user = userEvent.setup();
+    const { calls } = setup({
+      'POST /admin/maintenance/cleanup': () => json({ items: 1, files: 0 }),
+    });
+    const { queryClient } = renderApp('/admin/maintenance?tab=orphaned');
+    await user.click(await screen.findByRole('checkbox', { name: 'Titel 5 auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Bereinigen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Titel bereinigen?' });
+
+    lists.orphaned = [];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'maintenance'] });
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'Titel 5' })).not.toBeInTheDocument(),
+    );
+    expect(dialog).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Bereinigen' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.path === '/admin/maintenance/cleanup')?.body).toEqual({
+        itemIds: [id(5)],
+      }),
+    );
+    await waitFor(() => expect(title()).toHaveFocus());
   });
 
   it('unrated: assigns a rating to the selection', async () => {
     const user = userEvent.setup();
     const { calls } = setup({ 'POST /admin/items/rating': () => json({ updated: 2 }) });
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /Ohne Freigabe/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Ohne Freigabe/ }));
     await screen.findByRole('link', { name: 'Slouchcat Test Unrated' });
     await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
     await user.click(screen.getByRole('button', { name: 'Freigabe zuweisen' }));
@@ -228,6 +330,8 @@ describe('maintenance page', () => {
     expect(calls.filter((call) => call.path.endsWith('/refresh'))).toHaveLength(2);
     await waitFor(() => expect(listed()).toBeGreaterThan(before));
     expect(screen.getByText('0 ausgewählt')).toBeVisible();
+    // The button went off with the selection: the h1 takes the focus.
+    await waitFor(() => expect(title()).toHaveFocus());
   });
 
   it('orphaned: the confirmation names the count; the trigger is off while it runs', async () => {
@@ -241,7 +345,7 @@ describe('maintenance page', () => {
         })) as unknown as () => Response,
     });
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /Verwaist/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Verwaist/ }));
     await screen.findByRole('link', { name: 'Titel 5' });
     await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
     const trigger = screen.getByRole('button', { name: 'Bereinigen' });
@@ -320,23 +424,48 @@ describe('maintenance page', () => {
     const user = userEvent.setup();
     setup();
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /Freigabe abweichend/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Freigabe abweichend/ }));
     await screen.findByRole('link', { name: 'Titel 7' });
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Alle auswählen' })).not.toBeInTheDocument();
     expect(screen.getByText(/Hier gibt es nichts auszuwählen/)).toBeVisible();
   });
 
-  it('duplicates: pick the title to keep, merge after confirmation', async () => {
+  it('duplicates: one section per group across libraries; pick the title to keep, merge after confirmation', async () => {
     const user = userEvent.setup();
-    const { calls } = setup({ 'POST /admin/maintenance/merge': () => json({}) });
+    const { calls } = setup({
+      'POST /admin/maintenance/merge': () => json({}),
+    });
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /Duplikate/ }));
-    const group = await screen.findByRole('article', { name: 'Gruppe 1' });
-    expect(within(group).getByText('Gleicher Dateiinhalt')).toBeVisible();
+    await user.click(await screen.findByRole('tab', { name: /^Duplikate/ }));
+    const group = await screen.findByRole('group', { name: 'Gruppe 1' });
+    expect(screen.getByRole('heading', { level: 3, name: 'Gruppe 1' })).toBeVisible();
+    // Titles of two libraries in one group: not split by library.
+    expect(
+      screen.getByText(/^Gleicher Dateiinhalt · Slouchcat Test H264 \(2024\) · 2 Titel$/),
+    ).toBeVisible();
     expect(within(group).getByText('Copy/a.mp4')).toBeVisible();
+    expect(within(group).getByText('H264/a.mp4')).toBeVisible();
+    // Only the first group starts open (mockup Pfl-C); the second one opens with its button.
+    const secondToggle = screen.getByRole('button', { name: 'Gruppe 2' });
+    expect(secondToggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('group', { name: 'Gruppe 2' })).not.toBeInTheDocument();
+    await user.click(secondToggle);
+    const second = screen.getByRole('group', { name: 'Gruppe 2' });
+    expect(within(second).getAllByText('Keine Datei')).toHaveLength(2);
+
+    // «bleibt» marks the title to keep and follows the choice.
+    const items = within(group).getByRole('list', { name: 'Gruppe 1' });
+    const copyRow = within(items)
+      .getByRole('link', { name: 'Slouchcat Test H264 Copy (2024)' })
+      .closest('li') as HTMLElement;
+    expect(within(copyRow).queryByText('bleibt')).not.toBeInTheDocument();
     await user.click(within(group).getByRole('radio', { name: '2: Slouchcat Test H264 Copy' }));
+    expect(within(copyRow).getByText('bleibt')).toBeVisible();
+
     await user.click(within(group).getByRole('button', { name: 'Zusammenführen' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Titel zusammenführen?' });
+    expect(within(dialog).getByText(/wandern zu «Slouchcat Test H264 Copy»/)).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Zusammenführen' }));
     await waitFor(() =>
       expect(calls.find((call) => call.path === '/admin/maintenance/merge')?.body).toEqual({
@@ -344,19 +473,72 @@ describe('maintenance page', () => {
         sourceIds: [id(8)],
       }),
     );
+    expect(await screen.findByText('Titel zusammengeführt.')).toBeVisible();
+    await waitFor(() => expect(title()).toHaveFocus());
   });
 
-  it('loads further pages with "Mehr laden"', async () => {
+  it('loads further pages with "Mehr laden" per tab; the new entries join their sections', async () => {
     const user = userEvent.setup();
-    const many = Array.from({ length: 60 }, (_, index) => issue('orphaned', 10 + index));
-    lists.orphaned = many;
+    lists.orphaned = Array.from({ length: 60 }, (_, index) =>
+      issue('orphaned', 10 + index, { libraryId: index < 55 ? 1 : 2 }),
+    );
     setup();
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /Verwaist/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Verwaist/ }));
     expect(await screen.findByText('50 von 60')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Filme 50 Einträge' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Serien/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Mehr laden' }));
     expect(await screen.findByText('60 von 60')).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Mehr laden' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Filme 55 Einträge' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Serien 5 Einträge' })).toBeVisible();
+
+    // Every tab counts its own: another tab shows its own «X von Y».
+    await user.click(screen.getByRole('tab', { name: /^Ohne Freigabe/ }));
+    expect(await screen.findByText('2 von 2')).toBeVisible();
+    await user.click(screen.getByRole('tab', { name: /^Verwaist/ }));
+    expect(await screen.findByText('60 von 60')).toBeVisible();
+  });
+
+  it('keeps the selection and the outcome of a tab when another tab was open (S-17)', async () => {
+    const user = userEvent.setup();
+    setup();
+    renderApp('/admin/maintenance?tab=unrated');
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' }),
+    );
+    await user.click(screen.getByRole('tab', { name: /^Verwaist/ }));
+    await screen.findByRole('link', { name: 'Titel 5' });
+    expect(screen.getByText('0 ausgewählt')).toBeVisible();
+    await user.click(screen.getByRole('tab', { name: /^Ohne Freigabe/ }));
+    expect(
+      await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' }),
+    ).toBeChecked();
+    expect(within(panel()).getAllByText('1 ausgewählt')[0]).toBeVisible();
+  });
+
+  it('the tab lives in the address; an unknown one shows the first tab and is dropped', async () => {
+    const user = userEvent.setup();
+    setup();
+    const { router } = renderApp('/admin/maintenance?tab=nonsense');
+    const tabs = await screen.findByRole('tablist', { name: 'Problemarten' });
+    expect(within(tabs).getByRole('tab', { selected: true })).toHaveAccessibleName(
+      /^Nicht zugeordnet/,
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+
+    await user.click(within(tabs).getByRole('tab', { name: /^Duplikate/ }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'duplicates' }));
+    await user.click(within(tabs).getByRole('tab', { name: /^Nicht zugeordnet/ }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
+  it('a tab without issues says so', async () => {
+    setup();
+    renderApp('/admin/maintenance?tab=no_images');
+    expect(await screen.findByText('Nichts zu tun.')).toBeVisible();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('is reserved for the primary profile of the main account', async () => {

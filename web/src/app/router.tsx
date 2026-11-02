@@ -320,6 +320,8 @@ const integrationsRoute = createRoute({
 const maintenanceRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/maintenance',
+  // `?tab=` selects a kind of issue or the duplicates.
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
     () => import('@/features/admin/MaintenancePage'),
     'MaintenancePage',

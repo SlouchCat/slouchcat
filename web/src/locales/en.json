@@ -879,10 +879,6 @@
     "maintenance": {
       "title": "Maintenance",
       "intro": "Titles and files that need attention.",
-      "notAllowed": {
-        "title": "Administrators only",
-        "body": "Library maintenance is reserved for the primary profile of an administrator account."
-      },
       "tabs": "Issue kinds",
       "tab": {
         "unmatched": "Unmatched",
@@ -893,7 +889,6 @@
         "rating_mismatch": "Rating mismatch",
         "duplicates": "Duplicates"
       },
-      "tabCount": "{{label}} ({{count}})",
       "hint": {
         "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
         "no_images": "Matched titles without a poster. A refresh loads the artwork again.",
@@ -911,6 +906,17 @@
       "selectNone": "Clear selection",
       "more": "Load more",
       "shown": "{{shown}} of {{total}}",
+      "entries_one": "{{count}} entry",
+      "entries_other": "{{count}} entries",
+      "library": "Library {{id}}",
+      "caption": "{{kind}} in {{library}}",
+      "columns": {
+        "title": "Title",
+        "kind": "Kind",
+        "path": "Path",
+        "detail": "Finding"
+      },
+      "none": "–",
       "titleCount_one": "{{count}} title",
       "titleCount_other": "{{count}} titles",
       "fileCount_one": "{{count}} file",
@@ -970,7 +976,13 @@
         "confirmTitle": "Merge titles?",
         "confirmBody_one": "Files, extras, trailers and progress of the other title move to “{{title}}”. The other title is deleted.",
         "confirmBody_other": "Files, extras, trailers and progress of the {{count}} other titles move to “{{title}}”. The other titles are deleted.",
-        "empty": "No duplicates found."
+        "empty": "No duplicates found.",
+        "groups_one": "{{count}} group",
+        "groups_other": "{{count}} groups",
+        "meta_one": "{{reason}} · {{title}} · {{count}} title",
+        "meta_other": "{{reason}} · {{title}} · {{count}} titles",
+        "keep": "stays",
+        "noFiles": "No file"
       }
     },
     "item": {

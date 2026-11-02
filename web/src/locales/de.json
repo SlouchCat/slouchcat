@@ -879,10 +879,6 @@
     "maintenance": {
       "title": "Pflege",
       "intro": "Titel und Dateien, die Aufmerksamkeit brauchen.",
-      "notAllowed": {
-        "title": "Nur für Administratoren",
-        "body": "Die Pflege der Bibliothek ist dem Hauptprofil eines Administratorkontos vorbehalten."
-      },
       "tabs": "Problemarten",
       "tab": {
         "unmatched": "Nicht zugeordnet",
@@ -893,7 +889,6 @@
         "rating_mismatch": "Freigabe abweichend",
         "duplicates": "Duplikate"
       },
-      "tabCount": "{{label}} ({{count}})",
       "hint": {
         "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.",
         "no_images": "Zugeordnete Titel ohne Poster. Eine Aktualisierung lädt die Bilder neu.",
@@ -911,6 +906,17 @@
       "selectNone": "Auswahl aufheben",
       "more": "Mehr laden",
       "shown": "{{shown}} von {{total}}",
+      "entries_one": "{{count}} Eintrag",
+      "entries_other": "{{count}} Einträge",
+      "library": "Bibliothek {{id}}",
+      "caption": "{{kind}} in {{library}}",
+      "columns": {
+        "title": "Titel",
+        "kind": "Art",
+        "path": "Pfad",
+        "detail": "Befund"
+      },
+      "none": "–",
       "titleCount_one": "{{count}} Titel",
       "titleCount_other": "{{count}} Titel",
       "fileCount_one": "{{count}} Datei",
@@ -970,7 +976,13 @@
         "confirmTitle": "Titel zusammenführen?",
         "confirmBody_one": "Dateien, Extras, Trailer und Fortschritt des anderen Titels wandern zu «{{title}}». Der andere Titel wird gelöscht.",
         "confirmBody_other": "Dateien, Extras, Trailer und Fortschritt der {{count}} anderen Titel wandern zu «{{title}}». Die anderen Titel werden gelöscht.",
-        "empty": "Keine Duplikate gefunden."
+        "empty": "Keine Duplikate gefunden.",
+        "groups_one": "{{count}} Gruppe",
+        "groups_other": "{{count}} Gruppen",
+        "meta_one": "{{reason}} · {{title}} · {{count}} Titel",
+        "meta_other": "{{reason}} · {{title}} · {{count}} Titel",
+        "keep": "bleibt",
+        "noFiles": "Keine Datei"
       }
     },
     "item": {
