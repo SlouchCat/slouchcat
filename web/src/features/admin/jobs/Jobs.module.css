@@ -6,8 +6,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sc-space-1) var(--sc-space-4);
-  margin: 0;
-  padding: 0;
+
+  /* A footer below the table (mockup Jobs-C): set off from it and in line with its cells. */
+  margin: var(--sc-space-3) 0 0;
+  padding: 0 var(--sc-space-4);
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
   list-style: none;
