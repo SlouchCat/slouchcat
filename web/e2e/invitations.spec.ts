@@ -1,11 +1,14 @@
 import type { Page } from '@playwright/test';
 import {
   acceptInvitation,
+  accountFoldOut,
   accountRow,
+  accountToggle,
   anonymousApi,
   createInvitation,
   ensureEmptyLibrary,
   openAccounts,
+  openInvitations,
   revokeInvitation,
   type InvitationData,
 } from './accounts';
@@ -15,17 +18,18 @@ import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
 
 // Invitations (K-6) and the account they create (K-7). Since ADR 0014 both live on one page: the
-// "Konto einladen" dialog is the only way an account comes into being, the links it produced are
-// listed below the account list, and the account itself is a row of that list. The invited side
-// runs in a context of its own, as another person in another browser would.
+// "Konto einladen" dialog in its header is the only way an account comes into being, the links it
+// produced are listed in the tab «Einladungen» (concept 12), and the account itself is a row of
+// the tab «Konten». The invited side runs in a context of its own, as another person in another
+// browser would.
 
 const GUEST = { email: 'gast-e2e@slouchcat.test', password: GUEST_PASSWORD };
 
-/** The invitations below the account list. */
-const invitations = (page: Page) => page.getByRole('region', { name: 'Einladungen' });
+/** The invitations in their tab. */
+const invitations = (page: Page) => page.getByRole('table', { name: 'Bestehende Einladungen' });
 
 const row = (page: Page, text: string) =>
-  invitations(page).getByRole('listitem').filter({ hasText: text }).first();
+  invitations(page).getByRole('row').filter({ hasText: text }).first();
 
 /** Opens the account list and its invitation dialog, the one door for a new account. */
 async function openInvite(page: Page) {
@@ -60,6 +64,11 @@ test('K-6: the administration invites, the invited person joins, the used link a
   ).toBeVisible();
   await dialog.getByRole('button', { name: 'Fertig' }).click();
   await expect(dialog).toBeHidden();
+  // The new link is a row of «Einladungen», which the page shows now.
+  await expect(page.getByRole('tab', { name: /^Einladungen/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await expect(row(page, 'E2E Gast')).toContainText('Offen');
 
   // The guest, in a browser of their own.
@@ -102,23 +111,25 @@ test('K-6: the administration invites, the invited person joins, the used link a
       await stranger.close();
     }
 
-    // One page: the invitation shows its state, the account it made is a row above it.
-    await openAccounts(page);
+    // One page: the invitation shows its state, the account it made is a row of the other tab.
+    await openInvitations(page);
     await expect(row(page, 'E2E Gast')).toContainText('Benutzt');
     await expect(row(page, 'E2E Gast')).toContainText(`Angenommen von ${GUEST.email}`);
+    await openAccounts(page);
     const entry = accountRow(page, GUEST.email);
     await expect(entry).toContainText('Konto');
     await expect(entry).toContainText('FSK 18');
-    await entry.getByRole('button', { name: `Zugriff von ${GUEST.email} ändern` }).click();
-    const edit = page.getByRole('dialog', { name: `Zugriff von ${GUEST.email}` });
+    await accountToggle(page, GUEST.email).click();
+    const detail = accountFoldOut(page, GUEST.email);
+    const edit = detail.getByRole('region', { name: `Zugriff von ${GUEST.email}` });
     await choose(edit, 'radio', 'FSK 12');
-    await edit.getByRole('button', { name: 'Speichern' }).click();
-    await expect(edit).toBeHidden();
+    await edit.getByRole('button', { name: 'Zugriff speichern' }).click();
+    await expect(page.getByText(`Zugriff von ${GUEST.email} gespeichert.`)).toBeVisible();
     await expect(entry).toContainText('FSK 12');
 
     // K-7: removing the account ends its session at once.
     expect((await guestContext.request.get('/api/v1/auth/session')).status()).toBe(200);
-    await entry.getByRole('button', { name: `${GUEST.email} entfernen` }).click();
+    await detail.getByRole('button', { name: `${GUEST.email} entfernen` }).click();
     const confirm = page.getByRole('alertdialog', { name: `Konto ${GUEST.email} entfernen?` });
     await expect(confirm).toContainText('Laufende Sitzungen und Wiedergaben enden sofort');
     await confirm.getByRole('button', { name: 'Konto entfernen' }).click();
@@ -153,6 +164,7 @@ test('K-6: an account limited to one library sees only that library and none of 
   const inviteUrl = await dialog.getByRole('textbox', { name: 'Einladungslink' }).inputValue();
   await dialog.getByRole('button', { name: 'Fertig' }).click();
   await expect(row(page, 'Nur leer')).toContainText('E2E leer');
+  await expect(row(page, 'Nur leer')).toContainText('FSK 18');
 
   const guestContext = await browser.newContext({ baseURL, locale: 'de-CH', extraHTTPHeaders });
   try {
@@ -206,7 +218,7 @@ test('a revoked invitation answers 410', async ({
     allLibraries: true,
     libraryIds: [],
   });
-  await openAccounts(page);
+  await openInvitations(page);
   const entry = row(page, 'Widerruf-E2E');
   await expect(entry).toContainText('Offen');
   await expect(entry).toContainText('FSK 6');
@@ -291,7 +303,7 @@ test('keyboard: invitation dialog, link and revoke dialog; no focus trap', async
     await page.keyboard.press('Enter');
 
     // The link takes the focus (selected, ready for Ctrl+C); copy and done are next, and done
-    // hands the focus back to the button that opened the dialog.
+    // hands the focus back to the button that opened the dialog; the tab «Einladungen» shows.
     const link = dialog.getByRole('textbox', { name: 'Einladungslink' });
     await expect(link).toBeVisible();
     await expectFocusOn(page, link);
@@ -309,6 +321,7 @@ test('keyboard: invitation dialog, link and revoke dialog; no focus trap', async
     // Revoke dialog: Enter opens it, the confirm button has the focus, Escape returns to the row.
     const revoke = row(page, 'Offene Einladung').getByRole('button', { name: 'Widerrufen' });
     await tabTo(page, revoke, 80);
+    await expect(revoke).toHaveAccessibleDescription('Offene Einladung');
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: 'Einladung widerrufen?' });
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Widerrufen' }));
@@ -317,6 +330,16 @@ test('keyboard: invitation dialog, link and revoke dialog; no focus trap', async
     await page.keyboard.press('Escape');
     await expect(confirm).toBeHidden();
     await expectFocusOn(page, revoke);
+
+    // Enter revokes: the row stays with its new state, its button goes and the h1 takes the focus.
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, confirm.getByRole('button', { name: 'Widerrufen' }));
+    await page.keyboard.press('Enter');
+    await expect(row(page, 'Offene Einladung')).toContainText('Widerrufen');
+    await expect(revoke).toHaveCount(0);
+    await expect(page.getByText('Einladung «Offene Einladung» widerrufen.')).toBeVisible();
+    // The h1 takes the focus (ALL-2); it draws no ring of its own.
+    await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeFocused();
 
     await expectNoFocusTrap(page);
   } finally {

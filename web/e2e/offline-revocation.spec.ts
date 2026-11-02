@@ -1,4 +1,11 @@
-import { acceptInvitation, accountRow, createInvitation, openAccounts } from './accounts';
+import {
+  acceptInvitation,
+  accountFoldOut,
+  accountRow,
+  accountToggle,
+  createInvitation,
+  openAccounts,
+} from './accounts';
 import { GUEST_PASSWORD } from './env';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
@@ -43,8 +50,13 @@ test('a removed account’s download disappears from the device at the next cont
     // The administration removes the account; the dialog names the limit of AN-4.
     await openAccounts(page);
     const row = accountRow(page, GUEST.email);
-    const remove = row.getByRole('button', { name: `${GUEST.email} entfernen` });
-    await tabTo(page, remove, 80);
+    // The removal is in the row's fold-out (concept 12): Enter on the e-mail opens it.
+    await tabTo(page, accountToggle(page, GUEST.email), 80);
+    await page.keyboard.press('Enter');
+    const remove = accountFoldOut(page, GUEST.email).getByRole('button', {
+      name: `${GUEST.email} entfernen`,
+    });
+    await tabTo(page, remove, 40);
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('alertdialog', { name: `Konto ${GUEST.email} entfernen?` });
     await expect(dialog).toContainText('Laufende Sitzungen und Wiedergaben enden sofort');

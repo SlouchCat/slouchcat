@@ -5,7 +5,7 @@ import { problemMessage } from '@/api/errors';
 import { Notice, Skeleton, Text } from '@/ui';
 import { AriaButton, BarChart } from '@/ui/aria';
 import { watchReportQuery } from './queries';
-import styles from './ProfileSettingsPage.module.css';
+import styles from './ProfileList.module.css';
 
 /** Days of the report (K-5: the last 30 days including today). */
 export const REPORT_DAYS = 30;

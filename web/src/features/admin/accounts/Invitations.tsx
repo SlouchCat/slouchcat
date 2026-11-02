@@ -1,18 +1,31 @@
 import type { Invitation, InvitationCreated, InvitationRequest } from '@slouchcat/api-client';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import type { TFunction } from 'i18next';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
-import { formErrors, problemMessage } from '@/api/errors';
+import { formErrors } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
 import { formText } from '@/lib/form';
-import { Chip, Notice, Panel, Skeleton } from '@/ui';
-import { AriaButton, ConfirmDialog, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../shared/choices';
-import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
-import { describeLibraries, libraryIdsOf, type LibraryOption } from '../shared/useLibraryOptions';
-import { invitationsQuery } from './queries';
-import styles from './Invitations.module.css';
+import { Chip, Notice } from '@/ui';
+import {
+  AriaButton,
+  DataTable,
+  Form,
+  FormDialog,
+  RadioGroup,
+  TextField,
+  type DataColumn,
+} from '@/ui/aria';
+import { ratingOf, ratingOptions } from '../../shared/choices';
+import { LibraryChoice, type LibrarySelection } from '../../shared/LibraryChoice';
+import {
+  describeLibraries,
+  libraryIdsOf,
+  type LibraryOption,
+} from '../../shared/useLibraryOptions';
+import { invitationsQuery } from '../queries';
+import styles from './Accounts.module.css';
 
 const stateTone = {
   open: 'success',
@@ -20,6 +33,10 @@ const stateTone = {
   expired: 'neutral',
   revoked: 'warning',
 } as const;
+
+/** The note of an invitation, or «Ohne Notiz». */
+export const invitationNote = (t: TFunction, invitation: Invitation) =>
+  invitation.note || t('admin.accounts.invitations.noNote');
 
 /** The link of a just created invitation: shown once, with a copy button. */
 function CreatedLink({ created, onDone }: { created: InvitationCreated; onDone: () => void }) {
@@ -144,15 +161,17 @@ function InvitationForm({
 }
 
 /**
- * "Konto einladen" (K-6): the one way a new account comes into being (ADR 0014, no
+ * "Konto einladen" (K-6, KON-1): the one way a new account comes into being (ADR 0014, no
  * self-registration). The form becomes the created link, which is shown this once and then
  * closes with the dialog.
  */
 export function InviteDialog({
   options,
+  onCreated,
   onClose,
 }: {
   options: readonly LibraryOption[];
+  onCreated: () => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -170,112 +189,100 @@ export function InviteDialog({
       {created ? (
         <CreatedLink created={created} onDone={onClose} />
       ) : (
-        <InvitationForm options={options} onCreated={setCreated} />
+        <InvitationForm
+          options={options}
+          onCreated={(next) => {
+            setCreated(next);
+            onCreated();
+          }}
+        />
       )}
     </FormDialog>
   );
 }
 
-function InvitationRow({
-  invitation,
+/**
+ * The invitation links (K-6, KON-5) in the tab «Einladungen»: note, state, rating, libraries and
+ * until when it is valid or who accepted it; an open one can be revoked (the page asks). The
+ * account an invitation produced is a row of the tab «Konten».
+ */
+export function InvitationsTable({
+  invitations,
   options,
   onRevoke,
 }: {
-  invitation: Invitation;
+  invitations: readonly Invitation[];
   options: readonly LibraryOption[];
-  onRevoke: (id: number) => void;
+  onRevoke: (invitation: Invitation) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const noteId = `invitation-${invitation.id}`;
-  return (
-    <li className={styles.row}>
-      <div className={styles.rowMain}>
-        <div className={styles.rowHead}>
-          <span id={noteId} className={invitation.note ? styles.strong : styles.muted}>
-            {invitation.note || t('admin.accounts.invitations.noNote')}
-          </span>
-          <Chip tone={stateTone[invitation.state]}>
-            {t(`admin.accounts.invitations.state.${invitation.state}`)}
-          </Chip>
-          <Chip tone="outline">{t('rating.fsk', { age: invitation.maxRating })}</Chip>
-        </div>
-        <span className={styles.muted}>{describeLibraries(t, invitation, options)}</span>
-        <span className={styles.muted}>
-          {invitation.state === 'used' && invitation.usedByEmail
-            ? t('admin.accounts.invitations.usedBy', { email: invitation.usedByEmail })
-            : t('admin.accounts.invitations.expires', {
-                date: formatDateTime(invitation.expiresAt, i18n.language),
-              })}
+  const noteId = (invitation: Invitation) => `invitation-${invitation.id}`;
+  const columns: DataColumn<Invitation>[] = [
+    {
+      key: 'note',
+      header: t('admin.accounts.invitations.columns.note'),
+      rowHeader: true,
+      cell: (invitation) => (
+        <span id={noteId(invitation)} className={invitation.note ? styles.strong : styles.muted}>
+          {invitationNote(t, invitation)}
         </span>
-      </div>
-      {invitation.state === 'open' && (
-        <ConfirmDialog
-          trigger={
-            <AriaButton variant="ghost" aria-describedby={noteId}>
-              {t('admin.accounts.invitations.revoke.action')}
-            </AriaButton>
-          }
-          title={t('admin.accounts.invitations.revoke.title')}
-          body={t('admin.accounts.invitations.revoke.body')}
-          confirmLabel={t('admin.accounts.invitations.revoke.confirm')}
-          cancelLabel={t('common.cancel')}
-          tone="danger"
-          onConfirm={() => onRevoke(invitation.id)}
-        />
-      )}
-    </li>
-  );
-}
-
-/**
- * The invitation links below the account list (K-6): their state, and the way to revoke an open
- * one. A link is created in the dialog above; the account it produces is in the list itself.
- */
-export function InvitationsSection({ options }: { options: readonly LibraryOption[] }) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const invitations = useQuery(invitationsQuery);
-  const revoke = useMutation({
-    mutationFn: (id: number) =>
-      request(api.DELETE('/admin/invitations/{id}', { params: { path: { id } } })),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: invitationsQuery.queryKey }),
-  });
-
+      ),
+    },
+    {
+      key: 'state',
+      header: t('admin.accounts.invitations.columns.state'),
+      cell: (invitation) => (
+        <Chip tone={stateTone[invitation.state]}>
+          {t(`admin.accounts.invitations.state.${invitation.state}`)}
+        </Chip>
+      ),
+    },
+    {
+      key: 'rating',
+      header: t('admin.accounts.invitations.columns.rating'),
+      cell: (invitation) => (
+        <span className={styles.nowrap}>{t('rating.fsk', { age: invitation.maxRating })}</span>
+      ),
+    },
+    {
+      key: 'libraries',
+      header: t('admin.accounts.invitations.columns.libraries'),
+      cell: (invitation) => describeLibraries(t, invitation, options),
+    },
+    {
+      key: 'detail',
+      header: t('admin.accounts.invitations.columns.detail'),
+      cell: (invitation) =>
+        invitation.state === 'used' && invitation.usedByEmail
+          ? t('admin.accounts.invitations.usedBy', { email: invitation.usedByEmail })
+          : t('admin.accounts.invitations.expires', {
+              date: formatDateTime(invitation.expiresAt, i18n.language),
+            }),
+    },
+    {
+      key: 'actions',
+      header: t('admin.accounts.invitations.columns.actions'),
+      hideHeader: true,
+      align: 'end',
+      // Only an open link can be revoked (KON-5).
+      cell: (invitation) =>
+        invitation.state === 'open' && (
+          <AriaButton
+            variant="danger"
+            aria-describedby={noteId(invitation)}
+            onPress={() => onRevoke(invitation)}
+          >
+            {t('admin.accounts.invitations.revoke.action')}
+          </AriaButton>
+        ),
+    },
+  ];
   return (
-    <section className={styles.section} aria-labelledby="invitations-heading">
-      <h2 id="invitations-heading" className={styles.sectionTitle}>
-        {t('admin.accounts.invitations.title')}
-      </h2>
-      <div className={styles.listBlock} aria-busy={invitations.isPending}>
-        {revoke.error && <Notice tone="danger">{problemMessage(t, revoke.error)}</Notice>}
-        {invitations.isPending && <Skeleton shape="block" />}
-        {invitations.isError && (
-          <Notice
-            tone="danger"
-            title={problemMessage(t, invitations.error)}
-            actions={
-              <AriaButton icon="refresh" onPress={() => void invitations.refetch()}>
-                {t('common.retry')}
-              </AriaButton>
-            }
-          />
-        )}
-        {invitations.data?.length === 0 && <Notice>{t('admin.accounts.invitations.empty')}</Notice>}
-        {invitations.data && invitations.data.length > 0 && (
-          <Panel>
-            <ul className={styles.rows}>
-              {invitations.data.map((invitation) => (
-                <InvitationRow
-                  key={invitation.id}
-                  invitation={invitation}
-                  options={options}
-                  onRevoke={(id) => revoke.mutate(id)}
-                />
-              ))}
-            </ul>
-          </Panel>
-        )}
-      </div>
-    </section>
+    <DataTable
+      caption={t('admin.accounts.invitations.list')}
+      columns={columns}
+      rows={invitations}
+      rowKey={(invitation) => String(invitation.id)}
+    />
   );
 }

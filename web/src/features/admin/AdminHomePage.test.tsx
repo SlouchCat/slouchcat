@@ -731,7 +731,7 @@ const SIDEBAR = [
   ['Pflege', '/admin/maintenance'],
   ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
-  ['Profile', '/settings/profiles'],
+  ['Profile', '/admin/accounts?item=me#meine-profile'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
@@ -860,6 +860,49 @@ describe('admin sidebar (A-2, concept 11)', () => {
       'aria-current',
       'page',
     );
+  });
+
+  it('«Profile» opens the own account in «Konten»; `item=me` makes it the current entry (KP-1)', async () => {
+    mockApi(
+      routes({
+        'GET /admin/devices': () => json([]),
+        // The own account (the session's id 1), so `item=me` names a row.
+        'GET /admin/accounts': () =>
+          json([
+            {
+              id: 1,
+              email: 'owner@example.test',
+              role: 'admin',
+              isOwner: true,
+              maxRating: 18,
+              allLibraries: true,
+              libraryIds: [],
+              profiles: [],
+              createdAt: '2026-10-01T10:00:00Z',
+              limits: {},
+              channels: [],
+            },
+          ]),
+        'GET /admin/invitations': () => json([]),
+        'GET /libraries': () => json([]),
+        'GET /profiles': () => json([]),
+      }),
+    );
+    const { nav, router } = await renderAdminPage('/admin/devices');
+    const user = userEvent.setup();
+    const profiles = within(nav).getByRole('link', { name: /^Profile/ });
+    await user.click(profiles);
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/accounts'));
+    expect(router.state.location.search).toEqual({ item: 'me' });
+    expect(router.state.location.hash).toBe('meine-profile');
+    expect(profiles).toHaveAttribute('aria-current', 'page');
+    const accounts = within(nav).getByRole('link', { name: /^Konten/ });
+    expect(accounts).not.toHaveAttribute('aria-current');
+    // The same page without the item is «Konten».
+    await user.click(accounts);
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(accounts).toHaveAttribute('aria-current', 'page');
+    expect(profiles).not.toHaveAttribute('aria-current');
   });
 
   it('replaces the app column on /admin/*, also when it is hidden; the menu opens the app drawer', async () => {

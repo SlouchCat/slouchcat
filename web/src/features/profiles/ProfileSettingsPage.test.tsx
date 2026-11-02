@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { accountLibraries, profiles } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
@@ -10,6 +10,12 @@ const manage: Routes = {
   'GET /libraries': () => json(accountLibraries),
 };
 
+/** Opens «Weitere Aktionen» of a profile card (S-6: PIN and deletion live there). */
+async function openMenu(user: UserEvent, card: HTMLElement, name: string) {
+  await user.click(within(card).getByRole('button', { name: `Weitere Aktionen für ${name}` }));
+  return screen.findByRole('menu');
+}
+
 describe('profile settings page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -17,22 +23,39 @@ describe('profile settings page', () => {
     mockApi(manage);
     renderApp('/settings/profiles');
 
+    const user = userEvent.setup();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
     const marco = await screen.findByRole('article', { name: 'Marco' });
+    expect(within(marco).getByRole('heading', { level: 2, name: 'Marco' })).toBeVisible();
     expect(within(marco).getByText('Hauptprofil')).toBeVisible();
     expect(within(marco).getByText('FSK 18')).toBeVisible();
     expect(within(marco).getByText('Alle Bibliotheken')).toBeVisible();
+    // Two buttons on the card, the rest in the menu (S-6).
+    expect(within(marco).getByRole('button', { name: 'Bearbeiten' })).toBeVisible();
+    expect(within(marco).getByRole('button', { name: 'Schauzeit anzeigen' })).toBeVisible();
     // The primary profile cannot be deleted.
-    expect(within(marco).queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument();
-    expect(within(marco).getByRole('button', { name: 'PIN setzen' })).toBeVisible();
+    let menu = await openMenu(user, marco, 'Marco');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['PIN setzen']);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
 
     const lena = screen.getByRole('article', { name: 'Lena' });
     expect(within(lena).getByText('FSK 12')).toBeVisible();
     expect(within(lena).getByText('English')).toBeVisible();
     expect(within(lena).getByText('PIN')).toBeVisible();
     expect(within(lena).getByText('Filme')).toBeVisible();
-    expect(within(lena).getByRole('button', { name: 'PIN ändern' })).toBeVisible();
-    expect(within(lena).getByRole('button', { name: 'PIN entfernen' })).toBeVisible();
-    expect(within(lena).getByRole('button', { name: 'Löschen' })).toBeVisible();
+    menu = await openMenu(user, lena, 'Lena');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['PIN ändern', 'PIN entfernen', 'Löschen']);
+    // The deletion stands apart, under «Gefahr».
+    expect(within(menu).getByText('Gefahr')).toBeVisible();
   });
 
   it('gives a non-primary profile a notice instead of the management', async () => {
@@ -203,17 +226,25 @@ describe('profile settings page', () => {
       libraryIds: [1],
     });
 
-    await user.click(within(lena).getByRole('button', { name: 'Löschen' }));
+    await user.click(
+      within(await openMenu(user, lena, 'Lena')).getByRole('menuitem', { name: 'Löschen' }),
+    );
     const confirm = await screen.findByRole('alertdialog', { name: 'Profil „Lena“ löschen?' });
     await user.click(within(confirm).getByRole('button', { name: 'Abbrechen' }));
     expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
-    await user.click(within(lena).getByRole('button', { name: 'Löschen' }));
+    await user.click(
+      within(await openMenu(user, lena, 'Lena')).getByRole('menuitem', { name: 'Löschen' }),
+    );
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', {
         name: 'Profil löschen',
       }),
     );
     await waitFor(() => expect(calls.some((call) => call.method === 'DELETE')).toBe(true));
+    // The card went with its buttons: the h1 takes the focus (ALL-2).
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Profile' })).toHaveFocus(),
+    );
   });
 
   it('treats an edit of the active profile like a switch: catalog cache cleared, session read again', async () => {
@@ -247,14 +278,18 @@ describe('profile settings page', () => {
     const user = userEvent.setup();
 
     const marco = await screen.findByRole('article', { name: 'Marco' });
-    await user.click(within(marco).getByRole('button', { name: 'PIN setzen' }));
+    await user.click(
+      within(await openMenu(user, marco, 'Marco')).getByRole('menuitem', { name: 'PIN setzen' }),
+    );
     const dialog = await screen.findByRole('dialog', { name: 'PIN für Marco' });
     await user.type(within(dialog).getByLabelText('Neue PIN'), '12345678{Enter}');
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
     expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ pin: '12345678' });
 
     const lena = screen.getByRole('article', { name: 'Lena' });
-    await user.click(within(lena).getByRole('button', { name: 'PIN entfernen' }));
+    await user.click(
+      within(await openMenu(user, lena, 'Lena')).getByRole('menuitem', { name: 'PIN entfernen' }),
+    );
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', {
         name: 'PIN entfernen',
@@ -315,7 +350,9 @@ describe('profile settings page', () => {
     const user = userEvent.setup();
 
     const marco = await screen.findByRole('article', { name: 'Marco' });
-    await user.click(within(marco).getByRole('button', { name: 'PIN setzen' }));
+    await user.click(
+      within(await openMenu(user, marco, 'Marco')).getByRole('menuitem', { name: 'PIN setzen' }),
+    );
     const dialog = await screen.findByRole('dialog', { name: 'PIN für Marco' });
     await user.type(within(dialog).getByLabelText('Neue PIN'), '1234{Enter}');
     expect(await within(dialog).findByText('Die PIN besteht aus 4 bis 8 Ziffern.')).toBeVisible();
@@ -396,7 +433,9 @@ describe('profile settings page', () => {
         .some((mutation) => JSON.stringify(mutation.state.variables ?? null).includes('"pin"'));
 
     const marco = await screen.findByRole('article', { name: 'Marco' });
-    await user.click(within(marco).getByRole('button', { name: 'PIN setzen' }));
+    await user.click(
+      within(await openMenu(user, marco, 'Marco')).getByRole('menuitem', { name: 'PIN setzen' }),
+    );
     const dialog = await screen.findByRole('dialog', { name: 'PIN für Marco' });
     await user.type(within(dialog).getByLabelText('Neue PIN'), '2468{Enter}');
     await waitFor(() => expect(dialog).not.toBeInTheDocument());

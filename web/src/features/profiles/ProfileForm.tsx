@@ -32,11 +32,20 @@ interface ProfileFormProps {
   session: ActiveSession;
   /** The library choices; the form is only shown once the list is known. */
   libraries: readonly LibraryOption[];
+  /** The profile was saved (before the dialog closes). */
+  onSaved?: () => void;
   onClose: () => void;
 }
 
 /** Create or edit a profile (K-2): name, rating, language, accent, libraries, a PIN on creation. */
-export function ProfileForm({ profile, profiles, session, libraries, onClose }: ProfileFormProps) {
+export function ProfileForm({
+  profile,
+  profiles,
+  session,
+  libraries,
+  onSaved,
+  onClose,
+}: ProfileFormProps) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const accountMax = session.account.maxRating;
@@ -76,6 +85,7 @@ export function ProfileForm({ profile, profiles, session, libraries, onClose }: 
       // Editing the profile in use is like switching to it: the catalog is read again, and name,
       // language and colour of the app follow.
       if (saved.id === session.profile.id) await refreshSession(queryClient);
+      onSaved?.();
       onClose();
     },
   );

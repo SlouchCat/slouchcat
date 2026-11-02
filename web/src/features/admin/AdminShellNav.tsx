@@ -1,6 +1,6 @@
 import type { Dashboard } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from '@tanstack/react-router';
+import { useLocation, useSearch } from '@tanstack/react-router';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
@@ -43,6 +43,8 @@ function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel:
   const { t, i18n } = useTranslation();
   const session = useActiveSession();
   const { pathname } = useLocation();
+  // «Profile» and «Konten» share a page; `?item=me` tells them apart (concept 12, KP-1).
+  const search: Record<string, unknown> = useSearch({ strict: false });
   // The overview asks every 5 s itself (and not at all while the server restarts).
   const dashboard = useQuery({
     ...dashboardQuery,
@@ -136,7 +138,7 @@ function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel:
           href: section.href,
           label,
           icon: section.icon,
-          current: isSectionPath(section, pathname),
+          current: isSectionPath(section, pathname, search.item),
         };
         const numbers = dashboard.data && figure(section.key, label, dashboard.data);
         return numbers ? { ...link, ...numbers } : link;

@@ -252,6 +252,13 @@ test('switching to an English profile changes the start page without a reload an
 
 test.describe('profile management', () => {
   const article = (page: Page, name: string) => page.getByRole('article', { name });
+  /** Picks `item` from «Weitere Aktionen» of a profile card (S-6: PIN and deletion are there). */
+  async function pick(page: Page, name: string, item: string) {
+    await article(page, name)
+      .getByRole('button', { name: `Weitere Aktionen für ${name}` })
+      .click();
+    await page.getByRole('menu').getByRole('menuitem', { name: item }).click();
+  }
 
   /** The server's metadata settings, as the page "Metadaten" edits them (concept 10). */
   async function metadataSettings(api: APIRequestContext): Promise<Record<string, unknown>> {
@@ -320,7 +327,7 @@ test.describe('profile management', () => {
     await expect(renamed.getByText('FSK 12')).toBeVisible();
 
     // PIN: set (a short one is refused), shown, remove.
-    await renamed.getByRole('button', { name: 'PIN setzen' }).click();
+    await pick(page, 'Kind 2', 'PIN setzen');
     const pin = page.getByRole('dialog', { name: 'PIN für Kind 2' });
     await pin.getByLabel('Neue PIN').fill('123');
     await pin.getByRole('button', { name: 'PIN speichern' }).click();
@@ -329,24 +336,28 @@ test.describe('profile management', () => {
     await pin.getByRole('button', { name: 'PIN speichern' }).click();
     await expect(pin).toBeHidden();
     await expect(renamed.getByText('PIN', { exact: true })).toBeVisible();
-    await expect(renamed.getByRole('button', { name: 'PIN ändern' })).toBeVisible();
-    await renamed.getByRole('button', { name: 'PIN entfernen' }).click();
+    await pick(page, 'Kind 2', 'PIN entfernen');
     await page
       .getByRole('alertdialog', { name: 'PIN von Kind 2 entfernen?' })
       .getByRole('button', { name: 'PIN entfernen' })
       .click();
     await expect(renamed.getByText('PIN', { exact: true })).toHaveCount(0);
-    await expect(renamed.getByRole('button', { name: 'PIN setzen' })).toBeVisible();
+    await renamed.getByRole('button', { name: 'Weitere Aktionen für Kind 2' }).click();
+    await expect(page.getByRole('menuitem', { name: 'PIN setzen' })).toBeVisible();
+    await page.keyboard.press('Escape');
 
-    // The primary profile has no delete button; the other one is deleted after confirmation.
-    await expect(article(page, OWNER_PROFILE).getByRole('button', { name: 'Löschen' })).toHaveCount(
-      0,
-    );
-    await renamed.getByRole('button', { name: 'Löschen' }).click();
+    // The primary profile has no delete action; the other one is deleted after confirmation.
+    await article(page, OWNER_PROFILE)
+      .getByRole('button', { name: `Weitere Aktionen für ${OWNER_PROFILE}` })
+      .click();
+    await expect(page.getByRole('menuitem', { name: 'PIN setzen' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Löschen' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await pick(page, 'Kind 2', 'Löschen');
     const confirm = page.getByRole('alertdialog', { name: 'Profil „Kind 2“ löschen?' });
     await confirm.getByRole('button', { name: 'Abbrechen' }).click();
     await expect(renamed).toBeVisible();
-    await renamed.getByRole('button', { name: 'Löschen' }).click();
+    await pick(page, 'Kind 2', 'Löschen');
     await confirm.getByRole('button', { name: 'Profil löschen' }).click();
     await expect(renamed).toHaveCount(0);
     expect(await listMyProfiles(page.request)).toHaveLength(1);
@@ -385,13 +396,19 @@ test.describe('profile management', () => {
       article(page, OWNER_PROFILE).getByRole('button', { name: 'Schauzeit anzeigen' }),
     );
     await page.keyboard.press('Tab');
-    await expectFocusOn(
-      page,
-      article(page, OWNER_PROFILE).getByRole('button', { name: 'PIN setzen' }),
-    );
+    const more = article(page, OWNER_PROFILE).getByRole('button', {
+      name: `Weitere Aktionen für ${OWNER_PROFILE}`,
+    });
+    await expectFocusOn(page, more);
+    // The menu opens with Enter on its first item and closes with Escape onto its button.
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('menuitem', { name: 'PIN setzen' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expectFocusOn(page, more);
 
-    // Open the create dialog from the keyboard.
-    await page.getByRole('button', { name: 'Profil hinzufügen' }).focus();
+    // Back to the add button and open the create dialog from the keyboard.
+    for (let step = 0; step < 3; step += 1) await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, page.getByRole('button', { name: 'Profil hinzufügen' }));
     await page.keyboard.press('Enter');
     const form = page.getByRole('dialog', { name: 'Neues Profil' });
     await expectFocusOn(page, form.getByLabel('Name', { exact: true }));

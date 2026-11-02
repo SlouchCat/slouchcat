@@ -2093,7 +2093,7 @@
     },
     "accounts": {
       "title": "Accounts",
-      "intro": "Every account with its role, rating level, libraries, profiles and the channels it receives notifications on. A new account starts with an invitation.",
+      "intro": "Every account with its role, rating level, libraries, profiles and the channels it receives notifications on. A new account starts with an invitation. You manage the profiles of your own account here; every other account manages its own profiles.",
       "list": "Accounts",
       "columns": {
         "email": "E-mail",
@@ -2102,8 +2102,7 @@
         "libraries": "Libraries",
         "profiles": "Profiles",
         "lastSeen": "Last seen",
-        "channels": "Channels",
-        "actions": "Actions"
+        "channels": "Channels"
       },
       "roles": {
         "admin": "Administrator",
@@ -2120,11 +2119,7 @@
         "push": "Web push",
         "telegram": "Telegram"
       },
-      "profilesLink": "Profiles",
-      "accessLink": "Access",
-      "accessLabel": "Manage access of {{email}}",
       "edit": {
-        "action": "Change account",
         "title": "Change account",
         "intro": "E-mail address and password of your account. Every change needs your current password.",
         "email": "E-mail address",
@@ -2139,12 +2134,14 @@
       },
       "ownerBadge": "Owner",
       "access": {
-        "action": "Access",
-        "label": "Change the access of {{email}}",
         "title": "Access of {{email}}",
         "rating": "Highest rating",
         "libraries": "Libraries",
-        "limitsHint": "Applies to every profile of this account."
+        "limitsHint": "Applies to every profile of this account.",
+        "heading": "Access",
+        "save": "Save access",
+        "saved": "Access of {{email}} saved.",
+        "adminHint": "An administrator always has rating 18 and all libraries; «Access» exists only for accounts without administration."
       },
       "role": {
         "promote": {
@@ -2152,14 +2149,16 @@
           "label": "Make {{email}} an administrator",
           "title": "Make {{email}} an administrator?",
           "body": "The account will manage the server, the libraries and the settings. Its rating rises to 18 and all libraries; the account's profiles keep their own levels.",
-          "confirm": "Appoint"
+          "confirm": "Appoint",
+          "done": "{{email}} is an administrator now."
         },
         "demote": {
           "action": "Take the role away",
           "label": "Take the administrator role away from {{email}}",
           "title": "Take the administrator role away from {{email}}?",
           "body": "The account will manage only its own profiles and is signed out everywhere. Rating and libraries stay where they are; set them again on purpose.",
-          "confirm": "Take away"
+          "confirm": "Take away",
+          "done": "{{email}} is an account without administration now."
         }
       },
       "remove": {
@@ -2167,10 +2166,10 @@
         "label": "Remove {{email}}",
         "title": "Remove the account {{email}}?",
         "body": "The account, its profiles and its progress are deleted. Running sessions and playback end at once. Downloads on the account's devices disappear the next time they reach the server. A device that never comes online again keeps them.",
-        "confirm": "Remove account"
+        "confirm": "Remove account",
+        "done": "Account {{email}} removed."
       },
       "invitations": {
-        "title": "Invitations",
         "intro": "A link works once and for seven days. Whoever opens it creates their own account.",
         "note": "Who is the link for?",
         "noteHint": "A name, for example. The invited person sees the note too.",
@@ -2181,7 +2180,6 @@
           "libraries": "Libraries"
         },
         "created": {
-          "title": "Invitation link created",
           "once": "Copy the link now: it is shown only this once.",
           "label": "Invitation link",
           "copy": "Copy link",
@@ -2204,9 +2202,44 @@
           "action": "Revoke",
           "title": "Revoke invitation?",
           "body": "The link stops working.",
-          "confirm": "Revoke"
+          "confirm": "Revoke",
+          "done": "Invitation «{{note}}» revoked."
         },
-        "invite": "Invite an account"
+        "invite": "Invite an account",
+        "columns": {
+          "note": "Note",
+          "state": "State",
+          "rating": "Rating",
+          "libraries": "Libraries",
+          "detail": "Valid until / accepted",
+          "actions": "Actions"
+        }
+      },
+      "discard": "Discard",
+      "status": {
+        "label": "Summary",
+        "accounts": "Accounts",
+        "admins": "Administrators",
+        "owners_one": "{{number}} of them owner",
+        "owners_other": "{{number}} of them owners",
+        "profiles": "Profiles",
+        "ownProfiles_one": "{{number}} your own",
+        "ownProfiles_other": "{{number}} your own",
+        "openInvitations": "Open invitations",
+        "nextExpiry": "Next valid until {{date}}"
+      },
+      "tabs": {
+        "label": "Parts of the accounts",
+        "accounts": "Accounts",
+        "invitations": "Invitations",
+        "accountsCount_one": "{{number}} account",
+        "accountsCount_other": "{{number}} accounts",
+        "open": "{{number}} open"
+      },
+      "profiles": {
+        "mine": "My profiles",
+        "of": "Profiles of {{email}}",
+        "readOnly": "Every account manages its own profiles."
       }
     },
     "backup": {
@@ -2977,7 +3010,8 @@
         "limit": "Limit: {{count}} min a day",
         "total": "Total: {{count}} min",
         "tooltip": "{{date}}: {{value}}"
-      }
+      },
+      "metadataLanguageChip": "Language of the descriptions: {{language}}"
     }
   },
   "invite": {

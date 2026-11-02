@@ -1,535 +1,542 @@
-import type {
-  AccountAccessUpdate,
-  AccountUpdate,
-  AdminAccount,
-  SessionInfo,
-} from '@slouchcat/api-client';
+import type { AdminAccount, Invitation } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { TFunction } from 'i18next';
-import { useState, type FormEvent } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, isApiError, request } from '@/api/client';
-import { formErrors, problemMessage, type FormErrors } from '@/api/errors';
-import { paths } from '@/app/paths';
-import { sessionQuery, useActiveSession } from '@/app/session';
-import { formText, MIN_PASSWORD } from '@/lib/form';
+import { api, request } from '@/api/client';
+import { problemMessage } from '@/api/errors';
+import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { useTransientMutation } from '@/lib/useTransientMutation';
-import { ButtonLink, Chip, Notice, Page, Skeleton, Text } from '@/ui';
+import { Notice, Skeleton, Text, VisuallyHidden } from '@/ui';
 import {
+  AdminPage,
   AriaButton,
   ConfirmDialog,
   DataTable,
-  Form,
-  FormDialog,
-  RadioGroup,
-  TextField,
-  type DataColumn,
+  StatusStrip,
+  Tabs,
+  useDrafts,
+  useSearchSelection,
+  useUnsavedChanges,
 } from '@/ui/aria';
-import { ratingOf, ratingOptions } from '../shared/choices';
-import { LibraryChoice, type LibrarySelection } from '../shared/LibraryChoice';
-import { LimitFields, limitsOf, limitValues, type LimitValues } from '../shared/LimitFields';
+import { useLibraryOptions } from '../shared/useLibraryOptions';
+import { accessDraftOf, normaliseAccess, type AccessDraft } from './accounts/AccessForm';
+import { OtherAccountDetail, OwnAccountDetail } from './accounts/AccountDetail';
+import { accountColumns } from './accounts/columns';
+import { invitationNote, InvitationsTable, InviteDialog } from './accounts/Invitations';
 import {
-  libraryIdsOf,
-  useLibraryOptions,
-  type LibraryOption,
-  type LibraryOptions,
-} from '../shared/useLibraryOptions';
-import { InvitationsSection, InviteDialog } from './Invitations';
+  normaliseOwnAccount,
+  ownAccountDraftOf,
+  type OwnAccountDraft,
+} from './accounts/OwnAccountForm';
 import { accountsQuery, invitationsQuery } from './queries';
-import data from './AdminData.module.css';
-import styles from './AdminTablePage.module.css';
+import styles from './accounts/Accounts.module.css';
 
-/**
- * A wrong current password belongs to its field; the login text of `invalid_credentials` ("e-mail
- * or password") would point at the wrong thing here.
- */
-function accountErrors(t: TFunction, error: unknown): FormErrors {
-  if (isApiError(error) && error.code === 'invalid_credentials') {
-    return { fields: { currentPassword: t('admin.accounts.edit.wrongPassword') }, form: null };
-  }
-  return formErrors(t, error);
-}
+const TABS = ['accounts', 'invitations'];
+/** `?item=me`: the own account (the sidebar's «Profile» needs no account id). */
+const ME = 'me';
 
-/**
- * "Konto ändern" (A-2): the e-mail and the password of the signed-in account. Every change needs
- * the current password; the passwords never stay in the query client.
- */
-function AccountDialog({ email, onClose }: { email: string; onClose: (saved: boolean) => void }) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [newPassword, setNewPassword] = useState('');
-  const [unchanged, setUnchanged] = useState(false);
-  const save = useTransientMutation(
-    (body: AccountUpdate): Promise<SessionInfo> => request(api.PUT('/auth/account', { body })),
-    async (session) => {
-      queryClient.setQueryData(sessionQuery.queryKey, session);
-      await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
-      onClose(true);
-    },
-  );
-  const errors = save.error ? accountErrors(t, save.error) : null;
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const nextEmail = formText(data, 'email');
-    const changesEmail = nextEmail !== email;
-    // The server needs at least one change; say so here instead of sending an empty update.
-    setUnchanged(!changesEmail && !newPassword);
-    if (!changesEmail && !newPassword) return;
-    void save.run({
-      ...(changesEmail ? { email: nextEmail } : {}),
-      currentPassword: formText(data, 'currentPassword', false),
-      ...(newPassword ? { newPassword } : {}),
-    });
-  };
-
-  return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose(false);
-      }}
-      title={t('admin.accounts.edit.title')}
-      description={t('admin.accounts.edit.intro')}
-    >
-      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <div className={styles.form}>
-          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-          {unchanged && <Notice tone="warning">{t('admin.accounts.edit.unchanged')}</Notice>}
-          <TextField
-            name="email"
-            type="email"
-            label={t('admin.accounts.edit.email')}
-            autoComplete="email"
-            defaultValue={email}
-            isRequired
-          />
-          <TextField
-            name="newPassword"
-            type="password"
-            label={t('admin.accounts.edit.newPassword')}
-            description={t('admin.accounts.edit.newPasswordHint')}
-            autoComplete="new-password"
-            value={newPassword}
-            onChange={setNewPassword}
-            validate={(value) =>
-              value === '' || value.length >= MIN_PASSWORD
-                ? null
-                : t('errors.field.password_too_short')
-            }
-          />
-          {newPassword && (
-            <TextField
-              name="newPasswordRepeat"
-              type="password"
-              label={t('admin.accounts.edit.newPasswordRepeat')}
-              autoComplete="new-password"
-              isRequired
-              validate={(value) =>
-                value === newPassword ? null : t('errors.field.password_mismatch')
-              }
-            />
-          )}
-          <TextField
-            name="currentPassword"
-            type="password"
-            label={t('admin.accounts.edit.currentPassword')}
-            description={t('admin.accounts.edit.currentPasswordHint')}
-            autoComplete="current-password"
-            isRequired
-          />
-          <div className={styles.dialogActions}>
-            <AriaButton variant="ghost" onPress={() => onClose(false)}>
-              {t('common.cancel')}
-            </AriaButton>
-            <AriaButton type="submit" variant="primary" isPending={save.isPending}>
-              {save.isPending ? t('common.saving') : t('common.save')}
-            </AriaButton>
-          </div>
-        </div>
-      </Form>
-    </FormDialog>
-  );
-}
-
-/**
- * "Zugriff ändern" (K-7): rating ceiling, libraries and the W-8 caps of one account. Only an
- * account that administers nothing has them; an administrator is fixed at FSK 18 and all
- * libraries (ADR 0014), so its row offers no such button.
- */
-function AccessDialog({
-  account,
-  options,
-  onClose,
-}: {
-  account: AdminAccount;
-  options: readonly LibraryOption[];
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [rating, setRating] = useState(String(account.maxRating));
-  const [selection, setSelection] = useState<LibrarySelection>({
-    all: account.allLibraries,
-    ids: account.libraryIds.map(String),
+/** Resolves once React has rendered what the last cache update brought. */
+const afterRender = () =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
   });
-  const [limits, setLimits] = useState<LimitValues>(() => limitValues(account.limits));
-  const save = useMutation({
-    mutationFn: (body: AccountAccessUpdate) =>
-      request(api.PATCH('/admin/accounts/{id}', { params: { path: { id: account.id } }, body })),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
-      onClose();
-    },
-  });
-  const errors = save.error ? formErrors(t, save.error) : null;
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    save.mutate({
-      maxRating: ratingOf(rating),
-      allLibraries: selection.all,
-      libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
-      // W-8: bandwidth, quality and streams cap every profile of the account.
-      limits: limitsOf(limits, false),
-    });
-  };
-
-  return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      title={t('admin.accounts.access.title', { email: account.email })}
-    >
-      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <div className={styles.form}>
-          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-          <RadioGroup
-            name="maxRating"
-            label={t('admin.accounts.access.rating')}
-            value={rating}
-            onChange={setRating}
-            options={ratingOptions(t)}
-          />
-          <LibraryChoice
-            label={t('admin.accounts.access.libraries')}
-            value={selection}
-            onChange={setSelection}
-            options={options}
-          />
-          <fieldset>
-            <legend>{t('limits.title')}</legend>
-            <Text tone="secondary" variant="caption">
-              {t('admin.accounts.access.limitsHint')}
-            </Text>
-            <LimitFields value={limits} onChange={setLimits} withWatch={false} />
-          </fieldset>
-          <div className={styles.dialogActions}>
-            <AriaButton variant="ghost" onPress={onClose}>
-              {t('common.cancel')}
-            </AriaButton>
-            <AriaButton type="submit" variant="primary" isPending={save.isPending}>
-              {save.isPending ? t('common.saving') : t('common.save')}
-            </AriaButton>
-          </div>
-        </div>
-      </Form>
-    </FormDialog>
-  );
+interface Confirmation {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  tone: 'primary' | 'danger';
+  onConfirm: () => void;
 }
 
 /**
- * Accounts (A-2): every account with role, ceiling, libraries, profiles, last contact and the
- * notification channels it switched on. The signed-in account changes its own e-mail and password
- * here; the administration changes the access of the others, and the owner alone appoints and
- * demotes administrators (ADR 0014). The page shows or hides buttons - the server decides.
+ * Accounts with profiles (A-2, concept 12 variant C with KP-1): every account with role,
+ * ceiling, libraries, profiles, last contact and the notification channels it switched on, and the
+ * invitations that create new ones. The page shows or hides buttons - the server decides.
  */
 export function AccountsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   useDocumentTitle(t('admin.accounts.title'));
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!allowed) {
+    return (
+      <AdminPage title={t('admin.accounts.title')}>
+        <Notice title={t('admin.access.notAllowed.title')}>
+          {t('admin.access.notAllowed.body')}
+        </Notice>
+      </AdminPage>
+    );
+  }
+  return <AccountsContent />;
+}
+
+/**
+ * The status strip with four numbers, the tabs «Konten» and «Einladungen», and per account a row
+ * that folds out: the own account changes its e-mail and password and manages its profiles there;
+ * another account shows its access (inline for an account without administration), its profile
+ * names and appoint, demote and remove (ADR 0014). What is typed is the page's draft per account
+ * (S-17); leaving with it asks first (S-13).
+ */
+function AccountsContent() {
+  const { t, i18n } = useTranslation();
+  const session = useActiveSession();
+  const ownId = String(session.account.id);
   const isOwner = session.account.isOwner;
-  const accounts = useQuery({ ...accountsQuery, enabled: allowed });
-  const libraries: LibraryOptions = useLibraryOptions(allowed);
-  const [editing, setEditing] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [access, setAccess] = useState<AdminAccount | null>(null);
-  const [inviting, setInviting] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const inviteButton = useRef<HTMLButtonElement>(null);
+
+  // The drafts need what the server holds before the queries know whether to hold for them: a
+  // passive observer reads the same cache entry without fetching.
+  const cached = useQuery({ ...accountsQuery, enabled: false }).data;
+  const accessOriginals = useMemo(
+    () =>
+      new Map(
+        (cached ?? []).flatMap((account) =>
+          account.role === 'user' && String(account.id) !== ownId
+            ? [[String(account.id), accessDraftOf(account)] as const]
+            : [],
+        ),
+      ),
+    [cached, ownId],
+  );
+  const accessOriginalOf = useCallback((id: string) => accessOriginals.get(id), [accessOriginals]);
+  const access = useDrafts<AccessDraft>(accessOriginalOf);
+  const ownEmail = cached?.find((account) => String(account.id) === ownId)?.email;
+  const ownOriginalOf = useCallback(
+    (id: string) =>
+      id === ownId && ownEmail !== undefined ? ownAccountDraftOf(ownEmail) : undefined,
+    [ownId, ownEmail],
+  );
+  const own = useDrafts<OwnAccountDraft>(ownOriginalOf);
+  const unsaved = useUnsavedChanges(access.dirty || own.dirty);
+
+  const [inviting, setInviting] = useState(false);
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const hold = confirmOpen || inviting || unsaved.pausePolling;
+
+  const accounts = useQuery({ ...accountsQuery, refetchOnWindowFocus: !hold });
+  const invitations = useQuery({ ...invitationsQuery, refetchOnWindowFocus: !hold });
+  const libraries = useLibraryOptions();
+
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'accounts');
+  const search: Record<string, unknown> = useSearch({ strict: false });
+  const askedTab = search.tab;
+  const askedItem = search.item;
+  // An unknown `?tab=` shows «Konten»; the address says so too.
+  useEffect(() => {
+    if (askedTab !== undefined && !(typeof askedTab === 'string' && TABS.includes(askedTab)))
+      selectTab('accounts');
+  }, [askedTab, selectTab]);
+
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const onExpandedChange = useCallback(
+    (key: string, open: boolean) =>
+      setExpanded((current) => {
+        const next = new Set(current);
+        if (open) next.add(key);
+        else next.delete(key);
+        return next;
+      }),
+    [],
+  );
+  // `?item=` opens that account's row once, when it arrives (`me` is the own account); folding it
+  // away afterwards is the reader's choice. An account the list does not know leaves the address.
+  const loadedAccounts = accounts.data;
+  const itemId = askedItem === ME ? ownId : typeof askedItem === 'string' ? askedItem : undefined;
+  const itemKnown =
+    itemId !== undefined && !!loadedAccounts?.some((account) => String(account.id) === itemId);
+  const [openedItem, setOpenedItem] = useState<string | undefined>(undefined);
+  // Adjusted while rendering (no effect): the row is open in the same render that shows it.
+  if (itemKnown && openedItem !== itemId) {
+    setOpenedItem(itemId);
+    setExpanded((current) => new Set(current).add(itemId));
+  } else if (askedItem === undefined && openedItem !== undefined) {
+    setOpenedItem(undefined);
+  }
+  useEffect(() => {
+    if (loadedAccounts && askedItem !== undefined && !itemKnown) {
+      void navigate({
+        to: '.',
+        replace: true,
+        hash: true,
+        search: ((previous: Record<string, unknown>) => ({
+          ...previous,
+          item: undefined,
+        })) as never,
+      });
+    }
+  }, [loadedAccounts, askedItem, itemKnown, navigate]);
+
+  const [message, setMessage] = useState<string | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
   const refresh = () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey }),
       queryClient.invalidateQueries({ queryKey: invitationsQuery.queryKey }),
     ]);
+  const said = (text: string) => {
+    setFailure(null);
+    setMessage(text);
+  };
+  const failed = (error: unknown) => {
+    setMessage(null);
+    setFailure(error);
+  };
+
+  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
+  const focusTitleIfLost = useCallback(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) titleRef.current?.focus();
+  }, []);
+
   const setRole = useMutation({
-    mutationFn: ({ id, role }: { id: number; role: 'admin' | 'user' }) =>
-      request(api.PUT('/admin/accounts/{id}/role', { params: { path: { id } }, body: { role } })),
-    onSuccess: refresh,
+    mutationFn: ({ account, role }: { account: AdminAccount; role: 'admin' | 'user' }) =>
+      request(
+        api.PUT('/admin/accounts/{id}/role', {
+          params: { path: { id: account.id } },
+          body: { role },
+        }),
+      ),
+    onSuccess: async (_data, { account, role }) => {
+      said(
+        t(
+          role === 'admin' ? 'admin.accounts.role.promote.done' : 'admin.accounts.role.demote.done',
+          {
+            email: account.email,
+          },
+        ),
+      );
+      await refresh();
+      await afterRender();
+      focusTitleIfLost();
+    },
+    onError: failed,
   });
   const remove = useMutation({
-    mutationFn: (id: number) =>
-      request(api.DELETE('/admin/accounts/{id}', { params: { path: { id } } })),
-    onSuccess: refresh,
+    mutationFn: (account: AdminAccount) =>
+      request(api.DELETE('/admin/accounts/{id}', { params: { path: { id: account.id } } })),
+    onSuccess: async (_data, account) => {
+      said(t('admin.accounts.remove.done', { email: account.email }));
+      // Its open fold-out and its draft go with it.
+      onExpandedChange(String(account.id), false);
+      access.discard(String(account.id));
+      await refresh();
+      // The row and its buttons are gone: once React rendered that, the h1 takes the focus.
+      await afterRender();
+      titleRef.current?.focus();
+    },
+    onError: failed,
   });
-  const actionError = setRole.error ?? remove.error;
+  const revoke = useMutation({
+    mutationFn: (invitation: Invitation) =>
+      request(api.DELETE('/admin/invitations/{id}', { params: { path: { id: invitation.id } } })),
+    onSuccess: async (_data, invitation) => {
+      said(t('admin.accounts.invitations.revoke.done', { note: invitationNote(t, invitation) }));
+      await refresh();
+      // The button goes with the open state: once React rendered that, the h1 takes the focus.
+      await afterRender();
+      titleRef.current?.focus();
+    },
+    onError: failed,
+  });
 
-  const columns: DataColumn<AdminAccount>[] = [
-    {
-      key: 'email',
-      header: t('admin.accounts.columns.email'),
-      rowHeader: true,
-      cell: (account) => account.email,
+  // Every confirmation is the page's own: a row that goes while it is open (another
+  // administrator, a refetch) cannot take the dialog with it.
+  const ask = useCallback((next: Confirmation) => {
+    setConfirmation(next);
+    setConfirmOpen(true);
+  }, []);
+  const onConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) return;
+      setConfirmOpen(false);
+      // The button that opened it may be gone by now.
+      void afterRender().then(focusTitleIfLost);
     },
-    {
-      key: 'role',
-      header: t('admin.accounts.columns.role'),
-      cell: (account) => (
-        <span className={data.chips}>
-          <span>{t(`admin.accounts.roles.${account.role}`)}</span>
-          {account.isOwner && <Chip tone="info">{t('admin.accounts.ownerBadge')}</Chip>}
-        </span>
-      ),
+    [focusTitleIfLost],
+  );
+  const { mutate: setRoleMutate } = setRole;
+  const { mutate: removeMutate } = remove;
+  const { mutate: revokeMutate } = revoke;
+  const askRole = useCallback(
+    (account: AdminAccount) => {
+      const kind = account.role === 'admin' ? 'demote' : 'promote';
+      ask({
+        title: t(`admin.accounts.role.${kind}.title`, { email: account.email }),
+        body: t(`admin.accounts.role.${kind}.body`),
+        confirmLabel: t(`admin.accounts.role.${kind}.confirm`),
+        tone: 'primary',
+        onConfirm: () =>
+          setRoleMutate({ account, role: account.role === 'admin' ? 'user' : 'admin' }),
+      });
     },
-    {
-      key: 'rating',
-      header: t('admin.accounts.columns.rating'),
-      cell: (account) => (
-        <span className={styles.nowrap}>{t('rating.fsk', { age: account.maxRating })}</span>
-      ),
-    },
-    {
-      key: 'libraries',
-      header: t('admin.accounts.columns.libraries'),
-      cell: (account) =>
-        account.allLibraries
-          ? t('libraries.all')
-          : t('admin.accounts.libraries', { count: account.libraryIds.length }),
-    },
-    {
-      key: 'profiles',
-      header: t('admin.accounts.columns.profiles'),
-      cell: (account) =>
-        account.profiles
-          .map((profile) =>
-            profile.isPrimary
-              ? t('admin.accounts.primaryProfile', { name: profile.name })
-              : profile.name,
-          )
-          .join(t('admin.accounts.listSeparator')),
-    },
-    {
-      key: 'lastSeen',
-      header: t('admin.accounts.columns.lastSeen'),
-      cell: (account) =>
-        account.lastSeenAt ? (
-          <time className={styles.nowrap} dateTime={account.lastSeenAt}>
-            {formatDateTime(account.lastSeenAt, i18n.language)}
-          </time>
-        ) : (
-          <span className={styles.muted}>{t('admin.accounts.neverSeen')}</span>
-        ),
-    },
-    {
-      key: 'channels',
-      header: t('admin.accounts.columns.channels'),
-      cell: (account) => {
-        const enabled = account.channels.filter((channel) => channel.enabled);
-        return enabled.length === 0 ? (
-          <span className={styles.muted}>{t('admin.accounts.noChannels')}</span>
-        ) : (
-          <span className={data.chips}>
-            {enabled.map(({ channel }) => (
-              <Chip key={channel} tone="outline">
-                {t(`admin.accounts.channels.${channel}`)}
-              </Chip>
-            ))}
-          </span>
-        );
-      },
-    },
-    {
-      key: 'actions',
-      header: t('admin.accounts.columns.actions'),
-      hideHeader: true,
-      align: 'end',
-      cell: (account) =>
-        account.id === session.account.id ? (
-          <span className={styles.rowActions}>
-            <AriaButton
-              onPress={() => {
-                setSaved(false);
-                setEditing(true);
-              }}
-            >
-              {t('admin.accounts.edit.action')}
-            </AriaButton>
-            <ButtonLink variant="ghost" href={paths.profileSettings}>
-              {t('admin.accounts.profilesLink')}
-            </ButtonLink>
-          </span>
-        ) : (
-          <span className={styles.rowActions}>
-            {account.role === 'user' && (
-              <AriaButton
-                isDisabled={!libraries.isReady}
-                aria-label={t('admin.accounts.access.label', { email: account.email })}
-                onPress={() => setAccess(account)}
-              >
-                {t('admin.accounts.access.action')}
-              </AriaButton>
-            )}
-            {isOwner && !account.isOwner && (
-              <ConfirmDialog
-                trigger={
-                  <AriaButton
-                    variant="ghost"
-                    aria-label={t(
-                      account.role === 'admin'
-                        ? 'admin.accounts.role.demote.label'
-                        : 'admin.accounts.role.promote.label',
-                      { email: account.email },
-                    )}
-                  >
-                    {t(
-                      account.role === 'admin'
-                        ? 'admin.accounts.role.demote.action'
-                        : 'admin.accounts.role.promote.action',
-                    )}
-                  </AriaButton>
-                }
-                title={t(
-                  account.role === 'admin'
-                    ? 'admin.accounts.role.demote.title'
-                    : 'admin.accounts.role.promote.title',
-                  { email: account.email },
-                )}
-                body={t(
-                  account.role === 'admin'
-                    ? 'admin.accounts.role.demote.body'
-                    : 'admin.accounts.role.promote.body',
-                )}
-                confirmLabel={t(
-                  account.role === 'admin'
-                    ? 'admin.accounts.role.demote.confirm'
-                    : 'admin.accounts.role.promote.confirm',
-                )}
-                cancelLabel={t('common.cancel')}
-                onConfirm={() =>
-                  setRole.mutate({
-                    id: account.id,
-                    role: account.role === 'admin' ? 'user' : 'admin',
-                  })
-                }
-              />
-            )}
-            {!account.isOwner && (
-              <ConfirmDialog
-                trigger={
-                  <AriaButton
-                    variant="ghost"
-                    aria-label={t('admin.accounts.remove.label', { email: account.email })}
-                  >
-                    {t('admin.accounts.remove.action')}
-                  </AriaButton>
-                }
-                title={t('admin.accounts.remove.title', { email: account.email })}
-                body={t('admin.accounts.remove.body')}
-                confirmLabel={t('admin.accounts.remove.confirm')}
-                cancelLabel={t('common.cancel')}
-                tone="danger"
-                onConfirm={() => remove.mutate(account.id)}
-              />
-            )}
-          </span>
-        ),
-    },
-  ];
+    [ask, t, setRoleMutate],
+  );
+  const askRemove = useCallback(
+    (account: AdminAccount) =>
+      ask({
+        title: t('admin.accounts.remove.title', { email: account.email }),
+        body: t('admin.accounts.remove.body'),
+        confirmLabel: t('admin.accounts.remove.confirm'),
+        tone: 'danger',
+        onConfirm: () => removeMutate(account),
+      }),
+    [ask, t, removeMutate],
+  );
+  const askRevoke = useCallback(
+    (invitation: Invitation) =>
+      ask({
+        title: t('admin.accounts.invitations.revoke.title'),
+        body: t('admin.accounts.invitations.revoke.body'),
+        confirmLabel: t('admin.accounts.invitations.revoke.confirm'),
+        tone: 'danger',
+        onConfirm: () => revokeMutate(invitation),
+      }),
+    [ask, t, revokeMutate],
+  );
+
+  const invalidateAccounts = useCallback(
+    () => void queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey }),
+    [queryClient],
+  );
+  const columns = useMemo(() => accountColumns(t, i18n.language), [t, i18n.language]);
+  const detail = (account: AdminAccount) => {
+    const id = String(account.id);
+    if (id === ownId) {
+      const value = own.valueOf(id);
+      if (!value) return null;
+      return (
+        <OwnAccountDetail
+          account={account}
+          draft={{
+            value,
+            dirty: own.isDirty(id),
+            onChange: (next) => own.set(id, normaliseOwnAccount(next)),
+            onDiscard: () => own.discard(id),
+          }}
+          onSaved={() => {
+            own.discard(id);
+            said(t('admin.accounts.edit.saved'));
+          }}
+          titleRef={titleRef}
+          hold={hold}
+          onProfilesChanged={invalidateAccounts}
+        />
+      );
+    }
+    const value = access.valueOf(id);
+    return (
+      <OtherAccountDetail
+        account={account}
+        isOwner={isOwner}
+        libraries={libraries}
+        access={
+          value && {
+            value,
+            dirty: access.isDirty(id),
+            onChange: (next) => access.set(id, normaliseAccess(next, accessOriginalOf(id))),
+            onDiscard: () => access.discard(id),
+          }
+        }
+        onAccessSaved={async () => {
+          access.discard(id);
+          said(t('admin.accounts.access.saved', { email: account.email }));
+          await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
+        }}
+        onRole={askRole}
+        onRemove={askRemove}
+      />
+    );
+  };
+
+  const list = accounts.data ?? [];
+  const invitationList = invitations.data ?? [];
+  const open = invitationList.filter((invitation) => invitation.state === 'open');
+  const nextExpiry = open.map((invitation) => invitation.expiresAt).sort()[0];
+  const admins = list.filter((account) => account.role === 'admin');
+  const owners = admins.filter((account) => account.isOwner).length;
+  const profileCount = list.reduce((sum, account) => sum + account.profiles.length, 0);
+  const ownProfiles = list.find((account) => String(account.id) === ownId)?.profiles.length ?? 0;
+  const status = accounts.data && invitations.data && (
+    <StatusStrip
+      label={t('admin.accounts.status.label')}
+      tiles={[
+        {
+          key: 'accounts',
+          label: t('admin.accounts.status.accounts'),
+          value: number.format(list.length),
+        },
+        {
+          key: 'admins',
+          label: t('admin.accounts.status.admins'),
+          value: number.format(admins.length),
+          note: t('admin.accounts.status.owners', { count: owners, number: number.format(owners) }),
+        },
+        {
+          key: 'profiles',
+          label: t('admin.accounts.status.profiles'),
+          value: number.format(profileCount),
+          note: t('admin.accounts.status.ownProfiles', {
+            count: ownProfiles,
+            number: number.format(ownProfiles),
+          }),
+        },
+        {
+          key: 'invitations',
+          label: t('admin.accounts.status.openInvitations'),
+          value: number.format(open.length),
+          ...(nextExpiry
+            ? {
+                note: t('admin.accounts.status.nextExpiry', {
+                  date: formatDateTime(nextExpiry, i18n.language),
+                }),
+              }
+            : {}),
+        },
+      ]}
+    />
+  );
 
   return (
-    <Page>
-      <div className={styles.header}>
-        <Text as="h1" variant="display">
-          {t('admin.accounts.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.accounts.intro')}</Text>
-      </div>
-      {!allowed ? (
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      ) : (
-        <div className={styles.body} aria-busy={accounts.isPending}>
-          <div className={data.toolbar}>
-            <AriaButton
-              variant="primary"
-              icon="plus"
-              isDisabled={!libraries.isReady}
-              onPress={() => setInviting(true)}
-            >
-              {t('admin.accounts.invitations.invite')}
+    <AdminPage
+      title={t('admin.accounts.title')}
+      help={t('admin.accounts.intro')}
+      titleRef={titleRef}
+      status={status}
+      actions={
+        <AriaButton
+          ref={inviteButton}
+          variant="primary"
+          icon="plus"
+          isDisabled={!libraries.isReady}
+          onPress={() => setInviting(true)}
+        >
+          {t('admin.accounts.invitations.invite')}
+        </AriaButton>
+      }
+    >
+      {libraries.isError && (
+        <Notice
+          tone="danger"
+          title={t('libraries.loadFailed')}
+          actions={
+            <AriaButton icon="refresh" onPress={libraries.retry}>
+              {t('common.retry')}
             </AriaButton>
-          </div>
-          {saved && <Notice>{t('admin.accounts.edit.saved')}</Notice>}
-          {libraries.isError && (
-            <Notice
-              tone="danger"
-              title={t('libraries.loadFailed')}
-              actions={
-                <AriaButton icon="refresh" onPress={libraries.retry}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            >
-              {problemMessage(t, libraries.error)}
-            </Notice>
-          )}
-          {actionError && <Notice tone="danger">{problemMessage(t, actionError)}</Notice>}
-          {accounts.isPending && <Skeleton shape="block" />}
-          {accounts.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, accounts.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void accounts.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {accounts.data && (
-            <DataTable
-              caption={t('admin.accounts.list')}
-              columns={columns}
-              rows={accounts.data}
-              rowKey={(account) => String(account.id)}
-            />
-          )}
-          <InvitationsSection options={libraries.options} />
-        </div>
+          }
+        >
+          {problemMessage(t, libraries.error)}
+        </Notice>
       )}
-      {editing && (
-        <AccountDialog
-          email={session.account.email}
-          onClose={(done) => {
-            setSaved(done);
-            setEditing(false);
+      {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      <div role="status" className={styles.live}>
+        {message && failure === null && <Notice live={false}>{message}</Notice>}
+      </div>
+      {(accounts.isPending || invitations.isPending) && <Skeleton shape="block" />}
+      {accounts.isError && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, accounts.error)}
+          actions={
+            <AriaButton icon="refresh" onPress={() => void accounts.refetch()}>
+              {t('common.retry')}
+            </AriaButton>
+          }
+        />
+      )}
+      {invitations.isError && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, invitations.error)}
+          actions={
+            <AriaButton icon="refresh" onPress={() => void invitations.refetch()}>
+              {t('common.retry')}
+            </AriaButton>
+          }
+        />
+      )}
+      {accounts.data && (
+        <Tabs
+          label={t('admin.accounts.tabs.label')}
+          selectedKey={tab}
+          onSelectionChange={selectTab}
+          tabs={[
+            {
+              id: 'accounts',
+              label: t('admin.accounts.tabs.accounts'),
+              count: number.format(list.length),
+              countLabel: t('admin.accounts.tabs.accountsCount', {
+                count: list.length,
+                number: number.format(list.length),
+              }),
+              content: (
+                <div className={styles.tabBody}>
+                  <VisuallyHidden as="h2">{t('admin.accounts.tabs.accounts')}</VisuallyHidden>
+                  <DataTable
+                    caption={t('admin.accounts.list')}
+                    columns={columns}
+                    rows={list}
+                    rowKey={(account) => String(account.id)}
+                    expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+                  />
+                </div>
+              ),
+            },
+            {
+              id: 'invitations',
+              label: t('admin.accounts.tabs.invitations'),
+              count: t('admin.accounts.tabs.open', { number: number.format(open.length) }),
+              tone: open.length > 0 ? 'warning' : 'neutral',
+              content: (
+                <div className={styles.tabBody}>
+                  <VisuallyHidden as="h2">{t('admin.accounts.tabs.invitations')}</VisuallyHidden>
+                  {invitations.data &&
+                    (invitationList.length === 0 ? (
+                      <Text tone="secondary">{t('admin.accounts.invitations.empty')}</Text>
+                    ) : (
+                      <InvitationsTable
+                        invitations={invitationList}
+                        options={libraries.options}
+                        onRevoke={askRevoke}
+                      />
+                    ))}
+                </div>
+              ),
+            },
+          ]}
+        />
+      )}
+      {confirmation && (
+        <ConfirmDialog
+          isOpen={confirmOpen}
+          onOpenChange={onConfirmOpenChange}
+          title={confirmation.title}
+          body={confirmation.body}
+          confirmLabel={confirmation.confirmLabel}
+          cancelLabel={t('common.cancel')}
+          tone={confirmation.tone}
+          onConfirm={confirmation.onConfirm}
+        />
+      )}
+      <ConfirmDialog {...unsaved.dialog} />
+      {inviting && (
+        <InviteDialog
+          options={libraries.options}
+          // The new link is a row of «Einladungen»: that tab shows once the dialog closes.
+          onCreated={() => selectTab('invitations')}
+          onClose={() => {
+            setInviting(false);
+            inviteButton.current?.focus();
           }}
         />
       )}
-      {access && (
-        <AccessDialog
-          account={access}
-          options={libraries.options}
-          onClose={() => setAccess(null)}
-        />
-      )}
-      {inviting && <InviteDialog options={libraries.options} onClose={() => setInviting(false)} />}
-    </Page>
+    </AdminPage>
   );
 }

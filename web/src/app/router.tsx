@@ -442,6 +442,7 @@ const metadataRoute = createRoute({
 const accountsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/accounts',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/AccountsPage'), 'AccountsPage'),
 });
 

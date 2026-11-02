@@ -34,7 +34,7 @@ const NAV_ENTRIES = [
   ['Pflege', '/admin/maintenance'],
   ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
-  ['Profile', '/settings/profiles'],
+  ['Profile', '/admin/accounts?item=me#meine-profile'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
@@ -155,15 +155,17 @@ test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, 
   await expectNoFocusTrap(page);
 });
 
-test('every admin page is reached through the sidebar; Profile leaves for the app (A-2)', async ({
+test('every admin page is reached through the sidebar; Profile opens the own account (A-2, KP-1)', async ({
   page,
 }) => {
   test.setTimeout(90_000);
   await openOverview(page);
-  await adminNav(page).locator('a[tabindex="0"]').focus();
+  await resetFocus(page);
+  await tabTo(page, entry(page, 'Übersicht'));
   for (const [name, path] of NAV_ENTRIES.slice(2)) {
-    // Profile and notifications belong to the account (/settings): checked below.
-    if (!path.startsWith('/admin/')) continue;
+    // Notifications belong to the account (/settings), Profile is a part of «Konten»: both are
+    // checked below.
+    if (!path.startsWith('/admin/') || name === 'Profile') continue;
     const link = entry(page, name);
     await arrowTo(page, link);
     await page.keyboard.press('Enter');
@@ -174,14 +176,18 @@ test('every admin page is reached through the sidebar; Profile leaves for the ap
     await expectFocusOn(page, link);
   }
 
-  // «Profile» leaves the administration: there the app column stands again; Back returns.
+  // «Profile» opens the own account in «Konten» at «Meine Profile» (KP-1): the sidebar stays,
+  // marks «Profile» and keeps the focus; Back returns.
   await page.keyboard.press('Home');
-  await arrowTo(page, entry(page, 'Profile'));
+  const profiles = entry(page, 'Profile');
+  await arrowTo(page, profiles);
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/settings\/profiles$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
-  await expect(adminNav(page)).toHaveCount(0);
-  await expect(appNav(page)).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/accounts\?item=me#meine-profile$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Meine Profile' })).toBeVisible();
+  await expect(profiles).toHaveAttribute('aria-current', 'page');
+  await expect(entry(page, 'Konten')).not.toHaveAttribute('aria-current');
+  await expectFocusOn(page, profiles);
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/backup$/);
   await expect(entry(page, 'Benachrichtigungen')).toHaveAttribute(

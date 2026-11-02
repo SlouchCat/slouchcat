@@ -2093,7 +2093,7 @@
     },
     "accounts": {
       "title": "Konten",
-      "intro": "Alle Konten mit Rolle, Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen. Neue Konten entstehen über eine Einladung.",
+      "intro": "Alle Konten mit Rolle, Altersstufe, Bibliotheken, Profilen und den Kanälen, über die sie Benachrichtigungen bekommen. Neue Konten entstehen über eine Einladung. Die Profile deines eigenen Kontos verwaltest du hier; die Profile anderer Konten verwaltet jedes Konto selbst.",
       "list": "Konten",
       "columns": {
         "email": "E-Mail",
@@ -2102,8 +2102,7 @@
         "libraries": "Bibliotheken",
         "profiles": "Profile",
         "lastSeen": "Zuletzt gesehen",
-        "channels": "Kanäle",
-        "actions": "Aktionen"
+        "channels": "Kanäle"
       },
       "roles": {
         "admin": "Administrator",
@@ -2120,11 +2119,7 @@
         "push": "Web-Push",
         "telegram": "Telegram"
       },
-      "profilesLink": "Profile",
-      "accessLink": "Zugriff",
-      "accessLabel": "Zugriff von {{email}} verwalten",
       "edit": {
-        "action": "Konto ändern",
         "title": "Konto ändern",
         "intro": "E-Mail-Adresse und Passwort deines Kontos. Jede Änderung braucht dein aktuelles Passwort.",
         "email": "E-Mail-Adresse",
@@ -2139,12 +2134,14 @@
       },
       "ownerBadge": "Besitzer",
       "access": {
-        "action": "Zugriff",
-        "label": "Zugriff von {{email}} ändern",
         "title": "Zugriff von {{email}}",
         "rating": "Höchste Altersfreigabe",
         "libraries": "Bibliotheken",
-        "limitsHint": "Gilt für alle Profile dieses Kontos."
+        "limitsHint": "Gilt für alle Profile dieses Kontos.",
+        "heading": "Zugriff",
+        "save": "Zugriff speichern",
+        "saved": "Zugriff von {{email}} gespeichert.",
+        "adminHint": "Ein Administrator hat immer FSK 18 und alle Bibliotheken; «Zugriff» gibt es nur für Konten ohne Verwaltung."
       },
       "role": {
         "promote": {
@@ -2152,14 +2149,16 @@
           "label": "{{email}} zum Administrator ernennen",
           "title": "{{email}} zum Administrator ernennen?",
           "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf FSK 18 und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen.",
-          "confirm": "Ernennen"
+          "confirm": "Ernennen",
+          "done": "{{email}} ist jetzt Administrator."
         },
         "demote": {
           "action": "Rolle entziehen",
           "label": "{{email}} die Administratorrolle entziehen",
           "title": "{{email}} die Administratorrolle entziehen?",
           "body": "Das Konto verwaltet danach nur noch seine eigenen Profile und wird überall abgemeldet. Altersstufe und Bibliotheken bleiben, wo sie sind; setze sie danach bewusst neu.",
-          "confirm": "Entziehen"
+          "confirm": "Entziehen",
+          "done": "{{email}} ist jetzt ein Konto ohne Verwaltung."
         }
       },
       "remove": {
@@ -2167,10 +2166,10 @@
         "label": "{{email}} entfernen",
         "title": "Konto {{email}} entfernen?",
         "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort. Downloads auf den Geräten des Kontos verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.",
-        "confirm": "Konto entfernen"
+        "confirm": "Konto entfernen",
+        "done": "Konto {{email}} entfernt."
       },
       "invitations": {
-        "title": "Einladungen",
         "intro": "Ein Link gilt einmal und sieben Tage. Wer ihn öffnet, legt ein eigenes Konto an.",
         "note": "Für wen ist der Link?",
         "noteHint": "Zum Beispiel ein Name. Die Notiz sieht auch die eingeladene Person.",
@@ -2181,7 +2180,6 @@
           "libraries": "Bibliotheken"
         },
         "created": {
-          "title": "Einladungslink erstellt",
           "once": "Kopiere den Link jetzt: Er wird nur dieses eine Mal angezeigt.",
           "label": "Einladungslink",
           "copy": "Link kopieren",
@@ -2204,9 +2202,44 @@
           "action": "Widerrufen",
           "title": "Einladung widerrufen?",
           "body": "Der Link funktioniert danach nicht mehr.",
-          "confirm": "Widerrufen"
+          "confirm": "Widerrufen",
+          "done": "Einladung «{{note}}» widerrufen."
         },
-        "invite": "Konto einladen"
+        "invite": "Konto einladen",
+        "columns": {
+          "note": "Notiz",
+          "state": "Zustand",
+          "rating": "Altersstufe",
+          "libraries": "Bibliotheken",
+          "detail": "Gültig bis / angenommen",
+          "actions": "Aktionen"
+        }
+      },
+      "discard": "Verwerfen",
+      "status": {
+        "label": "Zusammenfassung",
+        "accounts": "Konten",
+        "admins": "Administratoren",
+        "owners_one": "davon {{number}} Besitzer",
+        "owners_other": "davon {{number}} Besitzer",
+        "profiles": "Profile",
+        "ownProfiles_one": "{{number}} eigenes",
+        "ownProfiles_other": "{{number}} eigene",
+        "openInvitations": "Offene Einladungen",
+        "nextExpiry": "Nächste gültig bis {{date}}"
+      },
+      "tabs": {
+        "label": "Bereiche der Konten",
+        "accounts": "Konten",
+        "invitations": "Einladungen",
+        "accountsCount_one": "{{number}} Konto",
+        "accountsCount_other": "{{number}} Konten",
+        "open": "{{number}} offen"
+      },
+      "profiles": {
+        "mine": "Meine Profile",
+        "of": "Profile von {{email}}",
+        "readOnly": "Profile verwaltet jedes Konto selbst."
       }
     },
     "backup": {
@@ -2977,7 +3010,8 @@
         "limit": "Limit: {{count}} min pro Tag",
         "total": "Total: {{count}} min",
         "tooltip": "{{date}}: {{value}}"
-      }
+      },
+      "metadataLanguageChip": "Sprache der Beschreibungen: {{language}}"
     }
   },
   "invite": {
