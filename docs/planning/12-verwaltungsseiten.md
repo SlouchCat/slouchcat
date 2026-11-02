@@ -19,7 +19,8 @@
   erschienen, die Felder aus 11.4 kommen darum in **Vertrag 1.8.0 als eigenes Release**; Konzept 13
   «Abspielseite» und Konzept 14 «Wiedergabestart» rücken auf 1.9.0 oder später und behalten
   Frage 19 und 20 sowie ADR 0021 und 0022. Marco will **durchbauen**: kein Zwischenhalt zwischen
-  den Schritten, Abnahme nur in K12-9 auf CT 190. O-2 bis O-4 gelten wie vorgeschlagen.
+  den Schritten, Abnahme nur in K12-9 auf CT 190. O-2 bis O-4 gelten wie vorgeschlagen; O-4 ist am
+  2. November 2026 auf ganze Wochen verfeinert (11.4, 11.9).
 - **Verankert gegen:** `main` **`4c860bc`**, Vertragsfassung **1.7.0** (Konzept 11: Frage 17,
   ADR 0019, Migration 00031, Verwaltungsleiste, Übersicht). Dieses Konzept nimmt **Frage 18**,
   **ADR 0020** und **Vertrag 1.8.0** (additiv), keine Migration. Die Zeilenangaben in Abschnitt 11
@@ -722,8 +723,8 @@ in `features/`.
 
 **Texte (Regel 9):** neue Schlüssel je Deutsch und Englisch für Hilfe-Knopf, Live-Anzeige,
 Platzwahl-Hinweis, «Weitere Aktionen» und «Gefahr», ungespeicherte Änderungen, Reiternamen,
-Beschreibungen der Startseitenreihen, «Wann geschaut wird» mit Wochentagen und «Aus den letzten 90
-Tagen», Rückfrage «Verknüpfung lösen», Gerätetyp «Unbekannt», `admin.jobs.types.metadata_apply`
+Beschreibungen der Startseitenreihen, «Wann geschaut wird» mit Wochentagen und «Aus den letzten 12
+Wochen» und «Aus den letzten 4 Wochen» (geändert 2. November 2026, O-4), Rückfrage «Verknüpfung lösen», Gerätetyp «Unbekannt», `admin.jobs.types.metadata_apply`
 mit `.name` und `.trigger` (`JobsPage.tsx:539`). Nicht mehr gebrauchte Schlüssel werden entfernt.
 
 **Abgrenzung zu Konzept 11:** `data-shell="admin"`, die Band-Technik und `RestartPanel` kommen
@@ -754,7 +755,7 @@ wie heute. Die Erhaltungsliste (Abschnitt 7) gilt vollständig (E-2).
 | Sammlungen | `Sam-C` | Filterreiter Alle, Manuell, TMDB; je Sammlung Klappzeile mit Mitgliedern inline (heute Dialog), Suche, `RankSelect`, Speichern, Verwerfen; Umbenennen im Dialog; TMDB gesperrt | **`AdminCollectionItem.posterUrl`** (11.4). |
 | Ankündigungen | `Ank-B` | `MasterDetail`: links Entwürfe und Veröffentlicht, rechts Angaben, gelesen «n von m Profilen» und die Vorschau «So sehen es die Profile»; Erstellen und Bearbeiten inline (heute Dialog) | Keine Vertragsänderung (`acknowledgedCount`, `profileCount`, `openapi.yaml:11960`). Die Vorschau benutzt den Inhalt von `AnnouncementDialog` (`features/notifications/AnnouncementDialog.tsx`), der dafür als Baustein herausgelöst wird, ohne Knöpfe; die Zuschauerseite sieht gleich aus (`Announcements.test.tsx` läuft weiter). |
 | Benachrichtigungen | `Ben-A` | `/settings/notifications`, heutige Dichte (S-1); drei `BandPanel` (E-Mail, Telegram, Web-Push); Speichern und Test je Kanal | Keine Vertragsänderung: gespeichert wird schon je Kanal (`updateMyChannel`, `openapi.yaml:6182-6184`). «Verknüpfung lösen» bekommt eine Rückfrage (`deleteTelegramLink`, `:6310`). |
-| Statistik | `Sta-B` | Zeitraum im Kopf (`?days=`); Streifen «Wiedergabe»; Meistgesehen mit Platz 1 bis 3 als Bildkacheln und Tabelle ab Platz 4; Schauzeit je Profil und Geräte nebeneinander; «Wann geschaut wird» (10.2) | **`StatTitle.posterUrl`, `StatTitle.backdropUrl`, `Stats.watchTimeByQuarterHour`, `Stats.timeWindowDays`, `Stats.timeZone`** (11.4). Bei 365 Tagen steht unter «Wann geschaut wird» «Aus den letzten 90 Tagen» (O-4). |
+| Statistik | `Sta-B` | Zeitraum im Kopf (`?days=`); Streifen «Wiedergabe»; Meistgesehen mit Platz 1 bis 3 als Bildkacheln und Tabelle ab Platz 4; Schauzeit je Profil und Geräte nebeneinander; «Wann geschaut wird» (10.2) | **`StatTitle.posterUrl`, `StatTitle.backdropUrl`, `Stats.watchTimeByQuarterHour`, `Stats.timeWindowDays`, `Stats.timeZone`** (11.4). Bei 90 und 365 Tagen steht unter «Wann geschaut wird» «Aus den letzten 12 Wochen», bei 30 Tagen «Aus den letzten 4 Wochen» (O-4, geändert 2. November 2026; vorher «Aus den letzten 90 Tagen»). |
 | Sicherung | `Sic-C` | Reiter Sicherungen, Neue Sicherung, Aus Datei wiederherstellen; Klappbereiche Manuell und Automatisch; Zeile mit «Herunterladen» und `ActionMenu` (Wiederherstellen, Löschen); Passphrase einer verschlüsselten Sicherung im Dialog; Warteanzeige `RestartPanel` (Konzept 11, 11.5) | Keine Vertragsänderung. Der Satz zu automatischen Sicherungen heisst «vor einer Migration der Datenbank (bei einem Update) und vor einer Wiederherstellung» (`store/migrate.go`, `store/restore.go`). |
 
 ### 11.4 Vertrag (additiv)
@@ -766,8 +767,8 @@ Nichts wird entfernt oder im Typ geändert.
 | `AdminStream.backdropUrl` | optional, Hintergrundbild `w780` mit Hash | Wie `AdminStream.posterUrl` aus Konzept 11 (11.3), bei Folgen das Bild der Serie (die Serien-Id liefert `AdminStreamItems` nach Konzept 11). `AdminListPosters` (`server/queries/system/admin.sql:374-381`) wird zu `AdminListImages` mit Art und Grösse verallgemeinert; `posterHashes` (`server/internal/admin/images.go:74`) bekommt eine Schwester für `backdrop`. URL über `adminImageURL` (`server/internal/api/item_handlers.go:441-443`). |
 | `StatTitle.posterUrl`, `StatTitle.backdropUrl` | optional | Für die höchstens 20 `topTitles`. `StatsTopTitles` gruppiert nach dem gespielten Titel (`server/queries/system/admin_stats.sql:15-35`), also auch nach Folgen, die kein Poster haben. Die Abfrage liefert darum zusätzlich die Id der Serie (Folge → Staffel → Serie über `parent_id`), und für Folgen gelten Poster und Hintergrundbild der Serie, wie bei `AdminStream`. |
 | `AdminCollectionItem.posterUrl` | optional, `w200` | `withPosters` (`images.go:90`) ist auf `[]model.AdminPick` getippt und wird für beliebige Listen mit Item-Id verallgemeinert; dann für die Mitglieder (`server/queries/system/collections.sql:47-50`, `collections.go:219`). |
-| `Stats.watchTimeByQuarterHour` | Pflicht, genau 672 Werte `watchedMs` (7 Tage × 96 Viertelstunden, Montag 00:00 zuerst) | Neue Abfrage `StatsWatchTimeByQuarter` über `progress_events`: `SUM(played_ms)` gruppiert nach `server_time / 900000` (UTC-Viertelstunde, Unix-ms, `migrations/00004_playback_progress.sql:35`). Viertelstunden statt Stunden, damit auch Zonen mit halben oder Viertelstunden-Versatz stimmen. Offline gespielte Ereignisse tragen schon die richtige Spielzeit (`server/internal/playback/offline.go:61`). Go ordnet jede Viertelstunde über die Zeitzone des Servers einem Wochentag und einer Uhrzeit zu (`time.Local` aus `TZ`, `deploy/compose.yaml:31`; `tzdata` im Image, `deploy/Dockerfile:96`). Die Zeitzone kommt als Option in `admin.Service`, damit Tests sie festlegen. Die Oberfläche fasst zu Stunden zusammen und summiert Zeilen und Spalten für «Nach Tageszeit» und «Nach Wochentag». |
-| `Stats.timeWindowDays` | Pflicht, Zahl der Tage, über die `watchTimeByQuarterHour` rechnet | `min(days, 90)`: nach 90 Tagen fasst der Server Ereignisse zu Tagen zusammen (`progress_days`, `migrations/00019_progress_days.sql:37-45`), die Uhrzeit ist dann weg. |
+| `Stats.watchTimeByQuarterHour` | Pflicht, genau 672 Werte `watchedMs` (7 Wochentage × 96 Viertelstunden, Montag 00:00 zuerst), gerechnet über **ganze Wochen** (`timeWindowDays`, geändert 2. November 2026) | Neue Abfrage `StatsWatchTimeByQuarter` über `progress_events`: `SUM(played_ms)` gruppiert nach `server_time / 900000` (UTC-Viertelstunde, Unix-ms, `migrations/00004_playback_progress.sql:35`). Viertelstunden statt Stunden, damit auch Zonen mit halben oder Viertelstunden-Versatz stimmen. Offline gespielte Ereignisse tragen schon die richtige Spielzeit (`server/internal/playback/offline.go:61`). Go ordnet jede Viertelstunde über die Zeitzone des Servers einem Wochentag und einer Uhrzeit zu (`TZ`, `deploy/compose.yaml:31`; `tzdata` im Image, `deploy/Dockerfile:96`). Die Zeitzone kommt als Option in `admin.Service`, damit Tests sie festlegen; `admin.ResolveZone` löst sie beim Start einmal über den IANA-Namen auf (`TZ`, sonst das Ziel von `/etc/localtime`, sonst UTC), damit `Stats.timeZone` und das Raster dieselbe Zone nennen (geändert 2. November 2026; `time.Local` heisst nur «Local»). Die Oberfläche fasst zu Stunden zusammen und summiert Zeilen und Spalten für «Nach Tageszeit» und «Nach Wochentag». |
+| `Stats.timeWindowDays` | Pflicht, Zahl der Tage, über die `watchTimeByQuarterHour` rechnet: **ganze Wochen, höchstens 84** (7, 28 oder 84) | `min(days, 90)` abgerundet auf ein Vielfaches von 7 (geändert 2. November 2026, Marcos Entscheid): 7 → 7, 30 → 28, 90 und 365 → 84. Nach 90 Tagen fasst der Server Ereignisse zu Tagen zusammen (`progress_days`, `migrations/00019_progress_days.sql:37-45`), die Uhrzeit ist dann weg. Ganze Wochen, damit jeder Wochentag gleich oft zählt; sonst wirkte ein Wochentag, der 5-mal statt 4-mal im Fenster liegt, 25 % stärker. |
 | `Stats.timeZone` | Pflicht, IANA-Name (zum Beispiel `Europe/Zurich`) | `time.Local.String()` bzw. die Option; die Oberfläche nennt die Zone unter dem Diagramm. |
 
 ### 11.5 Abweichungen (gehen in Frage 18)
@@ -820,9 +821,11 @@ Referenzbilder. Neue Verwaltungsseiten bekommen die Dichte ohne eigenes CSS.
 ### 11.7 Tests
 
 - **Server:** Vertragstest (`TestContractOpenAPI`) mit den Feldern aus 11.4; Handlertests für
-  `backdropUrl`, `posterUrl` und die Statistik; Abfragetest `StatsWatchTimeByHour`; Test der
+  `backdropUrl`, `posterUrl` und die Statistik; Abfragetest `StatsWatchTimeByQuarter` (geändert 2. November 2026; nicht `ByHour`); Test der
   Zuordnung mit fester Zone `Europe/Zurich` über beide Zeitumstellungen (29. März und 25. Oktober
-  2026), mit `Asia/Kolkata` (halbe Stunde) und mit 365 Tagen (`timeWindowDays` = 90); Handlertest
+  2026), mit `Asia/Kolkata` (halbe Stunde) und mit 365 Tagen (`timeWindowDays` = 84); Test von
+  `admin.ResolveZone` (`TZ`, `/etc/localtime`, ungültiger Name, kopierte Zonendatei) und der
+  Fenster 7, 28 und 84 Tage; Handlertest
   einer Folge in `topTitles` mit den Bildern der Serie; `server/internal/admin/stats_bench_test.go`
   um die neue Abfrage erweitert; Statistik-Attrappen der Web-Tests um die Pflichtfelder ergänzt.
 - **Unit (web):** jede Seitentest-Datei wird auf den neuen Aufbau umgeschrieben und behält jede
@@ -912,7 +915,7 @@ werden.
 | O-1 | Vertrag 1.7.0 oder 1.8.0, falls Konzept 11 vorher allein erscheint. | In K12-0 festhalten; die Felder bleiben dieselben. **Beantwortet (2. November 2026): 1.8.0 als eigenes Release**, Konzept 11 ist allein als 1.7.0 erschienen (Frage 18). |
 | O-2 | Mockup-Fehler, die nicht gebaut werden: Zeitplan-Block bei Jobarten ohne Zeitplan (`Jobs-C`), veralteter Einleitungssatz im Dialog «Sammlung anlegen» (`Sam-C`), Hilfetext «stündlich» bei Podcasts (`Pod-C`; das Abo hat seinen Takt, geprüft wird alle 5 min). | Gebaut wird nach Code und `de.json`. **Wie vorgeschlagen** (2. November 2026). |
 | O-3 | Pflege gruppiert nur die geladenen Einträge je Bibliothek; eine Bibliothek kann darum auf Seite 2 nochmals erscheinen. | So lassen; Alternative wäre eine Abfrage je Bibliothek (`listMaintenanceIssues` kennt `libraryId`, `openapi.yaml:3801-3830`), mehr Aufrufe. **Wie vorgeschlagen** (2. November 2026). |
-| O-4 | «Wann geschaut wird» bei 365 Tagen nur aus den letzten 90 Tagen. | Hinweis unter der Überschrift; volle 365 Tage bräuchten eine Stundenspalte in `progress_days` und eine Migration (nicht empfohlen). **Wie vorgeschlagen** (2. November 2026). |
+| O-4 | «Wann geschaut wird» bei 365 Tagen nur aus den letzten 90 Tagen. | Hinweis unter der Überschrift; volle 365 Tage bräuchten eine Stundenspalte in `progress_days` und eine Migration (nicht empfohlen). **Wie vorgeschlagen** (2. November 2026). **Verfeinert am 2. November 2026 (Marcos Entscheid):** das Fenster umfasst ganze Wochen, `timeWindowDays` ist 7, 28 oder 84. Der Hinweis lautet bei 90 und 365 Tagen «Aus den letzten 12 Wochen» und bei 30 Tagen «Aus den letzten 4 Wochen». |
 
 ### 11.10 Risiken
 
@@ -928,6 +931,9 @@ werden.
   Leiste. Die Seiten beginnen erst nach K11-5.
 - **Statistik-Abfrage:** 90 Tage `progress_events` je Aufruf. K12-9 misst p95; über 200 ms
   rechnet der Server die Stundenwerte höchstens alle 5 min neu (Zwischenspeicher).
+  **Klarstellung (2. November 2026):** die Schwelle von 200 ms gilt für die Rasterabfrage allein
+  (längstes Fenster, 84 Tage), nicht für die ganze Antwort von `GET /admin/stats`. Der Entscheid
+  fällt mit der Messung auf CT 190 in K12-9 (`docs/perf/verwaltungsseiten.md`).
 
 ## 12. Review-Protokoll
 

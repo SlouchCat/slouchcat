@@ -1,5 +1,86 @@
 # Aktueller Stand
 
+## Konzept 12 «Seitenmuster der Verwaltungsseiten»: im Bau (2. November 2026)
+
+Zweig `claude/verwaltungsseiten` ab `main` `4c860bc` (nach Konzept 11 und Release 1.7.0), Bau nach
+`docs/planning/12-verwaltungsseiten.md` Abschnitt 11.8 (Schritte K12-0 bis K12-9). Marcos Auftrag
+vom 2. November 2026: «Bitte beginne mit der Umsetzung und Entwicklung von Konzept 12.» Seine
+Antworten: **Durchbauen** (kein Zwischenhalt, abgenommen wird nur in K12-9 auf CT 190); der Vertrag
+**1.8.0** erscheint als **eigenes Release**; «Wann geschaut wird» rechnet über **ganze Wochen**
+(Entscheid unten). Gebaut mit OMC (`executor` je Schritt, `code-reviewer` je Schritt, `git-master`
+für die Merges); Befunde sind vor dem nächsten Schritt behoben.
+
+- **K12-0** (`040f157`): Frage 18 im Entscheidungsprotokoll, ADR 0020, Papier auf `main` `4c860bc`
+  verankert.
+- **K12-2a** (`6cbbf0f`, `773d0a0`, `4878564`): Komponententokens mit den heutigen Werten,
+  `density.compact` definiert, aber ausgeschaltet. Alle 212 Storybook-Referenzbilder pixelgleich,
+  auch in einem strengen Lauf ohne Toleranz (0 Differenz). Ausgangshöhe bis zur ersten Arbeitszeile
+  bei 1440 px: **Hintergrundjobs 476 px, Integrationen 432 px, Konten 353 px** (Skript
+  `web/e2e-perf/admin-height.spec.ts` mit `web/perf.config.ts`, nicht Teil von `task ci`;
+  `docs/perf/verwaltungsseiten.md`). Review: freigegeben, kein Major, Befunde behoben.
+- **K12-2b** (`edb40c4`, `6a605e2`, `e0c065c`, `fb0fc14`, `f60452c`): alle Bausteine aus 11.2:
+  `AdminPage`, `SectionHeader`, `StatusStrip`, `BandPanel`, `Tabs` mit Zahlen, `DataTable` mit
+  Klappzeilen, `DisclosureGroup`, `MasterDetail`, `SettingRow`, `SaveBar`, `RankSelect` mit
+  `ProviderList` und `FolderList` im Platzwahl-Modus, `ActionMenu`, steuerbarer `ConfirmDialog`,
+  `AdminDensityScope` und `density.css` (gilt nur unter
+  `:root[data-shell='admin'] :is(#content, [data-density='compact'])` und ab 768 px mit Maus),
+  `useDrafts`, `useUnsavedChanges`, `useSearchSelection`, `adminSearch`, `BarChart` horizontal,
+  `HeatGrid` mit Legende, `ImageTile`. Stories in beiden Dichten; kein Referenzbild von `main`
+  geändert. Review: Änderungen verlangt, drei Major (Pfeiltasten in aufgeklappten Zeilen,
+  Fokusverlust in `RankSelect`, Dialoge unter `/settings` kompakt), alle in `f60452c` behoben.
+- **K12-1** (`643bdf4`, `7eecf83`, `5c3df2d`, `b5aa092`): Vertrag **1.8.0** additiv mit den Feldern
+  aus 11.4, `AdminListImages` statt `AdminListPosters`, Serienbilder für Folgen,
+  `StatsWatchTimeByQuarter`, `admin.ResolveZone` beim Start, ganze Wochen
+  (`timeWindowDays` 7, 28 oder 84). Review: Änderungen verlangt (falsche Mengenangabe im
+  Messpapier, Zonenabweichung), behoben.
+- **Nächster Schritt:** K12-3 (Hintergrundjobs, Metadaten, Integrationen) läuft.
+
+**Entscheid «Wann geschaut wird»** (Marco, 2. November 2026, Frage 18 Nachtrag): das Fenster
+umfasst ganze Wochen, `timeWindowDays` = `min(days, 90)` abgerundet auf ein Vielfaches von 7, also
+7, 28 oder 84 (365 Tage rechnen über 84). Sonst wirkte ein Wochentag, der 5-mal statt 4-mal im
+Fenster liegt, 25 % stärker. Die Schwelle von 200 ms (11.10) gilt für die Rasterabfrage allein;
+über einen Zwischenspeicher entscheidet die Messung in K12-9.
+
+**Abweichungen vom Bauplan** (im Review von K12-2b angenommen, in Frage 18 nachgetragen):
+`?tab=` und `?item=` über den Hook `useSearchSelection` (`Tabs` und `MasterDetail` bleiben
+darstellend); `useUnsavedChanges` gibt die Props für `ConfirmDialog` zurück und kennt die Option
+`keep` für Parameter derselben Seite (`library`, `add`, `days`); zusätzliche Tokens
+`section.title-size`, `page.title-weight`, `page.title-tracking`, `dialog.gap`; `SaveBar` mit Rand
+und Fläche (die alten Tokens gab es nicht); Hilfe-Knopf in Steuerelement-Grösse (44 px, kompakt
+32 px statt 24 px im Mockup).
+
+**Belege K12-2b** (Agentenläufe auf dem Zweig):
+
+```
+task web:test              111 Dateien, 805 Tests bestanden
+task web:storybook:test    269 bestanden
+task gen:check             Exit 0
+task web:lint              Exit 0
+```
+
+Bekannt: `LoginPage.test.tsx` schlägt vereinzelt mit «document is not defined» fehl (schon vor
+Konzept 12 vorhanden, ein Wackler, keine Folge dieser Änderungen). Die Bausteine mit Klappzeilen
+sind über den Zugänglichkeitsbaum von Chromium (CDP) geprüft, **nicht mit einem echten
+Bildschirmleser**; das ist ein Stellvertreter.
+
+**Belege K12-1** (Agentenläufe auf dem Zweig):
+
+```
+task server:lint            0 issues.
+task gen:check              ohne Abweichung
+go test -race               admin, api, cmd/slouchcat ok
+task web:test               grün
+```
+
+Messung (`docs/perf/verwaltungsseiten.md`, Entwicklungsrechner i7, 1 Mio. Ereignisse):
+`GET /admin/stats` bei 90 Tagen p95 **303.8 → 402.2 ms**; die Rasterabfrage allein bei 84 Tagen
+p95 **96.4 ms**. Schätzung für CT 190 (Faktor 2.5): rund 105 ms beim realen Bestand, rund 240 ms
+beim Bestand der Messung. Ob ein Zwischenspeicher nötig ist, fällt mit der Messung auf CT 190 in
+K12-9.
+
+**Offen:** K12-3 bis K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
+mit 44 px); Release 1.8.0 danach als eigenes Release.
+
 ## Konzept 11 «Übersicht der Verwaltung»: umgesetzt und abgenommen, Schritte 0 bis 6 (2. November 2026)
 
 Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
