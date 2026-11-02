@@ -44,6 +44,19 @@ const afterRender = () =>
   });
 
 /**
+ * Resolves once no dialog is closing any more: react-aria keeps a closing dialog mounted for its
+ * exit animation and hands the focus back to its opener only then.
+ */
+const afterDialogClosed = () =>
+  new Promise<void>((resolve) => {
+    const check = () => {
+      if (document.querySelector('[data-exiting]')) window.requestAnimationFrame(check);
+      else void afterRender().then(resolve);
+    };
+    window.requestAnimationFrame(check);
+  });
+
+/**
  * Start page (M7, E-9; concept 12, variant C): the order of its eight rows for every profile.
  * The tab «Reihenfolge» gives each row a position (RankSelect, S-16) and «Ausblenden», and folds
  * out what the row shows with a link to the page that keeps its content; the tab «Vorschau»
@@ -83,10 +96,11 @@ function HomeRowsContent() {
   const drafts = useDrafts<HomeRow[]>(originalOf);
   const unsaved = useUnsavedChanges(drafts.dirty);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  // No refetch while the list is changed or a question is open (S-13).
+  // No refetch while the list is changed (S-13); the questions open only then.
   const stored = useQuery({
     ...homeRowsQuery,
-    refetchOnWindowFocus: !(unsaved.pausePolling || confirmOpen),
+    refetchOnWindowFocus: !unsaved.pausePolling,
+    refetchOnReconnect: !unsaved.pausePolling,
   });
 
   const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ORDER);
@@ -168,15 +182,14 @@ function HomeRowsContent() {
     drafts.discard(DRAFT);
     if (save.isError) save.reset();
     say(t('admin.homeRows.discarded'));
-    // The bar's buttons are disabled now; the focus goes to the page head (ALL-2).
-    requestAnimationFrame(() => titleRef.current?.focus());
   };
   const onConfirmOpenChange = useCallback(
     (open: boolean) => {
       setConfirmOpen(open);
       if (open) return;
-      // «Verwerfen», which opened it, went disabled with the draft.
-      void afterRender().then(focusTitleIfLost);
+      // «Abbrechen» gives the focus back to «Verwerfen»; after discarding, that button is
+      // disabled and the h1 takes the focus (ALL-2).
+      void afterDialogClosed().then(focusTitleIfLost);
     },
     [focusTitleIfLost],
   );
@@ -300,7 +313,7 @@ function HomeRowsContent() {
       {rows.length > 0 && (
         <>
           <BandPanel
-            title={t('admin.homeRows.list')}
+            title={t('admin.homeRows.band')}
             icon="list"
             tabs={{
               label: t('admin.homeRows.tabs.label'),

@@ -1518,6 +1518,7 @@
       "title": "Start page",
       "intro": "Order of the start page rows, for every profile. Hidden and empty rows do not appear.",
       "list": "Rows of the start page",
+      "band": "Rows",
       "tabs": {
         "label": "View of the rows",
         "order": "Order",

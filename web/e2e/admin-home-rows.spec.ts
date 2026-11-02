@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { CSRF } from './catalog';
-import { titleId } from './curation';
+import { DEFAULT_HOME_ROWS, setHomeRows, titleId } from './curation';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -36,12 +36,16 @@ async function rowOrder(page: Page): Promise<string[]> {
 
 const rowsTable = (page: Page) => page.getByRole('table', { name: 'Reihen der Startseite' });
 const saveBar = (page: Page) => page.getByRole('region', { name: 'Speichern' });
+/** The status region of the save area (the column around the save bar). */
+const saveStatus = (page: Page) => saveBar(page).locator('xpath=..').getByRole('status');
 
 test('start page rows by keyboard: placing and hiding change the start page', async ({
   page,
   owner,
 }) => {
   test.setTimeout(90_000);
+  // The stored order starts as the default and goes back to it, whatever ran before or fails.
+  await setHomeRows(owner, DEFAULT_HOME_ROWS);
   const started = await titleId(owner, STARTED_TITLE);
   const progress = await owner.post(`/api/v1/items/${started}/progress`, {
     headers: CSRF,
@@ -82,7 +86,7 @@ test('start page rows by keyboard: placing and hiding change the start page', as
     await expect(table.getByRole('rowheader').nth(2)).toHaveText('Neu hinzugefügt');
     await expect(table.getByRole('rowheader').nth(3)).toHaveText('Weiterschauen');
     await expectFocusOn(page, rank);
-    await expect(page.getByRole('status')).toHaveText(/Neu hinzugefügt steht jetzt an Stelle 3/);
+    await expect(saveStatus(page)).toHaveText(/Neu hinzugefügt steht jetzt auf Platz 3/);
     await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
 
     // Tab to the row's name: Enter folds it out with what the row shows, Enter folds it away.
@@ -132,6 +136,7 @@ test('start page rows by keyboard: placing and hiding change the start page', as
     await expect(page.getByRole('region', { name: 'Weiterschauen' })).toHaveCount(0);
   } finally {
     await resetProgress(owner, started);
+    await setHomeRows(owner, DEFAULT_HOME_ROWS);
   }
 });
 
@@ -190,18 +195,26 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
   await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
 
-  // «Verwerfen» asks, starting on «Abbrechen»; confirmed, the saved order is back.
+  // «Verwerfen» asks, starting on «Abbrechen»: Enter there keeps the changes and gives the
+  // focus back to «Verwerfen»; confirmed, the saved order is back.
+  const discardButton = saveBar(page).getByRole('button', { name: 'Verwerfen' });
   await resetFocus(page);
-  await tabTo(page, saveBar(page).getByRole('button', { name: 'Verwerfen' }), 80);
+  await tabTo(page, discardButton, 80);
   await page.keyboard.press('Enter');
   const discard = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' });
+  await expectFocusOn(page, discard.getByRole('button', { name: 'Abbrechen' }));
+  await page.keyboard.press('Enter');
+  await expect(discard).toBeHidden();
+  await expectFocusOn(page, discardButton);
+  await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
+  await page.keyboard.press('Enter');
   await expectFocusOn(page, discard.getByRole('button', { name: 'Abbrechen' }));
   await page.keyboard.press('Tab');
   await expectFocusOn(page, discard.getByRole('button', { name: 'Verwerfen' }));
   await page.keyboard.press('Enter');
   await expect(discard).toBeHidden();
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
-  await expect(page.getByRole('status')).toHaveText('Die Änderungen sind verworfen.');
+  await expect(saveStatus(page)).toHaveText('Die Änderungen sind verworfen.');
   await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeFocused();
   await expect(table.getByRole('rowheader').first()).toHaveText(first ?? '');
   await expect(table.getByRole('rowheader').last()).toHaveText(last);

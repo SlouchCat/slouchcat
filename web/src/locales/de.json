@@ -1518,6 +1518,7 @@
       "title": "Startseite",
       "intro": "Reihenfolge der Reihen auf der Startseite, für alle Profile. Ausgeblendete und leere Reihen erscheinen nicht.",
       "list": "Reihen der Startseite",
+      "band": "Reihen",
       "tabs": {
         "label": "Ansicht der Reihen",
         "order": "Reihenfolge",
@@ -1528,7 +1529,7 @@
       "visibleCount_one": "{{number}} sichtbar",
       "visibleCount_other": "{{number}} sichtbar",
       "columns": {
-        "position": "Position",
+        "position": "Platz",
         "row": "Reihe",
         "state": "Zustand",
         "hidden": "Ausblenden"
@@ -1550,7 +1551,7 @@
         "genres": "Die Genres der sichtbaren Titel."
       },
       "pageLink": "Zur Seite «{{page}}»",
-      "moved": "{{row}} steht jetzt an Stelle {{position}}. Speichere, damit es gilt.",
+      "moved": "{{row}} steht jetzt auf Platz {{position}}. Speichere, damit es gilt.",
       "saved": "Die Startseite ist gespeichert.",
       "discarded": "Die Änderungen sind verworfen.",
       "discard": {

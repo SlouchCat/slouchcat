@@ -1,4 +1,4 @@
-import type { CastMember, ExtraKind, ItemRef } from '@slouchcat/api-client';
+import type { CastMember, ExtraKind, HomeRowKey, ItemRef } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 
 const pad = (value: number) => String(value).padStart(2, '0');
@@ -13,6 +13,18 @@ export function episodeCode(t: TFunction, item: ItemRef): string | undefined {
   }
   return t('item.episodeCode', { season, episode });
 }
+
+/** The names of the start page rows: their headings, and the rows of the admin page «Startseite». */
+export const homeRowTitleKey = {
+  spotlight: 'home.rows.spotlight',
+  picks: 'home.picks',
+  continue: 'home.rows.continue',
+  recent: 'home.rows.recent',
+  released: 'home.rows.released',
+  watchlist: 'home.rows.watchlist',
+  collections: 'home.rows.collections',
+  genres: 'home.rows.genres',
+} as const satisfies Record<HomeRowKey, string>;
 
 /** Audiobooks, podcasts and their episodes (M6): square covers, "gehört", the audio player. */
 export const isAudioKind = (kind: ItemRef['kind']): boolean =>

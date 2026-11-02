@@ -1,20 +1,10 @@
 import type { HomeRowKey, HomeRowSetting } from '@slouchcat/api-client';
 import { paths } from '@/app/paths';
 
+export { homeRowTitleKey as rowTitleKey } from '@/features/catalog/labels';
+
 /** A row as the page edits it: its key and whether it is hidden; the position is its index. */
 export type HomeRow = Pick<HomeRowSetting, 'key' | 'hidden'>;
-
-/** The row names of the start page (the same keys as its headings). */
-export const rowTitleKey = {
-  spotlight: 'home.rows.spotlight',
-  picks: 'home.picks',
-  continue: 'home.rows.continue',
-  recent: 'home.rows.recent',
-  released: 'home.rows.released',
-  watchlist: 'home.rows.watchlist',
-  collections: 'home.rows.collections',
-  genres: 'home.rows.genres',
-} as const satisfies Record<HomeRowKey, string>;
 
 /** Rows whose content is kept on a page of its own: the fold-out links there. */
 export const rowPage = {

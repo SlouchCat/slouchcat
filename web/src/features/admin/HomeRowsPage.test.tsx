@@ -3,7 +3,7 @@ import { focusManager } from '@tanstack/react-query';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
 import { adminShell, renderAdminPage } from '@/test/admin';
 
 // The start page rows (M7, E-9; concept 12, variant C): tabs «Reihenfolge» and «Vorschau» in the
@@ -104,7 +104,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     ]);
     await waitFor(() => expect(rank('Neu hinzugefügt')).toHaveFocus());
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Neu hinzugefügt steht jetzt an Stelle 3. Speichere, damit es gilt.',
+      'Neu hinzugefügt steht jetzt auf Platz 3. Speichere, damit es gilt.',
     );
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
 
@@ -186,6 +186,10 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
     expect(rowNames()[0]).toBe('Genres');
+    // «Abbrechen» gives the focus back to «Verwerfen», which is still enabled.
+    await waitFor(() =>
+      expect(within(saveBar()).getByRole('button', { name: 'Verwerfen' })).toHaveFocus(),
+    );
 
     await user.click(within(saveBar()).getByRole('button', { name: 'Verwerfen' }));
     dialog = await screen.findByRole('alertdialog', { name: 'Änderungen verwerfen?' });
@@ -345,7 +349,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/spotlight'));
   });
 
-  it('does not refetch on window focus while the list is changed or a question is open', async () => {
+  it('does not refetch on window focus while the list is changed', async () => {
     const { calls } = mockApi(storingRoutes());
     renderApp('/admin/home-rows');
     const user = userEvent.setup();
@@ -392,6 +396,49 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     // The next change clears the problem.
     await user.selectOptions(rank('Genres'), 'Platz 2');
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
+
+  it('locks the positions and «Ausblenden» while saving', async () => {
+    // The server answers only when the test says so: the save stays pending meanwhile.
+    let answer: () => void = () => undefined;
+    mockApi({
+      ...storingRoutes(),
+      'PUT /admin/home-rows': (call) =>
+        new Promise<Response>((resolve) => {
+          answer = () => resolve(json(call.body));
+        }),
+    });
+    renderApp('/admin/home-rows');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    await user.selectOptions(rank('Genres'), 'Platz 1');
+    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(rank('Genres')).toBeDisabled());
+    expect(within(table()).getByRole('checkbox', { name: 'Genres ausblenden' })).toBeDisabled();
+    answer();
+    expect(await screen.findByText('Die Startseite ist gespeichert.')).toBeVisible();
+    await waitFor(() => expect(rank('Genres')).toBeEnabled());
+    expect(within(table()).getByRole('checkbox', { name: 'Genres ausblenden' })).toBeEnabled();
+  });
+
+  it.each([
+    ['an account without administration', { account: { role: 'user', isOwner: false } }],
+    ['a profile that is not the primary one', { profile: { isPrimary: false } }],
+  ])('tells %s that the page is not theirs, without asking the server', async (_, change) => {
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /auth/session': () =>
+        json({
+          ...session,
+          account: { ...session.account, ...('account' in change ? change.account : {}) },
+          profile: { ...session.profile, ...('profile' in change ? change.profile : {}) },
+        }),
+    });
+    renderApp('/admin/home-rows');
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(calls.some((call) => call.path === '/admin/home-rows')).toBe(false);
   });
 
   it('leaves the Trakt status to the spotlight page and links there in one line', async () => {
