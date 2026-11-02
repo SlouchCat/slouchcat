@@ -78,8 +78,8 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
     «Einladungen»; je Konto eine Klappzeile (eigenes Konto: E-Mail, Passwort, «Meine Profile»;
     fremdes: Zugriff). `ProfileList` aus `ProfileSettingsPage` herausgelöst und von
     `/settings/profiles` und «Konten» geteilt; Einladungen als Tabelle.
-- **K12-6** (Startseite, Sammlungen, Spotlight, Cat's Empfehlungen; Stand `a5c803b`): je Seite ein
-  `code-reviewer`-Lauf, Befunde behoben. Ankündigungen fehlen noch (Review-Korrekturen offen).
+- **K12-6** (Startseite, Sammlungen, Spotlight, Cat's Empfehlungen, Ankündigungen; Stand `0490a03`):
+  je Seite ein `code-reviewer`-Lauf, Befunde behoben.
   - *Startseite* (`afb2fb3`, `d4aac2c`): Reiter «Reihenfolge» und «Vorschau», Platzwahl statt
     «Nach oben»/«Nach unten», Klappzeile mit Beschreibung, eine `SaveBar` mit «Verwerfen».
   - *Sammlungen* (`0786112`, `7952385`): Filterreiter, Mitglieder inline in der Klappzeile statt im
@@ -89,6 +89,9 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
     mit einem Entwurf der Seite.
   - *Cat's Empfehlungen* (`6186790`, `a5c803b`): Filterreiter nach Zeitfenster, Notiz und Zeitfenster
     in der Klappzeile, Platzwahl, Entwurf je Eintrag.
+  - *Ankündigungen* (`8b8b363`, `f1d0c19`, `0490a03`): Liste und Detail (`MasterDetail`) statt
+    Dialoge. Gemeinsame Korrektur `f1d0c19`: `MasterDetail` setzt den Fokus beim Tabben in die Liste
+    auf den gewählten Eintrag. `0490a03` behebt die Befunde des Reviews.
 - **K12-7** (Statistik, Sicherung, Benachrichtigungen; Stand `c2a969d`): je Seite ein
   `code-reviewer`-Lauf, Befunde behoben.
   - *Statistik* (`c37e3d4`, `c5c190b`, `52fdada`): Mockup «Raster»; neu «Wann geschaut wird»
@@ -99,8 +102,63 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
   - *Benachrichtigungen* (`80a9432`, `c2a969d`): E-Mail, Telegram und Web Push als drei
     auf- und zuklappbare Felder in heutiger Dichte (S-1); Entwurf je Kanal; neue Rückfrage vor
     «Verknüpfung lösen».
-- **Nächster Schritt:** Ankündigungen (K12-6, Fokus in `MasterDetail` offen), danach Aufräumrunde 2,
-  K12-8 und K12-9.
+- **Aufräumrunde 2** (`46e5fc1` bis `fa81401`, 19 Commits, nach dem Merge `26e5d48`): gemeinsame
+  Bausteine, die Speicherregel von Frage 18 auf jeder Seite, Befunde des Reviews.
+  - *Fokus-Helfer* (`46e5fc1`, `fa81401`): `afterRender`, `afterDialogsClosed` und `focusTitleIfLost`
+    stehen einmal in `ui/focusAfter.ts` (über `@/ui/aria`) und ersetzen 17 Kopien und drei Arten, auf
+    ein schliessendes Dialogfenster zu warten. Verlorener Fokus heisst: `body`, ein abgehängtes
+    Element oder ein fokussiertes Steuerelement, das gesperrt wurde. `afterDialogsClosed` wartet,
+    bis kein Overlay mehr `data-exiting` trägt. `afterRender` läuft in einem verborgenen Reiter
+    weiter: es wartet auf den Frame höchstens 100 ms (kein Frame, `requestAnimationFrame` feuerte nie).
+  - *Auswahl in der Adresse* (`98ee610`, `0b0893c`): `useSearchSelection` ersetzt zwölf eigene
+    Effekte für unbekannte `?tab=` und `?item=` durch die Option `normalise` (ersetzt, kein Eintrag im
+    Verlauf). Seiten mit Ids aus einer Liste übergeben `normalise` erst nach dem Laden (Podcasts,
+    Titel, Ankündigungen). Konten nutzt es für den Reiter, `?item=` (me, Hash) bleibt bei der Seite.
+  - *StatusRegion* (`755034d`, `bb111df`): `ui/StatusRegion` und `useStatusMessage` ersetzen die
+    Kopien der Seiten, Integrationsblöcke, Pflegereiter und Benachrichtigungskanäle samt `.live`-CSS
+    und Zählern. Die Region bleibt im Zugänglichkeitsbaum, auch leer, verlässt aber den Fluss; es gibt
+    eine `alert`-Variante, und jede Meldung hat einen eigenen Schlüssel (derselbe Text zweimal wird
+    zweimal vorgelesen). Der Schlüssel zählt über einen Ref, damit er nach `say(null)` nicht von vorn
+    beginnt. Story in beiden Dichten mit Referenzbildern.
+  - *Speichern-Leiste* (`6ab38a3`, `6e7196a`): die `SaveBar` klebt auf Metadaten und Startseite am
+    unteren Rand (sie ist jetzt direkt Kind der Spalte, danach Fehlerhinweis und `StatusRegion`).
+    Sie trägt `data-save-bar`; solange eine auf der Seite steht, hat das Dokument ein
+    `scroll-padding-block-end`, damit die Leiste das fokussierte Feld nie verdeckt (WCAG 2.4.11).
+    Ein e2e auf Metadaten tabbt zum letzten Link über der Leiste; ohne Padding scheiterte er in
+    beiden Browsern.
+  - *Speicherregel auf jeder Seite* (`4586daa`): «Speichern» ist immer bedienbar und schickt ohne
+    Änderung nichts (Fokus bleibt), «Verwerfen» steht nur bei einer Änderung da, und ein Entwurf fällt
+    nur weg, wenn er noch dem Gesendeten gleicht. Angewendet auf `SaveBar` (Referenzbild
+    `ui-savebar--clean` neu), Hintergrundjobs, Integrationen (Schlüssel, Bot-Token, E-Mail-Server,
+    öffentliche Adresse), Konten (Zugriff, eigenes Konto), Spotlight (Quelle), Benachrichtigungen
+    (Kanäle), Sammlungen (Mitglieder) und Titel (Freigabe); je Fix ein Test.
+  - *Geheimnisfelder* (`0f56bea`): Schlüssel der Anbieter und der Telegram-Bot-Token folgen der
+    Regel. Leeres Feld heisst «gespeicherten Wert behalten»: keine Anfrage, kein «Pflichtfeld», der
+    Fokus bleibt auf «Speichern». Nur Leerzeichen allein weist das Feld ab.
+  - *Ordnerdialog* (`c7831bb`): «Speichern» in «Ordner ändern» ist ohne Änderung bedienbar; gedrückt
+    schickt es nichts, Dialog und Fokus bleiben. Eine ungültige Quellenreihenfolge sperrt es weiter.
+  - *Passwörter* (`fed0971`): Ein Entwurf des eigenen Kontos, der während des Speicherns weiter
+    getippt wurde, bleibt (Frage 18); aktuelles und neues Passwort werden trotzdem geleert.
+  - *Öffentliche Adresse* (`b872bcf`): die Zeile hat eine eigene Mutation mit dem gesendeten Entwurf
+    in den Variablen (`null` bei «Löschen»); vorher lief die Freigabe in einem `onSuccess` von
+    `mutate()`, das nicht läuft, wenn die Zeile vor der Antwort aushängt.
+  - *Seitenstile (S-12)* (`d309560`, `e54a12f`): die seiteneigenen CSS-Module entfallen (`AdminData`,
+    `AdminTablePage`, `Curation`; reine Seitenteile ziehen in den Ordner der Seite um); `moveBy`,
+    `useMoveButtons` und der Schlüssel `admin.backup.restore.confirmBody` hatten keinen Aufrufer mehr.
+    `e54a12f` entfernt Verweise auf nicht vorhandene Klassen (`styles.label` in `MasterDetail`,
+    `styles.addTitle` im Ordnerdialog); ein Scan aller CSS-Modul-Importe findet keine weiteren.
+  - *Tests* (`b870fb1`, `7e179ec`, `c66944f`, `3a6ab4f`): `fill()` (leeren, klicken, einfügen) liegt
+    in `web/src/test/fill.ts`; die Integrations- und Kontentests füllen damit (der langsamste Fall
+    fällt von etwa 760 ms auf 300 ms, unter 2.6 s mit zwei weiteren vollen Läufen parallel); beide
+    Kontenblöcke haben 15 s Zeitgrenze, weil die Passwortfälle unter Last 5 s erreichten und Tasten
+    in den nächsten Test liefen. Neue Stories `Tabs` `Disabled` und `DisabledCompact` mit Referenzbildern
+    (`isDisabled` kam in K12-7 ohne Story). Der e2e-Helfer `switchOn` kehrt früh zurück, wenn der Kanal
+    schon an ist (Telegram verknüpfen schaltet ihn ein; «Speichern» schickt dann nichts).
+  - *Sichtbare Verhaltensänderungen:* nach «Verwerfen» verschwindet der Knopf, statt gesperrt zu
+    bleiben; nach dem Speichern auf der Startseite bleibt der Fokus auf «Speichern».
+- **Offen:** der Prüfer läuft mit einem vollen `task ci`; K12-8 und K12-9. Ausserhalb von Konzept 12:
+  Dialoge mit `autoFocus` in Offline und Player. Mögliche spätere Bausteine: `OneLine` und `Muted`.
+- **Nächster Schritt:** Ergebnis des Prüfers abwarten, dann K12-8 und K12-9.
 
 **Belege K12-3** (Prüfer auf `6e46c6d`):
 
@@ -138,6 +196,20 @@ Benachrichtigungen (c2a969d)           task web:test 982 bestanden, e2e 28 besta
 
 Die Zahlen stammen aus den Läufen je Merge, nicht aus einem vollen `task ci`-Lauf. Der
 Zugänglichkeitsbaum ist weiter nur über CDP geprüft, nicht mit einem Bildschirmleser.
+
+**Belege Ankündigungen und Aufräumrunde 2:**
+
+```
+nach dem Merge 26e5d48 (mit Ankündigungen)   task web:test 996 bestanden, storybook 308, e2e 24
+Aufräumrunde 2, task web:test                3 Läufe mit je 117 Dateien, 1034 Tests bestanden
+Aufräumrunde 2, storybook                    315 bestanden
+e2e vor den Review-Korrekturen (voll)        532 bestanden, 2 gescheitert (Telegram-Fall,
+                                             behoben in 3a6ab4f)
+e2e nach den Korrekturen                     sechs Specs 72/72, Chromium und Firefox
+```
+
+Das volle `task ci` auf `fa81401` steht aus (Prüfer läuft). Der volle e2e-Lauf stammt von vor den
+Review-Korrekturen; nach ihnen liefen nur die sechs betroffenen Specs.
 
 **Gemeinsame Korrekturen unterwegs:**
 
