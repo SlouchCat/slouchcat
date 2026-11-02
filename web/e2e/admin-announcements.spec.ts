@@ -247,6 +247,22 @@ test('A-7: a new announcement can go out at once', async ({ page }) => {
   expect(((await created.json()) as AnnouncementData).publishedAt).toBeTruthy();
   await expect(page.getByText('„Neue Filme“ ist veröffentlicht.')).toBeVisible();
   await expect(region(page, 'Neue Filme')).toContainText(/0 von \d+ Profilen/);
+
+  // Back (rule 8): the sidebar leads to «Hintergrundjobs», the browser's Back returns to the
+  // announcement in the address.
+  const here = page.url();
+  const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
+  await arrowTo(
+    page,
+    sidebar.getByRole('link', { name: 'Ankündigungen' }),
+    sidebar.getByRole('link', { name: 'Hintergrundjobs' }),
+  );
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin\/jobs$/);
+  await page.goBack();
+  await expect(page).toHaveURL(here);
+  await expect(heading(page)).toBeVisible();
+  await expect(region(page, 'Neue Filme')).toBeVisible();
 });
 
 test('A-7: leaving with an unsaved text asks first', async ({ page, owner }) => {

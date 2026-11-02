@@ -74,6 +74,21 @@ test('shows kind, state, both version files and the trailer state', async ({ pag
   ).toBeVisible();
 });
 
+test('Back from the detail page returns to the tab of the address', async ({ page }) => {
+  await selectTab(page, /^Dateien/, 2);
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=files$`));
+  const view = page.getByRole('link', { name: 'Zur Detailseite' });
+  await resetFocus(page);
+  await tabTo(page, view, TAB_MAX);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`${detail}$`));
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=files$`));
+  await expect(heading(page)).toBeVisible();
+  await expect(tabList(page).getByRole('tab', { selected: true })).toHaveText(/^Dateien/);
+  await expect(page.getByRole('region', { name: 'Dateien' })).toBeVisible();
+});
+
 test('the detail page links here with "Verwalten"', async ({ page }) => {
   await page.goto(detail);
   const manage = page.getByRole('link', { name: 'Verwalten' });

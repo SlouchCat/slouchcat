@@ -15,7 +15,7 @@ import {
 import { choose } from './controls';
 import { GUEST_PASSWORD } from './env';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
+import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 
 // Invitations (K-6) and the account they create (K-7). Since ADR 0014 both live on one page: the
 // "Konto einladen" dialog in its header is the only way an account comes into being, the links it
@@ -343,6 +343,26 @@ test('keyboard: invitation dialog, link and revoke dialog; no focus trap', async
     await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeFocused();
 
     await expectNoFocusTrap(page);
+
+    // Back (rule 8): the sidebar leads to «Metadaten», the browser's Back returns to the tab.
+    await expect(page).toHaveURL(/\/admin\/accounts\?tab=invitations$/);
+    await resetFocus(page);
+    await tabTo(
+      page,
+      page
+        .getByRole('navigation', { name: 'Verwaltung' })
+        .getByRole('link', { name: /^Konten(,|$)/ }),
+    );
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/admin\/metadata$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/admin\/accounts\?tab=invitations$/);
+    await expect(page.getByRole('tab', { name: /^Einladungen/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(row(page, 'Tastatur')).toContainText('Offen');
   } finally {
     const all = await owner.get('/api/v1/admin/invitations');
     for (const item of (await all.json()) as InvitationData[]) {

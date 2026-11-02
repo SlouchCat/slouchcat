@@ -193,6 +193,24 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     expect(list.map((stream) => stream.id)).not.toContain(second.playbackSessionId);
     await expectNoFocusTrap(overview);
     console.log(JSON.stringify({ measurement: 'admin-stop', stopMs }));
+
+    // Back (rule 8): the sidebar leads to «Geräte», the browser's Back returns to the overview.
+    await resetFocus(overview);
+    await tabTo(
+      overview,
+      overview
+        .getByRole('navigation', { name: 'Verwaltung' })
+        .getByRole('link', { name: /^Streams(,|$)/ }),
+    );
+    await overview.keyboard.press('ArrowUp');
+    await overview.keyboard.press('Enter');
+    await expect(overview).toHaveURL(/\/admin\/devices$/);
+    await overview.goBack();
+    await expect(overview).toHaveURL(/\/admin\/streams$/);
+    await expect(heading).toBeVisible();
+    await expect(tileOf(overview, OWNER_PROFILE).filter({ hasText: H264_TITLE })).not.toHaveCount(
+      0,
+    );
   } finally {
     await admin.close();
     await other.close();

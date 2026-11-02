@@ -286,7 +286,10 @@ test('unplayable lists the broken file; "Entfernen" removes it after confirmatio
   );
 });
 
-test('a title links to its administration page', async ({ page }) => {
+test('a title links to its administration page; Back returns to the tab', async ({ page }) => {
+  // Every title of the test media is unmatched and unrated (no TMDB key): «Ohne Freigabe» has rows.
+  await openTab(page, /^Ohne Freigabe/);
+  await expect(page).toHaveURL(/\/admin\/maintenance\?tab=unrated$/);
   const first = panel(page).getByRole('link').first();
   await expect(first).toBeVisible();
   const href = await first.getAttribute('href');
@@ -296,4 +299,13 @@ test('a title links to its administration page', async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`${href ?? ''}$`));
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(h1(page)).toHaveCount(0);
+
+  // The browser's Back returns to «Pflege» with the tab of the address.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/maintenance\?tab=unrated$/);
+  await expect(h1(page)).toBeVisible();
+  await expect(tab(page, /^Ohne Freigabe/)).toHaveAttribute('aria-selected', 'true');
+  await expect(
+    panel(page).getByRole('link', { name: (await first.textContent()) ?? '' }),
+  ).toBeVisible();
 });

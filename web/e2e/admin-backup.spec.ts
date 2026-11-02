@@ -234,6 +234,29 @@ test('A-4: a backup with secrets needs a passphrase of 12 characters and is encr
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expectFocusOn(page, more);
+
+    // Back (rule 8): from «Neue Sicherung» the sidebar leads to «Statistiken», the browser's Back
+    // returns to the tab of the address.
+    await selectTab(page, 'Neue Sicherung', 1);
+    await expect(page).toHaveURL(/\/admin\/backup\?tab=create$/);
+    await resetFocus(page);
+    await tabTo(
+      page,
+      page
+        .getByRole('navigation', { name: 'Verwaltung' })
+        .getByRole('link', { name: /^Sicherung(,|$)/ }),
+      TAB_MAX,
+    );
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/admin\/stats/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/admin\/backup\?tab=create$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Sicherung' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Neue Sicherung' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
   } finally {
     await removeBackups(owner, names);
   }
