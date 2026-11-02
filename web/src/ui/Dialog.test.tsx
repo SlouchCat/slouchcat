@@ -64,7 +64,7 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it('starts on Cancel when asked to (defaultFocus)', () => {
+  it('starts on Cancel when asked to (defaultFocus)', async () => {
     render(
       <ConfirmDialog
         {...texts}
@@ -74,6 +74,7 @@ describe('ConfirmDialog', () => {
         defaultFocus="cancel"
       />,
     );
-    expect(screen.getByRole('button', { name: 'Abbrechen' })).toHaveFocus();
+    // focusOnMount moves the focus right after the commit, not during the render.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abbrechen' })).toHaveFocus());
   });
 });
