@@ -1,0 +1,167 @@
+/* The statistics page (concept 12, mockup Sta-B): what AdminPage, BandPanel, BarChart and
+   HeatGrid do not lay out themselves. */
+
+/* The period in the header: its label before the segments, on one line. */
+.period > * {
+  flex-flow: row wrap;
+  align-items: center;
+}
+
+/* The content dims while the next period loads; the previous numbers stay meanwhile. */
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-section-gap);
+  transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.content[aria-busy='true'] {
+  opacity: 0.6;
+}
+
+/* A live region that is always there (role status), for screen readers only; out of the flow,
+   so it takes no gap of the page's column. */
+.live {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Profiles and devices side by side, one above the other when narrow. */
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  gap: var(--sc-section-gap);
+  align-items: start;
+}
+
+.breakdown,
+.top,
+.when {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+/* Places 1 to 3: as many columns as fit, equally high per row (S-8). */
+.podium {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+/* The place, over the top left corner of the image. */
+.rank {
+  position: absolute;
+  top: var(--sc-space-2);
+  left: var(--sc-space-2);
+  display: grid;
+  place-items: center;
+  min-width: var(--sc-space-6);
+  height: var(--sc-space-6);
+  padding: 0 var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tileText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+/* The title wraps in full; its link covers the whole tile, image included. */
+.tileTitle {
+  overflow-wrap: anywhere;
+}
+
+.tileTitle a::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.tileMeta {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A title in the table from place 4: a small poster before its link. */
+.titleCell {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+.thumb {
+  display: flex;
+  flex: none;
+  overflow: hidden;
+  width: var(--sc-space-5);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--sc-radius-sm);
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-regular);
+  overflow-wrap: anywhere;
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* «Nach Tageszeit» and «Nach Wochentag» side by side, one above the other when narrow. */
+.whenCharts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: var(--sc-space-6);
+  align-items: start;
+}
+
+.whenChart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}

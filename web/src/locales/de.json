@@ -2404,8 +2404,15 @@
         "empty": "In diesem Zeitraum wurde nichts geschaut.",
         "columns": {
           "title": "Titel",
-          "kind": "Art"
-        }
+          "kind": "Art",
+          "rank": "Platz"
+        },
+        "count_one": "{{count, number}} Titel",
+        "count_other": "{{count, number}} Titel",
+        "podium": "Platz 1 bis 3",
+        "rest": "Meistgesehen ab Platz 4",
+        "rank": "{{rank}}.",
+        "meta": "{{kind}} · {{plays}} · {{watched}}"
       },
       "profiles": {
         "title": "Schauzeit je Profil",
@@ -2414,15 +2421,17 @@
         "empty": "Kein Profil hat in diesem Zeitraum geschaut.",
         "columns": {
           "profile": "Profil"
-        }
+        },
+        "summary_one": "{{count, number}} Profil · {{watched}}",
+        "summary_other": "{{count, number}} Profile · {{watched}}"
       },
       "playback": {
         "title": "Wiedergabe",
         "direct": "Direct Play",
         "remux": "Remux",
         "transcode": "Transcode",
-        "sessions_one": "{{count}} Wiedergabe",
-        "sessions_other": "{{count}} Wiedergaben",
+        "sessions_one": "{{count, number}} Wiedergabe",
+        "sessions_other": "{{count, number}} Wiedergaben",
         "share": "{{share}} aller Wiedergaben",
         "hardware": "Transcode auf dem Grafikchip",
         "hardwareNote": "Anteil der Transcodes"
@@ -2435,7 +2444,29 @@
         "columns": {
           "type": "Gerätetyp",
           "count": "Geräte"
-        }
+        },
+        "summary_one": "{{count, number}} Gerät · {{watched}}",
+        "summary_other": "{{count, number}} Geräte · {{watched}}"
+      },
+      "loaded": "Zahlen für {{period}} geladen.",
+      "when": {
+        "title": "Wann geschaut wird",
+        "window_one": "Aus der letzten Woche",
+        "window_other": "Aus den letzten {{count, number}} Wochen",
+        "empty": "In diesen Wochen wurde nichts geschaut.",
+        "byHour": "Nach Tageszeit",
+        "byWeekday": "Nach Wochentag",
+        "columns": {
+          "hour": "Stunde",
+          "day": "Wochentag"
+        },
+        "hourSpan": "{{from}}–{{to}} Uhr",
+        "topHour": "Am meisten {{hour}}",
+        "topDay": "Am meisten am {{day}}",
+        "zone": "Stunden in der Zeitzone des Servers ({{zone}}).",
+        "grid": "Woche und Stunde",
+        "gridChart": "Schauzeit nach Wochentag und Stunde",
+        "peak": "Spitze: {{day}}, {{hour}}"
       }
     },
     "announcements": {

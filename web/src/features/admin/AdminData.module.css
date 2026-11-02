@@ -63,28 +63,3 @@
   font-weight: var(--sc-font-weight-semibold);
   cursor: pointer;
 }
-
-/* Statistics: the four blocks and the playback tiles. */
-.blocks {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-10);
-}
-
-.block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-4);
-}
-
-.blockTitle {
-  font-size: var(--sc-font-size-xl);
-  font-weight: var(--sc-font-weight-semibold);
-  line-height: var(--sc-font-line-height-snug);
-}
-
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: var(--sc-space-3);
-}

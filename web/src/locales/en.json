@@ -2404,8 +2404,15 @@
         "empty": "Nothing was watched in this period.",
         "columns": {
           "title": "Title",
-          "kind": "Kind"
-        }
+          "kind": "Kind",
+          "rank": "Place"
+        },
+        "count_one": "{{count, number}} title",
+        "count_other": "{{count, number}} titles",
+        "podium": "Places 1 to 3",
+        "rest": "Most watched from place 4",
+        "rank": "{{rank}}.",
+        "meta": "{{kind}} · {{plays}} · {{watched}}"
       },
       "profiles": {
         "title": "Watch time per profile",
@@ -2414,15 +2421,17 @@
         "empty": "No profile watched anything in this period.",
         "columns": {
           "profile": "Profile"
-        }
+        },
+        "summary_one": "{{count, number}} profile · {{watched}}",
+        "summary_other": "{{count, number}} profiles · {{watched}}"
       },
       "playback": {
         "title": "Playback",
         "direct": "Direct play",
         "remux": "Remux",
         "transcode": "Transcode",
-        "sessions_one": "{{count}} play",
-        "sessions_other": "{{count}} plays",
+        "sessions_one": "{{count, number}} play",
+        "sessions_other": "{{count, number}} plays",
         "share": "{{share}} of all plays",
         "hardware": "Transcode on the GPU",
         "hardwareNote": "Share of the transcodes"
@@ -2435,7 +2444,29 @@
         "columns": {
           "type": "Device type",
           "count": "Devices"
-        }
+        },
+        "summary_one": "{{count, number}} device · {{watched}}",
+        "summary_other": "{{count, number}} devices · {{watched}}"
+      },
+      "loaded": "Numbers for {{period}} loaded.",
+      "when": {
+        "title": "When people watch",
+        "window_one": "From the last week",
+        "window_other": "From the last {{count, number}} weeks",
+        "empty": "Nothing was watched in these weeks.",
+        "byHour": "By time of day",
+        "byWeekday": "By day of the week",
+        "columns": {
+          "hour": "Hour",
+          "day": "Day of the week"
+        },
+        "hourSpan": "{{from}}:00–{{to}}:00",
+        "topHour": "Most at {{hour}}",
+        "topDay": "Most on {{day}}",
+        "zone": "Hours in the server's time zone ({{zone}}).",
+        "grid": "Week and hour",
+        "gridChart": "Watch time by day of the week and hour",
+        "peak": "Peak: {{day}}, {{hour}}"
       }
     },
     "announcements": {
