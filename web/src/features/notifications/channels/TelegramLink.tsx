@@ -6,11 +6,9 @@ import { problemMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Text, TextLink } from '@/ui';
-import { AriaButton, SettingRow } from '@/ui/aria';
+import { AriaButton, SettingRow, afterDialogsClosed, afterRender, focusLost } from '@/ui/aria';
 import { createTelegramLink, deleteTelegramLink } from '../queries';
 import {
-  afterDialogs,
-  afterRender,
   LINK_POLL_MS,
   nextMessage,
   Status,
@@ -65,9 +63,8 @@ export function TelegramLink({
       await refresh();
       // The button that asked went with the link. Once the dialog has closed (its focus restore
       // aims at that button), the h1 takes the focus if it was lost or is still in this block.
-      await afterDialogs();
-      const active = document.activeElement;
-      if (!active || active === document.body || blockRef.current?.contains(active)) focusTitle();
+      await afterDialogsClosed();
+      if (focusLost() || blockRef.current?.contains(document.activeElement)) focusTitle();
     },
   });
   /** A new action starts: the outcome of the last one (message or error) goes away. */

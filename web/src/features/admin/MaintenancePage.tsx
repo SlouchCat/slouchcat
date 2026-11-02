@@ -8,18 +8,19 @@ import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Page } from '@/ui';
-import { AdminPage, ConfirmDialog, Tabs, useSearchSelection, type TabItem } from '@/ui/aria';
+import {
+  AdminPage,
+  ConfirmDialog,
+  Tabs,
+  afterRender,
+  focusTitleIfLost,
+  useSearchSelection,
+  type TabItem,
+} from '@/ui/aria';
 import { DuplicatesTab } from './maintenance/DuplicatesTab';
 import { IssueTab, type IssueHandlers } from './maintenance/IssueTab';
 import { RatingDialog } from './maintenance/RatingDialog';
-import {
-  afterRender,
-  DUPLICATES,
-  groupKey,
-  TABS,
-  type Confirmation,
-  type Outcome,
-} from './maintenance/shared';
+import { DUPLICATES, groupKey, TABS, type Confirmation, type Outcome } from './maintenance/shared';
 import { MatchDialog } from './MatchDialog';
 import {
   duplicatesQuery,
@@ -95,12 +96,6 @@ function MaintenanceContent() {
     refetchOnWindowFocus: !hold,
   });
 
-  /** The focus fell to the body or onto a button the change switched off: the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body || active.matches(':disabled'))
-      titleRef.current?.focus();
-  }, []);
   /**
    * Shows the outcome in the tab, drops its selection and fetches again. Once React has rendered
    * the answer, the focus moves to the h1 when the rows that had it are gone (ALL-2), or when the
@@ -113,9 +108,9 @@ function MaintenanceContent() {
       await queryClient.invalidateQueries({ queryKey: maintenanceKey });
       await afterRender();
       if (removed) titleRef.current?.focus();
-      else focusTitleIfLost();
+      else focusTitleIfLost(titleRef);
     },
-    [queryClient, focusTitleIfLost],
+    [queryClient],
   );
   const failed = (tabId: string, error: unknown) =>
     setOutcomes((current) => ({
@@ -196,19 +191,16 @@ function MaintenanceContent() {
     setConfirmation(next);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone or off by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone or off by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
   const closeDialog = useCallback(() => {
     setDialog(null);
-    void afterRender().then(focusTitleIfLost);
-  }, [focusTitleIfLost]);
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const { mutate: refreshMutate } = refreshItems;
   const { mutate: cleanupMutate } = cleanup;

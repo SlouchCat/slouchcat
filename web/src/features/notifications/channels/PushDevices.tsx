@@ -6,10 +6,10 @@ import { problemMessage } from '@/api/errors';
 import { formatDate } from '@/lib/format';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Text } from '@/ui';
-import { AriaButton } from '@/ui/aria';
+import { AriaButton, afterRender } from '@/ui/aria';
 import { PushError, pushSupported, subscribeThisDevice, unsubscribeThisDevice } from '../push';
 import { createPushSubscription, deletePushSubscription, vapidKey } from '../queries';
-import { afterRender, nextMessage, Status, useRefreshChannels, type Message } from './shared';
+import { nextMessage, Status, useRefreshChannels, type Message } from './shared';
 import styles from './channels.module.css';
 
 function pushMessage(t: TFunction, error: unknown): string {

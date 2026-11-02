@@ -17,6 +17,9 @@ import {
   RankHint,
   RankSelect,
   SaveBar,
+  afterDialogsClosed,
+  afterRender,
+  focusTitleIfLost,
   rankTo,
   useDrafts,
   useSearchSelection,
@@ -36,25 +39,6 @@ const TAB_IDS = [ORDER, PREVIEW] as const;
 
 /** The one draft of the page: the whole list, order and hiding together (S-17). */
 const DRAFT = 'rows';
-
-/** Resolves once React has rendered what the last state or cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
-
-/**
- * Resolves once no dialog is closing any more: react-aria keeps a closing dialog mounted for its
- * exit animation and hands the focus back to its opener only then.
- */
-const afterDialogClosed = () =>
-  new Promise<void>((resolve) => {
-    const check = () => {
-      if (document.querySelector('[data-exiting]')) window.requestAnimationFrame(check);
-      else void afterRender().then(resolve);
-    };
-    window.requestAnimationFrame(check);
-  });
 
 /**
  * Start page (M7, E-9; concept 12, variant C): the order of its eight rows for every profile.
@@ -136,16 +120,6 @@ function HomeRowsContent() {
     [],
   );
 
-  /**
-   * The focus fell to the body, or stays on a button the change disabled («Speichern»,
-   * «Verwerfen»; some browsers keep it there): the h1 takes it.
-   */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body || active.matches(':disabled'))
-      titleRef.current?.focus();
-  }, []);
-
   const save = useMutation({
     mutationFn: (rows: HomeRow[]) => setHomeRows(toSettings(rows)),
     onSuccess: async (saved: HomeRowSetting[]) => {
@@ -156,7 +130,7 @@ function HomeRowsContent() {
       await queryClient.invalidateQueries({ queryKey: ['home'] });
       // «Speichern» went disabled with the draft.
       await afterRender();
-      focusTitleIfLost();
+      focusTitleIfLost(titleRef);
     },
   });
 
@@ -183,16 +157,13 @@ function HomeRowsContent() {
     if (save.isError) save.reset();
     say(t('admin.homeRows.discarded'));
   };
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      setConfirmOpen(open);
-      if (open) return;
-      // «Abbrechen» gives the focus back to «Verwerfen»; after discarding, that button is
-      // disabled and the h1 takes the focus (ALL-2).
-      void afterDialogClosed().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    setConfirmOpen(open);
+    if (open) return;
+    // «Abbrechen» gives the focus back to «Verwerfen»; after discarding, that button is
+    // disabled and the h1 takes the focus (ALL-2).
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const columns: DataColumn<HomeRow>[] = [
     {

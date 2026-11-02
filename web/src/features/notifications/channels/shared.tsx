@@ -96,25 +96,6 @@ export function useRefreshChannels() {
   return () => queryClient.invalidateQueries({ queryKey: channelsQuery.queryKey });
 }
 
-/** Resolves once React has rendered what the last state change brought. */
-export const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
-
-/**
- * Resolves once React has rendered and no dialog is closing any more: a react-aria dialog stays
- * in the DOM while it plays its exit animation (`data-exiting`), and only then gives the focus
- * back to the button that opened it. Waits for one second at most.
- */
-export async function afterDialogs(): Promise<void> {
-  await afterRender();
-  for (let frames = 0; frames < 60 && document.querySelector('[data-exiting]'); frames += 1) {
-    await afterRender();
-  }
-  await afterRender();
-}
-
 /** While a Telegram link code is open, the page asks every few seconds whether the bot got it. */
 export const LINK_POLL_MS = 3000;
 

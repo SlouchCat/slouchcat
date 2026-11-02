@@ -12,6 +12,8 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  afterRender,
+  focusTitleIfLost,
   useDrafts,
   useUnsavedChanges,
 } from '@/ui/aria';
@@ -40,12 +42,6 @@ const POLL_MS = 2000;
 const POLL_FOR_MS = 30_000;
 
 const sameEntry = (a: SpotlightEntry, b: SpotlightEntry) => entryKey(a) === entryKey(b);
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /** A dialog of one entry; `opening` gives every opening a fresh form. */
 interface EntryDialog {
@@ -145,12 +141,6 @@ function SpotlightContent() {
     setFailure(error);
   }, []);
 
-  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   // The answer replaces its entry at once, then the list and the start page are asked again.
   const settle = async (saved: SpotlightEntry) => {
     queryClient.setQueryData(spotlightEntriesQuery.queryKey, (data) =>
@@ -192,7 +182,7 @@ function SpotlightContent() {
       await afterRender();
       // An orphan's row and its button are gone: the h1 takes the focus.
       if (Object.keys(body).length === 0) titleRef.current?.focus();
-      else focusTitleIfLost();
+      else focusTitleIfLost(titleRef);
     },
     onError: fail,
   });
@@ -212,8 +202,8 @@ function SpotlightContent() {
   const closeDialog = useCallback(() => {
     setDialogOpen(false);
     // The button that opened it may be gone by now.
-    void afterRender().then(focusTitleIfLost);
-  }, [focusTitleIfLost]);
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const queued = async (text: string) => {
     say(text);

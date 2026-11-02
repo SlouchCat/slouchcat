@@ -47,6 +47,8 @@ import {
   Switch,
   Tabs,
   TextField,
+  afterRender,
+  focusTitleIfLost,
   useDrafts,
   useSearchSelection,
   useUnsavedChanges,
@@ -188,12 +190,6 @@ const readClock = () => clockNow;
 function useNow(): number {
   return useSyncExternalStore(subscribeClock, readClock, readClock);
 }
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /** The remaining-time text of a running run (concept 09, 6.2). */
 function remainingText(t: TFunction, run: JobRun): string {
@@ -437,11 +433,6 @@ function JobsContent() {
   const [failure, setFailure] = useState<unknown>(null);
   const data = overview.data;
 
-  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
   /**
    * Shows the outcome and fetches again. Once React has rendered the answer, the focus moves to
    * the page's h1 when the row that had it is gone (a retried or cancelled run, ALL-2) or when
@@ -457,9 +448,9 @@ function JobsContent() {
       ]);
       await afterRender();
       if (removed) titleRef.current?.focus();
-      else focusTitleIfLost();
+      else focusTitleIfLost(titleRef);
     },
-    [queryClient, focusTitleIfLost],
+    [queryClient],
   );
   const failed = useCallback((error: unknown) => {
     setMessage(null);
@@ -523,15 +514,12 @@ function JobsContent() {
     setConfirmation(next);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
   const { mutate: runMutate } = run;
   const { mutate: pauseMutate } = pause;
   const { mutate: resumeMutate } = resume;

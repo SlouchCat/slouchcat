@@ -1,12 +1,19 @@
 import type { Profile } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { Chip, Notice, Panel, ProfileAvatar, Skeleton, Text } from '@/ui';
-import { ActionMenu, AriaButton, ConfirmDialog, FormDialog } from '@/ui/aria';
+import {
+  ActionMenu,
+  AriaButton,
+  ConfirmDialog,
+  FormDialog,
+  afterRender,
+  focusTitleIfLost,
+} from '@/ui/aria';
 import { limitParts } from '../shared/LimitFields';
 import { describeLibraries, useLibraryOptions } from '../shared/useLibraryOptions';
 import { PinSetDialog } from './PinSetDialog';
@@ -24,12 +31,6 @@ interface Confirmation {
   tone: 'primary' | 'danger';
   onConfirm: () => void;
 }
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 interface ProfileListProps {
   /**
@@ -93,12 +94,6 @@ export function ProfileList({
       return next;
     });
 
-  /** The focus fell to the body (its card or menu item went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, [titleRef]);
-
   const invalidate = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['profiles'] }),
@@ -130,7 +125,7 @@ export function ProfileList({
     if (open) return;
     setConfirmOpen(false);
     // The menu button that opened it may be gone by now.
-    void afterRender().then(focusTitleIfLost);
+    void afterRender().then(() => focusTitleIfLost(titleRef));
   };
   const onAction = (profile: Profile, action: string) => {
     if (action === 'pin') setPinFor(profile);

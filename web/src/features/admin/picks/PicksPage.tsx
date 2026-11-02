@@ -14,6 +14,9 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  afterRender,
+  focusLost,
+  focusTitleIfLost,
   rankTo,
   useDrafts,
   useSearchSelection,
@@ -55,21 +58,6 @@ interface Confirmation {
   confirmLabel: string;
   onConfirm: () => void;
 }
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
-
-/**
- * The focus is gone: on the body, or on a button that turned disabled (Firefox keeps it there,
- * where Tab and Enter no longer act).
- */
-const focusLost = () => {
-  const active = document.activeElement;
-  return !active || active === document.body || active.matches(':disabled');
-};
 
 /** What the server holds of a pick, in the form of the fields. */
 const draftOf = (pick: AdminPick): PickDraft => ({
@@ -203,23 +191,16 @@ function PicksContent() {
     setFailure(error);
   }, []);
 
-  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    if (focusLost()) titleRef.current?.focus();
-  }, []);
   /**
    * The focus is gone from the fold-out of `id` (its row moved back after a refused move):
    * `selector` in that fold-out takes it, else the h1.
    */
-  const focusDetailIfLost = useCallback(
-    (id: string, selector: string) => {
-      if (!focusLost()) return;
-      const target = details.current.get(id)?.querySelector<HTMLElement>(selector);
-      if (target) target.focus();
-      else focusTitleIfLost();
-    },
-    [focusTitleIfLost],
-  );
+  const focusDetailIfLost = useCallback((id: string, selector: string) => {
+    if (!focusLost()) return;
+    const target = details.current.get(id)?.querySelector<HTMLElement>(selector);
+    if (target) target.focus();
+    else focusTitleIfLost(titleRef);
+  }, []);
 
   // The start page and the viewer's page of picks show them: asked again after every change.
   const invalidate = useCallback(
@@ -297,7 +278,7 @@ function PicksContent() {
       await invalidate();
       // The row and its buttons are gone: once React rendered that, the h1 takes the focus.
       await afterRender();
-      focusTitleIfLost();
+      focusTitleIfLost(titleRef);
     },
     onError: failed,
   });
@@ -317,7 +298,7 @@ function PicksContent() {
       const button = asker.current;
       asker.current = null;
       if (focusLost() && button?.isConnected) button.focus();
-      else focusTitleIfLost();
+      else focusTitleIfLost(titleRef);
     });
   };
   const askRemove = (pick: AdminPick) =>

@@ -14,6 +14,8 @@ import {
   AriaButton,
   ConfirmDialog,
   Tabs,
+  afterRender,
+  focusTitleIfLost,
   useDrafts,
   useSearchSelection,
   useUnsavedChanges,
@@ -32,12 +34,6 @@ const route = getRouteApi('/_authed/_active/_chrome/admin/items/$itemId');
 
 /** The first tab; every other tab is in `?tab=` (S-14). */
 const FIRST_TAB = 'metadata';
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 type ItemTrailer = AdminItem['trailers'][number];
 
@@ -97,11 +93,6 @@ function AdminItemView({ itemId }: { itemId: string }) {
   const [matching, setMatching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  /** The focus fell to the body (its button went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
   const reload = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: adminItemQuery(itemId).queryKey }),
@@ -115,7 +106,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
     await reload();
     await afterRender();
     if (removed) titleRef.current?.focus();
-    else focusTitleIfLost();
+    else focusTitleIfLost(titleRef);
   };
   const adopt = async (next: AdminItem, text: string) => {
     queryClient.setQueryData(adminItemQuery(itemId).queryKey, next);
@@ -152,15 +143,12 @@ function AdminItemView({ itemId }: { itemId: string }) {
     setDeleting(trailer);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const loadError = item.isError ? (
     <Notice

@@ -75,3 +75,5 @@ export { type TabItem } from './Tabs';
 export { useDrafts, type Drafts } from './useDrafts';
 export { useSearchSelection } from './useSearchSelection';
 export { useUnsavedChanges, type UnsavedChangesDialog } from './useUnsavedChanges';
+
+export { afterDialogsClosed, afterRender, focusLost, focusTitleIfLost } from './focusAfter';

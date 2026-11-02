@@ -15,6 +15,8 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  afterRender,
+  focusTitleIfLost,
   useSearchSelection,
   type TabItem,
 } from '@/ui/aria';
@@ -35,12 +37,6 @@ const ALL = 'all';
  * quotes (`?tab=%223%22`).
  */
 const libraryTab = (id: number) => `library-${id}`;
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /**
  * Podcasts (M6, H-2; concept 12, variant C): the subscribed feeds and the podcasts read from
@@ -151,12 +147,6 @@ function PodcastsContent() {
   const [failure, setFailure] = useState<unknown>(null);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: podcastsQuery.queryKey });
 
-  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   const refresh = useMutation({
     mutationFn: (podcast: AdminPodcast): Promise<AdminPodcast> =>
       request(api.POST('/admin/podcasts/{id}/refresh', { params: { path: { id: podcast.id } } })),
@@ -202,15 +192,12 @@ function PodcastsContent() {
     setRemoving(podcast);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const isFetching = useCallback(
     (podcast: AdminPodcast) =>

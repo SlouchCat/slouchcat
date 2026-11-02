@@ -15,6 +15,8 @@ import {
   ConfirmDialog,
   StatusStrip,
   StreamTile,
+  afterRender,
+  focusTitleIfLost,
 } from '@/ui/aria';
 import { STREAMS_POLL_MS, streamsQuery } from './queries';
 import {
@@ -28,12 +30,6 @@ import {
   type StreamLoad,
 } from './streams/format';
 import styles from './streams/Streams.module.css';
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /** The number of columns the tile grid has right now (its computed tracks); 1 without layout. */
 function columnsOf(list: HTMLElement): number {
@@ -107,12 +103,6 @@ function StreamsContent() {
   // Each message gets its own key, so the same text twice in a row is announced again.
   const [message, setMessage] = useState<{ text: string; key: number } | null>(null);
 
-  /** The focus fell to the body (its tile went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   const stop = useMutation({
     mutationFn: (stream: AdminStream) =>
       request(api.DELETE('/admin/streams/{id}', { params: { path: { id: stream.id } } })),
@@ -126,7 +116,7 @@ function StreamsContent() {
       // dialog's focus restore may have put it on another tile meanwhile).
       await afterRender();
       const listed = queryClient.getQueryData(streamsQuery.queryKey);
-      if (listed?.some((entry) => entry.id === stream.id)) focusTitleIfLost();
+      if (listed?.some((entry) => entry.id === stream.id)) focusTitleIfLost(titleRef);
       else titleRef.current?.focus();
     },
     onError: () => setMessage(null),
@@ -136,15 +126,12 @@ function StreamsContent() {
     setStopping(stream);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   // A stream may end on its own while its «Beenden» has the focus: when the poll takes its tile
   // away, the h1 takes the focus instead of the body.
@@ -153,8 +140,8 @@ function StreamsContent() {
     const id = focusedStream.current;
     if (id === null || !streams.data || streams.data.some((stream) => stream.id === id)) return;
     focusedStream.current = null;
-    void afterRender().then(focusTitleIfLost);
-  }, [streams.data, focusTitleIfLost]);
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, [streams.data]);
 
   // ↑/↓ and ←/→ between the tiles: a native listener, the list is no widget of its own.
   const [list, setList] = useState<HTMLUListElement | null>(null);

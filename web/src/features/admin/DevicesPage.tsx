@@ -15,6 +15,8 @@ import {
   ConfirmDialog,
   DataTable,
   DisclosureGroup,
+  afterRender,
+  focusTitleIfLost,
   useSearchSelection,
   type TabItem,
 } from '@/ui/aria';
@@ -49,12 +51,6 @@ const typeOf = (device: AdminDevice): TypeKey =>
   (TYPE_ORDER as readonly string[]).includes(device.type ?? '')
     ? (device.type as TypeKey)
     : 'unknown';
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /**
  * Devices (W-7; concept 12, variant C): every browser that signed in. The tab «Geräte» shows the
@@ -118,12 +114,6 @@ function DevicesContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
 
-  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   const forget = useMutation({
     mutationFn: (device: AdminDevice) =>
       request(api.DELETE('/admin/devices/{id}', { params: { path: { id: device.id } } })),
@@ -150,15 +140,12 @@ function DevicesContent() {
     setForgetting(device);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const columns = useMemo(
     () => ({

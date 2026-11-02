@@ -12,13 +12,14 @@ import {
   AriaButton,
   BandPanel,
   ConfirmDialog,
+  afterDialogsClosed,
+  focusTitleIfLost,
   useDrafts,
   useUnsavedChanges,
 } from '@/ui/aria';
 import { ChannelPanel } from './channels/ChannelPanel';
 import { ChannelSummary } from './channels/ChannelSummary';
 import {
-  afterDialogs,
   CHANNEL_ICON,
   CHANNEL_ORDER,
   channelDraftOf,
@@ -97,10 +98,7 @@ export function ChannelSettingsPage() {
     });
 
   /** The focus fell to the body (its button went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
+  const refocusTitle = useCallback(() => focusTitleIfLost(titleRef), []);
   const focusTitle = useCallback(() => titleRef.current?.focus(), []);
   const ask = useCallback((next: Confirmation) => {
     setConfirmation(next);
@@ -110,7 +108,7 @@ export function ChannelSettingsPage() {
     if (open) return;
     setConfirmOpen(false);
     // The button that opened it may be gone by now.
-    void afterDialogs().then(focusTitleIfLost);
+    void afterDialogsClosed().then(refocusTitle);
   };
 
   /** A short line for the band of a folded block: what the block holds. */
@@ -199,7 +197,7 @@ export function ChannelSettingsPage() {
                       onSaved={() => drafts.discard(channel)}
                       ask={ask}
                       polling={polls}
-                      focusTitleIfLost={focusTitleIfLost}
+                      focusTitleIfLost={refocusTitle}
                       focusTitle={focusTitle}
                     />
                   ) : (

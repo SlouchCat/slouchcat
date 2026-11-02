@@ -33,9 +33,3 @@ export interface Confirmation {
   tone?: 'danger';
   onConfirm: () => void;
 }
-
-/** Resolves once React has rendered what the last state change brought. */
-export const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });

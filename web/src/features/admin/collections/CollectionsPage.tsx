@@ -19,6 +19,8 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  afterRender,
+  focusTitleIfLost,
   useDrafts,
   useSearchSelection,
   useUnsavedChanges,
@@ -35,12 +37,6 @@ const ALL = 'all';
 const MANUAL = 'manual';
 const TMDB = 'tmdb';
 const TAB_IDS = [ALL, MANUAL, TMDB] as const;
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /** What the stored-members observers give the page; module-level, so the result stays stable. */
 const storedOf = (results: UseQueryResult<AdminCollection>[]) =>
@@ -195,12 +191,6 @@ function CollectionsContent() {
     setFailure(error);
   }, []);
 
-  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   // Every viewer place that shows collections changes with an edit: the start page's row
   // «Sammlungen», the collection pages, the detail pages' section and the search results. The
   // prefix ['admin', 'collections'] covers the stored members too.
@@ -236,15 +226,12 @@ function CollectionsContent() {
     setConfirmation(next);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
   const { mutate: removeMutate } = remove;
   const askRemove = useCallback(
     (collection: AdminCollection) =>

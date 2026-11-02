@@ -17,6 +17,9 @@ import {
   DataTable,
   StatusStrip,
   Tabs,
+  afterDialogsClosed,
+  afterRender,
+  focusTitleIfLost,
   useDrafts,
   useSearchSelection,
   useUnsavedChanges,
@@ -38,31 +41,6 @@ import styles from './accounts/Accounts.module.css';
 const TABS = ['accounts', 'invitations'];
 /** `?item=me`: the own account (the sidebar's «Profile» needs no account id). */
 const ME = 'me';
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
-
-/**
- * Resolves once no dialog is open or closing any more: react-aria hands the focus back when a
- * dialog unmounts, after its exit animation, and only then is it clear where the focus ended.
- */
-async function afterDialogs() {
-  const nextFrame = () =>
-    new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-  for (
-    let frame = 0;
-    frame < 120 && document.querySelector('[role="dialog"], [role="alertdialog"]');
-    frame += 1
-  ) {
-    await nextFrame();
-  }
-  // react-aria returns the focus in a frame after the unmount; that comes first.
-  await nextFrame();
-  await nextFrame();
-}
 
 interface Confirmation {
   title: string;
@@ -233,12 +211,6 @@ function AccountsContent() {
     setFailure(error);
   };
 
-  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   const setRole = useMutation({
     mutationFn: ({ account, role }: { account: AdminAccount; role: 'admin' | 'user' }) =>
       request(
@@ -258,7 +230,7 @@ function AccountsContent() {
       );
       await refresh();
       await afterRender();
-      focusTitleIfLost();
+      focusTitleIfLost(titleRef);
     },
     onError: failed,
   });
@@ -285,9 +257,8 @@ function AccountsContent() {
       await refresh();
       // The button goes with the open state: once React rendered that and the confirmation has
       // returned the focus, the h1 takes it if it fell to the body.
-      await afterRender();
-      await afterDialogs();
-      focusTitleIfLost();
+      await afterDialogsClosed();
+      focusTitleIfLost(titleRef);
     },
     onError: failed,
   });
@@ -298,15 +269,12 @@ function AccountsContent() {
     setConfirmation(next);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The button that opened it may be gone by now.
-      void afterRender().then(afterDialogs).then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  }, []);
   const { mutate: setRoleMutate } = setRole;
   const { mutate: removeMutate } = remove;
   const { mutate: revokeMutate } = revoke;

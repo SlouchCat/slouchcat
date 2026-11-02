@@ -14,6 +14,8 @@ import {
   ConfirmDialog,
   DataTable,
   Tabs,
+  afterRender,
+  focusTitleIfLost,
   useSearchSelection,
   useUnsavedChanges,
 } from '@/ui/aria';
@@ -28,12 +30,6 @@ import styles from './LibrariesPage.module.css';
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
 const TABS = ['all', 'video', 'audiobooks', 'podcasts'] as const;
 type TabId = (typeof TABS)[number];
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /** A confirmation the page opens itself (from a row's menu; the row may change meanwhile). */
 interface Confirmation {
@@ -151,11 +147,6 @@ function LibrariesContent() {
     });
   }, [queryClient, t]);
 
-  /** The focus fell to the body (its button went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
   /**
    * Puts the library the server answered with into the list and fetches again; once React has
    * rendered the answer, the h1 takes the focus when the control that had it went with it.
@@ -167,9 +158,9 @@ function LibrariesContent() {
       );
       await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
       await afterRender();
-      focusTitleIfLost();
+      focusTitleIfLost(titleRef);
     },
-    [queryClient, focusTitleIfLost],
+    [queryClient],
   );
   const succeeded = useCallback(
     (library: Library) => {
@@ -213,15 +204,12 @@ function LibrariesContent() {
     setConfirmation(next);
     setConfirmOpen(true);
   }, []);
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The menu that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The menu that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const { mutate: scanMutate } = scan;
   const { mutate: cancelMutate } = cancel;

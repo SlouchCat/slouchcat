@@ -14,6 +14,9 @@ import {
   AriaButton,
   ConfirmDialog,
   MasterDetail,
+  afterDialogsClosed,
+  afterRender,
+  focusTitleIfLost,
   useDrafts,
   useSearchSelection,
   useUnsavedChanges,
@@ -46,26 +49,6 @@ const trimmed = (text: DraftText): DraftText => ({
 });
 const sameText = (a: DraftText, b: DraftText) =>
   JSON.stringify(trimmed(a)) === JSON.stringify(trimmed(b));
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
-
-/**
- * Resolves once no closing dialog holds the focus any more. A closing question keeps it until its
- * exit animation ends and then hands it back to the button that asked, or drops it when that
- * button went meanwhile.
- */
-async function settled() {
-  await afterRender();
-  for (let frames = 0; frames < 60; frames += 1) {
-    if (!document.activeElement?.closest('[data-exiting]')) break;
-    await afterRender();
-  }
-  await afterRender();
-}
 
 /** The server refused a change because the announcement was published meanwhile. */
 const publishedMeanwhile = (error: unknown) =>
@@ -225,13 +208,6 @@ function AnnouncementsContent() {
   // stay with the form.
   const [failure, setFailure] = useState<unknown>(null);
 
-  /** The focus fell to the body (its button or detail went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(async () => {
-    await settled();
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: adminAnnouncementsQuery.queryKey });
   const put = (id: number, text: DraftText): Promise<Announcement> =>
@@ -261,7 +237,8 @@ function AnnouncementsContent() {
           : t('admin.announcements.saved', { title: saved.title }),
       );
       if (saved.publishedAt) {
-        await focusTitleIfLost();
+        await afterDialogsClosed();
+        focusTitleIfLost(titleRef);
       } else {
         // The form went with the new one; the same place in the saved draft takes the focus.
         await afterRender();
@@ -306,7 +283,8 @@ function AnnouncementsContent() {
       await refresh();
       say(t('admin.announcements.published', { title: published.title }));
       // Its form and buttons are gone: once React rendered that, the h1 takes the focus.
-      await focusTitleIfLost();
+      await afterDialogsClosed();
+      focusTitleIfLost(titleRef);
     },
     onError: (error, announcement) => {
       if (error instanceof SaveFailed) {
@@ -326,7 +304,8 @@ function AnnouncementsContent() {
     onSuccess: async (_data, announcement) => {
       await refresh();
       say(t('admin.announcements.deleted', { title: announcement.title }));
-      await focusTitleIfLost();
+      await afterDialogsClosed();
+      focusTitleIfLost(titleRef);
     },
     onError: (error) => setFailure(error),
   });
@@ -347,17 +326,14 @@ function AnnouncementsContent() {
     setQuestion(next);
     setAsking(true);
   };
-  const onAskingChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setAsking(false);
-      const after = afterQuestion.current;
-      afterQuestion.current = null;
-      // The button that asked may be gone by now.
-      void (after ? settled().then(after) : focusTitleIfLost());
-    },
-    [focusTitleIfLost],
-  );
+  const onAskingChange = useCallback((open: boolean) => {
+    if (open) return;
+    setAsking(false);
+    const after = afterQuestion.current;
+    afterQuestion.current = null;
+    // The button that asked may be gone by now.
+    void afterDialogsClosed().then(after ?? (() => focusTitleIfLost(titleRef)));
+  }, []);
 
   const openNew = () => {
     start();

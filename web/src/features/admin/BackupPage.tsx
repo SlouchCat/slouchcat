@@ -18,6 +18,8 @@ import {
   ConfirmDialog,
   DataTable,
   DisclosureGroup,
+  afterRender,
+  focusTitleIfLost,
   useSearchSelection,
   type TabItem,
 } from '@/ui/aria';
@@ -33,12 +35,6 @@ import styles from './backup/Backup.module.css';
 
 const TABS = ['list', 'create', 'upload'];
 const KINDS = ['manual', 'auto'] as const;
-
-/** Resolves once React has rendered what the last cache update brought. */
-const afterRender = () =>
-  new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
-  });
 
 /** A restore the server accepted: it restarts now. `acceptedAt` is when the 202 arrived. */
 interface Restart {
@@ -120,12 +116,6 @@ function BackupContent() {
   }, []);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: backupsQuery.queryKey });
 
-  /** The focus fell to the body (its button or tab went with a change): the h1 takes it. */
-  const focusTitleIfLost = useCallback(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) titleRef.current?.focus();
-  }, []);
-
   const accepted = useCallback((result: RestoreResult) => {
     setUnlocking(null);
     setRestart({ result, acceptedAt: Date.now() });
@@ -167,17 +157,14 @@ function BackupContent() {
     },
     [start],
   );
-  const onConfirmOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setConfirmOpen(false);
-      // The texts stay for the closing animation; the action goes (it may hold a passphrase).
-      setConfirmation((current) => current && { ...current, onConfirm: () => undefined });
-      // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
-    },
-    [focusTitleIfLost],
-  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The texts stay for the closing animation; the action goes (it may hold a passphrase).
+    setConfirmation((current) => current && { ...current, onConfirm: () => undefined });
+    // The button that opened it may be gone by now.
+    void afterRender().then(() => focusTitleIfLost(titleRef));
+  }, []);
 
   const { mutate: restoreMutate } = restore;
   const { mutate: removeMutate } = remove;
@@ -263,7 +250,7 @@ function BackupContent() {
     // form's button had.
     selectTab('list');
     await afterRender();
-    focusTitleIfLost();
+    focusTitleIfLost(titleRef);
   };
 
   const list = backups.data ?? [];
