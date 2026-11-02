@@ -213,9 +213,11 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
     const fromField = open.getByLabel('Sichtbar ab');
     await tabTo(page, fromField, 10);
     await fromField.fill(from);
+    await expectVisibleFocus(page);
     const toField = open.getByLabel('Sichtbar bis');
     await tabTo(page, toField, 10);
     await toField.fill(to);
+    await expectVisibleFocus(page);
     await expect(pickToggle(page, SUBTITLES_TITLE)).toContainText('geändert');
     const save = open.getByRole('button', { name: `${SUBTITLES_TITLE} speichern` });
     const patched = page.waitForResponse(
@@ -229,8 +231,11 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
       page.getByRole('status').getByText(`${SUBTITLES_TITLE} ist gespeichert.`),
     ).toBeVisible();
     await expect(pickToggle(page, SUBTITLES_TITLE)).not.toContainText('geändert');
-    // «Speichern» is disabled again: the note field has the focus.
-    await expectFocusOn(page, open.getByRole('textbox', { name: 'Notiz' }));
+    // The draft is spent: «Verwerfen» goes, «Speichern» keeps the focus.
+    await expect(
+      open.getByRole('button', { name: `Änderungen an ${SUBTITLES_TITLE} verwerfen` }),
+    ).toHaveCount(0);
+    await expectFocusOn(page, save);
     // Folded again, for the next round.
     await resetFocus(page);
     await tabTo(page, pickToggle(page, SUBTITLES_TITLE), 60);
@@ -251,6 +256,9 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
     await expect(page).toHaveURL(/\/admin\/picks$/);
   };
 
+  // Without a window the pick is in the tab «Aktiv».
+  await visitTab('Aktiv', 1);
+
   // A window in the past: listed as expired, in the tab «Abgelaufen», gone from the picks row.
   await saveWindow(localInput(-2), localInput(-1));
   await expect(pickRow(page, SUBTITLES_TITLE).getByText('Abgelaufen')).toBeVisible();
@@ -267,8 +275,8 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/picks$/);
 
-  // Unsaved input: leaving asks first and starts on «Auf der Seite bleiben»; Enter stays and the
-  // input is kept. «Verwerfen» drops it.
+  // Unsaved input: leaving asks first and starts on «Auf der Seite bleiben»; Escape stays, the
+  // focus goes back to the link and the input is kept. «Verwerfen» drops it.
   const detail = await openByKeyboard(page, SUBTITLES_TITLE);
   const editNote = detail.getByRole('textbox', { name: 'Notiz' });
   await tabTo(page, editNote, 10);
@@ -283,8 +291,9 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
     name: 'Seite mit ungespeicherten Änderungen verlassen?',
   });
   await expectFocusOn(page, leave.getByRole('button', { name: 'Auf der Seite bleiben' }));
-  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
   await expect(leave).toHaveCount(0);
+  await expectFocusOn(page, homeRows);
   await expect(page).toHaveURL(/\/admin\/picks$/);
   await expect(editNote).toHaveValue(`${note} (neu)`);
   await expect(pickToggle(page, SUBTITLES_TITLE)).toContainText('geändert');
@@ -295,7 +304,8 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
   await tabTo(page, discard, 80);
   await page.keyboard.press('Enter');
   await expect(editNote).toHaveValue(note);
-  await expectFocusOn(page, editNote);
+  await expect(discard).toHaveCount(0);
+  await expectFocusOn(page, detail.getByRole('button', { name: `${SUBTITLES_TITLE} speichern` }));
 
   // "Entfernen" (red) with its confirmation: Escape keeps the pick, Enter removes it; the row
   // goes, the focus to the heading.

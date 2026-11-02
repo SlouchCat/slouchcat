@@ -4,7 +4,6 @@ import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { manageProfilesQuery } from '@/features/profiles/queries';
-import { formText } from '@/lib/form';
 import { Notice } from '@/ui';
 import { AriaButton, CheckboxGroup, Form, FormDialog } from '@/ui/aria';
 import { fromLocalInput, titleMeta, TitleSearch } from '../CurationParts';
@@ -73,7 +72,7 @@ export function AddPickDialog({
       setMissingTitle(true);
       return;
     }
-    const text = formText(new FormData(event.currentTarget), 'note');
+    const text = note.trim();
     create.mutate({
       itemId: chosen.id,
       ...(targets.includes(ALL) ? {} : { profileIds: targets.map(Number) }),

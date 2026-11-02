@@ -1,6 +1,6 @@
 import type { AdminPick } from '@slouchcat/api-client';
 import type { FormErrors } from '@/api/errors';
-import { useId, type FormEvent } from 'react';
+import { useId, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Notice, Text } from '@/ui';
 import { AriaButton, Form, RankHint, RankSelect } from '@/ui/aria';
@@ -17,7 +17,8 @@ export interface PickDraft {
 
 /**
  * The fold-out of a pick (PIC-3, mockup Pic-C): note and time window saved here (before: a
- * dialog), «Verwerfen» drops the draft; the place in the row as a choice (S-16, the others move
+ * dialog), «Speichern» without a change sends nothing, «Verwerfen» shows while there is a draft
+ * and drops it; the place in the row as a choice (S-16, the others move
  * along); the target to read; «Entfernen» asks first (the page's confirmation).
  */
 export function PickDetail({
@@ -51,6 +52,7 @@ export function PickDetail({
 }) {
   const { t } = useTranslation();
   const rankHint = useId();
+  const save = useRef<HTMLButtonElement>(null);
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSave(pick);
@@ -76,22 +78,28 @@ export function PickDetail({
         </div>
         <div className={styles.actions}>
           <AriaButton
+            ref={save}
             type="submit"
             variant="primary"
             aria-label={t('admin.picks.edit.saveLabel', { title: pick.title })}
-            isDisabled={!changed}
             isPending={saving}
           >
             {saving ? t('common.saving') : t('common.save')}
           </AriaButton>
-          <AriaButton
-            variant="ghost"
-            aria-label={t('admin.picks.edit.discardLabel', { title: pick.title })}
-            isDisabled={!changed || saving}
-            onPress={() => onDiscard(pick)}
-          >
-            {t('admin.picks.edit.discard')}
-          </AriaButton>
+          {/* Only while there is something to drop; it goes with the draft, «Speichern» stays. */}
+          {changed && (
+            <AriaButton
+              variant="ghost"
+              aria-label={t('admin.picks.edit.discardLabel', { title: pick.title })}
+              isDisabled={saving}
+              onPress={() => {
+                onDiscard(pick);
+                save.current?.focus();
+              }}
+            >
+              {t('admin.picks.edit.discard')}
+            </AriaButton>
+          )}
         </div>
       </Form>
       <div className={styles.side}>

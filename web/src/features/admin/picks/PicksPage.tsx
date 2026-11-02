@@ -35,6 +35,13 @@ const REORDER_KEY = ['admin', 'picks', 'order'];
 const ALL = 'all';
 const TAB_IDS: readonly string[] = [ALL, 'active', 'scheduled', 'expired'];
 
+/** A save of the fold-out: the pick, what goes to the server and the fields as they were sent. */
+interface Save {
+  pick: AdminPick;
+  body: PickUpdate;
+  sent: PickDraft;
+}
+
 /** A choice of «Stelle»: the new order and the pick that moved. */
 interface Move {
   order: AdminPick[];
@@ -112,6 +119,8 @@ function PicksContent() {
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const addButton = useRef<HTMLButtonElement>(null);
+  /** The button that opened «Hinzufügen» (the header's or the empty list's). */
+  const addOpener = useRef<HTMLElement | null>(null);
   /** The fold-out of each open pick, to find its «Stelle» again after a refused move. */
   const details = useRef(new Map<string, HTMLElement>());
 
@@ -175,6 +184,20 @@ function PicksContent() {
     [],
   );
   const [failure, setFailure] = useState<unknown>(null);
+  // Saving and the server's last refusal belong to one pick each: two fold-outs save on their own.
+  const [saving, setSaving] = useState<ReadonlySet<string>>(() => new Set());
+  const [saveErrors, setSaveErrors] = useState<ReadonlyMap<string, unknown>>(() => new Map());
+  const setSaveError = useCallback(
+    (id: string, error: unknown) =>
+      setSaveErrors((current) => {
+        if (error === undefined && !current.has(id)) return current;
+        const next = new Map(current);
+        if (error === undefined) next.delete(id);
+        else next.set(id, error);
+        return next;
+      }),
+    [],
+  );
   const failed = useCallback((error: unknown) => {
     setMessage(null);
     setFailure(error);
@@ -185,7 +208,7 @@ function PicksContent() {
     if (focusLost()) titleRef.current?.focus();
   }, []);
   /**
-   * The focus is gone from the fold-out of `id` (a button there turned disabled, its row moved):
+   * The focus is gone from the fold-out of `id` (its row moved back after a refused move):
    * `selector` in that fold-out takes it, else the h1.
    */
   const focusDetailIfLost = useCallback(
@@ -224,7 +247,9 @@ function PicksContent() {
     },
     onError: async (error, { pick }, context) => {
       failed(error);
-      if (!context?.previous) return;
+      // Later moves still wait in the queue: their orders build on this one, and the last one to
+      // settle asks the server again, which puts right whatever this refusal left.
+      if (!context?.previous || queryClient.isMutating({ mutationKey: REORDER_KEY }) > 1) return;
       queryClient.setQueryData(picksQuery.queryKey, context.previous);
       // Back in place, the row moved and its «Stelle» lost the focus: it takes it back.
       await afterRender();
@@ -234,18 +259,34 @@ function PicksContent() {
       queryClient.isMutating({ mutationKey: REORDER_KEY }) > 1 ? undefined : invalidate(),
   });
   const update = useMutation({
-    mutationFn: ({ pick, body }: { pick: AdminPick; body: PickUpdate }) =>
-      updatePick(pick.id, body),
-    onSuccess: async (_data, { pick }) => {
+    mutationFn: ({ pick, body }: Save) => updatePick(pick.id, body),
+    onMutate: ({ pick }) => {
+      const id = String(pick.id);
+      setSaving((current) => new Set(current).add(id));
+      setSaveError(id, undefined);
+    },
+    onSuccess: async (saved, { pick, sent }) => {
+      const id = String(pick.id);
       setFailure(null);
+      // The answer is what the server holds now; the list shows it before it is asked again.
+      queryClient.setQueryData(picksQuery.queryKey, (current: AdminPick[] | undefined) =>
+        current?.map((entry) => (entry.id === saved.id ? saved : entry)),
+      );
+      // The draft is spent when it still says what was sent (the server may hold the note
+      // trimmed); what was typed while the save ran stays a draft.
+      setDraft(id, (current) =>
+        JSON.stringify(current) === JSON.stringify(sent) ? draftOf(saved) : current,
+      );
       say(t('admin.picks.edit.done', { title: pick.title }));
       await invalidate();
-      // The server may hold the note trimmed: the draft is spent either way.
-      discardDraft(String(pick.id));
-      // «Speichern» is disabled now: the note field takes the focus it drops.
-      await afterRender();
-      focusDetailIfLost(String(pick.id), 'input[name="note"]');
     },
+    onError: (error, { pick }) => setSaveError(String(pick.id), error),
+    onSettled: (_data, _error, { pick }) =>
+      setSaving((current) => {
+        const next = new Set(current);
+        next.delete(String(pick.id));
+        return next;
+      }),
   });
   const remove = useMutation({
     mutationFn: (pick: AdminPick) => deletePick(pick.id),
@@ -307,8 +348,10 @@ function PicksContent() {
   const { mutate: updateMutate } = update;
   const onSave = useCallback(
     (pick: AdminPick) => {
-      const draft = draftValue(String(pick.id));
-      if (!draft) return;
+      const id = String(pick.id);
+      const draft = draftValue(id);
+      // Nothing changed: nothing to send.
+      if (!draft || !isChanged(id)) return;
       const note = draft.note.trim();
       updateMutate({
         pick,
@@ -317,18 +360,19 @@ function PicksContent() {
           startsAt: fromLocalInput(draft.from) ?? null,
           endsAt: fromLocalInput(draft.to) ?? null,
         },
+        sent: draft,
       });
     },
-    [draftValue, updateMutate],
+    [draftValue, isChanged, updateMutate],
   );
   const onDiscard = useCallback(
     (pick: AdminPick) => {
       const id = String(pick.id);
       discardDraft(id);
-      // «Verwerfen» is disabled now: the note field takes the focus it drops.
-      void afterRender().then(() => focusDetailIfLost(id, 'input[name="note"]'));
+      // The server's refusal was about the input that is gone now.
+      setSaveError(id, undefined);
     },
-    [discardDraft, focusDetailIfLost],
+    [discardDraft, setSaveError],
   );
 
   // Expired, scheduled or active as of the list's fetch (the list is asked again after every
@@ -347,7 +391,7 @@ function PicksContent() {
   );
   const detail = (pick: AdminPick) => {
     const id = String(pick.id);
-    const mine = update.variables?.pick.id === pick.id;
+    const saveError = saveErrors.get(id);
     return (
       <div
         ref={(node) => {
@@ -359,8 +403,8 @@ function PicksContent() {
           pick={pick}
           draft={draftValue(id) ?? draftOf(pick)}
           changed={isChanged(id)}
-          saving={mine && update.isPending}
-          errors={mine && update.error ? formErrors(t, update.error) : null}
+          saving={saving.has(id)}
+          errors={saveError === undefined ? null : formErrors(t, saveError)}
           place={place(pick)}
           count={list.length}
           onChange={onChange}
@@ -425,7 +469,15 @@ function PicksContent() {
         replace: true,
       });
     }
-    addButton.current?.focus();
+    // Back to the button that opened it; the header's after a link's `?add=` or when the empty
+    // list's button went with the new pick.
+    const opener = addOpener.current;
+    addOpener.current = null;
+    (opener?.isConnected ? opener : addButton.current)?.focus();
+  };
+  const openAdd = ({ target }: { target: Element }) => {
+    addOpener.current = target instanceof HTMLElement ? target : null;
+    setAdding(true);
   };
 
   return (
@@ -434,7 +486,7 @@ function PicksContent() {
       help={t('admin.picks.intro')}
       titleRef={titleRef}
       actions={
-        <AriaButton ref={addButton} variant="primary" icon="plus" onPress={() => setAdding(true)}>
+        <AriaButton ref={addButton} variant="primary" icon="plus" onPress={openAdd}>
           {t('admin.picks.add.action')}
         </AriaButton>
       }
@@ -462,7 +514,7 @@ function PicksContent() {
       {picks.data?.length === 0 && (
         <Notice
           actions={
-            <AriaButton variant="secondary" icon="plus" onPress={() => setAdding(true)}>
+            <AriaButton variant="secondary" icon="plus" onPress={openAdd}>
               {t('admin.picks.add.action')}
             </AriaButton>
           }

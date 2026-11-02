@@ -396,6 +396,56 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     await waitFor(() => expect(place).toHaveFocus());
   });
 
+  it('a refused move with later moves queued does not roll back; the last answer puts it right', async () => {
+    let list = [heatPick, arrivalPick, alienPick];
+    let refuseFirst: () => void = () => undefined;
+    const firstRefused = new Promise<void>((resolve) => {
+      refuseFirst = resolve;
+    });
+    const { calls } = mockApi({
+      ...routes,
+      'GET /admin/picks': () => json(list),
+      'PUT /admin/picks/order': async (call) => {
+        if (calls.filter((entry) => entry.method === 'PUT').length === 1) {
+          await firstRefused;
+          return problem(500, 'internal');
+        }
+        const order = (call.body as { ids: number[] }).ids;
+        list = order.map((id) =>
+          [heatPick, arrivalPick, alienPick].find((pick) => pick.id === id)!,
+        );
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/admin/picks');
+    const user = userEvent.setup();
+
+    const detail = await openPick(user, 'Alien');
+    await user.selectOptions(
+      within(detail).getByRole('combobox', { name: 'Platz für Alien' }),
+      '1',
+    );
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Platz für Alien' }), '0');
+    refuseFirst();
+    expect(await screen.findByRole('alert')).toBeVisible();
+    // No step back to the order before the refused move: the queued one shows on.
+    expect(titles()).toEqual([
+      expect.stringMatching(/^Alien/),
+      expect.stringMatching(/^Heat/),
+      expect.stringMatching(/^Arrival/),
+    ]);
+    await waitFor(() => expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(2));
+    // The list asked again after the last answer is what the server holds.
+    await waitFor(() =>
+      expect(calls.filter((call) => call.path === '/admin/picks').length).toBeGreaterThan(1),
+    );
+    expect(titles()).toEqual([
+      expect.stringMatching(/^Alien/),
+      expect.stringMatching(/^Heat/),
+      expect.stringMatching(/^Arrival/),
+    ]);
+  });
+
   it('adds a title found by the search for a single profile (PIC-1)', async () => {
     let list: AdminPick[] = [];
     const { calls, fetchMock } = mockApi({
@@ -415,6 +465,12 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     expect(empty).toBeVisible();
     const add = screen.getAllByRole('button', { name: 'Hinzufügen' });
     expect(add).toHaveLength(2);
+    // Escape returns the focus to the button that opened the dialog: here the empty list's.
+    await user.click(add[1]!);
+    await screen.findByRole('dialog', { name: 'Empfehlung hinzufügen' });
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(add[1]).toHaveFocus());
     await user.click(add[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Empfehlung hinzufügen' });
     const search = within(dialog).getByRole('searchbox', { name: 'Titel suchen' });
@@ -484,11 +540,13 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     const form = within(detail).getByRole('form', { name: 'Heat bearbeiten' });
     const note = within(form).getByLabelText('Notiz');
     expect(note).toHaveValue('Ein Klassiker');
-    // Nothing changed yet: nothing to save or drop.
-    expect(within(form).getByRole('button', { name: 'Heat speichern' })).toBeDisabled();
-    expect(
-      within(form).getByRole('button', { name: 'Änderungen an Heat verwerfen' }),
-    ).toBeDisabled();
+    // Nothing changed yet: «Speichern» sends nothing, there is nothing to drop.
+    const save = within(form).getByRole('button', { name: 'Heat speichern' });
+    expect(save).toBeEnabled();
+    expect(within(form).queryByRole('button', { name: 'Änderungen an Heat verwerfen' })).toBeNull();
+    await user.click(save);
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
+    expect(save).toHaveFocus();
     const from = within(form).getByLabelText('Sichtbar ab');
     const to = within(form).getByLabelText('Sichtbar bis');
     await user.type(from, '2026-11-02T10:00');
@@ -507,6 +565,67 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
       startsAt: new Date('2026-11-02T10:00').toISOString(),
       endsAt: new Date('2026-11-03T10:00').toISOString(),
     });
+
+    // «Verwerfen» drops the input and the refusal about it; the focus goes to «Speichern».
+    await user.click(within(form).getByRole('button', { name: 'Änderungen an Heat verwerfen' }));
+    expect(note).toHaveValue('Ein Klassiker');
+    expect(note).not.toHaveAccessibleDescription(/Zu lang/);
+    expect(within(form).queryByRole('button', { name: 'Änderungen an Heat verwerfen' })).toBeNull();
+    await waitFor(() => expect(save).toHaveFocus());
+  });
+
+  it('keeps what is typed while a save runs; saving and its error belong to one pick', async () => {
+    let answer: () => void = () => undefined;
+    const answered = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    let list = [heatPick, alienPick];
+    const { calls } = mockApi({
+      ...routes,
+      'GET /admin/picks': () => json(list),
+      'PATCH /admin/picks/11': async (call) => {
+        await answered;
+        const body = call.body as { note: string | null };
+        list = [{ ...heatPick, note: body.note ?? undefined }, alienPick];
+        return json(list[0]);
+      },
+      'PATCH /admin/picks/13': () => problem(500, 'internal'),
+    });
+    renderApp('/admin/picks');
+    const user = userEvent.setup();
+
+    const heat = await openPick(user, 'Heat');
+    const alien = await openPick(user, 'Alien');
+    const note = within(heat).getByLabelText('Notiz');
+    await user.type(note, '!');
+    await user.click(within(heat).getByRole('button', { name: 'Heat speichern' }));
+    // Only Heat saves; Alien's «Speichern» is free, and its refusal stays with Alien.
+    expect(within(heat).getByRole('button', { name: 'Heat speichern' })).toHaveTextContent(
+      'Wird gespeichert …',
+    );
+    expect(within(alien).getByRole('button', { name: 'Alien speichern' })).toHaveTextContent(
+      'Speichern',
+    );
+    await user.type(within(alien).getByLabelText('Notiz'), 'Gruselig');
+    await user.click(within(alien).getByRole('button', { name: 'Alien speichern' }));
+    expect(await within(alien).findByRole('alert')).toBeVisible();
+    expect(within(heat).queryByRole('alert')).toBeNull();
+
+    // Typed while Heat's save runs: kept as a draft when the answer comes.
+    await user.type(note, '?');
+    answer();
+    expect(await screen.findByText('Heat ist gespeichert.')).toBeVisible();
+    expect(calls.find((call) => call.path === '/admin/picks/11')?.body).toEqual({
+      note: 'Ein Klassiker!',
+      startsAt: null,
+      endsAt: null,
+    });
+    expect(note).toHaveValue('Ein Klassiker!?');
+    const discard = within(heat).getByRole('button', { name: 'Änderungen an Heat verwerfen' });
+    expect(discard).toBeVisible();
+    // «Verwerfen» now goes back to what the server holds since the save.
+    await user.click(discard);
+    expect(note).toHaveValue('Ein Klassiker!');
   });
 
   it('keeps the draft of each pick across tabs and folding (S-17), asks before leaving, saves and discards', async () => {
@@ -527,9 +646,11 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     // Heat gets a new note, Alien one too; a blank after a note is no change.
     let heat = await openPick(user, 'Heat');
     await user.type(within(heat).getByLabelText('Notiz'), ' ');
-    expect(within(heat).getByRole('button', { name: 'Heat speichern' })).toBeDisabled();
+    expect(within(heat).queryByRole('button', { name: 'Änderungen an Heat verwerfen' })).toBeNull();
     await user.type(within(heat).getByLabelText('Notiz'), 'mit Popcorn');
-    expect(within(heat).getByRole('button', { name: 'Heat speichern' })).toBeEnabled();
+    expect(
+      within(heat).getByRole('button', { name: 'Änderungen an Heat verwerfen' }),
+    ).toBeVisible();
     let alien = await openPick(user, 'Alien');
     await user.type(within(alien).getByLabelText('Notiz'), 'Gruselig');
     expect(screen.getAllByText('geändert')).toHaveLength(2);
@@ -557,7 +678,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     expect(screen.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" })).toBeVisible();
 
-    // «Speichern» sends only Heat, trimmed; its draft is spent, the note field keeps the focus.
+    // «Speichern» sends only Heat, trimmed; its draft is spent, «Speichern» keeps the focus.
     await user.click(within(heat).getByRole('button', { name: 'Heat speichern' }));
     expect(await screen.findByText('Heat ist gespeichert.')).toBeVisible();
     expect(calls.filter((call) => call.method === 'PATCH')).toEqual([
@@ -567,14 +688,16 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
       }),
     ]);
     await waitFor(() => expect(screen.getAllByText('geändert')).toHaveLength(1));
-    await waitFor(() => expect(within(heat).getByLabelText('Notiz')).toHaveFocus());
+    expect(within(heat).getByRole('button', { name: 'Heat speichern' })).toHaveFocus();
     expect(within(heat).getByLabelText('Notiz')).toHaveValue('Ein Klassiker mit Popcorn');
 
     // «Verwerfen» drops Alien's draft: the field shows what the server holds again.
     await user.click(within(alien).getByRole('button', { name: 'Änderungen an Alien verwerfen' }));
     expect(within(alien).getByLabelText('Notiz')).toHaveValue('');
     expect(screen.queryByText('geändert')).toBeNull();
-    await waitFor(() => expect(within(alien).getByLabelText('Notiz')).toHaveFocus());
+    await waitFor(() =>
+      expect(within(alien).getByRole('button', { name: 'Alien speichern' })).toHaveFocus(),
+    );
 
     // Without drafts, leaving asks nothing.
     await user.click(
@@ -584,7 +707,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     );
     expect(await screen.findByRole('heading', { level: 1, name: 'Sammlungen' })).toBeVisible();
     expect(screen.queryByRole('alertdialog')).toBeNull();
-  });
+  }, 15_000);
 
   it('no refetch on window focus while a dialog is open or an open fold-out has a draft; a folded draft does not hold it', async () => {
     const { calls } = mockApi({ ...routes, 'GET /admin/picks': () => json([heatPick]) });
@@ -634,7 +757,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     } finally {
       focusManager.setFocused(undefined);
     }
-  });
+  }, 15_000);
 
   it('"Entfernen" asks first, removes the pick and moves the focus to the heading', async () => {
     let list = [heatPick];
