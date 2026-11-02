@@ -1,9 +1,9 @@
 import type { KeyState } from '@slouchcat/api-client';
-import { type FormEvent } from 'react';
+import { useId, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { paths } from '@/app/paths';
-import { TextLink } from '@/ui';
+import { TextLink, VisuallyHidden } from '@/ui';
 import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import styles from './Integrations.module.css';
 import { Actions, keyDraft, Outcome, SourceChip, useSecretUpdate, type KeyName } from './shared';
@@ -31,6 +31,7 @@ export function KeyRow({
   });
   const errors = save.error ? formErrors(t, save.error, { tmdbApiKey: field }) : null;
   const env = state.source === 'env';
+  const keepHintId = useId();
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -45,21 +46,41 @@ export function KeyRow({
     });
   };
 
+  // A stored key: the field is empty and says so in a short placeholder; the whole sentence is
+  // its accessible description. A key from deploy/.env keeps its visible note under the field.
+  const keepHint = state.source === 'stored' ? t('admin.integrations.keys.newValue') : undefined;
+
+  // One line per key (Int-A): the source next to the help, field and buttons side by side.
   return (
-    <SettingRow label={name} help={t(`admin.integrations.keys.${keyName}.description`)}>
+    <SettingRow
+      label={name}
+      help={
+        <>
+          <span className={styles.source}>
+            <SourceChip source={state.source} hint={state.hint} />
+          </span>
+          {t(`admin.integrations.keys.${keyName}.description`)}
+          {keyName === 'trakt' && (
+            <>
+              {' '}
+              <TextLink href={paths.adminSpotlight}>
+                {t('admin.integrations.keys.traktStatus')}
+              </TextLink>
+            </>
+          )}
+        </>
+      }
+    >
       <div className={styles.stack}>
-        <Form className={styles.stack} onSubmit={onSubmit} validationErrors={errors?.fields}>
+        <Form className={styles.keyForm} onSubmit={onSubmit} validationErrors={errors?.fields}>
           <TextField
             name={field}
             type="password"
             label={t(`admin.integrations.keys.${keyName}.label`)}
-            description={
-              env
-                ? t('admin.integrations.envHint')
-                : state.source === 'stored'
-                  ? t('admin.integrations.keys.newValue')
-                  : undefined
-            }
+            hideLabel
+            description={env ? t('admin.integrations.envHint') : undefined}
+            placeholder={keepHint && t('admin.integrations.keys.keepPlaceholder')}
+            aria-describedby={keepHint && keepHintId}
             autoComplete="off"
             spellCheck="false"
             mono
@@ -71,9 +92,7 @@ export function KeyRow({
               env || text === '' || text.trim() ? null : t('errors.field.required')
             }
           />
-          {env ? (
-            <SourceChip source={state.source} />
-          ) : (
+          {!env && (
             <Actions
               name={name}
               saveLabel={t('admin.integrations.keys.saveLabel', { name })}
@@ -83,17 +102,11 @@ export function KeyRow({
                 setMessage(null);
                 void save.run({ clear: [keyName] });
               }}
-            >
-              <SourceChip source={state.source} hint={state.hint} />
-            </Actions>
+            />
           )}
         </Form>
+        {keepHint && <VisuallyHidden id={keepHintId}>{keepHint}</VisuallyHidden>}
         <Outcome error={errors?.form ? save.error : null} message={message} />
-        {keyName === 'trakt' && (
-          <TextLink href={paths.adminSpotlight}>
-            {t('admin.integrations.keys.traktStatus')}
-          </TextLink>
-        )}
       </div>
     </SettingRow>
   );

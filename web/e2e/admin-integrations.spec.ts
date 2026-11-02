@@ -171,6 +171,10 @@ test('keys show their source; the Trakt id from the environment is read-only', a
   // The e2e server runs without a TMDB key.
   await expect(keys.getByLabel('TMDB-Lesezugriffs-Token')).toBeEnabled();
   await expect(keys.getByRole('button', { name: 'TMDB-Token löschen' })).toHaveCount(0);
+  // One line per key (Int-A): the field and its «Speichern» stand side by side.
+  const tmdbField = await keys.getByLabel('TMDB-Lesezugriffs-Token').boundingBox();
+  const tmdbSave = await keys.getByRole('button', { name: 'TMDB-Token speichern' }).boundingBox();
+  expect(Math.round(tmdbSave?.y ?? -1)).toBe(Math.round(tmdbField?.y ?? 0));
   await expect(keys.getByRole('link', { name: 'Stand der Trakt-Listen' })).toHaveAttribute(
     'href',
     '/admin/spotlight',

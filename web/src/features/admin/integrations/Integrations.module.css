@@ -82,3 +82,28 @@
   font-family: var(--sc-font-family-mono);
   overflow-wrap: anywhere;
 }
+
+/* A provider key on one line (Int-A): field, «Speichern», «Löschen …»; narrow, the buttons wrap. */
+.keyForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+}
+
+.keyForm > :first-child {
+  flex: 1 1 14rem;
+}
+
+/* The source of a key at the start of its help line. */
+.source {
+  display: inline-flex;
+  margin-inline-end: var(--sc-space-2);
+  vertical-align: middle;
+}
+
+@media (width < 768px) {
+  .keyForm > :first-child {
+    flex-basis: 100%;
+  }
+}

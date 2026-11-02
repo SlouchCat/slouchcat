@@ -89,6 +89,14 @@ describe('integrations (A-2)', () => {
       'type',
       'password',
     );
+    // A stored key says in its placeholder and its description that empty keeps it.
+    expect(within(keys).getByLabelText('TMDB-Lesezugriffs-Token')).toHaveAttribute(
+      'placeholder',
+      'Leer lassen zum Behalten',
+    );
+    expect(within(keys).getByLabelText('TMDB-Lesezugriffs-Token')).toHaveAccessibleDescription(
+      /Leer lassen, um den gespeicherten Wert zu behalten/,
+    );
   });
 
   it('saves a key write-only and shows its hint; an empty or blank key is not sent', async () => {

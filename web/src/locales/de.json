@@ -1977,6 +1977,7 @@
         "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
         "saveLabel": "{{name}} speichern",
         "count": "{{set}} von {{total}} gesetzt",
+        "keepPlaceholder": "Leer lassen zum Behalten",
         "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
         "tmdb": {
           "name": "TMDB-Token",
