@@ -471,6 +471,30 @@
       "body": "You have changes on this page that are not saved yet. If you leave the page, they are lost.",
       "leave": "Discard and leave",
       "stay": "Stay on the page"
+    },
+    "weekdays": {
+      "short": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "long": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    },
+    "heatGrid": {
+      "day": "Day of the week",
+      "hour": "{{hour}}:00"
     }
   },
   "item": {
@@ -2446,6 +2470,10 @@
         "image_fetch": {
           "name": "Fetch images",
           "trigger": "After the match, catch-up at start"
+        },
+        "metadata_apply": {
+          "name": "Apply metadata",
+          "trigger": "«Apply now» on the Metadata page"
         },
         "trailer_find": {
           "name": "Find trailer",

@@ -61,6 +61,8 @@ export { AdminPage } from './AdminPage';
 export { BandPanel } from './BandPanel';
 export { type DataTableExpand } from './DataTable';
 export { DisclosureGroup } from './DisclosureGroup';
+export { HeatGrid } from './HeatGrid';
+export { ImageTile } from './ImageTile';
 export { MasterDetail, type MasterDetailItem } from './MasterDetail';
 export { RankHint, RankSelect, rankTo, type RankMode } from './RankSelect';
 export { SaveBar } from './SaveBar';

@@ -1,0 +1,58 @@
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+}
+
+.title {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 2.5rem repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  align-items: center;
+}
+
+.tick {
+  overflow: visible;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.day {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+}
+
+/* The accent at the cell's share of the highest value, over the empty surface. */
+.cell {
+  --sc-heat-tint: color-mix(
+    in srgb,
+    var(--sc-accent) calc(var(--heat, 0) * 1%),
+    var(--sc-color-surface-1)
+  );
+
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background-color: var(--sc-heat-tint);
+}
+
+/* The numbers for screen readers (the cells are hidden from them). */
+.table {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

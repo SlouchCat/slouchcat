@@ -42,3 +42,32 @@ export const Plain: Story = {};
 
 /** With a daily limit: days above it in the warning colour. */
 export const WithThreshold: Story = { args: { threshold: { value: 60, label: 'Limit 60 min' } } };
+
+const weekdays = [
+  ['Mo', 'Montag', 95],
+  ['Di', 'Dienstag', 40],
+  ['Mi', 'Mittwoch', 62],
+  ['Do', 'Donnerstag', 20],
+  ['Fr', 'Freitag', 140],
+  ['Sa', 'Samstag', 210],
+  ['So', 'Sonntag', 180],
+] as const;
+
+/** Horizontal bars per day of the week (concept 12, «Wann geschaut wird»). */
+export const Horizontal: Story = {
+  args: {
+    title: 'Nach Wochentag',
+    columns: ['Wochentag', 'Minuten'],
+    orientation: 'horizontal',
+    bars: weekdays.map(([tick, label, value]) => ({
+      key: tick,
+      label,
+      tick,
+      value,
+      valueText: `${value} min`,
+      tooltip: `${label}: ${value} min`,
+    })),
+  },
+};
+
+export const HorizontalCompact: Story = { ...Horizontal, globals: { density: 'compact' } };

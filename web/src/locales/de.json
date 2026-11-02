@@ -471,6 +471,30 @@
       "body": "Du hast Änderungen auf dieser Seite noch nicht gespeichert. Verlässt du die Seite, gehen sie verloren.",
       "leave": "Verwerfen und verlassen",
       "stay": "Auf der Seite bleiben"
+    },
+    "weekdays": {
+      "short": {
+        "mon": "Mo",
+        "tue": "Di",
+        "wed": "Mi",
+        "thu": "Do",
+        "fri": "Fr",
+        "sat": "Sa",
+        "sun": "So"
+      },
+      "long": {
+        "mon": "Montag",
+        "tue": "Dienstag",
+        "wed": "Mittwoch",
+        "thu": "Donnerstag",
+        "fri": "Freitag",
+        "sat": "Samstag",
+        "sun": "Sonntag"
+      }
+    },
+    "heatGrid": {
+      "day": "Wochentag",
+      "hour": "{{hour}} Uhr"
     }
   },
   "item": {
@@ -2446,6 +2470,10 @@
         "image_fetch": {
           "name": "Bilder holen",
           "trigger": "nach der Zuordnung, Nachholen beim Start"
+        },
+        "metadata_apply": {
+          "name": "Metadaten anwenden",
+          "trigger": "«Jetzt anwenden» auf der Seite Metadaten"
         },
         "trailer_find": {
           "name": "Trailer suchen",
