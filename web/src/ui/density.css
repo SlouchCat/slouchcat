@@ -1,0 +1,26 @@
+/*
+ * Compact density of the administration (concept 12, 5.2; ADR 0020): the component tokens take
+ * the values of density.compact. Only with a mouse from 768 px; touch and phones keep 44 px.
+ *
+ * Not loaded by the app yet: today only Storybook imports this file (.storybook/preview.tsx, the
+ * `density` global), where the compact stories carry `data-density="compact"` on their root and,
+ * through AdminDensityScope, on the portals of their dialogs and menus. K12-8 imports it into the
+ * app and adds the content area `[data-shell='admin'] #content` to the selector; the portals of
+ * the administration's dialogs carry the attribute already (AdminDensityScope).
+ */
+@media (width >= 48rem) and (pointer: fine) {
+  [data-density='compact'] {
+    --sc-control-height: var(--sc-density-compact-control-height);
+    --sc-control-font-size: var(--sc-density-compact-control-font-size);
+    --sc-panel-padding: var(--sc-density-compact-panel-padding);
+    --sc-panel-gap: var(--sc-density-compact-panel-gap);
+    --sc-panel-radius: var(--sc-density-compact-panel-radius);
+    --sc-table-cell-padding-y: var(--sc-density-compact-table-cell-padding-y);
+    --sc-page-title-size: var(--sc-density-compact-page-title-size);
+    --sc-page-title-weight: var(--sc-density-compact-page-title-weight);
+    --sc-page-title-tracking: var(--sc-density-compact-page-title-tracking);
+    --sc-section-gap: var(--sc-density-compact-section-gap);
+    --sc-section-title-size: var(--sc-density-compact-section-title-size);
+    --sc-dialog-gap: var(--sc-density-compact-dialog-gap);
+  }
+}

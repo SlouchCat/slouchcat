@@ -39,8 +39,21 @@
   color: var(--sc-color-text-muted);
 }
 
+/* The h1 of a page with the page pattern (AdminPage): size, weight and tracking are component
+   tokens, so the compact density (ADR 0020) sets them without a variant of its own. */
+.pageTitle {
+  font-size: var(--sc-font-size-3xl);
+  font-weight: var(--sc-page-title-weight);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-page-title-tracking);
+}
+
 @media (width >= 768px) {
   .display {
+    font-size: var(--sc-font-size-display);
+  }
+
+  .pageTitle {
     font-size: var(--sc-page-title-size);
   }
 }

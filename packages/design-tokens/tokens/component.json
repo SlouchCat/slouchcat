@@ -38,6 +38,15 @@
     "title-size": {
       "$value": "{font.size.display}",
       "$description": "Size of the page title (h1) from 768 px; below, titles use font.size.3xl."
+    },
+    "title-weight": {
+      "$type": "fontWeight",
+      "$value": "{font.weight.bold}",
+      "$description": "Weight of the page title (h1)."
+    },
+    "title-tracking": {
+      "$value": "{font.letter-spacing.display}",
+      "$description": "Letter spacing of the page title (h1)."
     }
   },
   "section": {
@@ -45,6 +54,17 @@
     "gap": {
       "$value": "{space.10}",
       "$description": "Gap between the sections of a page."
+    },
+    "title-size": {
+      "$value": "{font.size.xl}",
+      "$description": "Size of a section title (h2, SectionHeader)."
+    }
+  },
+  "dialog": {
+    "$type": "dimension",
+    "gap": {
+      "$value": "{space.4}",
+      "$description": "Gap between title, body and actions of a dialog."
     }
   },
   "density": {
@@ -80,11 +100,26 @@
       "page": {
         "title-size": {
           "$value": "{font.size.xl}"
+        },
+        "title-weight": {
+          "$type": "fontWeight",
+          "$value": "{font.weight.semibold}"
+        },
+        "title-tracking": {
+          "$value": "{font.letter-spacing.normal}"
         }
       },
       "section": {
         "gap": {
           "$value": "{space.6}"
+        },
+        "title-size": {
+          "$value": "{font.size.md}"
+        }
+      },
+      "dialog": {
+        "gap": {
+          "$value": "{space.3}"
         }
       }
     }

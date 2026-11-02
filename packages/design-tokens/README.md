@@ -33,18 +33,33 @@ statt der allgemeinen Skala; ihr Standard ist genau der heutige Wert, darum änd
 nichts. `size.control.height` (44 px) bleibt als Mindestmass für Berührung und ist der Standard von
 `control.height`.
 
-| Token (CSS)                 | Standard                      | `density.compact`   | gelesen von                                                               |
-| --------------------------- | ----------------------------- | ------------------- | ------------------------------------------------------------------------- |
-| `--sc-control-height`       | `size.control.height` (44 px) | 32 px               | `Button`, `TextField` (`Field`), `SelectField`, `Switch`, `CheckboxGroup` |
-| `--sc-control-font-size`    | `font.size.md` (16 px)        | 14 px               | `Button`, `TextField` (`Field`)                                           |
-| `--sc-panel-padding`        | `space.6` (24 px)             | 16 px               | `Panel`, `Dialog`                                                         |
-| `--sc-panel-gap`            | `space.5` (20 px)             | 12 px               | `Panel`                                                                   |
-| `--sc-panel-radius`         | `radius.xl` (20 px)           | 12 px (`radius.lg`) | `Panel`, `Dialog`                                                         |
-| `--sc-table-cell-padding-y` | `space.3` (12 px)             | 9 px (Zeile 40 px)  | `DataTable` (Kopf und Zellen)                                             |
-| `--sc-page-title-size`      | `font.size.display` (60 px)   | 24 px               | `Text` Variante `display` ab 768 px                                       |
-| `--sc-section-gap`          | `space.10` (40 px)            | 24 px               | noch keiner; `AdminPage` und `SectionHeader` (K12-2b)                     |
+| Token (CSS)                 | Standard                                 | `density.compact`      | gelesen von                                            |
+| --------------------------- | ---------------------------------------- | ---------------------- | ------------------------------------------------------ |
+| `--sc-control-height`       | `size.control.height` (44 px)            | 32 px                  | Steuerelemente (Liste unten)                           |
+| `--sc-control-font-size`    | `font.size.md` (16 px)                   | 14 px                  | `Button`, `TextField` (`Field`)                        |
+| `--sc-panel-padding`        | `space.6` (24 px)                        | 16 px                  | `Panel`, `Dialog`, `BandPanel`                         |
+| `--sc-panel-gap`            | `space.5` (20 px)                        | 12 px                  | `Panel`, `BandPanel`, `MasterDetail`                   |
+| `--sc-panel-radius`         | `radius.xl` (20 px)                      | 12 px (`radius.lg`)    | `Panel`, `Dialog`, `BandPanel`, `MasterDetail` (Liste) |
+| `--sc-table-cell-padding-y` | `space.3` (12 px)                        | 9 px (Zeile 40 px)     | `DataTable` (Kopf und Zellen)                          |
+| `--sc-page-title-size`      | `font.size.display` (60 px)              | 24 px                  | `Text` Variante `pageTitle` ab 768 px (`AdminPage`)    |
+| `--sc-page-title-weight`    | `font.weight.bold` (700)                 | 600                    | `Text` Variante `pageTitle`                            |
+| `--sc-page-title-tracking`  | `font.letter-spacing.display` (−0.02 em) | normal (0)             | `Text` Variante `pageTitle`                            |
+| `--sc-section-gap`          | `space.10` (40 px)                       | 24 px                  | `AdminPage` (Abstand der Abschnitte)                   |
+| `--sc-section-title-size`   | `font.size.xl` (24 px)                   | 16 px (`font.size.md`) | `SectionHeader` (h2), `BandPanel` (Titel im Band)      |
+| `--sc-dialog-gap`           | `space.4` (16 px)                        | 12 px                  | `Dialog` (Titel, Text, Aktionen)                       |
 
-Die kompakten Werte stehen als `--sc-density-compact-*` bereit. Eingeschaltet werden sie erst in K12-8:
+`--sc-control-height` lesen `Button`, `TextField` (`Field`), `SelectField`, `Switch`, `CheckboxGroup`,
+`ProviderList` (Zeilen), die Einträge von `MenuButton`, `ActionMenu` und `MasterDetail`, `ChoiceChips`,
+`FilterChips`, `RankSelect`, `SettingRow`, die Klappknöpfe von `BandPanel` und `DisclosureGroup` sowie
+Kopfzeile und Hilfe-Knopf von `AdminPage`. `SideNav` und `AdminSideNav` lesen weiter
+`--sc-size-control-height` und behalten 44 px (Konzept 12, 5.2: Leisten behalten ihre Masse).
+
+Die Variante `display` von `Text` liest wieder `font.size.display`: Seiten ohne `AdminPage` behalten
+ihren Titel, auch wenn die Dichte eingeschaltet ist.
+
+Die kompakten Werte stehen als `--sc-density-compact-*` bereit; die Zuordnung auf die
+Komponententokens steht in `web/src/ui/density.css` (Selektor `[data-density="compact"]`). Heute lädt
+sie nur Storybook (Global `density`, jede Story eines Bausteins auch kompakt). Eingeschaltet werden sie erst in K12-8:
 unter `[data-shell="admin"]` mit `@media (min-width: 48rem) and (pointer: fine)` werden die
 Komponententokens auf sie umgelegt, und zwar nur auf dem Inhaltsbereich `#content` und auf den
 Portalen der Dialoge aus Verwaltungsseiten (`AdminDensityScope`), nie auf `:root`: App-Kopf und
