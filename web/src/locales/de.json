@@ -465,6 +465,12 @@
       "save": "Speichern",
       "saving": "Wird gespeichert …",
       "discard": "Verwerfen"
+    },
+    "unsaved": {
+      "title": "Seite mit ungespeicherten Änderungen verlassen?",
+      "body": "Du hast Änderungen auf dieser Seite noch nicht gespeichert. Verlässt du die Seite, gehen sie verloren.",
+      "leave": "Verwerfen und verlassen",
+      "stay": "Auf der Seite bleiben"
     }
   },
   "item": {

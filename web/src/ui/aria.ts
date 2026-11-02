@@ -68,3 +68,6 @@ export { SectionHeader } from './SectionHeader';
 export { SettingRow } from './SettingRow';
 export { StatusStrip } from './StatusStrip';
 export { type TabItem } from './Tabs';
+export { useDrafts, type Drafts } from './useDrafts';
+export { useSearchSelection } from './useSearchSelection';
+export { useUnsavedChanges, type UnsavedChangesDialog } from './useUnsavedChanges';

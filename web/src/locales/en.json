@@ -465,6 +465,12 @@
       "save": "Save",
       "saving": "Saving …",
       "discard": "Discard"
+    },
+    "unsaved": {
+      "title": "Leave the page with unsaved changes?",
+      "body": "You have changes on this page that are not saved yet. If you leave the page, they are lost.",
+      "leave": "Discard and leave",
+      "stay": "Stay on the page"
     }
   },
   "item": {

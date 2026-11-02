@@ -33,6 +33,34 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
+/** The selection of an administration page in its address (concept 12, S-14). */
+export interface AdminSearch {
+  /** The selected tab (Tabs, useSearchSelection). */
+  tab?: string;
+  /** The selected item of a MasterDetail, or a row that is open; `me` is the own account. */
+  item?: string;
+}
+
+/** A tab id or an item id: a slug, a number or a ULID, never a path or a whole sentence. */
+const SELECTION = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+
+/**
+ * `validateSearch` of the administration pages with tabs or a selection: keeps `?tab=` and
+ * `?item=` when they look like an id and drops them otherwise; whether the id exists is the
+ * page's business (useSearchSelection falls back to its default). A route with parameters of its
+ * own spreads this into its validator: `(search) => ({ ...adminSearch(search), library: … })`.
+ * A number in the address (`?item=12`) arrives parsed as a number and is kept as text.
+ */
+export function adminSearch(search: Record<string, unknown>): AdminSearch {
+  const pick = (value: unknown) => {
+    const text = typeof value === 'number' && Number.isInteger(value) ? String(value) : value;
+    return typeof text === 'string' && SELECTION.test(text) ? text : undefined;
+  };
+  const tab = pick(search.tab);
+  const item = pick(search.item);
+  return { ...(tab === undefined ? {} : { tab }), ...(item === undefined ? {} : { item }) };
+}
+
 /** The offline library and its player: they never ask the server (C-1, O-4). */
 const isOfflinePath = (pathname: string) =>
   pathname === paths.offline || pathname.startsWith(`${paths.offline}/`);
