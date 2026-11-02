@@ -109,6 +109,9 @@ func TestApplyRestoreSwapsDatabaseAndKey(t *testing.T) {
 	if got := marker(t, db.Read); got != "restored" {
 		t.Errorf("marker = %q, want the restored database", got)
 	}
+	if !db.Restored {
+		t.Error("Open does not report the restore (backup_restored of the activity log, concept 11)")
+	}
 	if !bytes.Equal(readFile(t, filepath.Join(dir, "secret.key")), newKey) {
 		t.Error("the restored key is not in place")
 	}
@@ -188,8 +191,8 @@ func TestApplyRestoreRemovesStaleKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if marker(t, db.Read) != "live" || !bytes.Equal(readFile(t, filepath.Join(dir, "secret.key")), key) {
-		t.Error("database or key changed")
+	if marker(t, db.Read) != "live" || !bytes.Equal(readFile(t, filepath.Join(dir, "secret.key")), key) || db.Restored {
+		t.Error("database or key changed, or a restore reported")
 	}
 	if !missing(filepath.Join(dir, RestoreKeyFile)) || !missing(filepath.Join(dir, BackupDir)) {
 		t.Error("stale key left or a backup written")

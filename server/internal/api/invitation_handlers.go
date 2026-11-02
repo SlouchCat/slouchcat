@@ -72,6 +72,7 @@ func (s *server) AcceptInvitation(ctx context.Context, req gen.AcceptInvitationR
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
+	s.forgetDashboardCounts() // a new account (concept 11)
 	return sessionStarted{status: http.StatusCreated, r: requestFrom(ctx), session: session, token: token}, nil
 }
 

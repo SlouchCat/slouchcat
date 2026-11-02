@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.6.0
+  version: 1.7.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -5060,10 +5060,14 @@ paths:
       summary: Running streams, jobs, storage, integrations, errors and update state (A-3)
       description: |
         One request for the admin overview, polled every few seconds: the running streams (as
-        `listStreams`), the job counters with the last ten failed jobs, free and total space of the
-        config and cache directories, the state of every integration (keys, e-mail, Web Push, Telegram,
-        update check), the newest 50 errors of the server log (redacted, newest first) and the update
-        state.
+        `listStreams`), the job counters with up to three running jobs, the next scheduled run, the
+        failed jobs grouped by type (and, for older clients, the last ten failed jobs), free and total
+        space of the config and cache directories, the state of every integration (keys, e-mail, Web
+        Push, Telegram, update check), the newest 50 errors of the server log (redacted, newest first),
+        the update state, what needs the administrator's attention (scans the loss protection aborted),
+        the counts of the sidebar (titles, accounts, open maintenance cases; recomputed at most every
+        60 seconds and at once after a change on the maintenance, libraries or accounts pages) and the
+        six newest entries of the activity log.
       tags: [admin]
       x-visibility: admin
       responses:
@@ -5692,6 +5696,12 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: A restart or another restore is already scheduled (`restart_pending`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "422":
           description: |
             `backup_invalid` (not an archive of Slouchcat, damaged or failing the integrity check),
@@ -5734,10 +5744,48 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+        "409":
+          description: A restart or another restore is already scheduled (`restart_pending`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "422":
           description: |
             `backup_invalid`, `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server` (see
             `restoreBackupUpload`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/server/restart:
+    post:
+      operationId: restartServer
+      summary: Restart the server (concept 11)
+      description: |
+        Schedules a restart like a restore does: the server shuts down in order about a second after
+        the answer and starts the same program again (if that fails, it exits and the container
+        starts it again). Running streams and offline downloads are cut off; their clients start them
+        again. The restart is recorded in the activity log with the account. The client polls
+        `getHealth` from `restartAt` on; the session stays valid.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "202":
+          description: Scheduled; the server restarts now.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RestartAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: |
+            `backup_busy` while a backup or a restore is running (the restart would cut it off),
+            `restart_pending` while a restart or a restore is already scheduled.
           content:
             application/problem+json:
               schema:
@@ -8534,6 +8582,11 @@ components:
         durationMs:
           type: integer
           format: int64
+        posterUrl:
+          type: string
+          description: |
+            The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
+            absent when no poster is stored.
 
     ProgressEvent:
       type: object
@@ -10921,7 +10974,7 @@ components:
     Dashboard:
       type: object
       description: The admin overview (A-3); no `ItemRef`.
-      required: [streams, jobs, storage, integrations, webhooks, errors, update]
+      required: [streams, jobs, storage, integrations, webhooks, errors, update, attention, counts, activity]
       properties:
         streams:
           type: array
@@ -10953,6 +11006,140 @@ components:
           $ref: "#/components/schemas/UpdateState"
         browse:
           $ref: "#/components/schemas/BrowseHealth"
+        attention:
+          $ref: "#/components/schemas/DashboardAttention"
+        counts:
+          $ref: "#/components/schemas/DashboardCounts"
+        activity:
+          type: array
+          maxItems: 6
+          description: The newest entries of the activity log, newest first; empty instead of absent.
+          items:
+            $ref: "#/components/schemas/ActivityEntry"
+
+    ActivityEntry:
+      type: object
+      description: |
+        One entry of the activity log (concept 11, ADR 0019). The server sends no sentences: the client
+        builds the sentence from `kind` and the fields, with a general sentence for a kind it does not
+        know. Known kinds: `playback_started`, `playback_completed`, `playback_stopped`, `scan_started`,
+        `scan_done`, `scan_failed`, `scan_aborted`, `job_failed`, `backup_created`, `backup_restored`,
+        `server_started`, `server_restart`. The log keeps 30 days and at most 2'000 entries; the entries
+        of a deleted account or profile are deleted with it.
+      required: [id, at, kind, detail]
+      properties:
+        id:
+          type: integer
+          format: int64
+        at:
+          type: string
+          format: date-time
+        kind:
+          type: string
+          description: Kind of the event. No enum, so a new kind breaks no client.
+          examples: ["playback_started"]
+        profileName:
+          type: string
+          description: Name of the profile, read now; absent without a profile or after it was deleted.
+        accountEmail:
+          type: string
+          description: E-mail address of the account, read now; absent without an account.
+        itemTitle:
+          type: string
+          description: Title of the item at the time of the event (playback kinds).
+        libraryName:
+          type: string
+          description: Name of the library at the time of the event (scan kinds).
+        detail:
+          $ref: "#/components/schemas/ActivityDetail"
+
+    ActivityDetail:
+      type: object
+      description: |
+        The few numbers and fixed codes of an entry; no secret, no path, no IP address and no free error
+        text. Every field is optional and set only by the kinds it belongs to.
+      properties:
+        newTitles:
+          type: integer
+          minimum: 0
+          description: Titles the full scan added (`scan_done`).
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Size of the archive (`backup_created`).
+        version:
+          type: string
+          description: Version of the server (`server_started`).
+        trigger:
+          type: string
+          description: What started the full scan (`scan_started`) - `manual`, `schedule` or `watcher`.
+        reason:
+          type: string
+          description: |
+            Fixed code of a failed or aborted scan (`scan_failed`, `scan_aborted`) - `root_missing`,
+            `root_empty`, `loss_over_threshold`, `cancelled` or `error`.
+        jobType:
+          type: string
+          description: Job type of `job_failed`.
+        count:
+          type: integer
+          minimum: 1
+          description: Failures of the job type in this hour (`job_failed`).
+        by:
+          type: string
+          description: Who ended the playback (`playback_stopped`) - `admin` (stopped on the streams page) or `revoked` (its device forgotten).
+
+    DashboardAttention:
+      type: object
+      description: |
+        What needs the administrator's attention (concept 11). The server decides what counts (rule
+        12); the client only shows it. Every list is empty instead of absent.
+      required: [abortedScans]
+      properties:
+        abortedScans:
+          type: array
+          description: |
+            Libraries whose last scan the loss protection aborted and whose loss nobody accepted yet:
+            last scan state `aborted`, a reason other than `cancelled` and no `lossAcceptedAt`.
+          items:
+            $ref: "#/components/schemas/AbortedScan"
+
+    AbortedScan:
+      type: object
+      required: [libraryId, name, reason]
+      properties:
+        libraryId:
+          type: integer
+          format: int64
+        name:
+          type: string
+          description: Name of the library.
+        reason:
+          type: string
+          description: Abort code of the scan (`root_missing`, `root_empty`, `loss_over_threshold`) or a message.
+
+    DashboardCounts:
+      type: object
+      description: |
+        The counts of the admin sidebar (concept 11). The server recomputes them at most every 60
+        seconds; a change on the maintenance, libraries or accounts pages recomputes them at once.
+      required: [titles, accounts, maintenanceOpen]
+      properties:
+        titles:
+          type: integer
+          minimum: 0
+          description: The titles of every library, summed like `LibraryScan.itemCount`.
+        accounts:
+          type: integer
+          minimum: 0
+        maintenanceOpen:
+          type: integer
+          minimum: 0
+          description: |
+            Titles that need maintenance: the sum of the issue kinds `unmatched`, `no_images`,
+            `unrated`, `orphaned` and `unplayable`. `rating_mismatch` does not count, because it
+            checks every title against the provider.
 
     BrowseHealth:
       type: object
@@ -10972,7 +11159,7 @@ components:
 
     JobCounts:
       type: object
-      required: [queued, running, failed, recentFailed]
+      required: [queued, running, failed, recentFailed, active, failedByType]
       properties:
         queued:
           type: integer
@@ -10990,9 +11177,58 @@ components:
         recentFailed:
           type: array
           maxItems: 10
-          description: The last failed jobs, newest first.
+          description: |
+            The last failed jobs, newest first. Kept for other clients; the overview of the web client
+            reads `failedByType`.
           items:
             $ref: "#/components/schemas/JobSummary"
+        active:
+          type: array
+          maxItems: 3
+          description: |
+            Up to three running jobs of every type, the newest start first, with the subject and the
+            estimate of the page "Hintergrundjobs" (`listJobTypes`).
+          items:
+            $ref: "#/components/schemas/JobRun"
+        nextRun:
+          $ref: "#/components/schemas/JobNextRun"
+        failedByType:
+          type: array
+          description: The failed jobs grouped by type, the type with the newest failure first.
+          items:
+            $ref: "#/components/schemas/JobTypeFailures"
+
+    JobNextRun:
+      type: object
+      description: |
+        The earliest next run over every switched-on schedule of a job type that is not paused;
+        absent without such a schedule.
+      required: [type, at]
+      properties:
+        type:
+          $ref: "#/components/schemas/JobTypeName"
+        at:
+          type: string
+          format: date-time
+
+    JobTypeFailures:
+      type: object
+      description: The failed jobs of one type with the newest failure.
+      required: [type, count, lastFailedAt]
+      properties:
+        type:
+          $ref: "#/components/schemas/JobTypeName"
+        count:
+          type: integer
+          minimum: 1
+          description: Failed jobs of the type.
+        lastError:
+          type: string
+          description: Error of the newest failed job of the type, redacted; absent when it has none.
+        lastFailedAt:
+          type: string
+          format: date-time
+          description: When the newest failed job of the type failed (its last update).
 
     JobSummary:
       type: object
@@ -11686,6 +11922,15 @@ components:
           format: password
           maxLength: 1024
           writeOnly: true
+
+    RestartAccepted:
+      type: object
+      required: [restartAt]
+      properties:
+        restartAt:
+          type: string
+          format: date-time
+          description: When the server restarts; the client polls `getHealth` from then on.
 
     RestoreResult:
       type: object

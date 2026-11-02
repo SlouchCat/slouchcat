@@ -50,6 +50,18 @@ func TestAdminStreams(t *testing.T) {
 		{ID: "01JCCCCCCCCCCCCCCCCCCCCCCC", ItemID: f.Show.Special.ID, MediaFileID: f.Show.Special.FileID, Mode: "remux"},
 	}}
 	m.svc.WithStreams(fs)
+	// Concept 11: an episode shows the poster of its series, a film its own; the poster of an
+	// episode itself is not used. The special has a series poster too; the film without one has none.
+	poster := func(itemID, hash string) {
+		t.Helper()
+		m.exec(t, `INSERT INTO images (item_id, kind, size, format, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at)
+		           VALUES (?, 'poster', ?, 'jpeg', 'https://example.org/p.jpg', ?, ?, 'image/jpeg', 200, 300, 1, 1)
+		           ON CONFLICT (item_id, kind, size, format) DO UPDATE SET content_hash = excluded.content_hash`,
+			itemID, model.AdminPosterSize, "posters/"+hash+".jpg", hash)
+	}
+	m.exec(t, `DELETE FROM images WHERE item_id = ?`, f.Rated(6).ID)
+	poster(f.Show.Series.ID, "seriesHash")
+	poster(f.Show.E3.ID, "episodeHash")
 	list, err := m.svc.ListStreams(m.ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -59,6 +71,16 @@ func TestAdminStreams(t *testing.T) {
 		if st.ItemTitle != want[i] || st.DurationMs == nil || *st.DurationMs != vistest.DurationMs {
 			t.Errorf("stream %d = %q %v, want %q", i, st.ItemTitle, st.DurationMs, want[i])
 		}
+	}
+	wantPosters := [][2]string{{f.Show.Series.ID, "seriesHash"}, {"", ""}, {f.Show.Series.ID, "seriesHash"}}
+	for i, st := range list {
+		if st.PosterItemID != wantPosters[i][0] || st.PosterHash != wantPosters[i][1] {
+			t.Errorf("stream %d poster = %q %q, want %v", i, st.PosterItemID, st.PosterHash, wantPosters[i])
+		}
+	}
+	poster(f.Rated(6).ID, "filmHash")
+	if list, err = m.svc.ListStreams(m.ctx); err != nil || list[1].PosterItemID != f.Rated(6).ID || list[1].PosterHash != "filmHash" {
+		t.Errorf("film poster = %+v, %v", list, err)
 	}
 	if err := m.svc.StopStream(m.ctx, "01JAAAAAAAAAAAAAAAAAAAAAAA"); err != nil || len(fs.stopped) != 1 {
 		t.Errorf("stop: %v %v", err, fs.stopped)

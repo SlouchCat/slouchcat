@@ -2,13 +2,17 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/admin"
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -121,6 +125,157 @@ func TestUpdateAccountOverHTTP(t *testing.T) {
 	}
 }
 
+// Concept 11 (side finding): the dashboard carries the number of paused job types, 0 before and 1
+// after pausing one type, so the tile "Pausiert" can appear.
+func TestDashboardMapsPausedJobTypes(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	paused := func() int {
+		t.Helper()
+		rec := send(t, pf.h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var d gen.Dashboard
+		decode(t, rec, &d)
+		if d.Jobs.Paused == nil {
+			t.Fatalf("dashboard without jobs.paused: %s", rec.Body.String())
+		}
+		return *d.Jobs.Paused
+	}
+	if n := paused(); n != 0 {
+		t.Errorf("paused before = %d, want 0", n)
+	}
+	wantStatus(t, send(t, pf.h, http.MethodPost, BasePath+"/admin/job-types/download.prepare/pause", "p18", "", nil), http.StatusOK)
+	if n := paused(); n != 1 {
+		t.Errorf("paused after pausing download.prepare = %d, want 1", n)
+	}
+}
+
+// Concept 11 (contract 1.7.0): every new field of getDashboard over HTTP. A running and a failed
+// job, an aborted scan, a stream of an episode with the poster of its series, and the counts of
+// the sidebar, whose account count follows a deletion on the accounts page at once.
+func TestDashboardOverviewOverHTTP(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h, ctx := pf.f, pf.h, context.Background()
+	dashboard := func() (gen.Dashboard, string) {
+		t.Helper()
+		rec := send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var d gen.Dashboard
+		decode(t, rec, &d)
+		return d, rec.Body.String()
+	}
+	d, body := dashboard()
+	for _, field := range []string{`"active":[]`, `"failedByType":[]`, `"attention":{"abortedScans":[]}`, `"counts":{`} {
+		if !strings.Contains(body, field) {
+			t.Errorf("empty dashboard lacks %s: %s", field, body)
+		}
+	}
+	accounts := d.Counts.Accounts
+	// maintenanceOpen is the sum of the five cheap issue kinds; the fixture has two such cases.
+	open := 0
+	for _, kind := range []string{"unmatched", "no_images", "unrated", "orphaned", "unplayable"} {
+		rec := send(t, h, http.MethodGet, BasePath+"/admin/maintenance/issues?kind="+kind, "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var page gen.IssuePage
+		decode(t, rec, &page)
+		open += page.Total
+	}
+	if accounts != 3 || d.Counts.Titles <= 0 || d.Counts.MaintenanceOpen != 2 || open != 2 {
+		t.Errorf("counts = %+v (issues %d), want the three accounts of the fixture, its titles and two maintenance cases", d.Counts, open)
+	}
+
+	// One running and one failed job of notify.deliver.
+	running, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "notify.deliver"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if j, err := pf.queue.Claim(ctx, "w", []string{"notify.deliver"}); err != nil || j == nil || j.ID != running {
+		t.Fatalf("claim: %v, %v", j, err)
+	}
+	if _, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "download.prepare", MaxAttempts: 1}); err != nil {
+		t.Fatal(err)
+	}
+	j, err := pf.queue.Claim(ctx, "w", []string{"download.prepare"})
+	if err != nil || j == nil {
+		t.Fatalf("claim: %v, %v", j, err)
+	}
+	if err := pf.queue.Fail(ctx, "w", j, errors.New("token=dash-FAKE-token broke")); err != nil {
+		t.Fatal(err)
+	}
+	// The scan of the fixture's library was aborted by the loss protection.
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE libraries SET last_scan_state = 'aborted', last_scan_error = 'root_missing' WHERE id = (SELECT min(id) FROM libraries)`); err != nil {
+		t.Fatal(err)
+	}
+	var libID int64
+	var libName string
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT id, name FROM libraries ORDER BY id LIMIT 1`).Scan(&libID, &libName); err != nil {
+		t.Fatal(err)
+	}
+	// Every schedule in 10 h, the first one by name in 1 h: that is the next run.
+	next := time.Now().Add(time.Hour).Truncate(time.Millisecond).UTC()
+	var nextType string
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT type FROM job_schedules WHERE enabled = 1 ORDER BY type LIMIT 1`).Scan(&nextType); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.DB.Write.ExecContext(ctx, `UPDATE job_schedules SET next_run_at = CASE WHEN type = ? THEN ? ELSE ? END`,
+		nextType, next.UnixMilli(), next.Add(9*time.Hour).UnixMilli()); err != nil {
+		t.Fatal(err)
+	}
+	// An episode streams; its series has a poster.
+	if _, err := f.DB.Write.ExecContext(ctx, `INSERT INTO images (item_id, kind, size, format, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at)
+	    VALUES (?, 'poster', ?, 'jpeg', 'https://example.org/p.jpg', 'p.jpg', 'seriesHash', 'image/jpeg', 200, 300, 1, 1)
+	    ON CONFLICT (item_id, kind, size, format) DO UPDATE SET content_hash = excluded.content_hash`, f.Show.Series.ID, model.AdminPosterSize); err != nil {
+		t.Fatal(err)
+	}
+	if _, code, _ := play(t, h, "p18", f.Show.E1.ID, `{}`); code != http.StatusOK {
+		t.Fatalf("play = %d", code)
+	}
+
+	d, body = dashboard()
+	if len(d.Jobs.Active) != 1 || d.Jobs.Active[0].Id != running || d.Jobs.Active[0].Type != "notify.deliver" || d.Jobs.Active[0].State != gen.JobRunStateRunning {
+		t.Errorf("active = %+v", d.Jobs.Active)
+	}
+	if len(d.Jobs.FailedByType) != 1 {
+		t.Fatalf("failed by type = %+v", d.Jobs.FailedByType)
+	}
+	fb := d.Jobs.FailedByType[0]
+	if fb.Type != "download.prepare" || fb.Count != 1 || fb.LastError == nil || strings.Contains(*fb.LastError, "dash-FAKE-token") ||
+		fb.LastFailedAt.IsZero() || fb.LastFailedAt.Location() != time.UTC {
+		t.Errorf("failure = %+v (%v)", fb, deref(fb.LastError))
+	}
+	if strings.Contains(body, "dash-FAKE-token") {
+		t.Error("the dashboard carries the secret of the failed job")
+	}
+	if n := d.Jobs.NextRun; n == nil || n.Type != nextType || !n.At.Equal(next) || n.At.Location() != time.UTC {
+		t.Errorf("next run = %+v, want %s at %v", n, nextType, next)
+	}
+	want := gen.AbortedScan{LibraryId: libID, Name: libName, Reason: "root_missing"}
+	if len(d.Attention.AbortedScans) != 1 || d.Attention.AbortedScans[0] != want {
+		t.Errorf("aborted scans = %+v, want %+v", d.Attention.AbortedScans, want)
+	}
+	wantPoster := BasePath + "/admin/items/" + f.Show.Series.ID + "/images/poster/" + model.AdminPosterSize + "?v=seriesHash"
+	if len(d.Streams) != 1 || d.Streams[0].ItemId != f.Show.E1.ID || deref(d.Streams[0].PosterUrl) != wantPoster {
+		t.Errorf("streams = %+v, want E1 with the series poster %s", d.Streams, wantPoster)
+	}
+
+	wantStatus(t, send(t, h, http.MethodDelete, BasePath+"/admin/accounts/"+strconv.FormatInt(f.Guest.ID, 10), "p18", "", nil), http.StatusNoContent)
+	if d, _ = dashboard(); d.Counts.Accounts != accounts-1 {
+		t.Errorf("accounts after deleting one = %d, want %d at once", d.Counts.Accounts, accounts-1)
+	}
+	// A redeemed invitation creates an account; the count follows at once.
+	rec := send(t, h, http.MethodPost, BasePath+"/admin/invitations", "p18", `{"maxRating":12,"allLibraries":true}`, nil)
+	wantStatus(t, rec, http.StatusCreated)
+	var inv gen.InvitationCreated
+	decode(t, rec, &inv)
+	rec = send(t, h, http.MethodPost, BasePath+"/invitations/"+inv.Token+"/accept", "",
+		`{"email":"neu@example.ch","password":"FAKE-guest-password-4711","profileName":"Neu","language":"de"}`, nil)
+	wantStatus(t, rec, http.StatusCreated)
+	if d, _ = dashboard(); d.Counts.Accounts != accounts {
+		t.Errorf("accounts after a redeemed invitation = %d, want %d at once", d.Counts.Accounts, accounts)
+	}
+}
+
 // A-3, A-5 on the contract fixture: the administration answers have their shape, and after a
 // check of the mock manifest the main account's session carries the update notice while a guest's
 // does not.
@@ -195,5 +350,107 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	}
 	if n := sessionNotice("pg"); n != nil {
 		t.Errorf("guest: notice = %+v, want none", n)
+	}
+}
+
+// Concept 11 step 2 (contract 1.7.0): Dashboard.activity over HTTP. Without events the list is
+// empty, not absent; after a scan and a playback the entries come newest first with the profile
+// name, the e-mail address and the title read by the server, and no sentence.
+func TestDashboardActivityOverHTTP(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	f, h, ctx := pf.f, pf.h, context.Background()
+	pf.pb.WithActivity(pf.admin.RecordActivity)
+	dashboard := func() (gen.Dashboard, string) {
+		t.Helper()
+		rec := send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+		wantStatus(t, rec, http.StatusOK)
+		var d gen.Dashboard
+		decode(t, rec, &d)
+		return d, rec.Body.String()
+	}
+	if d, body := dashboard(); len(d.Activity) != 0 || !strings.Contains(body, `"activity":[]`) {
+		t.Fatalf("activity without events = %s", body)
+	}
+	newTitles := 3
+	pf.admin.RecordActivity(ctx, model.ActivityEvent{
+		Kind: model.ActivityScanDone, At: time.Now().Add(-time.Minute), LibraryID: f.LibraryID(), Subject: "Filme",
+		Detail: model.ActivityDetail{NewTitles: &newTitles},
+	})
+	movie := f.Rated(12)
+	if _, code, _ := play(t, h, "p18", movie.ID, `{}`); code != http.StatusOK {
+		t.Fatalf("play = %d", code)
+	}
+	var d gen.Dashboard
+	var body string
+	deadline := time.Now().Add(5 * time.Second)
+	for d, body = dashboard(); len(d.Activity) < 2 && time.Now().Before(deadline); d, body = dashboard() {
+		time.Sleep(20 * time.Millisecond) // the start is written in the background
+	}
+	if len(d.Activity) != 2 {
+		t.Fatalf("activity = %s", body)
+	}
+	p, s := d.Activity[0], d.Activity[1]
+	if p.Kind != model.ActivityPlaybackStarted || deref(p.ProfileName) != f.P18.Name || deref(p.AccountEmail) != f.Account.Email ||
+		p.ItemTitle == nil || *p.ItemTitle == "" || p.LibraryName != nil || p.At.Location() != time.UTC {
+		t.Errorf("playback entry = %+v", p)
+	}
+	if s.Kind != model.ActivityScanDone || deref(s.LibraryName) != "Filme" || s.ItemTitle != nil || s.ProfileName != nil ||
+		s.Detail.NewTitles == nil || *s.Detail.NewTitles != 3 || s.Detail.Reason != nil {
+		t.Errorf("scan entry = %+v", s)
+	}
+	if !p.At.After(s.At) || p.Id == s.Id {
+		t.Errorf("not newest first: %v, %v", p.At, s.At)
+	}
+	if !strings.Contains(body, `"detail":{}`) || !strings.Contains(body, `"detail":{"newTitles":3}`) {
+		t.Errorf("detail fields not omitted when empty: %s", body)
+	}
+}
+
+// Concept 11 step 3: restartServer over HTTP with the fixture's fake restart. 202 with restartAt,
+// the fake runs about a second later, a second call and a restore answer 409 restart_pending,
+// and the dashboard lists server_restart with the account that asked.
+func TestRestartServerOverHTTP(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	h := pf.h
+	rec := send(t, h, http.MethodPost, BasePath+"/admin/backups", "p18", `{"includeSecrets":false}`, nil)
+	wantStatus(t, rec, http.StatusCreated)
+	var backup gen.Backup
+	decode(t, rec, &backup)
+
+	before := time.Now()
+	rec = send(t, h, http.MethodPost, BasePath+"/admin/server/restart", "p18", "", nil)
+	wantStatus(t, rec, http.StatusAccepted)
+	var res gen.RestartAccepted
+	decode(t, rec, &res)
+	if !res.RestartAt.After(before) || res.RestartAt.Location() != time.UTC {
+		t.Errorf("restartAt = %v, want after %v in UTC", res.RestartAt, before)
+	}
+	for _, path := range []string{"/admin/server/restart", "/admin/backups/" + backup.Name + "/restore"} {
+		rec = send(t, h, http.MethodPost, BasePath+path, "p18", "", nil)
+		if rec.Code != http.StatusConflict || problemCode(t, rec) != "restart_pending" {
+			t.Errorf("%s while pending: %d %s, want 409 restart_pending", path, rec.Code, rec.Body.String())
+		}
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for pf.restarts.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if n := pf.restarts.Load(); n != 1 {
+		t.Errorf("fake restart called %d times, want 1", n)
+	}
+	rec = send(t, h, http.MethodGet, BasePath+"/admin/dashboard", "p18", "", nil)
+	wantStatus(t, rec, http.StatusOK)
+	var d gen.Dashboard
+	decode(t, rec, &d)
+	var restarts []gen.ActivityEntry
+	for _, a := range d.Activity {
+		if a.Kind == model.ActivityServerRestart {
+			restarts = append(restarts, a)
+		}
+	}
+	if len(restarts) != 1 || deref(restarts[0].AccountEmail) != pf.f.Account.Email || restarts[0].ProfileName != nil {
+		t.Errorf("server_restart entries = %+v, want one of %s", restarts, pf.f.Account.Email)
 	}
 }

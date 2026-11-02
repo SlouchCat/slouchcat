@@ -25,8 +25,13 @@ test('the scanned test library is listed with its state and counts', async ({ pa
 });
 
 test('Tab reaches header, rescan and the add form in order; no focus trap', async ({ page }) => {
-  // The admin navigation is one Tab stop: its current page.
-  await tabTo(page, page.getByRole('link', { name: 'Bibliotheken' }));
+  // The admin sidebar is one Tab stop: its current page.
+  await tabTo(
+    page,
+    page
+      .getByRole('navigation', { name: 'Verwaltung' })
+      .getByRole('link', { name: /^Bibliotheken(,|$)/ }),
+  );
   await tabTo(page, filme(page).getByRole('button', { name: 'Erneut scannen' }));
   // Other libraries ("Serien", "Hörbücher", "Podcasts", "E2E leer") have their buttons in between,
   // as many as there are libraries: no fixed budget.

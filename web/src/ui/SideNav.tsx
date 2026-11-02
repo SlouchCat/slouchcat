@@ -77,6 +77,9 @@ function storeLibrariesOpen(open: boolean): void {
 /** Focus key of an entry: the column and the drawer use prefixes of their own. */
 const entryKey = (prefix: string, href: string) => `${prefix}-${href}`;
 
+/** Focus key of the column's entry for `href`, for the focus when the column comes back. */
+export const sideNavFocusKey = (href: string) => entryKey('sidenav', href);
+
 /** Focus key of the column's "Seitenleiste ausblenden", for the focus after showing the column. */
 export const SIDENAV_HIDE_KEY = 'sidenav-hide';
 
@@ -244,7 +247,7 @@ function currentKey({ primary, libraries, picks, footer }: SideNavProps): string
     ...footer,
   ];
   const current = entries.find((entry) => entry.current);
-  return current && entryKey('sidenav', current.href);
+  return current && sideNavFocusKey(current.href);
 }
 
 /**

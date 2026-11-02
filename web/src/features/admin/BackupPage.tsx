@@ -1,6 +1,6 @@
 import type { Backup, BackupRequest, components, RestoreResult } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -8,7 +8,7 @@ import { useActiveSession } from '@/app/session';
 import { formatBytes, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useTransientMutation } from '@/lib/useTransientMutation';
-import { ButtonLink, Notice, Page, Panel, Skeleton, Text } from '@/ui';
+import { ButtonLink, Notice, Page, Skeleton, Text } from '@/ui';
 import {
   AriaButton,
   ConfirmDialog,
@@ -20,7 +20,8 @@ import {
   type DataColumn,
 } from '@/ui/aria';
 import { backupsQuery } from './queries';
-import { reloadToLogin, RESTART_GIVE_UP_MS, RESTART_POLL_MS, restartedSince } from './restart';
+import { reloadToLogin } from './restart';
+import { RestartPanel } from './RestartPanel';
 import data from './AdminData.module.css';
 import styles from './AdminTablePage.module.css';
 
@@ -254,89 +255,6 @@ function RestoreDialog({
 }
 
 /**
- * «Server startet neu»: asks `/healthz` every 2 s and opens the sign-in page as soon as the new
- * server process answers. After 90 s without it the panel stops asking and says so, with a
- * button that waits again.
- */
-function RestartPanel({ restart }: { restart: Restart }) {
-  const { t } = useTranslation();
-  const heading = useRef<HTMLHeadingElement>(null);
-  const { result, acceptedAt } = restart;
-  // Start of the current wait: the restore, or the last «Erneut prüfen».
-  const [waitingSince, setWaitingSince] = useState(acceptedAt);
-  const [gaveUp, setGaveUp] = useState(false);
-  const health = useQuery({
-    queryKey: ['restart', 'health', acceptedAt],
-    queryFn: ({ signal }) => request(api.GET('/healthz', { signal })),
-    refetchInterval: gaveUp ? false : RESTART_POLL_MS,
-    retry: false,
-    gcTime: 0,
-  });
-  const back =
-    health.data !== undefined && restartedSince(health.data, acceptedAt, health.dataUpdatedAt);
-
-  // The page content changed under the confirmation that started this: the heading takes the
-  // focus, so keyboard and screen reader users land on the news.
-  useEffect(() => {
-    heading.current?.focus();
-  }, []);
-  useEffect(() => {
-    if (back) reloadToLogin();
-  }, [back]);
-  useEffect(() => {
-    if (back || gaveUp) return;
-    const timer = setTimeout(
-      () => setGaveUp(true),
-      Math.max(0, waitingSince + RESTART_GIVE_UP_MS - Date.now()),
-    );
-    return () => clearTimeout(timer);
-  }, [back, gaveUp, waitingSince]);
-
-  const waitAgain = () => {
-    setGaveUp(false);
-    setWaitingSince(Date.now());
-    void health.refetch();
-    // The button goes away with the notice: the focus goes back to the heading.
-    heading.current?.focus();
-  };
-
-  return (
-    <Panel as="section" aria-labelledby="restart-heading">
-      <h2 id="restart-heading" ref={heading} tabIndex={-1} className={data.panelTitle}>
-        {t('admin.backup.restart.title')}
-      </h2>
-      <Text>{t('admin.backup.restart.body', { version: result.version })}</Text>
-      {!result.includesSecrets && (
-        <Notice tone="warning" live={false}>
-          {t('admin.backup.restart.noSecrets')}
-        </Notice>
-      )}
-      <p role="status" className={data.status}>
-        {back
-          ? t('admin.backup.restart.back')
-          : gaveUp
-            ? t('admin.backup.restart.silent', { seconds: RESTART_GIVE_UP_MS / 1000 })
-            : t('admin.backup.restart.waiting')}
-      </p>
-      {gaveUp && !back && (
-        <Notice
-          tone="warning"
-          live={false}
-          title={t('admin.backup.restart.slow.title')}
-          actions={
-            <AriaButton icon="refresh" onPress={waitAgain}>
-              {t('admin.backup.restart.slow.retry')}
-            </AriaButton>
-          }
-        >
-          {t('admin.backup.restart.slow.body')}
-        </Notice>
-      )}
-    </Panel>
-  );
-}
-
-/**
  * Backup (A-4): the archives in the backup directory with download, delete and restore, a new
  * backup with or without secrets, and the restore of an uploaded archive. A restore replaces every
  * piece of data and restarts the server; the page then waits for it and opens the sign-in.
@@ -507,7 +425,19 @@ export function BackupPage() {
           {t('admin.access.notAllowed.body')}
         </Notice>
       ) : restart ? (
-        <RestartPanel restart={restart} />
+        <RestartPanel
+          acceptedAt={restart.acceptedAt}
+          title={t('admin.backup.restart.title')}
+          body={t('admin.backup.restart.body', { version: restart.result.version })}
+          notice={
+            restart.result.includesSecrets ? undefined : (
+              <Notice tone="warning" live={false}>
+                {t('admin.backup.restart.noSecrets')}
+              </Notice>
+            )
+          }
+          onBack={reloadToLogin}
+        />
       ) : (
         <div className={styles.body} aria-busy={backups.isPending}>
           <div className={data.toolbar}>

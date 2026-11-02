@@ -19,6 +19,7 @@ func (s *Service) ItemImageCandidates(ctx context.Context, itemID, kind string, 
 
 // SetItemImage chooses and locks the image of a kind and answers with the administration view.
 func (s *Service) SetItemImage(ctx context.Context, itemID, kind, provider, source string) (model.AdminItem, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if s.meta == nil {
 		return model.AdminItem{}, ErrNotConfigured
 	}
@@ -30,6 +31,7 @@ func (s *Service) SetItemImage(ctx context.Context, itemID, kind, provider, sour
 
 // ClearItemImage lifts the choice and the lock of a kind and answers with the administration view.
 func (s *Service) ClearItemImage(ctx context.Context, itemID, kind string) (model.AdminItem, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if s.meta == nil {
 		return model.AdminItem{}, ErrNotConfigured
 	}

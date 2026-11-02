@@ -201,14 +201,14 @@ func (s *Service) handleScan(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return fmt.Errorf("load library %d: %w", p.LibraryID, err)
 	}
-	return s.runCancellable(ctx, j, lib.ID, func(ctx context.Context) error { return s.scan(ctx, lib) })
+	return s.runCancellable(ctx, j, lib.ID, func(ctx context.Context) error { return s.scan(ctx, lib, p.Trigger) })
 }
 
 // Scan runs a full scan of lib (see the package documentation). Aborts and cancellations
 // (CancelScan) are recorded in the library and return nil; other failures are recorded as failed
 // and returned.
 func (s *Service) Scan(ctx context.Context, lib appq.Library) error {
-	return s.runCancellable(ctx, nil, lib.ID, func(ctx context.Context) error { return s.scan(ctx, lib) })
+	return s.runCancellable(ctx, nil, lib.ID, func(ctx context.Context) error { return s.scan(ctx, lib, model.ScanTriggerManual) })
 }
 
 // scanRun is a running scan that CancelScan can stop.
@@ -241,12 +241,20 @@ func (s *Service) runCancellable(ctx context.Context, j *jobs.Job, libraryID int
 	err := scan(ctx)
 	if err != nil && errors.Is(context.Cause(ctx), errScanCancelled) {
 		s.log.InfoContext(ctx, "scan cancelled", "library_id", libraryID)
-		return s.setState(context.WithoutCancel(ctx), libraryID, "aborted", abortCancelled)
+		bg := context.WithoutCancel(ctx)
+		if lib, lerr := appq.New(s.db.Read).GetLibrary(bg, libraryID); lerr == nil {
+			s.recordActivity(bg, model.ActivityEvent{
+				Kind: model.ActivityScanAborted, LibraryID: lib.ID, Subject: lib.Name, Detail: model.ActivityDetail{Reason: abortCancelled},
+			})
+		}
+		return s.setState(bg, libraryID, "aborted", abortCancelled)
 	}
 	return err
 }
 
-func (s *Service) scan(ctx context.Context, lib appq.Library) error {
+// scan runs a full scan of lib; trigger is what queued it (model.ScanTrigger*, empty for a job
+// queued before 1.7.0).
+func (s *Service) scan(ctx context.Context, lib appq.Library, trigger string) error {
 	unlock, err := s.lockScan(ctx, lib.ID)
 	if err != nil {
 		return err
@@ -280,10 +288,17 @@ func (s *Service) scan(ctx context.Context, lib appq.Library) error {
 	if err := s.setState(ctx, lib.ID, "running", ""); err != nil {
 		return err
 	}
+	s.recordActivity(ctx, model.ActivityEvent{
+		Kind: model.ActivityScanStarted, LibraryID: lib.ID, Subject: lib.Name, Detail: model.ActivityDetail{Trigger: trigger},
+	})
 	stats, err := s.scanLibrary(ctx, lib)
 	if done, err := s.endScan(ctx, lib, "library scan", err); done {
 		return err
 	}
+	newTitles := stats.items
+	s.recordActivity(ctx, model.ActivityEvent{
+		Kind: model.ActivityScanDone, LibraryID: lib.ID, Subject: lib.Name, Detail: model.ActivityDetail{NewTitles: &newTitles},
+	})
 	s.log.InfoContext(ctx, "library scan done", "library_id", lib.ID, "kind", lib.Kind, "files", stats.files, "new", stats.created,
 		"updated", stats.updated, "missing", stats.missing, "items_created", stats.items, "duration", s.now().Sub(start))
 	// Artwork and metadata are not part of the scan result: a failed check is logged, the scan
@@ -328,6 +343,9 @@ func (s *Service) endScan(ctx context.Context, lib appq.Library, what string, er
 				s.log.WarnContext(ctx, "scan aborted hook failed", "library_id", lib.ID, "err", herr)
 			}
 		}
+		s.recordActivity(ctx, model.ActivityEvent{
+			Kind: model.ActivityScanAborted, LibraryID: lib.ID, Subject: lib.Name, Detail: model.ActivityDetail{Reason: abort.code},
+		})
 		return true, s.finish(ctx, lib, "aborted", abort.code, 0, 0)
 	case errors.Is(context.Cause(ctx), errScanCancelled):
 		return true, err
@@ -338,6 +356,10 @@ func (s *Service) endScan(ctx context.Context, lib appq.Library, what string, er
 		return true, err
 	default:
 		s.log.ErrorContext(ctx, what+" failed", "library_id", lib.ID, "err", err)
+		// The error text stays in the server log; the activity log carries the fixed code only.
+		s.recordActivity(context.WithoutCancel(ctx), model.ActivityEvent{
+			Kind: model.ActivityScanFailed, LibraryID: lib.ID, Subject: lib.Name, Detail: model.ActivityDetail{Reason: "error"},
+		})
 		if ferr := s.finish(context.WithoutCancel(ctx), lib, "failed", err.Error(), 0, 0); ferr != nil {
 			return true, errors.Join(err, ferr)
 		}

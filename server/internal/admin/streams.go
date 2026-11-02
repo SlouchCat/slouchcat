@@ -129,8 +129,20 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 		return nil, fmt.Errorf("stream titles: %w", err)
 	}
 	titles := make(map[string]string, len(items))
+	posterOf := make(map[string]string, len(items)) // item id -> the title whose poster it shows
+	posterIDs := make([]string, 0, len(items))
 	for _, it := range items {
 		titles[it.ID] = streamTitle(it)
+		pid := it.ID
+		if it.Kind == "episode" && it.SeriesID.Valid {
+			pid = it.SeriesID.String // an episode shows the poster of its series (concept 11)
+		}
+		posterOf[it.ID] = pid
+		posterIDs = append(posterIDs, pid)
+	}
+	posters, err := posterHashes(ctx, s.sys, posterIDs)
+	if err != nil {
+		return nil, fmt.Errorf("stream posters: %w", err)
 	}
 	durations, err := s.sys.AdminMediaFileDurations(ctx, fileIDs)
 	if err != nil {
@@ -145,6 +157,9 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 	for i := range streams {
 		st := &streams[i]
 		st.ItemTitle = titles[st.ItemID]
+		if pid := posterOf[st.ItemID]; posters[pid] != "" {
+			st.PosterItemID, st.PosterHash = pid, posters[pid]
+		}
 		if d, ok := byFile[st.MediaFileID]; ok {
 			st.DurationMs = &d
 		}

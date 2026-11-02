@@ -1471,6 +1471,10 @@ type AdminStream struct {
 	LastActivityAt time.Time
 	PositionMs     *int64
 	DurationMs     *int64
+	// PosterItemID and PosterHash name the poster of the overview (concept 11): the title's own,
+	// for an episode its series'; empty without a stored poster.
+	PosterItemID string
+	PosterHash   string
 }
 
 // PlaybackGrant is a valid stream token resolved to its playback session: the browser session

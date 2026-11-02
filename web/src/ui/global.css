@@ -21,7 +21,8 @@
   /*
    * Width of the side navigation (SideNav, concept 08): none below 768 px, where it is a drawer, and
    * none while the viewer hides it (`data-sidenav="hidden"` on this element, set before the first
-   * paint by the inline script in index.html). The content and both prepaints move by it.
+   * paint by the inline script in index.html) except on /admin (`data-shell="admin"`). The content
+   * and both prepaints move by it.
    */
   --sidenav-width: 0rem;
 }
@@ -172,7 +173,10 @@ img {
     --page-gutter: var(--sc-space-10);
   }
 
-  :root:not([data-sidenav='hidden']) {
+  /* The administration's sidebar stands on /admin even when the viewer hides the app's column
+     (`data-shell="admin"`, set by index.html and AppLayout; concept 11). */
+  :root:not([data-sidenav='hidden']),
+  :root[data-shell='admin'] {
     --sidenav-width: var(--sc-size-sidenav-width);
   }
 

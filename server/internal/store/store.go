@@ -38,6 +38,10 @@ var ErrNetworkShare = errors.New("/config must not live on a network share: SQLi
 type DB struct {
 	Write *sql.DB
 	Read  *sql.DB
+	// Restored is true when Open swapped in a staged restore: the server records backup_restored
+	// in the activity log of the restored database (concept 11), because a row written before the
+	// restart went with the replaced one.
+	Restored bool
 }
 
 // Options configure Open.
@@ -61,7 +65,8 @@ func Open(ctx context.Context, opts Options) (*DB, error) {
 		return nil, fmt.Errorf("%w (detected %s at %s)", ErrNetworkShare, fsType, opts.ConfigDir)
 	}
 	opts.Logger.Info("config directory checked", "dir", opts.ConfigDir, "fs_type", string(fsType))
-	if err := applyRestore(ctx, opts); err != nil {
+	restored, err := applyRestore(ctx, opts)
+	if err != nil {
 		return nil, err
 	}
 
@@ -80,7 +85,7 @@ func Open(ctx context.Context, opts Options) (*DB, error) {
 	if err != nil {
 		return nil, errors.Join(err, write.Close())
 	}
-	return &DB{Write: write, Read: read}, nil
+	return &DB{Write: write, Read: read, Restored: restored}, nil
 }
 
 // Close closes the reader pool and the writer.

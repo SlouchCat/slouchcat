@@ -135,6 +135,9 @@ func (s *Service) DeleteAccount(ctx context.Context, accountID int64, end func(c
 	if _, err := s.write.DeleteAccount(ctx, acc.ID); err != nil {
 		return fmt.Errorf("delete account: %w", err)
 	}
+	// The activity log keeps nothing of the account (concept 11): the trigger of migration 00031
+	// deletes its rows in the same statement, and an event written after it finds no account and is
+	// dropped (admin.RecordActivity).
 	if end != nil {
 		if err := end(ctx, acc.ID); err != nil {
 			return err

@@ -8,13 +8,16 @@
 #     SLOUCHCAT_PROFILE_ID=1 bash docs/perf/measure-home.sh [path]
 #
 # path defaults to /api/v1/home. SLOUCHCAT_BODY='{"query":"Se"}' turns the request into a POST with
-# that JSON body (the search of P-11, M10 section 3). The password is read from the environment only
-# and never printed.
+# that JSON body (the search of P-11, M10 section 3). SLOUCHCAT_PAUSE=61 waits that many seconds
+# before each measured request, so a server-side cache with a 60 s lifetime is cold every time
+# (GET /api/v1/admin/dashboard, docs/perf/verwaltung.md). The password is read from the environment
+# only and never printed.
 set -euo pipefail
 
 url=${SLOUCHCAT_URL:-http://localhost:8096}
 path=${1:-/api/v1/home}
 runs=${SLOUCHCAT_RUNS:-60}
+pause=${SLOUCHCAT_PAUSE:-0}
 jar=$(mktemp)
 trap 'rm -f "$jar"' EXIT
 
@@ -35,6 +38,7 @@ done
 times=()
 bad=0
 for _ in $(seq "$runs"); do
+  [ "$pause" = 0 ] || sleep "$pause"
   out=$(curl -sS -o /dev/null "${req[@]}" -w '%{http_code} %{time_total}' "$url$path")
   code=${out%% *}
   t=${out##* }

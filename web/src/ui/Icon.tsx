@@ -173,6 +173,32 @@ const paths = {
       <ellipse cx="12" cy="18.5" rx="7" ry="2" fill="none" />
     </>
   ),
+  // Administration sidebar and overview (concept 11, 11.6): the overview, the groups Library and
+  // System, restart, storage and recent activity.
+  grid: (
+    <>
+      <rect x="4" y="4" width="7" height="7" rx="1" fill="none" />
+      <rect x="13" y="4" width="7" height="7" rx="1" fill="none" />
+      <rect x="4" y="13" width="7" height="7" rx="1" fill="none" />
+      <rect x="13" y="13" width="7" height="7" rx="1" fill="none" />
+    </>
+  ),
+  film: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" fill="none" />
+      <path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" fill="none" />
+    </>
+  ),
+  server: (
+    <>
+      <rect x="3" y="4" width="18" height="7" rx="2" fill="none" />
+      <rect x="3" y="13" width="18" height="7" rx="2" fill="none" />
+      <path d="M7 7.5h.01M7 16.5h.01" fill="none" />
+    </>
+  ),
+  power: <path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0" fill="none" />,
+  disk: <path d="M4 14h16v5H4zM4 14l3-9h10l3 9M8 16.5h.01" fill="none" />,
+  activity: <path d="M3 12h4l3-8 4 16 3-8h4" fill="none" />,
 } as const;
 
 export type IconName = keyof typeof paths;

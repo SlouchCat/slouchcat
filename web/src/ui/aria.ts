@@ -1,11 +1,24 @@
 // react-aria based UI for forms, dialogs and the player, kept apart from '@/ui' so the browsing
 // pages (start, detail) never load react-aria (P-10). Features import it only from '@/ui/aria'.
-// The table, the chart, the storage meter, the admin navigation, the command block, the counter
+// The table, the chart, the storage meter, the command block, the counter
 // tiles and the link cards of the admin, settings and downloads pages live here too: they carry
-// CSS, and anything in '@/ui' lands in the start bundle.
+// CSS, and anything in '@/ui' lands in the start bundle. So do the administration's sidebar and
+// the overview's cards and rows: the app shell loads its admin column lazily (React.lazy), while
+// `data-shell="admin"` reserves the column's width before the first paint.
 export { AriaButton } from './AriaButton';
 export { AccentPicker } from './AccentPicker';
-export { AdminNav, type AdminNavGroup, type AdminNavLink } from './AdminNav';
+export { ActivityFeed, type ActivityEntry, type ActivityTone } from './ActivityFeed';
+export { DashCard } from './DashCard';
+export { StreamRow } from './StreamRow';
+export { TaskRow } from './TaskRow';
+export {
+  AdminSideNav,
+  type AdminSideNavEntry,
+  type AdminSideNavGroup,
+  type AdminSideNavProps,
+  type AdminSideNavTone,
+} from './AdminSideNav';
+export { AdminSideNavMenu, type AdminSideNavMenuProps } from './AdminSideNavMenu';
 export { BarChart, type BarDatum } from './BarChart';
 export { CheckboxGroup } from './CheckboxGroup';
 export { CodeBlock } from './CodeBlock';

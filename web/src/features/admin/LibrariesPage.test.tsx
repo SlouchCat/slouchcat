@@ -75,6 +75,27 @@ describe('admin libraries page', () => {
     );
   });
 
+  it('offers no loss acceptance once the loss is accepted, like the overview (concept 11)', async () => {
+    // The server's `attention.abortedScans` leaves out an accepted loss; the button does as well.
+    const accepted = library({
+      scan: {
+        state: 'aborted',
+        itemCount: 12,
+        fileCount: 2,
+        lastError: 'loss_over_threshold',
+        lossAcceptedAt: '2026-10-21T09:00:00Z',
+      },
+    });
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([accepted]) });
+    renderApp('/admin/libraries');
+
+    const card = await screen.findByRole('article', { name: 'Filme' });
+    expect(within(card).getByText(/Mehr als 20 % der Dateien fehlen/)).toBeVisible();
+    expect(
+      within(card).queryByRole('button', { name: 'Verlust akzeptieren' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('starts a rescan and polls every 5 s while the scan runs', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let state: 'done' | 'running' = 'done';

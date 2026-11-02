@@ -1,0 +1,176 @@
+/*
+ * The column: at the place and in the width of the app's side navigation (SideNav.module.css,
+ * .bar), fixed at the left below the header, scrolling on its own.
+ */
+.column {
+  position: fixed;
+  z-index: var(--sc-z-sticky);
+  top: var(--sc-size-header-height);
+  bottom: 0;
+  left: 0;
+  width: var(--sidenav-width);
+  overflow: hidden auto;
+  overscroll-behavior: contain;
+  padding: var(--sc-space-2) var(--sc-space-3) var(--sc-space-6);
+  border-right: 1px solid var(--sc-color-border-subtle);
+  background-color: var(--sc-color-bg-elevated);
+  scrollbar-width: thin;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin-top: var(--sc-space-3);
+}
+
+/*
+ * The group title as a band (F-9, style 3): the profile's accent at 16 % over the column, text in
+ * the accent. The tint is a variable of the band itself, not of :root, so a story or a frame with
+ * another accent recolours it. AdminSideNav.test.tsx checks the contrast for all eight accents.
+ */
+.band {
+  --sc-band-tint: color-mix(in srgb, var(--sc-accent) 16%, transparent);
+
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: calc(var(--sc-space-8) + 2px);
+  padding: 0 var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-band-tint);
+  color: var(--sc-accent);
+
+  /* 0.8125 rem, halfway between xs and sm. */
+  font-size: calc((var(--sc-font-size-xs) + var(--sc-font-size-sm)) / 2);
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+/* Every entry: a full-width line with its icon, the number or pill at its end. */
+.entry {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  width: 100%;
+  min-height: var(--sc-size-control-height);
+  padding: 0 var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  text-decoration: none;
+  transition:
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+/* The entries below a band are indented. */
+.indented {
+  padding-left: var(--sc-space-5);
+}
+
+.entry > svg {
+  color: var(--sc-color-text-muted);
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.entry:focus-visible {
+  color: var(--sc-color-text-primary);
+}
+
+@media (hover: hover) {
+  .entry:hover {
+    background-color: var(--sc-color-surface-2);
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.entry[aria-current='page'] {
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.entry[aria-current='page'] > svg {
+  color: var(--sc-accent);
+}
+
+.label {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  flex: none;
+  margin-left: auto;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The update badge, as on the app's side navigation. */
+.badge {
+  flex: none;
+  margin-left: auto;
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+}
+
+/* An alarm pill: the tone at 16 % behind the number in the tone (F-7). */
+.pill {
+  --sc-pill-tone: var(--sc-accent);
+  --sc-pill-tint: color-mix(in srgb, var(--sc-pill-tone) 16%, transparent);
+
+  flex: none;
+  margin-left: auto;
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-pill-tint);
+  color: var(--sc-pill-tone);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: calc(var(--sc-space-5) + 2px);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge + .pill,
+.badge + .count {
+  margin-left: 0;
+}
+
+.warning {
+  --sc-pill-tone: var(--sc-color-state-warning);
+}
+
+.danger {
+  --sc-pill-tone: var(--sc-color-state-danger);
+}
+
+.accent {
+  --sc-pill-tone: var(--sc-accent);
+}

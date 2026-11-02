@@ -3,6 +3,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, renderApp, session, signedIn, type Routes } from '@/test/api';
+import { adminShell, renderAdminPage } from '@/test/admin';
 
 // W-7 devices and W-6 streams for the main account's primary profile. The server lists and
 // enforces; the pages show the answers and send "Vergessen" and "Beenden".
@@ -169,9 +170,8 @@ describe('admin devices (W-7)', () => {
   });
 
   it('links devices and streams in the admin navigation', async () => {
-    mockApi({ ...signedIn, 'GET /admin/devices': () => json([]) });
-    renderApp('/admin/devices');
-    const nav = await screen.findByRole('navigation', { name: 'Verwaltung' });
+    mockApi({ ...signedIn, ...adminShell, 'GET /admin/devices': () => json([]) });
+    const { nav } = await renderAdminPage('/admin/devices');
     expect(within(nav).getByRole('link', { name: 'Geräte' })).toHaveAttribute(
       'aria-current',
       'page',

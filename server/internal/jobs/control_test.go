@@ -469,3 +469,18 @@ func TestProgressTimerAndSeries(t *testing.T) {
 		t.Errorf("recorder = %+v skipped %v", rec.Reports, rec.Skipped)
 	}
 }
+
+// Concept 11: jobs.prune runs the cleanups other packages register (the activity log of admin)
+// after the history, adds their rows to its count, and stops at the first error.
+func TestPruneRunsRegisteredTasks(t *testing.T) {
+	ctx := context.Background()
+	q, _ := newTestQueue(t)
+	var calls []string
+	q.AddPruneTask(func(context.Context) (int64, error) { calls = append(calls, "a"); return 7, nil })
+	q.AddPruneTask(func(context.Context) (int64, error) { calls = append(calls, "b"); return 0, errTest })
+	q.AddPruneTask(func(context.Context) (int64, error) { calls = append(calls, "c"); return 1, nil })
+	n, err := q.Prune(ctx)
+	if !errors.Is(err, errTest) || n != 7 || strings.Join(calls, ",") != "a,b" {
+		t.Errorf("prune = %d, %v after %v; want 7 rows, the error of b, c not run", n, err, calls)
+	}
+}

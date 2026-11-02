@@ -235,6 +235,8 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		}
 	}
 
+	s.recordStart(ctx, session, item)
+
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
 	mediaKind := model.MediaKindVideo
 	if d.Audio || item.Kind == "audiobook" || item.Kind == "podcast_episode" {

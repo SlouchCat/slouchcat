@@ -1,11 +1,22 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
-import { useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ComponentType,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { picksCountQuery, visibleLibrariesQuery } from '@/features/catalog/queries';
 import { notificationsPageQuery, notificationsQuery } from '@/features/discover/queries';
 import { Announcements } from '@/features/notifications/Announcements';
+import type { AdminShellNav as AdminShellNavType } from '@/features/admin/AdminShellNav';
 import { offlineSupported } from '@/features/offline/support';
+import { useWideScreen } from '@/lib/useWideScreen';
 import {
   AppHeader,
   BADGE_MAX,
@@ -14,6 +25,7 @@ import {
   SIDENAV_HIDE_KEY,
   SideNav,
   SideNavMenu,
+  sideNavFocusKey,
   SpatialGroup,
   type NavItem,
   type SideNavEntry,
@@ -22,6 +34,25 @@ import {
 import { paths } from './paths';
 import { useActiveSession, useLogout } from './session';
 import styles from './AppLayout.module.css';
+
+type AdminShellNavModule = { default: ComponentType<ComponentProps<typeof AdminShellNavType>> };
+
+/**
+ * The administration's sidebar (concept 11), loaded on the first /admin page: it builds on
+ * '@/ui/aria', which must stay out of the start bundle (P-10). While it loads, the width of the
+ * column is already reserved (`data-shell="admin"`, global.css), so nothing moves.
+ */
+const AdminShellNav = lazy(() =>
+  import('@/features/admin/AdminShellNav').then(
+    (module): AdminShellNavModule => ({ default: module.AdminShellNav }),
+    // A chunk that does not load (an old tab after an update) leaves the column empty, not the
+    // whole shell on an error page.
+    (): AdminShellNavModule => ({ default: () => null }),
+  ),
+);
+
+/** Index of «Übersicht» among the sidebar's entries (after «Zurück zur App»). */
+const ADMIN_OVERVIEW_INDEX = 1;
 
 /** localStorage key of the hidden side navigation; index.html reads it before the first paint. */
 const SIDENAV_KEY = 'slouchcat.sidenav';
@@ -44,24 +75,6 @@ function storeSideNavHidden(hidden: boolean): void {
   }
   if (hidden) document.documentElement.dataset.sidenav = 'hidden';
   else delete document.documentElement.dataset.sidenav;
-}
-
-/** The breakpoint of the side navigation's column (global.css, SideNav). */
-const WIDE = '(width >= 768px)';
-
-/** Whether the column fits; a browser without media queries (jsdom) counts as wide. */
-function useWideScreen(): boolean {
-  const [wide, setWide] = useState(
-    () => typeof window.matchMedia !== 'function' || window.matchMedia(WIDE).matches,
-  );
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const query = window.matchMedia(WIDE);
-    const update = () => setWide(query.matches);
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return wide;
 }
 
 /** Id of the drawer, named by the menu button. */
@@ -135,15 +148,38 @@ export function AppLayout() {
   const isPrimary = session.profile.isPrimary;
   const isAdmin = isPrimary && session.account.role === 'admin';
 
+  // On /admin/* an administrator gets the administration's sidebar in the column's place instead
+  // (concept 11, ADR 0019), from 768 px always, even when this device hides the app's column; the
+  // menu button opens the app's drawer there. Below 768 px the admin pages have a sheet of their
+  // own (AdminLayout).
+  const adminShell =
+    isAdmin && (pathname === paths.admin || pathname.startsWith(`${paths.admin}/`));
+  // index.html sets data-shell="admin" before the first paint, by the path alone; this keeps it
+  // right from then on, before every paint (the reserved width of the column, global.css).
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (!adminShell) {
+      delete root.dataset.shell;
+      return;
+    }
+    root.dataset.shell = 'admin';
+    return () => {
+      delete root.dataset.shell;
+    };
+  }, [adminShell]);
+  // The admin sidebar's focused entry, carried over when it mounts again (AdminSideNav).
+  const adminFocus = useRef<number | null>(null);
+
   // The column from 768 px unless the viewer hid it (per device); otherwise the drawer behind the
   // menu button. The drawer belongs to the page it was opened on: a new page closes it, and so
   // does the column appearing.
   const wide = useWideScreen();
   const [hidden, setHidden] = useState(readSideNavHidden);
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const barShown = wide && !hidden;
+  const barShown = wide && !hidden && !adminShell;
   const menuOpen = menuFor === pathname && !barShown;
-  // Hiding or showing the column takes away the focused entry: the focus moves to what replaces it.
+  // Hiding or showing the column, or swapping it for the admin sidebar, takes away the focused
+  // entry: the focus moves to what replaces it.
   const focusAfter = useRef<string | null>(null);
   useEffect(() => {
     const key = focusAfter.current;
@@ -151,7 +187,7 @@ export function AppLayout() {
     focusAfter.current = null;
     const frame = requestAnimationFrame(() => setSpatialFocus(key));
     return () => cancelAnimationFrame(frame);
-  }, [barShown]);
+  }, [barShown, adminShell]);
   const setSideNavHidden = (value: boolean) => {
     storeSideNavHidden(value);
     focusAfter.current = value ? HEADER_MENU_KEY : SIDENAV_HIDE_KEY;
@@ -203,8 +239,9 @@ export function AppLayout() {
     });
   }
   const footer: SideNavEntry[] = [];
-  // The administration is one entry (M8): its pages have a navigation of their own (AdminNav).
-  // The update hint of the main account (A-5) is its badge.
+  // The administration is one entry (M8): its pages have a sidebar of their own (AdminShellNav).
+  // The update hint of the main account (A-5) is its badge; on /admin/* the sidebar's overview
+  // entry carries it.
   if (isAdmin) {
     const update = session.updateAvailable;
     footer.push({
@@ -240,6 +277,24 @@ export function AppLayout() {
     hideLabel: t('nav.hideSidebar'),
     onHide: () => setSideNavHidden(true),
   };
+
+  // Into the administration from the app column, or back: the column that had the focus goes away,
+  // the focus falls to the body. Entering, the admin sidebar takes it on «Übersicht» once it has
+  // loaded; leaving, the app column on the current page's entry (or the menu button when the
+  // column is hidden). What the sidebar carried from an earlier visit is forgotten either way.
+  const currentEntry = [...nav, ...(typeof libraries === 'string' ? [] : [...libraries, picks])]
+    .concat(footer)
+    .find((entry) => entry.current);
+  const returnKey = barShown ? currentEntry && sideNavFocusKey(currentEntry.href) : HEADER_MENU_KEY;
+  const wasAdminShell = useRef(adminShell);
+  useLayoutEffect(() => {
+    if (wasAdminShell.current === adminShell) return;
+    wasAdminShell.current = adminShell;
+    const active = document.activeElement;
+    const lost = active === null || active === document.body;
+    adminFocus.current = adminShell && lost ? ADMIN_OVERVIEW_INDEX : null;
+    if (!adminShell && lost) focusAfter.current = returnKey ?? null;
+  }, [adminShell, returnKey]);
 
   return (
     <>
@@ -282,6 +337,11 @@ export function AppLayout() {
           }}
         />
         {barShown && <SideNav {...sideNav} />}
+        {adminShell && wide && (
+          <Suspense fallback={null}>
+            <AdminShellNav focusCarry={adminFocus} />
+          </Suspense>
+        )}
         <div id="content" tabIndex={-1} className={styles.content}>
           <SpatialGroup focusKey="content">
             <Outlet />
@@ -294,8 +354,9 @@ export function AppLayout() {
           onClose={() => setMenuFor(null)}
           menuLabel={t('nav.menu')}
           closeLabel={t('nav.menuClose')}
+          // On /admin/* the column is the administration's: showing the app's would change nothing.
           show={
-            wide
+            wide && !adminShell
               ? { label: t('nav.showSidebar'), onPress: () => setSideNavHidden(false) }
               : undefined
           }

@@ -119,31 +119,40 @@ func (s *Service) ListStreams(ctx context.Context) ([]model.AdminStream, error) 
 // (W-6): it revokes the row (stopped_by admin), closes its open Range responses and stops its
 // ffmpeg process. An unknown or already ended playback session is model.ErrNotFound.
 func (s *Service) StopStream(ctx context.Context, id string) error {
-	n, err := s.write.StopPlaybackSession(ctx, appq.StopPlaybackSessionParams{
+	rows, err := s.write.StopPlaybackSession(ctx, appq.StopPlaybackSessionParams{
 		ID: id, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, StoppedBy: nullString(model.StoppedByAdmin),
 	})
 	if err != nil {
 		return fmt.Errorf("stop playback session: %w", err)
 	}
-	if n == 0 {
+	if len(rows) == 0 {
 		return model.ErrNotFound
 	}
 	s.end(id)
 	s.log.InfoContext(ctx, "playback ended by the administration", "playback_id", id)
+	for _, r := range rows {
+		s.recordStopped(ctx, model.StoppedByAdmin, r.AccountID, r.ProfileID, r.ItemID)
+	}
 	return nil
 }
 
 // EndDevice ends every playback session of a device (forgotten by the administration, W-7): those
 // recorded for it and those its browser sessions started (stopped_by admin).
 func (s *Service) EndDevice(ctx context.Context, deviceID string) error {
-	ids, err := s.write.RevokePlaybackSessionsByDevice(ctx, appq.RevokePlaybackSessionsByDeviceParams{
+	rows, err := s.write.RevokePlaybackSessionsByDevice(ctx, appq.RevokePlaybackSessionsByDeviceParams{
 		DeviceID: nullString(deviceID), Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, StoppedBy: nullString(model.StoppedByAdmin),
 	})
 	if err != nil {
 		return fmt.Errorf("revoke playback sessions of device: %w", err)
 	}
-	for _, id := range ids {
-		s.end(id)
+	for _, r := range rows {
+		s.end(r.ID)
+	}
+	// One event per ended session (the UPDATE ends several at once, RETURNING names each). The row
+	// keeps stopped_by admin (the administration acted); the log says revoked, because forgetting
+	// the device revoked it, unlike a stop of one stream on the streams page.
+	for _, r := range rows {
+		s.recordStopped(ctx, model.StoppedByRevoked, r.AccountID, r.ProfileID, r.ItemID)
 	}
 	return nil
 }

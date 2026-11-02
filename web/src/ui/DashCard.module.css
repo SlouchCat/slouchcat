@@ -1,0 +1,49 @@
+.head {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  min-height: var(--sc-space-8);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-accent);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.count {
+  flex: none;
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: calc(var(--sc-space-5) + 2px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* At the bottom of the card, however short its body: the panel stretches to its grid cell. */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
+  margin-top: auto;
+}

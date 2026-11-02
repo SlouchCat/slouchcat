@@ -15,6 +15,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -943,6 +944,10 @@ type profileFixture struct {
 	senders   *contractSenders // what they sent
 
 	integrations *integrations.Service // M9 webhook receiver
+
+	// restarts counts the calls of the fake restart function (restore and restartServer, concept
+	// 11): no test restarts the process.
+	restarts *atomic.Int32
 }
 
 // contractPathScanner stands in for package library: the contract never queues a real scan.
@@ -984,6 +989,8 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	adm := admin.New(f.DB, a, &authTestLibraries{}, ring, &authTestTMDB{}, func(string) string { return "" }, log).
 		WithMetadata(contractMetadata{}).WithLibraryMaintenance(contractLibraryMaintenance{}).WithPodcasts(pods).WithTrakt(pods).
 		WithBackups(t.TempDir(), "test")
+	restarts := &atomic.Int32{}
+	adm.WithRestart(func() { restarts.Add(1) })
 
 	pa := profileAuth{Service: a, tokens: map[string]string{}}
 	sessions := map[string]model.Session{}
@@ -991,7 +998,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 		"p18": f.P18, "p16": f.P16, "p12": f.P12, "p6": f.P6, "p0": f.P0, "px": f.PX, "pg": f.PG, "pg18": f.PG18,
 		"pa2": f.PA2, "pa2k": f.PA2K,
 	}
-	pf := profileFixture{f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm, tracks: tracks}
+	pf := profileFixture{f: f, tokens: tokens, sessions: sessions, tc: newFakeTranscoder(), a: a, pa: pa, admin: adm, tracks: tracks, restarts: restarts}
 	for name, p := range tokens {
 		pf.newSession(t, name, p)
 	}

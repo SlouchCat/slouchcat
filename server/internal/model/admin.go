@@ -19,6 +19,8 @@ var (
 	ErrPassphraseWrong       = errors.New("passphrase wrong")             // 422 passphrase_wrong
 	ErrBackupInvalid         = errors.New("backup invalid")               // 422 backup_invalid
 	ErrBackupNewerThanServer = errors.New("backup newer than server")     // 422 backup_newer_than_server
+	ErrRestartPending        = errors.New("restart pending")              // 409 restart_pending (concept 11)
+	ErrBackupBusy            = errors.New("backup busy")                  // 409 backup_busy (concept 11)
 	ErrEmailNotConfigured    = errors.New("email not configured")         // 422 email_not_configured
 	ErrEmailSendFailed       = errors.New("email send failed")            // 502 email_send_failed (see SendError)
 	ErrTelegramTokenInvalid  = errors.New("telegram token invalid")       // 422 telegram_token_invalid
@@ -100,6 +102,92 @@ type Dashboard struct {
 	Errors       []ErrorEntry  // newest first, at most 50
 	Update       UpdateState
 	Browse       BrowseHealth // the folder browser of the library form (idea 02)
+	Attention    DashboardAttention
+	Counts       DashboardCounts
+	Activity     []ActivityEntry // the activity log, newest first, at most 6 (concept 11)
+}
+
+// Known kinds of the activity log (concept 11 section 11.4, ADR 0019). The contract has no enum
+// for them, so a new kind breaks no client; admin.RecordActivity refuses a kind not listed here.
+const (
+	ActivityPlaybackStarted   = "playback_started"
+	ActivityPlaybackCompleted = "playback_completed"
+	ActivityPlaybackStopped   = "playback_stopped"
+	ActivityScanStarted       = "scan_started"
+	ActivityScanDone          = "scan_done"
+	ActivityScanFailed        = "scan_failed"
+	ActivityScanAborted       = "scan_aborted"
+	ActivityJobFailed         = "job_failed"
+	ActivityBackupCreated     = "backup_created"
+	ActivityBackupRestored    = "backup_restored"
+	ActivityServerStarted     = "server_started"
+	ActivityServerRestart     = "server_restart"
+)
+
+// What started a full scan (ActivityDetail.Trigger).
+const (
+	ScanTriggerManual   = "manual"
+	ScanTriggerSchedule = "schedule"
+	ScanTriggerWatcher  = "watcher"
+)
+
+// ActivityEvent is one event for the activity log, handed to admin.RecordActivity by the hooks in
+// playback, library, jobs, admin and main. Zero values mean "none".
+type ActivityEvent struct {
+	Kind      string
+	At        time.Time // zero: now
+	AccountID int64
+	ProfileID int64
+	ItemID    string
+	LibraryID int64
+	Subject   string // name of the title or the library at the time of the event; empty: read from ItemID
+	Detail    ActivityDetail
+}
+
+// ActivityDetail holds the few numbers and fixed codes of an event (ActivityEntry.detail): no
+// secret, no path, no IP address and no free error text (rule 10). Reason is one of
+// root_missing, root_empty, loss_over_threshold, cancelled or error; By is admin or revoked.
+type ActivityDetail struct {
+	NewTitles *int   `json:"newTitles,omitempty"`
+	SizeBytes int64  `json:"sizeBytes,omitempty"`
+	Version   string `json:"version,omitempty"`
+	Trigger   string `json:"trigger,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+	JobType   string `json:"jobType,omitempty"`
+	Count     int    `json:"count,omitempty"`
+	By        string `json:"by,omitempty"`
+}
+
+// ActivityEntry is one row of the activity log as the dashboard shows it. Account and profile
+// are read when the log is read; empty when there was none or it is gone.
+type ActivityEntry struct {
+	ID           int64
+	At           time.Time
+	Kind         string
+	ProfileName  string
+	AccountEmail string
+	ItemTitle    string
+	LibraryName  string
+	Detail       ActivityDetail
+}
+
+// DashboardAttention is what needs the administrator's attention (concept 11).
+type DashboardAttention struct {
+	AbortedScans []AbortedScan // scans the loss protection aborted, loss not accepted
+}
+
+// AbortedScan is a library whose last scan the loss protection aborted.
+type AbortedScan struct {
+	LibraryID int64
+	Name      string
+	Reason    string // abort code (root_missing, root_empty, loss_over_threshold) or a message
+}
+
+// DashboardCounts are the counts of the admin sidebar (concept 11), at most 60 s old.
+type DashboardCounts struct {
+	Titles          int // items of every library, like LibraryScan.ItemCount
+	Accounts        int
+	MaintenanceOpen int // the five cheap maintenance counters, without rating_mismatch
 }
 
 // JobCounts counts the active and failed jobs, with the newest failed ones.
@@ -109,6 +197,23 @@ type JobCounts struct {
 	Failed       int
 	Paused       int          // paused job types (concept 09)
 	RecentFailed []JobSummary // newest first, at most 10
+	Active       []JobRun     // running jobs, newest start first, at most 3 (concept 11)
+	NextRun      *JobNextRun  // earliest next run of a switched-on schedule of an unpaused type; nil without
+	FailedByType []JobTypeFailures
+}
+
+// JobNextRun is the next scheduled run of a job type.
+type JobNextRun struct {
+	Type string
+	At   time.Time
+}
+
+// JobTypeFailures are the failed jobs of one type with the newest failure.
+type JobTypeFailures struct {
+	Type         string
+	Count        int
+	LastError    string // redacted
+	LastFailedAt time.Time
 }
 
 // Background jobs of concept 09 (ADR 0017): a job type and its runs as the page "Hintergrundjobs"
@@ -416,6 +521,11 @@ const MaxBackupBytes = 2 << 30
 type BackupRequest struct {
 	IncludeSecrets bool
 	Passphrase     string
+}
+
+// RestartAccepted answers a requested restart (concept 11); the server restarts at RestartAt.
+type RestartAccepted struct {
+	RestartAt time.Time
 }
 
 // RestoreResult answers a staged restore; the server restarts at RestartAt.

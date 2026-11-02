@@ -117,6 +117,7 @@ func (s *Service) mediaFiles(ctx context.Context, itemIDs []string) (map[string]
 // for series only. Package metadata stores the id, locks the provider ids and queues the match at
 // high priority; the answer is the administration view after the assignment.
 func (s *Service) SetItemMatch(ctx context.Context, itemID, provider, providerID string) (model.AdminItem, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if s.meta == nil {
 		return model.AdminItem{}, ErrNotConfigured
 	}
@@ -153,6 +154,7 @@ func (s *Service) SetItemMatch(ctx context.Context, itemID, provider, providerID
 // RefreshItem queues the metadata match (which queues images and trailers) and the probes of every
 // file of the title; locked fields and manual trailers stay.
 func (s *Service) RefreshItem(ctx context.Context, itemID string) (model.AdminItem, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if s.meta == nil {
 		return model.AdminItem{}, ErrNotConfigured
 	}
@@ -257,6 +259,7 @@ func (s *Service) SearchMetadata(ctx context.Context, provider, kind, query stri
 // CancelLibraryScan cancels the queued or running scan of a library; without one the library is
 // returned unchanged.
 func (s *Service) CancelLibraryScan(ctx context.Context, libraryID int64) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if s.maint == nil {
 		return model.Library{}, ErrNotConfigured
 	}

@@ -236,6 +236,9 @@ type AdminService interface {
 	SystemInfo(ctx context.Context) (model.SystemInfo, error)
 	// Dashboard returns the admin overview (A-3).
 	Dashboard(ctx context.Context) (model.Dashboard, error)
+	// ForgetDashboardCounts drops the kept counts of the admin sidebar after a change on the
+	// accounts page (concept 11); the next dashboard recomputes them.
+	ForgetDashboardCounts()
 	// RetryJob queues a failed job again (model.ErrNotFound, model.ErrJobNotFailed); CancelJob
 	// cancels a queued or running one (model.ErrNotFound for an unknown or ended job).
 	RetryJob(ctx context.Context, id int64) (model.JobSummary, error)
@@ -276,6 +279,10 @@ type AdminService interface {
 	DeleteBackup(ctx context.Context, name string) error
 	RestoreBackupUpload(ctx context.Context, archive io.Reader, passphrase string) (model.RestoreResult, error)
 	RestoreBackup(ctx context.Context, name, passphrase string) (model.RestoreResult, error)
+	// RestartServer schedules a restart of the server (concept 11) and records it for the account:
+	// model.ErrBackupBusy while a backup or restore runs, model.ErrRestartPending while a restart
+	// or a restore is scheduled. The restores answer model.ErrRestartPending as well.
+	RestartServer(ctx context.Context, accountID int64) (model.RestartAccepted, error)
 	// Update check (A-5); CheckForUpdate: model.ErrUpdateCheckDisabled. UpdateAvailable is the
 	// header notice of SessionInfo for the main account, answered from memory; nil = none.
 	UpdateState(ctx context.Context) (model.UpdateState, error)

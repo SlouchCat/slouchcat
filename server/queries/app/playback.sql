@@ -37,10 +37,12 @@ UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
 WHERE session_id = @session_id AND revoked_at IS NULL
 RETURNING id;
 
--- name: StopPlaybackSession :execrows
--- Ends a running playback session of any browser session (administration, W-6).
+-- name: StopPlaybackSession :many
+-- Ends a running playback session of any browser session (administration, W-6). The row tells
+-- the activity log whose playback ended (no row: unknown or ended already).
 UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
-WHERE id = @id AND revoked_at IS NULL AND expires_at > @now;
+WHERE id = @id AND revoked_at IS NULL AND expires_at > @now
+RETURNING id, account_id, profile_id, item_id;
 
 -- name: RevokePlaybackSessionsByDevice :many
 -- Playback sessions of a device: recorded for it or started by one of its browser sessions.
@@ -48,7 +50,7 @@ UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
 WHERE revoked_at IS NULL
   AND (playback_sessions.device_id = sqlc.arg('device_id')
        OR playback_sessions.session_id IN (SELECT s.id FROM sessions AS s WHERE s.device_id = sqlc.arg('device_id')))
-RETURNING id;
+RETURNING id, account_id, profile_id, item_id;
 
 -- name: CountActivePlaybackSessions :one
 -- Running streams of a profile (W-8 maxStreams): not revoked, not expired, a request within the

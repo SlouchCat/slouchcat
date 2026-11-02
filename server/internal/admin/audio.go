@@ -48,6 +48,7 @@ func (s *Service) WithPodcasts(p Podcasts) *Service {
 // model.ErrNotFound, *model.ValidationError (name required or too_long, defaultRating
 // invalid_value, not_allowed for video libraries).
 func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.LibraryUpdate) (model.Library, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	lib, err := s.read.GetLibrary(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return model.Library{}, model.ErrNotFound

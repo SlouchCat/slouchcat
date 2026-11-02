@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, renderApp, signedIn } from '@/test/api';
+import { adminShell, renderAdminPage } from '@/test/admin';
 
 const keys = [
   'spotlight',
@@ -41,10 +42,11 @@ describe('admin start page rows (M7, E-9)', () => {
   it('moves and hides rows and saves all eight at once', async () => {
     const { calls } = mockApi({
       ...signedIn,
+      ...adminShell,
       'GET /admin/home-rows': () => json(defaultRows),
       'PUT /admin/home-rows': (call) => json(call.body),
     });
-    renderApp('/admin/home-rows');
+    const { nav } = await renderAdminPage('/admin/home-rows');
     const user = userEvent.setup();
 
     await screen.findByRole('table', { name: 'Reihen der Startseite' });
@@ -91,9 +93,7 @@ describe('admin start page rows (M7, E-9)', () => {
     expect(body.map((row) => row.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     expect(body.find((row) => row.key === 'genres')?.hidden).toBe(true);
     expect(body.filter((row) => row.hidden)).toHaveLength(1);
-    expect(
-      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
-    ).toHaveTextContent('Startseite');
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
   });
 
   it('leaves the Trakt status to the spotlight page and links there in one line', async () => {

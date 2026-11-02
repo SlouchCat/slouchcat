@@ -11,6 +11,9 @@ const problemKeys = {
   passphrase_wrong: 'errors.code.passphrase_wrong',
   backup_invalid: 'errors.code.backup_invalid',
   backup_newer_than_server: 'errors.code.backup_newer_than_server',
+  // Concept 11: restart and restore.
+  restart_pending: 'errors.code.restart_pending',
+  backup_busy: 'errors.code.backup_busy',
   announcement_published: 'errors.code.announcement_published',
   library_path_invalid: 'errors.code.library_path_invalid',
   // The folder browser of the library form (idea 02).

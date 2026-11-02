@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ids, profiles } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { adminShell, renderAdminPage } from '@/test/admin';
 
 const heatPick: AdminPick = {
   id: 11,
@@ -81,8 +82,8 @@ describe('admin picks page (M7, E-2)', () => {
   });
 
   it('lists the picks in carousel order with target, note and time window', async () => {
-    mockApi({ ...routes, 'GET /admin/picks': () => json([heatPick, arrivalPick]) });
-    renderApp('/admin/picks');
+    mockApi({ ...routes, ...adminShell, 'GET /admin/picks': () => json([heatPick, arrivalPick]) });
+    const { nav } = await renderAdminPage('/admin/picks');
 
     const table = await screen.findByRole('table', {
       name: 'Empfehlungen in der Reihenfolge der Reihe',
@@ -101,9 +102,7 @@ describe('admin picks page (M7, E-2)', () => {
     // The ends of the list cannot move further.
     expect(within(rows[1]!).getByRole('button', { name: 'Heat nach oben' })).toBeDisabled();
     expect(within(rows[2]!).getByRole('button', { name: 'Arrival nach unten' })).toBeDisabled();
-    expect(
-      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
-    ).toHaveTextContent("Cat's Empfehlungen");
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent("Cat's Empfehlungen");
   });
 
   it('numbers the picks, shows their posters, counts the planned ones and points to the start page', async () => {

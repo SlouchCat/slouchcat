@@ -46,14 +46,14 @@ async function restoreSweep(api: APIRequestContext): Promise<void> {
   expect(response.status(), await response.text()).toBe(200);
 }
 
-/** Presses → in the admin navigation until `name` has the focus. */
+/** Presses ↓ in the admin sidebar until `name` has the focus. */
 async function navTo(page: Page, name: string): Promise<void> {
   const link = page
     .getByRole('navigation', { name: 'Verwaltung' })
-    .getByRole('link', { name, exact: true });
+    .getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
   for (let presses = 0; presses < 20; presses += 1) {
     if (await link.evaluate((element) => element === document.activeElement)) break;
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
   }
   await expectFocusOn(page, link);
 }
@@ -71,13 +71,14 @@ test('background jobs by keyboard: run, pause, resume, runs and schedule', async
   await resumeAll(owner);
   await restoreSweep(owner);
 
-  // From the overview through the admin navigation; the dashboard links the page.
+  // From the overview through the admin sidebar; the card «Aufgaben» links the page.
   await page.goto('/admin');
   await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Alle Jobs' })).toHaveAttribute(
-    'href',
-    '/admin/jobs',
-  );
+  await expect(
+    page
+      .getByRole('region', { name: 'Aufgaben', exact: true })
+      .getByRole('link', { name: 'Hintergrundjobs' }),
+  ).toHaveAttribute('href', '/admin/jobs');
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
   await resetFocus(page);
   await tabTo(page, nav.getByRole('link', { name: 'Übersicht' }), TAB_MAX);

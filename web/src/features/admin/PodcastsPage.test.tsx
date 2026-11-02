@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminPodcast, audioIds, library } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
+import { adminShell, renderAdminPage } from '@/test/admin';
 
 const podcastLibrary = library({
   id: 3,
@@ -26,6 +27,7 @@ describe('admin podcasts page (M6, H-2)', () => {
   it('lists the subscriptions with library, episodes, last fetch and error', async () => {
     mockApi({
       ...routes,
+      ...adminShell,
       'GET /admin/podcasts': () =>
         json([
           adminPodcast,
@@ -40,7 +42,7 @@ describe('admin podcasts page (M6, H-2)', () => {
           },
         ]),
     });
-    renderApp('/admin/podcasts');
+    const { nav } = await renderAdminPage('/admin/podcasts');
 
     const table = await screen.findByRole('table', { name: 'Abonnierte Podcasts' });
     const rows = within(table).getAllByRole('row');
@@ -58,9 +60,7 @@ describe('admin podcasts page (M6, H-2)', () => {
       ),
     ).toBeVisible();
     expect(within(rows[2]!).getByText('HTTP 404')).toBeVisible();
-    expect(
-      screen.getByRole('navigation', { name: 'Verwaltung' }).querySelector('[aria-current="page"]'),
-    ).toHaveTextContent('Podcasts');
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Podcasts');
   });
 
   it('marks podcasts from folders and keeps their feed, which the folder decides', async () => {

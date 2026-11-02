@@ -87,6 +87,108 @@ func (q *Queries) ListFailedJobs(ctx context.Context, limitCount int64) ([]ListF
 	return items, nil
 }
 
+const listFailedJobsNewestPerType = `-- name: ListFailedJobsNewestPerType :many
+SELECT type, failed_count, last_error, updated_at
+FROM (
+    SELECT type, last_error, updated_at, id,
+           ROW_NUMBER() OVER (PARTITION BY type ORDER BY updated_at DESC, id DESC) AS rn,
+           COUNT(*) OVER (PARTITION BY type) AS failed_count
+    FROM jobs
+    WHERE state = 'failed'
+) AS f
+WHERE rn = 1
+ORDER BY updated_at DESC, id DESC
+`
+
+type ListFailedJobsNewestPerTypeRow struct {
+	Type        string
+	FailedCount int64
+	LastError   sql.NullString
+	UpdatedAt   int64
+}
+
+// Per type the newest failed job with the number of failed jobs of the type, the type with the
+// newest failure first (concept 11, JobCounts.failedByType).
+func (q *Queries) ListFailedJobsNewestPerType(ctx context.Context) ([]ListFailedJobsNewestPerTypeRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFailedJobsNewestPerType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFailedJobsNewestPerTypeRow{}
+	for rows.Next() {
+		var i ListFailedJobsNewestPerTypeRow
+		if err := rows.Scan(
+			&i.Type,
+			&i.FailedCount,
+			&i.LastError,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRunningJobs = `-- name: ListRunningJobs :many
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs
+WHERE state = 'running'
+ORDER BY started_at DESC, id DESC
+LIMIT ?1
+`
+
+// The running jobs of every type, the newest start first (concept 11, JobCounts.active).
+func (q *Queries) ListRunningJobs(ctx context.Context, limitCount int64) ([]Job, error) {
+	rows, err := q.db.QueryContext(ctx, listRunningJobs, limitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Job{}
+	for rows.Next() {
+		var i Job
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Priority,
+			&i.IdempotencyKey,
+			&i.Payload,
+			&i.State,
+			&i.RunAfter,
+			&i.LeaseOwner,
+			&i.LeaseUntil,
+			&i.Attempts,
+			&i.MaxAttempts,
+			&i.LastError,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.ProgressDone,
+			&i.ProgressTotal,
+			&i.ProgressNote,
+			&i.Skipped,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const retryFailedJob = `-- name: RetryFailedJob :execrows
 UPDATE jobs
 SET state = 'queued', attempts = 0, run_after = ?1, lease_owner = NULL, lease_until = NULL, updated_at = ?1,

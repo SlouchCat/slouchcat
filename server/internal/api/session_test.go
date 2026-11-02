@@ -187,6 +187,8 @@ func TestMapError(t *testing.T) {
 		model.ErrPassphraseWrong:                {422, "passphrase_wrong"},
 		model.ErrBackupInvalid:                  {422, "backup_invalid"},
 		model.ErrBackupNewerThanServer:          {422, "backup_newer_than_server"},
+		model.ErrRestartPending:                 {409, "restart_pending"},
+		model.ErrBackupBusy:                     {409, "backup_busy"},
 		model.ErrEmailNotConfigured:             {422, "email_not_configured"},
 		&model.SendError{Err: model.ErrEmailSendFailed, Detail: "550 mailbox unavailable"}: {502, "email_send_failed"},
 		&model.SendError{Err: model.ErrSendFailed, Detail: "push service answered 500"}:    {502, "send_failed"},

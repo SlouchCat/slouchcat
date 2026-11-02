@@ -31,7 +31,9 @@ func (s *server) UpdateAccountAccess(ctx context.Context, req gen.UpdateAccountA
 		MaxRating: ratingPtr(b.MaxRating), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds,
 		Limits: fromPlaybackLimits(b.Limits),
 	}
-	if err := svc.UpdateAccountAccess(ctx, req.Id, upd); err != nil {
+	err = svc.UpdateAccountAccess(ctx, req.Id, upd)
+	s.forgetDashboardCounts()
+	if err != nil {
 		return s.problem(ctx, err), nil
 	}
 	// A lowered ceiling or a withdrawn library hides titles at once, so a running direct stream
@@ -54,7 +56,9 @@ func (s *server) DeleteAccount(ctx context.Context, req gen.DeleteAccountRequest
 	if s.opts.Playback != nil {
 		end = s.opts.Playback.EndAccount
 	}
-	if err := svc.DeleteAccount(ctx, req.Id, end); err != nil {
+	err = svc.DeleteAccount(ctx, req.Id, end)
+	s.forgetDashboardCounts()
+	if err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.DeleteAccount204Response{}, nil
@@ -68,8 +72,18 @@ func (s *server) SetAccountRole(ctx context.Context, req gen.SetAccountRoleReque
 	if err != nil {
 		return nil, err
 	}
-	if err := svc.SetAccountRole(ctx, req.Id, string(deref(req.Body).Role)); err != nil {
+	err = svc.SetAccountRole(ctx, req.Id, string(deref(req.Body).Role))
+	s.forgetDashboardCounts()
+	if err != nil {
 		return s.problem(ctx, err), nil
 	}
 	return gen.SetAccountRole204Response{}, nil
+}
+
+// forgetDashboardCounts lets the next dashboard recount the accounts of the admin sidebar
+// (concept 11) after a change on the accounts page or a redeemed invitation.
+func (s *server) forgetDashboardCounts() {
+	if s.opts.Admin != nil {
+		s.opts.Admin.ForgetDashboardCounts()
+	}
 }

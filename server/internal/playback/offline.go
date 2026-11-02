@@ -69,6 +69,10 @@ func (s *Service) OfflineWatchTime(ctx context.Context, profile model.Profile, n
 // Afterwards every profile with accepted events gets the watch-limit check of Report: at the
 // limit its running playback ends (stopped_by limit). An empty batch, more than MaxOfflineEvents
 // events or a missing sentAt is a *model.ValidationError.
+//
+// Offline progress writes no playback_completed to the activity log (concept 11) on purpose: a
+// batch arrives hours after the watching, often many titles at once, and the log shows what
+// happens on the server now.
 func (s *Service) ReportOffline(ctx context.Context, session model.Session, sentAt time.Time, events []model.OfflineEvent) (model.OfflineEventResult, error) {
 	var verr *model.ValidationError
 	if sentAt.IsZero() {

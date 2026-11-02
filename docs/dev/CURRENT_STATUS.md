@@ -1,5 +1,148 @@
 # Aktueller Stand
 
+## Konzept 11 «Übersicht der Verwaltung»: umgesetzt und abgenommen, Schritte 0 bis 6 (2. November 2026)
+
+Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
+`docs/planning/11-verwaltung-uebersicht.md` Abschnitt 11.8 mit OMC (`executor` je Schritt,
+`code-reviewer` je Schritt, Befunde vor dem nächsten Schritt behoben). Marcos Auftrag vom
+1. November 2026: «Bitte starte mit der Entwicklung von Konzept 11.»
+
+- **Schritt 0** (`cb7cf17`): Frage 17 im Entscheidungsprotokoll, ADR 0019, Papier verankert.
+- **Schritt 1** (`4c25656`, `4ea3f0c`, `a0b360a`): Fix `JobCounts.paused` im Handler mit Test;
+  Vertrag **1.7.0** additiv mit `JobCounts.active`, `nextRun`, `failedByType`,
+  `AdminStream.posterUrl` (Serienposter bei Folgen), `Dashboard.attention.abortedScans` und
+  `Dashboard.counts` (60-s-Speicher mit Generationszähler und einer Berechnung je Ablauf, geleert
+  bei Änderungen über Pflege, Bibliotheken, Konten, Einrichtung und angenommene Einladungen).
+  Review: freigegeben, sechs kleinere Befunde behoben.
+- **Schritt 4** (`68d8abd`, `00e6e78`): `ui/AdminSideNav` mit Band, Zahlen und Pillen (ein
+  Tab-Halt, Pfeil hoch/runter, Pos1/Ende), `AdminSideNavMenu` (Blatt am Handy), `DashCard`,
+  `TaskRow`, `StreamRow`, `ActivityFeed`, sechs Symbole, Stories und 15 neue Referenzbilder;
+  Kontrasttest für alle acht Profilfarben (Band und Pillen ≥ 4,5:1, keine Ausnahme nötig). Noch
+  nicht im Gerüst; die alte `AdminNav` läuft bis Schritt 5. Review: freigegeben, zwölf kleinere
+  Befunde behoben. Entscheid für Schritt 5: die Leiste wird im Gerüst lazy geladen (Startbündel,
+  P-10).
+
+- **Schritt 2** (`a54405a`, `75ffc3d`): Aktivitätsprotokoll, Migration **00031** (`activity_events`,
+  `STRICT`, `kind` ohne CHECK; `AFTER DELETE`-Trigger auf `accounts` und `profiles` löschen die
+  Einträge im selben Statement, ADR 0019 Datenschutz), Regeln gegen Flut je Art (Start 30 min je
+  Profil und Titel, `job_failed` je Jobart und Stunde, Scan-Fehler je Bibliothek, Grund und Stunde),
+  Haken in `playback`, `library`, `jobs`, `admin` und `main.go`, `backup_restored` beim Start nach
+  der Wiederherstellung (`DB.Restored`), Aufräumen über einen Haken in `jobs.prune` (30 Tage, höchstens
+  2'000), `Dashboard.activity` im Vertrag, eingefrorener Stand `testdata/db/verwaltung.sql`.
+  Abweichungen vom Papier 11.4 (begründet, Review bestätigt): `library_id` INTEGER; Löschen per
+  Trigger statt im Go-Code. Review: freigegeben, Befunde behoben.
+- **Schritt 3** (`4380fa1`, `c55d6a8`, `e45c002`): `POST /admin/server/restart` (`restartServer`,
+  `x-visibility: admin`, 202 `RestartAccepted`, 409 `restart_pending` und `backup_busy`, die
+  Wiederherstellung ebenso), `server_restart` mit Konto; `RestartPanel` aus `BackupPage` gelöst und
+  allgemein (`useId`, Tests für Aufgeben nach 90 s und «Erneut prüfen»). Noch kein Knopf in der
+  Oberfläche (Schritt 5). Review: freigegeben, Befunde behoben.
+
+- **Schritt 5** (`a67fdf9`, `2d52b1f`, `c265df3`, `65cf024`, `00b6880`): Verwaltungsleiste im
+  Gerüst statt der App-Leiste auf `/admin*` (lazy geladen mit Rückfall, `data-shell="admin"` aus
+  `index.html` vor dem ersten Bild, Breite ab 768 px reserviert, Fokus wandert beim Wechsel der
+  Leisten mit), Blatt-Knopf unter 768 px; Übersicht neu mit acht Karten in zwei Spalten, Hinweisen
+  in der Reihenfolge von 11.1, «Letzte Aktivität», zugeklapptem Server-Protokoll, «Nach Updates
+  suchen» und «Neu starten» mit Rückfrage und `RestartPanel` (409 `restart_pending` zeigt direkt
+  die Warteanzeige); Verlust-Bedingung auf «Bibliotheken» wie im Server (`!lossAcceptedAt`);
+  `ui/AdminNav`, Bereichskarten und Fehlschlag-Tabelle entfernt, Sprachschlüssel bereinigt.
+  Abweichungen (Review bestätigt): Abzeichen A-5 ausserhalb von `/admin` zusätzlich an
+  «Verwaltung» der App-Leiste; Karte Webhooks behält ihren Satz statt drei Kennzahlen; Karte
+  Server nur mit Fakten, Warnungen zu Grafikchip und inotify in den Hinweisen; Symbol `download`
+  für Webhooks; Laufzeit aus `Health.uptimeSeconds`. Review: Änderungen verlangt (Fokusverlust
+  beim Leistenwechsel, Major), alle Befunde ausser Dateiaufteilung von `AdminHomePage.tsx` behoben.
+
+**Belege Schritt 5** (`verifier`, HEAD `00b6880`, frischer Lauf):
+
+```
+$ task ci                                   EXIT=0
+web test:  Test Files  93 passed (93)
+web test:       Tests  741 passed (741)
+web:storybook:test  212 passed (16.7s)
+ci:e2e  498 passed (25.4m)                  Chromium und Firefox, 0 rot
+A-9 log scan: 83154 lines of …/server.log, 17 secrets of the run, 0 findings
+```
+
+Server: `go test -race` 33 Pakete ok, kein `FAIL`. Fokus-Nachweis in
+`web/e2e/admin-home.spec.ts` (Enter auf «Verwaltung» fokussiert «Übersicht», «Zurück zur App»
+fokussiert «Start»); Fokusfalle im Blatt mit Tab und Umschalt+Tab geprüft.
+
+**Belege Schritt 2 und 3** (Agentenläufe, frischer lokaler Server):
+
+```
+$ curl -X POST …/admin/server/restart
+{"restartAt":"2026-11-02T00:08:01.445668948Z"}   HTTP 202
+$ curl -X POST …/admin/server/restart
+{"code":"restart_pending",…,"status":409}        HTTP 409
+Log: restart requested by the administration account_id=1 … restarting … listening startup_ms=1554
+GET /admin/dashboard (gleiches Cookie, nach dem Neustart):
+  {"kind":"server_started","detail":{"version":"dev"}},
+  {"kind":"server_restart","accountEmail":"dod@example.test"}
+Nach Scan und Wiedergabe: playback_started, scan_done {"newTitles":22}, scan_started {"trigger":"manual"}
+```
+
+`go test -count=1` grün für `admin`, `api`, `auth`, `jobs`, `library`, `playback`, `store`
+(eingefrorene Stände, Migration 00031, Wiederherstellung) und `cmd/slouchcat`; `task server:lint`
+`0 issues.`; `task server:gen:check` und `task web:gen:check` ohne Abweichung; `task web:test`
+93 Dateien, 730 Tests grün.
+
+**Belege Schritt 1 und 4.** Auf dem Zweig mit Schritt 1 und 4 zusammen:
+
+```
+$ task web:lint
+All matched files use Prettier code style!
+$ task web:test
+web test:  Test Files  92 passed (92)
+web test:       Tests  729 passed (729)
+```
+
+Schritt 1 (Agentenlauf): `task ci:web` grün; `task ci:server` grün bis auf
+`internal/library` `TestPodcastFolderPairsFileWithFeedEpisodeAfterProbe`. Ursache: veraltete lokale
+Test-Medien (`testdata/media/Podcasts/episode-*.mp3` vom 20. Oktober ohne `date`-Tag; der Generator
+überspringt vorhandene Dateien); neu erzeugt, seither grün. Kein Codefehler, die CI erzeugt die
+Medien bei jeder Änderung des Generators neu;
+nach den Review-Befunden `go test` für `admin`, `api`, `auth`, `store` ok,
+`golangci-lint` `0 issues.`, `task server:gen:check` ohne Abweichung. Schritt 4 (Agentenlauf):
+`task web:storybook:test` in Docker `215 passed`. Beispielantwort von `GET /admin/dashboard` aus
+dem Handlertest: `jobs.active`, `jobs.failedByType` mit geschwärztem Fehler, `jobs.nextRun`,
+`attention.abortedScans`, `counts {accounts, maintenanceOpen, titles}`, `streams[].posterUrl` mit
+dem Hash des Serienposters. e2e lief noch nicht (keine Änderung der Oberfläche bis Schritt 5).
+
+- **Schritt 6** (Abnahme und Doku): CT 190 läuft seit 2. November 2026, 08:01 Uhr, auf
+  `ghcr.io/slouchcat/slouchcat:verwaltung-955709b` (`v1.6.0-58-g955709b`), gebaut auf dem CT aus
+  `git archive 955709b`, davor `1.6.0`, Sicherung `.env.bak-vor-verwaltung`. Migration 00031 in
+  235 ms nach der Datenbanksicherung `pre-migration-v1.6.0-58-g955709b-…`, Start 2'372 ms, `healthy`
+  nach rund 4 s, QSV erkannt (`docs/perf/verwaltung.md` 1). **Von Marco abgenommen am
+  2. November 2026** («Abgenommen»). Versionsstellen auf 1.7.0 (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`);
+  Release-Notes als `release-notes-1.7.0.txt` im Wurzelordner (unversioniert wie 1.5.0 und 1.6.0,
+  Beschriftung des Tags). `docs/perf/measure-home.sh` kennt neu `SLOUCHCAT_PAUSE` für den kalten
+  Fall. Papier als umgesetzt markiert.
+
+**Messung** (`docs/perf/verwaltung.md` 2, CT 190, 2. November 2026): `GET /api/v1/admin/dashboard`
+warm p95 6.0 ms (n=60), kalt p95 6.1 ms (n=20, 61 s Pause, `counts` jedes Mal neu gerechnet);
+Latte 200 ms, der Rückfall aus 11.9 entfällt.
+
+**Prototyp gegen gebaute Seite** (`docs/planning/mockups/11-verwaltung-prototyp.html`, Variante B,
+Desktop, gegen die Aufnahme des e2e-Servers bei 1440 px): gleich sind Leiste mit Band-Gruppentiteln,
+Zahlen und Pillen, Reihenfolge und Raster der acht Karten, Kopf mit «Live, alle 5 Sekunden»,
+Aufgaben mit drei Kennzahlen, zugeklapptes Server-Protokoll. Abweichungen in der Gestaltung der
+Karteninhalte (abgenommen, keine Funktionslücke):
+
+- Server: Fakten ohne getönte Kästchen; Update-Stand als Zeile «Updates: Aktuell» statt Pille
+  «aktuell» mit «Geprüft heute, …».
+- Jetzt läuft, Webhooks: Leerzustand als Satz ohne getönten Kasten mit Symbol; Webhooks ohne
+  Erklärsatz zu Radarr und Sonarr.
+- Integrationen: Liste «Name: Zustand» in einer Spalte statt Chips in zwei Spalten.
+- Speicher: Legende «Belegt» und Zeile «Frei: … von …» statt Kopfzeile «x GB von y GB» und
+  «Frei · % belegt».
+- Kartenlinks unterstrichen (`TextLink` wie in der übrigen App) statt Akzentfarbe mit Pfeil.
+
+**Offen:**
+
+- `activity_events` nach einem Tag (3. November 2026) auslesen; Ausgangsstand 7 Zeilen
+  (`docs/perf/verwaltung.md` 3).
+- Push und Pull Request auf Marcos Wort; beim Merge Tag `v1.7.0` (setzt Marco).
+
 ## Nachtrag Konzept 10: «Nur Bilder» bei Ordnern mit einer Quelle (1. November 2026)
 
 Zweig `claude/fix-apply-images-single-source` ab `main` `da5d854` (Merge von PR #58). Befund vom

@@ -39,6 +39,18 @@ type AccountLibrary struct {
 	LibraryID int64
 }
 
+type ActivityEvent struct {
+	ID        int64
+	At        int64
+	Kind      string
+	AccountID sql.NullInt64
+	ProfileID sql.NullInt64
+	ItemID    sql.NullString
+	LibraryID sql.NullInt64
+	Subject   sql.NullString
+	Detail    string
+}
+
 type Announcement struct {
 	ID          int64
 	Title       string

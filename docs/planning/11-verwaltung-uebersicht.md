@@ -1,6 +1,8 @@
 # Konzept: Übersicht der Verwaltung (Seite `/admin`)
 
-- **Status: Fassung 3 (1. November 2026), Bauplan für Variante B (Abschnitt 11).** Fassungen 1
+- **Status: umgesetzt (2. November 2026, Schritte 0 bis 6 auf dem Zweig
+  `claude/verwaltung-uebersicht`, von Marco auf CT 190 abgenommen; Vertrag 1.7.0).** Fassung 3
+  (1. November 2026), Bauplan für Variante B (Abschnitt 11). Fassungen 1
   und 2 legten vier Varianten zur Wahl vor; ihr Text bleibt unten stehen, damit die Wahl
   nachvollziehbar ist. **Wo Abschnitt 11 etwas anderes sagt als die Abschnitte 4 bis 8, gilt
   Abschnitt 11.** Vorgeschichte: Marco hat am 31. Oktober 2026 am Bildschirmfoto
@@ -15,6 +17,12 @@
   bis F-9 sind beantwortet** (Abschnitt 10.2). Fassung 3 legt die Umsetzungsschritte für B fest
   (Abschnitt 11). **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Datum: 31. Oktober 2026; Fassung 2 vom selben Tag; Fassung 3 vom 1. November 2026**
+- **Umsetzung begonnen (1. November 2026):** Marco: «Bitte starte mit der Entwicklung von
+  Konzept 11.» Zweig `claude/verwaltung-uebersicht` ab `main` **`43311b0`** (Merge von PR #63,
+  Konzept 13 als Papier; davor PR #62, Konzept 12 als Papier). Beide Konzepte ändern keinen Code;
+  die Zeilenangaben aus Abschnitt 11 gelten darum weiter. Konzept 12 nimmt Frage 18 und ADR 0020,
+  Konzept 13 Frage 19 und ADR 0021; **Frage 17, ADR 0019, Migration 00031 und Vertrag 1.7.0
+  bleiben frei für dieses Konzept.** Frage 17 und ADR 0019 sind mit Schritt 0 eingetragen.
 - **Wogegen dieses Konzept verankert ist:** Fassung 3 auf `main` **`6d562b8`** («Merge pull
   request #59»), Vertragsfassung **1.6.0**. Konzept 10 (Metadaten) ist umgesetzt und gemergt
   (PR #58, `da5d854`): Vertrag 1.6.0, ADR 0018, Frage 16, Migrationen 00028–00030 und die

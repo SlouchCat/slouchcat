@@ -11,6 +11,18 @@ import (
 	"strings"
 )
 
+const countAllLibraryItems = `-- name: CountAllLibraryItems :one
+SELECT count(*) FROM items WHERE deleted_at IS NULL AND library_id IN (SELECT id FROM libraries)
+`
+
+// The sum of CountLibraryItems over every library (concept 11, Dashboard.counts.titles).
+func (q *Queries) CountAllLibraryItems(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllLibraryItems)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countLibraryItems = `-- name: CountLibraryItems :one
 SELECT count(*) FROM items WHERE library_id = ?1 AND deleted_at IS NULL
 `

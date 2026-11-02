@@ -59,6 +59,9 @@ var version = "dev"
 const (
 	healthcheckTimeout = 2 * time.Second
 	shutdownTimeout    = 10 * time.Second
+	// activityDrainTimeout bounds the wait for the playback starts still being written to the
+	// activity log on shutdown (each write is bounded by the same 5 s in admin).
+	activityDrainTimeout = 5 * time.Second
 )
 
 func main() {
@@ -255,6 +258,13 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Playback exists before the metadata jobs run: a match that changes a rating ends the open
 	// direct-play streams of titles that became invisible (M3 review, finding 20).
 	playbackSvc, mgr, caps, closeTranscoder := newPlayback(ctx, cfg, db, runner, keyring, log)
+	// Registered after the database's Close, so it runs before it: the start events still being
+	// written to the activity log finish first (after the HTTP server and the workers stopped).
+	defer func() {
+		drain, cancel := context.WithTimeout(context.Background(), activityDrainTimeout)
+		defer cancel()
+		playbackSvc.WaitActivity(drain)
+	}()
 	// In-app inbox (M7, E-8): new episodes of favourite series and podcasts, checked against the
 	// profile's visibility before an entry is stored. Channels (M8, A-6): deliveries through the
 	// queue; the Telegram base URL and http push endpoints (mocks) only in development mode.
@@ -292,6 +302,13 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			browse.New(log, browse.WithConfinedTo(browse.ResolveRoots(cfg.BrowseRoots, log))))
 	wireAdmin(adminSvc, cfg, queue, errRing, libSvc, caps, started)
 	keys.admin = adminSvc
+	// The activity log of the overview (concept 11, ADR 0019) lives in admin; playback and library
+	// exist before it, so their hooks are set here, before any request or worker runs. jobs.prune
+	// cleans it up. A restore swapped in at this start is recorded in the restored database.
+	playbackSvc.WithActivity(adminSvc.RecordActivity)
+	libSvc.WithActivity(adminSvc.RecordActivity)
+	queue.AddPruneTask(adminSvc.PruneActivity)
+	recordRestored(ctx, adminSvc.RecordActivity, db.Restored)
 	// The channels (M8): admin stores the SMTP, Telegram and VAPID settings that notify reads, and
 	// notify checks tokens, sends test mails, rotates the push keys and reports the channel state
 	// for the dashboard.
@@ -336,6 +353,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
 		registry.Attach(worker, jobs.PoolGeneral)
 		worker.OnFinalFailure(notifySvc.JobFailed)
+		worker.OnFinalFailure(adminSvc.RecordJobFailure)
 		workers.Go(func() { worker.Run(ctx) })
 	}
 	// A worker of its own for download preparations: workers claim only the job types attached
@@ -343,6 +361,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	downloadWorker := jobs.NewWorker(queue, "download-1", log)
 	registry.Attach(downloadWorker, jobs.PoolDownload)
 	downloadWorker.OnFinalFailure(notifySvc.JobFailed)
+	downloadWorker.OnFinalFailure(adminSvc.RecordJobFailure)
 	workers.Go(func() { downloadWorker.Run(ctx) })
 	// Notification deliveries (M8) on a worker of their own: a slow mail server never holds up
 	// scans. Run polls Telegram while link codes are open and prunes old deliveries.
@@ -401,6 +420,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	log.Info("listening", "addr", ln.Addr().String(), "startup_ms", time.Since(started).Milliseconds())
+	recordStarted(ctx, adminSvc.RecordActivity, version)
 
 	select {
 	case err := <-serveErr:
@@ -520,4 +540,17 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version)
 	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)), playback.WithKeyframeIndex(runner.Keyframes))
 	return playback.New(db, log, opts...), mgr, caps, mgr.Close
+}
+
+// recordRestored records backup_restored when store.Open swapped in a staged restore at this start
+// (concept 11): a row written before the restart went with the replaced database.
+func recordRestored(ctx context.Context, record func(context.Context, model.ActivityEvent), restored bool) {
+	if restored {
+		record(ctx, model.ActivityEvent{Kind: model.ActivityBackupRestored})
+	}
+}
+
+// recordStarted records server_started with the version once the server listens (concept 11).
+func recordStarted(ctx context.Context, record func(context.Context, model.ActivityEvent), version string) {
+	record(ctx, model.ActivityEvent{Kind: model.ActivityServerStarted, Detail: model.ActivityDetail{Version: version}})
 }

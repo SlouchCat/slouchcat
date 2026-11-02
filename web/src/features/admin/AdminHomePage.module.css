@@ -1,31 +1,45 @@
-.section {
+/* Title on the left, «Live, alle 5 Sekunden» small on the right (G-3). */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--sc-space-6);
+}
+
+.live {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.body {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-4);
-  margin-bottom: var(--sc-space-12);
+  gap: var(--sc-space-6);
 }
 
-.sectionTitle {
-  font-size: var(--sc-font-size-xl);
-  font-weight: var(--sc-font-weight-semibold);
-  line-height: var(--sc-font-line-height-snug);
+/*
+ * Eight equal cards (11.1): two columns from about 44 rem of the content's own width (G-1, with or
+ * without the sidebar), one below. The cards of a row are equally high and fill their cells (P-1).
+ */
+.frame {
+  container-type: inline-size;
 }
 
-.tiles {
+.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--sc-space-4);
 }
 
-.wide {
-  grid-column: 1 / -1;
-  min-width: 0;
-}
-
-.tileTitle {
-  font-size: var(--sc-font-size-md);
-  font-weight: var(--sc-font-weight-semibold);
-  outline: none;
+@container (width >= 44rem) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .counters {
@@ -34,15 +48,19 @@
   gap: var(--sc-space-2);
 }
 
+.rows,
 .list {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-2);
   margin: 0;
   padding: 0;
+  list-style: none;
+}
+
+.list {
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
-  list-style: none;
 }
 
 .integration {
@@ -56,6 +74,7 @@
   gap: var(--sc-space-2);
   align-items: center;
   color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-sm);
 }
 
 .detail {
@@ -65,10 +84,103 @@
   overflow-wrap: anywhere;
 }
 
+/* A failed job type: its name with the number, the newest error cut to one line (G-4). */
+.failure {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: baseline;
+  min-width: 0;
+}
+
+.failureText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.failureType {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.oneLine {
+  overflow: hidden;
+  color: var(--sc-color-text-muted);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+}
+
+.hintHead {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: baseline;
+}
+
+.hintTitle {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.hintAction {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  padding-left: var(--sc-space-4);
+  font-size: var(--sc-font-size-sm);
+}
+
 .meter {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-2);
+}
+
+/* The server log (F-3): collapsed below the cards, its number in the summary. */
+.log {
+  min-width: 0;
+}
+
+.details {
+  border-radius: var(--sc-radius-xl);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+/* A list item, so the browser keeps its disclosure triangle; global.css draws the focus ring. */
+.summary {
+  padding: var(--sc-space-4) var(--sc-space-6);
+  border-radius: var(--sc-radius-xl);
+  cursor: pointer;
+}
+
+.summaryTitle {
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.summaryCount {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.logBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  padding: 0 var(--sc-space-6) var(--sc-space-6);
 }
 
 .errors {
@@ -80,11 +192,8 @@
   list-style: none;
 }
 
-/* Live regions that are always there, so even their first entry is announced. Empty, they take
-   back the gap of the panel they stand in (Panel: space 5). */
-.live:empty,
 .errors:empty {
-  margin-block-start: calc(-1 * var(--sc-space-5));
+  display: none;
 }
 
 .error {
@@ -108,27 +217,4 @@
   font-family: var(--sc-font-family-mono);
   font-size: var(--sc-font-size-sm);
   overflow-wrap: anywhere;
-}
-
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-3);
-}
-
-.groupTitle {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-  font-weight: var(--sc-font-weight-semibold);
-  letter-spacing: var(--sc-font-letter-spacing-caps);
-  text-transform: uppercase;
-}
-
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
-  gap: var(--sc-space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }

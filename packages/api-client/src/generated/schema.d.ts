@@ -2605,10 +2605,14 @@ export interface paths {
         /**
          * Running streams, jobs, storage, integrations, errors and update state (A-3)
          * @description One request for the admin overview, polled every few seconds: the running streams (as
-         *     `listStreams`), the job counters with the last ten failed jobs, free and total space of the
-         *     config and cache directories, the state of every integration (keys, e-mail, Web Push, Telegram,
-         *     update check), the newest 50 errors of the server log (redacted, newest first) and the update
-         *     state.
+         *     `listStreams`), the job counters with up to three running jobs, the next scheduled run, the
+         *     failed jobs grouped by type (and, for older clients, the last ten failed jobs), free and total
+         *     space of the config and cache directories, the state of every integration (keys, e-mail, Web
+         *     Push, Telegram, update check), the newest 50 errors of the server log (redacted, newest first),
+         *     the update state, what needs the administrator's attention (scans the loss protection aborted),
+         *     the counts of the sidebar (titles, accounts, open maintenance cases; recomputed at most every
+         *     60 seconds and at once after a change on the maintenance, libraries or accounts pages) and the
+         *     six newest entries of the activity log.
          */
         get: operations["getDashboard"];
         put?: never;
@@ -2998,6 +3002,30 @@ export interface paths {
          * @description Like `restoreBackupUpload` with an archive of `listBackups`.
          */
         post: operations["restoreBackup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/server/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restart the server (concept 11)
+         * @description Schedules a restart like a restore does: the server shuts down in order about a second after
+         *     the answer and starts the same program again (if that fails, it exits and the container
+         *     starts it again). Running streams and offline downloads are cut off; their clients start them
+         *     again. The restart is recorded in the activity log with the account. The client polls
+         *     `getHealth` from `restartAt` on; the session stays valid.
+         */
+        post: operations["restartServer"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4544,6 +4572,11 @@ export interface components {
             positionMs?: number;
             /** Format: int64 */
             durationMs?: number;
+            /**
+             * @description The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
+             *     absent when no poster is stored.
+             */
+            posterUrl?: string;
         };
         ProgressEvent: {
             mediaFileId?: string;
@@ -5869,6 +5902,100 @@ export interface components {
             errors: components["schemas"]["ErrorEntry"][];
             update: components["schemas"]["UpdateState"];
             browse?: components["schemas"]["BrowseHealth"];
+            attention: components["schemas"]["DashboardAttention"];
+            counts: components["schemas"]["DashboardCounts"];
+            /** @description The newest entries of the activity log, newest first; empty instead of absent. */
+            activity: components["schemas"]["ActivityEntry"][];
+        };
+        /**
+         * @description One entry of the activity log (concept 11, ADR 0019). The server sends no sentences: the client
+         *     builds the sentence from `kind` and the fields, with a general sentence for a kind it does not
+         *     know. Known kinds: `playback_started`, `playback_completed`, `playback_stopped`, `scan_started`,
+         *     `scan_done`, `scan_failed`, `scan_aborted`, `job_failed`, `backup_created`, `backup_restored`,
+         *     `server_started`, `server_restart`. The log keeps 30 days and at most 2'000 entries; the entries
+         *     of a deleted account or profile are deleted with it.
+         */
+        ActivityEntry: {
+            /** Format: int64 */
+            id: number;
+            /** Format: date-time */
+            at: string;
+            /**
+             * @description Kind of the event. No enum, so a new kind breaks no client.
+             * @example playback_started
+             */
+            kind: string;
+            /** @description Name of the profile, read now; absent without a profile or after it was deleted. */
+            profileName?: string;
+            /** @description E-mail address of the account, read now; absent without an account. */
+            accountEmail?: string;
+            /** @description Title of the item at the time of the event (playback kinds). */
+            itemTitle?: string;
+            /** @description Name of the library at the time of the event (scan kinds). */
+            libraryName?: string;
+            detail: components["schemas"]["ActivityDetail"];
+        };
+        /**
+         * @description The few numbers and fixed codes of an entry; no secret, no path, no IP address and no free error
+         *     text. Every field is optional and set only by the kinds it belongs to.
+         */
+        ActivityDetail: {
+            /** @description Titles the full scan added (`scan_done`). */
+            newTitles?: number;
+            /**
+             * Format: int64
+             * @description Size of the archive (`backup_created`).
+             */
+            sizeBytes?: number;
+            /** @description Version of the server (`server_started`). */
+            version?: string;
+            /** @description What started the full scan (`scan_started`) - `manual`, `schedule` or `watcher`. */
+            trigger?: string;
+            /**
+             * @description Fixed code of a failed or aborted scan (`scan_failed`, `scan_aborted`) - `root_missing`,
+             *     `root_empty`, `loss_over_threshold`, `cancelled` or `error`.
+             */
+            reason?: string;
+            /** @description Job type of `job_failed`. */
+            jobType?: string;
+            /** @description Failures of the job type in this hour (`job_failed`). */
+            count?: number;
+            /** @description Who ended the playback (`playback_stopped`) - `admin` (stopped on the streams page) or `revoked` (its device forgotten). */
+            by?: string;
+        };
+        /**
+         * @description What needs the administrator's attention (concept 11). The server decides what counts (rule
+         *     12); the client only shows it. Every list is empty instead of absent.
+         */
+        DashboardAttention: {
+            /**
+             * @description Libraries whose last scan the loss protection aborted and whose loss nobody accepted yet:
+             *     last scan state `aborted`, a reason other than `cancelled` and no `lossAcceptedAt`.
+             */
+            abortedScans: components["schemas"]["AbortedScan"][];
+        };
+        AbortedScan: {
+            /** Format: int64 */
+            libraryId: number;
+            /** @description Name of the library. */
+            name: string;
+            /** @description Abort code of the scan (`root_missing`, `root_empty`, `loss_over_threshold`) or a message. */
+            reason: string;
+        };
+        /**
+         * @description The counts of the admin sidebar (concept 11). The server recomputes them at most every 60
+         *     seconds; a change on the maintenance, libraries or accounts pages recomputes them at once.
+         */
+        DashboardCounts: {
+            /** @description The titles of every library, summed like `LibraryScan.itemCount`. */
+            titles: number;
+            accounts: number;
+            /**
+             * @description Titles that need maintenance: the sum of the issue kinds `unmatched`, `no_images`,
+             *     `unrated`, `orphaned` and `unplayable`. `rating_mismatch` does not count, because it
+             *     checks every title against the provider.
+             */
+            maintenanceOpen: number;
         };
         /**
          * @description The state of the folder browser of the library form. A listing that hangs on a mount which
@@ -5886,8 +6013,41 @@ export interface components {
             failed: number;
             /** @description Paused job types (concept 09); the dashboard shows the tile when it is above 0. */
             paused?: number;
-            /** @description The last failed jobs, newest first. */
+            /**
+             * @description The last failed jobs, newest first. Kept for other clients; the overview of the web client
+             *     reads `failedByType`.
+             */
             recentFailed: components["schemas"]["JobSummary"][];
+            /**
+             * @description Up to three running jobs of every type, the newest start first, with the subject and the
+             *     estimate of the page "Hintergrundjobs" (`listJobTypes`).
+             */
+            active: components["schemas"]["JobRun"][];
+            nextRun?: components["schemas"]["JobNextRun"];
+            /** @description The failed jobs grouped by type, the type with the newest failure first. */
+            failedByType: components["schemas"]["JobTypeFailures"][];
+        };
+        /**
+         * @description The earliest next run over every switched-on schedule of a job type that is not paused;
+         *     absent without such a schedule.
+         */
+        JobNextRun: {
+            type: components["schemas"]["JobTypeName"];
+            /** Format: date-time */
+            at: string;
+        };
+        /** @description The failed jobs of one type with the newest failure. */
+        JobTypeFailures: {
+            type: components["schemas"]["JobTypeName"];
+            /** @description Failed jobs of the type. */
+            count: number;
+            /** @description Error of the newest failed job of the type, redacted; absent when it has none. */
+            lastError?: string;
+            /**
+             * Format: date-time
+             * @description When the newest failed job of the type failed (its last update).
+             */
+            lastFailedAt: string;
         };
         JobSummary: {
             /** Format: int64 */
@@ -6272,6 +6432,13 @@ export interface components {
         RestoreRequest: {
             /** Format: password */
             passphrase?: string;
+        };
+        RestartAccepted: {
+            /**
+             * Format: date-time
+             * @description When the server restarts; the client polls `getHealth` from then on.
+             */
+            restartAt: string;
         };
         RestoreResult: {
             /**
@@ -12685,6 +12852,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
+            /** @description A restart or another restore is already scheduled (`restart_pending`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /**
              * @description `backup_invalid` (not an archive of Slouchcat, damaged or failing the integrity check),
              *     `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server`, `validation_failed`
@@ -12736,11 +12912,54 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+            /** @description A restart or another restore is already scheduled (`restart_pending`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /**
              * @description `backup_invalid`, `passphrase_required`, `passphrase_wrong`, `backup_newer_than_server` (see
              *     `restoreBackupUpload`).
              */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    restartServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scheduled; the server restarts now. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestartAccepted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description `backup_busy` while a backup or a restore is running (the restart would cut it off),
+             *     `restart_pending` while a restart or a restore is already scheduled.
+             */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -70,9 +70,10 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
+	paused := d.Jobs.Paused
 	out := gen.Dashboard{
 		Streams:      make([]gen.AdminStream, 0, len(d.Streams)),
-		Jobs:         gen.JobCounts{Queued: d.Jobs.Queued, Running: d.Jobs.Running, Failed: d.Jobs.Failed},
+		Jobs:         gen.JobCounts{Queued: d.Jobs.Queued, Running: d.Jobs.Running, Failed: d.Jobs.Failed, Paused: &paused},
 		Integrations: make([]gen.IntegrationStatus, 0, len(d.Integrations)),
 		Errors:       make([]gen.ErrorEntry, 0, len(d.Errors)),
 		Update:       toUpdateState(d.Update),
@@ -80,7 +81,14 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 			Total: d.Webhooks.Total, EventsLast24h: d.Webhooks.EventsLast24h,
 			Silent: append([]string{}, d.Webhooks.Silent...),
 		},
-		Browse: &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
+		Browse:    &gen.BrowseHealth{LostSlots: d.Browse.LostSlots, Slots: d.Browse.Slots},
+		Attention: gen.DashboardAttention{AbortedScans: make([]gen.AbortedScan, 0, len(d.Attention.AbortedScans))},
+		Counts: gen.DashboardCounts{
+			Titles: d.Counts.Titles, Accounts: d.Counts.Accounts, MaintenanceOpen: d.Counts.MaintenanceOpen,
+		},
+	}
+	for _, a := range d.Attention.AbortedScans {
+		out.Attention.AbortedScans = append(out.Attention.AbortedScans, gen.AbortedScan{LibraryId: a.LibraryID, Name: a.Name, Reason: a.Reason})
 	}
 	for _, st := range d.Streams {
 		out.Streams = append(out.Streams, toAdminStream(st))
@@ -88,6 +96,19 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 	out.Jobs.RecentFailed = make([]gen.JobSummary, 0, len(d.Jobs.RecentFailed))
 	for _, j := range d.Jobs.RecentFailed {
 		out.Jobs.RecentFailed = append(out.Jobs.RecentFailed, toJobSummary(j))
+	}
+	out.Jobs.Active = make([]gen.JobRun, 0, len(d.Jobs.Active))
+	for _, r := range d.Jobs.Active {
+		out.Jobs.Active = append(out.Jobs.Active, toJobRun(r))
+	}
+	if n := d.Jobs.NextRun; n != nil {
+		out.Jobs.NextRun = &gen.JobNextRun{Type: n.Type, At: n.At.UTC()}
+	}
+	out.Jobs.FailedByType = make([]gen.JobTypeFailures, 0, len(d.Jobs.FailedByType))
+	for _, f := range d.Jobs.FailedByType {
+		out.Jobs.FailedByType = append(out.Jobs.FailedByType, gen.JobTypeFailures{
+			Type: f.Type, Count: f.Count, LastError: optString(f.LastError), LastFailedAt: f.LastFailedAt.UTC(),
+		})
 	}
 	out.Storage.Config = gen.StorageInfo{Path: d.Config.Path, TotalBytes: d.Config.TotalBytes, FreeBytes: d.Config.FreeBytes}
 	out.Storage.Cache = gen.StorageInfo{Path: d.Cache.Path, TotalBytes: d.Cache.TotalBytes, FreeBytes: d.Cache.FreeBytes}
@@ -105,7 +126,33 @@ func (s *server) GetDashboard(ctx context.Context, _ gen.GetDashboardRequestObje
 		}
 		out.Errors = append(out.Errors, entry)
 	}
+	out.Activity = make([]gen.ActivityEntry, 0, len(d.Activity))
+	for _, a := range d.Activity {
+		out.Activity = append(out.Activity, toActivityEntry(a))
+	}
 	return gen.GetDashboard200JSONResponse(out), nil
+}
+
+// toActivityEntry maps an entry of the activity log (concept 11); empty fields stay absent.
+func toActivityEntry(a model.ActivityEntry) gen.ActivityEntry {
+	d := a.Detail
+	out := gen.ActivityEntry{
+		Id: a.ID, At: a.At.UTC(), Kind: a.Kind, ProfileName: optString(a.ProfileName), AccountEmail: optString(a.AccountEmail),
+		ItemTitle: optString(a.ItemTitle), LibraryName: optString(a.LibraryName),
+		Detail: gen.ActivityDetail{
+			NewTitles: d.NewTitles, Version: optString(d.Version), Trigger: optString(d.Trigger), Reason: optString(d.Reason),
+			JobType: optString(d.JobType), By: optString(d.By),
+		},
+	}
+	if d.SizeBytes > 0 {
+		size := d.SizeBytes
+		out.Detail.SizeBytes = &size
+	}
+	if d.Count > 0 {
+		count := d.Count
+		out.Detail.Count = &count
+	}
+	return out
 }
 
 func (s *server) RetryJob(ctx context.Context, req gen.RetryJobRequestObject) (gen.RetryJobResponseObject, error) {

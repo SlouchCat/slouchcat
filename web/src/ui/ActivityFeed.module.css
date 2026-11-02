@@ -1,0 +1,68 @@
+.feed {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--sc-space-3);
+  align-items: center;
+  padding: var(--sc-space-2) 0;
+  font-size: var(--sc-font-size-sm);
+}
+
+.entry + .entry {
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+/* The icon in a round tint of its tone (16 %, as the sidebar's pills). */
+.icon {
+  --sc-feed-tone: var(--sc-color-text-secondary);
+  --sc-feed-tint: color-mix(in srgb, var(--sc-feed-tone) 16%, transparent);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--sc-space-6) + var(--sc-space-1));
+  height: calc(var(--sc-space-6) + var(--sc-space-1));
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-feed-tint);
+  color: var(--sc-feed-tone);
+}
+
+.neutral {
+  --sc-feed-tint: var(--sc-color-surface-1);
+}
+
+.accent {
+  --sc-feed-tone: var(--sc-accent);
+}
+
+.success {
+  --sc-feed-tone: var(--sc-color-state-success);
+}
+
+.warning {
+  --sc-feed-tone: var(--sc-color-state-warning);
+}
+
+.danger {
+  --sc-feed-tone: var(--sc-color-state-danger);
+}
+
+.text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

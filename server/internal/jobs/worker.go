@@ -28,8 +28,9 @@ type Worker struct {
 	handlers  map[string]Handler
 	poll      time.Duration
 	heartbeat time.Duration
-	// onFinalFailure is told about a job that failed its last attempt (notify.JobFailed, M8).
-	onFinalFailure func(ctx context.Context, j Job, err error)
+	// onFinalFailure are told about a job that failed its last attempt (notify.JobFailed, M8;
+	// the activity log, concept 11), in the order they were registered.
+	onFinalFailure []func(ctx context.Context, j Job, err error)
 	// runs is the list of running jobs the registry keeps (Registry.Attach); nil without one.
 	runs *runList
 }
@@ -57,11 +58,12 @@ func (w *Worker) Handlers() []string {
 }
 
 // OnFinalFailure registers fn, called after a job failed its last attempt and ended in state
-// failed (notify.JobFailed reports it to the main account, M8). Call it before Run. fn runs on the
-// worker's goroutine under a short context; a job whose lease expired after its last attempt is
-// failed by the next Claim and not reported.
+// failed (notify.JobFailed reports it to the main account, M8; admin.RecordJobFailure counts it in
+// the activity log, concept 11). Every registered fn runs, in order. Call it before Run. fn runs on
+// the worker's goroutine under a short context; a job whose lease expired after its last attempt
+// is failed by the next Claim and not reported.
 func (w *Worker) OnFinalFailure(fn func(ctx context.Context, j Job, err error)) {
-	w.onFinalFailure = fn
+	w.onFinalFailure = append(w.onFinalFailure, fn)
 }
 
 // Run claims and runs jobs until ctx is cancelled. On cancellation the running handler sees its
@@ -155,8 +157,10 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 	case err != nil:
 		log.Warn("job failed", "err", err, "duration", time.Since(start))
 		ferr = w.queue.Fail(fctx, w.id, job, err)
-		if ferr == nil && job.Attempts >= job.MaxAttempts && w.onFinalFailure != nil {
-			w.onFinalFailure(fctx, *job, err)
+		if ferr == nil && job.Attempts >= job.MaxAttempts {
+			for _, fn := range w.onFinalFailure {
+				fn(fctx, *job, err)
+			}
 		}
 	default:
 		log.Info("job done", "duration", time.Since(start))

@@ -365,3 +365,73 @@ test('the prepaints lie on the band and on the first card, column shown and hidd
     await setHomeRows(owner, DEFAULT_HOME_ROWS);
   }
 });
+
+interface ShellRecord {
+  /** Whether <html> had `data-shell="admin"` before the app rendered anything into #root. */
+  shellBeforeApp: boolean | null;
+  /** Where the page's heading stood when it first appeared. */
+  firstLeft: number | null;
+}
+
+test('/admin with the column hidden: the admin sidebar stands in its place, nothing jumps (concept 11)', async ({
+  page,
+}) => {
+  // Before any script of the page runs: notes when the shell attribute comes and where the
+  // heading first stands, before the lazily loaded sidebar may have arrived.
+  await page.addInitScript(() => {
+    const record: ShellRecord = { shellBeforeApp: null, firstLeft: null };
+    (window as unknown as { shellRecord: ShellRecord }).shellRecord = record;
+    new MutationObserver(() => {
+      if (record.shellBeforeApp === null && document.documentElement.dataset.shell === 'admin') {
+        record.shellBeforeApp = (document.getElementById('root')?.childElementCount ?? 0) === 0;
+      }
+      const heading = document.querySelector('main h1');
+      if (record.firstLeft === null && heading) {
+        record.firstLeft = heading.getBoundingClientRect().left;
+      }
+    }).observe(document, { attributes: true, childList: true, subtree: true });
+  });
+  const adminNav = page.getByRole('navigation', { name: 'Verwaltung' });
+  const heading = page.getByRole('heading', { level: 1, name: 'Verwaltung' });
+  const lefts: number[] = [];
+  try {
+    await page.goto('/');
+    for (const hidden of [true, false]) {
+      await page.evaluate((value) => {
+        if (value) localStorage.setItem('slouchcat.sidenav', 'hidden');
+        else localStorage.removeItem('slouchcat.sidenav');
+      }, hidden);
+      await page.goto('/admin');
+      await expect(heading).toBeVisible();
+      await expect(adminNav).toBeVisible();
+      // The admin sidebar replaces the app's column, shown or hidden; the menu opens the drawer.
+      await expect(nav(page)).toHaveCount(0);
+      await expect(menuButton(page)).toBeVisible();
+      const record = await page.evaluate(
+        () => (window as unknown as { shellRecord: ShellRecord }).shellRecord,
+      );
+      expect(record.shellBeforeApp).toBe(true);
+      const left = (await heading.boundingBox())?.x ?? NaN;
+      expect(Math.abs((record.firstLeft ?? NaN) - left)).toBeLessThan(1);
+      const column = await adminNav.boundingBox();
+      expect(left).toBeGreaterThan((column?.x ?? NaN) + (column?.width ?? NaN));
+      lefts.push(left);
+    }
+    // The same place in both states: the sidebar has the column's width.
+    expect(Math.abs((lefts[0] ?? NaN) - (lefts[1] ?? NaN))).toBeLessThan(1);
+
+    // Back in the app with the column hidden, the content takes the whole width again.
+    await page.evaluate(() => localStorage.setItem('slouchcat.sidenav', 'hidden'));
+    await page.reload();
+    await adminNav.getByRole('link', { name: 'Zurück zur App' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(recentRow(page)).toBeVisible();
+    await expect(nav(page)).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.dataset.shell ?? null)).toBeNull();
+    expect(
+      await page.locator('#content').evaluate((element) => getComputedStyle(element).paddingLeft),
+    ).toBe('0px');
+  } finally {
+    await page.evaluate(() => localStorage.removeItem('slouchcat.sidenav'));
+  }
+});

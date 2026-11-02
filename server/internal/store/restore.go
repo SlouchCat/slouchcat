@@ -187,18 +187,18 @@ func StageRestore(configDir, dbPath, keyPath string) error {
 
 // applyRestore swaps in a staged restore (see the package comment of this file). It runs before the
 // database is opened; every step can run again after a crash: the staged database is renamed last,
-// so a start that finds it repeats the swap.
-func applyRestore(ctx context.Context, opts Options) error {
+// so a start that finds it repeats the swap. It reports whether it swapped in a database.
+func applyRestore(ctx context.Context, opts Options) (bool, error) {
 	dir := opts.ConfigDir
 	stagedDB, stagedKey := filepath.Join(dir, RestoreDBFile), filepath.Join(dir, RestoreKeyFile)
 	if !fileExists(stagedDB) {
 		if fileExists(stagedKey) {
 			opts.Logger.Warn("staged key file without a staged database removed", "file", stagedKey)
 			if err := os.Remove(stagedKey); err != nil {
-				return fmt.Errorf("remove staged key: %w", err)
+				return false, fmt.Errorf("remove staged key: %w", err)
 			}
 		}
-		return nil
+		return false, nil
 	}
 	start := time.Now()
 	live, liveKey := filepath.Join(dir, FileName), filepath.Join(dir, secrets.KeyFile)
@@ -210,14 +210,14 @@ func applyRestore(ctx context.Context, opts Options) error {
 			now = opts.now
 		}
 		if err := os.MkdirAll(backups, 0o750); err != nil {
-			return fmt.Errorf("create backup directory: %w", err)
+			return false, fmt.Errorf("create backup directory: %w", err)
 		}
 		kept = filepath.Join(backups, autoBackupName(preRestorePrefix, opts.Version, now(), preRestoreSuffix))
 		// The restored key replaces the current one: keep it with the backup it decrypts, before the
 		// database goes (a copy, so a start after a crash finds it again).
 		if fileExists(stagedKey) && fileExists(liveKey) {
 			if err := copyFile(liveKey, filepath.Join(backups, BackupKeyFile(filepath.Base(kept)))); err != nil {
-				return err
+				return false, err
 			}
 		}
 		if err := vacuumInto(ctx, live, kept); err != nil {
@@ -226,33 +226,33 @@ func applyRestore(ctx context.Context, opts Options) error {
 			opts.Logger.Error("pre-restore copy failed; keeping the current database files as they are",
 				"err", err, "kept_as", kept)
 			if err := moveDatabase(live, kept); err != nil {
-				return err
+				return false, err
 			}
 		}
 	}
 	if fileExists(stagedKey) {
 		if err := os.Rename(stagedKey, liveKey); err != nil {
-			return fmt.Errorf("apply restored key: %w", err)
+			return false, fmt.Errorf("apply restored key: %w", err)
 		}
 	}
 	for _, p := range databaseFiles(live) {
 		if err := os.Remove(p); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("remove replaced database: %w", err)
+			return false, fmt.Errorf("remove replaced database: %w", err)
 		}
 	}
 	if err := os.Rename(stagedDB, live); err != nil {
-		return fmt.Errorf("apply restored database: %w", err)
+		return false, fmt.Errorf("apply restored database: %w", err)
 	}
 	if err := os.RemoveAll(filepath.Join(dir, RestoreDir)); err != nil {
-		return fmt.Errorf("remove restore directory: %w", err)
+		return false, fmt.Errorf("remove restore directory: %w", err)
 	}
 	opts.Logger.Info("backup restored", "kept_as", kept, "duration_ms", time.Since(start).Milliseconds())
 	if kept != "" {
-		return pruneBackups(backups, KeepBackups, func(n string) bool {
+		return true, pruneBackups(backups, KeepBackups, func(n string) bool {
 			return strings.HasPrefix(n, preRestorePrefix) && strings.HasSuffix(n, preRestoreSuffix)
 		})
 	}
-	return nil
+	return true, nil
 }
 
 // vacuumInto copies the database file src (with its WAL) to dst.

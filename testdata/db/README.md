@@ -192,3 +192,17 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   und ihre Wahl als gesperrtes Poster in `item_images` (`provider 'local'`, `chosen 1`, `locked_fields ["poster"]`). Dann
   `server/bin/slouchcat dump` (Skript in den Sitzungsnotizen `freeze-metadaten.sh`). `TestFrozenMetadatenStateCoversTheConcept`
   prüft, dass jede dieser Datenarten vorhanden ist.
+- `verwaltung.sql`: Stand nach Schritt 2 des Konzepts «Verwaltung: Übersicht» (ADR 0019; Migration 00031
+  `activity_events`). Erzeugt am 2. November 2026 aus `metadaten.sql` (Pfade der Wurzeln auf den aktuellen
+  Arbeitsbaum umgeschrieben), gegen das der Server mit Schritt 2 25 Sekunden lief (`--dev`, ein Arbeiter, Port 18095,
+  `--browse-roots testdata/media`): die Migration 00031 lief beim Start, und die Haken des Servers schrieben selbst
+  `server_started` mit `detail.version` nach «listening» sowie je Bibliothek `scan_started` (`trigger` `schedule`, der
+  Scan beim Start) und `scan_done` (`newTitles` 0). Dann per SQL die übrigen bekannten Arten, die ein kurzer Lauf ohne
+  Anmeldung nicht erzeugt: `playback_started` und `playback_completed` des Hauptprofils für einen Film (Titel als
+  `subject`), ein zweiter Start und sein `playback_stopped` (`by` `admin`), `scan_failed` (`reason` `error`),
+  `scan_aborted` (`reason` `cancelled`), ein zusammengefasstes `job_failed` (`metadata.match`, `count` 2),
+  `backup_created` (`sizeBytes`), `server_restart` mit Konto und `backup_restored`. Dann `server/bin/slouchcat dump`.
+  Nach dem Review von Schritt 2 trägt 00031 zwei `AFTER DELETE`-Trigger auf `accounts` und `profiles`; der Stand wurde
+  darum ohne Änderung der Daten neu geschrieben (Stand eingespielt, die zwei Trigger angelegt, erneut `dump`).
+  `TestFrozenVerwaltungStateCoversTheConcept` prüft, dass jede bekannte Art und jede dieser Datenarten und die beiden
+  Trigger vorhanden sind und keine Zeile einen Pfad trägt.

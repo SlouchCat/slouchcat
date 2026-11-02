@@ -31,6 +31,7 @@ func (e serviceProblem) VisitRestoreBackupUploadResponse(w http.ResponseWriter) 
 	return e.visit(w)
 }
 func (e serviceProblem) VisitRestoreBackupResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitRestartServerResponse(w http.ResponseWriter) error { return e.visit(w) }
 
 func (s *server) ListBackups(ctx context.Context, _ gen.ListBackupsRequestObject) (gen.ListBackupsResponseObject, error) {
 	list, err := s.opts.Admin.ListBackups(ctx)
@@ -110,6 +111,17 @@ func (s *server) RestoreBackup(ctx context.Context, req gen.RestoreBackupRequest
 		return s.problem(ctx, err), nil
 	}
 	return gen.RestoreBackup202JSONResponse(toRestoreResult(res)), nil
+}
+
+// RestartServer schedules a restart for the administration (concept 11); the session's account is
+// recorded in the activity log.
+func (s *server) RestartServer(ctx context.Context, _ gen.RestartServerRequestObject) (gen.RestartServerResponseObject, error) {
+	session, _ := sessionFrom(ctx)
+	res, err := s.opts.Admin.RestartServer(ctx, session.Account.ID)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.RestartServer202JSONResponse{RestartAt: res.RestartAt.UTC()}, nil
 }
 
 // downloadBackup serves a backup archive as an attachment (binary endpoint, admin only through the
