@@ -719,6 +719,11 @@ in `features/`.
 | `AdminDensityScope` | Kontext, den `AdminPage` setzt; Dialoge aus einer Verwaltungsseite tragen damit `data-density="compact"` an ihrem eigenen Portal. Andere Portale auf `/admin` (Schublade der App, Ankündigungsdialog der Zuschauer) bleiben in heutiger Grösse | alle Dialoge der Verwaltungsseiten | keiner |
 | `useDrafts` | Entwürfe je Gegenstand-Id im Zustand der Seite (S-17), meldet «geändert» je Id und gesamt, Verwerfen je Id | alle Seiten mit Formularen | keiner |
 | `useUnsavedChanges` | S-13: TanStack `useBlocker` (`@tanstack/react-router` 1.170.45) fragt beim Verlassen der Seite; ein Wechsel nur von `?tab=` oder `?item=` auf demselben Pfad blockiert nicht (S-17 hält die Entwürfe); pausiert das Abfragen | Metadaten, Integrationen, Spotlight, Benachrichtigungen, Konten, Empfehlungen, Sammlungen, Startseite, Titel (Freigabe) | `useBlocker` wird nirgends benutzt |
+| `StreamTile`, `StreamProgress` (neu, 3. November 2026, K12-5) | Kachel eines laufenden Streams mit Hintergrundbild quer, Modus-Pille, Titel, Profil, Gerät, Qualität und «Beenden»; `StreamProgress` ist der Fortschritt allein und wird von `StreamRow` der Übersicht mitgenutzt (nur der Fortschritt, nicht die Kachel) | Streams; `StreamProgress` auch Übersicht | `ui/StreamRow` mit eigenem Fortschritt |
+| `ProfileList` (neu, 3. November 2026, K12-5) | Profilliste mit PIN und Löschen im Menü, aus `ProfileSettingsPage` herausgelöst | Konten (`?item=me`), `/settings/profiles` | in `ProfileSettingsPage` |
+| `RadioGroup` und `TextField` mit `hideLabel`, `RadioGroup` mit `inline` (neu, 3. November 2026, K12-6 und K12-7) | `hideLabel`: die Beschriftung bleibt Name des Steuerelements, steht aber nur einmal links in der `SettingRow`; `inline`: Beschriftung und Segmente in einer Zeile | Spotlight; `inline` Statistik | keine |
+| `BarChart` mit `tickEvery` (neu, 3. November 2026, K12-7) | beschriftet nur jeden n-ten Balken (Stunden alle 3 h) | Statistik | alle Balken beschriftet |
+| `Tabs` mit `isDisabled` (neu, 3. November 2026, K12-7) | sperrt die Reiterleiste, solange eine Wiederherstellung läuft | Sicherung | keine |
 | `ImageTile` | Bild quer oder hoch mit Rückfall `PosterFallback` (Farbfläche mit Titel) | Streams, Statistik, Sammlungen | `PosterFallback` vorhanden |
 | `adminSearch` (`web/src/app/router.tsx`) | gemeinsame `validateSearch`-Hilfe für `?tab=` und `?item=` nach dem Muster von `:385` und `:412`; bestehende Parameter bleiben | alle Seiten mit Reitern oder Auswahl | je Route eigene Prüfung |
 | `BarChart` erweitert, `HeatGrid` neu | waagrechte Balken (Wochentage), Raster 7 × 24; beide mit Tabelle für Bildschirmleser wie heute `BarChart` | Statistik | `ui/BarChart.tsx` senkrecht mit Tabelle |
@@ -809,6 +814,10 @@ Nichts wird entfernt oder im Typ geändert.
 14. **K12-3 und K12-4 (3. November 2026):** die angenommenen Abweichungen der Seiten
     Metadaten, Hintergrundjobs, Integrationen, Bibliotheken, Pflege, Titel und Podcasts stehen in
     Frage 18, «Nachtrag 2 vom 3. November 2026».
+15. **K12-5 bis K12-7 (3. November 2026):** die Entscheide der Koordination und die angenommenen
+    Abweichungen der Seiten Geräte, Streams, Konten, Startseite, Sammlungen, Spotlight, Cat's
+    Empfehlungen, Statistik, Sicherung und Benachrichtigungen (und der Pflege-Ton aus K12-4)
+    stehen in Frage 18, «Nachtrag 3 vom 3. November 2026».
 
 ### 11.6 ADR 0020 «Kompakte Dichte der Verwaltung»
 

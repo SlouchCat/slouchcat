@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 12 «Seitenmuster der Verwaltungsseiten»: im Bau (2. November 2026)
+## Konzept 12 «Seitenmuster der Verwaltungsseiten»: im Bau (3. November 2026)
 
 Zweig `claude/verwaltungsseiten` ab `main` `4c860bc` (nach Konzept 11 und Release 1.7.0), Bau nach
 `docs/planning/12-verwaltungsseiten.md` Abschnitt 11.8 (Schritte K12-0 bis K12-9). Marcos Auftrag
@@ -60,7 +60,47 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
     hinzufügen» als Dialog mit Entwurf.
   - *Gemeinsame Korrektur* (`b593486`): Fokus in verschachtelten Formulardialogen.
   - *Review:* je Seite ein `code-reviewer`-Lauf, Befunde behoben.
-- **Nächster Schritt:** K12-5 (Konten mit Profilen, Geräte, Streams).
+- **Aufräumrunde 1** (`653cf80`, `a0b7ba9`, `f6c6f6c`, `b1a158a`, `2b128e7`): wackliger Unit-Test von
+  `IntegrationsPage` (Text per Einfügen statt Taste für Taste, Warten auf das Entfernen aus dem
+  Cache); wackliger Firefox-e2e der Podcasts (`expectNoFocusTrap` wartet, bis kein Dialog mehr
+  `[data-exiting]` trägt); Live-Regionen von Hintergrundjobs und Metadaten bleiben im
+  Zugänglichkeitsbaum; Testlücken von K12-3 (Zurück-Taste, Fokus der Rückfrage, JOB-4a, JOB-6,
+  JOB-7, MET-1 bis MET-3) geschlossen.
+- **K12-5** (Geräte, Streams, Konten mit Profilen; Stand `b802319`): je Seite ein
+  `code-reviewer`-Lauf, Befunde behoben.
+  - *Geräte* (`5d452c5`, `a9b993e`): Reiter «Geräte» und «Fähigkeiten» im `BandPanel`, je Gerätetyp
+    ein Klappbereich (ohne Typ unter «Unbekannt»); eine Rückfrage der Seite für «Vergessen».
+  - *Streams* (`8bfaa04`, `fdc1be7`): laufende Streams als Kacheln mit Hintergrundbild, darüber
+    die Leiste «Serverlast»; Pfeiltasten zwischen den Kacheln, Abfrage pausiert bei offener
+    Rückfrage. Neue Bausteine `StreamTile` und `StreamProgress` (von `StreamRow` mitgenutzt,
+    dessen Bilder unverändert bleiben).
+  - *Konten* (`cac31f2`, `b802319`): Zustandsleiste mit vier Zahlen, Reiter «Konten» und
+    «Einladungen»; je Konto eine Klappzeile (eigenes Konto: E-Mail, Passwort, «Meine Profile»;
+    fremdes: Zugriff). `ProfileList` aus `ProfileSettingsPage` herausgelöst und von
+    `/settings/profiles` und «Konten» geteilt; Einladungen als Tabelle.
+- **K12-6** (Startseite, Sammlungen, Spotlight, Cat's Empfehlungen; Stand `a5c803b`): je Seite ein
+  `code-reviewer`-Lauf, Befunde behoben. Ankündigungen fehlen noch (Review-Korrekturen offen).
+  - *Startseite* (`afb2fb3`, `d4aac2c`): Reiter «Reihenfolge» und «Vorschau», Platzwahl statt
+    «Nach oben»/«Nach unten», Klappzeile mit Beschreibung, eine `SaveBar` mit «Verwerfen».
+  - *Sammlungen* (`0786112`, `7952385`): Filterreiter, Mitglieder inline in der Klappzeile statt im
+    Dialog; Entwurf je Sammlung, TMDB-Sammlungen nur lesbar.
+  - *Spotlight* (`f71ab06`, `e288d51`, `7e76c51`): drei auf- und zuklappbare `BandPanel`
+    («Quelle», «Einträge der Liste», «Verwaiste Anpassungen»); Quelle als `SettingRow`-Zeilen
+    mit einem Entwurf der Seite.
+  - *Cat's Empfehlungen* (`6186790`, `a5c803b`): Filterreiter nach Zeitfenster, Notiz und Zeitfenster
+    in der Klappzeile, Platzwahl, Entwurf je Eintrag.
+- **K12-7** (Statistik, Sicherung, Benachrichtigungen; Stand `c2a969d`): je Seite ein
+  `code-reviewer`-Lauf, Befunde behoben.
+  - *Statistik* (`c37e3d4`, `c5c190b`, `52fdada`): Mockup «Raster»; neu «Wann geschaut wird»
+    (Stunde, Wochentag, Raster «Woche und Stunde»), Plätze 1 bis 3 als Kacheln, Rest als Tabelle.
+  - *Sicherung* (`6503cfc`, `e1cab40`): Reiter «Sicherungen», «Neue Sicherung» und «Aus Datei
+    wiederherstellen», je Art ein Klappbereich; Wiederherstellen und Löschen im Menü unter
+    «Gefahr»; Passwörter nur in Reiter oder Dialog.
+  - *Benachrichtigungen* (`80a9432`, `c2a969d`): E-Mail, Telegram und Web Push als drei
+    auf- und zuklappbare Felder in heutiger Dichte (S-1); Entwurf je Kanal; neue Rückfrage vor
+    «Verknüpfung lösen».
+- **Nächster Schritt:** Ankündigungen (K12-6, Fokus in `MasterDetail` offen), danach Aufräumrunde 2,
+  K12-8 und K12-9.
 
 **Belege K12-3** (Prüfer auf `6e46c6d`):
 
@@ -84,6 +124,21 @@ e2e (libraries, folders, folder-browser, podcasts, podcast, metadata, setup)   9
 e2e Pflege, Titel, Podcasts                                                    52 bestanden
 ```
 
+**Belege K12-5 bis K12-7** (Agentenläufe `git-master`, Merges auf dem Zweig):
+
+```
+K12-5 Stand b802319                    task web:test 906 bestanden, e2e 74 bestanden
+Streams (fdc1be7)                      task web:test 895 bestanden, storybook 300, e2e 26
+Startseite und Sammlungen (7952385)    task web:test 931 bestanden, e2e 68 bestanden
+Spotlight, Empfehlungen, Statistik,
+  Sicherung (e1cab40)                  task web:test 976 bestanden, storybook 307,
+                                       e2e 44 bestanden (Chromium und Firefox)
+Benachrichtigungen (c2a969d)           task web:test 982 bestanden, e2e 28 bestanden
+```
+
+Die Zahlen stammen aus den Läufen je Merge, nicht aus einem vollen `task ci`-Lauf. Der
+Zugänglichkeitsbaum ist weiter nur über CDP geprüft, nicht mit einem Bildschirmleser.
+
 **Gemeinsame Korrekturen unterwegs:**
 
 - Fokus in Dialogen bei «Bewegung reduzieren»: react-aria `runAfterTransition` zählt nur das erste
@@ -93,13 +148,22 @@ e2e Pflege, Titel, Podcasts                                                    5
 - Fokus in verschachtelten `FormDialog` (`b593486`): ebenfalls im Microtask, sonst zog der
   äussere Fokusbereich den Fokus zurück.
 - e2e-Helfer `markLastTabbable` überspringt `[hidden]` und `[inert]` und fragt `checkVisibility`.
+- Firefox malte die Beschriftung der versteckten Diagrammtabellen über den Diagrammtitel; die
+  Versteckklasse steht nun auf einem umhüllenden `div` (`c5c190b`, `BarChart`, `HeatGrid`,
+  `WatchReport`).
+- Neue und erweiterte Bausteine unterwegs: `ui/Tabs` mit `isDisabled`, `RadioGroup` mit `hideLabel`
+  und `inline`, `TextField` mit `hideLabel`, `BarChart` mit `tickEvery`, `VisuallyHidden` mit
+  `as` und `role`, `SelectCheck`, `StreamTile`, `StreamProgress`, `ProfileList` (geteilt).
 
-**Offen (nach K12-4):**
+**Offen (nach K12-7):**
 
-- Aufräumrunde läuft: wackliger Unit-Test von `IntegrationsPage`, wackliger Firefox-e2e der
-  Podcasts, Live-Regionen in Hintergrundjobs und Metadaten, Testlücken.
-- Später ein gemeinsamer Umbau: Umgang von `useSearchSelection` mit unbekannten Reitern und
-  `afterRender`.
+- Ankündigungen (K12-6): Fokus in `MasterDetail` noch zu beheben.
+- Aufräumrunde 2: gemeinsame Helfer `afterRender`, `focusTitleIfLost` und `afterDialogClosed`;
+  `useSearchSelection` mit unbekannten Reitern; `SaveBar` klebend; Speicher-Wettlauf in
+  Hintergrundjobs («Speichern» immer aktiv, keine Anfrage ohne Änderung, «Verwerfen» nur bei
+  Änderung, Eingabe während des Speicherns bleibt, wie auf den anderen Seiten); Test von
+  `IntegrationsPage` unter hoher Last; Block der `StatusRegion`; Story für `Tabs isDisabled`.
+- K12-8 und K12-9.
 - Dialoge mit `autoFocus` in Offline und Player (ausserhalb von Konzept 12).
 
 **Entscheid «Wann geschaut wird»** (Marco, 2. November 2026, Frage 18 Nachtrag): das Fenster
@@ -145,7 +209,7 @@ p95 **96.4 ms**. Schätzung für CT 190 (Faktor 2.5): rund 105 ms beim realen Be
 beim Bestand der Messung. Ob ein Zwischenspeicher nötig ist, fällt mit der Messung auf CT 190 in
 K12-9.
 
-**Offen:** K12-5 bis K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
+**Offen:** Ankündigungen, Aufräumrunde 2, K12-8 und K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
 mit 44 px); Release 1.8.0 danach als eigenes Release.
 
 ## Konzept 11 «Übersicht der Verwaltung»: umgesetzt und abgenommen, Schritte 0 bis 6 (2. November 2026)
