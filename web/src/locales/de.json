@@ -2311,11 +2311,25 @@
       "intro": "Datenbank und Einstellungen sichern und wiederherstellen. Medien sind nie Teil einer Sicherung.",
       "list": "Sicherungen",
       "empty": "Noch keine Sicherungen.",
+      "count_one": "{{number}} Sicherung",
+      "count_other": "{{number}} Sicherungen",
+      "caption": "Sicherungen: {{kind}}",
+      "new": "neu",
+      "tabs": {
+        "label": "Bereiche der Sicherung",
+        "list": "Sicherungen",
+        "create": "Neue Sicherung",
+        "upload": "Aus Datei wiederherstellen"
+      },
+      "groups": {
+        "encrypted": "{{number}} verschlüsselt",
+        "newest": "neueste {{date}}",
+        "autoHint": "Automatische Sicherungen legt der Server vor einer Migration der Datenbank (bei einem Update) und vor einer Wiederherstellung an."
+      },
       "columns": {
         "name": "Datei",
         "created": "Erstellt",
         "size": "Grösse",
-        "kind": "Art",
         "secrets": "Schlüssel",
         "encrypted": "Verschlüsselt",
         "actions": "Aktionen"
@@ -2329,8 +2343,6 @@
       "created": "Sicherung „{{name}}“ erstellt.",
       "deleted": "Sicherung „{{name}}“ gelöscht.",
       "create": {
-        "action": "Sicherung erstellen",
-        "title": "Sicherung erstellen",
         "intro": "Die Sicherung enthält die Datenbank mit Konten, Profilen, Fortschritt und Einstellungen. Medien gehören nie dazu.",
         "scope": "Umfang",
         "without": "Ohne Schlüssel (empfohlen)",
@@ -2350,17 +2362,14 @@
         "label": "{{name}} herunterladen"
       },
       "delete": {
-        "action": "Löschen",
-        "label": "{{name}} löschen",
+        "action": "Löschen …",
         "title": "Sicherung „{{name}}“ löschen?",
         "body": "Die Datei wird aus dem Sicherungsordner des Servers gelöscht. Heruntergeladene Kopien bleiben.",
         "confirm": "Sicherung löschen"
       },
       "restore": {
         "action": "Wiederherstellen",
-        "label": "{{name}} wiederherstellen",
-        "upload": "Aus Datei wiederherstellen",
-        "titleUpload": "Sicherung aus einer Datei wiederherstellen",
+        "menu": "Wiederherstellen …",
         "titleNamed": "„{{name}}“ wiederherstellen",
         "warning": "Die Wiederherstellung ersetzt alle Daten dieses Servers durch den Stand der Sicherung. Danach startet der Server neu, und alle werden abgemeldet.",
         "file": "Sicherungsdatei",

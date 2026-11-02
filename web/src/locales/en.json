@@ -2311,11 +2311,25 @@
       "intro": "Back up and restore the database and the settings. Media are never part of a backup.",
       "list": "Backups",
       "empty": "No backups yet.",
+      "count_one": "{{number}} backup",
+      "count_other": "{{number}} backups",
+      "caption": "Backups: {{kind}}",
+      "new": "new",
+      "tabs": {
+        "label": "Parts of the backup page",
+        "list": "Backups",
+        "create": "New backup",
+        "upload": "Restore from file"
+      },
+      "groups": {
+        "encrypted": "{{number}} encrypted",
+        "newest": "newest {{date}}",
+        "autoHint": "The server makes automatic backups before a migration of the database (with an update) and before a restore."
+      },
       "columns": {
         "name": "File",
         "created": "Created",
         "size": "Size",
-        "kind": "Kind",
         "secrets": "Keys",
         "encrypted": "Encrypted",
         "actions": "Actions"
@@ -2329,8 +2343,6 @@
       "created": "Backup “{{name}}” created.",
       "deleted": "Backup “{{name}}” deleted.",
       "create": {
-        "action": "Create backup",
-        "title": "Create backup",
         "intro": "The backup holds the database with accounts, profiles, progress and settings. Media are never part of it.",
         "scope": "Scope",
         "without": "Without keys (recommended)",
@@ -2350,17 +2362,14 @@
         "label": "Download {{name}}"
       },
       "delete": {
-        "action": "Delete",
-        "label": "Delete {{name}}",
+        "action": "Delete …",
         "title": "Delete the backup “{{name}}”?",
         "body": "The file is deleted from the server's backup folder. Downloaded copies stay.",
         "confirm": "Delete backup"
       },
       "restore": {
         "action": "Restore",
-        "label": "Restore {{name}}",
-        "upload": "Restore from file",
-        "titleUpload": "Restore a backup from a file",
+        "menu": "Restore …",
         "titleNamed": "Restore “{{name}}”",
         "warning": "Restoring replaces all data of this server with the state of the backup. The server restarts afterwards, and everyone is signed out.",
         "file": "Backup file",

@@ -457,6 +457,7 @@ const accountsRoute = createRoute({
 const backupRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/backup',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/BackupPage'), 'BackupPage'),
 });
 
