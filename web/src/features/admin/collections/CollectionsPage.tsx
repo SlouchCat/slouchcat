@@ -57,6 +57,14 @@ interface Confirmation {
 /** «Sammlung anlegen» or «Umbenennen» of a collection. */
 type Naming = { kind: 'create' } | { kind: 'rename'; collection: AdminCollection };
 
+/** Two drawings of a member show the same. */
+const sameMember = (a: Member | undefined, b: Member) =>
+  a !== undefined &&
+  a.title === b.title &&
+  a.kind === b.kind &&
+  a.year === b.year &&
+  a.posterUrl === b.posterUrl;
+
 const without = (set: ReadonlySet<string>, key: string) => {
   if (!set.has(key)) return set;
   const next = new Set(set);
@@ -102,8 +110,20 @@ function CollectionsContent() {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   // Rows ever opened: their stored members stay observed, so a draft outlives folding.
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set());
-  // Titles picked from the search, for drawing them before they are saved.
-  const [picked, setPicked] = useState<ReadonlyMap<string, Member>>(() => new Map());
+  // Every member the page has drawn, stored or picked from the search: a draft keeps showing a
+  // title the server dropped meanwhile (another administrator) or one not saved yet.
+  const [seen, setSeen] = useState<ReadonlyMap<string, Member>>(() => new Map());
+  const remember = useCallback(
+    (members: readonly Member[]) =>
+      setSeen((current) => {
+        const fresh = members.filter((member) => !sameMember(current.get(member.itemId), member));
+        if (fresh.length === 0) return current;
+        const next = new Map(current);
+        for (const member of fresh) next.set(member.itemId, member);
+        return next;
+      }),
+    [],
+  );
 
   // The drafts need what the server holds before the queries know whether to pause for them:
   // passive observers read the same cache entries without fetching.
@@ -118,6 +138,12 @@ function CollectionsContent() {
       new Map(stored.flatMap((collection) => (collection ? [[collection.id, collection]] : []))),
     [stored],
   );
+  // Stored members are remembered during the render that brings them (as useDrafts prunes); a
+  // member equal to the remembered one changes nothing, so the second pass finds nothing new.
+  const storedMembers = stored.flatMap((collection) => collection?.items ?? []);
+  if (storedMembers.some((member) => !sameMember(seen.get(member.itemId), member))) {
+    remember(storedMembers);
+  }
   // A draft is the order of member ids (S-17): adding a title and removing it again, or moving
   // one back, is what the server holds and no change.
   const originalOf = useCallback(
@@ -132,7 +158,7 @@ function CollectionsContent() {
   const unsaved = useUnsavedChanges(drafts.dirty);
   // A draft of a folded row keeps its place but does not hold the page; an open one does.
   const openDraft = drafts.dirtyIds.some((id) => expanded.has(id));
-  const hold = naming !== null || confirmOpen || openDraft;
+  const hold = naming !== null || confirmOpen || unsaved.dialog.isOpen || openDraft;
   const collections = useQuery({ ...collectionsQuery, refetchOnWindowFocus: !hold });
 
   const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ALL);
@@ -237,17 +263,13 @@ function CollectionsContent() {
   );
   const pickMember = useCallback(
     (collection: AdminCollection, hit: AdminItemHit) => {
-      setPicked((current) =>
-        new Map(current).set(hit.id, {
-          itemId: hit.id,
-          kind: hit.kind,
-          title: hit.title,
-          year: hit.year,
-        }),
+      remember([{ itemId: hit.id, kind: hit.kind, title: hit.title, year: hit.year }]);
+      // A second press before the hit left the list adds nothing.
+      setDraft(collection.id, (current) =>
+        current.includes(hit.id) ? current : [...current, hit.id],
       );
-      setDraft(collection.id, (current) => [...current, hit.id]);
     },
-    [setDraft],
+    [remember, setDraft],
   );
   const discardMembers = useCallback(
     (collection: AdminCollection) => {
@@ -258,13 +280,14 @@ function CollectionsContent() {
   );
   const savedMembers = useCallback(
     (saved: AdminCollection) => {
-      // The answer holds the saved members: the draft is spent at once.
+      // The answer holds the saved members: a draft equal to them is spent (useDrafts drops it),
+      // a change made while the save was under way stays a draft.
       queryClient.setQueryData(adminCollectionQuery(saved.id).queryKey, saved);
-      discardDraft(saved.id);
+      remember(saved.items);
       say(t('admin.collections.members.done', { name: saved.name }));
       void invalidate();
     },
-    [queryClient, discardDraft, say, t, invalidate],
+    [queryClient, remember, say, t, invalidate],
   );
   const rename = useCallback(
     (collection: AdminCollection) => setNaming({ kind: 'rename', collection }),
@@ -286,7 +309,7 @@ function CollectionsContent() {
         dirty={drafts.isDirty(collection.id)}
         lookup={(itemId) =>
           storedById.get(collection.id)?.items.find((item) => item.itemId === itemId) ??
-          picked.get(itemId)
+          seen.get(itemId)
         }
         onChange={changeMembers}
         onPick={pickMember}

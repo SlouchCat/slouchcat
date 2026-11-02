@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { createCollection, deleteCollection } from './curation';
+import { createCollection, deleteCollection, titleId } from './curation';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -201,5 +201,103 @@ test('collections page by keyboard: create, fill, order, show on the start page,
   } finally {
     if (created) await deleteCollection(owner, created);
     await deleteCollection(owner, second.id);
+  }
+});
+
+test('collections page: tabs replace the address, browser back leaves; «Entfernen», «Verwerfen» and back with a draft by keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(60_000);
+  const collection = await createCollection(owner, 'E2E Rückfrage', [
+    await titleId(owner, SUBTITLES_TITLE),
+    await titleId(owner, PGS_TITLE),
+  ]);
+  try {
+    // Both pages must have rendered before going back (Firefox, see admin-libraries.spec).
+    await page.goto('/');
+    await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
+    await page.goto('/admin/collections');
+    const toggle = toggleOf(page, collection.id);
+    await expect(toggle).toBeVisible();
+
+    // → selects «Manuell»; the tab replaced the address, so back leaves the page at once.
+    const tabs = page.getByRole('tablist', { name: 'Sammlungen nach Quelle' });
+    await resetFocus(page);
+    await tabTo(page, tabs.getByRole('tab', { name: /^Alle/ }));
+    await page.keyboard.press('ArrowRight');
+    await expect(page).toHaveURL(/\/admin\/collections\?tab=manual$/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
+
+    // Back with a draft needs a step inside the app: from «Spotlight» through the sidebar (one
+    // Tab stop, ↓ to «Sammlungen»), then «Manuell» again.
+    await page.goto('/admin/spotlight');
+    const sidebar = page.getByRole('navigation', { name: 'Verwaltung' });
+    const spotlight = sidebar.getByRole('link', { name: 'Spotlight' });
+    await expect(spotlight).toHaveAttribute('aria-current', 'page');
+    await resetFocus(page);
+    await tabTo(page, spotlight);
+    await arrowTo(page, sidebar.getByRole('link', { name: 'Sammlungen' }));
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/admin\/collections$/);
+    await resetFocus(page);
+    await tabTo(page, tabs.getByRole('tab', { name: /^Alle/ }));
+    await page.keyboard.press('ArrowRight');
+    await expect(page).toHaveURL(/\/admin\/collections\?tab=manual$/);
+    await tabTo(page, toggle, 60);
+    await page.keyboard.press('Enter');
+    const members = page.getByRole('region', { name: 'Mitglieder von E2E Rückfrage' });
+    const list = members.getByRole('list', { name: 'Titel der Sammlung' });
+    await expect(list.getByRole('listitem')).toHaveCount(2);
+
+    // «Entfernen» by keyboard: the member goes, the focus is back in the search field.
+    await tabTo(page, members.getByRole('button', { name: `${PGS_TITLE} entfernen` }), 30);
+    await page.keyboard.press('Enter');
+    await expect(list.getByRole('listitem')).toHaveCount(1);
+    await expectFocusOn(page, members.getByRole('searchbox', { name: 'Titel suchen' }));
+    await expect(rowOf(page, collection.id)).toContainText('geändert');
+
+    // «Verwerfen» by keyboard: both members again, said in the status region; the focus moves
+    // to «Speichern».
+    await tabTo(page, members.getByRole('button', { name: 'Verwerfen' }), 30);
+    await page.keyboard.press('Enter');
+    await expect(list.getByRole('listitem')).toHaveCount(2);
+    await expect(page.getByText('Die Änderungen an E2E Rückfrage sind verworfen.')).toBeVisible();
+    await expectFocusOn(page, members.getByRole('button', { name: 'Speichern' }));
+    await expect(rowOf(page, collection.id)).not.toContainText('geändert');
+
+    // A new draft: PGS first by ↑ on its select.
+    const place = list.getByRole('combobox', { name: `Platz für ${PGS_TITLE}` });
+    await resetFocus(page);
+    await tabTo(page, place, 80);
+    await page.keyboard.press('ArrowUp');
+    await expect(list.getByRole('listitem').first()).toContainText(PGS_TITLE);
+
+    // Browser back with the draft asks; «Auf der Seite bleiben» keeps page and draft.
+    await page.goBack();
+    const leave = page.getByRole('alertdialog', {
+      name: 'Seite mit ungespeicherten Änderungen verlassen?',
+    });
+    const stay = leave.getByRole('button', { name: 'Auf der Seite bleiben' });
+    await expectFocusOn(page, stay);
+    await page.keyboard.press('Enter');
+    await expect(leave).toHaveCount(0);
+    await expect(page).toHaveURL(/\/admin\/collections\?tab=manual$/);
+    await expect(list.getByRole('listitem').first()).toContainText(PGS_TITLE);
+
+    // Back again, «Verwerfen und verlassen»: «Spotlight», nothing was saved.
+    await page.goBack();
+    await expectFocusOn(page, stay);
+    await tabTo(page, leave.getByRole('button', { name: 'Verwerfen und verlassen' }), 3);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/admin\/spotlight$/);
+    const kept = await owner.get(`/api/v1/admin/collections/${collection.id}`);
+    expect(
+      ((await kept.json()) as { items: { title: string }[] }).items.map((item) => item.title),
+    ).toEqual([SUBTITLES_TITLE, PGS_TITLE]);
+  } finally {
+    await deleteCollection(owner, collection.id);
   }
 });

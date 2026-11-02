@@ -1,7 +1,7 @@
 import type { AdminCollection, AdminCollectionItem, AdminItemHit } from '@slouchcat/api-client';
 import { useMutation, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useId, useRef } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -91,7 +91,7 @@ export function ManualMembers({
   onRemove: (collection: AdminCollection) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const headingId = useId();
   const hintId = useId();
   const searchRef = useRef<HTMLDivElement>(null);
@@ -105,9 +105,11 @@ export function ManualMembers({
     onSuccess: onSaved,
   });
   const ids = memberIds ?? [];
-  const members = ids.flatMap((id) => {
+  // Positions and «Speichern» go by the ids, so a member is never dropped; the page knows every
+  // member it has drawn (lookup), so each id has its title.
+  const members = ids.flatMap((id, position) => {
     const member = lookup(id);
-    return member ? [member] : [];
+    return member ? [{ ...member, position }] : [];
   });
   const change = (next: string[]) => {
     if (save.error) save.reset();
@@ -150,34 +152,25 @@ export function ManualMembers({
               </h3>
               <span className={styles.muted}>
                 {t('admin.collections.members.count', {
-                  count: members.length,
-                  number: number.format(members.length),
+                  count: ids.length,
+                  number: number.format(ids.length),
                 })}
               </span>
             </div>
-            {members.length === 0 ? (
+            {ids.length === 0 ? (
               <Text tone="secondary">{t('admin.collections.members.empty')}</Text>
             ) : (
               <>
                 <RankHint id={hintId} />
                 <ol className={styles.list} aria-labelledby={headingId}>
-                  {members.map((member, index) => (
+                  {members.map((member) => (
                     <li key={member.itemId} className={styles.entry}>
                       <RankSelect
                         name={member.title}
-                        position={index}
-                        count={members.length}
+                        position={member.position}
+                        count={ids.length}
                         describedBy={hintId}
-                        onChange={(to) =>
-                          change(
-                            rankTo(
-                              members.map((entry) => entry.itemId),
-                              index,
-                              to,
-                              'move',
-                            ),
-                          )
-                        }
+                        onChange={(to) => change(rankTo(ids, member.position, to, 'move'))}
                       />
                       <span className={styles.thumb}>
                         <Poster member={member} />
@@ -230,7 +223,7 @@ export function ManualMembers({
           variant="primary"
           isPending={save.isPending}
           isDisabled={!stored.isSuccess}
-          onPress={() => save.mutate(members.map((member) => member.itemId))}
+          onPress={() => save.mutate(ids)}
         >
           {save.isPending ? t('common.saving') : t('common.save')}
         </AriaButton>

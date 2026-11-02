@@ -565,9 +565,10 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     expect(first).not.toBeInTheDocument();
   });
 
-  it('pauses the refetch on focus for an open draft or the confirmation, not for a folded draft', async () => {
+  it('pauses the refetch on focus for an open draft or a question, not for a folded draft', async () => {
     const { calls } = mockApi({
       ...signedIn,
+      ...adminShell,
       'GET /admin/collections': () => json([manual]),
       [`GET /admin/collections/${manualId}`]: () => json(members),
     });
@@ -590,6 +591,22 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
       await waitFor(() => expect(lists()).toBeGreaterThan(before));
       expect(within(rowOf('Filmabend')).getByText('geändert')).toBeVisible();
 
+      // The leave question holds the page too, also for a folded draft.
+      await user.click(
+        within(await screen.findByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
+          name: /^Integrationen/,
+        }),
+      );
+      const leave = await screen.findByRole('alertdialog', {
+        name: 'Seite mit ungespeicherten Änderungen verlassen?',
+      });
+      before = lists();
+      refocus();
+      await settle();
+      expect(lists()).toBe(before);
+      await user.click(within(leave).getByRole('button', { name: 'Auf der Seite bleiben' }));
+      await waitFor(() => expect(leave).not.toBeInTheDocument());
+
       // Open again without a draft, the confirmation holds the page while it is open.
       const again = await openRow(user, 'Filmabend');
       await user.click(within(again).getByRole('button', { name: 'Verwerfen' }));
@@ -606,6 +623,138 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     } finally {
       focusManager.setFocused(undefined);
     }
+  });
+
+  it('a change made while «Speichern» runs stays a draft', async () => {
+    let answer: () => void = () => undefined;
+    const answered = new Promise<void>((resolve) => {
+      answer = resolve;
+    });
+    let stored = members;
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/collections': () => json([manual]),
+      [`GET /admin/collections/${manualId}`]: () => json(stored),
+      [`PUT /admin/collections/${manualId}/items`]: async () => {
+        await answered;
+        stored = {
+          ...manual,
+          items: [
+            { ...arrivalItem, position: 0 },
+            { ...heatItem, position: 1 },
+          ],
+        };
+        return json(stored);
+      },
+    });
+    renderApp('/admin/collections');
+    const user = userEvent.setup();
+    const region = await openRow(user, 'Filmabend');
+    fireEvent.change(await within(region).findByRole('combobox', { name: 'Platz für Arrival' }), {
+      target: { value: '0' },
+    });
+    await user.click(within(region).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    // While the save is under way, Heat leaves.
+    await user.click(within(region).getByRole('button', { name: 'Heat entfernen' }));
+    answer();
+
+    expect(await screen.findByText('Die Mitglieder von Filmabend sind gespeichert.')).toBeVisible();
+    expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+      itemIds: [ids.arrival, ids.heat],
+    });
+    // The later change differs from what was saved: it is still a draft.
+    expect(memberTitles(region)).toEqual([expect.stringContaining('Arrival')]);
+    expect(within(rowOf('Filmabend')).getByText('geändert')).toBeVisible();
+    expect(within(region).getByRole('button', { name: 'Verwerfen' })).toBeVisible();
+  });
+
+  it('a member the server dropped meanwhile stays in the draft, shown and saved', async () => {
+    let stored = members;
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/collections': () => json([manual]),
+      [`GET /admin/collections/${manualId}`]: () => json(stored),
+      'GET /admin/items/search': () => json(hits),
+      [`PATCH /admin/collections/${manualId}`]: () => json(manual),
+      [`PUT /admin/collections/${manualId}/items`]: () => json(stored),
+    });
+    renderApp('/admin/collections');
+    const user = userEvent.setup();
+    const region = await openRow(user, 'Filmabend');
+    await user.type(await within(region).findByRole('searchbox', { name: 'Titel suchen' }), 'al');
+    await user.click(await within(region).findByRole('button', { name: 'Alien hinzufügen' }));
+
+    // Another administrator removed Arrival; a rename here reads the members again.
+    stored = { ...manual, items: [heatItem] };
+    await user.click(within(region).getByRole('button', { name: 'Filmabend umbenennen' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Filmabend umbenennen' });
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.path === `/admin/collections/${manualId}`).length,
+      ).toBeGreaterThan(2),
+    );
+
+    expect(memberTitles(region)).toEqual([
+      expect.stringContaining('Heat'),
+      expect.stringContaining('Arrival'),
+      expect.stringContaining('Alien'),
+    ]);
+    await user.click(within(region).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        itemIds: [ids.heat, ids.arrival, ids.alien],
+      }),
+    );
+  });
+
+  it('saving the members and deleting mark the viewer pages that show collections as stale', async () => {
+    let list = [manual];
+    mockApi({
+      ...signedIn,
+      'GET /admin/collections': () => json(list),
+      [`GET /admin/collections/${manualId}`]: () => json(members),
+      [`PUT /admin/collections/${manualId}/items`]: () => json(members),
+      [`DELETE /admin/collections/${manualId}`]: () => {
+        list = [];
+        return new Response(null, { status: 204 });
+      },
+    });
+    const { queryClient } = renderApp('/admin/collections');
+    const viewer = [
+      ['collection', manualId],
+      ['item', ids.heat],
+      ['search', { query: 'Fi', offset: 0, limit: 50 }],
+      ['home'],
+    ];
+    const mark = () => {
+      for (const queryKey of [...viewer, ['genres']]) queryClient.setQueryData(queryKey, {});
+    };
+    const expectStale = () =>
+      waitFor(() => {
+        for (const queryKey of viewer) {
+          expect(queryClient.getQueryState(queryKey)?.isInvalidated, JSON.stringify(queryKey)).toBe(
+            true,
+          );
+        }
+        expect(queryClient.getQueryState(['genres'])?.isInvalidated).toBe(false);
+      });
+    const user = userEvent.setup();
+    const region = await openRow(user, 'Filmabend');
+    const save = within(region).getByRole('button', { name: 'Speichern' });
+    await waitFor(() => expect(save).toBeEnabled());
+
+    mark();
+    await user.click(save);
+    await expectStale();
+
+    mark();
+    await user.click(within(region).getByRole('button', { name: 'Sammlung Filmabend löschen' }));
+    const confirm = await screen.findByRole('alertdialog');
+    await user.click(within(confirm).getByRole('button', { name: 'Sammlung löschen' }));
+    await expectStale();
   });
 
   it('a refused save shows the problem in the row and keeps the draft; a refused delete keeps the row', async () => {
