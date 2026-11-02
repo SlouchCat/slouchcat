@@ -156,6 +156,17 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
   });
 
+  it('puts the SaveBar into the page column, so it sticks while the rows scroll', async () => {
+    mockApi(storingRoutes());
+    await renderAdminPage('/admin/home-rows');
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    // position: sticky holds an element inside its parent: the parent must be the long column
+    // that holds the h1 and the rows, not a wrapper only as tall as the bar.
+    const column = saveBar().parentElement;
+    expect(column).toContainElement(screen.getByRole('heading', { level: 1, name: 'Startseite' }));
+    expect(column).toContainElement(screen.getByRole('table', { name: 'Reihen der Startseite' }));
+  });
+
   it('a row placed back where it was is no change', async () => {
     mockApi(storingRoutes());
     renderApp('/admin/home-rows');

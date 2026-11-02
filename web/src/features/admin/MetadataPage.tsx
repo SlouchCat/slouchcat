@@ -1002,29 +1002,29 @@ export function MetadataPage() {
             <TextLink href={paths.adminLibraries}>{t('admin.metadata.links.roots')}</TextLink>{' '}
             <TextLink href={paths.adminJobs}>{t('admin.metadata.links.jobs')}</TextLink>
           </Text>
-          <div className={styles.save}>
-            <SaveBar
-              dirty={drafts.dirty}
-              saving={saving}
-              onSave={() => void onSave()}
-              onDiscard={() => setDiscardOpen(true)}
-            />
-            {failure && errors ? (
-              <Notice tone="danger">
-                {t('admin.metadata.save.failed', {
-                  name: scopeName(failure.scope),
-                  reason: errors.form ?? Object.values(errors.fields)[0] ?? '',
-                })}
+          {/* A direct child of the page's column, so it sticks to the bottom while the areas
+              scroll (a wrapper only as tall as the bar would hold it in place). */}
+          <SaveBar
+            dirty={drafts.dirty}
+            saving={saving}
+            onSave={() => void onSave()}
+            onDiscard={() => setDiscardOpen(true)}
+          />
+          {failure && errors ? (
+            <Notice tone="danger">
+              {t('admin.metadata.save.failed', {
+                name: scopeName(failure.scope),
+                reason: errors.form ?? Object.values(errors.fields)[0] ?? '',
+              })}
+            </Notice>
+          ) : null}
+          <StatusRegion>
+            {savedMessages.map((message) => (
+              <Notice key={message.scope} live={false}>
+                {message.text}
               </Notice>
-            ) : null}
-            <StatusRegion>
-              {savedMessages.map((message) => (
-                <Notice key={message.scope} live={false}>
-                  {message.text}
-                </Notice>
-              ))}
-            </StatusRegion>
-          </div>
+            ))}
+          </StatusRegion>
           <ConfirmDialog
             isOpen={discardOpen}
             onOpenChange={setDiscardOpen}

@@ -151,6 +151,17 @@ const areaTitle: Record<string, string> = { Anwenden: 'Auf bestehende Titel anwe
 describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it('puts the SaveBar into the page column, so it sticks while the areas scroll', async () => {
+    mockApi(routes());
+    renderApp('/admin/metadata');
+    const languages = await screen.findByRole('region', { name: 'Sprachen' });
+    // position: sticky holds an element inside its parent: the parent must be the long column
+    // that holds the h1 and the areas, not a wrapper only as tall as the bar.
+    const column = screen.getByRole('region', { name: 'Speichern' }).parentElement;
+    expect(column).toContainElement(screen.getByRole('heading', { level: 1, name: 'Metadaten' }));
+    expect(column).toContainElement(languages);
+  });
+
   it('shows the server default: areas, languages in order, image kinds, chains, quality, sources, country, apply', async () => {
     mockApi(routes());
     renderApp('/admin/metadata');

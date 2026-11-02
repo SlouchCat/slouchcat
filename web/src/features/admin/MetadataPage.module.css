@@ -14,11 +14,3 @@
   align-items: center;
   gap: var(--sc-space-2);
 }
-
-/* The save bar with the messages of the last save below it. */
-.save {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-3);
-  padding-block-end: var(--sc-space-12);
-}

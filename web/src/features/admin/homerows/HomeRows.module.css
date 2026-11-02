@@ -140,10 +140,3 @@
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-surface-2);
 }
-
-/* The save bar and what it reports, one below the other. */
-.save {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-3);
-}

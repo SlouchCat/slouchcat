@@ -280,16 +280,16 @@ function HomeRowsContent() {
               tabs,
             }}
           />
-          <div className={styles.save}>
-            <SaveBar
-              dirty={drafts.dirty}
-              saving={save.isPending}
-              onSave={() => save.mutate(rows)}
-              onDiscard={() => setConfirmOpen(true)}
-            />
-            {save.isError && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
-            <StatusRegion message={!save.isError ? message : null} />
-          </div>
+          {/* A direct child of the page's column, so it sticks to the bottom while the rows scroll
+              (a wrapper only as tall as the bar would hold it in place). */}
+          <SaveBar
+            dirty={drafts.dirty}
+            saving={save.isPending}
+            onSave={() => save.mutate(rows)}
+            onDiscard={() => setConfirmOpen(true)}
+          />
+          {save.isError && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
+          <StatusRegion message={!save.isError ? message : null} />
           <Text tone="secondary">
             {t('admin.homeRows.spotlight')}{' '}
             <TextLink href={paths.adminSpotlight}>{t('admin.homeRows.spotlightLink')}</TextLink>
