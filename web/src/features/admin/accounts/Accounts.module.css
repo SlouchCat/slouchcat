@@ -111,13 +111,6 @@
   justify-content: flex-end;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-  align-items: center;
-}
-
 /* The invitation dialog. */
 .form {
   display: flex;

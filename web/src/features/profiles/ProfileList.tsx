@@ -1,6 +1,6 @@
 import type { Profile } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useState, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -44,6 +44,8 @@ interface ProfileListProps {
   nameHeadings?: boolean;
   /** The page holds its queries (a dialog or unsaved input of its own): the list holds too. */
   hold?: boolean;
+  /** The list's own dialogs are open (or no longer): the page holds its queries with them. */
+  onHoldChange?: (held: boolean) => void;
   /** A profile was created, changed or deleted (the account list shows the names). */
   onChanged?: () => void;
   /** Lays out the add button and the list: in the page header, or in a block of a page. */
@@ -62,6 +64,7 @@ export function ProfileList({
   titleRef,
   nameHeadings = true,
   hold = false,
+  onHoldChange,
   onChanged,
   children,
 }: ProfileListProps) {
@@ -72,7 +75,13 @@ export function ProfileList({
   const [pinFor, setPinFor] = useState<Profile | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const held = hold || editing !== null || pinFor !== null || confirmOpen;
+  const ownHeld = editing !== null || pinFor !== null || confirmOpen;
+  const held = hold || ownHeld;
+  useEffect(() => {
+    onHoldChange?.(ownHeld);
+  }, [onHoldChange, ownHeld]);
+  // A list that goes (its row folded) holds nothing any more.
+  useEffect(() => () => onHoldChange?.(false), [onHoldChange]);
   const profiles = useQuery({ ...manageProfilesQuery, refetchOnWindowFocus: !held });
   const libraries = useLibraryOptions();
   // Profiles whose watch-time report is open (K-5); several at once.

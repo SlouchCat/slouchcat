@@ -1,5 +1,6 @@
 import type { AdminAccount } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
+import type { ReactNode } from 'react';
 import { formatDateTime } from '@/lib/format';
 import { Chip } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
@@ -16,9 +17,13 @@ export const profileNames = (t: TFunction, account: AdminAccount) =>
 /**
  * The columns of the account table (KON-2, mockup KP-1): the e-mail folds the row out; role with
  * the owner badge, rating, libraries, profiles (one line, the names in full in the fold-out), last
- * contact and the channels the account switched on. The actions are in the fold-out.
+ * contact and the channels the account switched on; «Weitere Aktionen» of another account last.
  */
-export function accountColumns(t: TFunction, language: string): DataColumn<AdminAccount>[] {
+export function accountColumns(
+  t: TFunction,
+  language: string,
+  actions: (account: AdminAccount) => ReactNode,
+): DataColumn<AdminAccount>[] {
   return [
     {
       key: 'email',
@@ -85,6 +90,13 @@ export function accountColumns(t: TFunction, language: string): DataColumn<Admin
           </span>
         );
       },
+    },
+    {
+      key: 'actions',
+      header: t('admin.accounts.columns.actions'),
+      hideHeader: true,
+      align: 'end',
+      cell: actions,
     },
   ];
 }

@@ -1,5 +1,5 @@
 import type { Invitation, InvitationCreated, InvitationRequest } from '@slouchcat/api-client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { api, request } from '@/api/client';
 import { formErrors } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
 import { formText } from '@/lib/form';
+import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice } from '@/ui';
 import {
   AriaButton,
@@ -102,21 +103,22 @@ function InvitationForm({
   const [rating, setRating] = useState('18');
   const [selection, setSelection] = useState<LibrarySelection>({ all: true, ids: [] });
 
-  const create = useMutation({
-    mutationFn: (body: InvitationRequest): Promise<InvitationCreated> =>
+  // The answer holds the one-time link: it must not stay in the mutation cache.
+  const create = useTransientMutation(
+    (body: InvitationRequest): Promise<InvitationCreated> =>
       request(api.POST('/admin/invitations', { body })),
-    onSuccess: async (created) => {
+    async (created) => {
       onCreated(created);
       await queryClient.invalidateQueries({ queryKey: invitationsQuery.queryKey });
     },
-  });
+  );
   const errors = create.error ? formErrors(t, create.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const note = formText(data, 'note');
-    create.mutate({
+    void create.run({
       ...(note ? { note } : {}),
       maxRating: ratingOf(rating),
       allLibraries: selection.all,

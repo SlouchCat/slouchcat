@@ -224,9 +224,10 @@ test('A-2: change the own e-mail and back by keyboard; a wrong password stays at
 });
 
 /**
- * Rule 8 for the account table that grew in ADR 0014: the access form, the role confirmation and
- * the removal are reachable and leaveable by keyboard, the focus stays visible and returns to the
- * button it came from, and a refusal from the server is readable instead of silent.
+ * Rule 8 for the account table that grew in ADR 0014: the access form, the menu «Weitere
+ * Aktionen» with the role and the removal (S-6) and their confirmations are reachable and
+ * leaveable by keyboard, the focus stays visible and returns to the menu button, and a refusal
+ * from the server is readable instead of silent.
  *
  * The test appoints the invited account and takes the role away again. Both directions run against
  * the real server; the `owner` fixture removes the account afterwards, and its cleanup takes a
@@ -246,16 +247,35 @@ test('ADR 0014: appoint and demote by keyboard, with the confirmation and no foc
     const row = accountRow(page, GUEST.email);
     const detail = await openRowByKeyboard(page, GUEST.email);
 
-    // The access form is the first stop in the fold-out.
+    // «Weitere Aktionen» ends the row; the access form is the first stop in the fold-out.
+    const more = row.getByRole('button', { name: `Weitere Aktionen für ${GUEST.email}` });
     const access = detail.getByRole('region', { name: `Zugriff von ${GUEST.email}` });
     await page.keyboard.press('Tab');
+    await expectFocusOn(page, more);
+    await page.keyboard.press('Tab');
     await expectFocusOn(page, access.getByRole('radio', { name: 'FSK 12' }));
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, more);
 
-    // The role confirmation: Tab reaches its button, Escape leaves it, Enter appoints.
-    const promote = detail.getByRole('button', {
-      name: `${GUEST.email} zum Administrator ernennen`,
-    });
-    await tabTo(page, promote, 30);
+    // The menu: Enter opens it on its first item, the arrows move, Escape closes onto its button.
+    const menu = page.getByRole('menu');
+    const promote = menu.getByRole('menuitem', { name: 'Zum Administrator ernennen' });
+    const remove = menu.getByRole('menuitem', { name: 'Konto entfernen' });
+    await page.keyboard.press('Enter');
+    await expect(promote).toBeFocused();
+    await expectVisibleFocus(page);
+    await page.keyboard.press('ArrowDown');
+    await expect(remove).toBeFocused();
+    await expect(menu.getByText('Gefahr')).toBeVisible();
+    await page.keyboard.press('ArrowUp');
+    await expect(promote).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expectFocusOn(page, more);
+
+    // The role confirmation: Escape leaves it onto the menu button, Enter appoints.
+    await page.keyboard.press('Enter');
+    await expect(promote).toBeFocused();
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', {
       name: `${GUEST.email} zum Administrator ernennen?`,
@@ -264,8 +284,10 @@ test('ADR 0014: appoint and demote by keyboard, with the confirmation and no foc
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Ernennen' }));
     await page.keyboard.press('Escape');
     await expect(confirm).toBeHidden();
-    await expectFocusOn(page, promote);
+    await expectFocusOn(page, more);
 
+    await page.keyboard.press('Enter');
+    await expect(promote).toBeFocused();
     await page.keyboard.press('Enter');
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Ernennen' }));
     const appointed = page.waitForResponse(
@@ -281,11 +303,10 @@ test('ADR 0014: appoint and demote by keyboard, with the confirmation and no foc
     await expect(detail).toContainText('hat immer FSK 18 und alle Bibliotheken');
 
     // And back: the demotion signs the account out everywhere. The confirmation gave the focus
-    // back to the button it came from, and that button now carries the other label.
-    const demote = detail.getByRole('button', {
-      name: `${GUEST.email} die Administratorrolle entziehen`,
-    });
-    await expectFocusOn(page, demote);
+    // back to the menu button, whose first item now takes the role away.
+    await expectFocusOn(page, more);
+    await page.keyboard.press('Enter');
+    await expect(menu.getByRole('menuitem', { name: 'Rolle entziehen' })).toBeFocused();
     await page.keyboard.press('Enter');
     const back = page.getByRole('alertdialog', {
       name: `${GUEST.email} die Administratorrolle entziehen?`,
@@ -300,11 +321,8 @@ test('ADR 0014: appoint and demote by keyboard, with the confirmation and no foc
     await expect(access).toBeVisible();
 
     // The owner is refused by the server, and the page offers it nothing to begin with.
-    await accountToggle(page, OWNER.email).click();
     await expect(
-      accountFoldOut(page, OWNER.email).getByRole('button', {
-        name: /ernennen|entziehen|entfernen/,
-      }),
+      accountRow(page, OWNER.email).getByRole('button', { name: /Weitere Aktionen/ }),
     ).toHaveCount(0);
     const refused = await page.request.put(
       `/api/v1/admin/accounts/${await ownerAccountId(owner)}/role`,
@@ -313,17 +331,23 @@ test('ADR 0014: appoint and demote by keyboard, with the confirmation and no foc
     expect(refused.status()).toBe(409);
     expect(await refused.text()).toContain('owner_protected');
 
-    // The removal: Escape keeps the account, Enter removes it and the h1 takes the focus.
-    const remove = detail.getByRole('button', { name: `${GUEST.email} entfernen` });
-    await resetFocus(page);
-    await tabTo(page, remove, TAB_MAX);
+    // The removal under «Gefahr»: Escape keeps the account, Enter removes it and the h1 takes
+    // the focus.
+    await expectFocusOn(page, more);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await expect(remove).toBeFocused();
     await page.keyboard.press('Enter');
     const removal = page.getByRole('alertdialog', { name: `Konto ${GUEST.email} entfernen?` });
     await expectFocusOn(page, removal.getByRole('button', { name: 'Konto entfernen' }));
     await page.keyboard.press('Escape');
     await expect(removal).toBeHidden();
-    await expectFocusOn(page, remove);
+    await expectFocusOn(page, more);
     await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await expect(remove).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, removal.getByRole('button', { name: 'Konto entfernen' }));
     await page.keyboard.press('Enter');
     await expect(row).toHaveCount(0);
     await expect(page.getByText(`Konto ${GUEST.email} entfernt.`)).toBeVisible();
@@ -353,7 +377,12 @@ test('K-7: the access inline by keyboard; unsaved, leaving asks, Back stays, Ver
     const detail = await openRowByKeyboard(page, GUEST.email);
     const access = detail.getByRole('region', { name: `Zugriff von ${GUEST.email}` });
 
-    // The rating by arrows, then Tab to the save button and Enter.
+    // The rating by arrows (past the row's menu button), then Tab to the save button and Enter.
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
+      row.getByRole('button', { name: `Weitere Aktionen für ${GUEST.email}` }),
+    );
     await page.keyboard.press('Tab');
     await expectFocusOn(page, access.getByRole('radio', { name: 'FSK 12' }));
     await page.keyboard.press('ArrowLeft');

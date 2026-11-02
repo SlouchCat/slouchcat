@@ -1,10 +1,11 @@
 import type { AdminAccount } from '@slouchcat/api-client';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation } from '@tanstack/react-router';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Chip, Skeleton, Text } from '@/ui';
-import { AriaButton } from '@/ui/aria';
 import { ProfileList } from '../../profiles/ProfileList';
+import { manageProfilesQuery } from '../../profiles/queries';
 import type { LibraryOptions } from '../../shared/useLibraryOptions';
 import { AccessForm, type AccessDraft } from './AccessForm';
 import { OwnAccountForm, type OwnAccountDraft } from './OwnAccountForm';
@@ -23,8 +24,8 @@ export interface DraftProps<T> {
 
 /**
  * The fold-out of the own account (KON-3, KP-1): «Konto ändern» inline, then «Meine Profile» with
- * every profile action (PRO-1 to PRO-3). The sidebar's «Profile» opens it here; the page scrolls
- * to the block when the address names it.
+ * every profile action (PRO-1 to PRO-3). The sidebar's «Profile» opens it here; the block scrolls
+ * into view once per arrival at `#meine-profile`, when the profiles are there to scroll to.
  */
 export function OwnAccountDetail({
   account,
@@ -32,6 +33,8 @@ export function OwnAccountDetail({
   onSaved,
   titleRef,
   hold,
+  onHoldChange,
+  claimScroll,
   onProfilesChanged,
 }: {
   account: AdminAccount;
@@ -39,14 +42,25 @@ export function OwnAccountDetail({
   onSaved: () => void;
   titleRef: RefObject<HTMLHeadingElement | null>;
   hold: boolean;
+  /** The profile dialogs are open: the page holds its queries too. */
+  onHoldChange: (held: boolean) => void;
+  /**
+   * True once for an arrival (history entry): the page remembers it over folds, so the block
+   * scrolls once per arrival.
+   */
+  claimScroll: (arrival: string) => boolean;
   onProfilesChanged: () => void;
 }) {
   const { t } = useTranslation();
-  const { hash } = useLocation();
+  const location = useLocation();
+  const arrival = location.state.__TSR_key ?? location.state.key ?? location.href;
+  // A passive observer: the list asks, this only learns that the profiles are there.
+  const profilesLoaded = useQuery({ ...manageProfilesQuery, enabled: false }).isSuccess;
   const profiles = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (hash === MY_PROFILES) profiles.current?.scrollIntoView({ block: 'start' });
-  }, [hash]);
+    if (location.hash !== MY_PROFILES || !profilesLoaded || !claimScroll(arrival)) return;
+    profiles.current?.scrollIntoView({ block: 'start' });
+  }, [location.hash, profilesLoaded, arrival, claimScroll]);
   return (
     <div className={styles.detail}>
       <OwnAccountForm email={account.email} onSaved={onSaved} {...draft} />
@@ -60,6 +74,7 @@ export function OwnAccountDetail({
           titleRef={titleRef}
           nameHeadings={false}
           hold={hold}
+          onHoldChange={onHoldChange}
           onChanged={onProfilesChanged}
         >
           {({ add, list }) => (
@@ -81,31 +96,22 @@ export function OwnAccountDetail({
 
 /**
  * The fold-out of another account (KON-4): «Zugriff» inline for an account that administers
- * nothing, the hint for an administrator, the profile names to read (their profiles are the
- * account's own business, `x-visibility: account`), then appoint or demote (owner only) and
- * remove. The buttons stand in the same place for both roles, so a role change keeps the focus on
- * the button that asked for it.
+ * nothing, the hint for an administrator, and the profile names to read (their profiles are the
+ * account's own business, `x-visibility: account`). Appoint, demote and remove are in the row's
+ * «Weitere Aktionen» (S-6).
  */
 export function OtherAccountDetail({
   account,
-  isOwner,
   libraries,
   access,
   onAccessSaved,
-  onRole,
-  onRemove,
 }: {
   account: AdminAccount;
-  /** The signed-in account is the owner: it alone appoints and demotes (ADR 0014). */
-  isOwner: boolean;
   libraries: LibraryOptions;
   access: DraftProps<AccessDraft> | undefined;
   onAccessSaved: () => Promise<void>;
-  onRole: (account: AdminAccount) => void;
-  onRemove: (account: AdminAccount) => void;
 }) {
   const { t } = useTranslation();
-  const demote = account.role === 'admin';
   let first: ReactNode;
   if (account.role !== 'user') {
     first = <Text tone="secondary">{t('admin.accounts.access.adminHint')}</Text>;
@@ -145,33 +151,6 @@ export function OtherAccountDetail({
           {t('admin.accounts.profiles.readOnly')}
         </Text>
       </section>
-      {/* The owner is protected: no role change and no removal (ADR 0014). */}
-      {!account.isOwner && (
-        <div className={styles.actions}>
-          {isOwner && (
-            <AriaButton
-              variant="secondary"
-              aria-label={t(
-                demote ? 'admin.accounts.role.demote.label' : 'admin.accounts.role.promote.label',
-                { email: account.email },
-              )}
-              onPress={() => onRole(account)}
-            >
-              {t(
-                demote ? 'admin.accounts.role.demote.action' : 'admin.accounts.role.promote.action',
-              )}
-            </AriaButton>
-          )}
-          <AriaButton
-            variant="danger"
-            icon="trash"
-            aria-label={t('admin.accounts.remove.label', { email: account.email })}
-            onPress={() => onRemove(account)}
-          >
-            {t('admin.accounts.remove.action')}
-          </AriaButton>
-        </div>
-      )}
     </div>
   );
 }

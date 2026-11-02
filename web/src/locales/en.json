@@ -2102,7 +2102,8 @@
         "libraries": "Libraries",
         "profiles": "Profiles",
         "lastSeen": "Last seen",
-        "channels": "Channels"
+        "channels": "Channels",
+        "actions": "Actions"
       },
       "roles": {
         "admin": "Administrator",
@@ -2146,7 +2147,6 @@
       "role": {
         "promote": {
           "action": "Make administrator",
-          "label": "Make {{email}} an administrator",
           "title": "Make {{email}} an administrator?",
           "body": "The account will manage the server, the libraries and the settings. Its rating rises to 18 and all libraries; the account's profiles keep their own levels.",
           "confirm": "Appoint",
@@ -2154,7 +2154,6 @@
         },
         "demote": {
           "action": "Take the role away",
-          "label": "Take the administrator role away from {{email}}",
           "title": "Take the administrator role away from {{email}}?",
           "body": "The account will manage only its own profiles and is signed out everywhere. Rating and libraries stay where they are; set them again on purpose.",
           "confirm": "Take away",
@@ -2162,8 +2161,7 @@
         }
       },
       "remove": {
-        "action": "Remove",
-        "label": "Remove {{email}}",
+        "action": "Remove account",
         "title": "Remove the account {{email}}?",
         "body": "The account, its profiles and its progress are deleted. Running sessions and playback end at once. Downloads on the account's devices disappear the next time they reach the server. A device that never comes online again keeps them.",
         "confirm": "Remove account",

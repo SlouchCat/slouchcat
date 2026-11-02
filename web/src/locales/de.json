@@ -2102,7 +2102,8 @@
         "libraries": "Bibliotheken",
         "profiles": "Profile",
         "lastSeen": "Zuletzt gesehen",
-        "channels": "Kanäle"
+        "channels": "Kanäle",
+        "actions": "Aktionen"
       },
       "roles": {
         "admin": "Administrator",
@@ -2146,7 +2147,6 @@
       "role": {
         "promote": {
           "action": "Zum Administrator ernennen",
-          "label": "{{email}} zum Administrator ernennen",
           "title": "{{email}} zum Administrator ernennen?",
           "body": "Das Konto verwaltet danach Server, Bibliotheken und Einstellungen. Seine Altersstufe steigt auf FSK 18 und alle Bibliotheken; die Profile des Kontos behalten ihre eigenen Stufen.",
           "confirm": "Ernennen",
@@ -2154,7 +2154,6 @@
         },
         "demote": {
           "action": "Rolle entziehen",
-          "label": "{{email}} die Administratorrolle entziehen",
           "title": "{{email}} die Administratorrolle entziehen?",
           "body": "Das Konto verwaltet danach nur noch seine eigenen Profile und wird überall abgemeldet. Altersstufe und Bibliotheken bleiben, wo sie sind; setze sie danach bewusst neu.",
           "confirm": "Entziehen",
@@ -2162,8 +2161,7 @@
         }
       },
       "remove": {
-        "action": "Entfernen",
-        "label": "{{email}} entfernen",
+        "action": "Konto entfernen",
         "title": "Konto {{email}} entfernen?",
         "body": "Konto, Profile und Fortschritt werden gelöscht. Laufende Sitzungen und Wiedergaben enden sofort. Downloads auf den Geräten des Kontos verschwinden beim nächsten Kontakt mit dem Server. Ein Gerät, das nie mehr online kommt, behält sie.",
         "confirm": "Konto entfernen",

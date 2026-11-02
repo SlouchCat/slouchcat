@@ -129,7 +129,8 @@ test('K-6: the administration invites, the invited person joins, the used link a
 
     // K-7: removing the account ends its session at once.
     expect((await guestContext.request.get('/api/v1/auth/session')).status()).toBe(200);
-    await detail.getByRole('button', { name: `${GUEST.email} entfernen` }).click();
+    await entry.getByRole('button', { name: `Weitere Aktionen für ${GUEST.email}` }).click();
+    await page.getByRole('menu').getByRole('menuitem', { name: 'Konto entfernen' }).click();
     const confirm = page.getByRole('alertdialog', { name: `Konto ${GUEST.email} entfernen?` });
     await expect(confirm).toContainText('Laufende Sitzungen und Wiedergaben enden sofort');
     await confirm.getByRole('button', { name: 'Konto entfernen' }).click();

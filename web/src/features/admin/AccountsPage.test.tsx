@@ -92,6 +92,19 @@ const toggleOf = (email: string) => within(rowOf(email)).getByRole('button', { n
 const foldOut = (email: string) =>
   document.getElementById(toggleOf(email).getAttribute('aria-controls')!)!;
 
+/** Opens «Weitere Aktionen» of an account's row and returns the menu (S-6). */
+async function openMenu(user: UserEvent, email: string) {
+  await user.click(
+    within(rowOf(email)).getByRole('button', { name: `Weitere Aktionen für ${email}` }),
+  );
+  return screen.findByRole('menu');
+}
+
+/** Picks `item` from «Weitere Aktionen» of an account's row. */
+async function pick(user: UserEvent, email: string, item: string) {
+  await user.click(within(await openMenu(user, email)).getByRole('menuitem', { name: item }));
+}
+
 /** Opens the row of `email` (a click on its e-mail) and returns its fold-out. */
 async function openRow(user: UserEvent, email: string) {
   await user.click(toggleOf(email));
@@ -128,6 +141,7 @@ describe('admin accounts (A-2, KP-1)', () => {
       'Profile',
       'Zuletzt gesehen',
       'Kanäle',
+      'Aktionen',
     ]);
     const cells = (email: string) =>
       within(rowOf(email))
@@ -140,6 +154,7 @@ describe('admin accounts (A-2, KP-1)', () => {
       'Marco (Hauptprofil), Kinder',
       expect.stringMatching(/2026/) as string,
       'E-MailWeb-Push',
+      '',
     ]);
     expect(cells('gast@example.test')).toEqual([
       'Konto',
@@ -148,8 +163,18 @@ describe('admin accounts (A-2, KP-1)', () => {
       'Lena (Hauptprofil)',
       'Noch nie',
       'Keine',
+      '',
     ]);
     expect(within(rowOf('owner@example.test')).getByText('Besitzer')).toBeVisible();
+    // Another account has «Weitere Aktionen»; the own row (the owner) has none (ADR 0014).
+    expect(
+      within(rowOf('gast@example.test')).getByRole('button', {
+        name: 'Weitere Aktionen für gast@example.test',
+      }),
+    ).toBeVisible();
+    expect(
+      within(rowOf('owner@example.test')).queryByRole('button', { name: /Weitere/ }),
+    ).toBeNull();
     // Every row folds out on its e-mail; all start closed.
     expect(toggleOf('owner@example.test')).toHaveAttribute('aria-expanded', 'false');
     expect(toggleOf('gast@example.test')).toHaveAttribute('aria-expanded', 'false');
@@ -206,9 +231,12 @@ describe('admin accounts (A-2, KP-1)', () => {
     expect(within(mine).getByRole('article', { name: 'Lena' })).toBeVisible();
     // The owner's own row offers neither a role action nor a removal: it is protected.
     expect(within(own).queryByRole('button', { name: /ernennen|entziehen|entfernen/ })).toBeNull();
+    expect(
+      within(rowOf('owner@example.test')).queryByRole('button', { name: /Weitere/ }),
+    ).toBeNull();
   });
 
-  it('folds another account out into its access, its profile names to read, appoint and remove', async () => {
+  it('folds another account out into its access and profile names; appoint and remove in the menu', async () => {
     mockApi(routes({ 'GET /admin/accounts': () => json([owner, helper, guest]) }));
     renderApp('/admin/accounts');
     await screen.findByRole('table', { name: 'Konten' });
@@ -222,13 +250,23 @@ describe('admin accounts (A-2, KP-1)', () => {
     expect(within(names).getByText('Lena (Hauptprofil)')).toBeVisible();
     expect(within(names).getByText('Profile verwaltet jedes Konto selbst.')).toBeVisible();
     expect(within(names).queryByRole('button')).toBeNull();
-    expect(
-      within(other).getByRole('button', { name: 'gast@example.test zum Administrator ernennen' }),
-    ).toBeVisible();
-    expect(
-      within(other).getByRole('button', { name: 'gast@example.test entfernen' }),
-    ).toBeVisible();
     expect(within(other).queryByRole('region', { name: 'Konto ändern' })).toBeNull();
+    // The fold-out keeps only the buttons of its form; appoint and remove are in the menu, the
+    // removal under «Gefahr».
+    expect(
+      within(other)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Zugriff speichern']);
+    let menu = await openMenu(user, 'gast@example.test');
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Zum Administrator ernennen', 'Konto entfernen']);
+    expect(within(menu).getByText('Gefahr')).toBeVisible();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
 
     // Another administrator: no access form (fixed at FSK 18 and all libraries), the hint instead.
     const admin = await openRow(user, 'admin2@example.test');
@@ -236,11 +274,12 @@ describe('admin accounts (A-2, KP-1)', () => {
     expect(within(admin).getByText(/hat immer FSK 18 und alle Bibliotheken/)).toBeVisible();
     expect(within(admin).getByText('Sandra (Hauptprofil)')).toBeVisible();
     expect(within(admin).getByText('Kino')).toBeVisible();
+    menu = await openMenu(user, 'admin2@example.test');
     expect(
-      within(admin).getByRole('button', {
-        name: 'admin2@example.test die Administratorrolle entziehen',
-      }),
-    ).toBeVisible();
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Rolle entziehen', 'Konto entfernen']);
   });
 
   it('changes the access of an account inline: rating, libraries and the three W-8 caps', async () => {
@@ -334,11 +373,7 @@ describe('admin accounts (A-2, KP-1)', () => {
     renderApp('/admin/accounts');
     await screen.findByRole('table', { name: 'Konten' });
     const user = userEvent.setup();
-    const other = await openRow(user, 'gast@example.test');
-
-    await user.click(
-      within(other).getByRole('button', { name: 'gast@example.test zum Administrator ernennen' }),
-    );
+    await pick(user, 'gast@example.test', 'Zum Administrator ernennen');
     const confirm = await screen.findByRole('alertdialog', {
       name: 'gast@example.test zum Administrator ernennen?',
     });
@@ -348,12 +383,15 @@ describe('admin accounts (A-2, KP-1)', () => {
       expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({ role: 'admin' }),
     );
     expect(await screen.findByText('gast@example.test ist jetzt Administrator.')).toBeVisible();
+    // The confirmation hands the focus back to the menu button of the row.
+    const more = within(rowOf('gast@example.test')).getByRole('button', {
+      name: 'Weitere Aktionen für gast@example.test',
+    });
+    await waitFor(() => expect(more).toHaveFocus());
 
     // The server has the last word: a refusal is shown, not swallowed.
     roleAnswer = () => problem(409, 'last_admin');
-    await user.click(
-      within(other).getByRole('button', { name: 'gast@example.test zum Administrator ernennen' }),
-    );
+    await pick(user, 'gast@example.test', 'Zum Administrator ernennen');
     const again = await screen.findByRole('alertdialog', {
       name: 'gast@example.test zum Administrator ernennen?',
     });
@@ -362,7 +400,7 @@ describe('admin accounts (A-2, KP-1)', () => {
       await screen.findByText('Das ist der letzte Administrator. Ernenne zuerst einen zweiten.'),
     ).toBeVisible();
 
-    await user.click(within(other).getByRole('button', { name: 'gast@example.test entfernen' }));
+    await pick(user, 'gast@example.test', 'Konto entfernen');
     const removal = await screen.findByRole('alertdialog', {
       name: 'Konto gast@example.test entfernen?',
     });
@@ -388,17 +426,18 @@ describe('admin accounts (A-2, KP-1)', () => {
     );
     renderApp('/admin/accounts');
     await screen.findByRole('table', { name: 'Konten' });
-    const other = await openRow(userEvent.setup(), 'gast@example.test');
-    expect(
-      within(other).queryByRole('button', { name: /zum Administrator ernennen|Rolle entziehen/ }),
-    ).toBeNull();
+    const user = userEvent.setup();
+    const other = await openRow(user, 'gast@example.test');
     // Access and removal stay: they are administration, not ownership.
     expect(
       within(other).getByRole('region', { name: 'Zugriff von gast@example.test' }),
     ).toBeVisible();
+    const menu = await openMenu(user, 'gast@example.test');
     expect(
-      within(other).getByRole('button', { name: 'gast@example.test entfernen' }),
-    ).toBeVisible();
+      within(menu)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Konto entfernen']);
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
   });
 
@@ -569,6 +608,100 @@ describe('admin accounts (A-2, KP-1)', () => {
     );
   });
 
+  it('clears the passwords when the own row folds away; the typed e-mail stays', async () => {
+    mockApi(routes());
+    const { user, form } = await openOwn();
+    const email = within(form).getByRole('textbox', { name: 'E-Mail-Adresse' });
+    await user.clear(email);
+    await user.type(email, 'neu@example.test');
+    await user.type(within(form).getByLabelText('Neues Passwort'), 'neues-passwort-42');
+    await user.type(within(form).getByLabelText('Neues Passwort wiederholen'), 'neues-passwort-42');
+    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+
+    await user.click(toggleOf('owner@example.test'));
+    const again = within(await openRow(user, 'owner@example.test')).getByRole('region', {
+      name: 'Konto ändern',
+    });
+    expect(within(again).getByRole('textbox', { name: 'E-Mail-Adresse' })).toHaveValue(
+      'neu@example.test',
+    );
+    expect(within(again).getByLabelText('Neues Passwort')).toHaveValue('');
+    expect(within(again).queryByLabelText('Neues Passwort wiederholen')).toBeNull();
+    expect(within(again).getByLabelText(/^Aktuelles Passwort/)).toHaveValue('');
+    // The e-mail is still a draft.
+    expect(within(again).getByRole('button', { name: 'Verwerfen' })).toBeVisible();
+  });
+
+  it('empties the password fields after a save and keeps no password in the mutation cache', async () => {
+    const { calls } = mockApi(routes({ 'PUT /auth/account': () => json(session) }));
+    const { queryClient } = renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const form = within(await openRow(user, 'owner@example.test')).getByRole('region', {
+      name: 'Konto ändern',
+    });
+    await user.type(within(form).getByLabelText('Neues Passwort'), 'neues-passwort-42');
+    await user.type(within(form).getByLabelText('Neues Passwort wiederholen'), 'neues-passwort-42');
+    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await user.click(within(form).getByRole('button', { name: 'Speichern' }));
+    expect(await screen.findByText('Dein Konto ist gespeichert.')).toBeVisible();
+    expect(calls.some((call) => call.method === 'PUT')).toBe(true);
+    await waitFor(() => expect(within(form).getByLabelText('Neues Passwort')).toHaveValue(''));
+    expect(within(form).queryByLabelText('Neues Passwort wiederholen')).toBeNull();
+    expect(within(form).getByLabelText(/^Aktuelles Passwort/)).toHaveValue('');
+    const cached = JSON.stringify(
+      queryClient
+        .getMutationCache()
+        .getAll()
+        .map((mutation) => mutation.state.variables ?? null),
+    );
+    expect(cached).not.toContain('geheim-0123456');
+    expect(cached).not.toContain('neues-passwort-42');
+  });
+
+  it('keeps a draft when the sidebar switches from «Konten» to «Profile»: same page, no question', async () => {
+    mockApi(routes());
+    const { router } = renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const access = () =>
+      within(foldOut('gast@example.test')).getByRole('region', {
+        name: 'Zugriff von gast@example.test',
+      });
+    await openRow(user, 'gast@example.test');
+    await user.click(within(access()).getByRole('radio', { name: 'FSK 16' }));
+
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
+        name: /^Profile/,
+      }),
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({ item: 'me' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() =>
+      expect(toggleOf('owner@example.test')).toHaveAttribute('aria-expanded', 'true'),
+    );
+    expect(within(access()).getByRole('radio', { name: 'FSK 16' })).toBeChecked();
+  });
+
+  it('shows the tabs when only the account list failed, with its error and retry in «Konten»', async () => {
+    let fail = true;
+    mockApi(
+      routes({
+        'GET /admin/accounts': () => (fail ? problem(500, 'internal') : json([owner, guest])),
+        'GET /admin/invitations': () => json([invitation()]),
+      }),
+    );
+    renderApp('/admin/accounts');
+    const user = userEvent.setup();
+    const panel = await screen.findByRole('tabpanel', { name: /^Konten/ });
+    const retry = await within(panel).findByRole('button', { name: 'Erneut versuchen' });
+    expect(screen.getByRole('tab', { name: /^Einladungen/ })).toHaveTextContent('1 offen');
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByRole('table', { name: 'Konten' })).toBeVisible();
+  });
+
   it('is for administrators only', async () => {
     const { calls } = mockApi({
       ...signedIn,
@@ -609,7 +742,7 @@ describe('invitations (K-6, KON-1, KON-5)', () => {
         return json(created, 201);
       },
     });
-    renderApp('/admin/accounts');
+    const { queryClient } = renderApp('/admin/accounts');
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText');
 
@@ -633,6 +766,17 @@ describe('invitations (K-6, KON-1, KON-5)', () => {
       allLibraries: false,
       libraryIds: [2],
     });
+    // The one-time link lives in the dialog only, never in the mutation cache.
+    await waitFor(() =>
+      expect(
+        JSON.stringify(
+          queryClient
+            .getMutationCache()
+            .getAll()
+            .map((mutation) => mutation.state),
+        ),
+      ).not.toContain('/invite/'),
+    );
 
     await user.click(within(dialog).getByRole('button', { name: 'Link kopieren' }));
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/invite/geheimes-token`);

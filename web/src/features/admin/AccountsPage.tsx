@@ -10,6 +10,7 @@ import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Skeleton, Text, VisuallyHidden } from '@/ui';
 import {
+  ActionMenu,
   AdminPage,
   AriaButton,
   ConfirmDialog,
@@ -19,6 +20,7 @@ import {
   useDrafts,
   useSearchSelection,
   useUnsavedChanges,
+  type ActionMenuItem,
 } from '@/ui/aria';
 import { useLibraryOptions } from '../shared/useLibraryOptions';
 import { accessDraftOf, normaliseAccess, type AccessDraft } from './accounts/AccessForm';
@@ -42,6 +44,25 @@ const afterRender = () =>
   new Promise<void>((resolve) => {
     window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
   });
+
+/**
+ * Resolves once no dialog is open or closing any more: react-aria hands the focus back when a
+ * dialog unmounts, after its exit animation, and only then is it clear where the focus ended.
+ */
+async function afterDialogs() {
+  const nextFrame = () =>
+    new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  for (
+    let frame = 0;
+    frame < 120 && document.querySelector('[role="dialog"], [role="alertdialog"]');
+    frame += 1
+  ) {
+    await nextFrame();
+  }
+  // react-aria returns the focus in a frame after the unmount; that comes first.
+  await nextFrame();
+  await nextFrame();
+}
 
 interface Confirmation {
   title: string;
@@ -119,7 +140,16 @@ function AccountsContent() {
   const [inviting, setInviting] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const hold = confirmOpen || inviting || unsaved.pausePolling;
+  // The dialogs of «Meine Profile» hold the page's queries as well.
+  const [profilesHeld, setProfilesHeld] = useState(false);
+  const hold = confirmOpen || inviting || profilesHeld || unsaved.pausePolling;
+  // «Meine Profile» scrolls into view once per arrival at `#meine-profile`, not on every fold.
+  const scrolledFor = useRef<string | undefined>(undefined);
+  const claimScroll = useCallback((arrival: string) => {
+    if (scrolledFor.current === arrival) return false;
+    scrolledFor.current = arrival;
+    return true;
+  }, []);
 
   const accounts = useQuery({ ...accountsQuery, refetchOnWindowFocus: !hold });
   const invitations = useQuery({ ...invitationsQuery, refetchOnWindowFocus: !hold });
@@ -136,15 +166,28 @@ function AccountsContent() {
   }, [askedTab, selectTab]);
 
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const { set: setOwnDraft } = own;
   const onExpandedChange = useCallback(
-    (key: string, open: boolean) =>
+    (key: string, open: boolean) => {
+      // Passwords do not outlive the folded own row; the typed e-mail does (S-17).
+      if (!open && key === ownId) {
+        setOwnDraft(ownId, (draft) =>
+          normaliseOwnAccount({
+            ...draft,
+            newPassword: '',
+            newPasswordRepeat: '',
+            currentPassword: '',
+          }),
+        );
+      }
       setExpanded((current) => {
         const next = new Set(current);
         if (open) next.add(key);
         else next.delete(key);
         return next;
-      }),
-    [],
+      });
+    },
+    [ownId, setOwnDraft],
   );
   // `?item=` opens that account's row once, when it arrives (`me` is the own account); folding it
   // away afterwards is the reader's choice. An account the list does not know leaves the address.
@@ -240,9 +283,11 @@ function AccountsContent() {
     onSuccess: async (_data, invitation) => {
       said(t('admin.accounts.invitations.revoke.done', { note: invitationNote(t, invitation) }));
       await refresh();
-      // The button goes with the open state: once React rendered that, the h1 takes the focus.
+      // The button goes with the open state: once React rendered that and the confirmation has
+      // returned the focus, the h1 takes it if it fell to the body.
       await afterRender();
-      titleRef.current?.focus();
+      await afterDialogs();
+      focusTitleIfLost();
     },
     onError: failed,
   });
@@ -258,7 +303,7 @@ function AccountsContent() {
       if (open) return;
       setConfirmOpen(false);
       // The button that opened it may be gone by now.
-      void afterRender().then(focusTitleIfLost);
+      void afterRender().then(afterDialogs).then(focusTitleIfLost);
     },
     [focusTitleIfLost],
   );
@@ -306,7 +351,40 @@ function AccountsContent() {
     () => void queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey }),
     [queryClient],
   );
-  const columns = useMemo(() => accountColumns(t, i18n.language), [t, i18n.language]);
+  // «Weitere Aktionen» of another account (S-6): appoint or demote (owner only), and remove
+  // under «Gefahr». The own account and the owner have none (ADR 0014).
+  const actionsOf = useCallback(
+    (account: AdminAccount) => {
+      if (String(account.id) === ownId || account.isOwner) return null;
+      const items: ActionMenuItem[] = [
+        ...(isOwner
+          ? [
+              {
+                id: 'role',
+                label: t(
+                  account.role === 'admin'
+                    ? 'admin.accounts.role.demote.action'
+                    : 'admin.accounts.role.promote.action',
+                ),
+              },
+            ]
+          : []),
+        { id: 'remove', label: t('admin.accounts.remove.action'), icon: 'trash', danger: true },
+      ];
+      return (
+        <ActionMenu
+          rowName={account.email}
+          items={items}
+          onAction={(action) => (action === 'role' ? askRole(account) : askRemove(account))}
+        />
+      );
+    },
+    [ownId, isOwner, t, askRole, askRemove],
+  );
+  const columns = useMemo(
+    () => accountColumns(t, i18n.language, actionsOf),
+    [t, i18n.language, actionsOf],
+  );
   const detail = (account: AdminAccount) => {
     const id = String(account.id);
     if (id === ownId) {
@@ -327,6 +405,8 @@ function AccountsContent() {
           }}
           titleRef={titleRef}
           hold={hold}
+          onHoldChange={setProfilesHeld}
+          claimScroll={claimScroll}
           onProfilesChanged={invalidateAccounts}
         />
       );
@@ -335,7 +415,6 @@ function AccountsContent() {
     return (
       <OtherAccountDetail
         account={account}
-        isOwner={isOwner}
         libraries={libraries}
         access={
           value && {
@@ -346,12 +425,11 @@ function AccountsContent() {
           }
         }
         onAccessSaved={async () => {
+          // The list holds the saved access first; then the draft is spent.
+          await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
           access.discard(id);
           said(t('admin.accounts.access.saved', { email: account.email }));
-          await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
         }}
-        onRole={askRole}
-        onRemove={askRemove}
       />
     );
   };
@@ -439,30 +517,9 @@ function AccountsContent() {
       <div role="status" className={styles.live}>
         {message && failure === null && <Notice live={false}>{message}</Notice>}
       </div>
-      {(accounts.isPending || invitations.isPending) && <Skeleton shape="block" />}
-      {accounts.isError && (
-        <Notice
-          tone="danger"
-          title={problemMessage(t, accounts.error)}
-          actions={
-            <AriaButton icon="refresh" onPress={() => void accounts.refetch()}>
-              {t('common.retry')}
-            </AriaButton>
-          }
-        />
-      )}
-      {invitations.isError && (
-        <Notice
-          tone="danger"
-          title={problemMessage(t, invitations.error)}
-          actions={
-            <AriaButton icon="refresh" onPress={() => void invitations.refetch()}>
-              {t('common.retry')}
-            </AriaButton>
-          }
-        />
-      )}
-      {accounts.data && (
+      {accounts.isPending && <Skeleton shape="block" />}
+      {/* Each list fails on its own: its error and retry stand in its tab. */}
+      {!accounts.isPending && (
         <Tabs
           label={t('admin.accounts.tabs.label')}
           selectedKey={tab}
@@ -471,32 +528,62 @@ function AccountsContent() {
             {
               id: 'accounts',
               label: t('admin.accounts.tabs.accounts'),
-              count: number.format(list.length),
-              countLabel: t('admin.accounts.tabs.accountsCount', {
-                count: list.length,
-                number: number.format(list.length),
-              }),
+              ...(accounts.data
+                ? {
+                    count: number.format(list.length),
+                    countLabel: t('admin.accounts.tabs.accountsCount', {
+                      count: list.length,
+                      number: number.format(list.length),
+                    }),
+                  }
+                : {}),
               content: (
                 <div className={styles.tabBody}>
                   <VisuallyHidden as="h2">{t('admin.accounts.tabs.accounts')}</VisuallyHidden>
-                  <DataTable
-                    caption={t('admin.accounts.list')}
-                    columns={columns}
-                    rows={list}
-                    rowKey={(account) => String(account.id)}
-                    expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
-                  />
+                  {accounts.isError && (
+                    <Notice
+                      tone="danger"
+                      title={problemMessage(t, accounts.error)}
+                      actions={
+                        <AriaButton icon="refresh" onPress={() => void accounts.refetch()}>
+                          {t('common.retry')}
+                        </AriaButton>
+                      }
+                    />
+                  )}
+                  {accounts.data && (
+                    <DataTable
+                      caption={t('admin.accounts.list')}
+                      columns={columns}
+                      rows={list}
+                      rowKey={(account) => String(account.id)}
+                      expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+                    />
+                  )}
                 </div>
               ),
             },
             {
               id: 'invitations',
               label: t('admin.accounts.tabs.invitations'),
-              count: t('admin.accounts.tabs.open', { number: number.format(open.length) }),
-              tone: open.length > 0 ? 'warning' : 'neutral',
+              ...(invitations.data
+                ? { count: t('admin.accounts.tabs.open', { number: number.format(open.length) }) }
+                : {}),
               content: (
                 <div className={styles.tabBody}>
                   <VisuallyHidden as="h2">{t('admin.accounts.tabs.invitations')}</VisuallyHidden>
+                  {invitations.isPending && <Skeleton shape="block" />}
+                  {invitations.isError && (
+                    <Notice
+                      tone="danger"
+                      title={problemMessage(t, invitations.error)}
+                      actions={
+                        <AriaButton icon="refresh" onPress={() => void invitations.refetch()}>
+                          {t('common.retry')}
+                        </AriaButton>
+                      }
+                    />
+                  )}
                   {invitations.data &&
                     (invitationList.length === 0 ? (
                       <Text tone="secondary">{t('admin.accounts.invitations.empty')}</Text>
