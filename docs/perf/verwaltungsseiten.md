@@ -116,6 +116,29 @@ Was fehlt, liegt in den Seiten (Zustandsleiste, Reiter, Erklärsatz), nicht in d
 Zähler über die Liste gehören oder der Erklärsatz in den Hilfe-Knopf, entscheidet Marco bei der
 Abnahme (K12-9).
 
+### Nach Designer-Abgleich
+
+Gemessen am 3. November 2026 auf `claude/verwaltungsseiten` nach den Korrekturen aus dem
+Designer-Abgleich (Fliesstext kompakt 14 px, Tabellenzeilen 40 px, Einstellungszeilen nach den
+Mockups), gleiche Methode und gleiches Skript, zwei Läufe hintereinander mit denselben Werten:
+
+```
+Hintergrundjobs (/admin/jobs) at 1440 px: 272 px to the first work row
+Integrationen (/admin/integrations) at 1440 px: 250 px to the first work row
+Konten (/admin/accounts) at 1440 px: 315 px to the first work row
+```
+
+| Seite           | kompakt (K12-8) | nach Designer-Abgleich | Verhältnis zum Ausgang |
+| --------------- | --------------- | ---------------------- | ---------------------- |
+| Hintergrundjobs | 272 px          | 272 px                 | 57 %                   |
+| Integrationen   | 259 px          | 250 px                 | 58 %                   |
+| Konten          | 315 px          | 315 px                 | 89 %                   |
+
+Nur Integrationen wird niedriger: Der Erklärsatz im Band «Schlüssel der Anbieter» steht jetzt in
+14 statt 20 px (21 statt 30 px hoch). Über der ersten Arbeitszeile von Hintergrundjobs und Konten
+liegt kein Fliesstext und keine Tabellenzeile; dort ändert sich nichts. Das Ziel «höchstens die
+Hälfte» bleibt verfehlt, der Entscheid fällt bei der Abnahme (K12-9).
+
 ## Statistik-Abfrage (K12-1)
 
 Vertrag 1.8.0 ergänzt `GET /api/v1/admin/stats` um `watchTimeByQuarterHour` (672 Viertelstunden der
