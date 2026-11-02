@@ -47,7 +47,7 @@ import { formatSeconds, typeName } from './jobsFormat';
 import { DASHBOARD_POLL_MS, dashboardQuery, systemQuery } from './queries';
 import { reloadPage } from './restart';
 import { RestartPanel } from './RestartPanel';
-import { streamMode } from './StreamsPage';
+import { streamMode } from './streams/format';
 import styles from './AdminHomePage.module.css';
 
 /** The dot of an integration's state; the text next to it carries the meaning. */

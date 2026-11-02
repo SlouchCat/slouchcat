@@ -1248,15 +1248,9 @@
       "intro": "Laufende Wiedergaben. Die Liste aktualisiert sich alle 5 Sekunden.",
       "list": "Laufende Streams",
       "empty": "Gerade läuft nichts.",
-      "columns": {
-        "profile": "Profil",
+      "facts": {
         "device": "Gerät",
-        "title": "Titel",
-        "quality": "Qualität",
-        "mode": "Modus",
-        "position": "Position",
-        "since": "Seit",
-        "actions": "Aktionen"
+        "quality": "Qualität"
       },
       "unknownDevice": "Unbekanntes Gerät",
       "original": "Original",
@@ -1269,6 +1263,7 @@
       "hw": "HW",
       "sw": "SW",
       "position": "{{position}} von {{duration}}",
+      "progress": "Fortschritt {{title}}",
       "stop": {
         "action": "Beenden",
         "label": "Stream von {{profile}} beenden",
@@ -1277,7 +1272,31 @@
         "confirm": "Stream beenden"
       },
       "stopped": "Stream von {{profile}} beendet.",
-      "noPosition": "–"
+      "since": "Seit {{time}}",
+      "noPosition": "–",
+      "load": {
+        "title": "Serverlast",
+        "hw": {
+          "label": "Transcode HW",
+          "note": "Grafikkarte"
+        },
+        "sw": {
+          "label": "Transcode SW",
+          "note": "Prozessor"
+        },
+        "remux": {
+          "label": "Remux",
+          "note": "nur umgepackt"
+        },
+        "direct": {
+          "label": "Direct",
+          "note": "ohne Last"
+        },
+        "bandwidth": {
+          "label": "Bandbreite gesamt",
+          "note": "Summe der Bitraten"
+        }
+      }
     },
     "podcasts": {
       "title": "Podcasts",

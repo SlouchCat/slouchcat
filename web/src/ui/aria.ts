@@ -70,6 +70,7 @@ export { SaveBar } from './SaveBar';
 export { SectionHeader } from './SectionHeader';
 export { SettingRow } from './SettingRow';
 export { StatusStrip } from './StatusStrip';
+export { StreamTile, type StreamFact } from './StreamTile';
 export { type TabItem } from './Tabs';
 export { useDrafts, type Drafts } from './useDrafts';
 export { useSearchSelection } from './useSearchSelection';

@@ -1,199 +1,295 @@
 import type { AdminStream } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { TFunction } from 'i18next';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
-import { formatBitrate, formatDateTime, formatPlayerTime } from '@/lib/format';
+import { formatBitrate, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Page, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, DataTable, type DataColumn } from '@/ui/aria';
+import { Notice, Skeleton, Text, VisuallyHidden } from '@/ui';
+import {
+  AdminPage,
+  AriaButton,
+  BandPanel,
+  ConfirmDialog,
+  StatusStrip,
+  StreamTile,
+} from '@/ui/aria';
 import { STREAMS_POLL_MS, streamsQuery } from './queries';
-import styles from './AdminTablePage.module.css';
+import {
+  loadTone,
+  streamLoad,
+  streamLoads,
+  streamMode,
+  streamPosition,
+  streamQuality,
+  totalBitrate,
+  type StreamLoad,
+} from './streams/format';
+import styles from './streams/Streams.module.css';
 
-/** "Direct", "Remux" or "Transcode (HW)" / "Transcode (SW)" (W-6). */
-export function streamMode(t: TFunction, stream: AdminStream): string {
-  if (stream.mode !== 'transcode') return t(`admin.streams.modes.${stream.mode}`);
-  return t('admin.streams.modes.transcode', {
-    encoder: stream.hardware ? t('admin.streams.hw') : t('admin.streams.sw'),
+/** Resolves once React has rendered what the last cache update brought. */
+const afterRender = () =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
   });
-}
 
-/** The output of the stream: rung or height plus bit rate; the source as it is for direct play. */
-function streamQuality(t: TFunction, stream: AdminStream, language: string): string {
-  const rung =
-    stream.quality && stream.quality !== 'auto'
-      ? stream.quality
-      : stream.height
-        ? t('format.height', { height: stream.height })
-        : undefined;
-  if (!rung) return t('admin.streams.original');
-  return stream.bitrate
-    ? t('admin.streams.qualityValue', {
-        quality: rung,
-        bitrate: formatBitrate(stream.bitrate, language),
-      })
-    : rung;
+/** The arrows step from one tile's «Beenden» to the next or the previous one, in reading order. */
+const ARROW_STEPS: Record<string, number> = {
+  ArrowDown: 1,
+  ArrowRight: 1,
+  ArrowUp: -1,
+  ArrowLeft: -1,
+};
+
+function moveBetweenTiles(event: KeyboardEvent) {
+  const step = ARROW_STEPS[event.key];
+  if (!step || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  const list = event.currentTarget as HTMLElement;
+  const buttons = [...list.querySelectorAll<HTMLElement>('button')];
+  const index = buttons.indexOf(event.target as HTMLElement);
+  const next = index < 0 ? undefined : buttons[index + step];
+  if (!next) return;
+  event.preventDefault();
+  next.focus();
 }
 
 /**
- * Streams (W-6): the running playbacks, refreshed every 5 s, with profile, device, title, quality
- * and mode. "Beenden" revokes the playback session; the viewer's player stops within seconds.
+ * Streams (W-6; concept 12, mockup Str-D2): the running playbacks as tiles with the backdrop,
+ * profile, device, quality and progress, and above them «Serverlast» with the streams per mode and
+ * the bandwidth (the sum of the bit rates). The list is asked again every 5 s, paused while the
+ * confirmation is open. «Beenden» revokes the playback session; the viewer's player stops within
+ * seconds.
  */
 export function StreamsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   useDocumentTitle(t('admin.streams.title'));
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!allowed) {
+    return (
+      <AdminPage title={t('admin.streams.title')}>
+        <Notice title={t('admin.access.notAllowed.title')}>
+          {t('admin.access.notAllowed.body')}
+        </Notice>
+      </AdminPage>
+    );
+  }
+  return <StreamsContent />;
+}
+
+function StreamsContent() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  // A confirmation lives in its row: the poll waits while one is open, so the row (and the
-  // dialog with it) does not go away in the middle of the decision.
-  const [confirming, setConfirming] = useState(false);
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const listHeading = useId();
+
+  // The confirmation is the page's own: a tile that goes while it is open (the stream ended)
+  // cannot take the dialog with it. The poll waits while it is open.
+  const [stopping, setStopping] = useState<AdminStream | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const streams = useQuery({
     ...streamsQuery,
-    enabled: allowed,
-    refetchInterval: confirming ? false : STREAMS_POLL_MS,
-    refetchOnWindowFocus: !confirming,
+    refetchInterval: confirmOpen ? false : STREAMS_POLL_MS,
+    refetchOnWindowFocus: !confirmOpen,
   });
-  const [stopped, setStopped] = useState<string | null>(null);
-  // The row of a stopped stream goes away with its button: the focus moves to the page heading.
-  const header = useRef<HTMLDivElement>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  /** The focus fell to the body (its tile went with a change): the h1 takes it. */
+  const focusTitleIfLost = useCallback(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) titleRef.current?.focus();
+  }, []);
+
   const stop = useMutation({
     mutationFn: (stream: AdminStream) =>
       request(api.DELETE('/admin/streams/{id}', { params: { path: { id: stream.id } } })),
     onSuccess: async (_data, stream) => {
-      setStopped(stream.profileName);
+      setMessage(t('admin.streams.stopped', { profile: stream.profileName }));
       await queryClient.invalidateQueries({ queryKey: streamsQuery.queryKey });
-      header.current?.focus();
+      // The tile and its button are gone: once React rendered that, the h1 takes the focus (the
+      // dialog's focus restore may have put it on another tile meanwhile).
+      await afterRender();
+      const listed = queryClient.getQueryData(streamsQuery.queryKey);
+      if (listed?.some((entry) => entry.id === stream.id)) focusTitleIfLost();
+      else titleRef.current?.focus();
     },
+    onError: () => setMessage(null),
   });
 
-  const columns: DataColumn<AdminStream>[] = [
-    {
-      key: 'profile',
-      header: t('admin.streams.columns.profile'),
-      rowHeader: true,
-      cell: (stream) => (
-        <span className={styles.stack}>
-          <span>{stream.profileName}</span>
-          <span className={styles.muted}>{stream.accountEmail}</span>
-        </span>
-      ),
+  const askStop = useCallback((stream: AdminStream) => {
+    setStopping(stream);
+    setConfirmOpen(true);
+  }, []);
+  const onConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) return;
+      setConfirmOpen(false);
+      // The button that opened it may be gone by now.
+      void afterRender().then(focusTitleIfLost);
     },
-    {
-      key: 'device',
-      header: t('admin.streams.columns.device'),
-      cell: (stream) => stream.device?.name ?? t('admin.streams.unknownDevice'),
-    },
-    { key: 'title', header: t('admin.streams.columns.title'), cell: (stream) => stream.itemTitle },
-    {
-      key: 'quality',
-      header: t('admin.streams.columns.quality'),
-      cell: (stream) => (
-        <span className={styles.nowrap}>{streamQuality(t, stream, i18n.language)}</span>
-      ),
-    },
-    {
-      key: 'mode',
-      header: t('admin.streams.columns.mode'),
-      cell: (stream) => <span className={styles.nowrap}>{streamMode(t, stream)}</span>,
-    },
-    {
-      key: 'position',
-      header: t('admin.streams.columns.position'),
-      cell: ({ positionMs, durationMs }) =>
-        positionMs === undefined ? (
-          t('admin.streams.noPosition')
-        ) : (
-          <span className={styles.numbers}>
-            {durationMs
-              ? t('admin.streams.position', {
-                  position: formatPlayerTime(positionMs, durationMs),
-                  duration: formatPlayerTime(durationMs, durationMs),
-                })
-              : formatPlayerTime(positionMs, positionMs)}
-          </span>
-        ),
-    },
-    {
-      key: 'since',
-      header: t('admin.streams.columns.since'),
-      cell: (stream) => (
-        <time className={styles.nowrap} dateTime={stream.startedAt}>
-          {formatDateTime(stream.startedAt, i18n.language)}
-        </time>
-      ),
-    },
-    {
-      key: 'actions',
-      header: t('admin.streams.columns.actions'),
-      hideHeader: true,
-      align: 'end',
-      cell: (stream) => (
-        <ConfirmDialog
-          trigger={
-            <AriaButton
-              variant="ghost"
-              aria-label={t('admin.streams.stop.label', { profile: stream.profileName })}
-            >
-              {t('admin.streams.stop.action')}
+    [focusTitleIfLost],
+  );
+
+  // A stream may end on its own while its «Beenden» has the focus: when the poll takes its tile
+  // away, the h1 takes the focus instead of the body.
+  const focusedStream = useRef<string | null>(null);
+  useEffect(() => {
+    const id = focusedStream.current;
+    if (id === null || !streams.data || streams.data.some((stream) => stream.id === id)) return;
+    focusedStream.current = null;
+    void afterRender().then(focusTitleIfLost);
+  }, [streams.data, focusTitleIfLost]);
+
+  // ↑/↓ and ←/→ between the tiles: a native listener, the list is no widget of its own.
+  const [list, setList] = useState<HTMLUListElement | null>(null);
+  useEffect(() => {
+    if (!list) return;
+    const onFocusIn = (event: FocusEvent) => {
+      const tile = (event.target as HTMLElement).closest<HTMLElement>('[data-stream]');
+      focusedStream.current = tile?.dataset.stream ?? null;
+    };
+    const onFocusOut = (event: FocusEvent) => {
+      // Gone to another element outside the list; a tile that went away leaves no new target.
+      const to = event.relatedTarget;
+      if (to instanceof Node && !list.contains(to)) focusedStream.current = null;
+    };
+    list.addEventListener('keydown', moveBetweenTiles);
+    list.addEventListener('focusin', onFocusIn);
+    list.addEventListener('focusout', onFocusOut);
+    return () => {
+      list.removeEventListener('keydown', moveBetweenTiles);
+      list.removeEventListener('focusin', onFocusIn);
+      list.removeEventListener('focusout', onFocusOut);
+    };
+  }, [list]);
+
+  const running = streams.data ?? [];
+  const count = (load: StreamLoad) =>
+    running.filter((stream) => streamLoad(stream) === load).length;
+
+  return (
+    <AdminPage
+      title={t('admin.streams.title')}
+      help={t('admin.streams.intro')}
+      liveSeconds={confirmOpen ? undefined : STREAMS_POLL_MS / 1000}
+      titleRef={titleRef}
+    >
+      {stop.error && <Notice tone="danger">{problemMessage(t, stop.error)}</Notice>}
+      <div role="status" className={styles.live}>
+        {message && !stop.error && <Notice live={false}>{message}</Notice>}
+      </div>
+      {streams.isPending && <Skeleton shape="block" />}
+      {streams.isError && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, streams.error)}
+          actions={
+            <AriaButton icon="refresh" onPress={() => void streams.refetch()}>
+              {t('common.retry')}
             </AriaButton>
           }
-          title={t('admin.streams.stop.title', { profile: stream.profileName })}
-          body={t('admin.streams.stop.body', { title: stream.itemTitle })}
+        />
+      )}
+      {streams.data && (
+        <>
+          <BandPanel title={t('admin.streams.load.title')} icon="server">
+            <StatusStrip
+              label={t('admin.streams.load.title')}
+              tiles={[
+                ...streamLoads.map((load) => ({
+                  key: load,
+                  label: t(`admin.streams.load.${load}.label`),
+                  value: number.format(count(load)),
+                  note: t(`admin.streams.load.${load}.note`),
+                  tone: loadTone[load],
+                })),
+                {
+                  key: 'bandwidth',
+                  label: t('admin.streams.load.bandwidth.label'),
+                  value: formatBitrate(totalBitrate(running), i18n.language),
+                  note: t('admin.streams.load.bandwidth.note'),
+                },
+              ]}
+            />
+          </BandPanel>
+          <section aria-labelledby={listHeading}>
+            <VisuallyHidden as="h2" id={listHeading}>
+              {t('admin.streams.list')}
+            </VisuallyHidden>
+            {running.length === 0 ? (
+              <Text tone="secondary">{t('admin.streams.empty')}</Text>
+            ) : (
+              <ul ref={setList} className={styles.tiles}>
+                {running.map((stream) => {
+                  const position = streamPosition(t, stream);
+                  return (
+                    <li key={stream.id} data-stream={stream.id}>
+                      <StreamTile
+                        title={stream.itemTitle}
+                        backdropUrl={stream.backdropUrl}
+                        mode={streamMode(t, stream)}
+                        modeTone={loadTone[streamLoad(stream)]}
+                        profile={stream.profileName}
+                        account={stream.accountEmail}
+                        facts={[
+                          {
+                            key: 'device',
+                            label: t('admin.streams.facts.device'),
+                            value: stream.device?.name ?? t('admin.streams.unknownDevice'),
+                            icon: 'monitor',
+                          },
+                          {
+                            key: 'quality',
+                            label: t('admin.streams.facts.quality'),
+                            value: streamQuality(t, stream, i18n.language),
+                            icon: 'film',
+                          },
+                        ]}
+                        progress={position.percent}
+                        progressLabel={t('admin.streams.progress', { title: stream.itemTitle })}
+                        position={position.text}
+                        since={
+                          <time dateTime={stream.startedAt}>
+                            {t('admin.streams.since', {
+                              time: formatDateTime(stream.startedAt, i18n.language),
+                            })}
+                          </time>
+                        }
+                        action={
+                          <AriaButton
+                            variant="danger"
+                            aria-label={t('admin.streams.stop.label', {
+                              profile: stream.profileName,
+                            })}
+                            onPress={() => askStop(stream)}
+                          >
+                            {t('admin.streams.stop.action')}
+                          </AriaButton>
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
+      {stopping && (
+        <ConfirmDialog
+          isOpen={confirmOpen}
+          onOpenChange={onConfirmOpenChange}
+          title={t('admin.streams.stop.title', { profile: stopping.profileName })}
+          body={t('admin.streams.stop.body', { title: stopping.itemTitle })}
           confirmLabel={t('admin.streams.stop.confirm')}
           cancelLabel={t('common.cancel')}
           tone="danger"
-          onConfirm={() => stop.mutate(stream)}
-          onOpenChange={setConfirming}
+          onConfirm={() => stop.mutate(stopping)}
         />
-      ),
-    },
-  ];
-
-  return (
-    <Page>
-      <div ref={header} tabIndex={-1} className={styles.header}>
-        <Text as="h1" variant="display">
-          {t('admin.streams.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.streams.intro')}</Text>
-      </div>
-      {!allowed ? (
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      ) : (
-        <div className={styles.body} aria-busy={streams.isPending}>
-          {stop.error && <Notice tone="danger">{problemMessage(t, stop.error)}</Notice>}
-          {stopped && !stop.error && (
-            <Notice>{t('admin.streams.stopped', { profile: stopped })}</Notice>
-          )}
-          {streams.isPending && <Skeleton shape="block" />}
-          {streams.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, streams.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void streams.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {streams.data?.length === 0 && <Notice>{t('admin.streams.empty')}</Notice>}
-          {streams.data && streams.data.length > 0 && (
-            <DataTable
-              caption={t('admin.streams.list')}
-              columns={columns}
-              rows={streams.data}
-              rowKey={(stream) => stream.id}
-            />
-          )}
-        </div>
       )}
-    </Page>
+    </AdminPage>
   );
 }
