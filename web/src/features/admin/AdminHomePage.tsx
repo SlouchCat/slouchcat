@@ -921,7 +921,7 @@ export function AdminHomePage() {
   const data = dashboard.data;
 
   // The overview sits in the administration's content: its title is a page title like on every
-  // administration page (24 px compact, Marco 4 November 2026), its buttons are compact (ADR 0020),
+  // administration page (24 px compact, Marco 3 November 2026), its buttons are compact (ADR 0020),
   // and the scope makes the restart dialog compact as well.
   return (
     <Page>

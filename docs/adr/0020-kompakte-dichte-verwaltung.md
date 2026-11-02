@@ -123,7 +123,7 @@ unverändert (dieselben Farb-Tokens).
     `--sc-*`-Komponententoken mit Standardwert; ausserhalb der kompakten Dichte gilt weiter
     `global.css`.
 
-## Nachtrag Designer-Abgleich (4. November 2026)
+## Nachtrag Designer-Abgleich (3. November 2026)
 
 - **`text.body-size`** (Komponententoken `--sc-text-body-size`): Grösse des Fliesstexts (`Text`
   Variante `body`: Hinweise, Leerzustände, Zustand der Speicherleiste). Standard `font.size.lg`
