@@ -1,47 +1,55 @@
-import type { RestoreResult } from '@slouchcat/api-client';
 import { useId, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
-import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Notice } from '@/ui';
 import { AriaButton, Form, TextField } from '@/ui/aria';
-import { restoreUpload, type Confirmation } from './api';
 import styles from './Backup.module.css';
 
 /**
+ * Puts the page's file back into a fresh file field, so a tab change does not show it empty while
+ * the page still holds it. A browser without a constructible DataTransfer keeps the field empty;
+ * the button still knows the file.
+ */
+function keepFile(input: HTMLInputElement | null, file: File | null) {
+  if (!input || !file || input.files?.[0] === file) return;
+  try {
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    input.files = transfer.files;
+  } catch {
+    // No DataTransfer here (jsdom, old browsers): the field stays empty, the page has the file.
+  }
+}
+
+/**
  * The tab «Aus Datei wiederherstellen» (SIC-2): the warning, the archive, the passphrase of an
- * encrypted one, and the page's confirmation before the upload. File and passphrase live only
- * here, never in a draft or the mutation cache; they go with the tab.
+ * encrypted one; the button hands both to the page, which asks its confirmation and uploads. The
+ * file is the page's (not a secret, it survives a tab change), and so is the answer to the last
+ * upload. The passphrase lives only here, never in a draft or the mutation cache, and goes with
+ * the tab.
  */
 export function UploadTab({
-  ask,
-  onAccepted,
+  file,
+  onFileChange,
+  error,
+  isPending,
+  onRestore,
 }: {
-  ask: (confirmation: Confirmation) => void;
-  onAccepted: (result: RestoreResult) => void;
+  file: File | null;
+  onFileChange: (file: File | null) => void;
+  /** The answer to the last upload, or null. */
+  error: unknown;
+  isPending: boolean;
+  onRestore: (file: File, passphrase: string) => void;
 }) {
   const { t } = useTranslation();
   const fileId = useId();
-  const [file, setFile] = useState<File | null>(null);
   const [passphrase, setPassphrase] = useState('');
-  const restore = useTransientMutation(
-    (upload: File): Promise<RestoreResult> => restoreUpload(upload, passphrase),
-    onAccepted,
-  );
-  const errors = restore.error ? formErrors(t, restore.error) : null;
+  const errors = error ? formErrors(t, error) : null;
 
-  const askRestore = () => {
-    if (!file || restore.isPending) return;
-    ask({
-      title: t('admin.backup.restore.confirmTitle'),
-      body: t('admin.backup.restore.confirmBody'),
-      confirmLabel: t('admin.backup.restore.confirm'),
-      onConfirm: () => void restore.run(file),
-    });
-  };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    askRestore();
+    if (file && !isPending) onRestore(file, passphrase);
   };
 
   return (
@@ -55,13 +63,14 @@ export function UploadTab({
           {t('admin.backup.restore.file')}
         </label>
         <input
+          ref={(input) => keepFile(input, file)}
           id={fileId}
           name="file"
           type="file"
           accept=".gz,.age"
           aria-describedby={`${fileId}-hint`}
           className={styles.fileInput}
-          onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+          onChange={(event) => onFileChange(event.currentTarget.files?.[0] ?? null)}
         />
         <p id={`${fileId}-hint`} className={styles.hint}>
           {t('admin.backup.restore.fileHint')}
@@ -77,13 +86,8 @@ export function UploadTab({
         onChange={setPassphrase}
       />
       <div>
-        <AriaButton
-          type="submit"
-          variant="danger"
-          isDisabled={file === null}
-          isPending={restore.isPending}
-        >
-          {restore.isPending ? t('admin.backup.restore.running') : t('admin.backup.restore.action')}
+        <AriaButton type="submit" variant="danger" isDisabled={file === null} isPending={isPending}>
+          {isPending ? t('admin.backup.restore.running') : t('admin.backup.restore.action')}
         </AriaButton>
       </div>
     </Form>

@@ -8,6 +8,7 @@ import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
+import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Notice, Skeleton, Text } from '@/ui';
 import {
   ActionMenu,
@@ -20,7 +21,7 @@ import {
   useSearchSelection,
   type TabItem,
 } from '@/ui/aria';
-import { restoreBackup, type Confirmation } from './backup/api';
+import { restoreBackup, restoreUpload, type Confirmation } from './backup/api';
 import { backupColumns } from './backup/columns';
 import { CreateTab, type CreateMode } from './backup/CreateTab';
 import { PassphraseDialog } from './backup/PassphraseDialog';
@@ -112,6 +113,11 @@ function BackupContent() {
     setMessage(null);
     setFailure(error);
   };
+  /** A new action starts: the outcome of the last one (message or error) goes away. */
+  const start = useCallback(() => {
+    setMessage(null);
+    setFailure(null);
+  }, []);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: backupsQuery.queryKey });
 
   /** The focus fell to the body (its button or tab went with a change): the h1 takes it. */
@@ -124,6 +130,14 @@ function BackupContent() {
     setUnlocking(null);
     setRestart({ result, acceptedAt: Date.now() });
   }, []);
+  // The archive of «Aus Datei wiederherstellen» is the page's (not a secret): it survives a tab
+  // change, and so does the answer to its upload. The passphrase is in the request only while it
+  // runs (useTransientMutation).
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const upload = useTransientMutation(
+    ({ file, passphrase }: { file: File; passphrase: string }) => restoreUpload(file, passphrase),
+    accepted,
+  );
   // A backup without passphrase restores straight from the confirmation.
   const restore = useMutation({
     mutationFn: (backup: Backup) => restoreBackup(backup.name, ''),
@@ -145,14 +159,20 @@ function BackupContent() {
 
   // Every confirmation is the page's own: a row that goes while it is open cannot take the
   // dialog with it.
-  const ask = useCallback((next: Confirmation) => {
-    setConfirmation(next);
-    setConfirmOpen(true);
-  }, []);
+  const ask = useCallback(
+    (next: Confirmation) => {
+      start();
+      setConfirmation(next);
+      setConfirmOpen(true);
+    },
+    [start],
+  );
   const onConfirmOpenChange = useCallback(
     (open: boolean) => {
       if (open) return;
       setConfirmOpen(false);
+      // The texts stay for the closing animation; the action goes (it may hold a passphrase).
+      setConfirmation((current) => current && { ...current, onConfirm: () => undefined });
       // The button that opened it may be gone by now.
       void afterRender().then(focusTitleIfLost);
     },
@@ -164,6 +184,7 @@ function BackupContent() {
   const askRestore = useCallback(
     (backup: Backup) => {
       if (backup.encrypted) {
+        start();
         setUnlocking(backup);
         return;
       }
@@ -171,11 +192,28 @@ function BackupContent() {
         title: t('admin.backup.restore.confirmTitle'),
         body: t('admin.backup.restore.confirmBodyNamed', { name: backup.name }),
         confirmLabel: t('admin.backup.restore.confirm'),
+        defaultFocus: 'cancel',
         onConfirm: () => restoreMutate(backup),
       });
     },
-    [ask, t, restoreMutate],
+    [ask, start, t, restoreMutate],
   );
+  const { run: uploadRun } = upload;
+  const askUpload = useCallback(
+    (file: File, passphrase: string) =>
+      ask({
+        title: t('admin.backup.restore.confirmTitle'),
+        body: t('admin.backup.restore.confirmBodyNamed', { name: file.name }),
+        confirmLabel: t('admin.backup.restore.confirm'),
+        defaultFocus: 'cancel',
+        onConfirm: () => void uploadRun({ file, passphrase }),
+      }),
+    [ask, t, uploadRun],
+  );
+  // While a restore runs nothing else starts: the tabs and the rows' menus wait (and while a
+  // backup is deleted, the menus).
+  const restoring = restore.isPending || upload.isPending;
+  const busy = restoring || remove.isPending;
   const askRemove = useCallback(
     (backup: Backup) =>
       ask({
@@ -186,19 +224,26 @@ function BackupContent() {
       }),
     [ask, t, removeMutate],
   );
-  // «Weitere Aktionen» of a row (S-6): restore, and delete under «Gefahr».
+  // «Weitere Aktionen» of a row (S-6): both actions destroy data (a restore replaces all of it),
+  // so both stand under «Gefahr», restore first.
   const actionsOf = useCallback(
     (backup: Backup) => (
       <ActionMenu
         rowName={backup.name}
+        isDisabled={busy}
         items={[
-          { id: 'restore', label: t('admin.backup.restore.menu'), icon: 'refresh' },
+          {
+            id: 'restore',
+            label: t('admin.backup.restore.menu'),
+            icon: 'refresh',
+            danger: true,
+          },
           { id: 'remove', label: t('admin.backup.delete.action'), icon: 'trash', danger: true },
         ]}
         onAction={(action) => (action === 'remove' ? askRemove(backup) : askRestore(backup))}
       />
     ),
-    [t, askRestore, askRemove],
+    [t, busy, askRestore, askRemove],
   );
   const columns = useMemo(
     () => backupColumns(t, i18n.language, fresh, actionsOf),
@@ -305,7 +350,15 @@ function BackupContent() {
     {
       id: 'upload',
       label: t('admin.backup.tabs.upload'),
-      content: <UploadTab ask={ask} onAccepted={accepted} />,
+      content: (
+        <UploadTab
+          file={uploadFile}
+          onFileChange={setUploadFile}
+          error={upload.error}
+          isPending={upload.isPending}
+          onRestore={askUpload}
+        />
+      ),
     },
   ];
 
@@ -340,7 +393,11 @@ function BackupContent() {
           tabs={{
             label: t('admin.backup.tabs.label'),
             selectedKey: tab,
-            onSelectionChange: selectTab,
+            onSelectionChange: (key) => {
+              start();
+              selectTab(key);
+            },
+            isDisabled: restoring,
             tabs,
           }}
         />
@@ -354,6 +411,7 @@ function BackupContent() {
           confirmLabel={confirmation.confirmLabel}
           cancelLabel={t('common.cancel')}
           tone="danger"
+          defaultFocus={confirmation.defaultFocus}
           onConfirm={confirmation.onConfirm}
         />
       )}

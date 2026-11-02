@@ -65,6 +65,12 @@
   outline-offset: var(--sc-focus-ring-offset);
 }
 
+/* The page waits for a request: the other tabs cannot be picked meanwhile. */
+.tab[data-disabled]:not([data-selected]) {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
 .count {
   padding: 0 var(--sc-space-2);
   border-radius: var(--sc-radius-full);

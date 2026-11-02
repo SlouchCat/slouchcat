@@ -32,7 +32,9 @@ export function CreateTab({
     (body: BackupRequest): Promise<Backup> => request(api.POST('/admin/backups', { body })),
     onCreated,
   );
-  const errors = create.error ? formErrors(t, create.error) : null;
+  // A change of the scope drops the answer to the last attempt (it was about the other scope).
+  const [dismissed, setDismissed] = useState(0);
+  const errors = create.error && create.failures !== dismissed ? formErrors(t, create.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -51,9 +53,10 @@ export function CreateTab({
         value={mode}
         onChange={(value) => {
           onModeChange(value === 'with' ? 'with' : 'without');
-          // Nothing typed for a scope that is no longer chosen stays around.
+          // Nothing typed for a scope that is no longer chosen stays around, nor its error.
           setPassphrase('');
           setRepeat('');
+          setDismissed(create.failures);
         }}
         options={[
           { value: 'without', label: t('admin.backup.create.without') },

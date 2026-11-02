@@ -30,6 +30,8 @@ export interface TabsProps {
   headClassName?: string;
   /** Class of the panels (the padding of a BandPanel's body). */
   panelClassName?: string;
+  /** No tab can be selected meanwhile (a page that waits for a request started in a tab). */
+  isDisabled?: boolean;
 }
 
 /**
@@ -47,6 +49,7 @@ export function Tabs({
   head,
   headClassName,
   panelClassName,
+  isDisabled,
 }: TabsProps) {
   const list = (
     <div className={styles.scroller}>
@@ -76,6 +79,7 @@ export function Tabs({
     <AriaTabs
       className={`${styles.tabs} ${head === undefined ? '' : styles.headed}`}
       selectedKey={selectedKey}
+      isDisabled={isDisabled}
       onSelectionChange={(key: Key) => onSelectionChange?.(String(key))}
     >
       {head === undefined ? (

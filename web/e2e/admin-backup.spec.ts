@@ -72,6 +72,19 @@ test('A-4: create a backup without secrets, download it and delete it, by keyboa
     await openBackup(page);
     await selectTab(page, 'Neue Sicherung', 1);
     await expect(page).toHaveURL(/\/admin\/backup\?tab=create$/);
+    // ← goes back to «Sicherungen» (the plain address), → again to «Neue Sicherung».
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('tab', { name: /^Sicherungen/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page).toHaveURL(/\/admin\/backup$/);
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('tab', { name: 'Neue Sicherung' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page).toHaveURL(/\/admin\/backup\?tab=create$/);
     // The recommended choice is preset and the first stop in the tab.
     const panel = page.getByRole('tabpanel');
     const without = panel.getByRole('radio', { name: 'Ohne Schlüssel (empfohlen)' });
@@ -122,8 +135,8 @@ test('A-4: create a backup without secrets, download it and delete it, by keyboa
     expect((await download).suggestedFilename()).toBe(backup.name);
     await expect(page).toHaveURL(/\/admin\/backup$/);
 
-    // «Weitere Aktionen»: Enter opens it on «Wiederherstellen …», ↓ goes to «Löschen …» under
-    // «Gefahr», Escape closes onto its button.
+    // «Weitere Aktionen»: Enter opens it on «Wiederherstellen …», ↓ goes to «Löschen …», both
+    // under «Gefahr»; Escape closes onto its button.
     const more = row.getByRole('button', { name: `Weitere Aktionen für ${backup.name}` });
     await page.keyboard.press('Tab');
     await expectFocusOn(page, more);
@@ -135,7 +148,9 @@ test('A-4: create a backup without secrets, download it and delete it, by keyboa
     await expectVisibleFocus(page);
     await page.keyboard.press('ArrowDown');
     await expect(remove).toBeFocused();
-    await expect(menu.getByText('Gefahr')).toBeVisible();
+    const danger = menu.getByRole('group', { name: 'Gefahr' });
+    await expect(danger.getByRole('menuitem')).toHaveText(['Wiederherstellen …', 'Löschen …']);
+    await expect(menu.getByRole('menuitem')).toHaveCount(2);
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await expectFocusOn(page, more);
@@ -270,6 +285,23 @@ test.describe('restore', () => {
       mimeType: 'application/octet-stream',
       buffer: Buffer.from('age-encryption.org/v1 e2e archive'),
     });
+    // The chosen file is the page's: ← and → over the tabs keep it in the field.
+    const uploadTab = page.getByRole('tab', { name: 'Aus Datei wiederherstellen' });
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, uploadTab);
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('tab', { name: 'Neue Sicherung' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.keyboard.press('ArrowRight');
+    await expect(uploadTab).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, file);
+    expect(
+      await file.evaluate((input) => (input as HTMLInputElement).files?.[0]?.name ?? null),
+    ).toBe('slouchcat-backup-e2e.tar.gz.age');
+    await expect(restore).toBeEnabled();
     await page.keyboard.press('Tab');
     await expectFocusOn(page, panel.getByLabel(/^Passphrase/));
     await page.keyboard.type(BACKUP_PASSPHRASE);
@@ -277,7 +309,12 @@ test.describe('restore', () => {
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
     await expect(confirm).toContainText('startet der Server neu');
+    await expect(confirm).toContainText('„slouchcat-backup-e2e.tar.gz.age“');
+    // The focus starts on «Abbrechen»: a second Enter by habit replaces nothing. Tab reaches
+    // «Ersetzen und neu starten».
+    await expectFocusOn(page, confirm.getByRole('button', { name: 'Abbrechen' }));
     const replace = confirm.getByRole('button', { name: 'Ersetzen und neu starten' });
+    await page.keyboard.press('Tab');
     await expectFocusOn(page, replace);
     await page.keyboard.press('Enter');
     await expect(confirm).toBeHidden();

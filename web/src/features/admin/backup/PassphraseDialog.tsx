@@ -40,6 +40,7 @@ export function PassphraseDialog({
       title: t('admin.backup.restore.confirmTitle'),
       body: t('admin.backup.restore.confirmBodyNamed', { name: backup.name }),
       confirmLabel: t('admin.backup.restore.confirm'),
+      defaultFocus: 'cancel',
       onConfirm: () => void restore.run(undefined),
     });
   };

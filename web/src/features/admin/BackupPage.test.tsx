@@ -288,7 +288,7 @@ describe('admin backup (A-4)', () => {
     await waitFor(() => expect(heading()).toHaveFocus());
   });
 
-  it('puts «Löschen» under «Gefahr»; Escape closes the confirmation without deleting', async () => {
+  it('puts «Wiederherstellen» and «Löschen» under «Gefahr»; Escape closes the confirmation without deleting', async () => {
     const { calls } = mockApi(routes(() => [plain]));
     renderApp('/admin/backup');
     const user = userEvent.setup();
@@ -298,7 +298,13 @@ describe('admin backup (A-4)', () => {
     });
     await user.click(more);
     const menu = await screen.findByRole('menu');
-    expect(within(menu).getByText('Gefahr')).toBeVisible();
+    const danger = within(menu).getByRole('group', { name: 'Gefahr' });
+    expect(
+      within(danger)
+        .getAllByRole('menuitem')
+        .map((item) => item.textContent),
+    ).toEqual(['Wiederherstellen …', 'Löschen …']);
+    expect(within(menu).getAllByRole('menuitem')).toHaveLength(2);
     await user.click(within(menu).getByRole('menuitem', { name: 'Löschen …' }));
     expect(await screen.findByRole('alertdialog')).toBeVisible();
     await user.keyboard('{Escape}');
@@ -327,6 +333,10 @@ describe('admin backup (A-4)', () => {
     const dialog = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
     expect(dialog).toHaveTextContent(`durch den Stand von „${plain.name}“ ersetzt`);
     expect(dialog).toHaveTextContent('startet der Server neu');
+    // A restore starts on «Abbrechen»: a second Enter by habit must not replace every piece of data.
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Abbrechen' })).toHaveFocus(),
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Ersetzen und neu starten' }));
 
     const restarting = await screen.findByRole('heading', { level: 2, name: 'Server startet neu' });
@@ -432,8 +442,17 @@ describe('admin backup (A-4)', () => {
     await user.clear(passphrase);
     await user.type(passphrase, PASSPHRASE);
     expect(within(dialog).queryByText('Die Passphrase stimmt nicht.')).toBeNull();
-    // Enter in the field asks the same confirmation as the button.
+    // Enter in the field asks the same confirmation as the button; its focus is on «Abbrechen»,
+    // so a second Enter cancels.
     await user.keyboard('{Enter}');
+    const second = await screen.findByRole('alertdialog');
+    await waitFor(() =>
+      expect(within(second).getByRole('button', { name: 'Abbrechen' })).toHaveFocus(),
+    );
+    await user.keyboard('{Enter}');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
+    await user.click(within(dialog).getByRole('button', { name: 'Wiederherstellen' }));
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', {
         name: 'Ersetzen und neu starten',
@@ -477,7 +496,7 @@ describe('admin backup (A-4)', () => {
   });
 
   it('restores an uploaded archive from its tab: the passphrase goes before the file (SIC-2)', async () => {
-    let answer = problem(422, 'backup_invalid');
+    let answer: Response | Promise<Response> = problem(422, 'backup_invalid');
     const { fetchMock } = mockApi(routes(() => []));
     // The upload is multipart (mockApi reads JSON bodies): this route keeps the parts' names and
     // texts in order. jsdom's File is not one Node's fetch can serialise, so the archive itself
@@ -488,7 +507,7 @@ describe('admin backup (A-4)', () => {
         const body = await input.text();
         const parts = [...body.matchAll(/name="([^"]+)"[^\r]*\r\n(?:[^\r]+\r\n)*\r\n([^\r]*)/g)];
         uploads.push(parts.map(([, name = '', value = '']) => ({ name, value })));
-        return answer.clone();
+        return (await answer).clone();
       }
       return fetchMock(input);
     });
@@ -506,23 +525,47 @@ describe('admin backup (A-4)', () => {
     await user.type(within(panel).getByLabelText(/^Passphrase/), PASSPHRASE);
     await user.click(restore);
     const confirm = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
-    expect(confirm).toHaveTextContent('Konten, Profile, Fortschritt und Einstellungen');
+    // The confirmation names the file and starts on «Abbrechen».
+    expect(confirm).toHaveTextContent(`durch den Stand von „${file.name}“ ersetzt`);
+    await waitFor(() =>
+      expect(within(confirm).getByRole('button', { name: 'Abbrechen' })).toHaveFocus(),
+    );
     await user.click(within(confirm).getByRole('button', { name: 'Ersetzen und neu starten' }));
-    expect(
-      await within(panel).findByText(
-        'Diese Datei ist keine gültige Sicherung von Slouchcat, oder sie ist beschädigt.',
-      ),
-    ).toBeVisible();
+    const invalid =
+      'Diese Datei ist keine gültige Sicherung von Slouchcat, oder sie ist beschädigt.';
+    expect(await within(panel).findByText(invalid)).toBeVisible();
     expect(uploads[0]?.map((part) => part.name)).toEqual(['passphrase', 'file']);
     expect(uploads[0]?.[0]?.value).toBe(PASSPHRASE);
 
-    answer = json(accepted, 202);
-    await user.click(restore);
+    // A tab change keeps the file and the answer (the page holds them), not the passphrase.
+    await user.click(screen.getByRole('tab', { name: /^Sicherungen/ }));
+    await user.click(screen.getByRole('tab', { name: 'Aus Datei wiederherstellen' }));
+    const back = screen.getByRole('tabpanel');
+    expect(within(back).getByText(invalid)).toBeVisible();
+    expect(within(back).getByLabelText(/^Passphrase/)).toHaveValue('');
+    const again = within(back).getByRole('button', { name: 'Wiederherstellen' });
+    expect(again).toBeEnabled();
+
+    // While the upload runs, the tabs wait.
+    let release: (response: Response) => void = () => undefined;
+    answer = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    await user.click(again);
     await user.click(
       within(await screen.findByRole('alertdialog')).getByRole('button', {
         name: 'Ersetzen und neu starten',
       }),
     );
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: /^Sicherungen/ })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      ),
+    );
+    // Without a passphrase this time: that part is left out.
+    await waitFor(() => expect(uploads[1]?.map((part) => part.name)).toEqual(['file']));
+    release(json(accepted, 202));
     expect(
       await screen.findByRole('heading', { level: 2, name: 'Server startet neu' }),
     ).toBeVisible();
@@ -530,6 +573,70 @@ describe('admin backup (A-4)', () => {
     expect(screen.getByText(/Gib die Schlüssel, den E-Mail-Server/)).toBeVisible();
     await waitFor(() => expect(queryClient.getMutationCache().getAll()).toHaveLength(0));
     expect(holdsPassphrase(queryClient)).toBe(false);
+  });
+
+  it('waits while a restore of the list runs: tabs and row menus are disabled', async () => {
+    let release: (response: Response) => void = () => undefined;
+    const held = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    mockApi(
+      routes(() => [plain, auto], {
+        [`POST /admin/backups/${plain.name}/restore`]: () => held,
+      }),
+    );
+    renderApp('/admin/backup');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
+    await pick(user, plain.name, 'Wiederherstellen …');
+    const confirm = await screen.findByRole('alertdialog', { name: 'Alle Daten ersetzen?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Ersetzen und neu starten' }));
+    const menuOf = (name: string) =>
+      within(rowOf(name)).getByRole('button', { name: `Weitere Aktionen für ${name}` });
+    await waitFor(() => expect(menuOf(auto.name)).toBeDisabled());
+    expect(menuOf(plain.name)).toBeDisabled();
+    expect(screen.getByRole('tab', { name: 'Neue Sicherung' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    release(json(accepted, 202));
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Server startet neu' }),
+    ).toBeVisible();
+  });
+
+  it('clears the last outcome when a new action starts; a new scope drops the create error', async () => {
+    let list = [plain];
+    mockApi(
+      routes(() => list, {
+        [`DELETE /admin/backups/${plain.name}`]: () => {
+          list = [];
+          return new Response(null, { status: 204 });
+        },
+        'POST /admin/backups': () => problem(500, 'internal'),
+      }),
+    );
+    renderApp('/admin/backup');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Sicherungen: Manuell' });
+    await pick(user, plain.name, 'Löschen …');
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Sicherung löschen',
+      }),
+    );
+    const done = `Sicherung „${plain.name}“ gelöscht.`;
+    expect(await screen.findByText(done)).toBeVisible();
+    // A tab change starts something new: the message goes.
+    await user.click(screen.getByRole('tab', { name: 'Neue Sicherung' }));
+    expect(screen.queryByText(done)).toBeNull();
+
+    const panel = screen.getByRole('tabpanel');
+    await user.click(within(panel).getByRole('button', { name: 'Sicherung erstellen' }));
+    const error = await within(panel).findByRole('alert');
+    expect(error).toBeVisible();
+    await user.click(within(panel).getByRole('radio', { name: 'Mit Schlüsseln' }));
+    expect(within(panel).queryByRole('alert')).toBeNull();
   });
 
   it('is for the main account only', async () => {

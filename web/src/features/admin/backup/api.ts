@@ -32,4 +32,9 @@ export interface Confirmation {
   body: string;
   confirmLabel: string;
   onConfirm: () => void;
+  /**
+   * `cancel` for a restore: Enter in a passphrase field opens it, and a second Enter must not
+   * replace every piece of data.
+   */
+  defaultFocus?: 'confirm' | 'cancel';
 }
