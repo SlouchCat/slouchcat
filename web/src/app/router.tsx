@@ -394,8 +394,9 @@ const picksRoute = createRoute({
 const collectionsAdminRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/collections',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
-    () => import('@/features/admin/CollectionsPage'),
+    () => import('@/features/admin/collections/CollectionsPage'),
     'CollectionsPage',
   ),
 });

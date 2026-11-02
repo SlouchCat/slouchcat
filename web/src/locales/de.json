@@ -1460,7 +1460,7 @@
         "name": "Name",
         "source": "Quelle",
         "count": "Titel",
-        "actions": "Aktionen"
+        "state": "Zustand"
       },
       "source": {
         "tmdb": "TMDB",
@@ -1472,7 +1472,6 @@
       "create": {
         "action": "Sammlung anlegen",
         "title": "Sammlung anlegen",
-        "description": "Eine leere Sammlung. Die Titel fügst du danach unter «Mitglieder» hinzu.",
         "submit": "Anlegen",
         "done": "Die Sammlung {{name}} ist angelegt."
       },
@@ -1491,18 +1490,11 @@
         "done": "Die Sammlung {{name}} ist gelöscht."
       },
       "members": {
-        "action": "Mitglieder",
-        "label": "Mitglieder von {{name}}",
         "title": "Mitglieder von {{name}}",
-        "description": "Suche Titel und füge sie hinzu; die Reihenfolge hier ist die der Sammlung.",
         "list": "Titel der Sammlung",
         "empty": "Noch kein Titel in dieser Sammlung.",
         "add": "Hinzufügen",
         "addLabel": "{{title}} hinzufügen",
-        "up": "Nach oben",
-        "upLabel": "{{title}} nach oben",
-        "down": "Nach unten",
-        "downLabel": "{{title}} nach unten",
         "remove": "Entfernen",
         "removeLabel": "{{title}} entfernen",
         "done": "Die Mitglieder von {{name}} sind gespeichert.",
@@ -1511,8 +1503,26 @@
           "hint": "Ab zwei Zeichen: Filme, Serien, Hörbücher und Podcasts.",
           "empty": "Kein passender Titel gefunden.",
           "results": "Gefundene Titel"
-        }
-      }
+        },
+        "count_one": "{{number}} Titel",
+        "count_other": "{{number}} Titel",
+        "meta": "{{kind}} · {{year}}",
+        "unsaved": "Ungespeicherte Änderungen",
+        "discard": "Verwerfen",
+        "discarded": "Die Änderungen an {{name}} sind verworfen."
+      },
+      "tabs": {
+        "label": "Sammlungen nach Quelle",
+        "all": "Alle",
+        "count_one": "{{number}} Sammlung",
+        "count_other": "{{number}} Sammlungen"
+      },
+      "listManual": "Manuelle Sammlungen",
+      "listTmdb": "Sammlungen von TMDB",
+      "emptyTab": "Keine Sammlung in diesem Reiter.",
+      "locked": "nicht änderbar",
+      "lockedNote": "Diese Sammlung kommt von TMDB: Mitglieder, Name und Löschen sind darum gesperrt.",
+      "changed": "geändert"
     },
     "homeRows": {
       "title": "Startseite",

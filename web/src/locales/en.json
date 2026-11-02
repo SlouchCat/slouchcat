@@ -1460,7 +1460,7 @@
         "name": "Name",
         "source": "Source",
         "count": "Titles",
-        "actions": "Actions"
+        "state": "State"
       },
       "source": {
         "tmdb": "TMDB",
@@ -1472,7 +1472,6 @@
       "create": {
         "action": "New collection",
         "title": "New collection",
-        "description": "An empty collection. Add its titles afterwards under “Members”.",
         "submit": "Create",
         "done": "The collection {{name}} is created."
       },
@@ -1491,18 +1490,11 @@
         "done": "The collection {{name}} is deleted."
       },
       "members": {
-        "action": "Members",
-        "label": "Members of {{name}}",
         "title": "Members of {{name}}",
-        "description": "Search titles and add them; the order here is the collection's order.",
         "list": "Titles of the collection",
         "empty": "No titles in this collection yet.",
         "add": "Add",
         "addLabel": "Add {{title}}",
-        "up": "Move up",
-        "upLabel": "Move {{title}} up",
-        "down": "Move down",
-        "downLabel": "Move {{title}} down",
         "remove": "Remove",
         "removeLabel": "Remove {{title}}",
         "done": "The members of {{name}} are saved.",
@@ -1511,8 +1503,26 @@
           "hint": "Two characters or more: films, series, audiobooks and podcasts.",
           "empty": "No matching title found.",
           "results": "Titles found"
-        }
-      }
+        },
+        "count_one": "{{number}} title",
+        "count_other": "{{number}} titles",
+        "meta": "{{kind}} · {{year}}",
+        "unsaved": "Unsaved changes",
+        "discard": "Discard",
+        "discarded": "The changes to {{name}} are discarded."
+      },
+      "tabs": {
+        "label": "Collections by source",
+        "all": "All",
+        "count_one": "{{number}} collection",
+        "count_other": "{{number}} collections"
+      },
+      "listManual": "Manual collections",
+      "listTmdb": "Collections from TMDB",
+      "emptyTab": "No collections in this tab.",
+      "locked": "not editable",
+      "lockedNote": "This collection comes from TMDB: its members, name and deletion are locked.",
+      "changed": "changed"
     },
     "homeRows": {
       "title": "Start page",
