@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 11 «Übersicht der Verwaltung»: im Bau, Schritte 0, 1 und 4 fertig (2. November 2026)
+## Konzept 11 «Übersicht der Verwaltung»: im Bau, Schritte 0 bis 4 fertig (2. November 2026)
 
 Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
 `docs/planning/11-verwaltung-uebersicht.md` Abschnitt 11.8 mit OMC (`executor` je Schritt,
@@ -22,7 +22,41 @@ Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
   Befunde behoben. Entscheid für Schritt 5: die Leiste wird im Gerüst lazy geladen (Startbündel,
   P-10).
 
-**Belege.** Auf dem Zweig mit Schritt 1 und 4 zusammen:
+- **Schritt 2** (`a54405a`, `75ffc3d`): Aktivitätsprotokoll, Migration **00031** (`activity_events`,
+  `STRICT`, `kind` ohne CHECK; `AFTER DELETE`-Trigger auf `accounts` und `profiles` löschen die
+  Einträge im selben Statement, ADR 0019 Datenschutz), Regeln gegen Flut je Art (Start 30 min je
+  Profil und Titel, `job_failed` je Jobart und Stunde, Scan-Fehler je Bibliothek, Grund und Stunde),
+  Haken in `playback`, `library`, `jobs`, `admin` und `main.go`, `backup_restored` beim Start nach
+  der Wiederherstellung (`DB.Restored`), Aufräumen über einen Haken in `jobs.prune` (30 Tage, höchstens
+  2'000), `Dashboard.activity` im Vertrag, eingefrorener Stand `testdata/db/verwaltung.sql`.
+  Abweichungen vom Papier 11.4 (begründet, Review bestätigt): `library_id` INTEGER; Löschen per
+  Trigger statt im Go-Code. Review: freigegeben, Befunde behoben.
+- **Schritt 3** (`4380fa1`, `c55d6a8`, `e45c002`): `POST /admin/server/restart` (`restartServer`,
+  `x-visibility: admin`, 202 `RestartAccepted`, 409 `restart_pending` und `backup_busy`, die
+  Wiederherstellung ebenso), `server_restart` mit Konto; `RestartPanel` aus `BackupPage` gelöst und
+  allgemein (`useId`, Tests für Aufgeben nach 90 s und «Erneut prüfen»). Noch kein Knopf in der
+  Oberfläche (Schritt 5). Review: freigegeben, Befunde behoben.
+
+**Belege Schritt 2 und 3** (Agentenläufe, frischer lokaler Server):
+
+```
+$ curl -X POST …/admin/server/restart
+{"restartAt":"2026-11-02T00:08:01.445668948Z"}   HTTP 202
+$ curl -X POST …/admin/server/restart
+{"code":"restart_pending",…,"status":409}        HTTP 409
+Log: restart requested by the administration account_id=1 … restarting … listening startup_ms=1554
+GET /admin/dashboard (gleiches Cookie, nach dem Neustart):
+  {"kind":"server_started","detail":{"version":"dev"}},
+  {"kind":"server_restart","accountEmail":"dod@example.test"}
+Nach Scan und Wiedergabe: playback_started, scan_done {"newTitles":22}, scan_started {"trigger":"manual"}
+```
+
+`go test -count=1` grün für `admin`, `api`, `auth`, `jobs`, `library`, `playback`, `store`
+(eingefrorene Stände, Migration 00031, Wiederherstellung) und `cmd/slouchcat`; `task server:lint`
+`0 issues.`; `task server:gen:check` und `task web:gen:check` ohne Abweichung; `task web:test`
+93 Dateien, 730 Tests grün.
+
+**Belege Schritt 1 und 4.** Auf dem Zweig mit Schritt 1 und 4 zusammen:
 
 ```
 $ task web:lint
@@ -33,9 +67,10 @@ web test:       Tests  729 passed (729)
 ```
 
 Schritt 1 (Agentenlauf): `task ci:web` grün; `task ci:server` grün bis auf
-`internal/library` `TestPodcastFolderPairsFileWithFeedEpisodeAfterProbe`, der auf dem Basis-Commit
-`cb7cf17` lokal genauso fehlschlägt (`published_at from the tag = 1793573258173, want
-1760335200000`; vermutlich ffmpeg 6.1.1 des Entwicklungsrechners, die CI auf `main` ist grün);
+`internal/library` `TestPodcastFolderPairsFileWithFeedEpisodeAfterProbe`. Ursache: veraltete lokale
+Test-Medien (`testdata/media/Podcasts/episode-*.mp3` vom 20. Oktober ohne `date`-Tag; der Generator
+überspringt vorhandene Dateien); neu erzeugt, seither grün. Kein Codefehler, die CI erzeugt die
+Medien bei jeder Änderung des Generators neu;
 nach den Review-Befunden `go test` für `admin`, `api`, `auth`, `store` ok,
 `golangci-lint` `0 issues.`, `task server:gen:check` ohne Abweichung. Schritt 4 (Agentenlauf):
 `task web:storybook:test` in Docker `215 passed`. Beispielantwort von `GET /admin/dashboard` aus
@@ -43,8 +78,8 @@ dem Handlertest: `jobs.active`, `jobs.failedByType` mit geschwärztem Fehler, `j
 `attention.abortedScans`, `counts {accounts, maintenanceOpen, titles}`, `streams[].posterUrl` mit
 dem Hash des Serienposters. e2e lief noch nicht (keine Änderung der Oberfläche bis Schritt 5).
 
-**Offen:** Schritte 2 (Aktivitätsprotokoll), 3 (Neustart), 5 (Gerüst und Übersicht), 6
-(Abnahme auf CT 190); der lokale Podcast-Test separat.
+**Offen:** Schritt 5 (Gerüst, Verwaltungsleiste, Übersicht, alle Tests inklusive e2e) und Schritt 6
+(Abnahme auf CT 190).
 
 ## Nachtrag Konzept 10: «Nur Bilder» bei Ordnern mit einer Quelle (1. November 2026)
 
