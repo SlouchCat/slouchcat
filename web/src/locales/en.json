@@ -1030,7 +1030,8 @@
         },
         "fieldLang": "{{field}} ({{lang}})",
         "count_one": "{{count}} field",
-        "count_other": "{{count}} fields"
+        "count_other": "{{count}} fields",
+        "providerCount": "{{provider}} {{count}}"
       },
       "state": {
         "pending": "Pending",
@@ -1047,7 +1048,8 @@
         "label": "Set own rating",
         "fromMetadata": "From metadata",
         "saved": "Rating saved.",
-        "unsaved": "unsaved"
+        "unsaved": "unsaved",
+        "summary": "Effective {{effective}} · Own {{own}} · Source {{source}}"
       },
       "files": {
         "title": "Files",
@@ -1099,7 +1101,8 @@
           "source": "Source",
           "actions": "Actions"
         },
-        "deleted": "Trailer deleted."
+        "deleted": "Trailer deleted.",
+        "added": "Trailer added."
       },
       "images": {
         "title": "Images",
@@ -1135,10 +1138,9 @@
           "source": "Source",
           "state": "State",
           "actions": "Actions"
-        }
+        },
+        "unlockFailed": "Lock on {{kind}} not lifted."
       },
-      "separator": " · ",
-      "listSeparator": ", ",
       "tabs": {
         "label": "Parts of the title",
         "imageKinds_one": "{{count}} image kind",
@@ -1146,7 +1148,8 @@
         "files_one": "{{count}} file",
         "files_other": "{{count}} files",
         "trailers_one": "{{count}} trailer",
-        "trailers_other": "{{count}} trailers"
+        "trailers_other": "{{count}} trailers",
+        "unsavedMark": "•"
       }
     },
     "match": {

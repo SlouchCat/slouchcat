@@ -1030,7 +1030,8 @@
         },
         "fieldLang": "{{field}} ({{lang}})",
         "count_one": "{{count}} Feld",
-        "count_other": "{{count}} Felder"
+        "count_other": "{{count}} Felder",
+        "providerCount": "{{provider}} {{count}}"
       },
       "state": {
         "pending": "Ausstehend",
@@ -1047,7 +1048,8 @@
         "label": "Eigene Freigabe setzen",
         "fromMetadata": "Aus Metadaten",
         "saved": "Freigabe gespeichert.",
-        "unsaved": "ungespeichert"
+        "unsaved": "ungespeichert",
+        "summary": "Wirksam {{effective}} · Eigene {{own}} · Quelle {{source}}"
       },
       "files": {
         "title": "Dateien",
@@ -1099,7 +1101,8 @@
           "source": "Quelle",
           "actions": "Aktionen"
         },
-        "deleted": "Trailer gelöscht."
+        "deleted": "Trailer gelöscht.",
+        "added": "Trailer hinzugefügt."
       },
       "images": {
         "title": "Bilder",
@@ -1135,10 +1138,9 @@
           "source": "Quelle",
           "state": "Zustand",
           "actions": "Aktionen"
-        }
+        },
+        "unlockFailed": "Sperre für {{kind}} nicht aufgehoben."
       },
-      "separator": " · ",
-      "listSeparator": ", ",
       "tabs": {
         "label": "Bereiche des Titels",
         "imageKinds_one": "{{count}} Bildart",
@@ -1146,7 +1148,8 @@
         "files_one": "{{count}} Datei",
         "files_other": "{{count}} Dateien",
         "trailers_one": "{{count}} Trailer",
-        "trailers_other": "{{count}} Trailer"
+        "trailers_other": "{{count}} Trailer",
+        "unsavedMark": "•"
       }
     },
     "match": {

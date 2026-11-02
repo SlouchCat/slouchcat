@@ -118,7 +118,8 @@ describe('admin item page', () => {
     expect(within(rows[1]!).getByText('Prüffehler')).toBeVisible();
     // The whole path and the error are in the fold-out, by button.
     expect(screen.queryByText('invalid data found when processing input')).toBeNull();
-    const broken = within(files).getByRole('button', { name: 'Alien - broken.mkv' });
+    // The row names the file and its folder, so equal names stay apart.
+    const broken = within(files).getByRole('button', { name: 'Alien - broken.mkv Alien (1979)' });
     expect(broken).toHaveAttribute('aria-expanded', 'false');
     await user.click(broken);
     expect(broken).toHaveAttribute('aria-expanded', 'true');
@@ -147,6 +148,10 @@ describe('admin item page', () => {
     // «Herkunft je Feld» is a disclosure with the number of fields; closed at first.
     const trigger = screen.getByRole('button', { name: /^Herkunft je Feld/ });
     expect(trigger).toHaveAccessibleName('Herkunft je Feld 6 Felder');
+    // Next to it, closed or open: how many fields each provider won.
+    expect(
+      screen.getByText('TMDB 3, TVDB 1, AniList 1, Vereinigung aller Quellen 1'),
+    ).toBeVisible();
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     const sources = await openDisclosure(user, /^Herkunft je Feld/);
     const rows = [...sources.querySelectorAll('dt')].map((term) => [
@@ -200,6 +205,8 @@ describe('admin item page', () => {
 
   it('keeps the rating choice across tabs (S-17), asks before leaving, then saves it', async () => {
     const user = userEvent.setup();
+    /** The chip «ungespeichert» in the header of «Freigabe» (the tab's mark is spoken only). */
+    const chip = () => screen.getByText('ungespeichert', { selector: '[class*="chip"]' });
     let stored: AdminItem = item;
     const { calls } = mockApi({
       ...signedIn,
@@ -210,17 +217,21 @@ describe('admin item page', () => {
       },
     });
     renderApp(base);
+    // Closed, «Freigabe» shows its summary in the header.
+    expect(await screen.findByText('Wirksam FSK 16 · Eigene FSK 16 · Quelle manual')).toBeVisible();
     let rating = await openDisclosure(user, /^Freigabe/);
     expect(within(rating).getByText('manual')).toBeVisible();
     expect(within(rating).getByRole('radio', { name: 'FSK 16' })).toBeChecked();
     await user.click(within(rating).getByRole('radio', { name: 'Aus Metadaten' }));
-    expect(screen.getByText('ungespeichert')).toBeVisible();
+    expect(chip()).toBeVisible();
+    // The tab «Metadaten» carries a mark while the choice is unsaved, seen from every tab.
+    expect(screen.getByRole('tab', { name: 'Metadaten ungespeichert' })).toBeVisible();
 
     // Another tab and back, then folding «Freigabe» away and out: the choice stays.
     await openTab(user, /^Dateien/);
-    expect(screen.queryByText('ungespeichert')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Metadaten ungespeichert' })).toBeVisible();
     await openTab(user, /^Metadaten/);
-    expect(screen.getByText('ungespeichert')).toBeVisible();
+    expect(chip()).toBeVisible();
     await user.click(screen.getByRole('button', { name: /^Freigabe/ }));
     rating = await openDisclosure(user, /^Freigabe/);
     expect(within(rating).getByRole('radio', { name: 'Aus Metadaten' })).toBeChecked();
@@ -243,6 +254,8 @@ describe('admin item page', () => {
     await waitFor(() => expect(within(rating).getByText('missing')).toBeVisible());
     expect(screen.getByText('Freigabe gespeichert.')).toBeVisible();
     expect(screen.queryByText('ungespeichert')).toBeNull();
+    expect(screen.getByRole('tab', { name: 'Metadaten' })).toBeVisible();
+    expect(screen.getByText('Wirksam FSK 18 · Eigene – · Quelle missing')).toBeVisible();
     expect(within(rating).getByRole('radio', { name: 'Aus Metadaten' })).toBeChecked();
   });
 
@@ -279,6 +292,7 @@ describe('admin item page', () => {
       }),
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByText('Trailer hinzugefügt.')).toBeVisible();
 
     const remove = within(trailers).getByRole('button', { name: 'Löschen' });
     expect(remove).toHaveAccessibleDescription('abcdefghijk');
@@ -521,6 +535,43 @@ describe('admin item page', () => {
     });
     renderApp(base);
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
+  });
+
+  it('names the kind when lifting its lock fails', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () =>
+        json({
+          ...item,
+          images: [{ kind: 'backdrop', provider: 'tmdb', lang: '', chosen: true, locked: true }],
+        }),
+      [`DELETE ${base}/images/backdrop`]: () => problem(500, 'internal'),
+    });
+    renderApp(`${base}?tab=images`);
+    const images = await screen.findByRole('region', { name: 'Bilder' });
+    await user.click(within(images).getByRole('button', { name: 'Sperre aufheben' }));
+    expect(
+      await within(images).findByText('Sperre für Hintergrund nicht aufgehoben.'),
+    ).toBeVisible();
+  });
+
+  it('keeps the title on the page when reading it again fails', async () => {
+    const user = userEvent.setup();
+    let reads = 0;
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () => {
+        reads += 1;
+        return reads === 1 ? json(item) : problem(500, 'internal');
+      },
+      [`POST ${base}/refresh`]: () => json(item, 202),
+    });
+    renderApp(base);
+    await user.click(await screen.findByRole('button', { name: 'Aktualisieren' }));
+    expect(await screen.findByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: 'Alien' })).toBeVisible();
+    expect(screen.getByRole('tablist', { name: 'Bereiche des Titels' })).toBeVisible();
   });
 
   it('offers to try again when the title cannot be read', async () => {

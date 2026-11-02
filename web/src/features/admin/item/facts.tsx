@@ -51,6 +51,17 @@ export function sourceFacts(t: TFunction, sources: AdminItem['fieldSources']): [
     });
 }
 
+/** The header line of «Herkunft je Feld»: how many fields each provider won, in list order. */
+export function sourceSummary(t: TFunction, sources: AdminItem['fieldSources']): string {
+  const counts = new Map<string, number>();
+  for (const [, provider] of sourceFacts(t, sources)) {
+    counts.set(provider, (counts.get(provider) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([provider, count]) => t('admin.item.sources.providerCount', { provider, count }))
+    .join(t('format.listSeparator'));
+}
+
 /** The metadata facts of a title (TIT-2): kind, ids, state, providers, locks, children. */
 export function itemFacts(t: TFunction, item: AdminItem, language: string): [string, ReactNode][] {
   const none = t('admin.item.facts.none');
@@ -97,7 +108,7 @@ export function itemFacts(t: TFunction, item: AdminItem, language: string): [str
     ],
     [
       t('admin.item.facts.locked'),
-      item.lockedFields.length > 0 ? item.lockedFields.join(t('admin.item.listSeparator')) : none,
+      item.lockedFields.length > 0 ? item.lockedFields.join(t('format.listSeparator')) : none,
     ],
   );
   if (item.kind === 'series' || item.kind === 'season' || item.kind === 'movie') {

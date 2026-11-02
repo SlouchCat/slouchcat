@@ -62,9 +62,11 @@ function AdminItemView({ itemId }: { itemId: string }) {
   );
   const drafts = useDrafts<string>(originalOf);
   const unsaved = useUnsavedChanges(drafts.dirty);
+  const [deleting, setDeleting] = useState<ItemTrailer | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const item = useQuery({
     ...adminItemQuery(itemId),
-    refetchOnWindowFocus: !unsaved.pausePolling,
+    refetchOnWindowFocus: !(unsaved.pausePolling || confirmOpen),
   });
   const data = item.data;
   useDocumentTitle(data?.title ?? t('admin.item.title'));
@@ -94,8 +96,6 @@ function AdminItemView({ itemId }: { itemId: string }) {
 
   const [matching, setMatching] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<ItemTrailer | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
 
   /** The focus fell to the body (its button went with a change): the h1 takes it. */
   const focusTitleIfLost = useCallback(() => {
@@ -162,40 +162,41 @@ function AdminItemView({ itemId }: { itemId: string }) {
     [focusTitleIfLost],
   );
 
-  if (item.isPending) {
+  const loadError = item.isError ? (
+    <Notice
+      tone="danger"
+      title={problemMessage(t, item.error)}
+      actions={
+        <AriaButton icon="refresh" onPress={() => void item.refetch()}>
+          {t('common.retry')}
+        </AriaButton>
+      }
+    />
+  ) : null;
+  const current = data;
+  if (current === undefined) {
     return (
       <AdminPage title={t('admin.item.title')} titleRef={titleRef}>
-        <Skeleton shape="block" />
-      </AdminPage>
-    );
-  }
-  if (item.isError) {
-    const gone = isApiError(item.error, 404);
-    return (
-      <AdminPage title={t('admin.item.title')} titleRef={titleRef}>
-        {gone ? (
-          <Notice>{t('admin.item.notFound')}</Notice>
-        ) : (
-          <Notice
-            tone="danger"
-            title={problemMessage(t, item.error)}
-            actions={
-              <AriaButton icon="refresh" onPress={() => void item.refetch()}>
-                {t('common.retry')}
-              </AriaButton>
-            }
-          />
-        )}
+        {!item.isError && <Skeleton shape="block" />}
+        {item.isError &&
+          (isApiError(item.error, 404) ? <Notice>{t('admin.item.notFound')}</Notice> : loadError)}
       </AdminPage>
     );
   }
 
-  const current = item.data;
   const matchable = current.kind === 'movie' || current.kind === 'series';
   const tabs: TabItem[] = [
     {
       id: FIRST_TAB,
       label: t('admin.item.facts.metadata'),
+      // A dot while the rating has unsaved changes, so they show from every tab.
+      ...(drafts.dirty
+        ? {
+            count: t('admin.item.tabs.unsavedMark'),
+            countLabel: t('admin.item.rating.unsaved'),
+            tone: 'warning' as const,
+          }
+        : {}),
       content: (
         <MetadataTab
           item={current}
@@ -243,7 +244,13 @@ function AdminItemView({ itemId }: { itemId: string }) {
       label: t('admin.item.trailers.title'),
       count: number.format(current.trailers.length),
       countLabel: t('admin.item.tabs.trailers', { count: current.trailers.length }),
-      content: <TrailersTab item={current} onAdded={reload} onDelete={askDelete} />,
+      content: (
+        <TrailersTab
+          item={current}
+          onAdded={() => settle(t('admin.item.trailers.added'))}
+          onDelete={askDelete}
+        />
+      ),
     },
   ];
 
@@ -273,6 +280,8 @@ function AdminItemView({ itemId }: { itemId: string }) {
         </p>
       }
     >
+      {/* A failed reread keeps the title on the page; the error and «Erneut versuchen» go above. */}
+      {loadError}
       {refresh.isError && <Notice tone="danger">{problemMessage(t, refresh.error)}</Notice>}
       {removeTrailer.isError && (
         <Notice tone="danger">{problemMessage(t, removeTrailer.error)}</Notice>

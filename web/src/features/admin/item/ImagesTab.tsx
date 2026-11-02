@@ -54,7 +54,7 @@ function candidateDetail(t: TFunction, language: string, c: ImageCandidate): str
         score: new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(c.score),
       }),
     );
-  return parts.join(t('admin.item.separator'));
+  return parts.join(t('format.separator'));
 }
 
 const kindName = (t: TFunction, kind: ImageKind) => t(`admin.metadata.images.kind.${kind}`);
@@ -128,7 +128,7 @@ function PickerDialog({
             {t('admin.item.images.unavailable', {
               providers: candidates.data.unavailable
                 .map((p) => providerLabel(t, p))
-                .join(t('admin.item.listSeparator')),
+                .join(t('format.listSeparator')),
             })}
           </Notice>
         )}
@@ -270,10 +270,19 @@ export function ImagesTab({
     },
   ];
   return (
-    <section className={styles.tabBody} aria-label={t('admin.item.images.title')}>
-      <VisuallyHidden as="h2">{t('admin.item.images.title')}</VisuallyHidden>
+    <section className={styles.tabBody} aria-labelledby="admin-item-images">
+      <VisuallyHidden as="h2" id="admin-item-images">
+        {t('admin.item.images.title')}
+      </VisuallyHidden>
       <Text tone="secondary">{t('admin.item.images.intro')}</Text>
-      {clear.isError && <Notice tone="danger">{problemMessage(t, clear.error)}</Notice>}
+      {clear.isError && clear.variables && (
+        <Notice
+          tone="danger"
+          title={t('admin.item.images.unlockFailed', { kind: kindName(t, clear.variables) })}
+        >
+          {problemMessage(t, clear.error)}
+        </Notice>
+      )}
       <DataTable
         caption={t('admin.item.images.title')}
         columns={columns}

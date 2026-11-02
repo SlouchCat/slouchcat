@@ -70,11 +70,10 @@ async function markLastTabbable(page: Page): Promise<void> {
       if (element instanceof HTMLInputElement && element.type === 'radio' && !element.checked) {
         return false;
       }
-      const style = getComputedStyle(element);
+      // A folded react-aria panel is `hidden="until-found"`: laid out, but never a Tab stop.
+      if (element.closest('[hidden], [inert]')) return false;
       return (
-        style.visibility !== 'hidden' &&
-        style.display !== 'none' &&
-        element.getClientRects().length > 0
+        element.checkVisibility({ visibilityProperty: true }) && element.getClientRects().length > 0
       );
     });
     tabbable.at(-1)?.setAttribute('data-e2e-last-tabbable', '');

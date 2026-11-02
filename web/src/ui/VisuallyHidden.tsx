@@ -5,9 +5,16 @@ import styles from './VisuallyHidden.module.css';
 export function VisuallyHidden({
   children,
   as: Tag = 'span',
+  id,
 }: {
   children: ReactNode;
   as?: 'span' | 'h1' | 'h2';
+  /** For a section labelled by this heading (`aria-labelledby`). */
+  id?: string;
 }) {
-  return <Tag className={styles.hidden}>{children}</Tag>;
+  return (
+    <Tag id={id} className={styles.hidden}>
+      {children}
+    </Tag>
+  );
 }

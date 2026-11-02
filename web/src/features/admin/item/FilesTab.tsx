@@ -7,8 +7,15 @@ import styles from './AdminItem.module.css';
 
 type MediaFile = AdminItem['mediaFiles'][number];
 
-/** The last part of a path: the file's name in its row; the whole path is in the fold-out. */
-const fileName = (path: string) => path.split('/').pop() || path;
+/**
+ * The file's name and its folder in its row, so two versions with the same name stay apart; the
+ * whole path is in the fold-out.
+ */
+function splitPath(path: string): { name: string; folder: string } {
+  const parts = path.split('/');
+  const name = parts.pop() || path;
+  return { name, folder: parts.pop() ?? '' };
+}
 
 /**
  * The tab «Dateien» (TIT-6): per file a row with name, version, size and state; it folds out
@@ -32,7 +39,16 @@ export function FilesTab({
       key: 'name',
       header: t('admin.item.files.columns.name'),
       rowHeader: true,
-      cell: (file) => <span className={styles.fileName}>{fileName(file.path)}</span>,
+      cell: (file) => {
+        const { name, folder } = splitPath(file.path);
+        return (
+          <span className={styles.fileName}>
+            {name}
+            {folder && ' '}
+            {folder && <span className={styles.folder}>{folder}</span>}
+          </span>
+        );
+      },
     },
     {
       key: 'version',
@@ -69,8 +85,10 @@ export function FilesTab({
   ];
   const expandedKeys = new Set(item.mediaFiles.map(keyOf).filter(isExpanded));
   return (
-    <section className={styles.tabBody} aria-label={t('admin.item.files.title')}>
-      <VisuallyHidden as="h2">{t('admin.item.files.title')}</VisuallyHidden>
+    <section className={styles.tabBody} aria-labelledby="admin-item-files">
+      <VisuallyHidden as="h2" id="admin-item-files">
+        {t('admin.item.files.title')}
+      </VisuallyHidden>
       {item.mediaFiles.length === 0 ? (
         <Text tone="secondary">{t('admin.item.files.none')}</Text>
       ) : (

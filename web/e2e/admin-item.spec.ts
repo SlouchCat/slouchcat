@@ -56,14 +56,16 @@ test('shows kind, state, both version files and the trailer state', async ({ pag
   await selectTab(page, /^Dateien/, 2);
   const files = page.getByRole('region', { name: 'Dateien' });
   await expect(files.getByRole('row')).toHaveCount(3);
-  // The row shows the file's name; Enter folds out the whole path.
-  const short = files.getByRole('button', { name: 'Slouchcat Test H264 (2024).mp4', exact: true });
+  // The row shows the file's name and its folder; Enter folds out the whole path.
+  const short = files.getByRole('button', { name: /^Slouchcat Test H264 \(2024\)\.mp4 / });
   await tabTo(page, short, 10);
   await expect(short).toHaveAttribute('aria-expanded', 'false');
   await page.keyboard.press('Enter');
   await expect(short).toHaveAttribute('aria-expanded', 'true');
   await expect(files.getByText(/\/Slouchcat Test H264 \(2024\)\.mp4$/)).toBeVisible();
-  await expect(files.getByText(/Slouchcat Test H264 \(2024\) - 720p\.mp4$/)).toBeVisible();
+  await expect(
+    files.getByRole('button', { name: /^Slouchcat Test H264 \(2024\) - 720p\.mp4 / }),
+  ).toBeVisible();
 
   await selectTab(page, /^Trailer/, 1);
   await expect(trailers(page)).toBeVisible();
@@ -114,6 +116,7 @@ test('add a manual trailer by keyboard, then delete it after confirmation', asyn
   await expect(dialog).toHaveCount(0);
   await expect(trailers(page).getByText('dQw4w9WgXcQ')).toBeVisible();
   await expect(trailers(page).getByText('Manuell')).toBeVisible();
+  await expect(page.getByText('Trailer hinzugefügt.')).toBeVisible();
   await expect(tabList(page).getByRole('tab', { selected: true })).toHaveText(/^Trailer\s*1/);
 
   const remove = trailers(page).getByRole('button', { name: 'Löschen' });
@@ -183,9 +186,6 @@ test('Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus t
   await page.keyboard.press('Enter');
   await expect(rating).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('radiogroup', { name: 'Eigene Freigabe setzen' })).toBeHidden();
-  // Open again: the folded panel stays in the page (hidden="until-found"), and the helper below
-  // would take its checked radio for the last Tab stop, which Tab never reaches in Firefox.
-  await page.keyboard.press('Enter');
   await expectNoFocusTrap(page);
 });
 
@@ -207,11 +207,15 @@ test('an unsaved rating survives the tabs; leaving asks first', async ({ page })
   await page.keyboard.press('ArrowDown');
   await expect(checked).not.toHaveAttribute('value', before ?? '');
   const choice = await checked.getAttribute('value');
-  const unsaved = page.getByText('ungespeichert', { exact: true });
+  // The chip next to «Freigabe», and the mark on the tab that every tab shows.
+  const unsaved = page.getByRole('tabpanel').getByText('ungespeichert', { exact: true });
   await expect(unsaved).toBeVisible();
+  const marked = tabList(page).getByRole('tab', { name: 'Metadaten ungespeichert' });
+  await expect(marked).toBeVisible();
 
   // Another tab and back: the choice is still there and not saved.
   await selectTab(page, /^Bilder/, 1);
+  await expect(marked).toBeVisible();
   await selectTab(page, /^Metadaten/, -1);
   await expect(unsaved).toBeVisible();
   await expect(group.getByRole('radio', { checked: true })).toHaveAttribute('value', choice ?? '');

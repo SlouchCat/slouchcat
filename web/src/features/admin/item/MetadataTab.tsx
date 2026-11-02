@@ -4,7 +4,7 @@ import { problemMessage } from '@/api/errors';
 import { Chip, FactList, Notice, Panel } from '@/ui';
 import { AriaButton, DisclosureGroup, RadioGroup } from '@/ui/aria';
 import { ratingOptions } from '../../shared/choices';
-import { itemFacts, sourceFacts } from './facts';
+import { itemFacts, sourceFacts, sourceSummary } from './facts';
 import styles from './AdminItem.module.css';
 
 /** The choice of «Eigene Freigabe setzen» that hands the rating back to the metadata. */
@@ -63,6 +63,7 @@ export function MetadataTab({
           title={t('admin.item.sources.title')}
           count={number.format(sources)}
           countLabel={t('admin.item.sources.count', { count: sources })}
+          meta={sourceSummary(t, item.fieldSources)}
           isExpanded={isExpanded('sources')}
           onExpandedChange={(open) => onExpandedChange('sources', open)}
         >
@@ -72,7 +73,18 @@ export function MetadataTab({
       <DisclosureGroup
         level={2}
         title={t('admin.item.rating.title')}
-        meta={ratingDirty ? <Chip tone="warning">{t('admin.item.rating.unsaved')}</Chip> : null}
+        meta={
+          <>
+            <span>
+              {t('admin.item.rating.summary', {
+                effective: fsk(item.effectiveRating),
+                own: fsk(item.ownRating),
+                source: item.ratingSource || none,
+              })}
+            </span>
+            {ratingDirty && <Chip tone="warning">{t('admin.item.rating.unsaved')}</Chip>}
+          </>
+        }
         isExpanded={isExpanded('rating')}
         onExpandedChange={(open) => onExpandedChange('rating', open)}
       >

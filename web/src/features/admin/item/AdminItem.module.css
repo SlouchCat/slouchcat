@@ -87,9 +87,17 @@
   overflow-wrap: anywhere;
 }
 
-/* The file's name in its row; the fold-out holds the whole path. */
+/* The file's name with its folder below it, dimmed; the fold-out holds the whole path. */
 .fileName {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
   overflow-wrap: anywhere;
+}
+
+.folder {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
 }
 
 /* The decided image of a kind in the tab «Bilder» (concept 10, 7.3). */
