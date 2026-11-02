@@ -162,6 +162,8 @@
       "passphrase_wrong": "The passphrase is wrong.",
       "backup_invalid": "This file is not a valid Slouchcat backup, or it is damaged.",
       "backup_newer_than_server": "The backup comes from a newer version of Slouchcat. Update the server first.",
+      "restart_pending": "The server restarts shortly. Wait until it answers again.",
+      "backup_busy": "A backup or a restore is running. Restart the server once it is done.",
       "announcement_published": "The announcement is already published and can no longer be changed.",
       "scan_running": "A scan of this library is running. Wait for it to finish, or cancel it.",
       "confirm_mismatch": "The typed path does not match the folder. Nothing was removed.",
@@ -2048,15 +2050,17 @@
       "restart": {
         "title": "The server is restarting",
         "body": "The backup (version {{version}}) is checked and goes in at the start. As soon as the server answers again, the sign-in opens.",
-        "noSecrets": "The backup holds no credentials: enter the keys, the e-mail server and the Telegram bot again under integrations afterwards.",
-        "waiting": "Waiting for the server …",
-        "back": "The server is back. Opening the sign-in …",
-        "silent": "No new server has answered for {{seconds}} seconds.",
-        "slow": {
-          "title": "The server does not come back",
-          "body": "The restart takes unusually long. Look at the container's log (docker logs slouchcat) and reload this page once the server runs.",
-          "retry": "Check again"
-        }
+        "noSecrets": "The backup holds no credentials: enter the keys, the e-mail server and the Telegram bot again under integrations afterwards."
+      }
+    },
+    "restart": {
+      "waiting": "Waiting for the server …",
+      "back": "The server is back.",
+      "silent": "No new server has answered for {{seconds}} seconds.",
+      "slow": {
+        "title": "The server does not come back",
+        "body": "The restart takes unusually long. Look at the container's log (docker logs slouchcat) and reload this page once the server runs.",
+        "retry": "Check again"
       }
     },
     "stats": {

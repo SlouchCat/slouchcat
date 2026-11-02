@@ -162,6 +162,8 @@
       "passphrase_wrong": "Die Passphrase stimmt nicht.",
       "backup_invalid": "Diese Datei ist keine gültige Sicherung von Slouchcat, oder sie ist beschädigt.",
       "backup_newer_than_server": "Die Sicherung stammt von einer neueren Version von Slouchcat. Aktualisiere zuerst den Server.",
+      "restart_pending": "Der Server startet gleich neu. Warte, bis er wieder antwortet.",
+      "backup_busy": "Gerade läuft eine Sicherung oder Wiederherstellung. Starte den Server neu, sobald sie fertig ist.",
       "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.",
       "scan_running": "Ein Scan dieser Bibliothek läuft gerade. Warte, bis er fertig ist, oder brich ihn ab.",
       "confirm_mismatch": "Der abgetippte Pfad stimmt nicht mit dem Ordner überein. Nichts wurde entfernt.",
@@ -2048,15 +2050,17 @@
       "restart": {
         "title": "Server startet neu",
         "body": "Die Sicherung (Version {{version}}) ist geprüft und wird beim Start eingespielt. Sobald der Server wieder antwortet, öffnet sich die Anmeldung.",
-        "noSecrets": "Die Sicherung enthält keine Zugangsdaten: Gib die Schlüssel, den E-Mail-Server und den Telegram-Bot danach unter Integrationen neu ein.",
-        "waiting": "Warte auf den Server …",
-        "back": "Der Server ist zurück. Die Anmeldung wird geöffnet …",
-        "silent": "Seit {{seconds}} Sekunden antwortet kein neuer Server.",
-        "slow": {
-          "title": "Der Server kommt nicht zurück",
-          "body": "Der Neustart dauert ungewöhnlich lange. Sieh im Log des Containers nach (docker logs slouchcat) und lade diese Seite neu, sobald der Server läuft.",
-          "retry": "Erneut prüfen"
-        }
+        "noSecrets": "Die Sicherung enthält keine Zugangsdaten: Gib die Schlüssel, den E-Mail-Server und den Telegram-Bot danach unter Integrationen neu ein."
+      }
+    },
+    "restart": {
+      "waiting": "Warte auf den Server …",
+      "back": "Der Server ist zurück.",
+      "silent": "Seit {{seconds}} Sekunden antwortet kein neuer Server.",
+      "slow": {
+        "title": "Der Server kommt nicht zurück",
+        "body": "Der Neustart dauert ungewöhnlich lange. Sieh im Log des Containers nach (docker logs slouchcat) und lade diese Seite neu, sobald der Server läuft.",
+        "retry": "Erneut prüfen"
       }
     },
     "stats": {
