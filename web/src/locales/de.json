@@ -3443,10 +3443,6 @@
         "body": "Die Kanäle gelten für das ganze Konto; ändern lassen sie sich im Hauptprofil. Wechsle dorthin, um Kanäle ein- oder auszuschalten.",
         "action": "Profil wechseln"
       },
-      "readOnly": {
-        "noEvents": "Keine",
-        "link": "Verknüpfung"
-      },
       "channel": {
         "email": "E-Mail",
         "push": "Web-Push",
@@ -3463,7 +3459,9 @@
         "new_content": "Neue Inhalte",
         "errors": "Fehler",
         "invitations": "Einladungen",
-        "announcements": "Ankündigungen"
+        "announcements": "Ankündigungen",
+        "help": "Wofür eine Nachricht kommt.",
+        "helpAdmin": "Wofür eine Nachricht kommt. «Fehler» gibt es nur für Administratoren."
       },
       "unavailable": {
         "body": "Der Hauptbenutzer richtet diesen Kanal in der Verwaltung unter Integrationen ein.",
@@ -3485,7 +3483,20 @@
         "unlink": "Verknüpfung lösen",
         "unlinked": "Die Verknüpfung ist gelöst.",
         "instructionNoBot": "Sende dem Slouchcat-Bot die Nachricht /start {{code}}",
-        "noBot": "Der Name des Bots fehlt: Der Hauptbenutzer muss zuerst das Bot-Token unter Integrationen eingeben."
+        "noBot": "Der Name des Bots fehlt: Der Hauptbenutzer muss zuerst das Bot-Token unter Integrationen eingeben.",
+        "label": "Verknüpfung",
+        "help": "Verbindet das Konto mit deinem Chat beim Bot.",
+        "codeOpen": "Code offen",
+        "waiting": "Wartet auf die Nachricht, Abfrage alle 3 Sekunden.",
+        "paused": "Die Abfrage ruht, solange ungespeicherte Änderungen oder eine Rückfrage offen sind.",
+        "unlinkConfirm": {
+          "title": "Verknüpfung lösen?",
+          "body": "Telegram-Nachrichten gehen nicht mehr an den verknüpften Chat. Neu verknüpfen geht jederzeit mit einem neuen Code."
+        },
+        "discardConfirm": {
+          "title": "Code verwerfen?",
+          "body": "Der offene Code gilt sofort nicht mehr. Neu verknüpfen geht jederzeit mit einem neuen Code."
+        }
       },
       "push": {
         "devices": "Angemeldete Geräte",
@@ -3502,11 +3513,16 @@
         "ios": "Auf iPhone und iPad gibt es Web-Push nur in der installierten App: im Teilen-Menü «Zum Home-Bildschirm» wählen und Slouchcat von dort öffnen.",
         "denied": "Benachrichtigungen sind für Slouchcat blockiert. Erlaube sie in den Einstellungen des Browsers.",
         "noWorker": "Der Service Worker läuft noch nicht. Lade die Seite neu und versuche es nochmals.",
-        "failed": "Der Browser konnte sich nicht beim Push-Dienst anmelden."
+        "failed": "Der Browser konnte sich nicht beim Push-Dienst anmelden.",
+        "count_one": "{{count}} Gerät",
+        "count_other": "{{count}} Geräte"
       },
       "saved": "Gespeichert.",
       "test": "Testnachricht",
-      "testSent": "Testnachricht gesendet."
+      "testSent": "Testnachricht gesendet.",
+      "unsaved": "Ungespeicherte Änderungen",
+      "enabledHelp": "Gilt für das ganze Konto mit allen Profilen.",
+      "noEvents": "Keine"
     }
   },
   "announcements": {

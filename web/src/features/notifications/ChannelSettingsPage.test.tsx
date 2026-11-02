@@ -1,4 +1,5 @@
 import type { ChannelSetting, ChannelSettings } from '@slouchcat/api-client';
+import type { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -37,16 +38,32 @@ const telegram: ChannelSetting = {
   available: true,
   telegram: { linked: false, botUsername: 'slouchcat_bot' },
 };
+const linkedTelegram: ChannelSetting = {
+  ...telegram,
+  enabled: true,
+  telegram: { linked: true, chatId: '4242', botUsername: 'slouchcat_bot' },
+};
+const openCode: ChannelSetting = {
+  ...telegram,
+  telegram: {
+    linked: false,
+    botUsername: 'slouchcat_bot',
+    linkCode: 'AB2C3D',
+    linkExpiresAt: '2026-10-21T10:15:00Z',
+  },
+};
 
 const settings = (...channels: ChannelSetting[]): ChannelSettings => ({ channels });
 const noContent = () => new Response(null, { status: 204 });
 
+// The server lists push before telegram; the page shows e-mail, Telegram, Web-Push.
 const page: Routes = {
   ...signedIn,
   'GET /me/channels': () => json(settings(email, push, telegram)),
 };
 
-const card = (name: string) => screen.findByRole('article', { name });
+/** A channel's block: a region named by its band. */
+const block = (name: string) => screen.findByRole('region', { name });
 
 const guestSession = () =>
   json({
@@ -57,6 +74,17 @@ const guestSession = () =>
 /** The account's second profile: it sees the channels but cannot change them. */
 const secondProfileSession = () =>
   json({ ...session, profile: { ...session.profile!, id: 2, name: 'Lena', isPrimary: false } });
+
+/** What the mutation cache holds (variables and data), as text. */
+const mutationCache = (queryClient: QueryClient) =>
+  queryClient
+    .getMutationCache()
+    .getAll()
+    .map((mutation) => JSON.stringify([mutation.state.variables, mutation.state.data]))
+    .join('\n');
+
+const channelGets = (calls: { method: string; path: string }[]) =>
+  calls.filter((call) => call.method === 'GET' && call.path === '/me/channels').length;
 
 describe('notification channels page', () => {
   afterEach(() => {
@@ -71,8 +99,9 @@ describe('notification channels page', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' }),
     ).toBeVisible();
-    const mail = await card('E-Mail');
+    const mail = await block('E-Mail');
     expect(within(mail).getByRole('switch', { name: 'Aktiv' })).not.toBeChecked();
+    expect(within(mail).getByText('Gilt für das ganze Konto mit allen Profilen.')).toBeVisible();
     expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveValue('owner@example.test');
     expect(within(mail).getByRole('checkbox', { name: 'Ankündigungen' })).toBeChecked();
     expect(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' })).not.toBeChecked();
@@ -83,17 +112,40 @@ describe('notification channels page', () => {
     expect(
       within(mail).queryByRole('checkbox', { name: 'Beschaffungsstatus' }),
     ).not.toBeInTheDocument();
+    expect(within(mail).getByText(/«Fehler» gibt es nur für Administratoren/)).toBeVisible();
     expect(within(mail).getByText('Aus')).toBeVisible();
-    expect(await card('Web-Push')).toBeVisible();
-    expect(await card('Telegram')).toBeVisible();
+    // E-mail, Telegram, Web-Push, each a block that folds away by its band (mockup Ben-A).
+    const list = screen.getByRole('list', { name: 'Kanäle' });
+    expect(
+      within(list)
+        .getAllByRole('heading', { level: 2 })
+        .map((heading) => heading.textContent),
+    ).toEqual(['E-Mail', 'Telegram', 'Web-Push']);
+    expect(within(mail).getByRole('button', { name: 'E-Mail' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
+  it('keeps the intro behind the help button and today’s density (S-1, S-2)', async () => {
+    mockApi(page);
+    renderApp('/settings/notifications');
+    await block('E-Mail');
+    const intro = screen.getByText(/zusätzlich zum Eingang der App/);
+    expect(intro).not.toBeVisible();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
+    expect(intro).toBeVisible();
+    // Every account has this page: no administration shell, so nothing gets compact.
+    expect(document.documentElement.dataset.shell).toBeUndefined();
   });
 
   it('hides "Fehler" from a guest account', async () => {
     mockApi({ ...page, 'GET /auth/session': guestSession });
     renderApp('/settings/notifications');
-    const mail = await card('E-Mail');
+    const mail = await block('E-Mail');
     expect(within(mail).getByRole('checkbox', { name: 'Einladungen' })).toBeVisible();
     expect(within(mail).queryByRole('checkbox', { name: 'Fehler' })).not.toBeInTheDocument();
+    expect(within(mail).getByText('Wofür eine Nachricht kommt.')).toBeVisible();
   });
 
   it('shows another profile than the primary one the channels without controls', async () => {
@@ -102,10 +154,11 @@ describe('notification channels page', () => {
       'GET /auth/session': secondProfileSession,
       'GET /me/channels': () =>
         json(
-          settings({ ...email, enabled: true, events: ['new_content', 'announcements'] }, push, {
-            ...telegram,
-            telegram: { linked: true, chatId: '4242', botUsername: 'slouchcat_bot' },
-          }),
+          settings(
+            { ...email, enabled: true, events: ['new_content', 'announcements'] },
+            push,
+            linkedTelegram,
+          ),
         ),
     });
     renderApp('/settings/notifications');
@@ -116,28 +169,36 @@ describe('notification channels page', () => {
       '/profiles',
     );
 
-    const mail = await card('E-Mail');
+    const mail = await block('E-Mail');
     expect(within(mail).getByText('Aktiv')).toBeVisible();
-    const facts = (article: HTMLElement) =>
-      within(article)
+    const facts = (region: HTMLElement) =>
+      within(region)
         .getAllByRole('term')
         .map((term) => [term.textContent, term.nextElementSibling?.textContent]);
     expect(facts(mail)).toEqual([
       ['Ereignisse', 'Neue Inhalte · Ankündigungen'],
       ['E-Mail-Adresse', 'owner@example.test'],
     ]);
-    expect(facts(await card('Web-Push'))).toEqual([
+    expect(facts(await block('Web-Push'))).toEqual([
       ['Ereignisse', 'Neue Inhalte'],
       ['Angemeldete Geräte', '1'],
     ]);
-    expect(facts(await card('Telegram'))).toEqual([
+    expect(facts(await block('Telegram'))).toEqual([
       ['Ereignisse', 'Neue Inhalte'],
       ['Verknüpfung', 'Verknüpft'],
     ]);
-    // No switch, no checkbox, no field, no button: nothing to change.
+    // No switch, no checkbox, no field: nothing to change. The only buttons fold the blocks.
     const list = screen.getByRole('list', { name: 'Kanäle' });
-    for (const role of ['switch', 'checkbox', 'textbox', 'button'] as const) {
+    for (const role of ['switch', 'checkbox', 'textbox'] as const) {
       expect(within(list).queryAllByRole(role)).toHaveLength(0);
+    }
+    expect(
+      within(list)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['E-Mail', 'Telegram', 'Web-Push']);
+    for (const button of within(list).getAllByRole('button')) {
+      expect(button).toHaveAttribute('aria-expanded', 'true');
     }
     expect(calls.filter((call) => call.method !== 'GET')).toHaveLength(0);
   });
@@ -149,7 +210,7 @@ describe('notification channels page', () => {
       'PUT /me/channels/email': () => problem(403, 'primary_profile_required'),
     });
     renderApp('/settings/notifications');
-    const mail = await card('E-Mail');
+    const mail = await block('E-Mail');
     await userEvent.setup().click(within(mail).getByRole('button', { name: 'Speichern' }));
     expect(await within(mail).findByRole('alert')).toHaveTextContent(
       'Das darf nur das Hauptprofil dieses Kontos.',
@@ -163,13 +224,14 @@ describe('notification channels page', () => {
         json({ ...email, ...(call.body as object), available: true }),
     });
     renderApp('/settings/notifications');
-    const mail = await card('E-Mail');
+    const mail = await block('E-Mail');
     const user = userEvent.setup();
     await user.click(within(mail).getByRole('switch', { name: 'Aktiv' }));
     await user.click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
     const address = within(mail).getByLabelText('E-Mail-Adresse');
     await user.clear(address);
     await user.type(address, 'familie@example.test');
+    expect(within(mail).getByText('Ungespeicherte Änderungen')).toBeVisible();
     await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
 
     expect(await within(mail).findByText('Gespeichert.')).toBeVisible();
@@ -178,7 +240,28 @@ describe('notification channels page', () => {
       events: ['new_content', 'announcements'],
       email: { address: 'familie@example.test' },
     });
-    expect(within(mail).getByText('Aktiv', { selector: 'span' })).toBeVisible();
+    // The band says «Aktiv» now, and nothing is unsaved any more.
+    expect(within(mail).queryByText('Aus')).not.toBeInTheDocument();
+    expect(within(mail).getByRole('switch', { name: 'Aktiv' })).toBeChecked();
+    expect(within(mail).queryByText('Ungespeicherte Änderungen')).not.toBeInTheDocument();
+  });
+
+  it('announces the same message again on a second save', async () => {
+    mockApi({
+      ...page,
+      'PUT /me/channels/email': (call) =>
+        json({ ...email, ...(call.body as object), available: true }),
+    });
+    renderApp('/settings/notifications');
+    const mail = await block('E-Mail');
+    const user = userEvent.setup();
+    await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
+    const first = await within(mail).findByText('Gespeichert.');
+    await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
+    // A new element in the region that is always there: screen readers read it again.
+    await waitFor(() => expect(first).not.toBeInTheDocument());
+    const second = await within(mail).findByText('Gespeichert.');
+    expect(second.closest('[role="status"]')).toBeInTheDocument();
   });
 
   it('shows an invalid address at the field', async () => {
@@ -190,7 +273,7 @@ describe('notification channels page', () => {
         }),
     });
     renderApp('/settings/notifications');
-    const mail = await card('E-Mail');
+    const mail = await block('E-Mail');
     const user = userEvent.setup();
     await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
     expect(await within(mail).findByText('Bitte prüfe die markierten Felder.')).toBeVisible();
@@ -201,7 +284,7 @@ describe('notification channels page', () => {
     let answer: () => Response = noContent;
     const { calls } = mockApi({ ...page, 'POST /me/channels/email/test': () => answer() });
     renderApp('/settings/notifications');
-    const mail = await card('E-Mail');
+    const mail = await block('E-Mail');
     const user = userEvent.setup();
     const test = within(mail).getByRole('button', { name: 'Testnachricht' });
 
@@ -234,7 +317,7 @@ describe('notification channels page', () => {
         ),
     });
     renderApp('/settings/notifications');
-    const bot = await card('Telegram');
+    const bot = await block('Telegram');
     expect(within(bot).getByText('Nicht eingerichtet')).toBeVisible();
     expect(within(bot).getByText(/richtet diesen Kanal in der Verwaltung/)).toBeVisible();
     expect(within(bot).getByRole('link', { name: 'Integrationen öffnen' })).toHaveAttribute(
@@ -244,6 +327,7 @@ describe('notification channels page', () => {
     expect(within(bot).getByRole('switch', { name: 'Aktiv' })).toBeDisabled();
     expect(within(bot).getByRole('button', { name: 'Speichern' })).toBeDisabled();
     expect(within(bot).getByRole('button', { name: 'Testnachricht' })).toBeDisabled();
+    expect(within(bot).queryByRole('button', { name: 'Verknüpfen' })).not.toBeInTheDocument();
   });
 
   it('gives a guest the hint without the link', async () => {
@@ -261,7 +345,7 @@ describe('notification channels page', () => {
         ),
     });
     renderApp('/settings/notifications');
-    const bot = await card('Telegram');
+    const bot = await block('Telegram');
     expect(within(bot).getByText(/richtet diesen Kanal in der Verwaltung/)).toBeVisible();
     expect(within(bot).queryByRole('link')).not.toBeInTheDocument();
   });
@@ -272,20 +356,12 @@ describe('notification channels page', () => {
       ...page,
       'GET /me/channels': () => json(settings(email, push, state)),
       'POST /me/channels/telegram/link': () => {
-        state = {
-          ...telegram,
-          telegram: {
-            linked: false,
-            botUsername: 'slouchcat_bot',
-            linkCode: 'AB2C3D',
-            linkExpiresAt: '2026-10-21T10:15:00Z',
-          },
-        };
+        state = openCode;
         return json(state);
       },
     });
-    renderApp('/settings/notifications');
-    const bot = await card('Telegram');
+    const { queryClient } = renderApp('/settings/notifications');
+    const bot = await block('Telegram');
     expect(within(bot).getByText('Nicht verknüpft')).toBeVisible();
     await userEvent.setup().click(within(bot).getByRole('button', { name: 'Verknüpfen' }));
 
@@ -297,17 +373,18 @@ describe('notification channels page', () => {
       'https://t.me/slouchcat_bot?start=AB2C3D',
     );
     expect(within(bot).getByRole('button', { name: 'Code erneuern' })).toBeVisible();
+    expect(within(bot).getByText(/Der Code gilt bis/)).toBeVisible();
+    expect(within(bot).getByText(/Abfrage alle 3 Sekunden/)).toBeVisible();
+    // The code stays out of the mutation cache (transient mutation).
+    expect(mutationCache(queryClient)).not.toContain('AB2C3D');
 
     // The bot receives "/start AB2C3D"; the page asks again while the code is open.
-    state = {
-      ...telegram,
-      telegram: { linked: true, chatId: '4242', botUsername: 'slouchcat_bot' },
-    };
+    state = linkedTelegram;
     expect(
       await within(bot).findByText('Verknüpft mit Chat 4242', {}, { timeout: 5000 }),
     ).toBeVisible();
     expect(within(bot).queryByText(/Sende dem Bot/)).not.toBeInTheDocument();
-    expect(calls.filter((call) => call.path === '/me/channels').length).toBeGreaterThan(1);
+    expect(channelGets(calls)).toBeGreaterThan(1);
   });
 
   it('without the bot name the instruction says what the main user has to do', async () => {
@@ -320,7 +397,7 @@ describe('notification channels page', () => {
         }),
     });
     renderApp('/settings/notifications');
-    const bot = await card('Telegram');
+    const bot = await block('Telegram');
     await userEvent.setup().click(within(bot).getByRole('button', { name: 'Verknüpfen' }));
     expect(
       await within(bot).findByText('Sende dem Slouchcat-Bot die Nachricht /start AB2C3D'),
@@ -331,10 +408,7 @@ describe('notification channels page', () => {
   });
 
   it('a new Telegram action clears the error of the last one', async () => {
-    let state: ChannelSetting = {
-      ...telegram,
-      telegram: { linked: false, botUsername: 'slouchcat_bot', linkCode: 'AB2C3D' },
-    };
+    let state: ChannelSetting = openCode;
     let refuse = true;
     mockApi({
       ...page,
@@ -347,22 +421,22 @@ describe('notification channels page', () => {
       },
     });
     renderApp('/settings/notifications');
-    const bot = await card('Telegram');
+    const bot = await block('Telegram');
     const user = userEvent.setup();
     await user.click(within(bot).getByRole('button', { name: 'Code erneuern' }));
     expect(await within(bot).findByRole('alert')).toBeVisible();
     refuse = false;
+    // An open code goes after a question too.
     await user.click(within(bot).getByRole('button', { name: 'Verknüpfung lösen' }));
+    const question = await screen.findByRole('alertdialog', { name: 'Code verwerfen?' });
+    expect(question).toHaveTextContent('Der offene Code gilt sofort nicht mehr.');
+    await user.click(within(question).getByRole('button', { name: 'Verknüpfung lösen' }));
     expect(await within(bot).findByText('Die Verknüpfung ist gelöst.')).toBeVisible();
     expect(within(bot).queryByRole('alert')).not.toBeInTheDocument();
   });
 
-  it('unlinks a linked Telegram chat', async () => {
-    let state: ChannelSetting = {
-      ...telegram,
-      enabled: true,
-      telegram: { linked: true, chatId: '4242', botUsername: 'slouchcat_bot' },
-    };
+  it('unlinks a linked Telegram chat only after the question (11.5 point 5)', async () => {
+    let state: ChannelSetting = linkedTelegram;
     const { calls } = mockApi({
       ...page,
       'GET /me/channels': () => json(settings(email, push, state)),
@@ -372,11 +446,106 @@ describe('notification channels page', () => {
       },
     });
     renderApp('/settings/notifications');
-    const bot = await card('Telegram');
-    await userEvent.setup().click(within(bot).getByRole('button', { name: 'Verknüpfung lösen' }));
+    const bot = await block('Telegram');
+    const user = userEvent.setup();
+    const unlink = within(bot).getByRole('button', { name: 'Verknüpfung lösen' });
+
+    // One click no longer unlinks: it asks; «Abbrechen» keeps the link.
+    await user.click(unlink);
+    let question = await screen.findByRole('alertdialog', { name: 'Verknüpfung lösen?' });
+    expect(question).toHaveTextContent(/gehen nicht mehr an den verknüpften Chat/);
+    await user.click(within(question).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(question).not.toBeInTheDocument());
+    // The focus goes back to the button that asked, and the h1 does not take it from there.
+    await waitFor(() => expect(unlink).toHaveFocus());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(unlink).toHaveFocus();
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+
+    await user.click(unlink);
+    question = await screen.findByRole('alertdialog', { name: 'Verknüpfung lösen?' });
+    await user.click(within(question).getByRole('button', { name: 'Verknüpfung lösen' }));
     expect(await within(bot).findByText('Die Verknüpfung ist gelöst.')).toBeVisible();
     expect(await within(bot).findByText('Nicht verknüpft')).toBeVisible();
     expect(calls.some((call) => call.method === 'DELETE')).toBe(true);
+    // The button went with the link: the h1 takes the focus.
+    await waitFor(() =>
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it('a folded block keeps what was typed in it and shows its summary', async () => {
+    mockApi({ ...page, 'GET /me/channels': () => json(settings(email, push, linkedTelegram)) });
+    renderApp('/settings/notifications');
+    const mail = await block('E-Mail');
+    const user = userEvent.setup();
+    const address = within(mail).getByLabelText('E-Mail-Adresse');
+    await user.clear(address);
+    await user.type(address, 'neu@example.test');
+    await user.click(within(mail).getByRole('checkbox', { name: 'Fehler' }));
+
+    const band = within(mail).getByRole('button', { name: 'E-Mail' });
+    await user.click(band);
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    expect(address).not.toBeVisible();
+    // Folded, the band says what the block holds and that it holds unsaved input.
+    expect(within(mail).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    expect(within(mail).getByText('owner@example.test')).toBeVisible();
+    const bot = await block('Telegram');
+    await user.click(within(bot).getByRole('button', { name: 'Telegram' }));
+    expect(within(bot).getByText('Verknüpft')).toBeVisible();
+    const web = await block('Web-Push');
+    await user.click(within(web).getByRole('button', { name: 'Web-Push' }));
+    expect(within(web).getByText('1 Gerät')).toBeVisible();
+
+    await user.click(band);
+    expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveValue('neu@example.test');
+    expect(within(mail).getByRole('checkbox', { name: 'Fehler' })).toBeChecked();
+    // Changing everything back is no change.
+    await user.click(within(mail).getByRole('checkbox', { name: 'Fehler' }));
+    await user.clear(within(mail).getByLabelText('E-Mail-Adresse'));
+    await user.type(within(mail).getByLabelText('E-Mail-Adresse'), 'owner@example.test');
+    expect(within(mail).queryByText('Ungespeicherte Änderungen')).not.toBeInTheDocument();
+  });
+
+  it('leaving the page with unsaved input asks first; staying keeps it', async () => {
+    mockApi(page);
+    const { router } = renderApp('/settings/notifications');
+    const user = userEvent.setup();
+    const mail = await block('E-Mail');
+    await user.click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
+
+    void router.navigate({ to: '/notifications' });
+    const question = await screen.findByRole('alertdialog', {
+      name: 'Seite mit ungespeicherten Änderungen verlassen?',
+    });
+    expect(within(question).getByRole('button', { name: 'Auf der Seite bleiben' })).toHaveFocus();
+    await user.click(within(question).getByRole('button', { name: 'Auf der Seite bleiben' }));
+    await waitFor(() => expect(question).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/settings/notifications');
+    expect(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' })).toBeChecked();
+
+    void router.navigate({ to: '/notifications' });
+    await user.click(await screen.findByRole('button', { name: 'Verwerfen und verlassen' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/notifications'));
+  });
+
+  it('holds the poll of an open code while a channel holds unsaved input', async () => {
+    const { calls } = mockApi({
+      ...page,
+      'GET /me/channels': () => json(settings(email, push, openCode)),
+    });
+    renderApp('/settings/notifications');
+    const mail = await block('E-Mail');
+    const bot = await block('Telegram');
+    expect(within(bot).getByText(/Abfrage alle 3 Sekunden/)).toBeVisible();
+    await userEvent.setup().click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
+    expect(within(bot).getByText(/Die Abfrage ruht/)).toBeVisible();
+    const before = channelGets(calls);
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+    expect(channelGets(calls)).toBe(before);
   });
 
   describe('Web Push', () => {
@@ -417,8 +586,8 @@ describe('notification channels page', () => {
         'POST /me/push-subscriptions': () =>
           json({ id: 9, createdAt: '2026-10-21T10:00:00Z', thisDevice: true }, 201),
       });
-      renderApp('/settings/notifications');
-      const web = await card('Web-Push');
+      const { queryClient } = renderApp('/settings/notifications');
+      const web = await block('Web-Push');
       expect(within(web).getByText('Firefox 140 · Linux')).toBeVisible();
       expect(within(web).getByText(/nur in der installierten App/)).toBeVisible();
       await userEvent
@@ -436,13 +605,17 @@ describe('notification channels page', () => {
         endpoint: 'https://push.example.test/send/abc',
         keys: { p256dh: 'BPUBLIC', auth: 'AUTHSECRET' },
       });
+      // Nothing of the subscription stays in the mutation cache (transient mutation).
+      const cache = mutationCache(queryClient);
+      expect(cache).not.toContain('AUTHSECRET');
+      expect(cache).not.toContain('push.example.test');
     });
 
     it('says so when the permission is refused, and registers nothing', async () => {
       const { subscribe } = pushBrowser('denied');
       const { calls } = mockApi(page);
       renderApp('/settings/notifications');
-      const web = await card('Web-Push');
+      const web = await block('Web-Push');
       await userEvent
         .setup()
         .click(within(web).getByRole('button', { name: 'Auf diesem Gerät aktivieren' }));
@@ -456,7 +629,7 @@ describe('notification channels page', () => {
     it('explains a browser without push and offers no subscription', async () => {
       mockApi(page);
       renderApp('/settings/notifications');
-      const web = await card('Web-Push');
+      const web = await block('Web-Push');
       expect(within(web).getByText(/kann hier keine Push-Nachrichten empfangen/)).toBeVisible();
       expect(
         within(web).queryByRole('button', { name: 'Auf diesem Gerät aktivieren' }),
@@ -484,7 +657,7 @@ describe('notification channels page', () => {
         },
       });
       renderApp('/settings/notifications');
-      const web = await card('Web-Push');
+      const web = await block('Web-Push');
       const list = within(web).getByRole('list', { name: 'Angemeldete Geräte' });
       expect(within(list).getByText('Dieses Gerät')).toBeVisible();
       // This device has a subscription already.
@@ -501,6 +674,12 @@ describe('notification channels page', () => {
       expect(
         calls.some((call) => call.method === 'DELETE' && call.path === '/me/push-subscriptions/3'),
       ).toBe(true);
+      // The removed device's button had the focus: the h1 takes it.
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' }),
+        ).toHaveFocus(),
+      );
     });
   });
 });

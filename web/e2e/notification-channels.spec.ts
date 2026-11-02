@@ -34,20 +34,23 @@ import { BOT_USERNAME, CHAT_ID } from './telegram-server.mjs';
 // start-server.mjs: e-mail through the SMTP mock, Telegram through the bot API mock, Web Push
 // through the push service mock (headless browsers cannot receive pushes, so the spec registers a
 // subscription of the mock through the API, as the page would). The settings page by keyboard
-// (rule 8). Every test leaves the main account's channels off again.
+// (rule 8): one block per channel that folds away by its band (concept 12, mockup Ben-A). Every
+// test leaves the main account's channels off again.
 
 test.afterEach(async ({ owner }) => {
   await resetChannels(owner);
 });
 
+/** A channel's block: a region named by its band. */
 const card = (page: Page, name: 'E-Mail' | 'Web-Push' | 'Telegram') =>
-  page.getByRole('article', { name });
+  page.getByRole('region', { name });
+
+const pageTitle = (page: Page) =>
+  page.getByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' });
 
 async function openSettings(page: Page): Promise<void> {
   await page.goto('/settings/notifications');
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' }),
-  ).toBeVisible();
+  await expect(pageTitle(page)).toBeVisible();
 }
 
 /** Switches the channel of `name` on and stores it with its events as they are. */
@@ -90,8 +93,9 @@ test('e-mail: the test message reaches the mail server; a refused login shows th
   expect(await mailsTo(OWNER.email)).toHaveLength(1);
 });
 
-test('Telegram: the link code to the bot, "Verknüpft" within 10 s, then the test message', async ({
+test('Telegram: the link code to the bot, "Verknüpft" within 10 s, the test message, unlink', async ({
   page,
+  owner,
 }) => {
   await openSettings(page);
   const bot = card(page, 'Telegram');
@@ -129,8 +133,28 @@ test('Telegram: the link code to the bot, "Verknüpft" within 10 s, then the tes
   await expect.poll(async () => (await botMessages()).length).toBe(before + 1);
   expect((await botMessages()).at(-1)?.chatId).toBe(String(CHAT_ID));
 
-  await bot.getByRole('button', { name: 'Verknüpfung lösen' }).click();
+  // «Verknüpfung lösen» asks first (concept 12, 11.5 point 5), by keyboard: Escape keeps the
+  // link and gives the focus back to the button; Enter on the confirmation unlinks, and the h1
+  // takes the focus of the button that went with the link.
+  const unlink = bot.getByRole('button', { name: 'Verknüpfung lösen' });
+  await resetFocus(page);
+  await tabTo(page, unlink, 60);
+  await page.keyboard.press('Enter');
+  const question = page.getByRole('alertdialog', { name: 'Verknüpfung lösen?' });
+  await expect(question).toBeVisible();
+  await expectFocusOn(page, question.getByRole('button', { name: 'Verknüpfung lösen' }));
+  await page.keyboard.press('Escape');
+  await expect(question).toHaveCount(0);
+  await expectFocusOn(page, unlink);
+  await expect(bot.getByText(/^Verknüpft/)).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(question).toBeVisible();
+  await expectFocusOn(page, question.getByRole('button', { name: 'Verknüpfung lösen' }));
+  await page.keyboard.press('Enter');
+  await expect(question).toHaveCount(0);
   await expect(bot.getByText('Nicht verknüpft')).toBeVisible();
+  await expect(pageTitle(page)).toBeFocused();
+  expect((await channel(owner, 'telegram')).telegram?.linked).toBe(false);
 });
 
 test('Web Push: the test message reaches the push service encrypted; an expired one goes', async ({
@@ -200,7 +224,7 @@ test('E-8: a new episode of a favourite reaches the e-mail channel with the prof
   }
 });
 
-test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter on the cards, back; no trap', async ({
+test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter in the blocks, fold, leave; no trap', async ({
   page,
   owner,
 }) => {
@@ -225,11 +249,11 @@ test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter on the cards, ba
   await expectFocusOn(page, link);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/settings\/notifications$/);
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Benachrichtigungskanäle' }),
-  ).toBeVisible();
+  await expect(pageTitle(page)).toBeVisible();
+  // Every account has this page: no administration shell, so it keeps today's density (S-1).
+  expect(await page.evaluate(() => document.documentElement.dataset.shell ?? null)).toBeNull();
 
-  // E-mail card: Space switches, Tab reaches the address, the events and "Speichern".
+  // E-mail block: Space switches, Tab reaches the address, the events and "Speichern".
   const mail = card(page, 'E-Mail');
   const toggle = mail.getByRole('switch', { name: 'Aktiv' });
   await resetFocus(page);
@@ -251,7 +275,45 @@ test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter on the cards, ba
   await page.keyboard.press('Tab');
   await expectFocusOn(page, mail.getByRole('button', { name: 'Testnachricht' }));
 
-  // On through the other cards to the end of the page.
+  // An unsaved change survives folding the block by its band (Enter) and unfolding it again.
+  const announcements = mail.getByRole('checkbox', { name: 'Ankündigungen' });
+  await resetFocus(page);
+  await tabTo(page, announcements);
+  await page.keyboard.press('Space');
+  await expect(announcements).not.toBeChecked();
+  const band = mail.getByRole('button', { name: 'E-Mail' });
+  await resetFocus(page);
+  await tabTo(page, band);
+  await page.keyboard.press('Enter');
+  await expect(band).toHaveAttribute('aria-expanded', 'false');
+  await expect(announcements).toBeHidden();
+  await expect(mail.getByText('Ungespeicherte Änderungen')).toBeVisible();
+  await expect(mail.getByText(OWNER.email)).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(band).toHaveAttribute('aria-expanded', 'true');
+  await expect(announcements).not.toBeChecked();
+
+  // Leaving the page with it asks first; Enter stays on «Auf der Seite bleiben».
+  await resetFocus(page);
+  await tabTo(page, page.getByRole('banner').getByRole('link', { name: 'Slouchcat' }));
+  await page.keyboard.press('Enter');
+  const question = page.getByRole('alertdialog', {
+    name: 'Seite mit ungespeicherten Änderungen verlassen?',
+  });
+  await expect(question).toBeVisible();
+  await expectFocusOn(page, question.getByRole('button', { name: 'Auf der Seite bleiben' }));
+  await page.keyboard.press('Enter');
+  await expect(question).toHaveCount(0);
+  await expect(page).toHaveURL(/\/settings\/notifications$/);
+  await expect(announcements).not.toBeChecked();
+  // Changing it back is no change any more.
+  await resetFocus(page);
+  await tabTo(page, announcements);
+  await page.keyboard.press('Space');
+  await expect(announcements).toBeChecked();
+  await expect(mail.getByText('Ungespeicherte Änderungen')).toHaveCount(0);
+
+  // On through the other blocks to the end of the page.
   await tabTo(page, card(page, 'Telegram').getByRole('button', { name: 'Verknüpfen' }), 60);
   await expectNoFocusTrap(page);
 
@@ -287,23 +349,26 @@ test('another profile than the primary one sees the channels without controls', 
     await expect(mail.getByRole('definition').last()).toHaveText(OWNER.email);
     await expect(card(page, 'Web-Push')).toBeVisible();
     await expect(card(page, 'Telegram')).toBeVisible();
+    // Nothing to change: the only buttons in the list fold the blocks.
     const list = page.getByRole('list', { name: 'Kanäle' });
-    for (const role of ['switch', 'checkbox', 'textbox', 'button'] as const) {
+    for (const role of ['switch', 'checkbox', 'textbox'] as const) {
       await expect(list.getByRole(role)).toHaveCount(0);
     }
+    await expect(list.getByRole('button')).toHaveText(['E-Mail', 'Telegram', 'Web-Push']);
 
-    // By keyboard: Tab reaches "Profil wechseln" with a visible focus, nothing traps it, and
-    // Enter opens the profile picker.
+    // By keyboard: Tab reaches "Profil wechseln" with a visible focus and Enter opens the profile
+    // picker; back on the page, nothing traps the focus.
     const action = page.getByRole('link', { name: 'Profil wechseln', exact: true });
     await resetFocus(page);
     await tabTo(page, action);
     await expectVisibleFocus(page);
-    await expectNoFocusTrap(page);
-    await action.focus();
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/profiles$/);
     await page.goBack();
     await expect(page).toHaveURL(/\/settings\/notifications$/);
+    await expect(card(page, 'E-Mail')).toBeVisible();
+    await resetFocus(page);
+    await expectNoFocusTrap(page);
   } finally {
     await context.close();
     await owner.delete(`/api/v1/profiles/${second.id}`, { headers: CSRF });

@@ -3443,10 +3443,6 @@
         "body": "The channels apply to the whole account; they are changed in the primary profile. Switch to it to turn channels on or off.",
         "action": "Switch profile"
       },
-      "readOnly": {
-        "noEvents": "None",
-        "link": "Link"
-      },
       "channel": {
         "email": "E-mail",
         "push": "Web Push",
@@ -3463,7 +3459,9 @@
         "new_content": "New content",
         "errors": "Errors",
         "invitations": "Invitations",
-        "announcements": "Announcements"
+        "announcements": "Announcements",
+        "help": "What a message is sent for.",
+        "helpAdmin": "What a message is sent for. “Errors” is for administrators only."
       },
       "unavailable": {
         "body": "The main user sets up this channel in the administration under Integrations.",
@@ -3485,7 +3483,20 @@
         "unlink": "Unlink",
         "unlinked": "The link is removed.",
         "instructionNoBot": "Send the Slouchcat bot the message /start {{code}}",
-        "noBot": "The bot’s name is missing: the main user has to enter the bot token under Integrations first."
+        "noBot": "The bot’s name is missing: the main user has to enter the bot token under Integrations first.",
+        "label": "Link",
+        "help": "Connects the account with your chat with the bot.",
+        "codeOpen": "Code open",
+        "waiting": "Waiting for the message, checking every 3 seconds.",
+        "paused": "Checking pauses while there are unsaved changes or a question is open.",
+        "unlinkConfirm": {
+          "title": "Unlink Telegram?",
+          "body": "Telegram messages no longer go to the linked chat. You can link again at any time with a new code."
+        },
+        "discardConfirm": {
+          "title": "Discard the code?",
+          "body": "The open code stops working at once. You can link again at any time with a new code."
+        }
       },
       "push": {
         "devices": "Registered devices",
@@ -3502,11 +3513,16 @@
         "ios": "On iPhone and iPad, Web Push works only in the installed app: choose “Add to Home Screen” in the share menu and open Slouchcat from there.",
         "denied": "Notifications are blocked for Slouchcat. Allow them in the browser’s settings.",
         "noWorker": "The service worker is not running yet. Reload the page and try again.",
-        "failed": "The browser could not register with its push service."
+        "failed": "The browser could not register with its push service.",
+        "count_one": "{{count}} device",
+        "count_other": "{{count}} devices"
       },
       "saved": "Saved.",
       "test": "Test message",
-      "testSent": "Test message sent."
+      "testSent": "Test message sent.",
+      "unsaved": "Unsaved changes",
+      "enabledHelp": "Applies to the whole account with all its profiles.",
+      "noEvents": "None"
     }
   },
   "announcements": {
