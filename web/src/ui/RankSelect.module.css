@@ -3,6 +3,10 @@
   flex-direction: column;
   gap: var(--sc-space-1);
   align-items: flex-start;
+
+  /* At the top of its line, not on the text's baseline: in a table row the select would
+     otherwise sit lower than the other cells and make the row taller. */
+  vertical-align: top;
 }
 
 .select {

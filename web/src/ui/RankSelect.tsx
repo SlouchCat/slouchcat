@@ -85,9 +85,11 @@ export function RankSelect({
   }, [position]);
   return (
     <span className={styles.field}>
-      <label htmlFor={id}>
-        <VisuallyHidden>{t('ui.rank.label', { name })}</VisuallyHidden>
-      </label>
+      {/* Hidden around the label, not inside it: an empty label would still take a line of the
+          column (and its gap) and pull the select below the text of its row. */}
+      <VisuallyHidden>
+        <label htmlFor={id}>{t('ui.rank.label', { name })}</label>
+      </VisuallyHidden>
       <select
         ref={select}
         id={id}
