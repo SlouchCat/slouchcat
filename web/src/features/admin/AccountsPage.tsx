@@ -371,11 +371,17 @@ function AccountsContent() {
           }}
           onSaved={(sent) => {
             // The draft is spent when it still says what was sent; what was typed while the save
-            // ran stays a draft (decision 18, addendum 3).
+            // ran stays a draft (decision 18, addendum 3), but never its passwords: the sent ones
+            // are used up, and secrets do not outlive the save.
             own.set(id, (current) =>
               JSON.stringify(current) === JSON.stringify(sent)
                 ? (ownOriginalOf(id) ?? current)
-                : current,
+                : normaliseOwnAccount({
+                    ...current,
+                    currentPassword: '',
+                    newPassword: '',
+                    newPasswordRepeat: '',
+                  }),
             );
             said(t('admin.accounts.edit.saved'));
           }}

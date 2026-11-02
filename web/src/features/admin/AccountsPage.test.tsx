@@ -529,6 +529,8 @@ describe('admin accounts (A-2, KP-1)', () => {
     expect(await screen.findByText('Dein Konto ist gespeichert.')).toBeVisible();
     expect(email).toHaveValue('neu@example.testx');
     expect(within(form).getByRole('button', { name: 'Verwerfen' })).toBeVisible();
+    // The kept draft holds no password: the sent one is used up.
+    expect(within(form).getByLabelText(/^Aktuelles Passwort/)).toHaveValue('');
   });
 
   it('sends a new password only with a matching repeat of at least 10 characters', async () => {
