@@ -50,15 +50,13 @@ export function KeyRow({
   // its accessible description. A key from deploy/.env keeps its visible note under the field.
   const keepHint = state.source === 'stored' ? t('admin.integrations.keys.newValue') : undefined;
 
-  // One line per key (Int-A): the source next to the help, field and buttons side by side.
+  // One line per key (Int-A): the source next to the label, field and buttons side by side.
   return (
     <SettingRow
       label={name}
+      labelAddon={<SourceChip source={state.source} hint={state.hint} />}
       help={
         <>
-          <span className={styles.source}>
-            <SourceChip source={state.source} hint={state.hint} />
-          </span>
           {t(`admin.integrations.keys.${keyName}.description`)}
           {keyName === 'trakt' && (
             <>

@@ -27,6 +27,14 @@
   font-weight: var(--sc-font-weight-medium);
 }
 
+/* The label and a small addon (a chip) on one line. */
+.labelLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
 .help {
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Chip } from './Chip';
 import { RadioGroup } from './RadioGroup';
 import { SettingRow } from './SettingRow';
 import { Switch } from './Switch';
@@ -73,3 +74,20 @@ export const LinkInHelp: Story = {
     </SettingRow>
   ),
 };
+
+/** A chip beside the label (Integrationen: where a key comes from, mockup Int-A). */
+const WithAddon = () => (
+  <SettingRow
+    label="TMDB"
+    labelAddon={<Chip tone="success">Gespeichert</Chip>}
+    help="Metadaten und Bilder von Filmen und Serien."
+  >
+    <Switch isSelected onChange={() => undefined}>
+      Aktiv
+    </Switch>
+  </SettingRow>
+);
+
+export const LabelAddon: Story = { render: WithAddon };
+
+export const LabelAddonCompact: Story = { render: WithAddon, globals: { density: 'compact' } };
