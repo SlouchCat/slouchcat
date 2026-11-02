@@ -2379,7 +2379,6 @@
         "passphraseUploadHint": "Nur für eine verschlüsselte Sicherung (….tar.gz.age).",
         "running": "Wird geprüft …",
         "confirmTitle": "Alle Daten ersetzen?",
-        "confirmBody": "Konten, Profile, Fortschritt und Einstellungen werden durch den Stand der Sicherung ersetzt. Danach startet der Server neu, und alle werden abgemeldet.",
         "confirmBodyNamed": "Konten, Profile, Fortschritt und Einstellungen werden durch den Stand von „{{name}}“ ersetzt. Danach startet der Server neu, und alle werden abgemeldet.",
         "confirm": "Ersetzen und neu starten"
       },

@@ -1,3 +1,5 @@
+/* The title search of the pick and collection dialogs (CurationParts). */
+
 .search {
   display: flex;
   flex-direction: column;
@@ -35,39 +37,4 @@
   margin: 0;
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
-}
-
-.actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-  justify-content: flex-end;
-}
-
-.chosen {
-  margin: 0;
-  color: var(--sc-color-text-primary);
-}
-
-.toggle {
-  display: inline-flex;
-  gap: var(--sc-space-2);
-  align-items: center;
-  min-height: var(--sc-size-control-height);
-  cursor: pointer;
-}
-
-.toggle input {
-  width: var(--sc-space-5);
-  height: var(--sc-space-5);
-  margin: 0;
-  accent-color: var(--sc-accent);
-  cursor: pointer;
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-4);
-  margin-top: var(--sc-space-8);
 }

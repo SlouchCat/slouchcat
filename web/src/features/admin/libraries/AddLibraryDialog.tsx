@@ -21,7 +21,7 @@ import {
 } from '../../shared/LibraryFields';
 import { PathBrowserButton } from '../../shared/PathBrowserButton';
 import { librariesQuery, metadataProvidersQuery } from '../queries';
-import styles from './LibrariesPage.module.css';
+import styles from './Libraries.module.css';
 
 /** What «Bibliothek hinzufügen» holds; the page owns it, so it outlives the dialog (S-13, S-17). */
 export interface LibraryDraft {

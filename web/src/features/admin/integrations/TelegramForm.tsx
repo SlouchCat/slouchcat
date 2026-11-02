@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { Text } from '@/ui';
 import { Form, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
-import styles from '../IntegrationsPage.module.css';
+import styles from './Integrations.module.css';
 import { Actions, Outcome, TELEGRAM_DRAFT, useSecretUpdate } from './shared';
 
 /** The Telegram bot: write-only token (checked by the server with getMe) and its name. */

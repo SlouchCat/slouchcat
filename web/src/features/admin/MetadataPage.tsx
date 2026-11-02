@@ -55,7 +55,7 @@ import {
   updateLibraryMetadata,
   updateMetadataSettings,
 } from './queries';
-import styles from './MetadataPage.module.css';
+import styles from './metadata/Metadata.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/metadata');
 

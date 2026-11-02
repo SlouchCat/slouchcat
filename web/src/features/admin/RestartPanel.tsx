@@ -5,7 +5,7 @@ import { api, request } from '@/api/client';
 import { Notice, Panel, Text } from '@/ui';
 import { AriaButton } from '@/ui/aria';
 import { RESTART_GIVE_UP_MS, RESTART_POLL_MS, restartedSince } from './restart';
-import data from './AdminData.module.css';
+import data from './RestartPanel.module.css';
 
 export interface RestartPanelProps {
   /** When the 202 of the restore or the restart arrived (ms, `Date.now()`). */

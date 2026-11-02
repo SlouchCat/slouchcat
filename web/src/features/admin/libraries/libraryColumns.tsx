@@ -6,7 +6,7 @@ import { formatDateTime } from '@/lib/format';
 import { Chip, StatusDot, VisuallyHidden, type StatusDotState } from '@/ui';
 import { type DataColumn } from '@/ui/aria';
 import { libraryMetadataQuery } from '../queries';
-import styles from './LibrariesPage.module.css';
+import styles from './Libraries.module.css';
 
 const dotOf: Record<Library['scan']['state'], StatusDotState> = {
   never: 'pending',

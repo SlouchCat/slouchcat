@@ -32,8 +32,7 @@ import {
   renewIntegrationToken,
   setIntegrationPathMap,
 } from './queries';
-import styles from './IntegrationsPage.module.css';
-import table from './AdminTablePage.module.css';
+import styles from './integrations/Integrations.module.css';
 
 const KINDS = ['radarr', 'sonarr'] as const satisfies readonly Integration['kind'][];
 
@@ -354,12 +353,12 @@ function EventLog({ integration }: { integration: Integration }) {
         {
           key: 'reportedPath',
           header: t('admin.integrations.webhooks.log.reported'),
-          cell: (event) => <code className={table.url}>{event.reportedPath ?? '—'}</code>,
+          cell: (event) => <code className={styles.url}>{event.reportedPath ?? '—'}</code>,
         },
         {
           key: 'resolvedPath',
           header: t('admin.integrations.webhooks.log.resolved'),
-          cell: (event) => <code className={table.url}>{event.resolvedPath ?? '—'}</code>,
+          cell: (event) => <code className={styles.url}>{event.resolvedPath ?? '—'}</code>,
         },
         {
           key: 'result',
@@ -557,7 +556,7 @@ export function WebhooksSection({
                 key: 'address',
                 header: t('admin.integrations.webhooks.columns.address'),
                 cell: (integration) => (
-                  <code className={table.url}>
+                  <code className={styles.url}>
                     {t('admin.integrations.webhooks.tail', { tail: integration.tokenTail })}
                   </code>
                 ),

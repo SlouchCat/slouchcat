@@ -2379,7 +2379,6 @@
         "passphraseUploadHint": "Only for an encrypted backup (….tar.gz.age).",
         "running": "Checking …",
         "confirmTitle": "Replace all data?",
-        "confirmBody": "Accounts, profiles, progress and settings are replaced by the state of the backup. The server restarts afterwards, and everyone is signed out.",
         "confirmBodyNamed": "Accounts, profiles, progress and settings are replaced by the state of “{{name}}”. The server restarts afterwards, and everyone is signed out.",
         "confirm": "Replace and restart"
       },

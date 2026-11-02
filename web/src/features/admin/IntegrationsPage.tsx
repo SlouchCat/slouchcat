@@ -31,7 +31,7 @@ import {
 import { TelegramForm } from './integrations/TelegramForm';
 import { integrationsQuery, settingsQuery } from './queries';
 import { WebhooksSection, type PathMapDraft } from './WebhooksSection';
-import styles from './IntegrationsPage.module.css';
+import styles from './integrations/Integrations.module.css';
 
 /**
  * Integrations (A-2, M7's key page; concept 12, variant A): six blocks that fold away by their

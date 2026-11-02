@@ -12,7 +12,7 @@ import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice } from '@/ui';
 import { AriaButton, ConfirmDialog, StatusRegion, type StatusMessage } from '@/ui/aria';
 import { dashboardQuery, settingsQuery, updateSettings } from '../queries';
-import styles from '../IntegrationsPage.module.css';
+import styles from './Integrations.module.css';
 
 // The parts the blocks of the integrations page share: draft ids, the save hooks, the source
 // chip, the band's state, the outcome line and the save/delete buttons.

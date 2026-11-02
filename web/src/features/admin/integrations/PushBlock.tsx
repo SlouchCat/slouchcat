@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Text } from '@/ui';
 import { AriaButton, ConfirmDialog, useStatusMessage } from '@/ui/aria';
 import { rotatePushKeys, settingsQuery } from '../queries';
-import styles from '../IntegrationsPage.module.css';
-import table from '../AdminTablePage.module.css';
+import styles from './Integrations.module.css';
 import { Outcome } from './shared';
 
 /** Web Push: whether a VAPID pair exists, its public key, and a new pair after a confirmation. */
@@ -34,7 +33,7 @@ export function PushBlock({ push }: { push: AdminSettings['push'] }) {
           <Text as="span" variant="caption" tone="muted">
             {t('admin.integrations.push.publicKey')}
           </Text>
-          <code className={table.url}>{push.publicKey}</code>
+          <code className={styles.url}>{push.publicKey}</code>
         </div>
       )}
       <div className={styles.actions}>

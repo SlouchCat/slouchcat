@@ -7,7 +7,7 @@ import { formErrors } from '@/api/errors';
 import { Notice } from '@/ui';
 import { AriaButton, Form, FormDialog, RadioGroup } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../../shared/choices';
-import styles from './LibrariesPage.module.css';
+import styles from './Libraries.module.css';
 
 interface DefaultRatingDialogProps {
   library: Library;

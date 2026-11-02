@@ -26,7 +26,7 @@ import { DefaultRatingDialog } from './DefaultRatingDialog';
 import { libraryColumns } from './libraryColumns';
 import { LibraryDetail, type LibraryHandlers } from './LibraryDetail';
 import { LibraryFoldersDialog } from './LibraryFoldersDialog';
-import styles from './LibrariesPage.module.css';
+import styles from './Libraries.module.css';
 
 /** The filter tabs by kind (Bib-C): all libraries, then one per kind. */
 const TABS = ['all', 'video', 'audiobooks', 'podcasts'] as const;

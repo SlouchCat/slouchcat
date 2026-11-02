@@ -76,3 +76,9 @@
   accent-color: var(--sc-accent);
   cursor: pointer;
 }
+
+/* A secret address or public key: monospace, broken anywhere. */
+.url {
+  font-family: var(--sc-font-family-mono);
+  overflow-wrap: anywhere;
+}

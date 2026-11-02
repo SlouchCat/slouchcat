@@ -7,7 +7,7 @@ import { ActionMenu, AriaButton, providerChain, type ActionMenuItem } from '@/ui
 import { isAudioLibrary } from '../../shared/LibraryFields';
 import { canScan, isScanning } from '../queries';
 import { canAcceptLoss, errorText, hasScanError, watchKeys } from './libraryColumns';
-import styles from './LibrariesPage.module.css';
+import styles from './Libraries.module.css';
 
 /**
  * How long after «Erneut scannen» the same button ignores a press: it turns into «Scan abbrechen»

@@ -5,7 +5,7 @@ import { formErrors } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { TextLink } from '@/ui';
 import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
-import styles from '../IntegrationsPage.module.css';
+import styles from './Integrations.module.css';
 import { Actions, keyDraft, Outcome, SourceChip, useSecretUpdate, type KeyName } from './shared';
 
 /** One provider key: write-only input, save and delete; read-only when deploy/.env sets it. */

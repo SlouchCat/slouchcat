@@ -9,7 +9,7 @@ import { useActiveSession } from '@/app/session';
 import { Notice, Text, TextLink } from '@/ui';
 import { AriaButton, Form, RadioGroup, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import { sendTestEmail } from '../queries';
-import styles from '../IntegrationsPage.module.css';
+import styles from './Integrations.module.css';
 import {
   Actions,
   EMAIL_DRAFT,

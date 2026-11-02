@@ -79,7 +79,7 @@ import {
   updateJobSchedule,
   type JobRunState,
 } from './queries';
-import styles from './JobsPage.module.css';
+import styles from './jobs/Jobs.module.css';
 
 /** The groups of the job types, in their order (concept 09, 2.2); one tab each. */
 const GROUPS = ['library', 'metadata', 'delivery', 'system'] as const;

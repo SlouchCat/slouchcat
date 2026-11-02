@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { sessionQuery } from '@/app/session';
 import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
-import styles from '../IntegrationsPage.module.css';
+import styles from './Integrations.module.css';
 import { Actions, Outcome, PUBLIC_URL_DRAFT, SourceChip, useSettingsUpdate } from './shared';
 
 /** The daily update check (A-5): a switch that is stored at once. */
