@@ -607,8 +607,20 @@ test('KP-1: «Profile» opens «Meine Profile»; create, PIN, report and delete 
   await expect(deletion).toHaveCount(0);
   await expectNoFocusTrap(page, 120);
 
-  // `/settings/profiles` stays for an administrator too: no redirect, the same list.
-  await page.goto('/settings/profiles');
+  // ALL-3: `/settings/profiles` stays for an administrator too. From «Konten» by keyboard: the
+  // sidebar's current entry, ↑ to «Zurück zur App», then the app column's «Profile»; no
+  // redirect, the same list.
+  const back = nav.getByRole('link', { name: 'Zurück zur App' });
+  await resetFocus(page);
+  await tabTo(page, entry, TAB_MAX);
+  await arrowTo(page, back, 'ArrowUp');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/$/);
+  const app = page.getByRole('navigation', { name: 'Hauptnavigation' });
+  const profiles = app.getByRole('link', { name: 'Profile', exact: true });
+  await expect(profiles).toHaveAttribute('href', '/settings/profiles');
+  await arrowTo(page, profiles, 'ArrowDown', 30);
+  await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/settings\/profiles$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
   await expect(page.getByRole('article', { name: OWNER_PROFILE })).toBeVisible();
