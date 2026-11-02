@@ -38,7 +38,7 @@ func dropAdminImages(t *testing.T, f *vistest.Fixture, itemID string) {
 
 // checkAdminTileFields checks the fields of contract 1.8.0 in api/openapi.yaml (part of
 // TestContractOpenAPI): the image fields are optional strings, the grid of the week and its window
-// and zone are required, the grid has exactly 672 values and the window at most 90 days.
+// and zone are required, the grid has exactly 672 values and the window at most 84 days (12 weeks).
 func checkAdminTileFields(t *testing.T, doc map[string]any) {
 	t.Helper()
 	schema := func(name string) (props map[string]any, required []any) {
@@ -68,8 +68,8 @@ func checkAdminTileFields(t *testing.T, doc map[string]any) {
 	}
 	grid, _ := props["watchTimeByQuarterHour"].(map[string]any)
 	window, _ := props["timeWindowDays"].(map[string]any)
-	if fmt.Sprint(grid["minItems"], grid["maxItems"]) != "672 672" || fmt.Sprint(window["maximum"]) != "90" {
-		t.Errorf("grid %v, window %v; want exactly 672 values and at most 90 days", grid, window)
+	if fmt.Sprint(grid["minItems"], grid["maxItems"]) != "672 672" || fmt.Sprint(window["maximum"]) != "84" {
+		t.Errorf("grid %v, window %v; want exactly 672 values and at most 84 days", grid, window)
 	}
 }
 
@@ -190,19 +190,20 @@ func TestStatsTopTitleImages(t *testing.T) {
 	if o := byItem[orphan]; deref(o.PosterUrl) != wantAdminImage(orphan, "poster", "w200", "orphanPoster") || o.BackdropUrl != nil {
 		t.Errorf("orphan: posterUrl %q backdropUrl %v, want its own poster and no backdrop", deref(o.PosterUrl), o.BackdropUrl)
 	}
-	// The grid of the week: 672 quarter hours holding the five events, 30 days, the zone of the server.
+	// The grid of the week: 672 quarter hours holding the five events, 28 days (whole weeks), the
+	// zone of the server.
 	var sum int64
 	for _, v := range st.WatchTimeByQuarterHour {
 		sum += v
 	}
-	if len(st.WatchTimeByQuarterHour) != model.StatsQuarterHours || sum != 50000 || st.TimeWindowDays != 30 || st.TimeZone == "" || st.TimeZone == "Local" {
-		t.Errorf("grid of %d values summing to %d, window %d, zone %q; want 672, 50000, 30 and an IANA name",
+	if len(st.WatchTimeByQuarterHour) != model.StatsQuarterHours || sum != 50000 || st.TimeWindowDays != 28 || st.TimeZone == "" || st.TimeZone == "Local" {
+		t.Errorf("grid of %d values summing to %d, window %d, zone %q; want 672, 50000, 28 and an IANA name",
 			len(st.WatchTimeByQuarterHour), sum, st.TimeWindowDays, st.TimeZone)
 	}
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/stats?days=365", "p18", "", nil)
 	decode(t, rec, &st)
-	if st.TimeWindowDays != 90 || st.Days != 365 {
-		t.Errorf("days 365: window %d, want 90", st.TimeWindowDays)
+	if st.TimeWindowDays != 84 || st.Days != 365 {
+		t.Errorf("days 365: window %d, want 84", st.TimeWindowDays)
 	}
 	if !strings.Contains(rec.Body.String(), `"watchTimeByQuarterHour":[`) {
 		t.Errorf("stats lack the grid: %s", rec.Body.String())

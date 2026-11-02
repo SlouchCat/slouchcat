@@ -5997,8 +5997,8 @@ paths:
         titles, the watch time per profile, the share of direct play, remux and transcoding with the
         hardware share, and the devices by type. Watch time is the played time of the progress events
         whose server time lies in the period (offline events count with their play time, the device
-        clock corrected to the server's). The watch time per quarter hour of the week covers at most
-        the last 90 days (`timeWindowDays`), in the server's time zone.
+        clock corrected to the server's). The watch time per quarter hour of the week covers whole
+        weeks, at most the last 84 days (`timeWindowDays`), in the server's time zone.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -12324,9 +12324,10 @@ components:
           minItems: 672
           maxItems: 672
           description: |
-            Played time (`watchedMs`) per quarter hour of the week over the last `timeWindowDays` days:
-            7 days × 96 quarter hours, Monday 00:00 first, then Monday 00:15, up to Sunday 23:45, in the
-            server's time zone (`timeZone`). Each event counts in the quarter hour of its server time.
+            Played time (`watchedMs`) per quarter hour of the week over the last `timeWindowDays` days
+            up to now: 7 days × 96 quarter hours, Monday 00:00 first, then Monday 00:15, up to Sunday
+            23:45, in the server's time zone (`timeZone`). Each event counts in the quarter hour of its
+            server time. The window is whole weeks, so every weekday counts equally often.
           items:
             type: integer
             format: int64
@@ -12334,10 +12335,11 @@ components:
         timeWindowDays:
           type: integer
           minimum: 1
-          maximum: 90
+          maximum: 84
           description: |
-            The days `watchTimeByQuarterHour` covers: `days`, at most 90, because events older than 90
-            days are condensed into days and lose their time of day.
+            The days `watchTimeByQuarterHour` covers: `days`, at most 90 (events older than 90 days are
+            condensed into days and lose their time of day), rounded down to whole weeks so every
+            weekday counts equally often (7 → 7, 30 → 28, 90 and 365 → 84).
         timeZone:
           type: string
           description: IANA name of the server's time zone (for example `Europe/Zurich`) the quarter hours refer to.

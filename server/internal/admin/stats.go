@@ -25,6 +25,17 @@ const topTitlesLimit = 20
 // (progress_days, migration 00019) and have lost their time of day.
 const maxTimeWindowDays = 90
 
+// gridWindowDays is the window of the watch-time grid for a period of days: at most
+// maxTimeWindowDays, rounded down to whole weeks so every weekday counts equally often (Marco,
+// concept 12); a period shorter than a week stays as it is.
+func gridWindowDays(days int) int {
+	w := min(days, maxTimeWindowDays)
+	if w >= 7 {
+		w -= w % 7
+	}
+	return w
+}
+
 // quarterMs is a quarter hour in milliseconds, the unit of StatsWatchTimeByQuarter.
 const quarterMs = int64(15 * time.Minute / time.Millisecond)
 
@@ -38,7 +49,7 @@ func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 	to := s.now()
 	// [from, to]: an event stamped in this millisecond counts.
 	from, toMs := to.Add(-time.Duration(days)*24*time.Hour).UnixMilli(), to.UnixMilli()+1
-	window := min(days, maxTimeWindowDays)
+	window := gridWindowDays(days)
 	fromWindow := to.Add(-time.Duration(window) * 24 * time.Hour).UnixMilli()
 
 	// The five aggregations read the reader pool side by side: a period of a year over a million

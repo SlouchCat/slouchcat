@@ -62,9 +62,11 @@ Bei 900 px Fensterhöhe liegen heute rund 53 % (Hintergrundjobs), 48 % (Integrat
 
 Vertrag 1.8.0 ergänzt `GET /api/v1/admin/stats` um `watchTimeByQuarterHour` (672 Viertelstunden der
 Woche in der Zeitzone des Servers) mit der neuen Abfrage `StatsWatchTimeByQuarter` über
-`progress_events` (`SUM(played_ms)` je UTC-Viertelstunde, höchstens 90 Tage). Sie läuft als fünfter
-Block neben den vier bisherigen; dazu kommen zwei kleine Abfragen für Poster und Hintergrundbilder
-der höchstens 20 meistgesehenen Titel.
+`progress_events` (`SUM(played_ms)` je UTC-Viertelstunde). Das Fenster `timeWindowDays` umfasst
+ganze Wochen, damit jeder Wochentag gleich oft zählt: höchstens 90 Tage, abgerundet auf Vielfache
+von 7 (7 → 7, 30 → 28, 90 und 365 → 84; Marcos Entscheid vom 2. November 2026). Die Abfrage läuft als
+fünfter Block neben den vier bisherigen; dazu kommen zwei kleine Abfragen für Poster und
+Hintergrundbilder der höchstens 20 meistgesehenen Titel.
 
 Gemessen mit `BenchmarkStatsMillionEvents` (`server/internal/admin/stats_bench_test.go`), gleicher
 Bestand wie in `docs/perf/M8.md` (1'000'000 Fortschrittsereignisse über 400 Tage, 3 Profile,
@@ -77,37 +79,38 @@ cd server && go test -run '^$' -bench StatsMillionEvents -benchtime 40x ./intern
 
 | Zeitraum | p50 vorher (`main` 4c860bc) | p95 vorher | p50 neu | p95 neu |
 |---|---|---|---|---|
-| 7 Tage | 25.3 ms | 29.3 ms | 36.8 ms | 41.2 ms |
-| 30 Tage | 107.2 ms | 110.3 ms | 145.8 ms | 152.1 ms |
-| 90 Tage | 296.0 ms | 303.8 ms | 394.2 ms | 404.3 ms |
-| 365 Tage | 834.1 ms | 884.5 ms | 870.4 ms | 885.7 ms |
+| 7 Tage | 25.3 ms | 29.3 ms | 34.1 ms | 36.4 ms |
+| 30 Tage | 107.2 ms | 110.3 ms | 142.6 ms | 146.8 ms |
+| 90 Tage | 296.0 ms | 303.8 ms | 392.4 ms | 402.2 ms |
+| 365 Tage | 834.1 ms | 884.5 ms | 860.4 ms | 869.7 ms |
 
 Die neue Abfrage allein (mit der Zuordnung zu Wochentag und Uhrzeit in Go):
 
 | Fenster | p50 | p95 |
 |---|---|---|
-| 7 Tage | 6.5 ms | 6.7 ms |
-| 30 Tage | 33.6 ms | 34.3 ms |
-| 90 Tage | 102.0 ms | 105.2 ms |
+| 7 Tage | 6.4 ms | 6.8 ms |
+| 28 Tage | 30.9 ms | 31.8 ms |
+| 84 Tage | 95.1 ms | 96.4 ms |
 
 Bewertung der ganzen Antwort: Bis 90 Tage kostet das Raster etwa so viel wie die Abfrage allein
-(p95 +12 ms bei 7 Tagen, +100 ms bei 90 Tagen), obwohl die fünf Blöcke nebeneinander laufen; die
+(p95 +7 ms bei 7 Tagen, +98 ms bei 90 Tagen), obwohl die fünf Blöcke nebeneinander laufen; die
 Blöcke teilen sich Speicher und Seiten-Cache des reinen Go-SQLite. Bei 365 Tagen bleibt das Raster
-bei 90 Tagen Fenster und verschwindet hinter dem längsten Block (p95 unverändert). Mit dem Faktor
-2.5 für CT 190 aus M3 liegen 90 Tage bei rund 1 s, ein Jahr unverändert bei rund 2.2 s.
+bei 84 Tagen Fenster und verschwindet hinter dem längsten Block (p95 unverändert im Rahmen der
+Streuung). Mit dem Faktor 2.5 für CT 190 aus M3 liegen 90 Tage bei rund 1 s, ein Jahr unverändert bei
+rund 2.2 s.
 
 **Bestand.** Der Player meldet alle 10 s (`web/src/features/player/useProgressReporter.ts`), also
-rund 360 Ereignisse je Wiedergabestunde. 3 Stunden am Tag ergeben in 90 Tagen rund 97'000
-Ereignisse. Der Bestand der Messung (1 Mio. in 400 Tagen, rund 225'000 in 90 Tagen) entspricht rund
+rund 360 Ereignisse je Wiedergabestunde. 3 Stunden am Tag ergeben in 84 Tagen rund 91'000
+Ereignisse. Der Bestand der Messung (1 Mio. in 400 Tagen, rund 210'000 in 84 Tagen) entspricht rund
 7 Stunden am Tag: realistisch, aber hoch.
 
 **Schwelle aus Konzept 12, 11.10** («über 200 ms rechnet der Server die Stundenwerte höchstens alle
-5 min neu»). Sie gilt für die Rasterabfrage allein im Fenster von 90 Tagen:
+5 min neu»). Sie gilt für die Rasterabfrage allein im längsten Fenster (84 Tage):
 
 | Bestand | Entwicklungsrechner p95 | CT 190 geschätzt (Faktor 2.5) |
 |---|---|---|
-| Messung, rund 225'000 Ereignisse in 90 Tagen | 105 ms | rund 260 ms |
-| Haushalt mit 3 Stunden am Tag, rund 97'000 Ereignisse | rund 45 ms (anteilig) | rund 110 ms |
+| Messung, rund 210'000 Ereignisse in 84 Tagen | 96 ms | rund 240 ms |
+| Haushalt mit 3 Stunden am Tag, rund 91'000 Ereignisse | rund 42 ms (anteilig) | rund 105 ms |
 
 Beim Bestand der Messung läge CT 190 über der Schwelle, beim realen Bestand darunter. Der Entscheid
 fällt mit der Messung von `GET /admin/stats?days=90` auf CT 190 in K12-9; bis dahin gibt es keinen

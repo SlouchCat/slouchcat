@@ -38,7 +38,7 @@ const stats = (days: Stats['days']): Stats => ({
   watchTimeByQuarterHour: Array.from({ length: 672 }, (_, quarter) =>
     quarter === 80 ? 2_700_000 : 0,
   ),
-  timeWindowDays: Math.min(days, 90),
+  timeWindowDays: Math.floor(Math.min(days, 90) / 7) * 7,
   timeZone: 'Europe/Zurich',
 });
 
@@ -49,7 +49,7 @@ const empty: Stats = {
   playback: { direct: 0, remux: 0, transcode: 0, transcodeShare: 0, hardwareShare: 0 },
   devices: [],
   watchTimeByQuarterHour: Array.from({ length: 672 }, () => 0),
-  timeWindowDays: 30,
+  timeWindowDays: 28,
   timeZone: 'Europe/Zurich',
 };
 

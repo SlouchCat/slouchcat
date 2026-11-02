@@ -133,8 +133,8 @@ func TestContractStatsShape(t *testing.T) {
 	}
 	// Contract 1.8.0 (concept 12): the grid of the week is always 672 values, also without events.
 	if !bytes.HasPrefix(raw["watchTimeByQuarterHour"], []byte("[")) || len(st.WatchTimeByQuarterHour) != 7*96 ||
-		st.TimeWindowDays != 30 || st.TimeZone == "" {
-		t.Errorf("grid of %d values, window %d, zone %q; want 672, 30 and a zone", len(st.WatchTimeByQuarterHour), st.TimeWindowDays, st.TimeZone)
+		st.TimeWindowDays != 28 || st.TimeZone == "" {
+		t.Errorf("grid of %d values, window %d, zone %q; want 672, 28 (whole weeks) and a zone", len(st.WatchTimeByQuarterHour), st.TimeWindowDays, st.TimeZone)
 	}
 	for _, path := range []string{"/admin/stats?days=8", "/admin/stats?days=0"} {
 		rec := send(t, pf.h, http.MethodGet, BasePath+path, "p18", "", nil)

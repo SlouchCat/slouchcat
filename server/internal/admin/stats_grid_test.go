@@ -112,9 +112,10 @@ func TestWeekGridZones(t *testing.T) {
 	}
 }
 
-// The window of the grid is min(days, 90): a year counts the events of the last 90 days only (the
-// fixture's events 100 and 400 days back stay out), a week those of the week. The zone pinned with
-// WithLocation decides the slot and names itself.
+// The window of the grid is min(days, 90) in whole weeks: a year and 90 days count the last 84 days
+// (the fixture's events 100 and 400 days back stay out), 30 days the last 28 (the events 30 and 40
+// days back stay out), a week the week. The zone pinned with WithLocation decides the slot and names
+// itself.
 func TestStatsTimeWindow(t *testing.T) {
 	ctx := context.Background()
 	st := newStack(t, "0.9.0")
@@ -135,9 +136,9 @@ func TestStatsTimeWindow(t *testing.T) {
 		slot          int
 		slotWatchedMs int64
 	}{
-		{zurich, 365, 90, 3_820_000, 96 + 14*4, 1_300_000},
-		{zurich, 90, 90, 3_820_000, 96 + 14*4, 1_300_000},
-		{zurich, 30, 30, 2_920_000, 96 + 14*4, 1_300_000},
+		{zurich, 365, 84, 3_820_000, 96 + 14*4, 1_300_000},
+		{zurich, 90, 84, 3_820_000, 96 + 14*4, 1_300_000},
+		{zurich, 30, 28, 2_850_000, 96 + 14*4, 1_300_000},
 		{mustZone("Asia/Kolkata"), 7, 7, 2_800_000, 96 + 17*4 + 2, 1_300_000},
 	} {
 		st.svc.WithLocation(c.loc)
@@ -216,5 +217,13 @@ func TestResolveZone(t *testing.T) {
 	st.svc.WithLocation(zurich)
 	if got, err := st.svc.Stats(context.Background(), 7); err != nil || got.TimeZone != "Europe/Zurich" {
 		t.Errorf("pinned zone: %q, %v", got.TimeZone, err)
+	}
+}
+
+func TestGridWindowDays(t *testing.T) {
+	for days, want := range map[int]int{1: 1, 6: 6, 7: 7, 13: 7, 14: 14, 30: 28, 84: 84, 90: 84, 365: 84} {
+		if got := gridWindowDays(days); got != want {
+			t.Errorf("gridWindowDays(%d) = %d, want %d", days, got, want)
+		}
 	}
 }

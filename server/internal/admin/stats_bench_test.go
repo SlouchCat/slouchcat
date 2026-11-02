@@ -65,9 +65,9 @@ func BenchmarkStatsMillionEvents(b *testing.B) {
 			b.ReportMetric(float64(lat[(len(lat)*95+99)/100-1].Microseconds())/1000, "p95-ms")
 		})
 	}
-	// Concept 12: the query of the grid of the week on its own, over its window (at most 90 days),
-	// with the mapping into the server's time zone.
-	for _, window := range []int{7, 30, 90} {
+	// Concept 12: the query of the grid of the week on its own, over its window (whole weeks, at
+	// most 84 days), with the mapping into the server's time zone.
+	for _, window := range []int{7, 28, 84} {
 		b.Run(fmt.Sprintf("quarters/window=%d", window), func(b *testing.B) {
 			params := systemq.StatsWatchTimeByQuarterParams{
 				FromMs: statsNow.Add(-time.Duration(window) * day).UnixMilli(), ToMs: statsNow.UnixMilli() + 1,

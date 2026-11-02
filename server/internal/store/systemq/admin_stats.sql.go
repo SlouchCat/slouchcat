@@ -293,7 +293,7 @@ type StatsWatchTimeByQuarterRow struct {
 
 // Played time per UTC quarter hour (Unix milliseconds / 900000) of the raw events in the period,
 // for the watch-time grid by weekday and time of day (concept 12, 11.4). Only progress_events: the
-// period is at most 90 days and condensed days have lost their time of day. Package admin maps
+// period is whole weeks, at most 84 days, and condensed days have lost their time of day. Package admin maps
 // each quarter hour to a weekday and a time of day in the server's time zone.
 func (q *Queries) StatsWatchTimeByQuarter(ctx context.Context, arg StatsWatchTimeByQuarterParams) ([]StatsWatchTimeByQuarterRow, error) {
 	rows, err := q.db.QueryContext(ctx, statsWatchTimeByQuarter, arg.FromMs, arg.ToMs)

@@ -117,7 +117,7 @@ func mustZone(name string) *time.Location {
 func expectedStats(t *testing.T, db *sql.DB, days int, loc *time.Location) model.Stats {
 	t.Helper()
 	from, to := statsNow.Add(-time.Duration(days)*day).UnixMilli(), statsNow.UnixMilli()
-	window := min(days, 90)
+	window := min(days, 90) / 7 * 7 // whole weeks; every period here is at least a week
 	fromWindow := statsNow.Add(-time.Duration(window) * day).UnixMilli()
 	grid := make([]int64, 7*96)
 	type event struct {
