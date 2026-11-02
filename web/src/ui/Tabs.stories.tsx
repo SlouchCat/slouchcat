@@ -57,3 +57,8 @@ export const Counts: Story = {
 };
 
 export const CountsCompact: Story = { ...Counts, globals: { density: 'compact' } };
+
+/** The whole tab bar locked while a restore runs (Sicherung, concept 12, K12-7). */
+export const Disabled: Story = { args: { isDisabled: true } };
+
+export const DisabledCompact: Story = { ...Disabled, globals: { density: 'compact' } };
