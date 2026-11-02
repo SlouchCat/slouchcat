@@ -26,6 +26,15 @@ import {
 
 const STOP_BUDGET_MS = 5000;
 
+/**
+ * The viewer's segments arrive this much later. The player learns of a stop only from its next
+ * media request (a 401), and hls.js loads the 90 s test title completely within seconds: with
+ * all of it buffered it asks nothing more and plays on past the budget (concept 13 brings a
+ * status endpoint). Held back like a slow line, the title stays partly buffered until the stop,
+ * so the next segment request comes within the budget, as it does for a feature-length title.
+ */
+const SEGMENT_DELAY_MS = 1000;
+
 interface AdminStreamData {
   id: string;
   profileName: string;
@@ -73,7 +82,13 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
   });
   expect(created.status()).toBe(201);
   const { id: profileId } = (await created.json()) as { id: number };
-  const other = await browser.newContext({ baseURL, locale: 'de-CH', extraHTTPHeaders });
+  // Without the service worker, so the segment requests pass page.route.
+  const other = await browser.newContext({
+    baseURL,
+    locale: 'de-CH',
+    extraHTTPHeaders,
+    serviceWorkers: 'block',
+  });
   const admin = await browser.newContext({
     baseURL,
     locale: 'de-CH',
@@ -90,6 +105,11 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     const viewer = await other.newPage();
     // Without HEVC and MKV in the profile the viewer's stream is a transcode in both browsers.
     await limitCapabilities(viewer, { video: ['h264'], containers: ['mp4'] });
+    await viewer.route(/\/api\/v1\/playback\/sessions\/[^/]+\/seg\/\d+/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, SEGMENT_DELAY_MS));
+      // The context may be closed meanwhile (end of the test).
+      await route.continue().catch(() => undefined);
+    });
     const hevc = await itemIdByTitle(owner, HEVC_LONG_TITLE);
     const second: PlaybackData = await play(viewer, hevc);
 
@@ -165,6 +185,12 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
         response.request().method() === 'DELETE' &&
         response.url().endsWith(`/admin/streams/${second.playbackSessionId}`),
     );
+    // The stop has to find the viewer still loading (SEGMENT_DELAY_MS).
+    const buffered = await viewer.locator('video').evaluate((video: HTMLVideoElement) => ({
+      end: video.buffered.length > 0 ? video.buffered.end(video.buffered.length - 1) : 0,
+      duration: video.duration,
+    }));
+    expect(buffered.end, JSON.stringify(buffered)).toBeLessThan(buffered.duration - 4);
     const before = Date.now();
     await overview.keyboard.press('Enter');
     expect((await stopped).status()).toBe(204);
@@ -192,7 +218,7 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     const list = (await (await owner.get('/api/v1/admin/streams')).json()) as AdminStreamData[];
     expect(list.map((stream) => stream.id)).not.toContain(second.playbackSessionId);
     await expectNoFocusTrap(overview);
-    console.log(JSON.stringify({ measurement: 'admin-stop', stopMs }));
+    console.log(JSON.stringify({ measurement: 'admin-stop', stopMs, buffered }));
 
     // Back (rule 8): the sidebar leads to «Geräte», the browser's Back returns to the overview.
     await resetFocus(overview);
