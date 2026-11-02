@@ -107,3 +107,18 @@ unverändert (dieselben Farb-Tokens).
   mit pixelgleichen Bildern; die Umstellung selbst ist ein eigener Schritt.
 - **Ein Baustein liest die Skala weiter direkt** und bleibt in der kompakten Dichte gross. Die
   Story in beiden Dichten zeigt das in der Bildprüfung.
+
+## Nachtrag K12-8 (2. November 2026)
+
+- **`AdminHomePage` setzt den Kontext selbst.** Die Übersicht `/admin` benutzt nicht `AdminPage`,
+  öffnet aber eine Rückfrage (Server neu starten). Damit diese Rückfrage wie die Dialoge der
+  übrigen Verwaltungsseiten kompakt ist, umschliesst `AdminHomePage` ihren Inhalt ebenfalls mit
+  `AdminDensityScope` (`AdminHomePage.test.tsx` prüft `data-density="compact"` am Portal).
+- **Zwei Tokens mehr als im Entscheid aufgezählt:**
+  - `page.title-line-height` (Komponententoken `--sc-page-title-line-height`): Standard 1.5 (was ein
+    h1 heute erbt), kompakt 0. Die Höhe der Kopfzeile bestimmt dann der 24-px-Titel, nicht die
+    48 px hohe Zeile, die ein h1 mit seinen 2em sonst mitbringt.
+  - `density.compact.page.gutter` (32 px): setzt in `#content` die bestehende Eigenschaft
+    `--page-gutter` aus `web/src/ui/global.css` (40 px ab 768 px, 64 px ab 1440 px). Es ist kein
+    `--sc-*`-Komponententoken mit Standardwert; ausserhalb der kompakten Dichte gilt weiter
+    `global.css`.

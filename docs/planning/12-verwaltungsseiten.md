@@ -188,9 +188,13 @@ Verwaltungsseite geöffnet werden, sind ebenfalls kompakt (Marco, 1. November 20
   und Abstände überall mitschrumpfen. Darum bekommt `packages/design-tokens/tokens/` neue
   **Komponententokens** mit dem heutigen Wert als Standard: `--sc-control-height`,
   `--sc-control-font-size`, `--sc-panel-padding`, `--sc-panel-gap`, `--sc-panel-radius`,
-  `--sc-table-cell-padding-y`, `--sc-page-title-size`, `--sc-section-gap`. `Button`, `Field`,
-  `Panel`, `DataTable`, `Dialog` und `Text` lesen sie; ihre Referenzbilder werden neu erstellt,
-  sehen aber gleich aus. Eine Dichte-Gruppe `density.compact` liefert die Werte aus 5.1.
+  `--sc-table-cell-padding-y`, `--sc-page-title-size`, `--sc-section-gap`,
+  `--sc-page-title-line-height` (Token `page.title-line-height`, Standard 1.5, kompakt 0; seit
+  K12-8). `Button`, `Field`, `Panel`, `DataTable`, `Dialog` und `Text` lesen sie; ihre
+  Referenzbilder werden neu erstellt, sehen aber gleich aus. Eine Dichte-Gruppe `density.compact`
+  liefert die Werte aus 5.1; dazu kommt `density.compact.page.gutter` (32 px), das in `#content`
+  `--page-gutter` aus `ui/global.css` setzt und kein `--sc-*`-Komponententoken ist (seit K12-8,
+  ADR 0020, Nachtrag).
 - **Wo umgestellt wird:** nur der **Inhaltsbereich** (`#content`) und die Dialoge der
   Verwaltungsseiten, unter `[data-shell="admin"]` (Attribut aus Konzept 11, 11.6) mit
   `@media (min-width: 48rem) and (pointer: fine)`. App-Kopf und Verwaltungsleiste behalten ihre
