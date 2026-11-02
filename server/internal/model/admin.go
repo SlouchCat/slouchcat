@@ -523,12 +523,12 @@ type BackupRequest struct {
 	Passphrase     string
 }
 
-// RestoreResult answers a staged restore; the server restarts at RestartAt.
-// RestartAccepted is the answer of a requested restart (concept 11): when the server restarts.
+// RestartAccepted answers a requested restart (concept 11); the server restarts at RestartAt.
 type RestartAccepted struct {
 	RestartAt time.Time
 }
 
+// RestoreResult answers a staged restore; the server restarts at RestartAt.
 type RestoreResult struct {
 	RestartAt       time.Time
 	Version         string

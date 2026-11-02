@@ -74,6 +74,13 @@ func TestRestartServerWhileBackupRuns(t *testing.T) {
 	if _, err := a.svc.RestartServer(a.ctx, a.f.Account.ID); err != nil {
 		t.Errorf("restart after the backup = %v", err)
 	}
+	// A restart already scheduled wins over a lock held meanwhile: restart_pending, not backup_busy.
+	a.svc.backups.mu.Lock()
+	_, err = a.svc.RestartServer(a.ctx, a.f.Account.ID)
+	a.svc.backups.mu.Unlock()
+	if !errors.Is(err, model.ErrRestartPending) {
+		t.Errorf("restart while pending and locked = %v, want ErrRestartPending", err)
+	}
 }
 
 // A restore that scheduled its restart blocks a restart and a second restore.

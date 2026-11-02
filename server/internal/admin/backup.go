@@ -757,12 +757,15 @@ func fileExists(path string) bool {
 
 // RestartServer schedules a restart of the server for the administration (concept 11, ADR 0019)
 // like a restore does: after restartDelay main shuts down in order and starts the same binary
-// again. A backup or restore that holds the lock answers ErrBackupBusy (the restart would cut it
-// off), a restart or restore already scheduled ErrRestartPending. The restart is recorded in the
+// again. A restart or restore already scheduled answers ErrRestartPending (checked first), a backup
+// or restore that holds the lock ErrBackupBusy (the restart would cut it off). The restart is recorded in the
 // activity log with the account that asked for it.
 func (s *Service) RestartServer(ctx context.Context, accountID int64) (model.RestartAccepted, error) {
 	if s.backups.restart == nil {
-		return model.RestartAccepted{}, ErrNotConfigured
+		return model.RestartAccepted{}, ErrNotConfigured // 500, like every collaborator main did not wire
+	}
+	if s.backups.restartPending.Load() { // before the lock: a scheduled restore holds it no more
+		return model.RestartAccepted{}, model.ErrRestartPending
 	}
 	if !s.backups.mu.TryLock() {
 		return model.RestartAccepted{}, model.ErrBackupBusy

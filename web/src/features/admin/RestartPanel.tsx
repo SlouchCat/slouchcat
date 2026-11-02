@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { Notice, Panel, Text } from '@/ui';
@@ -27,6 +27,7 @@ export interface RestartPanelProps {
 export function RestartPanel({ acceptedAt, title, body, notice, onBack }: RestartPanelProps) {
   const { t } = useTranslation();
   const heading = useRef<HTMLHeadingElement>(null);
+  const headingId = useId();
   // Start of the current wait: the restore or restart, or the last «Erneut prüfen».
   const [waitingSince, setWaitingSince] = useState(acceptedAt);
   const [gaveUp, setGaveUp] = useState(false);
@@ -71,8 +72,8 @@ export function RestartPanel({ acceptedAt, title, body, notice, onBack }: Restar
   };
 
   return (
-    <Panel as="section" aria-labelledby="restart-heading">
-      <h2 id="restart-heading" ref={heading} tabIndex={-1} className={data.panelTitle}>
+    <Panel as="section" aria-labelledby={headingId}>
+      <h2 id={headingId} ref={heading} tabIndex={-1} className={data.panelTitle}>
         {title}
       </h2>
       <Text>{body}</Text>

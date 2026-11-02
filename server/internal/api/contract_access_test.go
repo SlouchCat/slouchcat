@@ -153,11 +153,13 @@ var accountRegistry = map[string]accountCall{
 
 // adminCall is one call of the admin registry; ownerStatus is the answer for an administrator with
 // the primary profile (harmless bodies against unknown ids or invalid input). header replaces
-// request headers, such as the content type of a multipart body.
+// request headers, such as the content type of a multipart body. fresh runs the call against a
+// fixture of its own, for a call that leaves state the others must not see.
 type adminCall struct {
 	contract, path, body string
 	header               map[string]string
 	ownerStatus          int
+	fresh                bool
 }
 
 // ownerCall is one call of the owner registry (x-visibility owner, ADR 0014). ownerStatus is the
@@ -330,8 +332,9 @@ var adminRegistry = map[string]adminCall{
 		header: map[string]string{"Content-Type": "multipart/form-data; boundary=registry"}, ownerStatus: http.StatusUnprocessableEntity},
 	"restoreBackup": {contract: "POST /admin/backups/{name}/restore", path: "/admin/backups/missing.tar.gz/restore", body: `{}`,
 		ownerStatus: http.StatusNotFound},
-	// Concept 11: the fixture's restart function is a fake (profileFixture.restarts).
-	"restartServer":       {contract: "POST /admin/server/restart", path: "/admin/server/restart", ownerStatus: http.StatusAccepted},
+	// Concept 11: the fixture's restart function is a fake (profileFixture.restarts). Its own
+	// fixture, because the scheduled restart makes the restores answer restart_pending.
+	"restartServer":       {contract: "POST /admin/server/restart", path: "/admin/server/restart", ownerStatus: http.StatusAccepted, fresh: true},
 	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
 	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
 	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
@@ -552,9 +555,6 @@ func TestContractAdminOperations(t *testing.T) {
 
 	ids := keysOf(adminRegistry)
 	sort.Strings(ids)
-	// restartServer leaves the fixture with a scheduled restart, which the restores then answer
-	// with restart_pending (concept 11): it runs last.
-	ids = append(slices.DeleteFunc(ids, func(id string) bool { return id == "restartServer" }), "restartServer")
 	for _, id := range ids {
 		call := adminRegistry[id]
 		if ops[id].vis != "admin" {
@@ -562,6 +562,10 @@ func TestContractAdminOperations(t *testing.T) {
 		}
 		method := strings.Fields(call.contract)[0]
 		t.Run(id, func(t *testing.T) {
+			h := h
+			if call.fresh {
+				h = newProfileFixture(t).h
+			}
 			for _, token := range []string{"pg", "pg18", "p6", "p0", "pa2k", "none"} {
 				rec := send(t, h, method, BasePath+call.path, token, call.body, call.header)
 				if rec.Code != http.StatusForbidden || problemCode(t, rec) != "forbidden" {
