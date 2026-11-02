@@ -55,6 +55,17 @@ const puts = (calls: { method: string; path: string; body: unknown }[]) =>
     .filter((call) => call.method === 'PUT' && call.path === '/admin/settings')
     .map((call) => call.body as AdminSettingsUpdate);
 
+/**
+ * Puts `text` into a field by paste, one input event instead of one per key: every key re-renders
+ * the whole page (six blocks), and typing key by key took most of the 5 s test timeout under a
+ * heavily loaded machine. The tests are about what is stored and shown, not about keystrokes.
+ */
+async function fill(user: ReturnType<typeof userEvent.setup>, field: HTMLElement, text: string) {
+  await user.clear(field);
+  await user.click(field);
+  await user.paste(text);
+}
+
 describe('integrations (A-2)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -111,7 +122,7 @@ describe('integrations (A-2)', () => {
     await waitFor(() => expect(field).toHaveAccessibleDescription(/Pflichtfeld/));
     expect(puts(calls)).toHaveLength(0);
 
-    await user.type(field, 'yt-key-1239xyz');
+    await fill(user, field, 'yt-key-1239xyz');
     await user.click(save);
     expect(await screen.findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
     expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-key-1239xyz' } }]);
@@ -124,7 +135,7 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     const field = await screen.findByLabelText('TMDB-Lesezugriffs-Token');
-    await user.type(field, 'bad');
+    await fill(user, field, 'bad');
     await user.click(screen.getByRole('button', { name: 'TMDB-Token speichern' }));
     await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
     expect(field).toHaveAccessibleDescription(/TMDB hat den Schlüssel abgelehnt/);
@@ -157,7 +168,7 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     const field = await screen.findByLabelText('TVDB-API-Schlüssel');
-    await user.type(field, 'tvdb-key');
+    await fill(user, field, 'tvdb-key');
     await user.click(screen.getByRole('button', { name: 'TVDB-Schlüssel speichern' }));
     await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
     expect(field).toHaveAccessibleDescription(/in deploy\/.env gesetzt/);
@@ -190,14 +201,13 @@ describe('integrations (A-2)', () => {
     const user = userEvent.setup();
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     expect(within(email).queryByRole('button', { name: 'Testmail senden' })).toBeNull();
-    await user.type(within(email).getByLabelText('Server'), 'smtp.example.ch');
+    await fill(user, within(email).getByLabelText('Server'), 'smtp.example.ch');
     const port = within(email).getByLabelText('Port');
     expect(port).toHaveValue('587');
-    await user.clear(port);
-    await user.type(port, '465');
-    await user.type(within(email).getByLabelText('Benutzer'), 'media');
-    await user.type(within(email).getByLabelText('Passwort'), 'smtp-secret');
-    await user.type(within(email).getByLabelText(/Absender/), 'Slouchcat <media@example.ch>');
+    await fill(user, port, '465');
+    await fill(user, within(email).getByLabelText('Benutzer'), 'media');
+    await fill(user, within(email).getByLabelText('Passwort'), 'smtp-secret');
+    await fill(user, within(email).getByLabelText(/Absender/), 'Slouchcat <media@example.ch>');
     await user.click(within(email).getByRole('radio', { name: 'TLS' }));
     await user.click(within(email).getByRole('button', { name: 'Speichern' }));
 
@@ -272,7 +282,7 @@ describe('integrations (A-2)', () => {
     const user = userEvent.setup();
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     const token = within(telegram).getByLabelText('Bot-Token');
-    await user.type(token, '123:abc');
+    await fill(user, token, '123:abc');
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));
     expect(token).toHaveAccessibleDescription(/Telegram hat das Token abgelehnt/);
@@ -280,7 +290,7 @@ describe('integrations (A-2)', () => {
     // The field stays marked until the token changes (react-aria clears server errors on input).
     reject = false;
     await user.clear(token);
-    await user.type(token, '123:good');
+    await fill(user, token, '123:good');
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     expect(await within(telegram).findByText('Telegram-Bot gespeichert.')).toBeVisible();
     expect(within(telegram).getByText('Bot: @slouchcat_bot')).toBeVisible();
@@ -314,24 +324,15 @@ describe('integrations (A-2)', () => {
         .map((mutation) => JSON.stringify(mutation.state.variables ?? null))
         .filter((variables) => secrets.some((secret) => variables.includes(secret)));
 
-    // Text goes in by paste, one input event per field: this test is about the cache, and typing
-    // its ~100 characters key by key re-rendered the whole page each time, which took 4 s of the
-    // 5 s test timeout in a full parallel run and timed out twice.
-    const fill = async (field: HTMLElement, text: string) => {
-      await user.clear(field);
-      await user.click(field);
-      await user.paste(text);
-    };
-
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    await fill(within(keys).getByLabelText('YouTube-API-Schlüssel'), secrets[0]!);
+    await fill(user, within(keys).getByLabelText('YouTube-API-Schlüssel'), secrets[0]!);
     await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
     expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
 
     const email = section('E-Mail-Server');
-    await fill(within(email).getByLabelText('Server'), 'smtp.example.ch');
-    await fill(within(email).getByLabelText('Passwort'), secrets[1]!);
-    await fill(within(email).getByLabelText(/Absender/), 'media@example.ch');
+    await fill(user, within(email).getByLabelText('Server'), 'smtp.example.ch');
+    await fill(user, within(email).getByLabelText('Passwort'), secrets[1]!);
+    await fill(user, within(email).getByLabelText(/Absender/), 'media@example.ch');
     await user.click(within(email).getByRole('button', { name: 'Speichern' }));
     expect(await within(email).findByText('E-Mail-Server gespeichert.')).toBeVisible();
 
@@ -339,11 +340,11 @@ describe('integrations (A-2)', () => {
     // timeout, which can come after the render that marks the field, so the check waits for it.
     const telegram = section('Telegram-Bot');
     const token = within(telegram).getByLabelText('Bot-Token');
-    await fill(token, secrets[2]!);
+    await fill(user, token, secrets[2]!);
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));
     await waitFor(() => expect(held()).toEqual([]));
-    await fill(token, secrets[3]!);
+    await fill(user, token, secrets[3]!);
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     expect(await within(telegram).findByText('Telegram-Bot gespeichert.')).toBeVisible();
     await waitFor(() => expect(held()).toEqual([]));
@@ -417,15 +418,14 @@ describe('integrations (A-2)', () => {
     const user = userEvent.setup();
     const address = await serverRow('Öffentliche Adresse');
     const field = within(address).getByLabelText('Adresse');
-    await user.type(field, 'media.example.ch');
+    await fill(user, field, 'media.example.ch');
     await user.click(within(address).getByRole('button', { name: 'Speichern' }));
     await waitFor(() =>
       expect(field).toHaveAccessibleDescription(/Gib eine Adresse mit http:\/\/ oder https:\/\//),
     );
     expect(puts(calls)).toHaveLength(0);
 
-    await user.clear(field);
-    await user.type(field, 'https://media.example.ch');
+    await fill(user, field, 'https://media.example.ch');
     await user.click(within(address).getByRole('button', { name: 'Speichern' }));
     expect(await within(address).findByText('Öffentliche Adresse gespeichert.')).toBeVisible();
     expect(within(address).getByText('Gespeichert')).toBeVisible();
@@ -525,9 +525,9 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    await user.type(within(keys).getByLabelText('YouTube-API-Schlüssel'), 'yt-draft');
-    await user.type(within(section('Telegram-Bot')).getByLabelText('Bot-Token'), '1:draft');
-    await user.type(within(section('E-Mail-Server')).getByLabelText('Server'), 'smtp.draft');
+    await fill(user, within(keys).getByLabelText('YouTube-API-Schlüssel'), 'yt-draft');
+    await fill(user, within(section('Telegram-Bot')).getByLabelText('Bot-Token'), '1:draft');
+    await fill(user, within(section('E-Mail-Server')).getByLabelText('Server'), 'smtp.draft');
     const band = within(keys).getByRole('button', { name: 'Schlüssel der Anbieter' });
     // The band says the block holds unsaved input, folded or not.
     expect(within(keys).getByText('ungespeichert')).toBeVisible();
@@ -562,7 +562,7 @@ describe('integrations (A-2)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
     expect(screen.queryByRole('alertdialog')).toBeNull();
     await router.navigate({ to: '/admin/integrations' });
-    await user.type(await screen.findByLabelText('Adresse'), 'https://media.example.ch');
+    await fill(user, await screen.findByLabelText('Adresse'), 'https://media.example.ch');
 
     void router.navigate({ to: '/admin' });
     const question = await screen.findByRole('alertdialog', {
