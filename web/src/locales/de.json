@@ -1581,6 +1581,12 @@
       "title": "Spotlight",
       "intro": "Eine öffentliche Trakt-Liste als Reihe der Startseite. Gezeigt werden nur Titel, die in der eigenen Bibliothek stehen; jedes Profil sieht nur, was seine Altersstufe erlaubt.",
       "enabled": "Auf der Startseite zeigen",
+      "enabledHint": "Gilt erst mit «Speichern», zusammen mit der Quelle.",
+      "unsaved": "Ungespeicherte Änderungen",
+      "row": {
+        "shown": "Auf der Startseite",
+        "missing": "Fehlt auf der Startseite"
+      },
       "lists": {
         "trending": "Trending bei Trakt",
         "popular": "Beliebt bei Trakt",
@@ -1664,7 +1670,9 @@
         "show": "Einblenden",
         "showLabel": "{{title}} einblenden",
         "hidden": "{{title}} ist ausgeblendet.",
-        "shown": "{{title}} wird wieder gezeigt."
+        "shown": "{{title}} wird wieder gezeigt.",
+        "count_one": "{{count}} Eintrag",
+        "count_other": "{{count}} Einträge"
       },
       "pin": {
         "action": "Anheften",
@@ -1672,7 +1680,9 @@
         "title": "{{title}} anheften",
         "rank": "Platz in der Reihe",
         "rankHint": "1 ist der erste Platz. Der Platz gilt für die ganze Liste; ein Profil mit weniger Treffern sieht den Titel früher.",
-        "done": "{{title}} ist auf Platz {{rank}} angeheftet."
+        "done": "{{title}} ist auf Platz {{rank}} angeheftet.",
+        "taken": "{{hint}} Belegt: {{places}}.",
+        "takenPlace": "Platz {{rank}} ({{title}})"
       },
       "unpin": {
         "action": "Lösen",
@@ -1694,7 +1704,9 @@
         "override": "Anpassung",
         "remove": "Entfernen",
         "removeLabel": "Anpassung für {{title}} entfernen",
-        "removed": "Die Anpassung für {{title}} ist entfernt."
+        "removed": "Die Anpassung für {{title}} ist entfernt.",
+        "count_one": "{{count}} Anpassung",
+        "count_other": "{{count}} Anpassungen"
       },
       "rowSettings": "Wo die Reihe auf der Startseite steht und ob sie erscheint, stellst du unter «Startseite» ein.",
       "rowSettingsLink": "Zur Seite «Startseite»"

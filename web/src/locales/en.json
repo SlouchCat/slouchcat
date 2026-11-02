@@ -1581,6 +1581,12 @@
       "title": "Spotlight",
       "intro": "A public Trakt list as a row of the start page. Only titles in your own library are shown; each profile sees only what its age rating allows.",
       "enabled": "Show on the start page",
+      "enabledHint": "Takes effect with “Save”, together with the source.",
+      "unsaved": "Unsaved changes",
+      "row": {
+        "shown": "On the start page",
+        "missing": "Missing from the start page"
+      },
       "lists": {
         "trending": "Trending on Trakt",
         "popular": "Popular on Trakt",
@@ -1664,7 +1670,9 @@
         "show": "Show",
         "showLabel": "Show {{title}}",
         "hidden": "{{title}} is hidden.",
-        "shown": "{{title}} is shown again."
+        "shown": "{{title}} is shown again.",
+        "count_one": "{{count}} entry",
+        "count_other": "{{count}} entries"
       },
       "pin": {
         "action": "Pin",
@@ -1672,7 +1680,9 @@
         "title": "Pin {{title}}",
         "rank": "Place in the row",
         "rankHint": "1 is the first place. The place holds for the whole list; a profile with fewer hits sees the title earlier.",
-        "done": "{{title}} is pinned to place {{rank}}."
+        "done": "{{title}} is pinned to place {{rank}}.",
+        "taken": "{{hint}} Taken: {{places}}.",
+        "takenPlace": "place {{rank}} ({{title}})"
       },
       "unpin": {
         "action": "Unpin",
@@ -1694,7 +1704,9 @@
         "override": "Override",
         "remove": "Remove",
         "removeLabel": "Remove the override of {{title}}",
-        "removed": "The override of {{title}} is removed."
+        "removed": "The override of {{title}} is removed.",
+        "count_one": "{{count}} override",
+        "count_other": "{{count}} overrides"
       },
       "rowSettings": "Where the row stands on the start page and whether it appears is set under “Start page”.",
       "rowSettingsLink": "Go to “Start page”"

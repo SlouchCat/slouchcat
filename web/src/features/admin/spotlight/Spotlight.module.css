@@ -1,0 +1,128 @@
+/* The spotlight page (concept 12, variant A, mockup Spo-A): what AdminPage, BandPanel, SettingRow
+   and DataTable do not lay out themselves. The source form, its foot, the cells of the tables and
+   the dialogs. */
+
+/* A live region that is always there (role status), so even its first message is announced.
+   Empty, it takes back the gap of the page's column it stands in. */
+.live:empty {
+  margin-block-start: calc(-1 * var(--sc-section-gap));
+}
+
+/* The source: the switch as a setting row, then the list, the media and the four numbers. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  min-width: 0;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.numberFields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--sc-space-4);
+  align-items: start;
+}
+
+/* The form's last lines, set off by a hairline: the state of the fetch and the two buttons. */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-top: var(--sc-space-4);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.state {
+  display: flex;
+  flex: 1 1 24rem;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.stateLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+  margin: 0;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+}
+
+/* The cells of the tables. */
+.rank {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.title {
+  font-weight: var(--sc-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.dot {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* A hidden entry: its poster and title at half strength, as on the mockup. */
+.dimmed {
+  opacity: 0.5;
+}
+
+/* A note in full, wrapped where it has to (S-5: reachable without a pointer). */
+.noteCell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+  max-width: 24rem;
+}
+
+.note {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
