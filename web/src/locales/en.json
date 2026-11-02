@@ -763,6 +763,23 @@
       "title": "Libraries",
       "intro": "Folders Slouchcat watches and the state of their scans.",
       "empty": "No library yet.",
+      "tabs": {
+        "label": "Libraries by kind",
+        "all": "All",
+        "count_one": "{{count}} library",
+        "count_other": "{{count}} libraries",
+        "empty": "No library of this kind.",
+        "caption": "Libraries: {{tab}}"
+      },
+      "columns": {
+        "library": "Library",
+        "kind": "Kind",
+        "state": "State",
+        "counts": "Titles · files",
+        "folders": "Folders",
+        "metadata": "Metadata"
+      },
+      "none": "–",
       "roots": "Folders",
       "fsType": "File system {{type}}",
       "watch": {
@@ -800,15 +817,14 @@
       },
       "add": {
         "title": "Add library",
-        "submit": "Add",
-        "submitting": "Adding …"
+        "submitting": "Adding …",
+        "created": "The library {{name}} has been added."
       },
       "cancel": "Cancel scan",
       "defaultRating": "Default: {{rating}}",
       "noRoots": "No folder: the titles come from subscribed feeds.",
       "changeRating": {
         "action": "Change default rating",
-        "label": "Change the default rating of {{name}}",
         "title": "Default rating of {{name}}",
         "description": "Every title whose rating comes from the library follows at once. Ratings set by hand stay.",
         "submit": "Save",
@@ -819,10 +835,6 @@
         "description": "A library can hold several folders. The scan and the watcher pick up a new one at once.",
         "none": "This library has no folder. Nothing is scanned until you add one.",
         "content": "Titles: {{items}} · files: {{files}}",
-        "add": {
-          "label": "Add a folder",
-          "submit": "Add"
-        },
         "remove": {
           "action": "Remove",
           "label": "Remove the folder {{path}}",
@@ -863,10 +875,10 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "Metadata: like the server",
-        "texts": "Metadata: languages deviate",
-        "images": "Metadata: images deviate",
-        "both": "Metadata: languages and images deviate",
+        "like": "like the server",
+        "texts": "languages deviate",
+        "images": "images deviate",
+        "both": "languages and images deviate",
         "link": "Metadata of the library"
       }
     },

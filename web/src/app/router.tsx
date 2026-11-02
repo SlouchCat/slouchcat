@@ -351,7 +351,12 @@ const adminItemRoute = createRoute({
 const librariesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/libraries',
-  component: lazyRouteComponent(() => import('@/features/admin/LibrariesPage'), 'LibrariesPage'),
+  // `?tab=` filters the libraries by kind (concept 12, Bib-C).
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(
+    () => import('@/features/admin/libraries/LibrariesPage'),
+    'LibrariesPage',
+  ),
 });
 
 const podcastsRoute = createRoute({

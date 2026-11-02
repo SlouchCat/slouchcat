@@ -21,16 +21,11 @@ import {
   providerListError,
   type FolderEntry,
 } from '@/ui/aria';
-import { browseKey } from '../shared/pathBrowser';
-import { PathBrowserButton } from '../shared/PathBrowserButton';
-import { librariesQuery, metadataProvidersQuery } from './queries';
+import { browseKey } from '../../shared/pathBrowser';
+import { PathBrowserButton } from '../../shared/PathBrowserButton';
+import { librariesQuery, metadataProvidersQuery } from '../queries';
+import { watchKeys } from './libraryColumns';
 import styles from './LibraryFoldersDialog.module.css';
-
-const watchKeys = {
-  inotify: 'admin.libraries.watch.inotify',
-  poll: 'admin.libraries.watch.poll',
-  inotify_poll: 'admin.libraries.watch.inotify_poll',
-} as const;
 
 interface LibraryFoldersDialogProps {
   library: Library;
@@ -43,8 +38,8 @@ interface LibraryFoldersDialogProps {
 /**
  * "Edit library": the folders of a library, one row each with content and provider list, a way
  * in («Neue Ordner», several at once, F-13), «Ändern» (content and list, ADR 0015) and a way out
- * (idea 02, E8 and E16). The card itself only names how many there are, so it stays short for a
- * library with five of them.
+ * (idea 02, E8 and E16). The page's row only names how many there are and lists them in its
+ * fold-out; the sources are ordered by position here (concept 12, S-16).
  *
  * Removing is the first destructive operation on a library in this project, so it goes through
  * ConfirmInputDialog: the path has to be typed out (E12, E17). What the text promises is what
@@ -201,7 +196,7 @@ export function LibraryFoldersDialog({
                       {t('admin.libraries.folders.change.action')}
                     </AriaButton>
                     <AriaButton
-                      variant="ghost"
+                      variant="danger"
                       icon="trash"
                       aria-label={t('admin.libraries.folders.remove.label', { path: root.path })}
                       isPending={remove.isPending && remove.variables?.root.id === root.id}
@@ -233,6 +228,7 @@ export function LibraryFoldersDialog({
               min={0}
               namePrefix="roots"
               fieldErrors={addErrors?.fields}
+              ordering="rank"
               pathButton={(folder, inputRef) => (
                 <PathBrowserButton
                   path={folder.path}
@@ -401,6 +397,7 @@ function ChangeRootDialog({
             onChange={setList}
             infos={providers.data}
             error={errors?.fields.providers ?? errors?.fields.content}
+            ordering="rank"
           />
           {contentChanges && (
             <Notice tone="warning" live={false}>

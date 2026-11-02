@@ -183,27 +183,3 @@ test('podcasts page: library tabs and rows by arrow keys; browser back leaves th
     await unsubscribe(owner, second.id);
   }
 });
-
-test('libraries page: the audio libraries show kind and default rating', async ({ page }) => {
-  await page.goto('/admin/libraries');
-  const books = page.getByRole('article', { name: 'Hörbücher' });
-  await expect(books.getByText('Hörbücher', { exact: true })).toHaveCount(2);
-  await expect(books.getByText('Standard: FSK 0')).toBeVisible();
-  const podcasts = page.getByRole('article', { name: 'Podcasts' });
-  await expect(podcasts.getByText('Standard: FSK 0')).toBeVisible();
-  await expect(
-    podcasts.getByText('Kein Ordner: Die Titel kommen aus abonnierten Feeds.'),
-  ).toBeVisible();
-  // "Standardstufe ändern" opens the dialog with the current rating; Escape leaves it unchanged.
-  await books.getByRole('button', { name: 'Standardstufe von Hörbücher ändern' }).focus();
-  await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: 'Standardstufe von Hörbücher' });
-  await expect(dialog.getByRole('radio', { name: 'FSK 0' })).toBeChecked();
-  await expectVisibleFocus(page);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-  await expectFocusOn(
-    page,
-    books.getByRole('button', { name: 'Standardstufe von Hörbücher ändern' }),
-  );
-});

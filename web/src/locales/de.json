@@ -763,6 +763,23 @@
       "title": "Bibliotheken",
       "intro": "Ordner, die Slouchcat beobachtet, und der Stand ihrer Scans.",
       "empty": "Noch keine Bibliothek angelegt.",
+      "tabs": {
+        "label": "Bibliotheken nach Art",
+        "all": "Alle",
+        "count_one": "{{count}} Bibliothek",
+        "count_other": "{{count}} Bibliotheken",
+        "empty": "Keine Bibliothek dieser Art.",
+        "caption": "Bibliotheken: {{tab}}"
+      },
+      "columns": {
+        "library": "Bibliothek",
+        "kind": "Art",
+        "state": "Zustand",
+        "counts": "Titel · Dateien",
+        "folders": "Ordner",
+        "metadata": "Metadaten"
+      },
+      "none": "–",
       "roots": "Ordner",
       "fsType": "Dateisystem {{type}}",
       "watch": {
@@ -800,15 +817,14 @@
       },
       "add": {
         "title": "Bibliothek hinzufügen",
-        "submit": "Hinzufügen",
-        "submitting": "Wird hinzugefügt …"
+        "submitting": "Wird hinzugefügt …",
+        "created": "Die Bibliothek {{name}} ist angelegt."
       },
       "cancel": "Scan abbrechen",
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Kein Ordner: Die Titel kommen aus abonnierten Feeds.",
       "changeRating": {
         "action": "Standardstufe ändern",
-        "label": "Standardstufe von {{name}} ändern",
         "title": "Standardstufe von {{name}}",
         "description": "Alle Titel, deren Stufe von der Bibliothek kommt, folgen sofort. Von Hand gesetzte Stufen bleiben.",
         "submit": "Speichern",
@@ -819,10 +835,6 @@
         "description": "Eine Bibliothek kann mehrere Ordner haben. Scan und Überwachung nehmen einen neuen Ordner sofort auf.",
         "none": "Diese Bibliothek hat keinen Ordner. Es wird nichts gescannt, bis du einen hinzufügst.",
         "content": "Titel: {{items}} · Dateien: {{files}}",
-        "add": {
-          "label": "Ordner hinzufügen",
-          "submit": "Hinzufügen"
-        },
         "remove": {
           "action": "Entfernen",
           "label": "Ordner {{path}} entfernen",
@@ -863,10 +875,10 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "Metadaten: wie Server",
-        "texts": "Metadaten: Sprachen abweichend",
-        "images": "Metadaten: Bilder abweichend",
-        "both": "Metadaten: Sprachen und Bilder abweichend",
+        "like": "wie Server",
+        "texts": "Sprachen abweichend",
+        "images": "Bilder abweichend",
+        "both": "Sprachen und Bilder abweichend",
         "link": "Metadaten der Bibliothek"
       }
     },

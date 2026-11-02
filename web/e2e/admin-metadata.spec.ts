@@ -380,12 +380,18 @@ test('a library deviates in its languages; the libraries page says so', async ({
     ).toBeVisible();
     expect((await libraryMetadataOf(owner, id)).textLangs).toEqual(['de']);
 
+    // The libraries page names the deviation in the row; its fold-out links here (concept 12).
     await page.goto('/admin/libraries');
-    const card = page.getByRole('article', { name: 'Dokus' });
-    await expect(card.getByText('Metadaten: Sprachen abweichend')).toBeVisible();
-    const link = card.getByRole('link', { name: 'Metadaten der Bibliothek' });
+    const toggle = page.getByRole('button', { name: 'Dokus', exact: true });
+    const row = page.getByRole('row').filter({ has: toggle });
+    await expect(row.getByText('Sprachen abweichend')).toBeVisible();
+    await tabToFromTop(page, toggle);
+    await page.keyboard.press('Enter');
+    const link = page
+      .getByRole('region', { name: 'Dokus', exact: true })
+      .getByRole('link', { name: 'Metadaten der Bibliothek' });
     await expect(link).toHaveAttribute('href', `/admin/metadata?library=${id}`);
-    await tabToFromTop(page, link);
+    await tabTo(page, link, 10);
     await page.keyboard.press('Enter');
     await expect(page.getByRole('heading', { level: 1, name: 'Metadaten' })).toBeVisible();
     await expect(scopeSelect(page)).toHaveValue(String(id));
