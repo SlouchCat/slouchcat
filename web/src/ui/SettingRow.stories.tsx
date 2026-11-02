@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { RadioGroup } from './RadioGroup';
 import { SettingRow } from './SettingRow';
 import { Switch } from './Switch';
+import { TextLink } from './TextLink';
 
 const Rows = () => (
   <div>
@@ -46,3 +47,29 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const Compact: Story = { globals: { density: 'compact' } };
+
+/** The help may hold a link (Spotlight: the key under «Integrationen»). */
+export const LinkInHelp: Story = {
+  render: () => (
+    <SettingRow
+      label="Trakt-Liste"
+      help={
+        <>
+          Öffentliche Listen, kein Trakt-Login.{' '}
+          <TextLink href="#">Schlüssel unter Integrationen</TextLink>
+        </>
+      }
+    >
+      <RadioGroup
+        name="list"
+        label="Trakt-Liste"
+        hideLabel
+        defaultValue="trending"
+        options={[
+          { value: 'trending', label: 'Trending bei Trakt' },
+          { value: 'popular', label: 'Beliebt bei Trakt' },
+        ]}
+      />
+    </SettingRow>
+  ),
+};

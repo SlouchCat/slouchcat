@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { SettingRow } from './SettingRow';
 import { Stack } from './Stack';
 import { TextField } from './TextField';
 
@@ -40,3 +41,19 @@ export const States: Story = {
 };
 
 export const Focused: Story = { tags: ['press:Tab'], args: { defaultValue: 'marco@' } };
+
+/**
+ * In a SettingRow the row shows the label and the help on the left; `hideLabel` keeps the label
+ * as the field's name for screen readers only, so it does not show twice.
+ */
+const InSettingRow = () => (
+  <SettingRow label="Höchstens" help="Titel in der Reihe, je Profil (5–20)">
+    <div style={{ width: '8rem' }}>
+      <TextField label="Höchstens" hideLabel type="number" defaultValue="12" />
+    </div>
+  </SettingRow>
+);
+
+export const HiddenLabel: Story = { render: InSettingRow };
+
+export const HiddenLabelCompact: Story = { render: InSettingRow, globals: { density: 'compact' } };
