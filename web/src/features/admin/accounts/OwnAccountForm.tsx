@@ -62,7 +62,8 @@ export function OwnAccountForm({
   dirty: boolean;
   onChange: (next: OwnAccountDraft) => void;
   onDiscard: () => void;
-  onSaved: () => void;
+  /** `sent` is stored: the page drops the draft if it still says what was sent. */
+  onSaved: (sent: OwnAccountDraft) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -73,7 +74,6 @@ export function OwnAccountForm({
     async (session) => {
       queryClient.setQueryData(sessionQuery.queryKey, session);
       await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
-      onSaved();
     },
   );
   // «Verwerfen» hides the answer to the discarded input; the next failed save shows its own.
@@ -92,11 +92,16 @@ export function OwnAccountForm({
     // The server needs at least one change; say so here instead of sending an empty update.
     setUnchanged(!changesEmail && !value.newPassword);
     if (!changesEmail && !value.newPassword) return;
-    void save.run({
-      ...(changesEmail ? { email: nextEmail } : {}),
-      currentPassword: value.currentPassword,
-      ...(value.newPassword ? { newPassword: value.newPassword } : {}),
-    });
+    const sent = value;
+    void save
+      .run({
+        ...(changesEmail ? { email: nextEmail } : {}),
+        currentPassword: value.currentPassword,
+        ...(value.newPassword ? { newPassword: value.newPassword } : {}),
+      })
+      .then((outcome) => {
+        if (outcome.ok) onSaved(sent);
+      });
   };
 
   return (

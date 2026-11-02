@@ -480,6 +480,64 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(within(schedule()).getByRole('combobox', { name: 'Takt' })).toHaveValue('7200');
   });
 
+  it('«Speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = mockApi(routes());
+    renderApp('/admin/jobs');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    const user = userEvent.setup();
+    await openRow(user, 'Bibliotheksscan');
+    const schedule = within(groupPanel()).getByRole('region', {
+      name: 'Zeitplan von Bibliotheksscan',
+    });
+    const save = within(schedule).getByRole('button', { name: 'Speichern' });
+    expect(save).toBeEnabled();
+    expect(within(schedule).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.filter((call) => call.method === 'PATCH')).toEqual([]);
+  });
+
+  it('keeps what is chosen while a schedule save waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let saved = false;
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/job-types': () => {
+          const data = overview();
+          if (saved) data.types[0]!.schedule!.everySeconds = 7200;
+          return json(data);
+        },
+        'PATCH /admin/job-types/scan.library/schedule': async () => {
+          await answered;
+          saved = true;
+          return json(overview().types[0]);
+        },
+      }),
+    );
+    renderApp('/admin/jobs');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    const user = userEvent.setup();
+    await openRow(user, 'Bibliotheksscan');
+    const schedule = () =>
+      within(groupPanel()).getByRole('region', { name: 'Zeitplan von Bibliotheksscan' });
+    await user.selectOptions(within(schedule()).getByRole('combobox', { name: 'Takt' }), '7200');
+    await user.click(within(schedule()).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1));
+
+    // Chosen while the save runs: it stays a draft once the answer is there.
+    await user.selectOptions(within(schedule()).getByRole('combobox', { name: 'Takt' }), '43200');
+    release();
+    expect(await screen.findByText('Zeitplan von Bibliotheksscan gespeichert.')).toBeVisible();
+    await waitFor(() =>
+      expect(within(schedule()).getByRole('combobox', { name: 'Takt' })).toHaveValue('43200'),
+    );
+    expect(within(schedule()).getByRole('button', { name: 'Verwerfen' })).toBeVisible();
+    expect(screen.getByText('Aktualisierung pausiert')).toBeVisible();
+  });
+
   it('pauses the live indicator for a draft; a window switched off again is no draft; a 422 clears on change', async () => {
     const { calls } = mockApi(
       routes({

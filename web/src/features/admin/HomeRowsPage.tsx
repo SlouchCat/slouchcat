@@ -115,7 +115,7 @@ function HomeRowsContent() {
       drafts.discard(DRAFT);
       say(t('admin.homeRows.saved'));
       await queryClient.invalidateQueries({ queryKey: ['home'] });
-      // «Speichern» went disabled with the draft.
+      // The controls were locked while saving; the focus stays where it was, or the h1 takes it.
       await afterRender();
       focusTitleIfLost(titleRef);
     },
@@ -147,8 +147,8 @@ function HomeRowsContent() {
   const onConfirmOpenChange = useCallback((open: boolean) => {
     setConfirmOpen(open);
     if (open) return;
-    // «Abbrechen» gives the focus back to «Verwerfen»; after discarding, that button is
-    // disabled and the h1 takes the focus (ALL-2).
+    // «Abbrechen» gives the focus back to «Verwerfen»; after discarding, that button is gone
+    // and the h1 takes the focus (ALL-2).
     void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 

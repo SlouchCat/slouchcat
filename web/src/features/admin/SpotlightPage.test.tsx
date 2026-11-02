@@ -361,6 +361,45 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(await within(card).findByText(/Spotlight ist ausgeschaltet/)).toBeVisible();
   });
 
+  it('«Speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = spotlightApi();
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const save = within(card).getByRole('button', { name: 'Speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
+  it('keeps what is typed while the save of the source waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = spotlightApi({
+      'PUT /admin/spotlight': async (call: Call) => {
+        await answered;
+        return json({ ...config, ...(call.body as object) } satisfies SpotlightConfig);
+      },
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const count = number(card, 'Höchstens');
+    await user.clear(count);
+    await user.type(count, '10');
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    // Typed while the save runs: it stays a draft once the answer is there.
+    await user.clear(count);
+    await user.type(count, '12');
+    release();
+    expect(await within(statusRegion()).findByText('Spotlight ist gespeichert.')).toBeVisible();
+    expect(count).toHaveValue(12);
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+  });
+
   it('a failed save that is not about a field shows on the page', async () => {
     spotlightApi({ 'PUT /admin/spotlight': () => problem(503, 'unavailable') });
     renderApp('/admin/spotlight');

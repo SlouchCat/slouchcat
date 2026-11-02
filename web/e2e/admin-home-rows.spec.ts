@@ -114,8 +114,8 @@ test('start page rows by keyboard: placing and hiding change the start page', as
     await page.keyboard.press('Enter');
     expect((await saved).status()).toBe(200);
     await expect(page.getByText('Die Startseite ist gespeichert.')).toBeVisible();
-    // «Speichern» is disabled now: the focus waits on the page head (ALL-2).
-    await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeFocused();
+    // «Speichern» stays usable (decision 18): the focus stays on it.
+    await expect(save).toBeFocused();
 
     const after = await rowOrder(page);
     expect(after.indexOf('Neu hinzugefügt')).toBeLessThan(after.indexOf('Weiterschauen'));

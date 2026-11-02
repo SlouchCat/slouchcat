@@ -316,6 +316,48 @@ describe('admin accounts (A-2, KP-1)', () => {
     expect(within(form).getByRole('button', { name: 'Zugriff speichern' })).toHaveFocus();
   });
 
+  it('«Zugriff speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = mockApi(routes());
+    renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const other = await openRow(user, 'gast@example.test');
+    const form = within(other).getByRole('region', { name: 'Zugriff von gast@example.test' });
+    const save = within(form).getByRole('button', { name: 'Zugriff speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
+  });
+
+  it('keeps an access change made while its save waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = mockApi(
+      routes({
+        'PATCH /admin/accounts/7': async () => {
+          await answered;
+          return new Response(null, { status: 204 });
+        },
+      }),
+    );
+    renderApp('/admin/accounts');
+    await screen.findByRole('table', { name: 'Konten' });
+    const user = userEvent.setup();
+    const other = await openRow(user, 'gast@example.test');
+    const form = within(other).getByRole('region', { name: 'Zugriff von gast@example.test' });
+    await user.click(within(form).getByRole('radio', { name: 'FSK 6' }));
+    await user.click(within(form).getByRole('button', { name: 'Zugriff speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PATCH')).toBe(true));
+    // Chosen while the save runs: it stays a draft once the answer is there.
+    await user.click(within(form).getByRole('radio', { name: '480p' }));
+    release();
+    expect(await screen.findByText('Zugriff von gast@example.test gespeichert.')).toBeVisible();
+    expect(within(form).getByRole('radio', { name: '480p' })).toBeChecked();
+    expect(within(form).getByRole('button', { name: 'Verwerfen' })).toBeVisible();
+  });
+
   it('keeps an unsaved access over folding and tabs, asks before leaving, and discards', async () => {
     const { calls } = mockApi(routes());
     renderApp('/admin/accounts');
@@ -458,6 +500,35 @@ describe('admin accounts (A-2, KP-1)', () => {
     // The draft is spent: the current password is empty again, the focus stays on the button.
     await waitFor(() => expect(within(form).getByLabelText(/^Aktuelles Passwort/)).toHaveValue(''));
     expect(within(form).getByRole('button', { name: 'Speichern' })).toHaveFocus();
+  });
+
+  it('keeps what is typed into the own account while its save waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const changed = { ...session, account: { ...session.account, email: 'neu@example.test' } };
+    const { calls } = mockApi(
+      routes({
+        'PUT /auth/account': async () => {
+          await answered;
+          return json(changed);
+        },
+      }),
+    );
+    const { user, form } = await openOwn();
+    const email = within(form).getByRole('textbox', { name: 'E-Mail-Adresse' });
+    await user.clear(email);
+    await user.type(email, 'neu@example.test');
+    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await user.click(within(form).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    // Typed while the save runs: it stays a draft once the answer is there.
+    await user.type(email, 'x');
+    release();
+    expect(await screen.findByText('Dein Konto ist gespeichert.')).toBeVisible();
+    expect(email).toHaveValue('neu@example.testx');
+    expect(within(form).getByRole('button', { name: 'Verwerfen' })).toBeVisible();
   });
 
   it('sends a new password only with a matching repeat of at least 10 characters', async () => {

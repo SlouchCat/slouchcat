@@ -192,9 +192,11 @@ function AdminItemView({ itemId }: { itemId: string }) {
           rating={drafts.valueOf(current.id) ?? ratingChoiceOf(current)}
           ratingDirty={drafts.isDirty(current.id)}
           onRatingChange={(value) => drafts.set(current.id, value)}
-          onRatingSave={() =>
-            saveRating.mutate(drafts.valueOf(current.id) ?? ratingChoiceOf(current))
-          }
+          onRatingSave={() => {
+            // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+            if (!drafts.isDirty(current.id)) return;
+            saveRating.mutate(drafts.valueOf(current.id) ?? ratingChoiceOf(current));
+          }}
           ratingSaving={saveRating.isPending}
           ratingError={saveRating.error}
         />

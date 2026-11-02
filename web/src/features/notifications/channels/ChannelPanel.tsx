@@ -26,9 +26,11 @@ interface ChannelPanelProps {
   isAdmin: boolean;
   /** The channel's values: the page's draft, else what the server holds. */
   values: ChannelDraft;
+  /** The values differ from what the server holds. */
+  dirty: boolean;
   onChange: (next: ChannelDraft) => void;
-  /** Stored: the page drops the draft. */
-  onSaved: () => void;
+  /** `sent` is stored as `saved`: the page drops the draft if it still says what was sent. */
+  onSaved: (sent: ChannelDraft, saved: ChannelSetting) => void;
   ask: Ask;
   /** The page asks for an open Telegram code every few seconds (false while it holds). */
   polling: boolean;
@@ -46,6 +48,7 @@ export function ChannelPanel({
   setting,
   isAdmin,
   values,
+  dirty,
   onChange,
   onSaved,
   ask,
@@ -67,9 +70,9 @@ export function ChannelPanel({
         ...(channel === 'email' && address ? { email: { address } } : {}),
       });
     },
-    onSuccess: (saved) => {
+    onSuccess: (saved, sent) => {
       store(saved);
-      onSaved();
+      onSaved(sent, saved);
       say(t('settings.notifications.saved'));
     },
   });
@@ -85,6 +88,8 @@ export function ChannelPanel({
   };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+    if (!dirty) return;
     setMessage(null);
     test.reset();
     save.mutate(values);

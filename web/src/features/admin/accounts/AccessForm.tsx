@@ -58,14 +58,14 @@ export function AccessForm({
   dirty: boolean;
   onChange: (next: AccessDraft) => void;
   onDiscard: () => void;
-  onSaved: () => Promise<void>;
+  onSaved: (sent: AccessDraft) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const saveButton = useRef<HTMLButtonElement>(null);
   const save = useMutation({
-    mutationFn: (body: AccountAccessUpdate) =>
+    mutationFn: ({ body }: { body: AccountAccessUpdate; sent: AccessDraft }) =>
       request(api.PATCH('/admin/accounts/{id}', { params: { path: { id: account.id } }, body })),
-    onSuccess: onSaved,
+    onSuccess: (_data, { sent }) => onSaved(sent),
   });
   const errors = save.error ? formErrors(t, save.error) : null;
   const set = (patch: Partial<AccessDraft>) => {
@@ -75,12 +75,17 @@ export function AccessForm({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+    if (!dirty) return;
     save.mutate({
-      maxRating: ratingOf(value.rating),
-      allLibraries: value.all,
-      libraryIds: value.all ? [] : libraryIdsOf(value.ids),
-      // W-8: bandwidth, quality and streams cap every profile of the account.
-      limits: limitsOf(value.limits, false),
+      body: {
+        maxRating: ratingOf(value.rating),
+        allLibraries: value.all,
+        libraryIds: value.all ? [] : libraryIdsOf(value.ids),
+        // W-8: bandwidth, quality and streams cap every profile of the account.
+        limits: limitsOf(value.limits, false),
+      },
+      sent: value,
     });
   };
 

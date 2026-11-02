@@ -25,7 +25,8 @@ export function KeyRow({
   const name = t(`admin.integrations.keys.${keyName}.name`);
   const field = `keys.${keyName}`;
   const save = useSecretUpdate((body) => {
-    drafts.discard(draft);
+    // A cleared key takes the typed input with it; a saved one only what was sent.
+    if (body.clear) drafts.discard(draft);
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const errors = save.error ? formErrors(t, save.error, { tmdbApiKey: field }) : null;
@@ -34,7 +35,11 @@ export function KeyRow({
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    void save.run({ keys: { [keyName]: value.trim() } });
+    const sent = value;
+    void save.run({ keys: { [keyName]: value.trim() } }).then((outcome) => {
+      // What was typed while the save ran stays a draft (decision 18, addendum 3).
+      if (outcome.ok) drafts.set(draft, (current) => (current === sent ? '' : current));
+    });
   };
 
   return (

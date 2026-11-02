@@ -151,6 +151,17 @@ const areaTitle: Record<string, string> = { Anwenden: 'Auf bestehende Titel anwe
 describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  it('«Speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = mockApi(routes());
+    renderApp('/admin/metadata');
+    await screen.findByRole('region', { name: 'Sprachen' });
+    const user = userEvent.setup();
+    const save = within(saveBar()).getByRole('button', { name: 'Speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
   it('puts the SaveBar into the page column, so it sticks while the areas scroll', async () => {
     mockApi(routes());
     renderApp('/admin/metadata');
@@ -277,7 +288,9 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const rating = await openArea(user, 'Altersfreigabe');
     expect(within(rating).getByRole('radio', { name: 'Deutschland (DE)' })).toBeChecked();
     expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
-    expect(within(saveBar()).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    // Nothing changed: «Speichern» stays, «Verwerfen» is not there (decision 18, addendum 3).
+    expect(within(saveBar()).getByRole('button', { name: 'Speichern' })).toBeEnabled();
+    expect(within(saveBar()).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
 
     const apply = await openArea(user, 'Anwenden');
     expect(

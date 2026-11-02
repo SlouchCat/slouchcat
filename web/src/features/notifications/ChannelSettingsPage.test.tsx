@@ -212,7 +212,10 @@ describe('notification channels page', () => {
     });
     renderApp('/settings/notifications');
     const mail = await block('E-Mail');
-    await userEvent.setup().click(within(mail).getByRole('button', { name: 'Speichern' }));
+    const user = userEvent.setup();
+    // Without a change «Speichern» sends nothing (decision 18): change the switch first.
+    await user.click(within(mail).getByRole('switch', { name: 'Aktiv' }));
+    await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
     expect(await within(mail).findByRole('alert')).toHaveTextContent(
       'Das darf nur das Hauptprofil dieses Kontos.',
     );
@@ -256,13 +259,54 @@ describe('notification channels page', () => {
     renderApp('/settings/notifications');
     const mail = await block('E-Mail');
     const user = userEvent.setup();
+    // Each save needs a change (decision 18): an event on, then off again.
+    await user.click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
     await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
     const first = await within(mail).findByText('Gespeichert.');
+    await user.click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
     await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
     // A new element in the region that is always there: screen readers read it again.
     await waitFor(() => expect(first).not.toBeInTheDocument());
     const second = await within(mail).findByText('Gespeichert.');
     expect(second.closest('[role="status"]')).toBeInTheDocument();
+  });
+
+  it('«Speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = mockApi(page);
+    renderApp('/settings/notifications');
+    const mail = await block('E-Mail');
+    const save = within(mail).getByRole('button', { name: 'Speichern' });
+    await userEvent.setup().click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
+  it('keeps a change made while the save waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = mockApi({
+      ...page,
+      'PUT /me/channels/email': async (call) => {
+        await answered;
+        return json({ ...email, ...(call.body as object), available: true });
+      },
+    });
+    renderApp('/settings/notifications');
+    const mail = await block('E-Mail');
+    const user = userEvent.setup();
+    await user.click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
+    await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    // Changed while the save runs: it stays a draft once the answer is there.
+    const neu = within(mail).getByRole('checkbox', { name: 'Neue Inhalte' });
+    const before = (neu as HTMLInputElement).checked;
+    await user.click(within(mail).getByRole('switch', { name: 'Aktiv' }));
+    release();
+    expect(await within(mail).findByText('Gespeichert.')).toBeVisible();
+    expect(within(mail).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    expect(neu).toHaveProperty('checked', before);
   });
 
   it('shows an invalid address at the field', async () => {
@@ -276,6 +320,9 @@ describe('notification channels page', () => {
     renderApp('/settings/notifications');
     const mail = await block('E-Mail');
     const user = userEvent.setup();
+    const address = within(mail).getByLabelText('E-Mail-Adresse');
+    await user.clear(address);
+    await user.type(address, 'familie@example');
     await user.click(within(mail).getByRole('button', { name: 'Speichern' }));
     expect(await within(mail).findByText('Bitte prüfe die markierten Felder.')).toBeVisible();
     expect(within(mail).getByLabelText('E-Mail-Adresse')).toHaveAttribute('aria-invalid', 'true');

@@ -20,7 +20,8 @@ export function TelegramForm({
   const token = fields.valueOf(TELEGRAM_DRAFT) ?? '';
   const name = t('admin.integrations.telegram.name');
   const save = useSecretUpdate((body) => {
-    fields.discard(TELEGRAM_DRAFT);
+    // A cleared token takes the typed input with it; a saved one only what was sent.
+    if (body.clear) fields.discard(TELEGRAM_DRAFT);
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const errors = save.error ? formErrors(t, save.error) : null;
@@ -29,7 +30,11 @@ export function TelegramForm({
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    void save.run({ telegram: { botToken: token.trim() } });
+    const sent = token;
+    void save.run({ telegram: { botToken: token.trim() } }).then((outcome) => {
+      // What was typed while the save ran stays a draft (decision 18, addendum 3).
+      if (outcome.ok) fields.set(TELEGRAM_DRAFT, (current) => (current === sent ? '' : current));
+    });
   };
 
   return (

@@ -338,7 +338,8 @@ interface JobHandlers {
   onCancelRuns: (type: string, scope: 'queued' | 'all') => void;
   onScheduleChange: (type: string, next: ScheduleDraft) => void;
   onScheduleDiscard: (type: string) => void;
-  onScheduleSaved: (type: string) => Promise<void>;
+  /** The save of `sent` went through. */
+  onScheduleSaved: (type: string, sent: ScheduleDraft) => Promise<void>;
   onRunSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
 }
@@ -554,9 +555,15 @@ function JobsContent() {
       onCancelRuns: (type, scope) => cancelRunsMutate({ type, scope }),
       onScheduleChange: (type, next) => setDraft(type, normaliseSchedule(next, originalOf(type))),
       onScheduleDiscard: discardDraft,
-      onScheduleSaved: async (type) => {
+      onScheduleSaved: async (type, sent) => {
         await settled(t('admin.jobs.messages.scheduleSaved', { name: typeName(t, type) }));
-        discardDraft(type);
+        // The draft is spent when it still says what was sent; what was typed while the save
+        // ran stays a draft.
+        setDraft(type, (current) =>
+          JSON.stringify(current) === JSON.stringify(sent)
+            ? (originalOf(type) ?? current)
+            : current,
+        );
       },
       onRunSettled: (text) => void settled(text, true),
       onFailure: failed,
@@ -1116,14 +1123,15 @@ function ScheduleBlock({
   dirty: boolean;
   onChange: (type: string, next: ScheduleDraft) => void;
   onDiscard: (type: string) => void;
-  onSaved: (type: string) => Promise<void>;
+  onSaved: (type: string, sent: ScheduleDraft) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const name = typeName(t, info.type);
   const saveButton = useRef<HTMLButtonElement>(null);
   const save = useMutation({
-    mutationFn: (body: JobScheduleUpdate) => updateJobSchedule(info.type, body),
-    onSuccess: () => onSaved(info.type),
+    mutationFn: ({ body }: { body: JobScheduleUpdate; sent: ScheduleDraft }) =>
+      updateJobSchedule(info.type, body),
+    onSuccess: (_data, { sent }) => onSaved(info.type, sent),
   });
   const errors = save.error ? formErrors(t, save.error) : null;
   const schedule = info.schedule;
@@ -1147,6 +1155,8 @@ function ScheduleBlock({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Nothing changed: nothing to send, the focus stays on «Speichern».
+    if (!dirty) return;
     const body: JobScheduleUpdate = { enabled: value.enabled, everySeconds: Number(value.every) };
     if (value.windowed) {
       const startMinute = minuteOf(value.start);
@@ -1156,7 +1166,7 @@ function ScheduleBlock({
     } else if (schedule.window) {
       body.clearWindow = true;
     }
-    save.mutate(body);
+    save.mutate({ body, sent: value });
   };
 
   return (

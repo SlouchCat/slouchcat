@@ -544,6 +544,22 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     );
   });
 
+  it('«Speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/collections': () => json([manual]),
+      [`GET /admin/collections/${manualId}`]: () => json(members),
+    });
+    renderApp('/admin/collections');
+    const user = userEvent.setup();
+    const region = await openRow(user, 'Filmabend');
+    const save = await within(region).findByRole('button', { name: 'Speichern' });
+    await waitFor(() => expect(save).toBeEnabled());
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
   it('says the same result twice: each message is a new node in the status region', async () => {
     mockApi({
       ...signedIn,
@@ -556,6 +572,12 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     const region = await openRow(user, 'Filmabend');
     const save = await within(region).findByRole('button', { name: 'Speichern' });
     await waitFor(() => expect(save).toBeEnabled());
+    // Without a change «Speichern» sends nothing (decision 18): Arrival first. The server answers
+    // with the old order, so the change stays and the second save sends it again.
+    await user.selectOptions(
+      await within(region).findByRole('combobox', { name: 'Platz für Arrival' }),
+      'Platz 1',
+    );
     await user.click(save);
     const first = await screen.findByText('Die Mitglieder von Filmabend sind gespeichert.');
     await user.click(save);
@@ -745,6 +767,11 @@ describe('admin collections page (M7, E-6; concept 12, Sam-C)', () => {
     const region = await openRow(user, 'Filmabend');
     const save = within(region).getByRole('button', { name: 'Speichern' });
     await waitFor(() => expect(save).toBeEnabled());
+    // Without a change «Speichern» sends nothing (decision 18): Arrival first.
+    await user.selectOptions(
+      await within(region).findByRole('combobox', { name: 'Platz für Arrival' }),
+      'Platz 1',
+    );
 
     mark();
     await user.click(save);

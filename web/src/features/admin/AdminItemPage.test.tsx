@@ -259,6 +259,17 @@ describe('admin item page', () => {
     expect(within(rating).getByRole('radio', { name: 'Aus Metadaten' })).toBeChecked();
   });
 
+  it('«Speichern» of an unchanged rating sends nothing and keeps the focus', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });
+    renderApp(base);
+    const rating = await openDisclosure(user, /^Freigabe/);
+    const save = within(rating).getByRole('button', { name: 'Speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.path === `${base}/rating`)).toBe(false);
+  });
+
   it('adds a manual trailer from a URL and deletes one after confirmation', async () => {
     const user = userEvent.setup();
     let current: AdminItem = item;

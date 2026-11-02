@@ -441,6 +441,54 @@ describe('integrations (A-2)', () => {
     ]);
   });
 
+  it('«Speichern» of an unchanged public address sends nothing and keeps the focus', async () => {
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/settings': () =>
+          json(settings({ publicUrl: 'https://media.example.ch', publicUrlSource: 'stored' })),
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const address = await serverRow('Öffentliche Adresse');
+    expect(within(address).getByLabelText('Adresse')).toHaveValue('https://media.example.ch');
+    const save = within(address).getByRole('button', { name: 'Speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(puts(calls)).toHaveLength(0);
+  });
+
+  it('keeps a key typed while its save waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = mockApi(
+      routes({
+        'PUT /admin/settings': async () => {
+          await answered;
+          return json(
+            settings({ keys: { ...settings().keys, youtube: { source: 'stored', hint: '0001' } } }),
+          );
+        },
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const field = await screen.findByLabelText('YouTube-API-Schlüssel');
+    await user.click(field);
+    await user.paste('yt-key-0001');
+    await user.click(screen.getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    // Typed while the save runs: it stays once the answer is there.
+    await user.click(field);
+    await user.paste('-2');
+    release();
+    expect(await screen.findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
+    expect(field).toHaveValue('yt-key-0001-2');
+    expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-key-0001' } }]);
+  });
+
   it('keeps the intro behind the help button; six blocks start open and fold by keyboard', async () => {
     mockApi(routes());
     renderApp('/admin/integrations');

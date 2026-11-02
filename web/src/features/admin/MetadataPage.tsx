@@ -521,7 +521,7 @@ export function MetadataPage() {
     setRestores([]);
     setSavedMessages([]);
     setFailure(null);
-    // The bar's buttons are disabled now; the focus goes to the page head (ALL-2).
+    // «Verwerfen» went with the changes; the focus goes to the page head (ALL-2).
     requestAnimationFrame(() => titleRef.current?.focus());
   };
 

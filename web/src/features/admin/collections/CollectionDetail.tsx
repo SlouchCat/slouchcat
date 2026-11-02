@@ -223,7 +223,10 @@ export function ManualMembers({
           variant="primary"
           isPending={save.isPending}
           isDisabled={!stored.isSuccess}
-          onPress={() => save.mutate(ids)}
+          onPress={() => {
+            // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+            if (dirty) save.mutate(ids);
+          }}
         >
           {save.isPending ? t('common.saving') : t('common.save')}
         </AriaButton>

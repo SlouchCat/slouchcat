@@ -51,7 +51,8 @@ function PublicUrlRow({ settings, fields }: { settings: AdminSettings; fields: D
   const value = fields.valueOf(PUBLIC_URL_DRAFT) ?? '';
   const name = t('admin.integrations.publicUrl.name');
   const save = useSettingsUpdate((body) => {
-    fields.discard(PUBLIC_URL_DRAFT);
+    // A cleared address takes the typed input with it; a saved one only what was sent.
+    if (body.clear) fields.discard(PUBLIC_URL_DRAFT);
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const errors = save.error ? formErrors(t, save.error) : null;
@@ -60,7 +61,19 @@ function PublicUrlRow({ settings, fields }: { settings: AdminSettings; fields: D
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    save.mutate({ publicUrl: value.trim() });
+    // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+    if (!fields.isDirty(PUBLIC_URL_DRAFT)) return;
+    const sent = value;
+    save.mutate(
+      { publicUrl: value.trim() },
+      {
+        // What was typed while the save ran stays a draft; what was sent is spent.
+        onSuccess: (saved) =>
+          fields.set(PUBLIC_URL_DRAFT, (current) =>
+            current === sent ? (saved.publicUrl ?? '') : current,
+          ),
+      },
+    );
   };
 
   return (

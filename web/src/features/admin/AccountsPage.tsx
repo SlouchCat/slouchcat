@@ -369,8 +369,14 @@ function AccountsContent() {
             onChange: (next) => own.set(id, normaliseOwnAccount(next)),
             onDiscard: () => own.discard(id),
           }}
-          onSaved={() => {
-            own.discard(id);
+          onSaved={(sent) => {
+            // The draft is spent when it still says what was sent; what was typed while the save
+            // ran stays a draft (decision 18, addendum 3).
+            own.set(id, (current) =>
+              JSON.stringify(current) === JSON.stringify(sent)
+                ? (ownOriginalOf(id) ?? current)
+                : current,
+            );
             said(t('admin.accounts.edit.saved'));
           }}
           titleRef={titleRef}
@@ -394,10 +400,15 @@ function AccountsContent() {
             onDiscard: () => access.discard(id),
           }
         }
-        onAccessSaved={async () => {
-          // The list holds the saved access first; then the draft is spent.
+        onAccessSaved={async (sent) => {
+          // The list holds the saved access first; then the draft is spent when it still says
+          // what was sent (what was changed while the save ran stays, decision 18).
           await queryClient.invalidateQueries({ queryKey: accountsQuery.queryKey });
-          access.discard(id);
+          access.set(id, (current) =>
+            JSON.stringify(current) === JSON.stringify(sent)
+              ? (accessOriginalOf(id) ?? current)
+              : current,
+          );
           said(t('admin.accounts.access.saved', { email: account.email }));
         }}
       />

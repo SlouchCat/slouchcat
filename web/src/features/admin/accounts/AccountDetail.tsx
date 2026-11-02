@@ -39,7 +39,8 @@ export function OwnAccountDetail({
 }: {
   account: AdminAccount;
   draft: DraftProps<OwnAccountDraft>;
-  onSaved: () => void;
+  /** `sent` is stored: the page drops the draft if it still says what was sent. */
+  onSaved: (sent: OwnAccountDraft) => void;
   titleRef: RefObject<HTMLHeadingElement | null>;
   hold: boolean;
   /** The profile dialogs are open: the page holds its queries too. */
@@ -109,7 +110,8 @@ export function OtherAccountDetail({
   account: AdminAccount;
   libraries: LibraryOptions;
   access: DraftProps<AccessDraft> | undefined;
-  onAccessSaved: () => Promise<void>;
+  /** `sent` is stored: the page drops the draft if it still says what was sent. */
+  onAccessSaved: (sent: AccessDraft) => Promise<void>;
 }) {
   const { t } = useTranslation();
   let first: ReactNode;

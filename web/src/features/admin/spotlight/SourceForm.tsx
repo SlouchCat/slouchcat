@@ -21,6 +21,7 @@ import {
   spotlightEntriesQuery,
   traktStatusQuery,
   type SpotlightConfig,
+  type SpotlightConfigUpdate,
   type SpotlightEntries,
 } from '../queries';
 import { FetchState } from './FetchState';
@@ -128,10 +129,17 @@ export function SourceForm({
   const media = allowedMedia.includes(draft.media) ? draft.media : (allowedMedia[0] ?? draft.media);
 
   const save = useMutation({
-    mutationFn: setSpotlightConfig,
-    onSuccess: async (saved) => {
+    mutationFn: ({ body }: { body: SpotlightConfigUpdate; sent: SourceDraft }) =>
+      setSpotlightConfig(body),
+    onSuccess: async (saved, { sent }) => {
       queryClient.setQueryData(spotlightConfigQuery.queryKey, saved);
-      drafts.discard(SOURCE_DRAFT);
+      // The draft is spent when it still says what was sent; what was typed while the save ran
+      // stays a draft (decision 18, addendum 3).
+      drafts.set(SOURCE_DRAFT, (current) =>
+        JSON.stringify(normalised(current)) === JSON.stringify(normalised(sent))
+          ? sourceDraftOf(saved)
+          : current,
+      );
       onSaved(t('admin.spotlight.source.saved'));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: traktStatusQuery.queryKey }),
@@ -153,16 +161,21 @@ export function SourceForm({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+    if (!sourceChanged(drafts, config)) return;
     onStart();
     save.mutate({
-      enabled: draft.enabled,
-      listKey: draft.listKey,
-      media,
-      itemCount: Number(draft.itemCount.trim()),
-      minHits: Number(draft.minHits.trim()),
-      intervalHours: Number(draft.intervalHours.trim()),
-      rotationSeconds: Number(draft.rotationSeconds.trim()),
-      ...(kind?.needsUrl ? { listUrl: draft.listUrl.trim() } : {}),
+      body: {
+        enabled: draft.enabled,
+        listKey: draft.listKey,
+        media,
+        itemCount: Number(draft.itemCount.trim()),
+        minHits: Number(draft.minHits.trim()),
+        intervalHours: Number(draft.intervalHours.trim()),
+        rotationSeconds: Number(draft.rotationSeconds.trim()),
+        ...(kind?.needsUrl ? { listUrl: draft.listUrl.trim() } : {}),
+      },
+      sent: draft,
     });
   };
   const required = (value: string) => (value.trim() ? null : t('errors.field.required'));

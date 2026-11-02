@@ -91,8 +91,9 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
       'Die anderen Einträge rücken nach.',
     );
     expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
-    expect(within(saveBar()).getByRole('button', { name: 'Speichern' })).toBeDisabled();
-    expect(within(saveBar()).getByRole('button', { name: 'Verwerfen' })).toBeDisabled();
+    // Nothing changed: «Speichern» stays, «Verwerfen» is not there (decision 18, addendum 3).
+    expect(within(saveBar()).getByRole('button', { name: 'Speichern' })).toBeEnabled();
+    expect(within(saveBar()).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
 
     // One up: «Neu hinzugefügt» and «Weiterschauen» trade places; the select keeps the focus.
     await user.click(rank('Neu hinzugefügt'));
@@ -148,12 +149,24 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(body.map((row) => row.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     expect(body.find((row) => row.key === 'genres')?.hidden).toBe(true);
     expect(body.filter((row) => row.hidden)).toHaveLength(1);
-    // Saved: the bar says so, and the focus left with the disabled «Speichern» goes to the h1.
+    // Saved: the bar says so, and the focus stays on «Speichern», which stays usable (decision 18).
     expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
     await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: 'Startseite' })).toHaveFocus(),
+      expect(within(saveBar()).getByRole('button', { name: 'Speichern' })).toHaveFocus(),
     );
+    expect(within(saveBar()).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
     expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Startseite');
+  });
+
+  it('«Speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = mockApi(storingRoutes());
+    await renderAdminPage('/admin/home-rows');
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    const user = userEvent.setup();
+    const save = within(saveBar()).getByRole('button', { name: 'Speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
   });
 
   it('puts the SaveBar into the page column, so it sticks while the rows scroll', async () => {
@@ -214,7 +227,7 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     ).not.toBeChecked();
     expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
     expect(screen.getByRole('status')).toHaveTextContent('Die Änderungen sind verworfen.');
-    // «Verwerfen» went disabled: the h1 takes the focus.
+    // «Verwerfen» went away with the changes: the h1 takes the focus.
     await waitFor(() =>
       expect(screen.getByRole('heading', { level: 1, name: 'Startseite' })).toHaveFocus(),
     );

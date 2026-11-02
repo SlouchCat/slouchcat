@@ -20,7 +20,7 @@ type Story = StoryObj<typeof meta>;
 /** Changed: «Verwerfen» and «Speichern» are active. */
 export const Dirty: Story = {};
 
-/** Nothing changed: «Gespeichert», both buttons wait. */
+/** Nothing changed: «Gespeichert», no «Verwerfen»; «Speichern» stays and sends nothing. */
 export const Clean: Story = { args: { dirty: false } };
 
 export const Compact: Story = { globals: { density: 'compact' } };

@@ -193,8 +193,17 @@ export function ChannelSettingsPage() {
                       setting={setting}
                       isAdmin={isAdmin}
                       values={drafts.valueOf(channel) ?? channelDraftOf(setting, accountEmail)}
+                      dirty={drafts.isDirty(channel)}
                       onChange={(next) => drafts.set(channel, next)}
-                      onSaved={() => drafts.discard(channel)}
+                      // The draft is spent when it still says what was sent; what was changed
+                      // while the save ran stays a draft (decision 18, addendum 3).
+                      onSaved={(sent, saved) =>
+                        drafts.set(channel, (current) =>
+                          JSON.stringify(current) === JSON.stringify(sent)
+                            ? channelDraftOf(saved, accountEmail)
+                            : current,
+                        )
+                      }
                       ask={ask}
                       polling={polls}
                       focusTitleIfLost={refocusTitle}

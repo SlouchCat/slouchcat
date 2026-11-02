@@ -38,8 +38,11 @@ export function EmailForm({
   const password = fields.valueOf(PASSWORD_DRAFT) ?? '';
   const name = t('admin.integrations.email.name');
   const save = useSecretUpdate((body) => {
-    drafts.discard(EMAIL_DRAFT);
-    fields.discard(PASSWORD_DRAFT);
+    // A cleared server takes the typed input with it; a saved one only what was sent.
+    if (body.clear) {
+      drafts.discard(EMAIL_DRAFT);
+      fields.discard(PASSWORD_DRAFT);
+    }
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const test = useMutation({
@@ -57,16 +60,31 @@ export function EmailForm({
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage(null);
-    void save.run({
-      email: {
-        host: values.host.trim(),
-        port: Number(values.port),
-        ...(values.user.trim() ? { user: values.user.trim() } : {}),
-        ...(password ? { password } : {}),
-        from: values.from.trim(),
-        tls: values.tls,
-      },
-    });
+    // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+    if (!drafts.isDirty(EMAIL_DRAFT) && !password) return;
+    const sent = values;
+    const sentPassword = password;
+    void save
+      .run({
+        email: {
+          host: values.host.trim(),
+          port: Number(values.port),
+          ...(values.user.trim() ? { user: values.user.trim() } : {}),
+          ...(password ? { password } : {}),
+          from: values.from.trim(),
+          tls: values.tls,
+        },
+      })
+      .then((outcome) => {
+        if (!outcome.ok) return;
+        // What was typed while the save ran stays a draft (decision 18, addendum 3).
+        drafts.set(EMAIL_DRAFT, (current) =>
+          JSON.stringify(current) === JSON.stringify(sent)
+            ? emailValues(outcome.data.email)
+            : current,
+        );
+        fields.set(PASSWORD_DRAFT, (current) => (current === sentPassword ? '' : current));
+      });
   };
 
   // `email_send_failed` names why (without secrets) in the problem's detail.

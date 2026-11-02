@@ -190,7 +190,9 @@ test('the default scope lists the areas and the languages, the save bar is clean
   // The default needs Deutsch (MET-2): its «×» is off.
   await expect(list.getByRole('button', { name: '1. Sprache (Deutsch) entfernen' })).toBeDisabled();
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
-  await expect(saveBar(page).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+  // Nothing changed: «Speichern» stays usable and «Verwerfen» is not there (decision 18).
+  await expect(saveBar(page).getByRole('button', { name: 'Speichern' })).toBeEnabled();
+  await expect(saveBar(page).getByRole('button', { name: 'Verwerfen' })).toHaveCount(0);
 
   // The list is one Tab stop: ↓ moves, Enter selects; the detail follows.
   await tabToFromTop(page, areas(page).getByRole('option', { name: 'Sprachen' }));
@@ -330,7 +332,7 @@ test('the rating country changes with the arrow keys; "Verwerfen" asks and drops
   await page.keyboard.press('Enter');
   await expect(dialog).toBeHidden();
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
-  // The bar's buttons are disabled now: the focus waits on the page head (ALL-2).
+  // «Verwerfen» went with the changes: the focus waits on the page head (ALL-2).
   await expect(page.getByRole('heading', { level: 1, name: 'Metadaten' })).toBeFocused();
   await expect(group.getByRole('radio', { checked: true })).toHaveAccessibleName(
     new RegExp(`\\(${before.ratingCountry}\\)`),
