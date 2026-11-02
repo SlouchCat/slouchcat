@@ -1,4 +1,4 @@
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createProfile, loginOwner } from './accounts';
 import { CSRF, H264_TITLE } from './catalog';
 import { createPick, titleId } from './curation';
@@ -12,11 +12,13 @@ import {
 } from './keyboard';
 import { arrowTo } from './playback';
 
-// /admin/picks (M7, E-2) by keyboard (rule 8): add a title for every profile with a note, move it
-// to the front of the picks row, give it a time window in the past and in the future, remove it; a
-// pick for one profile reaches only that profile, and a title rated 18 never reaches a profile
-// rated 12 (E-3). The picks are a poster row on the start page, never the stage (M11, plan 3.5);
-// the spotlight band above them runs with reduced motion, so the page stands still.
+// /admin/picks (M7, E-2; concept 12, variant C) by keyboard (rule 8): add a title for every
+// profile with a note, choose its place at the front of the picks row, give it a time window in
+// the past and in the future in its fold-out, find it in the tabs «Abgelaufen» and «Geplant»,
+// leave with unsaved input only after a question, remove it; a pick for one profile reaches only
+// that profile, and a title rated 18 never reaches a profile rated 12 (E-3). The picks are a
+// poster row on the start page, never the stage (M11, plan 3.5); the spotlight band above them
+// runs with reduced motion, so the page stands still.
 
 const SUBTITLES_TITLE = 'Slouchcat Test Subtitles';
 const PGS_TITLE = 'Slouchcat Test PGS';
@@ -53,38 +55,78 @@ async function setRating(owner: APIRequestContext, itemId: string, rating: numbe
   expect(response.status(), await response.text()).toBe(200);
 }
 
+/** The table of the open tab. */
+const picksTable = (page: Page) =>
+  page.getByRole('table', { name: 'Empfehlungen in der Reihenfolge der Reihe' });
+
+/** The row of `title` in the open tab. */
+const pickRow = (page: Page, title: string) =>
+  picksTable(page)
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader').getByText(title, { exact: true }) });
+
+/** The button in the row header of `title` that folds the row out. */
+const pickToggle = (page: Page, title: string) =>
+  pickRow(page, title).getByRole('rowheader').getByRole('button');
+
+/** The fold-out of `title`, found by the toggle's `aria-controls` (it follows a move). */
+async function foldOut(page: Page, title: string): Promise<Locator> {
+  const id = await pickToggle(page, title).getAttribute('aria-controls');
+  expect(id, `fold-out of ${title}`).toBeTruthy();
+  return page.locator(`[id="${id}"]`);
+}
+
+/** Folds out the row of `title` by keyboard: Tab from the top of the page to its toggle, Enter. */
+async function openByKeyboard(page: Page, title: string): Promise<Locator> {
+  const toggle = pickToggle(page, title);
+  await resetFocus(page);
+  await tabTo(page, toggle, 60);
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  return foldOut(page, title);
+}
+
+/** The «Stelle» of `title` in its fold-out. */
+async function placeOf(page: Page, title: string): Promise<Locator> {
+  return (await foldOut(page, title)).getByRole('combobox', { name: `Platz für ${title}` });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
-test('picks page by keyboard: add with a note, move to the top, time window, remove', async ({
+test('picks page by keyboard: add with a note, place at the top, time window in the fold-out, tabs, remove', async ({
   page,
   owner,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const note = 'E2E: unbedingt mit Untertiteln schauen';
   await page.goto('/admin/picks');
-  await expect(page.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" })).toBeVisible();
+  const heading = page.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" });
+  await expect(heading).toBeVisible();
   await expect(
     page
       .getByRole('navigation', { name: 'Verwaltung' })
       .getByRole('link', { name: "Cat's Empfehlungen" }),
   ).toHaveAttribute('aria-current', 'page');
-  const card = page.getByRole('region', { name: 'Empfehlungen in der Reihenfolge der Reihe' });
-  const table = card.getByRole('table', { name: 'Empfehlungen in der Reihenfolge der Reihe' });
-  const row = (title: string) =>
-    table
-      .getByRole('row')
-      .filter({ has: page.getByRole('rowheader').getByText(title, { exact: true }) });
+  const tabs = page.getByRole('tablist', { name: 'Empfehlungen nach Zeitraum' });
+  await expect(tabs.getByRole('tab', { selected: true })).toHaveAccessibleName(
+    /^Alle \d+ Empfehlung(en)?$/,
+  );
   // The global setup's pick of the H264 film.
-  await expect(row(H264_TITLE)).toHaveCount(1);
+  await expect(pickRow(page, H264_TITLE)).toHaveCount(1);
 
-  // "Hinzufügen": search, choose, note, Enter.
+  // "Hinzufügen": Escape closes the dialog onto its button; then search, choose, note, Enter.
   await resetFocus(page);
   const add = page.getByRole('button', { name: 'Hinzufügen' });
   await tabTo(page, add);
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Empfehlung hinzufügen' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expectFocusOn(page, add);
+  await page.keyboard.press('Enter');
   await expect(dialog).toBeVisible();
   const search = dialog.getByRole('searchbox', { name: 'Titel suchen' });
   await expectFocusOn(page, search);
@@ -107,52 +149,53 @@ test('picks page by keyboard: add with a note, move to the top, time window, rem
   await expect(dialog).toHaveCount(0);
   await expect(page.getByText(`${SUBTITLES_TITLE} ist in Cat's Empfehlungen.`)).toBeVisible();
   await expectFocusOn(page, add);
-  await expect(row(SUBTITLES_TITLE)).toContainText(note);
-  await expect(row(SUBTITLES_TITLE)).toContainText('Alle');
+  await expect(pickRow(page, SUBTITLES_TITLE)).toContainText(note);
+  await expect(pickRow(page, SUBTITLES_TITLE)).toContainText('Alle');
 
-  // ↓/↑ move between the rows (DataTable): to the first enabled control of the row above ("Nach
-  // oben" is disabled in the first row).
-  await row(SUBTITLES_TITLE)
-    .getByRole('button', { name: `${SUBTITLES_TITLE} bearbeiten` })
-    .focus();
-  await arrowTo(
-    page,
-    row(H264_TITLE).getByRole('button', { name: `${H264_TITLE} nach unten` }),
-    'ArrowUp',
-  );
+  // ↑/↓ move between the rows (DataTable): from the new title's toggle to the other's and back;
+  // Enter folds the new pick out.
+  await resetFocus(page);
+  await tabTo(page, pickToggle(page, SUBTITLES_TITLE), 60);
+  await arrowTo(page, pickToggle(page, H264_TITLE), 'ArrowUp');
   await expectVisibleFocus(page);
-
-  // "Nach oben" by keyboard: the new pick leads the picks row; at the top the focus moves to
-  // "Nach unten" of the same title.
-  const up = row(SUBTITLES_TITLE).getByRole('button', { name: `${SUBTITLES_TITLE} nach oben` });
-  await tabTo(page, up, 30);
-  const reordered = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'PUT' && response.url().endsWith('/admin/picks/order'),
-  );
+  await arrowTo(page, pickToggle(page, SUBTITLES_TITLE), 'ArrowDown');
   await page.keyboard.press('Enter');
-  expect((await reordered).status()).toBe(204);
-  await expectFocusOn(
-    page,
-    row(SUBTITLES_TITLE).getByRole('button', { name: `${SUBTITLES_TITLE} nach unten` }),
-  );
-  await expect(table.getByRole('rowheader').first()).toHaveText(new RegExp(`^${SUBTITLES_TITLE}`));
-  expect((await pickTitles(owner)).slice(0, 2)).toEqual([SUBTITLES_TITLE, H264_TITLE]);
+  await expect(pickToggle(page, SUBTITLES_TITLE)).toHaveAttribute('aria-expanded', 'true');
 
-  // The same by mouse (E-2: mouse and keyboard): down and up again, each saved.
-  for (const [direction, order] of [
-    ['nach unten', [H264_TITLE, SUBTITLES_TITLE]],
-    ['nach oben', [SUBTITLES_TITLE, H264_TITLE]],
-  ] as const) {
-    const saved = page.waitForResponse(
+  // «Stelle» by keyboard: ↑ puts it first, the others move along, the choice keeps the focus.
+  let place = await placeOf(page, SUBTITLES_TITLE);
+  await tabTo(page, place, 20);
+  await expect(place).toHaveValue('1');
+  await expect(place).toHaveAccessibleDescription('Die anderen Einträge rücken nach.');
+  const reorder = () =>
+    page.waitForResponse(
       (response) =>
         response.request().method() === 'PUT' && response.url().endsWith('/admin/picks/order'),
     );
-    await row(SUBTITLES_TITLE)
-      .getByRole('button', { name: `${SUBTITLES_TITLE} ${direction}` })
-      .click();
-    expect((await saved).status()).toBe(204);
-    await expect(table.getByRole('rowheader').first()).toHaveText(new RegExp(`^${order[0]}`));
+  let reordered = reorder();
+  await page.keyboard.press('ArrowUp');
+  expect((await reordered).status()).toBe(204);
+  await expect(picksTable(page).getByRole('rowheader').first()).toHaveText(
+    new RegExp(`^${SUBTITLES_TITLE}`),
+  );
+  place = await placeOf(page, SUBTITLES_TITLE);
+  await expectFocusOn(page, place);
+  await expect(place).toHaveValue('0');
+  await expect(page.getByText(`${SUBTITLES_TITLE} steht jetzt an Stelle 1.`)).toBeVisible();
+  expect((await pickTitles(owner)).slice(0, 2)).toEqual([SUBTITLES_TITLE, H264_TITLE]);
+
+  // ↓ and ↑ again, each saved at once.
+  for (const [key, order] of [
+    ['ArrowDown', [H264_TITLE, SUBTITLES_TITLE]],
+    ['ArrowUp', [SUBTITLES_TITLE, H264_TITLE]],
+  ] as const) {
+    reordered = reorder();
+    await page.keyboard.press(key);
+    expect((await reordered).status()).toBe(204);
+    await expect(picksTable(page).getByRole('rowheader').first()).toHaveText(
+      new RegExp(`^${order[0]}`),
+    );
+    await expectFocusOn(page, await placeOf(page, SUBTITLES_TITLE));
     expect((await pickTitles(owner)).slice(0, 2)).toEqual(order);
   }
 
@@ -163,70 +206,121 @@ test('picks page by keyboard: add with a note, move to the top, time window, rem
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/picks$/);
 
-  // A time window in the past: the pick stays listed as expired and leaves the picks row.
-  const edit = row(SUBTITLES_TITLE).getByRole('button', { name: `${SUBTITLES_TITLE} bearbeiten` });
-  const editDialog = page.getByRole('dialog', { name: `${SUBTITLES_TITLE} bearbeiten` });
+  // A time window, saved in the fold-out. Date inputs have a Tab stop per part (day, month,
+  // year, hours, minutes): the value is filled once the field has the focus.
   const saveWindow = async (from: string, to: string) => {
-    // From "Hinzufügen" (Firefox starts Tab after a blurred element, so no resetFocus here).
-    await add.focus();
-    await tabTo(page, edit, 20);
-    await page.keyboard.press('Enter');
-    await expect(editDialog).toBeVisible();
-    await expectFocusOn(page, editDialog.getByRole('textbox', { name: 'Notiz' }));
-    await editDialog.getByLabel('Sichtbar ab').fill(from);
-    await editDialog.getByLabel('Sichtbar bis').fill(to);
+    const open = await openByKeyboard(page, SUBTITLES_TITLE);
+    const fromField = open.getByLabel('Sichtbar ab');
+    await tabTo(page, fromField, 10);
+    await fromField.fill(from);
+    const toField = open.getByLabel('Sichtbar bis');
+    await tabTo(page, toField, 10);
+    await toField.fill(to);
+    await expect(pickToggle(page, SUBTITLES_TITLE)).toContainText('geändert');
+    const save = open.getByRole('button', { name: `${SUBTITLES_TITLE} speichern` });
     const patched = page.waitForResponse(
       (response) =>
         response.request().method() === 'PATCH' && /\/admin\/picks\/\d+$/.test(response.url()),
     );
-    // Date inputs have a Tab stop per part (day, month, year, hours, minutes).
-    await tabTo(page, editDialog.getByRole('button', { name: 'Speichern' }), 20);
+    await tabTo(page, save, 20);
     await page.keyboard.press('Enter');
     expect((await patched).status()).toBe(200);
-    await expect(editDialog).toHaveCount(0);
+    await expect(
+      page.getByRole('status').getByText(`${SUBTITLES_TITLE} ist gespeichert.`),
+    ).toBeVisible();
+    await expect(pickToggle(page, SUBTITLES_TITLE)).not.toContainText('geändert');
+    // «Speichern» is disabled again: the note field has the focus.
+    await expectFocusOn(page, open.getByRole('textbox', { name: 'Notiz' }));
+    // Folded again, for the next round.
+    await resetFocus(page);
+    await tabTo(page, pickToggle(page, SUBTITLES_TITLE), 60);
+    await page.keyboard.press('Enter');
+    await expect(pickToggle(page, SUBTITLES_TITLE)).toHaveAttribute('aria-expanded', 'false');
   };
-  await saveWindow(localInput(-2), localInput(-1));
-  await expect(row(SUBTITLES_TITLE).getByText('Abgelaufen')).toBeVisible();
-  expect(await pickTitles(owner)).not.toContain(SUBTITLES_TITLE);
+  /** Moves the selected tab with → to `name`, where the pick is listed, and with ← back. */
+  const visitTab = async (name: string, steps: number) => {
+    await resetFocus(page);
+    await tabTo(page, tabs.getByRole('tab', { selected: true }), 30);
+    for (let step = 0; step < steps; step += 1) await page.keyboard.press('ArrowRight');
+    await expect(tabs.getByRole('tab', { selected: true })).toHaveText(new RegExp(`^${name}`));
+    await expectVisibleFocus(page);
+    await expect(page).toHaveURL(/\?tab=/);
+    await expect(pickRow(page, SUBTITLES_TITLE)).toHaveCount(1);
+    for (let step = 0; step < steps; step += 1) await page.keyboard.press('ArrowLeft');
+    await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Alle/);
+    await expect(page).toHaveURL(/\/admin\/picks$/);
+  };
 
-  // A time window in the future: listed as scheduled, not shown yet.
-  await saveWindow(localInput(1), localInput(2));
-  await expect(row(SUBTITLES_TITLE).getByText('Geplant')).toBeVisible();
+  // A window in the past: listed as expired, in the tab «Abgelaufen», gone from the picks row.
+  await saveWindow(localInput(-2), localInput(-1));
+  await expect(pickRow(page, SUBTITLES_TITLE).getByText('Abgelaufen')).toBeVisible();
   expect(await pickTitles(owner)).not.toContain(SUBTITLES_TITLE);
+  await visitTab('Abgelaufen', 3);
+
+  // A window in the future: listed as scheduled, in the tab «Geplant», not shown yet.
+  await saveWindow(localInput(1), localInput(2));
+  await expect(pickRow(page, SUBTITLES_TITLE).getByText('Geplant')).toBeVisible();
+  expect(await pickTitles(owner)).not.toContain(SUBTITLES_TITLE);
+  await visitTab('Geplant', 2);
   await page.goto('/');
   await expect(firstPick(page)).toContainText(H264_TITLE);
   await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/picks$/);
 
-  // Escape closes a dialog without saving; the focus returns to its button.
-  await add.focus();
-  await tabTo(page, edit, 20);
+  // Unsaved input: leaving asks first and starts on «Auf der Seite bleiben»; Enter stays and the
+  // input is kept. «Verwerfen» drops it.
+  const detail = await openByKeyboard(page, SUBTITLES_TITLE);
+  const editNote = detail.getByRole('textbox', { name: 'Notiz' });
+  await tabTo(page, editNote, 10);
+  await page.keyboard.press('End');
+  await page.keyboard.type(' (neu)');
+  // The hint under the list links the start page settings.
+  const homeRows = page.getByRole('main').getByRole('link', { name: 'Startseite', exact: true });
+  await expect(homeRows).toHaveAttribute('href', '/admin/home-rows');
+  await tabTo(page, homeRows, 40);
   await page.keyboard.press('Enter');
-  await expect(editDialog).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(editDialog).toHaveCount(0);
-  await expectFocusOn(page, edit);
+  const leave = page.getByRole('alertdialog', {
+    name: 'Seite mit ungespeicherten Änderungen verlassen?',
+  });
+  await expectFocusOn(page, leave.getByRole('button', { name: 'Auf der Seite bleiben' }));
+  await page.keyboard.press('Enter');
+  await expect(leave).toHaveCount(0);
+  await expect(page).toHaveURL(/\/admin\/picks$/);
+  await expect(editNote).toHaveValue(`${note} (neu)`);
+  await expect(pickToggle(page, SUBTITLES_TITLE)).toContainText('geändert');
+  const discard = detail.getByRole('button', {
+    name: `Änderungen an ${SUBTITLES_TITLE} verwerfen`,
+  });
+  await resetFocus(page);
+  await tabTo(page, discard, 80);
+  await page.keyboard.press('Enter');
+  await expect(editNote).toHaveValue(note);
+  await expectFocusOn(page, editNote);
 
-  // "Entfernen" with its confirmation; the row goes, the focus to the heading.
-  const remove = row(SUBTITLES_TITLE).getByRole('button', { name: `${SUBTITLES_TITLE} entfernen` });
-  await tabTo(page, remove, 5);
+  // "Entfernen" (red) with its confirmation: Escape keeps the pick, Enter removes it; the row
+  // goes, the focus to the heading.
+  const remove = detail.getByRole('button', { name: `${SUBTITLES_TITLE} entfernen` });
+  await tabTo(page, remove, 20);
   await page.keyboard.press('Enter');
   const confirm = page.getByRole('alertdialog', {
     name: `${SUBTITLES_TITLE} aus Cat's Empfehlungen entfernen?`,
   });
   await expectFocusOn(page, confirm.getByRole('button', { name: 'Entfernen' }));
+  await page.keyboard.press('Escape');
+  await expect(confirm).toHaveCount(0);
+  await expectFocusOn(page, remove);
   await page.keyboard.press('Enter');
-  await expect(row(SUBTITLES_TITLE)).toHaveCount(0);
+  await expectFocusOn(page, confirm.getByRole('button', { name: 'Entfernen' }));
+  await page.keyboard.press('Enter');
+  await expect(pickRow(page, SUBTITLES_TITLE)).toHaveCount(0);
   await expect(page.getByText(`${SUBTITLES_TITLE} ist nicht mehr empfohlen.`)).toBeVisible();
-  await expect(
-    page.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" }).locator('..'),
-  ).toBeFocused();
+  await expect(confirm).toHaveCount(0);
+  await expect(heading).toBeFocused();
   await expectNoFocusTrap(page);
 
-  // The hint under the table (mockup I) is one more Tab stop: it opens the start page settings,
-  // where the order of the rows lives; Back returns, and from the link Tab still leaves the page.
-  const homeRows = card.getByRole('link', { name: 'Startseite', exact: true });
-  // From "Hinzufügen", as above (Firefox starts Tab after a blurred element).
-  await add.focus();
+  // Without unsaved input the hint's link leaves at once: the start page settings, where the
+  // order of the rows lives; Back returns, and from the link Tab still leaves the page.
+  await resetFocus(page);
   await tabTo(page, homeRows, 60);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
@@ -234,7 +328,8 @@ test('picks page by keyboard: add with a note, move to the top, time window, rem
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/picks$/);
   await expect(homeRows).toBeVisible();
-  await homeRows.focus();
+  await resetFocus(page);
+  await tabTo(page, homeRows, 60);
   await expectNoFocusTrap(page);
 });
 

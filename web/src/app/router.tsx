@@ -380,15 +380,20 @@ const accessRoute = createRoute({
 });
 
 // admin M7
-/** Cat's recommendations; `add` (the detail page's link) opens the dialog with that title. */
+/**
+ * Cat's recommendations; `add` (the detail page's link) opens the dialog with that title, `tab`
+ * filters the list by time.
+ */
 const picksRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/picks',
-  validateSearch: (search: Record<string, unknown>): { add?: string } =>
-    typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
+  validateSearch: (search: Record<string, unknown>): AdminSearch & { add?: string } => ({
+    ...adminSearch(search),
+    ...(typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
       ? { add: search.add }
-      : {},
-  component: lazyRouteComponent(() => import('@/features/admin/PicksPage'), 'PicksPage'),
+      : {}),
+  }),
+  component: lazyRouteComponent(() => import('@/features/admin/picks/PicksPage'), 'PicksPage'),
 });
 
 const collectionsAdminRoute = createRoute({
