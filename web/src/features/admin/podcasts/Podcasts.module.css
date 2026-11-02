@@ -1,7 +1,10 @@
 /* The podcasts page (concept 12, variant C): what AdminPage, BandPanel and DataTable do not lay
    out themselves. The cells of a row, its fold-out and the subscribe dialog. */
+
+/* A live region that is always there (role status), so even its first message is announced.
+   Empty, it takes back the gap of the page's column it stands in. */
 .live:empty {
-  display: none;
+  margin-block-start: calc(-1 * var(--sc-section-gap));
 }
 
 /* The title cell: the name, then «aus Ordner» and «Explizit». */
@@ -31,14 +34,15 @@
   white-space: nowrap;
 }
 
-/* The error in the row: one line, the whole text in the tooltip and the fold-out (S-5). */
+/* The error in the row: one line, the whole text in the tooltip and the fold-out (S-5). The
+   warning sign and the text are drawn here, so the line can be clipped. */
 .errorCell {
   display: inline-flex;
+  gap: var(--sc-space-1);
+  align-items: center;
   max-width: 20rem;
-}
-
-.errorCell > span {
-  max-width: 100%;
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
 }
 
 .clip {

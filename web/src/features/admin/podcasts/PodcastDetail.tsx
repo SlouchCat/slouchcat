@@ -41,6 +41,8 @@ export function PodcastDetail({
           <dd>
             {podcast.feedUrl ? (
               <span className={styles.url}>{podcast.feedUrl}</span>
+            ) : ownedByFolder ? (
+              t('admin.podcasts.detail.noFeedFolder')
             ) : (
               t('admin.podcasts.detail.noFeed')
             )}

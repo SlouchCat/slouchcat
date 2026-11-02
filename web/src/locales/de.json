@@ -1267,13 +1267,14 @@
       "tabs": {
         "label": "Podcasts nach Bibliothek",
         "all": "Alle",
-        "count_one": "{{count}} Podcast",
-        "count_other": "{{count}} Podcasts"
+        "count_one": "{{number}} Podcast",
+        "count_other": "{{number}} Podcasts"
       },
       "detail": {
         "author": "Autor",
         "feedUrl": "Feed-Adresse",
-        "noFeed": "Kein Feed, die Episoden kommen aus dem Ordner.",
+        "noFeed": "Kein Feed.",
+        "noFeedFolder": "Kein Feed, die Episoden kommen aus dem Ordner.",
         "library": "Bibliothek",
         "folderNote": "Ein Ordner trägt diesen Podcast. Er kommt mit jedem Scan zurück; entfernen lässt er sich nur mit dem Ordner unter Bibliotheken."
       },

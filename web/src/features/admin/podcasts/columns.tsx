@@ -2,7 +2,7 @@ import type { AdminPodcast } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { codeMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
-import { Chip } from '@/ui';
+import { Chip, Icon } from '@/ui';
 import type { DataColumn } from '@/ui/aria';
 import styles from './Podcasts.module.css';
 
@@ -88,9 +88,8 @@ export function podcastColumns(
         // One line here (S-5); the whole text and the server's detail are in the fold-out.
         return (
           <span className={styles.errorCell} title={message}>
-            <Chip tone="danger" icon="warning">
-              <span className={styles.clip}>{message}</span>
-            </Chip>
+            <Icon name="warning" size="sm" />
+            <span className={styles.clip}>{message}</span>
           </span>
         );
       },

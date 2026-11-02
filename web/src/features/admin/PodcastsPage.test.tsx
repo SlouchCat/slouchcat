@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adminPodcast, audioIds, library } from '@/test/fixtures';
@@ -32,7 +32,7 @@ const routes = {
 
 /** Folds out the row whose title button is named `name` and returns its fold-out. */
 async function openRow(user: ReturnType<typeof userEvent.setup>, name: string | RegExp) {
-  const toggle = within(screen.getByRole('tabpanel')).getByRole('button', { name });
+  const toggle = await within(await screen.findByRole('tabpanel')).findByRole('button', { name });
   if (toggle.getAttribute('aria-expanded') !== 'true') await user.click(toggle);
   const detail = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
   if (!detail) throw new Error(`no fold-out for ${String(name)}`);
@@ -41,6 +41,7 @@ async function openRow(user: ReturnType<typeof userEvent.setup>, name: string | 
 
 describe('admin podcasts page (M6, H-2; concept 12)', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -156,9 +157,7 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     expect(within(noFeed).getByText('1 lokal')).toBeVisible();
     const noFeedDetail = await openRow(user, /^Ohne Feed/);
     expect(within(noFeedDetail).queryByText(/^http/)).not.toBeInTheDocument();
-    expect(
-      within(noFeedDetail).getByText('Kein Feed, die Episoden kommen aus dem Ordner.'),
-    ).toBeVisible();
+    expect(within(noFeedDetail).getByText('Kein Feed.')).toBeVisible();
     expect(within(noFeedDetail).queryByRole('button', { name: /abrufen/ })).not.toBeInTheDocument();
     expect(
       within(noFeedDetail).getByRole('button', { name: 'Abo Ohne Feed löschen' }),
@@ -223,6 +222,130 @@ describe('admin podcasts page (M6, H-2; concept 12)', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({}));
     // Replaced, not pushed: going back does not return to the unknown tab.
     expect(router.history.length).toBe(1);
+  });
+
+  it('a tab of a library that is gone shows «Alle»; a podcast names a library of another kind', async () => {
+    mockApi({
+      ...routes,
+      'GET /admin/podcasts': () =>
+        json([adminPodcast, { ...adminPodcast, id: audioIds.ep1, title: 'Verirrt', libraryId: 1 }]),
+    });
+    const { router } = renderApp('/admin/podcasts?tab=library-9');
+    const tabs = await screen.findByRole('tablist', { name: 'Podcasts nach Bibliothek' });
+    expect(within(tabs).getByRole('tab', { selected: true })).toHaveAccessibleName(
+      'Alle 2 Podcasts',
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    // The video library «Filme» gets a tab, since a podcast still names it.
+    expect(
+      within(tabs)
+        .getAllByRole('tab')
+        .map((tab) => tab.textContent),
+    ).toEqual(['Alle 22 Podcasts', 'Filme 11 Podcast', 'Podcasts 11 Podcast']);
+    const user = userEvent.setup();
+    await user.click(within(tabs).getByRole('tab', { name: /^Filme/ }));
+    const films = screen.getByRole('table', { name: 'Abonnierte Podcasts in Filme' });
+    expect(
+      within(films)
+        .getAllByRole('rowheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Verirrt']);
+  });
+
+  it('the libraries fail to load: the error offers «Erneut versuchen»', async () => {
+    let fail = true;
+    mockApi({
+      ...routes,
+      'GET /admin/libraries': () => (fail ? problem(500, 'internal') : json([podcastLibrary])),
+      'GET /admin/podcasts': () => json([adminPodcast]),
+    });
+    renderApp('/admin/podcasts');
+    const user = userEvent.setup();
+    const notice = await screen.findByRole('alert');
+    expect(notice).toHaveTextContent('Etwas ist schiefgelaufen. Versuche es erneut.');
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    fail = false;
+    await user.click(within(notice).getByRole('button', { name: 'Erneut versuchen' }));
+    expect(await screen.findByRole('tablist', { name: 'Podcasts nach Bibliothek' })).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('polls every 2 s for 30 s after «Jetzt abrufen», held while «Feed abonnieren» is open', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { calls } = mockApi({
+      ...routes,
+      'GET /admin/podcasts': () => json([adminPodcast]),
+      [`POST /admin/podcasts/${audioIds.podcast}/refresh`]: () => json(adminPodcast, 202),
+    });
+    renderApp('/admin/podcasts');
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const lists = () => calls.filter((call) => call.path === '/admin/podcasts').length;
+
+    const detail = await openRow(user, /^Slouchcat Test Podcast/);
+    await user.click(
+      within(detail).getByRole('button', { name: 'Slouchcat Test Podcast jetzt abrufen' }),
+    );
+    expect(await screen.findByText('wird abgerufen')).toBeVisible();
+    await waitFor(() => expect(lists()).toBe(2));
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    await waitFor(() => expect(lists()).toBe(3));
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    await waitFor(() => expect(lists()).toBe(4));
+
+    // The open dialog holds the polling and the live indicator.
+    await user.click(screen.getByRole('button', { name: 'Feed abonnieren' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Feed abonnieren' });
+    expect(screen.queryByText('Live, alle 2 Sekunden')).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    expect(lists()).toBe(4);
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    expect(await screen.findByText('Live, alle 2 Sekunden')).toBeVisible();
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    await waitFor(() => expect(lists()).toBe(5));
+
+    // 30 s after the press the polling ends, and «wird abgerufen» with it.
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+    await waitFor(() => expect(screen.queryByText('wird abgerufen')).not.toBeInTheDocument());
+    expect(screen.queryByText('Live, alle 2 Sekunden')).not.toBeInTheDocument();
+    const after = lists();
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    expect(lists()).toBe(after);
+    expect(within(detail).getByRole('button', { name: /jetzt abrufen/ })).toBeVisible();
+  });
+
+  it('a failed «Jetzt abrufen» or «Abo löschen» shows the error and keeps the row', async () => {
+    mockApi({
+      ...routes,
+      'GET /admin/podcasts': () => json([adminPodcast]),
+      [`POST /admin/podcasts/${audioIds.podcast}/refresh`]: () => problem(500, 'internal'),
+      [`DELETE /admin/podcasts/${audioIds.podcast}`]: () => problem(500, 'internal'),
+    });
+    renderApp('/admin/podcasts');
+    const user = userEvent.setup();
+    const detail = await openRow(user, /^Slouchcat Test Podcast/);
+
+    await user.click(
+      within(detail).getByRole('button', { name: 'Slouchcat Test Podcast jetzt abrufen' }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Etwas ist schiefgelaufen. Versuche es erneut.',
+    );
+    expect(screen.queryByText('wird abgerufen')).not.toBeInTheDocument();
+    expect(screen.queryByText('Live, alle 2 Sekunden')).not.toBeInTheDocument();
+
+    await user.click(
+      within(detail).getByRole('button', { name: 'Abo Slouchcat Test Podcast löschen' }),
+    );
+    const confirm = await screen.findByRole('alertdialog', {
+      name: 'Abo Slouchcat Test Podcast löschen?',
+    });
+    await user.click(within(confirm).getByRole('button', { name: 'Abo löschen' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Etwas ist schiefgelaufen. Versuche es erneut.',
+    );
+    expect(screen.queryByText(/ist gelöscht/)).not.toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /Slouchcat Test Podcast/ })).toBeVisible();
   });
 
   it('a library without podcasts says so in its tab', async () => {

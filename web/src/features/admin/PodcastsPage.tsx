@@ -178,6 +178,13 @@ function PodcastsContent() {
     onSuccess: async (_data, podcast) => {
       setFailure(null);
       setMessage(t('admin.podcasts.remove.done', { title: podcast.title }));
+      // Its open fold-out and «wird abgerufen» go with it.
+      onExpandedChange(podcast.id, false);
+      setFetching((current) => {
+        const next = new Map(current);
+        next.delete(podcast.id);
+        return next;
+      });
       await invalidate();
       // The row and its buttons are gone: once React rendered that, the h1 takes the focus.
       await afterRender();
@@ -229,7 +236,10 @@ function PodcastsContent() {
     id,
     label,
     count: number.format(rows.length),
-    countLabel: t('admin.podcasts.tabs.count', { count: rows.length }),
+    countLabel: t('admin.podcasts.tabs.count', {
+      count: rows.length,
+      number: number.format(rows.length),
+    }),
     content:
       rows.length === 0 ? (
         <Text tone="secondary">
@@ -282,7 +292,7 @@ function PodcastsContent() {
       <div role="status" className={styles.live}>
         {message && failure === null && <Notice live={false}>{message}</Notice>}
       </div>
-      {podcasts.isPending && <Skeleton shape="block" />}
+      {(podcasts.isPending || libraries.isPending) && <Skeleton shape="block" />}
       {podcasts.isError && (
         <Notice
           tone="danger"
@@ -294,7 +304,19 @@ function PodcastsContent() {
           }
         />
       )}
-      {podcasts.data && (
+      {libraries.isError && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, libraries.error)}
+          actions={
+            <AriaButton icon="refresh" onPress={() => void libraries.refetch()}>
+              {t('common.retry')}
+            </AriaButton>
+          }
+        />
+      )}
+      {/* The tabs come from both lists: without the libraries a linked tab would flicker. */}
+      {podcasts.data && libraries.data && (
         <BandPanel
           title={t('admin.podcasts.list')}
           icon="mic"
