@@ -191,12 +191,21 @@ test('a newer release in the manifest shows the update badge; switching the chec
     expect(checked.status(), await checked.text()).toBe(200);
     expect(((await checked.json()) as { available: boolean }).available).toBe(true);
 
+    // On the admin pages the badge sits on the sidebar's «Übersicht» (concept 11), whose one Tab
+    // stop is the current page: the arrows go up to it.
     await page.goto('/admin/integrations');
-    const badge = page.getByRole('link', { name: 'Update auf Version 99.0.0 verfügbar' });
+    const nav = page.getByRole('navigation', { name: 'Verwaltung' });
+    const badge = nav.getByRole('link', {
+      name: 'Übersicht, Update auf Version 99.0.0 verfügbar',
+    });
     await expect(badge).toBeVisible();
+    await expect(badge).toHaveText(/Update/);
     await expect(badge).toHaveAttribute('href', '/admin');
     await resetFocus(page);
-    await tabTo(page, badge, 20);
+    await tabTo(page, nav.getByRole('link', { name: /^Integrationen(,|$)/ }), 20);
+    await page.keyboard.press('Home');
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, badge);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/admin$/);
     await expect(page.getByText('Version 99.0.0 ist verfügbar')).toBeVisible();
@@ -205,7 +214,7 @@ test('a newer release in the manifest shows the update badge; switching the chec
     await putSettings(owner, { updateCheckEnabled: false });
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
-    await expect(page.getByRole('link', { name: /^Update auf Version/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /Update auf Version/ })).toHaveCount(0);
   } finally {
     await setUpdateManifest(null);
     await putSettings(owner, { updateCheckEnabled: false });

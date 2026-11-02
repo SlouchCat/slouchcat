@@ -108,8 +108,13 @@ test('an invalid YouTube link is reported at the field', async ({ page }) => {
 });
 
 test('Tab: header, actions, rating, files, trailers; no focus trap', async ({ page }) => {
-  // The admin navigation's Tab stop is its current page: a title's page belongs to "Pflege".
-  await tabTo(page, page.getByRole('link', { name: 'Pflege' }));
+  // The admin sidebar's Tab stop is its current page: a title's page belongs to "Pflege".
+  await tabTo(
+    page,
+    page
+      .getByRole('navigation', { name: 'Verwaltung' })
+      .getByRole('link', { name: /^Pflege(,|$)/ }),
+  );
   await tabTo(page, page.getByRole('button', { name: 'Zuordnen' }), 12);
   await tabTo(page, page.getByRole('button', { name: 'Aktualisieren' }), 2);
   await tabTo(page, page.getByRole('link', { name: 'Zur Detailseite' }), 2);

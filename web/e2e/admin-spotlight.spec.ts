@@ -45,14 +45,14 @@ const answer = (page: Page, method: string, path: string) =>
     (response) => response.request().method() === method && response.url().endsWith(path),
   );
 
-/** Presses → in the admin navigation until `name` has the focus. */
+/** Presses ↓ in the admin sidebar until `name` has the focus. */
 async function navTo(page: Page, name: string): Promise<void> {
   const link = page
     .getByRole('navigation', { name: 'Verwaltung' })
-    .getByRole('link', { name, exact: true });
+    .getByRole('link', { name: new RegExp(`^${name}(,|$)`) });
   for (let presses = 0; presses < 20; presses += 1) {
     if (await link.evaluate((element) => element === document.activeElement)) break;
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
   }
   await expectFocusOn(page, link);
 }
@@ -64,7 +64,7 @@ test('spotlight by keyboard: source, fetch, hide, pin and note an entry', async 
   test.setTimeout(120_000);
   const settings = await storedSettings(owner);
   try {
-    // From the overview through the admin navigation; Back returns there at the end.
+    // From the overview through the admin sidebar; Back returns there at the end.
     await page.goto('/admin');
     await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
     const nav = page.getByRole('navigation', { name: 'Verwaltung' });
