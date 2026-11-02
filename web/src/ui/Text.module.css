@@ -41,6 +41,6 @@
 
 @media (width >= 768px) {
   .display {
-    font-size: var(--sc-font-size-display);
+    font-size: var(--sc-page-title-size);
   }
 }

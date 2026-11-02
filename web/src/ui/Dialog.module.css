@@ -42,8 +42,8 @@
   gap: var(--sc-space-4);
   min-width: 0;
   overflow-y: auto;
-  padding: var(--sc-space-6);
-  border-radius: var(--sc-radius-xl);
+  padding: var(--sc-panel-padding);
+  border-radius: var(--sc-panel-radius);
   background-color: var(--sc-color-bg-elevated);
   outline: none;
 }

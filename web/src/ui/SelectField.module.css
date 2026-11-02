@@ -10,7 +10,7 @@
 }
 
 .select {
-  min-height: var(--sc-size-control-height);
+  min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-4);
   border: 1px solid var(--sc-color-border-subtle);
   border-radius: var(--sc-radius-full);

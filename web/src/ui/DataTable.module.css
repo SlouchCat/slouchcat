@@ -25,7 +25,7 @@
 }
 
 .head {
-  padding: var(--sc-space-3) var(--sc-space-4);
+  padding: var(--sc-table-cell-padding-y) var(--sc-space-4);
   border-bottom: 1px solid var(--sc-color-border-subtle);
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
@@ -49,7 +49,7 @@
 }
 
 .cell {
-  padding: var(--sc-space-3) var(--sc-space-4);
+  padding: var(--sc-table-cell-padding-y) var(--sc-space-4);
   color: var(--sc-color-text-secondary);
   font-weight: var(--sc-font-weight-regular);
   text-align: left;

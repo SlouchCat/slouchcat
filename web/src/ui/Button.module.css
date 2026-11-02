@@ -3,12 +3,12 @@
   gap: var(--sc-space-2);
   align-items: center;
   justify-content: center;
-  min-height: var(--sc-size-control-height);
+  min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-5);
   border: 0;
   border-radius: var(--sc-radius-full);
   font: inherit;
-  font-size: var(--sc-font-size-md);
+  font-size: var(--sc-control-font-size);
   font-weight: var(--sc-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
@@ -37,7 +37,7 @@
 }
 
 .lg {
-  min-height: calc(var(--sc-size-control-height) + var(--sc-space-1));
+  min-height: calc(var(--sc-control-height) + var(--sc-space-1));
   padding: 0 var(--sc-space-6);
   font-size: var(--sc-font-size-md);
 }
@@ -110,7 +110,7 @@
 }
 
 .iconOnly {
-  width: var(--sc-size-control-height);
+  width: var(--sc-control-height);
   padding: 0;
 }
 

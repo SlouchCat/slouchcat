@@ -1,0 +1,92 @@
+{
+  "control": {
+    "$type": "dimension",
+    "$description": "Component tokens (concept 12, ADR 0020): what the ui building blocks read instead of the general scale. The default is today's value; density.compact holds the administration's values.",
+    "height": {
+      "$value": "{size.control.height}",
+      "$description": "Height of buttons, inputs, selects, switches and checkbox rows."
+    },
+    "font-size": {
+      "$value": "{font.size.md}",
+      "$description": "Text in buttons and inputs."
+    }
+  },
+  "panel": {
+    "$type": "dimension",
+    "padding": {
+      "$value": "{space.6}",
+      "$description": "Inner padding of panels and dialogs."
+    },
+    "gap": {
+      "$value": "{space.5}",
+      "$description": "Gap between the children of a panel."
+    },
+    "radius": {
+      "$value": "{radius.xl}",
+      "$description": "Corner radius of panels and dialogs."
+    }
+  },
+  "table": {
+    "$type": "dimension",
+    "cell-padding-y": {
+      "$value": "{space.3}",
+      "$description": "Vertical padding of table header and body cells."
+    }
+  },
+  "page": {
+    "$type": "dimension",
+    "title-size": {
+      "$value": "{font.size.display}",
+      "$description": "Size of the page title (h1) from 768 px; below, titles use font.size.3xl."
+    }
+  },
+  "section": {
+    "$type": "dimension",
+    "gap": {
+      "$value": "{space.10}",
+      "$description": "Gap between the sections of a page."
+    }
+  },
+  "density": {
+    "compact": {
+      "$type": "dimension",
+      "$description": "Compact density of the administration's content and dialogs (concept 12, 5.1). Not active yet: K12-8 maps these onto the component tokens under [data-shell=\"admin\"] with (min-width: 48rem) and (pointer: fine); touch and phones keep 44 px.",
+      "control": {
+        "height": {
+          "$value": "2rem",
+          "$description": "32 px: below the 44 px touch recommendation, above WCAG 2.2 AA 2.5.8 (24 px); for a fine pointer only."
+        },
+        "font-size": {
+          "$value": "{font.size.sm}"
+        }
+      },
+      "panel": {
+        "padding": {
+          "$value": "{space.4}"
+        },
+        "gap": {
+          "$value": "{space.3}"
+        },
+        "radius": {
+          "$value": "{radius.lg}"
+        }
+      },
+      "table": {
+        "cell-padding-y": {
+          "$value": "0.5625rem",
+          "$description": "9 px: a row of 14 px text at line height 1.5 (21 px) is 39 px, 40 px with the border between rows."
+        }
+      },
+      "page": {
+        "title-size": {
+          "$value": "{font.size.xl}"
+        }
+      },
+      "section": {
+        "gap": {
+          "$value": "{space.6}"
+        }
+      }
+    }
+  }
+}

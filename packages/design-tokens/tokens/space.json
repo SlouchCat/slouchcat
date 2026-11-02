@@ -134,7 +134,7 @@
     "control": {
       "height": {
         "$value": "2.75rem",
-        "$description": "Buttons and inputs; at least 44 px touch target."
+        "$description": "Minimum 44 px touch target; stays as is. Buttons and inputs read control.height, whose default is this value (concept 12, ADR 0020)."
       }
     }
   }
