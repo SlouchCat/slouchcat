@@ -33,7 +33,74 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
   `StatsWatchTimeByQuarter`, `admin.ResolveZone` beim Start, ganze Wochen
   (`timeWindowDays` 7, 28 oder 84). Review: Änderungen verlangt (falsche Mengenangabe im
   Messpapier, Zonenabweichung), behoben.
-- **Nächster Schritt:** K12-3 (Hintergrundjobs, Metadaten, Integrationen) läuft.
+- **K12-3** (Hintergrundjobs, Metadaten, Integrationen; letzter Commit `6e46c6d`):
+  - *Integrationen* (`5b9212c`, `e96ac0c`, `78b2fc8`): sechs auf- und zuklappbare Felder, alle
+    offen; Schlüssel als Zeilen, Webhooks als Tabelle mit Klappzeile (Pfad-Umsetzung und
+    Ereignisprotokoll), Entwürfe gehören der Seite; Seite in `features/admin/integrations/` geteilt.
+  - *Hintergrundjobs* (`3129a82`, `ab2cbc8`): Zustandsleiste mit fünf Zahlen, Klappbereich «Läuft
+    gerade», Reiter je Jobgruppe und «Fehlschläge»; je Jobart eine Klappzeile mit Aktionen,
+    Zeitplan und Läufen (statt zweier Dialoge).
+  - *Metadaten* (`cbc3251`, `be800a1`, `6e46c6d`): Geltung als Auswahl im Kopf, Bereiche links
+    (`MasterDetail`), eine `SaveBar` für alle Geltungen; Sprachen als feste Plätze mit dem neuen
+    Baustein `RankedChoiceList`.
+  - *Gemeinsame Korrekturen* (`988d1a6`, `470a49b`, `c61fe4b`): Anfangsfokus der Dialoge, siehe
+    unten.
+  - *Review:* je Seite ein `code-reviewer`-Lauf, Befunde behoben (Metadaten zwei Läufe, einer mit
+    einem High-Befund zu den Pfeiltasten in `RankedChoiceList`).
+- **K12-4** (Bibliotheken, Pflege, Titel, Podcasts; Stand `ce34f53`):
+  - *Pflege* (`0473896`, `55da553`): Reiter je Problemart mit Zahl, je Reiter ein Klappbereich je
+    Bibliothek mit Tabelle; Duplikate als Gruppen; Auswahl und Ergebnis gehören der Seite.
+  - *Titel* (`fb74426`, `34cef47`): Reiter Metadaten, Bilder, Dateien und Trailer; Bilder und
+    Dateien als Tabellen, «Herkunft je Feld» und «Freigabe» als Klappbereiche; die Freigabe ist ein
+    Entwurf der Seite.
+  - *Podcasts* (`7960b73`, `6a0fe90`): Filterreiter «Alle» und je Podcast-Bibliothek in
+    `?tab=library-<id>`; je Podcast eine Klappzeile mit Autor, Feed-Adresse, Bibliothek und Fehler.
+  - *Bibliotheken* (`e069714`, `ce34f53`): Filterreiter nach Art mit Zahl, je Bibliothek eine
+    Klappzeile (Scan, Ordner, «Weitere Aktionen» mit «Gefahr», Fehlerband); «Bibliothek
+    hinzufügen» als Dialog mit Entwurf.
+  - *Gemeinsame Korrektur* (`b593486`): Fokus in verschachtelten Formulardialogen.
+  - *Review:* je Seite ein `code-reviewer`-Lauf, Befunde behoben.
+- **Nächster Schritt:** K12-5 (Konten mit Profilen, Geräte, Streams).
+
+**Belege K12-3** (Prüfer auf `6e46c6d`):
+
+```
+task ci                     EXIT=0
+Go                          33 Pakete ok
+web:test                    112 Dateien, 844 Tests bestanden
+storybook                   290 bestanden
+e2e                         510 bestanden (29.0 min), Chromium und Firefox
+```
+
+Erhaltungsliste (Abschnitt 7) JOB-1 bis JOB-8, MET-1 bis MET-6 und INT-1 bis INT-8 nachgeprüft.
+Dichte aus. Kein Referenzbild von `main` geändert, 63 neue Bilder.
+
+**Belege K12-4** (nach dem Merge auf `ce34f53`):
+
+```
+task web:test               874 bestanden
+storybook                   295 bestanden
+e2e (libraries, folders, folder-browser, podcasts, podcast, metadata, setup)   92 bestanden
+e2e Pflege, Titel, Podcasts                                                    52 bestanden
+```
+
+**Gemeinsame Korrekturen unterwegs:**
+
+- Fokus in Dialogen bei «Bewegung reduzieren»: react-aria `runAfterTransition` zählt nur das erste
+  `transitioncancel`, der Fokus blieb aus (`988d1a6`, `470a49b`). `focusOnMount` fokussiert nun in
+  einem Microtask nach dem Commit (`c61fe4b`); der Fokus im Commit selbst warf in den Unit-Tests
+  «Should not already be working.».
+- Fokus in verschachtelten `FormDialog` (`b593486`): ebenfalls im Microtask, sonst zog der
+  äussere Fokusbereich den Fokus zurück.
+- e2e-Helfer `markLastTabbable` überspringt `[hidden]` und `[inert]` und fragt `checkVisibility`.
+
+**Offen (nach K12-4):**
+
+- Aufräumrunde läuft: wackliger Unit-Test von `IntegrationsPage`, wackliger Firefox-e2e der
+  Podcasts, Live-Regionen in Hintergrundjobs und Metadaten, Testlücken.
+- Später ein gemeinsamer Umbau: Umgang von `useSearchSelection` mit unbekannten Reitern und
+  `afterRender`.
+- Dialoge mit `autoFocus` in Offline und Player (ausserhalb von Konzept 12).
 
 **Entscheid «Wann geschaut wird»** (Marco, 2. November 2026, Frage 18 Nachtrag): das Fenster
 umfasst ganze Wochen, `timeWindowDays` = `min(days, 90)` abgerundet auf ein Vielfaches von 7, also
@@ -78,7 +145,7 @@ p95 **96.4 ms**. Schätzung für CT 190 (Faktor 2.5): rund 105 ms beim realen Be
 beim Bestand der Messung. Ob ein Zwischenspeicher nötig ist, fällt mit der Messung auf CT 190 in
 K12-9.
 
-**Offen:** K12-3 bis K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
+**Offen:** K12-5 bis K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
 mit 44 px); Release 1.8.0 danach als eigenes Release.
 
 ## Konzept 11 «Übersicht der Verwaltung»: umgesetzt und abgenommen, Schritte 0 bis 6 (2. November 2026)

@@ -712,6 +712,8 @@ in `features/`.
 | `SettingRow` | Bezeichnung und Hilfe links, Steuerelement rechts (S-7) | Metadaten, Integrationen, Spotlight, Benachrichtigungen | keiner |
 | `SaveBar` | «Ungespeicherte Änderungen» / «Gespeichert», Verwerfen, Speichern; aus `MetadataPage.tsx` gelöst | Metadaten, Startseite | nur in `MetadataPage` |
 | `RankSelect` | Platzwahl nach S-16 (verschieben oder tauschen, Hinweis darunter, `aria-describedby`) | Metadaten, Startseite, Empfehlungen, Sammlungen; in `ui/ProviderList` als Option nur für den Ordnerdialog der Verwaltung | keiner |
+| `RankedChoiceList` (neu, 3. November 2026, K12-3) | Reihenfolge durch feste Plätze (S-16): je Platz eine Auswahl, eine schon belegte Wahl tauscht die Plätze, «Weitere Sprache» und «×», Prüfung `isAllowed(list)` sperrt Wahlen. Setzt die Änderungswünsche aus 10.2 um; `RankSelect` bleibt für die anderen Seiten | Metadaten (Sprachen, Bildsprachen) | keiner |
+| `SelectCheck` (neu, 3. November 2026, K12-4) | Auswahl-Kästchen für eine Tabellenzeile (Tab, ↓, Space). Ersetzt `SelectableList`, der Baustein ist entfallen | Pflege | `ui/SelectableList` |
 | `ActionMenu` | Menü «Weitere Aktionen» (S-6), Abschnitt «Gefahr», Fokus zurück auf den Knopf | Sicherung, Profile im Konto, Zeilen mit mehr als zwei Aktionen | `MenuButton` ist ein Auswahlmenü (`ui/Menu.tsx:40-42,132-146`) |
 | `ConfirmDialog` steuerbar | `isOpen`/`onOpenChange`, damit Menü und Klappzeilen eine Rückfrage öffnen | alle Seiten mit `ActionMenu` | nur über `trigger` (`ui/Dialog.tsx:15-26,43`); `FormDialog` ist schon steuerbar (`:228`) |
 | `AdminDensityScope` | Kontext, den `AdminPage` setzt; Dialoge aus einer Verwaltungsseite tragen damit `data-density="compact"` an ihrem eigenen Portal. Andere Portale auf `/admin` (Schublade der App, Ankündigungsdialog der Zuschauer) bleiben in heutiger Grösse | alle Dialoge der Verwaltungsseiten | keiner |
@@ -804,6 +806,9 @@ Nichts wird entfernt oder im Typ geändert.
 12. **Profile:** der Leisten-Eintrag führt nach Konten (`?item=me`), `/settings/profiles` bleibt für
     alle Konten.
 13. **Cat's Empfehlungen:** Reiter «Aktiv» statt «Sichtbar» (Mockup).
+14. **K12-3 und K12-4 (3. November 2026):** die angenommenen Abweichungen der Seiten
+    Metadaten, Hintergrundjobs, Integrationen, Bibliotheken, Pflege, Titel und Podcasts stehen in
+    Frage 18, «Nachtrag 2 vom 3. November 2026».
 
 ### 11.6 ADR 0020 «Kompakte Dichte der Verwaltung»
 
