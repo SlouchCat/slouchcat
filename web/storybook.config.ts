@@ -48,5 +48,11 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 720 } },
     },
+    // Focus behaviour that differs between engines; the screenshots stay Chromium's.
+    {
+      name: 'firefox',
+      testMatch: 'unsaved-changes.spec.ts',
+      use: { ...devices['Desktop Firefox'], viewport: { width: 1280, height: 720 } },
+    },
   ],
 });

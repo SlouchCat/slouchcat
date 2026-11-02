@@ -64,6 +64,12 @@ export function ConfirmDialog({
   onOpenChange,
 }: ConfirmDialogProps) {
   const density = useDensityPortalProps();
+  // Enter on a link is a "virtual" click for react-aria, and its `autoFocus` then waits until no
+  // CSS transition runs on the page any more. The modal makes the page inert, which cancels the
+  // focus ring transition of the link (outline-color and outline-offset at once); react-aria
+  // counts only the first cancelled property, waits for good and focuses the dialog itself after
+  // 500 ms. The default button takes the focus when it mounts, before the dialog looks at it.
+  const focusOnMount = useCallback((button: HTMLButtonElement | null) => button?.focus(), []);
   const overlay = (
     <ModalOverlay
       className={styles.overlay}
@@ -81,12 +87,16 @@ export function ConfirmDialog({
               </Heading>
               <p className={styles.body}>{body}</p>
               <div className={styles.actions}>
-                <AriaButton variant="ghost" autoFocus={defaultFocus === 'cancel'} onPress={close}>
+                <AriaButton
+                  variant="ghost"
+                  ref={defaultFocus === 'cancel' ? focusOnMount : undefined}
+                  onPress={close}
+                >
                   {cancelLabel}
                 </AriaButton>
                 <AriaButton
                   variant={tone}
-                  autoFocus={defaultFocus === 'confirm'}
+                  ref={defaultFocus === 'confirm' ? focusOnMount : undefined}
                   onPress={() => {
                     onConfirm();
                     close();
