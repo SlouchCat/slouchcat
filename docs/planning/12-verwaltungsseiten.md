@@ -333,8 +333,11 @@ alle 5 s, solange ein Scan läuft)
 - KON-1 Einladen (Dialog: Notiz, Freigabe, Bibliotheken → einmaliger Link mit Kopieren, Fertig).
 - KON-2 Tabelle: E-Mail, Rolle (Besitzer), Freigabe, Bibliotheken, Profile, zuletzt gesehen,
   Kanäle.
-- KON-3 Eigene Zeile: Bearbeiten (E-Mail, neues Passwort zweimal, aktuelles Passwort), Profile
-  → `/settings/profiles`.
+- KON-3 Eigene Zeile (geändert 3. November 2026): «Konto ändern» inline im Klappbereich (E-Mail, neues Passwort
+  zweimal, aktuelles Passwort) und darunter «Meine Profile» (KP-1). Der frühere Knopf «Profile →
+  `/settings/profiles`» entfällt; an seiner Stelle stehen «Meine Profile» und der Leisten-Eintrag
+  «Profile» (→ `/admin/accounts?item=me#meine-profile`; `AccountDetail.tsx:26`,
+  `sections.ts:58`). `/settings/profiles` bleibt für alle Konten erreichbar (`router.tsx:491`).
 - KON-4 Andere Zeilen: Zugriff (nur Benutzer: Freigabe, Bibliotheken, Limits),
   Befördern/Zurückstufen (nur Besitzer, Rückfrage), Entfernen (Rückfrage).
 - KON-5 Einladungen: Notiz, Zustand, Freigabe, benutzt von / läuft ab; Widerrufen (Rückfrage,
@@ -381,20 +384,25 @@ alle 5 s, solange ein Scan läuft)
   den Titel vor.
 - PIC-2 Liste mit Zahl (Einträge, geplant): Position, Titel, Zielprofil, Notiz, Zeitfenster
   (abgelaufen, geplant).
-- PIC-3 Hoch, Runter, Bearbeiten (Dialog: Notiz, von, bis), Entfernen (Rückfrage).
+- PIC-3 (geändert 3. November 2026) Platzwahl (`RankSelect`, S-16) statt Hoch/Runter, Bearbeiten inline im Klappbereich
+  statt im Dialog (Notiz, von, bis; `PickDetail.tsx:110`), Entfernen (Rückfrage). Die Reihenfolge
+  speichert die Operation `reorderTopPicks` (`PUT /admin/picks/order`, `api/openapi.yaml`); im
+  Client heisst die Funktion `reorderPicks` (`web/src/features/admin/queries.ts:282`).
 - PIC-4 Hinweis mit Link → Startseitenreihen.
 
 **Sammlungen** (`CollectionsPage.tsx`)
 - SAM-1 Sammlung anlegen (Dialog: Name).
 - SAM-2 Tabelle: Name (mit deutschem Namen, `CollectionsPage.tsx:312-314`), Quelle (TMDB, von
   Hand), Anzahl.
-- SAM-3 Mitglieder (Dialog: Titelsuche, geordnete Liste mit Hoch, Runter, Entfernen,
-  Speichern), Umbenennen, Entfernen (Rückfrage); bei TMDB-Sammlungen Mitglieder und Umbenennen
+- SAM-3 (geändert 3. November 2026) Mitglieder inline im Klappbereich statt im Dialog (Titelsuche, geordnete Liste mit
+  Platzwahl (`RankSelect`, S-16) statt Hoch/Runter, Entfernen, Speichern;
+  `CollectionDetail.tsx:168`), Umbenennen, Entfernen (Rückfrage); bei TMDB-Sammlungen Mitglieder und Umbenennen
   gesperrt (`:341-358`).
 
 **Startseitenreihen** (`HomeRowsPage.tsx`)
 - REI-1 Acht Reihen (Spotlight, Empfehlungen, Weiterschauen, Neu, Erschienen, Merkliste,
-  Sammlungen, Genres): Verbergen, Hoch, Runter; Speichern; Link → Spotlight.
+  Sammlungen, Genres): Ausblenden, Platzwahl (`RankSelect`, S-16; `HomeRowsPage.tsx:160`)
+  statt Hoch/Runter (geändert 3. November 2026); Speichern; Link → Spotlight.
 
 **Ankündigungen** (`AnnouncementsPage.tsx`)
 - ANK-1 Erstellen (Dialog: Titel, Text, «sofort veröffentlichen»).
@@ -452,8 +460,9 @@ offenem Dialog)
   verfügbarem Kanal Link → Integrationen, nur für Administratoren (`ChannelSettingsPage.tsx:340-350`).
 - BEN-2 Telegram: Verknüpfen, Erneuern, Lösen; Code mit Ablauf, «In Telegram öffnen», Fall ohne
   Bot (`:116-139`); Abfrage alle 3 s bei offenem Code.
-- BEN-3 Push: Geräteliste mit «dieses Gerät», Datum und Entfernen, «Dieses Gerät abonnieren»,
-  iOS-Hinweis, «nicht unterstützt» (`:213-235`).
+- BEN-3 Push: Geräteliste mit «dieses Gerät», Datum und Entfernen, «Auf diesem Gerät aktivieren»
+  statt «Dieses Gerät abonnieren» (geändert 3. November 2026), iOS-Hinweis, «nicht unterstützt»
+  (`PushDevices.tsx:86,102,127,131`).
 - BEN-4 Formular: Schalter, E-Mail-Adresse, Ereignisse (Ereignis «Fehler» nur für
   Administratoren, `:327`); Speichern, Test senden.
 - BEN-5 Andere Profile des Kontos (nicht Hauptprofil): Zusammenfassung ohne Steuerung (Ereignisse,
@@ -470,8 +479,9 @@ offenem Dialog)
 - SIC-3 Tabelle: Name, erstellt, Grösse, Art, Geheimnisse, verschlüsselt; Herunterladen,
   Wiederherstellen (Dialog oder Rückfrage), Löschen (Rückfrage).
 - SIC-4 Warteanzeige nach Wiederherstellung (Abfrage `/healthz` alle 2 s, Abbruch nach 90 s,
-  «Erneut warten», Version, Hinweis «ohne Geheimnisse», danach Weiterleitung zur Anmeldung;
-  Fokus auf die Warte-Überschrift; `BackupPage.tsx:281,306-312`, `restart.ts:22-23`).
+  «Erneut prüfen» statt «Erneut warten» (geändert 3. November 2026; `admin.restart.slow.retry`), Version, Hinweis
+  «ohne Geheimnisse», danach Weiterleitung zur Anmeldung; Fokus auf die Warte-Überschrift;
+  `RestartPanel.tsx:36,76,95`, `restart.ts:5,8`).
 
 ### 7.5 Seitenübergreifend
 
@@ -479,13 +489,17 @@ offenem Dialog)
   erlaubt»; `/settings/profiles` Hauptprofil jedes Kontos; `/settings/notifications` jedes Profil,
   Steuerung nur mit Hauptprofil.
 - ALL-2 Laden, Fehler mit «Erneut versuchen», Leerzustand, Ergebnis-Meldungen als `role="status"`;
-  Fokus nach dem Entfernen auf den Seitenkopf (`tabIndex={-1}`; `DevicesPage.tsx:42`,
-  `StreamsPage.tsx:69`, `PodcastsPage.tsx:155`, `CollectionsPage.tsx:300`, `PicksPage.tsx:371`,
-  `AnnouncementsPage.tsx:160`, `SpotlightPage.tsx:506`, `BackupPage.tsx:374`).
+  Fokus nach dem Entfernen auf den Seitenkopf (`tabIndex={-1}`; `AdminPage` mit
+  `titleRef`, `ui/AdminPage.tsx:58`; Fokus über `focusTitleIfLost`, `ui/focusAfter.ts:50`; geändert
+  3. November 2026: `DevicesPage.tsx:212`, `StreamsPage.tsx:177`, `PodcastsPage.tsx:242`,
+  `CollectionsPage.tsx:342`, `PicksPage.tsx:464`, `AnnouncementsPage.tsx:485`,
+  `SpotlightPage.tsx:251`, `BackupPage.tsx:348`).
 - ALL-3 Links in die Verwaltung bleiben gültig: Titelseite → Titel (`/admin/items/$id`) und →
   Empfehlungen `?add=`, Startseite ohne Bibliothek → Bibliotheken, Benachrichtigungen →
   Integrationen, Profilwahl → Profile (`ProfilePickerPage.tsx:145`), Mitteilungen →
-  Benachrichtigungen (`NotificationsPage.tsx:93`), App-Leiste → Profile (`AppLayout.tsx:220`).
+  Benachrichtigungen (`NotificationsPage.tsx:93`), App-Leiste → Profile (`AppLayout.tsx:257`;
+  geändert 3. November 2026). Das Ziel `/settings/profiles` bleibt, auch für
+  Administratoren; die Verwaltungsleiste führt mit «Profile» nach `/admin/accounts?item=me` (KON-3).
 - ALL-4 Adressen und Suchparameter bleiben (`?library=`, `?add=`, `?days=`).
 
 ## 8. Ablauf
