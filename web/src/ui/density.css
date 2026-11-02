@@ -20,6 +20,7 @@
     --sc-panel-gap: var(--sc-density-compact-panel-gap);
     --sc-panel-radius: var(--sc-density-compact-panel-radius);
     --sc-table-cell-padding-y: var(--sc-density-compact-table-cell-padding-y);
+    --sc-table-row-height: var(--sc-density-compact-table-row-height);
     --sc-page-title-size: var(--sc-density-compact-page-title-size);
     --sc-page-title-weight: var(--sc-density-compact-page-title-weight);
     --sc-page-title-tracking: var(--sc-density-compact-page-title-tracking);

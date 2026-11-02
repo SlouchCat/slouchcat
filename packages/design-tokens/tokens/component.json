@@ -31,6 +31,10 @@
     "cell-padding-y": {
       "$value": "{space.3}",
       "$description": "Vertical padding of table header and body cells."
+    },
+    "row-height": {
+      "$value": "0px",
+      "$description": "Minimum height of a body row, border included; 0: the padding and the content set it."
     }
   },
   "page": {
@@ -105,8 +109,12 @@
       },
       "table": {
         "cell-padding-y": {
-          "$value": "9px",
-          "$description": "9 px: a row of 14 px text at line height 1.5 (21 px) is 39 px, 40 px with the border between rows."
+          "$value": "6px",
+          "$description": "6 px: room for a 24 px chip, checkbox or fold-out button (and its baseline) inside a 40 px row."
+        },
+        "row-height": {
+          "$value": "40px",
+          "$description": "40 px (concept 12, S-5): a row of 14 px text, and one with a 24 px chip or button, is 40 px high."
         }
       },
       "page": {

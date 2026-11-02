@@ -54,6 +54,14 @@ test.describe('with a mouse from 768 px', () => {
     expect(await height(entry)).toBeGreaterThanOrEqual(44);
   });
 
+  test('a table row is 40 px high (S-5)', async ({ page }) => {
+    await openJobs(page);
+    // The first job type of the selected tab: its fold-out button and state chip are 24 px.
+    const row = page.getByRole('tabpanel').getByRole('row').nth(1);
+    await expect(row).toBeVisible();
+    await expect.poll(() => height(row)).toBe(40);
+  });
+
   test('running text is 14 px in the content of /admin', async ({ page }) => {
     await page.goto('/admin/spotlight');
     await expect(page.getByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();

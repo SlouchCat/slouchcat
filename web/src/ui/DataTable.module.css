@@ -54,11 +54,14 @@
 }
 
 .cell {
+  /* A table cell's height is the least height of its row (component token, 40 px in the
+     compact density, S-5); text, thumbnails and buttons share the row's middle. */
+  height: var(--sc-table-row-height);
   padding: var(--sc-table-cell-padding-y) var(--sc-space-4);
   color: var(--sc-color-text-secondary);
   font-weight: var(--sc-font-weight-regular);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 th.cell {

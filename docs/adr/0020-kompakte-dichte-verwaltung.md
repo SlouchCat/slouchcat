@@ -128,3 +128,8 @@ unverändert (dieselben Farb-Tokens).
 - **`text.body-size`** (Komponententoken `--sc-text-body-size`): Grösse des Fliesstexts (`Text`
   Variante `body`: Hinweise, Leerzustände, Zustand der Speicherleiste). Standard `font.size.lg`
   (20 px, wie bisher), kompakt `font.size.sm` (14 px, wie in den Mockups).
+- **`table.row-height`** (Komponententoken `--sc-table-row-height`): Mindesthöhe einer Tabellenzeile
+  als Höhe der Zelle. Standard `0px` (Innenabstand und Inhalt bestimmen die Höhe wie bisher), kompakt
+  40 px (S-5). Dazu sinkt `density.compact.table.cell-padding-y` von 9 auf 6 px: Faltknopf, Chip und
+  Kontrollkästchen (24 px) passen so in 40 px, Textzeilen hält die Mindesthöhe auf 40 px. Die Zellen
+  stehen in der Mitte der Zeile (`vertical-align: middle`), auch in der Standarddichte.
