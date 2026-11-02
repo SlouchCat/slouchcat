@@ -5,6 +5,12 @@
   min-width: 0;
 }
 
+/* Label and control on one line, wrapping when narrow (RadioGroup `inline`). */
+.inline {
+  flex-flow: row wrap;
+  align-items: center;
+}
+
 .label {
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);

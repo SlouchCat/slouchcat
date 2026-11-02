@@ -57,6 +57,7 @@ export function WhenWatched({ watchTimeByQuarterHour, timeWindowDays, timeZone }
         <div className={styles.whenChart}>
           <BarChart
             title={t('admin.stats.when.byHour')}
+            tickEvery={3}
             columns={[t('admin.stats.when.columns.hour'), t('admin.stats.columns.watched')]}
             bars={hours.map((value, hour) => {
               const label = hourSpan(hour);

@@ -501,7 +501,9 @@
       "day": "Day of the week",
       "hour": "{{hour}}:00",
       "less": "less",
-      "more": "more"
+      "more": "more",
+      "none": "none",
+      "noneShown": "–"
     }
   },
   "item": {
@@ -2411,8 +2413,11 @@
         "count_other": "{{count, number}} titles",
         "podium": "Places 1 to 3",
         "rest": "Most watched from place 4",
-        "rank": "{{rank}}.",
-        "meta": "{{kind}} · {{plays}} · {{watched}}"
+        "rank": "{{rank}}",
+        "meta": "{{kind}} · {{plays}} · {{watched}}",
+        "full": "Top {{count, number}}",
+        "plays_one": "{{count, number}} play",
+        "plays_other": "{{count, number}} plays"
       },
       "profiles": {
         "title": "Watch time per profile",

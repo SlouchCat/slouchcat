@@ -133,6 +133,7 @@ test('A-8: a playback shows up in the statistics; period, tables, grid and Back 
   await expect(fold).toHaveAttribute('aria-expanded', 'false');
   await expect(grid).toHaveCount(0);
   await tabTo(page, fold, 80);
+  await expectFocusOn(page, fold);
   await page.keyboard.press('Enter');
   await expect(fold).toHaveAttribute('aria-expanded', 'true');
   await expect(grid.getByRole('rowheader')).toHaveCount(7);
@@ -142,6 +143,7 @@ test('A-8: a playback shows up in the statistics; period, tables, grid and Back 
   await resetFocus(page);
   await tabTo(page, seven, 60);
   await tabTo(page, film, 40);
+  await expectFocusOn(page, film);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`/admin/items/${itemId}$`));
   await page.goBack();

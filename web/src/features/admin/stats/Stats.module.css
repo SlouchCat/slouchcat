@@ -1,13 +1,8 @@
 /* The statistics page (concept 12, mockup Sta-B): what AdminPage, BandPanel, BarChart and
    HeatGrid do not lay out themselves. */
 
-/* The period in the header: its label before the segments, on one line. */
-.period > * {
-  flex-flow: row wrap;
-  align-items: center;
-}
-
-/* The content dims while the next period loads; the previous numbers stay meanwhile. */
+/* The content dims while the next period loads; the previous numbers stay meanwhile. A refetch
+   of the same period does not dim it. */
 .content {
   display: flex;
   flex-direction: column;
@@ -15,22 +10,8 @@
   transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
-.content[aria-busy='true'] {
+.content[data-switching] {
   opacity: 0.6;
-}
-
-/* A live region that is always there (role status), for screen readers only; out of the flow,
-   so it takes no gap of the page's column. */
-.live {
-  position: absolute;
-  overflow: hidden;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  border: 0;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* Profiles and devices side by side, one above the other when narrow. */

@@ -501,7 +501,9 @@
       "day": "Wochentag",
       "hour": "{{hour}} Uhr",
       "less": "weniger",
-      "more": "mehr"
+      "more": "mehr",
+      "none": "keine",
+      "noneShown": "–"
     }
   },
   "item": {
@@ -2412,7 +2414,10 @@
         "podium": "Platz 1 bis 3",
         "rest": "Meistgesehen ab Platz 4",
         "rank": "{{rank}}.",
-        "meta": "{{kind}} · {{plays}} · {{watched}}"
+        "meta": "{{kind}} · {{plays}} · {{watched}}",
+        "full": "Top {{count, number}}",
+        "plays_one": "{{count, number}} Wiedergabe",
+        "plays_other": "{{count, number}} Wiedergaben"
       },
       "profiles": {
         "title": "Schauzeit je Profil",

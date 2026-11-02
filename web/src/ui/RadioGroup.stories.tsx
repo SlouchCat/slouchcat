@@ -20,6 +20,21 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+/** The label before the segments, as the period in the header of the statistics. */
+export const Inline: Story = {
+  args: {
+    label: 'Zeitraum',
+    defaultValue: '30',
+    inline: true,
+    options: [
+      { value: '7', label: '7 Tage' },
+      { value: '30', label: '30 Tage' },
+      { value: '90', label: '90 Tage' },
+      { value: '365', label: '365 Tage' },
+    ],
+  },
+};
+
 /** Arrow keys move focus and selection together (focus duration). */
 export const Focused: Story = { tags: ['press:Tab+ArrowRight'] };
 

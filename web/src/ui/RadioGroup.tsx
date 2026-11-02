@@ -25,12 +25,25 @@ interface RadioGroupProps extends Omit<AriaRadioGroupProps, 'className' | 'child
   hideLabel?: boolean;
   description?: ReactNode;
   options: readonly Option[];
+  /** The label before the segments on one line (a period in a page header). */
+  inline?: boolean;
 }
 
 /** Segmented choice between a few options (react-aria RadioGroup, arrow keys inside). */
-export function RadioGroup({ label, hideLabel, description, options, ...rest }: RadioGroupProps) {
+export function RadioGroup({
+  label,
+  hideLabel,
+  description,
+  options,
+  inline,
+  ...rest
+}: RadioGroupProps) {
   return (
-    <AriaRadioGroup className={styles.field} orientation="horizontal" {...rest}>
+    <AriaRadioGroup
+      className={`${styles.field} ${inline ? styles.inline : ''}`}
+      orientation="horizontal"
+      {...rest}
+    >
       <Label className={hideLabel ? styles.hiddenLabel : styles.label}>{label}</Label>
       {description && (
         <Text slot="description" className={styles.description}>

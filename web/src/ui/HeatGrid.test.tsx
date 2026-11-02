@@ -25,7 +25,11 @@ describe('HeatGrid (concept 12, «Wann geschaut wird»)', () => {
       'Sonntag',
     ]);
     const rows = within(table).getAllByRole('row');
-    expect(within(rows[1]!).getAllByRole('cell')[0]).toHaveTextContent('0 min');
+    // An hour without any value shows «–» and is spoken «keine».
+    const empty = within(rows[1]!).getAllByRole('cell')[0]!;
+    expect(empty).toHaveTextContent(/^–keine$/);
+    expect(within(empty).getByText('–')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(rows[1]!).getAllByRole('cell')[1]).toHaveTextContent('1 min');
     expect(within(rows[7]!).getAllByRole('cell')[23]).toHaveTextContent('167 min');
   });
 });

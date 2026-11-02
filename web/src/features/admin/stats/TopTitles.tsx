@@ -100,7 +100,7 @@ export function TopTitles({ titles }: { titles: StatTitle[] }) {
               <span className={styles.tileMeta}>
                 {t('admin.stats.top.meta', {
                   kind: t(`kind.${title.kind}`),
-                  plays: t('admin.stats.playback.sessions', { count: title.plays }),
+                  plays: t('admin.stats.top.plays', { count: title.plays }),
                   watched: formatDuration(t, title.watchedMs),
                 })}
               </span>

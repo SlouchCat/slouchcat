@@ -8,7 +8,7 @@ import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatDuration } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Skeleton } from '@/ui';
+import { Notice, Skeleton, VisuallyHidden } from '@/ui';
 import { AdminPage, AriaButton, BandPanel, RadioGroup, StatusStrip } from '@/ui/aria';
 import { statsQuery } from './queries';
 import { Devices, WatchTime } from './stats/Breakdown';
@@ -18,6 +18,9 @@ import { WhenWatched } from './stats/WhenWatched';
 import { DEFAULT_STATS_DAYS, STATS_DAYS } from './statsDays';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/stats');
+
+/** The server sends at most this many most watched titles (`Stats.topTitles`). */
+const TOP_TITLES = 20;
 
 /**
  * «Wiedergabe» (STA-2) as the page's status strip: direct play, remux and transcode with their
@@ -80,7 +83,7 @@ function StatsContent() {
   const stats = useQuery({ ...statsQuery(days), placeholderData: keepPreviousData });
   // After a switch of the period the status region says once the new numbers are there.
   const [switched, setSwitched] = useState(false);
-  const loaded = switched && stats.isSuccess && !stats.isPlaceholderData;
+  const loaded = switched && stats.isSuccess && !stats.isFetching;
   const data = stats.data;
 
   return (
@@ -88,21 +91,20 @@ function StatsContent() {
       title={t('admin.stats.title')}
       help={t('admin.stats.intro')}
       actions={
-        <div className={styles.period}>
-          <RadioGroup
-            name="days"
-            label={t('admin.stats.period')}
-            value={String(days)}
-            onChange={(value) => {
-              setSwitched(true);
-              void navigate({ search: { days: Number(value) as StatsDays }, replace: true });
-            }}
-            options={STATS_DAYS.map((option) => ({
-              value: String(option),
-              label: t('admin.stats.days', { count: option }),
-            }))}
-          />
-        </div>
+        <RadioGroup
+          name="days"
+          label={t('admin.stats.period')}
+          inline
+          value={String(days)}
+          onChange={(value) => {
+            setSwitched(true);
+            void navigate({ search: { days: Number(value) as StatsDays }, replace: true });
+          }}
+          options={STATS_DAYS.map((option) => ({
+            value: String(option),
+            label: t('admin.stats.days', { count: option }),
+          }))}
+        />
       }
     >
       {stats.isPending && <Skeleton shape="block" />}
@@ -118,7 +120,11 @@ function StatsContent() {
         />
       )}
       {data && (
-        <div className={styles.content} aria-busy={stats.isFetching}>
+        <div
+          className={styles.content}
+          aria-busy={stats.isFetching}
+          data-switching={stats.isPlaceholderData || undefined}
+        >
           <StatusStrip
             label={t('admin.stats.playback.title')}
             tiles={playbackTiles(t, i18n.language, data.playback)}
@@ -126,7 +132,11 @@ function StatsContent() {
           <BandPanel
             title={t('admin.stats.top.title')}
             icon="star"
-            meta={t('admin.stats.top.count', { count: data.topTitles.length })}
+            meta={
+              data.topTitles.length >= TOP_TITLES
+                ? t('admin.stats.top.full', { count: TOP_TITLES })
+                : t('admin.stats.top.count', { count: data.topTitles.length })
+            }
           >
             <TopTitles titles={data.topTitles} />
           </BandPanel>
@@ -175,9 +185,9 @@ function StatsContent() {
           </BandPanel>
         </div>
       )}
-      <div role="status" className={styles.live}>
+      <VisuallyHidden as="div" role="status">
         {loaded && t('admin.stats.loaded', { period: t('admin.stats.days', { count: days }) })}
-      </div>
+      </VisuallyHidden>
     </AdminPage>
   );
 }

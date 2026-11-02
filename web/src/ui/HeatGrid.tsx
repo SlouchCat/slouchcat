@@ -1,6 +1,7 @@
 import { useId, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './HeatGrid.module.css';
+import { VisuallyHidden } from './VisuallyHidden';
 
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
@@ -14,7 +15,10 @@ interface HeatGridProps {
   title: string;
   /** 7 × 24 values, Monday 00:00 first, then hour by hour (the order of the contract). */
   values: readonly number[];
-  /** A value in words for the table and the tooltips ("1 h 20 min"). */
+  /**
+   * A value in words for the table and the tooltips ("1 h 20 min"). An hour without any reads
+   * «–», spoken «keine».
+   */
   formatValue: (value: number) => string;
 }
 
@@ -30,6 +34,7 @@ export function HeatGrid({ title, values, formatValue }: HeatGridProps) {
   const max = Math.max(1, ...values);
   const value = (day: number, hour: number) => values[day * 24 + hour] ?? 0;
   const hourLabel = (hour: number) => t('ui.heatGrid.hour', { hour });
+  const none = t('ui.heatGrid.noneShown');
   return (
     <figure className={styles.chart} aria-labelledby={id}>
       <figcaption id={id} className={styles.title}>
@@ -52,7 +57,7 @@ export function HeatGrid({ title, values, formatValue }: HeatGridProps) {
               <span
                 key={`${day}-${hour}`}
                 className={styles.cell}
-                title={`${t(`ui.weekdays.long.${day}`)}, ${hourLabel(hour)}: ${formatValue(amount)}`}
+                title={`${t(`ui.weekdays.long.${day}`)}, ${hourLabel(hour)}: ${amount > 0 ? formatValue(amount) : none}`}
                 style={{ '--heat': Math.round((amount / max) * 100) } as CSSProperties}
               />
             );
@@ -88,7 +93,16 @@ export function HeatGrid({ title, values, formatValue }: HeatGridProps) {
               <tr key={day}>
                 <th scope="row">{t(`ui.weekdays.long.${day}`)}</th>
                 {HOURS.map((hour) => (
-                  <td key={hour}>{formatValue(value(row, hour))}</td>
+                  <td key={hour}>
+                    {value(row, hour) > 0 ? (
+                      formatValue(value(row, hour))
+                    ) : (
+                      <>
+                        <span aria-hidden="true">{none}</span>
+                        <VisuallyHidden>{t('ui.heatGrid.none')}</VisuallyHidden>
+                      </>
+                    )}
+                  </td>
                 ))}
               </tr>
             ))}

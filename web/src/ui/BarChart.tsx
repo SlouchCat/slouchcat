@@ -27,6 +27,11 @@ interface BarChartProps {
    * days of the week, concept 12); the threshold line is drawn by vertical charts only.
    */
   orientation?: 'vertical' | 'horizontal';
+  /**
+   * Vertical charts label every so many bars (3: the hours 0, 3, 6 …); without it the first,
+   * the middle and the last bar.
+   */
+  tickEvery?: number;
 }
 
 /**
@@ -40,6 +45,7 @@ export function BarChart({
   columns,
   threshold,
   orientation = 'vertical',
+  tickEvery,
 }: BarChartProps) {
   const id = useId();
   const horizontal = orientation === 'horizontal';
@@ -49,7 +55,11 @@ export function BarChart({
     ...bars.map((bar) => bar.value),
   );
   const percent = (value: number) => `${Math.min(100, (value / max) * 100)}%`;
-  const ticks = new Set([0, Math.floor((bars.length - 1) / 2), bars.length - 1]);
+  const ticks = new Set(
+    tickEvery
+      ? bars.flatMap((_bar, index) => (index % tickEvery === 0 ? [index] : []))
+      : [0, Math.floor((bars.length - 1) / 2), bars.length - 1],
+  );
   const table = (
     <div className={styles.table}>
       <table>

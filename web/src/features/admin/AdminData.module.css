@@ -1,11 +1,5 @@
-/* Parts of the M8 data pages (accounts, backup, statistics, announcements) beyond the shared table
-   page layout of AdminTablePage.module.css. */
-
-.chips {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-1);
-}
+/* Parts of the M8 data pages (backup, announcements) beyond the shared table page layout of
+   AdminTablePage.module.css. */
 
 .toolbar {
   display: flex;

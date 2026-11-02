@@ -297,7 +297,8 @@ describe('admin statistics (A-8)', () => {
     const cells = within(friday).getAllByRole('cell');
     expect(cells).toHaveLength(24);
     expect(cells[20]).toHaveTextContent('1 h');
-    expect(cells[21]).toHaveTextContent('0 s');
+    // An hour without watch time reads «–», spoken «keine».
+    expect(cells[21]).toHaveTextContent(/^–keine$/);
     const monday = within(grid).getByRole('rowheader', { name: 'Montag' }).closest('tr')!;
     expect(within(monday).getAllByRole('cell')[0]).toHaveTextContent('20 min');
   });
@@ -322,9 +323,13 @@ describe('admin statistics (A-8)', () => {
     const { router } = renderApp('/admin/stats');
     const user = userEvent.setup();
     await screen.findByRole('table', { name: 'Meistgesehen ab Platz 4' });
-    // The status region is there from the start and says nothing before a switch.
+    // The status region is there from the start and says nothing before a switch; the content
+    // dims only while another period loads.
     const status = screen.getByRole('status');
     expect(status).toBeEmptyDOMElement();
+    const content = screen.getByRole('group', { name: 'Wiedergabe' }).parentElement!;
+    expect(content).toHaveAttribute('aria-busy', 'false');
+    expect(content).not.toHaveAttribute('data-switching');
     const thirty = screen.getByRole('radio', { name: '30 Tage' });
     thirty.focus();
     await user.keyboard('{ArrowLeft}');
@@ -332,6 +337,7 @@ describe('admin statistics (A-8)', () => {
     await waitFor(() => expect(router.state.location.search).toEqual({ days: 7 }));
     await waitFor(() => expect(askedDays(fetchMock)).toEqual(['30', '7']));
     await waitFor(() => expect(status).toHaveTextContent('Zahlen für 7 Tage geladen.'));
+    expect(content).not.toHaveAttribute('data-switching');
     await user.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}');
     await waitFor(() => expect(router.state.location.search).toEqual({ days: 365 }));
     expect(screen.getByRole('radio', { name: '365 Tage' })).toHaveFocus();
@@ -350,6 +356,26 @@ describe('admin statistics (A-8)', () => {
     renderApp('/admin/stats?days=12');
     expect(await screen.findByRole('radio', { name: '30 Tage' })).toBeChecked();
     await waitFor(() => expect(askedDays(second.fetchMock)).toEqual(['30']));
+  });
+
+  it('names a full list «Top 20» in the head of «Meistgesehen»', async () => {
+    const twenty = Array.from({ length: 20 }, (_, index) => ({
+      itemId: `01JB8Z6Q4M7N9P2R3S5T7V9X${String(index).padStart(2, '0')}`,
+      title: `Titel ${index + 1}`,
+      kind: 'movie' as const,
+      plays: 20 - index,
+      watchedMs: (20 - index) * 600_000,
+    }));
+    mockApi({ ...signedIn, 'GET /admin/stats': () => json({ ...stats(30), topTitles: twenty }) });
+    renderApp('/admin/stats');
+    const top = await screen.findByRole('region', { name: 'Meistgesehen' });
+    expect(top).toHaveTextContent(/^Meistgesehen\s*Top 20/);
+    expect(within(top).getAllByRole('listitem')).toHaveLength(3);
+    expect(
+      within(within(top).getByRole('table', { name: 'Meistgesehen ab Platz 4' })).getAllByRole(
+        'row',
+      ),
+    ).toHaveLength(18);
   });
 
   it('says when nothing was watched', async () => {
