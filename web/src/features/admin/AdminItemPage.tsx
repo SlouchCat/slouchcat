@@ -1,7 +1,7 @@
 import type { AdminItem } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -69,13 +69,10 @@ function AdminItemView({ itemId }: { itemId: string }) {
 
   const kinds = data ? imageKindsOf(data) : undefined;
   const tabIds = [FIRST_TAB, ...(kinds ? ['images'] : []), 'files', 'trailers'];
-  const [tab, selectTab] = useSearchSelection('tab', tabIds, FIRST_TAB);
   // An unknown `?tab=` (or «Bilder» of an episode) shows the first tab; the address says so too.
-  const { tab: askedTab } = route.useSearch();
-  const staleTab = data !== undefined && askedTab !== undefined && !tabIds.includes(askedTab);
-  useEffect(() => {
-    if (staleTab) selectTab(FIRST_TAB);
-  }, [staleTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', tabIds, FIRST_TAB, {
+    normalise: data !== undefined,
+  });
 
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const isExpanded = useCallback((key: string) => expanded.has(key), [expanded]);

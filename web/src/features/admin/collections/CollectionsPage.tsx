@@ -6,8 +6,7 @@ import {
   useQueryClient,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
@@ -157,17 +156,8 @@ function CollectionsContent() {
   const hold = naming !== null || confirmOpen || unsaved.dialog.isOpen || openDraft;
   const collections = useQuery({ ...collectionsQuery, refetchOnWindowFocus: !hold });
 
-  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ALL);
   // An unknown `?tab=` shows «Alle», and the address says so too (replaced, not pushed).
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  useEffect(() => {
-    if (
-      askedTab !== undefined &&
-      !(typeof askedTab === 'string' && (TAB_IDS as readonly string[]).includes(askedTab))
-    )
-      selectTab(ALL);
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ALL, { normalise: true });
 
   const onExpandedChange = useCallback((key: string, open: boolean) => {
     setExpanded((current) => {

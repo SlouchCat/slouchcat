@@ -1,7 +1,6 @@
 import type { AdminDevice } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -86,17 +85,8 @@ function DevicesContent() {
   // No refetch while the confirmation is open: its row stays as it was asked about.
   const devices = useQuery({ ...devicesQuery, refetchOnWindowFocus: !confirmOpen });
 
-  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, DEVICES);
   // An unknown `?tab=` shows «Geräte», and the address says so too (replaced, not pushed).
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  useEffect(() => {
-    if (
-      askedTab !== undefined &&
-      !(typeof askedTab === 'string' && (TAB_IDS as readonly string[]).includes(askedTab))
-    )
-      selectTab(DEVICES);
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, DEVICES, { normalise: true });
 
   // Folded sections by type, held by the page: the same type is folded in both tabs.
   const [folded, setFolded] = useState<ReadonlySet<TypeKey>>(() => new Set());

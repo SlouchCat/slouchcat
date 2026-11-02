@@ -1,7 +1,7 @@
 import type { AdminPick, PickUpdate } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getRouteApi, useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getRouteApi } from '@tanstack/react-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -156,14 +156,8 @@ function PicksContent() {
   const hold = confirmOpen || addOpen || changedIds.some((id) => expanded.has(id));
   const picks = useQuery({ ...picksQuery, refetchOnWindowFocus: !hold });
 
-  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ALL);
   // An unknown `?tab=` shows «Alle»; the address says so too.
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  useEffect(() => {
-    if (askedTab !== undefined && !(typeof askedTab === 'string' && TAB_IDS.includes(askedTab)))
-      selectTab(ALL);
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ALL, { normalise: true });
 
   // Every message gets its own number, so the same words twice are announced twice.
   const [message, setMessage] = useState<{ text: string; seq: number } | null>(null);

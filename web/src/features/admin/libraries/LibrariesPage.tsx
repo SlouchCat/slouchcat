@@ -1,6 +1,5 @@
 import type { Library } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
@@ -84,17 +83,8 @@ function LibrariesContent() {
   // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
   const hold = confirmOpen || addOpen || foldersOpen || ratingOpen;
 
-  const [tab, selectTab] = useSearchSelection('tab', TABS, 'all');
   // An unknown `?tab=` shows the first tab; the address says so too.
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  useEffect(() => {
-    if (
-      askedTab !== undefined &&
-      !(typeof askedTab === 'string' && (TABS as readonly string[]).includes(askedTab))
-    )
-      selectTab('all');
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'all', { normalise: true });
 
   const libraries = useQuery({
     ...librariesQuery,

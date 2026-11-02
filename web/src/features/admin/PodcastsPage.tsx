@@ -1,6 +1,5 @@
 import type { AdminPodcast } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
@@ -118,19 +117,9 @@ function PodcastsContent() {
     () => [ALL, ...tabLibraries.map((library) => libraryTab(library.id))],
     [tabLibraries],
   );
-  const [tab, selectTab] = useSearchSelection('tab', tabIds, ALL);
   // An unknown `?tab=` shows «Alle»; once the lists are there, the address says so too.
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
   const loaded = podcasts.isSuccess && libraries.isSuccess;
-  useEffect(() => {
-    if (
-      loaded &&
-      askedTab !== undefined &&
-      !(typeof askedTab === 'string' && tabIds.includes(askedTab))
-    )
-      selectTab(ALL);
-  }, [loaded, askedTab, tabIds, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', tabIds, ALL, { normalise: loaded });
 
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const onExpandedChange = useCallback(

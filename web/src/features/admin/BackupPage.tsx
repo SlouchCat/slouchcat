@@ -1,7 +1,6 @@
 import type { Backup, RestoreResult } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -83,14 +82,8 @@ function BackupContent() {
     refetchOnWindowFocus: !hold,
   });
 
-  const [tab, selectTab] = useSearchSelection('tab', TABS, 'list');
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
   // An unknown `?tab=` shows «Sicherungen»; the address says so too.
-  useEffect(() => {
-    if (askedTab !== undefined && !(typeof askedTab === 'string' && TABS.includes(askedTab)))
-      selectTab('list');
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'list', { normalise: true });
 
   // The scope of «Neue Sicherung» is the page's: it stays when the tab changes (S-17). The
   // passphrases are not; they live in the tab only.

@@ -1,7 +1,6 @@
 import type { HomeRowSetting } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
@@ -87,17 +86,8 @@ function HomeRowsContent() {
     refetchOnReconnect: !unsaved.pausePolling,
   });
 
-  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ORDER);
   // An unknown `?tab=` shows «Reihenfolge», and the address says so too (replaced, not pushed).
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  useEffect(() => {
-    if (
-      askedTab !== undefined &&
-      !(typeof askedTab === 'string' && (TAB_IDS as readonly string[]).includes(askedTab))
-    )
-      selectTab(ORDER);
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ORDER, { normalise: true });
 
   // Open rows, held by the page: switching to the preview and back keeps them open.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());

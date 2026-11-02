@@ -1,7 +1,7 @@
 import type { Announcement, AnnouncementRequest } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -164,7 +164,11 @@ function AnnouncementsContent() {
   // Without `?item=` the first saved one shows; the new one always has `?item=new`.
   const fallback = first ? itemOf(first) : created ? NEW : '';
   const ids = [...(created ? [NEW] : []), ...ordered.map(itemOf)];
-  const [selected] = useSearchSelection('item', ids, fallback);
+  // An unknown `?item=` (deleted, or a new one that was never saved) shows the first one, and the
+  // address drops it too (replaced, not pushed).
+  const [selected] = useSearchSelection('item', ids, fallback, {
+    normalise: announcements.isSuccess,
+  });
   /**
    * Selects `id` in the address, replaced, not pushed; the first saved one without `?item=`. A
    * promise, unlike useSearchSelection's: a save waits for it before the new one leaves the list.
@@ -178,27 +182,6 @@ function AnnouncementsContent() {
         item: id === fallback && id !== NEW ? undefined : id,
       })) as never,
     });
-  // An unknown `?item=` (deleted, or a new one that was never saved) shows the first one, and the
-  // address drops it too (replaced, not pushed).
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedItem = search.item;
-  const idsKey = ids.join(',');
-  const loaded = announcements.isSuccess;
-  useEffect(() => {
-    if (
-      loaded &&
-      askedItem !== undefined &&
-      !(typeof askedItem === 'string' && idsKey.split(',').includes(askedItem))
-    )
-      void navigate({
-        to: '.',
-        replace: true,
-        search: ((previous: Record<string, unknown>) => ({
-          ...previous,
-          item: undefined,
-        })) as never,
-      });
-  }, [loaded, askedItem, idsKey, navigate]);
 
   // The outcome of the last action. `seq` counts every message, so the same text twice is
   // announced twice: the notice is a new element each time.

@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-router';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { adminSearch } from '@/app/router';
 import { ConfirmDialog } from './Dialog';
@@ -80,6 +81,26 @@ function MetadataPage() {
   );
 }
 
+/**
+ * A page whose tabs come from a list (podcast libraries): the address is normalised only once the
+ * list is there, so a valid tab is not dropped while it loads.
+ */
+function PodcastsPage() {
+  const [loaded, setLoaded] = useState(false);
+  const [tab] = useSearchSelection('tab', loaded ? ['all', 'library-1'] : ['all'], 'all', {
+    normalise: loaded,
+  });
+  return (
+    <>
+      <h1>Podcasts</h1>
+      <p>Reiter: {tab}</p>
+      <button type="button" onClick={() => setLoaded(true)}>
+        Laden
+      </button>
+    </>
+  );
+}
+
 function setup(path = '/admin/jobs', browser = false) {
   const root = createRootRoute({ component: Outlet });
   const jobs = createRoute({
@@ -103,8 +124,14 @@ function setup(path = '/admin/jobs', browser = false) {
     }),
     component: MetadataPage,
   });
+  const podcasts = createRoute({
+    getParentRoute: () => root,
+    path: '/admin/podcasts',
+    validateSearch: adminSearch,
+    component: PodcastsPage,
+  });
   const router = createRouter({
-    routeTree: root.addChildren([jobs, backup, metadata]),
+    routeTree: root.addChildren([jobs, backup, metadata, podcasts]),
     // The browser's history (jsdom) for the Back button: only it reports a POP to the blockers.
     history: browser ? createBrowserHistory() : createMemoryHistory({ initialEntries: [path] }),
   });
@@ -132,6 +159,34 @@ describe('useSearchSelection (concept 12, S-14)', () => {
       'aria-selected',
       'true',
     );
+  });
+
+  it('keeps an unknown value in the address without `normalise`', async () => {
+    const router = setup('/admin/jobs?tab=nothing');
+    await screen.findByRole('tab', { name: 'Bibliothek' });
+    expect(router.state.location.search).toEqual({ tab: 'nothing' });
+  });
+
+  it('replaces an unknown value with the default once `normalise` is on, without a history entry', async () => {
+    const user = userEvent.setup();
+    const router = setup('/admin/podcasts?tab=nothing');
+    expect(await screen.findByText('Reiter: all')).toBeVisible();
+    // Not yet: the list of tabs is still loading.
+    expect(router.state.location.search).toEqual({ tab: 'nothing' });
+    const entries = router.history.length;
+    await user.click(screen.getByRole('button', { name: 'Laden' }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(router.history.length).toBe(entries);
+    expect(screen.getByText('Reiter: all')).toBeVisible();
+  });
+
+  it('keeps a value that turns out valid once the list is there', async () => {
+    const user = userEvent.setup();
+    const router = setup('/admin/podcasts?tab=library-1');
+    expect(await screen.findByText('Reiter: all')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Laden' }));
+    expect(await screen.findByText('Reiter: library-1')).toBeVisible();
+    expect(router.state.location.search).toEqual({ tab: 'library-1' });
   });
 });
 

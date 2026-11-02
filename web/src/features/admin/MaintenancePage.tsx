@@ -1,7 +1,6 @@
 import type { DuplicateGroup, Issue, IssueKind } from '@slouchcat/api-client';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -63,14 +62,8 @@ function MaintenanceContent() {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
 
-  const [tab, selectTab] = useSearchSelection('tab', TABS, issueKinds[0]);
   // An unknown `?tab=` shows the first tab; the address says so too.
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  useEffect(() => {
-    if (askedTab !== undefined && !(typeof askedTab === 'string' && TABS.includes(askedTab)))
-      selectTab(issueKinds[0]);
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TABS, issueKinds[0], { normalise: true });
 
   const [selection, setSelection] = useState<Partial<Record<IssueKind, string[]>>>({});
   const [outcomes, setOutcomes] = useState<Partial<Record<string, Outcome>>>({});

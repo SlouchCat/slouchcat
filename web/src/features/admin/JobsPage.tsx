@@ -8,11 +8,9 @@ import type {
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useSearch } from '@tanstack/react-router';
 import {
   memo,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -394,14 +392,8 @@ function JobsContent() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const hold = confirmOpen || unsaved.pausePolling;
 
-  const [tab, selectTab] = useSearchSelection('tab', TABS, 'library');
   // An unknown `?tab=` shows the first tab; the address says so too.
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  useEffect(() => {
-    if (askedTab !== undefined && !(typeof askedTab === 'string' && TABS.includes(askedTab)))
-      selectTab('library');
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'library', { normalise: true });
 
   const overview = useQuery({
     ...jobTypesQuery,
