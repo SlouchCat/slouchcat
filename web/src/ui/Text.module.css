@@ -48,6 +48,11 @@
   font-weight: var(--sc-page-title-weight);
   line-height: var(--sc-font-line-height-tight);
   letter-spacing: var(--sc-page-title-tracking);
+
+  /* A long word («Benachrichtigungskanäle», 44 px on a phone) is wider than the screen: it is
+     hyphenated where the browser knows the language (<html lang>), else broken anywhere. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 @media (width >= 768px) {
