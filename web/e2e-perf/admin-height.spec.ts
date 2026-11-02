@@ -14,32 +14,32 @@ interface Target {
   workRow: (page: Page) => Locator;
 }
 
-/** The content directly below a section heading of the jobs page ("Läuft gerade", the groups). */
-const belowHeading = (page: Page, heading: string) =>
-  page
-    .locator('section')
-    .filter({ has: page.getByRole('heading', { level: 2, name: heading, exact: true }) })
-    .locator(':scope > :nth-child(2)');
+/**
+ * The first work row carries `data-perf="first-work-row"` in the page (K12-8): the rebuilt pages
+ * (concept 12) have no stable structure for a locator of their own, and the marker keeps the meaning
+ * of the baseline in docs/perf/verwaltungsseiten.md.
+ */
+const firstWorkRow = (page: Page) => page.locator('main [data-perf="first-work-row"]');
 
 const targets: Target[] = [
   {
-    // The list "Läuft gerade" (a panel with the running runs, or its empty line) is the page's first
-    // list; the job types follow below it.
+    // The list "Läuft gerade" (the table of the running runs, or its empty line) is the page's
+    // first list, in its fold-out group below the counters; the job types follow below it.
     name: 'Hintergrundjobs',
     path: '/admin/jobs',
-    workRow: (page) => belowHeading(page, 'Läuft gerade'),
+    workRow: firstWorkRow,
   },
   {
-    // The first form: the TMDB key in "Schlüssel der Anbieter".
+    // The first form: the row of the TMDB key in "Schlüssel der Anbieter".
     name: 'Integrationen',
     path: '/admin/integrations',
-    workRow: (page) => page.locator('main form').first(),
+    workRow: firstWorkRow,
   },
   {
-    // The table of the accounts, from its header row.
+    // The table of the accounts, from its header row (tab "Konten").
     name: 'Konten',
     path: '/admin/accounts',
-    workRow: (page) => page.getByRole('table', { name: 'Konten' }),
+    workRow: firstWorkRow,
   },
 ];
 

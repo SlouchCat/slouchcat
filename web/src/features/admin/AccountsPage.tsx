@@ -532,13 +532,16 @@ function AccountsContent() {
                     />
                   )}
                   {accounts.data && (
-                    <DataTable
-                      caption={t('admin.accounts.list')}
-                      columns={columns}
-                      rows={list}
-                      rowKey={(account) => String(account.id)}
-                      expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
-                    />
+                    // The first work row of the page (docs/perf/verwaltungsseiten.md).
+                    <div data-perf="first-work-row">
+                      <DataTable
+                        caption={t('admin.accounts.list')}
+                        columns={columns}
+                        rows={list}
+                        rowKey={(account) => String(account.id)}
+                        expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+                      />
+                    </div>
                   )}
                 </div>
               ),

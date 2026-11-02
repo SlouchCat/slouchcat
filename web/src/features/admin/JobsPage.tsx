@@ -709,13 +709,16 @@ function JobsContent() {
             count={number.format(running.length)}
             countLabel={t('admin.jobs.running.count', { count: running.length })}
           >
-            <RunningTable
-              runs={running}
-              stopping={stopping}
-              pausing={(type) => busyOf(type) === 'pause'}
-              onPause={pauseType}
-              onCancel={askCancelRun}
-            />
+            {/* The first work row of the page (docs/perf/verwaltungsseiten.md). */}
+            <div data-perf="first-work-row">
+              <RunningTable
+                runs={running}
+                stopping={stopping}
+                pausing={(type) => busyOf(type) === 'pause'}
+                onPause={pauseType}
+                onCancel={askCancelRun}
+              />
+            </div>
             <Pools data={data} />
           </DisclosureGroup>
           <Tabs

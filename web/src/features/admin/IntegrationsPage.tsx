@@ -124,7 +124,8 @@ export function IntegrationsPage() {
                 }
               >
                 <Text tone="secondary">{t('admin.integrations.keys.intro')}</Text>
-                <div>
+                {/* The first work row of the page (docs/perf/verwaltungsseiten.md). */}
+                <div data-perf="first-work-row">
                   {KEYS.map((keyName) => (
                     <KeyRow
                       key={keyName}
