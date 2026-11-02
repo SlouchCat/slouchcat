@@ -13,7 +13,7 @@ import {
   ConfirmDialog,
   DataTable,
   StatusRegion,
-  afterRender,
+  afterDialogsClosed,
   focusTitleIfLost,
   useDrafts,
   useStatusMessage,
@@ -184,7 +184,7 @@ function SpotlightContent() {
     onSuccess: async (saved, { entry, body }) => {
       say(outcome(entry, body));
       await settle(saved);
-      await afterRender();
+      await afterDialogsClosed();
       // An orphan's row and its button are gone: the h1 takes the focus.
       if (Object.keys(body).length === 0) titleRef.current?.focus();
       else focusTitleIfLost(titleRef);
@@ -207,7 +207,7 @@ function SpotlightContent() {
   const closeDialog = useCallback(() => {
     setDialogOpen(false);
     // The button that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
   const queued = async (text: string) => {

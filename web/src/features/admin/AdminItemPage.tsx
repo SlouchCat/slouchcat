@@ -15,7 +15,7 @@ import {
   ConfirmDialog,
   StatusRegion,
   Tabs,
-  afterRender,
+  afterDialogsClosed,
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
@@ -103,7 +103,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
   const settle = async (text: string, removed = false) => {
     setMessage(text);
     await reload();
-    await afterRender();
+    await afterDialogsClosed();
     if (removed) titleRef.current?.focus();
     else focusTitleIfLost(titleRef);
   };
@@ -146,7 +146,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
     if (open) return;
     setConfirmOpen(false);
     // The button that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
   const loadError = item.isError ? (

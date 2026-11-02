@@ -14,7 +14,7 @@ import {
   DataTable,
   StatusRegion,
   Tabs,
-  afterRender,
+  afterDialogsClosed,
   focusTitleIfLost,
   useSearchSelection,
   useStatusMessage,
@@ -149,7 +149,7 @@ function LibrariesContent() {
         list?.map((entry) => (entry.id === library.id ? library : entry)),
       );
       await queryClient.invalidateQueries({ queryKey: librariesQuery.queryKey });
-      await afterRender();
+      await afterDialogsClosed();
       focusTitleIfLost(titleRef);
     },
     [queryClient],
@@ -203,7 +203,7 @@ function LibrariesContent() {
     if (open) return;
     setConfirmOpen(false);
     // The menu that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
   const { mutate: scanMutate } = scan;

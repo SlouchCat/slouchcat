@@ -11,6 +11,7 @@ import {
   AriaButton,
   ConfirmDialog,
   FormDialog,
+  afterDialogsClosed,
   afterRender,
   focusTitleIfLost,
 } from '@/ui/aria';
@@ -125,7 +126,7 @@ export function ProfileList({
     if (open) return;
     setConfirmOpen(false);
     // The menu button that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   };
   const onAction = (profile: Profile, action: string) => {
     if (action === 'pin') setPinFor(profile);

@@ -18,6 +18,7 @@ import {
   DataTable,
   DisclosureGroup,
   StatusRegion,
+  afterDialogsClosed,
   afterRender,
   focusTitleIfLost,
   useSearchSelection,
@@ -158,7 +159,7 @@ function BackupContent() {
     // The texts stay for the closing animation; the action goes (it may hold a passphrase).
     setConfirmation((current) => current && { ...current, onConfirm: () => undefined });
     // The button that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
   const { mutate: restoreMutate } = restore;
@@ -244,7 +245,7 @@ function BackupContent() {
     // The new backup is a row of «Sicherungen»: that tab shows, and the h1 takes the focus the
     // form's button had.
     selectTab('list');
-    await afterRender();
+    await afterDialogsClosed();
     focusTitleIfLost(titleRef);
   };
 

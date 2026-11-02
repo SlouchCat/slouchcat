@@ -15,6 +15,7 @@ import {
   ConfirmDialog,
   DataTable,
   StatusRegion,
+  afterDialogsClosed,
   afterRender,
   focusLost,
   focusTitleIfLost,
@@ -273,7 +274,7 @@ function PicksContent() {
       onExpandedChange(String(pick.id), false);
       await invalidate();
       // The row and its buttons are gone: once React rendered that, the h1 takes the focus.
-      await afterRender();
+      await afterDialogsClosed();
       focusTitleIfLost(titleRef);
     },
     onError: failed,
@@ -290,7 +291,7 @@ function PicksContent() {
     if (open) return;
     setConfirmOpen(false);
     // Back to the button that asked; it may be gone by now (its row went), then the h1.
-    void afterRender().then(() => {
+    void afterDialogsClosed().then(() => {
       const button = asker.current;
       asker.current = null;
       if (focusLost() && button?.isConnected) button.focus();

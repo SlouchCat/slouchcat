@@ -19,6 +19,7 @@ import {
   ConfirmDialog,
   DataTable,
   StatusRegion,
+  afterDialogsClosed,
   afterRender,
   focusTitleIfLost,
   useDrafts,
@@ -227,7 +228,7 @@ function CollectionsContent() {
     if (open) return;
     setConfirmOpen(false);
     // The button that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
   const { mutate: removeMutate } = remove;
   const askRemove = useCallback(

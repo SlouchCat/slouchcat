@@ -46,7 +46,7 @@ import {
   Switch,
   Tabs,
   TextField,
-  afterRender,
+  afterDialogsClosed,
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
@@ -441,7 +441,7 @@ function JobsContent() {
         queryClient.invalidateQueries({ queryKey: jobTypesQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
       ]);
-      await afterRender();
+      await afterDialogsClosed();
       if (removed) titleRef.current?.focus();
       else focusTitleIfLost(titleRef);
     },
@@ -516,7 +516,7 @@ function JobsContent() {
     if (open) return;
     setConfirmOpen(false);
     // The button that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
   const { mutate: runMutate } = run;
   const { mutate: pauseMutate } = pause;

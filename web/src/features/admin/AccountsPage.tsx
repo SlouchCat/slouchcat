@@ -226,7 +226,7 @@ function AccountsContent() {
         ),
       );
       await refresh();
-      await afterRender();
+      await afterDialogsClosed();
       focusTitleIfLost(titleRef);
     },
     onError: failed,

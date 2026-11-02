@@ -16,6 +16,7 @@ import {
   StatusRegion,
   StatusStrip,
   StreamTile,
+  afterDialogsClosed,
   afterRender,
   focusTitleIfLost,
   useStatusMessage,
@@ -113,7 +114,7 @@ function StreamsContent() {
       await queryClient.invalidateQueries({ queryKey: streamsQuery.queryKey });
       // The tile and its button are gone: once React rendered that, the h1 takes the focus (the
       // dialog's focus restore may have put it on another tile meanwhile).
-      await afterRender();
+      await afterDialogsClosed();
       const listed = queryClient.getQueryData(streamsQuery.queryKey);
       if (listed?.some((entry) => entry.id === stream.id)) focusTitleIfLost(titleRef);
       else titleRef.current?.focus();
@@ -129,7 +130,7 @@ function StreamsContent() {
     if (open) return;
     setConfirmOpen(false);
     // The button that opened it may be gone by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
   // A stream may end on its own while its «Beenden» has the focus: when the poll takes its tile

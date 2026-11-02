@@ -11,7 +11,7 @@ import {
   AdminPage,
   ConfirmDialog,
   Tabs,
-  afterRender,
+  afterDialogsClosed,
   focusTitleIfLost,
   useSearchSelection,
   type StatusMessage,
@@ -104,7 +104,7 @@ function MaintenanceContent() {
       }));
       setSelection((current) => ({ ...current, [tabId]: [] }));
       await queryClient.invalidateQueries({ queryKey: maintenanceKey });
-      await afterRender();
+      await afterDialogsClosed();
       if (removed) titleRef.current?.focus();
       else focusTitleIfLost(titleRef);
     },
@@ -197,11 +197,11 @@ function MaintenanceContent() {
     if (open) return;
     setConfirmOpen(false);
     // The button that opened it may be gone or off by now.
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
   const closeDialog = useCallback(() => {
     setDialog(null);
-    void afterRender().then(() => focusTitleIfLost(titleRef));
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
   const { mutate: refreshMutate } = refreshItems;
