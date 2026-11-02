@@ -194,6 +194,8 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(leave).toBeHidden();
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
   await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
+  // With unsaved changes the page holds no focus trap either.
+  await expectNoFocusTrap(page, 120);
 
   // «Verwerfen» asks, starting on «Abbrechen»: Enter there keeps the changes and gives the
   // focus back to «Verwerfen»; confirmed, the saved order is back.
@@ -207,6 +209,10 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(discard).toBeHidden();
   await expectFocusOn(page, discardButton);
   await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
+  // The question let the focus go: Tab runs on to the end of the page; back to «Verwerfen».
+  await expectNoFocusTrap(page, 120);
+  await resetFocus(page);
+  await tabTo(page, discardButton, 80);
   await page.keyboard.press('Enter');
   await expectFocusOn(page, discard.getByRole('button', { name: 'Abbrechen' }));
   await page.keyboard.press('Tab');

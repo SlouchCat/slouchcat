@@ -191,6 +191,7 @@ test('duplicates list the H264 copy (same file hash) in a group of its own', asy
   await expectFocusOn(page, merge);
   await expect(group).toHaveCount(1);
   await expect(radios.nth(1)).toBeChecked();
+  await expectNoFocusTrap(page, TAB_MAX);
   const response = await owner.get('/api/v1/admin/maintenance/duplicates');
   expect(response.status(), await response.text()).toBe(200);
   const groups = (await response.json()) as { items: { title: string }[] }[];
@@ -237,6 +238,7 @@ test('unrated: select by keyboard, assign a rating, the title leaves the list', 
     await expect(panel(page).getByRole('link', { name: UNRATED_TITLE })).toHaveCount(0);
     // The button went off with the selection: the h1 holds the focus.
     await expect(h1(page)).toBeFocused();
+    await expectNoFocusTrap(page, TAB_MAX);
   } finally {
     // Back to unrated for the next browser's run.
     if (unrated) {
@@ -281,6 +283,7 @@ test('unplayable lists the broken file; "Entfernen" removes it after confirmatio
     await expect(h1(page)).toBeFocused();
   }
   await expect(link).toHaveCount(0);
+  await expectNoFocusTrap(page, TAB_MAX);
   expect((await issues(owner, 'unplayable')).some((issue) => issue.title === BROKEN_TITLE)).toBe(
     false,
   );

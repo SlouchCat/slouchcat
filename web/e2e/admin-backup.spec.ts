@@ -234,6 +234,8 @@ test('A-4: a backup with secrets needs a passphrase of 12 characters and is encr
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expectFocusOn(page, more);
+    // The passphrase dialog let the focus go: Tab runs on to the end of the page.
+    await expectNoFocusTrap(page, TAB_MAX);
 
     // Back (rule 8): from «Neue Sicherung» the sidebar leads to «Statistiken», the browser's Back
     // returns to the tab of the address.
@@ -336,6 +338,15 @@ test.describe('restore', () => {
     // The focus starts on «Abbrechen»: a second Enter by habit replaces nothing. Tab reaches
     // «Ersetzen und neu starten».
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Abbrechen' }));
+    // Escape closes the confirmation onto its button, and the page has no focus trap; then again.
+    await page.keyboard.press('Escape');
+    await expect(confirm).toBeHidden();
+    await expectFocusOn(page, restore);
+    await expectNoFocusTrap(page, TAB_MAX);
+    await resetFocus(page);
+    await tabTo(page, restore, TAB_MAX);
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, confirm.getByRole('button', { name: 'Abbrechen' }));
     const replace = confirm.getByRole('button', { name: 'Ersetzen und neu starten' });
     await page.keyboard.press('Tab');
     await expectFocusOn(page, replace);
@@ -359,6 +370,8 @@ test.describe('restore', () => {
     // Every 2 s a health check; the old process (long uptime) does not end the wait.
     await expect.poll(() => polls, { timeout: 7000 }).toBeGreaterThanOrEqual(2);
     await expect(heading).toBeVisible();
+    // The wait panel holds no focus trap either.
+    await expectNoFocusTrap(page, TAB_MAX);
     // 90 s without a new process: the panel stops asking and says so, with «Erneut prüfen».
     await page.clock.fastForward(90_000);
     await expect(page.getByText('Der Server kommt nicht zurück')).toBeVisible();
@@ -369,7 +382,8 @@ test.describe('restore', () => {
     await page.clock.runFor(6000);
     expect(polls).toBe(stopped);
     const again = page.getByRole('button', { name: 'Erneut prüfen' });
-    await tabTo(page, again, 10);
+    await resetFocus(page);
+    await tabTo(page, again, TAB_MAX);
     await expectVisibleFocus(page);
     // A new process answers: «Erneut prüfen» asks again and the page loads the sign-in (which goes
     // on to the start page while the intercepted restore left the session as it was).
