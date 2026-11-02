@@ -127,7 +127,7 @@ test.describe('with a mouse from 768 px', () => {
   test('the question before leaving with unsaved input is compact', async ({ page }) => {
     await page.goto('/admin/integrations');
     await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
-    await page.getByLabel('YouTube-API-Schlüssel').fill('unsaved-key');
+    await page.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true }).fill('unsaved-key');
     await page
       .getByRole('navigation', { name: 'Verwaltung' })
       .getByRole('link', { name: /^Hintergrundjobs(,|$)/ })
