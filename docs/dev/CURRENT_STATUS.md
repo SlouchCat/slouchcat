@@ -118,6 +118,10 @@ dem Hash des Serienposters. e2e lief noch nicht (keine Änderung der Oberfläche
   Beschriftung des Tags). `docs/perf/measure-home.sh` kennt neu `SLOUCHCAT_PAUSE` für den kalten
   Fall. Papier als umgesetzt markiert.
 
+**Messung** (`docs/perf/verwaltung.md` 2, CT 190, 2. November 2026): `GET /api/v1/admin/dashboard`
+warm p95 6.0 ms (n=60), kalt p95 6.1 ms (n=20, 61 s Pause, `counts` jedes Mal neu gerechnet);
+Latte 200 ms, der Rückfall aus 11.9 entfällt.
+
 **Prototyp gegen gebaute Seite** (`docs/planning/mockups/11-verwaltung-prototyp.html`, Variante B,
 Desktop, gegen die Aufnahme des e2e-Servers bei 1440 px): gleich sind Leiste mit Band-Gruppentiteln,
 Zahlen und Pillen, Reihenfolge und Raster der acht Karten, Kopf mit «Live, alle 5 Sekunden»,
@@ -135,8 +139,6 @@ Karteninhalte (abgenommen, keine Funktionslücke):
 
 **Offen:**
 
-- Messung `GET /api/v1/admin/dashboard` p95 warm und kalt auf CT 190 (braucht Marcos Anmeldung,
-  Befehle in `docs/perf/verwaltung.md` 2).
 - `activity_events` nach einem Tag (3. November 2026) auslesen; Ausgangsstand 7 Zeilen
   (`docs/perf/verwaltung.md` 3).
 - Push und Pull Request auf Marcos Wort; beim Merge Tag `v1.7.0` (setzt Marco).

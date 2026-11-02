@@ -35,8 +35,17 @@ SLOUCHCAT_RUNS=20 SLOUCHCAT_PAUSE=61 bash /root/measure-home.sh /api/v1/admin/da
 Mit `SLOUCHCAT_PAUSE=61` ist der 60-s-Speicher von `counts` vor jeder gemessenen Anfrage
 abgelaufen, jede Anfrage rechnet also Konten, offene Pflege und Titel neu.
 
-**Stand 2. November 2026:** noch nicht gemessen; der Lauf braucht Marcos Anmeldung. Die
-Ergebniszeilen kommen hierher.
+2. November 2026, 09:37 bis 10:08 Uhr, Konto `marco@nerdbox.ch` mit Hauptprofil, Aufruf über
+`/root/measure-dashboard.sh` (beide Läufe hintereinander, Passwort verdeckt eingelesen):
+
+```
+warm /api/v1/admin/dashboard: n=60 p50=4.6 ms p95=6.0 ms max=7.1 ms not-200=0
+kalt /api/v1/admin/dashboard: n=20 p50=5.1 ms p95=6.1 ms max=9.7 ms not-200=0
+```
+
+**Ergebnis:** kalt p95 6.1 ms, weit unter der Latte von 200 ms. Das Neuberechnen von `counts`
+kostet auf CT 190 rund 0.5 ms (p50 kalt gegen warm). Der Rückfall aus 11.9 (erster Aufruf ohne
+Pflegezahl, Rechnung im Hintergrund) ist nicht nötig.
 
 ## 3. `activity_events` nach einem Tag
 
