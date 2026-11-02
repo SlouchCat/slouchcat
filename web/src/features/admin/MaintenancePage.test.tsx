@@ -339,6 +339,40 @@ describe('maintenance page', () => {
     await waitFor(() => expect(title()).toHaveFocus());
   });
 
+  it('PFL-3: «Aktualisieren» without images and «Erneut prüfen» of an unplayable file refresh the title', async () => {
+    const user = userEvent.setup();
+    lists.no_images = [issue('no_images', 12, { title: 'Ohne Poster' })];
+    const { calls } = setup({
+      [`POST /admin/items/${id(12)}/refresh`]: () => json({}, 202),
+      [`POST /admin/items/${id(6)}/refresh`]: () => json({}, 202),
+    });
+    const refreshed = () =>
+      calls.filter((call) => call.method === 'POST' && call.path.endsWith('/refresh'));
+    renderApp('/admin/maintenance?tab=no_images');
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Ohne Poster auswählen' }));
+    await user.click(within(panel()).getByRole('button', { name: 'Aktualisieren' }));
+    expect(await screen.findByText('1 Titel wird aktualisiert.')).toBeVisible();
+    expect(refreshed().map((call) => call.path)).toEqual([`/admin/items/${id(12)}/refresh`]);
+
+    await user.click(screen.getByRole('tab', { name: /^Nicht abspielbar/ }));
+    const recheck = within(panel()).getByRole('button', { name: 'Erneut prüfen' });
+    expect(recheck).toBeDisabled();
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Slouchcat Test Broken auswählen' }),
+    );
+    await user.click(recheck);
+    await waitFor(() =>
+      expect(refreshed().map((call) => call.path)).toEqual([
+        `/admin/items/${id(12)}/refresh`,
+        `/admin/items/${id(6)}/refresh`,
+      ]),
+    );
+    expect(await within(panel()).findByText('1 Titel wird aktualisiert.')).toBeVisible();
+    // «Erneut prüfen» re-reads the title; the file stays until the probe says otherwise.
+    expect(calls.some((call) => call.path === '/admin/maintenance/cleanup')).toBe(false);
+  });
+
   it('orphaned: the confirmation names the count; the trigger is off while it runs', async () => {
     const user = userEvent.setup();
     let finish: (response: Response) => void = () => undefined;

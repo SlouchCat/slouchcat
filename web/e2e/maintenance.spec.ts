@@ -312,3 +312,68 @@ test('a title links to its administration page; Back returns to the tab', async 
     panel(page).getByRole('link', { name: (await first.textContent()) ?? '' }),
   ).toBeVisible();
 });
+
+test.describe('refresh (requests intercepted)', () => {
+  // Chromium sends the page's GET requests through the service worker, where page.route does not
+  // see them: the issue lists are answered here, so the worker stays out.
+  test.use({ serviceWorkers: 'block' });
+
+  test('PFL-3: «Aktualisieren» without images and «Erneut prüfen» of an unplayable file ask per title', async ({
+    page,
+    owner,
+  }) => {
+    // The test media has no title without images (no TMDB key) and the broken file may be gone
+    // already: both lists hold one real title here. The refresh itself would queue a metadata
+    // run on the shared server; it is answered here and covered by the Go tests of `admin`.
+    const response = await owner.get('/api/v1/admin/maintenance/issues?kind=unrated&limit=1');
+    const [title] = ((await response.json()) as { items: Record<string, unknown>[] }).items;
+    expect(title, 'a title to stand in').toBeDefined();
+    const stubs: Record<string, Record<string, unknown>> = {
+      no_images: { ...title, kind: 'no_images', title: 'E2E Ohne Bilder' },
+      unplayable: {
+        ...title,
+        kind: 'unplayable',
+        title: 'E2E Nicht abspielbar',
+        mediaFileId: 'mf-e2e',
+        path: 'E2E/kaputt.mkv',
+        detail: 'invalid data found when processing input',
+      },
+    };
+    await page.route('**/api/v1/admin/maintenance/issues?*', async (route) => {
+      const kind = new URL(route.request().url()).searchParams.get('kind') ?? '';
+      const stub = stubs[kind];
+      if (!stub) return route.continue();
+      return route.fulfill({ json: { total: 1, items: [stub] } });
+    });
+    const refreshed: string[] = [];
+    await page.route('**/api/v1/admin/items/*/refresh', async (route) => {
+      refreshed.push(new URL(route.request().url()).pathname);
+      await route.fulfill({ status: 202, json: {} });
+    });
+    const path = `/api/v1/admin/items/${String(title.itemId)}/refresh`;
+
+    for (const [kind, name, label] of [
+      ['no_images', /^Ohne Bilder/, 'Aktualisieren'],
+      ['unplayable', /^Nicht abspielbar/, 'Erneut prüfen'],
+    ] as const) {
+      await page.goto(`/admin/maintenance?tab=${kind}`);
+      await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
+      const box = panel(page).getByRole('checkbox', {
+        name: `${String(stubs[kind].title)} auswählen`,
+      });
+      const action = panel(page).getByRole('button', { name: label });
+      await expect(action).toBeDisabled();
+      await tabTo(page, box, TAB_MAX);
+      await page.keyboard.press('Space');
+      await expect(box).toBeChecked();
+      await tabBackTo(page, action);
+      const before = refreshed.length;
+      await page.keyboard.press('Enter');
+      await expect(panel(page).getByText('1 Titel wird aktualisiert.')).toBeVisible();
+      expect(refreshed.slice(before)).toEqual([path]);
+      // The button went off with the selection: the h1 holds the focus.
+      await expect(h1(page)).toBeFocused();
+      await expectNoFocusTrap(page, TAB_MAX);
+    }
+  });
+});
