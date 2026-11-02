@@ -222,6 +222,11 @@ describe('admin overview (concept 11, A-3)', () => {
       'href',
       '/admin/jobs',
     );
+    // Concept 12 (JOB-8, 11.5 point 11): the failures of every type are a tab of the jobs page.
+    expect(within(tasks).getByRole('link', { name: 'Fehlschläge ansehen' })).toHaveAttribute(
+      'href',
+      '/admin/jobs?tab=failed',
+    );
     // F-2: no table with «Erneut» and «Abbrechen» on the overview any more.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
 
@@ -306,9 +311,12 @@ describe('admin overview (concept 11, A-3)', () => {
       '/config ist zu über 90 % belegt',
       'Version 0.9.1 ist verfügbar',
     ]);
+    // The failures hint opens the tab «Fehlschläge», the paused hint the page.
     expect(
-      within(hints).getAllByRole('link', { name: 'Zu den Hintergrundjobs' })[0],
-    ).toHaveAttribute('href', '/admin/jobs');
+      within(hints)
+        .getAllByRole('link', { name: 'Zu den Hintergrundjobs' })
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/admin/jobs?tab=failed', '/admin/jobs']);
     expect(within(hints).getByRole('link', { name: 'Zu den Bibliotheken' })).toHaveAttribute(
       'href',
       '/admin/libraries',

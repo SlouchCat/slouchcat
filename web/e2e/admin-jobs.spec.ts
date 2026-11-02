@@ -9,22 +9,28 @@ import {
   tabTo,
 } from './keyboard';
 
-// /admin/jobs (concept 09, ADR 0017) by keyboard (rule 8): the page is reached through the admin
-// navigation, "Läuft gerade" and the sweep's card are walked with Tab, "Jetzt ausführen" of the
-// sweep queues a run that ends in "Erledigt", "Pausieren" and "Fortsetzen" switch the card's
-// chip and the banner, the dialog "Läufe von …" walks its tabs with the arrow keys and closes
-// with Escape with the focus back on its button, the dialog "Zeitplan von …" sets the sweep to
-// every 2 hours and the card shows it; browser back, visible focus, no trap. The sweep ends in
-// seconds on the e2e server and queues nothing else. A pause survives a restart (F-6) and the
-// server is shared, so the test resumes every paused type and restores the sweep's schedule
-// afterwards. The confirmations of "Wartende abbrechen" need a waiting run, which no API creates
-// while the type is paused; the component test JobsPage.test.tsx covers them.
+// /admin/jobs (concept 09, ADR 0017; concept 12 variant C) by keyboard (rule 8): the page is
+// reached through the admin navigation, the group tabs move with the arrow keys and live in
+// `?tab=`, the sweep's row folds out with Enter, "Jetzt ausführen" of the sweep queues a run that
+// ends in "Erledigt", "Pausieren" and "Fortsetzen" switch the row's chip and the banner, the runs
+// of the row walk their tabs with the arrow keys, the schedule in the row sets the sweep to every
+// 2 hours and the row shows it; the menu «Weitere Aktionen» opens with Enter, moves with the
+// arrows, closes with Escape onto its button and asks before «Wartende abbrechen»; the overview
+// links the tab «Fehlschläge»; browser back, visible focus, no trap. The sweep ends in seconds on
+// the e2e server and queues nothing else. A pause survives a restart (F-6) and the server is
+// shared, so the test resumes every paused type and restores the sweep's schedule afterwards.
+// A waiting run to cancel comes from «Metadaten anwenden» (images only) while that type is
+// paused: «Jetzt ausführen» refuses a paused type, the apply endpoint queues anyway, and nothing
+// runs it before it is cancelled. A second one, cancelled in the row's runs, leaves its table, and
+// the focus goes to the h1 (ALL-2).
 
-/** Eighteen cards with up to six buttons each: Tab needs room to walk them. */
+/** The sidebar, the page's head and a group's rows with an open fold-out: room to walk them. */
 const TAB_MAX = 200;
 
 const SWEEP = 'library.sweep';
 const SWEEP_NAME = 'Aufräumen fehlender Titel';
+const APPLY = 'metadata.apply';
+const APPLY_NAME = 'Metadaten anwenden';
 
 async function resumeAll(api: APIRequestContext): Promise<void> {
   const response = await api.get('/api/v1/admin/job-types');
@@ -46,6 +52,14 @@ async function restoreSweep(api: APIRequestContext): Promise<void> {
   expect(response.status(), await response.text()).toBe(200);
 }
 
+/** Cancels whatever of `type` still waits (a failed test must not leave a paused apply behind). */
+async function cancelWaiting(api: APIRequestContext, type: string): Promise<void> {
+  const response = await api.delete(`/api/v1/admin/job-types/${type}/runs?scope=queued`, {
+    headers: CSRF,
+  });
+  expect(response.status(), await response.text()).toBe(200);
+}
+
 /** Presses ↓ in the admin sidebar until `name` has the focus. */
 async function navTo(page: Page, name: string): Promise<void> {
   const link = page
@@ -58,12 +72,22 @@ async function navTo(page: Page, name: string): Promise<void> {
   await expectFocusOn(page, link);
 }
 
+/** The fold-out of a job type's row: the cell its toggle controls. */
+function foldOut(page: Page, name: string) {
+  return page.locator(`td[id]`).filter({
+    has: page
+      .getByRole('button', { name: `${name} pausieren`, exact: true })
+      .or(page.getByRole('button', { name: `${name} fortsetzen`, exact: true })),
+  });
+}
+
 test.afterEach(async ({ owner }) => {
+  await cancelWaiting(owner, APPLY);
   await resumeAll(owner);
   await restoreSweep(owner);
 });
 
-test('background jobs by keyboard: run, pause, resume, runs and schedule', async ({
+test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule', async ({
   page,
   owner,
 }) => {
@@ -88,10 +112,41 @@ test('background jobs by keyboard: run, pause, resume, runs and schedule', async
   await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
   await expectVisibleFocus(page);
 
-  // "Läuft gerade" and the sweep's card with its code.
-  await expect(page.getByRole('region', { name: 'Läuft gerade' })).toBeVisible();
-  const sweep = page.getByRole('article', { name: new RegExp(SWEEP_NAME) });
-  await expect(sweep).toBeVisible();
+  // «Läuft gerade» is a group that folds away; it is open.
+  await expect(page.getByRole('button', { name: /^Läuft gerade/ })).toHaveAttribute(
+    'aria-expanded',
+    'true',
+  );
+  await expect(page.getByRole('list', { name: 'Arbeiter' })).toBeVisible();
+
+  // The group tabs with the arrow keys: the selection lives in `?tab=`.
+  const tabs = page.getByRole('tablist', { name: 'Jobs nach Gruppe' });
+  await resetFocus(page);
+  await tabTo(page, tabs.getByRole('tab', { selected: true }), TAB_MAX);
+  await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Bibliothek/);
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Metadaten/);
+  await expect(page).toHaveURL(/\/admin\/jobs\?tab=metadata$/);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Fehlschläge/);
+  await expect(page).toHaveURL(/\/admin\/jobs\?tab=failed$/);
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Letzte Fehlschläge (alle Arten)' }),
+  ).toBeVisible();
+  for (let presses = 0; presses < 4; presses += 1) await page.keyboard.press('ArrowLeft');
+  await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Bibliothek/);
+  await expect(page).toHaveURL(/\/admin\/jobs$/);
+  await expectVisibleFocus(page);
+
+  // The sweep's row folds out with Enter and shows its code.
+  const toggle = page.getByRole('button', { name: SWEEP_NAME, exact: true });
+  await tabTo(page, toggle, 20);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const sweep = foldOut(page, SWEEP_NAME);
   await expect(sweep.getByText(SWEEP, { exact: true })).toBeVisible();
 
   // "Jetzt ausführen" with Enter: one run is queued and ends in "Erledigt".
@@ -102,7 +157,7 @@ test('background jobs by keyboard: run, pause, resume, runs and schedule', async
   await resetFocus(page); // Tab from the top: Firefox keeps the start where a replaced button stood and does not wrap
   await tabTo(page, runButton, TAB_MAX);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('status')).toContainText(`${SWEEP_NAME}: 1 Lauf eingereiht.`);
+  await expect(page.getByRole('status').first()).toContainText(`${SWEEP_NAME}: 1 Lauf eingereiht.`);
   await expect
     .poll(
       async () => {
@@ -115,6 +170,7 @@ test('background jobs by keyboard: run, pause, resume, runs and schedule', async
 
   // "Pausieren" with Enter: chip and banner say so, the button becomes "Fortsetzen", a manual
   // run is refused (409 job_type_paused) and the run button is gone; "Fortsetzen" ends it.
+  const row = page.getByRole('row', { name: new RegExp(`^${SWEEP_NAME}`) });
   await resetFocus(page); // Tab from the top: Firefox keeps the start where a replaced button stood and does not wrap
   await tabTo(
     page,
@@ -122,7 +178,7 @@ test('background jobs by keyboard: run, pause, resume, runs and schedule', async
     TAB_MAX,
   );
   await page.keyboard.press('Enter');
-  await expect(sweep.getByText('pausiert', { exact: true }).first()).toBeVisible(); // chip and next run
+  await expect(row.getByText('pausiert', { exact: true }).first()).toBeVisible(); // chip and next run
   await expect(page.getByText('1 Job pausiert')).toBeVisible();
   await expect(runButton).toHaveCount(0);
   const refused = await owner.post(`/api/v1/admin/job-types/${SWEEP}/run`, { headers: CSRF });
@@ -131,42 +187,28 @@ test('background jobs by keyboard: run, pause, resume, runs and schedule', async
   await resetFocus(page); // Tab from the top: Firefox keeps the start where a replaced button stood and does not wrap
   await tabTo(page, resumeButton, TAB_MAX);
   await page.keyboard.press('Enter');
-  await expect(sweep.getByText('pausiert', { exact: true })).toHaveCount(0);
+  await expect(row.getByText('pausiert', { exact: true })).toHaveCount(0);
   await expect(page.getByText('1 Job pausiert')).toHaveCount(0);
   await expect(runButton).toBeVisible();
 
-  // The dialog "Läufe von …": tabs with the arrow keys, Escape closes, focus returns.
-  const runsButton = sweep.getByRole('button', { name: `Läufe von ${SWEEP_NAME}`, exact: true });
-  await resetFocus(page); // Tab from the top: Firefox keeps the start where a replaced button stood and does not wrap
-  await tabTo(page, runsButton, TAB_MAX);
-  await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: `Läufe von ${SWEEP_NAME}` });
-  await expect(dialog).toBeVisible();
-  const tabs = dialog.getByRole('tablist', { name: 'Läufe nach Zustand' });
-  await expect(tabs.getByRole('tab', { selected: true })).toHaveText('Wartend');
-  await tabTo(page, tabs.getByRole('tab', { selected: true }), 5); // the first Tab stop of the dialog
+  // The runs in the row: tabs with the arrow keys.
+  const runs = sweep.getByRole('region', { name: `Läufe von ${SWEEP_NAME}` });
+  const states = runs.getByRole('tablist', { name: 'Läufe nach Zustand' });
+  await expect(states.getByRole('tab', { selected: true })).toHaveText(/^Wartend/);
+  await resetFocus(page);
+  await tabTo(page, states.getByRole('tab', { selected: true }), TAB_MAX);
   await page.keyboard.press('ArrowRight');
-  await expect(tabs.getByRole('tab', { selected: true })).toHaveText('Geplant');
+  await expect(states.getByRole('tab', { selected: true })).toHaveText(/^Geplant/);
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('ArrowRight');
-  await expect(tabs.getByRole('tab', { selected: true })).toHaveText('Erledigt');
-  await expect(dialog.getByRole('table', { name: `Läufe von ${SWEEP_NAME}` })).toBeVisible();
+  await expect(states.getByRole('tab', { selected: true })).toHaveText(/^Erledigt/);
+  await expect(runs.getByRole('table', { name: `Läufe von ${SWEEP_NAME}` })).toBeVisible();
   await expectVisibleFocus(page);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-  await expectFocusOn(page, runsButton);
 
-  // The dialog "Zeitplan von …": Tab through switch and interval, "alle 2 Stunden", Enter saves.
-  const scheduleButton = sweep.getByRole('button', {
-    name: `Zeitplan von ${SWEEP_NAME}`,
-    exact: true,
-  });
-  await resetFocus(page); // Tab from the top: Firefox keeps the start where a replaced button stood and does not wrap
-  await tabTo(page, scheduleButton, TAB_MAX);
-  await page.keyboard.press('Enter');
-  const schedule = page.getByRole('dialog', { name: `Zeitplan von ${SWEEP_NAME}` });
-  await expect(schedule).toBeVisible();
-  await tabTo(page, schedule.getByRole('switch', { name: 'Zeitplan eingeschaltet' }), 5);
+  // The schedule in the row: Tab through switch and interval, "alle 2 Stunden", Enter saves.
+  const schedule = sweep.getByRole('region', { name: `Zeitplan von ${SWEEP_NAME}` });
+  await resetFocus(page);
+  await tabTo(page, schedule.getByRole('switch', { name: 'Zeitplan eingeschaltet' }), TAB_MAX);
   await page.keyboard.press('Tab');
   const interval = schedule.getByRole('combobox', { name: 'Takt' });
   await expectFocusOn(page, interval);
@@ -175,17 +217,148 @@ test('background jobs by keyboard: run, pause, resume, runs and schedule', async
   await expect(interval).toHaveValue('7200');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, schedule.getByRole('switch', { name: 'Nur in einem Zeitfenster' }));
-  await tabTo(page, schedule.getByRole('button', { name: 'Speichern', exact: true }), TAB_MAX);
+  const save = schedule.getByRole('button', { name: 'Speichern', exact: true });
+  await tabTo(page, save, 10);
   await page.keyboard.press('Enter');
-  await expect(schedule).toHaveCount(0);
-  await expect(page.getByRole('status')).toContainText(`Zeitplan von ${SWEEP_NAME} gespeichert.`);
-  await expect(sweep.getByText(/alle 2 h/)).toBeVisible();
-  // The focus return after a save differs between the browsers (the card re-renders under it);
-  // Escape's return is checked on the runs dialog above.
+  await expect(page.getByRole('status').first()).toContainText(
+    `Zeitplan von ${SWEEP_NAME} gespeichert.`,
+  );
+  await expect(row.getByText(/alle 2 h/)).toBeVisible();
+  // The draft is spent: «Verwerfen» goes and the focus stays on «Speichern».
+  await expect(schedule.getByRole('button', { name: 'Verwerfen' })).toHaveCount(0);
+  await expectFocusOn(page, save);
   await expectNoFocusTrap(page);
 
   // Browser back returns to the overview.
   await page.goBack();
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+});
+
+test('background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await resumeAll(owner);
+  // A waiting «Metadaten anwenden» that nothing runs: the type is paused first.
+  const paused = await owner.post(`/api/v1/admin/job-types/${APPLY}/pause`, { headers: CSRF });
+  expect(paused.status(), await paused.text()).toBe(200);
+  const queued = await owner.post('/api/v1/admin/metadata/apply', {
+    headers: CSRF,
+    data: { what: ['images'] },
+  });
+  expect(queued.status(), await queued.text()).toBe(202);
+
+  await page.goto('/admin/jobs?tab=metadata');
+  await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
+  const toggle = page.getByRole('button', { name: APPLY_NAME, exact: true });
+  await resetFocus(page);
+  await tabTo(page, toggle, TAB_MAX);
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const apply = foldOut(page, APPLY_NAME);
+  const more = apply.getByRole('button', { name: `Weitere Aktionen für ${APPLY_NAME}` });
+
+  // Enter opens the menu on its first item; the arrows stay on what can be picked (cancelling
+  // all is off without a running run); Escape closes it onto its button.
+  await tabTo(page, more, 10);
+  await page.keyboard.press('Enter');
+  const menu = page.getByRole('menu');
+  await expect(menu).toBeVisible();
+  const cancelQueued = menu.getByRole('menuitem', { name: 'Wartende abbrechen (1)' });
+  await expect(cancelQueued).toBeFocused();
+  await expect(menu.getByRole('menuitem', { name: 'Alle Läufe abbrechen' })).toHaveAttribute(
+    'aria-disabled',
+    'true',
+  );
+  await page.keyboard.press('ArrowDown');
+  await expect(cancelQueued).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await expect(cancelQueued).toBeFocused();
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expectFocusOn(page, more);
+
+  // Enter on the item asks; Escape keeps the run, the confirmation cancels it.
+  await page.keyboard.press('Enter');
+  await expect(cancelQueued).toBeFocused();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('alertdialog', {
+    name: `Wartende Läufe von ${APPLY_NAME} abbrechen?`,
+  });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expectFocusOn(page, more);
+  await page.keyboard.press('Enter');
+  await expect(cancelQueued).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).press('Enter');
+  await expect(page.getByRole('status').first()).toContainText(
+    `${APPLY_NAME}: 1 Lauf abgebrochen.`,
+  );
+  await expectFocusOn(page, more);
+
+  // A run cancelled in the row's runs leaves its table: the focus goes to the h1 (ALL-2).
+  const again = await owner.post('/api/v1/admin/metadata/apply', {
+    headers: CSRF,
+    data: { what: ['images'] },
+  });
+  expect(again.status(), await again.text()).toBe(202);
+  const { jobId } = (await again.json()) as { jobId: number };
+  const runs = apply.getByRole('region', { name: `Läufe von ${APPLY_NAME}` });
+  await expect(runs.getByRole('tab', { selected: true })).toHaveText(/^Wartend/);
+  const cancelRun = runs.getByRole('button', { name: `Lauf ${jobId} abbrechen`, exact: true });
+  await expect(cancelRun).toBeVisible({ timeout: 15_000 }); // the runs poll every 5 s
+  await tabTo(page, cancelRun, 20);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status').first()).toContainText(`Lauf ${jobId} abgebrochen.`);
+  await expect(cancelRun).toHaveCount(0);
+  // The h1 takes the focus by script (tabIndex -1) and draws no ring, like every page head.
+  await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeFocused();
+  await expectNoFocusTrap(page);
+});
+
+test('the overview links the tab «Fehlschläge»; a removed row hands the focus to the heading', async ({
+  page,
+}) => {
+  await page.goto('/admin');
+  const tasks = page.getByRole('region', { name: 'Aufgaben', exact: true });
+  await expect(tasks).toBeVisible();
+  const failures = tasks.getByRole('link', { name: 'Fehlschläge ansehen' });
+  // The e2e server may have no failure at all; then the overview has no link and the address is
+  // opened directly.
+  if ((await failures.count()) > 0) {
+    await expect(failures).toHaveAttribute('href', '/admin/jobs?tab=failed');
+    await resetFocus(page);
+    await tabTo(page, failures, TAB_MAX);
+    await page.keyboard.press('Enter');
+  } else {
+    await page.goto('/admin/jobs?tab=failed');
+  }
+  await expect(page).toHaveURL(/\/admin\/jobs\?tab=failed$/);
+  const tabs = page.getByRole('tablist', { name: 'Jobs nach Gruppe' });
+  await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Fehlschläge/);
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Letzte Fehlschläge (alle Arten)' }),
+  ).toBeVisible();
+  const table = page.getByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
+  if ((await table.count()) === 0) {
+    await expect(page.getByText('Keine Fehlschläge.')).toBeVisible();
+    return;
+  }
+  // «Abbrechen» of the newest failure: asks, then the row goes and the h1 takes the focus (ALL-2).
+  const cancel = table.getByRole('button', { name: /^Lauf \d+ von .* abbrechen$/ }).first();
+  await resetFocus(page);
+  await tabTo(page, cancel, TAB_MAX);
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).press('Enter');
+  await expect(page.getByRole('status').first()).toContainText(/Lauf \d+ abgebrochen\./);
+  // The h1 takes the focus by script (tabIndex -1) and draws no ring, like every page head.
+  await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeFocused();
 });

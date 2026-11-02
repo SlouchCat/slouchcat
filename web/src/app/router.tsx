@@ -405,6 +405,8 @@ const spotlightRoute = createRoute({
 const jobsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/jobs',
+  // `?tab=` selects a group or the failures (`?tab=failed`, the link of the overview).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage'),
 });
 

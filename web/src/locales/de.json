@@ -1647,6 +1647,7 @@
         "failed": "Fehlgeschlagen",
         "paused": "Pausiert",
         "all": "Hintergrundjobs",
+        "toFailed": "Fehlschläge ansehen",
         "active": "Laufende Aufgaben",
         "progress": "Fortschritt {{name}}",
         "next": "Gerade läuft keine Aufgabe. Als Nächstes: {{type}}, {{date}}",
@@ -2273,7 +2274,8 @@
         "queued": "Wartend",
         "planned": "Geplant",
         "paused": "Pausiert",
-        "failed": "Fehlgeschlagen"
+        "failed": "Fehlgeschlagen",
+        "label": "Zusammenfassung"
       },
       "pools": {
         "title": "Arbeiter",
@@ -2299,7 +2301,16 @@
         "pause": "Lauf pausieren",
         "pauseLabel": "{{name}} pausieren (hält diesen und alle laufenden Läufe des Jobs an)",
         "cancel": "Abbrechen",
-        "cancelLabel": "Lauf {{id}} von {{name}} abbrechen"
+        "cancelLabel": "Lauf {{id}} von {{name}} abbrechen",
+        "count_one": "{{count}} Lauf",
+        "count_other": "{{count}} Läufe",
+        "columns": {
+          "job": "Job",
+          "subject": "Gegenstand",
+          "progress": "Fortschritt",
+          "since": "Seit",
+          "left": "Restzeit"
+        }
       },
       "estimate": {
         "left": "noch ca. {{duration}}",
@@ -2353,13 +2364,7 @@
         "resume": "Fortsetzen",
         "resumeLabel": "{{name}} fortsetzen",
         "cancelQueued": "Wartende abbrechen ({{count}})",
-        "cancelQueuedLabel": "Wartende Läufe von {{name}} abbrechen",
-        "cancelAll": "Alle Läufe abbrechen",
-        "cancelAllLabel": "Alle Läufe von {{name}} abbrechen",
-        "schedule": "Zeitplan …",
-        "scheduleLabel": "Zeitplan von {{name}}",
-        "runs": "Läufe …",
-        "runsLabel": "Läufe von {{name}}"
+        "cancelAll": "Alle Läufe abbrechen"
       },
       "confirm": {
         "cancelQueuedTitle": "Wartende Läufe von {{name}} abbrechen?",
@@ -2373,7 +2378,8 @@
         "scanWarning": "Die Bibliothek endet als «abgebrochen»; der nächste Scan holt nach.",
         "downloadWarning": "Die Downloads enden als «fehlgeschlagen» und werden nicht nachgeholt.",
         "confirm": "Abbrechen",
-        "keep": "Behalten"
+        "keep": "Behalten",
+        "cancelFailedBody": "Slouchcat versucht diesen Lauf nicht mehr."
       },
       "messages": {
         "ran_zero": "{{name}}: nichts einzureihen.",
@@ -2415,7 +2421,8 @@
         "retryLabel": "Lauf {{id}} erneut einreihen",
         "cancel": "Abbrechen",
         "cancelLabel": "Lauf {{id}} abbrechen",
-        "runAfter": "frühestens {{time}}"
+        "runAfter": "frühestens {{time}}",
+        "heading": "Läufe"
       },
       "schedule": {
         "title": "Zeitplan von {{name}}",
@@ -2440,7 +2447,9 @@
         "windowHint": "Zeitzone des Servers: {{zone}}. Ein Fenster darf über Mitternacht gehen.",
         "traktHint": "Takt und Ein/Aus sind dieselbe Einstellung wie auf der Seite Spotlight.",
         "updateHint": "Ein/Aus ist dieselbe Einstellung wie die Update-Prüfung in den Einstellungen.",
-        "save": "Speichern"
+        "save": "Speichern",
+        "heading": "Zeitplan",
+        "discard": "Verwerfen"
       },
       "duration": {
         "seconds": "{{count}} s",
@@ -2527,6 +2536,29 @@
           "name": "Verlauf aufräumen",
           "trigger": "Zeitplan täglich: erledigte Läufe älter als 30 Tage"
         }
+      },
+      "tabs": {
+        "label": "Jobs nach Gruppe",
+        "types_one": "{{count}} Jobart",
+        "types_other": "{{count}} Jobarten",
+        "caption": "Jobs der Gruppe {{group}}",
+        "failed": "Fehlschläge"
+      },
+      "columns": {
+        "job": "Job",
+        "state": "Zustand"
+      },
+      "failed": {
+        "title": "Letzte Fehlschläge (alle Arten)",
+        "count_one": "{{count}} fehlgeschlagen",
+        "count_other": "{{count}} fehlgeschlagen",
+        "empty": "Keine Fehlschläge.",
+        "shown": "{{shown}} von {{total}} · Alle Fehlschläge einer Jobart stehen unter «Läufe» in ihrer Zeile.",
+        "columns": {
+          "type": "Jobart",
+          "at": "Zeit"
+        },
+        "retryLabel": "Lauf {{id}} von {{name}} erneut einreihen"
       }
     },
     "metadata": {

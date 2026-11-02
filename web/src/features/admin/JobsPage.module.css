@@ -1,148 +1,97 @@
-/* The jobs page (concept 09): head with counters and pools, the list "Läuft gerade", the cards
-   of the job types in four groups; one column on the phone. */
-.intro {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  max-width: 44rem;
-  margin-bottom: var(--sc-space-6);
-}
-
-.counters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-  margin-bottom: var(--sc-space-4);
+/* The jobs page (concept 09, concept 12 variant C): what AdminPage does not lay out itself. The
+   pools below «Läuft gerade», the fold-out of a job type with its schedule and runs side by side
+   (one column on the phone), and the failures tab. */
+.live:empty {
+  display: none;
 }
 
 .pools {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sc-space-1) var(--sc-space-4);
-  margin: 0 0 var(--sc-space-6);
+  margin: 0;
   padding: 0;
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
   list-style: none;
 }
 
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-4);
-  margin-bottom: var(--sc-space-10);
-}
-
-.sectionTitle {
-  font-size: var(--sc-font-size-xl);
-  font-weight: var(--sc-font-weight-semibold);
-  line-height: var(--sc-font-line-height-snug);
-  outline: none;
-}
-
-.live:empty {
-  display: none;
-}
-
-/* "Läuft gerade": one row per run. */
-.runs {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.run {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--sc-space-2) var(--sc-space-4);
-  align-items: start;
-  padding-top: var(--sc-space-3);
-  border-top: 1px solid var(--sc-color-border-subtle);
-}
-
-.run:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.runBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-  min-width: 0;
-}
-
+/* «Läuft gerade»: the cells of a run. */
 .runName {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   gap: var(--sc-space-1) var(--sc-space-2);
   align-items: baseline;
 }
 
-.runMeta {
+.progress {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-1) var(--sc-space-3);
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-sm);
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 10rem;
+  max-width: 20rem;
 }
 
-.runActions {
-  display: flex;
-  flex-wrap: wrap;
+.note {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.rowActions {
+  display: inline-flex;
   gap: var(--sc-space-2);
   justify-content: flex-end;
 }
 
-.bar {
+/* Long texts on one line, the whole text in the tooltip (S-5). */
+.oneLine {
+  display: block;
+  overflow: hidden;
   max-width: 28rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* The cards of a group. */
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
-  gap: var(--sc-space-4);
+.nowrap {
+  white-space: nowrap;
 }
 
-.card {
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+/* The fold-out of a job type. */
+.detail {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-3);
+  gap: var(--sc-space-4);
   min-width: 0;
 }
 
-.cardHead {
+.detailHead {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sc-space-1) var(--sc-space-3);
-  align-items: baseline;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
   justify-content: space-between;
 }
 
-.cardTitle {
+.actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--sc-space-1) var(--sc-space-2);
-  align-items: baseline;
-  font-size: var(--sc-font-size-md);
-  font-weight: var(--sc-font-weight-semibold);
-}
-
-.code {
-  color: var(--sc-color-text-muted);
-  font-family: var(--sc-font-family-mono);
-  font-size: var(--sc-font-size-xs);
-  font-weight: var(--sc-font-weight-regular);
+  gap: var(--sc-space-2);
+  align-items: center;
 }
 
 .facts {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: var(--sc-space-1) var(--sc-space-3);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
   margin: 0;
   font-size: var(--sc-font-size-sm);
 }
@@ -156,28 +105,42 @@
   overflow-wrap: anywhere;
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-}
-
-.muted {
+.code {
   color: var(--sc-color-text-muted);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
 }
 
-/* The runs dialog: the tab's table and its count line. */
-.dialogBody {
+.blocks {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-4);
+}
+
+@media (width >= 64rem) {
+  .blocks:has(> :nth-child(2)) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+}
+
+.block {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-3);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
 }
 
-.nowrap {
-  white-space: nowrap;
+.blockTitle {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
 }
 
-/* The schedule dialog's fields. */
+/* The schedule's fields. */
 .fields {
   display: flex;
   flex-direction: column;
@@ -190,9 +153,22 @@
   gap: var(--sc-space-4);
 }
 
-.dialogActions {
+.formActions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sc-space-2);
   justify-content: flex-end;
+}
+
+/* The failures tab. */
+.tabBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.tabTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
 }

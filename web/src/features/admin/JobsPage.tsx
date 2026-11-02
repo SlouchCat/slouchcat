@@ -1,23 +1,38 @@
-import type { JobRun, JobTypeInfo } from '@slouchcat/api-client';
+import type {
+  Dashboard,
+  JobRun,
+  JobOverview,
+  JobScheduleUpdate,
+  JobSummary,
+  JobTypeInfo,
+} from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { problemMessage } from '@/api/errors';
+import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Chip, Notice, Page, Panel, ProgressBar, Skeleton, Text, VisuallyHidden } from '@/ui';
+import { Chip, Notice, Page, ProgressBar, SelectField, Skeleton, Text, VisuallyHidden } from '@/ui';
 import {
+  ActionMenu,
+  AdminPage,
   AriaButton,
   ConfirmDialog,
   DataTable,
-  FormDialog,
-  StatTile,
+  DisclosureGroup,
+  Form,
+  StatusStrip,
+  Switch,
   Tabs,
+  TextField,
+  useDrafts,
+  useSearchSelection,
+  useUnsavedChanges,
+  type ActionMenuItem,
   type DataColumn,
 } from '@/ui/aria';
-import { JobScheduleDialog } from './JobScheduleDialog';
 import {
   elapsedSeconds,
   formatInterval,
@@ -31,6 +46,7 @@ import {
 import {
   cancelJob,
   cancelJobRuns,
+  dashboardQuery,
   JOBS_POLL_MS,
   jobRunsQuery,
   jobTypesQuery,
@@ -38,15 +54,18 @@ import {
   resumeJobType,
   retryJob,
   runJobType,
+  updateJobSchedule,
   type JobRunState,
 } from './queries';
 import styles from './JobsPage.module.css';
-import table from './AdminTablePage.module.css';
 
-/** The groups of the cards, in their order (concept 09, 2.2). */
+/** The groups of the job types, in their order (concept 09, 2.2); one tab each. */
 const GROUPS = ['library', 'metadata', 'delivery', 'system'] as const;
 
-/** The tabs of the runs dialog, in their order. */
+/** The tabs of the page: the four groups and the failures of every type (JOB-8). */
+const TABS = [...GROUPS, 'failed'] as const;
+
+/** The tabs of a type's runs, in their order. */
 const RUN_STATES: readonly JobRunState[] = [
   'running',
   'queued',
@@ -56,7 +75,21 @@ const RUN_STATES: readonly JobRunState[] = [
   'cancelled',
 ];
 
-/** The tone of the state chip of a card. */
+/** The intervals the schedule offers, in seconds; the server's limits of the type filter them. */
+const EVERY_OPTIONS = [
+  ['m5', 5 * 60],
+  ['m15', 15 * 60],
+  ['m30', 30 * 60],
+  ['h1', 3600],
+  ['h2', 2 * 3600],
+  ['h6', 6 * 3600],
+  ['h12', 12 * 3600],
+  ['h24', 24 * 3600],
+  ['h48', 48 * 3600],
+  ['d7', 7 * 24 * 3600],
+] as const;
+
+/** The tone of the state chip of a type. */
 const stateTone = {
   idle: 'neutral',
   queued: 'info',
@@ -66,7 +99,35 @@ const stateTone = {
   unknown: 'outline',
 } as const satisfies Record<TypeState, 'neutral' | 'info' | 'success' | 'warning' | 'outline'>;
 
-/** A clock that ticks every second while the page shows running durations. */
+/** The schedule of a type as its form holds it; the draft of a type is one of these (S-17). */
+interface ScheduleDraft {
+  enabled: boolean;
+  /** Seconds, as the select's value. */
+  every: string;
+  windowed: boolean;
+  /** "03:00", the value of a time field. */
+  start: string;
+  end: string;
+}
+
+function scheduleDraftOf(schedule: NonNullable<JobTypeInfo['schedule']>): ScheduleDraft {
+  return {
+    enabled: schedule.enabled,
+    every: String(schedule.everySeconds),
+    windowed: schedule.window !== undefined,
+    start: schedule.window ? formatMinute(schedule.window.startMinute) : '03:00',
+    end: schedule.window ? formatMinute(schedule.window.endMinute) : '05:00',
+  };
+}
+
+/** Minutes of the day of an `<input type="time">` value ("03:00"); null when it is not a time. */
+function minuteOf(value: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+/** A clock that ticks every second while the page shows running durations (JOB-4a). */
 function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -102,37 +163,167 @@ function cancelWarning(t: TFunction, type: string): string {
   }
 }
 
+/** Waiting runs with the estimate of the backlog, planned runs and the usual duration (JOB-5). */
+function queuedText(t: TFunction, info: JobTypeInfo): string {
+  const parts = [t('admin.jobs.card.queuedValue', { count: info.counts.queued })];
+  if (info.queuedEstimateSeconds !== undefined && info.counts.queued > 0) {
+    parts.push(
+      t('admin.jobs.card.queuedEstimate', {
+        duration: formatSeconds(t, info.queuedEstimateSeconds),
+      }),
+    );
+  }
+  if (info.counts.planned > 0)
+    parts.push(t('admin.jobs.card.planned', { count: info.counts.planned }));
+  if (info.medianDurationSeconds !== undefined) {
+    parts.push(
+      t('admin.jobs.card.median', { duration: formatSeconds(t, info.medianDurationSeconds) }),
+    );
+  }
+  return parts.join(' · ');
+}
+
+/** The last run: when, how long, and how it ended. */
+function lastText(t: TFunction, info: JobTypeInfo, now: number): string {
+  const last = info.lastRun;
+  if (!last) return t('admin.jobs.card.never');
+  const at = last.finishedAt ?? last.updatedAt;
+  const parts = [
+    t('admin.jobs.card.ago', { duration: formatSeconds(t, (now - Date.parse(at)) / 1000) }),
+  ];
+  if (last.durationSeconds !== undefined) parts.push(formatSeconds(t, last.durationSeconds));
+  switch (last.state) {
+    case 'failed':
+      parts.push(t('admin.jobs.card.lastFailed', { error: last.lastError ?? '' }));
+      break;
+    case 'cancelled':
+      parts.push(t('admin.jobs.card.lastCancelled'));
+      break;
+    default:
+      parts.push(last.skipped ? t('admin.jobs.card.lastSkipped') : t('admin.jobs.card.lastOk'));
+  }
+  return parts.join(' · ');
+}
+
+/** The next run: "in X · alle Y · window", or why there is none. */
+function nextText(t: TFunction, info: JobTypeInfo, now: number): string {
+  if (info.paused) return t('admin.jobs.card.pausedNext');
+  const schedule = info.schedule;
+  if (!schedule)
+    return info.trigger === 'manual'
+      ? t('admin.jobs.card.triggerManual')
+      : t('admin.jobs.card.onDemand');
+  if (!schedule.enabled) return t('admin.jobs.card.off');
+  const parts = [
+    t('admin.jobs.card.in', {
+      duration: formatSeconds(t, (Date.parse(schedule.nextRunAt) - now) / 1000),
+    }),
+    t('admin.jobs.card.every', { duration: formatInterval(t, schedule.everySeconds) }),
+  ];
+  if (schedule.window) {
+    parts.push(
+      t('admin.jobs.card.window', {
+        start: formatMinute(schedule.window.startMinute),
+        end: formatMinute(schedule.window.endMinute),
+      }),
+    );
+  }
+  return parts.join(' · ');
+}
+
+/** A confirmation the page opens itself (from the menu of a row). */
+interface Confirmation {
+  title: string;
+  body: string;
+  onConfirm: () => void;
+}
+
 /**
- * The page "Hintergrundjobs" (concept 09, ADR 0017): the counters and pools, the running runs
- * with progress and remaining time, and one card per job type with its runs, last and next run,
- * and the buttons run, pause or resume, cancel the queued or all runs, schedule and runs. Polled
- * every 5 s like the dashboard, paused while a confirmation or dialog is open; running durations
- * count up between two polls on the client (display only, rule 12).
+ * The page "Hintergrundjobs" (concept 09, ADR 0017; pattern of concept 12, variant C): the paused
+ * types, the counters, «Läuft gerade» with the worker pools, then one tab per group with a row
+ * per job type that folds out into its actions, its schedule and its runs, and the tab
+ * «Fehlschläge» with the ten newest failures of every type (JOB-8). Polled every 5 s, paused
+ * while a confirmation is open or a schedule has unsaved changes; running durations count up
+ * between two polls on the client (display only, rule 12).
  */
 export function JobsPage() {
   const { t } = useTranslation();
   useDocumentTitle(t('admin.jobs.title'));
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!allowed) {
+    return (
+      <Page>
+        <Notice title={t('admin.access.notAllowed.title')}>
+          {t('admin.access.notAllowed.body')}
+        </Notice>
+      </Page>
+    );
+  }
+  return <JobsContent />;
+}
+
+function JobsContent() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const [dialogs, setDialogs] = useState(0);
+  const onDialog = useCallback(
+    (open: boolean) => setDialogs((n) => (open ? n + 1 : Math.max(0, n - 1))),
+    [],
+  );
+
+  // The drafts need what the server holds before the polling query knows whether to pause for
+  // them: a passive observer reads the same cache entry without fetching.
+  const cached = useQuery({ ...jobTypesQuery, enabled: false }).data;
+  const originalOf = useCallback(
+    (type: string): ScheduleDraft | undefined => {
+      const schedule = cached?.types.find((info) => info.type === type)?.schedule;
+      return schedule ? scheduleDraftOf(schedule) : undefined;
+    },
+    [cached],
+  );
+  const drafts = useDrafts<ScheduleDraft>(originalOf);
+  const unsaved = useUnsavedChanges(drafts.dirty);
+  const hold = dialogs > 0 || unsaved.pausePolling;
   const overview = useQuery({
     ...jobTypesQuery,
-    enabled: allowed,
-    refetchInterval: dialogs > 0 ? false : JOBS_POLL_MS,
-    refetchOnWindowFocus: dialogs === 0,
+    refetchInterval: hold ? false : JOBS_POLL_MS,
+    refetchOnWindowFocus: !hold,
   });
+  const dashboard = useQuery({
+    ...dashboardQuery,
+    refetchInterval: hold ? false : JOBS_POLL_MS,
+    refetchOnWindowFocus: !hold,
+  });
+
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'library');
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
   const data = overview.data;
   const now = useNow(Boolean(data?.types.some((info) => info.counts.running > 0)));
-  const onDialog = (open: boolean) => setDialogs((n) => (open ? n + 1 : Math.max(0, n - 1)));
+  const number = new Intl.NumberFormat(i18n.language);
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: jobTypesQuery.queryKey });
-  const settled = async (text: string) => {
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: jobTypesQuery.queryKey }),
+      queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+    ]);
+  /**
+   * Shows the outcome and fetches again. When the row that had the focus is gone (a retried or
+   * cancelled run, ALL-2), or the button that had it went with the change, the focus moves to
+   * the page's h1.
+   */
+  const settled = async (text: string, removed = false) => {
     setFailure(null);
     setMessage(text);
     await refresh();
+    if (removed || !document.activeElement || document.activeElement === document.body) {
+      titleRef.current?.focus();
+    }
   };
   const failed = (error: unknown) => {
     setMessage(null);
@@ -166,21 +357,33 @@ export function JobsPage() {
     onError: failed,
   });
   const cancelOne = useMutation({
-    mutationFn: (job: JobRun) => cancelJob(job.id),
-    onSuccess: (_data, job) => settled(t('admin.jobs.messages.runCancelled', { id: job.id })),
+    mutationFn: (job: JobRun | JobSummary) => cancelJob(job.id),
+    onSuccess: (_data, job) => settled(t('admin.jobs.messages.runCancelled', { id: job.id }), true),
     onError: failed,
   });
-  const pending = run.isPending || pause.isPending || resume.isPending || cancelRuns.isPending;
+  const retryOne = useMutation({
+    mutationFn: (job: JobSummary) => retryJob(job.id),
+    onSuccess: (_data, job) => settled(t('admin.jobs.messages.runRetried', { id: job.id }), true),
+    onError: failed,
+  });
+  const pending =
+    run.isPending ||
+    pause.isPending ||
+    resume.isPending ||
+    cancelRuns.isPending ||
+    cancelOne.isPending ||
+    retryOne.isPending;
 
-  if (!allowed) {
-    return (
-      <Page>
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      </Page>
-    );
-  }
+  const ask = (next: Confirmation) => {
+    setConfirmation(next);
+    setConfirmOpen(true);
+    onDialog(true);
+  };
+  const onConfirmOpenChange = (open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    onDialog(false);
+  };
 
   const running = data?.types.flatMap((info) => info.running) ?? [];
   const paused = data?.types.filter((info) => info.paused) ?? [];
@@ -190,18 +393,99 @@ export function JobsPage() {
     planned: data?.types.reduce((sum, info) => sum + info.counts.planned, 0) ?? 0,
     failed: data?.types.reduce((sum, info) => sum + info.counts.failed, 0) ?? 0,
   };
-  const stoppingTypes = new Set(
-    data?.types.filter((info) => info.stopping).map((info) => info.type),
+  const failedTotal = dashboard.data?.jobs.failed ?? totals.failed;
+
+  const status = data && (
+    <>
+      {paused.length > 0 && (
+        <Notice
+          tone="warning"
+          title={t('admin.jobs.pausedBanner.title', { count: paused.length })}
+          live={false}
+          actions={paused.map((info) => (
+            <AriaButton
+              key={info.type}
+              variant="ghost"
+              aria-label={t('admin.jobs.actions.resumeLabel', { name: typeName(t, info.type) })}
+              isDisabled={pending}
+              onPress={() => resume.mutate(info.type)}
+            >
+              {t('admin.jobs.actions.resume')}: {typeName(t, info.type)}
+            </AriaButton>
+          ))}
+        >
+          {t('admin.jobs.pausedBanner.body', {
+            types: paused.map((info) => typeName(t, info.type)).join(', '),
+          })}
+        </Notice>
+      )}
+      <StatusStrip
+        label={t('admin.jobs.counts.label')}
+        tiles={[
+          {
+            key: 'running',
+            label: t('admin.jobs.counts.running'),
+            value: number.format(totals.running),
+            tone: totals.running > 0 ? 'success' : 'neutral',
+          },
+          {
+            key: 'queued',
+            label: t('admin.jobs.counts.queued'),
+            value: number.format(totals.queued),
+          },
+          {
+            key: 'planned',
+            label: t('admin.jobs.counts.planned'),
+            value: number.format(totals.planned),
+          },
+          {
+            key: 'paused',
+            label: t('admin.jobs.counts.paused'),
+            value: number.format(data.paused),
+            tone: data.paused > 0 ? 'warning' : 'neutral',
+          },
+          {
+            key: 'failed',
+            label: t('admin.jobs.counts.failed'),
+            value: number.format(totals.failed),
+            tone: totals.failed > 0 ? 'danger' : 'neutral',
+          },
+        ]}
+      />
+    </>
+  );
+
+  const detail = (info: JobTypeInfo) => (
+    <JobDetail
+      info={info}
+      now={now}
+      pending={pending}
+      schedule={drafts.valueOf(info.type)}
+      scheduleDirty={drafts.isDirty(info.type)}
+      onScheduleChange={(next) => drafts.set(info.type, next)}
+      onScheduleDiscard={() => drafts.discard(info.type)}
+      onScheduleSaved={async () => {
+        await settled(t('admin.jobs.messages.scheduleSaved', { name: typeName(t, info.type) }));
+        drafts.discard(info.type);
+      }}
+      onRun={() => run.mutate(info.type)}
+      onPause={() => pause.mutate(info.type)}
+      onResume={() => resume.mutate(info.type)}
+      onAsk={ask}
+      onCancelRuns={(scope) => cancelRuns.mutate({ type: info.type, scope })}
+      onRunSettled={(text) => void settled(text, true)}
+      onFailure={failed}
+    />
   );
 
   return (
-    <Page>
-      <div className={styles.intro}>
-        <Text as="h1" variant="display">
-          {t('admin.jobs.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.jobs.intro')}</Text>
-      </div>
+    <AdminPage
+      title={t('admin.jobs.title')}
+      help={t('admin.jobs.intro')}
+      liveSeconds={JOBS_POLL_MS / 1000}
+      titleRef={titleRef}
+      status={status}
+    >
       {overview.isPending && <Skeleton shape="block" />}
       {overview.isError && (
         <Notice
@@ -214,129 +498,167 @@ export function JobsPage() {
           }
         />
       )}
+      {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      <div role="status" className={styles.live}>
+        {message && failure === null && <Notice live={false}>{message}</Notice>}
+      </div>
       {data && (
         <>
-          <div className={styles.counters}>
-            <StatTile
-              label={t('admin.jobs.counts.running')}
-              value={String(totals.running)}
-              tone={totals.running > 0 ? 'success' : 'neutral'}
+          <DisclosureGroup
+            level={2}
+            title={t('admin.jobs.running.title')}
+            count={number.format(running.length)}
+            countLabel={t('admin.jobs.running.count', { count: running.length })}
+          >
+            <RunningTable
+              runs={running}
+              now={now}
+              stopping={new Set(data.types.filter((info) => info.stopping).map((i) => i.type))}
+              pending={pending}
+              onPause={(type) => pause.mutate(type)}
+              onCancel={(job) => cancelOne.mutate(job)}
+              onDialog={onDialog}
             />
-            <StatTile label={t('admin.jobs.counts.queued')} value={String(totals.queued)} />
-            <StatTile label={t('admin.jobs.counts.planned')} value={String(totals.planned)} />
-            <StatTile
-              label={t('admin.jobs.counts.paused')}
-              value={String(data.paused)}
-              tone={data.paused > 0 ? 'warning' : 'neutral'}
-            />
-            <StatTile
-              label={t('admin.jobs.counts.failed')}
-              value={String(totals.failed)}
-              tone={totals.failed > 0 ? 'danger' : 'neutral'}
-            />
-          </div>
-          <ul className={styles.pools} aria-label={t('admin.jobs.pools.title')}>
-            {data.pools.map((pool) => (
-              <li key={pool.pool}>
-                {t(`admin.jobs.pools.${pool.pool}`)}:{' '}
-                {t('admin.jobs.pools.workers', { count: pool.workers })}
-                {' · '}
-                {pool.backlogSeconds === undefined
-                  ? t('admin.jobs.pools.free')
-                  : t('admin.jobs.pools.backlog', {
-                      duration: formatSeconds(t, pool.backlogSeconds),
-                    })}
-              </li>
-            ))}
-          </ul>
-          {paused.length > 0 && (
-            <Notice
-              tone="warning"
-              title={t('admin.jobs.pausedBanner.title', { count: paused.length })}
-              live={false}
-              actions={paused.map((info) => (
-                <AriaButton
-                  key={info.type}
-                  variant="ghost"
-                  aria-label={t('admin.jobs.actions.resumeLabel', { name: typeName(t, info.type) })}
-                  isDisabled={pending}
-                  onPress={() => resume.mutate(info.type)}
-                >
-                  {t('admin.jobs.actions.resume')}: {typeName(t, info.type)}
-                </AriaButton>
-              ))}
-            >
-              {t('admin.jobs.pausedBanner.body', {
-                types: paused.map((info) => typeName(t, info.type)).join(', '),
-              })}
-            </Notice>
-          )}
-          {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-          <div role="status" className={styles.live}>
-            {message && failure === null && <Notice live={false}>{message}</Notice>}
-          </div>
-
-          <RunningSection
-            runs={running}
-            now={now}
-            stopping={stoppingTypes}
-            pending={pending}
-            onPause={(type) => pause.mutate(type)}
-            onCancel={(job) => cancelOne.mutate(job)}
-            onDialog={onDialog}
-          />
-
-          {GROUPS.map((group) => {
-            const types = data.types.filter((info) => info.group === group);
-            if (types.length === 0) return null;
-            return (
-              <GroupSection key={group} group={group}>
-                {types.map((info) => (
-                  <JobCard
-                    key={info.type}
-                    info={info}
-                    now={now}
+            <Pools data={data} />
+          </DisclosureGroup>
+          <Tabs
+            label={t('admin.jobs.tabs.label')}
+            selectedKey={tab}
+            onSelectionChange={selectTab}
+            tabs={[
+              ...GROUPS.map((group) => {
+                const types = data.types.filter((info) => info.group === group);
+                return {
+                  id: group,
+                  label: t(`admin.jobs.groups.${group}`),
+                  count: number.format(types.length),
+                  countLabel: t('admin.jobs.tabs.types', { count: types.length }),
+                  content: (
+                    <DataTable
+                      caption={t('admin.jobs.tabs.caption', {
+                        group: t(`admin.jobs.groups.${group}`),
+                      })}
+                      columns={typeColumns(t, now)}
+                      rows={types}
+                      rowKey={(info) => info.type}
+                      expand={{
+                        render: detail,
+                        expandedKeys: expanded,
+                        onExpandedChange: (key, open) =>
+                          setExpanded((current) => {
+                            const next = new Set(current);
+                            if (open) next.add(key);
+                            else next.delete(key);
+                            return next;
+                          }),
+                      }}
+                    />
+                  ),
+                };
+              }),
+              {
+                id: 'failed',
+                label: t('admin.jobs.tabs.failed'),
+                count: number.format(failedTotal),
+                countLabel: t('admin.jobs.failed.count', { count: failedTotal }),
+                tone: failedTotal > 0 ? 'danger' : 'neutral',
+                content: (
+                  <FailedTab
+                    query={dashboard}
+                    total={failedTotal}
                     pending={pending}
-                    onRun={(type) => run.mutate(type)}
-                    onPause={(type) => pause.mutate(type)}
-                    onResume={(type) => resume.mutate(type)}
-                    onCancelRuns={(type, scope) => cancelRuns.mutate({ type, scope })}
+                    onRetry={(job) => retryOne.mutate(job)}
+                    onCancel={(job) => cancelOne.mutate(job)}
                     onDialog={onDialog}
-                    onChanged={() => void refresh()}
-                    onMessage={(text) => void settled(text)}
-                    onFailure={failed}
                   />
-                ))}
-              </GroupSection>
-            );
-          })}
+                ),
+              },
+            ]}
+          />
         </>
       )}
-    </Page>
+      {confirmation && (
+        <ConfirmDialog
+          isOpen={confirmOpen}
+          onOpenChange={onConfirmOpenChange}
+          title={confirmation.title}
+          body={confirmation.body}
+          confirmLabel={t('admin.jobs.confirm.confirm')}
+          cancelLabel={t('admin.jobs.confirm.keep')}
+          tone="danger"
+          onConfirm={confirmation.onConfirm}
+        />
+      )}
+      <ConfirmDialog {...unsaved.dialog} />
+    </AdminPage>
   );
 }
 
-function GroupSection({
-  group,
-  children,
-}: {
-  group: (typeof GROUPS)[number];
-  children: React.ReactNode;
-}) {
+/** The columns of a group's table: the row folds out on the name (JOB-5). */
+function typeColumns(t: TFunction, now: number): DataColumn<JobTypeInfo>[] {
+  return [
+    {
+      key: 'name',
+      header: t('admin.jobs.columns.job'),
+      rowHeader: true,
+      cell: (info) => typeName(t, info.type),
+    },
+    {
+      key: 'state',
+      header: t('admin.jobs.columns.state'),
+      cell: (info) => {
+        const state = typeState(info);
+        return <Chip tone={stateTone[state]}>{t(`admin.jobs.state.${state}`)}</Chip>;
+      },
+    },
+    {
+      key: 'queued',
+      header: t('admin.jobs.card.queued'),
+      cell: (info) => queuedText(t, info),
+    },
+    {
+      key: 'last',
+      header: t('admin.jobs.card.lastRun'),
+      cell: (info) => {
+        const text = lastText(t, info, now);
+        return (
+          <span className={styles.oneLine} title={text}>
+            {text}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'next',
+      header: t('admin.jobs.card.nextRun'),
+      cell: (info) => nextText(t, info, now),
+    },
+  ];
+}
+
+/** The worker pools below «Läuft gerade»: workers and backlog (JOB-2). */
+function Pools({ data }: { data: JobOverview }) {
   const { t } = useTranslation();
-  const id = useId();
   return (
-    <section className={styles.section} aria-labelledby={id}>
-      <h2 id={id} className={styles.sectionTitle}>
-        {t(`admin.jobs.groups.${group}`)}
-      </h2>
-      <div className={styles.cards}>{children}</div>
-    </section>
+    <ul className={styles.pools} aria-label={t('admin.jobs.pools.title')}>
+      {data.pools.map((pool) => (
+        <li key={pool.pool}>
+          {t(`admin.jobs.pools.${pool.pool}`)}:{' '}
+          {t('admin.jobs.pools.workers', { count: pool.workers })}
+          {' · '}
+          {pool.backlogSeconds === undefined
+            ? t('admin.jobs.pools.free')
+            : t('admin.jobs.pools.backlog', {
+                duration: formatSeconds(t, pool.backlogSeconds),
+              })}
+        </li>
+      ))}
+    </ul>
   );
 }
 
-/** "Läuft gerade": every running run across the types, with pause (of the job) and cancel. */
-function RunningSection({
+/** «Läuft gerade»: every running run across the types, with pause (of the job) and cancel. */
+function RunningTable({
   runs,
   now,
   stopping,
@@ -354,187 +676,159 @@ function RunningSection({
   onDialog: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
-  const id = useId();
+  if (runs.length === 0) return <Text tone="secondary">{t('admin.jobs.running.empty')}</Text>;
+  const columns: DataColumn<JobRun>[] = [
+    {
+      key: 'job',
+      header: t('admin.jobs.running.columns.job'),
+      rowHeader: true,
+      cell: (job) => (
+        <span className={styles.runName}>
+          {typeName(t, job.type)}
+          {stopping.has(job.type) && <Chip tone="warning">{t('admin.jobs.state.stopping')}</Chip>}
+        </span>
+      ),
+    },
+    {
+      key: 'subject',
+      header: t('admin.jobs.running.columns.subject'),
+      cell: (job) => job.subject ?? '–',
+    },
+    {
+      key: 'progress',
+      header: t('admin.jobs.running.columns.progress'),
+      cell: (job) => {
+        const total = job.progress?.total ?? 0;
+        const done = job.progress?.done ?? 0;
+        const percent = total > 0 ? Math.min(100, Math.round((done * 100) / total)) : null;
+        return (
+          <span className={styles.progress}>
+            {job.progress?.note && <span className={styles.note}>{job.progress.note}</span>}
+            {percent !== null && (
+              <>
+                <span>{t('admin.jobs.running.progress', { done, total })}</span>
+                <ProgressBar
+                  value={percent}
+                  label={t('admin.jobs.running.progressLabel', {
+                    name: typeName(t, job.type),
+                    percent,
+                  })}
+                  size="regular"
+                />
+              </>
+            )}
+            {!job.progress?.note && percent === null && '–'}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'since',
+      header: t('admin.jobs.running.columns.since'),
+      cell: (job) => (
+        <span className={styles.nowrap}>
+          {t('admin.jobs.running.since', { duration: formatSeconds(t, elapsedSeconds(job, now)) })}
+        </span>
+      ),
+    },
+    {
+      key: 'left',
+      header: t('admin.jobs.running.columns.left'),
+      cell: (job) => remainingText(t, job),
+    },
+    {
+      key: 'actions',
+      header: t('admin.jobs.runs.columns.actions'),
+      hideHeader: true,
+      align: 'end',
+      cell: (job) => {
+        const name = typeName(t, job.type);
+        return (
+          <span className={styles.rowActions}>
+            <AriaButton
+              variant="ghost"
+              icon="pause"
+              aria-label={t('admin.jobs.running.pauseLabel', { name })}
+              isDisabled={pending || stopping.has(job.type)}
+              onPress={() => onPause(job.type)}
+            >
+              {t('admin.jobs.running.pause')}
+            </AriaButton>
+            <ConfirmDialog
+              trigger={
+                <AriaButton
+                  variant="ghost"
+                  icon="trash"
+                  aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
+                  isDisabled={pending}
+                >
+                  {t('admin.jobs.running.cancel')}
+                </AriaButton>
+              }
+              title={t('admin.jobs.confirm.cancelRunTitle', { name })}
+              body={t('admin.jobs.confirm.cancelRunBody') + cancelWarning(t, job.type)}
+              confirmLabel={t('admin.jobs.confirm.confirm')}
+              cancelLabel={t('admin.jobs.confirm.keep')}
+              tone="danger"
+              onConfirm={() => onCancel(job)}
+              onOpenChange={onDialog}
+            />
+          </span>
+        );
+      },
+    },
+  ];
   return (
-    <section className={styles.section} aria-labelledby={id}>
-      <h2 id={id} className={styles.sectionTitle}>
-        {t('admin.jobs.running.title')}
-      </h2>
-      <Panel>
-        {runs.length === 0 ? (
-          <Text tone="secondary">{t('admin.jobs.running.empty')}</Text>
-        ) : (
-          <ul className={styles.runs}>
-            {runs.map((job) => {
-              const name = typeName(t, job.type);
-              const elapsed = elapsedSeconds(job, now);
-              const total = job.progress?.total ?? 0;
-              const percent =
-                total > 0
-                  ? Math.min(100, Math.round(((job.progress?.done ?? 0) * 100) / total))
-                  : null;
-              const isStopping = stopping.has(job.type);
-              return (
-                <li key={job.id} className={styles.run}>
-                  <div className={styles.runBody}>
-                    <div className={styles.runName}>
-                      <Text as="span">{name}</Text>
-                      {job.subject && (
-                        <Text as="span" tone="secondary">
-                          {job.subject}
-                        </Text>
-                      )}
-                      {isStopping && <Chip tone="warning">{t('admin.jobs.state.stopping')}</Chip>}
-                    </div>
-                    {job.progress?.note && (
-                      <Text as="span" tone="secondary" variant="caption">
-                        {job.progress.note}
-                      </Text>
-                    )}
-                    <div className={styles.runMeta}>
-                      <span>
-                        {t('admin.jobs.running.since', { duration: formatSeconds(t, elapsed) })}
-                      </span>
-                      {percent !== null && (
-                        <span>
-                          {t('admin.jobs.running.progress', {
-                            done: job.progress?.done ?? 0,
-                            total,
-                          })}
-                        </span>
-                      )}
-                      <span>{remainingText(t, job)}</span>
-                    </div>
-                    {percent !== null && (
-                      <div className={styles.bar}>
-                        <ProgressBar
-                          value={percent}
-                          label={t('admin.jobs.running.progressLabel', { name, percent })}
-                          size="regular"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div className={styles.runActions}>
-                    <AriaButton
-                      variant="ghost"
-                      icon="pause"
-                      aria-label={t('admin.jobs.running.pauseLabel', { name })}
-                      isDisabled={pending || isStopping}
-                      onPress={() => onPause(job.type)}
-                    >
-                      {t('admin.jobs.running.pause')}
-                    </AriaButton>
-                    <ConfirmDialog
-                      trigger={
-                        <AriaButton
-                          variant="ghost"
-                          icon="trash"
-                          aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
-                          isDisabled={pending}
-                        >
-                          {t('admin.jobs.running.cancel')}
-                        </AriaButton>
-                      }
-                      title={t('admin.jobs.confirm.cancelRunTitle', { name })}
-                      body={t('admin.jobs.confirm.cancelRunBody') + cancelWarning(t, job.type)}
-                      confirmLabel={t('admin.jobs.confirm.confirm')}
-                      cancelLabel={t('admin.jobs.confirm.keep')}
-                      tone="danger"
-                      onConfirm={() => onCancel(job)}
-                      onOpenChange={onDialog}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Panel>
-    </section>
+    <DataTable
+      caption={t('admin.jobs.running.title')}
+      columns={columns}
+      rows={runs}
+      rowKey={(job) => String(job.id)}
+    />
   );
 }
 
-/** One job type: its state, four lines, and the buttons. */
-function JobCard({
+/**
+ * The fold-out of a job type: «Jetzt ausführen» and «Pausieren»/«Fortsetzen» as buttons, the
+ * cancellations in «Weitere Aktionen» (S-6), the trigger; then the schedule (types with one) and
+ * the runs (JOB-6, JOB-7). A type this server no longer knows offers nothing.
+ */
+function JobDetail({
   info,
   now,
   pending,
+  schedule,
+  scheduleDirty,
+  onScheduleChange,
+  onScheduleDiscard,
+  onScheduleSaved,
   onRun,
   onPause,
   onResume,
+  onAsk,
   onCancelRuns,
-  onDialog,
-  onChanged,
-  onMessage,
+  onRunSettled,
   onFailure,
 }: {
   info: JobTypeInfo;
   now: number;
   pending: boolean;
-  onRun: (type: string) => void;
-  onPause: (type: string) => void;
-  onResume: (type: string) => void;
-  onCancelRuns: (type: string, scope: 'queued' | 'all') => void;
-  onDialog: (open: boolean) => void;
-  onChanged: () => void;
-  onMessage: (text: string) => void;
+  schedule: ScheduleDraft | undefined;
+  scheduleDirty: boolean;
+  onScheduleChange: (next: ScheduleDraft) => void;
+  onScheduleDiscard: () => void;
+  onScheduleSaved: () => Promise<void>;
+  onRun: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onAsk: (confirmation: Confirmation) => void;
+  onCancelRuns: (scope: 'queued' | 'all') => void;
+  onRunSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
 }) {
-  const { t, i18n } = useTranslation();
-  const id = useId();
+  const { t } = useTranslation();
   const name = typeName(t, info.type);
-  const state = typeState(info);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [runsOpen, setRunsOpen] = useState(false);
-  const openDialog = (set: (open: boolean) => void) => (open: boolean) => {
-    set(open);
-    onDialog(open);
-  };
-  const last = info.lastRun;
-  const lastText = () => {
-    if (!last) return t('admin.jobs.card.never');
-    const at = last.finishedAt ?? last.updatedAt;
-    const parts = [
-      t('admin.jobs.card.ago', { duration: formatSeconds(t, (now - Date.parse(at)) / 1000) }),
-    ];
-    if (last.durationSeconds !== undefined) parts.push(formatSeconds(t, last.durationSeconds));
-    switch (last.state) {
-      case 'failed':
-        parts.push(t('admin.jobs.card.lastFailed', { error: last.lastError ?? '' }));
-        break;
-      case 'cancelled':
-        parts.push(t('admin.jobs.card.lastCancelled'));
-        break;
-      default:
-        parts.push(last.skipped ? t('admin.jobs.card.lastSkipped') : t('admin.jobs.card.lastOk'));
-    }
-    return parts.join(' · ');
-  };
-  const nextText = () => {
-    if (info.paused) return t('admin.jobs.card.pausedNext');
-    const schedule = info.schedule;
-    if (!schedule)
-      return info.trigger === 'manual'
-        ? t('admin.jobs.card.triggerManual')
-        : t('admin.jobs.card.onDemand');
-    if (!schedule.enabled) return t('admin.jobs.card.off');
-    const parts = [
-      t('admin.jobs.card.in', {
-        duration: formatSeconds(t, (Date.parse(schedule.nextRunAt) - now) / 1000),
-      }),
-      t('admin.jobs.card.every', { duration: formatInterval(t, schedule.everySeconds) }),
-    ];
-    if (schedule.window) {
-      parts.push(
-        t('admin.jobs.card.window', {
-          start: formatMinute(schedule.window.startMinute),
-          end: formatMinute(schedule.window.endMinute),
-        }),
-      );
-    }
-    return parts.join(' · ');
-  };
+  const waiting = info.counts.queued + info.counts.planned;
   const triggerText = info.known
     ? t(`admin.jobs.types.${typeKey(info.type)}.trigger`, {
         defaultValue:
@@ -543,45 +837,45 @@ function JobCard({
             : t('admin.jobs.card.triggerEvent'),
       })
     : t('admin.jobs.card.unknown');
-  const queuedText = () => {
-    const parts = [t('admin.jobs.card.queuedValue', { count: info.counts.queued })];
-    if (info.queuedEstimateSeconds !== undefined && info.counts.queued > 0) {
-      parts.push(
-        t('admin.jobs.card.queuedEstimate', {
-          duration: formatSeconds(t, info.queuedEstimateSeconds),
-        }),
-      );
+  // The menu stays while the queue empties between two polls, so the focus on its button does
+  // not get lost; what has nothing to cancel is disabled.
+  const menu: ActionMenuItem[] = [
+    {
+      id: 'queued',
+      label: t('admin.jobs.actions.cancelQueued', { count: waiting }),
+      danger: true,
+      disabled: waiting === 0,
+    },
+    {
+      id: 'all',
+      label: t('admin.jobs.actions.cancelAll'),
+      danger: true,
+      disabled: info.counts.running === 0,
+    },
+  ];
+  const onMenu = (id: string) => {
+    if (id === 'queued') {
+      onAsk({
+        title: t('admin.jobs.confirm.cancelQueuedTitle', { name }),
+        body:
+          t('admin.jobs.confirm.cancelQueuedBody', { count: waiting }) +
+          cancelWarning(t, info.type),
+        onConfirm: () => onCancelRuns('queued'),
+      });
+    } else if (id === 'all') {
+      onAsk({
+        title: t('admin.jobs.confirm.cancelAllTitle', { name }),
+        body:
+          t('admin.jobs.confirm.cancelAllBody', { queued: waiting, running: info.counts.running }) +
+          cancelWarning(t, info.type),
+        onConfirm: () => onCancelRuns('all'),
+      });
     }
-    if (info.counts.planned > 0)
-      parts.push(t('admin.jobs.card.planned', { count: info.counts.planned }));
-    if (info.medianDurationSeconds !== undefined) {
-      parts.push(
-        t('admin.jobs.card.median', { duration: formatSeconds(t, info.medianDurationSeconds) }),
-      );
-    }
-    return parts.join(' · ');
   };
 
   return (
-    <Panel as="article" aria-labelledby={id}>
-      <div className={styles.card}>
-        <div className={styles.cardHead}>
-          <h3 id={id} className={styles.cardTitle}>
-            <span>{name}</span>
-            <code className={styles.code}>{info.type}</code>
-          </h3>
-          <Chip tone={stateTone[state]}>{t(`admin.jobs.state.${state}`)}</Chip>
-        </div>
-        <dl className={styles.facts}>
-          <dt>{t('admin.jobs.card.queued')}</dt>
-          <dd>{queuedText()}</dd>
-          <dt>{t('admin.jobs.card.lastRun')}</dt>
-          <dd>{lastText()}</dd>
-          <dt>{t('admin.jobs.card.nextRun')}</dt>
-          <dd>{nextText()}</dd>
-          <dt>{t('admin.jobs.card.trigger')}</dt>
-          <dd>{triggerText}</dd>
-        </dl>
+    <div className={styles.detail}>
+      <div className={styles.detailHead}>
         {info.known && (
           <div className={styles.actions}>
             {info.runnable && !info.paused && (
@@ -590,7 +884,7 @@ function JobCard({
                 icon="play"
                 aria-label={t('admin.jobs.actions.runLabel', { name })}
                 isDisabled={pending}
-                onPress={() => onRun(info.type)}
+                onPress={onRun}
               >
                 {t('admin.jobs.actions.run')}
               </AriaButton>
@@ -601,7 +895,7 @@ function JobCard({
                 icon="play"
                 aria-label={t('admin.jobs.actions.resumeLabel', { name })}
                 isDisabled={pending}
-                onPress={() => onResume(info.type)}
+                onPress={onResume}
               >
                 {t('admin.jobs.actions.resume')}
               </AriaButton>
@@ -611,168 +905,243 @@ function JobCard({
                 icon="pause"
                 aria-label={t('admin.jobs.actions.pauseLabel', { name })}
                 isDisabled={pending}
-                onPress={() => onPause(info.type)}
+                onPress={onPause}
               >
                 {t('admin.jobs.actions.pause')}
               </AriaButton>
             )}
-            {info.counts.queued + info.counts.planned > 0 && (
-              <ConfirmDialog
-                trigger={
-                  <AriaButton
-                    variant="ghost"
-                    aria-label={t('admin.jobs.actions.cancelQueuedLabel', { name })}
-                    isDisabled={pending}
-                  >
-                    {t('admin.jobs.actions.cancelQueued', {
-                      count: info.counts.queued + info.counts.planned,
-                    })}
-                  </AriaButton>
-                }
-                title={t('admin.jobs.confirm.cancelQueuedTitle', { name })}
-                body={
-                  t('admin.jobs.confirm.cancelQueuedBody', {
-                    count: info.counts.queued + info.counts.planned,
-                  }) + cancelWarning(t, info.type)
-                }
-                confirmLabel={t('admin.jobs.confirm.confirm')}
-                cancelLabel={t('admin.jobs.confirm.keep')}
-                tone="danger"
-                onConfirm={() => onCancelRuns(info.type, 'queued')}
-                onOpenChange={onDialog}
-              />
-            )}
-            {info.counts.running > 0 && (
-              <ConfirmDialog
-                trigger={
-                  <AriaButton
-                    variant="ghost"
-                    aria-label={t('admin.jobs.actions.cancelAllLabel', { name })}
-                    isDisabled={pending}
-                  >
-                    {t('admin.jobs.actions.cancelAll')}
-                  </AriaButton>
-                }
-                title={t('admin.jobs.confirm.cancelAllTitle', { name })}
-                body={
-                  t('admin.jobs.confirm.cancelAllBody', {
-                    queued: info.counts.queued + info.counts.planned,
-                    running: info.counts.running,
-                  }) + cancelWarning(t, info.type)
-                }
-                confirmLabel={t('admin.jobs.confirm.confirm')}
-                cancelLabel={t('admin.jobs.confirm.keep')}
-                tone="danger"
-                onConfirm={() => onCancelRuns(info.type, 'all')}
-                onOpenChange={onDialog}
-              />
-            )}
-            {info.schedule && (
-              <AriaButton
-                variant="ghost"
-                aria-label={t('admin.jobs.actions.scheduleLabel', { name })}
-                onPress={() => openDialog(setScheduleOpen)(true)}
-              >
-                {t('admin.jobs.actions.schedule')}
-              </AriaButton>
-            )}
-            <AriaButton
-              variant="ghost"
-              aria-label={t('admin.jobs.actions.runsLabel', { name })}
-              onPress={() => openDialog(setRunsOpen)(true)}
-            >
-              {t('admin.jobs.actions.runs')}
-            </AriaButton>
+            <ActionMenu rowName={name} items={menu} onAction={onMenu} />
           </div>
         )}
+        <dl className={styles.facts}>
+          <dt>{t('admin.jobs.card.trigger')}</dt>
+          <dd>
+            {triggerText} <code className={styles.code}>{info.type}</code>
+          </dd>
+        </dl>
       </div>
-      {info.schedule && scheduleOpen && (
-        <JobScheduleDialog
-          info={info}
-          isOpen={scheduleOpen}
-          onOpenChange={openDialog(setScheduleOpen)}
-          onSaved={() => {
-            onMessage(t('admin.jobs.messages.scheduleSaved', { name }));
-            onChanged();
-          }}
-        />
+      {info.known && (
+        <div className={styles.blocks}>
+          {info.schedule && schedule && (
+            <ScheduleBlock
+              info={info}
+              value={schedule}
+              dirty={scheduleDirty}
+              onChange={onScheduleChange}
+              onDiscard={onScheduleDiscard}
+              onSaved={onScheduleSaved}
+            />
+          )}
+          <RunsBlock info={info} now={now} onSettled={onRunSettled} onFailure={onFailure} />
+        </div>
       )}
-      {runsOpen && (
-        <RunsDialog
-          info={info}
-          isOpen={runsOpen}
-          onOpenChange={openDialog(setRunsOpen)}
-          now={now}
-          language={i18n.language}
-          onChanged={onChanged}
-          onMessage={onMessage}
-          onFailure={onFailure}
-        />
-      )}
-    </Panel>
+    </div>
   );
 }
 
-/** The dialog "Läufe von X": one tab per state, the runs as a table with retry and cancel. */
-function RunsDialog({
+/**
+ * The schedule of a type inside its row (concept 09, F-4; instead of the dialog of concept 09):
+ * the switch, the interval as a select of the values within the type's limits, and a time
+ * window. What is typed is the page's draft of the type (S-17), so folding the row or switching
+ * tabs keeps it. The server checks the limits (rule 12); a 422 names the field.
+ */
+function ScheduleBlock({
   info,
-  isOpen,
-  onOpenChange,
-  now,
-  language,
-  onChanged,
-  onMessage,
-  onFailure,
+  value,
+  dirty,
+  onChange,
+  onDiscard,
+  onSaved,
 }: {
   info: JobTypeInfo;
-  isOpen: boolean;
-  onOpenChange: (isOpen: boolean) => void;
-  now: number;
-  language: string;
-  onChanged: () => void;
-  onMessage: (text: string) => void;
-  onFailure: (error: unknown) => void;
+  value: ScheduleDraft;
+  dirty: boolean;
+  onChange: (next: ScheduleDraft) => void;
+  onDiscard: () => void;
+  onSaved: () => Promise<void>;
 }) {
   const { t } = useTranslation();
   const name = typeName(t, info.type);
-  const [tab, setTab] = useState<JobRunState>(info.counts.running > 0 ? 'running' : 'queued');
-  const listRef = useRef<HTMLDivElement>(null);
+  const saveButton = useRef<HTMLButtonElement>(null);
+  const save = useMutation({
+    mutationFn: (body: JobScheduleUpdate) => updateJobSchedule(info.type, body),
+    onSuccess: () => onSaved(),
+  });
+  const errors = save.error ? formErrors(t, save.error) : null;
+  const schedule = info.schedule;
+  if (!schedule) return null;
+  const set = (patch: Partial<ScheduleDraft>) => onChange({ ...value, ...patch });
+
+  const options = EVERY_OPTIONS.filter(
+    ([, seconds]) =>
+      seconds >= schedule.limits.minEverySeconds && seconds <= schedule.limits.maxEverySeconds,
+  ).map(([key, seconds]) => ({
+    value: String(seconds),
+    label: t(`admin.jobs.schedule.everyOptions.${key}`),
+  }));
+  // The stored interval may lie outside the offered steps (set by hand elsewhere): keep it.
+  if (!options.some((option) => option.value === value.every)) {
+    options.unshift({ value: value.every, label: value.every });
+  }
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const body: JobScheduleUpdate = { enabled: value.enabled, everySeconds: Number(value.every) };
+    if (value.windowed) {
+      const startMinute = minuteOf(value.start);
+      const endMinute = minuteOf(value.end);
+      if (startMinute === null || endMinute === null) return;
+      body.window = { startMinute, endMinute };
+    } else if (schedule.window) {
+      body.clearWindow = true;
+    }
+    save.mutate(body);
+  };
+
   return (
-    <FormDialog
-      isOpen={isOpen}
-      onOpenChange={onOpenChange}
-      title={t('admin.jobs.runs.title', { name })}
-      size="wide"
-      initialFocus="[role=tab][aria-selected=true]"
-    >
-      <div ref={listRef} className={styles.dialogBody}>
-        <Tabs
-          label={t('admin.jobs.runs.tabs')}
-          selectedKey={tab}
-          onSelectionChange={(key) => setTab(key as JobRunState)}
-          tabs={RUN_STATES.map((state) => ({
+    <section className={styles.block} aria-label={t('admin.jobs.schedule.title', { name })}>
+      <h3 className={styles.blockTitle}>{t('admin.jobs.schedule.heading')}</h3>
+      <Form className={styles.fields} onSubmit={onSubmit} validationErrors={errors?.fields}>
+        {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+        <Switch isSelected={value.enabled} onChange={(enabled) => set({ enabled })}>
+          {t('admin.jobs.schedule.enabled')}
+        </Switch>
+        <SelectField
+          label={t('admin.jobs.schedule.every')}
+          value={value.every}
+          options={options}
+          onChange={(every) => set({ every })}
+        />
+        {errors?.fields.everySeconds && (
+          <Text tone="secondary" variant="caption">
+            {errors.fields.everySeconds}
+          </Text>
+        )}
+        <Switch isSelected={value.windowed} onChange={(windowed) => set({ windowed })}>
+          {t('admin.jobs.schedule.window')}
+        </Switch>
+        {value.windowed && (
+          <div className={styles.windowFields}>
+            <TextField
+              name="windowStart"
+              type="time"
+              label={t('admin.jobs.schedule.windowStart')}
+              value={value.start}
+              onChange={(start) => set({ start })}
+              isRequired
+            />
+            <TextField
+              name="windowEnd"
+              type="time"
+              label={t('admin.jobs.schedule.windowEnd')}
+              description={t('admin.jobs.schedule.windowHint', { zone: schedule.timeZone })}
+              value={value.end}
+              onChange={(end) => set({ end })}
+              isRequired
+            />
+          </div>
+        )}
+        {errors?.fields.window && (
+          <Text tone="secondary" variant="caption">
+            {errors.fields.window}
+          </Text>
+        )}
+        <Text tone="secondary" variant="caption">
+          {t('admin.jobs.schedule.description')}
+        </Text>
+        {info.type === 'trakt.refresh' && (
+          <Text tone="secondary" variant="caption">
+            {t('admin.jobs.schedule.traktHint')}
+          </Text>
+        )}
+        {info.type === 'update.check' && (
+          <Text tone="secondary" variant="caption">
+            {t('admin.jobs.schedule.updateHint')}
+          </Text>
+        )}
+        <div className={styles.formActions}>
+          {dirty && (
+            <AriaButton
+              variant="ghost"
+              isDisabled={save.isPending}
+              onPress={() => {
+                save.reset();
+                onDiscard();
+                // The button goes with the draft; the focus stays in the form.
+                saveButton.current?.focus();
+              }}
+            >
+              {t('admin.jobs.schedule.discard')}
+            </AriaButton>
+          )}
+          <AriaButton ref={saveButton} type="submit" variant="primary" isPending={save.isPending}>
+            {t('admin.jobs.schedule.save')}
+          </AriaButton>
+        </div>
+      </Form>
+    </section>
+  );
+}
+
+/** The runs of a type inside its row: one tab per state (JOB-7; instead of the runs dialog). */
+function RunsBlock({
+  info,
+  now,
+  onSettled,
+  onFailure,
+}: {
+  info: JobTypeInfo;
+  now: number;
+  onSettled: (text: string) => void;
+  onFailure: (error: unknown) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const name = typeName(t, info.type);
+  const [tab, setTab] = useState<JobRunState>(info.counts.running > 0 ? 'running' : 'queued');
+  const number = new Intl.NumberFormat(i18n.language);
+  const countOf = (state: JobRunState): number | undefined => {
+    switch (state) {
+      case 'running':
+      case 'queued':
+      case 'planned':
+      case 'failed':
+        return info.counts[state];
+      default:
+        return undefined;
+    }
+  };
+  return (
+    <section className={styles.block} aria-label={t('admin.jobs.runs.title', { name })}>
+      <h3 className={styles.blockTitle}>{t('admin.jobs.runs.heading')}</h3>
+      <Tabs
+        label={t('admin.jobs.runs.tabs')}
+        selectedKey={tab}
+        onSelectionChange={(key) => setTab(key as JobRunState)}
+        tabs={RUN_STATES.map((state) => {
+          const count = countOf(state);
+          return {
             id: state,
             label: t(`admin.jobs.runs.tab.${state}`),
+            ...(count === undefined
+              ? {}
+              : {
+                  count: number.format(count),
+                  tone: state === 'failed' && count > 0 ? ('danger' as const) : undefined,
+                }),
             content: (
               <RunsTab
                 type={info.type}
                 state={state}
                 now={now}
-                language={language}
-                onChanged={onChanged}
-                onMessage={onMessage}
+                language={i18n.language}
+                onSettled={onSettled}
                 onFailure={onFailure}
               />
             ),
-          }))}
-        />
-        <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={() => onOpenChange(false)}>
-            {t('common.close')}
-          </AriaButton>
-        </div>
-      </div>
-    </FormDialog>
+          };
+        })}
+      />
+    </section>
   );
 }
 
@@ -781,25 +1150,22 @@ function RunsTab({
   state,
   now,
   language,
-  onChanged,
-  onMessage,
+  onSettled,
   onFailure,
 }: {
   type: string;
   state: JobRunState;
   now: number;
   language: string;
-  onChanged: () => void;
-  onMessage: (text: string) => void;
+  onSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const query = useQuery(jobRunsQuery(type, state));
   const done = async (text: string) => {
-    onMessage(text);
     await queryClient.invalidateQueries({ queryKey: ['admin', 'job-runs', type] });
-    onChanged();
+    onSettled(text);
   };
   const retry = useMutation({
     mutationFn: (job: JobRun) => retryJob(job.id),
@@ -833,7 +1199,7 @@ function RunsTab({
     {
       key: 'priority',
       header: t('admin.jobs.runs.columns.priority'),
-      cell: (job) => <span className={table.numbers}>{job.priority}</span>,
+      cell: (job) => <span className={styles.numbers}>{job.priority}</span>,
     },
     {
       key: 'started',
@@ -861,7 +1227,7 @@ function RunsTab({
       key: 'attempts',
       header: t('admin.jobs.runs.columns.attempts'),
       cell: (job) => (
-        <span className={table.numbers}>
+        <span className={styles.numbers}>
           {t('admin.home.jobs.attempts', { attempts: job.attempts, max: job.maxAttempts })}
         </span>
       ),
@@ -869,7 +1235,14 @@ function RunsTab({
     {
       key: 'error',
       header: t('admin.jobs.runs.columns.error'),
-      cell: (job) => job.lastError ?? '–',
+      cell: (job) =>
+        job.lastError ? (
+          <span className={styles.oneLine} title={job.lastError}>
+            {job.lastError}
+          </span>
+        ) : (
+          '–'
+        ),
     },
     {
       key: 'actions',
@@ -877,7 +1250,7 @@ function RunsTab({
       hideHeader: true,
       align: 'end',
       cell: (job) => (
-        <span className={table.rowActions}>
+        <span className={styles.rowActions}>
           {job.state === 'failed' && (
             <AriaButton
               variant="ghost"
@@ -925,5 +1298,149 @@ function RunsTab({
         rowKey={(job) => String(job.id)}
       />
     </>
+  );
+}
+
+/**
+ * The tab «Fehlschläge» (JOB-8): the ten newest failures of every type from the dashboard
+ * (`jobs.recentFailed`) with «Erneut» and «Abbrechen» (asks first); the tab itself carries the
+ * total. All failures of one type are under «Läufe» of its row.
+ */
+function FailedTab({
+  query,
+  total,
+  pending,
+  onRetry,
+  onCancel,
+  onDialog,
+}: {
+  query: UseQueryResult<Dashboard>;
+  total: number;
+  pending: boolean;
+  onRetry: (job: JobSummary) => void;
+  onCancel: (job: JobSummary) => void;
+  onDialog: (open: boolean) => void;
+}) {
+  const { t, i18n } = useTranslation();
+  const number = new Intl.NumberFormat(i18n.language);
+  const heading = <h2 className={styles.tabTitle}>{t('admin.jobs.failed.title')}</h2>;
+  if (query.isPending) return <Skeleton shape="block" />;
+  if (query.isError) {
+    return (
+      <Notice
+        tone="danger"
+        title={problemMessage(t, query.error)}
+        actions={
+          <AriaButton icon="refresh" onPress={() => void query.refetch()}>
+            {t('common.retry')}
+          </AriaButton>
+        }
+      />
+    );
+  }
+  const jobs = query.data.jobs.recentFailed;
+  if (jobs.length === 0) {
+    return (
+      <div className={styles.tabBody}>
+        {heading}
+        <Text tone="secondary">{t('admin.jobs.failed.empty')}</Text>
+      </div>
+    );
+  }
+  const columns: DataColumn<JobSummary>[] = [
+    {
+      key: 'type',
+      header: t('admin.jobs.failed.columns.type'),
+      rowHeader: true,
+      cell: (job) => typeName(t, job.type),
+    },
+    {
+      key: 'attempts',
+      header: t('admin.jobs.runs.columns.attempts'),
+      cell: (job) => (
+        <span className={styles.numbers}>
+          {t('admin.home.jobs.attempts', { attempts: job.attempts, max: job.maxAttempts })}
+        </span>
+      ),
+    },
+    {
+      key: 'error',
+      header: t('admin.jobs.runs.columns.error'),
+      cell: (job) =>
+        job.lastError ? (
+          <span className={styles.oneLine} title={job.lastError}>
+            {job.lastError}
+          </span>
+        ) : (
+          '–'
+        ),
+    },
+    {
+      key: 'at',
+      header: t('admin.jobs.failed.columns.at'),
+      cell: (job) => (
+        <time className={styles.nowrap} dateTime={job.updatedAt}>
+          {formatDateTime(job.updatedAt, i18n.language)}
+        </time>
+      ),
+    },
+    {
+      key: 'actions',
+      header: t('admin.jobs.runs.columns.actions'),
+      hideHeader: true,
+      align: 'end',
+      cell: (job) => {
+        const name = typeName(t, job.type);
+        return (
+          <span className={styles.rowActions}>
+            <AriaButton
+              variant="ghost"
+              icon="refresh"
+              aria-label={t('admin.jobs.failed.retryLabel', { id: job.id, name })}
+              isDisabled={pending}
+              onPress={() => onRetry(job)}
+            >
+              {t('admin.jobs.runs.retry')}
+            </AriaButton>
+            <ConfirmDialog
+              trigger={
+                <AriaButton
+                  variant="ghost"
+                  icon="trash"
+                  aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
+                  isDisabled={pending}
+                >
+                  {t('admin.jobs.runs.cancel')}
+                </AriaButton>
+              }
+              title={t('admin.jobs.confirm.cancelRunTitle', { name })}
+              body={t('admin.jobs.confirm.cancelFailedBody')}
+              confirmLabel={t('admin.jobs.confirm.confirm')}
+              cancelLabel={t('admin.jobs.confirm.keep')}
+              tone="danger"
+              onConfirm={() => onCancel(job)}
+              onOpenChange={onDialog}
+            />
+          </span>
+        );
+      },
+    },
+  ];
+  return (
+    <div className={styles.tabBody}>
+      {heading}
+      <DataTable
+        caption={t('admin.jobs.failed.title')}
+        columns={columns}
+        rows={jobs}
+        rowKey={(job) => String(job.id)}
+      />
+      <Text tone="secondary" variant="caption">
+        {t('admin.jobs.failed.shown', {
+          shown: number.format(jobs.length),
+          total: number.format(total),
+        })}
+      </Text>
+    </div>
   );
 }

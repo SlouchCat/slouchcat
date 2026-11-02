@@ -175,6 +175,9 @@ function Command({ code, label }: { code: string; label: string }) {
   );
 }
 
+/** The tab «Fehlschläge» of the jobs page (concept 12, JOB-8, 11.5 point 11). */
+const jobsFailed = `${paths.adminJobs}?tab=failed`;
+
 /**
  * What needs doing (11.1), most urgent first. Integration errors and silent webhooks stand in
  * their own cards (G-8), the errors of the log in the server log.
@@ -192,7 +195,7 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
         count: data.jobs.failed,
         formatted: number.format(data.jobs.failed),
       }),
-      action: toJobs,
+      action: <TextLink href={jobsFailed}>{t('admin.home.hints.toJobs')}</TextLink>,
     });
   }
   if ((data.jobs.paused ?? 0) > 0) {
@@ -532,7 +535,14 @@ function TasksCard({ jobs }: { jobs: Dashboard['jobs'] }) {
     <DashCard
       icon="refresh"
       title={t('admin.home.jobs.title')}
-      footer={<TextLink href={paths.adminJobs}>{t('admin.home.jobs.all')}</TextLink>}
+      footer={
+        <>
+          <TextLink href={paths.adminJobs}>{t('admin.home.jobs.all')}</TextLink>
+          {jobs.failed > 0 && (
+            <TextLink href={jobsFailed}>{t('admin.home.jobs.toFailed')}</TextLink>
+          )}
+        </>
+      }
     >
       <div className={styles.counters}>
         <StatTile label={t('admin.home.jobs.queued')} value={number.format(jobs.queued)} />
