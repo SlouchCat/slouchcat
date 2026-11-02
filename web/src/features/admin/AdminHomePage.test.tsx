@@ -585,6 +585,8 @@ describe('admin overview (concept 11, A-3)', () => {
     act(() => restart.focus());
     await user.keyboard('{Enter}');
     const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
+    // The overview opens its own AdminDensityScope, so its dialog is compact too (ADR 0020).
+    expect(dialog.closest('[data-density]')).toHaveAttribute('data-density', 'compact');
     expect(dialog).toHaveTextContent(
       '1 laufender Stream bricht ab. Laufende Downloads für unterwegs werden unterbrochen.',
     );

@@ -9,6 +9,12 @@ import { expect, test } from './fixtures';
 const DESKTOP = { width: 1440, height: 900 };
 
 const height = async (locator: Locator) => Math.round((await locator.boundingBox())?.height ?? 0);
+/**
+ * The layout height without transforms: a dialog rises from scale(0.98) for 240 ms
+ * (Dialog.module.css `rise`), and boundingBox() measures the scaled box (31.36 px).
+ */
+const layoutHeight = (locator: Locator) =>
+  locator.evaluate((element) => Math.round(parseFloat(getComputedStyle(element).height)));
 const fontSize = (locator: Locator) =>
   locator.evaluate((element) => getComputedStyle(element).fontSize);
 
@@ -32,6 +38,12 @@ test.describe('with a mouse from 768 px', () => {
 
     await expect.poll(() => height(help(page))).toBe(32);
     expect(await fontSize(title(page))).toBe('24px');
+    // The side margin of the content: 32 px instead of 64 px from 1440 px.
+    expect(
+      await page
+        .locator('#content')
+        .evaluate((element) => getComputedStyle(element).getPropertyValue('--page-gutter').trim()),
+    ).toBe('32px');
     // The h1 is as high as its 24 px title, not the 48 px line of an h1's own 2em.
     expect(await height(page.getByRole('heading', { level: 1 }))).toBeLessThanOrEqual(32);
 
@@ -50,6 +62,32 @@ test.describe('with a mouse from 768 px', () => {
     expect(await fontSize(title(page))).toBe('60px');
   });
 
+  test('leaving /admin in the app drops the compact density; coming back restores it', async ({
+    page,
+  }) => {
+    await openJobs(page);
+    await expect.poll(() => height(help(page))).toBe(32);
+
+    // In the app, without a new page load: the menu's drawer links to the own profiles.
+    await menu(page).click();
+    await page
+      .getByRole('dialog', { name: 'Menü' })
+      .getByRole('link', { name: 'Profile', exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/settings\/profiles$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+    await expect(page.locator('html')).not.toHaveAttribute('data-shell');
+    await expect
+      .poll(() => height(page.getByRole('button', { name: 'Profil hinzufügen' })))
+      .toBe(44);
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/admin\/jobs$/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-shell', 'admin');
+    await expect.poll(() => height(help(page))).toBe(32);
+  });
+
   test('a dialog opened from an administration page is compact', async ({ page }) => {
     await page.goto('/admin/accounts');
     await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
@@ -57,7 +95,7 @@ test.describe('with a mouse from 768 px', () => {
     const dialog = page.getByRole('dialog', { name: 'Konto einladen' });
     await expect(dialog).toBeVisible();
     const create = dialog.getByRole('button', { name: 'Einladung erstellen' });
-    expect(await height(create)).toBe(32);
+    expect(await layoutHeight(create)).toBe(32);
     expect(await fontSize(create)).toBe('14px');
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
@@ -76,7 +114,7 @@ test.describe('with a mouse from 768 px', () => {
     });
     await expect(question).toBeVisible();
     const stay = question.getByRole('button', { name: 'Auf der Seite bleiben' });
-    expect(await height(stay)).toBe(32);
+    expect(await layoutHeight(stay)).toBe(32);
     await question.getByRole('button', { name: 'Verwerfen und verlassen' }).click();
     await expect(page).toHaveURL(/\/admin\/jobs$/);
   });
