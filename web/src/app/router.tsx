@@ -403,6 +403,8 @@ const collectionsAdminRoute = createRoute({
 const homeRowsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/home-rows',
+  // `?tab=preview` shows the preview of the start page (concept 12, S-14).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/HomeRowsPage'), 'HomeRowsPage'),
 });
 // end admin M7

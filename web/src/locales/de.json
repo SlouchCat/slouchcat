@@ -1518,19 +1518,51 @@
       "title": "Startseite",
       "intro": "Reihenfolge der Reihen auf der Startseite, für alle Profile. Ausgeblendete und leere Reihen erscheinen nicht.",
       "list": "Reihen der Startseite",
+      "tabs": {
+        "label": "Ansicht der Reihen",
+        "order": "Reihenfolge",
+        "preview": "Vorschau"
+      },
+      "count_one": "{{number}} Reihe",
+      "count_other": "{{number}} Reihen",
+      "visibleCount_one": "{{number}} sichtbar",
+      "visibleCount_other": "{{number}} sichtbar",
       "columns": {
+        "position": "Position",
         "row": "Reihe",
-        "hidden": "Ausblenden",
-        "actions": "Aktionen"
+        "state": "Zustand",
+        "hidden": "Ausblenden"
+      },
+      "state": {
+        "visible": "sichtbar",
+        "hidden": "ausgeblendet"
       },
       "hide": "Ausblenden",
       "hideLabel": "{{row}} ausblenden",
-      "up": "Nach oben",
-      "upLabel": "{{row}} nach oben",
-      "down": "Nach unten",
-      "downLabel": "{{row}} nach unten",
+      "rows": {
+        "spotlight": "Die Trakt-Liste, geschnitten mit der Bibliothek. Erscheint als Bühne mit Hintergrundbild an ihrem Platz; unter der Mindestzahl Treffer fehlt sie.",
+        "picks": "Von Hand gepflegt, mit Notiz, Zielprofil und Zeitfenster.",
+        "continue": "Angefangene Titel des Profils.",
+        "recent": "Die zuletzt in eine Bibliothek gekommenen Titel.",
+        "released": "Nach Erscheinungsdatum der letzten zwölf Monate; eine Serie nach ihrer neusten Folge.",
+        "watchlist": "Die Merkliste des Profils.",
+        "collections": "Eigene Sammlungen und die von TMDB.",
+        "genres": "Die Genres der sichtbaren Titel."
+      },
+      "pageLink": "Zur Seite «{{page}}»",
       "moved": "{{row}} steht jetzt an Stelle {{position}}. Speichere, damit es gilt.",
       "saved": "Die Startseite ist gespeichert.",
+      "discarded": "Die Änderungen sind verworfen.",
+      "discard": {
+        "title": "Änderungen verwerfen?",
+        "body": "Die ungespeicherte Reihenfolge und das Ausblenden gehen verloren; es gilt wieder, was gespeichert ist.",
+        "confirm": "Verwerfen"
+      },
+      "preview": {
+        "label": "Vorschau der Startseite",
+        "row": "{{position}}. {{row}}",
+        "note": "Schema mit Platzhaltern, in der ungespeicherten Reihenfolge. Auf der echten Startseite fehlen ausgeblendete Reihen, und leere Reihen entfallen ebenfalls (zum Beispiel eine leere Merkliste)."
+      },
       "spotlight": "Welche Trakt-Liste Spotlight zeigt, wann sie zuletzt abgerufen wurde und ob Trakt eingerichtet ist, steht unter «Spotlight».",
       "spotlightLink": "Zur Seite «Spotlight»"
     },

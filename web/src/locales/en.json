@@ -1518,19 +1518,51 @@
       "title": "Start page",
       "intro": "Order of the start page rows, for every profile. Hidden and empty rows do not appear.",
       "list": "Rows of the start page",
+      "tabs": {
+        "label": "View of the rows",
+        "order": "Order",
+        "preview": "Preview"
+      },
+      "count_one": "{{number}} row",
+      "count_other": "{{number}} rows",
+      "visibleCount_one": "{{number}} visible",
+      "visibleCount_other": "{{number}} visible",
       "columns": {
+        "position": "Position",
         "row": "Row",
-        "hidden": "Hide",
-        "actions": "Actions"
+        "state": "State",
+        "hidden": "Hide"
+      },
+      "state": {
+        "visible": "visible",
+        "hidden": "hidden"
       },
       "hide": "Hide",
       "hideLabel": "Hide {{row}}",
-      "up": "Move up",
-      "upLabel": "Move {{row}} up",
-      "down": "Move down",
-      "downLabel": "Move {{row}} down",
+      "rows": {
+        "spotlight": "The Trakt list, intersected with the library. Shown as a stage with a backdrop at its place; below the minimum number of matches it is left out.",
+        "picks": "Kept by hand, with a note, target profiles and a time window.",
+        "continue": "Titles the profile has started.",
+        "recent": "The titles that came into a library most recently.",
+        "released": "By release date within the last twelve months; a series by its newest episode.",
+        "watchlist": "The watchlist of the profile.",
+        "collections": "Own collections and those from TMDB.",
+        "genres": "The genres of the visible titles."
+      },
+      "pageLink": "Go to “{{page}}”",
       "moved": "{{row}} is now at position {{position}}. Save to apply it.",
       "saved": "The start page is saved.",
+      "discarded": "The changes are discarded.",
+      "discard": {
+        "title": "Discard changes?",
+        "body": "The unsaved order and hiding are lost; what is saved applies again.",
+        "confirm": "Discard"
+      },
+      "preview": {
+        "label": "Preview of the start page",
+        "row": "{{position}}. {{row}}",
+        "note": "A sketch with placeholders, in the unsaved order. On the real start page hidden rows are missing, and empty rows are left out too (an empty watchlist, for example)."
+      },
       "spotlight": "Which Trakt list Spotlight shows, when it was last fetched and whether Trakt is set up is shown under “Spotlight”.",
       "spotlightLink": "Go to “Spotlight”"
     },

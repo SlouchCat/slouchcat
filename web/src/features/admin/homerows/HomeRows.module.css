@@ -1,0 +1,155 @@
+/* The start page rows (concept 12, variant C): what AdminPage, BandPanel, DataTable and SaveBar
+   do not lay out themselves. */
+
+/* A live region that is always there (role status), so even its first message is announced.
+   Empty, it takes back the gap of the save column it stands in. */
+.live:empty {
+  margin-block-start: calc(-1 * var(--sc-space-3));
+}
+
+/* One tab: the hint of the positions, then the table. */
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.hide {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  cursor: pointer;
+}
+
+.hide input {
+  width: var(--sc-space-5);
+  height: var(--sc-space-5);
+  margin: 0;
+  accent-color: var(--sc-accent);
+  cursor: pointer;
+}
+
+.state {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-secondary);
+  white-space: nowrap;
+}
+
+/* The fold-out of a row: what it shows, in full, and the page that keeps its content. */
+.detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--sc-color-text-secondary);
+  white-space: normal;
+}
+
+.detail p {
+  flex: 1 1 24rem;
+  margin: 0;
+}
+
+/* The preview: a frame like a screen with one line per row. */
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  max-width: 40rem;
+}
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-base);
+  list-style: none;
+}
+
+.previewRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--sc-radius-md);
+}
+
+/* A hidden row keeps its place, dimmed with a dashed outline. */
+.off {
+  border: 1px dashed var(--sc-color-border-subtle);
+  opacity: 0.5;
+}
+
+.previewName {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.previewState {
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+}
+
+.sketch {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.strip {
+  display: flex;
+  gap: var(--sc-space-1);
+  overflow: hidden;
+}
+
+.stage {
+  height: var(--sc-space-16);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-3);
+}
+
+.poster {
+  flex: none;
+  width: var(--sc-space-6);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+}
+
+.tile {
+  flex: none;
+  width: var(--sc-space-16);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+}
+
+.pill {
+  flex: none;
+  width: var(--sc-space-12);
+  height: var(--sc-space-5);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-2);
+}
+
+/* The save bar and what it reports, one below the other. */
+.save {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
