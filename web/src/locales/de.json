@@ -462,7 +462,7 @@
     "rankedChoice": {
       "hint": "Wählst du einen Eintrag, der auf einem anderen Platz steht, tauschen die beiden die Plätze.",
       "swapped": "{{a}} und {{b}} haben die Plätze getauscht.",
-      "remove": "{{rank}} entfernen"
+      "remove": "{{rank}} ({{choice}}) entfernen"
     },
     "saveBar": {
       "dirty": "Ungespeicherte Änderungen",
@@ -2590,7 +2590,8 @@
           "fanart": "Fanart.tv",
           "tmdbAdult": "TMDB mit Erwachseneninhalten",
           "none": "Nur die Quellen der Ordner"
-        }
+        },
+        "separator": " › "
       },
       "scope": {
         "label": "Geltung",
@@ -2601,7 +2602,8 @@
         "textsDeviate": "Sprachen abweichend",
         "imagesDeviate": "Bilder abweichend",
         "likeServer": "wie Server",
-        "changed": "{{name}} (geändert)"
+        "changed": "{{name}} (geändert)",
+        "serverDirty": "Standard hat ungespeicherte Änderungen; hier steht der gespeicherte Stand."
       },
       "languages": {
         "title": "Sprachen",
@@ -2696,10 +2698,8 @@
         "noRun": "Noch kein Lauf."
       },
       "save": {
-        "saved_one": "Gespeichert. {{count}} Titel betroffen – jetzt anwenden?",
-        "saved_other": "Gespeichert. {{count}} Titel betroffen – jetzt anwenden?",
-        "savedLibrary_one": "Gespeichert für {{name}}. {{count}} Titel betroffen – jetzt anwenden?",
-        "savedLibrary_other": "Gespeichert für {{name}}. {{count}} Titel betroffen – jetzt anwenden?",
+        "savedScope_one": "Gespeichert für {{name}}. {{count}} Titel betroffen – jetzt anwenden?",
+        "savedScope_other": "Gespeichert für {{name}}. {{count}} Titel betroffen – jetzt anwenden?",
         "failed": "«{{name}}» wurde nicht gespeichert: {{reason}}"
       },
       "discard": {

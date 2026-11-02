@@ -9,7 +9,15 @@ import type {
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { getRouteApi } from '@tanstack/react-router';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -152,24 +160,31 @@ function useLanguageName(): (code: string) => string {
 }
 
 /**
+ * The rule of a text language list (MET-2, as the server checks it in
+ * `metadata/settings.go`): the default needs German, a library German or English.
+ */
+const satisfiesDefault = (list: readonly string[]) => list.includes('de');
+const satisfiesLibrary = (list: readonly string[]) => list.includes('de') || list.includes('en');
+
+/**
  * An ordered list of language codes as fixed places (concept 12, 10.2): «1. Sprache», «2.
  * Sprache» … each with a select of every known language; picking one that sits on another place
- * swaps the two. «Weitere Sprache» appends a place, «×» removes one. The last entry and the last
- * de/en of a text list cannot be removed (MET-2, E-9); a chain offers "" (no text) as well.
+ * swaps the two. «Weitere Sprache» appends a place, «×» removes one. `satisfies` is the rule of
+ * the list: choices and removals that would break it are off; a chain offers "" (no text).
  */
 function LanguageRanks({
   value,
   onChange,
   known,
   allowNoText,
-  protectUI,
+  satisfies,
   disabled,
 }: {
   value: string[];
   onChange: (value: string[]) => void;
   known: readonly string[];
   allowNoText?: boolean;
-  protectUI?: boolean;
+  satisfies?: (list: readonly string[]) => boolean;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -180,7 +195,6 @@ function LanguageRanks({
     list.sort((a, b) => a.label.localeCompare(b.label));
     return allowNoText ? [{ value: '', label: t('admin.metadata.images.noText') }, ...list] : list;
   }, [known, value, allowNoText, nameOf, t]);
-  const uiCount = value.filter((code) => code === 'de' || code === 'en').length;
   return (
     <RankedChoiceList
       choices={choices}
@@ -188,10 +202,7 @@ function LanguageRanks({
       onChange={onChange}
       rankLabel={(index) => t('admin.metadata.languages.rank', { position: index + 1 })}
       addLabel={t('admin.metadata.languages.more')}
-      canRemove={(index) => {
-        const code = value[index];
-        return !(protectUI && (code === 'de' || code === 'en') && uiCount <= 1);
-      }}
+      isAllowed={satisfies}
       isDisabled={disabled}
     />
   );
@@ -222,6 +233,7 @@ function AreaPanel({
 function unknownLanguages(
   t: TFunction,
   nameOf: (code: string) => string,
+  listOf: (items: string[]) => string,
   providers: MetadataProviderInfo[],
   langs: string[],
 ): string[] {
@@ -233,7 +245,7 @@ function unknownLanguages(
       lines.push(
         t('admin.metadata.languages.unknownAt', {
           provider: p.id.toUpperCase(),
-          languages: missing.map(nameOf).join(', '),
+          languages: listOf(missing.map(nameOf)),
         }),
       );
     }
@@ -379,11 +391,12 @@ export function MetadataPage() {
   const metaQueryOf = (id: string) =>
     libraryMetas[videoLibraries.findIndex((library) => String(library.id) === id)];
 
-  const drafts = useDrafts<ScopeValues>((id) => {
+  const originalOf = (id: string): ScopeValues | undefined => {
     if (id === SERVER) return settings.data ? serverValues(settings.data) : undefined;
     const meta = metaQueryOf(id)?.data;
     return meta ? libraryValues(meta) : undefined;
-  });
+  };
+  const drafts = useDrafts<ScopeValues>(originalOf);
   const unsaved = useUnsavedChanges(drafts.dirty, { keep: ['library'] });
   // The drafts of the last render, for a save that is still waiting for the server: what was
   // typed meanwhile must not be dropped with the saved scope.
@@ -393,10 +406,20 @@ export function MetadataPage() {
   });
 
   const { library: wanted } = route.useSearch();
-  const scope =
-    wanted !== undefined && videoLibraries.some((library) => library.id === wanted)
-      ? String(wanted)
-      : SERVER;
+  const wantedKnown =
+    wanted !== undefined && videoLibraries.some((library) => library.id === wanted);
+  const scope = wantedKnown ? String(wanted) : SERVER;
+  // An unknown `?library=` (deleted, or not a video library) leaves the address once the list is
+  // there; the page shows the default meanwhile.
+  const staleLibrary = libraries.data !== undefined && wanted !== undefined && !wantedKnown;
+  useEffect(() => {
+    if (staleLibrary)
+      void navigate({
+        to: '.',
+        replace: true,
+        search: (previous) => ({ ...previous, library: undefined }),
+      });
+  }, [staleLibrary, navigate]);
   const inLibrary = scope !== SERVER;
   const selectScope = (id: string) =>
     void navigate({
@@ -421,9 +444,25 @@ export function MetadataPage() {
     new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(names);
 
   const [saving, setSaving] = useState(false);
-  const [savedMessages, setSavedMessages] = useState<string[]>([]);
+  const [savedMessages, setSavedMessages] = useState<{ scope: string; text: string }[]>([]);
   const [failure, setFailure] = useState<{ scope: string; error: unknown } | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
+  // The last deviating lists of a library whose «abweichend» was switched off, so switching it on
+  // again brings them back (S-13).
+  const [parked, setParked] = useState<
+    Record<string, { textLangs?: string[]; images?: LibraryImages }>
+  >({});
+  // Input of a scope that changed while its save waited for the server, to be put back as a
+  // draft once the page sees the saved values as the original (L-5): a field set back to the
+  // old value during the save would otherwise turn into the saved one.
+  const [restores, setRestores] = useState<
+    { id: string; value: ScopeValues; original: ScopeValues }[]
+  >([]);
+  const due = restores.filter((entry) => same(originalOf(entry.id), entry.original));
+  if (due.length > 0) {
+    setRestores(restores.filter((entry) => !due.includes(entry)));
+    for (const entry of due) drafts.set(entry.id, entry.value);
+  }
   const errors = failure ? formErrors(t, failure.error) : null;
   const fieldError = (field: string) =>
     failure?.scope === scope ? errors?.fields?.[field] : undefined;
@@ -433,31 +472,36 @@ export function MetadataPage() {
     setSaving(true);
     setSavedMessages([]);
     setFailure(null);
-    const messages: string[] = [];
+    const messages: { scope: string; text: string }[] = [];
     let serverSaved = false;
     for (const { id, values } of queue) {
       if (!values) continue;
-      let unchanged = false;
       try {
+        let latest: ScopeValues | undefined;
+        let original: ScopeValues;
+        let titles: number;
         if (id === SERVER) {
           const stored = await updateMetadataSettings(values as ServerValues);
-          unchanged = same(latestDrafts.current.valueOf(id), values);
+          latest = latestDrafts.current.valueOf(id);
           queryClient.setQueryData(metadataSettingsQuery.queryKey, stored);
           serverSaved = true;
-          messages.push(t('admin.metadata.save.saved', { count: stored.affectedTitles }));
+          original = serverValues(stored);
+          titles = stored.affectedTitles;
         } else {
           const stored = await updateLibraryMetadata(Number(id), values);
-          unchanged = same(latestDrafts.current.valueOf(id), values);
+          latest = latestDrafts.current.valueOf(id);
           queryClient.setQueryData(libraryMetadataQuery(Number(id)).queryKey, stored);
-          messages.push(
-            t('admin.metadata.save.savedLibrary', {
-              name: scopeName(id),
-              count: stored.affectedTitles,
-            }),
-          );
+          original = libraryValues(stored);
+          titles = stored.affectedTitles;
         }
-        // The draft is spent only while it is still what was sent; newer input stays changed.
-        if (unchanged) drafts.discard(id);
+        messages.push({
+          scope: id,
+          text: t('admin.metadata.save.savedScope', { name: scopeName(id), count: titles }),
+        });
+        // The draft is spent only while it is still what was sent; what was typed meanwhile
+        // (also a field set back to its old value) stays as a draft against the saved values.
+        if (latest === undefined || same(latest, values)) drafts.discard(id);
+        else setRestores((current) => [...current, { id, value: latest, original }]);
         setSavedMessages([...messages]);
       } catch (error) {
         // Stop here: this scope and the ones after it keep their drafts.
@@ -473,6 +517,8 @@ export function MetadataPage() {
   };
   const onDiscard = () => {
     drafts.discardAll();
+    setParked({});
+    setRestores([]);
     setSavedMessages([]);
     setFailure(null);
     // The bar's buttons are disabled now; the focus goes to the page head (ALL-2).
@@ -517,6 +563,43 @@ export function MetadataPage() {
   const setChain = (kind: ChainKind, chain: string[]) =>
     setImages((view) => ({ ...view, langs: { ...view.langs, [kind]: chain } }));
 
+  /**
+   * «abweichend» of a library: off keeps the deviating list aside, on brings it back (or starts
+   * from the default when there is none).
+   */
+  const toggleTexts = (on: boolean) => {
+    if (!lm || !libraryDraft) return;
+    if (!on && libraryDraft.textLangs)
+      setParked((all) => ({
+        ...all,
+        [scope]: { ...all[scope], textLangs: libraryDraft.textLangs! },
+      }));
+    setLibrary((values) => ({
+      ...values,
+      textLangs: on ? (parked[scope]?.textLangs ?? [...lm.effective.textLangs]) : null,
+    }));
+  };
+  const toggleImages = (on: boolean) => {
+    if (!lm || !libraryDraft) return;
+    if (!on && libraryDraft.images)
+      setParked((all) => ({ ...all, [scope]: { ...all[scope], images: libraryDraft.images! } }));
+    setLibrary((values) => ({
+      ...values,
+      images: on ? (parked[scope]?.images ?? inheritedImages(lm)) : null,
+    }));
+  };
+
+  /** Whether the default has unsaved changes in an area (a library shows the saved default). */
+  const serverAreaDirty = (id: Exclude<Area, 'apply'>): boolean => {
+    if (!settings.data || !serverDraft || !drafts.isDirty(SERVER)) return false;
+    const original = serverValues(settings.data);
+    return SERVER_FIELDS[id].some((field) => !same(serverDraft[field], original[field]));
+  };
+  const serverDirtyNote = (id: 'languages' | 'images') =>
+    inLibrary && serverAreaDirty(id) ? (
+      <Notice live={false}>{t('admin.metadata.scope.serverDirty')}</Notice>
+    ) : null;
+
   /** Whether an area of the shown scope differs from what the server holds. */
   const areaDirty = (id: Area): boolean => {
     if (id === 'apply' || !drafts.isDirty(scope)) return false;
@@ -536,13 +619,14 @@ export function MetadataPage() {
     width === 0 ? t('admin.metadata.quality.any') : t('admin.metadata.quality.px', { width });
   const summaryOf = (id: Area): string | undefined => {
     let summary: string | undefined;
-    if (id === 'languages' && textLangs) summary = textLangs.map(nameOf).join(' › ');
+    if (id === 'languages' && textLangs)
+      summary = textLangs.map(nameOf).join(t('admin.metadata.areas.separator'));
     if (id === 'images' && images)
-      summary = [
+      summary = listOf([
         t('admin.metadata.images.kind.poster'),
         t('admin.metadata.images.kind.backdrop'),
         ...images.kinds.map((kind) => t(`admin.metadata.images.kind.${kind}`)),
-      ].join(', ');
+      ]);
     if (id === 'quality' && serverDraft)
       summary = t('admin.metadata.areas.quality', {
         poster: widthLabel(serverDraft.imageMinWidth.poster),
@@ -554,7 +638,7 @@ export function MetadataPage() {
         serverDraft.fanartEnabled ? t('admin.metadata.areas.sources.fanart') : '',
         serverDraft.tmdbIncludeAdult ? t('admin.metadata.areas.sources.tmdbAdult') : '',
       ].filter(Boolean);
-      summary = on.length > 0 ? on.join(', ') : t('admin.metadata.areas.sources.none');
+      summary = on.length > 0 ? listOf(on) : t('admin.metadata.areas.sources.none');
     }
     if (id === 'rating' && serverDraft)
       summary = t(`admin.metadata.rating.countries.${serverDraft.ratingCountry as Country}`);
@@ -632,22 +716,18 @@ export function MetadataPage() {
         intro={t('admin.metadata.languages.intro')}
         actions={
           inLibrary && lm
-            ? deviation(t('admin.metadata.scope.textsDeviate'), textsEditable, (on) =>
-                setLibrary((values) => ({
-                  ...values,
-                  textLangs: on ? [...lm.effective.textLangs] : null,
-                })),
-              )
+            ? deviation(t('admin.metadata.scope.textsDeviate'), textsEditable, toggleTexts)
             : undefined
         }
       >
         {scopeHint}
+        {!textsEditable && serverDirtyNote('languages')}
         <SettingRow label={t('admin.metadata.languages.list')}>
           <LanguageRanks
             value={textLangs}
             onChange={setTextLangs}
             known={known}
-            protectUI
+            satisfies={inLibrary ? satisfiesLibrary : satisfiesDefault}
             disabled={!textsEditable}
           />
         </SettingRow>
@@ -657,7 +737,7 @@ export function MetadataPage() {
         </Text>
         {providers.data && (
           <Text tone="secondary" variant="caption">
-            {unknownLanguages(t, nameOf, providers.data, textLangs).join(' ')}{' '}
+            {unknownLanguages(t, nameOf, listOf, providers.data, textLangs).join(' ')}{' '}
             {t('admin.metadata.languages.youtube', {
               count: textLangs.length,
               titles: youtubeTitles,
@@ -673,13 +753,12 @@ export function MetadataPage() {
         intro={t('admin.metadata.images.intro')}
         actions={
           inLibrary && lm
-            ? deviation(t('admin.metadata.scope.imagesDeviate'), imagesEditable, (on) =>
-                setLibrary((values) => ({ ...values, images: on ? inheritedImages(lm) : null })),
-              )
+            ? deviation(t('admin.metadata.scope.imagesDeviate'), imagesEditable, toggleImages)
             : undefined
         }
       >
         {scopeHint}
+        {!imagesEditable && serverDirtyNote('images')}
         <div className={imagesEditable ? undefined : styles.dimmed}>
           {ALWAYS_KINDS.map((kind) => (
             <SettingRow
@@ -699,6 +778,7 @@ export function MetadataPage() {
           options={SWITCHABLE.map((kind: Switchable) => ({
             value: kind,
             label: t(`admin.metadata.images.kind.${kind}`),
+            description: t(`admin.metadata.images.kindHint.${kind}`),
           }))}
         />
         <Text tone="secondary" variant="caption">
@@ -939,8 +1019,8 @@ export function MetadataPage() {
             ) : null}
             <div role="status" className={styles.live}>
               {savedMessages.map((message) => (
-                <Notice key={message} live={false}>
-                  {message}
+                <Notice key={message.scope} live={false}>
+                  {message.text}
                 </Notice>
               ))}
             </div>

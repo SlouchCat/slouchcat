@@ -462,7 +462,7 @@
     "rankedChoice": {
       "hint": "Picking an entry that holds another place swaps the two.",
       "swapped": "{{a}} and {{b}} swapped places.",
-      "remove": "Remove {{rank}}"
+      "remove": "Remove {{rank}} ({{choice}})"
     },
     "saveBar": {
       "dirty": "Unsaved changes",
@@ -2590,7 +2590,8 @@
           "fanart": "Fanart.tv",
           "tmdbAdult": "TMDB with adult content",
           "none": "Only the folders' sources"
-        }
+        },
+        "separator": " › "
       },
       "scope": {
         "label": "Applies to",
@@ -2601,7 +2602,8 @@
         "textsDeviate": "Languages deviate",
         "imagesDeviate": "Images deviate",
         "likeServer": "like the server",
-        "changed": "{{name}} (changed)"
+        "changed": "{{name}} (changed)",
+        "serverDirty": "The default has unsaved changes; this shows what is saved."
       },
       "languages": {
         "title": "Languages",
@@ -2696,10 +2698,8 @@
         "noRun": "No run yet."
       },
       "save": {
-        "saved_one": "Saved. {{count}} title affected – apply now?",
-        "saved_other": "Saved. {{count}} titles affected – apply now?",
-        "savedLibrary_one": "Saved for {{name}}. {{count}} title affected – apply now?",
-        "savedLibrary_other": "Saved for {{name}}. {{count}} titles affected – apply now?",
+        "savedScope_one": "Saved for {{name}}. {{count}} title affected – apply now?",
+        "savedScope_other": "Saved for {{name}}. {{count}} titles affected – apply now?",
         "failed": "“{{name}}” was not saved: {{reason}}"
       },
       "discard": {

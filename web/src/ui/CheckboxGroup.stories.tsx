@@ -29,3 +29,24 @@ export const Default: Story = {};
 
 /** Tab, then Space toggles the focused box. */
 export const Focused: Story = { tags: ['press:Tab+Tab+Space'] };
+
+/** Options with a line below the label (the image kinds of the metadata page). */
+export const WithDescriptions: Story = {
+  args: {
+    label: 'Bildarten',
+    defaultValue: ['logo'],
+    options: [
+      {
+        value: 'logo',
+        label: 'Logo',
+        description: 'Titelschriftzug auf Detailseite und Spotlight statt des Text-Titels',
+      },
+      { value: 'season_poster', label: 'Staffelposter', description: 'Sonst das Serienposter' },
+    ],
+  },
+};
+
+export const WithDescriptionsCompact: Story = {
+  ...WithDescriptions,
+  globals: { density: 'compact' },
+};

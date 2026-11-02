@@ -30,7 +30,7 @@ function Places({
         onChange={setValue}
         rankLabel={(index) => `${index + 1}. Sprache`}
         addLabel="Weitere Sprache"
-        canRemove={(index) => value[index] !== 'de'}
+        isAllowed={(list) => list.includes('de')}
         isDisabled={isDisabled}
       />
     </div>
@@ -46,7 +46,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Three places; Deutsch cannot go (a rule of the page), the others can. */
+/** Three places; the list must keep Deutsch (a rule of the page): its «×» is off. */
 export const Default: Story = {};
 
 /** The image languages with «Ohne Text» as a choice. */
