@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { formatDateTime } from '@/lib/format';
-import { Chip, StatusDot, type StatusDotState } from '@/ui';
+import { Chip, StatusDot, VisuallyHidden, type StatusDotState } from '@/ui';
 import { type DataColumn } from '@/ui/aria';
 import { libraryMetadataQuery } from '../queries';
 import styles from './LibrariesPage.module.css';
@@ -97,7 +97,10 @@ function FoldersCell({ library }: { library: Library }) {
   const share = library.roots.some((root) => root.warning === 'network_share');
   return (
     <span className={styles.cellStack}>
-      {library.roots.length === 1 && first ? (
+      {library.roots.length === 0 && library.kind === 'podcasts' ? (
+        // A podcast library takes its titles from feeds; «0 Ordner» would look like a fault.
+        <span className={styles.muted}>{t('admin.libraries.feedsOnly')}</span>
+      ) : library.roots.length === 1 && first ? (
         <code className={`${styles.path} ${styles.oneLine}`} title={first.path}>
           {first.path}
         </code>
@@ -131,7 +134,14 @@ function MetadataCell({ library, hold }: { library: Library; hold: boolean }) {
     enabled: library.kind === 'video',
     refetchOnWindowFocus: !hold,
   });
-  if (library.kind !== 'video') return <>{t('admin.libraries.none')}</>;
+  if (library.kind !== 'video') {
+    return (
+      <>
+        <span aria-hidden="true">{t('admin.libraries.none')}</span>
+        <VisuallyHidden>{t('admin.libraries.noMetadata')}</VisuallyHidden>
+      </>
+    );
+  }
   if (!metadata.data) return null;
   const texts = metadata.data.textLangs != null;
   const images = metadata.data.images != null;

@@ -780,6 +780,7 @@
         "metadata": "Metadata"
       },
       "none": "–",
+      "noMetadata": "No metadata scope",
       "roots": "Folders",
       "fsType": "File system {{type}}",
       "watch": {
@@ -821,8 +822,13 @@
         "created": "The library {{name}} has been added."
       },
       "cancel": "Cancel scan",
+      "scanStarted": "The scan of {{name}} has started.",
+      "scanCancelled": "The scan of {{name}} has been cancelled.",
+      "scanFailed": "The scan of {{name}} has failed.",
+      "scanAborted": "The scan of {{name}} has been stopped.",
       "defaultRating": "Default: {{rating}}",
       "noRoots": "No folder: the titles come from subscribed feeds.",
+      "feedsOnly": "Titles from feeds",
       "changeRating": {
         "action": "Change default rating",
         "title": "Default rating of {{name}}",

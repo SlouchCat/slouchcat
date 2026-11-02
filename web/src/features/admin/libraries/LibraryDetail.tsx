@@ -1,5 +1,5 @@
 import type { Library } from '@slouchcat/api-client';
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { Chip, Notice, ProgressBar, TextLink } from '@/ui';
@@ -8,6 +8,12 @@ import { isAudioLibrary } from '../../shared/LibraryFields';
 import { canScan, isScanning } from '../queries';
 import { canAcceptLoss, errorText, hasScanError, watchKeys } from './libraryColumns';
 import styles from './LibrariesPage.module.css';
+
+/**
+ * How long after «Erneut scannen» the same button ignores a press: it turns into «Scan abbrechen»
+ * under the pointer, and a double press must not cancel the scan it just started.
+ */
+const CANCEL_GRACE_MS = 1000;
 
 /** The handlers of a fold-out, stable across renders so the fold-outs need not render again. */
 export interface LibraryHandlers {
@@ -38,6 +44,17 @@ export const LibraryDetail = memo(function LibraryDetail({
   const { t } = useTranslation();
   const { scan } = library;
   const scanning = isScanning(library);
+  // When this button started a scan; a cancel within the grace period is the same double press.
+  const startedAt = useRef(0);
+  const onScanButton = () => {
+    if (!scanning) {
+      startedAt.current = Date.now();
+      handlers.onScan(library.id);
+      return;
+    }
+    if (Date.now() - startedAt.current < CANCEL_GRACE_MS) return;
+    handlers.onCancelScan(library.id);
+  };
   const showProgress = scan.state === 'running' && (scan.filesTotal ?? 0) > 0;
   const progress = showProgress
     ? Math.min(100, ((scan.filesSeen ?? 0) / (scan.filesTotal ?? 1)) * 100)
@@ -69,9 +86,7 @@ export const LibraryDetail = memo(function LibraryDetail({
           icon={scanning ? 'close' : 'refresh'}
           isDisabled={!scanning && !canScan(library)}
           isPending={scanning ? cancelPending : scanPending}
-          onPress={() =>
-            scanning ? handlers.onCancelScan(library.id) : handlers.onScan(library.id)
-          }
+          onPress={onScanButton}
         >
           {scanning ? t('admin.libraries.cancel') : t('admin.libraries.rescan')}
         </AriaButton>

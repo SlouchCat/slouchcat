@@ -363,11 +363,12 @@ test('browser back leaves the page to the start page', async ({ page }) => {
 test('"Scan abbrechen" shows while a scan is queued or running and cancels it', async ({
   page,
 }) => {
-  // Hold the list requests back a little, so the queued state the scan request answered with
-  // stays on screen long enough to act on (the test library scans in well under a second).
+  // Hold the list requests back, so the queued state the scan request answered with stays on
+  // screen long enough to act on (the test library scans in well under a second), also past the
+  // second in which the button ignores a cancel (a double press must not cancel the new scan).
   // The handler may still be waiting when the test unroutes it: then the request is gone already.
   const delay = async (route: Route) => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     await route.continue().catch(() => undefined);
   };
   await openRow(page, 'Filme');
@@ -380,6 +381,12 @@ test('"Scan abbrechen" shows while a scan is queued or running and cancels it', 
   const cancel = filme.getByRole('button', { name: 'Scan abbrechen' });
   await expectFocusOn(page, cancel);
   await expect(page.getByText('Live, alle 5 Sekunden')).toBeVisible();
+  await expect(
+    page.getByRole('status').getByText('Der Scan von Filme ist gestartet.'),
+  ).toBeVisible();
+  // Enter at once is the double press the button ignores; a moment later it cancels.
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(1_200);
   const cancelled = page.waitForResponse(
     (response) => response.request().method() === 'DELETE' && response.url().endsWith('/scan'),
   );
@@ -395,6 +402,9 @@ test('"Scan abbrechen" shows while a scan is queued or running and cancels it', 
   if (library.scan.state === 'done') expect(library.scan.lastError).toBeUndefined();
   if (library.scan.state === 'aborted') {
     expect(library.scan.lastError).toBe('cancelled');
+    await expect(
+      page.getByRole('status').getByText('Der Scan von Filme ist abgebrochen.'),
+    ).toBeVisible();
     await expect(
       filme.getByText('Der Scan wurde abgebrochen. Der nächste Scan läuft wieder normal.'),
     ).toBeVisible();

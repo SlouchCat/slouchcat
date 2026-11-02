@@ -184,7 +184,9 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await screen.findByRole('button', { name: 'Filme' });
     expect(await within(rowOf('Filme')).findByText('Sprachen abweichend')).toBeVisible();
     // An audio library has no metadata settings of its own.
-    expect(within(rowOf('Hörbücher')).getByText('–')).toBeVisible();
+    // The dash is for the eye; a screen reader hears what it means.
+    expect(within(rowOf('Hörbücher')).getByText('–')).toHaveAttribute('aria-hidden', 'true');
+    expect(within(rowOf('Hörbücher')).getByText('Keine Metadaten-Geltung')).toBeInTheDocument();
 
     const detail = await openRow(user, 'Filme');
     expect(within(detail).getByRole('link', { name: 'Metadaten der Bibliothek' })).toHaveAttribute(
@@ -286,7 +288,7 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     );
   });
 
-  it('holds the polling while a dialog is open', async () => {
+  it('holds the polling while a dialog is open, not while a closed draft waits', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { calls } = mockApi({
       ...signedIn,
@@ -296,11 +298,21 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     renderApp('/admin/libraries');
     const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
     expect(await screen.findByText('Live, alle 5 Sekunden')).toBeVisible();
+    const lists = () => calls.filter((call) => call.path === '/admin/libraries').length;
 
-    await openAdd(user);
-    const before = calls.filter((call) => call.path === '/admin/libraries').length;
+    const dialog = await openAdd(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
+    const before = lists();
     await act(() => vi.advanceTimersByTimeAsync(12_000));
-    expect(calls.filter((call) => call.path === '/admin/libraries').length).toBe(before);
+    expect(lists()).toBe(before);
+
+    // Closed with the draft kept: the scan progress stays live.
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Live, alle 5 Sekunden')).toBeVisible();
+    const closed = lists();
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    await waitFor(() => expect(lists()).toBeGreaterThan(closed));
   });
 
   it('adds a library and shows server errors at the path field (BIB-6)', async () => {
@@ -436,6 +448,9 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     await screen.findByRole('button', { name: 'Hörbücher' });
     expect(within(rowOf('Hörbücher')).getByText('Standard: FSK 0')).toBeVisible();
     expect(within(rowOf('Podcasts')).getByText('Standard: FSK 6')).toBeVisible();
+    // A podcast library without folders names its feeds, not «0 Ordner».
+    expect(within(rowOf('Podcasts')).getByText('Titel aus Feeds')).toBeVisible();
+    expect(within(rowOf('Podcasts')).queryByText('0 Ordner')).toBeNull();
     // Video libraries have no default rating.
     expect(within(rowOf('Filme')).queryByText(/^Standard:/)).toBeNull();
     const podcastDetail = await openRow(user, 'Podcasts');
@@ -513,5 +528,136 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
         defaultRating: 0,
       }),
     );
+  });
+  it('ignores a cancel right after the same button started the scan; both are announced', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let current = library();
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () => json([current]),
+      'POST /admin/libraries/1/scan': () => {
+        current = library({ scan: { state: 'queued', itemCount: 12, fileCount: 14 } });
+        return json(current, 202);
+      },
+      'DELETE /admin/libraries/1/scan': () => {
+        current = library({
+          scan: { state: 'aborted', itemCount: 12, fileCount: 14, lastError: 'cancelled' },
+        });
+        return json(current, 202);
+      },
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const detail = await openRow(user, 'Filme');
+
+    // A double press: the second press lands on «Scan abbrechen» and is ignored.
+    await user.dblClick(within(detail).getByRole('button', { name: 'Erneut scannen' }));
+    expect(await screen.findByText('Der Scan von Filme ist gestartet.')).toBeVisible();
+    const cancel = within(detail).getByRole('button', { name: 'Scan abbrechen' });
+    await user.click(cancel);
+    expect(
+      calls.filter((call) => call.method === 'POST' && call.path.endsWith('/scan')),
+    ).toHaveLength(1);
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+
+    // A second later the button cancels again.
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+    await user.click(cancel);
+    expect(await screen.findByText('Der Scan von Filme ist abgebrochen.')).toBeVisible();
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
+    // The cancelled scan is not announced a second time as stopped.
+    expect(screen.queryByText(/wurde gestoppt/)).toBeNull();
+  });
+
+  it('announces a scan that fails while the page watches', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let state: 'running' | 'failed' = 'running';
+    mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () =>
+        json([
+          library({
+            scan: {
+              state,
+              itemCount: 3,
+              fileCount: 3,
+              ...(state === 'failed' ? { lastError: 'permission denied' } : {}),
+            },
+          }),
+        ]),
+    });
+    renderApp('/admin/libraries');
+    expect(
+      await within(await waitFor(() => rowOf('Filme'))).findByText('Scan läuft'),
+    ).toBeVisible();
+
+    state = 'failed';
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    const status = await screen.findByText('Der Scan von Filme ist fehlgeschlagen.');
+    expect(status.closest('[role="status"]')).not.toBeNull();
+  });
+
+  it('asks before leaving the page while the add dialog holds a draft (S-13)', async () => {
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library()]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+    const nav = () => screen.getByRole('navigation', { name: 'Verwaltung' });
+
+    // Opened and closed untouched: no draft, no question.
+    let dialog = await openAdd(user);
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+    await user.click(within(nav()).getByRole('link', { name: /^Bibliotheken/ }));
+
+    // A typed name is a draft: leaving asks, staying keeps it.
+    dialog = await openAdd(user);
+    await user.type(within(dialog).getByLabelText('Name'), 'Dokus');
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
+    const leave = await screen.findByRole('alertdialog', {
+      name: 'Seite mit ungespeicherten Änderungen verlassen?',
+    });
+    await user.click(within(leave).getByRole('button', { name: 'Auf der Seite bleiben' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
+    dialog = await openAdd(user);
+    expect(within(dialog).getByLabelText('Name')).toHaveValue('Dokus');
+
+    // Typed and deleted again is no draft any more.
+    await user.clear(within(dialog).getByLabelText('Name'));
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await user.click(within(nav()).getByRole('link', { name: /^Integrationen/ }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+  });
+
+  it('walks a menu of two entries with the arrow keys; Escape returns to its button', async () => {
+    const aborted = library({
+      ...books,
+      scan: { state: 'aborted', itemCount: 1, fileCount: 1, lastError: 'loss_over_threshold' },
+    });
+    mockApi({ ...signedIn, 'GET /admin/libraries': () => json([aborted]) });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    const detail = await openRow(user, 'Hörbücher');
+    const more = within(detail).getByRole('button', { name: 'Weitere Aktionen für Hörbücher' });
+    more.focus();
+    await user.keyboard('{Enter}');
+    const rating = await screen.findByRole('menuitem', { name: 'Standardstufe ändern' });
+    const loss = screen.getByRole('menuitem', { name: 'Verlust akzeptieren' });
+    // «Gefahr» at the bottom.
+    expect(screen.getByRole('group', { name: 'Gefahr' })).toContainElement(loss);
+    await waitFor(() => expect(rating).toHaveFocus());
+    await user.keyboard('{ArrowDown}');
+    expect(loss).toHaveFocus();
+    await user.keyboard('{ArrowUp}');
+    expect(rating).toHaveFocus();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    await waitFor(() => expect(more).toHaveFocus());
   });
 });

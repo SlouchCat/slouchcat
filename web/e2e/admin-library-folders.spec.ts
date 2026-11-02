@@ -232,15 +232,13 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
 }) => {
   await openDialog(page);
   const open = dialog(page).getByRole('button', { name: `Ordner ${first} ändern` });
-  /** Opens «Ändern» by keyboard and tabs to the checked content. */
+  /** Opens «Ändern» by keyboard; the dialog starts on the checked content (its first field). */
   const openChange = async () => {
     if (!(await open.evaluate((element) => element === document.activeElement)))
       await tabTo(page, open, 20);
     await page.keyboard.press('Enter');
     await expect(change(page)).toBeVisible();
-    const content = change(page).getByRole('radio', { checked: true });
-    if (!(await content.evaluate((element) => element === document.activeElement)))
-      await tabTo(page, content, 5);
+    await expectFocusOn(page, change(page).getByRole('radio', { checked: true }));
   };
   await openChange();
 

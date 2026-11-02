@@ -780,6 +780,7 @@
         "metadata": "Metadaten"
       },
       "none": "–",
+      "noMetadata": "Keine Metadaten-Geltung",
       "roots": "Ordner",
       "fsType": "Dateisystem {{type}}",
       "watch": {
@@ -821,8 +822,13 @@
         "created": "Die Bibliothek {{name}} ist angelegt."
       },
       "cancel": "Scan abbrechen",
+      "scanStarted": "Der Scan von {{name}} ist gestartet.",
+      "scanCancelled": "Der Scan von {{name}} ist abgebrochen.",
+      "scanFailed": "Der Scan von {{name}} ist fehlgeschlagen.",
+      "scanAborted": "Der Scan von {{name}} wurde gestoppt.",
       "defaultRating": "Standard: {{rating}}",
       "noRoots": "Kein Ordner: Die Titel kommen aus abonnierten Feeds.",
+      "feedsOnly": "Titel aus Feeds",
       "changeRating": {
         "action": "Standardstufe ändern",
         "title": "Standardstufe von {{name}}",

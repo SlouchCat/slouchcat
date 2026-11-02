@@ -15,9 +15,10 @@ import {
   DataTable,
   Tabs,
   useSearchSelection,
+  useUnsavedChanges,
 } from '@/ui/aria';
 import { librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
-import { AddLibraryDialog } from './AddLibraryDialog';
+import { AddLibraryDialog, useLibraryDraft } from './AddLibraryDialog';
 import { DefaultRatingDialog } from './DefaultRatingDialog';
 import { libraryColumns } from './libraryColumns';
 import { LibraryDetail, type LibraryHandlers } from './LibraryDetail';
@@ -45,8 +46,10 @@ interface Confirmation {
 /**
  * The page "Bibliotheken" (A-1, B-1; concept 12 variant C, Bib-C): filter tabs by kind with
  * counts (`?tab=`), one row per library that folds out into its actions, scan progress, error
- * band and folders; «Bibliothek hinzufügen» opens a dialog. The list is polled every 5 s while a
- * scan is queued or running, and paused while a dialog is open.
+ * band and folders; «Bibliothek hinzufügen» opens a dialog whose draft the page keeps. The list
+ * is polled every 5 s while a scan is queued or running, and paused only while a dialog of the
+ * page is open: a kept draft does not stop the scan progress. Leaving the page with a draft asks
+ * first (S-13).
  */
 export function LibrariesPage() {
   const { t } = useTranslation();
@@ -80,6 +83,9 @@ function LibrariesContent() {
   const [ratingOpen, setRatingOpen] = useState(false);
   // Each opening of the rating dialog mounts it afresh, so it starts at the library's value.
   const [ratingSession, setRatingSession] = useState(0);
+  const draft = useLibraryDraft();
+  const unsaved = useUnsavedChanges(draft.dirty);
+  // The draft lives outside the dialog, so `unsaved.pausePolling` stays out of this.
   const hold = confirmOpen || addOpen || foldersOpen || ratingOpen;
 
   const [tab, selectTab] = useSearchSelection('tab', TABS, 'all');
@@ -117,6 +123,34 @@ function LibrariesContent() {
   const [message, setMessage] = useState<string | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
 
+  // A scan that ends with an error while the page watches says so in the status region; a scan
+  // cancelled here has its own message already. The page follows the list in the query cache.
+  useEffect(() => {
+    const listKey = JSON.stringify(librariesQuery.queryKey);
+    const states = new Map<number, Library['scan']['state']>();
+    const remember = (list: readonly Library[] | undefined) => {
+      const ended: string[] = [];
+      for (const library of list ?? []) {
+        const before = states.get(library.id);
+        const now = library.scan.state;
+        states.set(library.id, now);
+        if (before !== 'queued' && before !== 'running') continue;
+        if (now === 'failed') ended.push(t('admin.libraries.scanFailed', { name: library.name }));
+        else if (now === 'aborted' && library.scan.lastError !== 'cancelled')
+          ended.push(t('admin.libraries.scanAborted', { name: library.name }));
+      }
+      return ended;
+    };
+    remember(queryClient.getQueryData<Library[]>(librariesQuery.queryKey));
+    return queryClient.getQueryCache().subscribe((event) => {
+      if (event.type !== 'updated' || JSON.stringify(event.query.queryKey) !== listKey) return;
+      const ended = remember(event.query.state.data as Library[] | undefined);
+      if (ended.length === 0) return;
+      setFailure(null);
+      setMessage(ended.join(t('format.separator')));
+    });
+  }, [queryClient, t]);
+
   /** The focus fell to the body (its button went with a change): the h1 takes it. */
   const focusTitleIfLost = useCallback(() => {
     const active = document.activeElement;
@@ -151,13 +185,19 @@ function LibrariesContent() {
   const scan = useMutation({
     mutationFn: (id: number): Promise<Library> =>
       request(api.POST('/admin/libraries/{id}/scan', { params: { path: { id } } })),
-    onSuccess: succeeded,
+    onSuccess: (library) => {
+      setMessage(t('admin.libraries.scanStarted', { name: library.name }));
+      return succeeded(library);
+    },
     onError: failed,
   });
   const cancel = useMutation({
     mutationFn: (id: number): Promise<Library> =>
       request(api.DELETE('/admin/libraries/{id}/scan', { params: { path: { id } } })),
-    onSuccess: succeeded,
+    onSuccess: (library) => {
+      setMessage(t('admin.libraries.scanCancelled', { name: library.name }));
+      return succeeded(library);
+    },
     onError: failed,
   });
   const acceptLoss = useMutation({
@@ -290,6 +330,7 @@ function LibrariesContent() {
       )}
 
       <AddLibraryDialog
+        draft={draft}
         isOpen={addOpen}
         onOpenChange={setAddOpen}
         onCreated={(library) => {
@@ -338,6 +379,7 @@ function LibrariesContent() {
           onConfirm={confirmation.onConfirm}
         />
       )}
+      <ConfirmDialog {...unsaved.dialog} />
     </AdminPage>
   );
 }
