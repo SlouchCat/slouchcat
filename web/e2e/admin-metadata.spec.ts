@@ -167,6 +167,35 @@ function chooseAt(list: readonly string[], index: number, next: string): string[
   return out;
 }
 
+test('the sticky save bar does not cover the focused element (WCAG 2.4.11)', async ({ page }) => {
+  // Low enough that the page scrolls and the bar sticks to the bottom of the viewport.
+  await page.setViewportSize({ width: 1280, height: 560 });
+  await openMetadata(page);
+  // The last two focusable elements above the bar: the links to the libraries and the jobs.
+  const before = page.getByRole('link', {
+    name: 'Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.',
+  });
+  const last = page.getByRole('link', { name: 'Die Zeitpläne stehen unter Hintergrundjobs.' });
+  await tabToFromTop(page, before);
+  // The page scrolled so the jobs link stands at the very bottom of the viewport, where the sticky
+  // bar lies over it. Tab to it: the browser must bring it out from under the bar.
+  await page.evaluate(() => {
+    const link = [...document.querySelectorAll('a')].find((a) =>
+      a.textContent?.includes('Hintergrundjobs.'),
+    );
+    if (!link) throw new Error('no jobs link');
+    window.scrollBy(0, link.getBoundingClientRect().bottom - window.innerHeight + 4);
+  });
+  const covered = await saveBar(page).boundingBox();
+  const under = await last.boundingBox();
+  expect(under!.y + under!.height, 'the link starts out under the bar').toBeGreaterThan(covered!.y);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, last);
+  const bar = await saveBar(page).boundingBox();
+  const focused = await last.boundingBox();
+  expect(focused!.y + focused!.height).toBeLessThanOrEqual(bar!.y);
+});
+
 test('the default scope lists the areas and the languages, the save bar is clean, nothing is sent', async ({
   page,
   owner,

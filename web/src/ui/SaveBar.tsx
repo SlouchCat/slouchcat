@@ -26,7 +26,7 @@ interface SaveBarProps {
 export function SaveBar({ dirty, saving, onSave, onDiscard }: SaveBarProps) {
   const { t } = useTranslation();
   return (
-    <div className={styles.bar} role="region" aria-label={t('ui.saveBar.save')}>
+    <div className={styles.bar} role="region" aria-label={t('ui.saveBar.save')} data-save-bar>
       <Text tone={dirty ? 'primary' : 'secondary'}>
         {dirty ? t('ui.saveBar.dirty') : t('ui.saveBar.clean')}
       </Text>
