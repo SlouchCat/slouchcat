@@ -716,6 +716,28 @@ Jede Stufe ein eigener Zweig und Pull Request, jeder Schritt ein Commit, `task c
 - **Safari und Web Audio** (Spike in Schritt 4): offen, ändert höchstens, ob Nachtmodus und 150 %
   in Safari erscheinen.
 - Die Streams-Ansicht der Verwaltung zeigt `audioReason` nicht; bei Bedarf später.
+- **Stopp durch die Verwaltung erkennen** (gefunden am 4. November 2026 beim Härten der Tests von
+  Konzept 12, Firefox-e2e `admin-streams`; besteht seit 1.7.0 und stammt nicht aus Konzept 12).
+  - **Befund:** Beendet ein Administrator einen Stream («Beenden» unter `/admin/streams`), erfährt der
+    Videoplayer das erst mit seiner nächsten Medienanfrage (401). hls.js lädt einen kurzen Titel ganz;
+    ist alles gepuffert, gibt es keine Anfragen mehr, und der Player spielt bis zum Ende weiter.
+    Gemessen: 88,4 s von 90 s gepuffert beim Stopp, 40 s lang kein 401. Bei teilweise gefülltem Puffer
+    fällt der Stopp nach etwa 1 s auf. Dieselbe Lücke hat `AudioPlayerPage` (Hörbücher, Podcasts).
+  - **Anforderung:** Der Player merkt einen Stopp durch die Verwaltung innerhalb von 5 s, auch bei
+    vollständig gepuffertem Titel, für Video und Audio. Ohne zusätzliche Last für den Transcoder.
+  - **Optionen:**
+    1. Statusendpunkt, den der Player während des Abspielens abfragt (kleine Anfrage, kein
+       Transcoder-Zugriff).
+    2. SSE oder WebSocket: der Server meldet den Stopp sofort, kostet aber eine offene Verbindung je
+       Player.
+    3. Antwort auf die Fortschrittsmeldung (`POST /items/{id}/progress`, kommt ohnehin alle 10 s)
+       trägt ein Stopp-Kennzeichen. Das braucht keine neue Anfrage. Die Erkennung dauert bis zu 10 s
+       und erfüllt die Anforderung von 5 s nur, wenn der Takt dafür verkürzt wird oder die Option mit
+       einer der anderen verbunden wird.
+  - **Entscheid Marco 4. November 2026:** in Konzept 13 lösen. Eine schnelle Zwischenlösung (der Player
+    fragt seinen Range-Stream alle 2 s ab, 404 gilt als gültig, 401 als Stopp) wurde gebaut und wieder
+    verworfen. Gewählt ist eine saubere Lösung für Video und Audio zugleich; die Option wählt das
+    Konzept in der Fassung zur Abnahme.
 
 ### 11.14 Risiken
 
