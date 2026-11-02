@@ -54,6 +54,13 @@ test.describe('with a mouse from 768 px', () => {
     expect(await height(entry)).toBeGreaterThanOrEqual(44);
   });
 
+  test('the overview has the 24 px page title of the other pages', async ({ page }) => {
+    await page.goto('/admin');
+    const heading = page.getByRole('heading', { level: 1, name: 'Verwaltung' });
+    await expect(heading).toBeVisible();
+    expect(await fontSize(heading)).toBe('24px');
+  });
+
   test('a table row is 40 px high (S-5)', async ({ page }) => {
     await openJobs(page);
     // The first job type of the selected tab: its fold-out button and state chip are 24 px.

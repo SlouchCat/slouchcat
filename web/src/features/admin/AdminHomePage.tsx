@@ -920,13 +920,14 @@ export function AdminHomePage() {
   const system = useQuery({ ...systemQuery, enabled: allowed });
   const data = dashboard.data;
 
-  // The overview keeps its display title (concept 11) but sits in the administration's content:
-  // its buttons are compact (ADR 0020), and the scope makes the restart dialog compact as well.
+  // The overview sits in the administration's content: its title is a page title like on every
+  // administration page (24 px compact, Marco 4 November 2026), its buttons are compact (ADR 0020),
+  // and the scope makes the restart dialog compact as well.
   return (
     <Page>
       <AdminDensityScope>
         <div className={styles.head}>
-          <Text as="h1" variant="display">
+          <Text as="h1" variant="pageTitle">
             {t('admin.home.title')}
           </Text>
           {allowed && (
