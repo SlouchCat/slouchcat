@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { afterDialogsClosed, afterRender, focusLost, focusTitleIfLost } from './focusAfter';
 
 afterEach(() => {
@@ -64,6 +64,17 @@ describe('afterRender and afterDialogsClosed', () => {
     expect(done).toBe(false);
     await pending;
     expect(done).toBe(true);
+  });
+
+  it('afterRender does not wait for a frame that never comes (a hidden tab)', async () => {
+    const frame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 0);
+    try {
+      const started = Date.now();
+      await afterRender();
+      expect(Date.now() - started).toBeLessThan(1000);
+    } finally {
+      frame.mockRestore();
+    }
   });
 
   it('afterDialogsClosed waits until no overlay is exiting any more', async () => {

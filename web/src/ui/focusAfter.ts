@@ -5,10 +5,22 @@ import type { RefObject } from 'react';
  * removed or disabled the control that had the focus, the page's h1 takes it.
  */
 
-/** Resolves once React has rendered what was just set: a task, then the next frame. */
+/** How long `afterRender` waits for a frame at most: a hidden tab paints no frames. */
+const FRAME_FALLBACK_MS = 100;
+
+/**
+ * Resolves once React has rendered what was just set: a task, then the next frame. A browser
+ * tab in the background paints no frames, so a timeout of 100 ms stands in for the frame there;
+ * the focus does not wait until the tab is shown again.
+ */
 export const afterRender = () =>
   new Promise<void>((resolve) => {
-    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
+    window.setTimeout(() => {
+      void Promise.race([
+        new Promise<void>((frame) => window.requestAnimationFrame(() => frame())),
+        new Promise<void>((late) => window.setTimeout(late, FRAME_FALLBACK_MS)),
+      ]).then(resolve);
+    }, 0);
   });
 
 /**
