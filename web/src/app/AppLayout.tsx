@@ -1,10 +1,20 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
-import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ComponentType,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { picksCountQuery, visibleLibrariesQuery } from '@/features/catalog/queries';
 import { notificationsPageQuery, notificationsQuery } from '@/features/discover/queries';
 import { Announcements } from '@/features/notifications/Announcements';
+import type { AdminShellNav as AdminShellNavType } from '@/features/admin/AdminShellNav';
 import { offlineSupported } from '@/features/offline/support';
 import { useWideScreen } from '@/lib/useWideScreen';
 import {
@@ -15,6 +25,7 @@ import {
   SIDENAV_HIDE_KEY,
   SideNav,
   SideNavMenu,
+  sideNavFocusKey,
   SpatialGroup,
   type NavItem,
   type SideNavEntry,
@@ -24,14 +35,24 @@ import { paths } from './paths';
 import { useActiveSession, useLogout } from './session';
 import styles from './AppLayout.module.css';
 
+type AdminShellNavModule = { default: ComponentType<ComponentProps<typeof AdminShellNavType>> };
+
 /**
  * The administration's sidebar (concept 11), loaded on the first /admin page: it builds on
  * '@/ui/aria', which must stay out of the start bundle (P-10). While it loads, the width of the
  * column is already reserved (`data-shell="admin"`, global.css), so nothing moves.
  */
 const AdminShellNav = lazy(() =>
-  import('@/features/admin/AdminShellNav').then((module) => ({ default: module.AdminShellNav })),
+  import('@/features/admin/AdminShellNav').then(
+    (module): AdminShellNavModule => ({ default: module.AdminShellNav }),
+    // A chunk that does not load (an old tab after an update) leaves the column empty, not the
+    // whole shell on an error page.
+    (): AdminShellNavModule => ({ default: () => null }),
+  ),
 );
+
+/** Index of «Übersicht» among the sidebar's entries (after «Zurück zur App»). */
+const ADMIN_OVERVIEW_INDEX = 1;
 
 /** localStorage key of the hidden side navigation; index.html reads it before the first paint. */
 const SIDENAV_KEY = 'slouchcat.sidenav';
@@ -157,7 +178,8 @@ export function AppLayout() {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const barShown = wide && !hidden && !adminShell;
   const menuOpen = menuFor === pathname && !barShown;
-  // Hiding or showing the column takes away the focused entry: the focus moves to what replaces it.
+  // Hiding or showing the column, or swapping it for the admin sidebar, takes away the focused
+  // entry: the focus moves to what replaces it.
   const focusAfter = useRef<string | null>(null);
   useEffect(() => {
     const key = focusAfter.current;
@@ -165,7 +187,7 @@ export function AppLayout() {
     focusAfter.current = null;
     const frame = requestAnimationFrame(() => setSpatialFocus(key));
     return () => cancelAnimationFrame(frame);
-  }, [barShown]);
+  }, [barShown, adminShell]);
   const setSideNavHidden = (value: boolean) => {
     storeSideNavHidden(value);
     focusAfter.current = value ? HEADER_MENU_KEY : SIDENAV_HIDE_KEY;
@@ -255,6 +277,24 @@ export function AppLayout() {
     hideLabel: t('nav.hideSidebar'),
     onHide: () => setSideNavHidden(true),
   };
+
+  // Into the administration from the app column, or back: the column that had the focus goes away,
+  // the focus falls to the body. Entering, the admin sidebar takes it on «Übersicht» once it has
+  // loaded; leaving, the app column on the current page's entry (or the menu button when the
+  // column is hidden). What the sidebar carried from an earlier visit is forgotten either way.
+  const currentEntry = [...nav, ...(typeof libraries === 'string' ? [] : [...libraries, picks])]
+    .concat(footer)
+    .find((entry) => entry.current);
+  const returnKey = barShown ? currentEntry && sideNavFocusKey(currentEntry.href) : HEADER_MENU_KEY;
+  const wasAdminShell = useRef(adminShell);
+  useLayoutEffect(() => {
+    if (wasAdminShell.current === adminShell) return;
+    wasAdminShell.current = adminShell;
+    const active = document.activeElement;
+    const lost = active === null || active === document.body;
+    adminFocus.current = adminShell && lost ? ADMIN_OVERVIEW_INDEX : null;
+    if (!adminShell && lost) focusAfter.current = returnKey ?? null;
+  }, [adminShell, returnKey]);
 
   return (
     <>

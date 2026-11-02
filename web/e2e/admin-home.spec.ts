@@ -96,12 +96,16 @@ test('the app column has one "Verwaltung" entry; Enter opens the overview in the
   await expect(adminNav(page)).toBeVisible();
   await expect(appNav(page)).toHaveCount(0);
   await expect(entry(page, 'Übersicht')).toHaveAttribute('aria-current', 'page');
-  // «Zurück zur App» leads back, where the app column stands again.
-  await entry(page, 'Zurück zur App').focus();
+  // The focus went with the app column: the sidebar takes it on «Übersicht».
+  await expectFocusOn(page, entry(page, 'Übersicht'));
+  // «Zurück zur App» leads back, where the app column stands again with the focus on «Start».
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, entry(page, 'Zurück zur App'));
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/$/);
   await expect(appNav(page)).toBeVisible();
   await expect(adminNav(page)).toHaveCount(0);
+  await expectFocusOn(page, appNav(page).getByRole('link', { name: 'Start', exact: true }));
 });
 
 test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
@@ -364,6 +368,13 @@ test('on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Esc
   await expectFocusOn(page, entry(page, 'Übersicht'));
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, entry(page, 'Bibliotheken'));
+  // Tab and Shift+Tab cycle inside the sheet while it is open.
+  for (const key of ['Tab', 'Tab', 'Tab', 'Shift+Tab', 'Shift+Tab', 'Shift+Tab', 'Shift+Tab']) {
+    await page.keyboard.press(key);
+    await expect
+      .poll(() => sheet.evaluate((dialog) => dialog.contains(document.activeElement)))
+      .toBe(true);
+  }
   await page.keyboard.press('Escape');
   await expect(sheet).toHaveCount(0);
   await expectFocusOn(page, button);

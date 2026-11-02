@@ -12,8 +12,7 @@
         if (localStorage.getItem('slouchcat.sidenav') === 'hidden')
           document.documentElement.dataset.sidenav = 'hidden';
       } catch (e) {}
-      var path = location.pathname;
-      if (path === '/admin' || path.indexOf('/admin/') === 0)
+      if (location.pathname === '/admin' || location.pathname.indexOf('/admin/') === 0)
         document.documentElement.dataset.shell = 'admin';
     </script>
   </head>

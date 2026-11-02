@@ -1568,6 +1568,7 @@
     "home": {
       "title": "Verwaltung",
       "live": "Live, alle 5 Sekunden",
+      "liveFailed": "Keine Antwort, neuer Versuch alle 5 Sekunden",
       "update": {
         "title": "Version {{version}} ist verfügbar",
         "body": "Du verwendest {{current}}. Slouchcat installiert nichts selbst: Hole das neue Image mit docker compose pull und starte mit docker compose up -d neu.",
@@ -1622,7 +1623,7 @@
       },
       "webhooks": {
         "title": "Webhooks",
-        "none": "Keine Integration eingerichtet.",
+        "none": "Kein Webhook eingerichtet.",
         "count_one": "{{count}} Meldung im Protokoll der letzten 24 Stunden, von {{total}} Integrationen.",
         "count_other": "{{count}} Meldungen im Protokoll der letzten 24 Stunden, von {{total}} Integrationen.",
         "silent": "Seit sieben Tagen ohne Meldung: {{names}}",
@@ -1669,7 +1670,7 @@
         "scan": "Scan der Bibliothek «{{name}}» abgebrochen",
         "scanOther": "Der Verlustschutz hat den Scan abgebrochen.",
         "toLibraries": "Zu den Bibliotheken",
-        "storage": "{{path}} ist zu über 90 % belegt"
+        "storage": "{{path}} ist zu über {{percent}} % belegt"
       },
       "errors": {
         "title": "Server-Protokoll",

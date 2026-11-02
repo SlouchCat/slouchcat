@@ -2,8 +2,17 @@ import type { Dashboard, SystemInfo } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import i18n from '@/i18n';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 import { dashboardFixture, renderAdminPage } from '@/test/admin';
+import { activitySentence } from './AdminHomePage';
+import { reloadPage } from './restart';
+
+// A restart that went through reloads the page; the test only notes it.
+vi.mock('./restart', async (original) => ({
+  ...(await original<typeof import('./restart')>()),
+  reloadPage: vi.fn(),
+}));
 
 // The administration (concept 11, A-2, A-3): the sidebar in the shell's column on every /admin
 // page (20 entries, numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet on a phone, and the
@@ -388,7 +397,7 @@ describe('admin overview (concept 11, A-3)', () => {
       screen.getByText(/^Gerade läuft keine Aufgabe\. Als Nächstes: Podcast-Feeds prüfen, /),
     ).toBeVisible();
     expect(screen.getByText('Noch keine Aktivität.')).toBeVisible();
-    expect(screen.getByText('Keine Integration eingerichtet.')).toBeVisible();
+    expect(screen.getByText('Kein Webhook eingerichtet.')).toBeVisible();
     const hints = screen.getByRole('region', { name: 'Hinweise' });
     await waitFor(() => expect(within(hints).getByText('Keine Hinweise.')).toBeVisible());
     expect(within(hints).getByRole('status')).toHaveTextContent('0 Hinweise');
@@ -456,6 +465,62 @@ describe('admin overview (concept 11, A-3)', () => {
       'datetime',
       at,
     );
+  });
+
+  it('builds the sentence of every kind and branch from the locale', () => {
+    const t = i18n.t.bind(i18n);
+    const at = '2026-10-21T09:00:00Z';
+    const sentence = (kind: string, fields: Partial<Dashboard['activity'][number]> = {}) =>
+      activitySentence(t, { id: 1, at, kind, detail: {}, ...fields }, 'de');
+    const viewer = { profileName: 'Lena', itemTitle: 'Dune' };
+    expect(sentence('playback_started', viewer)).toBe('Lena hat «Dune» gestartet');
+    expect(sentence('playback_completed', viewer)).toBe('Lena hat «Dune» fertig geschaut');
+    expect(sentence('playback_stopped', { ...viewer, detail: { by: 'admin' } })).toBe(
+      'Wiedergabe von «Dune» (Lena) beendet',
+    );
+    expect(sentence('playback_stopped', { ...viewer, detail: { by: 'revoked' } })).toBe(
+      'Wiedergabe von «Dune» (Lena) beendet, Gerät vergessen',
+    );
+    // A deleted profile or title keeps the sentence whole.
+    expect(sentence('playback_started')).toBe('Ein Profil hat «einen Titel» gestartet');
+    const library = { libraryName: 'Filme' };
+    expect(sentence('scan_started', { ...library, detail: { trigger: 'manual' } })).toBe(
+      'Scan von «Filme» gestartet',
+    );
+    expect(sentence('scan_done', { ...library, detail: { newTitles: 1 } })).toBe(
+      'Scan von «Filme» fertig: 1 neuer Titel',
+    );
+    expect(sentence('scan_done', library)).toBe('Scan von «Filme» fertig: 0 neue Titel');
+    expect(sentence('scan_failed', { ...library, detail: { reason: 'error' } })).toBe(
+      'Scan von «Filme» fehlgeschlagen',
+    );
+    expect(sentence('scan_aborted', { ...library, detail: { reason: 'root_missing' } })).toBe(
+      'Scan von «Filme» vom Verlustschutz abgebrochen',
+    );
+    expect(sentence('scan_aborted', { ...library, detail: { reason: 'cancelled' } })).toBe(
+      'Scan von «Filme» von Hand abgebrochen',
+    );
+    expect(sentence('scan_started')).toBe('Scan von «eine Bibliothek» gestartet');
+    expect(sentence('job_failed', { detail: { jobType: 'probe.keyframes', count: 1 } })).toBe(
+      'Keyframe-Index: 1 Job fehlgeschlagen',
+    );
+    expect(sentence('job_failed', { detail: { jobType: 'new.kind', count: 2 } })).toBe(
+      'new.kind: 2 Jobs fehlgeschlagen',
+    );
+    expect(sentence('backup_created')).toBe('Sicherung erstellt');
+    expect(sentence('backup_created', { detail: { sizeBytes: 2e9 } })).toMatch(
+      /^Sicherung erstellt \(2\sGB\)$/,
+    );
+    expect(sentence('backup_restored')).toBe('Sicherung zurückgeholt');
+    expect(sentence('server_started')).toBe('Server gestartet');
+    expect(sentence('server_started', { detail: { version: '1.7.0' } })).toBe(
+      'Server gestartet, Version 1.7.0',
+    );
+    expect(sentence('server_restart')).toBe('Server neu gestartet');
+    expect(sentence('server_restart', { accountEmail: 'owner@example.test' })).toBe(
+      'Neustart durch owner@example.test',
+    );
+    expect(sentence('telescope_aligned', viewer)).toBe('Ereignis auf dem Server');
   });
 
   it('keeps the server log collapsed; a poll every 5 s announces new errors as a count', async () => {
@@ -551,6 +616,48 @@ describe('admin overview (concept 11, A-3)', () => {
     expect(screen.getByRole('navigation', { name: 'Verwaltung' })).toBeVisible();
   });
 
+  it('a restart that went through reloads the page once the new server answers', async () => {
+    vi.mocked(reloadPage).mockClear();
+    let restarted = false;
+    let answers = 0;
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () => json(quiet()),
+        'POST /admin/server/restart': () => {
+          restarted = true;
+          return json({ restartAt: '2026-10-21T09:30:01Z' }, 202);
+        },
+        // Before the restart and right after the 202 the old process answers; then the new one.
+        'GET /healthz': () => {
+          if (restarted) answers += 1;
+          const old = !restarted || answers === 1;
+          return json({ status: 'ok', version: '0.9.0', uptimeSeconds: old ? 99_999 : 0 });
+        },
+      }),
+    );
+    renderApp('/admin');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
+    expect(await screen.findByRole('heading', { name: 'Server startet neu' })).toBeVisible();
+    expect(reloadPage).not.toHaveBeenCalled();
+    await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1), { timeout: 5000 });
+    expect(screen.getByRole('status')).toHaveTextContent('Der Server ist zurück.');
+  });
+
+  it('a restart already on its way shows the waiting panel instead of an error', async () => {
+    mockApi(routes({ 'POST /admin/server/restart': () => problem(409, 'restart_pending') }));
+    renderApp('/admin');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Neu starten' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Neu starten' }));
+    expect(await screen.findByRole('heading', { name: 'Server startet neu' })).toBeVisible();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Server' })).not.toBeInTheDocument();
+  });
+
   it('a refused restart says why and keeps the cards', async () => {
     mockApi(routes({ 'POST /admin/server/restart': () => problem(409, 'backup_busy') }));
     renderApp('/admin');
@@ -598,6 +705,9 @@ describe('admin overview (concept 11, A-3)', () => {
     renderApp('/admin');
     const user = userEvent.setup();
     expect(await screen.findByText('Etwas ist schiefgelaufen. Versuche es erneut.')).toBeVisible();
+    // The head no longer claims to be live.
+    expect(screen.getByText('Keine Antwort, neuer Versuch alle 5 Sekunden')).toBeVisible();
+    expect(screen.queryByText('Live, alle 5 Sekunden')).not.toBeInTheDocument();
     fail = false;
     await user.click(screen.getByRole('button', { name: 'Erneut versuchen' }));
     expect(await screen.findByRole('region', { name: 'Aufgaben' })).toBeVisible();
@@ -688,8 +798,13 @@ describe('admin sidebar (A-2, concept 11)', () => {
   });
 
   it('shows the entries without numbers while the dashboard cannot be read', async () => {
-    mockApi({ ...signedIn, 'GET /admin/devices': () => json([]) });
-    const { nav } = await renderAdminPage('/admin/devices');
+    const { calls } = mockApi({ ...signedIn, 'GET /admin/devices': () => json([]) });
+    const { nav, queryClient } = await renderAdminPage('/admin/devices');
+    // The dashboard was asked and answered with an error before the entries are checked.
+    await waitFor(() => expect(calls.some((call) => call.path === '/admin/dashboard')).toBe(true));
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['admin', 'dashboard'])?.status).toBe('error'),
+    );
     expect(within(nav).getAllByRole('link')).toHaveLength(20);
     expect(within(nav).getByRole('link', { name: 'Bibliotheken' })).toHaveTextContent(
       /^Bibliotheken$/,

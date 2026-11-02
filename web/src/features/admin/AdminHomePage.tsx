@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
 import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
@@ -42,8 +42,10 @@ import {
   type ActivityTone,
 } from '@/ui/aria';
 import { composeCommand, SYSCTL_COMMAND } from '../shared/SystemState';
+import { useHealth } from '../system/useHealth';
 import { formatSeconds, typeName } from './jobsFormat';
 import { DASHBOARD_POLL_MS, dashboardQuery, systemQuery } from './queries';
+import { reloadPage } from './restart';
 import { RestartPanel } from './RestartPanel';
 import { streamMode } from './StreamsPage';
 import styles from './AdminHomePage.module.css';
@@ -257,7 +259,7 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
       hints.push({
         key: `storage-${info.path}`,
         tone: 'warning',
-        title: t('admin.home.hints.storage', { path: info.path }),
+        title: t('admin.home.hints.storage', { path: info.path, percent: STORAGE_FULL * 100 }),
         body: t('admin.home.storage.free', {
           free: formatBytes(info.freeBytes, i18n.language),
           total: formatBytes(info.totalBytes, i18n.language),
@@ -354,7 +356,7 @@ function ServerCard({
   onRestart,
 }: {
   data: Dashboard;
-  /** The moment of the poll: the uptime counts from the server's start to it. */
+  /** The moment of the poll: the uptime counts on to it. */
   now: number;
   system: SystemInfo | undefined;
   systemError: unknown;
@@ -369,8 +371,20 @@ function ServerCard({
   const restart = useMutation({
     mutationFn: () => request(api.POST('/admin/server/restart')),
     onSuccess: onRestart,
+    // A restart or restore is already on its way: wait for it like for our own.
+    onError: (error) => {
+      if (isApiError(error, 409) && error.code === 'restart_pending') onRestart();
+    },
   });
   const number = (value: number) => new Intl.NumberFormat(i18n.language).format(value);
+  // The server's own uptime (getHealth), counted on with this browser's clock since it answered,
+  // so a clock that differs from the server's does not shift it; the start time only without it.
+  const health = useHealth();
+  const uptime = health.data
+    ? health.data.uptimeSeconds + Math.max(0, now - health.dataUpdatedAt) / 1000
+    : system
+      ? (now - Date.parse(system.startedAt)) / 1000
+      : 0;
   const { update } = data;
   const streams = data.streams.length;
   const error = check.error ?? restart.error;
@@ -421,7 +435,7 @@ function ServerCard({
             [
               t('admin.home.server.uptime'),
               <time key="uptime" dateTime={system.startedAt}>
-                {formatSeconds(t, (now - Date.parse(system.startedAt)) / 1000)}
+                {formatSeconds(t, uptime)}
               </time>,
             ],
             [t('system.gpu.encoder'), t(`system.gpu.backend.${system.gpu.backend}`)],
@@ -903,8 +917,8 @@ export function AdminHomePage() {
         </Text>
         {allowed && (
           <span className={styles.live}>
-            <StatusDot state="success" />
-            {t('admin.home.live')}
+            <StatusDot state={dashboard.isError ? 'danger' : 'success'} />
+            {dashboard.isError ? t('admin.home.liveFailed') : t('admin.home.live')}
           </span>
         )}
       </div>
@@ -917,7 +931,7 @@ export function AdminHomePage() {
           acceptedAt={restartAt}
           title={t('admin.home.restart.waitTitle')}
           body={t('admin.home.restart.waitBody')}
-          onBack={() => window.location.reload()}
+          onBack={reloadPage}
         />
       ) : (
         <div aria-busy={dashboard.isPending} className={styles.body}>

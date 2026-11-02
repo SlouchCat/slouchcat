@@ -43,6 +43,7 @@ export {
   SIDENAV_HIDE_KEY,
   SideNav,
   SideNavMenu,
+  sideNavFocusKey,
   type SideNavEntry,
   type SideNavProps,
 } from './SideNav';

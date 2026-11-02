@@ -17,7 +17,7 @@ import {
 import { dashboardQuery } from './queries';
 import { adminGroups, adminSections, isSectionPath, type AdminGroup } from './sections';
 
-/** Poll interval of the sidebar's numbers on the admin pages; the overview asks every 5 s. */
+/** Poll interval of the sidebar's numbers on the admin pages but the overview, which asks itself. */
 const SHELL_POLL_MS = 30_000;
 
 const groupIcons = {
@@ -43,7 +43,11 @@ function useAdminNav(): { nav: Omit<AdminSideNavProps, 'focusCarry'>; pageLabel:
   const { t, i18n } = useTranslation();
   const session = useActiveSession();
   const { pathname } = useLocation();
-  const dashboard = useQuery({ ...dashboardQuery, refetchInterval: SHELL_POLL_MS });
+  // The overview asks every 5 s itself (and not at all while the server restarts).
+  const dashboard = useQuery({
+    ...dashboardQuery,
+    refetchInterval: pathname === paths.admin ? false : SHELL_POLL_MS,
+  });
   const number = new Intl.NumberFormat(i18n.language);
 
   /** The spoken name of an entry with its number ("Pflege, 12 Titel brauchen Pflege"). */

@@ -22,3 +22,11 @@ export const restartedSince = (health: Health, acceptedAt: number, answeredAt: n
 export function reloadToLogin(): void {
   window.location.assign(paths.login);
 }
+
+/**
+ * Loads the page again after a restart (concept 11, 11.5): the session stays valid, so the
+ * administrator lands on the overview of the new server process.
+ */
+export function reloadPage(): void {
+  window.location.reload();
+}

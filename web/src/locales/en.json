@@ -1568,6 +1568,7 @@
     "home": {
       "title": "Administration",
       "live": "Live, every 5 seconds",
+      "liveFailed": "No answer, trying again every 5 seconds",
       "update": {
         "title": "Version {{version}} is available",
         "body": "You are running {{current}}. Slouchcat installs nothing itself: get the new image with docker compose pull and restart with docker compose up -d.",
@@ -1622,7 +1623,7 @@
       },
       "webhooks": {
         "title": "Webhooks",
-        "none": "No integration set up.",
+        "none": "No webhook set up.",
         "count_one": "{{count}} report in the log of the last 24 hours, from {{total}} integrations.",
         "count_other": "{{count}} reports in the log of the last 24 hours, from {{total}} integrations.",
         "silent": "Nothing reported for seven days: {{names}}",
@@ -1669,7 +1670,7 @@
         "scan": "Scan of the library “{{name}}” aborted",
         "scanOther": "The loss protection aborted the scan.",
         "toLibraries": "To the libraries",
-        "storage": "{{path}} is more than 90 % full"
+        "storage": "{{path}} is more than {{percent}} % full"
       },
       "errors": {
         "title": "Server log",
