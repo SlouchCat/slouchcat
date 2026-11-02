@@ -365,6 +365,14 @@ describe('library folders dialog', () => {
     expect(within(change).queryByRole('button', { name: /nach oben/ })).toBeNull();
     const tvdb = await within(change).findByLabelText('Platz für TVDB');
     expect(tvdb).toHaveAccessibleDescription('Die anderen Einträge rücken nach.');
+    // Without a change «Speichern» works but sends nothing; the dialog and the focus stay
+    // (decision 18).
+    const save = within(change).getByRole('button', { name: 'Speichern' });
+    expect(save).toBeEnabled();
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(change).toBeInTheDocument();
+    expect(calls.some((call) => call.method === 'PATCH')).toBe(false);
     await user.selectOptions(tvdb, 'Platz 1');
     expect(within(change).getByText(/Der Erkenner wechselt/)).toBeVisible();
     await user.click(within(change).getByRole('button', { name: 'Speichern' }));

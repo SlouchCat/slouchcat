@@ -355,6 +355,7 @@ function ChangeRootDialog({
   };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
     if (listError || unchanged) return;
     if (contentChanges) {
       setConfirming(true);
@@ -421,7 +422,7 @@ function ChangeRootDialog({
             <AriaButton
               type="submit"
               variant="primary"
-              isDisabled={unchanged || listError !== null}
+              isDisabled={listError !== null}
               isPending={save.isPending}
             >
               {t('admin.libraries.folders.change.submit')}
