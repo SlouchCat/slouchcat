@@ -53,7 +53,7 @@
  * of a confirmation itself (ConfirmDialog, `autoFocus`). react-aria tracks the input modality on
  * its own and marks the button `data-focus-visible`, so the ring and the fill follow that marker as
  * well. The other react-aria components here already do it this way (Menu, Tabs, Switch,
- * CheckboxGroup, SelectableList, AccentPicker, Field, PathList); the button was the one left out,
+ * CheckboxGroup, SelectCheck, AccentPicker, Field, PathList); the button was the one left out,
  * and "Entfernen" in a confirmation therefore had no visible focus in Firefox (hard rule 8).
  */
 .button[data-focus-visible] {

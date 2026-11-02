@@ -30,6 +30,11 @@
   gap: var(--sc-space-5);
 }
 
+/* A live region that is always there, so a new outcome is announced; empty, it takes no gap. */
+.live:empty {
+  display: none;
+}
+
 .muted {
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);
@@ -78,6 +83,29 @@
   background-color: var(--sc-color-surface-3);
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-xs);
+}
+
+.listTitle {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.candidates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.candidateList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .mergeRow {

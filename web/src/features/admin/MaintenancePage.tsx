@@ -249,6 +249,8 @@ function MaintenanceContent() {
           title: target?.title ?? '',
         }),
         confirmLabel: t('admin.maintenance.duplicates.merge'),
+        // The other titles are deleted; the button that asks stays primary (mockup Pfl-C).
+        tone: 'danger',
         onConfirm: () => mergeMutate({ group, targetId }),
       });
     },

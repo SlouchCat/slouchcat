@@ -1,7 +1,13 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { BROKEN_TITLE, CSRF, H264_COPY_TITLE, UNRATED_TITLE } from './catalog';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 
 // B-9 maintenance (concept 12, variant C): each prepared case of the test media shows up in its
 // tab (unplayable file, duplicate by file hash, title without rating), grouped by library, and
@@ -118,17 +124,22 @@ test('a library section folds away with Enter and comes back', async ({ page }) 
   await expect(trigger).toHaveAttribute('aria-expanded', 'true');
   await expect(section.getByRole('table')).toBeVisible();
 
-  // Into the table: the checkbox of the first row, then ↓ to the next row's checkbox.
+  // Into the table: the checkbox of the first row, ↓ to the next row's checkbox and ↑ back. The
+  // first library holds every generated movie, so it has more than one row.
   const boxes = section.getByRole('checkbox');
+  expect(await boxes.count()).toBeGreaterThan(1);
   await page.keyboard.press('Tab');
   await expectFocusOn(page, boxes.first());
-  if ((await boxes.count()) > 1) {
-    await page.keyboard.press('ArrowDown');
-    await expectFocusOn(page, boxes.nth(1));
-  }
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, boxes.nth(1));
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, boxes.first());
 });
 
-test('duplicates list the H264 copy (same file hash) in a group of its own', async ({ page }) => {
+test('duplicates list the H264 copy (same file hash) in a group of its own', async ({
+  page,
+  owner,
+}) => {
   await openTab(page, /^Duplikate/);
   // Only the first group starts open; the others open with Enter on their heading.
   const triggers = panel(page).getByRole('button', { name: /^Gruppe \d+$/ });
@@ -150,8 +161,42 @@ test('duplicates list the H264 copy (same file hash) in a group of its own', asy
   // The reason stands in the heading line, next to the group's button.
   await expect(group.locator('..').getByText(/^Gleicher Dateiinhalt · /)).toBeVisible();
   await expect(group.getByRole('radio')).toHaveCount(2);
+  const items = group.getByRole('listitem');
+  await expect(items).toHaveCount(2);
   await expect(group.getByText('bleibt')).toHaveCount(1);
-  await expect(group.getByRole('button', { name: 'Zusammenführen' })).toBeEnabled();
+  await expect(items.nth(0).getByText('bleibt')).toBeVisible();
+
+  // «Behalten» by keyboard: Tab reaches the chosen radio, ↓ picks the other title, «bleibt»
+  // follows the choice.
+  const radios = group.getByRole('radio');
+  await expect(radios.nth(0)).toBeChecked();
+  await resetFocus(page);
+  await tabTo(page, radios.nth(0), TAB_MAX);
+  await page.keyboard.press('ArrowDown');
+  await expect(radios.nth(1)).toBeChecked();
+  await expectFocusOn(page, radios.nth(1));
+  await expect(items.nth(1).getByText('bleibt')).toBeVisible();
+  await expect(items.nth(0).getByText('bleibt')).toHaveCount(0);
+
+  // «Zusammenführen» asks first; Esc closes the question, the focus goes back to the button and
+  // nothing is merged.
+  const merge = group.getByRole('button', { name: 'Zusammenführen' });
+  await expect(merge).toBeEnabled();
+  await tabTo(page, merge, 10);
+  await page.keyboard.press('Enter');
+  const confirm = page.getByRole('alertdialog', { name: 'Titel zusammenführen?' });
+  await expect(confirm).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(confirm).toHaveCount(0);
+  await expectFocusOn(page, merge);
+  await expect(group).toHaveCount(1);
+  await expect(radios.nth(1)).toBeChecked();
+  const response = await owner.get('/api/v1/admin/maintenance/duplicates');
+  expect(response.status(), await response.text()).toBe(200);
+  const groups = (await response.json()) as { items: { title: string }[] }[];
+  expect(
+    groups.filter((entry) => entry.items.some((item) => item.title === H264_COPY_TITLE)),
+  ).toHaveLength(1);
 });
 
 test('unrated: select by keyboard, assign a rating, the title leaves the list', async ({

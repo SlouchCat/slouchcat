@@ -917,6 +917,7 @@
         "detail": "Finding"
       },
       "none": "–",
+      "noneSpoken": "not given",
       "titleCount_one": "{{count}} title",
       "titleCount_other": "{{count}} titles",
       "fileCount_one": "{{count}} file",

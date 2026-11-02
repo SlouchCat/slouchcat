@@ -917,6 +917,7 @@
         "detail": "Befund"
       },
       "none": "–",
+      "noneSpoken": "keine Angabe",
       "titleCount_one": "{{count}} Titel",
       "titleCount_other": "{{count}} Titel",
       "fileCount_one": "{{count}} Datei",

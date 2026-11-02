@@ -74,7 +74,14 @@ function sectionsOf(
 /** A path or a finding in full, wrapped where it has to (S-5: reachable without a pointer). */
 function LongText({ text, code = false }: { text: string | undefined; code?: boolean }) {
   const { t } = useTranslation();
-  if (!text) return <>{t('admin.maintenance.none')}</>;
+  if (!text) {
+    return (
+      <>
+        <span aria-hidden="true">{t('admin.maintenance.none')}</span>
+        <VisuallyHidden>{t('admin.maintenance.noneSpoken')}</VisuallyHidden>
+      </>
+    );
+  }
   return code ? (
     <code className={styles.path}>{text}</code>
   ) : (
@@ -105,7 +112,8 @@ export function IssueTab({
   const total = issues.data?.pages.at(-1)?.total ?? 0;
   const sections = useMemo(() => sectionsOf(t, list, libraries), [t, list, libraries]);
 
-  const chosen = list.filter((issue) => selected.includes(issueKey(issue)));
+  const selectedKeys = useMemo(() => new Set(selected), [selected]);
+  const chosen = list.filter((issue) => selectedKeys.has(issueKey(issue)));
   const itemIds = [...new Set(chosen.map((issue) => issue.itemId))];
   const mediaFileIds = chosen.flatMap((issue) => (issue.mediaFileId ? [issue.mediaFileId] : []));
   const selectable = kind !== 'rating_mismatch';
@@ -184,7 +192,7 @@ export function IssueTab({
             cell: (issue: Issue) => (
               <SelectCheck
                 label={t('admin.maintenance.selectItem', { title: issue.title })}
-                isSelected={selected.includes(issueKey(issue))}
+                isSelected={selectedKeys.has(issueKey(issue))}
                 onChange={(on) => toggle(issueKey(issue), on)}
               />
             ),
@@ -223,7 +231,13 @@ export function IssueTab({
     <div className={styles.tab}>
       <VisuallyHidden as="h2">{kindName}</VisuallyHidden>
       <Text tone="secondary">{t(`admin.maintenance.hint.${kind}`)}</Text>
-      {outcome && <Notice tone={outcome.tone}>{outcome.text}</Notice>}
+      <div role="status" className={styles.live}>
+        {outcome && (
+          <Notice tone={outcome.tone} live={false}>
+            {outcome.text}
+          </Notice>
+        )}
+      </div>
       {issues.isPending && <Skeleton shape="block" />}
       {issues.isError && (
         <Notice
@@ -260,7 +274,7 @@ export function IssueTab({
           {sections.map((section) => {
             const key = libraryKey(kind, section.id);
             const picked = section.issues.filter((issue) =>
-              selected.includes(issueKey(issue)),
+              selectedKeys.has(issueKey(issue)),
             ).length;
             return (
               <DisclosureGroup

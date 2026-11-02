@@ -42,7 +42,13 @@ export function DuplicatesTab({
     <div className={styles.tab}>
       <VisuallyHidden as="h2">{t('admin.maintenance.tab.duplicates')}</VisuallyHidden>
       <Text tone="secondary">{t('admin.maintenance.hint.duplicates')}</Text>
-      {outcome && <Notice tone={outcome.tone}>{outcome.text}</Notice>}
+      <div role="status" className={styles.live}>
+        {outcome && (
+          <Notice tone={outcome.tone} live={false}>
+            {outcome.text}
+          </Notice>
+        )}
+      </div>
       {duplicates.isPending && <Skeleton shape="block" />}
       {duplicates.isError && (
         <Notice
@@ -73,6 +79,7 @@ export function DuplicatesTab({
             }
             isExpanded={expanded[key] ?? index === 0}
             merging={merging === key}
+            busy={merging !== undefined}
             onTarget={(itemId) => onTarget(key, itemId)}
             onExpandedChange={(open) => onExpandedChange(key, open)}
             onMerge={onMerge}
@@ -89,6 +96,7 @@ function DuplicateSection({
   target,
   isExpanded,
   merging,
+  busy,
   onTarget,
   onExpandedChange,
   onMerge,
@@ -97,7 +105,10 @@ function DuplicateSection({
   index: number;
   target: string;
   isExpanded: boolean;
+  /** This group's merge runs. */
   merging: boolean;
+  /** Some group's merge runs: the others wait for it. */
+  busy: boolean;
   onTarget: (itemId: string) => void;
   onExpandedChange: (expanded: boolean) => void;
   onMerge: (group: DuplicateGroup, targetId: string) => void;
@@ -161,7 +172,7 @@ function DuplicateSection({
         <AriaButton
           variant="primary"
           isPending={merging}
-          isDisabled={target === ''}
+          isDisabled={target === '' || (busy && !merging)}
           onPress={() => onMerge(group, target)}
         >
           {t('admin.maintenance.duplicates.merge')}

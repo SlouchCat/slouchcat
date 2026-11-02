@@ -141,6 +141,11 @@ describe('maintenance page', () => {
     expect(within(series).getByRole('link', { name: 'Episode 1' })).toBeVisible();
     expect(within(series).getByText('Folge')).toBeVisible();
     expect(screen.getByText('2 von 2')).toBeVisible();
+    // Without path and finding: a dash on screen, «keine Angabe» for screen readers.
+    const episodeRow = within(series).getByRole('row', { name: /^Episode 1/ });
+    for (const dash of within(episodeRow).getAllByText('–'))
+      expect(dash).toHaveAttribute('aria-hidden', 'true');
+    expect(within(episodeRow).getAllByText('keine Angabe')).toHaveLength(2);
   });
 
   it('groups the loaded issues in the order of the libraries; an unknown library comes last', async () => {
@@ -433,8 +438,12 @@ describe('maintenance page', () => {
 
   it('duplicates: one section per group across libraries; pick the title to keep, merge after confirmation', async () => {
     const user = userEvent.setup();
+    let finish: (response: Response) => void = () => undefined;
     const { calls } = setup({
-      'POST /admin/maintenance/merge': () => json({}),
+      'POST /admin/maintenance/merge': (() =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        })) as unknown as () => Response,
     });
     renderApp('/admin/maintenance');
     await user.click(await screen.findByRole('tab', { name: /^Duplikate/ }));
@@ -473,7 +482,15 @@ describe('maintenance page', () => {
         sourceIds: [id(8)],
       }),
     );
-    expect(await screen.findByText('Titel zusammengeführt.')).toBeVisible();
+    // While one group merges, the other groups wait.
+    await waitFor(() =>
+      expect(within(second).getByRole('button', { name: 'Zusammenführen' })).toBeDisabled(),
+    );
+
+    finish(json({}));
+    // The outcome lands in the tab's live region, which was there before it.
+    const outcome = await within(panel()).findByText('Titel zusammengeführt.');
+    expect(outcome.closest('[role="status"]')).not.toBeNull();
     await waitFor(() => expect(title()).toHaveFocus());
   });
 
