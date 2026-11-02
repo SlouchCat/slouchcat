@@ -1,164 +1,253 @@
-import type { Announcement, AnnouncementRequest, AnnouncementUpdate } from '@slouchcat/api-client';
+import type { Announcement, AnnouncementRequest } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState, type FormEvent } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
-import { formErrors, problemMessage } from '@/api/errors';
+import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
-import { formText } from '@/lib/form';
-import { formatDateTime } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Chip, Notice, Page, Skeleton, Text } from '@/ui';
+import { Notice, Skeleton, Text } from '@/ui';
 import {
+  AdminPage,
   AriaButton,
-  CheckboxGroup,
   ConfirmDialog,
-  DataTable,
-  Form,
-  FormDialog,
-  TextField,
-  type DataColumn,
+  MasterDetail,
+  useDrafts,
+  useSearchSelection,
+  useUnsavedChanges,
+  type MasterDetailItem,
 } from '@/ui/aria';
+import {
+  DraftDetail,
+  NewDetail,
+  PublishedDetail,
+  type AnnouncementText,
+  type NewAnnouncement,
+} from './announcements/AnnouncementDetail';
 import { adminAnnouncementsQuery } from './queries';
-import data from './AdminData.module.css';
-import styles from './AdminTablePage.module.css';
+import styles from './announcements/Announcements.module.css';
 
-/** Longest title and text the server takes (AnnouncementRequest). */
-const MAX_TITLE = 120;
-const MAX_BODY = 4000;
-
+/** The item of the new announcement while it is not saved: a stable id of its own (`?item=new`). */
+const NEW = 'new';
 /**
- * «Neue Ankündigung» or the change of a draft (`announcement`). A new one may go out at once;
- * a draft is published from its row.
+ * The item of a saved announcement (`?item=announcement-12`). Not the bare id: the router writes a
+ * text that reads as a number in quotes (`?item=%2212%22`).
  */
-function AnnouncementDialog({
-  announcement,
-  onClose,
-}: {
-  announcement: Announcement | null;
-  onClose: (saved: Announcement | null) => void;
-}) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [publish, setPublish] = useState<string[]>([]);
-  const publishNow = publish.includes('publish');
-  const save = useMutation({
-    mutationFn: (body: AnnouncementRequest | AnnouncementUpdate): Promise<Announcement> =>
-      announcement
-        ? request(
-            api.PUT('/admin/announcements/{id}', {
-              params: { path: { id: announcement.id } },
-              body,
-            }),
-          )
-        : request(api.POST('/admin/announcements', { body: { publish: false, ...body } })),
-    onSuccess: async (saved) => {
-      await queryClient.invalidateQueries({ queryKey: adminAnnouncementsQuery.queryKey });
-      onClose(saved);
-    },
+const itemOf = (announcement: Announcement) => `announcement-${announcement.id}`;
+
+const EMPTY_NEW: NewAnnouncement = { title: '', body: '', publish: false };
+
+/** What the server keeps of a text: without the blanks around title and text. */
+const trimmed = (text: AnnouncementText): AnnouncementText => ({
+  title: text.title.trim(),
+  body: text.body.trim(),
+});
+
+/** Resolves once React has rendered what the last cache update brought. */
+const afterRender = () =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
   });
-  const errors = save.error ? formErrors(t, save.error) : null;
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const body = { title: formText(form, 'title'), body: formText(form, 'body') };
-    save.mutate(announcement ? body : { ...body, publish: publishNow });
-  };
-
-  const required = (value: string) => (value.trim() ? null : t('errors.field.required'));
-  return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose(null);
-      }}
-      title={
-        announcement ? t('admin.announcements.form.editTitle') : t('admin.announcements.form.title')
-      }
-    >
-      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <div className={styles.form}>
-          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-          <TextField
-            name="title"
-            label={t('admin.announcements.form.titleLabel')}
-            defaultValue={announcement?.title}
-            maxLength={MAX_TITLE}
-            isRequired
-            validate={required}
-            autoComplete="off"
-          />
-          <TextField
-            name="body"
-            label={t('admin.announcements.form.body')}
-            description={t('admin.announcements.form.bodyHint', { max: MAX_BODY })}
-            defaultValue={announcement?.body}
-            rows={8}
-            maxLength={MAX_BODY}
-            isRequired
-            validate={required}
-          />
-          {!announcement && (
-            <CheckboxGroup
-              name="publish"
-              label={t('admin.announcements.form.publishLabel')}
-              description={t('admin.announcements.publish.reach')}
-              value={publish}
-              onChange={setPublish}
-              options={[{ value: 'publish', label: t('admin.announcements.form.publishNow') }]}
-            />
-          )}
-          <div className={styles.dialogActions}>
-            <AriaButton variant="ghost" onPress={() => onClose(null)}>
-              {t('common.cancel')}
-            </AriaButton>
-            <AriaButton type="submit" variant="primary" isPending={save.isPending}>
-              {save.isPending
-                ? t('common.saving')
-                : publishNow
-                  ? t('admin.announcements.publish.confirm')
-                  : t('admin.announcements.form.save')}
-            </AriaButton>
-          </div>
-        </div>
-      </Form>
-    </FormDialog>
-  );
+/** The one question of the page (publish, delete, discard). */
+interface Question {
+  title: string;
+  body: string;
+  confirmLabel: string;
+  tone: 'primary' | 'danger';
+  defaultFocus?: 'confirm' | 'cancel';
+  onConfirm: () => void;
 }
 
 /**
- * Announcements (A-7): news of the main user. Drafts can be changed; publishing shows one to every
- * profile at its next start and sends it on the channels the accounts chose. The counter says how
- * many profiles acknowledged it.
+ * Announcements (A-7; concept 12, variant B): news of the main user. The list on the left holds
+ * the drafts and the published ones; the right side shows the selected one with its dates, how
+ * many profiles read it, and «So sehen es die Profile», the content of the profiles' dialog with
+ * what is typed right now. Drafts are written and changed in place (ANK-1 to ANK-3); what is typed
+ * stays per announcement while another one is selected (useDrafts, S-17).
  */
 export function AnnouncementsPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   useDocumentTitle(t('admin.announcements.title'));
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!allowed) {
+    return (
+      <AdminPage title={t('admin.announcements.title')}>
+        <Notice title={t('admin.access.notAllowed.title')}>
+          {t('admin.access.notAllowed.body')}
+        </Notice>
+      </AdminPage>
+    );
+  }
+  return <AnnouncementsContent />;
+}
+
+function AnnouncementsContent() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const announcements = useQuery({ ...adminAnnouncementsQuery, enabled: allowed });
-  // `null`: a new one; an announcement: change that draft.
-  const [editing, setEditing] = useState<{ announcement: Announcement | null } | null>(null);
-  const [done, setDone] = useState<string | null>(null);
-  // A deleted row goes away with its buttons: the focus moves to the page heading.
-  const header = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const newTitleField = useRef<HTMLInputElement>(null);
+
+  // No refetch while a question is open or something is typed: the list stays as it was.
+  const hold = useRef(false);
+  const announcements = useQuery({
+    ...adminAnnouncementsQuery,
+    refetchOnWindowFocus: () => !hold.current,
+  });
+  const list = announcements.data;
+
+  const originalOf = useCallback(
+    (id: string): AnnouncementText | undefined => {
+      const saved = list?.find((entry) => String(entry.id) === id && !entry.publishedAt);
+      return saved ? { title: saved.title, body: saved.body } : undefined;
+    },
+    [list],
+  );
+  // Drafts of saved announcements, by id; a published one (here or elsewhere) has none. A draft
+  // the server comes to hold (saved), or whose announcement is published or deleted, is dropped
+  // by useDrafts itself; what is typed while a save waits stays a draft.
+  const drafts = useDrafts<AnnouncementText>(originalOf);
+  /** A draft counts as a change only if it differs in more than blanks around the text. */
+  const isChanged = (id: string) => {
+    const draft = drafts.valueOf(id);
+    const original = originalOf(id);
+    return (
+      drafts.isDirty(id) &&
+      draft !== undefined &&
+      original !== undefined &&
+      JSON.stringify(trimmed(draft)) !== JSON.stringify(trimmed(original))
+    );
+  };
+  const changed = drafts.dirtyIds.some(isChanged);
+  // The new one is not on the server yet, so it keeps its own state.
+  const [created, setCreated] = useState<NewAnnouncement | null>(null);
+  const newDirty = created !== null && (created.title.trim() !== '' || created.body.trim() !== '');
+  const unsaved = useUnsavedChanges(changed || newDirty);
+
+  const [question, setQuestion] = useState<Question | null>(null);
+  const [asking, setAsking] = useState(false);
+  useLayoutEffect(() => {
+    hold.current = asking || unsaved.pausePolling;
+  });
+
+  // Drafts first, then the published ones, each in the server's order (newest first).
+  const ordered = [
+    ...(list ?? []).filter((entry) => !entry.publishedAt),
+    ...(list ?? []).filter((entry) => entry.publishedAt),
+  ];
+  const first = ordered[0];
+  const fallback = created ? NEW : first ? itemOf(first) : '';
+  const ids = [...(created ? [NEW] : []), ...ordered.map(itemOf)];
+  const [selected] = useSearchSelection('item', ids, fallback);
+  /**
+   * Selects `id` in the address, replaced, not pushed; the first one without `?item=`. A promise,
+   * unlike useSearchSelection's: a save waits for it before the new one leaves the list.
+   */
+  const select = (id: string) =>
+    navigate({
+      to: '.',
+      replace: true,
+      search: ((previous: Record<string, unknown>) => ({
+        ...previous,
+        item: id === fallback ? undefined : id,
+      })) as never,
+    });
+  // An unknown `?item=` (deleted, or a new one that was never saved) shows the first one, and the
+  // address drops it too (replaced, not pushed).
+  const search: Record<string, unknown> = useSearch({ strict: false });
+  const askedItem = search.item;
+  const idsKey = ids.join(',');
+  const loaded = announcements.isSuccess;
+  useEffect(() => {
+    if (
+      loaded &&
+      askedItem !== undefined &&
+      !(typeof askedItem === 'string' && idsKey.split(',').includes(askedItem))
+    )
+      void navigate({
+        to: '.',
+        replace: true,
+        search: ((previous: Record<string, unknown>) => ({
+          ...previous,
+          item: undefined,
+        })) as never,
+      });
+  }, [loaded, askedItem, idsKey, navigate]);
+
+  // The outcome of the last action. `seq` counts every message, so the same text twice is
+  // announced twice: the notice is a new element each time.
+  const [message, setMessage] = useState<{ text: string; seq: number } | null>(null);
+  const say = (text: string) => setMessage((last) => ({ text, seq: (last?.seq ?? 0) + 1 }));
+
+  /**
+   * The focus fell to the body (its button or detail went with a change): the h1 takes it. A
+   * closing question keeps the focus until its exit animation ends and then hands it back to the
+   * button that asked, or drops it when that button went meanwhile; so this waits for it first.
+   */
+  const focusTitleIfLost = useCallback(async () => {
+    await afterRender();
+    for (let frames = 0; frames < 60; frames += 1) {
+      if (!document.activeElement?.closest('[data-exiting]')) break;
+      await afterRender();
+    }
+    await afterRender();
+    const active = document.activeElement;
+    if (!active || active === document.body) titleRef.current?.focus();
+  }, []);
+
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: adminAnnouncementsQuery.queryKey });
+  const put = (id: number, text: AnnouncementText): Promise<Announcement> =>
+    request(api.PUT('/admin/announcements/{id}', { params: { path: { id } }, body: text }));
+
+  const create = useMutation({
+    mutationFn: (body: AnnouncementRequest): Promise<Announcement> =>
+      request(api.POST('/admin/announcements', { body })),
+    onSuccess: async (saved) => {
+      await refresh();
+      // The saved one takes the new one's place in the list and in the address.
+      await select(itemOf(saved));
+      setCreated(null);
+      say(
+        saved.publishedAt
+          ? t('admin.announcements.published', { title: saved.title })
+          : t('admin.announcements.saved', { title: saved.title }),
+      );
+      await focusTitleIfLost();
+    },
+  });
+  const update = useMutation({
+    mutationFn: ({ announcement, text }: { announcement: Announcement; text: AnnouncementText }) =>
+      put(announcement.id, text),
+    onSuccess: async (saved) => {
+      await refresh();
+      say(t('admin.announcements.saved', { title: saved.title }));
+    },
+  });
   const publish = useMutation({
-    mutationFn: (announcement: Announcement): Promise<Announcement> =>
-      request(
+    // What is typed is what goes out: a changed draft is saved first.
+    mutationFn: async (announcement: Announcement): Promise<Announcement> => {
+      const id = String(announcement.id);
+      const draft = drafts.valueOf(id);
+      if (isChanged(id) && draft) await put(announcement.id, trimmed(draft));
+      return request(
         api.POST('/admin/announcements/{id}/publish', {
           params: { path: { id: announcement.id } },
         }),
-      ),
-    // "Bearbeiten" and "Veröffentlichen" go away with the draft state: focus to the heading.
-    onSuccess: async (published) => {
-      setDone(t('admin.announcements.published', { title: published.title }));
-      await refresh();
-      header.current?.focus();
+      );
     },
+    onSuccess: async (published) => {
+      await refresh();
+      say(t('admin.announcements.published', { title: published.title }));
+      // Its form and buttons are gone: once React rendered that, the h1 takes the focus.
+      await focusTitleIfLost();
+    },
+    // A draft saved before a refused publication is saved all the same.
+    onError: () => void refresh(),
   });
   const remove = useMutation({
     mutationFn: (announcement: Announcement) =>
@@ -166,193 +255,228 @@ export function AnnouncementsPage() {
         api.DELETE('/admin/announcements/{id}', { params: { path: { id: announcement.id } } }),
       ),
     onSuccess: async (_data, announcement) => {
-      setDone(t('admin.announcements.deleted', { title: announcement.title }));
       await refresh();
-      header.current?.focus();
+      say(t('admin.announcements.deleted', { title: announcement.title }));
+      await focusTitleIfLost();
     },
   });
   const failure = publish.error ?? remove.error;
+
   /** A new action starts: the outcome of the last one (message or error) goes away. */
   const start = () => {
-    setDone(null);
+    setMessage(null);
+    create.reset();
+    update.reset();
     publish.reset();
     remove.reset();
   };
 
-  const columns: DataColumn<Announcement>[] = [
-    {
-      key: 'title',
-      header: t('admin.announcements.columns.title'),
-      rowHeader: true,
-      cell: (announcement) => announcement.title,
+  // The question is the page's own: a detail that goes while it is open cannot take it along.
+  const ask = (next: Question) => {
+    setQuestion(next);
+    setAsking(true);
+  };
+  const onAskingChange = useCallback(
+    (open: boolean) => {
+      if (open) return;
+      setAsking(false);
+      // The button that asked may be gone by now.
+      void focusTitleIfLost();
     },
-    {
-      key: 'created',
-      header: t('admin.announcements.columns.created'),
-      cell: (announcement) => (
-        <time className={styles.nowrap} dateTime={announcement.createdAt}>
-          {formatDateTime(announcement.createdAt, i18n.language)}
-        </time>
-      ),
-    },
-    {
-      key: 'published',
-      header: t('admin.announcements.columns.published'),
-      cell: (announcement) =>
-        announcement.publishedAt ? (
-          <time className={styles.nowrap} dateTime={announcement.publishedAt}>
-            {formatDateTime(announcement.publishedAt, i18n.language)}
-          </time>
-        ) : (
-          <Chip tone="outline">{t('admin.announcements.draft')}</Chip>
-        ),
-    },
-    {
-      key: 'acknowledged',
-      header: t('admin.announcements.columns.acknowledged'),
-      cell: (announcement) =>
-        announcement.publishedAt ? (
-          <span className={styles.numbers}>
-            {t('admin.announcements.acknowledged', {
-              acknowledged: announcement.acknowledgedCount,
-              total: announcement.profileCount,
-            })}
-          </span>
-        ) : (
-          <span className={styles.muted}>{t('admin.announcements.notSent')}</span>
-        ),
-    },
-    {
-      key: 'actions',
-      header: t('admin.announcements.columns.actions'),
-      hideHeader: true,
-      align: 'end',
-      cell: (announcement) => (
-        <span className={styles.rowActions}>
-          {!announcement.publishedAt && (
-            <>
-              <AriaButton
-                variant="ghost"
-                aria-label={t('admin.announcements.edit.label', { title: announcement.title })}
-                onPress={() => {
-                  start();
-                  setEditing({ announcement });
-                }}
-              >
-                {t('admin.announcements.edit.action')}
-              </AriaButton>
-              <ConfirmDialog
-                trigger={
-                  <AriaButton
-                    variant="ghost"
-                    aria-label={t('admin.announcements.publish.label', {
-                      title: announcement.title,
-                    })}
-                  >
-                    {t('admin.announcements.publish.action')}
-                  </AriaButton>
-                }
-                title={t('admin.announcements.publish.title', { title: announcement.title })}
-                body={t('admin.announcements.publish.body')}
-                confirmLabel={t('admin.announcements.publish.confirm')}
-                cancelLabel={t('common.cancel')}
-                onConfirm={() => {
-                  start();
-                  publish.mutate(announcement);
-                }}
-              />
-            </>
-          )}
-          <ConfirmDialog
-            trigger={
-              <AriaButton
-                variant="ghost"
-                aria-label={t('admin.announcements.delete.label', { title: announcement.title })}
-              >
-                {t('admin.announcements.delete.action')}
-              </AriaButton>
-            }
-            title={t('admin.announcements.delete.title', { title: announcement.title })}
-            body={t('admin.announcements.delete.body')}
-            confirmLabel={t('admin.announcements.delete.confirm')}
-            cancelLabel={t('common.cancel')}
-            tone="danger"
-            onConfirm={() => {
-              start();
-              remove.mutate(announcement);
-            }}
-          />
-        </span>
-      ),
-    },
+    [focusTitleIfLost],
+  );
+
+  const openNew = () => {
+    start();
+    setCreated((current) => current ?? EMPTY_NEW);
+    void select(NEW);
+    void afterRender().then(() => newTitleField.current?.focus());
+  };
+  const dropNew = () => {
+    setCreated(null);
+    create.reset();
+  };
+
+  const askDelete = (announcement: Announcement) =>
+    ask({
+      title: t('admin.announcements.delete.title', { title: announcement.title }),
+      body: t('admin.announcements.delete.body'),
+      confirmLabel: t('admin.announcements.delete.confirm'),
+      tone: 'danger',
+      onConfirm: () => {
+        start();
+        remove.mutate(announcement);
+      },
+    });
+
+  const section = {
+    drafts: t('admin.announcements.sections.drafts'),
+    published: t('admin.announcements.sections.published'),
+  };
+  const items: MasterDetailItem[] = [
+    ...(created
+      ? [
+          {
+            id: NEW,
+            label: created.title.trim() || t('admin.announcements.form.title'),
+            description: t('admin.announcements.item.new'),
+            section: section.drafts,
+          },
+        ]
+      : []),
+    ...ordered.map((entry) => ({
+      id: itemOf(entry),
+      label: entry.title,
+      description: entry.publishedAt
+        ? t('admin.announcements.item.read', {
+            acknowledged: entry.acknowledgedCount,
+            total: entry.profileCount,
+          })
+        : isChanged(String(entry.id))
+          ? t('admin.announcements.item.changed')
+          : t('admin.announcements.item.created', {
+              date: formatDate(entry.createdAt, i18n.language),
+            }),
+      section: entry.publishedAt ? section.published : section.drafts,
+    })),
   ];
 
+  let detail: ReactNode = null;
+  const current = ordered.find((entry) => itemOf(entry) === selected);
+  if (selected === NEW && created) {
+    detail = (
+      <NewDetail
+        key={NEW}
+        value={created}
+        onChange={setCreated}
+        saving={create.isPending}
+        error={create.error}
+        titleRef={newTitleField}
+        onSave={() => {
+          setMessage(null);
+          create.mutate({ ...trimmed(created), publish: created.publish });
+        }}
+        onCancel={() => {
+          if (!newDirty) dropNew();
+          else
+            ask({
+              title: t('admin.announcements.discard.newTitle'),
+              body: t('admin.announcements.discard.newBody'),
+              confirmLabel: t('admin.announcements.discard.confirm'),
+              tone: 'danger',
+              defaultFocus: 'cancel',
+              onConfirm: dropNew,
+            });
+        }}
+      />
+    );
+  } else if (current?.publishedAt) {
+    detail = (
+      <PublishedDetail
+        key={current.id}
+        announcement={current}
+        onDelete={() => askDelete(current)}
+      />
+    );
+  } else if (current) {
+    const id = String(current.id);
+    const text = drafts.valueOf(id) ?? current;
+    detail = (
+      <DraftDetail
+        key={current.id}
+        announcement={current}
+        text={text}
+        dirty={isChanged(id)}
+        onChange={(next) => drafts.set(id, next)}
+        saving={update.isPending && update.variables?.announcement.id === current.id}
+        error={update.variables?.announcement.id === current.id ? update.error : null}
+        onSave={() => {
+          setMessage(null);
+          update.mutate({ announcement: current, text: trimmed(text) });
+        }}
+        onDiscard={() =>
+          ask({
+            title: t('admin.announcements.discard.title'),
+            body: t('admin.announcements.discard.body', { title: current.title }),
+            confirmLabel: t('admin.announcements.discard.confirm'),
+            tone: 'danger',
+            defaultFocus: 'cancel',
+            onConfirm: () => drafts.discard(id),
+          })
+        }
+        onPublish={() =>
+          ask({
+            title: t('admin.announcements.publish.title', { title: text.title.trim() }),
+            body: t('admin.announcements.publish.body'),
+            confirmLabel: t('admin.announcements.publish.confirm'),
+            tone: 'primary',
+            onConfirm: () => {
+              start();
+              publish.mutate(current);
+            },
+          })
+        }
+        onDelete={() => askDelete(current)}
+      />
+    );
+  }
+
   return (
-    <Page>
-      <div ref={header} tabIndex={-1} className={styles.header}>
-        <Text as="h1" variant="display">
-          {t('admin.announcements.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.announcements.intro')}</Text>
+    <AdminPage
+      title={t('admin.announcements.title')}
+      help={t('admin.announcements.intro')}
+      titleRef={titleRef}
+      actions={
+        <AriaButton variant="primary" icon="plus" onPress={openNew}>
+          {t('admin.announcements.create')}
+        </AriaButton>
+      }
+    >
+      {failure && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      <div role="status" className={styles.live}>
+        {message && !failure && (
+          <Notice key={message.seq} live={false}>
+            {message.text}
+          </Notice>
+        )}
       </div>
-      {!allowed ? (
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      ) : (
-        <div className={styles.body} aria-busy={announcements.isPending}>
-          <div className={data.toolbar}>
-            <AriaButton
-              variant="primary"
-              icon="plus"
-              onPress={() => {
-                start();
-                setEditing({ announcement: null });
-              }}
-            >
-              {t('admin.announcements.create')}
+      {announcements.isPending && <Skeleton shape="block" />}
+      {announcements.isError && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, announcements.error)}
+          actions={
+            <AriaButton icon="refresh" onPress={() => void announcements.refetch()}>
+              {t('common.retry')}
             </AriaButton>
-          </div>
-          {failure && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-          {done && !failure && <Notice>{done}</Notice>}
-          {announcements.isPending && <Skeleton shape="block" />}
-          {announcements.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, announcements.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void announcements.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {announcements.data?.length === 0 && <Notice>{t('admin.announcements.empty')}</Notice>}
-          {announcements.data && announcements.data.length > 0 && (
-            <DataTable
-              caption={t('admin.announcements.list')}
-              columns={columns}
-              rows={announcements.data}
-              rowKey={(announcement) => String(announcement.id)}
-            />
-          )}
-        </div>
-      )}
-      {editing && (
-        <AnnouncementDialog
-          announcement={editing.announcement}
-          onClose={(saved) => {
-            if (saved) {
-              setDone(
-                saved.publishedAt
-                  ? t('admin.announcements.published', { title: saved.title })
-                  : t('admin.announcements.saved', { title: saved.title }),
-              );
-            }
-            setEditing(null);
-          }}
+          }
         />
       )}
-    </Page>
+      {list && items.length === 0 && <Text tone="secondary">{t('admin.announcements.empty')}</Text>}
+      {list && items.length > 0 && (
+        <MasterDetail
+          label={t('admin.announcements.list')}
+          items={items}
+          selectedId={selected}
+          onSelect={(id) => void select(id)}
+        >
+          {detail}
+        </MasterDetail>
+      )}
+      {question && (
+        <ConfirmDialog
+          isOpen={asking}
+          onOpenChange={onAskingChange}
+          title={question.title}
+          body={question.body}
+          confirmLabel={question.confirmLabel}
+          cancelLabel={t('common.cancel')}
+          tone={question.tone}
+          defaultFocus={question.defaultFocus}
+          onConfirm={question.onConfirm}
+        />
+      )}
+      <ConfirmDialog {...unsaved.dialog} />
+    </AdminPage>
   );
 }

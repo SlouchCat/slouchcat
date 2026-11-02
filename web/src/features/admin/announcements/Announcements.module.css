@@ -1,0 +1,101 @@
+/* The announcements page (concept 12, variant B): what AdminPage, MasterDetail and BandPanel do
+   not lay out themselves. The facts, the form and the preview of the selected announcement. */
+
+/* A live region that is always there (role status), so even its first message is announced.
+   Empty, it takes back the gap of the page's column it stands in. */
+.live:empty {
+  margin-block-start: calc(-1 * var(--sc-section-gap));
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
+  margin: 0;
+  font-size: var(--sc-font-size-sm);
+}
+
+.facts > div {
+  display: contents;
+}
+
+.facts dt {
+  color: var(--sc-color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+/* «Gelesen»: the bar, then the same in words. */
+.read {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  align-items: center;
+}
+
+.bar {
+  flex: 1 1 8rem;
+  max-width: 16rem;
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.previewTitle {
+  margin: 0;
+  font-size: var(--sc-section-title-size);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* «So sehen es die Profile»: the dialog's content on a card of the dialog's look, on a quiet
+   ground that stands for the page behind it. */
+.stage {
+  display: flex;
+  justify-content: center;
+  padding: var(--sc-space-5);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-bg-base);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-dialog-gap);
+  width: 100%;
+  max-width: var(--sc-size-form-max);
+  min-width: 0;
+  padding: var(--sc-panel-padding);
+  border-radius: var(--sc-panel-radius);
+  background-color: var(--sc-color-bg-elevated);
+}

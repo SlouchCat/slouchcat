@@ -2489,12 +2489,20 @@
       "list": "Announcements",
       "empty": "No announcements yet.",
       "create": "New announcement",
-      "columns": {
-        "title": "Title",
+      "sections": {
+        "drafts": "Drafts",
+        "published": "Published"
+      },
+      "item": {
+        "new": "Not saved",
+        "changed": "Unsaved changes",
+        "created": "Created on {{date}}",
+        "read": "{{acknowledged}} of {{total}} read"
+      },
+      "facts": {
         "created": "Created",
         "published": "Published",
-        "acknowledged": "Read",
-        "actions": "Actions"
+        "acknowledged": "Read"
       },
       "draft": "Draft",
       "notSent": "Not sent yet",
@@ -2512,9 +2520,18 @@
         "publishNow": "Publish now",
         "save": "Save as draft"
       },
-      "edit": {
-        "action": "Edit",
-        "label": "Edit “{{title}}”"
+      "preview": {
+        "title": "How profiles see it",
+        "noTitle": "Title of the announcement",
+        "noBody": "The text appears here, the way profiles see it."
+      },
+      "discard": {
+        "action": "Discard",
+        "title": "Discard changes?",
+        "body": "The unsaved changes to “{{title}}” are lost.",
+        "newTitle": "Discard the new announcement?",
+        "newBody": "The new announcement is not saved yet. Its title and text are lost.",
+        "confirm": "Discard"
       },
       "publish": {
         "action": "Publish",

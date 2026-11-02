@@ -2489,12 +2489,20 @@
       "list": "Ankündigungen",
       "empty": "Noch keine Ankündigungen.",
       "create": "Neue Ankündigung",
-      "columns": {
-        "title": "Titel",
+      "sections": {
+        "drafts": "Entwürfe",
+        "published": "Veröffentlicht"
+      },
+      "item": {
+        "new": "Nicht gespeichert",
+        "changed": "Ungespeicherte Änderungen",
+        "created": "Erstellt am {{date}}",
+        "read": "{{acknowledged}} von {{total}} gelesen"
+      },
+      "facts": {
         "created": "Erstellt",
         "published": "Veröffentlicht",
-        "acknowledged": "Gelesen",
-        "actions": "Aktionen"
+        "acknowledged": "Gelesen"
       },
       "draft": "Entwurf",
       "notSent": "Noch nicht verschickt",
@@ -2512,9 +2520,18 @@
         "publishNow": "Sofort veröffentlichen",
         "save": "Als Entwurf speichern"
       },
-      "edit": {
-        "action": "Bearbeiten",
-        "label": "„{{title}}“ bearbeiten"
+      "preview": {
+        "title": "So sehen es die Profile",
+        "noTitle": "Titel der Ankündigung",
+        "noBody": "Der Text erscheint hier, so wie ihn die Profile sehen."
+      },
+      "discard": {
+        "action": "Verwerfen",
+        "title": "Änderungen verwerfen?",
+        "body": "Die ungespeicherten Änderungen an „{{title}}“ gehen verloren.",
+        "newTitle": "Neue Ankündigung verwerfen?",
+        "newBody": "Die neue Ankündigung ist noch nicht gespeichert. Titel und Text gehen verloren.",
+        "confirm": "Verwerfen"
       },
       "publish": {
         "action": "Veröffentlichen",

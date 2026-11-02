@@ -35,7 +35,7 @@ export {
 export { Form } from './Form';
 export { LinkCard } from './LinkCard';
 export { MenuButton } from './Menu';
-export { MessageDialog } from './MessageDialog';
+export { MessageContent, MessageDialog } from './MessageDialog';
 export { PathList, type PathItem } from './PathList';
 export { PinField } from './PinField';
 export {

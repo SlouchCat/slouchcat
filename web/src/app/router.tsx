@@ -478,6 +478,7 @@ const statsRoute = createRoute({
 const announcementsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/announcements',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
     () => import('@/features/admin/AnnouncementsPage'),
     'AnnouncementsPage',
