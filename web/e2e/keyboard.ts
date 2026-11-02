@@ -86,6 +86,11 @@ async function markLastTabbable(page: Page): Promise<void> {
  * keeps it on the last element) or wrap around. A trap cycles inside a region instead.
  */
 export async function expectNoFocusTrap(page: Page, max = 80): Promise<void> {
+  // A closing react-aria dialog stays in the DOM while its overlay plays the exit animation
+  // (`data-exiting`), focusable buttons and all. Marked then, its last button became the end of
+  // the page and was gone a moment later; headless Firefox stopped on the real last element and
+  // never reached the mark (admin-podcasts.spec, focus on the h1 right after a delete).
+  await expect(page.locator('[data-exiting]')).toHaveCount(0);
   await markLastTabbable(page);
   const seen: string[] = [];
   for (let presses = 0; presses < max; presses += 1) {
