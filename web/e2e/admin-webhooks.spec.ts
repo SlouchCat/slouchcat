@@ -12,8 +12,9 @@ import {
 
 // M9 webhooks (I-8, decision 5.6) against the real server: an integration is created by keyboard,
 // its address is shown once with a copy button, a real POST to that address queues a targeted scan
-// and lands in the event log, and renewing or deleting the integration asks first. Every test
-// removes the integrations it made.
+// and lands in the event log, and renewing or deleting the integration asks first. The
+// integrations stand in a table whose rows fold out into the path mapping and the event log
+// (concept 12, Int-A). Every test removes the integrations it made.
 
 interface IntegrationData {
   id: number;
@@ -81,6 +82,31 @@ async function openIntegrations(page: Page) {
   await expect(region(page, 'Webhooks von Radarr und Sonarr')).toBeVisible();
 }
 
+/** The name of an integration's first cell: its name, and «ungespeichert» with unsaved rows. */
+const rowName = (name: string) => new RegExp(`^${name}( ungespeichert)?$`);
+
+/** The button in the first cell of an integration's row that folds the row out. */
+const rowToggle = (page: Page, name: string) =>
+  region(page, 'Webhooks von Radarr und Sonarr')
+    .getByRole('table', { name: 'Webhook-Integrationen' })
+    .getByRole('button', { name: rowName(name) });
+
+/** The table row of an integration. */
+const integrationRow = (page: Page, name: string) =>
+  region(page, 'Webhooks von Radarr und Sonarr')
+    .getByRole('row')
+    .filter({ has: page.getByRole('rowheader', { name: rowName(name) }) });
+
+/** Folds the row of an integration out by keyboard. */
+async function openRow(page: Page, name: string) {
+  const toggle = rowToggle(page, name);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  return toggle;
+}
+
 test('an integration is created by keyboard and its address is shown exactly once', async ({
   page,
   owner,
@@ -92,7 +118,7 @@ test('an integration is created by keyboard and its address is shown exactly onc
 
     // Tab reaches the form; the name field, the kind and the button follow one another.
     await resetFocus(page);
-    await tabTo(page, webhooks.getByLabel('Name'), 120);
+    await tabTo(page, webhooks.getByLabel('Name', { exact: true }), 160);
     await expectVisibleFocus(page);
     await page.keyboard.type(name);
     await page.keyboard.press('Tab');
@@ -127,8 +153,10 @@ test('an integration is created by keyboard and its address is shown exactly onc
     await created.getByRole('button', { name: 'Ausblenden' }).focus();
     await page.keyboard.press('Enter');
     await expect(created).toHaveCount(0);
-    await expect(webhooks.getByText(`Adresse endet auf …${tail}`)).toBeVisible();
-    await expect(webhooks.getByText('Hat noch nie etwas gemeldet.')).toBeVisible();
+    const row = integrationRow(page, name);
+    await expect(row.getByRole('cell', { name: `…${tail}`, exact: true })).toBeVisible();
+    await expect(row.getByText('Hat noch nie etwas gemeldet.')).toBeVisible();
+    await expect(row.getByText('Radarr', { exact: true })).toBeVisible();
     await expect(page.getByText(url)).toHaveCount(0);
 
     const stored = (await listIntegrations(owner)).find((i) => i.name === name);
@@ -205,16 +233,21 @@ test('a webhook to the address scans the reported directory and lands in the eve
     // The page shows the same log, and the last contact is no longer empty.
     await openIntegrations(page);
     const webhooks = region(page, 'Webhooks von Radarr und Sonarr');
-    await expect(webhooks.getByText(/Letzte Meldung:/)).toBeVisible();
+    const row = integrationRow(page, name);
+    // Columns after the name: service, address, last report (a date now), actions.
+    await expect(row.getByRole('cell').nth(2)).toHaveText(/\d{1,2}\.\d{1,2}\.\d{4}/);
     const table = webhooks.getByRole('table', { name: `Meldungen von ${name}` });
+    // Folded, the row asks for no log; Enter on its first cell folds it out.
+    await expect(table).toHaveCount(0);
+    await openRow(page, name);
     await expect(table.getByText('Ausserhalb der Bibliotheken')).toBeVisible();
     await expect(table.getByText('Ordner wird gelesen')).toBeVisible();
     await expect(table.getByText('Test quittiert')).toBeVisible();
 
-    // The log is a read-only table: it holds no controls, so Tab passes it by instead of
-    // stopping in it, and the next stop is the button below.
+    // The fold-out is in the Tab order right after its row; the log below the mapping is a
+    // read-only table: it holds no controls, so Tab passes it by instead of stopping in it.
     await resetFocus(page);
-    await tabTo(page, webhooks.getByRole('button', { name: 'Zeile hinzufügen' }), 160);
+    await tabTo(page, webhooks.getByRole('button', { name: 'Zeile hinzufügen' }), 200);
     await expectVisibleFocus(page);
     await expect(table.getByRole('button')).toHaveCount(0);
     await expect(table.getByRole('link')).toHaveCount(0);
@@ -233,6 +266,8 @@ test('the path mapping is saved by keyboard and a relative path is refused', asy
     await createIntegration(owner, name, 'sonarr');
     await openIntegrations(page);
     const webhooks = region(page, 'Webhooks von Radarr und Sonarr');
+    const save = webhooks.getByRole('button', { name: `Pfad-Umsetzung von ${name} speichern` });
+    await openRow(page, name);
 
     await webhooks.getByRole('button', { name: 'Zeile hinzufügen' }).focus();
     await page.keyboard.press('Enter');
@@ -243,13 +278,24 @@ test('the path mapping is saved by keyboard and a relative path is refused', asy
     await page.keyboard.press('Tab');
     await expectFocusOn(page, to);
     await page.keyboard.type(MOVIES_DIR);
-    await webhooks.getByRole('button', { name: 'Speichern' }).focus();
+    await save.focus();
     await page.keyboard.press('Enter');
     await expect(from).toHaveAttribute('aria-invalid', 'true');
     expect((await listIntegrations(owner)).find((i) => i.name === name)?.pathMap).toEqual([]);
 
+    // Unsaved rows survive folding the row away and back (S-13); the row says they are there.
+    const toggle = rowToggle(page, name);
+    await toggle.focus();
+    await page.keyboard.press('Space');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(from).toHaveCount(0);
+    await expect(toggle).toHaveAccessibleName(`${name} ungespeichert`);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(to).toHaveValue(MOVIES_DIR);
+
     await from.fill('/tv');
-    await webhooks.getByRole('button', { name: 'Speichern' }).focus();
+    await save.focus();
     await page.keyboard.press('Enter');
     await expect(webhooks.getByText('Pfad-Umsetzung gespeichert.')).toBeVisible();
     expect((await listIntegrations(owner)).find((i) => i.name === name)?.pathMap).toEqual([
@@ -293,17 +339,25 @@ test('renewing and deleting ask first; Escape keeps everything', async ({ page, 
       fresh.slice(-4),
     );
 
-    // Deleting asks as well; after the confirmation the integration is gone. The revealed
-    // address is hidden first, so its heading cannot be mistaken for the integration's own.
+    // Deleting asks as well; after the confirmation the integration is gone and the focus, whose
+    // button went with the row, moves to the page's heading (ALL-2).
     await region(page, `Adresse für «${name}»`).getByRole('button', { name: 'Ausblenden' }).click();
     const remove = webhooks.getByRole('button', { name: `${name} löschen` });
     await remove.focus();
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: `«${name}» löschen?` });
     await expect(confirm.getByRole('button', { name: 'Löschen' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(confirm).toHaveCount(0);
+    await expectFocusOn(page, remove);
     await page.keyboard.press('Enter');
-    await expect(webhooks.getByRole('heading', { level: 3, name, exact: true })).toHaveCount(0);
+    await expect(confirm.getByRole('button', { name: 'Löschen' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(rowToggle(page, name)).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeFocused();
     expect((await listIntegrations(owner)).find((i) => i.name === name)).toBeUndefined();
+    // From the heading, Tab carries on through the page and out of it.
+    await expectNoFocusTrap(page, 200);
   } finally {
     await removeIntegrations(owner, name);
   }

@@ -1,51 +1,33 @@
-.sections {
+/* The six blocks: 20 px apart (concept 12, 10.2). Frame, band and padding come from BandPanel. */
+.blocks {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-6);
+  gap: var(--sc-space-5);
 }
 
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2) var(--sc-space-4);
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.headText {
-  display: flex;
-  flex: 1 1 20rem;
-  flex-direction: column;
-  gap: var(--sc-space-1);
-  min-width: 0;
-}
-
-.title {
-  font-size: var(--sc-font-size-lg);
-  font-weight: var(--sc-font-weight-semibold);
-  line-height: var(--sc-font-line-height-snug);
-}
-
-.items {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-6);
-}
-
-/* One key: separated from the next by a line, not by a panel of its own. */
-.item {
+/* The control column of a setting row: source, field, buttons and outcome one below the other. */
+.stack {
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-3);
-  padding-top: var(--sc-space-6);
-  border-top: 1px solid var(--sc-color-border-subtle);
+  width: 100%;
+  min-width: 0;
 }
 
-.item:first-child {
-  padding-top: 0;
-  border-top: 0;
+/* Chips and links keep their own width; forms, notices and the status line take the column's. */
+.stack > :not(form, div) {
+  align-self: flex-start;
 }
 
+/* The fold-out of a webhook: its path mapping, then its event log. */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+/* The heading of the address shown once (h3, S-3). */
 .itemTitle {
   font-size: var(--sc-font-size-md);
   font-weight: var(--sc-font-weight-semibold);
@@ -68,16 +50,21 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sc-space-2);
+  align-items: center;
 }
 
 /* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the panel it stands in (Panel: space 5). */
+   Empty, it takes back the gap of the column it stands in. */
 .live:empty {
-  margin-block-start: calc(-1 * var(--sc-space-5));
+  margin-block-start: calc(-1 * var(--sc-panel-gap));
 }
 
-.item .live:empty {
+.stack > .live:empty {
   margin-block-start: calc(-1 * var(--sc-space-3));
+}
+
+.form > .live:empty {
+  margin-block-start: calc(-1 * var(--sc-space-4));
 }
 
 .publicKey {

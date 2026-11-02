@@ -1777,6 +1777,7 @@
       },
       "saved": "{{name}} saved.",
       "cleared": "{{name}} deleted.",
+      "unsaved": "unsaved",
       "keys": {
         "title": "Provider keys",
         "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
@@ -1823,14 +1824,22 @@
         "title": "Webhooks from Radarr and Sonarr",
         "intro": "Radarr and Sonarr report changed files here, so new titles appear at once. Slouchcat never calls those services itself.",
         "empty": "No integration set up yet.",
-        "address": "Address ends in …{{tail}}",
-        "lastSeen": "Last report: {{at}}",
+        "caption": "Webhook integrations",
+        "tail": "…{{tail}}",
+        "columns": {
+          "name": "Name",
+          "kind": "Service",
+          "address": "Address",
+          "lastSeen": "Last report",
+          "actions": "Actions"
+        },
         "neverSeen": "Has never reported anything.",
         "kind": {
           "radarr": "Radarr",
           "sonarr": "Sonarr"
         },
         "form": {
+          "title": "New integration",
           "name": "Name",
           "nameHint": "Your choice; it only tells the entries of this list apart.",
           "kind": "Service",
@@ -1854,6 +1863,7 @@
           "removeAction": "Remove",
           "elsewhere": "Someone else has changed the path mapping of this integration in the meantime. Your rows are still here and will be stored when you save.",
           "takeOver": "Take the other version",
+          "saveLabel": "Save the path mapping of {{name}}",
           "saved": "Path mapping saved."
         },
         "log": {
@@ -1937,6 +1947,9 @@
         "toggle": "Look for new versions daily",
         "on": "Update check switched on.",
         "off": "Update check switched off."
+      },
+      "server": {
+        "title": "Server"
       },
       "publicUrl": {
         "title": "Public address",

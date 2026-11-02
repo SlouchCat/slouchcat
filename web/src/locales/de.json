@@ -1777,6 +1777,7 @@
       },
       "saved": "{{name}} gespeichert.",
       "cleared": "{{name}} gelöscht.",
+      "unsaved": "ungespeichert",
       "keys": {
         "title": "Schlüssel der Anbieter",
         "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
@@ -1823,14 +1824,22 @@
         "title": "Webhooks von Radarr und Sonarr",
         "intro": "Radarr und Sonarr melden geänderte Dateien hierher, damit neue Titel sofort erscheinen. Slouchcat fragt die Dienste nie von sich aus ab.",
         "empty": "Noch keine Integration eingerichtet.",
-        "address": "Adresse endet auf …{{tail}}",
-        "lastSeen": "Letzte Meldung: {{at}}",
+        "caption": "Webhook-Integrationen",
+        "tail": "…{{tail}}",
+        "columns": {
+          "name": "Name",
+          "kind": "Dienst",
+          "address": "Adresse",
+          "lastSeen": "Letzte Meldung",
+          "actions": "Aktionen"
+        },
         "neverSeen": "Hat noch nie etwas gemeldet.",
         "kind": {
           "radarr": "Radarr",
           "sonarr": "Sonarr"
         },
         "form": {
+          "title": "Neue Integration",
           "name": "Name",
           "nameHint": "Frei wählbar, nur zur Unterscheidung in dieser Liste.",
           "kind": "Dienst",
@@ -1854,6 +1863,7 @@
           "removeAction": "Entfernen",
           "elsewhere": "Ein anderer Zugang hat die Pfad-Umsetzung dieser Integration inzwischen geändert. Deine Zeilen stehen noch hier und werden beim Speichern übernommen.",
           "takeOver": "Andere Fassung übernehmen",
+          "saveLabel": "Pfad-Umsetzung von {{name}} speichern",
           "saved": "Pfad-Umsetzung gespeichert."
         },
         "log": {
@@ -1937,6 +1947,9 @@
         "toggle": "Täglich nach neuen Versionen suchen",
         "on": "Update-Prüfung eingeschaltet.",
         "off": "Update-Prüfung ausgeschaltet."
+      },
+      "server": {
+        "title": "Server"
       },
       "publicUrl": {
         "title": "Öffentliche Adresse",

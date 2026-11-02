@@ -6,7 +6,7 @@ import type {
   SMTPTLS,
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -14,16 +14,29 @@ import { paths } from '@/app/paths';
 import { sessionQuery, useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useTransientMutation } from '@/lib/useTransientMutation';
-import { Chip, Notice, Page, Panel, Skeleton, Text, TextLink } from '@/ui';
-import { AriaButton, ConfirmDialog, Form, RadioGroup, TextField } from '@/ui/aria';
+import { Chip, Notice, Skeleton, Text, TextLink } from '@/ui';
+import {
+  AdminPage,
+  AriaButton,
+  BandPanel,
+  ConfirmDialog,
+  Form,
+  RadioGroup,
+  SettingRow,
+  TextField,
+  useDrafts,
+  useUnsavedChanges,
+  type Drafts,
+} from '@/ui/aria';
 import {
   dashboardQuery,
+  integrationsQuery,
   rotatePushKeys,
   sendTestEmail,
   settingsQuery,
   updateSettings,
 } from './queries';
-import { WebhooksSection } from './WebhooksSection';
+import { WebhooksSection, type PathMapDraft } from './WebhooksSection';
 import styles from './IntegrationsPage.module.css';
 import table from './AdminTablePage.module.css';
 
@@ -42,6 +55,13 @@ const KEYS = [
 const TLS_MODES = ['starttls', 'tls', 'none'] as const satisfies readonly SMTPTLS[];
 
 const sourceTone = { env: 'info', stored: 'success', none: 'outline' } as const;
+
+/** Draft ids of the single text values: a key, the bot token, the SMTP password, the address. */
+const keyDraft = (keyName: KeyName) => `keys.${keyName}`;
+const TELEGRAM_DRAFT = 'telegram';
+const PASSWORD_DRAFT = 'email.password';
+const PUBLIC_URL_DRAFT = 'publicUrl';
+const EMAIL_DRAFT = 'email';
 
 /** After a part of the settings is stored: the answer is the whole new state of the page. */
 function useSettingsSaved(onSaved: (body: AdminSettingsUpdate) => void) {
@@ -79,35 +99,19 @@ function SourceChip({ source, hint }: { source: SettingSource; hint?: string }) 
   );
 }
 
-function Section({
-  title,
-  intro,
-  source,
-  children,
-}: {
-  title: string;
-  intro: string;
-  source?: ReactNode;
-  children: ReactNode;
-}) {
-  const id = useId();
+/** The band's state: where the block's value comes from, and whether it holds unsaved input. */
+function BandMeta({ source, unsaved }: { source?: SettingSource; unsaved: boolean }) {
+  const { t } = useTranslation();
+  if (!source && !unsaved) return null;
   return (
-    <Panel as="section" aria-labelledby={id}>
-      <div className={styles.head}>
-        <div className={styles.headText}>
-          <h2 id={id} className={styles.title}>
-            {title}
-          </h2>
-          <Text tone="secondary">{intro}</Text>
-        </div>
-        {source}
-      </div>
-      {children}
-    </Panel>
+    <>
+      {unsaved && <Chip tone="warning">{t('admin.integrations.unsaved')}</Chip>}
+      {source && <SourceChip source={source} />}
+    </>
   );
 }
 
-/** The outcome of a section's last action: an error notice or a polite status line. */
+/** The outcome of a block's last action: an error notice or a polite status line. */
 function Outcome({ error, message }: { error: unknown; message: string | null }) {
   const { t } = useTranslation();
   return (
@@ -163,14 +167,23 @@ function Actions({
 }
 
 /** One provider key: write-only input, save and delete; read-only when deploy/.env sets it. */
-function KeyForm({ keyName, state }: { keyName: KeyName; state: KeyState }) {
+function KeyRow({
+  keyName,
+  state,
+  drafts,
+}: {
+  keyName: KeyName;
+  state: KeyState;
+  drafts: Drafts<string>;
+}) {
   const { t } = useTranslation();
-  const [value, setValue] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const draft = keyDraft(keyName);
+  const value = drafts.valueOf(draft) ?? '';
   const name = t(`admin.integrations.keys.${keyName}.name`);
   const field = `keys.${keyName}`;
   const save = useSecretUpdate((body) => {
-    setValue('');
+    drafts.discard(draft);
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const errors = save.error ? formErrors(t, save.error, { tmdbApiKey: field }) : null;
@@ -183,63 +196,54 @@ function KeyForm({ keyName, state }: { keyName: KeyName; state: KeyState }) {
   };
 
   return (
-    <div className={styles.item}>
-      <div className={styles.head}>
-        <h3 className={styles.itemTitle}>{name}</h3>
-        <SourceChip source={state.source} hint={state.hint} />
-      </div>
-      <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <TextField
-          name={field}
-          type="password"
-          label={t(`admin.integrations.keys.${keyName}.label`)}
-          description={
-            env
-              ? t('admin.integrations.envHint')
-              : state.source === 'stored'
-                ? t('admin.integrations.keys.newValue')
-                : t(`admin.integrations.keys.${keyName}.description`)
-          }
-          autoComplete="off"
-          spellCheck="false"
-          mono
-          isDisabled={env}
-          isRequired={!env}
-          value={value}
-          onChange={setValue}
-          validate={(text) => (env || text.trim() ? null : t('errors.field.required'))}
-        />
-        {!env && (
-          <Actions
-            name={name}
-            saveLabel={t('admin.integrations.keys.saveLabel', { name })}
-            stored={state.source === 'stored'}
-            isPending={save.isPending}
-            onClear={() => {
-              setMessage(null);
-              void save.run({ clear: [keyName] });
-            }}
+    <SettingRow label={name} help={t(`admin.integrations.keys.${keyName}.description`)}>
+      <div className={styles.stack}>
+        <Form className={styles.stack} onSubmit={onSubmit} validationErrors={errors?.fields}>
+          <TextField
+            name={field}
+            type="password"
+            label={t(`admin.integrations.keys.${keyName}.label`)}
+            description={
+              env
+                ? t('admin.integrations.envHint')
+                : state.source === 'stored'
+                  ? t('admin.integrations.keys.newValue')
+                  : undefined
+            }
+            autoComplete="off"
+            spellCheck="false"
+            mono
+            isDisabled={env}
+            isRequired={!env}
+            value={value}
+            onChange={(text) => drafts.set(draft, text)}
+            validate={(text) => (env || text.trim() ? null : t('errors.field.required'))}
           />
+          {env ? (
+            <SourceChip source={state.source} />
+          ) : (
+            <Actions
+              name={name}
+              saveLabel={t('admin.integrations.keys.saveLabel', { name })}
+              stored={state.source === 'stored'}
+              isPending={save.isPending}
+              onClear={() => {
+                setMessage(null);
+                void save.run({ clear: [keyName] });
+              }}
+            >
+              <SourceChip source={state.source} hint={state.hint} />
+            </Actions>
+          )}
+        </Form>
+        <Outcome error={errors?.form ? save.error : null} message={message} />
+        {keyName === 'trakt' && (
+          <TextLink href={paths.adminSpotlight}>
+            {t('admin.integrations.keys.traktStatus')}
+          </TextLink>
         )}
-      </Form>
-      <Outcome error={errors?.form ? save.error : null} message={message} />
-      {keyName === 'trakt' && (
-        <TextLink href={paths.adminSpotlight}>{t('admin.integrations.keys.traktStatus')}</TextLink>
-      )}
-    </div>
-  );
-}
-
-function KeysSection({ keys }: { keys: AdminSettings['keys'] }) {
-  const { t } = useTranslation();
-  return (
-    <Section title={t('admin.integrations.keys.title')} intro={t('admin.integrations.keys.intro')}>
-      <div className={styles.items}>
-        {KEYS.map((keyName) => (
-          <KeyForm key={keyName} keyName={keyName} state={keys[keyName]} />
-        ))}
       </div>
-    </Section>
+    </SettingRow>
   );
 }
 
@@ -260,16 +264,24 @@ const emailValues = (email: AdminSettings['email']): EmailValues => ({
 });
 
 /** The e-mail server: host, port, user, write-only password, sender, TLS; and a test mail. */
-function EmailSection({ email }: { email: AdminSettings['email'] }) {
+function EmailForm({
+  email,
+  drafts,
+  fields,
+}: {
+  email: AdminSettings['email'];
+  drafts: Drafts<EmailValues>;
+  fields: Drafts<string>;
+}) {
   const { t } = useTranslation();
   const session = useActiveSession();
-  const [values, setValues] = useState(() => emailValues(email));
-  const [password, setPassword] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const values = drafts.valueOf(EMAIL_DRAFT) ?? emailValues(email);
+  const password = fields.valueOf(PASSWORD_DRAFT) ?? '';
   const name = t('admin.integrations.email.name');
   const save = useSecretUpdate((body) => {
-    setPassword('');
-    if (body.clear) setValues(emailValues({ source: 'none' }));
+    drafts.discard(EMAIL_DRAFT);
+    fields.discard(PASSWORD_DRAFT);
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const test = useMutation({
@@ -281,7 +293,7 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
   const errors = save.error ? formErrors(t, save.error) : null;
   const env = email.source === 'env';
   const change = (field: keyof EmailValues) => (value: string) =>
-    setValues((current) => ({ ...current, [field]: value }));
+    drafts.set(EMAIL_DRAFT, (current) => ({ ...current, [field]: value }));
   const required = (text: string) => (env || text.trim() ? null : t('errors.field.required'));
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -306,11 +318,8 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
       : null;
 
   return (
-    <Section
-      title={t('admin.integrations.email.title')}
-      intro={t('admin.integrations.email.intro')}
-      source={<SourceChip source={email.source} />}
-    >
+    <>
+      <Text tone="secondary">{t('admin.integrations.email.intro')}</Text>
       {env && <Text tone="secondary">{t('admin.integrations.envHint')}</Text>}
       <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
         <div className={styles.fields}>
@@ -363,7 +372,7 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
             autoComplete="new-password"
             isDisabled={env}
             value={password}
-            onChange={setPassword}
+            onChange={(text) => fields.set(PASSWORD_DRAFT, text)}
           />
         </div>
         <TextField
@@ -384,7 +393,7 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
           isDisabled={env}
           value={values.tls}
           onChange={(value) =>
-            setValues((current) => ({
+            drafts.set(EMAIL_DRAFT, (current) => ({
               ...current,
               tls: TLS_MODES.find((mode) => mode === value) ?? 'starttls',
             }))
@@ -424,18 +433,24 @@ function EmailSection({ email }: { email: AdminSettings['email'] }) {
         test.error && <Notice tone="danger">{problemMessage(t, test.error)}</Notice>
       )}
       <Outcome error={errors?.form ? save.error : null} message={message} />
-    </Section>
+    </>
   );
 }
 
 /** The Telegram bot: write-only token (checked by the server with getMe) and its name. */
-function TelegramSection({ telegram }: { telegram: AdminSettings['telegram'] }) {
+function TelegramForm({
+  telegram,
+  fields,
+}: {
+  telegram: AdminSettings['telegram'];
+  fields: Drafts<string>;
+}) {
   const { t } = useTranslation();
-  const [token, setToken] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const token = fields.valueOf(TELEGRAM_DRAFT) ?? '';
   const name = t('admin.integrations.telegram.name');
   const save = useSecretUpdate((body) => {
-    setToken('');
+    fields.discard(TELEGRAM_DRAFT);
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const errors = save.error ? formErrors(t, save.error) : null;
@@ -448,11 +463,8 @@ function TelegramSection({ telegram }: { telegram: AdminSettings['telegram'] }) 
   };
 
   return (
-    <Section
-      title={t('admin.integrations.telegram.title')}
-      intro={t('admin.integrations.telegram.intro')}
-      source={<SourceChip source={telegram.source} />}
-    >
+    <>
+      <Text tone="secondary">{t('admin.integrations.telegram.intro')}</Text>
       {telegram.botUsername && (
         <Text>{t('admin.integrations.telegram.bot', { name: telegram.botUsername })}</Text>
       )}
@@ -470,7 +482,7 @@ function TelegramSection({ telegram }: { telegram: AdminSettings['telegram'] }) 
           isDisabled={env}
           isRequired={!env}
           value={token}
-          onChange={setToken}
+          onChange={(text) => fields.set(TELEGRAM_DRAFT, text)}
           validate={(text) => (env || text.trim() ? null : t('errors.field.required'))}
         />
         {!env && (
@@ -486,12 +498,12 @@ function TelegramSection({ telegram }: { telegram: AdminSettings['telegram'] }) 
         )}
       </Form>
       <Outcome error={errors?.form ? save.error : null} message={message} />
-    </Section>
+    </>
   );
 }
 
 /** Web Push: whether a VAPID pair exists, its public key, and a new pair after a confirmation. */
-function PushSection({ push }: { push: AdminSettings['push'] }) {
+function PushBlock({ push }: { push: AdminSettings['push'] }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
@@ -504,7 +516,8 @@ function PushSection({ push }: { push: AdminSettings['push'] }) {
     },
   });
   return (
-    <Section title={t('admin.integrations.push.title')} intro={t('admin.integrations.push.intro')}>
+    <>
+      <Text tone="secondary">{t('admin.integrations.push.intro')}</Text>
       <Text tone="secondary">
         {push.configured
           ? t('admin.integrations.push.configured')
@@ -534,12 +547,12 @@ function PushSection({ push }: { push: AdminSettings['push'] }) {
         />
       </div>
       <Outcome error={rotate.error} message={message} />
-    </Section>
+    </>
   );
 }
 
 /** The daily update check (A-5): a switch that is stored at once. */
-function UpdateSection({ enabled }: { enabled: boolean }) {
+function UpdateRow({ enabled }: { enabled: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
@@ -552,34 +565,36 @@ function UpdateSection({ enabled }: { enabled: boolean }) {
   });
   const checked = save.isPending ? (save.variables.updateCheckEnabled ?? enabled) : enabled;
   return (
-    <Section
-      title={t('admin.integrations.update.title')}
-      intro={t('admin.integrations.update.intro')}
+    <SettingRow
+      label={t('admin.integrations.update.title')}
+      help={t('admin.integrations.update.intro')}
     >
-      <label className={styles.toggle}>
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(event) => {
-            setMessage(null);
-            save.mutate({ updateCheckEnabled: event.target.checked });
-          }}
-        />
-        {t('admin.integrations.update.toggle')}
-      </label>
-      <Outcome error={save.error} message={message} />
-    </Section>
+      <div className={styles.stack}>
+        <label className={styles.toggle}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(event) => {
+              setMessage(null);
+              save.mutate({ updateCheckEnabled: event.target.checked });
+            }}
+          />
+          {t('admin.integrations.update.toggle')}
+        </label>
+        <Outcome error={save.error} message={message} />
+      </div>
+    </SettingRow>
   );
 }
 
 /** The public address for links in e-mails and messages. */
-function PublicUrlSection({ settings }: { settings: AdminSettings }) {
+function PublicUrlRow({ settings, fields }: { settings: AdminSettings; fields: Drafts<string> }) {
   const { t } = useTranslation();
-  const [value, setValue] = useState(settings.publicUrl ?? '');
   const [message, setMessage] = useState<string | null>(null);
+  const value = fields.valueOf(PUBLIC_URL_DRAFT) ?? '';
   const name = t('admin.integrations.publicUrl.name');
   const save = useSettingsUpdate((body) => {
-    if (body.clear) setValue('');
+    fields.discard(PUBLIC_URL_DRAFT);
     setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
   });
   const errors = save.error ? formErrors(t, save.error) : null;
@@ -592,56 +607,64 @@ function PublicUrlSection({ settings }: { settings: AdminSettings }) {
   };
 
   return (
-    <Section
-      title={t('admin.integrations.publicUrl.title')}
-      intro={t('admin.integrations.publicUrl.intro')}
-      source={<SourceChip source={settings.publicUrlSource} />}
+    <SettingRow
+      label={t('admin.integrations.publicUrl.title')}
+      help={t('admin.integrations.publicUrl.intro')}
     >
-      <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <TextField
-          name="publicUrl"
-          type="url"
-          label={t('admin.integrations.publicUrl.label')}
-          description={
-            env ? t('admin.integrations.envHint') : t('admin.integrations.publicUrl.hint')
-          }
-          autoComplete="off"
-          spellCheck="false"
-          mono
-          isDisabled={env}
-          isRequired={!env}
-          value={value}
-          onChange={setValue}
-          validate={(text) => {
-            if (env) return null;
-            if (!text.trim()) return t('errors.field.required');
-            return /^https?:\/\/[^\s?#]+$/i.test(text.trim())
-              ? null
-              : t('errors.field.invalid_url');
-          }}
-        />
-        {!env && (
-          <Actions
-            name={name}
-            stored={settings.publicUrlSource === 'stored'}
-            isPending={save.isPending}
-            onClear={() => {
-              setMessage(null);
-              save.mutate({ clear: ['publicUrl'] });
+      <div className={styles.stack}>
+        <Form className={styles.stack} onSubmit={onSubmit} validationErrors={errors?.fields}>
+          <TextField
+            name="publicUrl"
+            type="url"
+            label={t('admin.integrations.publicUrl.label')}
+            description={
+              env ? t('admin.integrations.envHint') : t('admin.integrations.publicUrl.hint')
+            }
+            autoComplete="off"
+            spellCheck="false"
+            mono
+            isDisabled={env}
+            isRequired={!env}
+            value={value}
+            onChange={(text) => fields.set(PUBLIC_URL_DRAFT, text)}
+            validate={(text) => {
+              if (env) return null;
+              if (!text.trim()) return t('errors.field.required');
+              return /^https?:\/\/[^\s?#]+$/i.test(text.trim())
+                ? null
+                : t('errors.field.invalid_url');
             }}
           />
-        )}
-      </Form>
-      <Outcome error={errors?.form ? save.error : null} message={message} />
-    </Section>
+          {env ? (
+            <SourceChip source={settings.publicUrlSource} />
+          ) : (
+            <Actions
+              name={name}
+              stored={settings.publicUrlSource === 'stored'}
+              isPending={save.isPending}
+              onClear={() => {
+                setMessage(null);
+                save.mutate({ clear: ['publicUrl'] });
+              }}
+            >
+              <SourceChip source={settings.publicUrlSource} />
+            </Actions>
+          )}
+        </Form>
+        <Outcome error={errors?.form ? save.error : null} message={message} />
+      </div>
+    </SettingRow>
   );
 }
 
 /**
- * Integrations (A-2, M7's key page): provider keys, the incoming webhooks of Radarr and Sonarr
- * (M9, I-8), the e-mail server with a test mail, the Telegram bot, the Web Push keys, the update
- * check and the public address. Secrets are write-only: a stored key
- * shows its last four characters at most; a value from deploy/.env cannot be changed here.
+ * Integrations (A-2, M7's key page; concept 12, variant A): six blocks that fold away by their
+ * band (provider keys, the incoming webhooks of Radarr and Sonarr, the e-mail server with a test
+ * mail, the Telegram bot, the Web Push keys, and the server's update check and public address).
+ * Every block starts open; unsaved input lives in the page (useDrafts), so folding a block or a
+ * webhook away keeps it, and leaving the page with it asks first (S-13, S-17). Secrets are
+ * write-only: a stored key shows its last four characters at most; a value from deploy/.env
+ * cannot be changed here.
  */
 export function IntegrationsPage() {
   const { t } = useTranslation();
@@ -649,21 +672,48 @@ export function IntegrationsPage() {
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const settings = useQuery({ ...settingsQuery, enabled: allowed });
+  const integrations = useQuery({ ...integrationsQuery, enabled: allowed });
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  // The originals of the drafts: secrets are write-only, so their original is empty.
+  const data = settings.data;
+  const fields = useDrafts<string>(
+    useCallback(
+      (id: string) => (data ? (id === PUBLIC_URL_DRAFT ? (data.publicUrl ?? '') : '') : undefined),
+      [data],
+    ),
+  );
+  const email = useDrafts<EmailValues>(
+    useCallback(
+      (id: string) => (data && id === EMAIL_DRAFT ? emailValues(data.email) : undefined),
+      [data],
+    ),
+  );
+  const list = integrations.data;
+  const pathMaps = useDrafts<PathMapDraft>(
+    useCallback(
+      (id: string) => {
+        const integration = list?.find((entry) => String(entry.id) === id);
+        return integration && { base: integration.pathMap, rows: integration.pathMap };
+      },
+      [list],
+    ),
+  );
+  const unsaved = useUnsavedChanges(fields.dirty || email.dirty || pathMaps.dirty);
+  const keysDirty = KEYS.some((keyName) => fields.isDirty(keyDraft(keyName)));
 
   return (
-    <Page>
-      <div className={table.header}>
-        <Text as="h1" variant="display">
-          {t('admin.integrations.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.integrations.intro')}</Text>
-      </div>
+    <AdminPage
+      title={t('admin.integrations.title')}
+      help={t('admin.integrations.intro')}
+      titleRef={titleRef}
+    >
       {!allowed ? (
         <Notice title={t('admin.access.notAllowed.title')}>
           {t('admin.access.notAllowed.body')}
         </Notice>
       ) : (
-        <div className={styles.sections} aria-busy={settings.isPending}>
+        <div className={styles.blocks} aria-busy={settings.isPending}>
           {settings.isPending && <Skeleton shape="block" />}
           {settings.isError && (
             <Notice
@@ -676,19 +726,79 @@ export function IntegrationsPage() {
               }
             />
           )}
-          {settings.data && (
+          {data && (
             <>
-              <KeysSection keys={settings.data.keys} />
-              <WebhooksSection />
-              <EmailSection email={settings.data.email} />
-              <TelegramSection telegram={settings.data.telegram} />
-              <PushSection push={settings.data.push} />
-              <UpdateSection enabled={settings.data.updateCheckEnabled} />
-              <PublicUrlSection settings={settings.data} />
+              <BandPanel
+                collapsible
+                icon="lock"
+                title={t('admin.integrations.keys.title')}
+                meta={<BandMeta unsaved={keysDirty} />}
+              >
+                <Text tone="secondary">{t('admin.integrations.keys.intro')}</Text>
+                <div>
+                  {KEYS.map((keyName) => (
+                    <KeyRow
+                      key={keyName}
+                      keyName={keyName}
+                      state={data.keys[keyName]}
+                      drafts={fields}
+                    />
+                  ))}
+                </div>
+              </BandPanel>
+              <BandPanel
+                collapsible
+                icon="plug"
+                title={t('admin.integrations.webhooks.title')}
+                meta={<BandMeta unsaved={pathMaps.dirty} />}
+              >
+                <WebhooksSection drafts={pathMaps} onRemoved={() => titleRef.current?.focus()} />
+              </BandPanel>
+              <BandPanel
+                collapsible
+                icon="megaphone"
+                title={t('admin.integrations.email.title')}
+                meta={
+                  <BandMeta
+                    source={data.email.source}
+                    unsaved={email.dirty || fields.isDirty(PASSWORD_DRAFT)}
+                  />
+                }
+              >
+                <EmailForm email={data.email} drafts={email} fields={fields} />
+              </BandPanel>
+              <BandPanel
+                collapsible
+                icon="external"
+                title={t('admin.integrations.telegram.title')}
+                meta={
+                  <BandMeta
+                    source={data.telegram.source}
+                    unsaved={fields.isDirty(TELEGRAM_DRAFT)}
+                  />
+                }
+              >
+                <TelegramForm telegram={data.telegram} fields={fields} />
+              </BandPanel>
+              <BandPanel collapsible icon="bell" title={t('admin.integrations.push.title')}>
+                <PushBlock push={data.push} />
+              </BandPanel>
+              <BandPanel
+                collapsible
+                icon="server"
+                title={t('admin.integrations.server.title')}
+                meta={<BandMeta unsaved={fields.isDirty(PUBLIC_URL_DRAFT)} />}
+              >
+                <div>
+                  <UpdateRow enabled={data.updateCheckEnabled} />
+                  <PublicUrlRow settings={data} fields={fields} />
+                </div>
+              </BandPanel>
             </>
           )}
         </div>
       )}
-    </Page>
+      <ConfirmDialog {...unsaved.dialog} />
+    </AdminPage>
   );
 }

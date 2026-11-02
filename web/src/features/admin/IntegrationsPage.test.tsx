@@ -4,8 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
 
-// Integrations (A-2): provider keys, e-mail server, Telegram bot, Web Push, update check and
-// public address. Secrets are write-only; values from deploy/.env are read-only here.
+// Integrations (A-2; concept 12, variant A): six blocks that fold away by their band — provider
+// keys, webhooks, e-mail server, Telegram bot, Web Push, and the server's update check and public
+// address. Secrets are write-only; values from deploy/.env are read-only here. Unsaved input
+// survives a folded block and makes leaving the page ask first (S-13, S-17).
 
 const settings = (overrides: Partial<AdminSettings> = {}): AdminSettings => ({
   publicUrlSource: 'none',
@@ -35,6 +37,19 @@ const routes = (extra: Routes = {}): Routes => ({
 
 const section = (name: string) => screen.getByRole('region', { name });
 
+/** A setting row of the «Server» block: a group named by its label. */
+const serverRow = async (name: string) =>
+  within(await screen.findByRole('region', { name: 'Server' })).getByRole('group', { name });
+
+const BLOCKS = [
+  'Schlüssel der Anbieter',
+  'Webhooks von Radarr und Sonarr',
+  'E-Mail-Server',
+  'Telegram-Bot',
+  'Web-Push',
+  'Server',
+];
+
 const puts = (calls: { method: string; path: string; body: unknown }[]) =>
   calls
     .filter((call) => call.method === 'PUT' && call.path === '/admin/settings')
@@ -52,7 +67,10 @@ describe('integrations (A-2)', () => {
     expect(within(keys).getAllByText('Nicht gesetzt')).toHaveLength(5);
     expect(within(keys).getByText('In deploy/.env gesetzt')).toBeVisible();
 
-    const trakt = within(keys).getByLabelText('Trakt-Client-ID');
+    // One row per key (S-7): the row is a group named like the key, the field inside it.
+    const traktRow = within(keys).getByRole('group', { name: 'Trakt-Client-ID' });
+    expect(traktRow).toHaveAccessibleDescription(/Trending/);
+    const trakt = within(traktRow).getByLabelText('Trakt-Client-ID');
     expect(trakt).toBeDisabled();
     expect(trakt).toHaveAccessibleDescription(/Ändern lässt sich der Wert nur dort/);
     expect(
@@ -357,12 +375,14 @@ describe('integrations (A-2)', () => {
     );
     renderApp('/admin/integrations');
     const user = userEvent.setup();
-    const toggle = await screen.findByRole('checkbox', {
+    const update = await serverRow('Update-Prüfung');
+    expect(update).toHaveAccessibleDescription(/Installiert wird nichts/);
+    const toggle = within(update).getByRole('checkbox', {
       name: 'Täglich nach neuen Versionen suchen',
     });
     expect(toggle).toBeChecked();
     await user.click(toggle);
-    expect(await screen.findByText('Update-Prüfung ausgeschaltet.')).toBeVisible();
+    expect(await within(update).findByText('Update-Prüfung ausgeschaltet.')).toBeVisible();
     expect(toggle).not.toBeChecked();
     await user.click(toggle);
     expect(await screen.findByText('Update-Prüfung eingeschaltet.')).toBeVisible();
@@ -386,7 +406,7 @@ describe('integrations (A-2)', () => {
     );
     renderApp('/admin/integrations');
     const user = userEvent.setup();
-    const address = await screen.findByRole('region', { name: 'Öffentliche Adresse' });
+    const address = await serverRow('Öffentliche Adresse');
     const field = within(address).getByLabelText('Adresse');
     await user.type(field, 'media.example.ch');
     await user.click(within(address).getByRole('button', { name: 'Speichern' }));
@@ -410,6 +430,96 @@ describe('integrations (A-2)', () => {
       { publicUrl: 'https://media.example.ch' },
       { clear: ['publicUrl'] },
     ]);
+  });
+
+  it('keeps the intro behind the help button; six blocks start open and fold by keyboard', async () => {
+    mockApi(routes());
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+    const help = screen.getByRole('button', { name: 'Hilfe zu dieser Seite' });
+    expect(screen.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).not.toBeVisible();
+    await user.click(help);
+    expect(screen.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeVisible();
+
+    await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
+    const bands = BLOCKS.map((name) =>
+      within(section(name)).getByRole('button', { name, expanded: true }),
+    );
+    expect(bands).toHaveLength(6);
+    for (const band of bands) {
+      expect(within(band.closest('h2')!).getByRole('button')).toBe(band);
+    }
+
+    // Enter folds the e-mail block away, Space opens it again.
+    const mail = bands[2]!;
+    mail.focus();
+    await user.keyboard('{Enter}');
+    expect(mail).toHaveAttribute('aria-expanded', 'false');
+    expect(within(section('E-Mail-Server')).queryByRole('textbox', { name: 'Server' })).toBeNull();
+    expect(mail).toHaveFocus();
+    await user.keyboard(' ');
+    expect(mail).toHaveAttribute('aria-expanded', 'true');
+    expect(within(section('E-Mail-Server')).getByRole('textbox', { name: 'Server' })).toBeVisible();
+  });
+
+  it('a folded block keeps what was typed in it (S-13)', async () => {
+    const { calls } = mockApi(routes({ 'PUT /admin/settings': () => json(settings()) }));
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
+    await user.type(within(keys).getByLabelText('YouTube-API-Schlüssel'), 'yt-draft');
+    await user.type(within(section('Telegram-Bot')).getByLabelText('Bot-Token'), '1:draft');
+    await user.type(within(section('E-Mail-Server')).getByLabelText('Server'), 'smtp.draft');
+    const band = within(keys).getByRole('button', { name: 'Schlüssel der Anbieter' });
+    // The band says the block holds unsaved input, folded or not.
+    expect(within(keys).getByText('ungespeichert')).toBeVisible();
+
+    for (const name of ['Schlüssel der Anbieter', 'E-Mail-Server', 'Telegram-Bot']) {
+      await user.click(within(section(name)).getByRole('button', { name }));
+    }
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    expect(within(keys).getByText('ungespeichert')).toBeVisible();
+    for (const name of ['Schlüssel der Anbieter', 'E-Mail-Server', 'Telegram-Bot']) {
+      await user.click(within(section(name)).getByRole('button', { name }));
+    }
+    expect(within(keys).getByLabelText('YouTube-API-Schlüssel')).toHaveValue('yt-draft');
+    expect(within(section('Telegram-Bot')).getByLabelText('Bot-Token')).toHaveValue('1:draft');
+    expect(within(section('E-Mail-Server')).getByLabelText('Server')).toHaveValue('smtp.draft');
+
+    // The kept value is what gets saved; afterwards nothing is unsaved any more.
+    await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
+    expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
+    expect(puts(calls)).toEqual([{ keys: { youtube: 'yt-draft' } }]);
+    expect(within(keys).queryByText('ungespeichert')).toBeNull();
+  });
+
+  it('leaving the page with unsaved input asks first; staying keeps it', async () => {
+    mockApi(routes({ 'GET /admin/dashboard': () => problem(503, 'unavailable') }));
+    const { router } = renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    await screen.findByLabelText('Adresse');
+
+    // Nothing typed: leaving does not ask.
+    await router.navigate({ to: '/admin/jobs' });
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/jobs'));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await router.navigate({ to: '/admin/integrations' });
+    await user.type(await screen.findByLabelText('Adresse'), 'https://media.example.ch');
+
+    void router.navigate({ to: '/admin' });
+    const question = await screen.findByRole('alertdialog', {
+      name: 'Seite mit ungespeicherten Änderungen verlassen?',
+    });
+    expect(within(question).getByRole('button', { name: 'Auf der Seite bleiben' })).toHaveFocus();
+    await user.click(within(question).getByRole('button', { name: 'Auf der Seite bleiben' }));
+    await waitFor(() => expect(question).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/admin/integrations');
+    expect(screen.getByLabelText('Adresse')).toHaveValue('https://media.example.ch');
+
+    void router.navigate({ to: '/admin' });
+    await user.click(await screen.findByRole('button', { name: 'Verwerfen und verlassen' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
   });
 
   it('a guest gets the notice and no request', async () => {
