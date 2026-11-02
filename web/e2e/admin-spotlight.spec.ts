@@ -134,23 +134,23 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry',
       '/admin/integrations',
     );
 
-    // Tab to the switch and on to the list; the arrow keys choose a kind. Box office offers films
+    // Tab to the switch and on to the list; the arrow keys choose a kind (one per line: ↓ and ↑). Box office offers films
     // only (listKinds), and back on Trending all three media return.
     const media = source.getByRole('radiogroup', { name: 'Medienart' });
     await tabTo(page, show, 5);
     const trending = source.getByRole('radio', { name: 'Trending bei Trakt' });
     await tabTo(page, trending, 5);
     await expect(trending).toBeChecked();
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
     await expect(source.getByRole('radio', { name: 'Beliebt bei Trakt' })).toBeChecked();
     await expectVisibleFocus(page);
     await expect(source.getByText('Ungespeicherte Änderungen')).toBeVisible();
-    for (let presses = 0; presses < 4; presses += 1) await page.keyboard.press('ArrowRight');
+    for (let presses = 0; presses < 4; presses += 1) await page.keyboard.press('ArrowDown');
     await expect(source.getByRole('radio', { name: 'Kinocharts' })).toBeChecked();
     await expect(media.getByRole('radio')).toHaveCount(1);
     await expect(media.getByRole('radio', { name: 'Nur Filme' })).toBeChecked();
     await expect(media.getByRole('radio', { name: 'Nur Filme' })).toBeDisabled();
-    for (let presses = 0; presses < 5; presses += 1) await page.keyboard.press('ArrowLeft');
+    for (let presses = 0; presses < 5; presses += 1) await page.keyboard.press('ArrowUp');
     await expect(trending).toBeChecked();
     await expect(media.getByRole('radio')).toHaveCount(3);
     await expect(media.getByRole('radio', { name: 'Filme und Serien' })).toBeChecked();

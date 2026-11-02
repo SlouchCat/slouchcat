@@ -27,21 +27,29 @@ interface RadioGroupProps extends Omit<AriaRadioGroupProps, 'className' | 'child
   options: readonly Option[];
   /** The label before the segments on one line (a period in a page header). */
   inline?: boolean;
+  /**
+   * `horizontal` (default): segments on one line, for a few short options that fit side by side.
+   * `vertical`: a plain list of radio buttons, one option per line, for longer or more options
+   * that would wrap the segments into several lines (↑ and ↓ move inside).
+   */
+  orientation?: 'horizontal' | 'vertical';
 }
 
-/** Segmented choice between a few options (react-aria RadioGroup, arrow keys inside). */
+/** Choice between a few options (react-aria RadioGroup, arrow keys inside). */
 export function RadioGroup({
   label,
   hideLabel,
   description,
   options,
   inline,
+  orientation = 'horizontal',
   ...rest
 }: RadioGroupProps) {
+  const vertical = orientation === 'vertical';
   return (
     <AriaRadioGroup
       className={`${styles.field} ${inline ? styles.inline : ''}`}
-      orientation="horizontal"
+      orientation={orientation}
       {...rest}
     >
       <Label className={hideLabel ? styles.hiddenLabel : styles.label}>{label}</Label>
@@ -50,14 +58,15 @@ export function RadioGroup({
           {description}
         </Text>
       )}
-      <div className={styles.segments}>
+      <div className={vertical ? styles.radios : styles.segments}>
         {options.map((option) => (
           <Radio
             key={option.value}
             value={option.value}
             isDisabled={option.isDisabled}
-            className={styles.segment}
+            className={vertical ? styles.radio : styles.segment}
           >
+            {vertical && <span className={styles.dot} aria-hidden="true" />}
             {option.label}
           </Radio>
         ))}

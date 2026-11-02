@@ -203,6 +203,7 @@ export function SourceForm({
             name="listKey"
             label={t('admin.spotlight.source.list')}
             hideLabel
+            orientation="vertical"
             value={draft.listKey}
             onChange={(value) => {
               const picked = config.listKinds.find((entry) => entry.key === value);
@@ -243,6 +244,7 @@ export function SourceForm({
           name="media"
           label={t('admin.spotlight.source.media')}
           hideLabel
+          orientation="vertical"
           value={media}
           isDisabled={allowedMedia.length === 1}
           onChange={(value) => {
