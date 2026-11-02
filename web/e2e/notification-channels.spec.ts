@@ -57,10 +57,10 @@ async function openSettings(page: Page): Promise<void> {
 async function switchOn(page: Page, name: 'E-Mail' | 'Web-Push' | 'Telegram'): Promise<void> {
   const box = card(page, name);
   const toggle = box.getByRole('switch', { name: 'Aktiv' });
+  // Already on (linking Telegram switches it on): «Speichern» would send nothing (decision 18).
+  if (await toggle.isChecked()) return;
   // The switch's input is visually hidden under its track: a pointer clicks the label around both.
-  if (!(await toggle.isChecked())) {
-    await box.locator('label', { has: page.getByRole('switch', { name: 'Aktiv' }) }).click();
-  }
+  await box.locator('label', { has: page.getByRole('switch', { name: 'Aktiv' }) }).click();
   await box.getByRole('button', { name: 'Speichern' }).click();
   await expect(box.getByText('Gespeichert.')).toBeVisible();
   await expect(toggle).toBeChecked();
