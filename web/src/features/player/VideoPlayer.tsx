@@ -35,6 +35,8 @@ import styles from './Player.module.css';
 export const CONTROLS_HIDE_MS = 3000;
 /** The track menu asks for new tracks this often while it is open (I-5). */
 export const TRACKS_REFRESH_MS = 30_000;
+/** While the video plays, the player asks this often whether the server ended the playback (W-6). */
+export const STOP_CHECK_MS = 2000;
 /** Seconds the next-episode countdown runs (W-9). */
 export const AUTO_NEXT_SECONDS = 10;
 /** The countdown is announced when it starts and once more this many seconds before its end. */
@@ -131,6 +133,17 @@ export async function streamRevoked(streamUrl: string): Promise<boolean> {
   }
 }
 
+/**
+ * The Range stream of this playback, which answers 401 once the server stopped it. An HLS token
+ * opens no Range stream: while it is valid the answer is a 404, and the check leaves the
+ * transcoder alone (a playlist request would keep it awake or start it again).
+ */
+export function revocationUrl(info: PlaybackInfo): string {
+  if (info.mode === 'direct') return info.streamUrl;
+  const token = new URL(apiUrl(info.streamUrl), window.location.href).searchParams.get('st') ?? '';
+  return `/items/${encodeURIComponent(info.item.id)}/stream?st=${encodeURIComponent(token)}`;
+}
+
 export function VideoPlayer({
   info,
   engine,
@@ -217,6 +230,21 @@ export function VideoPlayer({
     const remaining = watchTime.current?.remainingMinutes;
     endPlayback(remaining !== undefined && remaining <= 1 ? 'limit' : 'admin');
   }, [endPlayback]);
+
+  // W-6: a stop by the server shows only in the next media request, and a player that holds the
+  // rest of the title in its buffer makes none (hls.js loads a short title completely). While the
+  // video plays, the player therefore asks every 2 s, so the stop reaches it within 5 s.
+  useEffect(() => {
+    if (!playing || ended !== null) return;
+    const url = revocationUrl(info);
+    const timer = window.setInterval(() => {
+      if (switchedAway.current) return;
+      void streamRevoked(url).then((revoked) => {
+        if (revoked) onRevoked();
+      });
+    }, STOP_CHECK_MS);
+    return () => window.clearInterval(timer);
+  }, [playing, ended, info, onRevoked]);
 
   const onProgress = useCallback(
     (progress: Progress) => {
