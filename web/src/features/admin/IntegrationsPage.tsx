@@ -320,6 +320,10 @@ function EmailForm({
   return (
     <>
       <Text tone="secondary">{t('admin.integrations.email.intro')}</Text>
+      {/* The channels each profile uses are set on their own page; it links back here (BEN-1). */}
+      <TextLink href={paths.notificationSettings}>
+        {t('admin.integrations.notificationsLink')}
+      </TextLink>
       {env && <Text tone="secondary">{t('admin.integrations.envHint')}</Text>}
       <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
         <div className={styles.fields}>

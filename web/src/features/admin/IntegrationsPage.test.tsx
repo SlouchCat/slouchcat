@@ -522,6 +522,15 @@ describe('integrations (A-2)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
   });
 
+  it('links to the notification channels, which link back here', async () => {
+    mockApi(routes());
+    renderApp('/admin/integrations');
+    const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
+    expect(
+      within(email).getByRole('link', { name: 'Zu den Benachrichtigungskanälen' }),
+    ).toHaveAttribute('href', '/settings/notifications');
+  });
+
   it('a guest gets the notice and no request', async () => {
     const guest = {
       ...session,

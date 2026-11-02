@@ -1778,6 +1778,7 @@
       "saved": "{{name}} saved.",
       "cleared": "{{name}} deleted.",
       "unsaved": "unsaved",
+      "notificationsLink": "Go to the notification channels",
       "keys": {
         "title": "Provider keys",
         "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",

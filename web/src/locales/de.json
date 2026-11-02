@@ -1778,6 +1778,7 @@
       "saved": "{{name}} gespeichert.",
       "cleared": "{{name}} gelöscht.",
       "unsaved": "ungespeichert",
+      "notificationsLink": "Zu den Benachrichtigungskanälen",
       "keys": {
         "title": "Schlüssel der Anbieter",
         "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
