@@ -336,21 +336,23 @@ export function LibrariesPage() {
                       }}
                     />
                   )}
-                  {library.scan.state === 'aborted' && library.scan.lastError !== 'cancelled' && (
-                    <ConfirmDialog
-                      trigger={
-                        <AriaButton variant="ghost" icon="warning">
-                          {t('admin.libraries.acceptLoss.action')}
-                        </AriaButton>
-                      }
-                      title={t('admin.libraries.acceptLoss.title')}
-                      body={t('admin.libraries.acceptLoss.body')}
-                      confirmLabel={t('admin.libraries.acceptLoss.confirm')}
-                      cancelLabel={t('common.cancel')}
-                      tone="danger"
-                      onConfirm={() => acceptLoss.mutate(library.id)}
-                    />
-                  )}
+                  {library.scan.state === 'aborted' &&
+                    library.scan.lastError !== 'cancelled' &&
+                    !library.scan.lossAcceptedAt && (
+                      <ConfirmDialog
+                        trigger={
+                          <AriaButton variant="ghost" icon="warning">
+                            {t('admin.libraries.acceptLoss.action')}
+                          </AriaButton>
+                        }
+                        title={t('admin.libraries.acceptLoss.title')}
+                        body={t('admin.libraries.acceptLoss.body')}
+                        confirmLabel={t('admin.libraries.acceptLoss.confirm')}
+                        cancelLabel={t('common.cancel')}
+                        tone="danger"
+                        onConfirm={() => acceptLoss.mutate(library.id)}
+                      />
+                    )}
                 </>
               }
             />
