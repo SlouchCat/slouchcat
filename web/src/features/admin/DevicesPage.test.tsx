@@ -1,5 +1,6 @@
 import type { AdminDevice } from '@slouchcat/api-client';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
@@ -129,7 +130,8 @@ describe('admin devices (W-7)', () => {
     // What a browser did not report is a dash on screen and a word for screen readers.
     const firefox = cellsOf(rowOf('Firefox 140 · Windows'));
     expect(firefox).toEqual(['–unbekannt', 'H264', 'AAC', '–unbekannt', 'Nein']);
-    const unnamed = cellsOf(rowOf('Unbekanntes Gerät'));
+    // A device that never reported a profile says so in its name, not only in dashes.
+    const unnamed = cellsOf(rowOf('Unbekanntes Gerät, noch kein Fähigkeitsprofil'));
     expect(unnamed).toEqual(['–unbekannt', '–unbekannt', '–unbekannt', '–unbekannt', '–unbekannt']);
     // No "Vergessen" in this tab.
     expect(screen.queryByRole('button', { name: /vergessen$/ })).toBeNull();
@@ -235,6 +237,65 @@ describe('admin devices (W-7)', () => {
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
     expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
     await waitFor(() => expect(forget).toHaveFocus());
+  });
+
+  it('an owner without a profile and a type this build does not know are not left out', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /admin/devices': () =>
+        json([
+          ...devices,
+          {
+            id: 'dev-4',
+            name: 'Uhr',
+            type: 'watch' as AdminDevice['type'],
+            ownerEmail: 'gast@example.test',
+            createdAt: '2026-10-18T10:00:00Z',
+            lastSeenAt: '2026-10-18T20:00:00Z',
+            activeStreams: 0,
+          },
+        ]),
+    });
+    renderApp('/admin/devices');
+    // The unknown type is listed under «Unbekannt», with the device without a type.
+    const unknown = await screen.findByRole('table', { name: 'Geräte: Unbekannt' });
+    expect(
+      within(unknown)
+        .getAllByRole('rowheader')
+        .map((cell) => cell.textContent),
+    ).toEqual(['Unbekanntes Gerät', 'Uhr']);
+    expect(screen.getByRole('button', { name: 'Unbekannt 2 Geräte' })).toBeVisible();
+    // The missing profile is a dash on screen and a word for screen readers.
+    expect(cellsOf(rowOf('Uhr'))[0]).toBe('gast@example.test · –gast@example.test · unbekannt');
+  });
+
+  it('does not refetch on window focus while the confirmation is open', async () => {
+    const { calls } = mockApi({ ...signedIn, 'GET /admin/devices': () => json(devices) });
+    renderApp('/admin/devices');
+    const user = userEvent.setup();
+    const lists = () => calls.filter((call) => call.path === '/admin/devices').length;
+    const refocus = () =>
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+    try {
+      await user.click(await screen.findByRole('button', { name: 'Chrome 156 · Linux vergessen' }));
+      const dialog = await screen.findByRole('alertdialog');
+      const before = lists();
+      refocus();
+      // Give a refetch the chance it must not take.
+      await act(() => new Promise((resolve) => window.setTimeout(resolve, 50)));
+      expect(lists()).toBe(before);
+      expect(within(dialog).getByRole('button', { name: 'Gerät vergessen' })).toBeVisible();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+      await waitFor(() => expect(dialog).not.toBeInTheDocument());
+      refocus();
+      await waitFor(() => expect(lists()).toBeGreaterThan(before));
+    } finally {
+      focusManager.setFocused(undefined);
+    }
   });
 
   it('a refused "Vergessen" shows the problem; the device stays', async () => {

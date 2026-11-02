@@ -1221,6 +1221,7 @@
       "unnamed": "Unbekanntes Gerät",
       "owner": "{{email}} · {{profile}}",
       "noOwner": "Noch keine Wiedergabe",
+      "noProfile": "{{name}}, noch kein Fähigkeitsprofil",
       "types": {
         "desktop": "Computer",
         "phone": "Telefon",

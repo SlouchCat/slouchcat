@@ -26,12 +26,29 @@ const codecList = (t: TFunction, codecs: readonly string[] | undefined) =>
     <Unknown t={t} />
   );
 
-/** The device's name in full, wrapped where it has to (S-5: reachable without a pointer). */
-const nameColumn = (t: TFunction): DataColumn<AdminDevice> => ({
+/**
+ * The device's name in full, wrapped where it has to (S-5: reachable without a pointer). With
+ * `profile`, a device that never reported one says so to screen readers (the tab «Fähigkeiten»
+ * shows only dashes in its row).
+ */
+const nameColumn = (t: TFunction, profile = false): DataColumn<AdminDevice> => ({
   key: 'name',
   header: t('admin.devices.columns.name'),
   rowHeader: true,
-  cell: (device) => <span className={styles.wrap}>{deviceName(t, device)}</span>,
+  cell: (device) => {
+    const name = deviceName(t, device);
+    if (!profile || device.capabilities !== undefined) {
+      return <span className={styles.wrap}>{name}</span>;
+    }
+    return (
+      <>
+        <span className={styles.wrap} aria-hidden="true">
+          {name}
+        </span>
+        <VisuallyHidden>{t('admin.devices.noProfile', { name })}</VisuallyHidden>
+      </>
+    );
+  },
 });
 
 /**
@@ -50,12 +67,25 @@ export function deviceColumns(
       key: 'owner',
       header: t('admin.devices.columns.owner'),
       cell: (device) =>
-        device.ownerEmail ? (
+        device.ownerEmail && device.ownerProfile ? (
           <span className={styles.wrap}>
-            {t('admin.devices.owner', {
-              email: device.ownerEmail,
-              profile: device.ownerProfile ?? t('admin.devices.unknown'),
-            })}
+            {t('admin.devices.owner', { email: device.ownerEmail, profile: device.ownerProfile })}
+          </span>
+        ) : device.ownerEmail ? (
+          // Without a profile: a dash on screen, a word for screen readers.
+          <span className={styles.wrap}>
+            <span aria-hidden="true">
+              {t('admin.devices.owner', {
+                email: device.ownerEmail,
+                profile: t('admin.devices.unknown'),
+              })}
+            </span>
+            <VisuallyHidden>
+              {t('admin.devices.owner', {
+                email: device.ownerEmail,
+                profile: t('admin.devices.unknownSpoken'),
+              })}
+            </VisuallyHidden>
           </span>
         ) : (
           <span className={styles.muted}>{t('admin.devices.noOwner')}</span>
@@ -102,7 +132,7 @@ export function deviceColumns(
  */
 export function capabilityColumns(t: TFunction): DataColumn<AdminDevice>[] {
   return [
-    nameColumn(t),
+    nameColumn(t, true),
     {
       key: 'containers',
       header: t('admin.devices.columns.containers'),

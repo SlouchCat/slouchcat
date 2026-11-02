@@ -28,9 +28,27 @@ const CAPABILITIES = 'capabilities';
 const TAB_IDS = [DEVICES, CAPABILITIES] as const;
 type View = (typeof TAB_IDS)[number];
 
-/** The sections of a tab, one per device type; a device without a type is «Unbekannt». */
-const TYPE_ORDER = ['tv', 'desktop', 'phone', 'tablet', 'other', 'unknown'] as const;
-type TypeKey = (typeof TYPE_ORDER)[number];
+/** A section of a tab: a type of the contract, or «Unbekannt». */
+type TypeKey = NonNullable<AdminDevice['type']> | 'unknown';
+
+/** The sections of a tab, one per device type, in the order of the mockup. */
+const TYPE_ORDER = [
+  'tv',
+  'desktop',
+  'phone',
+  'tablet',
+  'other',
+  'unknown',
+] as const satisfies readonly TypeKey[];
+
+/**
+ * The section of a device: a device without a type, or with one this build does not know (a
+ * newer server), is «Unbekannt», so no device is left out.
+ */
+const typeOf = (device: AdminDevice): TypeKey =>
+  (TYPE_ORDER as readonly string[]).includes(device.type ?? '')
+    ? (device.type as TypeKey)
+    : 'unknown';
 
 /** Resolves once React has rendered what the last cache update brought. */
 const afterRender = () =>
@@ -155,7 +173,7 @@ function DevicesContent() {
     () =>
       TYPE_ORDER.map((type) => ({
         type,
-        devices: list.filter((device) => (device.type ?? 'unknown') === type),
+        devices: list.filter((device) => typeOf(device) === type),
       })).filter((group) => group.devices.length > 0),
     [list],
   );

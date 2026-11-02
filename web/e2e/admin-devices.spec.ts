@@ -48,22 +48,27 @@ const deviceRow = (page: Page, id: string) => page.locator(`tr[data-row-key="${i
 const tabList = (page: Page) => page.getByRole('tablist', { name: 'Ansicht der Geräte' });
 
 /**
- * A browser of its own that starts one playback, reported as type `other`. `browser.newContext`
- * applies the config's `use` options, so the storage state (and with it the shared session's
- * device cookie) is emptied explicitly: forgetting this device must not sign the shared session
- * out.
+ * A browser of its own. `browser.newContext` applies the config's `use` options, so the storage
+ * state (and with it the shared session's device cookie) is emptied explicitly: forgetting its
+ * device must not sign the shared session out.
  */
-async function throwawayDevice(
+function throwawayContext(
   browser: Browser,
-  owner: APIRequestContext,
   options: { baseURL?: string; extraHTTPHeaders?: Record<string, string> },
-  name: string,
-): Promise<{ context: BrowserContext; id: string }> {
-  const context = await browser.newContext({
+): Promise<BrowserContext> {
+  return browser.newContext({
     ...options,
     locale: 'de-CH',
     storageState: { cookies: [], origins: [] },
   });
+}
+
+/** Signs `context` in and starts one playback there, reported as type `other`; its device id. */
+async function playOn(
+  context: BrowserContext,
+  owner: APIRequestContext,
+  name: string,
+): Promise<string> {
   await loginOwner(context.request);
   const itemId = await itemIdByTitle(owner, H264_TITLE);
   const started = await context.request.post(`/api/v1/items/${itemId}/play`, {
@@ -73,7 +78,7 @@ async function throwawayDevice(
   expect(started.status(), await started.text()).toBe(200);
   const id = ((await started.json()) as { device?: { id: string } }).device?.id;
   expect(id, 'PlaybackInfo.device').toBeTruthy();
-  return { context, id: id! };
+  return id!;
 }
 
 test('after a playback the device rows show owner, last contact and the reported profile', async ({
@@ -130,21 +135,25 @@ test('tabs in the band by arrow keys, the type sections by Enter; forgets a thro
 }) => {
   const project = test.info().project.name;
   const name = `E2E Wegwerf ${project}`;
-  // A second device of the same type: ↑/↓ need two rows in the section «Anderes».
-  const keep = await throwawayDevice(
-    browser,
-    owner,
-    { baseURL, extraHTTPHeaders },
-    `E2E Wegwerf 2 ${project}`,
-  );
-  const throwaway = await throwawayDevice(browser, owner, { baseURL, extraHTTPHeaders }, name);
+  // Everything made here is cleaned up, however far the test gets.
+  const contexts: BrowserContext[] = [];
+  const leftover = new Set<string>();
   try {
+    // A second device of the same type: ↑/↓ need two rows in the section «Anderes».
+    const keepContext = await throwawayContext(browser, { baseURL, extraHTTPHeaders });
+    contexts.push(keepContext);
+    leftover.add(await playOn(keepContext, owner, `E2E Wegwerf 2 ${project}`));
+    const throwaway = await throwawayContext(browser, { baseURL, extraHTTPHeaders });
+    contexts.push(throwaway);
+    const throwawayId = await playOn(throwaway, owner, name);
+    leftover.add(throwawayId);
+
     await page.goto('/admin/devices');
     const heading = page.getByRole('heading', { level: 1, name: 'Geräte' });
     await expect(heading).toBeVisible();
     // Devices of type `other` are in the section «Anderes».
     const others = page.getByRole('table', { name: 'Geräte: Anderes' });
-    const row = others.locator(`tr[data-row-key="${throwaway.id}"]`);
+    const row = others.locator(`tr[data-row-key="${throwawayId}"]`);
     await expect(row.getByRole('rowheader')).toHaveText(name);
 
     // ←/→ move between the tabs in the band and select them; the tab lives in the address.
@@ -159,7 +168,7 @@ test('tabs in the band by arrow keys, the type sections by Enter; forgets a thro
     await expect(page).toHaveURL(/\/admin\/devices\?tab=capabilities$/);
     const profile = page
       .getByRole('table', { name: 'Fähigkeiten: Anderes' })
-      .locator(`tr[data-row-key="${throwaway.id}"]`);
+      .locator(`tr[data-row-key="${throwawayId}"]`);
     await expect(profile).toContainText('H264');
     await expect(profile).toContainText('AAC');
     await page.keyboard.press('ArrowLeft');
@@ -196,16 +205,18 @@ test('tabs in the band by arrow keys, the type sections by Enter; forgets a thro
 
     await expect(page.getByText(`Gerät „${name}“ vergessen.`)).toBeVisible();
     await expect(row).toHaveCount(0);
+    leftover.delete(throwawayId);
     // The row and its button are gone: the focus is on the page's heading.
     await expect(heading).toBeFocused();
     // The device's session is signed out.
-    const session = await throwaway.context.request.get('/api/v1/auth/session');
+    const session = await throwaway.request.get('/api/v1/auth/session');
     expect(session.status()).toBe(401);
     await expectNoFocusTrap(page);
   } finally {
-    await owner.delete(`/api/v1/admin/devices/${keep.id}`, { headers: CSRF });
-    await keep.context.close();
-    await throwaway.context.close();
+    for (const id of leftover) {
+      await owner.delete(`/api/v1/admin/devices/${id}`, { headers: CSRF });
+    }
+    for (const context of contexts) await context.close();
   }
 });
 

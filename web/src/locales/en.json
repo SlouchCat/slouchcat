@@ -1221,6 +1221,7 @@
       "unnamed": "Unknown device",
       "owner": "{{email}} · {{profile}}",
       "noOwner": "No playback yet",
+      "noProfile": "{{name}}, no capability profile yet",
       "types": {
         "desktop": "Computer",
         "phone": "Phone",
