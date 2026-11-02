@@ -8,9 +8,9 @@
  * uses AdminPage as well but has no admin shell, so it and its dialogs keep today's size; the
  * app's header and the administration's sidebar are outside #content and keep theirs.
  *
- * Not loaded by the app yet: today only Storybook imports this file (.storybook/preview.tsx, the
- * `density` global sets both attributes for a compact story). K12-8 switches the density on by
- * importing it into the app.
+ * Loaded by the app (main.tsx, since K12-8) and by Storybook (.storybook/preview.tsx, where the
+ * `density` global sets both attributes for a compact story). index.html sets data-shell before
+ * the first paint, so an administration page never shows today's size first.
  */
 @media (width >= 48rem) and (pointer: fine) {
   :root[data-shell='admin'] :is(#content, [data-density='compact']) {
@@ -23,8 +23,10 @@
     --sc-page-title-size: var(--sc-density-compact-page-title-size);
     --sc-page-title-weight: var(--sc-density-compact-page-title-weight);
     --sc-page-title-tracking: var(--sc-density-compact-page-title-tracking);
+    --sc-page-title-line-height: var(--sc-density-compact-page-title-line-height);
     --sc-section-gap: var(--sc-density-compact-section-gap);
     --sc-section-title-size: var(--sc-density-compact-section-title-size);
     --sc-dialog-gap: var(--sc-density-compact-dialog-gap);
+    --page-gutter: var(--sc-density-compact-page-gutter);
   }
 }

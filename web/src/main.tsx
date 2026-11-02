@@ -1,5 +1,8 @@
 import '@slouchcat/design-tokens/tokens.css';
 import '@/ui/global.css';
+// The compact density of the administration (concept 12, ADR 0020): #content and the dialogs of
+// an administration page under data-shell="admin", with a mouse from 768 px.
+import '@/ui/density.css';
 import '@/i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

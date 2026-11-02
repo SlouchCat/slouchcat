@@ -47,6 +47,11 @@
     "title-tracking": {
       "$value": "{font.letter-spacing.display}",
       "$description": "Letter spacing of the page title (h1)."
+    },
+    "title-line-height": {
+      "$type": "number",
+      "$value": "{font.line-height.normal}",
+      "$description": "Line height of the h1 itself around its title text (AdminPage): what an h1 inherits today."
     }
   },
   "section": {
@@ -70,7 +75,7 @@
   "density": {
     "compact": {
       "$type": "dimension",
-      "$description": "Compact density of the administration's content and dialogs (concept 12, 5.1). Not active yet: K12-8 maps these onto the component tokens under [data-shell=\"admin\"] with (min-width: 48rem) and (pointer: fine); touch and phones keep 44 px.",
+      "$description": "Compact density of the administration's content and dialogs (concept 12, 5.1). web/src/ui/density.css maps these onto the component tokens under [data-shell=\"admin\"] with (min-width: 48rem) and (pointer: fine); touch and phones keep 44 px.",
       "control": {
         "height": {
           "$value": "2rem",
@@ -107,6 +112,15 @@
         },
         "title-tracking": {
           "$value": "{font.letter-spacing.normal}"
+        },
+        "title-line-height": {
+          "$type": "number",
+          "$value": 0,
+          "$description": "No line of the h1's own: the 24 px title sets the height (26 px), not the browser's 2em of an h1 (48 px)."
+        },
+        "gutter": {
+          "$value": "{space.8}",
+          "$description": "Side margin of the page (--page-gutter in web/src/ui/global.css: 40 px from 768 px, 64 px from 1440 px)."
         }
       },
       "section": {

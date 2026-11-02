@@ -52,7 +52,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Today's density: the h1 in the display size, as on every page until K12-8. */
+/** Today's density: the h1 in the display size, as on /settings/* and on touch devices. */
 export const Default: Story = {};
 
 /** The help button opened with the keyboard: the intro sentence below the header. */

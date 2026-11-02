@@ -30,6 +30,7 @@ import {
 } from '@/ui';
 import {
   ActivityFeed,
+  AdminDensityScope,
   AriaButton,
   CodeBlock,
   ConfirmDialog,
@@ -919,55 +920,59 @@ export function AdminHomePage() {
   const system = useQuery({ ...systemQuery, enabled: allowed });
   const data = dashboard.data;
 
+  // The overview keeps its display title (concept 11) but sits in the administration's content:
+  // its buttons are compact (ADR 0020), and the scope makes the restart dialog compact as well.
   return (
     <Page>
-      <div className={styles.head}>
-        <Text as="h1" variant="display">
-          {t('admin.home.title')}
-        </Text>
-        {allowed && (
-          <span className={styles.live}>
-            <StatusDot state={dashboard.isError ? 'danger' : 'success'} />
-            {dashboard.isError ? t('admin.home.liveFailed') : t('admin.home.live')}
-          </span>
-        )}
-      </div>
-      {!allowed ? (
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      ) : restartAt !== null ? (
-        <RestartPanel
-          acceptedAt={restartAt}
-          title={t('admin.home.restart.waitTitle')}
-          body={t('admin.home.restart.waitBody')}
-          onBack={reloadPage}
-        />
-      ) : (
-        <div aria-busy={dashboard.isPending} className={styles.body}>
-          {dashboard.isPending && <Skeleton shape="block" />}
-          {dashboard.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, dashboard.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void dashboard.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {data && (
-            <Cards
-              data={data}
-              now={dashboard.dataUpdatedAt}
-              system={system.data}
-              systemError={system.error}
-              onRestart={() => setRestartAt(Date.now())}
-            />
+      <AdminDensityScope>
+        <div className={styles.head}>
+          <Text as="h1" variant="display">
+            {t('admin.home.title')}
+          </Text>
+          {allowed && (
+            <span className={styles.live}>
+              <StatusDot state={dashboard.isError ? 'danger' : 'success'} />
+              {dashboard.isError ? t('admin.home.liveFailed') : t('admin.home.live')}
+            </span>
           )}
         </div>
-      )}
+        {!allowed ? (
+          <Notice title={t('admin.access.notAllowed.title')}>
+            {t('admin.access.notAllowed.body')}
+          </Notice>
+        ) : restartAt !== null ? (
+          <RestartPanel
+            acceptedAt={restartAt}
+            title={t('admin.home.restart.waitTitle')}
+            body={t('admin.home.restart.waitBody')}
+            onBack={reloadPage}
+          />
+        ) : (
+          <div aria-busy={dashboard.isPending} className={styles.body}>
+            {dashboard.isPending && <Skeleton shape="block" />}
+            {dashboard.isError && (
+              <Notice
+                tone="danger"
+                title={problemMessage(t, dashboard.error)}
+                actions={
+                  <AriaButton icon="refresh" onPress={() => void dashboard.refetch()}>
+                    {t('common.retry')}
+                  </AriaButton>
+                }
+              />
+            )}
+            {data && (
+              <Cards
+                data={data}
+                now={dashboard.dataUpdatedAt}
+                system={system.data}
+                systemError={system.error}
+                onRestart={() => setRestartAt(Date.now())}
+              />
+            )}
+          </div>
+        )}
+      </AdminDensityScope>
     </Page>
   );
 }

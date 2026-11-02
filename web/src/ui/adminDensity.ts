@@ -2,13 +2,13 @@ import { createContext, createElement, useContext, type ReactNode } from 'react'
 
 // The compact density of the administration (concept 12, 5.2; ADR 0020) covers the content area
 // and the dialogs opened from an administration page. Dialogs and menus render into portals on
-// <body>, outside the content area, so they cannot inherit it; AdminPage sets this scope instead,
-// and the dialogs and menus of web/src/ui put `data-density="compact"` on their own portal root.
-// Other portals on /admin (the app's drawer, the viewers' announcement dialog) are not inside
-// an AdminPage and keep today's size.
+// <body>, outside the content area, so they cannot inherit it; AdminPage (and the overview, which
+// has no AdminPage) sets this scope instead, and the dialogs and menus of web/src/ui put
+// `data-density="compact"` on their own portal root. Other portals on /admin (the app's drawer,
+// the viewers' announcement dialog) are not inside that scope and keep today's size.
 //
-// The attribute has no effect yet: ui/density.css, which maps it onto the component tokens, is
-// loaded by Storybook only until K12-8 switches the density on.
+// ui/density.css maps the attribute onto the component tokens, only under the administration's
+// shell (`data-shell="admin"`) and with a mouse from 768 px.
 
 const AdminDensityContext = createContext(false);
 

@@ -19,9 +19,13 @@
   min-height: var(--sc-control-height);
 }
 
+/* The h1's own line (its strut: the browser's 2em of an h1 at the inherited line height) stays
+   below the title's Text; the compact density empties it, or it would make the line 48 px high
+   around a 24 px title. */
 .title {
   min-width: 0;
   margin: 0;
+  line-height: var(--sc-page-title-line-height);
   outline: none;
 }
 

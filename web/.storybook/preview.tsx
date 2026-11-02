@@ -1,6 +1,6 @@
 import '@slouchcat/design-tokens/tokens.css';
 import '@/ui/global.css';
-// The compact density of the administration (ADR 0020); the app loads it from K12-8 on.
+// The compact density of the administration (ADR 0020), as in the app (main.tsx).
 import '@/ui/density.css';
 import '@/i18n';
 import type { Preview } from '@storybook/react-vite';
@@ -19,7 +19,7 @@ const preview: Preview = {
     actions: { disable: true },
   },
   // Density of the story (concept 12, ADR 0020): `default` is today's size everywhere; a story
-  // with `globals: { density: 'compact' }` renders the way an administration page will from K12-8:
+  // with `globals: { density: 'compact' }` renders the way an administration page does:
   // <html> carries data-shell="admin" like /admin, its root data-density="compact" (ui/density.css
   // maps the component tokens), and the AdminDensityScope puts the same attribute on the portals
   // of its dialogs and menus.
