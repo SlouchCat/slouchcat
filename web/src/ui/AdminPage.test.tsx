@@ -1,3 +1,6 @@
+/// <reference types="node" />
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
@@ -55,6 +58,7 @@ describe('AdminDensityScope (ADR 0020)', () => {
     confirm: (
       <ConfirmDialog
         isOpen
+        onOpenChange={() => undefined}
         title="Löschen?"
         body="Weg ist weg."
         confirmLabel="Löschen"
@@ -100,5 +104,17 @@ describe('AdminDensityScope (ADR 0020)', () => {
     const menu = screen.getByRole('menu');
     expect(menu.closest('[data-density]')).toHaveAttribute('data-density', 'compact');
     expect(within(menu).getByRole('menuitem', { name: 'A' })).toBeVisible();
+  });
+});
+
+describe('density.css (ADR 0020, concept 12 S-1)', () => {
+  // Vitest hands CSS over as class names; the rule is read from disk. The browser check of the
+  // cascade is e2e-storybook/admin-blocks.spec.ts.
+  const css = readFileSync(join(import.meta.dirname, 'density.css'), 'utf8');
+
+  it('applies only under the admin shell, with a mouse from 768 px', () => {
+    const rules = [...css.matchAll(/^\s*([^@/*\s][^{]*)\{/gm)].map((match) => match[1]?.trim());
+    expect(rules).toEqual([":root[data-shell='admin'] :is(#content, [data-density='compact'])"]);
+    expect(css).toContain('@media (width >= 48rem) and (pointer: fine)');
   });
 });

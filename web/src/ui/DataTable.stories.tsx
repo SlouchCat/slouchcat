@@ -73,7 +73,21 @@ export const RowsCompact: Story = { globals: { density: 'compact' } };
 export const Expandable: Story = {
   args: {
     expand: {
-      render: (row: Stream) => `${row.title}: ${row.quality}, ${row.mode}, seit 12 Minuten.`,
+      render: (row: Stream) => (
+        <>
+          <p
+            style={{ margin: 0 }}
+          >{`${row.title}: ${row.quality}, ${row.mode}, seit 12 Minuten.`}</p>
+          <label>
+            Qualität begrenzen{' '}
+            <select defaultValue="1080p">
+              <option>720p</option>
+              <option>1080p</option>
+              <option>Original</option>
+            </select>
+          </label>
+        </>
+      ),
     },
   },
   tags: ['press:Tab+Enter'],

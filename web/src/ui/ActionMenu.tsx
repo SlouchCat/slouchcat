@@ -1,4 +1,4 @@
-import { useRef, type Key } from 'react';
+import { useEffect, useRef, type Key } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Header,
@@ -45,12 +45,20 @@ export function ActionMenu({ rowName, items, onAction, isDisabled }: ActionMenuP
   const { t } = useTranslation();
   const density = useDensityPortalProps();
   const button = useRef<HTMLButtonElement>(null);
+  const frame = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+    },
+    [],
+  );
   const safe = items.filter((item) => !item.danger);
   const danger = items.filter((item) => item.danger);
   const pick = (key: Key) => {
     // react-aria closes the menu and returns the focus to the button after this handler; the
     // page's reaction (a dialog that remembers the focused element) has to come after that.
-    requestAnimationFrame(() => {
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
       button.current?.focus();
       onAction(String(key));
     });

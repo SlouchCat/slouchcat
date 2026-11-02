@@ -52,4 +52,28 @@ describe('ConfirmDialog', () => {
     expect(screen.getByText('zu')).toBeVisible();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Aus dem Menü' })).toHaveFocus());
   });
+
+  it('closes the controlled dialog with Escape', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    render(
+      <ConfirmDialog {...texts} isOpen onOpenChange={onOpenChange} onConfirm={() => undefined} />,
+    );
+    expect(screen.getByRole('alertdialog')).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('starts on Cancel when asked to (defaultFocus)', () => {
+    render(
+      <ConfirmDialog
+        {...texts}
+        isOpen
+        onOpenChange={() => undefined}
+        onConfirm={() => undefined}
+        defaultFocus="cancel"
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Abbrechen' })).toHaveFocus();
+  });
 });

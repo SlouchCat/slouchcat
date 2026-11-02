@@ -28,28 +28,47 @@ export interface Drafts<T> {
  * an expandable row, so switching tabs, folding a row away or selecting another item keeps it,
  * and the same item shows the same draft in two tabs (S-13).
  *
- * `originalOf` gives what the server holds for an id; it is read on every call, so a refetch that
- * brings new data shows through wherever there is no draft.
+ * `originalOf` gives what the server holds for an id; it is read on every call. A draft counts
+ * only while it differs from that: when the server comes to hold the same value (a save, another
+ * administrator), the draft is spent and dropped, and later changes on the server show through.
+ * An id the server no longer knows (`originalOf` gives undefined: the item was deleted) loses its
+ * draft the same way.
+ * Drafts belong to existing items; a form that creates one keeps its own state.
  */
 export function useDrafts<T>(originalOf: (id: string) => T | undefined): Drafts<T> {
   const [drafts, setDrafts] = useState<ReadonlyMap<string, T>>(() => new Map());
 
+  /** The draft of `id` while it is one: the item exists and the draft differs from it. */
+  const liveDraft = useCallback(
+    (map: ReadonlyMap<string, T>, id: string): { value: T } | undefined => {
+      if (!map.has(id)) return undefined;
+      const original = originalOf(id);
+      const value = map.get(id) as T;
+      return original === undefined || same(value, original) ? undefined : { value };
+    },
+    [originalOf],
+  );
+
   const valueOf = useCallback(
-    (id: string) => (drafts.has(id) ? drafts.get(id) : originalOf(id)),
-    [drafts, originalOf],
+    (id: string) => {
+      const live = liveDraft(drafts, id);
+      return live ? live.value : originalOf(id);
+    },
+    [drafts, liveDraft, originalOf],
   );
 
   const set = useCallback(
     (id: string, next: T | ((current: T) => T)) =>
       setDrafts((current) => {
-        const base = current.has(id) ? current.get(id) : originalOf(id);
+        const live = liveDraft(current, id);
+        const base = live ? live.value : originalOf(id);
         const value = typeof next === 'function' ? (next as (current: T) => T)(base as T) : next;
         const updated = new Map(current);
         if (same(value, originalOf(id))) updated.delete(id);
         else updated.set(id, value);
         return updated;
       }),
-    [originalOf],
+    [liveDraft, originalOf],
   );
 
   const discard = useCallback(
@@ -65,8 +84,18 @@ export function useDrafts<T>(originalOf: (id: string) => T | undefined): Drafts<
 
   const discardAll = useCallback(() => setDrafts(new Map()), []);
 
+  // Spent drafts (the server holds the same value now, or the item is gone) are dropped during
+  // the render that sees them, so a later change on the server is not hidden behind them. React
+  // renders again at once with the pruned map; the next pass finds nothing to prune.
+  const spent = [...drafts.keys()].filter((id) => liveDraft(drafts, id) === undefined);
+  if (spent.length > 0) {
+    const pruned = new Map(drafts);
+    for (const id of spent) pruned.delete(id);
+    setDrafts(pruned);
+  }
+
   return useMemo(() => {
-    const dirtyIds = [...drafts.keys()].filter((id) => !same(drafts.get(id), originalOf(id)));
+    const dirtyIds = [...drafts.keys()].filter((id) => liveDraft(drafts, id) !== undefined);
     return {
       valueOf,
       set,
@@ -76,5 +105,5 @@ export function useDrafts<T>(originalOf: (id: string) => T | undefined): Drafts<
       discard,
       discardAll,
     };
-  }, [drafts, originalOf, valueOf, set, discard, discardAll]);
+  }, [drafts, liveDraft, valueOf, set, discard, discardAll]);
 }

@@ -41,8 +41,11 @@ export interface AdminSearch {
   item?: string;
 }
 
-/** A tab id or an item id: a slug, a number or a ULID, never a path or a whole sentence. */
-const SELECTION = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
+/**
+ * A tab id or an item id: a slug, a number, a ULID or a dotted job type (`metadata.apply`), never
+ * a path or a whole sentence.
+ */
+const SELECTION = /^[A-Za-z0-9](?:[A-Za-z0-9_-]|\.(?!\.)){0,63}$/;
 
 /**
  * `validateSearch` of the administration pages with tabs or a selection: keeps `?tab=` and

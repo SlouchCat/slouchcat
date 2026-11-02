@@ -52,4 +52,10 @@ export const Single: Story = {
 /** Focused with the keyboard. */
 export const Focused: Story = { tags: ['press:Tab'] };
 
+/**
+ * ↓ on the closed select of «Deutsch» picks «Platz 2»: the entry moves down and its select keeps
+ * the focus (it would fall to the page when React moves the row).
+ */
+export const MovedByKeyboard: Story = { tags: ['press:Tab+ArrowDown'] };
+
 export const Compact: Story = { globals: { density: 'compact' } };

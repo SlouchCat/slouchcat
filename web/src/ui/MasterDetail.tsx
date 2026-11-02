@@ -4,6 +4,7 @@ import {
   ListBox,
   ListBoxItem,
   ListBoxSection,
+  Text,
   type Selection,
 } from 'react-aria-components';
 import styles from './MasterDetail.module.css';
@@ -48,8 +49,14 @@ function sectionsOf(items: readonly MasterDetailItem[]) {
 export function MasterDetail({ label, items, selectedId, onSelect, children }: MasterDetailProps) {
   const option = (item: MasterDetailItem) => (
     <ListBoxItem key={item.id} id={item.id} textValue={item.label} className={styles.item}>
-      <span className={styles.label}>{item.label}</span>
-      {item.description && <span className={styles.description}>{item.description}</span>}
+      <Text slot="label" className={styles.label}>
+        {item.label}
+      </Text>
+      {item.description && (
+        <Text slot="description" className={styles.description}>
+          {item.description}
+        </Text>
+      )}
     </ListBoxItem>
   );
   return (

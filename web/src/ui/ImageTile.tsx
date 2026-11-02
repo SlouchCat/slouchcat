@@ -22,7 +22,7 @@ export function ImageTile({ src, title, shape = 'landscape', children }: ImageTi
   const [failed, setFailed] = useState<string | null>(null);
   const showImage = src !== undefined && failed !== src;
   return (
-    <span className={`${styles.tile} ${styles[shape]}`}>
+    <div className={`${styles.tile} ${styles[shape]}`}>
       {showImage ? (
         <img
           className={styles.image}
@@ -33,14 +33,14 @@ export function ImageTile({ src, title, shape = 'landscape', children }: ImageTi
           onError={() => setFailed(src)}
         />
       ) : (
-        <span className={styles.fallback}>
+        <div className={styles.fallback}>
           <PosterFallback />
           <span className={styles.title} aria-hidden="true">
             {title}
           </span>
-        </span>
+        </div>
       )}
-      {children && <span className={styles.overlay}>{children}</span>}
-    </span>
+      {children && <div className={styles.overlay}>{children}</div>}
+    </div>
   );
 }

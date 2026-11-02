@@ -107,4 +107,64 @@ describe('DataTable with rows that fold out (concept 12, 11.2)', () => {
     await user.click(screen.getByRole('button', { name: 'Bibliotheksscan' }));
     expect(changes).toEqual([['scan', true]]);
   });
+
+  it('leaves ↑ and ↓ to a select inside a fold-out', async () => {
+    const user = userEvent.setup();
+    render(
+      <DataTable
+        caption="Jobarten"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        expand={{
+          render: (row) => (
+            <select aria-label={`Takt von ${row.name}`} defaultValue="6">
+              <option value="1">1 h</option>
+              <option value="6">6 h</option>
+              <option value="24">24 h</option>
+            </select>
+          ),
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Bibliotheksscan' }));
+    const select = screen.getByRole('combobox', { name: 'Takt von Bibliotheksscan' });
+    select.focus();
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowDown',
+      bubbles: true,
+      cancelable: true,
+    });
+    select.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(select).toHaveFocus();
+  });
+
+  it('leaves ↑ and ↓ to a text field in a row', () => {
+    render(
+      <DataTable
+        caption="Notizen"
+        columns={[
+          { key: 'name', header: 'Jobart', rowHeader: true, cell: (row: Job) => row.name },
+          {
+            key: 'note',
+            header: 'Notiz',
+            cell: (row: Job) => <input aria-label={`Notiz zu ${row.name}`} />,
+          },
+        ]}
+        rows={rows}
+        rowKey={(row) => row.id}
+      />,
+    );
+    const field = screen.getByRole('textbox', { name: 'Notiz zu Bibliotheksscan' });
+    field.focus();
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowDown',
+      bubbles: true,
+      cancelable: true,
+    });
+    field.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(field).toHaveFocus();
+  });
 });

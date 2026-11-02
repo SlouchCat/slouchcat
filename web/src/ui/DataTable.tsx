@@ -39,21 +39,34 @@ interface DataTableProps<T> {
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), [tabindex="0"]';
 
 /**
+ * Controls that use ↑ and ↓ themselves (a select picks, a field moves the caret). A checkbox
+ * has no use for them and keeps moving between rows.
+ */
+const OWN_ARROWS =
+  'input:not([type="checkbox"]), select, textarea, [contenteditable], [role="radiogroup"], [role="slider"], [role="listbox"], [role="combobox"]';
+
+/** A row of a record, not the fold-out below it. */
+const isRecordRow = (row: Element | null): row is HTMLTableRowElement =>
+  row instanceof HTMLTableRowElement && row.hasAttribute('data-row-key') && !row.hidden;
+
+/**
  * Moves focus between rows with ↑ and ↓: from a control in one row to the control in the same
  * column of the next row (or its first control). Tab keeps the DOM order and leaves the table.
+ * Inside a fold-out and inside controls with arrows of their own the keys stay where they are.
  */
 function moveBetweenRows(event: KeyboardEvent) {
   if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   const target = event.target as HTMLElement;
+  if (target.closest(OWN_ARROWS)) return;
   const cell = target.closest('td, th');
-  const row = cell?.parentElement;
-  if (!(cell instanceof HTMLTableCellElement) || !(row instanceof HTMLTableRowElement)) return;
+  const row = cell?.parentElement ?? null;
+  if (!(cell instanceof HTMLTableCellElement) || !isRecordRow(row)) return;
   const step = (from: Element) =>
     event.key === 'ArrowDown' ? from.nextElementSibling : from.previousElementSibling;
-  // A closed fold-out is a hidden row of its own; the arrows skip it.
+  // Fold-outs, open or closed, are rows of their own; the arrows go from record to record.
   let next = step(row);
-  while (next instanceof HTMLTableRowElement && next.hidden) next = step(next);
+  while (next instanceof HTMLTableRowElement && !isRecordRow(next)) next = step(next);
   if (!(next instanceof HTMLTableRowElement)) return;
   const sameColumn = next.cells[cell.cellIndex]?.querySelector<HTMLElement>(FOCUSABLE);
   const destination = sameColumn ?? next.querySelector<HTMLElement>(FOCUSABLE);

@@ -32,10 +32,13 @@
 }
 
 .tab {
+  /* 8 px above and below the text today; the compact control (32 instead of 44 px) takes a
+     quarter of the difference off each, 5 px. */
   display: inline-flex;
   gap: var(--sc-space-2);
   align-items: center;
-  padding: var(--sc-space-2) var(--sc-space-4);
+  padding: calc(var(--sc-space-2) + (var(--sc-control-height) - var(--sc-size-control-height)) / 4)
+    var(--sc-space-4);
   border-radius: var(--sc-radius-full);
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);

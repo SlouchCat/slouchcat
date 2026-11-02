@@ -54,4 +54,4 @@ export const WithOverlay: Story = {
   },
 };
 
-export const Compact: Story = { globals: { density: 'compact' } };
+// No compact story: nothing here reads a component token, both densities look the same (ADR 0020).

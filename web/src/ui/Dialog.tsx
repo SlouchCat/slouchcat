@@ -13,23 +13,39 @@ import { AriaButton } from './AriaButton';
 import { TextField } from './TextField';
 import styles from './Dialog.module.css';
 
-interface ConfirmDialogProps {
-  /**
-   * The button that opens the dialog. Without it the page opens the dialog itself with
-   * `isOpen` (from a menu or an expandable row, which have no button of their own for it).
-   */
-  trigger?: ReactElement;
-  /** Open state when the page opens the dialog; uncontrolled with a `trigger` alone. */
-  isOpen?: boolean;
+interface ConfirmDialogTexts {
   title: string;
   body: string;
   confirmLabel: string;
   cancelLabel: string;
   onConfirm: () => void;
   tone?: 'primary' | 'danger';
+  /**
+   * The button that has the focus when the dialog opens: `confirm` (the default) for a question
+   * the reader asked for, `cancel` where pressing Enter by habit must not lose anything (leaving
+   * a page with unsaved input).
+   */
+  defaultFocus?: 'confirm' | 'cancel';
+}
+
+/** Opened by its own button; the page may still follow or set the open state. */
+interface TriggeredConfirm {
+  /** The button that opens the dialog. */
+  trigger: ReactElement;
+  isOpen?: boolean;
   /** Told when the dialog opens and closes (a page pauses its polling meanwhile). */
   onOpenChange?: (isOpen: boolean) => void;
 }
+
+/** Opened by the page (from a menu or an expandable row, which have no button for it). */
+interface ControlledConfirm {
+  trigger?: undefined;
+  isOpen: boolean;
+  /** Escape, Cancel and Confirm close it through this. */
+  onOpenChange: (isOpen: boolean) => void;
+}
+
+type ConfirmDialogProps = ConfirmDialogTexts & (TriggeredConfirm | ControlledConfirm);
 
 /**
  * Modal confirmation (react-aria): focus moves into the dialog, Escape and Cancel close it and
@@ -44,6 +60,7 @@ export function ConfirmDialog({
   cancelLabel,
   onConfirm,
   tone = 'primary',
+  defaultFocus = 'confirm',
   onOpenChange,
 }: ConfirmDialogProps) {
   const density = useDensityPortalProps();
@@ -53,7 +70,7 @@ export function ConfirmDialog({
       isDismissable
       {...density}
       // Inside a DialogTrigger the trigger holds the state; on its own the page does.
-      {...(trigger ? {} : { isOpen: isOpen ?? false, onOpenChange })}
+      {...(trigger ? {} : { isOpen, onOpenChange })}
     >
       <Modal className={styles.modal}>
         <Dialog className={styles.dialog} role="alertdialog">
@@ -64,12 +81,12 @@ export function ConfirmDialog({
               </Heading>
               <p className={styles.body}>{body}</p>
               <div className={styles.actions}>
-                <AriaButton variant="ghost" onPress={close}>
+                <AriaButton variant="ghost" autoFocus={defaultFocus === 'cancel'} onPress={close}>
                   {cancelLabel}
                 </AriaButton>
                 <AriaButton
                   variant={tone}
-                  autoFocus
+                  autoFocus={defaultFocus === 'confirm'}
                   onPress={() => {
                     onConfirm();
                     close();

@@ -49,21 +49,24 @@ nichts. `size.control.height` (44 px) bleibt als Mindestmass für Berührung und
 | `--sc-dialog-gap`           | `space.4` (16 px)                        | 12 px                  | `Dialog` (Titel, Text, Aktionen)                       |
 
 `--sc-control-height` lesen `Button`, `TextField` (`Field`), `SelectField`, `Switch`, `CheckboxGroup`,
-`ProviderList` (Zeilen), die Einträge von `MenuButton`, `ActionMenu` und `MasterDetail`, `ChoiceChips`,
-`FilterChips`, `RankSelect`, `SettingRow`, die Klappknöpfe von `BandPanel` und `DisclosureGroup` sowie
-Kopfzeile und Hilfe-Knopf von `AdminPage`. `SideNav` und `AdminSideNav` lesen weiter
-`--sc-size-control-height` und behalten 44 px (Konzept 12, 5.2: Leisten behalten ihre Masse).
+die Segmente von `RadioGroup` (`Field`), die Reiter von `Tabs` (Innenabstand), `ProviderList` (Zeilen),
+die Einträge von `MenuButton`, `ActionMenu` und `MasterDetail`, `ChoiceChips`, `FilterChips`,
+`RankSelect`, `SettingRow`, die Klappknöpfe von `BandPanel` und `DisclosureGroup` sowie Kopfzeile und
+Hilfe-Knopf von `AdminPage`. `--sc-control-font-size` lesen zusätzlich die Segmente von `RadioGroup`.
+`SideNav` und `AdminSideNav` lesen weiter `--sc-size-control-height` und behalten 44 px (Konzept 12,
+5.2: Leisten behalten ihre Masse).
 
 Die Variante `display` von `Text` liest wieder `font.size.display`: Seiten ohne `AdminPage` behalten
 ihren Titel, auch wenn die Dichte eingeschaltet ist.
 
 Die kompakten Werte stehen als `--sc-density-compact-*` bereit; die Zuordnung auf die
-Komponententokens steht in `web/src/ui/density.css` (Selektor `[data-density="compact"]`). Heute lädt
-sie nur Storybook (Global `density`, jede Story eines Bausteins auch kompakt). Eingeschaltet werden sie erst in K12-8:
-unter `[data-shell="admin"]` mit `@media (min-width: 48rem) and (pointer: fine)` werden die
-Komponententokens auf sie umgelegt, und zwar nur auf dem Inhaltsbereich `#content` und auf den
-Portalen der Dialoge aus Verwaltungsseiten (`AdminDensityScope`), nie auf `:root`: App-Kopf und
-Verwaltungsleiste behalten ihre Masse. Touch und Handy behalten 44 px.
+Komponententokens steht in `web/src/ui/density.css`. Sie gilt nur unter `:root[data-shell="admin"]`
+(das Gerüst der Verwaltung, Konzept 11) und dort nur im Inhaltsbereich `#content` und auf Portalen mit
+`data-density="compact"`, die `AdminDensityScope` setzt (Dialoge aus `Dialog.tsx`, `MessageDialog`,
+die Popover von `MenuButton` und `ActionMenu`), nie auf `:root` selbst: App-Kopf und
+Verwaltungsleiste behalten ihre Masse, `/settings/*` (ohne Verwaltungsgerüst) samt Dialogen die
+heutige Dichte. Dazu `@media (min-width: 48rem) and (pointer: fine)`; Touch und Handy behalten 44 px.
+Heute lädt die Datei nur Storybook (Global `density`); eingeschaltet wird sie in K12-8.
 
 ## Akzentfarben zur Laufzeit
 

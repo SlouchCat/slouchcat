@@ -60,7 +60,9 @@ export function Tabs({
             {/* The space keeps label and number apart in the spoken name. */}
             {tab.count !== undefined && ' '}
             {tab.count !== undefined && (
-              <span className={`${styles.count} ${styles[tab.tone ?? 'neutral']}`}>
+              <span
+                className={`${styles.count} ${tab.tone && tab.tone !== 'neutral' ? styles[tab.tone] : ''}`}
+              >
                 <span aria-hidden={tab.countLabel ? true : undefined}>{tab.count}</span>
                 {tab.countLabel && <VisuallyHidden>{tab.countLabel}</VisuallyHidden>}
               </span>

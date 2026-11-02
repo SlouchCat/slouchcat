@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { useDensityPortalProps } from './adminDensity';
 import { AriaButton } from './AriaButton';
 import dialogStyles from './Dialog.module.css';
 import styles from './MessageDialog.module.css';
@@ -44,6 +45,9 @@ export function MessageDialog({
   onConfirm,
   isPending,
 }: MessageDialogProps) {
+  // Today's size unless it opens from an administration page (ADR 0020); the viewers'
+  // announcement dialog opens from the app shell, outside any AdminPage.
+  const density = useDensityPortalProps();
   // react-aria closes on Escape only. Backspace is the back key of a remote (C-4); the capture
   // phase keeps the page behind from going back as well.
   useEffect(() => {
@@ -65,6 +69,7 @@ export function MessageDialog({
   return (
     <ModalOverlay
       className={dialogStyles.overlay}
+      {...density}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (!open) onDismiss();

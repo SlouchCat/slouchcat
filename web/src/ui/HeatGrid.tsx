@@ -6,6 +6,8 @@ const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 /** Hours with a label above the grid. */
 const TICKS = new Set([0, 6, 12, 18]);
+/** Steps of the colour legend, in percent of the highest value. */
+const LEGEND = [0, 25, 50, 75, 100];
 
 interface HeatGridProps {
   /** Caption of the grid and of its table ("Wann geschaut wird"). */
@@ -56,6 +58,17 @@ export function HeatGrid({ title, values, formatValue }: HeatGridProps) {
             );
           }),
         ])}
+      </div>
+      <div className={styles.legend} aria-hidden="true">
+        {t('ui.heatGrid.less')}
+        {LEGEND.map((step) => (
+          <span
+            key={step}
+            className={`${styles.cell} ${styles.swatch}`}
+            style={{ '--heat': step } as CSSProperties}
+          />
+        ))}
+        {t('ui.heatGrid.more')}
       </div>
       <table className={styles.table}>
         <caption>{title}</caption>

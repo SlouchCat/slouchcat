@@ -34,4 +34,4 @@ type Story = StoryObj<typeof meta>;
 /** Seven days, 24 hours; the accent the stronger the more was watched. */
 export const Default: Story = {};
 
-export const Compact: Story = { globals: { density: 'compact' } };
+// No compact story: nothing here reads a component token, both densities look the same (ADR 0020).

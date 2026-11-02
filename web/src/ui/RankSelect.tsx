@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './RankSelect.module.css';
 import { VisuallyHidden } from './VisuallyHidden';
@@ -73,18 +73,37 @@ export function RankSelect({
   const { t } = useTranslation();
   const id = useId();
   const ownHint = useId();
+  // The page reorders its list by key: React moves this select's node, and a moved node loses
+  // the focus. A select that changed its own position takes the focus back once it stands at
+  // the new one (↓ on a closed select changes it at once, so this happens on every arrow key).
+  const select = useRef<HTMLSelectElement>(null);
+  const changedByMe = useRef(false);
+  useLayoutEffect(() => {
+    if (!changedByMe.current) return;
+    changedByMe.current = false;
+    select.current?.focus();
+  }, [position]);
   return (
     <span className={styles.field}>
       <label htmlFor={id}>
         <VisuallyHidden>{t('ui.rank.label', { name })}</VisuallyHidden>
       </label>
       <select
+        ref={select}
         id={id}
         className={styles.select}
         value={position}
         disabled={isDisabled}
         aria-describedby={describedBy ?? ownHint}
-        onChange={(event) => onChange(Number(event.target.value))}
+        onChange={(event) => {
+          changedByMe.current = true;
+          onChange(Number(event.target.value));
+          // A page that keeps the order renders nothing new; the flag must not wait for the
+          // next change by someone else.
+          requestAnimationFrame(() => {
+            changedByMe.current = false;
+          });
+        }}
       >
         {Array.from({ length: count }, (_, index) => (
           <option key={index} value={index}>

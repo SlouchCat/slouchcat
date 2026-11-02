@@ -66,4 +66,14 @@ describe('RankSelect', () => {
     await user.selectOptions(select, 'Platz 1');
     expect(screen.getByText('Französisch, Englisch, Deutsch')).toBeVisible();
   });
+
+  it('keeps the focus on the select whose entry moved down the list', async () => {
+    const user = userEvent.setup();
+    render(<Languages mode="move" />);
+    const deutsch = screen.getByRole('combobox', { name: 'Platz für Deutsch' });
+    deutsch.focus();
+    await user.selectOptions(deutsch, 'Platz 3');
+    expect(screen.getByText('Englisch, Französisch, Deutsch')).toBeVisible();
+    expect(screen.getByRole('combobox', { name: 'Platz für Deutsch' })).toHaveFocus();
+  });
 });

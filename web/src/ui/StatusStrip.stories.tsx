@@ -29,4 +29,4 @@ type Story = StoryObj<typeof meta>;
 /** The five counters of the jobs page (JOB-1) as compact tiles, 56 px high. */
 export const Default: Story = {};
 
-export const Compact: Story = { globals: { density: 'compact' } };
+// No compact story: the strip's tiles are 56 px in both densities (S-4), the shots are equal.

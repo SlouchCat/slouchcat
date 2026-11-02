@@ -1,4 +1,5 @@
-import { useBlocker, type AnyRouter } from '@tanstack/react-router';
+import { useBlocker, type AnyRouter, type ShouldBlockFn } from '@tanstack/react-router';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /** Search parameters whose change keeps the page and its drafts (S-14, S-17). */
@@ -18,8 +19,9 @@ function differsBeyond(
 
 interface UnsavedChangesOptions {
   /**
-   * More search parameters whose change stays on the page because the drafts are kept per value
-   * (the scope `?library=` of the metadata page); `tab` and `item` always do.
+   * More search parameters whose change stays on the page. `tab` and `item` always do. A page
+   * names its own parameters that select something on the same page and keep the drafts: the
+   * scope `?library=` of the metadata page, `?add=` of the picks, `?days=` of the statistics.
    */
   keep?: readonly string[];
 }
@@ -33,6 +35,8 @@ export interface UnsavedChangesDialog {
   confirmLabel: string;
   cancelLabel: string;
   tone: 'danger';
+  /** Enter by habit stays on the page. */
+  defaultFocus: 'cancel';
   onConfirm: () => void;
 }
 
@@ -50,14 +54,19 @@ export function useUnsavedChanges(
   { keep = [] }: UnsavedChangesOptions = {},
 ): { pausePolling: boolean; dialog: UnsavedChangesDialog } {
   const { t } = useTranslation();
-  const blocker = useBlocker<AnyRouter, true>({
-    shouldBlockFn: ({ current, next }) =>
+  const keepKey = keep.join(',');
+  const shouldBlockFn = useCallback<ShouldBlockFn<AnyRouter>>(
+    ({ current, next }) =>
       current.pathname !== next.pathname ||
       differsBeyond(
         current.search as Record<string, unknown>,
         next.search as Record<string, unknown>,
-        [...SAME_PAGE_KEYS, ...keep],
+        [...SAME_PAGE_KEYS, ...keepKey.split(',').filter(Boolean)],
       ),
+    [keepKey],
+  );
+  const blocker = useBlocker<AnyRouter, true>({
+    shouldBlockFn,
     enableBeforeUnload: isDirty,
     disabled: !isDirty,
     withResolver: true,
@@ -75,6 +84,7 @@ export function useUnsavedChanges(
       confirmLabel: t('ui.unsaved.leave'),
       cancelLabel: t('ui.unsaved.stay'),
       tone: 'danger',
+      defaultFocus: 'cancel',
       onConfirm: () => {
         if (blocker.status === 'blocked') blocker.proceed();
       },

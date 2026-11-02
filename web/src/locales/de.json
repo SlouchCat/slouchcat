@@ -494,7 +494,9 @@
     },
     "heatGrid": {
       "day": "Wochentag",
-      "hour": "{{hour}} Uhr"
+      "hour": "{{hour}} Uhr",
+      "less": "weniger",
+      "more": "mehr"
     }
   },
   "item": {

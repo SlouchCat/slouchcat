@@ -35,4 +35,31 @@ describe('useDrafts (concept 12, S-17)', () => {
     expect(result.current.isDirty('a')).toBe(false);
     expect(result.current.dirty).toBe(false);
   });
+
+  it('lets later server changes show through a spent draft, and forgets deleted items', () => {
+    const data: Record<string, { name: string } | undefined> = {
+      a: { name: 'Alpha' },
+      b: { name: 'Beta' },
+    };
+    const { result, rerender } = renderHook(() => useDrafts((id: string) => data[id]));
+    act(() => result.current.set('a', { name: 'Alfa' }));
+    act(() => result.current.set('b', { name: 'Bet' }));
+    expect(result.current.dirtyIds).toEqual(['a', 'b']);
+
+    // Another administrator saved the same value: the draft is spent.
+    data.a = { name: 'Alfa' };
+    rerender();
+    expect(result.current.isDirty('a')).toBe(false);
+    // A later change on the server shows, not the old draft.
+    data.a = { name: 'Gamma' };
+    rerender();
+    expect(result.current.valueOf('a')).toEqual({ name: 'Gamma' });
+    expect(result.current.isDirty('a')).toBe(false);
+
+    // A draft of a deleted item does not keep the page dirty.
+    data.b = undefined;
+    rerender();
+    expect(result.current.isDirty('b')).toBe(false);
+    expect(result.current.dirty).toBe(false);
+  });
 });

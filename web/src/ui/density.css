@@ -2,14 +2,18 @@
  * Compact density of the administration (concept 12, 5.2; ADR 0020): the component tokens take
  * the values of density.compact. Only with a mouse from 768 px; touch and phones keep 44 px.
  *
+ * Only under the administration's shell (`data-shell="admin"` on <html>, set by index.html and
+ * AppLayout on /admin, concept 11): its content area `#content`, and the portals of the dialogs
+ * and menus opened from an AdminPage (`data-density="compact"`, AdminDensityScope). /settings/*
+ * uses AdminPage as well but has no admin shell, so it and its dialogs keep today's size; the
+ * app's header and the administration's sidebar are outside #content and keep theirs.
+ *
  * Not loaded by the app yet: today only Storybook imports this file (.storybook/preview.tsx, the
- * `density` global), where the compact stories carry `data-density="compact"` on their root and,
- * through AdminDensityScope, on the portals of their dialogs and menus. K12-8 imports it into the
- * app and adds the content area `[data-shell='admin'] #content` to the selector; the portals of
- * the administration's dialogs carry the attribute already (AdminDensityScope).
+ * `density` global sets both attributes for a compact story). K12-8 switches the density on by
+ * importing it into the app.
  */
 @media (width >= 48rem) and (pointer: fine) {
-  [data-density='compact'] {
+  :root[data-shell='admin'] :is(#content, [data-density='compact']) {
     --sc-control-height: var(--sc-density-compact-control-height);
     --sc-control-font-size: var(--sc-density-compact-control-font-size);
     --sc-panel-padding: var(--sc-density-compact-panel-padding);

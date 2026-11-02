@@ -75,7 +75,13 @@
 }
 
 .segment {
-  padding: var(--sc-space-2) var(--sc-space-5);
+  /* 40 px today (24 px of text and 8 px above and below), 28 px in the compact density; the
+     group adds 4 px on each side. */
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--sc-control-height) - var(--sc-space-1));
+  padding: 0 var(--sc-space-5);
+  font-size: var(--sc-control-font-size);
   border-radius: var(--sc-radius-full);
   color: var(--sc-color-text-secondary);
   font-weight: var(--sc-font-weight-medium);

@@ -5,7 +5,15 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { Chip, ImageCandidateGrid, Notice, Panel, Skeleton, Text, type ImageTile } from '@/ui';
+import {
+  Chip,
+  ImageCandidateGrid,
+  Notice,
+  Panel,
+  Skeleton,
+  Text,
+  type ImageCandidateTile,
+} from '@/ui';
 import { AriaButton, FormDialog } from '@/ui/aria';
 import styles from './AdminItemPage.module.css';
 
@@ -85,7 +93,7 @@ function PickerDialog({
     },
   });
   const list = candidates.data?.candidates ?? [];
-  const tiles: ImageTile[] = list.slice(0, shown).map((c) => {
+  const tiles: ImageCandidateTile[] = list.slice(0, shown).map((c) => {
     const lang = languageLabel(t, i18n.language, c.lang);
     const detail = candidateDetail(t, i18n.language, c);
     return {

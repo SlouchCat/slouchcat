@@ -8,6 +8,11 @@ describe('adminSearch (concept 12, S-14)', () => {
       item: '01J9ZK3Q4V8M2N5P7R0S1T2W3X',
     });
     expect(adminSearch({ item: 'me' })).toEqual({ item: 'me' });
+    // Job types are dotted codes.
+    expect(adminSearch({ tab: 'failed', item: 'metadata.apply' })).toEqual({
+      tab: 'failed',
+      item: 'metadata.apply',
+    });
     // The router parses ?item=12 as a number.
     expect(adminSearch({ item: 12 })).toEqual({ item: '12' });
   });
@@ -17,5 +22,6 @@ describe('adminSearch (concept 12, S-14)', () => {
     expect(adminSearch({ tab: '../admin', item: 'a b', library: 3, extra: 'x' })).toEqual({});
     expect(adminSearch({ tab: 'x'.repeat(65), item: 1.5 })).toEqual({});
     expect(adminSearch({ tab: ['failed'] })).toEqual({});
+    expect(adminSearch({ item: 'a..b', tab: '.hidden' })).toEqual({});
   });
 });

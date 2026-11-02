@@ -70,4 +70,4 @@ export const Horizontal: Story = {
   },
 };
 
-export const HorizontalCompact: Story = { ...Horizontal, globals: { density: 'compact' } };
+// No compact story: nothing here reads a component token, both densities look the same (ADR 0020).

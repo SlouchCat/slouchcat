@@ -3,20 +3,34 @@ import styles from './BandPanel.module.css';
 import { Icon, type IconName } from './Icon';
 import { Tabs, type TabsProps } from './Tabs';
 
-interface BandPanelProps {
+interface BandPanelBase {
   title: string;
   icon?: IconName;
   /** Small state at the end of the band ("3 von 4 eingerichtet", a Chip). */
   meta?: ReactNode;
+}
+
+/** A body below the band, optionally folded away by the title. */
+interface BandPanelWithBody extends BandPanelBase {
   /** The title becomes a button that folds the body away (`aria-expanded`). */
   collapsible?: boolean;
   /** Open state when the page holds it; uncontrolled (open at first) without. */
   isExpanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
-  /** A tab bar in the band, after the title; the panels form the body (`children` is unused). */
-  tabs?: Omit<TabsProps, 'head' | 'headClassName' | 'panelClassName'>;
   children?: ReactNode;
+  tabs?: undefined;
 }
+
+/** A tab bar in the band, after the title; the panels form the body. It does not fold away. */
+interface BandPanelWithTabs extends BandPanelBase {
+  tabs: Omit<TabsProps, 'head' | 'headClassName' | 'panelClassName'>;
+  collapsible?: false;
+  isExpanded?: undefined;
+  onExpandedChange?: undefined;
+  children?: undefined;
+}
+
+type BandPanelProps = BandPanelWithBody | BandPanelWithTabs;
 
 /**
  * A panel with a tinted head band (concept 12, 11.2): the profile's accent at 12 % behind the

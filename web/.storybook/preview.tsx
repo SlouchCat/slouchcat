@@ -20,8 +20,9 @@ const preview: Preview = {
   },
   // Density of the story (concept 12, ADR 0020): `default` is today's size everywhere; a story
   // with `globals: { density: 'compact' }` renders the way an administration page will from K12-8:
-  // its root carries data-density="compact" (ui/density.css maps the component tokens), and the
-  // AdminDensityScope puts the same attribute on the portals of its dialogs and menus.
+  // <html> carries data-shell="admin" like /admin, its root data-density="compact" (ui/density.css
+  // maps the component tokens), and the AdminDensityScope puts the same attribute on the portals
+  // of its dialogs and menus.
   globalTypes: {
     density: {
       description: 'Density of the administration (ADR 0020)',
@@ -30,8 +31,11 @@ const preview: Preview = {
   },
   initialGlobals: { density: 'default' },
   decorators: [
-    (Story, context) =>
-      context.globals.density === 'compact' ? (
+    (Story, context) => {
+      const compact = context.globals.density === 'compact';
+      if (compact) document.documentElement.dataset.shell = 'admin';
+      else delete document.documentElement.dataset.shell;
+      return compact ? (
         <div data-density="compact" style={{ display: 'contents' }}>
           <AdminDensityScope>
             <Story />
@@ -39,7 +43,8 @@ const preview: Preview = {
         </div>
       ) : (
         <Story />
-      ),
+      );
+    },
   ],
   loaders: [
     async () => {

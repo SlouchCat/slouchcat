@@ -11,7 +11,7 @@ function Areas() {
       <MasterDetail
         label="Bereiche"
         items={[
-          { id: 'languages', label: 'Sprachen' },
+          { id: 'languages', label: 'Sprachen', description: 'Deutsch, Englisch' },
           { id: 'images', label: 'Bilder' },
           { id: 'quality', label: 'Güte' },
         ]}
@@ -30,6 +30,10 @@ describe('MasterDetail (concept 12, 11.2)', () => {
     const user = userEvent.setup();
     render(<Areas />);
     expect(screen.getByRole('listbox', { name: 'Bereiche' })).toBeVisible();
+    // Label and description slots: the second line is the option's description, not its name.
+    expect(screen.getByRole('option', { name: 'Sprachen' })).toHaveAccessibleDescription(
+      'Deutsch, Englisch',
+    );
     await user.tab();
     expect(screen.getByRole('option', { name: 'Sprachen' })).toHaveFocus();
     await user.keyboard('{ArrowDown}');
