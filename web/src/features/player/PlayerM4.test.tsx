@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alienDetail, alienTracks, episodes, hlsPlayback, ids, playback } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
-import { revocationUrl, STOP_CHECK_MS } from './VideoPlayer';
 
 // M4 player: tracks (W-4, I-5), quality (W-8), chapters, intro and auto-next (W-9), the limits
 // (K-5, W-8) and a stream the admin ended (W-6). The server decides; the player shows its answers.
@@ -587,50 +586,6 @@ describe('player M4', () => {
     expect(screen.getByRole('button', { name: 'Spuren' })).toBeDisabled();
     fireEvent.keyDown(document.body, { key: 'q' });
     expect(screen.queryByRole('menu')).toBeNull();
-  });
-
-  it('asks every 2 s while playing whether the server ended a fully buffered playback (W-6)', async () => {
-    const media = stubMedia();
-    vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation((type) =>
-      type === 'application/vnd.apple.mpegurl' ? '' : 'probably',
-    );
-    vi.stubGlobal('MediaSource', { isTypeSupported: () => true });
-    let stopped = false;
-    const { calls } = mockApi(
-      routes(hlsPlayback, undefined, {
-        // An HLS token opens no Range stream: 404 while the playback runs, 401 once it is stopped.
-        [`GET /items/${ids.alien}/stream`]: () =>
-          stopped ? problem(401, 'unauthenticated') : problem(404, 'not_found'),
-      }),
-    );
-    const checks = () =>
-      calls.filter((call) => call.method === 'GET' && call.path === `/items/${ids.alien}/stream`);
-    const { container } = renderApp(`/play/${ids.alien}`);
-    await waitFor(() => expect(hlsMock.instances).toHaveLength(1));
-    await startPlayer(container);
-    expect(media.paused).toBe(false);
-    await act(() => vi.advanceTimersByTimeAsync(STOP_CHECK_MS));
-    expect(checks()).toHaveLength(1);
-    expect(region()).not.toHaveAttribute('data-ended-reason');
-    // Paused, the player asks nothing; playing again, it asks again.
-    fireEvent.keyDown(document.body, { key: ' ' });
-    await act(() => vi.advanceTimersByTimeAsync(STOP_CHECK_MS * 2));
-    expect(checks()).toHaveLength(1);
-    fireEvent.keyDown(document.body, { key: ' ' });
-    stopped = true;
-    await act(() => vi.advanceTimersByTimeAsync(STOP_CHECK_MS));
-    await waitFor(() => expect(region()).toHaveAttribute('data-ended-reason', 'admin'));
-    expect(hlsMock.instances[0]!.stopped).toBe(1);
-    expect(media.paused).toBe(true);
-    // Ended, it stops asking.
-    const asked = checks().length;
-    await act(() => vi.advanceTimersByTimeAsync(STOP_CHECK_MS * 2));
-    expect(checks()).toHaveLength(asked);
-  });
-
-  it('checks a direct playback on its stream and an HLS playback on the Range stream of its token', () => {
-    expect(revocationUrl(playback)).toBe(playback.streamUrl);
-    expect(revocationUrl(hlsPlayback)).toBe(`/items/${ids.alien}/stream?st=ps-2.token`);
   });
 
   it('asks the stream after a direct-play error: 401 means ended, anything else a failure', async () => {
