@@ -135,15 +135,10 @@ function AccountsContent() {
   const invitations = useQuery({ ...invitationsQuery, refetchOnWindowFocus: !hold });
   const libraries = useLibraryOptions();
 
-  const [tab, selectTab] = useSearchSelection('tab', TABS, 'accounts');
-  const search: Record<string, unknown> = useSearch({ strict: false });
-  const askedTab = search.tab;
-  const askedItem = search.item;
   // An unknown `?tab=` shows «Konten»; the address says so too.
-  useEffect(() => {
-    if (askedTab !== undefined && !(typeof askedTab === 'string' && TABS.includes(askedTab)))
-      selectTab('accounts');
-  }, [askedTab, selectTab]);
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'accounts', { normalise: true });
+  const search: Record<string, unknown> = useSearch({ strict: false });
+  const askedItem = search.item;
 
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const { set: setOwnDraft } = own;

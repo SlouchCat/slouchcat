@@ -181,6 +181,16 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     expect(toggleOf('gast@example.test')).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('an unknown ?tab= shows «Konten» and leaves the address', async () => {
+    mockApi(routes());
+    const { router } = renderApp('/admin/accounts?tab=nothing');
+    expect(await screen.findByRole('tab', { name: /^Konten/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
   it('shows four numbers above the tabs: accounts, administrators, profiles, open invitations', async () => {
     mockApi(
       routes({
