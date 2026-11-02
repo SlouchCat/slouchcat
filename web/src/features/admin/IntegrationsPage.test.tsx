@@ -522,6 +522,17 @@ describe('integrations (A-2)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
   });
 
+  it('the bands count what is set up', async () => {
+    mockApi(routes());
+    renderApp('/admin/integrations');
+    // TMDB is stored and Trakt comes from deploy/.env; the other five are not set.
+    expect(await screen.findByText('2 von 7 gesetzt')).toBeVisible();
+    expect(section('Schlüssel der Anbieter')).toContainElement(screen.getByText('2 von 7 gesetzt'));
+    expect(
+      await within(section('Webhooks von Radarr und Sonarr')).findByText('0 Integrationen'),
+    ).toBeVisible();
+  });
+
   it('links to the notification channels, which link back here', async () => {
     mockApi(routes());
     renderApp('/admin/integrations');

@@ -1783,6 +1783,7 @@
         "title": "Provider keys",
         "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
         "saveLabel": "Save {{name}}",
+        "count": "{{set}} of {{total}} set",
         "newValue": "Leave empty to keep the stored value. A new value replaces it.",
         "tmdb": {
           "name": "TMDB token",
@@ -1826,6 +1827,8 @@
         "intro": "Radarr and Sonarr report changed files here, so new titles appear at once. Slouchcat never calls those services itself.",
         "empty": "No integration set up yet.",
         "caption": "Webhook integrations",
+        "count_one": "{{count}} integration",
+        "count_other": "{{count}} integrations",
         "tail": "…{{tail}}",
         "columns": {
           "name": "Name",
@@ -1864,6 +1867,7 @@
           "removeAction": "Remove",
           "elsewhere": "Someone else has changed the path mapping of this integration in the meantime. Your rows are still here and will be stored when you save.",
           "takeOver": "Take the other version",
+          "elsewhereChip": "changed elsewhere",
           "saveLabel": "Save the path mapping of {{name}}",
           "saved": "Path mapping saved."
         },

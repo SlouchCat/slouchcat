@@ -9,6 +9,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
+import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Panel, Skeleton, Text } from '@/ui';
 import {
   AriaButton,
@@ -119,28 +120,36 @@ function CreatedAddress({
   );
 }
 
-/** Name and kind of a new integration. */
-function NewIntegrationForm({ onCreated }: { onCreated: (created: IntegrationCreated) => void }) {
+/**
+ * Name and kind of a new integration. The name is held by the page, so leaving it with a typed
+ * name asks first (S-13). The answer carries the secret address: the mutation keeps nothing of it
+ * once it is handed over (useTransientMutation).
+ */
+function NewIntegrationForm({
+  name,
+  onNameChange,
+  onCreated,
+}: {
+  name: string;
+  onNameChange: (name: string) => void;
+  onCreated: (created: IntegrationCreated) => void;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [name, setName] = useState('');
   const [kind, setKind] = useState<Integration['kind']>('radarr');
 
-  const create = useMutation({
-    mutationFn: createIntegration,
-    onSuccess: async (created) => {
-      onCreated(created);
-      setName('');
-      setKind('radarr');
-      await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
-      await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
-    },
+  const create = useTransientMutation(createIntegration, async (created) => {
+    onCreated(created);
+    onNameChange('');
+    setKind('radarr');
+    await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
+    await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
   });
   const errors = create.error ? formErrors(t, create.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate({ name: name.trim(), kind });
+    void create.run({ name: name.trim(), kind });
   };
 
   return (
@@ -155,7 +164,7 @@ function NewIntegrationForm({ onCreated }: { onCreated: (created: IntegrationCre
           autoComplete="off"
           isRequired
           value={name}
-          onChange={setName}
+          onChange={onNameChange}
           validate={(text) => (text.trim() ? null : t('errors.field.required'))}
         />
         <RadioGroup
@@ -179,6 +188,27 @@ function NewIntegrationForm({ onCreated }: { onCreated: (created: IntegrationCre
   );
 }
 
+/**
+ * Where the unsaved rows of an integration stand. Rows that match the stored mapping, or the one
+ * they started from, are no change of their own (`spent`): the section drops them, even while the
+ * row is folded. `elsewhere`: a second admin saved this integration while rows were typed here;
+ * they stay, with an offer to take the other version.
+ */
+function pathMapState(integration: Integration, drafts: Drafts<PathMapDraft>) {
+  const id = String(integration.id);
+  const draft = drafts.valueOf(id) ?? { base: integration.pathMap, rows: integration.pathMap };
+  const server = stored(integration.pathMap);
+  const typed = drafts.isDirty(id);
+  const spent =
+    typed && (stored(draft.rows) === server || stored(draft.rows) === stored(draft.base));
+  return {
+    draft,
+    spent,
+    dirty: typed && !spent,
+    elsewhere: typed && !spent && stored(draft.base) !== server,
+  };
+}
+
 /** The prefix pairs of one integration: add, change and remove rows, then save them together. */
 function PathMapForm({
   integration,
@@ -192,7 +222,7 @@ function PathMapForm({
   const [message, setMessage] = useState<string | null>(null);
   const id = String(integration.id);
   const { discard } = drafts;
-  const draft = drafts.valueOf(id) ?? { base: integration.pathMap, rows: integration.pathMap };
+  const { draft, elsewhere } = pathMapState(integration, drafts);
   const rows = draft.rows;
 
   const save = useMutation({
@@ -209,16 +239,6 @@ function PathMapForm({
   });
   const errors = save.error ? formErrors(t, save.error) : null;
 
-  // A second admin saved this integration while rows were typed here: they stay, with an offer to
-  // take the other version. Rows that match the stored mapping, or the one they started from, are
-  // no change of their own, so the form simply follows the stored mapping again.
-  const server = stored(integration.pathMap);
-  const dirty = drafts.isDirty(id);
-  const spent = dirty && (stored(rows) === server || stored(rows) === stored(draft.base));
-  const elsewhere = dirty && !spent && stored(draft.base) !== server;
-  useEffect(() => {
-    if (spent) discard(id);
-  }, [spent, discard, id]);
   const takeOver = () => {
     setMessage(null);
     discard(id);
@@ -374,15 +394,19 @@ function RowActions({
     await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
     await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
   };
-  const renew = useMutation({
-    mutationFn: () => renewIntegrationToken(integration.id),
-    onMutate: () => onError(null),
-    onSuccess: async (created) => {
+  // The answer carries the new secret address: nothing of it stays in the mutation cache.
+  const renew = useTransientMutation(
+    () => renewIntegrationToken(integration.id),
+    async (created: IntegrationCreated) => {
       onRenewed(created);
       await invalidate();
     },
-    onError,
-  });
+  );
+  const renewNow = async () => {
+    onError(null);
+    const outcome = await renew.run(undefined);
+    if (!outcome.ok) onError(outcome.error);
+  };
   const remove = useMutation({
     mutationFn: () => deleteIntegration(integration.id),
     onMutate: () => onError(null),
@@ -399,6 +423,7 @@ function RowActions({
       <ConfirmDialog
         trigger={
           <AriaButton
+            variant="danger"
             icon="refresh"
             isPending={renew.isPending}
             aria-label={t('admin.integrations.webhooks.renew.label', { name: integration.name })}
@@ -411,12 +436,12 @@ function RowActions({
         confirmLabel={t('admin.integrations.webhooks.renew.confirm')}
         cancelLabel={t('common.cancel')}
         tone="danger"
-        onConfirm={() => renew.mutate()}
+        onConfirm={() => void renewNow()}
       />
       <ConfirmDialog
         trigger={
           <AriaButton
-            variant="ghost"
+            variant="danger"
             isPending={remove.isPending}
             aria-label={t('admin.integrations.webhooks.delete.label', { name: integration.name })}
           >
@@ -442,9 +467,14 @@ function RowActions({
  */
 export function WebhooksSection({
   drafts,
+  newName,
+  onNewNameChange,
   onRemoved,
 }: {
   drafts: Drafts<PathMapDraft>;
+  /** The name typed for a new integration, held by the page (S-13). */
+  newName: string;
+  onNewNameChange: (name: string) => void;
   /** An integration was deleted: the page moves the focus to its heading. */
   onRemoved: () => void;
 }) {
@@ -453,11 +483,25 @@ export function WebhooksSection({
   const [error, setError] = useState<unknown>(null);
   const integrations = useQuery(integrationsQuery);
 
+  // Drafts that came to match the stored mapping (a save elsewhere, rows typed back) are dropped
+  // here, for every integration, whether its row is open or folded.
+  const { discard } = drafts;
+  const spent = (integrations.data ?? [])
+    .filter((integration) => pathMapState(integration, drafts).spent)
+    .map((integration) => String(integration.id))
+    .join(',');
+  useEffect(() => {
+    for (const id of spent.split(',').filter(Boolean)) discard(id);
+  }, [spent, discard]);
+
   return (
     <>
       <Text tone="secondary">{t('admin.integrations.webhooks.intro')}</Text>
-      {created && <CreatedAddress created={created} onDismiss={() => setCreated(null)} />}
-      <NewIntegrationForm onCreated={setCreated} />
+      {/* Keyed by the address: a second one starts afresh (status line, focus on its field). */}
+      {created && (
+        <CreatedAddress key={created.url} created={created} onDismiss={() => setCreated(null)} />
+      )}
+      <NewIntegrationForm name={newName} onNameChange={onNewNameChange} onCreated={setCreated} />
       {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
       <div aria-busy={integrations.isPending}>
         {integrations.isPending && <Skeleton shape="block" />}
@@ -485,14 +529,20 @@ export function WebhooksSection({
                 key: 'name',
                 header: t('admin.integrations.webhooks.columns.name'),
                 rowHeader: true,
-                cell: (integration) => (
-                  <>
-                    {integration.name}
-                    {drafts.isDirty(String(integration.id)) && (
-                      <Chip tone="warning">{t('admin.integrations.unsaved')}</Chip>
-                    )}
-                  </>
-                ),
+                cell: (integration) => {
+                  const state = pathMapState(integration, drafts);
+                  return (
+                    <>
+                      {integration.name}
+                      {state.dirty && <Chip tone="warning">{t('admin.integrations.unsaved')}</Chip>}
+                      {state.elsewhere && (
+                        <Chip tone="danger">
+                          {t('admin.integrations.webhooks.pathMap.elsewhereChip')}
+                        </Chip>
+                      )}
+                    </>
+                  );
+                },
               },
               {
                 key: 'kind',

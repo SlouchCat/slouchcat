@@ -190,6 +190,71 @@ describe('webhook integrations (I-8)', () => {
     expect(within(panel).getByLabelText('Vollständige Adresse')).toHaveValue(url);
   });
 
+  it('a second address replaces the first one afresh, and no address stays in the mutation cache', async () => {
+    const first = 'https://slouchcat.example.ch/api/v1/webhooks/FIRST-token';
+    const second = 'https://slouchcat.example.ch/api/v1/webhooks/SECOND-token';
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText');
+    mockApi(
+      routes({
+        'POST /admin/integrations': () =>
+          json(
+            {
+              integration: { ...radarr, id: 2, name: 'Sonarr', kind: 'sonarr' },
+              url: first,
+              token: 'FIRST-token',
+            },
+            201,
+          ),
+        'POST /admin/integrations/1/token': () =>
+          json({ integration: radarr, url: second, token: 'SECOND-token' }),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/integrations');
+    const held = () =>
+      queryClient
+        .getMutationCache()
+        .getAll()
+        .map((mutation) => JSON.stringify([mutation.state.variables, mutation.state.data]))
+        .filter((state) => state.includes('-token'));
+
+    const { section, row } = await integrationRow('Radarr');
+    await user.type(within(section).getByLabelText('Name'), 'Sonarr');
+    await user.click(within(section).getByRole('button', { name: 'Integration anlegen' }));
+    const panel = await screen.findByRole('region', { name: 'Adresse für «Sonarr»' });
+    await user.click(within(panel).getByRole('button', { name: 'Adresse kopieren' }));
+    expect(await within(panel).findByText('Adresse kopiert.')).toBeVisible();
+    expect(held()).toEqual([]);
+
+    // Renewing while the first address is shown: the panel starts afresh for the new one.
+    await user.click(within(row).getByRole('button', { name: 'Token von Radarr erneuern' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Erneuern' }),
+    );
+    const next = await screen.findByRole('region', { name: 'Adresse für «Radarr»' });
+    const field = within(next).getByLabelText('Vollständige Adresse');
+    expect(field).toHaveValue(second);
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(within(next).queryByText('Adresse kopiert.')).toBeNull();
+    expect(screen.queryByDisplayValue(first)).toBeNull();
+    await waitFor(() => expect(held()).toEqual([]));
+  });
+
+  it('a typed name of a new integration makes leaving the page ask first', async () => {
+    const user = userEvent.setup();
+    mockApi(routes());
+    const { router } = renderApp('/admin/integrations');
+    const { section } = await integrationRow('Radarr');
+    await user.type(within(section).getByLabelText('Name'), 'Sonarr Kinder');
+    expect(within(section).getByText('ungespeichert')).toBeVisible();
+    void router.navigate({ to: '/admin' });
+    expect(
+      await screen.findByRole('alertdialog', {
+        name: 'Seite mit ungespeicherten Änderungen verlassen?',
+      }),
+    ).toBeVisible();
+  });
+
   it('a failed renewal is reported in the block', async () => {
     const user = userEvent.setup();
     mockApi(routes({ 'POST /admin/integrations/1/token': () => problem(500, 'internal') }));
@@ -291,6 +356,40 @@ describe('webhook integrations (I-8)', () => {
     await user.clear(within(section).getByLabelText('Pfad auf diesem Server'));
     await user.type(within(section).getByLabelText('Pfad auf diesem Server'), '/media/Filme');
     await waitFor(() => expect(within(section).queryByText('ungespeichert')).toBeNull());
+  });
+
+  it('with the row folded, a draft the server catches up with is dropped and a conflict is marked', async () => {
+    const user = userEvent.setup();
+    let pathMap = radarr.pathMap;
+    mockApi(routes({ 'GET /admin/integrations': () => json([{ ...radarr, pathMap }]) }));
+    const { queryClient } = renderApp('/admin/integrations');
+
+    const section = await openIntegration('Radarr');
+    const { toggle } = await integrationRow('Radarr');
+    const to = within(section).getByLabelText('Pfad auf diesem Server');
+    await user.clear(to);
+    await user.type(to, '/media/Kino');
+    await user.click(toggle);
+    expect(toggle).toHaveTextContent('Radarrungespeichert');
+
+    // Another admin saves the very rows typed here: nothing is unsaved any more, still folded.
+    pathMap = [{ from: '/movies', to: '/media/Kino' }];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'integrations'] });
+    await waitFor(() => expect(within(section).queryByText('ungespeichert')).toBeNull());
+    expect(toggle).toHaveTextContent(/^Radarr$/);
+
+    // Rows typed here, then a different version saved elsewhere: the folded row says so.
+    await user.click(toggle);
+    await user.clear(within(section).getByLabelText('Pfad auf diesem Server'));
+    await user.type(within(section).getByLabelText('Pfad auf diesem Server'), '/media/Eigen');
+    await user.click(toggle);
+    pathMap = [{ from: '/movies', to: '/media/Fremd' }];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'integrations'] });
+    expect(await within(toggle).findByText('anderswo geändert')).toBeVisible();
+    expect(within(toggle).getByText('ungespeichert')).toBeVisible();
+    await user.click(toggle);
+    expect(within(section).getByText(/Ein anderer Zugang/)).toBeVisible();
+    expect(within(section).getByLabelText('Pfad auf diesem Server')).toHaveValue('/media/Eigen');
   });
 
   it('follows a mapping another admin saved, and keeps unsaved rows with a warning', async () => {

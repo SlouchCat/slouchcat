@@ -1783,6 +1783,7 @@
         "title": "Schlüssel der Anbieter",
         "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
         "saveLabel": "{{name}} speichern",
+        "count": "{{set}} von {{total}} gesetzt",
         "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
         "tmdb": {
           "name": "TMDB-Token",
@@ -1826,6 +1827,8 @@
         "intro": "Radarr und Sonarr melden geänderte Dateien hierher, damit neue Titel sofort erscheinen. Slouchcat fragt die Dienste nie von sich aus ab.",
         "empty": "Noch keine Integration eingerichtet.",
         "caption": "Webhook-Integrationen",
+        "count_one": "{{count}} Integration",
+        "count_other": "{{count}} Integrationen",
         "tail": "…{{tail}}",
         "columns": {
           "name": "Name",
@@ -1864,6 +1867,7 @@
           "removeAction": "Entfernen",
           "elsewhere": "Ein anderer Zugang hat die Pfad-Umsetzung dieser Integration inzwischen geändert. Deine Zeilen stehen noch hier und werden beim Speichern übernommen.",
           "takeOver": "Andere Fassung übernehmen",
+          "elsewhereChip": "anderswo geändert",
           "saveLabel": "Pfad-Umsetzung von {{name}} speichern",
           "saved": "Pfad-Umsetzung gespeichert."
         },
