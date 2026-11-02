@@ -1682,7 +1682,8 @@
         "rankHint": "1 is the first place. The place holds for the whole list; a profile with fewer hits sees the title earlier.",
         "done": "{{title}} is pinned to place {{rank}}.",
         "taken": "{{hint}} Taken: {{places}}.",
-        "takenPlace": "place {{rank}} ({{title}})"
+        "takenPlace": "place {{rank}} ({{title}})",
+        "allTaken": "All places are taken; unpin one first."
       },
       "unpin": {
         "action": "Unpin",

@@ -126,6 +126,9 @@ function spotlightApi(
 }
 
 const region = (name: string) => screen.findByRole('region', { name });
+/** A number of the source: its input by the (screen reader only) label of its setting row. */
+const number = (card: HTMLElement, name: string | RegExp) =>
+  within(card).getByRole('spinbutton', { name });
 const source = () => region('Quelle');
 const entriesTable = () => screen.findByRole('table', { name: 'Einträge der Liste' });
 const statusRegion = () =>
@@ -163,13 +166,22 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(within(card).getByRole('radio', { name: 'Trending bei Trakt' })).toBeChecked();
     expect(within(card).getByRole('radio', { name: 'Filme und Serien' })).toBeChecked();
     // Plan 5.5: the per-profile numbers are named apart from the system-wide counts below.
-    const count = within(card).getByLabelText('Höchstens');
-    expect(count).toHaveValue(20);
-    expect(count).toHaveAccessibleDescription('Titel in der Reihe, je Profil (5–20)');
-    const below = within(card).getByLabelText('Ausblenden unter');
-    expect(below).toHaveValue(5);
-    expect(below).toHaveAccessibleDescription('Treffern in der Bibliothek, je Profil (0–10)');
-    expect(within(card).getByLabelText('Abruf alle … Stunden')).toHaveValue(24);
+    // Every setting is a row: its label and help on the left (the group names and describes the
+    // control), the control on the right; no label shows twice.
+    expect(number(card, 'Höchstens')).toHaveValue(20);
+    expect(within(card).getByRole('group', { name: 'Höchstens' })).toHaveAccessibleDescription(
+      'Titel in der Reihe, je Profil (5–20)',
+    );
+    expect(number(card, 'Ausblenden unter')).toHaveValue(5);
+    expect(
+      within(card).getByRole('group', { name: 'Ausblenden unter' }),
+    ).toHaveAccessibleDescription('Treffern in der Bibliothek, je Profil (0–10)');
+    expect(number(card, 'Abruf alle … Stunden')).toHaveValue(24);
+    // The field's own label is for screen readers only.
+    expect(within(card).getByText('Höchstens', { selector: 'label' })).toHaveClass('hiddenLabel');
+    expect(within(card).getByRole('group', { name: 'Trakt-Liste' })).toHaveAccessibleDescription(
+      'Öffentliche Listen, kein Trakt-Login. Schlüssel unter Integrationen',
+    );
 
     // The foot: fetched, hits of the fetched entries, the key as a link (never its value).
     expect(await within(card).findByText(/^Zuletzt abgerufen /)).toBeVisible();
@@ -227,7 +239,7 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
       ).toBeVisible();
     }
 
-    const count = within(card).getByLabelText('Höchstens');
+    const count = number(card, 'Höchstens');
     await user.clear(count);
     await user.type(count, '12');
     expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
@@ -235,16 +247,16 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     band.focus();
     await user.keyboard('{Enter}');
     expect(band).toHaveAttribute('aria-expanded', 'false');
-    expect(within(card).getByLabelText('Höchstens')).not.toBeVisible();
+    expect(within(card).queryByRole('spinbutton', { name: 'Höchstens' })).toBeNull();
     // Folded, the band still says the source holds unsaved input and why the row is missing.
     expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
     expect(within(card).getByText('Fehlt auf der Startseite')).toBeVisible();
     await user.keyboard(' ');
-    expect(within(card).getByLabelText('Höchstens')).toHaveValue(12);
+    expect(number(card, 'Höchstens')).toHaveValue(12);
 
     // Typed back to the stored value, nothing is unsaved any more.
-    await user.clear(within(card).getByLabelText('Höchstens'));
-    await user.type(within(card).getByLabelText('Höchstens'), '20');
+    await user.clear(number(card, 'Höchstens'));
+    await user.type(number(card, 'Höchstens'), '20');
     expect(within(card).queryByText('Ungespeicherte Änderungen')).toBeNull();
   });
 
@@ -322,11 +334,11 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
     await user.click(within(card).getByRole('radio', { name: 'Beliebt bei Trakt' }));
     await user.click(within(card).getByRole('radio', { name: 'Nur Serien' }));
-    const count = within(card).getByLabelText('Höchstens');
+    const count = number(card, 'Höchstens');
     await user.clear(count);
     await user.type(count, '10');
     // The band's rhythm on the start page (concept 08, F-10).
-    const rotation = within(card).getByLabelText(/Takt der Bühne/);
+    const rotation = number(card, /Takt der Bühne/);
     expect(rotation).toHaveValue(5);
     expect(within(card).getByText('3 bis 15 Sekunden')).toBeVisible();
     await user.clear(rotation);
@@ -691,6 +703,116 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     renderApp('/admin/spotlight');
     const entries = await region('Einträge der Liste');
     expect(await within(entries).findByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+  });
+
+  it('the address typed back to its stored value is no change; the request trims it', async () => {
+    const stored = 'https://trakt.tv/users/marco/lists/kino';
+    const { calls } = spotlightApi({
+      'GET /admin/spotlight': () => json({ ...config, listKey: 'url', listUrl: stored }),
+      'PUT /admin/spotlight': (call: Call) =>
+        json({ ...config, ...(call.body as object) } satisfies SpotlightConfig),
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const address = await within(card).findByRole('textbox', { name: /Adresse der Liste/ });
+
+    await user.type(address, '/');
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    await user.type(address, '{Backspace}');
+    expect(address).toHaveValue(stored);
+    expect(within(card).queryByText('Ungespeicherte Änderungen')).toBeNull();
+
+    await user.clear(address);
+    await user.type(address, ' https://trakt.tv/users/marco/lists/neu ');
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }));
+    expect(await within(statusRegion()).findByText('Spotlight ist gespeichert.')).toBeVisible();
+    expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+      listKey: 'url',
+      listUrl: 'https://trakt.tv/users/marco/lists/neu',
+    });
+  });
+
+  it('with every place taken the pin dialog says so, «Speichern» is off and «Abbrechen» has the focus', async () => {
+    const holders = [1, 2, 3, 4, 5].map((rank): SpotlightEntry => ({
+      ...dune,
+      tmdbId: 7100 + rank,
+      position: rank + 1,
+      title: `Platzhalter ${rank}`,
+      itemId: `01J0000000000000000000010${rank}`,
+      pinnedRank: rank,
+    }));
+    spotlightApi(
+      { 'GET /admin/spotlight': () => json({ ...config, itemCount: 5 }) },
+      { entries: [dune, ...holders], orphans: [] },
+    );
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const table = await entriesTable();
+
+    await user.click(within(table).getByRole('button', { name: 'Dune anheften' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Dune anheften' });
+    expect(within(dialog).getByText('Alle Plätze sind belegt; löse zuerst einen.')).toBeVisible();
+    for (const radio of within(dialog).getAllByRole('radio')) expect(radio).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Abbrechen' })).toHaveFocus(),
+    );
+  });
+
+  it('a 409 rank_taken asks the entries again, so the grid shows the new holder', async () => {
+    const arrival: SpotlightEntry = {
+      ...dune,
+      tmdbId: 7002,
+      position: 2,
+      title: 'Arrival',
+      itemId: '01J00000000000000000000002',
+    };
+    let entries = [dune, arrival];
+    const { calls } = mockApi({
+      ...signedIn,
+      ...adminShell,
+      'GET /admin/trakt': () => json(status),
+      'GET /admin/spotlight': () => json(config),
+      'GET /admin/spotlight/entries': () => json({ listKey: 'trending', entries, orphans: [] }),
+      // Another administrator pinned Arrival to place 1 meanwhile.
+      'PATCH /admin/spotlight/entries/*/*': () => {
+        entries = [dune, { ...arrival, pinnedRank: 1 }];
+        return problem(409, 'rank_taken');
+      },
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const table = await entriesTable();
+    const asked = () => calls.filter((call) => call.path === '/admin/spotlight/entries').length;
+
+    await user.click(within(table).getByRole('button', { name: 'Dune anheften' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Dune anheften' });
+    const first = within(dialog).getByRole('radio', { name: '1' });
+    await user.click(first);
+    const before = asked();
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    expect(
+      await within(dialog).findByText('Diesen Platz hat schon ein anderer Eintrag der Liste.'),
+    ).toBeVisible();
+    await waitFor(() => expect(asked()).toBeGreaterThan(before));
+    await waitFor(() => expect(first).toBeDisabled());
+    expect(first).not.toBeChecked();
+    expect(within(dialog).getByRole('radiogroup')).toHaveAccessibleDescription(
+      /Belegt: Platz 1 \(Arrival\)\.$/,
+    );
+  });
+
+  it('the state fails to load: the error offers «Erneut versuchen», the foot shows no placeholder', async () => {
+    spotlightApi({ 'GET /admin/trakt': () => problem(503, 'unavailable') });
+    renderApp('/admin/spotlight');
+    const card = await source();
+    expect(await screen.findByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+    await entriesTable();
+    expect(card.querySelector('[aria-hidden="true"][class~="skeleton"]')).toBeNull();
+    expect(within(card).queryByText(/auf der Startseite$/i)).toBeNull();
+    expect(within(card).getByRole('button', { name: 'Jetzt abrufen' })).toBeVisible();
   });
 
   it('a guest gets the notice and no request', async () => {

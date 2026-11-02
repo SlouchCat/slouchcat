@@ -11,6 +11,19 @@
   font-weight: var(--sc-font-weight-medium);
 }
 
+/* A label for screen readers only (`hideLabel`): a SettingRow already shows it on the left. */
+.hiddenLabel {
+  position: absolute;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .input {
   width: 100%;
   min-height: var(--sc-control-height);

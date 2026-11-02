@@ -4,8 +4,8 @@ import styles from './SettingRow.module.css';
 interface SettingRowProps {
   /** What the setting is ("Bildsprachen"). */
   label: string;
-  /** A short line under the label: what the setting does. */
-  help?: string;
+  /** A short line under the label: what the setting does (it may hold a link). */
+  help?: ReactNode;
   /**
    * The control, on the right. It keeps its own accessible name (a switch's label may be
    * visually hidden); the row names the group and describes it with `help`.

@@ -53,8 +53,8 @@ export const sourceDraftOf = (config: SpotlightConfig): SourceDraft => ({
 });
 
 /**
- * A draft as the form compares it: numbers and the address without surrounding blanks, so a
- * field typed back to its stored value is no change.
+ * A draft as it is compared: numbers and the address without surrounding blanks. The draft keeps
+ * what was typed; only the comparison and the request trim it.
  */
 const normalised = (draft: SourceDraft): SourceDraft => ({
   ...draft,
@@ -64,6 +64,16 @@ const normalised = (draft: SourceDraft): SourceDraft => ({
   intervalHours: draft.intervalHours.trim(),
   rotationSeconds: draft.rotationSeconds.trim(),
 });
+
+/**
+ * Whether the source holds unsaved input: a draft that differs from the stored config once both
+ * are trimmed. A field typed back to its stored value, blanks around it or not, is no change.
+ */
+export function sourceChanged(drafts: Drafts<SourceDraft>, config: SpotlightConfig | undefined) {
+  const draft = drafts.valueOf(SOURCE_DRAFT);
+  if (!config || !draft || !drafts.isDirty(SOURCE_DRAFT)) return false;
+  return JSON.stringify(normalised(draft)) !== JSON.stringify(normalised(sourceDraftOf(config)));
+}
 
 /** The four numbers in the order of the form, with their locale keys. */
 const NUMBERS = [
@@ -85,6 +95,7 @@ const NUMBERS = [
 export function SourceForm({
   config,
   status,
+  statusFailed,
   entries,
   drafts,
   onStart,
@@ -94,6 +105,8 @@ export function SourceForm({
 }: {
   config: SpotlightConfig;
   status?: TraktStatus;
+  /** The state could not be loaded: the page shows the error, the foot no placeholder. */
+  statusFailed: boolean;
   entries?: SpotlightEntries;
   drafts: Drafts<SourceDraft>;
   /** An action starts: the page clears its last outcome. */
@@ -106,7 +119,7 @@ export function SourceForm({
   const queryClient = useQueryClient();
   const draft = drafts.valueOf(SOURCE_DRAFT) ?? sourceDraftOf(config);
   const change = (patch: Partial<SourceDraft>) =>
-    drafts.set(SOURCE_DRAFT, (current) => normalised({ ...current, ...patch }));
+    drafts.set(SOURCE_DRAFT, (current) => ({ ...current, ...patch }));
 
   const kind = config.listKinds.find((entry) => entry.key === draft.listKey);
   const allowedMedia = kind?.media ?? [draft.media];
@@ -145,10 +158,10 @@ export function SourceForm({
       enabled: draft.enabled,
       listKey: draft.listKey,
       media,
-      itemCount: Number(draft.itemCount),
-      minHits: Number(draft.minHits),
-      intervalHours: Number(draft.intervalHours),
-      rotationSeconds: Number(draft.rotationSeconds),
+      itemCount: Number(draft.itemCount.trim()),
+      minHits: Number(draft.minHits.trim()),
+      intervalHours: Number(draft.intervalHours.trim()),
+      rotationSeconds: Number(draft.rotationSeconds.trim()),
       ...(kind?.needsUrl ? { listUrl: draft.listUrl.trim() } : {}),
     });
   };
@@ -161,82 +174,97 @@ export function SourceForm({
           <VisuallyHidden>{t('admin.spotlight.enabled')}</VisuallyHidden>
         </Switch>
       </SettingRow>
-      <div className={styles.group}>
-        <RadioGroup
-          name="listKey"
-          label={t('admin.spotlight.source.list')}
-          description={
-            <>
-              {t('admin.spotlight.source.listHint')}{' '}
-              <TextLink href={paths.adminIntegrations}>
-                {t('admin.spotlight.source.listHintLink')}
-              </TextLink>
-            </>
-          }
-          value={draft.listKey}
-          onChange={(value) => {
-            const picked = config.listKinds.find((entry) => entry.key === value);
-            if (picked) change({ listKey: picked.key });
-          }}
-          options={config.listKinds.map((entry) => ({
-            value: entry.key,
-            label: t(`admin.spotlight.lists.${entry.key}`, { defaultValue: entry.key }),
-          }))}
-        />
-        {kind?.needsUrl && (
-          <TextField
-            name="listUrl"
-            type="url"
-            label={t('admin.spotlight.source.listUrl')}
-            description={t('admin.spotlight.source.listUrlHint')}
-            autoComplete="off"
-            spellCheck="false"
-            isRequired
-            value={draft.listUrl}
-            onChange={(listUrl) => change({ listUrl })}
-            validate={required}
+      <SettingRow
+        label={t('admin.spotlight.source.list')}
+        help={
+          <>
+            {t('admin.spotlight.source.listHint')}{' '}
+            <TextLink href={paths.adminIntegrations}>
+              {t('admin.spotlight.source.listHintLink')}
+            </TextLink>
+          </>
+        }
+      >
+        <div className={styles.control}>
+          <RadioGroup
+            name="listKey"
+            label={t('admin.spotlight.source.list')}
+            hideLabel
+            value={draft.listKey}
+            onChange={(value) => {
+              const picked = config.listKinds.find((entry) => entry.key === value);
+              if (picked) change({ listKey: picked.key });
+            }}
+            options={config.listKinds.map((entry) => ({
+              value: entry.key,
+              label: t(`admin.spotlight.lists.${entry.key}`, { defaultValue: entry.key }),
+            }))}
           />
-        )}
-      </div>
-      <RadioGroup
-        name="media"
+          {kind?.needsUrl && (
+            <TextField
+              name="listUrl"
+              type="url"
+              label={t('admin.spotlight.source.listUrl')}
+              description={t('admin.spotlight.source.listUrlHint')}
+              autoComplete="off"
+              spellCheck="false"
+              isRequired
+              value={draft.listUrl}
+              onChange={(listUrl) => change({ listUrl })}
+              validate={required}
+            />
+          )}
+        </div>
+      </SettingRow>
+      <SettingRow
         label={t('admin.spotlight.source.media')}
-        description={
+        help={
           allowedMedia.length === 1
             ? t('admin.spotlight.source.mediaFixed')
             : kind?.mediaFilters
               ? t('admin.spotlight.source.mediaFilters')
               : undefined
         }
-        value={media}
-        isDisabled={allowedMedia.length === 1}
-        onChange={(value) => {
-          const picked = allowedMedia.find((entry) => entry === value);
-          if (picked) change({ media: picked });
-        }}
-        options={allowedMedia.map((entry) => ({
-          value: entry,
-          label: t(`admin.spotlight.media.${entry}`),
-        }))}
-      />
-      <div className={styles.numberFields}>
-        {NUMBERS.map(([field, label, hint]) => (
-          <TextField
-            key={field}
-            name={field}
-            type="number"
-            inputMode="numeric"
-            label={t(`admin.spotlight.source.${label}`)}
-            description={t(`admin.spotlight.source.${hint}`)}
-            isRequired
-            value={draft[field]}
-            onChange={(value) => change({ [field]: value })}
-            validate={required}
-          />
-        ))}
-      </div>
+      >
+        <RadioGroup
+          name="media"
+          label={t('admin.spotlight.source.media')}
+          hideLabel
+          value={media}
+          isDisabled={allowedMedia.length === 1}
+          onChange={(value) => {
+            const picked = allowedMedia.find((entry) => entry === value);
+            if (picked) change({ media: picked });
+          }}
+          options={allowedMedia.map((entry) => ({
+            value: entry,
+            label: t(`admin.spotlight.media.${entry}`),
+          }))}
+        />
+      </SettingRow>
+      {NUMBERS.map(([field, label, hint]) => (
+        <SettingRow
+          key={field}
+          label={t(`admin.spotlight.source.${label}`)}
+          help={t(`admin.spotlight.source.${hint}`)}
+        >
+          <div className={styles.number}>
+            <TextField
+              name={field}
+              type="number"
+              inputMode="numeric"
+              label={t(`admin.spotlight.source.${label}`)}
+              hideLabel
+              isRequired
+              value={draft[field]}
+              onChange={(value) => change({ [field]: value })}
+              validate={required}
+            />
+          </div>
+        </SettingRow>
+      ))}
       <div className={styles.footer}>
-        <FetchState status={status} config={config} entries={entries} />
+        <FetchState status={status} statusFailed={statusFailed} config={config} entries={entries} />
         <div className={styles.buttons}>
           <AriaButton
             variant="secondary"

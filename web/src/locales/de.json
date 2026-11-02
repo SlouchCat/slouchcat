@@ -1682,7 +1682,8 @@
         "rankHint": "1 ist der erste Platz. Der Platz gilt für die ganze Liste; ein Profil mit weniger Treffern sieht den Titel früher.",
         "done": "{{title}} ist auf Platz {{rank}} angeheftet.",
         "taken": "{{hint}} Belegt: {{places}}.",
-        "takenPlace": "Platz {{rank}} ({{title}})"
+        "takenPlace": "Platz {{rank}} ({{title}})",
+        "allTaken": "Alle Plätze sind belegt; löse zuerst einen."
       },
       "unpin": {
         "action": "Lösen",

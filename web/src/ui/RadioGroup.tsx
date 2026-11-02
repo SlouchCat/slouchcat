@@ -18,15 +18,20 @@ interface Option {
 
 interface RadioGroupProps extends Omit<AriaRadioGroupProps, 'className' | 'children' | 'style'> {
   label: string;
+  /**
+   * The label for screen readers only, where the visible text stands next to the group already
+   * (a SettingRow); the group keeps its accessible name.
+   */
+  hideLabel?: boolean;
   description?: ReactNode;
   options: readonly Option[];
 }
 
 /** Segmented choice between a few options (react-aria RadioGroup, arrow keys inside). */
-export function RadioGroup({ label, description, options, ...rest }: RadioGroupProps) {
+export function RadioGroup({ label, hideLabel, description, options, ...rest }: RadioGroupProps) {
   return (
     <AriaRadioGroup className={styles.field} orientation="horizontal" {...rest}>
-      <Label className={styles.label}>{label}</Label>
+      <Label className={hideLabel ? styles.hiddenLabel : styles.label}>{label}</Label>
       {description && (
         <Text slot="description" className={styles.description}>
           {description}

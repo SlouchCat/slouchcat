@@ -1,12 +1,14 @@
-import { useMutation } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRef, useState, type FormEvent, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
+import { isApiError } from '@/api/client';
 import { formErrors } from '@/api/errors';
 import { formText } from '@/lib/form';
 import { Notice } from '@/ui';
 import { AriaButton, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
 import {
   setSpotlightEntryOverride,
+  spotlightEntriesQuery,
   type SpotlightEntry,
   type SpotlightEntryOverride,
 } from '../queries';
@@ -23,22 +25,37 @@ interface EntryDialogProps {
   onSaved: (saved: SpotlightEntry, body: SpotlightEntryOverride) => void;
 }
 
-function useOverride(entry: SpotlightEntry, onSaved: EntryDialogProps['onSaved']) {
+function useOverride(
+  entry: SpotlightEntry,
+  onSaved: EntryDialogProps['onSaved'],
+  onError?: (error: unknown) => void,
+) {
   return useMutation({
     mutationFn: (body: SpotlightEntryOverride) =>
       setSpotlightEntryOverride(entry.media, entry.tmdbId, body),
     onSuccess: onSaved,
+    onError,
   });
 }
 
-function DialogButtons({ isPending, onClose }: { isPending: boolean; onClose: () => void }) {
+function DialogButtons({
+  isPending,
+  onClose,
+  saveDisabled,
+  cancelRef,
+}: {
+  isPending: boolean;
+  onClose: () => void;
+  saveDisabled?: boolean;
+  cancelRef?: Ref<HTMLButtonElement>;
+}) {
   const { t } = useTranslation();
   return (
     <div className={styles.dialogActions}>
-      <AriaButton variant="ghost" onPress={onClose}>
+      <AriaButton ref={cancelRef} variant="ghost" onPress={onClose}>
         {t('common.cancel')}
       </AriaButton>
-      <AriaButton type="submit" variant="primary" isPending={isPending}>
+      <AriaButton type="submit" variant="primary" isPending={isPending} isDisabled={saveDisabled}>
         {isPending ? t('common.saving') : t('common.save')}
       </AriaButton>
     </div>
@@ -49,7 +66,9 @@ function DialogButtons({ isPending, onClose }: { isPending: boolean; onClose: ()
  * «Anheften» (SPO-3; concept 12, 10.3): the places of the row as a grid of choices up to
  * «Höchstens» (`itemCount`). A place another entry of the list holds is shown but cannot be
  * chosen, and the description names who holds it; the server still answers 409 `rank_taken` when
- * someone else took it meanwhile. The arrow keys move between the free places.
+ * someone else took it meanwhile, and the entries are asked again so the grid shows the new holder.
+ * With every place taken the dialog says so, «Speichern» is off and the focus starts on
+ * «Abbrechen». The arrow keys move between the free places.
  */
 export function PinDialog({
   entry,
@@ -65,9 +84,15 @@ export function PinDialog({
   others: readonly SpotlightEntry[];
 }) {
   const { t } = useTranslation();
-  const update = useOverride(entry, onSaved);
+  const queryClient = useQueryClient();
+  const update = useOverride(entry, onSaved, (error) => {
+    if (isApiError(error) && error.code === 'rank_taken') {
+      void queryClient.invalidateQueries({ queryKey: spotlightEntriesQuery.queryKey });
+    }
+  });
   const errors = update.error ? formErrors(t, update.error) : null;
-  const [rank, setRank] = useState<string | null>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
+  const [picked, setPicked] = useState<string | null>(null);
   // Saving without a place says so at the grid; choosing one takes the message away.
   const [unchosen, setUnchosen] = useState(false);
   const holders = new Map(
@@ -80,6 +105,9 @@ export function PinDialog({
     .filter((place) => holders.has(place))
     .map((place) => t('admin.spotlight.pin.takenPlace', { rank: place, title: holders.get(place) }))
     .join(t('admin.spotlight.state.separator'));
+  const allTaken = ranks.every((place) => holders.has(place));
+  // A place that someone took meanwhile is no choice any more.
+  const rank = picked !== null && !holders.has(Number(picked)) ? picked : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -97,7 +125,7 @@ export function PinDialog({
         if (!open) onClose();
       }}
       title={t('admin.spotlight.pin.title', { title: entryName(t, entry) })}
-      initialFocus='input[type="radio"]:not(:disabled)'
+      initialFocus={allTaken ? cancel : 'input[type="radio"]:not(:disabled)'}
     >
       <Form
         className={styles.form}
@@ -105,6 +133,7 @@ export function PinDialog({
         validationErrors={unchosen ? { pinnedRank: t('errors.field.required') } : errors?.fields}
       >
         {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+        {allTaken && <Notice tone="warning">{t('admin.spotlight.pin.allTaken')}</Notice>}
         <RadioGroup
           name="pinnedRank"
           label={t('admin.spotlight.pin.rank')}
@@ -119,7 +148,7 @@ export function PinDialog({
           value={rank}
           onChange={(value) => {
             setUnchosen(false);
-            setRank(value);
+            setPicked(value);
           }}
           options={ranks.map((place) => ({
             value: String(place),
@@ -127,7 +156,12 @@ export function PinDialog({
             isDisabled: holders.has(place),
           }))}
         />
-        <DialogButtons isPending={update.isPending} onClose={onClose} />
+        <DialogButtons
+          isPending={update.isPending}
+          onClose={onClose}
+          saveDisabled={allTaken}
+          cancelRef={cancel}
+        />
       </Form>
     </FormDialog>
   );

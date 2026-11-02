@@ -26,7 +26,13 @@ import {
 import { entryColumns, entryKey, entryName, orphanColumns } from './spotlight/columns';
 import { NoteDialog, PinDialog } from './spotlight/EntryDialogs';
 import { RowChip, rowState } from './spotlight/FetchState';
-import { SOURCE_DRAFT, SourceForm, sourceDraftOf, type SourceDraft } from './spotlight/SourceForm';
+import {
+  SOURCE_DRAFT,
+  SourceForm,
+  sourceChanged,
+  sourceDraftOf,
+  type SourceDraft,
+} from './spotlight/SourceForm';
 import styles from './spotlight/Spotlight.module.css';
 
 /** After "Jetzt abrufen" the status and the entries are asked again this often for a while. */
@@ -92,7 +98,9 @@ function SpotlightContent() {
       [configData],
     ),
   );
-  const unsaved = useUnsavedChanges(drafts.dirty);
+  // Blanks around a value are no change: the comparison trims, the draft keeps what was typed.
+  const changed = sourceChanged(drafts, configData);
+  const unsaved = useUnsavedChanges(changed);
   // Nothing is asked again while a dialog is open or the source holds unsaved input (S-6, S-13).
   const hold = dialogOpen || unsaved.dialog.isOpen || unsaved.pausePolling;
   useEffect(() => {
@@ -237,7 +245,8 @@ function SpotlightContent() {
   );
 
   const list = entries.data;
-  const state = config.data && status.data && rowState(t, status.data, config.data, list);
+  // The band's chip waits for the entries: the hits decide whether the row is shown.
+  const state = config.data && status.data && list && rowState(t, status.data, config.data, list);
 
   return (
     <AdminPage
@@ -264,7 +273,7 @@ function SpotlightContent() {
           title={t('admin.spotlight.source.title')}
           meta={
             <>
-              {drafts.dirty && <Chip tone="warning">{t('admin.spotlight.unsaved')}</Chip>}
+              {changed && <Chip tone="warning">{t('admin.spotlight.unsaved')}</Chip>}
               {state && <RowChip state={state} />}
             </>
           }
@@ -272,6 +281,7 @@ function SpotlightContent() {
           <SourceForm
             config={config.data}
             status={status.data}
+            statusFailed={status.isError}
             entries={list}
             drafts={drafts}
             onStart={clear}

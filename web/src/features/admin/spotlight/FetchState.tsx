@@ -54,15 +54,18 @@ export function RowChip({ state }: { state: RowState }) {
  */
 export function FetchState({
   status,
+  statusFailed,
   config,
   entries,
 }: {
   status?: TraktStatus;
+  /** The state could not be loaded: the page shows the error with «Erneut versuchen». */
+  statusFailed: boolean;
   config: SpotlightConfig;
   entries?: SpotlightEntries;
 }) {
   const { t, i18n } = useTranslation();
-  if (!status) return <Skeleton shape="line" />;
+  if (!status) return statusFailed ? <div className={styles.state} /> : <Skeleton shape="line" />;
   // `trakt_unavailable: HTTP 503`: the code in words when the UI knows it, else the server's text.
   const reason = (text: string) => {
     const [code = ''] = text.split(':');
