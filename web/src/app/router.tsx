@@ -357,6 +357,8 @@ const librariesRoute = createRoute({
 const podcastsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/podcasts',
+  // `?tab=` is the library filter, «all» by default (concept 12, S-14).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
 });
 

@@ -1245,24 +1245,37 @@
     },
     "podcasts": {
       "title": "Podcasts",
-      "intro": "Subscribed feeds and podcasts from folders. Slouchcat fetches every feed hourly and adds new episodes.",
+      "intro": "Subscribed feeds and podcasts from folders. The background job “Check podcast feeds” fetches the subscriptions that are due and adds new episodes.",
       "empty": "No podcast subscribed yet.",
+      "emptyLibrary": "No podcast in this library yet.",
       "list": "Subscribed podcasts",
+      "listOf": "Subscribed podcasts in {{library}}",
       "noLibrary": "Add a library of the kind Podcasts first.",
       "librariesLink": "Go to libraries",
       "never": "Never",
       "noError": "–",
       "explicit": "Explicit",
       "fromFolder": "from folder",
-      "localEpisodes_one": "{{count}} local",
-      "localEpisodes_other": "{{count}} local",
+      "localEpisodes_one": "{{number}} local",
+      "localEpisodes_other": "{{number}} local",
       "columns": {
         "title": "Title",
-        "library": "Library",
         "episodes": "Episodes",
         "lastFetch": "Last fetch",
-        "error": "Error",
-        "actions": "Actions"
+        "error": "Error"
+      },
+      "tabs": {
+        "label": "Podcasts by library",
+        "all": "All",
+        "count_one": "{{count}} podcast",
+        "count_other": "{{count}} podcasts"
+      },
+      "detail": {
+        "author": "Author",
+        "feedUrl": "Feed address",
+        "noFeed": "No feed, the episodes come from the folder.",
+        "library": "Library",
+        "folderNote": "A folder holds this podcast. It comes back with every scan; it can only be removed with the folder under Libraries."
       },
       "subscribe": {
         "action": "Subscribe to feed",
@@ -1278,7 +1291,8 @@
       "refresh": {
         "action": "Fetch now",
         "label": "Fetch {{title}} now",
-        "queued": "{{title}} is being fetched."
+        "queued": "{{title}} is being fetched.",
+        "running": "being fetched"
       },
       "remove": {
         "action": "Unsubscribe",
