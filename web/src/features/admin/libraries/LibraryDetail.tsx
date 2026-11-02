@@ -82,7 +82,7 @@ export const LibraryDetail = memo(function LibraryDetail({
       <div className={styles.actions}>
         {/* One button that changes its part: the focus stays on it when a scan starts or ends. */}
         <AriaButton
-          variant={scanning ? 'dangerQuiet' : 'secondary'}
+          variant="secondary"
           icon={scanning ? 'close' : 'refresh'}
           isDisabled={!scanning && !canScan(library)}
           isPending={scanning ? cancelPending : scanPending}

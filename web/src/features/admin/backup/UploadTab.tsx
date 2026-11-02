@@ -86,7 +86,12 @@ export function UploadTab({
         onChange={setPassphrase}
       />
       <div>
-        <AriaButton type="submit" variant="danger" isDisabled={file === null} isPending={isPending}>
+        <AriaButton
+          type="submit"
+          variant="dangerQuiet"
+          isDisabled={file === null}
+          isPending={isPending}
+        >
           {isPending ? t('admin.backup.restore.running') : t('admin.backup.restore.action')}
         </AriaButton>
       </div>
