@@ -54,6 +54,14 @@ test.describe('with a mouse from 768 px', () => {
     expect(await height(entry)).toBeGreaterThanOrEqual(44);
   });
 
+  test('running text is 14 px in the content of /admin', async ({ page }) => {
+    await page.goto('/admin/spotlight');
+    await expect(page.getByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
+    const hint = page.getByText(/^Wo die Reihe auf der Startseite steht/);
+    await expect(hint).toBeVisible();
+    expect(await fontSize(hint)).toBe('14px');
+  });
+
   test('/settings/profiles keeps today’s size', async ({ page }) => {
     await page.goto('/settings/profiles');
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();

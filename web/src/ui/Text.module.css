@@ -15,8 +15,10 @@
   line-height: var(--sc-font-line-height-snug);
 }
 
+/* Running text: the size is a component token, so the compact density (ADR 0020) sets 14 px
+   without a variant of its own. */
 .body {
-  font-size: var(--sc-font-size-lg);
+  font-size: var(--sc-text-body-size);
   font-weight: var(--sc-font-weight-regular);
   line-height: var(--sc-font-line-height-normal);
 }

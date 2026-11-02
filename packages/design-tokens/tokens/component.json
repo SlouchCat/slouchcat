@@ -72,6 +72,13 @@
       "$description": "Gap between title, body and actions of a dialog."
     }
   },
+  "text": {
+    "$type": "dimension",
+    "body-size": {
+      "$value": "{font.size.lg}",
+      "$description": "Size of running text (Text variant body): intro sentences, hints, empty states, the save bar's status."
+    }
+  },
   "density": {
     "compact": {
       "$type": "dimension",
@@ -134,6 +141,12 @@
       "dialog": {
         "gap": {
           "$value": "{space.3}"
+        }
+      },
+      "text": {
+        "body-size": {
+          "$value": "{font.size.sm}",
+          "$description": "14 px: running text as in the mockups (13 to 14 px), the size of the setting rows' labels."
         }
       }
     }

@@ -27,6 +27,7 @@
     --sc-section-gap: var(--sc-density-compact-section-gap);
     --sc-section-title-size: var(--sc-density-compact-section-title-size);
     --sc-dialog-gap: var(--sc-density-compact-dialog-gap);
+    --sc-text-body-size: var(--sc-density-compact-text-body-size);
     --page-gutter: var(--sc-density-compact-page-gutter);
   }
 }
