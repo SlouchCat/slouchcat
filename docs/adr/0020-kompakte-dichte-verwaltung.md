@@ -133,3 +133,7 @@ unverändert (dieselben Farb-Tokens).
   40 px (S-5). Dazu sinkt `density.compact.table.cell-padding-y` von 9 auf 6 px: Faltknopf, Chip und
   Kontrollkästchen (24 px) passen so in 40 px, Textzeilen hält die Mindesthöhe auf 40 px. Die Zellen
   stehen in der Mitte der Zeile (`vertical-align: middle`), auch in der Standarddichte.
+- **`setting.help-size`** und **`setting.text-gap`** (Komponententoken `--sc-setting-help-size`,
+  `--sc-setting-text-gap`): Hilfezeile einer Einstellungszeile (`SettingRow`) und ihr Abstand zur
+  Bezeichnung. Standard 14 px und 4 px wie bisher, kompakt 12 px und 0 wie in den Mockups (Int-A,
+  Spo-A, Met-B); eine Einstellung mit einer Zeile Hilfe ist so rund 56 px hoch.

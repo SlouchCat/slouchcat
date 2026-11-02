@@ -83,6 +83,17 @@
       "$description": "Size of running text (Text variant body): intro sentences, hints, empty states, the save bar's status."
     }
   },
+  "setting": {
+    "$type": "dimension",
+    "help-size": {
+      "$value": "{font.size.sm}",
+      "$description": "Size of the help line under a setting's label (SettingRow)."
+    },
+    "text-gap": {
+      "$value": "{space.1}",
+      "$description": "Gap between a setting's label and its help line."
+    }
+  },
   "density": {
     "compact": {
       "$type": "dimension",
@@ -155,6 +166,15 @@
         "body-size": {
           "$value": "{font.size.sm}",
           "$description": "14 px: running text as in the mockups (13 to 14 px), the size of the setting rows' labels."
+        }
+      },
+      "setting": {
+        "help-size": {
+          "$value": "{font.size.xs}",
+          "$description": "12 px like the mockups (Int-A, Spo-A, Met-B): a setting with one line of help is about 56 px high."
+        },
+        "text-gap": {
+          "$value": "0px"
         }
       }
     }

@@ -17,7 +17,7 @@
 .text {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-1);
+  gap: var(--sc-setting-text-gap);
   min-width: 0;
 }
 
@@ -37,7 +37,7 @@
 
 .help {
   color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
+  font-size: var(--sc-setting-help-size);
 }
 
 .control {
@@ -48,10 +48,11 @@
   min-width: 0;
 }
 
-/* The labels in a column of their own width, the controls left-aligned in one column beside
-   them: every control of a form starts at the same line, however wide it is. */
+/* Labels and help in two fifths of the row, the controls left-aligned in one column beside
+   them: every control of a form starts at the same line, however wide it is (mockups Spo-A,
+   Met-B, Int-A). */
 @media (width >= 768px) {
   .row {
-    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   }
 }
