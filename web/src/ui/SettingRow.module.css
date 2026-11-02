@@ -2,7 +2,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--sc-space-2) var(--sc-space-6);
-  align-items: center;
+
+  /* Label and control start at the top of the row (mockups Spo-A, Met-B): a control of several
+     lines (a list of radio buttons, a ranked list) keeps its label beside its first line. */
+  align-items: start;
   min-height: var(--sc-control-height);
   padding: var(--sc-space-2) 0;
 }
@@ -37,12 +40,10 @@
   min-width: 0;
 }
 
+/* The labels in a column of their own width, the controls left-aligned in one column beside
+   them: every control of a form starts at the same line, however wide it is. */
 @media (width >= 768px) {
   .row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .control {
-    justify-content: flex-end;
+    grid-template-columns: minmax(0, 16rem) minmax(0, 1fr);
   }
 }
