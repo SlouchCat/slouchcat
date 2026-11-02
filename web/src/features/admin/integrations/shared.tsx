@@ -131,23 +131,32 @@ export function Actions({
       <AriaButton type="submit" variant="primary" isPending={isPending} aria-label={saveLabel}>
         {isPending ? t('admin.integrations.saving') : t('admin.integrations.save')}
       </AriaButton>
-      {stored && (
-        <ConfirmDialog
-          trigger={
-            <AriaButton variant="dangerQuiet" aria-label={t('admin.integrations.clear.label', { name })}>
-              {t('admin.integrations.clear.action')}
-            </AriaButton>
-          }
-          title={t('admin.integrations.clear.title', { name })}
-          body={t('admin.integrations.clear.body')}
-          confirmLabel={t('admin.integrations.clear.confirm')}
-          cancelLabel={t('common.cancel')}
-          tone="danger"
-          onConfirm={onClear}
-        />
-      )}
+      {stored && <ClearButton name={name} onClear={onClear} />}
       {children}
     </div>
+  );
+}
+
+/** «Löschen …» of a stored value: quiet red text that asks before it deletes. */
+export function ClearButton({ name, onClear }: { name: string; onClear: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <ConfirmDialog
+      trigger={
+        <AriaButton
+          variant="dangerQuiet"
+          aria-label={t('admin.integrations.clear.label', { name })}
+        >
+          {t('admin.integrations.clear.action')}
+        </AriaButton>
+      }
+      title={t('admin.integrations.clear.title', { name })}
+      body={t('admin.integrations.clear.body')}
+      confirmLabel={t('admin.integrations.clear.confirm')}
+      cancelLabel={t('common.cancel')}
+      tone="danger"
+      onConfirm={onClear}
+    />
   );
 }
 

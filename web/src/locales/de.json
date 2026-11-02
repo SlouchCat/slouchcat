@@ -1961,6 +1961,7 @@
       "envHint": "In deploy/.env gesetzt. Ändern lässt sich der Wert nur dort.",
       "save": "Speichern",
       "saving": "Wird gespeichert …",
+      "discard": "Verwerfen",
       "clear": {
         "action": "Löschen",
         "label": "{{name}} löschen",
@@ -2100,31 +2101,36 @@
         "title": "E-Mail-Server",
         "intro": "Für Benachrichtigungen, Einladungen und Ankündigungen per E-Mail.",
         "name": "E-Mail-Server",
-        "host": "Server",
+        "hostPort": "Server und Port",
         "port": "Port",
         "user": "Benutzer",
+        "userHint": "Anmeldename am E-Mail-Server, falls nötig.",
         "password": "Passwort",
         "passwordHint": "Wird verschlüsselt gespeichert und nie wieder angezeigt.",
         "passwordKeep": "Leer lassen, um das gespeicherte Passwort zu behalten.",
         "from": "Absender",
         "fromHint": "Zum Beispiel Slouchcat <media@example.ch>.",
         "tls": "Verschlüsselung",
+        "tlsHint": "STARTTLS für Port 587, TLS für Port 465.",
         "tlsOptions": {
           "starttls": "STARTTLS",
           "tls": "TLS",
           "none": "Keine"
         },
         "test": "Testmail senden",
+        "testTo": "Die Testmail geht an {{email}}.",
         "testSent": "Testmail an {{email}} gesendet.",
         "testFailed": "Die Testmail kam nicht an: {{detail}}"
       },
       "telegram": {
         "title": "Telegram-Bot",
-        "intro": "Für Benachrichtigungen per Telegram. Das Token erhältst du von @BotFather.",
         "name": "Telegram-Bot",
+        "botLabel": "Bot",
+        "botHelp": "Für Benachrichtigungen per Telegram; Slouchcat findet ihn über das Token.",
         "token": "Bot-Token",
-        "tokenKeep": "Ein neues Token ersetzt das gespeicherte. Slouchcat prüft es bei Telegram.",
-        "bot": "Bot: @{{name}}"
+        "tokenHelp": "Von @BotFather. Ein neues Token ersetzt das gespeicherte. Slouchcat prüft es bei Telegram.",
+        "bot": "Bot: @{{name}}",
+        "noBot": "Kein Bot eingerichtet."
       },
       "push": {
         "title": "Web-Push",

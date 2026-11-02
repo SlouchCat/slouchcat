@@ -100,3 +100,42 @@
     flex-basis: 100%;
   }
 }
+
+/* The mail server's host and port on one line (Int-A): the host takes the room, the port is
+   narrow. */
+.hostPort {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+}
+
+.hostPort > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hostPort > :last-child {
+  flex: 0 0 6rem;
+}
+
+/* The last line of the mail server (Int-A): the test mail on the left, «Verwerfen», «Löschen …»
+   and «Speichern» on the right; narrow, the buttons wrap below. */
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-control-height);
+  padding: var(--sc-space-2) 0;
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.footerEnd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin-left: auto;
+}

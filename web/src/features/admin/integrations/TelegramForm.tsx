@@ -1,13 +1,16 @@
 import type { AdminSettings } from '@slouchcat/api-client';
-import { type FormEvent } from 'react';
+import { useId, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
-import { Text } from '@/ui';
-import { Form, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
+import { Text, VisuallyHidden } from '@/ui';
+import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import styles from './Integrations.module.css';
 import { Actions, Outcome, TELEGRAM_DRAFT, useSecretUpdate } from './shared';
 
-/** The Telegram bot: write-only token (checked by the server with getMe) and its name. */
+/**
+ * The Telegram bot as two setting rows (Int-A): the bot Slouchcat found, and the write-only token
+ * (checked by the server with getMe) with «Speichern» and «Löschen …» beside the field.
+ */
 export function TelegramForm({
   telegram,
   fields,
@@ -26,6 +29,7 @@ export function TelegramForm({
   });
   const errors = save.error ? formErrors(t, save.error) : null;
   const env = telegram.source === 'env';
+  const keepHintId = useId();
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,44 +44,67 @@ export function TelegramForm({
     });
   };
 
+  // A stored token: the field is empty and says so in a short placeholder; the whole sentence is
+  // its accessible description (like a provider key). From deploy/.env the note stays visible.
+  const keepHint = telegram.source === 'stored' ? t('admin.integrations.keys.newValue') : undefined;
+
   return (
-    <>
-      <Text tone="secondary">{t('admin.integrations.telegram.intro')}</Text>
-      {telegram.botUsername && (
-        <Text>{t('admin.integrations.telegram.bot', { name: telegram.botUsername })}</Text>
+    <div>
+      {/* The bot's name is known once a token is saved here (getMe); a token from deploy/.env
+          leaves it unknown, and then the row is left out rather than saying «no bot». */}
+      {(telegram.botUsername || telegram.source === 'none') && (
+        <SettingRow
+          label={t('admin.integrations.telegram.botLabel')}
+          help={t('admin.integrations.telegram.botHelp')}
+        >
+          <Text tone={telegram.botUsername ? 'primary' : 'secondary'}>
+            {telegram.botUsername
+              ? t('admin.integrations.telegram.bot', { name: telegram.botUsername })
+              : t('admin.integrations.telegram.noBot')}
+          </Text>
+        </SettingRow>
       )}
-      <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <TextField
-          name="telegram.botToken"
-          type="password"
-          label={t('admin.integrations.telegram.token')}
-          description={
-            env ? t('admin.integrations.envHint') : t('admin.integrations.telegram.tokenKeep')
-          }
-          autoComplete="off"
-          spellCheck="false"
-          mono
-          isDisabled={env}
-          value={token}
-          onChange={(text) => fields.set(TELEGRAM_DRAFT, text)}
-          // Empty keeps the stored token; only blanks alone are no token.
-          validate={(text) =>
-            env || text === '' || text.trim() ? null : t('errors.field.required')
-          }
-        />
-        {!env && (
-          <Actions
-            name={name}
-            stored={telegram.source === 'stored'}
-            isPending={save.isPending}
-            onClear={() => {
-              setMessage(null);
-              void save.run({ clear: ['telegram'] });
-            }}
-          />
-        )}
-      </Form>
-      <Outcome error={errors?.form ? save.error : null} message={message} />
-    </>
+      <SettingRow
+        label={t('admin.integrations.telegram.token')}
+        help={t('admin.integrations.telegram.tokenHelp')}
+      >
+        <div className={styles.stack}>
+          <Form className={styles.keyForm} onSubmit={onSubmit} validationErrors={errors?.fields}>
+            <TextField
+              name="telegram.botToken"
+              type="password"
+              label={t('admin.integrations.telegram.token')}
+              hideLabel
+              description={env ? t('admin.integrations.envHint') : undefined}
+              placeholder={keepHint && t('admin.integrations.keys.keepPlaceholder')}
+              aria-describedby={keepHint && keepHintId}
+              autoComplete="off"
+              spellCheck="false"
+              mono
+              isDisabled={env}
+              value={token}
+              onChange={(text) => fields.set(TELEGRAM_DRAFT, text)}
+              // Empty keeps the stored token; only blanks alone are no token.
+              validate={(text) =>
+                env || text === '' || text.trim() ? null : t('errors.field.required')
+              }
+            />
+            {!env && (
+              <Actions
+                name={name}
+                stored={telegram.source === 'stored'}
+                isPending={save.isPending}
+                onClear={() => {
+                  setMessage(null);
+                  void save.run({ clear: ['telegram'] });
+                }}
+              />
+            )}
+          </Form>
+          {keepHint && <VisuallyHidden id={keepHintId}>{keepHint}</VisuallyHidden>}
+          <Outcome error={errors?.form ? save.error : null} message={message} />
+        </div>
+      </SettingRow>
+    </div>
   );
 }

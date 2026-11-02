@@ -38,6 +38,9 @@ const routes = (extra: Routes = {}): Routes => ({
 
 const section = (name: string) => screen.getByRole('region', { name });
 
+/** The field itself: its setting row is a group with the same name (Int-A, hidden field label). */
+const INPUT = { selector: 'input' };
+
 /** A setting row of the «Server» block: a group named by its label. */
 const serverRow = async (name: string) =>
   within(await screen.findByRole('region', { name: 'Server' })).getByRole('group', { name });
@@ -71,7 +74,7 @@ describe('integrations (A-2)', () => {
     // One row per key (S-7): the row is a group named like the key, the field inside it.
     const traktRow = within(keys).getByRole('group', { name: 'Trakt-Client-ID' });
     expect(traktRow).toHaveAccessibleDescription(/Trending/);
-    const trakt = within(traktRow).getByLabelText('Trakt-Client-ID');
+    const trakt = within(traktRow).getByLabelText('Trakt-Client-ID', INPUT);
     expect(trakt).toBeDisabled();
     expect(trakt).toHaveAccessibleDescription(/Ändern lässt sich der Wert nur dort/);
     expect(
@@ -206,13 +209,17 @@ describe('integrations (A-2)', () => {
     const user = userEvent.setup();
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     expect(within(email).queryByRole('button', { name: 'Testmail senden' })).toBeNull();
-    await fill(user, within(email).getByLabelText('Server'), 'smtp.example.ch');
-    const port = within(email).getByLabelText('Port');
+    await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.example.ch');
+    const port = within(email).getByLabelText('Port', INPUT);
     expect(port).toHaveValue('587');
     await fill(user, port, '465');
-    await fill(user, within(email).getByLabelText('Benutzer'), 'media');
-    await fill(user, within(email).getByLabelText('Passwort'), 'smtp-secret');
-    await fill(user, within(email).getByLabelText(/Absender/), 'Slouchcat <media@example.ch>');
+    await fill(user, within(email).getByLabelText('Benutzer', INPUT), 'media');
+    await fill(user, within(email).getByLabelText('Passwort', INPUT), 'smtp-secret');
+    await fill(
+      user,
+      within(email).getByLabelText(/Absender/, INPUT),
+      'Slouchcat <media@example.ch>',
+    );
     await user.click(within(email).getByRole('radio', { name: 'TLS' }));
     await user.click(within(email).getByRole('button', { name: 'Speichern' }));
 
@@ -230,8 +237,8 @@ describe('integrations (A-2)', () => {
       },
     ]);
     // The password is write-only: the field is empty again and says how to keep it.
-    expect(within(email).getByLabelText('Passwort')).toHaveValue('');
-    expect(within(email).getByLabelText('Passwort')).toHaveAccessibleDescription(
+    expect(within(email).getByLabelText('Passwort', INPUT)).toHaveValue('');
+    expect(within(email).getByLabelText('Passwort', INPUT)).toHaveAccessibleDescription(
       /gespeicherte Passwort zu behalten/,
     );
 
@@ -266,11 +273,139 @@ describe('integrations (A-2)', () => {
     );
     renderApp('/admin/integrations');
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
-    expect(within(email).getByLabelText('Server')).toBeDisabled();
-    expect(within(email).getByLabelText('Server')).toHaveValue('mail.local');
+    expect(within(email).getByLabelText('Server und Port', INPUT)).toBeDisabled();
+    expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveValue('mail.local');
     expect(within(email).getByText(/Ändern lässt sich der Wert nur dort/)).toBeVisible();
     expect(within(email).queryByRole('button', { name: 'Speichern' })).toBeNull();
     expect(within(email).getByRole('button', { name: 'Testmail senden' })).toBeEnabled();
+  });
+
+  it('shows the e-mail server as setting rows; unchanged it sends nothing, «Verwerfen» only while changed', async () => {
+    const stored = settings({
+      email: {
+        source: 'stored',
+        host: 'smtp.example.ch',
+        port: 587,
+        user: 'media',
+        from: 'media@example.ch',
+        tls: 'starttls',
+      },
+    });
+    const { calls } = mockApi(routes({ 'GET /admin/settings': () => json(stored) }));
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
+    // One row per setting (Int-A): a group named by its label; host and port share a row.
+    for (const name of ['Server und Port', 'Benutzer', 'Passwort', 'Absender', 'Verschlüsselung']) {
+      expect(within(email).getByRole('group', { name })).toBeVisible();
+    }
+    const hostPort = within(email).getByRole('group', { name: 'Server und Port' });
+    expect(within(hostPort).getByLabelText('Server und Port', INPUT)).toHaveValue(
+      'smtp.example.ch',
+    );
+    expect(within(hostPort).getByLabelText('Port', INPUT)).toHaveValue('587');
+    expect(within(email).getByText(`Die Testmail geht an ${session.account.email}.`)).toBeVisible();
+
+    // Unchanged: «Speichern» sends nothing and keeps the focus; there is nothing to discard.
+    const save = within(email).getByRole('button', { name: 'Speichern' });
+    expect(within(email).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(puts(calls)).toHaveLength(0);
+
+    // Changed: «Verwerfen» brings back what is stored, empties the password and hands the focus
+    // to «Speichern»; the band no longer says «ungespeichert».
+    await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.draft');
+    await fill(user, within(email).getByLabelText('Passwort', INPUT), 'secret');
+    expect(within(email).getByText('ungespeichert')).toBeVisible();
+    await user.click(within(email).getByRole('button', { name: 'Verwerfen' }));
+    expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveValue('smtp.example.ch');
+    expect(within(email).getByLabelText('Passwort', INPUT)).toHaveValue('');
+    expect(within(email).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
+    expect(within(email).queryByText('ungespeichert')).toBeNull();
+    expect(save).toHaveFocus();
+    expect(puts(calls)).toHaveLength(0);
+  });
+
+  it('keeps e-mail input typed while its save waits; deletes the server after the confirmation', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const stored = settings({
+      email: { source: 'stored', host: 'smtp.example.ch', port: 587, from: 'a@b.ch', tls: 'tls' },
+    });
+    const { calls } = mockApi(
+      routes({
+        'PUT /admin/settings': async (call) => {
+          if ((call.body as AdminSettingsUpdate).clear) return json(settings());
+          await answered;
+          return json(stored);
+        },
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
+    const host = within(email).getByLabelText('Server und Port', INPUT);
+    await fill(user, host, 'smtp.example.ch');
+    await fill(user, within(email).getByLabelText('Absender', INPUT), 'a@b.ch');
+    await user.click(within(email).getByRole('radio', { name: 'TLS' }));
+    await user.click(within(email).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    // Typed while the save runs: it stays a draft once the answer is there.
+    await user.click(host);
+    await user.paste('.ch');
+    release();
+    expect(await within(email).findByText('E-Mail-Server gespeichert.')).toBeVisible();
+    expect(host).toHaveValue('smtp.example.ch.ch');
+    expect(within(email).getByText('ungespeichert')).toBeVisible();
+    expect(puts(calls)[0]).toEqual({
+      email: { host: 'smtp.example.ch', port: 587, from: 'a@b.ch', tls: 'tls' },
+    });
+
+    // «Löschen …» asks first; deleting takes the draft with it.
+    await user.click(within(email).getByRole('button', { name: 'E-Mail-Server löschen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'E-Mail-Server löschen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+    expect(await within(email).findByText('E-Mail-Server gelöscht.')).toBeVisible();
+    expect(puts(calls)[1]).toEqual({ clear: ['email'] });
+    expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveValue('');
+    expect(within(email).queryByRole('button', { name: 'E-Mail-Server löschen' })).toBeNull();
+    expect(within(email).queryByRole('button', { name: 'Testmail senden' })).toBeNull();
+  });
+
+  it('shows the Telegram bot and its token as setting rows', async () => {
+    mockApi(
+      routes({
+        'GET /admin/settings': () =>
+          json(settings({ telegram: { source: 'stored', botUsername: 'slouchcat_bot' } })),
+      }),
+    );
+    renderApp('/admin/integrations');
+    const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
+    const bot = within(telegram).getByRole('group', { name: 'Bot' });
+    expect(within(bot).getByText('Bot: @slouchcat_bot')).toBeVisible();
+    const row = within(telegram).getByRole('group', { name: 'Bot-Token' });
+    const token = within(row).getByLabelText('Bot-Token', INPUT);
+    // Write-only: empty, with a short placeholder and the whole sentence as its description.
+    expect(token).toHaveValue('');
+    expect(token).toHaveAttribute('placeholder', 'Leer lassen zum Behalten');
+    expect(token).toHaveAccessibleDescription(/Leer lassen, um den gespeicherten Wert zu behalten/);
+    expect(within(row).getByRole('button', { name: 'Speichern' })).toBeVisible();
+    expect(within(row).getByRole('button', { name: 'Telegram-Bot löschen' })).toBeVisible();
+  });
+
+  it('a Telegram bot that is not set up says so', async () => {
+    mockApi(routes());
+    renderApp('/admin/integrations');
+    const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
+    expect(
+      within(within(telegram).getByRole('group', { name: 'Bot' })).getByText(
+        'Kein Bot eingerichtet.',
+      ),
+    ).toBeVisible();
+    expect(within(telegram).queryByRole('button', { name: 'Telegram-Bot löschen' })).toBeNull();
   });
 
   it('stores the Telegram bot token; a rejected token shows at its field', async () => {
@@ -286,7 +421,7 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
-    const token = within(telegram).getByLabelText('Bot-Token');
+    const token = within(telegram).getByLabelText('Bot-Token', INPUT);
     // Empty keeps what is stored (decision 18): nothing is sent, the focus stays on «Speichern».
     const save = within(telegram).getByRole('button', { name: 'Speichern' });
     await user.click(save);
@@ -340,16 +475,16 @@ describe('integrations (A-2)', () => {
     expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
 
     const email = section('E-Mail-Server');
-    await fill(user, within(email).getByLabelText('Server'), 'smtp.example.ch');
-    await fill(user, within(email).getByLabelText('Passwort'), secrets[1]!);
-    await fill(user, within(email).getByLabelText(/Absender/), 'media@example.ch');
+    await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.example.ch');
+    await fill(user, within(email).getByLabelText('Passwort', INPUT), secrets[1]!);
+    await fill(user, within(email).getByLabelText(/Absender/, INPUT), 'media@example.ch');
     await user.click(within(email).getByRole('button', { name: 'Speichern' }));
     expect(await within(email).findByText('E-Mail-Server gespeichert.')).toBeVisible();
 
     // A refused token does not stay either. `gcTime: 0` drops a settled mutation on a zero
     // timeout, which can come after the render that marks the field, so the check waits for it.
     const telegram = section('Telegram-Bot');
-    const token = within(telegram).getByLabelText('Bot-Token');
+    const token = within(telegram).getByLabelText('Bot-Token', INPUT);
     await fill(user, token, secrets[2]!);
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));
@@ -553,11 +688,15 @@ describe('integrations (A-2)', () => {
     mail.focus();
     await user.keyboard('{Enter}');
     expect(mail).toHaveAttribute('aria-expanded', 'false');
-    expect(within(section('E-Mail-Server')).queryByRole('textbox', { name: 'Server' })).toBeNull();
+    expect(
+      within(section('E-Mail-Server')).queryByRole('textbox', { name: 'Server und Port' }),
+    ).toBeNull();
     expect(mail).toHaveFocus();
     await user.keyboard(' ');
     expect(mail).toHaveAttribute('aria-expanded', 'true');
-    expect(within(section('E-Mail-Server')).getByRole('textbox', { name: 'Server' })).toBeVisible();
+    expect(
+      within(section('E-Mail-Server')).getByRole('textbox', { name: 'Server und Port' }),
+    ).toBeVisible();
   });
 
   it('a folded block keeps what was typed in it (S-13)', async () => {
@@ -566,8 +705,12 @@ describe('integrations (A-2)', () => {
     const user = userEvent.setup();
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
     await fill(user, within(keys).getByLabelText('YouTube-API-Schlüssel'), 'yt-draft');
-    await fill(user, within(section('Telegram-Bot')).getByLabelText('Bot-Token'), '1:draft');
-    await fill(user, within(section('E-Mail-Server')).getByLabelText('Server'), 'smtp.draft');
+    await fill(user, within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT), '1:draft');
+    await fill(
+      user,
+      within(section('E-Mail-Server')).getByLabelText('Server und Port', INPUT),
+      'smtp.draft',
+    );
     const band = within(keys).getByRole('button', { name: 'Schlüssel der Anbieter' });
     // The band says the block holds unsaved input, folded or not.
     expect(within(keys).getByText('ungespeichert')).toBeVisible();
@@ -581,8 +724,12 @@ describe('integrations (A-2)', () => {
       await user.click(within(section(name)).getByRole('button', { name }));
     }
     expect(within(keys).getByLabelText('YouTube-API-Schlüssel')).toHaveValue('yt-draft');
-    expect(within(section('Telegram-Bot')).getByLabelText('Bot-Token')).toHaveValue('1:draft');
-    expect(within(section('E-Mail-Server')).getByLabelText('Server')).toHaveValue('smtp.draft');
+    expect(within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT)).toHaveValue(
+      '1:draft',
+    );
+    expect(within(section('E-Mail-Server')).getByLabelText('Server und Port', INPUT)).toHaveValue(
+      'smtp.draft',
+    );
 
     // The kept value is what gets saved; afterwards nothing is unsaved any more.
     await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));

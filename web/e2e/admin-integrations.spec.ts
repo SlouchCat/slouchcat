@@ -14,9 +14,9 @@ import {
 // Integrations (A-2; concept 12, variant A) against the real server: six blocks that fold away by
 // their band, provider keys with their source (the e2e server sets the Trakt client id in its
 // environment, no TMDB key), a YouTube key saved and deleted by keyboard, the public address and
-// the update check in the «Server» block, and the question before leaving with unsaved input.
-// Every test leaves the settings as it found them. The test mail with the SMTP mock is covered by
-// notification-channels.spec.ts.
+// the update check in the «Server» block, the e-mail server and the Telegram bot as setting rows
+// (both from the environment, with a test mail through the SMTP mock), and the question before
+// leaving with unsaved input. Every test leaves the settings as it found them.
 
 interface SettingsData {
   publicUrl?: string;
@@ -69,7 +69,10 @@ test('the six blocks start open and fold by keyboard from their band', async ({ 
   const band = region(page, 'Schlüssel der Anbieter').getByRole('button', {
     name: 'Schlüssel der Anbieter',
   });
-  const field = region(page, 'Schlüssel der Anbieter').getByLabel('YouTube-API-Schlüssel');
+  const field = region(page, 'Schlüssel der Anbieter').getByRole('textbox', {
+    name: 'YouTube-API-Schlüssel',
+    exact: true,
+  });
   await resetFocus(page);
   await tabTo(page, band, 40);
   await page.keyboard.press('Enter');
@@ -102,7 +105,7 @@ test('unsaved input survives a folded block; leaving asks first', async ({ page,
   const before = await settingsOf(owner);
   await openIntegrations(page);
   const keys = region(page, 'Schlüssel der Anbieter');
-  const field = keys.getByLabel('YouTube-API-Schlüssel');
+  const field = keys.getByRole('textbox', { name: 'YouTube-API-Schlüssel', exact: true });
   await field.fill('unsaved-key');
   await expect(keys.getByText('ungespeichert', { exact: true })).toBeVisible();
 
@@ -164,15 +167,21 @@ test('keys show their source; the Trakt id from the environment is read-only', a
   ).toHaveAttribute('aria-current', 'page');
   const keys = region(page, 'Schlüssel der Anbieter');
   // One row per key (S-7): a group named like the key, the field inside it.
-  const trakt = keys.getByRole('group', { name: 'Trakt-Client-ID' }).getByLabel('Trakt-Client-ID');
+  const trakt = keys
+    .getByRole('group', { name: 'Trakt-Client-ID' })
+    .getByRole('textbox', { name: 'Trakt-Client-ID', exact: true });
   await expect(trakt).toBeDisabled();
   await expect(keys.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
   await expect(keys.getByRole('button', { name: 'Trakt-Client-ID speichern' })).toHaveCount(0);
   // The e2e server runs without a TMDB key.
-  await expect(keys.getByLabel('TMDB-Lesezugriffs-Token')).toBeEnabled();
+  await expect(
+    keys.getByRole('textbox', { name: 'TMDB-Lesezugriffs-Token', exact: true }),
+  ).toBeEnabled();
   await expect(keys.getByRole('button', { name: 'TMDB-Token löschen' })).toHaveCount(0);
   // One line per key (Int-A): the field and its «Speichern» stand side by side.
-  const tmdbField = await keys.getByLabel('TMDB-Lesezugriffs-Token').boundingBox();
+  const tmdbField = await keys
+    .getByRole('textbox', { name: 'TMDB-Lesezugriffs-Token', exact: true })
+    .boundingBox();
   const tmdbSave = await keys.getByRole('button', { name: 'TMDB-Token speichern' }).boundingBox();
   expect(Math.round(tmdbSave?.y ?? -1)).toBe(Math.round(tmdbField?.y ?? 0));
   await expect(keys.getByRole('link', { name: 'Stand der Trakt-Listen' })).toHaveAttribute(
@@ -189,7 +198,7 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
   try {
     await openIntegrations(page);
     const keys = region(page, 'Schlüssel der Anbieter');
-    const field = keys.getByLabel('YouTube-API-Schlüssel');
+    const field = keys.getByRole('textbox', { name: 'YouTube-API-Schlüssel', exact: true });
     await resetFocus(page);
     await tabTo(page, field, 80);
     await page.keyboard.type(key);
@@ -277,6 +286,50 @@ test('the public address and the update check by keyboard', async ({ page, owner
           : { clear: ['publicUrl'] }),
     });
   }
+});
+
+test('the e-mail server and the Telegram bot are setting rows; the test mail by keyboard', async ({
+  page,
+}) => {
+  // The e2e server sets both in its environment (start-server.mjs): read-only rows here.
+  await openIntegrations(page);
+  const email = region(page, 'E-Mail-Server');
+  for (const name of ['Server und Port', 'Benutzer', 'Passwort', 'Absender', 'Verschlüsselung']) {
+    await expect(email.getByRole('group', { name, exact: true })).toBeVisible();
+  }
+  // Int-A: host and port share one row, the port on the right of the host.
+  const host = email.getByRole('textbox', { name: 'Server und Port', exact: true });
+  const port = email.getByRole('textbox', { name: 'Port', exact: true });
+  await expect(host).toBeDisabled();
+  await expect(host).toHaveValue('127.0.0.1');
+  const hostBox = await host.boundingBox();
+  const portBox = await port.boundingBox();
+  expect(Math.round(portBox?.y ?? -1)).toBe(Math.round(hostBox?.y ?? 0));
+  expect(portBox?.x ?? 0).toBeGreaterThan(hostBox?.x ?? 0);
+  await expect(email.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
+
+  // The disabled fields are no Tab stops: Tab goes from the notification link to the test mail.
+  await expect(email.getByText(/^Die Testmail geht an .+\.$/)).toBeVisible();
+  const link = email.getByRole('link', { name: 'Zu den Benachrichtigungskanälen' });
+  const send = email.getByRole('button', { name: 'Testmail senden' });
+  await resetFocus(page);
+  await tabTo(page, link, 120);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, send);
+  await page.keyboard.press('Enter');
+  await expect(email.getByText(/^Testmail an .+ gesendet\.$/)).toBeVisible();
+  await expectFocusOn(page, send);
+
+  // A token from deploy/.env leaves the bot's name unknown: no «Bot» row, only the token's row.
+  const telegram = region(page, 'Telegram-Bot');
+  await expect(telegram.getByRole('group', { name: 'Bot', exact: true })).toHaveCount(0);
+  const token = telegram
+    .getByRole('group', { name: 'Bot-Token', exact: true })
+    .getByRole('textbox', { name: 'Bot-Token', exact: true });
+  await expect(token).toBeDisabled();
+  await expect(telegram.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
+  await expect(telegram.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
+  await expectNoFocusTrap(page, 200);
 });
 
 test('"Schlüssel neu erzeugen" asks first; Escape keeps the keys', async ({ page, owner }) => {
