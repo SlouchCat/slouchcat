@@ -1,6 +1,8 @@
 # Konzept: Übersicht der Verwaltung (Seite `/admin`)
 
-- **Status: Fassung 3 (1. November 2026), Bauplan für Variante B (Abschnitt 11).** Fassungen 1
+- **Status: umgesetzt (2. November 2026, Schritte 0 bis 6 auf dem Zweig
+  `claude/verwaltung-uebersicht`, von Marco auf CT 190 abgenommen; Vertrag 1.7.0).** Fassung 3
+  (1. November 2026), Bauplan für Variante B (Abschnitt 11). Fassungen 1
   und 2 legten vier Varianten zur Wahl vor; ihr Text bleibt unten stehen, damit die Wahl
   nachvollziehbar ist. **Wo Abschnitt 11 etwas anderes sagt als die Abschnitte 4 bis 8, gilt
   Abschnitt 11.** Vorgeschichte: Marco hat am 31. Oktober 2026 am Bildschirmfoto

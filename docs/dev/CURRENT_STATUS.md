@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 11 «Übersicht der Verwaltung»: im Bau, Schritte 0 bis 5 fertig (2. November 2026)
+## Konzept 11 «Übersicht der Verwaltung»: umgesetzt und abgenommen, Schritte 0 bis 6 (2. November 2026)
 
 Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
 `docs/planning/11-verwaltung-uebersicht.md` Abschnitt 11.8 mit OMC (`executor` je Schritt,
@@ -107,10 +107,39 @@ dem Handlertest: `jobs.active`, `jobs.failedByType` mit geschwärztem Fehler, `j
 `attention.abortedScans`, `counts {accounts, maintenanceOpen, titles}`, `streams[].posterUrl` mit
 dem Hash des Serienposters. e2e lief noch nicht (keine Änderung der Oberfläche bis Schritt 5).
 
-**Offen:** Schritt 6: Abbild bauen und auf CT 190 ausrollen; Abnahme durch Marco am Desktop (mit
-und ohne ausgeblendete App-Leiste) und am Handy; p95 von `GET /admin/dashboard` kalt und warm und
-Zeilen in `activity_events` nach einem Tag in `docs/perf/verwaltung.md`; Vergleich Prototyp und
-gebaute Seite; Release Notes 1.7.0.
+- **Schritt 6** (Abnahme und Doku): CT 190 läuft seit 2. November 2026, 08:01 Uhr, auf
+  `ghcr.io/slouchcat/slouchcat:verwaltung-955709b` (`v1.6.0-58-g955709b`), gebaut auf dem CT aus
+  `git archive 955709b`, davor `1.6.0`, Sicherung `.env.bak-vor-verwaltung`. Migration 00031 in
+  235 ms nach der Datenbanksicherung `pre-migration-v1.6.0-58-g955709b-…`, Start 2'372 ms, `healthy`
+  nach rund 4 s, QSV erkannt (`docs/perf/verwaltung.md` 1). **Von Marco abgenommen am
+  2. November 2026** («Abgenommen»). Versionsstellen auf 1.7.0 (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`);
+  Release-Notes als `release-notes-1.7.0.txt` im Wurzelordner (unversioniert wie 1.5.0 und 1.6.0,
+  Beschriftung des Tags). `docs/perf/measure-home.sh` kennt neu `SLOUCHCAT_PAUSE` für den kalten
+  Fall. Papier als umgesetzt markiert.
+
+**Prototyp gegen gebaute Seite** (`docs/planning/mockups/11-verwaltung-prototyp.html`, Variante B,
+Desktop, gegen die Aufnahme des e2e-Servers bei 1440 px): gleich sind Leiste mit Band-Gruppentiteln,
+Zahlen und Pillen, Reihenfolge und Raster der acht Karten, Kopf mit «Live, alle 5 Sekunden»,
+Aufgaben mit drei Kennzahlen, zugeklapptes Server-Protokoll. Abweichungen in der Gestaltung der
+Karteninhalte (abgenommen, keine Funktionslücke):
+
+- Server: Fakten ohne getönte Kästchen; Update-Stand als Zeile «Updates: Aktuell» statt Pille
+  «aktuell» mit «Geprüft heute, …».
+- Jetzt läuft, Webhooks: Leerzustand als Satz ohne getönten Kasten mit Symbol; Webhooks ohne
+  Erklärsatz zu Radarr und Sonarr.
+- Integrationen: Liste «Name: Zustand» in einer Spalte statt Chips in zwei Spalten.
+- Speicher: Legende «Belegt» und Zeile «Frei: … von …» statt Kopfzeile «x GB von y GB» und
+  «Frei · % belegt».
+- Kartenlinks unterstrichen (`TextLink` wie in der übrigen App) statt Akzentfarbe mit Pfeil.
+
+**Offen:**
+
+- Messung `GET /api/v1/admin/dashboard` p95 warm und kalt auf CT 190 (braucht Marcos Anmeldung,
+  Befehle in `docs/perf/verwaltung.md` 2).
+- `activity_events` nach einem Tag (3. November 2026) auslesen; Ausgangsstand 7 Zeilen
+  (`docs/perf/verwaltung.md` 3).
+- Push und Pull Request auf Marcos Wort; beim Merge Tag `v1.7.0` (setzt Marco).
 
 ## Nachtrag Konzept 10: «Nur Bilder» bei Ordnern mit einer Quelle (1. November 2026)
 
