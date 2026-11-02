@@ -279,28 +279,33 @@ export function FormDialog({
   children,
 }: FormDialogProps) {
   // A dialog opened with Enter counts as a "virtual" click for react-aria, which then focuses the
-  // dialog itself and skips `autoFocus` of a field inside. The first field gets the focus here,
-  // before the dialog's own effect looks at the focus.
+  // dialog itself and skips `autoFocus` of a field inside. The first field gets the focus here.
+  // It moves in a microtask, after React's commit (like focusOnMount): during the commit the
+  // dialog's own FocusScope has not registered yet (it does so in a layout effect), so in a dialog
+  // opened from inside another one the outer scope's `contain` would pull the focus back out.
   const focusFirstField = useCallback(
     (root: HTMLDivElement | null) => {
       if (!root) return;
-      if (initialFocus) {
-        const wanted =
-          typeof initialFocus === 'string'
-            ? root.querySelector<HTMLElement>(initialFocus)
-            : initialFocus.current;
-        if (wanted) {
-          wanted.focus();
-          return;
+      queueMicrotask(() => {
+        if (!root.isConnected) return;
+        if (initialFocus) {
+          const wanted =
+            typeof initialFocus === 'string'
+              ? root.querySelector<HTMLElement>(initialFocus)
+              : initialFocus.current;
+          if (wanted) {
+            wanted.focus();
+            return;
+          }
         }
-      }
-      // The first field in document order: a text field, or the checked radio of a group that
-      // comes first (a dialog may start with radios and have text fields further down).
-      const field =
-        root.querySelector<HTMLElement>(
-          'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), textarea, select, input:checked',
-        ) ?? root.querySelector<HTMLElement>('input, button');
-      field?.focus();
+        // The first field in document order: a text field, or the checked radio of a group that
+        // comes first (a dialog may start with radios and have text fields further down).
+        const field =
+          root.querySelector<HTMLElement>(
+            'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), textarea, select, input:checked',
+          ) ?? root.querySelector<HTMLElement>('input, button');
+        field?.focus();
+      });
     },
     [initialFocus],
   );

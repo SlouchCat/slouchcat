@@ -1,9 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { AriaButton } from './AriaButton';
-import { ConfirmDialog } from './Dialog';
+import { ConfirmDialog, FormDialog } from './Dialog';
+import { RadioGroup } from './RadioGroup';
+import { TextField } from './TextField';
 
 const texts = {
   title: 'Entfernen?',
@@ -76,5 +78,52 @@ describe('ConfirmDialog', () => {
     );
     // focusOnMount moves the focus right after the commit, not during the render.
     await waitFor(() => expect(screen.getByRole('button', { name: 'Abbrechen' })).toHaveFocus());
+  });
+});
+
+/** A form dialog with a button that opens a second form dialog on top of it. */
+function NestedForms() {
+  const [outer, setOuter] = useState(false);
+  const [inner, setInner] = useState(false);
+  return (
+    <>
+      <AriaButton onPress={() => setOuter(true)}>Aussen öffnen</AriaButton>
+      <FormDialog isOpen={outer} onOpenChange={setOuter} title="Aussen">
+        <TextField label="Name" />
+        <AriaButton onPress={() => setInner(true)}>Innen öffnen</AriaButton>
+        <FormDialog isOpen={inner} onOpenChange={setInner} title="Innen">
+          <RadioGroup
+            name="content"
+            label="Inhalt"
+            value="movie"
+            onChange={() => undefined}
+            options={[
+              { value: 'movie', label: 'Filme' },
+              { value: 'series', label: 'Serien' },
+            ]}
+          />
+          <TextField label="Pfad" />
+        </FormDialog>
+      </FormDialog>
+    </>
+  );
+}
+
+describe('FormDialog', () => {
+  it('focuses the first field of a dialog opened from inside another one', async () => {
+    const user = userEvent.setup();
+    render(<NestedForms />);
+    await user.click(screen.getByRole('button', { name: 'Aussen öffnen' }));
+    const outer = await screen.findByRole('dialog', { name: 'Aussen' });
+    await waitFor(() => expect(within(outer).getByLabelText('Name')).toHaveFocus());
+
+    // Opened by keyboard, the way the folders dialog opens «Ändern».
+    await user.tab();
+    expect(within(outer).getByRole('button', { name: 'Innen öffnen' })).toHaveFocus();
+    await user.keyboard('{Enter}');
+    const inner = await screen.findByRole('dialog', { name: 'Innen' });
+    // The first field of the inner dialog, the checked radio like in «Ordner ändern»; the outer
+    // dialog's focus scope must not pull the focus back.
+    await waitFor(() => expect(within(inner).getByRole('radio', { name: 'Filme' })).toHaveFocus());
   });
 });
