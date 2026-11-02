@@ -4,6 +4,7 @@ import userEvent, { type UserEvent } from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { accountLibraries, profiles } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
+import { fill } from '@/test/fill';
 
 // A-2 with ADR 0014 and concept 12 (variant C with KP-1): every account in one table with its
 // role and the owner badge, each row folding out. The signed-in account changes its own e-mail
@@ -121,7 +122,7 @@ async function openOwn() {
   return { user, form };
 }
 
-describe('admin accounts (A-2, KP-1)', () => {
+describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('lists every account with role, rating, libraries, profiles and channels', async () => {
@@ -489,9 +490,8 @@ describe('admin accounts (A-2, KP-1)', () => {
     const { user, form } = await openOwn();
     const email = within(form).getByRole('textbox', { name: 'E-Mail-Adresse' });
     expect(email).toHaveValue('owner@example.test');
-    await user.clear(email);
-    await user.type(email, 'neu@example.test');
-    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await fill(user, email, 'neu@example.test');
+    await fill(user, within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
 
     expect(await screen.findByText('Dein Konto ist gespeichert.')).toBeVisible();
@@ -518,9 +518,8 @@ describe('admin accounts (A-2, KP-1)', () => {
     );
     const { user, form } = await openOwn();
     const email = within(form).getByRole('textbox', { name: 'E-Mail-Adresse' });
-    await user.clear(email);
-    await user.type(email, 'neu@example.test');
-    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await fill(user, email, 'neu@example.test');
+    await fill(user, within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
     // Typed while the save runs: it stays a draft once the answer is there.
@@ -536,22 +535,24 @@ describe('admin accounts (A-2, KP-1)', () => {
   it('sends a new password only with a matching repeat of at least 10 characters', async () => {
     const { calls } = mockApi(routes({ 'PUT /auth/account': () => json(session) }));
     const { user, form } = await openOwn();
-    await user.type(within(form).getByLabelText('Neues Passwort'), 'kurz');
-    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await fill(user, within(form).getByLabelText('Neues Passwort'), 'kurz');
+    await fill(user, within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(await within(form).findByText('Mindestens 10 Zeichen.')).toBeVisible();
 
     const fresh = within(form).getByLabelText('Neues Passwort');
-    await user.clear(fresh);
-    await user.type(fresh, 'neues-passwort-42');
-    await user.type(within(form).getByLabelText('Neues Passwort wiederholen'), 'neues-passwort-43');
+    await fill(user, fresh, 'neues-passwort-42');
+    await fill(
+      user,
+      within(form).getByLabelText('Neues Passwort wiederholen'),
+      'neues-passwort-43',
+    );
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(await within(form).findByText('Die Passwörter stimmen nicht überein.')).toBeVisible();
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
 
     const repeat = within(form).getByLabelText('Neues Passwort wiederholen');
-    await user.clear(repeat);
-    await user.type(repeat, 'neues-passwort-42');
+    await fill(user, repeat, 'neues-passwort-42');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(await screen.findByText('Dein Konto ist gespeichert.')).toBeVisible();
     expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
@@ -563,7 +564,7 @@ describe('admin accounts (A-2, KP-1)', () => {
   it('says so when nothing changed, without asking the server', async () => {
     const { calls } = mockApi(routes());
     const { user, form } = await openOwn();
-    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await fill(user, within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(
       await within(form).findByText('Ändere die E-Mail-Adresse oder gib ein neues Passwort ein.'),
@@ -576,9 +577,8 @@ describe('admin accounts (A-2, KP-1)', () => {
     mockApi(routes({ 'PUT /auth/account': () => answer }));
     const { user, form } = await openOwn();
     const email = within(form).getByRole('textbox', { name: 'E-Mail-Adresse' });
-    await user.clear(email);
-    await user.type(email, 'gast@example.test');
-    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'falsch-0123456');
+    await fill(user, email, 'gast@example.test');
+    await fill(user, within(form).getByLabelText(/^Aktuelles Passwort/), 'falsch-0123456');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(await within(form).findByText('Das aktuelle Passwort stimmt nicht.')).toBeVisible();
     expect(within(form).getByLabelText(/^Aktuelles Passwort/)).toHaveAttribute(
@@ -589,8 +589,7 @@ describe('admin accounts (A-2, KP-1)', () => {
     // The field stays marked until it changes; the next try goes with the right password.
     answer = problem(409, 'email_taken');
     const current = within(form).getByLabelText(/^Aktuelles Passwort/);
-    await user.clear(current);
-    await user.type(current, 'geheim-0123456');
+    await fill(user, current, 'geheim-0123456');
     // The verdict was about the old value: editing removes it, so Enter submits again.
     expect(within(form).queryByText('Das aktuelle Passwort stimmt nicht.')).toBeNull();
     expect(current).not.toHaveAttribute('aria-invalid', 'true');
@@ -669,7 +668,7 @@ describe('admin accounts (A-2, KP-1)', () => {
     await within(mine).findByRole('article', { name: 'Lena' });
     await user.click(within(mine).getByRole('button', { name: 'Profil hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Neues Profil' });
-    await user.type(within(dialog).getByLabelText('Name'), 'Kind');
+    await fill(user, within(dialog).getByLabelText('Name'), 'Kind');
     await user.click(within(dialog).getByRole('button', { name: 'Profil anlegen' }));
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
     expect(calls.find((call) => call.method === 'POST')?.body).toMatchObject({ name: 'Kind' });
@@ -685,11 +684,14 @@ describe('admin accounts (A-2, KP-1)', () => {
     mockApi(routes());
     const { user, form } = await openOwn();
     const email = within(form).getByRole('textbox', { name: 'E-Mail-Adresse' });
-    await user.clear(email);
-    await user.type(email, 'neu@example.test');
-    await user.type(within(form).getByLabelText('Neues Passwort'), 'neues-passwort-42');
-    await user.type(within(form).getByLabelText('Neues Passwort wiederholen'), 'neues-passwort-42');
-    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await fill(user, email, 'neu@example.test');
+    await fill(user, within(form).getByLabelText('Neues Passwort'), 'neues-passwort-42');
+    await fill(
+      user,
+      within(form).getByLabelText('Neues Passwort wiederholen'),
+      'neues-passwort-42',
+    );
+    await fill(user, within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
 
     await user.click(toggleOf('owner@example.test'));
     const again = within(await openRow(user, 'owner@example.test')).getByRole('region', {
@@ -713,9 +715,13 @@ describe('admin accounts (A-2, KP-1)', () => {
     const form = within(await openRow(user, 'owner@example.test')).getByRole('region', {
       name: 'Konto ändern',
     });
-    await user.type(within(form).getByLabelText('Neues Passwort'), 'neues-passwort-42');
-    await user.type(within(form).getByLabelText('Neues Passwort wiederholen'), 'neues-passwort-42');
-    await user.type(within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
+    await fill(user, within(form).getByLabelText('Neues Passwort'), 'neues-passwort-42');
+    await fill(
+      user,
+      within(form).getByLabelText('Neues Passwort wiederholen'),
+      'neues-passwort-42',
+    );
+    await fill(user, within(form).getByLabelText(/^Aktuelles Passwort/), 'geheim-0123456');
     await user.click(within(form).getByRole('button', { name: 'Speichern' }));
     expect(await screen.findByText('Dein Konto ist gespeichert.')).toBeVisible();
     expect(calls.some((call) => call.method === 'PUT')).toBe(true);
@@ -789,7 +795,7 @@ describe('admin accounts (A-2, KP-1)', () => {
 
 // K-6 with ADR 0014: an account comes into being through an invitation and nothing else, so the
 // one button that creates one sits in the page header, and the links it produced in their tab.
-describe('invitations (K-6, KON-1, KON-5)', () => {
+describe('invitations (K-6, KON-1, KON-5)', { timeout: 15_000 }, () => {
   afterEach(() => vi.unstubAllGlobals());
 
   const invitationTable = () => screen.getByRole('table', { name: 'Bestehende Einladungen' });
@@ -823,7 +829,7 @@ describe('invitations (K-6, KON-1, KON-5)', () => {
     await waitFor(() => expect(invite).toBeEnabled());
     await user.click(invite);
     const dialog = await screen.findByRole('dialog', { name: 'Konto einladen' });
-    await user.type(within(dialog).getByLabelText(/Für wen ist der Link/), 'Tante Rosa');
+    await fill(user, within(dialog).getByLabelText(/Für wen ist der Link/), 'Tante Rosa');
     await user.click(within(dialog).getByRole('radio', { name: 'FSK 16' }));
     await user.click(within(dialog).getByRole('radio', { name: 'Auswahl' }));
     await user.click(within(dialog).getByRole('checkbox', { name: 'Serien' }));

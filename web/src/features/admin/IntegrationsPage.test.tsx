@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
+import { fill } from '@/test/fill';
 
 // Integrations (A-2; concept 12, variant A): six blocks that fold away by their band — provider
 // keys, webhooks, e-mail server, Telegram bot, Web Push, and the server's update check and public
@@ -54,17 +55,6 @@ const puts = (calls: { method: string; path: string; body: unknown }[]) =>
   calls
     .filter((call) => call.method === 'PUT' && call.path === '/admin/settings')
     .map((call) => call.body as AdminSettingsUpdate);
-
-/**
- * Puts `text` into a field by paste, one input event instead of one per key: every key re-renders
- * the whole page (six blocks), and typing key by key took most of the 5 s test timeout under a
- * heavily loaded machine. The tests are about what is stored and shown, not about keystrokes.
- */
-async function fill(user: ReturnType<typeof userEvent.setup>, field: HTMLElement, text: string) {
-  await user.clear(field);
-  await user.click(field);
-  await user.paste(text);
-}
 
 describe('integrations (A-2)', () => {
   afterEach(() => vi.unstubAllGlobals());
