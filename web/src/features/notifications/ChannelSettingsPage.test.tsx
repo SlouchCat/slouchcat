@@ -466,6 +466,47 @@ describe('notification channels page', () => {
     expect(within(bot).queryByRole('link', { name: /In Telegram öffnen/ })).toBeNull();
   });
 
+  it('«Code erneuern» replaces an open code with a new one (BEN-2)', async () => {
+    let state: ChannelSetting = openCode;
+    const renewed: ChannelSetting = {
+      ...telegram,
+      telegram: {
+        linked: false,
+        botUsername: 'slouchcat_bot',
+        linkCode: 'XY7Z8W',
+        linkExpiresAt: '2026-10-21T10:30:00Z',
+      },
+    };
+    const { calls } = mockApi({
+      ...page,
+      'GET /me/channels': () => json(settings(email, push, state)),
+      'POST /me/channels/telegram/link': () => {
+        state = renewed;
+        return json(state);
+      },
+    });
+    renderApp('/settings/notifications');
+    const bot = await block('Telegram');
+    expect(
+      within(bot).getByText('Sende dem Bot @slouchcat_bot die Nachricht /start AB2C3D'),
+    ).toBeVisible();
+    await userEvent.setup().click(within(bot).getByRole('button', { name: 'Code erneuern' }));
+
+    expect(
+      await within(bot).findByText('Sende dem Bot @slouchcat_bot die Nachricht /start XY7Z8W'),
+    ).toBeVisible();
+    expect(within(bot).queryByText(/AB2C3D/)).not.toBeInTheDocument();
+    expect(within(bot).getByRole('link', { name: /In Telegram öffnen/ })).toHaveAttribute(
+      'href',
+      'https://t.me/slouchcat_bot?start=XY7Z8W',
+    );
+    expect(within(bot).getByRole('button', { name: 'Code erneuern' })).toBeVisible();
+    expect(within(bot).queryByRole('alert')).not.toBeInTheDocument();
+    expect(
+      calls.filter((call) => call.method === 'POST' && call.path === '/me/channels/telegram/link'),
+    ).toHaveLength(1);
+  });
+
   it('a new Telegram action clears the error of the last one', async () => {
     let state: ChannelSetting = openCode;
     let refuse = true;

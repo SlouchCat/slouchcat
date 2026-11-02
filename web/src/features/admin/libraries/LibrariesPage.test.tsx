@@ -197,6 +197,31 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(within(audio).queryByRole('link', { name: 'Metadaten der Bibliothek' })).toBeNull();
   });
 
+  it('names «wie Server», «Bilder abweichend» and both deviations (BIB-3)', async () => {
+    const effective = { textLangs: ['de'], imageLangs: {}, imageKinds: [] };
+    const images = { langs: {}, kinds: ['logo'] };
+    mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () =>
+        json([
+          library({ id: 1, name: 'Filme' }),
+          library({ id: 3, name: 'Serien' }),
+          library({ id: 4, name: 'Dokus' }),
+        ]),
+      'GET /admin/libraries/1/metadata': () => json({ libraryId: 1, effective }),
+      'GET /admin/libraries/3/metadata': () =>
+        json({ libraryId: 3, textLangs: null, images, effective }),
+      'GET /admin/libraries/4/metadata': () =>
+        json({ libraryId: 4, textLangs: ['en'], images, effective }),
+    });
+    renderApp('/admin/libraries');
+
+    await screen.findByRole('button', { name: 'Dokus' });
+    expect(await within(rowOf('Filme')).findByText('wie Server')).toBeVisible();
+    expect(await within(rowOf('Serien')).findByText('Bilder abweichend')).toBeVisible();
+    expect(await within(rowOf('Dokus')).findByText('Sprachen und Bilder abweichend')).toBeVisible();
+  });
+
   it('explains an aborted scan and accepts the loss after confirmation (BIB-4)', async () => {
     const aborted = library({
       scan: { state: 'aborted', itemCount: 12, fileCount: 2, lastError: 'loss_over_threshold' },

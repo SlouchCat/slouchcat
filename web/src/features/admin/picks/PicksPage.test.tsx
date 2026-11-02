@@ -494,11 +494,20 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     await user.click(within(dialog).getByRole('checkbox', { name: 'Lena' }));
     expect(all).not.toBeChecked();
     await user.type(within(dialog).getByRole('textbox', { name: 'Notiz' }), 'Für Lena');
+    // The time window goes along as instants.
+    await user.type(within(dialog).getByLabelText('Sichtbar ab'), '2026-11-02T10:00');
+    await user.type(within(dialog).getByLabelText('Sichtbar bis'), '2026-11-09T22:30');
     await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(calls.filter((call) => call.method === 'POST').map((call) => call.body)).toEqual([
-      { itemId: ids.alien, profileIds: [2], note: 'Für Lena' },
+      {
+        itemId: ids.alien,
+        profileIds: [2],
+        note: 'Für Lena',
+        startsAt: new Date('2026-11-02T10:00').toISOString(),
+        endsAt: new Date('2026-11-09T22:30').toISOString(),
+      },
     ]);
     expect(screen.getByText("Alien ist in Cat's Empfehlungen.")).toBeVisible();
     expect(await screen.findByRole('rowheader', { name: /Alien/ })).toBeVisible();

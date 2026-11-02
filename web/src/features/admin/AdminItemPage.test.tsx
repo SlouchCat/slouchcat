@@ -270,6 +270,40 @@ describe('admin item page', () => {
     expect(calls.some((call) => call.path === `${base}/rating`)).toBe(false);
   });
 
+  it('lists each trailer with its language and marks the official one (TIT-7)', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () =>
+        json({
+          ...item,
+          trailerState: 'found',
+          trailers: [
+            {
+              id: 6,
+              lang: 'en',
+              youtubeId: 'officialEN1',
+              embedUrl: 'https://www.youtube-nocookie.com/embed/officialEN1',
+              title: 'Official Trailer',
+              source: 'tmdb',
+              official: true,
+            },
+            ...item.trailers,
+          ],
+        } satisfies AdminItem),
+    });
+    renderApp(`${base}?tab=trailers`);
+    const trailers = await screen.findByRole('region', { name: 'Trailer' });
+    const row = (youtubeId: string) =>
+      within(within(trailers).getByText(youtubeId).closest('tr') as HTMLElement);
+    expect(row('officialEN1').getByText('EN')).toBeVisible();
+    expect(row('officialEN1').getByText('Official Trailer')).toBeVisible();
+    expect(row('officialEN1').getByText('TMDB')).toBeVisible();
+    expect(row('officialEN1').getByText('Offiziell')).toBeVisible();
+    expect(row('abcdefghijk').getByText('DE')).toBeVisible();
+    expect(row('abcdefghijk').getByText('Manuell')).toBeVisible();
+    expect(row('abcdefghijk').queryByText('Offiziell')).not.toBeInTheDocument();
+  });
+
   it('adds a manual trailer from a URL and deletes one after confirmation', async () => {
     const user = userEvent.setup();
     let current: AdminItem = item;

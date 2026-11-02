@@ -339,6 +339,28 @@ describe('maintenance page', () => {
     await waitFor(() => expect(title()).toHaveFocus());
   });
 
+  it('PFL-2: «Alle auswählen» turns into «Auswahl aufheben», which clears the selection', async () => {
+    const user = userEvent.setup();
+    setup();
+    renderApp('/admin/maintenance?tab=unrated');
+    await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' });
+    const boxes = async () => within(panel()).findAllByRole('checkbox');
+    expect(await boxes()).toHaveLength(2);
+    const assign = within(panel()).getByRole('button', { name: 'Freigabe zuweisen' });
+    expect(assign).toBeDisabled();
+
+    await user.click(within(panel()).getByRole('button', { name: 'Alle auswählen' }));
+    expect(within(panel()).getAllByText('2 ausgewählt')[0]).toBeVisible();
+    for (const box of await boxes()) expect(box).toBeChecked();
+    expect(assign).toBeEnabled();
+
+    await user.click(within(panel()).getByRole('button', { name: 'Auswahl aufheben' }));
+    expect(within(panel()).getAllByText('0 ausgewählt')[0]).toBeVisible();
+    for (const box of await boxes()) expect(box).not.toBeChecked();
+    expect(assign).toBeDisabled();
+    expect(within(panel()).getByRole('button', { name: 'Alle auswählen' })).toBeVisible();
+  });
+
   it('PFL-3: «Aktualisieren» without images and «Erneut prüfen» of an unplayable file refresh the title', async () => {
     const user = userEvent.setup();
     lists.no_images = [issue('no_images', 12, { title: 'Ohne Poster' })];
@@ -489,6 +511,8 @@ describe('maintenance page', () => {
     ).toBeVisible();
     expect(within(group).getByText('Copy/a.mp4')).toBeVisible();
     expect(within(group).getByText('H264/a.mp4')).toBeVisible();
+    // PFL-4: each file with its size.
+    expect(within(group).getAllByText('1 MB')).toHaveLength(2);
     // Only the first group starts open (mockup Pfl-C); the second one opens with its button.
     const secondToggle = screen.getByRole('button', { name: 'Gruppe 2' });
     expect(secondToggle).toHaveAttribute('aria-expanded', 'false');
