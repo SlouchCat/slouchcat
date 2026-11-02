@@ -50,9 +50,15 @@
   letter-spacing: var(--sc-page-title-tracking);
 
   /* A long word («Benachrichtigungskanäle», 44 px on a phone) is wider than the screen: it is
-     hyphenated where the browser knows the language (<html lang>), else broken anywhere. */
+     hyphenated where the browser knows the language (<html lang>), else broken anywhere. A
+     wider screen keeps its titles whole. */
   overflow-wrap: anywhere;
-  hyphens: auto;
+}
+
+@media (width < 768px) {
+  .pageTitle {
+    hyphens: auto;
+  }
 }
 
 @media (width >= 768px) {
