@@ -343,6 +343,8 @@ const streamsRoute = createRoute({
 const adminItemRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/items/$itemId',
+  // `?tab=` selects Bilder, Dateien or Trailer (concept 12, S-14).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/AdminItemPage'), 'AdminItemPage'),
 });
 

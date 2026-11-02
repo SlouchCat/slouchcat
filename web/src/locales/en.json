@@ -1010,7 +1010,8 @@
         "locked": "Locked fields",
         "children": "Content",
         "childCounts": "Seasons: {{seasons}} · Episodes: {{episodes}} · Extras: {{extras}}",
-        "none": "–"
+        "none": "–",
+        "episodeRange": "{{from}}–{{to}}"
       },
       "sources": {
         "title": "Source per field",
@@ -1027,7 +1028,9 @@
           "poster": "Poster",
           "backdrop": "Backdrop"
         },
-        "fieldLang": "{{field}} ({{lang}})"
+        "fieldLang": "{{field}} ({{lang}})",
+        "count_one": "{{count}} field",
+        "count_other": "{{count}} fields"
       },
       "state": {
         "pending": "Pending",
@@ -1043,13 +1046,20 @@
         "source": "Source",
         "label": "Set own rating",
         "fromMetadata": "From metadata",
-        "saved": "Rating saved."
+        "saved": "Rating saved.",
+        "unsaved": "unsaved"
       },
       "files": {
         "title": "Files",
         "probedAt": "Checked at {{date}}",
         "probeError": "Probe error",
-        "none": "No files."
+        "none": "No files.",
+        "columns": {
+          "name": "File",
+          "version": "Version",
+          "size": "Size",
+          "state": "State"
+        }
       },
       "refreshed": "Refresh queued.",
       "trailers": {
@@ -1083,7 +1093,13 @@
           "title": "Delete trailer?",
           "body": "The trailer is removed. An automatically found trailer may come back with the next refresh.",
           "confirm": "Delete"
-        }
+        },
+        "columns": {
+          "video": "Video",
+          "source": "Source",
+          "actions": "Actions"
+        },
+        "deleted": "Trailer deleted."
       },
       "images": {
         "title": "Images",
@@ -1113,7 +1129,24 @@
           "tvdb": "TVDB",
           "anilist": "AniList",
           "fanart": "Fanart.tv"
+        },
+        "columns": {
+          "kind": "Kind",
+          "source": "Source",
+          "state": "State",
+          "actions": "Actions"
         }
+      },
+      "separator": " · ",
+      "listSeparator": ", ",
+      "tabs": {
+        "label": "Parts of the title",
+        "imageKinds_one": "{{count}} image kind",
+        "imageKinds_other": "{{count}} image kinds",
+        "files_one": "{{count}} file",
+        "files_other": "{{count}} files",
+        "trailers_one": "{{count}} trailer",
+        "trailers_other": "{{count}} trailers"
       }
     },
     "match": {

@@ -24,7 +24,7 @@ const item: AdminItem = {
     { field: 'overview', lang: 'de', provider: 'tvdb' },
     { field: 'title', lang: 'de', provider: 'tmdb' },
   ],
-  lockedFields: ['rating'],
+  lockedFields: ['rating', 'title'],
   ownRating: 16,
   effectiveRating: 16,
   ratingSource: 'manual',
@@ -52,7 +52,7 @@ const item: AdminItem = {
       id: 'mf-2',
       path: 'Alien (1979)/Alien - broken.mkv',
       sizeBytes: 12,
-      available: true,
+      available: false,
       probedAt: '2026-10-18T18:00:00Z',
       probeError: 'invalid data found when processing input',
     },
@@ -62,30 +62,78 @@ const item: AdminItem = {
 
 const base = `/admin/items/${ids.alien}`;
 
+const tabPanel = () => screen.getByRole('tabpanel');
+const openTab = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
+  await user.click(await screen.findByRole('tab', { name }));
+  return tabPanel();
+};
+/** Opens a disclosure of the tab «Metadaten» and gives its panel. */
+const openDisclosure = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
+  const trigger = await screen.findByRole('button', { name });
+  if (trigger.getAttribute('aria-expanded') !== 'true') await user.click(trigger);
+  return screen.getByRole('group', { name });
+};
+
 describe('admin item page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('shows state, ids, rating, files and trailers of the title', async () => {
+  it('shows kind, year, state, ids and the tabs with their counts; the link to the detail page', async () => {
     mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });
     renderApp(base);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Alien' })).toBeVisible();
-    expect(screen.getByText('Nicht zugeordnet')).toBeVisible();
-    expect(screen.getByText('no_match')).toBeVisible();
-    expect(screen.getByText('Staffeln: 0 · Folgen: 0 · Extras: 2')).toBeVisible();
-    const files = screen.getByRole('region', { name: 'Dateien' });
-    expect(within(files).getByText('Alien (1979)/Alien.mkv')).toBeVisible();
-    expect(within(files).getByText('invalid data found when processing input')).toBeVisible();
-    const trailers = screen.getByRole('region', { name: 'Trailer' });
-    expect(within(trailers).getByText('Keiner gefunden')).toBeVisible();
-    expect(within(trailers).getByText('abcdefghijk')).toBeVisible();
+    // Kind and year below the h1 (TIT-1).
+    expect(screen.getByText('1979')).toBeVisible();
+    expect(screen.getByText('1979').parentElement).toHaveTextContent(/^Film1979$/);
     expect(screen.getByRole('link', { name: 'Zur Detailseite' })).toHaveAttribute(
       'href',
       `/items/${ids.alien}`,
     );
+
+    const tabs = screen.getByRole('tablist', { name: 'Bereiche des Titels' });
+    // The number shows after the label and is spoken with its unit.
+    const names = ['Metadaten', 'Bilder 3 Bildarten', 'Dateien 2 Dateien', 'Trailer 1 Trailer'];
+    const all = within(tabs).getAllByRole('tab');
+    expect(all).toHaveLength(names.length);
+    names.forEach((name, index) => expect(all[index]).toHaveAccessibleName(name));
+    expect(all[2]).toHaveTextContent(/^Dateien 2/);
+    expect(within(tabs).getByRole('tab', { selected: true })).toHaveTextContent('Metadaten');
+
+    const facts = within(tabPanel()).getByRole('region', { name: 'Metadaten' });
+    expect(within(facts).getByText('Nicht zugeordnet')).toBeVisible();
+    expect(within(facts).getByText('no_match')).toBeVisible();
+    expect(within(facts).getByText('rating, title')).toBeVisible();
+    expect(within(facts).getByText('Staffeln: 0 · Folgen: 0 · Extras: 2')).toBeVisible();
+  });
+
+  it('shows the files with name, version, size and state; a row folds out into path, probe date and error', async () => {
+    const user = userEvent.setup();
+    mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });
+    renderApp(base);
+    const files = within(await openTab(user, /^Dateien/)).getByRole('region', { name: 'Dateien' });
+    const rows = within(files).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]!).getByText('1080p')).toBeVisible();
+    expect(within(rows[1]!).getByText('nicht verfügbar')).toBeVisible();
+    expect(within(rows[1]!).getByText('Prüffehler')).toBeVisible();
+    // The whole path and the error are in the fold-out, by button.
+    expect(screen.queryByText('invalid data found when processing input')).toBeNull();
+    const broken = within(files).getByRole('button', { name: 'Alien - broken.mkv' });
+    expect(broken).toHaveAttribute('aria-expanded', 'false');
+    await user.click(broken);
+    expect(broken).toHaveAttribute('aria-expanded', 'true');
+    expect(within(files).getByText('Alien (1979)/Alien - broken.mkv')).toBeVisible();
+    expect(within(files).getByText('invalid data found when processing input')).toBeVisible();
+    expect(within(files).getByText(/^Geprüft am /)).toBeVisible();
+
+    // Another tab and back: the row is still open.
+    await openTab(user, /^Trailer/);
+    await openTab(user, /^Dateien/);
+    expect(screen.getByText('invalid data found when processing input')).toBeVisible();
   });
 
   it('shows the metadata sources, the AniList entry and which provider won each field', async () => {
+    const user = userEvent.setup();
     mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });
     const { unmount } = renderApp(base);
 
@@ -96,7 +144,11 @@ describe('admin item page', () => {
     expect(anilist).toHaveAttribute('href', 'https://anilist.co/anime/1234');
     expect(anilist).toHaveAttribute('target', '_blank');
 
-    const sources = screen.getByRole('region', { name: 'Herkunft je Feld' });
+    // «Herkunft je Feld» is a disclosure with the number of fields; closed at first.
+    const trigger = screen.getByRole('button', { name: /^Herkunft je Feld/ });
+    expect(trigger).toHaveAccessibleName('Herkunft je Feld 6 Felder');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    const sources = await openDisclosure(user, /^Herkunft je Feld/);
     const rows = [...sources.querySelectorAll('dt')].map((term) => [
       term.textContent,
       term.nextElementSibling?.textContent,
@@ -111,15 +163,26 @@ describe('admin item page', () => {
     ]);
     unmount();
 
-    // No fill job ran yet, and AniList had no entry: no sources panel, no link.
+    // No fill job ran yet, and AniList had no entry: no sources disclosure, no link.
     mockApi({
       ...signedIn,
       [`GET ${base}`]: () => json({ ...item, anilistId: 0, fieldSources: [] }),
     });
     renderApp(base);
     await screen.findByRole('heading', { level: 1, name: 'Alien' });
-    expect(screen.queryByRole('region', { name: 'Herkunft je Feld' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Herkunft je Feld/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /AniList/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the episode range of a double episode', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () =>
+        json({ ...item, kind: 'episode', seasonNumber: 1, episodeNumber: 3, episodeEnd: 4 }),
+    });
+    renderApp(base);
+    const facts = await screen.findByRole('region', { name: 'Metadaten' });
+    expect(within(facts).getByText('3–4')).toBeVisible();
   });
 
   it('refreshes the title', async () => {
@@ -135,7 +198,7 @@ describe('admin item page', () => {
     expect(await screen.findByText('Aktualisierung eingereiht.')).toBeVisible();
   });
 
-  it('sets the own rating back to the metadata rating and confirms it', async () => {
+  it('keeps the rating choice across tabs (S-17), asks before leaving, then saves it', async () => {
     const user = userEvent.setup();
     let stored: AdminItem = item;
     const { calls } = mockApi({
@@ -147,32 +210,61 @@ describe('admin item page', () => {
       },
     });
     renderApp(base);
-    const rating = await screen.findByRole('region', { name: 'Freigabe' });
+    let rating = await openDisclosure(user, /^Freigabe/);
+    expect(within(rating).getByText('manual')).toBeVisible();
     expect(within(rating).getByRole('radio', { name: 'FSK 16' })).toBeChecked();
     await user.click(within(rating).getByRole('radio', { name: 'Aus Metadaten' }));
+    expect(screen.getByText('ungespeichert')).toBeVisible();
+
+    // Another tab and back, then folding «Freigabe» away and out: the choice stays.
+    await openTab(user, /^Dateien/);
+    expect(screen.queryByText('ungespeichert')).toBeNull();
+    await openTab(user, /^Metadaten/);
+    expect(screen.getByText('ungespeichert')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: /^Freigabe/ }));
+    rating = await openDisclosure(user, /^Freigabe/);
+    expect(within(rating).getByRole('radio', { name: 'Aus Metadaten' })).toBeChecked();
+
+    // Leaving the page with the choice asks; staying keeps it.
+    await user.click(screen.getByRole('link', { name: 'Zur Detailseite' }));
+    const leave = await screen.findByRole('alertdialog', {
+      name: 'Seite mit ungespeicherten Änderungen verlassen?',
+    });
+    await user.click(within(leave).getByRole('button', { name: 'Auf der Seite bleiben' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.getByRole('heading', { level: 1, name: 'Alien' })).toBeVisible();
+    expect(within(rating).getByRole('radio', { name: 'Aus Metadaten' })).toBeChecked();
+
     await user.click(within(rating).getByRole('button', { name: 'Speichern' }));
     await waitFor(() =>
       expect(calls.find((call) => call.path === `${base}/rating`)?.body).toEqual({ rating: null }),
     );
-    // The panel starts anew from the stored value (source "missing"); the confirmation stays.
-    await waitFor(() =>
-      expect(
-        within(screen.getByRole('region', { name: 'Freigabe' })).getByText('missing'),
-      ).toBeVisible(),
-    );
+    // The choice starts anew from the stored value (source "missing"); the confirmation stays.
+    await waitFor(() => expect(within(rating).getByText('missing')).toBeVisible());
     expect(screen.getByText('Freigabe gespeichert.')).toBeVisible();
+    expect(screen.queryByText('ungespeichert')).toBeNull();
+    expect(within(rating).getByRole('radio', { name: 'Aus Metadaten' })).toBeChecked();
   });
 
   it('adds a manual trailer from a URL and deletes one after confirmation', async () => {
     const user = userEvent.setup();
+    let current: AdminItem = item;
     const { calls } = mockApi({
       ...signedIn,
-      [`GET ${base}`]: () => json(item),
+      [`GET ${base}`]: () => json(current),
       [`POST ${base}/trailers`]: () => json(item.trailers[0], 201),
-      [`DELETE ${base}/trailers/5`]: () => new Response(null, { status: 204 }),
+      [`DELETE ${base}/trailers/5`]: () => {
+        current = { ...item, trailers: [] };
+        return new Response(null, { status: 204 });
+      },
     });
-    renderApp(base);
-    await user.click(await screen.findByRole('button', { name: 'Hinzufügen' }));
+    renderApp(`${base}?tab=trailers`);
+    const trailers = await screen.findByRole('region', { name: 'Trailer' });
+    expect(within(trailers).getByText('Keiner gefunden')).toBeVisible();
+    expect(within(trailers).getByText('abcdefghijk')).toBeVisible();
+    expect(within(trailers).getByText('Manuell')).toBeVisible();
+
+    await user.click(within(trailers).getByRole('button', { name: 'Hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Trailer hinzufügen' });
     const source = within(dialog).getByLabelText('YouTube-Link oder Video-ID');
     expect(source).toHaveFocus();
@@ -188,13 +280,21 @@ describe('admin item page', () => {
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: 'Löschen' }));
+    const remove = within(trailers).getByRole('button', { name: 'Löschen' });
+    expect(remove).toHaveAccessibleDescription('abcdefghijk');
+    await user.click(remove);
     const confirm = await screen.findByRole('alertdialog', { name: 'Trailer löschen?' });
     await user.click(within(confirm).getByRole('button', { name: 'Löschen' }));
     await waitFor(() =>
       expect(
         calls.some((call) => call.method === 'DELETE' && call.path === `${base}/trailers/5`),
       ).toBe(true),
+    );
+    expect(await screen.findByText('Trailer gelöscht.')).toBeVisible();
+    expect(await within(trailers).findByText('Keine Trailer.')).toBeVisible();
+    // The row went with its button: the h1 has the focus (ALL-2).
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Alien' })).toHaveFocus(),
     );
   });
 
@@ -209,7 +309,8 @@ describe('admin item page', () => {
         }),
     });
     renderApp(base);
-    await user.click(await screen.findByRole('button', { name: 'Hinzufügen' }));
+    const trailers = within(await openTab(user, /^Trailer/));
+    await user.click(trailers.getByRole('button', { name: 'Hinzufügen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Trailer hinzufügen' });
     await user.type(within(dialog).getByLabelText('YouTube-Link oder Video-ID'), 'dQw4w9WgXcQ');
     await user.click(within(dialog).getByRole('button', { name: 'Hinzufügen' }));
@@ -266,17 +367,27 @@ describe('admin item page', () => {
           ],
         }),
     });
-    renderApp(base);
+    renderApp(`${base}?tab=images`);
     const images = await screen.findByRole('region', { name: 'Bilder' });
-    const rows = within(images).getAllByRole('listitem');
+    expect(
+      within(images).getByText(
+        'Je Art das gewählte Bild mit Quelle und Sprache. Eine eigene Wahl sperrt die Art; «Anwenden» und «Aktualisieren» behalten sie.',
+      ),
+    ).toBeVisible();
+    const rows = within(images).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
-    expect(within(rows[0]!).getByText('Poster')).toBeVisible();
+    expect(within(rows[0]!).getByRole('rowheader')).toHaveTextContent('Poster');
     expect(within(rows[0]!).getByText('TMDB')).toBeVisible();
     expect(within(rows[0]!).getByText('Deutsch')).toBeVisible();
     expect(within(rows[0]!).getByText('von Hand gewählt')).toBeVisible();
+    expect(within(rows[0]!).getByText('gesperrt')).toBeVisible();
     expect(within(rows[1]!).getByText('Sperre ohne Wahl')).toBeVisible();
+    expect(within(rows[2]!).getByRole('rowheader')).toHaveTextContent('Logo');
     expect(within(rows[2]!).getByText('Kein Bild')).toBeVisible();
-    // Only a locked kind offers to lift the lock.
+    // «Andere wählen» names its kind; only a locked kind offers to lift the lock.
+    expect(
+      within(rows[0]!).getByRole('button', { name: 'Andere wählen' }),
+    ).toHaveAccessibleDescription('Poster');
     expect(within(rows[0]!).getByRole('button', { name: 'Sperre aufheben' })).toBeVisible();
     expect(within(rows[2]!).queryByRole('button', { name: 'Sperre aufheben' })).toBeNull();
   });
@@ -312,7 +423,7 @@ describe('admin item page', () => {
               chosen: true,
             },
           ],
-          unavailable: ['tvdb'],
+          unavailable: ['tvdb', 'fanart'],
         }),
       [`PUT ${base}/images/poster`]: () => {
         current = {
@@ -337,18 +448,19 @@ describe('admin item page', () => {
     });
     renderApp(base);
     const user = userEvent.setup();
-    const images = await screen.findByRole('region', { name: 'Bilder' });
+    const images = within(await openTab(user, /^Bilder/)).getByRole('region', { name: 'Bilder' });
     await user.click(within(images).getAllByRole('button', { name: 'Andere wählen' })[0]!);
     const dialog = await screen.findByRole('dialog', { name: 'Poster wählen' });
     expect(
       await within(dialog).findByText(
-        'Nicht erreichbar: TVDB. Die Liste zeigt die übrigen Quellen.',
+        'Nicht erreichbar: TVDB, Fanart.tv. Die Liste zeigt die übrigen Quellen.',
       ),
     ).toBeVisible();
     const grid = within(dialog).getByRole('listbox', { name: 'Kandidaten für Poster' });
     const tiles = within(grid).getAllByRole('option');
     expect(tiles).toHaveLength(2);
     expect(tiles[0]).toHaveAccessibleName('Ohne Text, 600 × 900 · Lokale Datei wählen');
+    expect(tiles[1]).toHaveAccessibleName('Englisch, 2000 × 3000 · TMDB · Bewertung 5,4 wählen');
     expect(within(tiles[1]!).getByText('aktuell')).toBeVisible();
     await user.click(tiles[0]!);
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
@@ -365,12 +477,34 @@ describe('admin item page', () => {
     expect(
       await screen.findByText('Sperre für Poster aufgehoben; die automatische Wahl läuft.'),
     ).toBeVisible();
+    // The button went with the lock: the h1 has the focus (ALL-2).
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Alien' })).toHaveFocus(),
+    );
   });
 
-  it('offers no image section for an episode', async () => {
+  it('binds the tab to the address; an unknown tab, or «Bilder» of an episode, falls back', async () => {
+    const user = userEvent.setup();
+    mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });
+    const { router, unmount } = renderApp(`${base}?tab=files`);
+    expect(await screen.findByRole('tab', { selected: true })).toHaveTextContent(/^Dateien/);
+    await openTab(user, /^Trailer/);
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'trailers' }));
+    await openTab(user, /^Metadaten/);
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    unmount();
+
+    mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });
+    const unknown = renderApp(`${base}?tab=nonsense`);
+    await waitFor(() => expect(unknown.router.state.location.search).toEqual({}));
+    expect(screen.getByRole('tab', { selected: true })).toHaveTextContent('Metadaten');
+    unknown.unmount();
+
     mockApi({ ...signedIn, [`GET ${base}`]: () => json({ ...item, kind: 'episode' }) });
-    renderApp(base);
+    const episode = renderApp(`${base}?tab=images`);
     await screen.findByRole('heading', { level: 1, name: 'Alien' });
+    await waitFor(() => expect(episode.router.state.location.search).toEqual({}));
+    expect(screen.queryByRole('tab', { name: /^Bilder/ })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Bilder' })).toBeNull();
   });
 
@@ -378,6 +512,7 @@ describe('admin item page', () => {
     mockApi({ ...signedIn, [`GET ${base}`]: () => problem(404, 'not_found') });
     const { unmount } = renderApp(base);
     expect(await screen.findByText('Diesen Titel gibt es nicht oder nicht mehr.')).toBeVisible();
+    expect(screen.queryByRole('tablist')).toBeNull();
     unmount();
 
     mockApi({
@@ -386,5 +521,19 @@ describe('admin item page', () => {
     });
     renderApp(base);
     expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
+  });
+
+  it('offers to try again when the title cannot be read', async () => {
+    const user = userEvent.setup();
+    let fail = true;
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () => (fail ? problem(500, 'internal') : json(item)),
+    });
+    renderApp(base);
+    const retry = await screen.findByRole('button', { name: 'Erneut versuchen' });
+    fail = false;
+    await user.click(retry);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Alien' })).toBeVisible();
   });
 });

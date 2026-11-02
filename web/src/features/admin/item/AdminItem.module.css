@@ -1,0 +1,121 @@
+/* The title page of the administration (concept 12, variant C): what AdminPage, Tabs,
+   DisclosureGroup and DataTable do not lay out themselves. */
+.live:empty {
+  display: none;
+}
+
+/* Kind and year below the h1. */
+.kindLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+  margin: 0;
+}
+
+.tabBody,
+.stack,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.form {
+  gap: var(--sc-space-5);
+}
+
+/* Same size as the headings of the disclosures next to it. */
+.sectionTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+}
+
+.headAction {
+  margin-left: auto;
+}
+
+.actions,
+.dialogActions,
+.inline,
+.chips,
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.inline {
+  gap: var(--sc-space-4);
+  align-items: flex-end;
+}
+
+.dialogActions,
+.rowActions {
+  justify-content: flex-end;
+}
+
+.rowActions {
+  flex-wrap: nowrap;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* A path or a video id in full, wrapped where it has to. */
+.path {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+/* The file's name in its row; the fold-out holds the whole path. */
+.fileName {
+  overflow-wrap: anywhere;
+}
+
+/* The decided image of a kind in the tab «Bilder» (concept 10, 7.3). */
+.kindCell {
+  display: inline-flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.thumb {
+  display: block;
+  flex: none;
+  width: 2.5rem;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+}
+
+.thumb[data-shape='landscape'] {
+  width: 4.5rem;
+  aspect-ratio: 16 / 9;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

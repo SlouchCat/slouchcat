@@ -1010,7 +1010,8 @@
         "locked": "Gesperrte Felder",
         "children": "Inhalt",
         "childCounts": "Staffeln: {{seasons}} · Folgen: {{episodes}} · Extras: {{extras}}",
-        "none": "–"
+        "none": "–",
+        "episodeRange": "{{from}}–{{to}}"
       },
       "sources": {
         "title": "Herkunft je Feld",
@@ -1027,7 +1028,9 @@
           "poster": "Poster",
           "backdrop": "Hintergrundbild"
         },
-        "fieldLang": "{{field}} ({{lang}})"
+        "fieldLang": "{{field}} ({{lang}})",
+        "count_one": "{{count}} Feld",
+        "count_other": "{{count}} Felder"
       },
       "state": {
         "pending": "Ausstehend",
@@ -1043,13 +1046,20 @@
         "source": "Quelle",
         "label": "Eigene Freigabe setzen",
         "fromMetadata": "Aus Metadaten",
-        "saved": "Freigabe gespeichert."
+        "saved": "Freigabe gespeichert.",
+        "unsaved": "ungespeichert"
       },
       "files": {
         "title": "Dateien",
         "probedAt": "Geprüft am {{date}}",
         "probeError": "Prüffehler",
-        "none": "Keine Dateien."
+        "none": "Keine Dateien.",
+        "columns": {
+          "name": "Datei",
+          "version": "Version",
+          "size": "Grösse",
+          "state": "Zustand"
+        }
       },
       "refreshed": "Aktualisierung eingereiht.",
       "trailers": {
@@ -1083,7 +1093,13 @@
           "title": "Trailer löschen?",
           "body": "Der Trailer wird entfernt. Ein automatisch gefundener Trailer kann beim nächsten Aktualisieren zurückkommen.",
           "confirm": "Löschen"
-        }
+        },
+        "columns": {
+          "video": "Video",
+          "source": "Quelle",
+          "actions": "Aktionen"
+        },
+        "deleted": "Trailer gelöscht."
       },
       "images": {
         "title": "Bilder",
@@ -1113,7 +1129,24 @@
           "tvdb": "TVDB",
           "anilist": "AniList",
           "fanart": "Fanart.tv"
+        },
+        "columns": {
+          "kind": "Art",
+          "source": "Quelle",
+          "state": "Zustand",
+          "actions": "Aktionen"
         }
+      },
+      "separator": " · ",
+      "listSeparator": ", ",
+      "tabs": {
+        "label": "Bereiche des Titels",
+        "imageKinds_one": "{{count}} Bildart",
+        "imageKinds_other": "{{count}} Bildarten",
+        "files_one": "{{count}} Datei",
+        "files_other": "{{count}} Dateien",
+        "trailers_one": "{{count}} Trailer",
+        "trailers_other": "{{count}} Trailer"
       }
     },
     "match": {

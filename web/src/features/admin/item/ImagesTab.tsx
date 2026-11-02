@@ -1,7 +1,7 @@
 import type { AdminItem, AdminItemImage, ImageCandidate, ImageKind } from '@slouchcat/api-client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -9,15 +9,15 @@ import {
   Chip,
   ImageCandidateGrid,
   Notice,
-  Panel,
   Skeleton,
   Text,
+  VisuallyHidden,
   type ImageCandidateTile,
 } from '@/ui';
-import { AriaButton, FormDialog } from '@/ui/aria';
-import styles from './AdminItemPage.module.css';
+import { AriaButton, DataTable, FormDialog, type DataColumn } from '@/ui/aria';
+import styles from './AdminItem.module.css';
 
-/** Tiles shown at once; "Mehr" adds the next ones (7.3). */
+/** Tiles shown at once; "Mehr" adds the next ones (concept 10, 7.3). */
 const PAGE = 40;
 
 /** The kinds the administrator chooses per item kind (as the server's choosableKinds). */
@@ -26,6 +26,9 @@ const choosable: Partial<Record<AdminItem['kind'], ImageKind[]>> = {
   series: ['poster', 'backdrop', 'logo'],
   season: ['poster'],
 };
+
+/** The image kinds of the tab «Bilder»; undefined: the title has no such tab (an episode). */
+export const imageKindsOf = (item: AdminItem): ImageKind[] | undefined => choosable[item.kind];
 
 function languageLabel(t: TFunction, language: string, lang: string): string {
   if (!lang) return t('admin.metadata.images.noText');
@@ -51,8 +54,10 @@ function candidateDetail(t: TFunction, language: string, c: ImageCandidate): str
         score: new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(c.score),
       }),
     );
-  return parts.join(' · ');
+  return parts.join(t('admin.item.separator'));
 }
+
+const kindName = (t: TFunction, kind: ImageKind) => t(`admin.metadata.images.kind.${kind}`);
 
 /** The candidates of one kind in a dialog: a grid, "Mehr", Enter chooses and locks. */
 function PickerDialog({
@@ -112,24 +117,24 @@ function PickerDialog({
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      title={t('admin.item.images.pickTitle', { kind: t(`admin.metadata.images.kind.${kind}`) })}
+      title={t('admin.item.images.pickTitle', { kind: kindName(t, kind) })}
       initialFocus='[role="option"]'
     >
-      <div className={styles.layout}>
+      <div className={styles.stack}>
         {candidates.isPending && <Skeleton shape="block" />}
         {candidates.isError && <Notice tone="danger">{problemMessage(t, candidates.error)}</Notice>}
         {candidates.data && candidates.data.unavailable.length > 0 && (
           <Notice tone="warning">
             {t('admin.item.images.unavailable', {
-              providers: candidates.data.unavailable.map((p) => providerLabel(t, p)).join(', '),
+              providers: candidates.data.unavailable
+                .map((p) => providerLabel(t, p))
+                .join(t('admin.item.listSeparator')),
             })}
           </Notice>
         )}
         {candidates.data && (
           <ImageCandidateGrid
-            label={t('admin.item.images.candidates', {
-              kind: t(`admin.metadata.images.kind.${kind}`),
-            })}
+            label={t('admin.item.images.candidates', { kind: kindName(t, kind) })}
             items={tiles}
             shape={kind === 'poster' ? 'portrait' : 'landscape'}
             emptyText={t('admin.item.images.empty')}
@@ -164,49 +169,72 @@ function PickerDialog({
   );
 }
 
-/** One kind: the decided image with source, language, lock; "Andere wählen", "Sperre aufheben". */
-function KindRow({
-  item,
-  kind,
-  image,
-  onPick,
-  onCleared,
-}: {
-  item: AdminItem;
+interface KindRow {
   kind: ImageKind;
   image?: AdminItemImage;
-  onPick: () => void;
-  onCleared: (next: AdminItem) => void;
+}
+
+/**
+ * The tab «Bilder» (TIT-5, concept 10 7.3): per kind the decided image with source, language and
+ * lock in a table; «Andere wählen» opens the candidates in a dialog, a choice locks the kind,
+ * «Sperre aufheben» lets the automatic choice run again.
+ */
+export function ImagesTab({
+  item,
+  kinds,
+  onChanged,
+}: {
+  item: AdminItem;
+  kinds: readonly ImageKind[];
+  onChanged: (next: AdminItem, message: string) => void;
 }) {
   const { t, i18n } = useTranslation();
+  const [picking, setPicking] = useState<ImageKind | null>(null);
   const clear = useMutation({
-    mutationFn: (): Promise<AdminItem> =>
+    mutationFn: (kind: ImageKind): Promise<AdminItem> =>
       request(
         api.DELETE('/admin/items/{id}/images/{kind}', { params: { path: { id: item.id, kind } } }),
       ),
-    onSuccess: onCleared,
+    onSuccess: (next, kind) =>
+      onChanged(next, t('admin.item.images.unlocked', { kind: kindName(t, kind) })),
   });
-  const kindName = t(`admin.metadata.images.kind.${kind}`);
-  const labelId = `admin-item-image-${kind}`;
-  return (
-    <li className={`${styles.row} ${styles.imageRow}`}>
-      <span className={styles.imageThumb} data-shape={kind === 'poster' ? 'portrait' : 'landscape'}>
-        {image?.previewUrl && (
-          <img src={image.previewUrl} alt="" loading="lazy" referrerPolicy="no-referrer" />
-        )}
-      </span>
-      <div className={styles.rowMain}>
-        <span id={labelId} className={styles.rowHead}>
-          <strong>{kindName}</strong>
-          {image?.provider && <Chip tone="outline">{providerLabel(t, image.provider)}</Chip>}
-          {image?.provider && (
+  const labelId = (kind: ImageKind) => `admin-item-image-${kind}`;
+  const columns: DataColumn<KindRow>[] = [
+    {
+      key: 'kind',
+      header: t('admin.item.images.columns.kind'),
+      rowHeader: true,
+      cell: ({ kind, image }) => (
+        <span className={styles.kindCell}>
+          <span className={styles.thumb} data-shape={kind === 'poster' ? 'portrait' : 'landscape'}>
+            {image?.previewUrl && (
+              <img src={image.previewUrl} alt="" loading="lazy" referrerPolicy="no-referrer" />
+            )}
+          </span>
+          <strong id={labelId(kind)}>{kindName(t, kind)}</strong>
+        </span>
+      ),
+    },
+    {
+      key: 'source',
+      header: t('admin.item.images.columns.source'),
+      cell: ({ image }) =>
+        image?.provider ? (
+          <span className={styles.chips}>
+            <Chip tone="outline">{providerLabel(t, image.provider)}</Chip>
             <span className={styles.muted}>
               {languageLabel(t, i18n.language, image.lang ?? '')}
             </span>
-          )}
-        </span>
-        <span className={styles.rowHead}>
-          {!image && <span className={styles.muted}>{t('admin.item.images.none')}</span>}
+          </span>
+        ) : (
+          <span className={styles.muted}>{t('admin.item.images.none')}</span>
+        ),
+    },
+    {
+      key: 'state',
+      header: t('admin.item.images.columns.state'),
+      cell: ({ image }) => (
+        <span className={styles.chips}>
           {image?.chosen && <Chip tone="info">{t('admin.item.images.chosen')}</Chip>}
           {image?.locked && !image.provider && (
             <Chip tone="warning">{t('admin.item.images.lockedNoChoice')}</Chip>
@@ -215,85 +243,53 @@ function KindRow({
             <Chip tone="outline">{t('admin.item.images.locked')}</Chip>
           )}
         </span>
-        {clear.isError && <Notice tone="danger">{problemMessage(t, clear.error)}</Notice>}
-      </div>
-      <div className={styles.actions}>
-        <AriaButton aria-describedby={labelId} onPress={onPick}>
-          {t('admin.item.images.pick')}
-        </AriaButton>
-        {image?.locked && (
-          <AriaButton
-            variant="ghost"
-            aria-describedby={labelId}
-            isPending={clear.isPending}
-            onPress={() => clear.mutate()}
-          >
-            {t('admin.item.images.unlock')}
+      ),
+    },
+    {
+      key: 'actions',
+      header: t('admin.item.images.columns.actions'),
+      hideHeader: true,
+      align: 'end',
+      cell: ({ kind, image }) => (
+        <span className={styles.rowActions}>
+          <AriaButton aria-describedby={labelId(kind)} onPress={() => setPicking(kind)}>
+            {t('admin.item.images.pick')}
           </AriaButton>
-        )}
-      </div>
-    </li>
-  );
-}
-
-/**
- * The section "Bilder" of the title page (concept 10 7.3): per kind the decided image with source,
- * language and lock; "Andere wählen" opens the candidates, a choice locks the kind, "Sperre
- * aufheben" lets the automatic choice run again.
- */
-export function ImagesPanel({
-  item,
-  onChanged,
-}: {
-  item: AdminItem;
-  onChanged: (next: AdminItem, message: string) => void;
-}) {
-  const { t } = useTranslation();
-  const kinds = choosable[item.kind];
-  const [picking, setPicking] = useState<ImageKind | null>(null);
-  const opener = useRef<HTMLElement | null>(null);
-  if (!kinds) return null;
+          {image?.locked && (
+            <AriaButton
+              variant="ghost"
+              aria-describedby={labelId(kind)}
+              isPending={clear.isPending && clear.variables === kind}
+              onPress={() => clear.mutate(kind)}
+            >
+              {t('admin.item.images.unlock')}
+            </AriaButton>
+          )}
+        </span>
+      ),
+    },
+  ];
   return (
-    <Panel as="section" aria-labelledby="admin-item-images">
-      <h2 id="admin-item-images" className={styles.panelTitle}>
-        {t('admin.item.images.title')}
-      </h2>
+    <section className={styles.tabBody} aria-label={t('admin.item.images.title')}>
+      <VisuallyHidden as="h2">{t('admin.item.images.title')}</VisuallyHidden>
       <Text tone="secondary">{t('admin.item.images.intro')}</Text>
-      <ul className={styles.list} aria-label={t('admin.item.images.title')}>
-        {kinds.map((kind) => (
-          <KindRow
-            key={kind}
-            item={item}
-            kind={kind}
-            image={item.images?.find((img) => img.kind === kind)}
-            onPick={() => {
-              opener.current = document.activeElement as HTMLElement | null;
-              setPicking(kind);
-            }}
-            onCleared={(next) =>
-              onChanged(
-                next,
-                t('admin.item.images.unlocked', { kind: t(`admin.metadata.images.kind.${kind}`) }),
-              )
-            }
-          />
-        ))}
-      </ul>
+      {clear.isError && <Notice tone="danger">{problemMessage(t, clear.error)}</Notice>}
+      <DataTable
+        caption={t('admin.item.images.title')}
+        columns={columns}
+        rows={kinds.map((kind) => ({ kind, image: item.images?.find((img) => img.kind === kind) }))}
+        rowKey={(row) => row.kind}
+      />
       {picking && (
         <PickerDialog
           item={item}
           kind={picking}
           onClose={() => setPicking(null)}
           onChosen={(next) =>
-            onChanged(
-              next,
-              t('admin.item.images.chosenSaved', {
-                kind: t(`admin.metadata.images.kind.${picking}`),
-              }),
-            )
+            onChanged(next, t('admin.item.images.chosenSaved', { kind: kindName(t, picking) }))
           }
         />
       )}
-    </Panel>
+    </section>
   );
 }
