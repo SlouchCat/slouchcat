@@ -134,7 +134,7 @@ export function Actions({
       {stored && (
         <ConfirmDialog
           trigger={
-            <AriaButton variant="danger" aria-label={t('admin.integrations.clear.label', { name })}>
+            <AriaButton variant="dangerQuiet" aria-label={t('admin.integrations.clear.label', { name })}>
               {t('admin.integrations.clear.action')}
             </AriaButton>
           }

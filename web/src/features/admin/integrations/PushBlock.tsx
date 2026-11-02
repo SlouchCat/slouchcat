@@ -39,7 +39,7 @@ export function PushBlock({ push }: { push: AdminSettings['push'] }) {
       <div className={styles.actions}>
         <ConfirmDialog
           trigger={
-            <AriaButton variant="danger" icon="refresh" isPending={rotate.isPending}>
+            <AriaButton variant="dangerQuiet" icon="refresh" isPending={rotate.isPending}>
               {t('admin.integrations.push.rotate.action')}
             </AriaButton>
           }
