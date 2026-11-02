@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, type FocusEvent, type ReactNode } from 'react';
 import {
   Header,
   ListBox,
@@ -42,11 +42,23 @@ function sectionsOf(items: readonly MasterDetailItem[]) {
 /**
  * A list on the left and the detail of its selected item on the right (concept 12, 11.2, variant
  * B). The list is one Tab stop (react-aria ListBox): ↑ and ↓ move, Enter or Space selects, Tab
- * moves on into the detail. A page keeps the selection in `?item=` (useSearchSelection, S-14);
+ * moves on into the detail; coming back into the list, the focus lands on the selected item. A
+ * page keeps the selection in `?item=` (useSearchSelection, S-14);
  * what was typed in the detail lives in the page's state (useDrafts, S-17). On narrow screens the
  * detail follows the list.
  */
 export function MasterDetail({ label, items, selectedId, onSelect, children }: MasterDetailProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  // react-aria brings the focus back to the item that had it last, which need not be the
+  // selected one (the reader moved with the arrows and left, or the page changed the selection).
+  // Entering from outside, the selected item takes it; react-aria follows that focus.
+  const onFocus = (event: FocusEvent<HTMLDivElement>) => {
+    const list = listRef.current;
+    if (!list?.contains(event.target)) return;
+    if (event.relatedTarget instanceof Node && list.contains(event.relatedTarget)) return;
+    const selected = list.querySelector<HTMLElement>('[role="option"][aria-selected="true"]');
+    if (selected && selected !== event.target) selected.focus();
+  };
   const option = (item: MasterDetailItem) => (
     <ListBoxItem key={item.id} id={item.id} textValue={item.label} className={styles.item}>
       <Text slot="label" className={styles.label}>
@@ -60,8 +72,9 @@ export function MasterDetail({ label, items, selectedId, onSelect, children }: M
     </ListBoxItem>
   );
   return (
-    <div className={styles.frame}>
+    <div className={styles.frame} onFocus={onFocus}>
       <ListBox
+        ref={listRef}
         aria-label={label}
         className={styles.list}
         selectionMode="single"

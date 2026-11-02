@@ -20,6 +20,9 @@ function Areas() {
       >
         <p>Detail {selected}</p>
         <button type="button">Im Detail</button>
+        <button type="button" onClick={() => setSelected('quality')}>
+          Güte wählen
+        </button>
       </MasterDetail>
     </>
   );
@@ -46,6 +49,29 @@ describe('MasterDetail (concept 12, 11.2)', () => {
     await user.tab();
     expect(screen.getByRole('button', { name: 'Im Detail' })).toHaveFocus();
     await user.tab({ shift: true });
+    expect(screen.getByRole('option', { name: 'Bilder' })).toHaveFocus();
+  });
+
+  it('coming back into the list, the focus lands on the selected item', async () => {
+    const user = userEvent.setup();
+    render(<Areas />);
+    await user.tab();
+    // ↓ moves the focus to «Bilder» without selecting it; Tab leaves, Shift+Tab comes back.
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('option', { name: 'Bilder' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Im Detail' })).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(screen.getByRole('option', { name: 'Sprachen' })).toHaveFocus();
+    // The page selects another item: Tab into the list lands on it, and ↓ moves on from there.
+    await user.tab();
+    await user.tab();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('option', { name: 'Güte' })).toHaveAttribute('aria-selected', 'true');
+    await user.tab({ shift: true });
+    await user.tab({ shift: true });
+    expect(screen.getByRole('option', { name: 'Güte' })).toHaveFocus();
+    await user.keyboard('{ArrowUp}');
     expect(screen.getByRole('option', { name: 'Bilder' })).toHaveFocus();
   });
 });

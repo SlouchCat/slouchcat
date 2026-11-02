@@ -36,24 +36,6 @@ async function answered(page: Page, method: string, path: RegExp, action: () => 
   return response;
 }
 
-/**
- * Moves the focus into the list of announcements, one Tab stop, from the top of the page by Tab;
- * then Home and ↓ until `target` has it. Which entry Tab lands on is react-aria's business.
- */
-async function listTo(page: Page, target: Locator, max = 10) {
-  await resetFocus(page);
-  for (let presses = 0; presses < 200; presses += 1) {
-    if (await list(page).evaluate((element) => element.contains(document.activeElement))) break;
-    await page.keyboard.press('Tab');
-  }
-  await page.keyboard.press('Home');
-  for (let presses = 0; presses < max; presses += 1) {
-    if (await target.evaluate((element) => element === document.activeElement)) break;
-    await page.keyboard.press('ArrowDown');
-  }
-  await expectFocusOn(page, target);
-}
-
 /** Moves the focus into a single-Tab-stop list by Tab, then ↓ or ↑ until `target` has it. */
 async function arrowTo(
   page: Page,
@@ -175,7 +157,11 @@ test('A-7: draft, change, publish and delete an announcement by keyboard', async
   await page.keyboard.type('Kinoabend');
   const unsaved = list(page).getByRole('option', { name: /Kinoabend/ });
   const sentEntry = list(page).getByRole('option', { name: moved });
-  await listTo(page, sentEntry);
+  // The list is one Tab stop, and Tab lands on the selected entry (MasterDetail).
+  await resetFocus(page);
+  await tabTo(page, unsaved, 200);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, sentEntry);
   await page.keyboard.press('Enter');
   await expect(region(page, moved)).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`[?&]item=announcement-${draft.id}$`));
