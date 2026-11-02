@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -84,7 +84,7 @@ func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 		Devices:                make([]model.StatDevice, 0, len(devices)),
 		WatchTimeByQuarterHour: weekGrid(quarters, s.zone),
 		TimeWindowDays:         window,
-		TimeZone:               s.zoneName(),
+		TimeZone:               s.zone.String(),
 	}
 	imageIDs := make([]string, 0, len(top))
 	for _, t := range top {
@@ -135,24 +135,36 @@ func weekGrid(quarters []systemq.StatsWatchTimeByQuarterRow, loc *time.Location)
 	return grid
 }
 
-// zoneName is the IANA name of the time zone of the grid. time.Local is named "Local", so its
-// name comes from TZ (set in the container, deploy/compose.yaml) or the target of /etc/localtime;
-// "UTC" when neither names one.
-func (s *Service) zoneName() string {
-	if name := s.zone.String(); name != "Local" {
-		return name
-	}
-	if tz := strings.TrimPrefix(s.getenv("TZ"), ":"); tz != "" {
-		if _, err := time.LoadLocation(tz); err == nil {
-			return tz
+// ResolveZone resolves the time zone of the server once at start-up, by its IANA name, so the
+// name in Stats.TimeZone and the grid always agree (time.Local itself is only named "Local"): TZ
+// (as the container sets it, deploy/compose.yaml), else the target of /etc/localtime. A name that
+// does not load, or a zone without a name, is UTC.
+func ResolveZone(getenv func(string) string) (*time.Location, string) {
+	return resolveZone(getenv, "/etc/localtime")
+}
+
+// resolveZone is ResolveZone with the path of the system's zone file.
+func resolveZone(getenv func(string) string, localtime string) (*time.Location, string) {
+	name := strings.TrimPrefix(getenv("TZ"), ":")
+	if name == "" {
+		target, err := filepath.EvalSymlinks(localtime)
+		if err != nil || target == filepath.Clean(localtime) {
+			return time.UTC, "UTC" // no link: a copied zone file carries no name
 		}
+		name = target
 	}
-	if target, err := os.Readlink("/etc/localtime"); err == nil {
-		if _, name, ok := strings.Cut(target, "zoneinfo/"); ok {
-			return name
+	if filepath.IsAbs(name) {
+		_, after, ok := strings.Cut(name, "zoneinfo/")
+		if !ok {
+			return time.UTC, "UTC"
 		}
+		name = strings.TrimPrefix(strings.TrimPrefix(after, "posix/"), "right/")
 	}
-	return "UTC"
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC, "UTC"
+	}
+	return loc, loc.String()
 }
 
 // share is part/whole, 0 without a whole.

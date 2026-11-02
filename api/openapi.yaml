@@ -5996,9 +5996,9 @@ paths:
         Over the last `days` days, unfiltered (the administration sees every profile): the most watched
         titles, the watch time per profile, the share of direct play, remux and transcoding with the
         hardware share, and the devices by type. Watch time is the played time of the progress events
-        whose server time lies in the period (offline events count with their upload time). The watch
-        time per quarter hour of the week covers at most the last 90 days (`timeWindowDays`), in the
-        server's time zone.
+        whose server time lies in the period (offline events count with their play time, the device
+        clock corrected to the server's). The watch time per quarter hour of the week covers at most
+        the last 90 days (`timeWindowDays`), in the server's time zone.
       tags: [admin]
       x-visibility: admin
       parameters:

@@ -159,8 +159,8 @@ type StatsTopTitlesRow struct {
 // Usage statistics of the administration (M8, A-8, design 3.6; package admin). Unfiltered: the
 // administration sees every profile. The period is [from_ms, to_ms) in Unix milliseconds. Watch time
 // is the played time of the progress events whose server time lies in the period (offline events
-// count with their upload time); a play is one playback session, an event without one counts on
-// its own.
+// count with their play time, the device clock corrected to the server's, AN-18); a play is one
+// playback session, an event without one counts on its own.
 //
 // Since M10 events older than 90 days are condensed into progress_days (migration 00019), so every
 // watch-time query reads two sources and adds them up: the raw events of progress_events and the

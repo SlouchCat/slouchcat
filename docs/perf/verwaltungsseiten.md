@@ -90,11 +90,30 @@ Die neue Abfrage allein (mit der Zuordnung zu Wochentag und Uhrzeit in Go):
 | 30 Tage | 33.6 ms | 34.3 ms |
 | 90 Tage | 102.0 ms | 105.2 ms |
 
-Bewertung: Bis 90 Tage kostet das Raster etwa so viel wie die Abfrage allein (p95 +12 ms bei 7
-Tagen, +100 ms bei 90 Tagen), obwohl die fünf Blöcke nebeneinander laufen; die Blöcke teilen sich
-Speicher und Seiten-Cache des reinen Go-SQLite. Bei 365 Tagen bleibt das Raster bei 90 Tagen
-Fenster und verschwindet hinter dem längsten Block (p95 unverändert). Mit dem Faktor 2.5 für
-CT 190 aus M3 liegen 90 Tage bei rund 1 s, ein Jahr unverändert bei rund 2.2 s. Ein Haushalt mit
-einigen tausend Ereignissen im Jahr bleibt weit darunter. Ein abdeckender Index
-`(server_time, played_ms)` würde die Gruppierung verkürzen, braucht aber eine Migration und ist bei
-diesen Werten nicht nötig.
+Bewertung der ganzen Antwort: Bis 90 Tage kostet das Raster etwa so viel wie die Abfrage allein
+(p95 +12 ms bei 7 Tagen, +100 ms bei 90 Tagen), obwohl die fünf Blöcke nebeneinander laufen; die
+Blöcke teilen sich Speicher und Seiten-Cache des reinen Go-SQLite. Bei 365 Tagen bleibt das Raster
+bei 90 Tagen Fenster und verschwindet hinter dem längsten Block (p95 unverändert). Mit dem Faktor
+2.5 für CT 190 aus M3 liegen 90 Tage bei rund 1 s, ein Jahr unverändert bei rund 2.2 s.
+
+**Bestand.** Der Player meldet alle 10 s (`web/src/features/player/useProgressReporter.ts`), also
+rund 360 Ereignisse je Wiedergabestunde. 3 Stunden am Tag ergeben in 90 Tagen rund 97'000
+Ereignisse. Der Bestand der Messung (1 Mio. in 400 Tagen, rund 225'000 in 90 Tagen) entspricht rund
+7 Stunden am Tag: realistisch, aber hoch.
+
+**Schwelle aus Konzept 12, 11.10** («über 200 ms rechnet der Server die Stundenwerte höchstens alle
+5 min neu»). Sie gilt für die Rasterabfrage allein im Fenster von 90 Tagen:
+
+| Bestand | Entwicklungsrechner p95 | CT 190 geschätzt (Faktor 2.5) |
+|---|---|---|
+| Messung, rund 225'000 Ereignisse in 90 Tagen | 105 ms | rund 260 ms |
+| Haushalt mit 3 Stunden am Tag, rund 97'000 Ereignisse | rund 45 ms (anteilig) | rund 110 ms |
+
+Beim Bestand der Messung läge CT 190 über der Schwelle, beim realen Bestand darunter. Der Entscheid
+fällt mit der Messung von `GET /admin/stats?days=90` auf CT 190 in K12-9; bis dahin gibt es keinen
+Zwischenspeicher. Liegt der p95 dort über 200 ms, gilt als Ausweg:
+
+- **Zwischenspeicher nur für das Raster:** Schlüssel ist das Fenster (`timeWindowDays`), Gültigkeit
+  5 min, eine Berechnung zur Zeit (singleflight); die übrigen Blöcke bleiben frisch.
+- **Abdeckender Index `(server_time, played_ms)`:** würde die Gruppierung verkürzen, braucht aber eine
+  Migration und ist nicht geplant.

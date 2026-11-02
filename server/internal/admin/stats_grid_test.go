@@ -2,6 +2,8 @@ package admin
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 	"time"
@@ -152,24 +154,67 @@ func TestStatsTimeWindow(t *testing.T) {
 	}
 }
 
-// zoneName names time.Local by TZ (as the container sets it), not "Local".
-func TestStatsZoneName(t *testing.T) {
-	st := newStack(t, "0.9.0")
-	st.svc.getenv = func(key string) string {
-		if key == "TZ" {
-			return "Asia/Kolkata"
+// ResolveZone names the zone of the server once by its IANA name and loads the grid's location from
+// that name, so both agree: TZ wins (with or without the leading ":" of POSIX, also as an absolute
+// path into a zoneinfo tree), else the target of the /etc/localtime link (also below posix/ or
+// right/); an invalid TZ, a missing link or a copied zone file (no name) is UTC.
+func TestResolveZone(t *testing.T) {
+	dir := t.TempDir()
+	tree := filepath.Join(dir, "usr", "share", "zoneinfo")
+	for _, zone := range []string{"Europe/Zurich", "posix/Asia/Kolkata", "right/America/New_York"} {
+		if err := os.MkdirAll(filepath.Join(tree, filepath.Dir(zone)), 0o755); err != nil {
+			t.Fatal(err)
 		}
-		return ""
+		if err := os.WriteFile(filepath.Join(tree, zone), []byte("TZif"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if got := st.svc.zoneName(); got != "Asia/Kolkata" {
-		t.Errorf("time.Local with TZ=Asia/Kolkata is named %q", got)
+	link := func(name, target string) string {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.Symlink(target, path); err != nil {
+			t.Fatal(err)
+		}
+		return path
 	}
-	st.svc.getenv = func(string) string { return "" }
-	if got := st.svc.zoneName(); got == "Local" || got == "" {
-		t.Errorf("time.Local without TZ is named %q, want an IANA name", got)
+	zurichLink := link("localtime-zurich", filepath.Join(tree, "Europe/Zurich"))
+	posixLink := link("localtime-posix", filepath.Join(tree, "posix/Asia/Kolkata"))
+	rightLink := link("localtime-right", filepath.Join(tree, "right/America/New_York"))
+	copied := filepath.Join(dir, "localtime-copy")
+	if err := os.WriteFile(copied, []byte("TZif"), 0o644); err != nil {
+		t.Fatal(err)
 	}
+	for _, c := range []struct {
+		name, tz, localtime, want string
+	}{
+		{"TZ by name", "Europe/Zurich", posixLink, "Europe/Zurich"},
+		{"TZ with POSIX colon", ":Europe/Zurich", posixLink, "Europe/Zurich"},
+		{"TZ as absolute path", "/usr/share/zoneinfo/Asia/Kolkata", zurichLink, "Asia/Kolkata"},
+		{"TZ as absolute posix path", ":/usr/share/zoneinfo/posix/Asia/Kolkata", zurichLink, "Asia/Kolkata"},
+		{"TZ path outside zoneinfo", "/etc/localtime", zurichLink, "UTC"},
+		{"invalid TZ", "Mars/Olympus", zurichLink, "UTC"},
+		{"TZ UTC", "UTC", zurichLink, "UTC"},
+		{"empty TZ, localtime link", "", zurichLink, "Europe/Zurich"},
+		{"empty TZ, link below posix/", "", posixLink, "Asia/Kolkata"},
+		{"empty TZ, link below right/", "", rightLink, "America/New_York"},
+		{"empty TZ, copied zone file", "", copied, "UTC"},
+		{"empty TZ, no localtime", "", filepath.Join(dir, "missing"), "UTC"},
+	} {
+		getenv := func(key string) string {
+			if key == "TZ" {
+				return c.tz
+			}
+			return ""
+		}
+		loc, name := resolveZone(getenv, c.localtime)
+		if name != c.want || loc.String() != c.want {
+			t.Errorf("%s: zone %q named %q, want %q for both", c.name, loc, name, c.want)
+		}
+	}
+	// The pinned zone names the statistics.
+	st := newStack(t, "0.9.0")
 	st.svc.WithLocation(zurich)
-	if got := st.svc.zoneName(); got != "Europe/Zurich" {
-		t.Errorf("pinned zone is named %q", got)
+	if got, err := st.svc.Stats(context.Background(), 7); err != nil || got.TimeZone != "Europe/Zurich" {
+		t.Errorf("pinned zone: %q, %v", got.TimeZone, err)
 	}
 }

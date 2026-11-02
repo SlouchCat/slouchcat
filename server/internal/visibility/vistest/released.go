@@ -56,6 +56,14 @@ func (f *Fixture) SetReleaseDate(t testing.TB, id, date string) {
 	exec(t, f.DB, `UPDATE items SET release_date = ? WHERE id = ?`, sql.NullString{String: date, Valid: date != ""}, id)
 }
 
+// AddBareEpisode adds an episode without own rating and without file to library 1 below parentID
+// ("" = none, an orphan), for the statistics of concept 12: an episode directly below its series
+// and an orphaned episode.
+func (f *Fixture) AddBareEpisode(t testing.TB, id, parentID string) {
+	t.Helper()
+	f.addReleasedItem(t, id, "episode", parentID, sql.NullInt64{}, "")
+}
+
 func (f *Fixture) addReleasedItem(t testing.TB, id, kind, parentID string, rating sql.NullInt64, date string) {
 	t.Helper()
 	title := "Released " + kind + " " + id[len(id)-4:]

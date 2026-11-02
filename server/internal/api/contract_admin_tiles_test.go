@@ -140,11 +140,23 @@ func TestStatsTopTitleImages(t *testing.T) {
 	setAdminImage(t, f, f.Show.Series.ID, "backdrop", model.AdminBackdropSize, "seriesBackdrop")
 	dropAdminImages(t, f, film.ID)
 	setAdminImage(t, f, film.ID, "poster", model.AdminPosterSize, "filmPoster")
-	for _, m := range []vistest.Movie{f.Show.E1, film} {
+	for _, m := range []vistest.Movie{f.Show.E1, f.Show.Special, film} {
 		body := fmt.Sprintf(`{"mediaFileId":%q,"positionMs":10000,"durationMs":%d,"playedMs":10000,"seq":1,"state":"playing","clientTime":%q}`,
 			m.FileID, vistest.DurationMs, time.Now().UTC().Format(time.RFC3339))
 		wantStatus(t, send(t, h, http.MethodPost, BasePath+"/items/"+m.ID+"/progress", "p18", body, nil), http.StatusOK)
 	}
+	// An episode directly below the series (no season) and an orphaned episode without parents,
+	// which shows its own images; both watched for 10 s, written straight into the tables.
+	const direct, orphan = "01J9000000000000000000DIRE", "01J9000000000000000000ORPH"
+	for id, parent := range map[string]string{direct: f.Show.Series.ID, orphan: ""} {
+		now := time.Now().UnixMilli()
+		f.AddBareEpisode(t, id, parent)
+		if _, err := f.DB.Write.Exec(`INSERT INTO progress_events (profile_id, item_id, position_ms, duration_ms, played_ms, seq, state,
+		    client_time, server_time) VALUES (?, ?, 0, 7200000, 10000, 1, 'playing', ?, ?)`, f.P18.ID, id, now, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	setAdminImage(t, f, orphan, "poster", model.AdminPosterSize, "orphanPoster")
 	rec := send(t, h, http.MethodGet, BasePath+"/admin/stats?days=30", "p18", "", nil)
 	wantStatus(t, rec, http.StatusOK)
 	t.Logf("GET /admin/stats?days=30: %s", rec.Body.String())
@@ -167,13 +179,24 @@ func TestStatsTopTitleImages(t *testing.T) {
 	if got, want := deref(mv.PosterUrl), wantAdminImage(film.ID, "poster", "w200", "filmPoster"); got != want || mv.BackdropUrl != nil {
 		t.Errorf("film posterUrl %q backdropUrl %v, want %q and none", got, mv.BackdropUrl, want)
 	}
-	// The grid of the week: 672 quarter hours holding both events, 30 days, the zone of the server.
+	// The special (season 0) and the episode without season show the series' images too; the
+	// orphan its own poster and no backdrop.
+	for label, id := range map[string]string{"special": f.Show.Special.ID, "episode below the series": direct} {
+		tt := byItem[id]
+		if deref(tt.PosterUrl) != deref(ep.PosterUrl) || deref(tt.BackdropUrl) != deref(ep.BackdropUrl) {
+			t.Errorf("%s: posterUrl %q backdropUrl %q, want the series' images", label, deref(tt.PosterUrl), deref(tt.BackdropUrl))
+		}
+	}
+	if o := byItem[orphan]; deref(o.PosterUrl) != wantAdminImage(orphan, "poster", "w200", "orphanPoster") || o.BackdropUrl != nil {
+		t.Errorf("orphan: posterUrl %q backdropUrl %v, want its own poster and no backdrop", deref(o.PosterUrl), o.BackdropUrl)
+	}
+	// The grid of the week: 672 quarter hours holding the five events, 30 days, the zone of the server.
 	var sum int64
 	for _, v := range st.WatchTimeByQuarterHour {
 		sum += v
 	}
-	if len(st.WatchTimeByQuarterHour) != model.StatsQuarterHours || sum != 20000 || st.TimeWindowDays != 30 || st.TimeZone == "" || st.TimeZone == "Local" {
-		t.Errorf("grid of %d values summing to %d, window %d, zone %q; want 672, 20000, 30 and an IANA name",
+	if len(st.WatchTimeByQuarterHour) != model.StatsQuarterHours || sum != 50000 || st.TimeWindowDays != 30 || st.TimeZone == "" || st.TimeZone == "Local" {
+		t.Errorf("grid of %d values summing to %d, window %d, zone %q; want 672, 50000, 30 and an IANA name",
 			len(st.WatchTimeByQuarterHour), sum, st.TimeWindowDays, st.TimeZone)
 	}
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/stats?days=365", "p18", "", nil)
