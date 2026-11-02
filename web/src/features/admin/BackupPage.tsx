@@ -365,6 +365,7 @@ function BackupContent() {
       ) : (
         <BandPanel
           title={t('admin.backup.list')}
+          hideTitle
           icon="archive"
           tabs={{
             label: t('admin.backup.tabs.label'),

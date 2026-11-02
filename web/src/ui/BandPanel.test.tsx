@@ -19,6 +19,24 @@ describe('BandPanel (concept 12, 11.2)', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('keeps a hidden title as the heading and name of the section (S-9)', () => {
+    render(
+      <BandPanel
+        title="Sicherungen"
+        icon="archive"
+        hideTitle
+        tabs={{
+          label: 'Bereiche',
+          tabs: [{ id: 'list', label: 'Sicherungen', content: <p>Liste</p> }],
+        }}
+      />,
+    );
+    expect(screen.getByRole('region', { name: 'Sicherungen' })).toBeVisible();
+    const heading = screen.getByRole('heading', { level: 2, name: 'Sicherungen' });
+    expect(heading.className).toMatch(/hidden/);
+    expect(screen.getByRole('tab', { name: 'Sicherungen' })).toBeVisible();
+  });
+
   it('folds its body away with Enter and Space, keeping what was typed', async () => {
     const user = userEvent.setup();
     render(

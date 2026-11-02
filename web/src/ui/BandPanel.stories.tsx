@@ -19,12 +19,13 @@ const body = (
 );
 
 /** The three forms of the band: plain, folding away, with a tab bar. */
-function Example({ form }: { form: 'plain' | 'collapsible' | 'tabs' }) {
-  if (form === 'tabs') {
+function Example({ form }: { form: 'plain' | 'collapsible' | 'tabs' | 'tabsOnly' }) {
+  if (form === 'tabs' || form === 'tabsOnly') {
     return (
       <BandPanel
         title="Geräte"
         icon="monitor"
+        hideTitle={form === 'tabsOnly'}
         tabs={{
           label: 'Ansicht',
           tabs: [
@@ -78,6 +79,12 @@ export const Collapsed: Story = { args: { form: 'collapsible' }, tags: ['press:T
 
 /** A tab bar in the band (devices, podcasts, backup). */
 export const WithTabs: Story = { args: { form: 'tabs' } };
+
+/**
+ * The first tab says what the title would (S-9): the band shows the tabs alone, the title is
+ * for screen readers only.
+ */
+export const TabsWithoutTitle: Story = { args: { form: 'tabsOnly' } };
 
 export const Compact: Story = { args: { form: 'collapsible' }, globals: { density: 'compact' } };
 

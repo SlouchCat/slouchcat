@@ -227,6 +227,7 @@ function DevicesContent() {
       {devices.data && (
         <BandPanel
           title={t('admin.devices.list')}
+          hideTitle
           icon="monitor"
           tabs={{
             label: t('admin.devices.tabs.label'),

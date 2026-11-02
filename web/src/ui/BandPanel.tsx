@@ -2,6 +2,7 @@ import { useId, useState, type ReactNode } from 'react';
 import styles from './BandPanel.module.css';
 import { Icon, type IconName } from './Icon';
 import { Tabs, type TabsProps } from './Tabs';
+import { VisuallyHidden } from './VisuallyHidden';
 
 interface BandPanelBase {
   title: string;
@@ -19,11 +20,18 @@ interface BandPanelWithBody extends BandPanelBase {
   onExpandedChange?: (expanded: boolean) => void;
   children?: ReactNode;
   tabs?: undefined;
+  hideTitle?: undefined;
 }
 
 /** A tab bar in the band, after the title; the panels form the body. It does not fold away. */
 interface BandPanelWithTabs extends BandPanelBase {
   tabs: Omit<TabsProps, 'head' | 'headClassName' | 'panelClassName'>;
+  /**
+   * The title for screen readers only, when the first tab says the same («Sicherungen»,
+   * «Geräte»; S-9 «each fact once», mockups Sic-C and Ger-C): the band shows the tabs alone, and
+   * the section keeps its heading and name.
+   */
+  hideTitle?: boolean;
   collapsible?: false;
   isExpanded?: undefined;
   onExpandedChange?: undefined;
@@ -46,6 +54,7 @@ export function BandPanel({
   isExpanded,
   onExpandedChange,
   tabs,
+  hideTitle,
   children,
 }: BandPanelProps) {
   const headingId = useId();
@@ -95,7 +104,13 @@ export function BandPanel({
           {...tabs}
           head={
             <>
-              {heading}
+              {hideTitle ? (
+                <VisuallyHidden as="h2" id={headingId}>
+                  {title}
+                </VisuallyHidden>
+              ) : (
+                heading
+              )}
               {meta && <div className={styles.meta}>{meta}</div>}
             </>
           }
