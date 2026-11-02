@@ -172,6 +172,10 @@ test('the default scope lists the areas and the languages, the save bar is clean
   owner,
 }) => {
   const before = await settingsOf(owner);
+  // The overview first, for the browser back at the end. Both pages must have rendered before
+  // going back (Firefox, see admin-libraries.spec).
+  await page.goto('/admin');
+  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
   await openMetadata(page);
   await expect(
     page.getByRole('navigation', { name: 'Verwaltung' }).getByRole('link', { name: 'Metadaten' }),
@@ -208,6 +212,11 @@ test('the default scope lists the areas and the languages, the save bar is clean
   }
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
   await expectNoFocusTrap(page, 120);
+
+  // Browser back returns to the overview; the areas replaced the address, they add no step.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
 });
 
 test('a language is added, put on its place with several arrow steps, saved and removed, all by keyboard', async ({
@@ -447,11 +456,9 @@ test('changes survive switching the scope; leaving the page asks first', async (
   const leave = page.getByRole('alertdialog', {
     name: 'Seite mit ungespeicherten Änderungen verlassen?',
   });
-  // The focus is in the question. (Chromium puts it on the dialog itself when the blocked
-  // navigation came from the keyboard, Firefox on «Auf der Seite bleiben»; ui/Dialog's matter.)
-  await expect
-    .poll(() => leave.evaluate((dialog) => dialog.contains(document.activeElement)))
-    .toBe(true);
+  // The question starts on «Auf der Seite bleiben», in both browsers (ui/Dialog, c61fe4b).
+  const stay = leave.getByRole('button', { name: 'Auf der Seite bleiben' });
+  await expectFocusOn(page, stay);
   await page.keyboard.press('Escape');
   await expect(leave).toBeHidden();
   await expect(page).toHaveURL(/\/admin\/metadata/);
@@ -460,9 +467,7 @@ test('changes survive switching the scope; leaving the page asks first', async (
   // «Verwerfen und verlassen» goes; nothing was saved.
   await arrowTo(page, current, jobs);
   await page.keyboard.press('Enter');
-  await expect
-    .poll(() => leave.evaluate((dialog) => dialog.contains(document.activeElement)))
-    .toBe(true);
+  await expectFocusOn(page, stay);
   await tabTo(page, leave.getByRole('button', { name: 'Verwerfen und verlassen' }), 3);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/jobs/);
