@@ -9,7 +9,9 @@ import { Chip, Notice, Text, TextLink } from '@/ui';
 import { AriaButton, SettingRow } from '@/ui/aria';
 import { createTelegramLink, deleteTelegramLink } from '../queries';
 import {
+  afterDialogs,
   afterRender,
+  LINK_POLL_MS,
   nextMessage,
   Status,
   useRefreshChannels,
@@ -27,7 +29,7 @@ interface TelegramLinkProps {
   polling: boolean;
   /** The focus fell to the body (a button went with a change): the h1 takes it. */
   focusTitleIfLost: () => void;
-  /** The h1 takes the focus (the button that asked is gone after the confirmation). */
+  /** The h1 takes the focus. */
   focusTitle: () => void;
 }
 
@@ -44,6 +46,7 @@ export function TelegramLink({
   focusTitle,
 }: TelegramLinkProps) {
   const { t, i18n } = useTranslation();
+  const blockRef = useRef<HTMLDivElement>(null);
   const store = useStoreChannel();
   const refresh = useRefreshChannels();
   const [message, setMessage] = useState<Message | null>(null);
@@ -60,10 +63,11 @@ export function TelegramLink({
     onSuccess: async () => {
       setMessage((current) => nextMessage(current, t('settings.notifications.telegram.unlinked')));
       await refresh();
-      // The button that asked went with the link: once React rendered that, the h1 takes the
-      // focus (the dialog's focus restore may still be on its way to the button that is gone).
-      await afterRender();
-      focusTitle();
+      // The button that asked went with the link. Once the dialog has closed (its focus restore
+      // aims at that button), the h1 takes the focus if it was lost or is still in this block.
+      await afterDialogs();
+      const active = document.activeElement;
+      if (!active || active === document.body || blockRef.current?.contains(active)) focusTitle();
     },
   });
   /** A new action starts: the outcome of the last one (message or error) goes away. */
@@ -75,12 +79,19 @@ export function TelegramLink({
   const bot = telegram?.botUsername ?? '';
   const code = linked ? undefined : telegram?.linkCode;
 
-  // The bot got the code (the poll brought it): «Code erneuern» is gone, perhaps with the focus.
+  const linkedText = telegram?.chatId
+    ? t('settings.notifications.telegram.linkedChat', { chat: telegram.chatId })
+    : t('settings.notifications.telegram.linked');
+  // The bot got the code (the poll brought it): the status line says so, and «Code erneuern» is
+  // gone, perhaps with the focus.
   const wasLinked = useRef(linked);
   useEffect(() => {
-    if (linked && !wasLinked.current) void afterRender().then(focusTitleIfLost);
+    if (linked && !wasLinked.current) {
+      setMessage((current) => nextMessage(current, linkedText));
+      void afterRender().then(focusTitleIfLost);
+    }
     wasLinked.current = linked;
-  }, [linked, focusTitleIfLost]);
+  }, [linked, linkedText, focusTitleIfLost]);
 
   const askUnlink = () =>
     ask({
@@ -90,7 +101,9 @@ export function TelegramLink({
       body: linked
         ? t('settings.notifications.telegram.unlinkConfirm.body')
         : t('settings.notifications.telegram.discardConfirm.body'),
-      confirmLabel: t('settings.notifications.telegram.unlink'),
+      confirmLabel: linked
+        ? t('settings.notifications.telegram.unlink')
+        : t('settings.notifications.telegram.discardConfirm.confirm'),
       tone: 'danger',
       onConfirm: () => {
         start();
@@ -99,16 +112,14 @@ export function TelegramLink({
     });
 
   return (
-    <div className={styles.telegram}>
+    <div ref={blockRef} className={styles.telegram}>
       <SettingRow
         label={t('settings.notifications.telegram.label')}
         help={t('settings.notifications.telegram.help')}
       >
         {linked ? (
           <Chip tone="success" icon="check">
-            {telegram?.chatId
-              ? t('settings.notifications.telegram.linkedChat', { chat: telegram.chatId })
-              : t('settings.notifications.telegram.linked')}
+            {linkedText}
           </Chip>
         ) : (
           <Chip tone="outline">{t('settings.notifications.telegram.notLinked')}</Chip>
@@ -155,7 +166,7 @@ export function TelegramLink({
           )}
           <Text tone="muted" variant="caption">
             {polling
-              ? t('settings.notifications.telegram.waiting')
+              ? t('settings.notifications.telegram.waiting', { count: LINK_POLL_MS / 1000 })
               : t('settings.notifications.telegram.paused')}
           </Text>
           {bot && (

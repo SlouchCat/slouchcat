@@ -43,6 +43,9 @@ export function PushDevices({
   const headingId = useId();
   const [message, setMessage] = useState<Message | null>(null);
   const [error, setError] = useState<unknown>(null);
+  // An action runs until the list is fresh again: its button stays busy, so no second press
+  // registers the device twice (the mutation alone settles before the refresh).
+  const [busy, setBusy] = useState<'add' | 'drop' | null>(null);
   const subscriptions = setting.push?.subscriptions ?? [];
   const supported = pushSupported();
 
@@ -58,10 +61,17 @@ export function PushDevices({
   );
   const drop = useTransientMutation(remove, () => done(t('settings.notifications.push.removed')));
   /** Runs an action; its outcome replaces the last one's (message or error). */
-  const run = <T,>(action: (value: T) => Promise<{ ok: boolean; error?: unknown }>, value: T) => {
+  const run = <T,>(
+    which: 'add' | 'drop',
+    action: (value: T) => Promise<{ ok: boolean; error?: unknown }>,
+    value: T,
+  ) => {
+    if (busy) return;
+    setBusy(which);
     setMessage(null);
     setError(null);
     void action(value).then((outcome) => {
+      setBusy(null);
       if (!outcome.ok) setError(outcome.error);
     });
   };
@@ -96,8 +106,8 @@ export function PushDevices({
                 aria-label={t('settings.notifications.push.removeLabel', {
                   device: name(subscription),
                 })}
-                isDisabled={drop.isPending}
-                onPress={() => run(drop.run, subscription)}
+                isDisabled={busy !== null}
+                onPress={() => run('drop', drop.run, subscription)}
               >
                 {t('settings.notifications.push.remove')}
               </AriaButton>
@@ -109,7 +119,11 @@ export function PushDevices({
       <Status message={message} />
       <div className={styles.actions}>
         {supported && !subscriptions.some((subscription) => subscription.thisDevice) && (
-          <AriaButton isPending={add.isPending} onPress={() => run(add.run, undefined)}>
+          <AriaButton
+            isPending={busy === 'add'}
+            isDisabled={busy === 'drop'}
+            onPress={() => run('add', add.run, undefined)}
+          >
             {t('settings.notifications.push.subscribe')}
           </AriaButton>
         )}

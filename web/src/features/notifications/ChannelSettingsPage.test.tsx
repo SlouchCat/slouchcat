@@ -1,6 +1,6 @@
 import type { ChannelSetting, ChannelSettings } from '@slouchcat/api-client';
 import type { QueryClient } from '@tanstack/react-query';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
@@ -88,6 +88,7 @@ const channelGets = (calls: { method: string; path: string }[]) =>
 
 describe('notification channels page', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     Reflect.deleteProperty(navigator, 'serviceWorker');
     Reflect.deleteProperty(window, 'isSecureContext');
@@ -375,6 +376,8 @@ describe('notification channels page', () => {
     expect(within(bot).getByRole('button', { name: 'Code erneuern' })).toBeVisible();
     expect(within(bot).getByText(/Der Code gilt bis/)).toBeVisible();
     expect(within(bot).getByText(/Abfrage alle 3 Sekunden/)).toBeVisible();
+    // The header says the page polls while the code is open.
+    expect(screen.getByText('Live, alle 3 Sekunden')).toBeVisible();
     // The code stays out of the mutation cache (transient mutation).
     expect(mutationCache(queryClient)).not.toContain('AB2C3D');
 
@@ -385,6 +388,15 @@ describe('notification channels page', () => {
     ).toBeVisible();
     expect(within(bot).queryByText(/Sende dem Bot/)).not.toBeInTheDocument();
     expect(channelGets(calls)).toBeGreaterThan(1);
+    // The status line announces the link; the poll and its live indicator end.
+    await waitFor(() =>
+      expect(
+        within(bot)
+          .getAllByRole('status')
+          .map((status) => status.textContent),
+      ).toContain('Verknüpft mit Chat 4242'),
+    );
+    expect(screen.queryByText('Live, alle 3 Sekunden')).not.toBeInTheDocument();
   });
 
   it('without the bot name the instruction says what the main user has to do', async () => {
@@ -430,7 +442,7 @@ describe('notification channels page', () => {
     await user.click(within(bot).getByRole('button', { name: 'Verknüpfung lösen' }));
     const question = await screen.findByRole('alertdialog', { name: 'Code verwerfen?' });
     expect(question).toHaveTextContent('Der offene Code gilt sofort nicht mehr.');
-    await user.click(within(question).getByRole('button', { name: 'Verknüpfung lösen' }));
+    await user.click(within(question).getByRole('button', { name: 'Code verwerfen' }));
     expect(await within(bot).findByText('Die Verknüpfung ist gelöst.')).toBeVisible();
     expect(within(bot).queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -492,7 +504,8 @@ describe('notification channels page', () => {
     expect(address).not.toBeVisible();
     // Folded, the band says what the block holds and that it holds unsaved input.
     expect(within(mail).getByText('Ungespeicherte Änderungen')).toBeVisible();
-    expect(within(mail).getByText('owner@example.test')).toBeVisible();
+    // The summary is the address as typed: what «Speichern» would store.
+    expect(within(mail).getByText('neu@example.test')).toBeVisible();
     const bot = await block('Telegram');
     await user.click(within(bot).getByRole('button', { name: 'Telegram' }));
     expect(within(bot).getByText('Verknüpft')).toBeVisible();
@@ -533,18 +546,42 @@ describe('notification channels page', () => {
   });
 
   it('holds the poll of an open code while a channel holds unsaved input', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { calls } = mockApi({
       ...page,
       'GET /me/channels': () => json(settings(email, push, openCode)),
     });
     renderApp('/settings/notifications');
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
     const mail = await block('E-Mail');
     const bot = await block('Telegram');
     expect(within(bot).getByText(/Abfrage alle 3 Sekunden/)).toBeVisible();
-    await userEvent.setup().click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
+    expect(screen.getByText('Live, alle 3 Sekunden')).toBeVisible();
+    await user.click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
     expect(within(bot).getByText(/Die Abfrage ruht/)).toBeVisible();
+    expect(screen.queryByText('Live, alle 3 Sekunden')).not.toBeInTheDocument();
     const before = channelGets(calls);
-    await new Promise((resolve) => setTimeout(resolve, 3500));
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+    expect(channelGets(calls)).toBe(before);
+
+    // Unchecked again, nothing is unsaved: the poll goes on.
+    await user.click(within(mail).getByRole('checkbox', { name: 'Neue Inhalte' }));
+    await act(() => vi.advanceTimersByTimeAsync(3500));
+    await waitFor(() => expect(channelGets(calls)).toBeGreaterThan(before));
+  });
+
+  it('another profile than the primary one neither polls nor shows the live indicator', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { calls } = mockApi({
+      ...page,
+      'GET /auth/session': secondProfileSession,
+      'GET /me/channels': () => json(settings(email, push, openCode)),
+    });
+    renderApp('/settings/notifications');
+    await block('Telegram');
+    expect(screen.queryByText('Live, alle 3 Sekunden')).not.toBeInTheDocument();
+    const before = channelGets(calls);
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
     expect(channelGets(calls)).toBe(before);
   });
 
@@ -590,13 +627,16 @@ describe('notification channels page', () => {
       const web = await block('Web-Push');
       expect(within(web).getByText('Firefox 140 · Linux')).toBeVisible();
       expect(within(web).getByText(/nur in der installierten App/)).toBeVisible();
-      await userEvent
-        .setup()
-        .click(within(web).getByRole('button', { name: 'Auf diesem Gerät aktivieren' }));
+      const user = userEvent.setup();
+      const activate = within(web).getByRole('button', { name: 'Auf diesem Gerät aktivieren' });
+      await user.click(activate);
+      // Busy until the list is fresh again: a second press registers nothing.
+      await user.click(activate);
 
       expect(
         await within(web).findByText('Dieses Gerät erhält jetzt Push-Nachrichten.'),
       ).toBeVisible();
+      expect(calls.filter((call) => call.path === '/me/push-subscriptions')).toHaveLength(1);
       const options = subscribe.mock.calls[0]?.[0];
       expect(options?.userVisibleOnly).toBe(true);
       expect((options?.applicationServerKey as Uint8Array).length).toBe(65);

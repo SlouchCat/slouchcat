@@ -112,7 +112,11 @@ test('Telegram: the link code to the bot, "Verknüpft" within 10 s, the test mes
 
   // The user sends "/start CODE"; the server polls the bot, links the chat and confirms there.
   await telegramStart(code!);
-  await expect(bot.getByText(/^Verknüpft/)).toBeVisible({ timeout: 10_000 });
+  // The status line announces it (the chip says it as well).
+  await expect(bot.getByRole('status').getByText(`Verknüpft mit Chat ${CHAT_ID}`)).toBeVisible({
+    timeout: 10_000,
+  });
+  const linkedChip = bot.getByText(`Verknüpft mit Chat ${CHAT_ID}`).first();
   await expect(instruction).toHaveCount(0);
   await expect
     .poll(
@@ -146,7 +150,7 @@ test('Telegram: the link code to the bot, "Verknüpft" within 10 s, the test mes
   await page.keyboard.press('Escape');
   await expect(question).toHaveCount(0);
   await expectFocusOn(page, unlink);
-  await expect(bot.getByText(/^Verknüpft/)).toBeVisible();
+  await expect(linkedChip).toBeVisible();
   await page.keyboard.press('Enter');
   await expect(question).toBeVisible();
   await expectFocusOn(page, question.getByRole('button', { name: 'Verknüpfung lösen' }));
@@ -272,7 +276,8 @@ test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter in the blocks, f
   await tabTo(page, mail.getByRole('button', { name: 'Speichern' }));
   await page.keyboard.press('Enter');
   await expect(mail.getByText('Gespeichert.')).toBeVisible();
-  await page.keyboard.press('Tab');
+  // «Testnachricht» stands before «Speichern» (mockup Ben-A).
+  await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, mail.getByRole('button', { name: 'Testnachricht' }));
 
   // An unsaved change survives folding the block by its band (Enter) and unfolding it again.

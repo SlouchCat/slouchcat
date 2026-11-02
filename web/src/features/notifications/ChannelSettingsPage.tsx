@@ -18,18 +18,16 @@ import {
 import { ChannelPanel } from './channels/ChannelPanel';
 import { ChannelSummary } from './channels/ChannelSummary';
 import {
-  afterRender,
+  afterDialogs,
   CHANNEL_ICON,
   CHANNEL_ORDER,
   channelDraftOf,
+  LINK_POLL_MS,
   stateOf,
   type Confirmation,
 } from './channels/shared';
 import { channelsQuery } from './queries';
 import styles from './channels/channels.module.css';
-
-/** While a Telegram link code is open, the page asks every few seconds whether the bot got it. */
-const LINK_POLL_MS = 3000;
 
 const linkOpen = (data: ChannelSettings | undefined) =>
   data?.channels.some(
@@ -80,9 +78,11 @@ export function ChannelSettingsPage() {
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const hold = confirmOpen || unsaved.pausePolling;
+  // Only the primary profile opens a link code; the poll for it runs while nothing holds.
+  const polls = isPrimary && !hold;
   const channels = useQuery({
     ...channelsQuery,
-    refetchInterval: (query) => (!hold && linkOpen(query.state.data) ? LINK_POLL_MS : false),
+    refetchInterval: (query) => (polls && linkOpen(query.state.data) ? LINK_POLL_MS : false),
     refetchOnWindowFocus: !hold,
   });
 
@@ -110,13 +110,18 @@ export function ChannelSettingsPage() {
     if (open) return;
     setConfirmOpen(false);
     // The button that opened it may be gone by now.
-    void afterRender().then(focusTitleIfLost);
+    void afterDialogs().then(focusTitleIfLost);
   };
 
   /** A short line for the band of a folded block: what the block holds. */
   const summary = (setting: ChannelSetting): string | undefined => {
     if (!setting.available) return undefined;
-    if (setting.channel === 'email') return setting.email?.address ?? accountEmail;
+    // The address as typed while it is unsaved: the band shows what «Speichern» would store.
+    if (setting.channel === 'email') {
+      return (
+        (isPrimary ? drafts.valueOf('email')?.address : setting.email?.address) ?? accountEmail
+      );
+    }
     if (setting.channel === 'telegram') {
       if (setting.telegram?.linked) return t('settings.notifications.telegram.linked');
       return setting.telegram?.linkCode
@@ -133,6 +138,7 @@ export function ChannelSettingsPage() {
       title={t('settings.notifications.title')}
       help={t('settings.notifications.intro')}
       titleRef={titleRef}
+      liveSeconds={polls && linkOpen(channels.data) ? LINK_POLL_MS / 1000 : undefined}
     >
       {!isPrimary && (
         <Notice
@@ -192,7 +198,7 @@ export function ChannelSettingsPage() {
                       onChange={(next) => drafts.set(channel, next)}
                       onSaved={() => drafts.discard(channel)}
                       ask={ask}
-                      polling={!hold}
+                      polling={polls}
                       focusTitleIfLost={focusTitleIfLost}
                       focusTitle={focusTitle}
                     />

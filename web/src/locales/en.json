@@ -3487,7 +3487,8 @@
         "label": "Link",
         "help": "Connects the account with your chat with the bot.",
         "codeOpen": "Code open",
-        "waiting": "Waiting for the message, checking every 3 seconds.",
+        "waiting_one": "Waiting for the message, checking every second.",
+        "waiting_other": "Waiting for the message, checking every {{count}} seconds.",
         "paused": "Checking pauses while there are unsaved changes or a question is open.",
         "unlinkConfirm": {
           "title": "Unlink Telegram?",
@@ -3495,7 +3496,8 @@
         },
         "discardConfirm": {
           "title": "Discard the code?",
-          "body": "The open code stops working at once. You can link again at any time with a new code."
+          "body": "The open code stops working at once. You can link again at any time with a new code.",
+          "confirm": "Discard code"
         }
       },
       "push": {

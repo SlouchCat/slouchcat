@@ -161,15 +161,8 @@ export function ChannelPanel({
         {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
         {test.isError && <Notice tone="danger">{problemMessage(t, test.error)}</Notice>}
         <Status message={message} />
+        {/* As in the mockup: the test first, the main action «Speichern» last. */}
         <div className={styles.actions}>
-          <AriaButton
-            type="submit"
-            variant="primary"
-            isDisabled={!available}
-            isPending={save.isPending}
-          >
-            {save.isPending ? t('common.saving') : t('common.save')}
-          </AriaButton>
           <AriaButton
             isDisabled={!available}
             isPending={test.isPending}
@@ -180,6 +173,14 @@ export function ChannelPanel({
             }}
           >
             {t('settings.notifications.test')}
+          </AriaButton>
+          <AriaButton
+            type="submit"
+            variant="primary"
+            isDisabled={!available}
+            isPending={save.isPending}
+          >
+            {save.isPending ? t('common.saving') : t('common.save')}
           </AriaButton>
         </div>
       </Form>

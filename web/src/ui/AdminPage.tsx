@@ -33,7 +33,9 @@ interface AdminPageProps {
  * The frame of an administration page (concept 12, S-2 to S-4): a header in one line with the h1,
  * a small help button that shows the intro sentence, the live indicator and the main actions;
  * then the status strip and the content, the sections spaced by `--sc-section-gap`. It also opens
- * the AdminDensityScope, so the dialogs of the page share its density (ADR 0020).
+ * the AdminDensityScope, so the dialogs of the page share its density (ADR 0020). Without the
+ * administration's shell (`data-shell="admin"`, the `/settings/*` pages) the scope has no effect:
+ * density.css applies the compact values only under that shell.
  */
 export function AdminPage({
   title,

@@ -3487,7 +3487,8 @@
         "label": "Verknüpfung",
         "help": "Verbindet das Konto mit deinem Chat beim Bot.",
         "codeOpen": "Code offen",
-        "waiting": "Wartet auf die Nachricht, Abfrage alle 3 Sekunden.",
+        "waiting_one": "Wartet auf die Nachricht, Abfrage jede Sekunde.",
+        "waiting_other": "Wartet auf die Nachricht, Abfrage alle {{count}} Sekunden.",
         "paused": "Die Abfrage ruht, solange ungespeicherte Änderungen oder eine Rückfrage offen sind.",
         "unlinkConfirm": {
           "title": "Verknüpfung lösen?",
@@ -3495,7 +3496,8 @@
         },
         "discardConfirm": {
           "title": "Code verwerfen?",
-          "body": "Der offene Code gilt sofort nicht mehr. Neu verknüpfen geht jederzeit mit einem neuen Code."
+          "body": "Der offene Code gilt sofort nicht mehr. Neu verknüpfen geht jederzeit mit einem neuen Code.",
+          "confirm": "Code verwerfen"
         }
       },
       "push": {
