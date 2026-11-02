@@ -56,6 +56,24 @@
   white-space: nowrap;
 }
 
+/* A long text in full, wrapped where it has to (errors in tables, the last run in a fold-out). */
+.wrap {
+  display: block;
+  min-width: 12rem;
+  max-width: 36rem;
+  overflow-wrap: anywhere;
+}
+
+/* «Aktualisierung pausiert» in the head while a draft or a confirmation holds the polling. */
+.livePaused {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  white-space: nowrap;
+}
+
 .numbers {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

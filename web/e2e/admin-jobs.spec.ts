@@ -16,7 +16,8 @@ import {
 // of the row walk their tabs with the arrow keys, the schedule in the row sets the sweep to every
 // 2 hours and the row shows it; the menu «Weitere Aktionen» opens with Enter, moves with the
 // arrows, closes with Escape onto its button and asks before «Wartende abbrechen»; the overview
-// links the tab «Fehlschläge»; browser back, visible focus, no trap. The sweep ends in seconds on
+// links the tab «Fehlschläge», whose failures are retried and cancelled by keyboard (stubbed, see
+// the last test); browser back, visible focus, no trap. The sweep ends in seconds on
 // the e2e server and queues nothing else. A pause survives a restart (F-6) and the server is
 // shared, so the test resumes every paused type and restores the sweep's schedule afterwards.
 // A waiting run to cancel comes from «Metadaten anwenden» (images only) while that type is
@@ -322,43 +323,119 @@ test('background jobs by keyboard: the menu cancels waiting runs after asking; a
   await expectNoFocusTrap(page);
 });
 
-test('the overview links the tab «Fehlschläge»; a removed row hands the focus to the heading', async ({
-  page,
-}) => {
-  await page.goto('/admin');
-  const tasks = page.getByRole('region', { name: 'Aufgaben', exact: true });
-  await expect(tasks).toBeVisible();
-  const failures = tasks.getByRole('link', { name: 'Fehlschläge ansehen' });
-  // The e2e server may have no failure at all; then the overview has no link and the address is
-  // opened directly.
-  if ((await failures.count()) > 0) {
-    await expect(failures).toHaveAttribute('href', '/admin/jobs?tab=failed');
+/** Two failures the stubbed dashboard adds to the server's own (see the next test). */
+const STUB_RETRY = 990_001;
+const STUB_CANCEL = 990_002;
+
+test.describe('failures', () => {
+  // Chromium sends the page's GET requests through the service worker, where page.route does not
+  // see them; the dashboard is answered here, so the worker stays out.
+  test.use({ serviceWorkers: 'block' });
+
+  test('the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1', async ({
+    page,
+  }) => {
+    // No API of the e2e server ends a run as failed in time: every type has five attempts with a
+    // backoff from 10 s doubling (about 2.5 min, `server/internal/jobs/queue.go`), and there is no
+    // test hook. The dashboard is therefore answered by the server plus two stubbed failures, and
+    // their «Erneut» and «Abbrechen» calls are answered here; everything else is the real page.
+    const updatedAt = new Date().toISOString();
+    const stubs = [
+      {
+        id: STUB_RETRY,
+        type: 'metadata.match',
+        state: 'failed',
+        attempts: 5,
+        maxAttempts: 5,
+        lastError: 'tmdb: HTTP 503 Service Unavailable',
+        updatedAt,
+      },
+      {
+        id: STUB_CANCEL,
+        type: 'probe.keyframes',
+        state: 'failed',
+        attempts: 5,
+        maxAttempts: 5,
+        lastError: 'ffprobe: Invalid data found when processing input',
+        updatedAt,
+      },
+    ];
+    let failures = [...stubs];
+    const calls: string[] = [];
+    await page.route('**/api/v1/admin/dashboard', async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as { jobs: { failed: number; recentFailed: unknown[] } };
+      body.jobs.failed += failures.length;
+      body.jobs.recentFailed = [...failures, ...body.jobs.recentFailed].slice(0, 10);
+      await route.fulfill({ response, json: body });
+    });
+    await page.route(`**/api/v1/admin/jobs/${STUB_RETRY}/retry`, async (route) => {
+      calls.push(`${route.request().method()} retry`);
+      failures = failures.filter((job) => job.id !== STUB_RETRY);
+      await route.fulfill({ json: { ...stubs[0], state: 'queued', attempts: 0 } });
+    });
+    await page.route(`**/api/v1/admin/jobs/${STUB_CANCEL}`, async (route) => {
+      if (route.request().method() !== 'DELETE') return route.fallback();
+      calls.push('DELETE cancel');
+      failures = failures.filter((job) => job.id !== STUB_CANCEL);
+      await route.fulfill({ status: 204 });
+    });
+
+    // The overview's card «Aufgaben» links the tab.
+    await page.goto('/admin');
+    const failuresLink = page
+      .getByRole('region', { name: 'Aufgaben', exact: true })
+      .getByRole('link', { name: 'Fehlschläge ansehen' });
+    await expect(failuresLink).toHaveAttribute('href', '/admin/jobs?tab=failed');
     await resetFocus(page);
-    await tabTo(page, failures, TAB_MAX);
+    await tabTo(page, failuresLink, TAB_MAX);
     await page.keyboard.press('Enter');
-  } else {
-    await page.goto('/admin/jobs?tab=failed');
-  }
-  await expect(page).toHaveURL(/\/admin\/jobs\?tab=failed$/);
-  const tabs = page.getByRole('tablist', { name: 'Jobs nach Gruppe' });
-  await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Fehlschläge/);
-  await expect(
-    page.getByRole('heading', { level: 2, name: 'Letzte Fehlschläge (alle Arten)' }),
-  ).toBeVisible();
-  const table = page.getByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
-  if ((await table.count()) === 0) {
-    await expect(page.getByText('Keine Fehlschläge.')).toBeVisible();
-    return;
-  }
-  // «Abbrechen» of the newest failure: asks, then the row goes and the h1 takes the focus (ALL-2).
-  const cancel = table.getByRole('button', { name: /^Lauf \d+ von .* abbrechen$/ }).first();
-  await resetFocus(page);
-  await tabTo(page, cancel, TAB_MAX);
-  await page.keyboard.press('Enter');
-  const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).press('Enter');
-  await expect(page.getByRole('status').first()).toContainText(/Lauf \d+ abgebrochen\./);
-  // The h1 takes the focus by script (tabIndex -1) and draws no ring, like every page head.
-  await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeFocused();
+    await expect(page).toHaveURL(/\/admin\/jobs\?tab=failed$/);
+    const tabs = page.getByRole('tablist', { name: 'Jobs nach Gruppe' });
+    await expect(tabs.getByRole('tab', { selected: true })).toHaveText(/^Fehlschläge/);
+    const table = page.getByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
+    const retryRow = table.getByRole('row', { name: /^Titel zuordnen/ });
+    await expect(retryRow.getByText('tmdb: HTTP 503 Service Unavailable')).toBeVisible();
+    const h1 = page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' });
+
+    // «Erneut» with Enter: the row goes, the h1 takes the focus (it draws no ring by design).
+    const retry = table.getByRole('button', {
+      name: `Lauf ${STUB_RETRY} von Titel zuordnen erneut einreihen`,
+    });
+    await resetFocus(page);
+    await tabTo(page, retry, TAB_MAX);
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('status').first()).toContainText(
+      `Lauf ${STUB_RETRY} wartet wieder.`,
+    );
+    await expect(retryRow).toHaveCount(0);
+    await expect(h1).toBeFocused();
+
+    // «Abbrechen» asks: Escape keeps the run with the focus back on the button, Enter on the
+    // confirmation cancels it, the row goes and the h1 takes the focus.
+    const cancel = table.getByRole('button', {
+      name: `Lauf ${STUB_CANCEL} von Keyframe-Index abbrechen`,
+    });
+    await tabTo(page, cancel, TAB_MAX);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('alertdialog', { name: 'Lauf von Keyframe-Index abbrechen?' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText('Slouchcat versucht diesen Lauf nicht mehr.')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, cancel);
+    expect(calls).toEqual(['POST retry']);
+    await page.keyboard.press('Enter');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).press('Enter');
+    await expect(page.getByRole('status').first()).toContainText(
+      `Lauf ${STUB_CANCEL} abgebrochen.`,
+    );
+    await expect(cancel).toHaveCount(0);
+    await expect(h1).toBeFocused();
+    expect(calls).toEqual(['POST retry', 'DELETE cancel']);
+    // Firefox keeps the closing confirmation in the page for its exit animation; wait it out.
+    await expect(dialog).toHaveCount(0);
+    await expectNoFocusTrap(page);
+  });
 });

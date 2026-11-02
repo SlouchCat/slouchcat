@@ -2285,7 +2285,8 @@
         "workers": "{{count}} Arbeiter",
         "backlog": "Stau ca. {{duration}}",
         "free": "frei",
-        "noEstimate": "ohne Schätzung"
+        "noEstimate": "ohne Schätzung",
+        "line": "{{pool}}: {{workers}} · {{state}}"
       },
       "pausedBanner": {
         "title_one": "{{count}} Job pausiert",
@@ -2364,7 +2365,8 @@
         "resume": "Fortsetzen",
         "resumeLabel": "{{name}} fortsetzen",
         "cancelQueued": "Wartende abbrechen ({{count}})",
-        "cancelAll": "Alle Läufe abbrechen"
+        "cancelAll": "Alle Läufe abbrechen",
+        "resumeNamed": "Fortsetzen: {{name}}"
       },
       "confirm": {
         "cancelQueuedTitle": "Wartende Läufe von {{name}} abbrechen?",
@@ -2542,7 +2544,8 @@
         "types_one": "{{count}} Jobart",
         "types_other": "{{count}} Jobarten",
         "caption": "Jobs der Gruppe {{group}}",
-        "failed": "Fehlschläge"
+        "failed": "Fehlschläge",
+        "empty": "Keine Jobs in dieser Gruppe."
       },
       "columns": {
         "job": "Job",
@@ -2559,7 +2562,10 @@
           "at": "Zeit"
         },
         "retryLabel": "Lauf {{id}} von {{name}} erneut einreihen"
-      }
+      },
+      "separator": " · ",
+      "none": "–",
+      "livePaused": "Aktualisierung pausiert"
     },
     "metadata": {
       "title": "Metadaten",

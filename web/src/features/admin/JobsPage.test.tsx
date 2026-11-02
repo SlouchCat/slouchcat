@@ -41,6 +41,10 @@ const type = (overrides: Partial<JobTypeInfo>): JobTypeInfo => ({
   ...overrides,
 });
 
+/** A long error: the row cuts it, the fold-out shows it whole (S-5). */
+const PRUNE_ERROR =
+  'prune: database is locked (SQLITE_BUSY) while deleting runs older than 30 days; retry later';
+
 const scanRuns: JobRun[] = [
   run({
     id: 41,
@@ -90,7 +94,20 @@ const overview = (stopping = false): JobOverview => ({
       counts: { queued: 236, planned: 2, running: 0, failed: 1 },
     }),
     type({ type: 'metadata.apply', group: 'metadata', trigger: 'manual', runnable: false }),
-    type({ type: 'jobs.prune', group: 'system', runnable: true }),
+    type({
+      type: 'jobs.prune',
+      group: 'system',
+      runnable: true,
+      counts: { queued: 0, planned: 0, running: 0, failed: 1 },
+      lastRun: run({
+        id: 60,
+        type: 'jobs.prune',
+        state: 'failed',
+        finishedAt: '2026-10-30T11:00:00Z',
+        durationSeconds: 2,
+        lastError: PRUNE_ERROR,
+      }),
+    }),
   ],
 });
 
@@ -114,7 +131,7 @@ const routes = (extra: Routes = {}): Routes => ({
         jobs: {
           queued: 239,
           running: 2,
-          failed: 265,
+          failed: 2,
           recentFailed: [failedJob({}), failedJob({ id: 71, type: 'probe.keyframes' })],
           active: [],
           failedByType: [],
@@ -153,7 +170,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
       ['Wartend', '239'],
       ['Geplant', '2'],
       ['Pausiert', '0'],
-      ['Fehlgeschlagen', '1'],
+      ['Fehlgeschlagen', '2'],
     ]);
     const pools = screen.getByRole('list', { name: 'Arbeiter' });
     expect(within(pools).getByText(/Allgemein: 4 Arbeiter · Stau ca. 3 h 10 min/)).toBeVisible();
@@ -186,7 +203,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
       'Metadaten 22 Jobarten',
       'Zustellung 00 Jobarten',
       'System 11 Jobart',
-      'Fehlschläge 265265 fehlgeschlagen',
+      'Fehlschläge 22 fehlgeschlagen',
     ]);
     expect(within(tabs).getByRole('tab', { selected: true })).toHaveAccessibleName(
       'Bibliothek 1 Jobart',
@@ -303,6 +320,11 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     ]);
     await user.click(screen.getByRole('tab', { name: /^System/ }));
     const prune = await openRow(user, 'Verlauf aufräumen');
+    // The row cuts the last run's error to one line; the fold-out shows all of it (S-5).
+    const pruneRow = within(groupPanel()).getByRole('row', { name: /^Verlauf aufräumen/ });
+    const endsWithError = (text: string) => text.endsWith(`Fehler: ${PRUNE_ERROR}`);
+    expect(within(pruneRow).getByTitle(endsWithError)).toBeVisible();
+    expect(within(prune).getByText(endsWithError)).toBeVisible();
     await user.click(
       within(prune).getByRole('button', { name: 'Verlauf aufräumen jetzt ausführen' }),
     );
@@ -353,7 +375,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     );
     const { router } = renderApp('/admin/jobs?tab=failed');
     const tab = await screen.findByRole('tab', { selected: true });
-    expect(tab).toHaveAccessibleName('Fehlschläge 265 fehlgeschlagen');
+    expect(tab).toHaveAccessibleName('Fehlschläge 2 fehlgeschlagen');
     const table = await screen.findByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows.map((row) => row.querySelector('th')?.textContent)).toEqual([
@@ -361,8 +383,9 @@ describe('admin jobs page (concept 09, concept 12)', () => {
       'Keyframe-Index',
     ]);
     expect(within(rows[0]!).getByText('5 von 5')).toBeVisible();
-    expect(within(rows[0]!).getByText('tmdb: HTTP 503')).toHaveAttribute('title', 'tmdb: HTTP 503');
-    expect(screen.getByText(/^2 von 265 · /)).toBeVisible();
+    // The whole error, wrapped: readable without a pointer (S-5).
+    expect(within(rows[0]!).getByText('tmdb: HTTP 503')).toBeVisible();
+    expect(screen.getByText(/^2 von 2 · /)).toBeVisible();
 
     // «Erneut» queues the run again; its row goes, so the focus moves to the page's h1 (ALL-2).
     const user = userEvent.setup();
@@ -455,6 +478,106 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     );
     expect(within(schedule()).getByRole('button', { name: 'Speichern' })).toHaveFocus();
     expect(within(schedule()).getByRole('combobox', { name: 'Takt' })).toHaveValue('7200');
+  });
+
+  it('pauses the live indicator for a draft; a window switched off again is no draft; a 422 clears on change', async () => {
+    const { calls } = mockApi(
+      routes({
+        'PATCH /admin/job-types/scan.library/schedule': () =>
+          problem(422, 'validation_failed', {
+            errors: [{ field: 'everySeconds', code: 'too_small' }],
+          }),
+      }),
+    );
+    renderApp('/admin/jobs');
+    expect(await screen.findByText('Live, alle 5 Sekunden')).toBeVisible();
+    const user = userEvent.setup();
+    await openRow(user, 'Bibliotheksscan');
+    const schedule = () =>
+      within(groupPanel()).getByRole('region', { name: 'Zeitplan von Bibliotheksscan' });
+
+    // A window with another start, switched off again: what the server holds, no draft.
+    await user.click(within(schedule()).getByRole('switch', { name: 'Nur in einem Zeitfenster' }));
+    const start = within(schedule()).getByLabelText('Von');
+    await user.clear(start);
+    await user.type(start, '01:30');
+    expect(screen.getByText('Aktualisierung pausiert')).toBeVisible();
+    expect(screen.queryByText('Live, alle 5 Sekunden')).toBeNull();
+    await user.click(within(schedule()).getByRole('switch', { name: 'Nur in einem Zeitfenster' }));
+    await waitFor(() =>
+      expect(within(schedule()).queryByRole('button', { name: 'Verwerfen' })).toBeNull(),
+    );
+    expect(screen.getByText('Live, alle 5 Sekunden')).toBeVisible();
+
+    // A refused save names the problem until the field changes.
+    await user.selectOptions(within(schedule()).getByRole('combobox', { name: 'Takt' }), '7200');
+    await user.click(within(schedule()).getByRole('button', { name: 'Speichern' }));
+    expect(await within(schedule()).findByRole('alert')).toBeVisible();
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
+    await user.selectOptions(within(schedule()).getByRole('combobox', { name: 'Takt' }), '43200');
+    await waitFor(() => expect(within(schedule()).queryByRole('alert')).toBeNull());
+  });
+
+  it('a confirmation stays when its row drops out meanwhile; closing it resumes polling and focuses the h1', async () => {
+    let failures = [failedJob({})];
+    mockApi(
+      routes({
+        'GET /admin/dashboard': () =>
+          json(
+            dashboardFixture({
+              jobs: {
+                queued: 0,
+                running: 0,
+                failed: failures.length,
+                recentFailed: failures,
+                active: [],
+                failedByType: [],
+              },
+            }),
+          ),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/jobs?tab=failed');
+    const table = await screen.findByRole('table', { name: 'Letzte Fehlschläge (alle Arten)' });
+    const user = userEvent.setup();
+    await user.click(
+      within(table).getByRole('button', { name: 'Lauf 70 von Titel zuordnen abbrechen' }),
+    );
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Lauf von Titel zuordnen abbrechen?',
+    });
+    expect(screen.getByText('Aktualisierung pausiert')).toBeVisible();
+    // Another poll (the sidebar's) brings a list without the row.
+    failures = [];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'dashboard'] });
+    expect(await screen.findByText('Keine Fehlschläge.')).toBeInTheDocument();
+    expect(dialog).toBeVisible();
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    expect(screen.getByText('Live, alle 5 Sekunden')).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toHaveFocus(),
+    );
+  });
+
+  it('an unknown tab in the address shows «Bibliothek» and drops the parameter', async () => {
+    mockApi(routes());
+    const { router } = renderApp('/admin/jobs?tab=nonsense');
+    const tabs = await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    expect(within(tabs).getByRole('tab', { selected: true })).toHaveAccessibleName(
+      'Bibliothek 1 Jobart',
+    );
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(
+      within(groupPanel()).getByRole('heading', { level: 2, name: 'Bibliothek' }),
+    ).toBeInTheDocument();
+  });
+
+  it('a group without job types says so', async () => {
+    mockApi(routes());
+    renderApp('/admin/jobs?tab=delivery');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    expect(await screen.findByText('Keine Jobs in dieser Gruppe.')).toBeVisible();
   });
 
   it('shows the runs of a type in its row, one tab per state, with «Erneut» for a failed run', async () => {

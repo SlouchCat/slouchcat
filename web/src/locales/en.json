@@ -2285,7 +2285,8 @@
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
-        "noEstimate": "no estimate"
+        "noEstimate": "no estimate",
+        "line": "{{pool}}: {{workers}} · {{state}}"
       },
       "pausedBanner": {
         "title_one": "{{count}} job paused",
@@ -2364,7 +2365,8 @@
         "resume": "Resume",
         "resumeLabel": "Resume {{name}}",
         "cancelQueued": "Cancel queued ({{count}})",
-        "cancelAll": "Cancel all runs"
+        "cancelAll": "Cancel all runs",
+        "resumeNamed": "Resume: {{name}}"
       },
       "confirm": {
         "cancelQueuedTitle": "Cancel the queued runs of {{name}}?",
@@ -2542,7 +2544,8 @@
         "types_one": "{{count}} job type",
         "types_other": "{{count}} job types",
         "caption": "Jobs of the group {{group}}",
-        "failed": "Failures"
+        "failed": "Failures",
+        "empty": "No jobs in this group."
       },
       "columns": {
         "job": "Job",
@@ -2559,7 +2562,10 @@
           "at": "Time"
         },
         "retryLabel": "Queue run {{id}} of {{name}} again"
-      }
+      },
+      "separator": " · ",
+      "none": "–",
+      "livePaused": "Updates paused"
     },
     "metadata": {
       "title": "Metadata",

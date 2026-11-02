@@ -6023,8 +6023,8 @@ export interface components {
             /** @description Paused job types (concept 09); the dashboard shows the tile when it is above 0. */
             paused?: number;
             /**
-             * @description The last failed jobs, newest first. Kept for other clients; the overview of the web client
-             *     reads `failedByType`.
+             * @description The last failed jobs, newest first. The web client's overview reads `failedByType`; the
+             *     failures tab of its jobs page lists these (concept 12, JOB-8).
              */
             recentFailed: components["schemas"]["JobSummary"][];
             /**

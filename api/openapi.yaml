@@ -11188,8 +11188,8 @@ components:
           type: array
           maxItems: 10
           description: |
-            The last failed jobs, newest first. Kept for other clients; the overview of the web client
-            reads `failedByType`.
+            The last failed jobs, newest first. The web client's overview reads `failedByType`; the
+            failures tab of its jobs page lists these (concept 12, JOB-8).
           items:
             $ref: "#/components/schemas/JobSummary"
         active:

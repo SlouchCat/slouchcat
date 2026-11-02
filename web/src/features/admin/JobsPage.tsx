@@ -8,13 +8,33 @@ import type {
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useSearch } from '@tanstack/react-router';
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Chip, Notice, Page, ProgressBar, SelectField, Skeleton, Text, VisuallyHidden } from '@/ui';
+import {
+  Chip,
+  Notice,
+  Page,
+  ProgressBar,
+  SelectField,
+  Skeleton,
+  StatusDot,
+  Text,
+  VisuallyHidden,
+} from '@/ui';
 import {
   ActionMenu,
   AdminPage,
@@ -63,7 +83,7 @@ import styles from './JobsPage.module.css';
 const GROUPS = ['library', 'metadata', 'delivery', 'system'] as const;
 
 /** The tabs of the page: the four groups and the failures of every type (JOB-8). */
-const TABS = [...GROUPS, 'failed'] as const;
+const TABS: readonly string[] = [...GROUPS, 'failed'];
 
 /** The tabs of a type's runs, in their order. */
 const RUN_STATES: readonly JobRunState[] = [
@@ -120,6 +140,18 @@ function scheduleDraftOf(schedule: NonNullable<JobTypeInfo['schedule']>): Schedu
   };
 }
 
+/**
+ * Without a window its times do not count: they take the server's values, so a schedule that
+ * ends up as the server holds it is no draft (an hour typed and the window switched off again).
+ */
+function normaliseSchedule(
+  next: ScheduleDraft,
+  original: ScheduleDraft | undefined,
+): ScheduleDraft {
+  if (next.windowed || !original) return next;
+  return { ...next, start: original.start, end: original.end };
+}
+
 /** Minutes of the day of an `<input type="time">` value ("03:00"); null when it is not a time. */
 function minuteOf(value: string): number | null {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
@@ -127,16 +159,41 @@ function minuteOf(value: string): number | null {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
-/** A clock that ticks every second while the page shows running durations (JOB-4a). */
-function useNow(active: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!active) return undefined;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [active]);
-  return now;
+// One clock for every running duration and "vor X" / "in X" on the page (JOB-4a): it ticks once
+// a second while any of them is shown, and only those texts render again.
+let clockNow = Date.now();
+let clockTimer: number | undefined;
+const clockListeners = new Set<() => void>();
+
+function subscribeClock(listener: () => void): () => void {
+  clockListeners.add(listener);
+  if (clockTimer === undefined) {
+    clockNow = Date.now();
+    clockTimer = window.setInterval(() => {
+      clockNow = Date.now();
+      for (const notify of clockListeners) notify();
+    }, 1000);
+  }
+  return () => {
+    clockListeners.delete(listener);
+    if (clockListeners.size === 0 && clockTimer !== undefined) {
+      window.clearInterval(clockTimer);
+      clockTimer = undefined;
+    }
+  };
 }
+
+const readClock = () => clockNow;
+
+function useNow(): number {
+  return useSyncExternalStore(subscribeClock, readClock, readClock);
+}
+
+/** Resolves once React has rendered what the last cache update brought. */
+const afterRender = () =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
+  });
 
 /** The remaining-time text of a running run (concept 09, 6.2). */
 function remainingText(t: TFunction, run: JobRun): string {
@@ -180,10 +237,10 @@ function queuedText(t: TFunction, info: JobTypeInfo): string {
       t('admin.jobs.card.median', { duration: formatSeconds(t, info.medianDurationSeconds) }),
     );
   }
-  return parts.join(' · ');
+  return parts.join(t('admin.jobs.separator'));
 }
 
-/** The last run: when, how long, and how it ended. */
+/** The last run: when, how long, and how it ended (with the whole error). */
 function lastText(t: TFunction, info: JobTypeInfo, now: number): string {
   const last = info.lastRun;
   if (!last) return t('admin.jobs.card.never');
@@ -202,7 +259,7 @@ function lastText(t: TFunction, info: JobTypeInfo, now: number): string {
     default:
       parts.push(last.skipped ? t('admin.jobs.card.lastSkipped') : t('admin.jobs.card.lastOk'));
   }
-  return parts.join(' · ');
+  return parts.join(t('admin.jobs.separator'));
 }
 
 /** The next run: "in X · alle Y · window", or why there is none. */
@@ -228,14 +285,66 @@ function nextText(t: TFunction, info: JobTypeInfo, now: number): string {
       }),
     );
   }
-  return parts.join(' · ');
+  return parts.join(t('admin.jobs.separator'));
 }
 
-/** A confirmation the page opens itself (from the menu of a row). */
+/** The last run of a type; in a row cut to one line with the whole text in the tooltip (S-5). */
+function LastRun({ info, oneLine = false }: { info: JobTypeInfo; oneLine?: boolean }) {
+  const { t } = useTranslation();
+  const text = lastText(t, info, useNow());
+  if (!oneLine) return <span className={styles.wrap}>{text}</span>;
+  return (
+    <span className={styles.oneLine} title={text}>
+      {text}
+    </span>
+  );
+}
+
+function NextRun({ info }: { info: JobTypeInfo }) {
+  const { t } = useTranslation();
+  return <>{nextText(t, info, useNow())}</>;
+}
+
+/** The duration of a run, counting up while it runs. */
+function Elapsed({ run, since = false }: { run: JobRun; since?: boolean }) {
+  const { t } = useTranslation();
+  const duration = formatSeconds(t, elapsedSeconds(run, useNow()));
+  return (
+    <span className={styles.nowrap}>
+      {since ? t('admin.jobs.running.since', { duration }) : duration}
+    </span>
+  );
+}
+
+/** A long error in a table: the whole text, wrapped (S-5: reachable without a pointer). */
+function ErrorText({ error }: { error: string | undefined }) {
+  const { t } = useTranslation();
+  if (!error) return <>{t('admin.jobs.none')}</>;
+  return <span className={styles.wrap}>{error}</span>;
+}
+
+/** A confirmation the page opens itself (from a menu or a row that may go away meanwhile). */
 interface Confirmation {
   title: string;
   body: string;
   onConfirm: () => void;
+}
+
+/** What a page-level action of a type is doing right now, for the button's pending state. */
+type Busy = 'run' | 'pause' | 'resume' | null;
+
+/** The handlers of a fold-out, stable across renders so the fold-outs need not render again. */
+interface JobHandlers {
+  onRun: (type: string) => void;
+  onPause: (type: string) => void;
+  onResume: (type: string) => void;
+  onAsk: (confirmation: Confirmation) => void;
+  onCancelRuns: (type: string, scope: 'queued' | 'all') => void;
+  onScheduleChange: (type: string, next: ScheduleDraft) => void;
+  onScheduleDiscard: (type: string) => void;
+  onScheduleSaved: (type: string) => Promise<void>;
+  onRunSettled: (text: string) => void;
+  onFailure: (error: unknown) => void;
 }
 
 /**
@@ -267,68 +376,95 @@ function JobsContent() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const [dialogs, setDialogs] = useState(0);
-  const onDialog = useCallback(
-    (open: boolean) => setDialogs((n) => (open ? n + 1 : Math.max(0, n - 1))),
-    [],
-  );
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
 
   // The drafts need what the server holds before the polling query knows whether to pause for
   // them: a passive observer reads the same cache entry without fetching.
   const cached = useQuery({ ...jobTypesQuery, enabled: false }).data;
-  const originalOf = useCallback(
-    (type: string): ScheduleDraft | undefined => {
-      const schedule = cached?.types.find((info) => info.type === type)?.schedule;
-      return schedule ? scheduleDraftOf(schedule) : undefined;
-    },
+  const originals = useMemo(
+    () =>
+      new Map(
+        (cached?.types ?? []).flatMap((info) =>
+          info.schedule ? [[info.type, scheduleDraftOf(info.schedule)] as const] : [],
+        ),
+      ),
     [cached],
   );
+  const originalOf = useCallback((type: string) => originals.get(type), [originals]);
   const drafts = useDrafts<ScheduleDraft>(originalOf);
+  const { set: setDraft, discard: discardDraft } = drafts;
   const unsaved = useUnsavedChanges(drafts.dirty);
-  const hold = dialogs > 0 || unsaved.pausePolling;
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const hold = confirmOpen || unsaved.pausePolling;
+
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'library');
+  // An unknown `?tab=` shows the first tab; the address says so too.
+  const search: Record<string, unknown> = useSearch({ strict: false });
+  const askedTab = search.tab;
+  useEffect(() => {
+    if (askedTab !== undefined && !(typeof askedTab === 'string' && TABS.includes(askedTab)))
+      selectTab('library');
+  }, [askedTab, selectTab]);
+
   const overview = useQuery({
     ...jobTypesQuery,
     refetchInterval: hold ? false : JOBS_POLL_MS,
     refetchOnWindowFocus: !hold,
   });
+  // The failures come with the dashboard; the page asks it only while their tab is open, and
+  // the sidebar's slower poll of the same entry does the rest.
+  const failuresOpen = tab === 'failed';
   const dashboard = useQuery({
     ...dashboardQuery,
-    refetchInterval: hold ? false : JOBS_POLL_MS,
-    refetchOnWindowFocus: !hold,
+    enabled: failuresOpen,
+    refetchInterval: failuresOpen && !hold ? JOBS_POLL_MS : false,
+    refetchOnWindowFocus: failuresOpen && !hold,
   });
 
-  const [tab, selectTab] = useSearchSelection('tab', TABS, 'library');
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
-  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const onExpandedChange = useCallback(
+    (key: string, open: boolean) =>
+      setExpanded((current) => {
+        const next = new Set(current);
+        if (open) next.add(key);
+        else next.delete(key);
+        return next;
+      }),
+    [],
+  );
   const [message, setMessage] = useState<string | null>(null);
   const [failure, setFailure] = useState<unknown>(null);
   const data = overview.data;
-  const now = useNow(Boolean(data?.types.some((info) => info.counts.running > 0)));
-  const number = new Intl.NumberFormat(i18n.language);
 
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: jobTypesQuery.queryKey }),
-      queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
-    ]);
+  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
+  const focusTitleIfLost = useCallback(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) titleRef.current?.focus();
+  }, []);
   /**
-   * Shows the outcome and fetches again. When the row that had the focus is gone (a retried or
-   * cancelled run, ALL-2), or the button that had it went with the change, the focus moves to
-   * the page's h1.
+   * Shows the outcome and fetches again. Once React has rendered the answer, the focus moves to
+   * the page's h1 when the row that had it is gone (a retried or cancelled run, ALL-2) or when
+   * the button that had it went with the change.
    */
-  const settled = async (text: string, removed = false) => {
-    setFailure(null);
-    setMessage(text);
-    await refresh();
-    if (removed || !document.activeElement || document.activeElement === document.body) {
-      titleRef.current?.focus();
-    }
-  };
-  const failed = (error: unknown) => {
+  const settled = useCallback(
+    async (text: string, removed = false) => {
+      setFailure(null);
+      setMessage(text);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: jobTypesQuery.queryKey }),
+        queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey }),
+      ]);
+      await afterRender();
+      if (removed) titleRef.current?.focus();
+      else focusTitleIfLost();
+    },
+    [queryClient, focusTitleIfLost],
+  );
+  const failed = useCallback((error: unknown) => {
     setMessage(null);
     setFailure(error);
-  };
+  }, []);
   const run = useMutation({
     mutationFn: runJobType,
     onSuccess: (runs, type) =>
@@ -342,9 +478,10 @@ function JobsContent() {
     onError: failed,
   });
   const resume = useMutation({
-    mutationFn: resumeJobType,
-    onSuccess: (_info, type) =>
-      settled(t('admin.jobs.messages.resumed', { name: typeName(t, type) })),
+    mutationFn: ({ type }: { type: string; fromNotice: boolean }) => resumeJobType(type),
+    // The notice's button goes with the last paused type: the h1 takes the focus.
+    onSuccess: (_info, { type, fromNotice }) =>
+      settled(t('admin.jobs.messages.resumed', { name: typeName(t, type) }), fromNotice),
     onError: failed,
   });
   const cancelRuns = useMutation({
@@ -373,27 +510,102 @@ function JobsContent() {
     cancelRuns.isPending ||
     cancelOne.isPending ||
     retryOne.isPending;
+  const busyOf = (type: string): Busy => {
+    if (run.isPending && run.variables === type) return 'run';
+    if (pause.isPending && pause.variables === type) return 'pause';
+    if (resume.isPending && resume.variables?.type === type) return 'resume';
+    return null;
+  };
 
-  const ask = (next: Confirmation) => {
+  // Every confirmation is the page's own: a row that goes while it is open (a run ends, a
+  // failure drops out of the newest ten) cannot take the dialog, and the polling pause with it.
+  const ask = useCallback((next: Confirmation) => {
     setConfirmation(next);
     setConfirmOpen(true);
-    onDialog(true);
-  };
-  const onConfirmOpenChange = (open: boolean) => {
-    if (open) return;
-    setConfirmOpen(false);
-    onDialog(false);
-  };
+  }, []);
+  const onConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) return;
+      setConfirmOpen(false);
+      // The button that opened it may be gone by now.
+      void afterRender().then(focusTitleIfLost);
+    },
+    [focusTitleIfLost],
+  );
+  const { mutate: runMutate } = run;
+  const { mutate: pauseMutate } = pause;
+  const { mutate: resumeMutate } = resume;
+  const { mutate: cancelRunsMutate } = cancelRuns;
+  const { mutate: cancelOneMutate } = cancelOne;
+  const { mutate: retryOneMutate } = retryOne;
+  const askCancelRun = useCallback(
+    (job: JobRun) => {
+      const name = typeName(t, job.type);
+      ask({
+        title: t('admin.jobs.confirm.cancelRunTitle', { name }),
+        body: t('admin.jobs.confirm.cancelRunBody') + cancelWarning(t, job.type),
+        onConfirm: () => cancelOneMutate(job),
+      });
+    },
+    [ask, t, cancelOneMutate],
+  );
+  const askCancelFailed = useCallback(
+    (job: JobSummary) =>
+      ask({
+        title: t('admin.jobs.confirm.cancelRunTitle', { name: typeName(t, job.type) }),
+        body: t('admin.jobs.confirm.cancelFailedBody'),
+        onConfirm: () => cancelOneMutate(job),
+      }),
+    [ask, t, cancelOneMutate],
+  );
+  const pauseType = useCallback((type: string) => pauseMutate(type), [pauseMutate]);
 
+  const handlers = useMemo<JobHandlers>(
+    () => ({
+      onRun: (type) => runMutate(type),
+      onPause: (type) => pauseMutate(type),
+      onResume: (type) => resumeMutate({ type, fromNotice: false }),
+      onAsk: ask,
+      onCancelRuns: (type, scope) => cancelRunsMutate({ type, scope }),
+      onScheduleChange: (type, next) => setDraft(type, normaliseSchedule(next, originalOf(type))),
+      onScheduleDiscard: discardDraft,
+      onScheduleSaved: async (type) => {
+        await settled(t('admin.jobs.messages.scheduleSaved', { name: typeName(t, type) }));
+        discardDraft(type);
+      },
+      onRunSettled: (text) => void settled(text, true),
+      onFailure: failed,
+    }),
+    [
+      runMutate,
+      pauseMutate,
+      resumeMutate,
+      ask,
+      cancelRunsMutate,
+      setDraft,
+      originalOf,
+      discardDraft,
+      settled,
+      t,
+      failed,
+    ],
+  );
+
+  const columns = useMemo(() => typeColumns(t), [t]);
+  const stopping = useMemo(
+    () => new Set(data?.types.filter((info) => info.stopping).map((info) => info.type)),
+    [data],
+  );
   const running = data?.types.flatMap((info) => info.running) ?? [];
   const paused = data?.types.filter((info) => info.paused) ?? [];
+  // One source for the failures: the job types' counts, polled every 5 s. They count the same
+  // rows as `JobCounts.failed` of the dashboard (state failed).
   const totals = {
     running: data?.types.reduce((sum, info) => sum + info.counts.running, 0) ?? 0,
     queued: data?.types.reduce((sum, info) => sum + info.counts.queued, 0) ?? 0,
     planned: data?.types.reduce((sum, info) => sum + info.counts.planned, 0) ?? 0,
     failed: data?.types.reduce((sum, info) => sum + info.counts.failed, 0) ?? 0,
   };
-  const failedTotal = dashboard.data?.jobs.failed ?? totals.failed;
 
   const status = data && (
     <>
@@ -407,10 +619,10 @@ function JobsContent() {
               key={info.type}
               variant="ghost"
               aria-label={t('admin.jobs.actions.resumeLabel', { name: typeName(t, info.type) })}
-              isDisabled={pending}
-              onPress={() => resume.mutate(info.type)}
+              isPending={busyOf(info.type) === 'resume'}
+              onPress={() => resumeMutate({ type: info.type, fromNotice: true })}
             >
-              {t('admin.jobs.actions.resume')}: {typeName(t, info.type)}
+              {t('admin.jobs.actions.resumeNamed', { name: typeName(t, info.type) })}
             </AriaButton>
           ))}
         >
@@ -458,23 +670,12 @@ function JobsContent() {
   const detail = (info: JobTypeInfo) => (
     <JobDetail
       info={info}
-      now={now}
       pending={pending}
+      busy={busyOf(info.type)}
+      hold={hold}
       schedule={drafts.valueOf(info.type)}
       scheduleDirty={drafts.isDirty(info.type)}
-      onScheduleChange={(next) => drafts.set(info.type, next)}
-      onScheduleDiscard={() => drafts.discard(info.type)}
-      onScheduleSaved={async () => {
-        await settled(t('admin.jobs.messages.scheduleSaved', { name: typeName(t, info.type) }));
-        drafts.discard(info.type);
-      }}
-      onRun={() => run.mutate(info.type)}
-      onPause={() => pause.mutate(info.type)}
-      onResume={() => resume.mutate(info.type)}
-      onAsk={ask}
-      onCancelRuns={(scope) => cancelRuns.mutate({ type: info.type, scope })}
-      onRunSettled={(text) => void settled(text, true)}
-      onFailure={failed}
+      handlers={handlers}
     />
   );
 
@@ -482,7 +683,15 @@ function JobsContent() {
     <AdminPage
       title={t('admin.jobs.title')}
       help={t('admin.jobs.intro')}
-      liveSeconds={JOBS_POLL_MS / 1000}
+      liveSeconds={hold ? undefined : JOBS_POLL_MS / 1000}
+      actions={
+        hold ? (
+          <span className={styles.livePaused}>
+            <StatusDot state="warning" />
+            {t('admin.jobs.livePaused')}
+          </span>
+        ) : undefined
+      }
       titleRef={titleRef}
       status={status}
     >
@@ -512,12 +721,10 @@ function JobsContent() {
           >
             <RunningTable
               runs={running}
-              now={now}
-              stopping={new Set(data.types.filter((info) => info.stopping).map((i) => i.type))}
-              pending={pending}
-              onPause={(type) => pause.mutate(type)}
-              onCancel={(job) => cancelOne.mutate(job)}
-              onDialog={onDialog}
+              stopping={stopping}
+              pausing={(type) => busyOf(type) === 'pause'}
+              onPause={pauseType}
+              onCancel={askCancelRun}
             />
             <Pools data={data} />
           </DisclosureGroup>
@@ -528,48 +735,43 @@ function JobsContent() {
             tabs={[
               ...GROUPS.map((group) => {
                 const types = data.types.filter((info) => info.group === group);
+                const groupName = t(`admin.jobs.groups.${group}`);
                 return {
                   id: group,
-                  label: t(`admin.jobs.groups.${group}`),
+                  label: groupName,
                   count: number.format(types.length),
                   countLabel: t('admin.jobs.tabs.types', { count: types.length }),
                   content: (
-                    <DataTable
-                      caption={t('admin.jobs.tabs.caption', {
-                        group: t(`admin.jobs.groups.${group}`),
-                      })}
-                      columns={typeColumns(t, now)}
-                      rows={types}
-                      rowKey={(info) => info.type}
-                      expand={{
-                        render: detail,
-                        expandedKeys: expanded,
-                        onExpandedChange: (key, open) =>
-                          setExpanded((current) => {
-                            const next = new Set(current);
-                            if (open) next.add(key);
-                            else next.delete(key);
-                            return next;
-                          }),
-                      }}
-                    />
+                    <div className={styles.tabBody}>
+                      <VisuallyHidden as="h2">{groupName}</VisuallyHidden>
+                      {types.length === 0 ? (
+                        <Text tone="secondary">{t('admin.jobs.tabs.empty')}</Text>
+                      ) : (
+                        <DataTable
+                          caption={t('admin.jobs.tabs.caption', { group: groupName })}
+                          columns={columns}
+                          rows={types}
+                          rowKey={(info) => info.type}
+                          expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+                        />
+                      )}
+                    </div>
                   ),
                 };
               }),
               {
                 id: 'failed',
                 label: t('admin.jobs.tabs.failed'),
-                count: number.format(failedTotal),
-                countLabel: t('admin.jobs.failed.count', { count: failedTotal }),
-                tone: failedTotal > 0 ? 'danger' : 'neutral',
+                count: number.format(totals.failed),
+                countLabel: t('admin.jobs.failed.count', { count: totals.failed }),
+                tone: totals.failed > 0 ? 'danger' : 'neutral',
                 content: (
                   <FailedTab
                     query={dashboard}
-                    total={failedTotal}
-                    pending={pending}
-                    onRetry={(job) => retryOne.mutate(job)}
-                    onCancel={(job) => cancelOne.mutate(job)}
-                    onDialog={onDialog}
+                    total={totals.failed}
+                    retrying={(id) => retryOne.isPending && retryOne.variables?.id === id}
+                    onRetry={retryOneMutate}
+                    onCancel={askCancelFailed}
                   />
                 ),
               },
@@ -595,7 +797,7 @@ function JobsContent() {
 }
 
 /** The columns of a group's table: the row folds out on the name (JOB-5). */
-function typeColumns(t: TFunction, now: number): DataColumn<JobTypeInfo>[] {
+function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
   return [
     {
       key: 'name',
@@ -619,19 +821,13 @@ function typeColumns(t: TFunction, now: number): DataColumn<JobTypeInfo>[] {
     {
       key: 'last',
       header: t('admin.jobs.card.lastRun'),
-      cell: (info) => {
-        const text = lastText(t, info, now);
-        return (
-          <span className={styles.oneLine} title={text}>
-            {text}
-          </span>
-        );
-      },
+      // Cut to one line here; the fold-out shows the whole text.
+      cell: (info) => <LastRun info={info} oneLine />,
     },
     {
       key: 'next',
       header: t('admin.jobs.card.nextRun'),
-      cell: (info) => nextText(t, info, now),
+      cell: (info) => <NextRun info={info} />,
     },
   ];
 }
@@ -643,14 +839,16 @@ function Pools({ data }: { data: JobOverview }) {
     <ul className={styles.pools} aria-label={t('admin.jobs.pools.title')}>
       {data.pools.map((pool) => (
         <li key={pool.pool}>
-          {t(`admin.jobs.pools.${pool.pool}`)}:{' '}
-          {t('admin.jobs.pools.workers', { count: pool.workers })}
-          {' · '}
-          {pool.backlogSeconds === undefined
-            ? t('admin.jobs.pools.free')
-            : t('admin.jobs.pools.backlog', {
-                duration: formatSeconds(t, pool.backlogSeconds),
-              })}
+          {t('admin.jobs.pools.line', {
+            pool: t(`admin.jobs.pools.${pool.pool}`),
+            workers: t('admin.jobs.pools.workers', { count: pool.workers }),
+            state:
+              pool.backlogSeconds === undefined
+                ? t('admin.jobs.pools.free')
+                : t('admin.jobs.pools.backlog', {
+                    duration: formatSeconds(t, pool.backlogSeconds),
+                  }),
+          })}
         </li>
       ))}
     </ul>
@@ -660,20 +858,16 @@ function Pools({ data }: { data: JobOverview }) {
 /** «Läuft gerade»: every running run across the types, with pause (of the job) and cancel. */
 function RunningTable({
   runs,
-  now,
   stopping,
-  pending,
+  pausing,
   onPause,
   onCancel,
-  onDialog,
 }: {
   runs: JobRun[];
-  now: number;
   stopping: Set<string>;
-  pending: boolean;
+  pausing: (type: string) => boolean;
   onPause: (type: string) => void;
   onCancel: (job: JobRun) => void;
-  onDialog: (open: boolean) => void;
 }) {
   const { t } = useTranslation();
   if (runs.length === 0) return <Text tone="secondary">{t('admin.jobs.running.empty')}</Text>;
@@ -692,7 +886,7 @@ function RunningTable({
     {
       key: 'subject',
       header: t('admin.jobs.running.columns.subject'),
-      cell: (job) => job.subject ?? '–',
+      cell: (job) => job.subject ?? t('admin.jobs.none'),
     },
     {
       key: 'progress',
@@ -717,7 +911,7 @@ function RunningTable({
                 />
               </>
             )}
-            {!job.progress?.note && percent === null && '–'}
+            {!job.progress?.note && percent === null && t('admin.jobs.none')}
           </span>
         );
       },
@@ -725,11 +919,7 @@ function RunningTable({
     {
       key: 'since',
       header: t('admin.jobs.running.columns.since'),
-      cell: (job) => (
-        <span className={styles.nowrap}>
-          {t('admin.jobs.running.since', { duration: formatSeconds(t, elapsedSeconds(job, now)) })}
-        </span>
-      ),
+      cell: (job) => <Elapsed run={job} since />,
     },
     {
       key: 'left',
@@ -749,30 +939,20 @@ function RunningTable({
               variant="ghost"
               icon="pause"
               aria-label={t('admin.jobs.running.pauseLabel', { name })}
-              isDisabled={pending || stopping.has(job.type)}
+              isDisabled={stopping.has(job.type)}
+              isPending={pausing(job.type)}
               onPress={() => onPause(job.type)}
             >
               {t('admin.jobs.running.pause')}
             </AriaButton>
-            <ConfirmDialog
-              trigger={
-                <AriaButton
-                  variant="ghost"
-                  icon="trash"
-                  aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
-                  isDisabled={pending}
-                >
-                  {t('admin.jobs.running.cancel')}
-                </AriaButton>
-              }
-              title={t('admin.jobs.confirm.cancelRunTitle', { name })}
-              body={t('admin.jobs.confirm.cancelRunBody') + cancelWarning(t, job.type)}
-              confirmLabel={t('admin.jobs.confirm.confirm')}
-              cancelLabel={t('admin.jobs.confirm.keep')}
-              tone="danger"
-              onConfirm={() => onCancel(job)}
-              onOpenChange={onDialog}
-            />
+            <AriaButton
+              variant="ghost"
+              icon="trash"
+              aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
+              onPress={() => onCancel(job)}
+            >
+              {t('admin.jobs.running.cancel')}
+            </AriaButton>
           </span>
         );
       },
@@ -790,41 +970,27 @@ function RunningTable({
 
 /**
  * The fold-out of a job type: «Jetzt ausführen» and «Pausieren»/«Fortsetzen» as buttons, the
- * cancellations in «Weitere Aktionen» (S-6), the trigger; then the schedule (types with one) and
- * the runs (JOB-6, JOB-7). A type this server no longer knows offers nothing.
+ * cancellations in «Weitere Aktionen» (S-6), trigger and last run in full; then the schedule
+ * (types with one) and the runs (JOB-6, JOB-7). A type this server no longer knows offers
+ * nothing. Its handlers are stable, so it renders again only when its own data changes.
  */
-function JobDetail({
+const JobDetail = memo(function JobDetail({
   info,
-  now,
   pending,
+  busy,
+  hold,
   schedule,
   scheduleDirty,
-  onScheduleChange,
-  onScheduleDiscard,
-  onScheduleSaved,
-  onRun,
-  onPause,
-  onResume,
-  onAsk,
-  onCancelRuns,
-  onRunSettled,
-  onFailure,
+  handlers,
 }: {
   info: JobTypeInfo;
-  now: number;
+  /** Some action of the page is under way: the menu's items wait. */
   pending: boolean;
+  busy: Busy;
+  hold: boolean;
   schedule: ScheduleDraft | undefined;
   scheduleDirty: boolean;
-  onScheduleChange: (next: ScheduleDraft) => void;
-  onScheduleDiscard: () => void;
-  onScheduleSaved: () => Promise<void>;
-  onRun: () => void;
-  onPause: () => void;
-  onResume: () => void;
-  onAsk: (confirmation: Confirmation) => void;
-  onCancelRuns: (scope: 'queued' | 'all') => void;
-  onRunSettled: (text: string) => void;
-  onFailure: (error: unknown) => void;
+  handlers: JobHandlers;
 }) {
   const { t } = useTranslation();
   const name = typeName(t, info.type);
@@ -838,37 +1004,37 @@ function JobDetail({
       })
     : t('admin.jobs.card.unknown');
   // The menu stays while the queue empties between two polls, so the focus on its button does
-  // not get lost; what has nothing to cancel is disabled.
+  // not get lost; what has nothing to cancel, or waits for another action, is disabled.
   const menu: ActionMenuItem[] = [
     {
       id: 'queued',
       label: t('admin.jobs.actions.cancelQueued', { count: waiting }),
       danger: true,
-      disabled: waiting === 0,
+      disabled: pending || waiting === 0,
     },
     {
       id: 'all',
       label: t('admin.jobs.actions.cancelAll'),
       danger: true,
-      disabled: info.counts.running === 0,
+      disabled: pending || info.counts.running === 0,
     },
   ];
   const onMenu = (id: string) => {
     if (id === 'queued') {
-      onAsk({
+      handlers.onAsk({
         title: t('admin.jobs.confirm.cancelQueuedTitle', { name }),
         body:
           t('admin.jobs.confirm.cancelQueuedBody', { count: waiting }) +
           cancelWarning(t, info.type),
-        onConfirm: () => onCancelRuns('queued'),
+        onConfirm: () => handlers.onCancelRuns(info.type, 'queued'),
       });
     } else if (id === 'all') {
-      onAsk({
+      handlers.onAsk({
         title: t('admin.jobs.confirm.cancelAllTitle', { name }),
         body:
           t('admin.jobs.confirm.cancelAllBody', { queued: waiting, running: info.counts.running }) +
           cancelWarning(t, info.type),
-        onConfirm: () => onCancelRuns('all'),
+        onConfirm: () => handlers.onCancelRuns(info.type, 'all'),
       });
     }
   };
@@ -883,8 +1049,8 @@ function JobDetail({
                 variant="primary"
                 icon="play"
                 aria-label={t('admin.jobs.actions.runLabel', { name })}
-                isDisabled={pending}
-                onPress={onRun}
+                isPending={busy === 'run'}
+                onPress={() => handlers.onRun(info.type)}
               >
                 {t('admin.jobs.actions.run')}
               </AriaButton>
@@ -894,8 +1060,8 @@ function JobDetail({
                 variant="secondary"
                 icon="play"
                 aria-label={t('admin.jobs.actions.resumeLabel', { name })}
-                isDisabled={pending}
-                onPress={onResume}
+                isPending={busy === 'resume'}
+                onPress={() => handlers.onResume(info.type)}
               >
                 {t('admin.jobs.actions.resume')}
               </AriaButton>
@@ -904,8 +1070,8 @@ function JobDetail({
                 variant="secondary"
                 icon="pause"
                 aria-label={t('admin.jobs.actions.pauseLabel', { name })}
-                isDisabled={pending}
-                onPress={onPause}
+                isPending={busy === 'pause'}
+                onPress={() => handlers.onPause(info.type)}
               >
                 {t('admin.jobs.actions.pause')}
               </AriaButton>
@@ -918,6 +1084,10 @@ function JobDetail({
           <dd>
             {triggerText} <code className={styles.code}>{info.type}</code>
           </dd>
+          <dt>{t('admin.jobs.card.lastRun')}</dt>
+          <dd>
+            <LastRun info={info} />
+          </dd>
         </dl>
       </div>
       {info.known && (
@@ -927,23 +1097,28 @@ function JobDetail({
               info={info}
               value={schedule}
               dirty={scheduleDirty}
-              onChange={onScheduleChange}
-              onDiscard={onScheduleDiscard}
-              onSaved={onScheduleSaved}
+              onChange={handlers.onScheduleChange}
+              onDiscard={handlers.onScheduleDiscard}
+              onSaved={handlers.onScheduleSaved}
             />
           )}
-          <RunsBlock info={info} now={now} onSettled={onRunSettled} onFailure={onFailure} />
+          <RunsBlock
+            info={info}
+            hold={hold}
+            onSettled={handlers.onRunSettled}
+            onFailure={handlers.onFailure}
+          />
         </div>
       )}
     </div>
   );
-}
+});
 
 /**
  * The schedule of a type inside its row (concept 09, F-4; instead of the dialog of concept 09):
  * the switch, the interval as a select of the values within the type's limits, and a time
  * window. What is typed is the page's draft of the type (S-17), so folding the row or switching
- * tabs keeps it. The server checks the limits (rule 12); a 422 names the field.
+ * tabs keeps it. The server checks the limits (rule 12); a 422 names the field until it changes.
  */
 function ScheduleBlock({
   info,
@@ -956,21 +1131,24 @@ function ScheduleBlock({
   info: JobTypeInfo;
   value: ScheduleDraft;
   dirty: boolean;
-  onChange: (next: ScheduleDraft) => void;
-  onDiscard: () => void;
-  onSaved: () => Promise<void>;
+  onChange: (type: string, next: ScheduleDraft) => void;
+  onDiscard: (type: string) => void;
+  onSaved: (type: string) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const name = typeName(t, info.type);
   const saveButton = useRef<HTMLButtonElement>(null);
   const save = useMutation({
     mutationFn: (body: JobScheduleUpdate) => updateJobSchedule(info.type, body),
-    onSuccess: () => onSaved(),
+    onSuccess: () => onSaved(info.type),
   });
   const errors = save.error ? formErrors(t, save.error) : null;
   const schedule = info.schedule;
   if (!schedule) return null;
-  const set = (patch: Partial<ScheduleDraft>) => onChange({ ...value, ...patch });
+  const set = (patch: Partial<ScheduleDraft>) => {
+    if (save.error) save.reset();
+    onChange(info.type, { ...value, ...patch });
+  };
 
   const options = EVERY_OPTIONS.filter(
     ([, seconds]) =>
@@ -1066,7 +1244,7 @@ function ScheduleBlock({
               isDisabled={save.isPending}
               onPress={() => {
                 save.reset();
-                onDiscard();
+                onDiscard(info.type);
                 // The button goes with the draft; the focus stays in the form.
                 saveButton.current?.focus();
               }}
@@ -1086,19 +1264,19 @@ function ScheduleBlock({
 /** The runs of a type inside its row: one tab per state (JOB-7; instead of the runs dialog). */
 function RunsBlock({
   info,
-  now,
+  hold,
   onSettled,
   onFailure,
 }: {
   info: JobTypeInfo;
-  now: number;
+  hold: boolean;
   onSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
 }) {
   const { t, i18n } = useTranslation();
   const name = typeName(t, info.type);
   const [tab, setTab] = useState<JobRunState>(info.counts.running > 0 ? 'running' : 'queued');
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const countOf = (state: JobRunState): number | undefined => {
     switch (state) {
       case 'running':
@@ -1132,7 +1310,7 @@ function RunsBlock({
               <RunsTab
                 type={info.type}
                 state={state}
-                now={now}
+                hold={hold}
                 language={i18n.language}
                 onSettled={onSettled}
                 onFailure={onFailure}
@@ -1145,24 +1323,29 @@ function RunsBlock({
   );
 }
 
-function RunsTab({
+const RunsTab = memo(function RunsTab({
   type,
   state,
-  now,
+  hold,
   language,
   onSettled,
   onFailure,
 }: {
   type: string;
   state: JobRunState;
-  now: number;
+  /** The page holds its polling (a draft, a confirmation): so do the runs. */
+  hold: boolean;
   language: string;
   onSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const query = useQuery(jobRunsQuery(type, state));
+  const query = useQuery({
+    ...jobRunsQuery(type, state),
+    refetchInterval: hold ? false : JOBS_POLL_MS,
+    refetchOnWindowFocus: !hold,
+  });
   const done = async (text: string) => {
     await queryClient.invalidateQueries({ queryKey: ['admin', 'job-runs', type] });
     onSettled(text);
@@ -1210,18 +1393,13 @@ function RunsTab({
             {formatDateTime(job.startedAt, language)}
           </time>
         ) : (
-          '–'
+          t('admin.jobs.none')
         ),
     },
     {
       key: 'duration',
       header: t('admin.jobs.runs.columns.duration'),
-      cell: (job) =>
-        job.startedAt ? (
-          <span className={styles.nowrap}>{formatSeconds(t, elapsedSeconds(job, now))}</span>
-        ) : (
-          '–'
-        ),
+      cell: (job) => (job.startedAt ? <Elapsed run={job} /> : t('admin.jobs.none')),
     },
     {
       key: 'attempts',
@@ -1235,14 +1413,7 @@ function RunsTab({
     {
       key: 'error',
       header: t('admin.jobs.runs.columns.error'),
-      cell: (job) =>
-        job.lastError ? (
-          <span className={styles.oneLine} title={job.lastError}>
-            {job.lastError}
-          </span>
-        ) : (
-          '–'
-        ),
+      cell: (job) => <ErrorText error={job.lastError} />,
     },
     {
       key: 'actions',
@@ -1299,30 +1470,28 @@ function RunsTab({
       />
     </>
   );
-}
+});
 
 /**
  * The tab «Fehlschläge» (JOB-8): the ten newest failures of every type from the dashboard
- * (`jobs.recentFailed`) with «Erneut» and «Abbrechen» (asks first); the tab itself carries the
- * total. All failures of one type are under «Läufe» of its row.
+ * (`jobs.recentFailed`) with «Erneut» and «Abbrechen» (asks first, through the page); the tab
+ * itself carries the total. All failures of one type are under «Läufe» of its row.
  */
 function FailedTab({
   query,
   total,
-  pending,
+  retrying,
   onRetry,
   onCancel,
-  onDialog,
 }: {
   query: UseQueryResult<Dashboard>;
   total: number;
-  pending: boolean;
+  retrying: (id: number) => boolean;
   onRetry: (job: JobSummary) => void;
   onCancel: (job: JobSummary) => void;
-  onDialog: (open: boolean) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const number = new Intl.NumberFormat(i18n.language);
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
   const heading = <h2 className={styles.tabTitle}>{t('admin.jobs.failed.title')}</h2>;
   if (query.isPending) return <Skeleton shape="block" />;
   if (query.isError) {
@@ -1366,14 +1535,7 @@ function FailedTab({
     {
       key: 'error',
       header: t('admin.jobs.runs.columns.error'),
-      cell: (job) =>
-        job.lastError ? (
-          <span className={styles.oneLine} title={job.lastError}>
-            {job.lastError}
-          </span>
-        ) : (
-          '–'
-        ),
+      cell: (job) => <ErrorText error={job.lastError} />,
     },
     {
       key: 'at',
@@ -1397,30 +1559,19 @@ function FailedTab({
               variant="ghost"
               icon="refresh"
               aria-label={t('admin.jobs.failed.retryLabel', { id: job.id, name })}
-              isDisabled={pending}
+              isPending={retrying(job.id)}
               onPress={() => onRetry(job)}
             >
               {t('admin.jobs.runs.retry')}
             </AriaButton>
-            <ConfirmDialog
-              trigger={
-                <AriaButton
-                  variant="ghost"
-                  icon="trash"
-                  aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
-                  isDisabled={pending}
-                >
-                  {t('admin.jobs.runs.cancel')}
-                </AriaButton>
-              }
-              title={t('admin.jobs.confirm.cancelRunTitle', { name })}
-              body={t('admin.jobs.confirm.cancelFailedBody')}
-              confirmLabel={t('admin.jobs.confirm.confirm')}
-              cancelLabel={t('admin.jobs.confirm.keep')}
-              tone="danger"
-              onConfirm={() => onCancel(job)}
-              onOpenChange={onDialog}
-            />
+            <AriaButton
+              variant="ghost"
+              icon="trash"
+              aria-label={t('admin.jobs.running.cancelLabel', { id: job.id, name })}
+              onPress={() => onCancel(job)}
+            >
+              {t('admin.jobs.runs.cancel')}
+            </AriaButton>
           </span>
         );
       },
