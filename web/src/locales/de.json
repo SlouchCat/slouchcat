@@ -1189,10 +1189,25 @@
       "title": "Geräte",
       "intro": "Browser und Geräte, die sich angemeldet haben, mit dem Fähigkeitsprofil ihres letzten Wiedergabestarts.",
       "list": "Geräte",
+      "tabs": {
+        "label": "Ansicht der Geräte",
+        "devices": "Geräte",
+        "capabilities": "Fähigkeiten"
+      },
+      "hint": {
+        "devices": "Gruppiert nach Typ. Die Fähigkeiten stehen im Reiter daneben.",
+        "capabilities": "Fähigkeitsprofil des letzten Wiedergabestarts je Gerät."
+      },
+      "caption": "{{view}}: {{type}}",
+      "count_one": "{{number}} Gerät",
+      "count_other": "{{number}} Geräte",
+      "profiled_one": "{{number}} Gerät mit Fähigkeitsprofil",
+      "profiled_other": "{{number}} Geräte mit Fähigkeitsprofil",
+      "streamCount_one": "{{number}} Stream",
+      "streamCount_other": "{{number}} Streams",
       "empty": "Noch keine Geräte.",
       "columns": {
         "name": "Gerät",
-        "type": "Typ",
         "owner": "Eigentümer",
         "lastSeen": "Letzter Kontakt",
         "containers": "Container",
@@ -1211,7 +1226,8 @@
         "phone": "Telefon",
         "tablet": "Tablet",
         "tv": "TV",
-        "other": "Anderes"
+        "other": "Anderes",
+        "unknown": "Unbekannt"
       },
       "forget": {
         "action": "Vergessen",
@@ -1223,7 +1239,8 @@
       "forgotten": "Gerät „{{name}}“ vergessen.",
       "yes": "Ja",
       "no": "Nein",
-      "unknown": "–"
+      "unknown": "–",
+      "unknownSpoken": "unbekannt"
     },
     "streams": {
       "title": "Streams",

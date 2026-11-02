@@ -1,40 +1,11 @@
-import type { AdminDevice, AdminStream } from '@slouchcat/api-client';
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import type { AdminStream } from '@slouchcat/api-client';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { json, mockApi, renderApp, session, signedIn, type Routes } from '@/test/api';
-import { adminShell, renderAdminPage } from '@/test/admin';
+import { json, mockApi, renderApp, signedIn, type Routes } from '@/test/api';
 
-// W-7 devices and W-6 streams for the main account's primary profile. The server lists and
-// enforces; the pages show the answers and send "Vergessen" and "Beenden".
-
-const devices: AdminDevice[] = [
-  {
-    id: 'dev-1',
-    name: 'Chrome 156 · Linux',
-    type: 'desktop',
-    ownerEmail: 'owner@example.test',
-    ownerProfile: 'Marco',
-    createdAt: '2026-10-19T10:00:00Z',
-    lastSeenAt: '2026-10-20T08:30:00Z',
-    capabilities: {
-      containers: ['mp4', 'webm'],
-      video: ['h264', 'hevc'],
-      audio: ['aac', 'opus'],
-      hls: 'mse',
-      maxWidth: 3840,
-      maxHeight: 2160,
-      hdr: true,
-    },
-    activeStreams: 1,
-  },
-  {
-    id: 'dev-2',
-    createdAt: '2026-10-19T11:00:00Z',
-    lastSeenAt: '2026-10-19T11:00:00Z',
-    activeStreams: 0,
-  },
-];
+// W-6 streams for the main account's primary profile. The server lists and enforces; the page
+// shows the answers and sends "Beenden". The devices (W-7) are in DevicesPage.test.tsx.
 
 const streams: AdminStream[] = [
   {
@@ -70,119 +41,6 @@ const streams: AdminStream[] = [
     lastActivityAt: '2026-10-20T08:30:00Z',
   },
 ];
-
-const rowOf = (name: string) => screen.getByRole('rowheader', { name }).closest('tr')!;
-
-describe('admin devices (W-7)', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it('lists devices with owner, last contact and capability profile', async () => {
-    mockApi({ ...signedIn, 'GET /admin/devices': () => json(devices) });
-    renderApp('/admin/devices');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Geräte' })).toBeVisible();
-    const table = await screen.findByRole('table', { name: 'Geräte' });
-    expect(
-      within(table)
-        .getAllByRole('columnheader')
-        .map((cell) => cell.textContent),
-    ).toEqual([
-      'Gerät',
-      'Typ',
-      'Eigentümer',
-      'Letzter Kontakt',
-      'Container',
-      'Video',
-      'Audio',
-      'Max. Auflösung',
-      'HDR',
-      'Streams',
-      'Aktionen',
-    ]);
-    const chrome = rowOf('Chrome 156 · Linux');
-    const cells = within(chrome)
-      .getAllByRole('cell')
-      .map((cell) => cell.textContent);
-    expect(cells.slice(0, 8)).toEqual([
-      'Computer',
-      'owner@example.test · Marco',
-      expect.stringMatching(/2026/) as string,
-      'MP4, WEBM',
-      'H264, HEVC',
-      'AAC, OPUS',
-      '3840 × 2160',
-      'Ja',
-    ]);
-    expect(cells[8]).toBe('1');
-    const unknown = rowOf('Unbekanntes Gerät');
-    expect(within(unknown).getByText('Noch keine Wiedergabe')).toBeVisible();
-  });
-
-  it('forgets a device after the confirmation; ↑/↓ move between the rows', async () => {
-    let listed = devices;
-    const { calls } = mockApi({
-      ...signedIn,
-      'GET /admin/devices': () => json(listed),
-      'DELETE /admin/devices/dev-1': () => {
-        listed = devices.slice(1);
-        return new Response(null, { status: 204 });
-      },
-    });
-    renderApp('/admin/devices');
-    const user = userEvent.setup();
-    const first = await screen.findByRole('button', { name: 'Chrome 156 · Linux vergessen' });
-    const second = screen.getByRole('button', { name: 'Unbekanntes Gerät vergessen' });
-    first.focus();
-    fireEvent.keyDown(first, { key: 'ArrowDown' });
-    expect(second).toHaveFocus();
-    fireEvent.keyDown(second, { key: 'ArrowUp' });
-    expect(first).toHaveFocus();
-
-    await user.click(first);
-    const dialog = await screen.findByRole('alertdialog', {
-      name: 'Gerät „Chrome 156 · Linux“ vergessen?',
-    });
-    await user.click(within(dialog).getByRole('button', { name: 'Gerät vergessen' }));
-    await waitFor(() =>
-      expect(
-        calls.some((call) => call.method === 'DELETE' && call.path === '/admin/devices/dev-1'),
-      ).toBe(true),
-    );
-    expect(dialog).toHaveTextContent('Ist es das Gerät, das du gerade benutzt');
-    expect(await screen.findByText('Gerät „Chrome 156 · Linux“ vergessen.')).toBeVisible();
-    await waitFor(() =>
-      expect(screen.queryByRole('rowheader', { name: 'Chrome 156 · Linux' })).toBeNull(),
-    );
-    // The button went away with its row: the focus is on the page heading, not lost.
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: 'Geräte' }).parentElement).toHaveFocus(),
-    );
-  });
-
-  it('is for the main account only', async () => {
-    const { calls } = mockApi({
-      ...signedIn,
-      'GET /auth/session': () =>
-        json({ ...session, account: { ...session.account, role: 'user', isOwner: false } }),
-    });
-    renderApp('/admin/devices');
-    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
-    expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
-  });
-
-  it('links devices and streams in the admin navigation', async () => {
-    mockApi({ ...signedIn, ...adminShell, 'GET /admin/devices': () => json([]) });
-    const { nav } = await renderAdminPage('/admin/devices');
-    expect(within(nav).getByRole('link', { name: 'Geräte' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
-    expect(within(nav).getByRole('link', { name: 'Streams' })).toHaveAttribute(
-      'href',
-      '/admin/streams',
-    );
-    expect(await screen.findByText('Noch keine Geräte.')).toBeVisible();
-  });
-});
 
 describe('admin streams (W-6)', () => {
   afterEach(() => {

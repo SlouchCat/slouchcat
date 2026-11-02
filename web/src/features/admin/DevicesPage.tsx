@@ -1,191 +1,275 @@
 import type { AdminDevice } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useSearch } from '@tanstack/react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
-import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Page, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, DataTable, type DataColumn } from '@/ui/aria';
+import { Notice, Skeleton, Text } from '@/ui';
+import {
+  AdminPage,
+  AriaButton,
+  BandPanel,
+  ConfirmDialog,
+  DataTable,
+  DisclosureGroup,
+  useSearchSelection,
+  type TabItem,
+} from '@/ui/aria';
+import { capabilityColumns, deviceColumns, deviceName } from './devices/columns';
 import { devicesQuery } from './queries';
-import styles from './AdminTablePage.module.css';
+import styles from './devices/Devices.module.css';
 
-const codecList = (codecs: readonly string[] | undefined) =>
-  codecs && codecs.length > 0 ? codecs.map((codec) => codec.toUpperCase()).join(', ') : undefined;
+/** The tabs in the band: the list (the default, no `?tab=`) and the capability profiles. */
+const DEVICES = 'devices';
+const CAPABILITIES = 'capabilities';
+const TAB_IDS = [DEVICES, CAPABILITIES] as const;
+type View = (typeof TAB_IDS)[number];
+
+/** The sections of a tab, one per device type; a device without a type is «Unbekannt». */
+const TYPE_ORDER = ['tv', 'desktop', 'phone', 'tablet', 'other', 'unknown'] as const;
+type TypeKey = (typeof TYPE_ORDER)[number];
+
+/** Resolves once React has rendered what the last cache update brought. */
+const afterRender = () =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
+  });
 
 /**
- * Devices (W-7): every browser that signed in, with the owner of its last playback start, its
- * last contact and the capability profile it reported. "Vergessen" ends its streams and sessions.
+ * Devices (W-7; concept 12, variant C): every browser that signed in. The tab «Geräte» shows the
+ * owner of its last playback start, its last contact, its streams and «Vergessen», which ends its
+ * streams and sessions; the tab «Fähigkeiten» shows the capability profile it reported. In both,
+ * each device type is a section that folds away (GER-1).
  */
 export function DevicesPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   useDocumentTitle(t('admin.devices.title'));
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!allowed) {
+    return (
+      <AdminPage title={t('admin.devices.title')}>
+        <Notice title={t('admin.access.notAllowed.title')}>
+          {t('admin.access.notAllowed.body')}
+        </Notice>
+      </AdminPage>
+    );
+  }
+  return <DevicesContent />;
+}
+
+function DevicesContent() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const devices = useQuery({ ...devicesQuery, enabled: allowed });
-  const [forgotten, setForgotten] = useState<string | null>(null);
-  const nameOf = (device: AdminDevice) => device.name ?? t('admin.devices.unnamed');
-  // The row of a forgotten device goes away with its button: the focus moves to the page heading.
-  const header = useRef<HTMLDivElement>(null);
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  const [forgetting, setForgetting] = useState<AdminDevice | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // No refetch while the confirmation is open: its row stays as it was asked about.
+  const devices = useQuery({ ...devicesQuery, refetchOnWindowFocus: !confirmOpen });
+
+  const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, DEVICES);
+  // An unknown `?tab=` shows «Geräte», and the address says so too (replaced, not pushed).
+  const search: Record<string, unknown> = useSearch({ strict: false });
+  const askedTab = search.tab;
+  useEffect(() => {
+    if (
+      askedTab !== undefined &&
+      !(typeof askedTab === 'string' && (TAB_IDS as readonly string[]).includes(askedTab))
+    )
+      selectTab(DEVICES);
+  }, [askedTab, selectTab]);
+
+  // Folded sections by type, held by the page: the same type is folded in both tabs.
+  const [folded, setFolded] = useState<ReadonlySet<TypeKey>>(() => new Set());
+  const onExpandedChange = useCallback(
+    (type: TypeKey, open: boolean) =>
+      setFolded((current) => {
+        const next = new Set(current);
+        if (open) next.delete(type);
+        else next.add(type);
+        return next;
+      }),
+    [],
+  );
+
+  const [message, setMessage] = useState<string | null>(null);
+  const [failure, setFailure] = useState<unknown>(null);
+
+  /** The focus fell to the body (its button or row went with a change): the h1 takes it. */
+  const focusTitleIfLost = useCallback(() => {
+    const active = document.activeElement;
+    if (!active || active === document.body) titleRef.current?.focus();
+  }, []);
+
   const forget = useMutation({
     mutationFn: (device: AdminDevice) =>
       request(api.DELETE('/admin/devices/{id}', { params: { path: { id: device.id } } })),
     onSuccess: async (_data, device) => {
-      setForgotten(nameOf(device));
+      setFailure(null);
+      setMessage(t('admin.devices.forgotten', { name: deviceName(t, device) }));
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: devicesQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: ['admin', 'streams'] }),
       ]);
-      header.current?.focus();
+      // The row and its button are gone: once React rendered that, the h1 takes the focus.
+      await afterRender();
+      titleRef.current?.focus();
+    },
+    onError: (error) => {
+      setMessage(null);
+      setFailure(error);
     },
   });
 
-  const unknown = t('admin.devices.unknown');
-  const columns: DataColumn<AdminDevice>[] = [
-    { key: 'name', header: t('admin.devices.columns.name'), rowHeader: true, cell: nameOf },
-    {
-      key: 'type',
-      header: t('admin.devices.columns.type'),
-      cell: (device) => (device.type ? t(`admin.devices.types.${device.type}`) : unknown),
+  // The confirmation is the page's own: a row that goes while it is open (a refetch) cannot take
+  // the dialog with it.
+  const askForget = useCallback((device: AdminDevice) => {
+    setForgetting(device);
+    setConfirmOpen(true);
+  }, []);
+  const onConfirmOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) return;
+      setConfirmOpen(false);
+      // The button that opened it may be gone by now.
+      void afterRender().then(focusTitleIfLost);
     },
-    {
-      key: 'owner',
-      header: t('admin.devices.columns.owner'),
-      cell: (device) =>
-        device.ownerEmail ? (
-          t('admin.devices.owner', {
-            email: device.ownerEmail,
-            profile: device.ownerProfile ?? unknown,
-          })
+    [focusTitleIfLost],
+  );
+
+  const columns = useMemo(
+    () => ({
+      [DEVICES]: deviceColumns(t, i18n.language, number, askForget),
+      [CAPABILITIES]: capabilityColumns(t),
+    }),
+    [t, i18n.language, number, askForget],
+  );
+
+  const list = useMemo(() => devices.data ?? [], [devices.data]);
+  const groups = useMemo(
+    () =>
+      TYPE_ORDER.map((type) => ({
+        type,
+        devices: list.filter((device) => (device.type ?? 'unknown') === type),
+      })).filter((group) => group.devices.length > 0),
+    [list],
+  );
+  const profiled = list.filter((device) => device.capabilities !== undefined).length;
+
+  const tabOf = (id: View, count: number, countLabel: string): TabItem => {
+    const label = t(`admin.devices.tabs.${id}`);
+    return {
+      id,
+      label,
+      count: number.format(count),
+      countLabel,
+      content:
+        list.length === 0 ? (
+          <Text tone="secondary">{t('admin.devices.empty')}</Text>
         ) : (
-          <span className={styles.muted}>{t('admin.devices.noOwner')}</span>
-        ),
-    },
-    {
-      key: 'lastSeen',
-      header: t('admin.devices.columns.lastSeen'),
-      cell: (device) => (
-        <time className={styles.nowrap} dateTime={device.lastSeenAt}>
-          {formatDateTime(device.lastSeenAt, i18n.language)}
-        </time>
-      ),
-    },
-    {
-      key: 'containers',
-      header: t('admin.devices.columns.containers'),
-      cell: (device) => codecList(device.capabilities?.containers) ?? unknown,
-    },
-    {
-      key: 'video',
-      header: t('admin.devices.columns.video'),
-      cell: (device) => codecList(device.capabilities?.video) ?? unknown,
-    },
-    {
-      key: 'audio',
-      header: t('admin.devices.columns.audio'),
-      cell: (device) => codecList(device.capabilities?.audio) ?? unknown,
-    },
-    {
-      key: 'resolution',
-      header: t('admin.devices.columns.resolution'),
-      cell: ({ capabilities }) =>
-        capabilities?.maxWidth && capabilities.maxHeight ? (
-          <span className={styles.numbers}>
-            {t('format.resolution', {
-              width: capabilities.maxWidth,
-              height: capabilities.maxHeight,
+          <div className={styles.tab}>
+            <Text tone="secondary">{t(`admin.devices.hint.${id}`)}</Text>
+            {groups.map((group) => {
+              const name = t(`admin.devices.types.${group.type}`);
+              const streams = group.devices.reduce((sum, device) => sum + device.activeStreams, 0);
+              return (
+                <DisclosureGroup
+                  key={group.type}
+                  title={name}
+                  count={number.format(group.devices.length)}
+                  countLabel={t('admin.devices.count', {
+                    count: group.devices.length,
+                    number: number.format(group.devices.length),
+                  })}
+                  meta={
+                    streams > 0
+                      ? t('admin.devices.streamCount', {
+                          count: streams,
+                          number: number.format(streams),
+                        })
+                      : undefined
+                  }
+                  isExpanded={!folded.has(group.type)}
+                  onExpandedChange={(open) => onExpandedChange(group.type, open)}
+                >
+                  <DataTable
+                    caption={t('admin.devices.caption', { view: label, type: name })}
+                    columns={columns[id]}
+                    rows={group.devices}
+                    rowKey={(device) => device.id}
+                  />
+                </DisclosureGroup>
+              );
             })}
-          </span>
-        ) : (
-          unknown
+          </div>
         ),
-    },
-    {
-      key: 'hdr',
-      header: t('admin.devices.columns.hdr'),
-      cell: ({ capabilities }) =>
-        capabilities?.hdr === undefined
-          ? unknown
-          : capabilities.hdr
-            ? t('admin.devices.yes')
-            : t('admin.devices.no'),
-    },
-    {
-      key: 'streams',
-      header: t('admin.devices.columns.streams'),
-      align: 'end',
-      cell: (device) => <span className={styles.numbers}>{device.activeStreams}</span>,
-    },
-    {
-      key: 'actions',
-      header: t('admin.devices.columns.actions'),
-      hideHeader: true,
-      align: 'end',
-      cell: (device) => (
-        <ConfirmDialog
-          trigger={
-            <AriaButton
-              variant="ghost"
-              aria-label={t('admin.devices.forget.label', { name: nameOf(device) })}
-            >
-              {t('admin.devices.forget.action')}
+    };
+  };
+
+  return (
+    <AdminPage title={t('admin.devices.title')} help={t('admin.devices.intro')} titleRef={titleRef}>
+      {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      <div role="status" className={styles.live}>
+        {message && failure === null && <Notice live={false}>{message}</Notice>}
+      </div>
+      {devices.isPending && <Skeleton shape="block" />}
+      {devices.isError && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, devices.error)}
+          actions={
+            <AriaButton icon="refresh" onPress={() => void devices.refetch()}>
+              {t('common.retry')}
             </AriaButton>
           }
-          title={t('admin.devices.forget.title', { name: nameOf(device) })}
+        />
+      )}
+      {devices.data && (
+        <BandPanel
+          title={t('admin.devices.list')}
+          icon="monitor"
+          tabs={{
+            label: t('admin.devices.tabs.label'),
+            selectedKey: tab,
+            onSelectionChange: selectTab,
+            tabs: [
+              tabOf(
+                DEVICES,
+                list.length,
+                t('admin.devices.count', {
+                  count: list.length,
+                  number: number.format(list.length),
+                }),
+              ),
+              tabOf(
+                CAPABILITIES,
+                profiled,
+                t('admin.devices.profiled', {
+                  count: profiled,
+                  number: number.format(profiled),
+                }),
+              ),
+            ],
+          }}
+        />
+      )}
+      {forgetting && (
+        <ConfirmDialog
+          isOpen={confirmOpen}
+          onOpenChange={onConfirmOpenChange}
+          title={t('admin.devices.forget.title', { name: deviceName(t, forgetting) })}
           body={t('admin.devices.forget.body')}
           confirmLabel={t('admin.devices.forget.confirm')}
           cancelLabel={t('common.cancel')}
           tone="danger"
-          onConfirm={() => forget.mutate(device)}
+          onConfirm={() => forget.mutate(forgetting)}
         />
-      ),
-    },
-  ];
-
-  return (
-    <Page>
-      <div ref={header} tabIndex={-1} className={styles.header}>
-        <Text as="h1" variant="display">
-          {t('admin.devices.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.devices.intro')}</Text>
-      </div>
-      {!allowed ? (
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      ) : (
-        <div className={styles.body} aria-busy={devices.isPending}>
-          {forget.error && <Notice tone="danger">{problemMessage(t, forget.error)}</Notice>}
-          {forgotten && !forget.error && (
-            <Notice>{t('admin.devices.forgotten', { name: forgotten })}</Notice>
-          )}
-          {devices.isPending && <Skeleton shape="block" />}
-          {devices.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, devices.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void devices.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {devices.data?.length === 0 && <Notice>{t('admin.devices.empty')}</Notice>}
-          {devices.data && devices.data.length > 0 && (
-            <DataTable
-              caption={t('admin.devices.list')}
-              columns={columns}
-              rows={devices.data}
-              rowKey={(device) => device.id}
-            />
-          )}
-        </div>
       )}
-    </Page>
+    </AdminPage>
   );
 }

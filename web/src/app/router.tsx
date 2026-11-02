@@ -331,6 +331,8 @@ const maintenanceRoute = createRoute({
 const devicesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/devices',
+  // `?tab=` selects «Fähigkeiten».
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/DevicesPage'), 'DevicesPage'),
 });
 

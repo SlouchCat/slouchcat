@@ -1189,10 +1189,25 @@
       "title": "Devices",
       "intro": "Browsers and devices that signed in, with the capability profile of their last playback start.",
       "list": "Devices",
+      "tabs": {
+        "label": "View of the devices",
+        "devices": "Devices",
+        "capabilities": "Capabilities"
+      },
+      "hint": {
+        "devices": "Grouped by type. The capabilities are in the tab next to it.",
+        "capabilities": "Capability profile of the last playback start of each device."
+      },
+      "caption": "{{view}}: {{type}}",
+      "count_one": "{{number}} device",
+      "count_other": "{{number}} devices",
+      "profiled_one": "{{number}} device with a capability profile",
+      "profiled_other": "{{number}} devices with a capability profile",
+      "streamCount_one": "{{number}} stream",
+      "streamCount_other": "{{number}} streams",
       "empty": "No devices yet.",
       "columns": {
         "name": "Device",
-        "type": "Type",
         "owner": "Owner",
         "lastSeen": "Last contact",
         "containers": "Containers",
@@ -1211,7 +1226,8 @@
         "phone": "Phone",
         "tablet": "Tablet",
         "tv": "TV",
-        "other": "Other"
+        "other": "Other",
+        "unknown": "Unknown"
       },
       "forget": {
         "action": "Forget",
@@ -1223,7 +1239,8 @@
       "forgotten": "Device “{{name}}” forgotten.",
       "yes": "Yes",
       "no": "No",
-      "unknown": "–"
+      "unknown": "–",
+      "unknownSpoken": "unknown"
     },
     "streams": {
       "title": "Streams",

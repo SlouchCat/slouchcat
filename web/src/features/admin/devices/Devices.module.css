@@ -1,0 +1,33 @@
+/* The devices page (concept 12, variant C): what AdminPage, BandPanel, DisclosureGroup and
+   DataTable do not lay out themselves. */
+
+/* A live region that is always there (role status), so even its first message is announced.
+   Empty, it takes back the gap of the page's column it stands in. */
+.live:empty {
+  margin-block-start: calc(-1 * var(--sc-section-gap));
+}
+
+/* One tab: its hint, then one section per device type. */
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+/* Names and owners in full, wrapped where they have to (S-5: reachable without a pointer). */
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
