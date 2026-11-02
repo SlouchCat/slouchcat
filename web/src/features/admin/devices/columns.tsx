@@ -115,7 +115,7 @@ export function deviceColumns(
       align: 'end',
       cell: (device) => (
         <AriaButton
-          variant="danger"
+          variant="dangerQuiet"
           aria-label={t('admin.devices.forget.label', { name: deviceName(t, device) })}
           onPress={() => onForget(device)}
         >

@@ -169,7 +169,7 @@ export function IssueTab({
     ),
     orphaned: (
       <AriaButton
-        variant="danger"
+        variant="dangerQuiet"
         isDisabled={none || cleaning}
         onPress={() => handlers.onCleanup(kind, itemIds)}
       >
@@ -180,7 +180,7 @@ export function IssueTab({
       <>
         {refreshButton(t('admin.maintenance.action.recheck'))}
         <AriaButton
-          variant="danger"
+          variant="dangerQuiet"
           isDisabled={none || cleaning}
           onPress={() => handlers.onRemove(kind, mediaFileIds)}
         >

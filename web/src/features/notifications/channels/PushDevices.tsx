@@ -102,7 +102,7 @@ export function PushDevices({
                 <Chip tone="info">{t('settings.notifications.push.thisDevice')}</Chip>
               )}
               <AriaButton
-                variant="danger"
+                variant="dangerQuiet"
                 aria-label={t('settings.notifications.push.removeLabel', {
                   device: name(subscription),
                 })}

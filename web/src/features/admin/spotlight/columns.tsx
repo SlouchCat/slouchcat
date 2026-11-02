@@ -198,7 +198,7 @@ export function orphanColumns(
       align: 'end',
       cell: (entry) => (
         <AriaButton
-          variant="danger"
+          variant="dangerQuiet"
           icon="trash"
           aria-label={t('admin.spotlight.orphans.removeLabel', { title: entryName(t, entry) })}
           onPress={() => onRemove(entry)}

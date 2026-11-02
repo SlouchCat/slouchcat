@@ -124,7 +124,7 @@ export function PickDetail({
         </dl>
         <div className={styles.actions}>
           <AriaButton
-            variant="danger"
+            variant="dangerQuiet"
             icon="trash"
             aria-label={t('admin.picks.remove.label', { title: pick.title })}
             onPress={() => onRemove(pick)}

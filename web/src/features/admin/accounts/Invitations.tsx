@@ -270,7 +270,7 @@ export function InvitationsTable({
       cell: (invitation) =>
         invitation.state === 'open' && (
           <AriaButton
-            variant="danger"
+            variant="dangerQuiet"
             aria-describedby={noteId(invitation)}
             onPress={() => onRevoke(invitation)}
           >

@@ -109,6 +109,23 @@
   color: var(--sc-color-bg-base);
 }
 
+/* A dangerous action in a row or toolbar: red text, a fill only on hover and focus like ghost. */
+.dangerQuiet {
+  background-color: transparent;
+  color: var(--sc-color-state-danger);
+}
+
+.dangerQuiet:focus-visible,
+.dangerQuiet[data-focus-visible] {
+  background-color: var(--sc-color-surface-2);
+}
+
+@media (hover: hover) {
+  .dangerQuiet:hover:not(:disabled) {
+    background-color: var(--sc-color-surface-2);
+  }
+}
+
 .iconOnly {
   width: var(--sc-control-height);
   padding: 0;

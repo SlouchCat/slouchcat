@@ -422,7 +422,7 @@ function RowActions({
       <ConfirmDialog
         trigger={
           <AriaButton
-            variant="danger"
+            variant="dangerQuiet"
             icon="refresh"
             isPending={renew.isPending}
             aria-label={t('admin.integrations.webhooks.renew.label', { name: integration.name })}
@@ -440,7 +440,7 @@ function RowActions({
       <ConfirmDialog
         trigger={
           <AriaButton
-            variant="danger"
+            variant="dangerQuiet"
             isPending={remove.isPending}
             aria-label={t('admin.integrations.webhooks.delete.label', { name: integration.name })}
           >

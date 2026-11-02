@@ -348,7 +348,7 @@ export function DraftDetail({
                 {t('admin.announcements.publish.action')}
               </AriaButton>
               <AriaButton
-                variant="danger"
+                variant="dangerQuiet"
                 icon="trash"
                 aria-label={t('admin.announcements.delete.label', name)}
                 isDisabled={publishing}
@@ -380,7 +380,7 @@ export function PublishedDetail({
         <Facts announcement={announcement} />
         <div className={styles.actions}>
           <AriaButton
-            variant="danger"
+            variant="dangerQuiet"
             icon="trash"
             aria-label={t('admin.announcements.delete.label', { title: announcement.title })}
             onPress={onDelete}

@@ -266,7 +266,7 @@ function StreamsContent() {
                       }
                       action={
                         <AriaButton
-                          variant="danger"
+                          variant="dangerQuiet"
                           aria-label={t('admin.streams.stop.label', {
                             profile: stream.profileName,
                           })}

@@ -76,7 +76,7 @@ export function PodcastDetail({
           {/* Once the folder is gone (rootId absent), the subscription it left behind may go. */}
           {!ownedByFolder && (
             <AriaButton
-              variant="danger"
+              variant="dangerQuiet"
               icon="trash"
               aria-label={t('admin.podcasts.remove.label', { title: podcast.title })}
               onPress={() => onRemove(podcast)}

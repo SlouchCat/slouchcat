@@ -58,6 +58,26 @@ export const GhostFocused: Story = {
   args: { variant: 'ghost', icon: 'back', children: 'Zurück' },
 };
 
+/** A dangerous action in a row or toolbar: red text without a fill; it asks before it acts. */
+export const DangerQuiet: Story = {
+  render: () => (
+    <Stack direction="row" gap={2}>
+      <Button variant="dangerQuiet">Löschen …</Button>
+      <Button variant="dangerQuiet" icon="trash">
+        Vergessen
+      </Button>
+      <Button variant="dangerQuiet" isDisabled>
+        Gesperrt
+      </Button>
+    </Stack>
+  ),
+};
+
+export const DangerQuietFocused: Story = {
+  tags: ['press:Tab'],
+  args: { variant: 'dangerQuiet', children: 'Löschen …' },
+};
+
 export const Block: Story = {
   args: { variant: 'primary', block: true, children: 'Weiter' },
 };

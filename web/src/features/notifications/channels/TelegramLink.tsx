@@ -137,7 +137,7 @@ export function TelegramLink({
           </AriaButton>
         )}
         {(linked || code) && (
-          <AriaButton variant="danger" isPending={unlink.isPending} onPress={askUnlink}>
+          <AriaButton variant="dangerQuiet" isPending={unlink.isPending} onPress={askUnlink}>
             {t('settings.notifications.telegram.unlink')}
           </AriaButton>
         )}

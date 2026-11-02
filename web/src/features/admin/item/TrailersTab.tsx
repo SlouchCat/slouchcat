@@ -153,7 +153,7 @@ export function TrailersTab({
       align: 'end',
       cell: (trailer) => (
         <AriaButton
-          variant="danger"
+          variant="dangerQuiet"
           aria-describedby={labelId(trailer)}
           onPress={() => onDelete(trailer)}
         >

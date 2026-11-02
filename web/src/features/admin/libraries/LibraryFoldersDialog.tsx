@@ -196,7 +196,7 @@ export function LibraryFoldersDialog({
                       {t('admin.libraries.folders.change.action')}
                     </AriaButton>
                     <AriaButton
-                      variant="danger"
+                      variant="dangerQuiet"
                       icon="trash"
                       aria-label={t('admin.libraries.folders.remove.label', { path: root.path })}
                       isPending={remove.isPending && remove.variables?.root.id === root.id}

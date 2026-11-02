@@ -239,7 +239,7 @@ export function ManualMembers({
           {t('admin.collections.rename.action')}
         </AriaButton>
         <AriaButton
-          variant="danger"
+          variant="dangerQuiet"
           icon="trash"
           aria-label={t('admin.collections.remove.label', { name: collection.name })}
           onPress={() => onRemove(collection)}
