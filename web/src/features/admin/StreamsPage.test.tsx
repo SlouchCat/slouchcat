@@ -79,6 +79,7 @@ describe('admin streams (W-6)', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   const routes = (list: () => AdminStream[], extra: Routes = {}): Routes => ({
@@ -91,10 +92,10 @@ describe('admin streams (W-6)', () => {
     mockApi(routes(() => streams));
     renderApp('/admin/streams');
     expect(await screen.findByRole('heading', { level: 1, name: 'Streams' })).toBeVisible();
-    await screen.findByRole('article', { name: 'Slouchcat Test Multi Audio' });
+    await screen.findByRole('article', { name: 'Marco: Slouchcat Test Multi Audio' });
     const list = within(tiles()).getByRole('list');
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    const marco = screen.getByRole('article', { name: 'Slouchcat Test Multi Audio' });
+    const marco = screen.getByRole('article', { name: 'Marco: Slouchcat Test Multi Audio' });
     expect(within(marco).getByRole('heading', { level: 3 })).toHaveTextContent(
       'Slouchcat Test Multi Audio',
     );
@@ -125,7 +126,7 @@ describe('admin streams (W-6)', () => {
   it('shows the backdrop across, and the title on the fallback without one or when it fails', async () => {
     mockApi(routes(() => streams));
     const { container } = renderApp('/admin/streams');
-    const marco = await screen.findByRole('article', { name: 'Slouchcat Test Multi Audio' });
+    const marco = await screen.findByRole('article', { name: 'Marco: Slouchcat Test Multi Audio' });
     // The image is decoration: the tile names the title in its heading.
     const image = marco.querySelector('img')!;
     expect(image).toHaveAttribute('src', streams[0]!.backdropUrl);
@@ -151,14 +152,39 @@ describe('admin streams (W-6)', () => {
     // 4 + 2.5 + 9.8 Mbit/s; the direct stream has no bit rate.
     const bandwidth = within(loadOf('Bandbreite gesamt')).getAllByRole('definition');
     expect(bandwidth[0]).toHaveTextContent(/^16,3\sMb(it)?\/s$/);
-    expect(bandwidth[1]).toHaveTextContent('Summe der Bitraten');
+    // The direct stream reports no bit rate: the note says the sum covers the known ones.
+    expect(bandwidth[1]).toHaveTextContent('Summe der bekannten Bitraten');
+  });
+
+  it('names the plain sum when every stream reports its bit rate', async () => {
+    mockApi(routes(() => [streams[0]!]));
+    renderApp('/admin/streams');
+    expect(await screen.findByText('Summe der Bitraten')).toBeVisible();
+    expect(screen.queryByText('Summe der bekannten Bitraten')).toBeNull();
+  });
+
+  it('marks the list busy while it loads first', async () => {
+    let release: (response: Response) => void = () => undefined;
+    mockApi({
+      ...signedIn,
+      'GET /admin/streams': () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    });
+    renderApp('/admin/streams');
+    const region = await screen.findByRole('region', { name: 'Laufende Streams' });
+    expect(region).toHaveAttribute('aria-busy', 'true');
+    release(json(streams));
+    await waitFor(() => expect(region).toHaveAttribute('aria-busy', 'false'));
+    expect(within(region).getAllByRole('article')).toHaveLength(2);
   });
 
   it('asks again every 5 s and says so in the header', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { calls } = mockApi(routes(() => streams));
     renderApp('/admin/streams');
-    await screen.findByRole('article', { name: 'Slouchcat Test Multi Audio' });
+    await screen.findByRole('article', { name: 'Marco: Slouchcat Test Multi Audio' });
     expect(screen.getByText('Live, alle 5 Sekunden')).toBeVisible();
     const lists = () => calls.filter((call) => call.path === '/admin/streams').length;
     expect(lists()).toBe(1);
@@ -275,24 +301,82 @@ describe('admin streams (W-6)', () => {
     );
   });
 
-  it('steps between the tiles with the arrow keys', async () => {
+  it('steps between the tiles: ←/→ in reading order, ↑/↓ in the same column', async () => {
+    // Two columns, as the grid lays them out: Marco Lena / Sandra Nora.
+    const computed = window.getComputedStyle.bind(window);
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
+      const style = computed(element, pseudo);
+      if (!element.querySelector('[data-stream]')) return style;
+      return new Proxy(style, {
+        get: (target, property) => {
+          if (property === 'gridTemplateColumns') return '320px 320px';
+          const value: unknown = Reflect.get(target, property, target);
+          return typeof value === 'function' ? (value as () => unknown).bind(target) : value;
+        },
+      });
+    });
     mockApi(routes(() => mixed));
     renderApp('/admin/streams');
     const marco = await screen.findByRole('button', { name: 'Stream von Marco beenden' });
     const lena = screen.getByRole('button', { name: 'Stream von Lena beenden' });
     const sandra = screen.getByRole('button', { name: 'Stream von Sandra beenden' });
+    const nora = screen.getByRole('button', { name: 'Stream von Nora beenden' });
     marco.focus();
     fireEvent.keyDown(marco, { key: 'ArrowDown' });
-    expect(lena).toHaveFocus();
-    fireEvent.keyDown(lena, { key: 'ArrowRight' });
     expect(sandra).toHaveFocus();
-    fireEvent.keyDown(sandra, { key: 'ArrowLeft' });
+    fireEvent.keyDown(sandra, { key: 'ArrowRight' });
+    expect(nora).toHaveFocus();
+    fireEvent.keyDown(nora, { key: 'ArrowUp' });
     expect(lena).toHaveFocus();
+    fireEvent.keyDown(lena, { key: 'ArrowLeft' });
+    expect(marco).toHaveFocus();
+    fireEvent.keyDown(marco, { key: 'ArrowRight' });
+    expect(lena).toHaveFocus();
+    // No tile below the last row, none before the first: the focus stays.
     fireEvent.keyDown(lena, { key: 'ArrowUp' });
+    expect(lena).toHaveFocus();
+    fireEvent.keyDown(lena, { key: 'ArrowDown' });
+    expect(nora).toHaveFocus();
+    fireEvent.keyDown(nora, { key: 'ArrowDown' });
+    expect(nora).toHaveFocus();
+    marco.focus();
+    fireEvent.keyDown(marco, { key: 'ArrowLeft' });
     expect(marco).toHaveFocus();
-    // The first tile has no tile before it.
-    fireEvent.keyDown(marco, { key: 'ArrowUp' });
-    expect(marco).toHaveFocus();
+  });
+
+  it('announces the same message again for a second stop', async () => {
+    const second: AdminStream = { ...streams[0]!, id: 'ps-5', itemTitle: 'Slouchcat Test H264' };
+    let listed = [streams[0]!, second];
+    mockApi(
+      routes(() => listed, {
+        'DELETE /admin/streams/ps-1': () => {
+          listed = [second];
+          return new Response(null, { status: 204 });
+        },
+        'DELETE /admin/streams/ps-5': () => {
+          listed = [];
+          return new Response(null, { status: 204 });
+        },
+      }),
+    );
+    renderApp('/admin/streams');
+    const user = userEvent.setup();
+    const stopFirst = async () => {
+      await user.click(
+        (await screen.findAllByRole('button', { name: 'Stream von Marco beenden' }))[0]!,
+      );
+      const dialog = await screen.findByRole('alertdialog', { name: 'Stream von Marco beenden?' });
+      await user.click(within(dialog).getByRole('button', { name: 'Stream beenden' }));
+    };
+    await stopFirst();
+    const first = await screen.findByText('Stream von Marco beendet.');
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1));
+    await stopFirst();
+    await screen.findByText('Gerade läuft nichts.');
+    // A new node in the live region, so screen readers say it again.
+    const again = await screen.findByText('Stream von Marco beendet.');
+    expect(again).not.toBe(first);
+    expect(first).not.toBeInTheDocument();
   });
 
   it('says when nothing is playing; «Serverlast» shows zero', async () => {

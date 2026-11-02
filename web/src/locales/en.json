@@ -1247,6 +1247,7 @@
       "title": "Streams",
       "intro": "Running playbacks. The list refreshes every 5 seconds.",
       "list": "Running streams",
+      "tileLabel": "{{profile}}: {{title}}",
       "empty": "Nothing is playing right now.",
       "facts": {
         "device": "Device",
@@ -1294,7 +1295,8 @@
         },
         "bandwidth": {
           "label": "Total bandwidth",
-          "note": "Sum of the bit rates"
+          "note": "Sum of the bit rates",
+          "notePartial": "Sum of the known bit rates"
         }
       }
     },

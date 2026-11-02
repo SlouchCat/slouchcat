@@ -1247,6 +1247,7 @@
       "title": "Streams",
       "intro": "Laufende Wiedergaben. Die Liste aktualisiert sich alle 5 Sekunden.",
       "list": "Laufende Streams",
+      "tileLabel": "{{profile}}: {{title}}",
       "empty": "Gerade läuft nichts.",
       "facts": {
         "device": "Gerät",
@@ -1294,7 +1295,8 @@
         },
         "bandwidth": {
           "label": "Bandbreite gesamt",
-          "note": "Summe der Bitraten"
+          "note": "Summe der Bitraten",
+          "notePartial": "Summe der bekannten Bitraten"
         }
       }
     },

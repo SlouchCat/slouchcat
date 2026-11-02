@@ -11,7 +11,6 @@ import {
   tabTo,
 } from './keyboard';
 import {
-  arrowBetweenRows,
   H264_TITLE,
   itemIdByTitle,
   limitCapabilities,
@@ -128,16 +127,24 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
         .filter({ hasText: 'Bandbreite gesamt' }),
     ).toContainText(/Mb(it)?\/s/);
 
-    // Keyboard: from the top to the viewer's "Beenden", ↑/↓ between the tiles, Enter, Enter.
+    // Keyboard: Tab to the first tile's "Beenden"; → to the next tile and ← back, then → on to the
+    // viewer's tile (reading order); Enter, Enter.
     await resetFocus(overview);
-    const stopOwner = overview
-      .getByRole('button', { name: `Stream von ${OWNER_PROFILE} beenden` })
-      .first();
+    const stops = overview
+      .getByRole('region', { name: 'Laufende Streams' })
+      .getByRole('button', { name: /^Stream von .+ beenden$/ });
     const stopViewer = overview.getByRole('button', {
       name: `Stream von ${viewerProfile} beenden`,
     });
-    await tabTo(overview, stopOwner.or(stopViewer).first(), 40);
-    await arrowBetweenRows(overview, stopViewer);
+    await tabTo(overview, stops.first(), 40);
+    await overview.keyboard.press('ArrowRight');
+    await expectFocusOn(overview, stops.nth(1));
+    await overview.keyboard.press('ArrowLeft');
+    await expectFocusOn(overview, stops.first());
+    for (let presses = 0; presses < 12; presses += 1) {
+      if (await stopViewer.evaluate((element) => element === document.activeElement)) break;
+      await overview.keyboard.press('ArrowRight');
+    }
     await expectFocusOn(overview, stopViewer);
     await overview.keyboard.press('Enter');
     const dialog = overview.getByRole('alertdialog', {

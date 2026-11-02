@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Chip } from './Chip';
 import { Icon, type IconName } from './Icon';
 import { ImageTile } from './ImageTile';
@@ -15,6 +15,8 @@ export interface StreamFact {
 }
 
 interface StreamTileProps {
+  /** Accessible name of the tile, whose and what ("Marco: Oppenheimer"). */
+  label: string;
   title: string;
   /** The backdrop across (for an episode the series'), or undefined for the fallback surface. */
   backdropUrl?: string;
@@ -46,6 +48,7 @@ interface StreamTileProps {
  * part it shares with the overview's StreamRow.
  */
 export function StreamTile({
+  label,
   title,
   backdropUrl,
   mode,
@@ -59,15 +62,12 @@ export function StreamTile({
   since,
   action,
 }: StreamTileProps) {
-  const titleId = useId();
   return (
-    <article className={styles.tile} aria-labelledby={titleId}>
+    <article className={styles.tile} aria-label={label}>
       <ImageTile src={backdropUrl} title={title}>
         <Chip tone={modeTone}>{mode}</Chip>
       </ImageTile>
-      <h3 id={titleId} className={styles.title}>
-        {title}
-      </h3>
+      <h3 className={styles.title}>{title}</h3>
       <p className={styles.who}>
         <span className={styles.profile}>{profile}</span>
         <span className={styles.muted}>{account}</span>

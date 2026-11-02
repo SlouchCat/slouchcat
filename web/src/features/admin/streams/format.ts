@@ -2,7 +2,8 @@ import type { AdminStream } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { formatBitrate, formatPlayerTime } from '@/lib/format';
 
-// What the streams page and the overview's card «Jetzt läuft» say about a running stream.
+// What the streams page says about a running stream; the overview's card «Jetzt läuft» uses only
+// streamMode from here.
 
 /** What a stream costs the server: the four counters of «Serverlast» (concept 12, 11.3). */
 export type StreamLoad = 'hw' | 'sw' | 'remux' | 'direct';

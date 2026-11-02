@@ -9,6 +9,7 @@ const meta = {
   title: 'UI/StreamTile',
   component: StreamTile,
   args: {
+    label: 'Anna: Die Stunde der Dämmerung',
     title: 'Die Stunde der Dämmerung',
     backdropUrl: art.backdropDusk,
     mode: 'Transcode (HW)',
@@ -63,4 +64,5 @@ export const WithoutBackdrop: Story = {
   },
 };
 
-// No compact story: nothing here reads a component token, both densities look the same (ADR 0020).
+/** In the administration's compact density (ADR 0020): the action is a compact button. */
+export const Compact: Story = { globals: { density: 'compact' } };

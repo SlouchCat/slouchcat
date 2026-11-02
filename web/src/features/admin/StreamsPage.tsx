@@ -35,18 +35,27 @@ const afterRender = () =>
     window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
   });
 
-/** The arrows step from one tile's «Beenden» to the next or the previous one, in reading order. */
-const ARROW_STEPS: Record<string, number> = {
-  ArrowDown: 1,
-  ArrowRight: 1,
-  ArrowUp: -1,
-  ArrowLeft: -1,
-};
+/** The number of columns the tile grid has right now (its computed tracks); 1 without layout. */
+function columnsOf(list: HTMLElement): number {
+  const tracks = getComputedStyle(list).gridTemplateColumns.split(' ');
+  return Math.max(1, tracks.filter((track) => track.endsWith('px')).length);
+}
 
+/**
+ * The arrows move between the tiles' «Beenden»: ←/→ to the previous or next tile in reading order,
+ * ↑/↓ to the tile above or below in the same column.
+ */
 function moveBetweenTiles(event: KeyboardEvent) {
-  const step = ARROW_STEPS[event.key];
-  if (!step || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
   const list = event.currentTarget as HTMLElement;
+  const steps: Record<string, () => number> = {
+    ArrowRight: () => 1,
+    ArrowLeft: () => -1,
+    ArrowDown: () => columnsOf(list),
+    ArrowUp: () => -columnsOf(list),
+  };
+  const step = steps[event.key]?.();
+  if (step === undefined) return;
   const buttons = [...list.querySelectorAll<HTMLElement>('button')];
   const index = buttons.indexOf(event.target as HTMLElement);
   const next = index < 0 ? undefined : buttons[index + step];
@@ -95,7 +104,8 @@ function StreamsContent() {
     refetchInterval: confirmOpen ? false : STREAMS_POLL_MS,
     refetchOnWindowFocus: !confirmOpen,
   });
-  const [message, setMessage] = useState<string | null>(null);
+  // Each message gets its own key, so the same text twice in a row is announced again.
+  const [message, setMessage] = useState<{ text: string; key: number } | null>(null);
 
   /** The focus fell to the body (its tile went with a change): the h1 takes it. */
   const focusTitleIfLost = useCallback(() => {
@@ -107,7 +117,10 @@ function StreamsContent() {
     mutationFn: (stream: AdminStream) =>
       request(api.DELETE('/admin/streams/{id}', { params: { path: { id: stream.id } } })),
     onSuccess: async (_data, stream) => {
-      setMessage(t('admin.streams.stopped', { profile: stream.profileName }));
+      setMessage((current) => ({
+        text: t('admin.streams.stopped', { profile: stream.profileName }),
+        key: (current?.key ?? 0) + 1,
+      }));
       await queryClient.invalidateQueries({ queryKey: streamsQuery.queryKey });
       // The tile and its button are gone: once React rendered that, the h1 takes the focus (the
       // dialog's focus restore may have put it on another tile meanwhile).
@@ -179,9 +192,12 @@ function StreamsContent() {
     >
       {stop.error && <Notice tone="danger">{problemMessage(t, stop.error)}</Notice>}
       <div role="status" className={styles.live}>
-        {message && !stop.error && <Notice live={false}>{message}</Notice>}
+        {message && !stop.error && (
+          <Notice key={message.key} live={false}>
+            {message.text}
+          </Notice>
+        )}
       </div>
-      {streams.isPending && <Skeleton shape="block" />}
       {streams.isError && (
         <Notice
           tone="danger"
@@ -194,89 +210,98 @@ function StreamsContent() {
         />
       )}
       {streams.data && (
-        <>
-          <BandPanel title={t('admin.streams.load.title')} icon="server">
-            <StatusStrip
-              label={t('admin.streams.load.title')}
-              tiles={[
-                ...streamLoads.map((load) => ({
-                  key: load,
-                  label: t(`admin.streams.load.${load}.label`),
-                  value: number.format(count(load)),
-                  note: t(`admin.streams.load.${load}.note`),
-                  tone: loadTone[load],
-                })),
-                {
-                  key: 'bandwidth',
-                  label: t('admin.streams.load.bandwidth.label'),
-                  value: formatBitrate(totalBitrate(running), i18n.language),
-                  note: t('admin.streams.load.bandwidth.note'),
-                },
-              ]}
-            />
-          </BandPanel>
-          <section aria-labelledby={listHeading}>
-            <VisuallyHidden as="h2" id={listHeading}>
-              {t('admin.streams.list')}
-            </VisuallyHidden>
-            {running.length === 0 ? (
-              <Text tone="secondary">{t('admin.streams.empty')}</Text>
-            ) : (
-              <ul ref={setList} className={styles.tiles}>
-                {running.map((stream) => {
-                  const position = streamPosition(t, stream);
-                  return (
-                    <li key={stream.id} data-stream={stream.id}>
-                      <StreamTile
-                        title={stream.itemTitle}
-                        backdropUrl={stream.backdropUrl}
-                        mode={streamMode(t, stream)}
-                        modeTone={loadTone[streamLoad(stream)]}
-                        profile={stream.profileName}
-                        account={stream.accountEmail}
-                        facts={[
-                          {
-                            key: 'device',
-                            label: t('admin.streams.facts.device'),
-                            value: stream.device?.name ?? t('admin.streams.unknownDevice'),
-                            icon: 'monitor',
-                          },
-                          {
-                            key: 'quality',
-                            label: t('admin.streams.facts.quality'),
-                            value: streamQuality(t, stream, i18n.language),
-                            icon: 'film',
-                          },
-                        ]}
-                        progress={position.percent}
-                        progressLabel={t('admin.streams.progress', { title: stream.itemTitle })}
-                        position={position.text}
-                        since={
-                          <time dateTime={stream.startedAt}>
-                            {t('admin.streams.since', {
-                              time: formatDateTime(stream.startedAt, i18n.language),
-                            })}
-                          </time>
-                        }
-                        action={
-                          <AriaButton
-                            variant="danger"
-                            aria-label={t('admin.streams.stop.label', {
-                              profile: stream.profileName,
-                            })}
-                            onPress={() => askStop(stream)}
-                          >
-                            {t('admin.streams.stop.action')}
-                          </AriaButton>
-                        }
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        </>
+        <BandPanel title={t('admin.streams.load.title')} icon="server">
+          <StatusStrip
+            label={t('admin.streams.load.title')}
+            tiles={[
+              ...streamLoads.map((load) => ({
+                key: load,
+                label: t(`admin.streams.load.${load}.label`),
+                value: number.format(count(load)),
+                note: t(`admin.streams.load.${load}.note`),
+                tone: loadTone[load],
+              })),
+              {
+                key: 'bandwidth',
+                label: t('admin.streams.load.bandwidth.label'),
+                value: formatBitrate(totalBitrate(running), i18n.language),
+                // Direct play reports no bit rate: then the sum covers only the known ones.
+                note: running.every((stream) => stream.bitrate !== undefined)
+                  ? t('admin.streams.load.bandwidth.note')
+                  : t('admin.streams.load.bandwidth.notePartial'),
+              },
+            ]}
+          />
+        </BandPanel>
+      )}
+      {!streams.isError && (
+        <section aria-labelledby={listHeading} aria-busy={streams.isPending}>
+          <VisuallyHidden as="h2" id={listHeading}>
+            {t('admin.streams.list')}
+          </VisuallyHidden>
+          {streams.isPending ? (
+            <Skeleton shape="block" />
+          ) : running.length === 0 ? (
+            <Text tone="secondary">{t('admin.streams.empty')}</Text>
+          ) : (
+            <ul ref={setList} className={styles.tiles}>
+              {running.map((stream) => {
+                const position = streamPosition(t, stream);
+                return (
+                  <li key={stream.id} data-stream={stream.id}>
+                    <StreamTile
+                      label={t('admin.streams.tileLabel', {
+                        profile: stream.profileName,
+                        title: stream.itemTitle,
+                      })}
+                      title={stream.itemTitle}
+                      backdropUrl={stream.backdropUrl}
+                      mode={streamMode(t, stream)}
+                      modeTone={loadTone[streamLoad(stream)]}
+                      profile={stream.profileName}
+                      account={stream.accountEmail}
+                      facts={[
+                        {
+                          key: 'device',
+                          label: t('admin.streams.facts.device'),
+                          value: stream.device?.name ?? t('admin.streams.unknownDevice'),
+                          icon: 'monitor',
+                        },
+                        {
+                          key: 'quality',
+                          label: t('admin.streams.facts.quality'),
+                          value: streamQuality(t, stream, i18n.language),
+                          icon: 'film',
+                        },
+                      ]}
+                      progress={position.percent}
+                      progressLabel={t('admin.streams.progress', { title: stream.itemTitle })}
+                      position={position.text}
+                      since={
+                        <time dateTime={stream.startedAt}>
+                          {t('admin.streams.since', {
+                            time: formatDateTime(stream.startedAt, i18n.language),
+                          })}
+                        </time>
+                      }
+                      action={
+                        <AriaButton
+                          variant="danger"
+                          aria-label={t('admin.streams.stop.label', {
+                            profile: stream.profileName,
+                          })}
+                          onPress={() => askStop(stream)}
+                        >
+                          {t('admin.streams.stop.action')}
+                        </AriaButton>
+                      }
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
       {stopping && (
         <ConfirmDialog
