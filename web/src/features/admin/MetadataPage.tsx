@@ -9,7 +9,7 @@ import type {
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getRouteApi } from '@tanstack/react-router';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -25,9 +25,7 @@ import {
   ConfirmDialog,
   MasterDetail,
   RadioGroup,
-  RankHint,
-  RankSelect,
-  rankTo,
+  RankedChoiceList,
   SaveBar,
   SectionHeader,
   SettingRow,
@@ -69,9 +67,6 @@ type Country = (typeof COUNTRIES)[number];
 
 /** The YouTube quota: 10'000 units a day, a search costs 100 (ADR 0006). */
 const YOUTUBE_SEARCHES_PER_DAY = 100;
-
-/** The select value of the chain entry "no text" (the empty language code cannot be an option value). */
-const NO_TEXT = '__none__';
 
 /** The scope id of the server default; a library's scope id is its id. */
 const SERVER = 'server';
@@ -157,10 +152,10 @@ function useLanguageName(): (code: string) => string {
 }
 
 /**
- * An ordered list of language codes with fixed places (concept 12, 10.2, S-16): each entry has
- * a select of its place; picking a place another entry holds swaps the two. A picker adds one of
- * the known codes, «×» removes one. The last entry and the last de/en of a text list cannot be
- * removed (E-9); a chain may hold "" (no text).
+ * An ordered list of language codes as fixed places (concept 12, 10.2): «1. Sprache», «2.
+ * Sprache» … each with a select of every known language; picking one that sits on another place
+ * swaps the two. «Weitere Sprache» appends a place, «×» removes one. The last entry and the last
+ * de/en of a text list cannot be removed (MET-2, E-9); a chain offers "" (no text) as well.
  */
 function LanguageRanks({
   value,
@@ -179,90 +174,26 @@ function LanguageRanks({
 }) {
   const { t } = useTranslation();
   const nameOf = useLanguageName();
-  const hintId = useId();
-  const [adding, setAdding] = useState('');
-  const [swapped, setSwapped] = useState('');
-  const display = (code: string) =>
-    code === '' ? t('admin.metadata.images.noText') : nameOf(code);
-  const uiCount = value.filter((code) => code === 'de' || code === 'en').length;
-  const options = useMemo(() => {
-    const rest = known.filter((code) => !value.includes(code));
-    const list = rest.map((code) => ({ code, name: nameOf(code) }));
-    list.sort((a, b) => a.name.localeCompare(b.name));
-    return allowNoText && !value.includes('')
-      ? [{ code: '', name: t('admin.metadata.images.noText') }, ...list]
-      : list;
+  const choices = useMemo(() => {
+    const codes = [...new Set([...known, ...value.filter((code) => code !== '')])];
+    const list = codes.map((code) => ({ value: code, label: nameOf(code) }));
+    list.sort((a, b) => a.label.localeCompare(b.label));
+    return allowNoText ? [{ value: '', label: t('admin.metadata.images.noText') }, ...list] : list;
   }, [known, value, allowNoText, nameOf, t]);
+  const uiCount = value.filter((code) => code === 'de' || code === 'en').length;
   return (
-    <div className={disabled ? `${styles.ranks} ${styles.dimmed}` : styles.ranks}>
-      <ol className={styles.rankList}>
-        {value.map((code, index) => {
-          const removable =
-            !disabled &&
-            value.length > 1 &&
-            !(protectUI && (code === 'de' || code === 'en') && uiCount <= 1);
-          return (
-            <li key={code || NO_TEXT} className={styles.rank}>
-              <RankSelect
-                name={display(code)}
-                position={index}
-                count={value.length}
-                mode="swap"
-                describedBy={hintId}
-                isDisabled={disabled}
-                onChange={(to) => {
-                  const other = value[to];
-                  onChange(rankTo(value, index, to, 'swap'));
-                  setSwapped(
-                    other === undefined || to === index
-                      ? ''
-                      : t('admin.metadata.languages.swapped', {
-                          a: display(code),
-                          b: display(other),
-                        }),
-                  );
-                }}
-              />
-              <span className={styles.rankName}>{display(code)}</span>
-              <AriaButton
-                variant="ghost"
-                icon="close"
-                isDisabled={!removable}
-                aria-label={t('admin.metadata.languages.remove', { name: display(code) })}
-                onPress={() => onChange(value.filter((_, i) => i !== index))}
-              />
-            </li>
-          );
-        })}
-      </ol>
-      <RankHint id={hintId} mode="swap" />
-      <span role="status" className={styles.live}>
-        {swapped}
-      </span>
-      {!disabled && options.length > 0 && (
-        <div className={styles.add}>
-          <SelectField
-            label={t('admin.metadata.languages.addLabel')}
-            value={adding}
-            onChange={setAdding}
-            options={[
-              { value: '', label: t('admin.metadata.languages.add') },
-              ...options.map((option) => ({ value: option.code || NO_TEXT, label: option.name })),
-            ]}
-          />
-          <AriaButton
-            variant="secondary"
-            isDisabled={adding === ''}
-            onPress={() => {
-              onChange([...value, adding === NO_TEXT ? '' : adding]);
-              setAdding('');
-            }}
-          >
-            {t('admin.metadata.languages.addButton')}
-          </AriaButton>
-        </div>
-      )}
-    </div>
+    <RankedChoiceList
+      choices={choices}
+      value={value}
+      onChange={onChange}
+      rankLabel={(index) => t('admin.metadata.languages.rank', { position: index + 1 })}
+      addLabel={t('admin.metadata.languages.more')}
+      canRemove={(index) => {
+        const code = value[index];
+        return !(protectUI && (code === 'de' || code === 'en') && uiCount <= 1);
+      }}
+      isDisabled={disabled}
+    />
   );
 }
 
@@ -454,6 +385,12 @@ export function MetadataPage() {
     return meta ? libraryValues(meta) : undefined;
   });
   const unsaved = useUnsavedChanges(drafts.dirty, { keep: ['library'] });
+  // The drafts of the last render, for a save that is still waiting for the server: what was
+  // typed meanwhile must not be dropped with the saved scope.
+  const latestDrafts = useRef(drafts);
+  useLayoutEffect(() => {
+    latestDrafts.current = drafts;
+  });
 
   const { library: wanted } = route.useSearch();
   const scope =
@@ -500,14 +437,17 @@ export function MetadataPage() {
     let serverSaved = false;
     for (const { id, values } of queue) {
       if (!values) continue;
+      let unchanged = false;
       try {
         if (id === SERVER) {
           const stored = await updateMetadataSettings(values as ServerValues);
+          unchanged = same(latestDrafts.current.valueOf(id), values);
           queryClient.setQueryData(metadataSettingsQuery.queryKey, stored);
           serverSaved = true;
           messages.push(t('admin.metadata.save.saved', { count: stored.affectedTitles }));
         } else {
           const stored = await updateLibraryMetadata(Number(id), values);
+          unchanged = same(latestDrafts.current.valueOf(id), values);
           queryClient.setQueryData(libraryMetadataQuery(Number(id)).queryKey, stored);
           messages.push(
             t('admin.metadata.save.savedLibrary', {
@@ -516,7 +456,8 @@ export function MetadataPage() {
             }),
           );
         }
-        drafts.discard(id);
+        // The draft is spent only while it is still what was sent; newer input stays changed.
+        if (unchanged) drafts.discard(id);
         setSavedMessages([...messages]);
       } catch (error) {
         // Stop here: this scope and the ones after it keep their drafts.

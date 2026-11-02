@@ -459,6 +459,11 @@
       "hintMove": "Die anderen Einträge rücken nach.",
       "hintSwap": "Der Eintrag auf dem gewählten Platz tauscht mit diesem."
     },
+    "rankedChoice": {
+      "hint": "Wählst du einen Eintrag, der auf einem anderen Platz steht, tauschen die beiden die Plätze.",
+      "swapped": "{{a}} und {{b}} haben die Plätze getauscht.",
+      "remove": "{{rank}} entfernen"
+    },
     "saveBar": {
       "dirty": "Ungespeicherte Änderungen",
       "clean": "Gespeichert",
@@ -2602,14 +2607,11 @@
         "title": "Sprachen",
         "intro": "Jede Sprache hier wird für jeden Titel geholt; Profile wählen daraus die Sprache ihrer Beschreibungen. Die Oberfläche bleibt Deutsch oder Englisch. Jede weitere Sprache kostet eine Anfrage je Titel und Staffel.",
         "list": "Metadaten-Sprachen",
-        "add": "Sprache hinzufügen",
-        "addLabel": "Sprache wählen",
-        "addButton": "Hinzufügen",
-        "remove": "{{name}} entfernen",
+        "rank": "{{position}}. Sprache",
+        "more": "Weitere Sprache",
         "fallback": "Reihenfolge = Rückfall: fehlt ein Text in der Sprache des Profils, zeigt Slouchcat die erste vorhandene der Liste, dann den Dateinamen. Der Standard braucht Deutsch; eine Bibliothek braucht Deutsch oder Englisch.",
         "unknownAt": "{{provider}} kennt nicht: {{languages}}",
-        "youtube": "{{count}} Sprachen: bis zu {{titles}} Titel am Tag mit YouTube-Trailersuche (Kontingent 10'000).",
-        "swapped": "{{a}} und {{b}} haben die Plätze getauscht."
+        "youtube": "{{count}} Sprachen: bis zu {{titles}} Titel am Tag mit YouTube-Trailersuche (Kontingent 10'000)."
       },
       "images": {
         "title": "Bilder",

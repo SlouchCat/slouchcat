@@ -459,6 +459,11 @@
       "hintMove": "The other entries move along.",
       "hintSwap": "The entry in the chosen position swaps with this one."
     },
+    "rankedChoice": {
+      "hint": "Picking an entry that holds another place swaps the two.",
+      "swapped": "{{a}} and {{b}} swapped places.",
+      "remove": "Remove {{rank}}"
+    },
     "saveBar": {
       "dirty": "Unsaved changes",
       "clean": "Saved",
@@ -2602,14 +2607,11 @@
         "title": "Languages",
         "intro": "Every language here is fetched for every title; profiles pick the language of their descriptions from it. The interface stays German or English. Every further language costs one request per title and season.",
         "list": "Metadata languages",
-        "add": "Add a language",
-        "addLabel": "Choose a language",
-        "addButton": "Add",
-        "remove": "Remove {{name}}",
+        "rank": "Language {{position}}",
+        "more": "Another language",
         "fallback": "Order = fallback: when a text is missing in the profile's language, Slouchcat shows the first one of the list, then the file name. The default needs German; a library needs German or English.",
         "unknownAt": "{{provider}} does not know: {{languages}}",
-        "youtube": "{{count}} languages: up to {{titles}} titles a day with the YouTube trailer search (quota 10,000).",
-        "swapped": "{{a}} and {{b}} swapped places."
+        "youtube": "{{count}} languages: up to {{titles}} titles a day with the YouTube trailer search (quota 10,000)."
       },
       "images": {
         "title": "Images",

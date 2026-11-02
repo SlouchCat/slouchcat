@@ -64,6 +64,7 @@ export { DisclosureGroup } from './DisclosureGroup';
 export { HeatGrid } from './HeatGrid';
 export { ImageTile } from './ImageTile';
 export { MasterDetail, type MasterDetailItem } from './MasterDetail';
+export { RankedChoiceList, type RankedChoice } from './RankedChoiceList';
 export { RankHint, RankSelect, rankTo, type RankMode } from './RankSelect';
 export { SaveBar } from './SaveBar';
 export { SectionHeader } from './SectionHeader';

@@ -1,4 +1,4 @@
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { CSRF } from './catalog';
 import { expect, test } from './fixtures';
 import {
@@ -91,6 +91,16 @@ const saveBar = (page: Page) => region(page, 'Speichern');
 const areas = (page: Page) => page.getByRole('listbox', { name: 'Bereiche' });
 const scopeSelect = (page: Page) => page.getByLabel('Geltung', { exact: true });
 
+/** The select of place `n` (1-based) of a language list. */
+const place = (list: Locator, n: number) =>
+  list.getByRole('combobox', { name: `${n}. Sprache`, exact: true });
+
+/** The values of the places of a language list, place 1 first ("" = Ohne Text). */
+const placesOf = (list: Locator) =>
+  list
+    .getByRole('combobox')
+    .evaluateAll((selects) => selects.map((select) => (select as HTMLSelectElement).value));
+
 async function openMetadata(page: Page, query = '') {
   await page.goto(`/admin/metadata${query}`);
   await expect(page.getByRole('heading', { level: 1, name: 'Metadaten' })).toBeVisible();
@@ -121,11 +131,11 @@ test('the default scope lists the areas and the languages, the save bar is clean
   const languages = region(page, 'Sprachen');
   const list = languages.getByRole('group', { name: 'Metadaten-Sprachen' });
   await expect(list.getByRole('listitem')).toHaveCount(before.textLangs.length);
-  await expect(list.getByRole('listitem').first()).toContainText('Deutsch');
-  await expect(list.getByLabel('Platz für Deutsch')).toHaveValue('0');
+  // Fixed places, each a select of the languages (10.2).
+  await expect(place(list, 1)).toHaveValue('de');
   // Deutsch is the only interface language left once Englisch goes: its remove button is disabled
   // only when it is the last one (E-9); with de and en both present, each may go.
-  await expect(list.getByRole('button', { name: 'Deutsch entfernen' })).toBeEnabled();
+  await expect(list.getByRole('button', { name: '1. Sprache entfernen' })).toBeEnabled();
   await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
   await expect(saveBar(page).getByRole('button', { name: 'Speichern' })).toBeDisabled();
 
@@ -160,30 +170,40 @@ test('a third language is added, put on its place, saved and removed again, all 
   try {
     await openMetadata(page);
     const languages = region(page, 'Sprachen');
-    const picker = languages.getByLabel('Sprache wählen');
-    await resetFocus(page);
-    await tabTo(page, picker, 80);
-    await picker.selectOption({ label: 'Japanisch' });
-    await page.keyboard.press('Tab');
-    await expectFocusOn(page, languages.getByRole('button', { name: 'Hinzufügen' }));
-    await page.keyboard.press('Enter');
     const list = languages.getByRole('group', { name: 'Metadaten-Sprachen' });
-    await expect(list.getByRole('listitem')).toHaveCount(before.textLangs.length + 1);
-    await expect(list.getByRole('listitem').last()).toContainText('Japanisch');
+    const count = before.textLangs.length;
+
+    // ↓ on the closed select of place 1 picks the next language (a swap when it holds another
+    // place), ↑ picks Deutsch again: the list is as before, and the select keeps the focus.
+    const first = place(list, 1);
+    await resetFocus(page);
+    await tabTo(page, first, 80);
+    await page.keyboard.press('ArrowDown');
+    await expect(first).not.toHaveValue('de');
+    await expect(first).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(first).toHaveValue('de');
+    await expectFocusOn(page, first);
+    expect(await placesOf(list)).toEqual(before.textLangs);
+    await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
+
+    // «Weitere Sprache» appends a place and focuses it; Japanisch goes there.
+    const more = list.getByRole('button', { name: 'Weitere Sprache' });
+    await more.focus();
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    await expect(list.getByRole('listitem')).toHaveCount(count + 1);
+    await expectFocusOn(page, place(list, count + 1));
+    await place(list, count + 1).selectOption({ label: 'Japanisch' });
     await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
 
-    // ↑ on its place select moves Japanisch one place forward: it swaps with the one there.
-    const place = list.getByLabel('Platz für Japanisch');
-    await place.focus();
-    await expectVisibleFocus(page);
-    await page.keyboard.press('ArrowUp');
-    await expect(list.getByRole('listitem').nth(before.textLangs.length - 1)).toContainText(
-      'Japanisch',
-    );
-    await expect(place).toBeFocused();
-    await expect(
-      languages.getByText(/^Japanisch und .+ haben die Plätze getauscht\.$/),
-    ).toBeVisible();
+    // Japanisch on the place before: it swaps with the language there.
+    await place(list, count).focus();
+    await place(list, count).selectOption({ label: 'Japanisch' });
+    await expect(place(list, count)).toHaveValue('ja');
+    await expect(place(list, count + 1)).toHaveValue(before.textLangs[count - 1]);
+    await expect(place(list, count)).toBeFocused();
+    await expect(list.getByText(/^Japanisch und .+ haben die Plätze getauscht\.$/)).toBeVisible();
 
     const save = saveBar(page).getByRole('button', { name: 'Speichern' });
     await save.focus();
@@ -201,10 +221,10 @@ test('a third language is added, put on its place, saved and removed again, all 
     await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
     const after = await settingsOf(owner);
     expect(after.textLangs).toContain('ja');
-    expect(after.textLangs.indexOf('ja')).toBe(before.textLangs.length - 1);
+    expect(after.textLangs.indexOf('ja')).toBe(count - 1);
 
     // Removing it by keyboard and saving puts the list back (the swapped language stays last).
-    const remove = list.getByRole('button', { name: 'Japanisch entfernen' });
+    const remove = list.getByRole('button', { name: `${count}. Sprache entfernen` });
     await remove.focus();
     await page.keyboard.press('Enter');
     await expect(list.getByRole('listitem')).toHaveCount(before.textLangs.length);
@@ -271,7 +291,9 @@ test('a library deviates in its languages; the libraries page says so', async ({
     const languages = region(page, 'Sprachen');
     await expect(languages.getByText('wie Server')).toBeVisible();
     const list = languages.getByRole('group', { name: 'Metadaten-Sprachen' });
-    await expect(list.getByRole('button', { name: 'Englisch entfernen' })).toBeDisabled();
+    // Read-only: disabled places, no «×».
+    await expect(place(list, 2)).toBeDisabled();
+    await expect(list.getByRole('button', { name: '2. Sprache entfernen' })).toHaveCount(0);
 
     // Space switches the deviation on; the places become editable, "wie Server" goes.
     const deviate = page.getByRole('switch', { name: 'Sprachen abweichend' });
@@ -280,13 +302,16 @@ test('a library deviates in its languages; the libraries page says so', async ({
     await page.keyboard.press('Space');
     await expect(deviate).toBeChecked();
     await expect(languages.getByText('wie Server')).toHaveCount(0);
-    const remove = list.getByRole('button', { name: 'Englisch entfernen' });
+    await expect(place(list, 2)).toHaveValue('en');
+    const remove = list.getByRole('button', { name: '2. Sprache entfernen' });
     await expect(remove).toBeEnabled();
     await remove.focus();
     await page.keyboard.press('Enter');
     await expect(list.getByRole('listitem')).toHaveCount(1);
+    // The focus moves to the remaining place.
+    await expectFocusOn(page, place(list, 1));
     // Deutsch is the last interface language of the library now: it cannot go (E-9).
-    await expect(list.getByRole('button', { name: 'Deutsch entfernen' })).toBeDisabled();
+    await expect(list.getByRole('button', { name: '1. Sprache entfernen' })).toBeDisabled();
 
     const save = saveBar(page).getByRole('button', { name: 'Speichern' });
     await save.focus();
@@ -330,17 +355,15 @@ test('changes survive switching the scope; leaving the page asks first', async (
   await openMetadata(page, '?item=images');
   const images = region(page, 'Bilder');
   const poster = images.getByRole('group', { name: 'Bildsprache Poster' });
-  // The image places by keyboard: ↓ on the first place swaps it with the second.
-  const first = poster.getByRole('listitem').first();
-  const firstName = ((await first.getByRole('button').getAttribute('aria-label')) ?? '').replace(
-    / entfernen$/,
-    '',
-  );
-  const place = first.getByRole('combobox');
-  await place.focus();
+  // The image places: place 1 takes the language of place 2, the two swap.
+  const chain = await placesOf(poster);
+  expect(chain.length).toBeGreaterThan(1);
+  const swapped = [chain[1], chain[0], ...chain.slice(2)];
+  await place(poster, 1).focus();
   await expectVisibleFocus(page);
-  await page.keyboard.press('ArrowDown');
-  await expect(poster.getByRole('listitem').nth(1)).toContainText(firstName);
+  await place(poster, 1).selectOption(chain[1]);
+  expect(await placesOf(poster)).toEqual(swapped);
+  await expect(place(poster, 1)).toBeFocused();
   await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
 
   // Another scope by keyboard, and back: the change is still there, nothing was asked.
@@ -351,12 +374,10 @@ test('changes survive switching the scope; leaving the page asks first', async (
   );
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
   await chooseScope(page, 'Standard');
-  await expect(
-    region(page, 'Bilder')
-      .getByRole('group', { name: 'Bildsprache Poster' })
-      .getByRole('listitem')
-      .nth(1),
-  ).toContainText(firstName);
+  await expect(region(page, 'Bilder')).toBeVisible();
+  expect(
+    await placesOf(region(page, 'Bilder').getByRole('group', { name: 'Bildsprache Poster' })),
+  ).toEqual(swapped);
 
   // The sidebar link waits for the question; Escape stays on the page.
   const jobs = page

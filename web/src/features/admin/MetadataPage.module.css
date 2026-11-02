@@ -8,42 +8,6 @@
   opacity: 0.6;
 }
 
-/* The fixed places of a language list: the place select, the name and «×» in one row. */
-.ranks {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  min-width: 0;
-}
-
-.rankList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.rank {
-  display: flex;
-  align-items: center;
-  gap: var(--sc-space-2);
-}
-
-.rankName {
-  flex: 1 1 8rem;
-  min-width: 0;
-  font-weight: var(--sc-font-weight-medium);
-}
-
-.add {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--sc-space-2);
-}
-
 .actions {
   display: flex;
   flex-wrap: wrap;

@@ -126,6 +126,12 @@ const saveBar = () => region('Speichern');
 const areas = () => screen.getByRole('listbox', { name: 'Bereiche' });
 const scopeSelect = () => screen.getByLabelText('Geltung');
 
+/** The values of the places in a language list, place 1 first ("" = Ohne Text). */
+const placesOf = (list: HTMLElement) =>
+  within(list)
+    .getAllByRole<HTMLSelectElement>('combobox')
+    .map((select) => select.value);
+
 const puts = (calls: Call[], path: string) =>
   calls.filter((call) => call.method === 'PUT' && call.path === path).map((call) => call.body);
 
@@ -166,13 +172,17 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(scopeSelect()).toHaveValue('server');
     expect(within(languages).getByText(/Gilt für alle Bibliotheken ohne eigene Abweichung/));
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
-    const items = within(list).getAllByRole('listitem');
-    expect(items).toHaveLength(2);
-    expect(within(items[0]!).getByLabelText('Platz für Deutsch')).toHaveValue('0');
-    expect(items[0]).toHaveTextContent('Deutsch');
-    expect(within(items[1]!).getByLabelText('Platz für Englisch')).toHaveValue('1');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    // Fixed places, each a select of the languages (10.2).
+    expect(within(list).getByRole('combobox', { name: '1. Sprache' })).toHaveValue('de');
+    expect(within(list).getByRole('combobox', { name: '2. Sprache' })).toHaveValue('en');
+    expect(
+      within(within(list).getByRole('combobox', { name: '1. Sprache' }))
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Deutsch', 'Englisch', 'Französisch', 'Japanisch', 'Spanisch']);
     // Both interface languages are there, so either may go.
-    expect(within(list).getByRole('button', { name: 'Deutsch entfernen' })).toBeEnabled();
+    expect(within(list).getByRole('button', { name: '1. Sprache entfernen' })).toBeEnabled();
     // No up and down buttons any more (S-16).
     expect(within(list).queryByRole('button', { name: /nach vorne|nach hinten/ })).toBeNull();
     // The quota line of ADR 0006: two languages, 50 titles a day.
@@ -188,15 +198,13 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(within(images).getByRole('checkbox', { name: /Logo/ })).toBeChecked();
     expect(within(images).getByRole('checkbox', { name: /Folgenbild/ })).toBeChecked();
     const poster = within(images).getByRole('group', { name: 'Bildsprache Poster' });
+    expect(placesOf(poster)).toEqual(['de', 'en', '']);
+    // «Ohne Text» is a choice of the image places.
     expect(
-      within(poster)
-        .getAllByRole('listitem')
-        .map((li) => li.textContent),
-    ).toEqual([
-      expect.stringContaining('Deutsch'),
-      expect.stringContaining('Englisch'),
-      expect.stringContaining('Ohne Text'),
-    ]);
+      within(within(poster).getByRole('combobox', { name: '1. Sprache' })).getByRole('option', {
+        name: 'Ohne Text',
+      }),
+    ).toBeInTheDocument();
 
     const quality = await openArea(user, 'Güte');
     expect(within(quality).getByRole('radio', { name: '500 px' })).toBeChecked();
@@ -259,25 +267,28 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     renderApp('/admin/metadata');
     const languages = await screen.findByRole('region', { name: 'Sprachen' });
     const user = userEvent.setup();
-    await user.selectOptions(within(languages).getByLabelText('Sprache wählen'), 'ja');
-    await user.click(within(languages).getByRole('button', { name: 'Hinzufügen' }));
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
-    expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+    // «Weitere Sprache» appends a place with the first free language (by name: Französisch).
+    await user.click(within(list).getByRole('button', { name: 'Weitere Sprache' }));
+    expect(placesOf(list)).toEqual(['de', 'en', 'fr']);
+    expect(within(list).getByRole('combobox', { name: '3. Sprache' })).toHaveFocus();
     expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
     expect(within(areas()).getByRole('option', { name: 'Sprachen' })).toHaveAccessibleDescription(
-      /^Geändert · Deutsch › Englisch › Japanisch$/,
+      /^Geändert · Deutsch › Englisch › Französisch$/,
     );
-    // Japanisch takes place 2: it swaps with Englisch, which held it.
-    await user.selectOptions(within(list).getByLabelText('Platz für Japanisch'), 'Platz 2');
-    expect(within(list).getAllByRole('listitem')[1]).toHaveTextContent('Japanisch');
-    expect(within(list).getAllByRole('listitem')[2]).toHaveTextContent('Englisch');
-    expect(within(languages).getByText('Japanisch und Englisch haben die Plätze getauscht.'));
-    // The picker no longer offers the language that is in the list.
-    expect(
-      within(within(languages).getByLabelText('Sprache wählen')).queryByRole('option', {
-        name: 'Japanisch',
-      }),
-    ).toBeNull();
+    // A free language replaces the place.
+    await user.selectOptions(within(list).getByRole('combobox', { name: '3. Sprache' }), 'ja');
+    expect(placesOf(list)).toEqual(['de', 'en', 'ja']);
+    // Japanisch on place 2: it swaps with Englisch, which held it.
+    await user.selectOptions(
+      within(list).getByRole('combobox', { name: '2. Sprache' }),
+      'Japanisch',
+    );
+    expect(placesOf(list)).toEqual(['de', 'ja', 'en']);
+    expect(within(list).getByText('Japanisch und Englisch haben die Plätze getauscht.'));
+    expect(within(list).getByRole('combobox', { name: '2. Sprache' })).toHaveAccessibleDescription(
+      'Wählst du einen Eintrag, der auf einem anderen Platz steht, tauschen die beiden die Plätze.',
+    );
 
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(puts(calls, '/admin/settings/metadata')).toHaveLength(1));
@@ -298,16 +309,12 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const images = await screen.findByRole('region', { name: 'Bilder' });
     const user = userEvent.setup();
     const poster = within(images).getByRole('group', { name: 'Bildsprache Poster' });
-    await user.selectOptions(within(poster).getByLabelText('Platz für Ohne Text'), 'Platz 1');
-    expect(
-      within(poster)
-        .getAllByRole('listitem')
-        .map((li) => li.textContent),
-    ).toEqual([
-      expect.stringContaining('Ohne Text'),
-      expect.stringContaining('Englisch'),
-      expect.stringContaining('Deutsch'),
-    ]);
+    expect(placesOf(poster)).toEqual(['de', 'en', '']);
+    await user.selectOptions(
+      within(poster).getByRole('combobox', { name: '1. Sprache' }),
+      'Ohne Text',
+    );
+    expect(placesOf(poster)).toEqual(['', 'en', 'de']);
     expect(within(poster).getByText('Ohne Text und Deutsch haben die Plätze getauscht.'));
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(puts(calls, '/admin/settings/metadata')).toHaveLength(1));
@@ -329,9 +336,10 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const languages = await screen.findByRole('region', { name: 'Sprachen' });
     const user = userEvent.setup();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
-    await user.click(within(list).getByRole('button', { name: 'Deutsch entfernen' }));
-    // Englisch is the last interface language now and cannot go either.
-    expect(within(list).getByRole('button', { name: 'Englisch entfernen' })).toBeDisabled();
+    await user.click(within(list).getByRole('button', { name: '1. Sprache entfernen' }));
+    // Englisch, now on place 1, is the last interface language and cannot go either.
+    expect(placesOf(list)).toEqual(['en']);
+    expect(within(list).getByRole('button', { name: '1. Sprache entfernen' })).toBeDisabled();
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
     expect(
       await within(languages).findByText(
@@ -356,15 +364,17 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const languages = region('Sprachen');
     expect(within(languages).getByText('wie Server')).toBeVisible();
     const list = within(languages).getByRole('group', { name: 'Metadaten-Sprachen' });
-    expect(within(list).getByRole('button', { name: 'Englisch entfernen' })).toBeDisabled();
-    expect(within(list).getByLabelText('Platz für Englisch')).toBeDisabled();
+    // Read-only: the places are disabled, no «×», no «Weitere Sprache».
+    expect(within(list).getByRole('combobox', { name: '2. Sprache' })).toBeDisabled();
+    expect(within(list).queryByRole('button', { name: '2. Sprache entfernen' })).toBeNull();
+    expect(within(list).queryByRole('button', { name: 'Weitere Sprache' })).toBeNull();
 
     await user.click(screen.getByRole('switch', { name: 'Sprachen abweichend' }));
     expect(within(languages).queryByText('wie Server')).toBeNull();
-    await user.click(within(list).getByRole('button', { name: 'Englisch entfernen' }));
-    expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    await user.click(within(list).getByRole('button', { name: '2. Sprache entfernen' }));
+    expect(placesOf(list)).toEqual(['de']);
     // The last entry cannot go.
-    expect(within(list).getByRole('button', { name: 'Deutsch entfernen' })).toBeDisabled();
+    expect(within(list).getByRole('button', { name: '1. Sprache entfernen' })).toBeDisabled();
     await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(puts(calls, '/admin/libraries/2/metadata')).toHaveLength(1));
     expect(puts(calls, '/admin/libraries/2/metadata')[0]).toEqual({
@@ -411,7 +421,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     await user.click(
       within(within(languages).getByRole('group', { name: 'Metadaten-Sprachen' })).getByRole(
         'button',
-        { name: 'Englisch entfernen' },
+        { name: '2. Sprache entfernen' },
       ),
     );
     await openArea(user, 'Altersfreigabe');
@@ -480,6 +490,40 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(screen.getByRole('option', { name: 'Standard' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Filme (geändert)' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Serien (geändert)' })).toBeInTheDocument();
+  });
+
+  it('keeps what is typed while a save waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let server = settings();
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/settings/metadata': () => json(server),
+        'PUT /admin/settings/metadata': async (call) => {
+          await answered;
+          server = settings({ ...(call.body as Partial<MetadataSettings>) });
+          return json(server);
+        },
+      }),
+    );
+    renderApp('/admin/metadata?item=rating');
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('radio', { name: 'Schweiz (CH)' }));
+    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(puts(calls, '/admin/settings/metadata')).toHaveLength(1));
+    // Typed while the server has not answered yet.
+    await user.click(screen.getByRole('radio', { name: 'Österreich (AT)' }));
+    release();
+    expect(
+      await screen.findByText('Gespeichert. 1234 Titel betroffen – jetzt anwenden?'),
+    ).toBeVisible();
+    expect(puts(calls, '/admin/settings/metadata')[0]).toMatchObject({ ratingCountry: 'CH' });
+    // The newer value stays, still unsaved.
+    expect(screen.getByRole('radio', { name: 'Österreich (AT)' })).toBeChecked();
+    expect(within(saveBar()).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    expect(screen.getByRole('option', { name: 'Standard (geändert)' })).toBeInTheDocument();
   });
 
   it('"Verwerfen" names every changed scope and resets them all after the question', async () => {
