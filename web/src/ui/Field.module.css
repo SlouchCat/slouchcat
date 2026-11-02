@@ -20,6 +20,7 @@
 /* A label for screen readers only (`hideLabel`): a SettingRow already shows it on the left. */
 .hiddenLabel {
   position: absolute;
+  inset-inline-start: 0;
   overflow: hidden;
   width: 1px;
   height: 1px;

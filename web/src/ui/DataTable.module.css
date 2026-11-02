@@ -1,4 +1,7 @@
 .frame {
+  /* The containing block of the hidden caption and headers: they stay inside the box that
+     scrolls instead of widening the page on a phone. */
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--sc-color-border-subtle);
   border-radius: var(--sc-radius-lg);
@@ -11,9 +14,10 @@
   font-size: var(--sc-font-size-sm);
 }
 
-/* Caption and hidden headers: for screen readers only. */
+/* Caption and hidden headers: for screen readers only (like VisuallyHidden). */
 .caption {
   position: absolute;
+  inset-inline-start: 0;
   overflow: hidden;
   width: 1px;
   height: 1px;

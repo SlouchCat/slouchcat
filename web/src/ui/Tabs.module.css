@@ -11,6 +11,9 @@
 }
 
 .scroller {
+  /* The containing block of the tabs' hidden counts: they stay inside the box that scrolls
+     instead of widening the page on a phone. */
+  position: relative;
   overflow-x: auto;
 
   /* Room for the focus ring, which the scroll container would clip. */
