@@ -1,12 +1,6 @@
 /* The podcasts page (concept 12, variant C): what AdminPage, BandPanel and DataTable do not lay
    out themselves. The cells of a row, its fold-out and the subscribe dialog. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the page's column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-section-gap));
-}
-
 /* The title cell: the name, then «aus Ordner» and «Explizit». */
 .title {
   display: inline-flex;

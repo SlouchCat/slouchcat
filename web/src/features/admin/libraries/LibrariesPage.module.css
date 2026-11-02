@@ -1,10 +1,3 @@
-/* The libraries page (concept 12 variant C, Bib-C): what AdminPage, Tabs and DataTable do not lay
-   out themselves. The cells of a library row, its fold-out with actions, progress, error band and
-   folders, and the forms of the page's dialogs. */
-.live:empty {
-  display: none;
-}
-
 .tabBody {
   display: flex;
   flex-direction: column;

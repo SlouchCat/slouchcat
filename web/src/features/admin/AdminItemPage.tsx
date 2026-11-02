@@ -13,11 +13,13 @@ import {
   AdminPage,
   AriaButton,
   ConfirmDialog,
+  StatusRegion,
   Tabs,
   afterRender,
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type TabItem,
 } from '@/ui/aria';
@@ -88,7 +90,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
   );
 
   const [matching, setMatching] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
 
   const reload = async () => {
     await Promise.all([
@@ -271,9 +273,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
       {removeTrailer.isError && (
         <Notice tone="danger">{problemMessage(t, removeTrailer.error)}</Notice>
       )}
-      <div role="status" className={styles.live}>
-        {message && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={message} />
       <Tabs
         label={t('admin.item.tabs.label')}
         selectedKey={tab}

@@ -12,9 +12,11 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  StatusRegion,
   afterRender,
   focusTitleIfLost,
   useDrafts,
+  useStatusMessage,
   useUnsavedChanges,
 } from '@/ui/aria';
 import {
@@ -35,7 +37,6 @@ import {
   sourceDraftOf,
   type SourceDraft,
 } from './spotlight/SourceForm';
-import styles from './spotlight/Spotlight.module.css';
 
 /** After "Jetzt abrufen" the status and the entries are asked again this often for a while. */
 const POLL_MS = 2000;
@@ -124,22 +125,26 @@ function SpotlightContent() {
   });
   // The outcome of the last action. Each message is a new node in the status region, so the
   // same sentence twice is announced twice.
-  const [message, setMessage] = useState<{ text: string; id: number } | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
-  const said = useRef(0);
   const clear = useCallback(() => {
     setMessage(null);
     setFailure(null);
-  }, []);
-  const say = useCallback((text: string) => {
-    said.current += 1;
-    setFailure(null);
-    setMessage({ text, id: said.current });
-  }, []);
-  const fail = useCallback((error: unknown) => {
-    setMessage(null);
-    setFailure(error);
-  }, []);
+  }, [setMessage]);
+  const say = useCallback(
+    (text: string) => {
+      setFailure(null);
+      setMessage(text);
+    },
+    [setMessage],
+  );
+  const fail = useCallback(
+    (error: unknown) => {
+      setMessage(null);
+      setFailure(error);
+    },
+    [setMessage],
+  );
 
   // The answer replaces its entry at once, then the list and the start page are asked again.
   const settle = async (saved: SpotlightEntry) => {
@@ -246,13 +251,7 @@ function SpotlightContent() {
       titleRef={titleRef}
     >
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && (
-          <Notice key={message.id} live={false}>
-            {message.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {status.isError && loadError(status.error, () => void status.refetch())}
       {config.isPending && <Skeleton shape="block" />}
       {config.isError && loadError(config.error, () => void config.refetch())}

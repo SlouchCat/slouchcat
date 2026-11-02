@@ -14,6 +14,7 @@ import {
   afterRender,
   focusTitleIfLost,
   useSearchSelection,
+  type StatusMessage,
   type TabItem,
 } from '@/ui/aria';
 import { DuplicatesTab } from './maintenance/DuplicatesTab';
@@ -66,7 +67,8 @@ function MaintenanceContent() {
   const [tab, selectTab] = useSearchSelection('tab', TABS, issueKinds[0], { normalise: true });
 
   const [selection, setSelection] = useState<Partial<Record<IssueKind, string[]>>>({});
-  const [outcomes, setOutcomes] = useState<Partial<Record<string, Outcome>>>({});
+  // Keyed per message, so the same outcome twice in a row is announced again.
+  const [outcomes, setOutcomes] = useState<Partial<Record<string, StatusMessage>>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [targets, setTargets] = useState<Record<string, string>>({});
   const [dialog, setDialog] = useState<ActionDialog>(null);
@@ -96,7 +98,10 @@ function MaintenanceContent() {
    */
   const finish = useCallback(
     async (tabId: string, outcome: Outcome, removed = false) => {
-      setOutcomes((current) => ({ ...current, [tabId]: outcome }));
+      setOutcomes((current) => ({
+        ...current,
+        [tabId]: { ...outcome, key: (current[tabId]?.key ?? 0) + 1 },
+      }));
       setSelection((current) => ({ ...current, [tabId]: [] }));
       await queryClient.invalidateQueries({ queryKey: maintenanceKey });
       await afterRender();
@@ -108,7 +113,11 @@ function MaintenanceContent() {
   const failed = (tabId: string, error: unknown) =>
     setOutcomes((current) => ({
       ...current,
-      [tabId]: { tone: 'danger', text: problemMessage(t, error) },
+      [tabId]: {
+        tone: 'danger',
+        text: problemMessage(t, error),
+        key: (current[tabId]?.key ?? 0) + 1,
+      },
     }));
 
   const refreshItems = useMutation({

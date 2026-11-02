@@ -13,10 +13,12 @@ import {
   AriaButton,
   BandPanel,
   ConfirmDialog,
+  StatusRegion,
   StatusStrip,
   StreamTile,
   afterRender,
   focusTitleIfLost,
+  useStatusMessage,
 } from '@/ui/aria';
 import { STREAMS_POLL_MS, streamsQuery } from './queries';
 import {
@@ -101,16 +103,13 @@ function StreamsContent() {
     refetchOnWindowFocus: !confirmOpen,
   });
   // Each message gets its own key, so the same text twice in a row is announced again.
-  const [message, setMessage] = useState<{ text: string; key: number } | null>(null);
+  const [message, setMessage] = useStatusMessage();
 
   const stop = useMutation({
     mutationFn: (stream: AdminStream) =>
       request(api.DELETE('/admin/streams/{id}', { params: { path: { id: stream.id } } })),
     onSuccess: async (_data, stream) => {
-      setMessage((current) => ({
-        text: t('admin.streams.stopped', { profile: stream.profileName }),
-        key: (current?.key ?? 0) + 1,
-      }));
+      setMessage(t('admin.streams.stopped', { profile: stream.profileName }));
       await queryClient.invalidateQueries({ queryKey: streamsQuery.queryKey });
       // The tile and its button are gone: once React rendered that, the h1 takes the focus (the
       // dialog's focus restore may have put it on another tile meanwhile).
@@ -178,13 +177,7 @@ function StreamsContent() {
       titleRef={titleRef}
     >
       {stop.error && <Notice tone="danger">{problemMessage(t, stop.error)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && !stop.error && (
-          <Notice key={message.key} live={false}>
-            {message.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={!stop.error ? message : null} />
       {streams.isError && (
         <Notice
           tone="danger"

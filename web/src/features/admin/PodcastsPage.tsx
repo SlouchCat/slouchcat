@@ -14,16 +14,17 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  StatusRegion,
   afterRender,
   focusTitleIfLost,
   useSearchSelection,
+  useStatusMessage,
   type TabItem,
 } from '@/ui/aria';
 import { podcastColumns } from './podcasts/columns';
 import { PodcastDetail } from './podcasts/PodcastDetail';
 import { SubscribeDialog } from './podcasts/SubscribeDialog';
 import { librariesQuery, podcastsQuery } from './queries';
-import styles from './podcasts/Podcasts.module.css';
 
 /** After "Jetzt abrufen" the list asks again this often for a while, until the fetch shows. */
 const REFRESH_POLL_MS = 2000;
@@ -132,7 +133,7 @@ function PodcastsContent() {
       }),
     [],
   );
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: podcastsQuery.queryKey });
 
@@ -265,9 +266,7 @@ function PodcastsContent() {
         </Notice>
       )}
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {(podcasts.isPending || libraries.isPending) && <Skeleton shape="block" />}
       {podcasts.isError && (
         <Notice

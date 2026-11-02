@@ -77,3 +77,4 @@ export { useSearchSelection } from './useSearchSelection';
 export { useUnsavedChanges, type UnsavedChangesDialog } from './useUnsavedChanges';
 
 export { afterDialogsClosed, afterRender, focusLost, focusTitleIfLost } from './focusAfter';
+export { StatusRegion, useStatusMessage, type StatusMessage } from './StatusRegion';

@@ -6,9 +6,17 @@ import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { Notice, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
-import { AriaButton, DataTable, DisclosureGroup, SelectCheck, type DataColumn } from '@/ui/aria';
+import {
+  AriaButton,
+  DataTable,
+  DisclosureGroup,
+  SelectCheck,
+  StatusRegion,
+  type DataColumn,
+  type StatusMessage,
+} from '@/ui/aria';
 import { issuesQuery } from '../queries';
-import { issueKey, libraryKey, titleWithYear, type Outcome } from './shared';
+import { issueKey, libraryKey, titleWithYear } from './shared';
 import styles from './Maintenance.module.css';
 
 /** What the page does for a tab: its actions, held by the page so a dialog outlives the rows. */
@@ -27,7 +35,7 @@ interface IssueTabProps {
   /** The libraries in the order of the libraries page: they name and order the sections. */
   libraries: readonly Library[] | undefined;
   selected: readonly string[];
-  outcome: Outcome | undefined;
+  outcome: StatusMessage | undefined;
   /** Open state of the library sections; a section is open until it is folded away. */
   expanded: Readonly<Record<string, boolean>>;
   /** A dialog or a confirmation is open: no refetch on window focus meanwhile. */
@@ -231,13 +239,7 @@ export function IssueTab({
     <div className={styles.tab}>
       <VisuallyHidden as="h2">{kindName}</VisuallyHidden>
       <Text tone="secondary">{t(`admin.maintenance.hint.${kind}`)}</Text>
-      <div role="status" className={styles.live}>
-        {outcome && (
-          <Notice tone={outcome.tone} live={false}>
-            {outcome.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={outcome} />
       {issues.isPending && <Skeleton shape="block" />}
       {issues.isError && (
         <Notice

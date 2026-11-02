@@ -15,6 +15,7 @@ import {
   AriaButton,
   ConfirmDialog,
   DataTable,
+  StatusRegion,
   StatusStrip,
   Tabs,
   afterDialogsClosed,
@@ -22,6 +23,7 @@ import {
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type ActionMenuItem,
 } from '@/ui/aria';
@@ -195,7 +197,7 @@ function AccountsContent() {
     }
   }, [loadedAccounts, askedItem, itemKnown, navigate]);
 
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const refresh = () =>
     Promise.all([
@@ -482,9 +484,7 @@ function AccountsContent() {
         </Notice>
       )}
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {accounts.isPending && <Skeleton shape="block" />}
       {/* Each list fails on its own: its error and retry stand in its tab. */}
       {!accounts.isPending && (

@@ -2,12 +2,6 @@
    lay out themselves. The cells of a row, its fold-out with the inline forms and the profiles,
    and the invitation dialog. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the page's column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-section-gap));
-}
-
 .tabBody {
   display: flex;
   flex-direction: column;

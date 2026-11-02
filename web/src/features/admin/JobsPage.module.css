@@ -2,12 +2,6 @@
    pools below «Läuft gerade», the fold-out of a job type with its schedule and runs side by side
    (one column on the phone), and the failures tab. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the page's column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-section-gap));
-}
-
 .pools {
   display: flex;
   flex-wrap: wrap;

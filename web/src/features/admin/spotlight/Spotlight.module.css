@@ -2,12 +2,6 @@
    and DataTable do not lay out themselves. The source form, its foot, the cells of the tables and
    the dialogs. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the page's column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-section-gap));
-}
-
 /* The source: one setting row each for the switch, the list, the media and the four numbers. */
 .form {
   display: flex;

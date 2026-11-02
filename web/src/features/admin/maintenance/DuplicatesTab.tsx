@@ -5,13 +5,19 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { formatBytes } from '@/lib/format';
 import { Notice, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
-import { AriaButton, DisclosureGroup, RadioGroup } from '@/ui/aria';
+import {
+  AriaButton,
+  DisclosureGroup,
+  RadioGroup,
+  StatusRegion,
+  type StatusMessage,
+} from '@/ui/aria';
 import { duplicatesQuery } from '../queries';
-import { groupKey, titleWithYear, type Outcome } from './shared';
+import { groupKey, titleWithYear } from './shared';
 import styles from './Maintenance.module.css';
 
 interface DuplicatesTabProps {
-  outcome: Outcome | undefined;
+  outcome: StatusMessage | undefined;
   /** The title to keep per group (a draft of the page); the first one when none was picked. */
   targets: Readonly<Record<string, string>>;
   /** Open state of the groups; only the first one starts open (mockup Pfl-C). */
@@ -42,13 +48,7 @@ export function DuplicatesTab({
     <div className={styles.tab}>
       <VisuallyHidden as="h2">{t('admin.maintenance.tab.duplicates')}</VisuallyHidden>
       <Text tone="secondary">{t('admin.maintenance.hint.duplicates')}</Text>
-      <div role="status" className={styles.live}>
-        {outcome && (
-          <Notice tone={outcome.tone} live={false}>
-            {outcome.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={outcome} />
       {duplicates.isPending && <Skeleton shape="block" />}
       {duplicates.isError && (
         <Notice

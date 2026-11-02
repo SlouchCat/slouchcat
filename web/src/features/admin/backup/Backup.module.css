@@ -2,12 +2,6 @@
    DataTable do not lay out themselves. The list per kind, the forms of the tabs «Neue Sicherung»
    and «Aus Datei wiederherstellen», and the passphrase dialog. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the page's column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-section-gap));
-}
-
 /* The tab «Sicherungen»: one section per kind. */
 .list {
   display: flex;

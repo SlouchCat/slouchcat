@@ -1,9 +1,8 @@
 import type { AdminSettings } from '@slouchcat/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Text } from '@/ui';
-import { AriaButton, ConfirmDialog } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, useStatusMessage } from '@/ui/aria';
 import { rotatePushKeys, settingsQuery } from '../queries';
 import styles from '../IntegrationsPage.module.css';
 import table from '../AdminTablePage.module.css';
@@ -13,7 +12,7 @@ import { Outcome } from './shared';
 export function PushBlock({ push }: { push: AdminSettings['push'] }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const rotate = useMutation({
     mutationFn: rotatePushKeys,
     onMutate: () => setMessage(null),

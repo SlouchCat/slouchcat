@@ -41,6 +41,7 @@ import {
   DataTable,
   DisclosureGroup,
   Form,
+  StatusRegion,
   StatusStrip,
   Switch,
   Tabs,
@@ -49,6 +50,7 @@ import {
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type ActionMenuItem,
   type DataColumn,
@@ -421,7 +423,7 @@ function JobsContent() {
       }),
     [],
   );
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const data = overview.data;
 
@@ -442,12 +444,15 @@ function JobsContent() {
       if (removed) titleRef.current?.focus();
       else focusTitleIfLost(titleRef);
     },
-    [queryClient],
+    [queryClient, setMessage],
   );
-  const failed = useCallback((error: unknown) => {
-    setMessage(null);
-    setFailure(error);
-  }, []);
+  const failed = useCallback(
+    (error: unknown) => {
+      setMessage(null);
+      setFailure(error);
+    },
+    [setMessage],
+  );
   const run = useMutation({
     mutationFn: runJobType,
     onSuccess: (runs, type) =>
@@ -688,9 +693,7 @@ function JobsContent() {
         />
       )}
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {data && (
         <>
           <DisclosureGroup

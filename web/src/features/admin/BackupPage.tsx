@@ -17,9 +17,11 @@ import {
   ConfirmDialog,
   DataTable,
   DisclosureGroup,
+  StatusRegion,
   afterRender,
   focusTitleIfLost,
   useSearchSelection,
+  useStatusMessage,
   type TabItem,
 } from '@/ui/aria';
 import { restoreBackup, restoreUpload, type Confirmation } from './backup/api';
@@ -92,11 +94,11 @@ function BackupContent() {
   // The backup this page just made, marked «neu» in its row.
   const [fresh, setFresh] = useState<string | null>(null);
   // Each message gets its own key, so the same text twice in a row is announced again.
-  const [message, setMessage] = useState<{ text: string; key: number } | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const said = (text: string) => {
     setFailure(null);
-    setMessage((current) => ({ text, key: (current?.key ?? 0) + 1 }));
+    setMessage(text);
   };
   const failed = (error: unknown) => {
     setMessage(null);
@@ -106,7 +108,7 @@ function BackupContent() {
   const start = useCallback(() => {
     setMessage(null);
     setFailure(null);
-  }, []);
+  }, [setMessage]);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: backupsQuery.queryKey });
 
   const accepted = useCallback((result: RestoreResult) => {
@@ -345,13 +347,7 @@ function BackupContent() {
   return (
     <AdminPage title={t('admin.backup.title')} help={t('admin.backup.intro')} titleRef={titleRef}>
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && (
-          <Notice key={message.key} live={false}>
-            {message.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {restart ? (
         <RestartPanel
           acceptedAt={restart.acceptedAt}

@@ -98,14 +98,3 @@
   gap: var(--sc-space-2) var(--sc-space-4);
   align-items: center;
 }
-
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-space-4));
-}
-
-.devices > .live:empty,
-.telegram > .live:empty {
-  margin-block-start: calc(-1 * var(--sc-space-3));
-}

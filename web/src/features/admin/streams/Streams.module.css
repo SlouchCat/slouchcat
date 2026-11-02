@@ -1,12 +1,6 @@
 /* The streams page (concept 12, mockup Str-D2): what AdminPage, BandPanel and StreamTile do not
    lay out themselves. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the page's column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-section-gap));
-}
-
 /* The tiles: as many columns as fit, equally high per row (S-8). */
 .tiles {
   display: grid;

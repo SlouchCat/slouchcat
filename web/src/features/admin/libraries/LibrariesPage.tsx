@@ -12,10 +12,12 @@ import {
   AriaButton,
   ConfirmDialog,
   DataTable,
+  StatusRegion,
   Tabs,
   afterRender,
   focusTitleIfLost,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
 } from '@/ui/aria';
 import { librariesQuery, isScanning, SCAN_POLL_MS } from '../queries';
@@ -106,7 +108,7 @@ function LibrariesContent() {
       }),
     [],
   );
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
 
   // A scan that ends with an error while the page watches says so in the status region; a scan
@@ -135,7 +137,7 @@ function LibrariesContent() {
       setFailure(null);
       setMessage(ended.join(t('format.separator')));
     });
-  }, [queryClient, t]);
+  }, [queryClient, t, setMessage]);
 
   /**
    * Puts the library the server answered with into the list and fetches again; once React has
@@ -159,10 +161,13 @@ function LibrariesContent() {
     },
     [refresh],
   );
-  const failed = useCallback((error: unknown) => {
-    setMessage(null);
-    setFailure(error);
-  }, []);
+  const failed = useCallback(
+    (error: unknown) => {
+      setMessage(null);
+      setFailure(error);
+    },
+    [setMessage],
+  );
   const scan = useMutation({
     mutationFn: (id: number): Promise<Library> =>
       request(api.POST('/admin/libraries/{id}/scan', { params: { path: { id } } })),
@@ -269,9 +274,7 @@ function LibrariesContent() {
         />
       )}
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {data?.length === 0 && <Notice>{t('admin.libraries.empty')}</Notice>}
       {data && data.length > 0 && (
         <Tabs

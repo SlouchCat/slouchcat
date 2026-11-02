@@ -1,10 +1,10 @@
 import type { KeyState } from '@slouchcat/api-client';
-import { useState, type FormEvent } from 'react';
+import { type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { TextLink } from '@/ui';
-import { Form, SettingRow, TextField, type Drafts } from '@/ui/aria';
+import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import styles from '../IntegrationsPage.module.css';
 import { Actions, keyDraft, Outcome, SourceChip, useSecretUpdate, type KeyName } from './shared';
 
@@ -19,7 +19,7 @@ export function KeyRow({
   drafts: Drafts<string>;
 }) {
   const { t } = useTranslation();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const draft = keyDraft(keyName);
   const value = drafts.valueOf(draft) ?? '';
   const name = t(`admin.integrations.keys.${keyName}.name`);

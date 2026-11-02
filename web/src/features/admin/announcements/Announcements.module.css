@@ -1,12 +1,6 @@
 /* The announcements page (concept 12, variant B): what AdminPage, MasterDetail and BandPanel do
    not lay out themselves. The facts, the form and the preview of the selected announcement. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the page's column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-section-gap));
-}
-
 .detail {
   display: flex;
   flex-direction: column;

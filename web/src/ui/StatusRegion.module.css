@@ -1,0 +1,8 @@
+/*
+ * Empty, the region leaves the flow: a flex or grid parent puts no gap around it, and it stays in
+ * the accessibility tree (display: none would take it out, and the next message would not be
+ * announced reliably).
+ */
+.region:empty {
+  position: absolute;
+}

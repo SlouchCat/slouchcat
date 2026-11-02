@@ -14,9 +14,11 @@ import {
   ConfirmDialog,
   DataTable,
   DisclosureGroup,
+  StatusRegion,
   afterRender,
   focusTitleIfLost,
   useSearchSelection,
+  useStatusMessage,
   type TabItem,
 } from '@/ui/aria';
 import { capabilityColumns, deviceColumns, deviceName } from './devices/columns';
@@ -101,7 +103,7 @@ function DevicesContent() {
     [],
   );
 
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
 
   const forget = useMutation({
@@ -209,9 +211,7 @@ function DevicesContent() {
   return (
     <AdminPage title={t('admin.devices.title')} help={t('admin.devices.intro')} titleRef={titleRef}>
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {devices.isPending && <Skeleton shape="block" />}
       {devices.isError && (
         <Notice

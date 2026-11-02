@@ -16,12 +16,14 @@ import {
   RankHint,
   RankSelect,
   SaveBar,
+  StatusRegion,
   afterDialogsClosed,
   afterRender,
   focusTitleIfLost,
   rankTo,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type DataColumn,
   type TabItem,
@@ -102,13 +104,8 @@ function HomeRowsContent() {
     [],
   );
 
-  // `seq` gives every message a node of its own, so the same sentence twice is announced twice.
-  const [message, setMessage] = useState<{ text: string; seq: number } | null>(null);
-  const say = useCallback(
-    (text: string | null) =>
-      setMessage((current) => (text === null ? null : { text, seq: (current?.seq ?? 0) + 1 })),
-    [],
-  );
+  // Every message is a node of its own, so the same sentence twice is announced twice.
+  const [message, say] = useStatusMessage();
 
   const save = useMutation({
     mutationFn: (rows: HomeRow[]) => setHomeRows(toSettings(rows)),
@@ -291,13 +288,7 @@ function HomeRowsContent() {
               onDiscard={() => setConfirmOpen(true)}
             />
             {save.isError && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
-            <div role="status" className={styles.live}>
-              {message && !save.isError && (
-                <Notice key={message.seq} live={false}>
-                  {message.text}
-                </Notice>
-              )}
-            </div>
+            <StatusRegion message={!save.isError ? message : null} />
           </div>
           <Text tone="secondary">
             {t('admin.homeRows.spotlight')}{' '}

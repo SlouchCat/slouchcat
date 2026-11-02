@@ -22,13 +22,3 @@
   gap: var(--sc-space-3);
   padding-block-end: var(--sc-space-12);
 }
-
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the panel it stands in, or of the save bar's column. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-panel-gap));
-}
-
-.save > .live:empty {
-  margin-block-start: calc(-1 * var(--sc-space-3));
-}

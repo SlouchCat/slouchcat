@@ -18,10 +18,12 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  StatusRegion,
   afterRender,
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type TabItem,
 } from '@/ui/aria';
@@ -29,7 +31,6 @@ import { adminCollectionQuery, collectionsQuery, deleteCollection } from '../que
 import { ManualMembers, TmdbMembers, type Member } from './CollectionDetail';
 import { collectionColumns } from './columns';
 import { NameDialog } from './NameDialog';
-import styles from './Collections.module.css';
 
 /** The filter tabs: every collection (the default, no `?tab=`), the manual ones, TMDB's. */
 const ALL = 'all';
@@ -170,16 +171,22 @@ function CollectionsContent() {
   }, []);
 
   // A persistent status region; a repeated message is a new node, so it is announced again.
-  const [message, setMessage] = useState<{ text: string; id: number } | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
-  const say = useCallback((text: string) => {
-    setFailure(null);
-    setMessage((current) => ({ text, id: (current?.id ?? 0) + 1 }));
-  }, []);
-  const failed = useCallback((error: unknown) => {
-    setMessage(null);
-    setFailure(error);
-  }, []);
+  const say = useCallback(
+    (text: string) => {
+      setFailure(null);
+      setMessage(text);
+    },
+    [setMessage],
+  );
+  const failed = useCallback(
+    (error: unknown) => {
+      setMessage(null);
+      setFailure(error);
+    },
+    [setMessage],
+  );
 
   // Every viewer place that shows collections changes with an edit: the start page's row
   // «Sammlungen», the collection pages, the detail pages' section and the search results. The
@@ -345,13 +352,7 @@ function CollectionsContent() {
       }
     >
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && (
-          <Notice key={message.id} live={false}>
-            {message.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {collections.isPending && <Skeleton shape="block" />}
       {collections.isError && (
         <Notice

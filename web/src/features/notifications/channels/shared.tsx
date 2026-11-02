@@ -1,8 +1,6 @@
 import type { Channel, ChannelSetting, ChannelSettings, EventType } from '@slouchcat/api-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { Notice } from '@/ui';
 import { channelsQuery } from '../queries';
-import styles from './channels.module.css';
 
 // The parts the blocks of the notification channels page share: the events, the draft of a
 // channel, the page's confirmation, the outcome line and the focus helpers.
@@ -53,31 +51,6 @@ export interface Confirmation {
 }
 
 export type Ask = (confirmation: Confirmation) => void;
-
-/** A message of a block; its own key, so the same text twice in a row is announced again. */
-export interface Message {
-  text: string;
-  key: number;
-}
-
-/** The next message after `current`: the text with a new key. */
-export const nextMessage = (current: Message | null, text: string): Message => ({
-  text,
-  key: (current?.key ?? 0) + 1,
-});
-
-/** A status line that is always there (role status), so even its first message is announced. */
-export function Status({ message }: { message: Message | null }) {
-  return (
-    <div role="status" className={styles.live}>
-      {message && (
-        <Notice key={message.key} live={false}>
-          {message.text}
-        </Notice>
-      )}
-    </div>
-  );
-}
 
 /** Puts a channel the server answered with into the cached list. */
 export function useStoreChannel() {

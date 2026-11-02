@@ -1,10 +1,10 @@
 import type { AdminSettings } from '@slouchcat/api-client';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { sessionQuery } from '@/app/session';
-import { Form, SettingRow, TextField, type Drafts } from '@/ui/aria';
+import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import styles from '../IntegrationsPage.module.css';
 import { Actions, Outcome, PUBLIC_URL_DRAFT, SourceChip, useSettingsUpdate } from './shared';
 
@@ -12,7 +12,7 @@ import { Actions, Outcome, PUBLIC_URL_DRAFT, SourceChip, useSettingsUpdate } fro
 function UpdateRow({ enabled }: { enabled: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const save = useSettingsUpdate((body) => {
     setMessage(
       t(body.updateCheckEnabled ? 'admin.integrations.update.on' : 'admin.integrations.update.off'),
@@ -47,7 +47,7 @@ function UpdateRow({ enabled }: { enabled: boolean }) {
 /** The public address for links in e-mails and messages. */
 function PublicUrlRow({ settings, fields }: { settings: AdminSettings; fields: Drafts<string> }) {
   const { t } = useTranslation();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const value = fields.valueOf(PUBLIC_URL_DRAFT) ?? '';
   const name = t('admin.integrations.publicUrl.name');
   const save = useSettingsUpdate((body) => {

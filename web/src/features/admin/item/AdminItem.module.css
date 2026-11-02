@@ -1,9 +1,3 @@
-/* The title page of the administration (concept 12, variant C): what AdminPage, Tabs,
-   DisclosureGroup and DataTable do not lay out themselves. */
-.live:empty {
-  display: none;
-}
-
 /* Kind and year below the h1. */
 .kindLine {
   display: flex;

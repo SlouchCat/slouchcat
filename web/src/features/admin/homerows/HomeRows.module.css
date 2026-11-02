@@ -1,12 +1,6 @@
 /* The start page rows (concept 12, variant C): what AdminPage, BandPanel, DataTable and SaveBar
    do not lay out themselves. */
 
-/* A live region that is always there (role status), so even its first message is announced.
-   Empty, it takes back the gap of the save column it stands in. */
-.live:empty {
-  margin-block-start: calc(-1 * var(--sc-space-3));
-}
-
 /* One tab: the hint of the positions, then the table. */
 .tab {
   display: flex;

@@ -37,9 +37,11 @@ import {
   SaveBar,
   SectionHeader,
   SettingRow,
+  StatusRegion,
   Switch,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type MasterDetailItem,
 } from '@/ui/aria';
@@ -269,7 +271,7 @@ function ApplySection({
   const queryClient = useQueryClient();
   const [what, setWhat] = useState<'both' | 'texts' | 'images'>('both');
   const [where, setWhere] = useState('all');
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const jobTypes = useQuery({ ...jobTypesQuery, refetchInterval: paused ? false : 10_000 });
   const run = useMutation({
     mutationFn: applyMetadata,
@@ -331,9 +333,7 @@ function ApplySection({
         <TextLink href={paths.adminJobs}>{t('admin.metadata.apply.jobsLink')}</TextLink>
       </div>
       {run.error ? <Notice tone="danger">{problemMessage(t, run.error)}</Notice> : null}
-      <div role="status" className={styles.live}>
-        {message && !run.error && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={!run.error ? message : null} />
       {jobTypes.data && (
         <Text tone="secondary" variant="caption">
           {t('admin.metadata.apply.waiting', {
@@ -1017,13 +1017,13 @@ export function MetadataPage() {
                 })}
               </Notice>
             ) : null}
-            <div role="status" className={styles.live}>
+            <StatusRegion>
               {savedMessages.map((message) => (
                 <Notice key={message.scope} live={false}>
                   {message.text}
                 </Notice>
               ))}
-            </div>
+            </StatusRegion>
           </div>
           <ConfirmDialog
             isOpen={discardOpen}

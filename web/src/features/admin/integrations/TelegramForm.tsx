@@ -1,9 +1,9 @@
 import type { AdminSettings } from '@slouchcat/api-client';
-import { useState, type FormEvent } from 'react';
+import { type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { Text } from '@/ui';
-import { Form, TextField, type Drafts } from '@/ui/aria';
+import { Form, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import styles from '../IntegrationsPage.module.css';
 import { Actions, Outcome, TELEGRAM_DRAFT, useSecretUpdate } from './shared';
 
@@ -16,7 +16,7 @@ export function TelegramForm({
   fields: Drafts<string>;
 }) {
   const { t } = useTranslation();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const token = fields.valueOf(TELEGRAM_DRAFT) ?? '';
   const name = t('admin.integrations.telegram.name');
   const save = useSecretUpdate((body) => {

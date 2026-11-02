@@ -6,10 +6,10 @@ import { problemMessage } from '@/api/errors';
 import { formatDate } from '@/lib/format';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Text } from '@/ui';
-import { AriaButton, afterRender } from '@/ui/aria';
+import { AriaButton, StatusRegion, afterRender, useStatusMessage } from '@/ui/aria';
 import { PushError, pushSupported, subscribeThisDevice, unsubscribeThisDevice } from '../push';
 import { createPushSubscription, deletePushSubscription, vapidKey } from '../queries';
-import { nextMessage, Status, useRefreshChannels, type Message } from './shared';
+import { useRefreshChannels } from './shared';
 import styles from './channels.module.css';
 
 function pushMessage(t: TFunction, error: unknown): string {
@@ -41,7 +41,7 @@ export function PushDevices({
   const { t, i18n } = useTranslation();
   const refresh = useRefreshChannels();
   const headingId = useId();
-  const [message, setMessage] = useState<Message | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const [error, setError] = useState<unknown>(null);
   // An action runs until the list is fresh again: its button stays busy, so no second press
   // registers the device twice (the mutation alone settles before the refresh).
@@ -51,7 +51,7 @@ export function PushDevices({
 
   /** After a change: the list again, and the h1 for a focus whose button went with it. */
   const done = async (text: string) => {
-    setMessage((current) => nextMessage(current, text));
+    setMessage(text);
     await refresh();
     await afterRender();
     focusTitleIfLost();
@@ -116,7 +116,7 @@ export function PushDevices({
         </ul>
       )}
       {error ? <Notice tone="danger">{pushMessage(t, error)}</Notice> : null}
-      <Status message={message} />
+      <StatusRegion message={message} />
       <div className={styles.actions}>
         {supported && !subscriptions.some((subscription) => subscription.thisDevice) && (
           <AriaButton

@@ -14,11 +14,13 @@ import {
   AriaButton,
   ConfirmDialog,
   MasterDetail,
+  StatusRegion,
   afterDialogsClosed,
   afterRender,
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type MasterDetailItem,
 } from '@/ui/aria';
@@ -30,7 +32,6 @@ import {
   type NewAnnouncement,
 } from './announcements/AnnouncementDetail';
 import { adminAnnouncementsQuery } from './queries';
-import styles from './announcements/Announcements.module.css';
 
 /** The item of the new announcement while it is not saved: a stable id of its own (`?item=new`). */
 const NEW = 'new';
@@ -185,8 +186,8 @@ function AnnouncementsContent() {
 
   // The outcome of the last action. `seq` counts every message, so the same text twice is
   // announced twice: the notice is a new element each time.
-  const [message, setMessage] = useState<{ text: string; seq: number } | null>(null);
-  const say = (text: string) => setMessage((last) => ({ text, seq: (last?.seq ?? 0) + 1 }));
+  const [message, setMessage] = useStatusMessage();
+  const say = (text: string) => setMessage(text);
   // A refusal of the page (publish, delete, a draft published meanwhile); a form's own errors
   // stay with the form.
   const [failure, setFailure] = useState<unknown>(null);
@@ -489,13 +490,7 @@ function AnnouncementsContent() {
       }
     >
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && (
-          <Notice key={message.seq} live={false}>
-            {message.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {announcements.isPending && <Skeleton shape="block" />}
       {announcements.isError && (
         <Notice

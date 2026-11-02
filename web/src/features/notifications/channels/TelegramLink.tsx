@@ -6,17 +6,17 @@ import { problemMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Text, TextLink } from '@/ui';
-import { AriaButton, SettingRow, afterDialogsClosed, afterRender, focusLost } from '@/ui/aria';
-import { createTelegramLink, deleteTelegramLink } from '../queries';
 import {
-  LINK_POLL_MS,
-  nextMessage,
-  Status,
-  useRefreshChannels,
-  useStoreChannel,
-  type Ask,
-  type Message,
-} from './shared';
+  AriaButton,
+  SettingRow,
+  StatusRegion,
+  afterDialogsClosed,
+  afterRender,
+  focusLost,
+  useStatusMessage,
+} from '@/ui/aria';
+import { createTelegramLink, deleteTelegramLink } from '../queries';
+import { LINK_POLL_MS, useRefreshChannels, useStoreChannel, type Ask } from './shared';
 import styles from './channels.module.css';
 
 interface TelegramLinkProps {
@@ -47,7 +47,7 @@ export function TelegramLink({
   const blockRef = useRef<HTMLDivElement>(null);
   const store = useStoreChannel();
   const refresh = useRefreshChannels();
-  const [message, setMessage] = useState<Message | null>(null);
+  const [message, setMessage] = useStatusMessage();
   // The error of the last action; a new action clears it (link and unlink alike).
   const [error, setError] = useState<unknown>(null);
   const telegram = setting.telegram;
@@ -59,7 +59,7 @@ export function TelegramLink({
     mutationFn: deleteTelegramLink,
     onError: setError,
     onSuccess: async () => {
-      setMessage((current) => nextMessage(current, t('settings.notifications.telegram.unlinked')));
+      setMessage(t('settings.notifications.telegram.unlinked'));
       await refresh();
       // The button that asked went with the link. Once the dialog has closed (its focus restore
       // aims at that button), the h1 takes the focus if it was lost or is still in this block.
@@ -84,11 +84,11 @@ export function TelegramLink({
   const wasLinked = useRef(linked);
   useEffect(() => {
     if (linked && !wasLinked.current) {
-      setMessage((current) => nextMessage(current, linkedText));
+      setMessage(linkedText);
       void afterRender().then(focusTitleIfLost);
     }
     wasLinked.current = linked;
-  }, [linked, linkedText, focusTitleIfLost]);
+  }, [linked, linkedText, focusTitleIfLost, setMessage]);
 
   const askUnlink = () =>
     ask({
@@ -177,7 +177,7 @@ export function TelegramLink({
         </div>
       )}
       {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
-      <Status message={message} />
+      <StatusRegion message={message} />
     </div>
   );
 }

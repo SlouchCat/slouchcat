@@ -1,13 +1,13 @@
 import type { AdminSettings } from '@slouchcat/api-client';
 import { useMutation } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { Notice, Text, TextLink } from '@/ui';
-import { AriaButton, Form, RadioGroup, TextField, type Drafts } from '@/ui/aria';
+import { AriaButton, Form, RadioGroup, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import { sendTestEmail } from '../queries';
 import styles from '../IntegrationsPage.module.css';
 import {
@@ -33,7 +33,7 @@ export function EmailForm({
 }) {
   const { t } = useTranslation();
   const session = useActiveSession();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const values = drafts.valueOf(EMAIL_DRAFT) ?? emailValues(email);
   const password = fields.valueOf(PASSWORD_DRAFT) ?? '';
   const name = t('admin.integrations.email.name');

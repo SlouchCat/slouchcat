@@ -1,22 +1,23 @@
 import type { ChannelSetting } from '@slouchcat/api-client';
 import { useMutation } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { ButtonLink, Notice, VisuallyHidden } from '@/ui';
-import { AriaButton, CheckboxGroup, Form, SettingRow, Switch, TextField } from '@/ui/aria';
+import {
+  AriaButton,
+  CheckboxGroup,
+  Form,
+  SettingRow,
+  StatusRegion,
+  Switch,
+  TextField,
+  useStatusMessage,
+} from '@/ui/aria';
 import { testChannel, updateChannel } from '../queries';
 import { PushDevices } from './PushDevices';
-import {
-  EVENTS,
-  nextMessage,
-  Status,
-  useStoreChannel,
-  type Ask,
-  type ChannelDraft,
-  type Message,
-} from './shared';
+import { EVENTS, useStoreChannel, type Ask, type ChannelDraft } from './shared';
 import { TelegramLink } from './TelegramLink';
 import styles from './channels.module.css';
 
@@ -54,9 +55,9 @@ export function ChannelPanel({
 }: ChannelPanelProps) {
   const { t } = useTranslation();
   const store = useStoreChannel();
-  const [message, setMessage] = useState<Message | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const { channel, available } = setting;
-  const say = (text: string) => setMessage((current) => nextMessage(current, text));
+  const say = (text: string) => setMessage(text);
   const save = useMutation({
     mutationFn: (draft: ChannelDraft) => {
       const address = draft.address.trim();
@@ -160,7 +161,7 @@ export function ChannelPanel({
         />
         {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
         {test.isError && <Notice tone="danger">{problemMessage(t, test.error)}</Notice>}
-        <Status message={message} />
+        <StatusRegion message={message} />
         {/* As in the mockup: the test first, the main action «Speichern» last. */}
         <div className={styles.actions}>
           <AriaButton

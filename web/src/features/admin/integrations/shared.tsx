@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice } from '@/ui';
-import { AriaButton, ConfirmDialog } from '@/ui/aria';
+import { AriaButton, ConfirmDialog, StatusRegion, type StatusMessage } from '@/ui/aria';
 import { dashboardQuery, settingsQuery, updateSettings } from '../queries';
 import styles from '../IntegrationsPage.module.css';
 
@@ -99,14 +99,12 @@ export function BandMeta({
 }
 
 /** The outcome of a block's last action: an error notice or a polite status line. */
-export function Outcome({ error, message }: { error: unknown; message: string | null }) {
+export function Outcome({ error, message }: { error: unknown; message: StatusMessage | null }) {
   const { t } = useTranslation();
   return (
     <>
       {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
-      <div role="status" className={styles.live}>
-        {message && !error && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={error ? null : message} />
     </>
   );
 }

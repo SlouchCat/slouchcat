@@ -18,7 +18,9 @@ import {
   Form,
   RadioGroup,
   SettingRow,
+  StatusRegion,
   TextField,
+  useStatusMessage,
   type Drafts,
 } from '@/ui/aria';
 import {
@@ -112,10 +114,10 @@ function CreatedAddress({
           {t('admin.integrations.webhooks.created.dismiss')}
         </AriaButton>
       </div>
-      <p role="status" className={styles.live}>
+      <StatusRegion>
         {status === 'copied' && t('admin.integrations.webhooks.created.copied')}
         {status === 'failed' && t('admin.integrations.webhooks.created.copyFailed')}
-      </p>
+      </StatusRegion>
     </Panel>
   );
 }
@@ -219,7 +221,7 @@ function PathMapForm({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
   const id = String(integration.id);
   const { discard } = drafts;
   const { draft, elsewhere } = pathMapState(integration, drafts);
@@ -317,9 +319,7 @@ function PathMapForm({
         </AriaButton>
       </div>
       {errors?.form && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && !save.error && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={!save.error ? message : null} />
     </Form>
   );
 }

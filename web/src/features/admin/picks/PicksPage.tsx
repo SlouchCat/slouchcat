@@ -14,12 +14,14 @@ import {
   BandPanel,
   ConfirmDialog,
   DataTable,
+  StatusRegion,
   afterRender,
   focusLost,
   focusTitleIfLost,
   rankTo,
   useDrafts,
   useSearchSelection,
+  useStatusMessage,
   useUnsavedChanges,
   type TabItem,
 } from '@/ui/aria';
@@ -160,11 +162,8 @@ function PicksContent() {
   const [tab, selectTab] = useSearchSelection('tab', TAB_IDS, ALL, { normalise: true });
 
   // Every message gets its own number, so the same words twice are announced twice.
-  const [message, setMessage] = useState<{ text: string; seq: number } | null>(null);
-  const say = useCallback(
-    (text: string) => setMessage((current) => ({ text, seq: (current?.seq ?? 0) + 1 })),
-    [],
-  );
+  const [message, setMessage] = useStatusMessage();
+  const say = useCallback((text: string) => setMessage(text), [setMessage]);
   const [failure, setFailure] = useState<unknown>(null);
   // Saving and the server's last refusal belong to one pick each: two fold-outs save on their own.
   const [saving, setSaving] = useState<ReadonlySet<string>>(() => new Set());
@@ -180,10 +179,13 @@ function PicksContent() {
       }),
     [],
   );
-  const failed = useCallback((error: unknown) => {
-    setMessage(null);
-    setFailure(error);
-  }, []);
+  const failed = useCallback(
+    (error: unknown) => {
+      setMessage(null);
+      setFailure(error);
+    },
+    [setMessage],
+  );
 
   /**
    * The focus is gone from the fold-out of `id` (its row moved back after a refused move):
@@ -467,13 +469,7 @@ function PicksContent() {
       }
     >
       {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && failure === null && (
-          <Notice key={message.seq} live={false}>
-            {message.text}
-          </Notice>
-        )}
-      </div>
+      <StatusRegion message={failure === null ? message : null} />
       {picks.isPending && <Skeleton shape="block" />}
       {picks.isError && (
         <Notice

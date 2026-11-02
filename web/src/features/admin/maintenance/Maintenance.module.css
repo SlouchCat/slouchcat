@@ -30,11 +30,6 @@
   gap: var(--sc-space-5);
 }
 
-/* A live region that is always there, so a new outcome is announced; empty, it takes no gap. */
-.live:empty {
-  display: none;
-}
-
 .muted {
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);
