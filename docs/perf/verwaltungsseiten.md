@@ -75,7 +75,8 @@ Konten (/admin/accounts) at 1440 px: 315 px to the first work row
 ```
 
 Zum Vergleich die umgebauten Seiten in heutiger Dichte (dieselbe Seite, `data-shell` im Browser
-entfernt): 350, 330 und 387 px.
+entfernt): 350, 330 und 387 px. Die Seitenleiste blieb dabei sichtbar; sonst fiele auch ihre
+reservierte Breite aus `global.css` weg, und die Werte wären nicht vergleichbar.
 
 | Seite           | Ausgang (K12-2a) | Umbau, heutige Dichte | Umbau, kompakt (K12-8) | Verhältnis | Ziel ≤ 50 % |
 | --------------- | ---------------- | --------------------- | ---------------------- | ---------- | ----------- |
@@ -86,15 +87,15 @@ entfernt): 350, 330 und 387 px.
 **Das Ziel «höchstens die Hälfte» wird auf keiner der drei Seiten erreicht.** Woraus die Höhe
 besteht (kompakt, Werte aus dem Layout des Browsers):
 
-| Teil                                         | Hintergrundjobs | Integrationen | Konten |
-| -------------------------------------------- | --------------- | ------------- | ------ |
-| App-Kopf (64 px) und Rand über dem Titel     | 96              | 96            | 96     |
-| Kopfzeile mit h1 (24 px) und Abstand (24 px) | 56              | 56            | 56     |
-| Zustandsleiste (S-4) und Abstand             | 80              | –             | 90     |
-| Reiter «Konten / Einladungen» und Abstand    | –               | –             | 73     |
-| Klappzeile «Läuft gerade» und Abstand        | 40              | –             | –      |
-| Band «Schlüssel der Anbieter» mit Erklärsatz | –               | 107           | –      |
-| **Summe**                                    | **272**         | **259**       | **315** |
+| Teil                                            | Hintergrundjobs | Integrationen | Konten  |
+| ----------------------------------------------- | --------------- | ------------- | ------- |
+| App-Kopf (64 px) und Rand über dem Titel        | 96              | 96            | 96      |
+| Kopfzeile (32 px, h1 24 px) und Abstand (24 px) | 56              | 56            | 56      |
+| Zustandsleiste (S-4) und Abstand                | 80              | –             | 90      |
+| Reiter «Konten / Einladungen» und Abstand       | –               | –             | 73      |
+| Klappzeile «Läuft gerade» und Abstand           | 40              | –             | –       |
+| Band «Schlüssel der Anbieter» mit Erklärsatz    | –               | 107           | –       |
+| **Summe**                                       | **272**         | **259**       | **315** |
 
 - **Fester Anteil:** App-Kopf und Rand (96 px) ändert die Dichte nicht (Konzept 12, 5.2: der
   App-Kopf behält seine Masse). Er allein ist 20 % (Hintergrundjobs), 22 % (Integrationen) und
