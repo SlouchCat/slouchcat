@@ -1,7 +1,9 @@
 # Konzept: Schneller Wiedergabestart – Keyframe-Index aus dem Container, Transcode ohne Wartezeit, scharfes QSV
 
 - **Status: Fassung 2 (1. November 2026), Kritiker-Review eingearbeitet (0 Blocker, 6 Major,
-  22 Minor), noch nicht freigegeben.** Auslöser
+  22 Minor), von Marco am 2. November 2026 freigegeben.** Seit der Verankerung ist Konzept 11
+  gebaut und gemergt (PR #70, Vertrag 1.7.0); Migration und Vertrag für dieses Papier werden
+  darum beim Baubeginn neu bestimmt (siehe unten). Auslöser
   ist ein Befund auf dem Testserver CT 190 vom 1. November 2026: Der Start von «Silo» S01E03 in
   Firefox dauerte **20 s**, und das Bild danach war auf QSV sichtbar unscharf (1.1). Marco hat am
   1. November 2026 in zwei Interviewrunden alle acht Fragen entschieden (**F-1 bis F-8**,
@@ -12,7 +14,7 @@
   abweichend** entschieden: **alles in einem PR**, kein Patch 1.6.1 vorab. Der OMC-Kritiker hat Fassung 1 geprüft (REVISE, 0/6/22);
   Fassung 2 arbeitet alle Befunde ein, die Abwägungen stehen in Abschnitt 13.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
-- **Datum: 1. November 2026 (Fassung 1 und 2).**
+- **Datum: 1. November 2026 (Fassung 1 und 2), Freigabe 2. November 2026.**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`5e0e63d`** («Merge pull request
   #61», Konzept 11), Vertragsfassung **1.6.0** (`api/openapi.yaml:4`), letzte Migration
   **`00030_library_metadata.sql`**, letzte ADR **`0018-metadaten-sprachen-bilder-freigabeland.md`**.
