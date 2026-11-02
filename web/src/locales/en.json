@@ -1982,38 +1982,31 @@
         "newValue": "Leave empty to keep the stored value. A new value replaces it.",
         "tmdb": {
           "name": "TMDB token",
-          "label": "TMDB read access token",
           "description": "Overviews, posters and age ratings from themoviedb.org."
         },
         "tvdb": {
           "name": "TVDB key",
-          "label": "TVDB API key",
           "description": "Optional second source for series."
         },
         "tvdbPin": {
           "name": "TVDB PIN",
-          "label": "TVDB subscriber PIN",
           "description": "Only for a TVDB subscription with a PIN."
         },
         "youtube": {
           "name": "YouTube key",
-          "label": "YouTube API key",
           "description": "Finds trailers when TMDB knows none."
         },
         "trakt": {
           "name": "Trakt client ID",
-          "label": "Trakt client ID",
           "description": "For the rows “Trending” and “Popular” of the home page."
         },
         "traktStatus": "State of the Trakt lists",
         "fanart": {
           "name": "Fanart.tv key",
-          "label": "Fanart.tv project key",
           "description": "Logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days."
         },
         "fanartClient": {
           "name": "Fanart.tv personal key",
-          "label": "Fanart.tv personal key",
           "description": "Optional: new images after 2 days instead of 7."
         }
       },

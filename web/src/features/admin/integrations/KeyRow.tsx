@@ -74,7 +74,7 @@ export function KeyRow({
           <TextField
             name={field}
             type="password"
-            label={t(`admin.integrations.keys.${keyName}.label`)}
+            label={name}
             hideLabel
             description={env ? t('admin.integrations.envHint') : undefined}
             placeholder={keepHint && t('admin.integrations.keys.keepPlaceholder')}

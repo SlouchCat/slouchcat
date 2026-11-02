@@ -70,7 +70,7 @@ test('the six blocks start open and fold by keyboard from their band', async ({ 
     name: 'Schlüssel der Anbieter',
   });
   const field = region(page, 'Schlüssel der Anbieter').getByRole('textbox', {
-    name: 'YouTube-API-Schlüssel',
+    name: 'YouTube-Schlüssel',
     exact: true,
   });
   await resetFocus(page);
@@ -105,7 +105,7 @@ test('unsaved input survives a folded block; leaving asks first', async ({ page,
   const before = await settingsOf(owner);
   await openIntegrations(page);
   const keys = region(page, 'Schlüssel der Anbieter');
-  const field = keys.getByRole('textbox', { name: 'YouTube-API-Schlüssel', exact: true });
+  const field = keys.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true });
   await field.fill('unsaved-key');
   await expect(keys.getByText('ungespeichert', { exact: true })).toBeVisible();
 
@@ -174,13 +174,11 @@ test('keys show their source; the Trakt id from the environment is read-only', a
   await expect(keys.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
   await expect(keys.getByRole('button', { name: 'Trakt-Client-ID speichern' })).toHaveCount(0);
   // The e2e server runs without a TMDB key.
-  await expect(
-    keys.getByRole('textbox', { name: 'TMDB-Lesezugriffs-Token', exact: true }),
-  ).toBeEnabled();
+  await expect(keys.getByRole('textbox', { name: 'TMDB-Token', exact: true })).toBeEnabled();
   await expect(keys.getByRole('button', { name: 'TMDB-Token löschen' })).toHaveCount(0);
   // One line per key (Int-A): the field and its «Speichern» stand side by side.
   const tmdbField = await keys
-    .getByRole('textbox', { name: 'TMDB-Lesezugriffs-Token', exact: true })
+    .getByRole('textbox', { name: 'TMDB-Token', exact: true })
     .boundingBox();
   const tmdbSave = await keys.getByRole('button', { name: 'TMDB-Token speichern' }).boundingBox();
   expect(Math.round(tmdbSave?.y ?? -1)).toBe(Math.round(tmdbField?.y ?? 0));
@@ -198,7 +196,7 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
   try {
     await openIntegrations(page);
     const keys = region(page, 'Schlüssel der Anbieter');
-    const field = keys.getByRole('textbox', { name: 'YouTube-API-Schlüssel', exact: true });
+    const field = keys.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true });
     await resetFocus(page);
     await tabTo(page, field, 80);
     await page.keyboard.type(key);

@@ -87,19 +87,41 @@ describe('integrations (A-2)', () => {
     // Only a stored key can be deleted; the value itself is never shown.
     expect(within(keys).getByRole('button', { name: 'TMDB-Token löschen' })).toBeVisible();
     expect(within(keys).queryByRole('button', { name: 'YouTube-Schlüssel löschen' })).toBeNull();
-    expect(within(keys).getByLabelText('TMDB-Lesezugriffs-Token')).toHaveValue('');
-    expect(within(keys).getByLabelText('TMDB-Lesezugriffs-Token')).toHaveAttribute(
-      'type',
-      'password',
-    );
+    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveValue('');
+    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAttribute('type', 'password');
     // A stored key says in its placeholder and its description that empty keeps it.
-    expect(within(keys).getByLabelText('TMDB-Lesezugriffs-Token')).toHaveAttribute(
+    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAttribute(
       'placeholder',
       'Leer lassen zum Behalten',
     );
-    expect(within(keys).getByLabelText('TMDB-Lesezugriffs-Token')).toHaveAccessibleDescription(
+    expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAccessibleDescription(
       /Leer lassen, um den gespeicherten Wert zu behalten/,
     );
+  });
+
+  it('names every hidden-label field like the visible label of its row (WCAG 2.5.3)', async () => {
+    mockApi(routes());
+    renderApp('/admin/integrations');
+    const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
+    const rows = [
+      ...within(keys).getAllByRole('group'),
+      ...within(section('E-Mail-Server')).getAllByRole('group'),
+      ...within(section('Telegram-Bot')).getAllByRole('group'),
+    ];
+    let fields = 0;
+    for (const row of rows) {
+      const label = row.getAttribute('aria-labelledby');
+      const visible = label ? document.getElementById(label)?.textContent : null;
+      for (const input of row.querySelectorAll('input:not([type="radio"])')) {
+        fields += 1;
+        // «Server und Port» names the host; the port is named by its word in the label.
+        const name = input.getAttribute('name') === 'email.port' ? 'Port' : (visible ?? '');
+        expect(visible).toContain(name);
+        expect(within(row).getByLabelText(name, INPUT)).toBe(input);
+      }
+    }
+    // Seven keys, five mail fields, the bot token.
+    expect(fields).toBe(13);
   });
 
   it('saves a key write-only and shows its hint; an empty or blank key is not sent', async () => {
@@ -118,7 +140,7 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     const save = await screen.findByRole('button', { name: 'YouTube-Schlüssel speichern' });
-    const field = screen.getByLabelText('YouTube-API-Schlüssel');
+    const field = screen.getByLabelText('YouTube-Schlüssel', INPUT);
     // Empty keeps what is stored (decision 18): nothing is sent, the focus stays on «Speichern».
     await user.click(save);
     expect(save).toHaveFocus();
@@ -142,7 +164,7 @@ describe('integrations (A-2)', () => {
     mockApi(routes({ 'PUT /admin/settings': () => problem(422, 'tmdb_key_invalid') }));
     renderApp('/admin/integrations');
     const user = userEvent.setup();
-    const field = await screen.findByLabelText('TMDB-Lesezugriffs-Token');
+    const field = await screen.findByLabelText('TMDB-Token', INPUT);
     await fill(user, field, 'bad');
     await user.click(screen.getByRole('button', { name: 'TMDB-Token speichern' }));
     await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
@@ -175,7 +197,7 @@ describe('integrations (A-2)', () => {
     );
     renderApp('/admin/integrations');
     const user = userEvent.setup();
-    const field = await screen.findByLabelText('TVDB-API-Schlüssel');
+    const field = await screen.findByLabelText('TVDB-Schlüssel', INPUT);
     await fill(user, field, 'tvdb-key');
     await user.click(screen.getByRole('button', { name: 'TVDB-Schlüssel speichern' }));
     await waitFor(() => expect(field).toHaveAttribute('aria-invalid', 'true'));
@@ -470,7 +492,7 @@ describe('integrations (A-2)', () => {
         .filter((variables) => secrets.some((secret) => variables.includes(secret)));
 
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    await fill(user, within(keys).getByLabelText('YouTube-API-Schlüssel'), secrets[0]!);
+    await fill(user, within(keys).getByLabelText('YouTube-Schlüssel', INPUT), secrets[0]!);
     await user.click(within(keys).getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
     expect(await within(keys).findByText('YouTube-Schlüssel gespeichert.')).toBeVisible();
 
@@ -650,7 +672,7 @@ describe('integrations (A-2)', () => {
     );
     renderApp('/admin/integrations');
     const user = userEvent.setup();
-    const field = await screen.findByLabelText('YouTube-API-Schlüssel');
+    const field = await screen.findByLabelText('YouTube-Schlüssel', INPUT);
     await user.click(field);
     await user.paste('yt-key-0001');
     await user.click(screen.getByRole('button', { name: 'YouTube-Schlüssel speichern' }));
@@ -704,7 +726,7 @@ describe('integrations (A-2)', () => {
     renderApp('/admin/integrations');
     const user = userEvent.setup();
     const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
-    await fill(user, within(keys).getByLabelText('YouTube-API-Schlüssel'), 'yt-draft');
+    await fill(user, within(keys).getByLabelText('YouTube-Schlüssel', INPUT), 'yt-draft');
     await fill(user, within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT), '1:draft');
     await fill(
       user,
@@ -723,7 +745,7 @@ describe('integrations (A-2)', () => {
     for (const name of ['Schlüssel der Anbieter', 'E-Mail-Server', 'Telegram-Bot']) {
       await user.click(within(section(name)).getByRole('button', { name }));
     }
-    expect(within(keys).getByLabelText('YouTube-API-Schlüssel')).toHaveValue('yt-draft');
+    expect(within(keys).getByLabelText('YouTube-Schlüssel', INPUT)).toHaveValue('yt-draft');
     expect(within(section('Telegram-Bot')).getByLabelText('Bot-Token', INPUT)).toHaveValue(
       '1:draft',
     );
