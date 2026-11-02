@@ -521,6 +521,8 @@ test('KP-1: «Profile» opens «Meine Profile»; create, PIN, report and delete 
   await expect(accountToggle(page, OWNER.email)).toHaveAttribute('aria-expanded', 'true');
   const mine = accountFoldOut(page, OWNER.email).getByRole('region', { name: 'Meine Profile' });
   await expect(mine).toBeInViewport();
+  // The jump stops below the fixed 64 px app header, not under it.
+  expect((await mine.boundingBox())?.y).toBeGreaterThanOrEqual(64);
   await expect(mine.getByRole('article', { name: OWNER_PROFILE })).toBeVisible();
 
   // Create: Enter on «Profil hinzufügen» opens the dialog on its name; Enter submits.
