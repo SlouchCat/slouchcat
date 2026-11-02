@@ -1,8 +1,9 @@
 # Konzept: Seitenmuster der Verwaltungsseiten (alle Seiten unter `/admin/*`)
 
-- **Status: Fassung 3 (1. November 2026), Bauplan (Abschnitt 11). Als Papier abgeschlossen**
-  (Marco, 1. November 2026: «Ja, abschliessen»); gebaut wird erst auf sein Wort, zusammen mit
-  Konzept 11 und den weiteren Konzepten. Fassung 1 hat der
+- **Status: in Umsetzung seit 2. November 2026 (Zweig `claude/verwaltungsseiten`, Schritte K12-0
+  bis K12-9 ohne Zwischenhalt, Abnahme in K12-9 auf CT 190; Vertrag 1.8.0).** Fassung 3
+  (1. November 2026), Bauplan (Abschnitt 11). Als Papier abgeschlossen
+  (Marco, 1. November 2026: «Ja, abschliessen»). Fassung 1 hat der
   OMC-Kritiker geprüft (1 Blocker, 9 Major, 8 Minor; Abschnitt 12); Fassung 2 arbeitet alle ein.
   Marco hat am 1. November 2026 gesagt: «Im Prinzip möchte ich alle Seiten in der Verwaltung
   überarbeiten. Es ist mir alles irgendwie zu gross und zu unübersichtlich.» Dieses Papier legt
@@ -11,14 +12,25 @@
   (Abschnitt 10.3, alle 19 Seiten gewählt). Fassung 3 legt den Bau fest (Abschnitt 11); **wo
   Abschnitt 11 etwas anderes sagt als die Abschnitte 4 bis 9, gilt Abschnitt 11.**
 - **Datum:** 1. November 2026; Fassung 3 vom selben Tag.
-- **Verankert gegen:** `main` **`5e0e63d`** («Merge pull request #61», Konzept 11 als Papier),
-  Vertragsfassung **1.6.0**. Konzept 11 reserviert Frage 17, ADR 0019, Migration 00031 und
-  Vertrag 1.7.0. Dieses Konzept nimmt darum **Frage 18** und, falls nötig, **ADR 0020**.
+- **Umsetzung begonnen (2. November 2026):** Marco: «Bitte beginne mit der Umsetzung und
+  Entwicklung von Konzept 12.» Zweig `claude/verwaltungsseiten` ab `main` **`4c860bc`** («Merge
+  pull request #70», Konzept 11 umgesetzt und als 1.7.0 veröffentlicht). **Frage 18** und
+  **ADR 0020** sind mit Schritt K12-0 eingetragen. **O-1 ist beantwortet** (11.9): 1.7.0 ist schon
+  erschienen, die Felder aus 11.4 kommen darum in **Vertrag 1.8.0 als eigenes Release**; Konzept 13
+  «Abspielseite» und Konzept 14 «Wiedergabestart» rücken auf 1.9.0 oder später und behalten
+  Frage 19 und 20 sowie ADR 0021 und 0022. Marco will **durchbauen**: kein Zwischenhalt zwischen
+  den Schritten, Abnahme nur in K12-9 auf CT 190. O-2 bis O-4 gelten wie vorgeschlagen.
+- **Verankert gegen:** `main` **`4c860bc`**, Vertragsfassung **1.7.0** (Konzept 11: Frage 17,
+  ADR 0019, Migration 00031, Verwaltungsleiste, Übersicht). Dieses Konzept nimmt **Frage 18**,
+  **ADR 0020** und **Vertrag 1.8.0** (additiv), keine Migration. Die Zeilenangaben in Abschnitt 11
+  stammen von `main` `5e0e63d` (Fassung 3); Konzept 11 hat seither unter anderem `AppLayout`,
+  `AdminLayout`, `sections.ts` und `AdminHomePage` geändert. Jeder Schritt prüft die Zeilenangaben,
+  die er braucht, gegen den aktuellen Stand nach.
 - **Was nicht dazugehört:** die Übersicht `/admin` (bleibt nach Konzept 11, Abschnitt 11) und
   alle Zuschauerseiten mit der Startseite (unberührt).
-- **Umsetzung:** erst nach Marcos ausdrücklichem Wort, **zusammen mit Konzept 11 und den
-  weiteren Konzepten, die noch folgen** (Marco, 1. November 2026). Bis dahin ändert dieses Papier
-  keine Zeile Code.
+- **Umsetzung:** ~~erst nach Marcos ausdrücklichem Wort, zusammen mit Konzept 11 und den
+  weiteren Konzepten, die noch folgen (Marco, 1. November 2026).~~ Konzept 11 ist für sich
+  erschienen (1.7.0); dieses Konzept wird seit dem 2. November 2026 allein gebaut (siehe oben).
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
   und `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 
@@ -486,7 +498,7 @@ Phase 2  Je Seite 3 klickbare Vorschläge (A, B, C)       → Wahl und Änderung
          2c  Spotlight, Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen  → veröffentlicht
          2d  Benachrichtigungen, Statistik, Sicherung                     → veröffentlicht
 Phase 3  Fassung «Bauplan»: Schritte, Tests, Frage 18, ADR 0020; OMC-Kritiker  → abgeschlossen (Abschnitt 11)
-Phase 4  Bau zusammen mit Konzept 11 und den weiteren Konzepten (auf Marcos Wort)
+Phase 4  Bau: Konzept 11 allein gebaut und als 1.7.0 erschienen; Konzept 12 allein ab 2. November 2026 (1.8.0)
 ```
 
 Phase 2a nimmt die Seiten, die Marco am meisten stören (Interview, 1. November 2026).
@@ -499,8 +511,8 @@ Seite ist eine eigene Seite im Design-Canvas mit drei Zeichenflächen.
 will. Jeder Wunsch wird eingearbeitet und hier im Abschnitt 10 mit Datum festgehalten; erst wenn
 eine Seite keine offenen Wünsche hat, gilt ihr Vorschlag als gewählt.
 
-**Bau mit den OMC-Agenten (Phase 4, Vorschlag):** `planner` schneidet die Schritte zusammen mit
-Konzept 11; je Schritt `executor` (Opus für Gerüst und Bausteine, Sonnet für das Umbauen der
+**Bau mit den OMC-Agenten (Phase 4, Vorschlag):** `planner` schneidet die Schritte (Konzept 11
+ist seit 1.7.0 gebaut, Konzept 12 läuft allein); je Schritt `executor` (Opus für Gerüst und Bausteine, Sonnet für das Umbauen der
 Seiten); `designer` gleicht die gebaute Seite mit dem gewählten Mockup ab; `code-reviewer` prüft
 je Schritt; `verifier` hakt die Erhaltungsliste (E-2) und die Tastaturtests ab. Jede Seite ein
 eigener Commit, `task ci` grün.
@@ -549,7 +561,7 @@ eigener Commit, `task ci` grün.
 | 1. November 2026 | Integrationen (A) | «Schon viel besser. Kannst du in Integrationen Variante A die Titel noch auf- und zuklappbar machen?» | Das Kopfband jedes Blocks ist ein Knopf mit Pfeil (`aria-expanded`); ein Klick klappt den Block zu oder auf, alle sechs starten offen. Beim Bau gilt S-13: Ungespeichertes in einem zugeklappten Block bleibt erhalten. **Marco: «Genau so machen wir’s.»** |
 | 1. November 2026 | Konten, Profile | «Macht es nicht Sinn, dass die Profile und Konten im gleichen sind? Immerhin sind ja Profile an Konten gekoppelt. Bitte prüfe dies und mach nochmals Vorschläge.» | Geprüft: Die Profil-Endpunkte (`/profiles`, `/profiles/{id}`, `…/pin`, `…/watch-time`) sind `x-visibility: account`, gelten also nur für das **eigene** Konto; die Verwaltung sieht von fremden Konten nur die Profilnamen (`AccountsPage.tsx:315-318`). `/settings/profiles` bleibt für jedes Konto nötig (Hauptprofil jedes Kontos verwaltet seine Profile, PRO-0). Darum drei Vorschläge auf Basis von Konten C ohne neue Funktion: KP-1 Profile im aufgeklappten Konto, KP-2 eigener Reiter «Meine Profile», KP-3 Konten mit eingerückten Profilzeilen. Profile fremder Konten bleiben zum Lesen; sie zu bearbeiten wäre neue Funktion mit Vertragsänderung (Regel 11) und braucht einen eigenen Entscheid. |
 | 1. November 2026 | Streams | «Streams möchte ich andere Vorschläge.» | Drei neue Vorschläge Str-D bis Str-F mit anderem Aufbau als A bis C. |
-| 1. November 2026 | Statistik (B) | «Ergänzen um Zeit, wann wird gestreamt, Wochentage ebenfalls.» | Neues Feld «Wann geschaut wird» unter Profilen und Geräten: links «Nach Tageszeit» (24 Balken, Stunde in der Zeitzone des Servers), rechts «Nach Wochentag» (7 Balken Montag bis Sonntag), darunter zugeklappt «Woche und Stunde» als Raster 7 × 24 mit der Spitze im Kopf. Folgt dem Zeitraum (STA-1). **Neue Funktion** über A-8 hinaus: braucht im Vertrag die Felder `Stats.byHour` (24 Werte `watchedMs`) und `Stats.byWeekday` (7 Werte, Montag zuerst), additiv in Vertrag 1.7.0, gerechnet im Server aus den Schauereignissen in der Zeitzone des Servers (`TZ`). Für den Bau hat jedes Diagramm eine Tabelle als Alternative. Geht in Frage 18. |
+| 1. November 2026 | Statistik (B) | «Ergänzen um Zeit, wann wird gestreamt, Wochentage ebenfalls.» | Neues Feld «Wann geschaut wird» unter Profilen und Geräten: links «Nach Tageszeit» (24 Balken, Stunde in der Zeitzone des Servers), rechts «Nach Wochentag» (7 Balken Montag bis Sonntag), darunter zugeklappt «Woche und Stunde» als Raster 7 × 24 mit der Spitze im Kopf. Folgt dem Zeitraum (STA-1). **Neue Funktion** über A-8 hinaus: braucht im Vertrag die Felder `Stats.byHour` (24 Werte `watchedMs`) und `Stats.byWeekday` (7 Werte, Montag zuerst), additiv in Vertrag 1.8.0 (Fassung 3 sagte 1.7.0, O-1), gerechnet im Server aus den Schauereignissen in der Zeitzone des Servers (`TZ`). Für den Bau hat jedes Diagramm eine Tabelle als Alternative. Geht in Frage 18. |
 
 ### 10.3 Wahl je Seite
 
@@ -564,7 +576,7 @@ eigener Commit, `task ci` grün.
 | Konten | **C «Reiter und Klappbereiche»**, zusammengelegt mit Profile nach **KP-1 «Profile im Konto»**: das aufgeklappte eigene Konto zeigt unter «Konto ändern» den Block «Meine Profile» mit allen Profilaktionen (PRO-1 bis PRO-3); fremde Konten zeigen ihre Profilnamen nur zum Lesen («Profile verwaltet jedes Konto selbst.»). Marco: «Profile im Konto ist gut.» | 1. November 2026 |
 | Profile | **In Konten aufgegangen (KP-1)** für Administratoren. Der Eintrag «Profile» der Verwaltungsleiste öffnet Konten mit dem eigenen Konto aufgeklappt bei «Meine Profile» (Abweichung von Konzept 11, 11.1 Punkt 4 und O-3, geht in Frage 18). `/settings/profiles` bleibt unverändert für Konten ohne Verwaltung (PRO-0, S-1). Keine Vertragsänderung: die Profil-Endpunkte bleiben `x-visibility: account`. | 1. November 2026 |
 | Geräte | **C «Reiter und Klappbereiche»** (Reiter Geräte und Fähigkeiten, je Typ ein Klappbereich) | 1. November 2026 |
-| Streams | **D «Kacheln» mit der Leiste «Serverlast» aus E** (Marco korrigierte zuerst gemeldetes «A»). Kachelbild = **Hintergrundbild quer** des Films bzw. der Serie: neues Feld `AdminStream.backdropUrl` (additiv, Vertrag 1.7.0, Hash wie `posterUrl` aus Konzept 11, bei Folgen das Bild der Serie). Zähler Transcode HW/SW, Remux, Direct und Bandbreite als Summe der Bitraten im Client aus `AdminStream`. **Marco: «genehmigt».** | 1. November 2026 |
+| Streams | **D «Kacheln» mit der Leiste «Serverlast» aus E** (Marco korrigierte zuerst gemeldetes «A»). Kachelbild = **Hintergrundbild quer** des Films bzw. der Serie: neues Feld `AdminStream.backdropUrl` (additiv, Vertrag 1.8.0 statt 1.7.0, O-1; Hash wie `posterUrl` aus Konzept 11, bei Folgen das Bild der Serie). Zähler Transcode HW/SW, Remux, Direct und Bandbreite als Summe der Bitraten im Client aus `AdminStream`. **Marco: «genehmigt».** | 1. November 2026 |
 | Podcasts | **C «Reiter und Klappbereiche»** (Reiter je Bibliothek, je Podcast ein Klappbereich) | 1. November 2026 |
 | Startseitenreihen | **C «Reiter und Klappbereiche»** | 1. November 2026 |
 | Spotlight | **A «Kompakte Liste»** | 1. November 2026 |
@@ -612,7 +624,7 @@ Kopfband und Auf-/Zuklappen, Auswahl statt Verschieben):
 - Seitentitel: ~~die Verwaltungsleiste sagt «Startseite», «Benachrichtigungen» und
   «Statistik».~~ Berichtigt in 11.1: heute heissen Seite und Leiste «Startseite» und
   «Statistiken»; nur «Benachrichtigungskanäle» (Leiste «Benachrichtigungen») weicht ab.
-- Bildfelder, die der Vertrag noch nicht hat (additiv, Hash wie `posterUrl`, Vertrag 1.7.0):
+- Bildfelder, die der Vertrag noch nicht hat (additiv, Hash wie `posterUrl`, Vertrag 1.8.0 statt 1.7.0, O-1):
   `StatTitle.posterUrl` (Statistik A, C) und `StatTitle.backdropUrl` (Statistik B),
   `AdminCollectionItem.posterUrl` (Sammlungen), wahlweise `AdminPick.backdropUrl`
   (Cat's Empfehlungen). Ohne diese Felder zeigt der Bau die Farbfläche mit Titel.
@@ -677,9 +689,9 @@ diesen Abschnitt geprüft (Abschnitt 12, Fassung 2 → 3); die Befunde sind eing
   (`:2985`, Leiste «Benachrichtigungen» `:1544`). Die Mockups zeigen «Startseitenreihen»; gebaut
   wird «Startseite». Die Notiz zu den Seitentiteln in 10.3 (Phase 2c und 2d) ist damit erledigt:
   nur Benachrichtigungen weicht ab, und das ist gewollt (Seite gilt für jedes Konto).
-- **Nummern:** Frage 18 und ADR 0020 (wie im Kopf). Die Vertragsfelder kommen in **1.7.0**
-  zusammen mit Konzept 11, wenn beide in einem Release landen (Marcos Plan, 10.1); sonst in 1.8.0
-  (Schritt 0 hält es fest).
+- **Nummern:** Frage 18 und ADR 0020 (wie im Kopf). Die Vertragsfelder kommen in **1.8.0**, als
+  eigenes Release (O-1, beantwortet am 2. November 2026): Konzept 11 ist allein als 1.7.0
+  erschienen. Die Abschnitte 10.2 und 10.3 sind darauf nachgeführt.
 
 ### 11.2 Bausteine in `web/src/ui`
 
@@ -855,14 +867,21 @@ K12-9 so ein, dass die Seiten erst nach dem Gerüst umgebaut werden. Jeder Schri
 
 ```
 K11-0 + K12-0  Papiere (Frage 17 und 18, ADR 0019 und 0020)
-K11-1 → K12-1  Vertrag 1.7.0: Dashboard, dann Bilder und Statistik
+K11-1          Vertrag 1.7.0: Dashboard (Konzept 11)
+K12-1          Vertrag 1.8.0: Bilder und Statistik
 K11-2, K11-3   Aktivitätsprotokoll, Neustart
 K11-4 → K12-2  ui-Bausteine: zuerst Konzept 11 (Band), dann dieses (Dichte noch aus)
 K11-5          Gerüst, Leiste, Übersicht
 K12-3 … K12-7  Seiten je Gruppe, heutige Dichte
 K12-8          Dichte einschalten
-K11-6 + K12-9  Abnahme auf CT 190, Messung, Doku, Release 1.7.0
+K11-6          Abnahme auf CT 190, Messung, Doku, Release 1.7.0 (Konzept 11)
+K12-9          Abnahme auf CT 190, Messung, Doku, Release 1.8.0
 ```
+
+**Stand 2. November 2026:** Konzept 11 ist mit den Schritten K11-0 bis K11-6 allein gebaut und
+als 1.7.0 erschienen (`main` `4c860bc`). Dieses Konzept baut K12-0 bis K12-9 danach auf dem Zweig
+`claude/verwaltungsseiten` ohne Zwischenhalt («Durchbauen»): K12-1 bringt **Vertrag 1.8.0**, K12-9
+ist die einzige Abnahme auf CT 190 und endet mit **Release 1.8.0**.
 
 | Schritt | Inhalt | DoD | Tage |
 |---|---|---|---|
@@ -890,10 +909,10 @@ werden.
 
 | Nr. | Punkt | Vorschlag |
 |---|---|---|
-| O-1 | Vertrag 1.7.0 oder 1.8.0, falls Konzept 11 vorher allein erscheint. | In K12-0 festhalten; die Felder bleiben dieselben. |
-| O-2 | Mockup-Fehler, die nicht gebaut werden: Zeitplan-Block bei Jobarten ohne Zeitplan (`Jobs-C`), veralteter Einleitungssatz im Dialog «Sammlung anlegen» (`Sam-C`), Hilfetext «stündlich» bei Podcasts (`Pod-C`; das Abo hat seinen Takt, geprüft wird alle 5 min). | Gebaut wird nach Code und `de.json`. |
-| O-3 | Pflege gruppiert nur die geladenen Einträge je Bibliothek; eine Bibliothek kann darum auf Seite 2 nochmals erscheinen. | So lassen; Alternative wäre eine Abfrage je Bibliothek (`listMaintenanceIssues` kennt `libraryId`, `openapi.yaml:3801-3830`), mehr Aufrufe. |
-| O-4 | «Wann geschaut wird» bei 365 Tagen nur aus den letzten 90 Tagen. | Hinweis unter der Überschrift; volle 365 Tage bräuchten eine Stundenspalte in `progress_days` und eine Migration (nicht empfohlen). |
+| O-1 | Vertrag 1.7.0 oder 1.8.0, falls Konzept 11 vorher allein erscheint. | In K12-0 festhalten; die Felder bleiben dieselben. **Beantwortet (2. November 2026): 1.8.0 als eigenes Release**, Konzept 11 ist allein als 1.7.0 erschienen (Frage 18). |
+| O-2 | Mockup-Fehler, die nicht gebaut werden: Zeitplan-Block bei Jobarten ohne Zeitplan (`Jobs-C`), veralteter Einleitungssatz im Dialog «Sammlung anlegen» (`Sam-C`), Hilfetext «stündlich» bei Podcasts (`Pod-C`; das Abo hat seinen Takt, geprüft wird alle 5 min). | Gebaut wird nach Code und `de.json`. **Wie vorgeschlagen** (2. November 2026). |
+| O-3 | Pflege gruppiert nur die geladenen Einträge je Bibliothek; eine Bibliothek kann darum auf Seite 2 nochmals erscheinen. | So lassen; Alternative wäre eine Abfrage je Bibliothek (`listMaintenanceIssues` kennt `libraryId`, `openapi.yaml:3801-3830`), mehr Aufrufe. **Wie vorgeschlagen** (2. November 2026). |
+| O-4 | «Wann geschaut wird» bei 365 Tagen nur aus den letzten 90 Tagen. | Hinweis unter der Überschrift; volle 365 Tage bräuchten eine Stundenspalte in `progress_days` und eine Migration (nicht empfohlen). **Wie vorgeschlagen** (2. November 2026). |
 
 ### 11.10 Risiken
 

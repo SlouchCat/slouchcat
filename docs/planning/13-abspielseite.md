@@ -15,7 +15,8 @@
   Vertrag 1.7.0; Konzept 12 (Zweig `claude/konzept-verwaltungsseiten`, nicht gemergt) nimmt
   Frage 18 und ADR 0020. Dieses Konzept nimmt darum **Frage 19** und **ADR 0021** (2160p);
   Migration und Vertragsfassung sind die nächsten freien nach 11 und 12 (voraussichtlich additiv
-  in **1.8.0**).
+  in **1.8.0**). **Nachtrag 2. November 2026:** Konzept 12 nimmt 1.8.0 als eigenes Release
+  (Frage 18); dieses Konzept rückt auf **1.9.0 oder später** und behält Frage 19 und ADR 0021.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
   und `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 
@@ -586,6 +587,7 @@ langsam – auf 720p wechseln?» mit Knopf, ohne selbst zu wechseln.
 ### 11.8 Vertrag (additiv, eine Bedeutungsänderung)
 
 Fassung beim Release festlegen (Regel Vertrag = Tag), nach 11 und 12 voraussichtlich **1.8.0**.
+Nachtrag 2. November 2026: 1.8.0 gehört Konzept 12 (Frage 18); hier gilt **1.9.0 oder später**.
 
 | Stelle | Neu |
 |---|---|
