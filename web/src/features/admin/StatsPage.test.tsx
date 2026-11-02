@@ -35,6 +35,11 @@ const stats = (days: Stats['days']): Stats => ({
     { type: 'desktop', count: 2, watchedMs: 18_000_000 },
     { type: 'unknown', count: 1, watchedMs: 2_700_000 },
   ],
+  watchTimeByQuarterHour: Array.from({ length: 672 }, (_, quarter) =>
+    quarter === 80 ? 2_700_000 : 0,
+  ),
+  timeWindowDays: Math.min(days, 90),
+  timeZone: 'Europe/Zurich',
 });
 
 const empty: Stats = {
@@ -43,6 +48,9 @@ const empty: Stats = {
   watchTime: [],
   playback: { direct: 0, remux: 0, transcode: 0, transcodeShare: 0, hardwareShare: 0 },
   devices: [],
+  watchTimeByQuarterHour: Array.from({ length: 672 }, () => 0),
+  timeWindowDays: 30,
+  timeZone: 'Europe/Zurich',
 };
 
 /** The `days` of every statistics request, in order. */

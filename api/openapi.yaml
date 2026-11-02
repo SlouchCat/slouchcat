@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.7.0
+  version: 1.8.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -5996,7 +5996,9 @@ paths:
         Over the last `days` days, unfiltered (the administration sees every profile): the most watched
         titles, the watch time per profile, the share of direct play, remux and transcoding with the
         hardware share, and the devices by type. Watch time is the played time of the progress events
-        whose server time lies in the period (offline events count with their upload time).
+        whose server time lies in the period (offline events count with their upload time). The watch
+        time per quarter hour of the week covers at most the last 90 days (`timeWindowDays`), in the
+        server's time zone.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -8587,6 +8589,11 @@ components:
           description: |
             The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
             absent when no poster is stored.
+        backdropUrl:
+          type: string
+          description: |
+            The backdrop (`w780`) through `getAdminItemImage` with the content hash, for an episode the
+            backdrop of its series; absent when no backdrop is stored.
 
     ProgressEvent:
       type: object
@@ -10426,6 +10433,9 @@ components:
           type: integer
         position:
           type: integer
+        posterUrl:
+          type: string
+          description: The poster (`w200`) through `getAdminItemImage`; absent when no poster is stored.
 
     CollectionRequest:
       type: object
@@ -12287,7 +12297,7 @@ components:
     Stats:
       type: object
       description: Usage statistics (A-8), unfiltered; titles are plain `StatTitle`s, never `ItemRef`s.
-      required: [days, topTitles, watchTime, playback, devices]
+      required: [days, topTitles, watchTime, playback, devices, watchTimeByQuarterHour, timeWindowDays, timeZone]
       properties:
         days:
           $ref: "#/components/schemas/StatsDays"
@@ -12309,6 +12319,28 @@ components:
           description: Played time per device type, most first.
           items:
             $ref: "#/components/schemas/StatDevice"
+        watchTimeByQuarterHour:
+          type: array
+          minItems: 672
+          maxItems: 672
+          description: |
+            Played time (`watchedMs`) per quarter hour of the week over the last `timeWindowDays` days:
+            7 days × 96 quarter hours, Monday 00:00 first, then Monday 00:15, up to Sunday 23:45, in the
+            server's time zone (`timeZone`). Each event counts in the quarter hour of its server time.
+          items:
+            type: integer
+            format: int64
+            minimum: 0
+        timeWindowDays:
+          type: integer
+          minimum: 1
+          maximum: 90
+          description: |
+            The days `watchTimeByQuarterHour` covers: `days`, at most 90, because events older than 90
+            days are condensed into days and lose their time of day.
+        timeZone:
+          type: string
+          description: IANA name of the server's time zone (for example `Europe/Zurich`) the quarter hours refer to.
 
     StatTitle:
       type: object
@@ -12330,6 +12362,16 @@ components:
           type: integer
           format: int64
           minimum: 0
+        posterUrl:
+          type: string
+          description: |
+            The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
+            absent when no poster is stored.
+        backdropUrl:
+          type: string
+          description: |
+            The backdrop (`w780`) through `getAdminItemImage`, for an episode the backdrop of its series;
+            absent when no backdrop is stored.
 
     StatProfile:
       type: object
