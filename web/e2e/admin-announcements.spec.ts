@@ -93,16 +93,32 @@ test('A-7: draft, change, publish and delete an announcement by keyboard', async
   expect(draft.body).toBe(BODY_LINES.join('\n'));
   expect(draft.publishedAt).toBeUndefined();
   await expect(form).toBeHidden();
-  // The form went with the save: the focus is on the page heading, not on the document body.
-  await expect(heading(page)).toBeFocused();
+  // The form went with the save: the same button of the saved draft has the focus.
+  await expectFocusOn(
+    page,
+    region(page, TITLE).getByRole('button', { name: 'Als Entwurf speichern' }),
+  );
   await expect(page.getByText(`„${TITLE}“ ist als Entwurf gespeichert.`)).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`[?&]item=announcement-${draft.id}$`));
   await expect(region(page, TITLE)).toContainText('Entwurf');
   await expect(region(page, TITLE)).toContainText('Noch nicht verschickt');
 
-  // Change the draft in place: Enter in the title field saves.
+  // Change the draft in place: Enter in the title field saves. Without a change, saving sends
+  // nothing and the focus stays.
   const title = region(page, TITLE).getByRole('textbox', { name: 'Titel' });
-  await tabTo(page, title, 20);
+  const puts: string[] = [];
+  page.on('request', (sent) => {
+    if (sent.method() === 'PUT') puts.push(sent.url());
+  });
+  await page.keyboard.press('Enter');
+  await expectFocusOn(
+    page,
+    region(page, TITLE).getByRole('button', { name: 'Als Entwurf speichern' }),
+  );
+  expect(puts).toEqual([]);
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, title);
   await expect(title).toHaveValue(TITLE);
   await page.keyboard.press('End');
   await page.keyboard.type(' (verschoben)');
@@ -164,13 +180,14 @@ test('A-7: draft, change, publish and delete an announcement by keyboard', async
   await expectFocusOn(page, sentEntry);
   await page.keyboard.press('Enter');
   await expect(region(page, moved)).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`[?&]item=announcement-${draft.id}$`));
+  // The first saved one is the page's default: no `?item=`.
+  await expect(page).toHaveURL(/\/admin\/announcements$/);
   await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, unsaved);
   await page.keyboard.press('Enter');
   await expect(form.getByRole('textbox', { name: 'Titel' })).toHaveValue('Kinoabend');
-  // The new one stands first in the list: selected, it needs no `?item=`.
-  await expect(page).toHaveURL(/\/admin\/announcements$/);
+  // The new one has an address of its own.
+  await expect(page).toHaveURL(/[?&]item=new$/);
 
   // «Abbrechen» asks before the typed text goes; the question starts on «Abbrechen».
   await tabTo(page, form.getByRole('button', { name: 'Abbrechen' }), 10);

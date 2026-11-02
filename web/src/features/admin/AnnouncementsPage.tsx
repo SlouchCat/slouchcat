@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatDate } from '@/lib/format';
@@ -23,7 +23,7 @@ import {
   DraftDetail,
   NewDetail,
   PublishedDetail,
-  type AnnouncementText,
+  type DraftText,
   type NewAnnouncement,
 } from './announcements/AnnouncementDetail';
 import { adminAnnouncementsQuery } from './queries';
@@ -40,16 +40,43 @@ const itemOf = (announcement: Announcement) => `announcement-${announcement.id}`
 const EMPTY_NEW: NewAnnouncement = { title: '', body: '', publish: false };
 
 /** What the server keeps of a text: without the blanks around title and text. */
-const trimmed = (text: AnnouncementText): AnnouncementText => ({
+const trimmed = (text: DraftText): DraftText => ({
   title: text.title.trim(),
   body: text.body.trim(),
 });
+const sameText = (a: DraftText, b: DraftText) =>
+  JSON.stringify(trimmed(a)) === JSON.stringify(trimmed(b));
 
 /** Resolves once React has rendered what the last cache update brought. */
 const afterRender = () =>
   new Promise<void>((resolve) => {
     window.setTimeout(() => window.requestAnimationFrame(() => resolve()), 0);
   });
+
+/**
+ * Resolves once no closing dialog holds the focus any more. A closing question keeps it until its
+ * exit animation ends and then hands it back to the button that asked, or drops it when that
+ * button went meanwhile.
+ */
+async function settled() {
+  await afterRender();
+  for (let frames = 0; frames < 60; frames += 1) {
+    if (!document.activeElement?.closest('[data-exiting]')) break;
+    await afterRender();
+  }
+  await afterRender();
+}
+
+/** The server refused a change because the announcement was published meanwhile. */
+const publishedMeanwhile = (error: unknown) =>
+  isApiError(error, 409) && error.code === 'announcement_published';
+
+/** The save of a changed draft before its publication failed: the form shows why. */
+class SaveFailed extends Error {
+  constructor(readonly error: unknown) {
+    super('save before publishing failed');
+  }
+}
 
 /** The one question of the page (publish, delete, discard). */
 interface Question {
@@ -91,6 +118,8 @@ function AnnouncementsContent() {
   const navigate = useNavigate();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const newTitleField = useRef<HTMLInputElement>(null);
+  const draftTitleField = useRef<HTMLInputElement>(null);
+  const draftSaveButton = useRef<HTMLButtonElement>(null);
 
   // No refetch while a question is open or something is typed: the list stays as it was.
   const hold = useRef(false);
@@ -101,16 +130,16 @@ function AnnouncementsContent() {
   const list = announcements.data;
 
   const originalOf = useCallback(
-    (id: string): AnnouncementText | undefined => {
+    (id: string): DraftText | undefined => {
       const saved = list?.find((entry) => String(entry.id) === id && !entry.publishedAt);
       return saved ? { title: saved.title, body: saved.body } : undefined;
     },
     [list],
   );
   // Drafts of saved announcements, by id; a published one (here or elsewhere) has none. A draft
-  // the server comes to hold (saved), or whose announcement is published or deleted, is dropped
-  // by useDrafts itself; what is typed while a save waits stays a draft.
-  const drafts = useDrafts<AnnouncementText>(originalOf);
+  // the server comes to hold, or whose announcement is published or deleted, is dropped by
+  // useDrafts itself; what is typed while a save waits stays a draft.
+  const drafts = useDrafts<DraftText>(originalOf);
   /** A draft counts as a change only if it differs in more than blanks around the text. */
   const isChanged = (id: string) => {
     const draft = drafts.valueOf(id);
@@ -119,7 +148,7 @@ function AnnouncementsContent() {
       drafts.isDirty(id) &&
       draft !== undefined &&
       original !== undefined &&
-      JSON.stringify(trimmed(draft)) !== JSON.stringify(trimmed(original))
+      !sameText(draft, original)
     );
   };
   const changed = drafts.dirtyIds.some(isChanged);
@@ -130,8 +159,17 @@ function AnnouncementsContent() {
 
   const [question, setQuestion] = useState<Question | null>(null);
   const [asking, setAsking] = useState(false);
+  // Where the focus goes once a confirmed question has closed (else the h1, if it was lost).
+  const afterQuestion = useRef<(() => void) | null>(null);
+
+  // The state of the last render, for the answers of the server that arrive later: what was typed
+  // meanwhile must not be lost.
+  const latestDrafts = useRef(drafts);
+  const latestCreated = useRef(created);
   useLayoutEffect(() => {
     hold.current = asking || unsaved.pausePolling;
+    latestDrafts.current = drafts;
+    latestCreated.current = created;
   });
 
   // Drafts first, then the published ones, each in the server's order (newest first).
@@ -140,12 +178,13 @@ function AnnouncementsContent() {
     ...(list ?? []).filter((entry) => entry.publishedAt),
   ];
   const first = ordered[0];
-  const fallback = created ? NEW : first ? itemOf(first) : '';
+  // Without `?item=` the first saved one shows; the new one always has `?item=new`.
+  const fallback = first ? itemOf(first) : created ? NEW : '';
   const ids = [...(created ? [NEW] : []), ...ordered.map(itemOf)];
   const [selected] = useSearchSelection('item', ids, fallback);
   /**
-   * Selects `id` in the address, replaced, not pushed; the first one without `?item=`. A promise,
-   * unlike useSearchSelection's: a save waits for it before the new one leaves the list.
+   * Selects `id` in the address, replaced, not pushed; the first saved one without `?item=`. A
+   * promise, unlike useSearchSelection's: a save waits for it before the new one leaves the list.
    */
   const select = (id: string) =>
     navigate({
@@ -153,7 +192,7 @@ function AnnouncementsContent() {
       replace: true,
       search: ((previous: Record<string, unknown>) => ({
         ...previous,
-        item: id === fallback ? undefined : id,
+        item: id === fallback && id !== NEW ? undefined : id,
       })) as never,
     });
   // An unknown `?item=` (deleted, or a new one that was never saved) shows the first one, and the
@@ -182,58 +221,81 @@ function AnnouncementsContent() {
   // announced twice: the notice is a new element each time.
   const [message, setMessage] = useState<{ text: string; seq: number } | null>(null);
   const say = (text: string) => setMessage((last) => ({ text, seq: (last?.seq ?? 0) + 1 }));
+  // A refusal of the page (publish, delete, a draft published meanwhile); a form's own errors
+  // stay with the form.
+  const [failure, setFailure] = useState<unknown>(null);
 
-  /**
-   * The focus fell to the body (its button or detail went with a change): the h1 takes it. A
-   * closing question keeps the focus until its exit animation ends and then hands it back to the
-   * button that asked, or drops it when that button went meanwhile; so this waits for it first.
-   */
+  /** The focus fell to the body (its button or detail went with a change): the h1 takes it. */
   const focusTitleIfLost = useCallback(async () => {
-    await afterRender();
-    for (let frames = 0; frames < 60; frames += 1) {
-      if (!document.activeElement?.closest('[data-exiting]')) break;
-      await afterRender();
-    }
-    await afterRender();
+    await settled();
     const active = document.activeElement;
     if (!active || active === document.body) titleRef.current?.focus();
   }, []);
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: adminAnnouncementsQuery.queryKey });
-  const put = (id: number, text: AnnouncementText): Promise<Announcement> =>
+  const put = (id: number, text: DraftText): Promise<Announcement> =>
     request(api.PUT('/admin/announcements/{id}', { params: { path: { id } }, body: text }));
+  /** Another administrator published it meanwhile: say so, drop the draft, show it as sent. */
+  const onPublishedMeanwhile = (announcement: Announcement, error: unknown) => {
+    setFailure(error);
+    latestDrafts.current.discard(String(announcement.id));
+    void refresh();
+  };
 
   const create = useMutation({
     mutationFn: (body: AnnouncementRequest): Promise<Announcement> =>
       request(api.POST('/admin/announcements', { body })),
-    onSuccess: async (saved) => {
+    onSuccess: async (saved, sent) => {
       await refresh();
+      // What was typed while the request ran goes on as the draft of the saved one.
+      const typed = latestCreated.current;
       // The saved one takes the new one's place in the list and in the address.
       await select(itemOf(saved));
       setCreated(null);
+      if (!saved.publishedAt && typed && !sameText(typed, sent))
+        latestDrafts.current.set(String(saved.id), { title: typed.title, body: typed.body });
       say(
         saved.publishedAt
           ? t('admin.announcements.published', { title: saved.title })
           : t('admin.announcements.saved', { title: saved.title }),
       );
-      await focusTitleIfLost();
+      if (saved.publishedAt) {
+        await focusTitleIfLost();
+      } else {
+        // The form went with the new one; the same place in the saved draft takes the focus.
+        await afterRender();
+        draftSaveButton.current?.focus();
+      }
     },
   });
   const update = useMutation({
-    mutationFn: ({ announcement, text }: { announcement: Announcement; text: AnnouncementText }) =>
+    mutationFn: ({ announcement, text }: { announcement: Announcement; text: DraftText }) =>
       put(announcement.id, text),
     onSuccess: async (saved) => {
       await refresh();
+      // A draft that differs from the saved text only in blanks is spent.
+      const id = String(saved.id);
+      const now = latestDrafts.current.valueOf(id);
+      if (now && sameText(now, saved)) latestDrafts.current.discard(id);
       say(t('admin.announcements.saved', { title: saved.title }));
+    },
+    onError: (error, { announcement }) => {
+      if (publishedMeanwhile(error)) onPublishedMeanwhile(announcement, error);
     },
   });
   const publish = useMutation({
     // What is typed is what goes out: a changed draft is saved first.
     mutationFn: async (announcement: Announcement): Promise<Announcement> => {
       const id = String(announcement.id);
-      const draft = drafts.valueOf(id);
-      if (isChanged(id) && draft) await put(announcement.id, trimmed(draft));
+      const draft = latestDrafts.current.valueOf(id);
+      if (isChanged(id) && draft) {
+        try {
+          await put(announcement.id, trimmed(draft));
+        } catch (error) {
+          throw new SaveFailed(error);
+        }
+      }
       return request(
         api.POST('/admin/announcements/{id}/publish', {
           params: { path: { id: announcement.id } },
@@ -246,8 +308,15 @@ function AnnouncementsContent() {
       // Its form and buttons are gone: once React rendered that, the h1 takes the focus.
       await focusTitleIfLost();
     },
-    // A draft saved before a refused publication is saved all the same.
-    onError: () => void refresh(),
+    onError: (error, announcement) => {
+      if (error instanceof SaveFailed) {
+        if (publishedMeanwhile(error.error)) onPublishedMeanwhile(announcement, error.error);
+        return;
+      }
+      setFailure(error);
+      // A draft saved before a refused publication is saved all the same.
+      void refresh();
+    },
   });
   const remove = useMutation({
     mutationFn: (announcement: Announcement) =>
@@ -259,12 +328,13 @@ function AnnouncementsContent() {
       say(t('admin.announcements.deleted', { title: announcement.title }));
       await focusTitleIfLost();
     },
+    onError: (error) => setFailure(error),
   });
-  const failure = publish.error ?? remove.error;
 
   /** A new action starts: the outcome of the last one (message or error) goes away. */
   const start = () => {
     setMessage(null);
+    setFailure(null);
     create.reset();
     update.reset();
     publish.reset();
@@ -273,6 +343,7 @@ function AnnouncementsContent() {
 
   // The question is the page's own: a detail that goes while it is open cannot take it along.
   const ask = (next: Question) => {
+    afterQuestion.current = null;
     setQuestion(next);
     setAsking(true);
   };
@@ -280,8 +351,10 @@ function AnnouncementsContent() {
     (open: boolean) => {
       if (open) return;
       setAsking(false);
+      const after = afterQuestion.current;
+      afterQuestion.current = null;
       // The button that asked may be gone by now.
-      void focusTitleIfLost();
+      void (after ? settled().then(after) : focusTitleIfLost());
     },
     [focusTitleIfLost],
   );
@@ -309,9 +382,12 @@ function AnnouncementsContent() {
       },
     });
 
+  const draftCount = (created ? 1 : 0) + ordered.filter((entry) => !entry.publishedAt).length;
   const section = {
-    drafts: t('admin.announcements.sections.drafts'),
-    published: t('admin.announcements.sections.published'),
+    drafts: t('admin.announcements.sections.drafts', { number: draftCount }),
+    published: t('admin.announcements.sections.published', {
+      number: ordered.filter((entry) => entry.publishedAt).length,
+    }),
   };
   const items: MasterDetailItem[] = [
     ...(created
@@ -354,6 +430,7 @@ function AnnouncementsContent() {
         titleRef={newTitleField}
         onSave={() => {
           setMessage(null);
+          setFailure(null);
           create.mutate({ ...trimmed(created), publish: created.publish });
         }}
         onCancel={() => {
@@ -381,6 +458,17 @@ function AnnouncementsContent() {
   } else if (current) {
     const id = String(current.id);
     const text = drafts.valueOf(id) ?? current;
+    const mine = (announcement: Announcement | undefined) => announcement?.id === current.id;
+    // Its own failed save, or the failed save before its publication; «published meanwhile» is
+    // the page's message instead.
+    const saveError =
+      mine(update.variables?.announcement) && update.error && !publishedMeanwhile(update.error)
+        ? update.error
+        : mine(publish.variables) &&
+            publish.error instanceof SaveFailed &&
+            !publishedMeanwhile(publish.error.error)
+          ? publish.error.error
+          : null;
     detail = (
       <DraftDetail
         key={current.id}
@@ -388,10 +476,15 @@ function AnnouncementsContent() {
         text={text}
         dirty={isChanged(id)}
         onChange={(next) => drafts.set(id, next)}
-        saving={update.isPending && update.variables?.announcement.id === current.id}
-        error={update.variables?.announcement.id === current.id ? update.error : null}
+        saving={update.isPending && mine(update.variables?.announcement)}
+        publishing={publish.isPending && mine(publish.variables)}
+        error={saveError}
+        titleRef={draftTitleField}
+        saveRef={draftSaveButton}
         onSave={() => {
-          setMessage(null);
+          // Nothing changed: nothing to send, the focus stays.
+          if (!isChanged(id)) return;
+          start();
           update.mutate({ announcement: current, text: trimmed(text) });
         }}
         onDiscard={() =>
@@ -401,7 +494,11 @@ function AnnouncementsContent() {
             confirmLabel: t('admin.announcements.discard.confirm'),
             tone: 'danger',
             defaultFocus: 'cancel',
-            onConfirm: () => drafts.discard(id),
+            onConfirm: () => {
+              drafts.discard(id);
+              // «Verwerfen» goes with the change: the title takes the focus.
+              afterQuestion.current = () => draftTitleField.current?.focus();
+            },
           })
         }
         onPublish={() =>
@@ -427,14 +524,14 @@ function AnnouncementsContent() {
       help={t('admin.announcements.intro')}
       titleRef={titleRef}
       actions={
-        <AriaButton variant="primary" icon="plus" onPress={openNew}>
+        <AriaButton variant="primary" icon="plus" isDisabled={!list} onPress={openNew}>
           {t('admin.announcements.create')}
         </AriaButton>
       }
     >
-      {failure && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
       <div role="status" className={styles.live}>
-        {message && !failure && (
+        {message && failure === null && (
           <Notice key={message.seq} live={false}>
             {message.text}
           </Notice>

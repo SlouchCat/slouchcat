@@ -1,5 +1,5 @@
 import type { Announcement } from '@slouchcat/api-client';
-import type { ReactNode, Ref } from 'react';
+import { useRef, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { AnnouncementContent } from '@/features/notifications/AnnouncementContent';
@@ -13,13 +13,13 @@ export const MAX_TITLE = 120;
 export const MAX_BODY = 4000;
 
 /** What is typed for an announcement: the draft of a saved one (useDrafts, S-17). */
-export interface AnnouncementText {
+export interface DraftText {
   title: string;
   body: string;
 }
 
 /** The new announcement while it is not saved yet: its text and «Sofort veröffentlichen». */
-export interface NewAnnouncement extends AnnouncementText {
+export interface NewAnnouncement extends DraftText {
   publish: boolean;
 }
 
@@ -27,7 +27,7 @@ export interface NewAnnouncement extends AnnouncementText {
  * «So sehen es die Profile»: the content of the profiles' announcement dialog without its buttons,
  * with what is typed right now. An unpublished one shows today's date, the day it would go out.
  */
-function Preview({ text, publishedAt }: { text: AnnouncementText; publishedAt?: string }) {
+function Preview({ text, publishedAt }: { text: DraftText; publishedAt?: string }) {
   const { t } = useTranslation();
   return (
     <div className={styles.detail}>
@@ -98,25 +98,30 @@ function Facts({ announcement }: { announcement: Announcement }) {
 interface AnnouncementFormProps {
   /** Spoken name of the form («Neue Ankündigung», «Entwurf bearbeiten»). */
   label: string;
-  text: AnnouncementText;
-  onChange: (text: AnnouncementText) => void;
+  text: DraftText;
+  onChange: (text: DraftText) => void;
   /** The last failed save of this form: a field's message under the field, else above. */
   error: unknown;
   onSubmit: () => void;
+  formRef?: Ref<HTMLFormElement>;
   titleRef?: Ref<HTMLInputElement>;
+  /** The fields take no input (the text is on its way out). */
+  readOnly?: boolean;
   /** Between the fields and the buttons. */
   extra?: ReactNode;
   actions: ReactNode;
 }
 
-/** Title and text, both required; Enter in the title saves (ANK-1, ANK-3). */
+/** Title (with its length) and text, both required; Enter in the title saves (ANK-1, ANK-3). */
 function AnnouncementForm({
   label,
   text,
   onChange,
   error,
   onSubmit,
+  formRef,
   titleRef,
+  readOnly = false,
   extra,
   actions,
 }: AnnouncementFormProps) {
@@ -125,6 +130,7 @@ function AnnouncementForm({
   const required = (value: string) => (value.trim() ? null : t('errors.field.required'));
   return (
     <Form
+      ref={formRef}
       aria-label={label}
       validationErrors={errors?.fields}
       onSubmit={(event) => {
@@ -137,11 +143,16 @@ function AnnouncementForm({
         <TextField
           name="title"
           label={t('admin.announcements.form.titleLabel')}
+          description={t('admin.announcements.form.titleCount', {
+            length: text.title.length,
+            max: MAX_TITLE,
+          })}
           value={text.title}
           onChange={(title) => onChange({ ...text, title })}
           inputRef={titleRef}
           maxLength={MAX_TITLE}
           isRequired
+          isReadOnly={readOnly}
           validate={required}
           autoComplete="off"
         />
@@ -154,6 +165,7 @@ function AnnouncementForm({
           rows={8}
           maxLength={MAX_BODY}
           isRequired
+          isReadOnly={readOnly}
           validate={required}
         />
         {extra}
@@ -173,7 +185,11 @@ interface NewDetailProps {
   titleRef: Ref<HTMLInputElement>;
 }
 
-/** «Neue Ankündigung» in the detail (ANK-1): it may go out at once, else it becomes a draft. */
+/**
+ * «Neue Ankündigung» in the detail (ANK-1): it may go out at once, else it becomes a draft. What
+ * is typed while a draft is being saved stays (the page carries it over to the saved draft); one
+ * that goes out at once takes no more input meanwhile.
+ */
 export function NewDetail({
   value,
   onChange,
@@ -194,6 +210,7 @@ export function NewDetail({
           error={error}
           onSubmit={onSave}
           titleRef={titleRef}
+          readOnly={saving && value.publish}
           extra={
             <CheckboxGroup
               name="publish"
@@ -201,6 +218,7 @@ export function NewDetail({
               description={t('admin.announcements.publish.reach')}
               value={value.publish ? ['publish'] : []}
               onChange={(checked) => onChange({ ...value, publish: checked.includes('publish') })}
+              isDisabled={saving}
               options={[{ value: 'publish', label: t('admin.announcements.form.publishNow') }]}
             />
           }
@@ -213,7 +231,7 @@ export function NewDetail({
                     ? t('admin.announcements.publish.confirm')
                     : t('admin.announcements.form.save')}
               </AriaButton>
-              <AriaButton variant="ghost" onPress={onCancel}>
+              <AriaButton variant="ghost" isDisabled={saving} onPress={onCancel}>
                 {t('common.cancel')}
               </AriaButton>
             </>
@@ -228,15 +246,20 @@ export function NewDetail({
 interface DraftDetailProps {
   announcement: Announcement;
   /** What is typed: the draft, else the saved text. */
-  text: AnnouncementText;
+  text: DraftText;
   dirty: boolean;
-  onChange: (text: AnnouncementText) => void;
+  onChange: (text: DraftText) => void;
   saving: boolean;
+  /** It is being published: the fields take no input, «Veröffentlichen» waits. */
+  publishing: boolean;
   error: unknown;
   onSave: () => void;
   onDiscard: () => void;
+  /** Called only when title and text are valid; otherwise the form says what is missing. */
   onPublish: () => void;
   onDelete: () => void;
+  titleRef: Ref<HTMLInputElement>;
+  saveRef: Ref<HTMLButtonElement>;
 }
 
 /**
@@ -249,14 +272,33 @@ export function DraftDetail({
   dirty,
   onChange,
   saving,
+  publishing,
   error,
   onSave,
   onDiscard,
   onPublish,
   onDelete,
+  titleRef,
+  saveRef,
 }: DraftDetailProps) {
   const { t } = useTranslation();
+  const formRef = useRef<HTMLFormElement>(null);
   const name = { title: announcement.title };
+  // An empty title or text is not published: instead of the question, the form shows what is
+  // missing and the first field without a valid value takes the focus.
+  const publishIfValid = () => {
+    const form = formRef.current;
+    if (form && !form.reportValidity()) {
+      const invalid = [...form.elements].find(
+        (element): element is HTMLInputElement | HTMLTextAreaElement =>
+          (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) &&
+          !element.validity.valid,
+      );
+      invalid?.focus();
+      return;
+    }
+    onPublish();
+  };
   return (
     <BandPanel
       title={announcement.title}
@@ -271,21 +313,37 @@ export function DraftDetail({
           onChange={onChange}
           error={error}
           onSubmit={onSave}
-          extra={<p className={styles.muted}>{t('admin.announcements.publish.reach')}</p>}
+          formRef={formRef}
+          titleRef={titleRef}
+          readOnly={publishing}
+          extra={
+            <p className={styles.muted}>
+              {t('admin.announcements.publish.later', {
+                reach: t('admin.announcements.publish.reach'),
+              })}
+            </p>
+          }
           actions={
             <>
-              <AriaButton type="submit" variant="primary" isPending={saving}>
+              <AriaButton
+                ref={saveRef}
+                type="submit"
+                variant="primary"
+                isPending={saving}
+                isDisabled={publishing}
+              >
                 {saving ? t('common.saving') : t('admin.announcements.form.save')}
               </AriaButton>
               {dirty && (
-                <AriaButton variant="ghost" onPress={onDiscard}>
+                <AriaButton variant="ghost" isDisabled={publishing} onPress={onDiscard}>
                   {t('admin.announcements.discard.action')}
                 </AriaButton>
               )}
               <AriaButton
                 variant="secondary"
                 aria-label={t('admin.announcements.publish.label', name)}
-                onPress={onPublish}
+                isPending={publishing}
+                onPress={publishIfValid}
               >
                 {t('admin.announcements.publish.action')}
               </AriaButton>
@@ -293,6 +351,7 @@ export function DraftDetail({
                 variant="danger"
                 icon="trash"
                 aria-label={t('admin.announcements.delete.label', name)}
+                isDisabled={publishing}
                 onPress={onDelete}
               >
                 {t('admin.announcements.delete.action')}

@@ -1,5 +1,6 @@
 import type { Announcement } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -139,15 +140,17 @@ describe('admin announcements (A-7)', () => {
     expect(
       within(form).getByRole('checkbox', { name: 'Sofort veröffentlichen' }),
     ).not.toBeChecked();
-    expect(router.state.location.search).toMatchObject({});
-    // The new one stands in the list as not saved.
+    // The new one has an address of its own and stands in the list as not saved.
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ item: 'new' }));
     expect(option(/Neue Ankündigung/)).toHaveTextContent('Nicht gespeichert');
+    expect(within(form).getByText('0 / 120')).toBeVisible();
 
     await user.click(within(form).getByRole('button', { name: 'Als Entwurf speichern' }));
     expect(within(form).getAllByText('Pflichtfeld.')).toHaveLength(2);
     expect(sent(calls, 'POST')).toBeUndefined();
 
     await user.type(title, 'Wartung am Samstag');
+    expect(within(form).getByText('18 / 120')).toBeVisible();
     await user.type(body, 'Zeile eins{Enter}Zeile zwei');
     await user.click(within(form).getByRole('button', { name: 'Als Entwurf speichern' }));
     await waitFor(() => expect(form).not.toBeInTheDocument());
@@ -165,7 +168,69 @@ describe('admin announcements (A-7)', () => {
     );
     expect(option(/Wartung am Samstag/)).toHaveAttribute('aria-selected', 'true');
     expect(within(listBox()).queryByRole('option', { name: /Nicht gespeichert/ })).toBeNull();
-    expect(detail('Wartung am Samstag')).toBeVisible();
+    // The form went with the new one: the same place in the saved draft has the focus.
+    await waitFor(() =>
+      expect(
+        within(detail('Wartung am Samstag')).getByRole('button', {
+          name: 'Als Entwurf speichern',
+        }),
+      ).toHaveFocus(),
+    );
+  });
+
+  it('keeps what is typed while the new one is being saved', async () => {
+    const created: Announcement = { ...draft, id: 7, title: 'Kinoabend', body: 'Am Freitag.' };
+    let list: Announcement[] = [];
+    // The answer to the POST waits until the test gives it.
+    let answer: () => void = () => undefined;
+    const { calls } = mockApiAndRender(() => list, {
+      'POST /admin/announcements': () =>
+        new Promise<Response>((resolve) => {
+          answer = () => {
+            list = [created];
+            resolve(json(created, 201));
+          };
+        }),
+    });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Neue Ankündigung' }));
+    const form = await screen.findByRole('form', { name: 'Neue Ankündigung' });
+    const title = within(form).getByRole('textbox', { name: 'Titel' });
+    await user.type(title, 'Kinoabend');
+    await user.type(within(form).getByRole('textbox', { name: 'Text' }), 'Am Freitag.');
+    await user.click(within(form).getByRole('button', { name: 'Als Entwurf speichern' }));
+    await waitFor(() => expect(sent(calls, 'POST')).toBeDefined());
+    // «Abbrechen» waits for the answer; typing goes on.
+    expect(within(form).getByRole('button', { name: 'Abbrechen' })).toBeDisabled();
+    await user.type(title, ' um acht');
+    answer();
+
+    const saved = await screen.findByRole('region', { name: 'Kinoabend' });
+    expect(within(saved).getByRole('textbox', { name: 'Titel' })).toHaveValue('Kinoabend um acht');
+    expect(option(/Kinoabend/)).toHaveTextContent('Ungespeicherte Änderungen');
+    expect(sent(calls, 'POST')?.body).toEqual({
+      title: 'Kinoabend',
+      body: 'Am Freitag.',
+      publish: false,
+    });
+  });
+
+  it('«Neue Ankündigung» waits for the list', async () => {
+    let answer: () => void = () => undefined;
+    mockApi(
+      routes(() => [], {
+        'GET /admin/announcements': () =>
+          new Promise<Response>((resolve) => {
+            answer = () => resolve(json([]));
+          }),
+      }),
+    );
+    renderApp('/admin/announcements');
+    expect(await screen.findByRole('button', { name: 'Neue Ankündigung' })).toBeDisabled();
+    answer();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Neue Ankündigung' })).toBeEnabled(),
+    );
   });
 
   it('publishes a new announcement at once when asked to', async () => {
@@ -259,12 +324,20 @@ describe('admin announcements (A-7)', () => {
     expect(within(question).getByRole('button', { name: 'Abbrechen' })).toHaveFocus();
     await user.click(within(question).getByRole('button', { name: 'Verwerfen' }));
     await waitFor(() => expect(title).toHaveValue(draft.title));
+    // «Verwerfen» went with the change: the title has the focus.
+    await waitFor(() => expect(title).toHaveFocus());
   });
 
-  it('changes a draft; one published meanwhile is refused', async () => {
-    let answer = problem(409, 'announcement_published');
-    const { calls } = mockApiAndRender(() => [draft], {
-      'PUT /admin/announcements/2': () => answer,
+  it('saves a changed draft; a field the server refuses is marked in the form', async () => {
+    let list = [draft];
+    let answer = problem(422, 'validation_failed', {
+      errors: [{ field: 'title', code: 'too_long' }],
+    });
+    const { calls } = mockApiAndRender(() => list, {
+      'PUT /admin/announcements/2': (call) => {
+        if (answer.ok) list = [{ ...draft, ...(call.body as Partial<Announcement>) }];
+        return answer;
+      },
     });
     const user = userEvent.setup();
     const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
@@ -272,56 +345,180 @@ describe('admin announcements (A-7)', () => {
     expect(title).toHaveValue(draft.title);
     expect(within(form).getByRole('textbox', { name: 'Text' })).toHaveValue(draft.body);
     expect(within(form).queryByRole('checkbox')).toBeNull();
+    expect(form).toHaveTextContent('Danach lässt sie sich nicht mehr ändern.');
     await user.type(title, ' (verschoben)');
     await user.click(within(form).getByRole('button', { name: 'Als Entwurf speichern' }));
-    expect(
-      await within(form).findByText(
-        'Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.',
-      ),
-    ).toBeVisible();
+    expect(await within(form).findByText('Zu lang.')).toBeVisible();
+    expect(title).toHaveAttribute('aria-invalid', 'true');
 
-    answer = json({ ...draft, title: 'Wartung am Samstag (verschoben)' });
+    // The mark goes as soon as the field changes; the next save goes through.
+    await user.type(title, '!');
+    expect(within(form).queryByText('Zu lang.')).toBeNull();
+    answer = json({ ...draft, title: 'Wartung am Samstag (verschoben)!' });
     await user.click(within(form).getByRole('button', { name: 'Als Entwurf speichern' }));
     expect(
-      await screen.findByText('„Wartung am Samstag (verschoben)“ ist als Entwurf gespeichert.'),
+      await screen.findByText('„Wartung am Samstag (verschoben)!“ ist als Entwurf gespeichert.'),
     ).toBeVisible();
     expect(calls.filter((call) => call.method === 'PUT').at(-1)?.body).toEqual({
-      title: 'Wartung am Samstag (verschoben)',
+      title: 'Wartung am Samstag (verschoben)!',
       body: draft.body,
     });
   });
 
-  it('announces the same message again when the same action repeats', async () => {
-    mockApiAndRender(() => [draft], {
-      'PUT /admin/announcements/2': () => json(draft),
+  it('a draft published meanwhile: the page says so, drops the change and shows it as sent', async () => {
+    let list = [draft];
+    mockApiAndRender(() => list, {
+      'PUT /admin/announcements/2': () => {
+        list = [{ ...draft, publishedAt: '2026-10-21T10:00:00Z' }];
+        return problem(409, 'announcement_published');
+      },
     });
     const user = userEvent.setup();
     const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
-    const save = within(form).getByRole('button', { name: 'Als Entwurf speichern' });
-    await user.click(save);
-    const first = await screen.findByText('„Wartung am Samstag“ ist als Entwurf gespeichert.');
-    const status = first.closest('[role="status"]')!;
-    await user.click(save);
-    await waitFor(() =>
-      expect(
-        within(status as HTMLElement).getByText(
-          '„Wartung am Samstag“ ist als Entwurf gespeichert.',
-        ),
-      ).not.toBe(first),
+    await user.type(within(form).getByRole('textbox', { name: 'Titel' }), ' (verschoben)');
+    await user.click(within(form).getByRole('button', { name: 'Als Entwurf speichern' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.',
     );
+    const sentOne = await screen.findByRole('region', { name: 'Wartung am Samstag' });
+    await waitFor(() => expect(within(sentOne).queryByRole('form')).toBeNull());
+    expect(sentOne).toHaveTextContent('0 von 5 Profilen');
+    expect(option(/Wartung am Samstag/)).toHaveTextContent('0 von 5 gelesen');
   });
 
-  it('publishes a draft after the confirmation with what is typed; the focus goes to the heading', async () => {
+  it('keeps what is typed while a draft is being saved', async () => {
+    let list = [draft];
+    let answer: () => void = () => undefined;
+    mockApiAndRender(() => list, {
+      'PUT /admin/announcements/2': (call) =>
+        new Promise<Response>((resolve) => {
+          answer = () => {
+            list = [{ ...draft, ...(call.body as Partial<Announcement>) }];
+            resolve(json(list[0]));
+          };
+        }),
+    });
+    const user = userEvent.setup();
+    const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
+    const title = within(form).getByRole('textbox', { name: 'Titel' });
+    await user.type(title, ' (verschoben)');
+    await user.click(within(form).getByRole('button', { name: 'Als Entwurf speichern' }));
+    await user.type(title, ' auf Sonntag');
+    answer();
+    expect(
+      await screen.findByText('„Wartung am Samstag (verschoben)“ ist als Entwurf gespeichert.'),
+    ).toBeVisible();
+    expect(title).toHaveValue('Wartung am Samstag (verschoben) auf Sonntag');
+    expect(option(/Wartung am Samstag/)).toHaveTextContent('Ungespeicherte Änderungen');
+  });
+
+  it('saves nothing without a change; the same message again is announced again', async () => {
     let list = [draft];
     const { calls } = mockApiAndRender(() => list, {
       'PUT /admin/announcements/2': (call) => {
         list = [{ ...draft, ...(call.body as Partial<Announcement>) }];
         return json(list[0]);
       },
-      'POST /admin/announcements/2/publish': () => {
-        list = list.map((entry) => ({ ...entry, publishedAt: '2026-10-21T10:00:00Z' }));
+    });
+    const puts = () => calls.filter((call) => call.method === 'PUT').length;
+    const user = userEvent.setup();
+    const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
+    const save = within(form).getByRole('button', { name: 'Als Entwurf speichern' });
+    const body = within(form).getByRole('textbox', { name: 'Text' });
+    await user.click(save);
+    expect(puts()).toBe(0);
+    expect(save).toHaveFocus();
+
+    await user.type(body, ' A');
+    await user.click(save);
+    const first = await screen.findByText('„Wartung am Samstag“ ist als Entwurf gespeichert.');
+    const status = first.closest<HTMLElement>('[role="status"]')!;
+    await user.type(body, 'B');
+    await user.click(save);
+    await waitFor(() => expect(puts()).toBe(2));
+    // The same words, a new element: a screen reader announces them again.
+    await waitFor(() =>
+      expect(
+        within(status).getByText('„Wartung am Samstag“ ist als Entwurf gespeichert.'),
+      ).not.toBe(first),
+    );
+  });
+
+  it('does not refetch on window focus while a draft is changed', async () => {
+    const { calls } = mockApiAndRender(() => [draft]);
+    const lists = () => calls.filter((call) => call.path === '/admin/announcements').length;
+    const refocus = () =>
+      act(() => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+      });
+    const user = userEvent.setup();
+    try {
+      const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
+      await user.type(within(form).getByRole('textbox', { name: 'Titel' }), '!');
+      const before = lists();
+      refocus();
+      // Give a refetch the chance it must not take.
+      await act(() => new Promise((resolve) => window.setTimeout(resolve, 50)));
+      expect(lists()).toBe(before);
+
+      await user.type(within(form).getByRole('textbox', { name: 'Titel' }), '{Backspace}');
+      refocus();
+      await waitFor(() => expect(lists()).toBeGreaterThan(before));
+    } finally {
+      focusManager.setFocused(undefined);
+    }
+  });
+
+  it('an empty title is not published: no question, the form marks it and takes the focus', async () => {
+    const { calls } = mockApiAndRender(() => [draft]);
+    const user = userEvent.setup();
+    const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
+    const title = within(form).getByRole('textbox', { name: 'Titel' });
+    await user.clear(title);
+    await user.click(screen.getByRole('button', { name: '„Wartung am Samstag“ veröffentlichen' }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(within(form).getByText('Pflichtfeld.')).toBeVisible();
+    expect(title).toHaveFocus();
+    expect(calls.some((call) => call.method !== 'GET')).toBe(false);
+  });
+
+  it('a refused save before the publication is marked in the form', async () => {
+    const { calls } = mockApiAndRender(() => [draft], {
+      'PUT /admin/announcements/2': () =>
+        problem(422, 'validation_failed', { errors: [{ field: 'body', code: 'too_long' }] }),
+    });
+    const user = userEvent.setup();
+    const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
+    await user.type(within(form).getByRole('textbox', { name: 'Text' }), ' Mehr.');
+    await user.click(screen.getByRole('button', { name: '„Wartung am Samstag“ veröffentlichen' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Veröffentlichen' }));
+    expect(await within(form).findByText('Zu lang.')).toBeVisible();
+    expect(within(form).getByRole('textbox', { name: 'Text' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(sent(calls, 'POST')).toBeUndefined();
+    expect(screen.queryByRole('alert', { name: /Zu lang/ })).toBeNull();
+  });
+
+  it('publishes a draft after the confirmation with what is typed; the focus goes to the heading', async () => {
+    let list = [draft];
+    // The publication waits until the test answers it.
+    let answer: () => void = () => undefined;
+    const { calls } = mockApiAndRender(() => list, {
+      'PUT /admin/announcements/2': (call) => {
+        list = [{ ...draft, ...(call.body as Partial<Announcement>) }];
         return json(list[0]);
       },
+      'POST /admin/announcements/2/publish': () =>
+        new Promise<Response>((resolve) => {
+          answer = () => {
+            list = list.map((entry) => ({ ...entry, publishedAt: '2026-10-21T10:00:00Z' }));
+            resolve(json(list[0]));
+          };
+        }),
     });
     const user = userEvent.setup();
     const form = await screen.findByRole('form', { name: 'Entwurf bearbeiten' });
@@ -335,6 +532,13 @@ describe('admin announcements (A-7)', () => {
     await waitFor(() => expect(sent(calls, 'POST')?.path).toBe('/admin/announcements/2/publish'));
     // The changed text was saved first.
     expect(sent(calls, 'PUT')?.body).toEqual({ title: draft.title, body: `${draft.body} Danke!` });
+    // While it goes out, the text takes no input and «Veröffentlichen» waits.
+    expect(within(form).getByRole('textbox', { name: 'Titel' })).toHaveAttribute('readonly');
+    expect(within(form).getByRole('textbox', { name: 'Text' })).toHaveAttribute('readonly');
+    expect(
+      screen.getByRole('button', { name: '„Wartung am Samstag“ veröffentlichen' }),
+    ).toHaveAttribute('data-pending');
+    answer();
     expect(await screen.findByText('„Wartung am Samstag“ ist veröffentlicht.')).toBeVisible();
     await waitFor(() =>
       expect(screen.getByRole('region', { name: 'Wartung am Samstag' })).toHaveTextContent(

@@ -2490,8 +2490,8 @@
       "empty": "No announcements yet.",
       "create": "New announcement",
       "sections": {
-        "drafts": "Drafts",
-        "published": "Published"
+        "drafts": "Drafts {{number}}",
+        "published": "Published {{number}}"
       },
       "item": {
         "new": "Not saved",
@@ -2514,6 +2514,7 @@
         "title": "New announcement",
         "editTitle": "Edit draft",
         "titleLabel": "Title",
+        "titleCount": "{{length}} / {{max}}",
         "body": "Text",
         "bodyHint": "At most {{max}} characters. Line breaks are kept.",
         "publishLabel": "Publishing",
@@ -2539,7 +2540,8 @@
         "title": "Publish “{{title}}”?",
         "body": "Every profile sees the announcement at its next start. It goes to the channels of every account that chose announcements; guests receive it by e-mail by default. It cannot be changed afterwards.",
         "confirm": "Publish",
-        "reach": "Every profile sees it at its next start, and it goes to the channels of every account that chose announcements. Guests receive it by e-mail by default."
+        "reach": "Every profile sees it at its next start, and it goes to the channels of every account that chose announcements. Guests receive it by e-mail by default.",
+        "later": "When it is published: {{reach}} It cannot be changed afterwards."
       },
       "delete": {
         "action": "Delete",

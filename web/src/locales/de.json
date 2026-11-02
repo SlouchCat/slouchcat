@@ -2490,8 +2490,8 @@
       "empty": "Noch keine Ankündigungen.",
       "create": "Neue Ankündigung",
       "sections": {
-        "drafts": "Entwürfe",
-        "published": "Veröffentlicht"
+        "drafts": "Entwürfe {{number}}",
+        "published": "Veröffentlicht {{number}}"
       },
       "item": {
         "new": "Nicht gespeichert",
@@ -2514,6 +2514,7 @@
         "title": "Neue Ankündigung",
         "editTitle": "Entwurf bearbeiten",
         "titleLabel": "Titel",
+        "titleCount": "{{length}} / {{max}}",
         "body": "Text",
         "bodyHint": "Höchstens {{max}} Zeichen. Zeilenumbrüche bleiben erhalten.",
         "publishLabel": "Veröffentlichung",
@@ -2539,7 +2540,8 @@
         "title": "„{{title}}“ veröffentlichen?",
         "body": "Jedes Profil sieht die Ankündigung beim nächsten Start. Sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat; Gäste bekommen sie standardmässig per E-Mail. Danach lässt sie sich nicht mehr ändern.",
         "confirm": "Veröffentlichen",
-        "reach": "Jedes Profil sieht sie beim nächsten Start, und sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat. Gäste bekommen sie standardmässig per E-Mail."
+        "reach": "Jedes Profil sieht sie beim nächsten Start, und sie geht an die Kanäle jedes Kontos, das Ankündigungen gewählt hat. Gäste bekommen sie standardmässig per E-Mail.",
+        "later": "Beim Veröffentlichen: {{reach}} Danach lässt sie sich nicht mehr ändern."
       },
       "delete": {
         "action": "Löschen",
