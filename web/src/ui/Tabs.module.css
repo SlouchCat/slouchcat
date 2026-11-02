@@ -5,6 +5,11 @@
   min-width: 0;
 }
 
+/* In a BandPanel the band and the panel's padding space the tabs. */
+.headed {
+  gap: 0;
+}
+
 .scroller {
   overflow-x: auto;
 
@@ -21,7 +26,15 @@
   border-bottom: 1px solid var(--sc-color-border-subtle);
 }
 
+.list.inHead {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
 .tab {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
   padding: var(--sc-space-2) var(--sc-space-4);
   border-radius: var(--sc-radius-full);
   color: var(--sc-color-text-secondary);
@@ -47,6 +60,25 @@
 .tab[data-focus-visible] {
   outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
   outline-offset: var(--sc-focus-ring-offset);
+}
+
+.count {
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: calc(var(--sc-space-5) + 2px);
+  font-variant-numeric: tabular-nums;
+}
+
+.warning {
+  color: var(--sc-color-state-warning);
+}
+
+.danger {
+  color: var(--sc-color-state-danger);
 }
 
 .panel {

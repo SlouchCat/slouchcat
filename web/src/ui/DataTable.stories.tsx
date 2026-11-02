@@ -66,3 +66,17 @@ export const Rows: Story = {};
 
 /** Tab to the first row's button; ↓ moves to the same button in the next row. */
 export const RowFocus: Story = { tags: ['press:Tab+ArrowDown'] };
+
+export const RowsCompact: Story = { globals: { density: 'compact' } };
+
+/** Rows that fold out: Tab to the first row's name, Enter opens its row below it. */
+export const Expandable: Story = {
+  args: {
+    expand: {
+      render: (row: Stream) => `${row.title}: ${row.quality}, ${row.mode}, seit 12 Minuten.`,
+    },
+  },
+  tags: ['press:Tab+Enter'],
+};
+
+export const ExpandableCompact: Story = { ...Expandable, globals: { density: 'compact' } };

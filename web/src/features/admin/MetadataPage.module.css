@@ -112,23 +112,6 @@
   gap: var(--sc-space-2);
 }
 
-/* The save bar sticks to the bottom while the page scrolls. */
-.saveBar {
-  position: sticky;
-  bottom: var(--sc-space-3);
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sc-space-2) var(--sc-space-4);
-  padding: var(--sc-space-3) var(--sc-space-4);
-  border: 1px solid var(--sc-color-border);
-  border-radius: var(--sc-radius-lg);
-  background: var(--sc-color-surface-raised);
-  box-shadow: var(--sc-shadow-md);
-}
-
 .live:empty {
   display: none;
 }

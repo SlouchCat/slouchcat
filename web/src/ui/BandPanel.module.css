@@ -1,0 +1,102 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-panel-radius);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+/*
+ * The head band (concept 12, 11.2): the profile's accent at 12 % over the panel, like the bands of
+ * the administration's sidebar (16 %, AdminSideNav.module.css). The tint is a variable of the band
+ * itself, so a frame with another accent recolours it. BandPanel.test.tsx checks the contrast of
+ * the title and of the icon for all eight accents.
+ */
+.band {
+  --sc-band-tint: color-mix(in srgb, var(--sc-accent) 12%, transparent);
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--sc-space-12);
+  padding: var(--sc-space-1) var(--sc-panel-padding);
+  border-bottom: 1px solid var(--sc-color-border-subtle);
+  background-color: var(--sc-band-tint);
+}
+
+/* With tabs the list follows the title; the tabs' own scroller keeps its room for focus rings. */
+.withTabs {
+  justify-content: flex-start;
+}
+
+.title {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-section-title-size);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.toggle {
+  display: inline-flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  min-height: var(--sc-control-height);
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  border-radius: var(--sc-radius-sm);
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.chevron {
+  display: inline-flex;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+}
+
+.icon {
+  display: inline-flex;
+  color: var(--sc-accent);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-panel-gap);
+  min-width: 0;
+  padding: var(--sc-panel-padding);
+}
+
+.body[hidden] {
+  display: none;
+}

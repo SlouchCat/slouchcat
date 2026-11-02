@@ -84,3 +84,17 @@ export const TypedConfirmation: Story = {
     </>
   ),
 };
+
+/** Opened by the page (from a menu or a row), without a trigger of its own. */
+export const Controlled: Story = {
+  render: (args) => (
+    <>
+      {/* The dialog sits in a portal; this keeps the story root from being empty. */}
+      <AriaButton variant="danger">Sicherung löschen</AriaButton>
+      <ConfirmDialog {...args} trigger={undefined} isOpen onOpenChange={() => undefined} />
+    </>
+  ),
+};
+
+/** The same in the compact density: AdminDensityScope marks the dialog's portal. */
+export const ControlledCompact: Story = { ...Controlled, globals: { density: 'compact' } };

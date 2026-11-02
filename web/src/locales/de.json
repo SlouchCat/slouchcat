@@ -322,6 +322,7 @@
       "noGerman": "liefert kein Deutsch",
       "fillOnly": "nur Auffüller",
       "hint": "Der erste Eintrag erkennt den Titel, die weiteren füllen nur auf. Reihenfolge mit den Pfeilen oder den Pfeiltasten.",
+      "hintRank": "Der erste Eintrag erkennt den Titel, die weiteren füllen nur auf. Die Reihenfolge wählst du mit dem Platz.",
       "required": "Wähle mindestens eine Quelle.",
       "cannotIdentify": "{{provider}} kann keinen Titel erkennen. Setze {{identifiers}} an die erste Stelle.",
       "fixedHint": "Für diesen Inhalt gibt es heute nur diese Quelle.",
@@ -442,6 +443,28 @@
     "row": {
       "previous": "Zurückblättern",
       "next": "Weiterblättern"
+    },
+    "adminPage": {
+      "help": "Hilfe zu dieser Seite",
+      "live_one": "Live, jede Sekunde",
+      "live_other": "Live, alle {{count}} Sekunden"
+    },
+    "actionMenu": {
+      "label": "Weitere Aktionen für {{name}}",
+      "danger": "Gefahr"
+    },
+    "rank": {
+      "label": "Platz für {{name}}",
+      "option": "Platz {{position}}",
+      "hintMove": "Die anderen Einträge rücken nach.",
+      "hintSwap": "Der Eintrag auf dem gewählten Platz tauscht mit diesem."
+    },
+    "saveBar": {
+      "dirty": "Ungespeicherte Änderungen",
+      "clean": "Gespeichert",
+      "save": "Speichern",
+      "saving": "Wird gespeichert …",
+      "discard": "Verwerfen"
     }
   },
   "item": {
@@ -2567,11 +2590,6 @@
         "noRun": "Noch kein Lauf."
       },
       "save": {
-        "dirty": "Ungespeicherte Änderungen",
-        "clean": "Gespeichert",
-        "save": "Speichern",
-        "saving": "Wird gespeichert …",
-        "discard": "Verwerfen",
         "saved_one": "Gespeichert. {{count}} Titel betroffen – jetzt anwenden?",
         "saved_other": "Gespeichert. {{count}} Titel betroffen – jetzt anwenden?",
         "savedLibrary": "Gespeichert für {{name}}."

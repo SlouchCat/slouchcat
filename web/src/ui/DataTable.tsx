@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { Icon } from './Icon';
 import styles from './DataTable.module.css';
 
 export interface DataColumn<T> {
@@ -13,12 +14,26 @@ export interface DataColumn<T> {
   align?: 'start' | 'end';
 }
 
+/** Rows that fold out (concept 12, 11.2): what a row shows below itself when it is open. */
+export interface DataTableExpand<T> {
+  /** The fold-out of a row, in a row of its own below it (`<tr><td colSpan>`). */
+  render: (row: T) => ReactNode;
+  /** Open rows when the page holds them; uncontrolled (all closed at first) without. */
+  expandedKeys?: ReadonlySet<string>;
+  onExpandedChange?: (key: string, expanded: boolean) => void;
+}
+
 interface DataTableProps<T> {
   /** Name of the table (its caption, visible to screen readers only). */
   caption: string;
   columns: readonly DataColumn<T>[];
   rows: readonly T[];
   rowKey: (row: T) => string;
+  /**
+   * Rows that fold out: the cell of the row-header column (else the first) becomes a button with
+   * `aria-expanded` and `aria-controls`; its content must not hold controls of its own.
+   */
+  expand?: DataTableExpand<T>;
 }
 
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), [tabindex="0"]';
@@ -34,7 +49,11 @@ function moveBetweenRows(event: KeyboardEvent) {
   const cell = target.closest('td, th');
   const row = cell?.parentElement;
   if (!(cell instanceof HTMLTableCellElement) || !(row instanceof HTMLTableRowElement)) return;
-  const next = event.key === 'ArrowDown' ? row.nextElementSibling : row.previousElementSibling;
+  const step = (from: Element) =>
+    event.key === 'ArrowDown' ? from.nextElementSibling : from.previousElementSibling;
+  // A closed fold-out is a hidden row of its own; the arrows skip it.
+  let next = step(row);
+  while (next instanceof HTMLTableRowElement && next.hidden) next = step(next);
   if (!(next instanceof HTMLTableRowElement)) return;
   const sameColumn = next.cells[cell.cellIndex]?.querySelector<HTMLElement>(FOCUSABLE);
   const destination = sameColumn ?? next.querySelector<HTMLElement>(FOCUSABLE);
@@ -46,9 +65,24 @@ function moveBetweenRows(event: KeyboardEvent) {
 /**
  * A table of records (devices, streams) with header row and row headers. Each row's controls
  * (buttons, links) are in the Tab order; ↑/↓ jump between rows. On narrow screens the table
- * scrolls sideways inside its frame instead of widening the page.
+ * scrolls sideways inside its frame instead of widening the page. With `expand` a row folds out
+ * into a row of its own below it; the table, its headers and the roles row/cell stay as they are.
  */
-export function DataTable<T>({ caption, columns, rows, rowKey }: DataTableProps<T>) {
+export function DataTable<T>({ caption, columns, rows, rowKey, expand }: DataTableProps<T>) {
+  const id = useId();
+  const [ownExpanded, setOwnExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const expanded = expand?.expandedKeys ?? ownExpanded;
+  const toggle = (key: string) => {
+    const open = !expanded.has(key);
+    const next = new Set(ownExpanded);
+    if (open) next.add(key);
+    else next.delete(key);
+    setOwnExpanded(next);
+    expand?.onExpandedChange?.(key, open);
+  };
+  const toggleColumn = expand
+    ? (columns.find((column) => column.rowHeader) ?? columns[0])?.key
+    : undefined;
   // A native listener: the rows are not widgets of their own, only their controls are.
   const body = useRef<HTMLTableSectionElement>(null);
   useEffect(() => {
@@ -79,22 +113,53 @@ export function DataTable<T>({ caption, columns, rows, rowKey }: DataTableProps<
           </tr>
         </thead>
         <tbody ref={body}>
-          {rows.map((row) => (
-            <tr key={rowKey(row)} className={styles.row} data-row-key={rowKey(row)}>
-              {columns.map((column) => {
-                const className = `${styles.cell} ${column.align === 'end' ? styles.end : ''}`;
-                return column.rowHeader ? (
-                  <th key={column.key} scope="row" className={className}>
-                    {column.cell(row)}
-                  </th>
-                ) : (
-                  <td key={column.key} className={className}>
-                    {column.cell(row)}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+          {rows.map((row, index) => {
+            const key = rowKey(row);
+            const open = expanded.has(key);
+            const detailId = `${id}-${index}`;
+            return (
+              <Fragment key={key}>
+                <tr className={styles.row} data-row-key={key}>
+                  {columns.map((column) => {
+                    const className = `${styles.cell} ${column.align === 'end' ? styles.end : ''}`;
+                    const content =
+                      column.key === toggleColumn ? (
+                        <button
+                          type="button"
+                          className={styles.toggle}
+                          aria-expanded={open}
+                          aria-controls={detailId}
+                          onClick={() => toggle(key)}
+                        >
+                          <span className={`${styles.chevron} ${open ? styles.open : ''}`}>
+                            <Icon name="chevronRight" size="sm" />
+                          </span>
+                          {column.cell(row)}
+                        </button>
+                      ) : (
+                        column.cell(row)
+                      );
+                    return column.rowHeader ? (
+                      <th key={column.key} scope="row" className={className}>
+                        {content}
+                      </th>
+                    ) : (
+                      <td key={column.key} className={className}>
+                        {content}
+                      </td>
+                    );
+                  })}
+                </tr>
+                {expand && (
+                  <tr className={styles.detailRow} hidden={!open}>
+                    <td id={detailId} colSpan={columns.length} className={styles.detail}>
+                      {open && expand.render(row)}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

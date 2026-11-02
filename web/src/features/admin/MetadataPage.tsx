@@ -19,7 +19,7 @@ import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Chip, Notice, Page, Panel, SelectField, Skeleton, Text, TextLink } from '@/ui';
-import { AriaButton, CheckboxGroup, RadioGroup, Switch } from '@/ui/aria';
+import { AriaButton, CheckboxGroup, RadioGroup, SaveBar, Switch } from '@/ui/aria';
 import {
   applyMetadata,
   jobTypesQuery,
@@ -812,28 +812,12 @@ export function MetadataPage() {
                 </>
               )}
 
-              <div
-                className={styles.saveBar}
-                role="region"
-                aria-label={t('admin.metadata.save.save')}
-              >
-                <Text tone={dirty ? 'primary' : 'secondary'}>
-                  {dirty ? t('admin.metadata.save.dirty') : t('admin.metadata.save.clean')}
-                </Text>
-                <div className={styles.actions}>
-                  <AriaButton variant="ghost" isDisabled={!dirty || saving} onPress={onDiscard}>
-                    {t('admin.metadata.save.discard')}
-                  </AriaButton>
-                  <AriaButton
-                    variant="primary"
-                    isDisabled={!dirty}
-                    isPending={saving}
-                    onPress={onSave}
-                  >
-                    {saving ? t('admin.metadata.save.saving') : t('admin.metadata.save.save')}
-                  </AriaButton>
-                </div>
-              </div>
+              <SaveBar
+                dirty={Boolean(dirty)}
+                saving={saving}
+                onSave={onSave}
+                onDiscard={onDiscard}
+              />
               {errors?.form ? <Notice tone="danger">{errors.form}</Notice> : null}
               <div role="status" className={styles.live}>
                 {message && !saveError && <Notice live={false}>{message}</Notice>}

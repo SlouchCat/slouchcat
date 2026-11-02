@@ -40,14 +40,22 @@ const infos: MetadataProviderInfo[] = [
 function Harness({
   content,
   initial,
+  ordering,
 }: {
   content: 'movie' | 'series' | 'audiobook';
   initial: MetadataProvider[];
+  ordering?: 'arrows' | 'rank';
 }) {
   const [value, setValue] = useState(initial);
   return (
     <>
-      <ProviderList content={content} value={value} onChange={setValue} infos={infos} />
+      <ProviderList
+        content={content}
+        value={value}
+        onChange={setValue}
+        infos={infos}
+        ordering={ordering}
+      />
       <output data-testid="value">{value.join(',')}</output>
     </>
   );
@@ -110,5 +118,25 @@ describe('ProviderList', () => {
     rerender(<ProviderList content="series" value={['tmdb', 'tvdb']} onChange={() => undefined} />);
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(screen.getByText('TMDB › TVDB')).toBeVisible();
+  });
+
+  it('keeps the arrow buttons by default; the rank option chooses positions instead', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Harness content="series" initial={['tvdb', 'tmdb']} />);
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getByRole('button', { name: 'TMDB nach oben' })).toBeVisible();
+    unmount();
+
+    render(<Harness content="series" initial={['tvdb', 'tmdb', 'anilist']} ordering="rank" />);
+    expect(screen.queryByRole('button', { name: /nach (oben|unten)$/ })).toBeNull();
+    const anilist = screen.getByRole('combobox', { name: 'Platz für AniList' });
+    expect(anilist).toHaveValue('2');
+    expect(anilist).toHaveAccessibleDescription('Die anderen Einträge rücken nach.');
+    await user.selectOptions(anilist, 'Platz 1');
+    expect(screen.getByTestId('value')).toHaveTextContent('anilist,tvdb,tmdb');
+    // An unticked provider has no position.
+    await user.click(screen.getByRole('checkbox', { name: 'TVDB' }));
+    expect(screen.queryByRole('combobox', { name: 'Platz für TVDB' })).toBeNull();
+    expect(screen.getAllByRole('combobox')).toHaveLength(2);
   });
 });

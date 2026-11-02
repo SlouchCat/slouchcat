@@ -8,13 +8,19 @@ import {
   type RefObject,
 } from 'react';
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { useDensityPortalProps } from './adminDensity';
 import { AriaButton } from './AriaButton';
 import { TextField } from './TextField';
 import styles from './Dialog.module.css';
 
 interface ConfirmDialogProps {
-  /** The button that opens the dialog. */
-  trigger: ReactElement;
+  /**
+   * The button that opens the dialog. Without it the page opens the dialog itself with
+   * `isOpen` (from a menu or an expandable row, which have no button of their own for it).
+   */
+  trigger?: ReactElement;
+  /** Open state when the page opens the dialog; uncontrolled with a `trigger` alone. */
+  isOpen?: boolean;
   title: string;
   body: string;
   confirmLabel: string;
@@ -27,10 +33,11 @@ interface ConfirmDialogProps {
 
 /**
  * Modal confirmation (react-aria): focus moves into the dialog, Escape and Cancel close it and
- * focus returns to the trigger.
+ * focus returns to the trigger, or to where it was when the page opened the dialog.
  */
 export function ConfirmDialog({
   trigger,
+  isOpen,
   title,
   body,
   confirmLabel,
@@ -39,38 +46,49 @@ export function ConfirmDialog({
   tone = 'primary',
   onOpenChange,
 }: ConfirmDialogProps) {
+  const density = useDensityPortalProps();
+  const overlay = (
+    <ModalOverlay
+      className={styles.overlay}
+      isDismissable
+      {...density}
+      // Inside a DialogTrigger the trigger holds the state; on its own the page does.
+      {...(trigger ? {} : { isOpen: isOpen ?? false, onOpenChange })}
+    >
+      <Modal className={styles.modal}>
+        <Dialog className={styles.dialog} role="alertdialog">
+          {({ close }) => (
+            <>
+              <Heading slot="title" className={styles.title}>
+                {title}
+              </Heading>
+              <p className={styles.body}>{body}</p>
+              <div className={styles.actions}>
+                <AriaButton variant="ghost" onPress={close}>
+                  {cancelLabel}
+                </AriaButton>
+                <AriaButton
+                  variant={tone}
+                  autoFocus
+                  onPress={() => {
+                    onConfirm();
+                    close();
+                  }}
+                >
+                  {confirmLabel}
+                </AriaButton>
+              </div>
+            </>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+  if (!trigger) return overlay;
   return (
-    <DialogTrigger onOpenChange={onOpenChange}>
+    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       {trigger}
-      <ModalOverlay className={styles.overlay} isDismissable>
-        <Modal className={styles.modal}>
-          <Dialog className={styles.dialog} role="alertdialog">
-            {({ close }) => (
-              <>
-                <Heading slot="title" className={styles.title}>
-                  {title}
-                </Heading>
-                <p className={styles.body}>{body}</p>
-                <div className={styles.actions}>
-                  <AriaButton variant="ghost" onPress={close}>
-                    {cancelLabel}
-                  </AriaButton>
-                  <AriaButton
-                    variant={tone}
-                    autoFocus
-                    onPress={() => {
-                      onConfirm();
-                      close();
-                    }}
-                  >
-                    {confirmLabel}
-                  </AriaButton>
-                </div>
-              </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      {overlay}
     </DialogTrigger>
   );
 }
@@ -134,6 +152,7 @@ export function ConfirmInputDialog({
   const typed = entry.asked === asked ? entry.typed : '';
   const matches = typed.trim() === expected;
   const clear = () => setEntry({ asked: '', typed: '' });
+  const density = useDensityPortalProps();
   const close = () => {
     clear();
     onOpenChange(false);
@@ -142,6 +161,7 @@ export function ConfirmInputDialog({
   return (
     <ModalOverlay
       className={styles.overlay}
+      {...density}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (open) {
@@ -278,8 +298,14 @@ export function FormDialog({
     return () => cancelAnimationFrame(frame);
   }, [isOpen, returnFocus]);
 
+  const density = useDensityPortalProps();
   return (
-    <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange}>
+    <ModalOverlay
+      className={styles.overlay}
+      {...density}
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <Modal className={`${styles.modal} ${size === 'wide' ? styles.wide : ''}`}>
         <Dialog className={styles.dialog}>
           <div className={styles.head}>

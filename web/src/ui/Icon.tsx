@@ -93,6 +93,14 @@ const paths = {
   forward: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 5v5h-5" fill="none" />,
   close: <path d="M6 6l12 12M18 6L6 18" fill="none" />,
   menu: <path d="M4 6.5h16M4 12h16M4 17.5h16" fill="none" />,
+  // «Weitere Aktionen» of a row (ActionMenu, concept 12 S-6).
+  more: (
+    <>
+      <circle cx="5.5" cy="12" r="1.25" />
+      <circle cx="12" cy="12" r="1.25" />
+      <circle cx="18.5" cy="12" r="1.25" />
+    </>
+  ),
   search: (
     <>
       <circle cx="10.5" cy="10.5" r="6" fill="none" />

@@ -40,7 +40,8 @@
   transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
-.row + .row {
+.row + .row,
+.detailRow + .row {
   border-top: 1px solid var(--sc-color-border-subtle);
 }
 
@@ -63,4 +64,44 @@ th.cell {
 
 .end {
   text-align: right;
+}
+
+/* The first cell of a row that folds out: the whole cell is the button. */
+.toggle {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-space-6);
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  border-radius: var(--sc-radius-sm);
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.chevron {
+  display: inline-flex;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+}
+
+.detailRow {
+  background-color: var(--sc-color-surface-2);
+}
+
+.detail {
+  padding: var(--sc-space-3) var(--sc-space-4) var(--sc-space-4);
+  color: var(--sc-color-text-secondary);
 }

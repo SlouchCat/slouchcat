@@ -54,3 +54,17 @@ export { Tabs } from './Tabs';
 export { TextField } from './TextField';
 export { TrailerDialog } from './TrailerDialog';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
+// Building blocks of the administration pages (concept 12, 11.2).
+export { ActionMenu, type ActionMenuItem } from './ActionMenu';
+export { AdminDensityScope, useDensityPortalProps } from './adminDensity';
+export { AdminPage } from './AdminPage';
+export { BandPanel } from './BandPanel';
+export { type DataTableExpand } from './DataTable';
+export { DisclosureGroup } from './DisclosureGroup';
+export { MasterDetail, type MasterDetailItem } from './MasterDetail';
+export { RankHint, RankSelect, rankTo, type RankMode } from './RankSelect';
+export { SaveBar } from './SaveBar';
+export { SectionHeader } from './SectionHeader';
+export { SettingRow } from './SettingRow';
+export { StatusStrip } from './StatusStrip';
+export { type TabItem } from './Tabs';

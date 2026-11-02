@@ -322,6 +322,7 @@
       "noGerman": "no German texts",
       "fillOnly": "fills in only",
       "hint": "The first entry identifies the title, the others only fill in. Reorder with the arrows or the arrow keys.",
+      "hintRank": "The first entry identifies the title, the others only fill in. Choose the order with the position.",
       "required": "Tick at least one source.",
       "cannotIdentify": "{{provider}} cannot identify a title. Put {{identifiers}} first.",
       "fixedHint": "This content has only this source today.",
@@ -442,6 +443,28 @@
     "row": {
       "previous": "Scroll back",
       "next": "Scroll forward"
+    },
+    "adminPage": {
+      "help": "Help for this page",
+      "live_one": "Live, every second",
+      "live_other": "Live, every {{count}} seconds"
+    },
+    "actionMenu": {
+      "label": "More actions for {{name}}",
+      "danger": "Danger"
+    },
+    "rank": {
+      "label": "Position of {{name}}",
+      "option": "Position {{position}}",
+      "hintMove": "The other entries move along.",
+      "hintSwap": "The entry in the chosen position swaps with this one."
+    },
+    "saveBar": {
+      "dirty": "Unsaved changes",
+      "clean": "Saved",
+      "save": "Save",
+      "saving": "Saving …",
+      "discard": "Discard"
     }
   },
   "item": {
@@ -2567,11 +2590,6 @@
         "noRun": "No run yet."
       },
       "save": {
-        "dirty": "Unsaved changes",
-        "clean": "Saved",
-        "save": "Save",
-        "saving": "Saving …",
-        "discard": "Discard",
         "saved_one": "Saved. {{count}} title affected – apply now?",
         "saved_other": "Saved. {{count}} titles affected – apply now?",
         "savedLibrary": "Saved for {{name}}."

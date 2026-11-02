@@ -1,0 +1,82 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-section-gap);
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+  min-height: var(--sc-control-height);
+}
+
+.title {
+  min-width: 0;
+  margin: 0;
+  outline: none;
+}
+
+.help {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-control-height);
+  height: var(--sc-control-height);
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-full);
+  background-color: transparent;
+  color: var(--sc-color-text-muted);
+  cursor: pointer;
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.help[aria-expanded='true'] {
+  color: var(--sc-color-text-primary);
+}
+
+.help:focus-visible {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+@media (hover: hover) {
+  .help:hover {
+    color: var(--sc-color-text-primary);
+  }
+}
+
+.live {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  white-space: nowrap;
+}
+
+/* The main actions sit at the end of the line, or on a line of their own when it wraps. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin-left: auto;
+}
+
+.intro {
+  max-width: 60rem;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

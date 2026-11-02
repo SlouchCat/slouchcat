@@ -39,10 +39,17 @@ function Editable(props: {
   content: 'movie' | 'series' | 'audiobook';
   initial: MetadataProvider[];
   infos?: MetadataProviderInfo[];
+  ordering?: 'arrows' | 'rank';
 }) {
   const [value, setValue] = useState(props.initial);
   return (
-    <ProviderList content={props.content} value={value} onChange={setValue} infos={props.infos} />
+    <ProviderList
+      content={props.content}
+      value={value}
+      onChange={setValue}
+      infos={props.infos}
+      ordering={props.ordering}
+    />
   );
 }
 
@@ -81,3 +88,8 @@ export const WithoutServerAnswer: Story = {
 
 /** Tab to the first checkbox, Tab twice more to «… nach oben» of the second row. */
 export const Focused: Story = { tags: ['press:Tab+Tab+Tab+Tab'] };
+
+/** The position as a choice (concept 12, S-16), only in the administration's folder dialog. */
+export const Rank: Story = { args: { ordering: 'rank' } };
+
+export const RankCompact: Story = { ...Rank, globals: { density: 'compact' } };
