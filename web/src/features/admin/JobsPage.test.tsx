@@ -1,5 +1,5 @@
 import type { JobOverview, JobRun, JobSummary, JobTypeInfo } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { dashboardFixture } from '@/test/admin';
@@ -618,6 +618,93 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual([
       '/admin/jobs/80/retry',
     ]);
+  });
+
+  it('the running time of a run ticks once a second (JOB-4a)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(Date.parse('2026-10-30T12:00:10Z'));
+    const started = run({ id: 41, startedAt: '2026-10-30T12:00:00Z', durationSeconds: 0 });
+    mockApi(
+      routes({
+        'GET /admin/job-types': () =>
+          json({
+            ...overview(),
+            types: [
+              type({
+                counts: { queued: 0, planned: 0, running: 1, failed: 0 },
+                running: [started],
+              }),
+            ],
+          }),
+      }),
+    );
+    renderApp('/admin/jobs');
+    const running = await screen.findByRole('table', { name: 'Läuft gerade' });
+    const since = () => {
+      const text = within(running).getAllByRole('row')[1]!.textContent ?? '';
+      const seconds = /seit (\d+) s/.exec(text);
+      if (!seconds) throw new Error(`no running time in «${text}»`);
+      return Number(seconds[1]);
+    };
+    // The clock also moves with real time (shouldAdvanceTime), so the steps are lower bounds.
+    const first = since();
+    expect(first).toBeGreaterThanOrEqual(10);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(since()).toBeGreaterThanOrEqual(first + 1);
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(since()).toBeGreaterThanOrEqual(first + 6);
+  });
+
+  it('a type this page does not know has no actions, no schedule and no runs (JOB-6)', async () => {
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/job-types': () =>
+          json({
+            ...overview(),
+            types: [
+              ...overview().types,
+              type({ type: 'legacy.sweep', group: 'system', known: false, runnable: true }),
+            ],
+          }),
+      }),
+    );
+    renderApp('/admin/jobs?tab=system');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    const user = userEvent.setup();
+    const legacy = await openRow(user, 'legacy.sweep');
+    expect(
+      within(legacy).getByText('Dieser Server kennt den Job nicht mehr (älterer Stand).'),
+    ).toBeVisible();
+    expect(within(legacy).queryAllByRole('button')).toEqual([]);
+    expect(within(legacy).queryByRole('region')).toBeNull();
+    expect(calls.some((call) => call.path === '/admin/jobs')).toBe(false);
+  });
+
+  it('asks for at most 200 runs and names the total when there are more (JOB-7)', async () => {
+    const { fetchMock } = mockApi(
+      routes({
+        'GET /admin/jobs': () =>
+          json({
+            runs: Array.from({ length: 200 }, (_, index) =>
+              run({ id: 1000 + index, state: 'queued', subject: `Titel ${index}` }),
+            ),
+            total: 236,
+          }),
+      }),
+    );
+    renderApp('/admin/jobs?tab=metadata');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    const user = userEvent.setup();
+    const match = await openRow(user, 'Titel zuordnen');
+    const runs = within(match).getByRole('region', { name: 'Läufe von Titel zuordnen' });
+    const table = await within(runs).findByRole('table', { name: 'Läufe von Titel zuordnen' });
+    expect(within(table).getAllByRole('row')).toHaveLength(201);
+    // Once visible below the tabs, once for the screen reader.
+    expect(within(runs).getAllByText('236 insgesamt, die neuesten 200 gezeigt')).toHaveLength(2);
+    const asked = fetchMock.mock.calls
+      .map(([request]) => new URL(request.url))
+      .filter((url) => url.pathname.endsWith('/admin/jobs'));
+    expect(asked.map((url) => url.searchParams.get('limit'))).toEqual(['200']);
   });
 
   it('refuses anyone but an administrator in the primary profile', async () => {

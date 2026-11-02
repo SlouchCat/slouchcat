@@ -205,7 +205,18 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(within(list).queryByRole('button', { name: /nach vorne|nach hinten/ })).toBeNull();
     // The quota line of ADR 0006: two languages, 50 titles a day.
     expect(within(languages).getByText(/2 Sprachen: bis zu 50 Titel am Tag/)).toBeVisible();
+    // The order is the fallback (MET-2), and a provider that lacks a language says so: AniList
+    // has no Deutsch; TMDB and TVDB have both, the local files have no language list.
+    expect(within(languages).getByText(/^Reihenfolge = Rückfall: fehlt ein Text/)).toBeVisible();
+    const warning = within(languages).getByText(/kennt nicht:/);
+    expect(warning).toHaveTextContent(/^ANILIST kennt nicht: Deutsch 2 Sprachen:/);
+    expect(warning).not.toHaveTextContent(/TMDB|TVDB|LOCAL/);
     // The links of MET-1.
+    expect(
+      screen.getByRole('link', {
+        name: 'Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.',
+      }),
+    ).toHaveAttribute('href', '/admin/libraries');
     expect(
       screen.getByRole('link', { name: 'Die Zeitpläne stehen unter Hintergrundjobs.' }),
     ).toHaveAttribute('href', '/admin/jobs');
@@ -219,6 +230,13 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       within(images).getByRole('checkbox', { name: 'Staffelposter' }),
     ).toHaveAccessibleDescription('Sonst das Serienposter');
     expect(within(images).getByRole('checkbox', { name: /Folgenbild/ })).toBeChecked();
+    // The kinds left out on purpose are named, not offered (MET-3).
+    expect(
+      within(images).getByText(
+        'Art, Banner und Disc gibt es bewusst nicht: keine Seite zeigt sie.',
+      ),
+    ).toBeVisible();
+    expect(within(images).queryByRole('checkbox', { name: /Banner|Disc|Art/ })).toBeNull();
     const poster = within(images).getByRole('group', { name: 'Bildsprache Poster' });
     expect(placesOf(poster)).toEqual(['de', 'en', '']);
     // «Ohne Text» is a choice of the image places.
