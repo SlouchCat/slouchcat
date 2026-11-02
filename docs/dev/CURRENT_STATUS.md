@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 11 «Übersicht der Verwaltung»: im Bau, Schritte 0 bis 4 fertig (2. November 2026)
+## Konzept 11 «Übersicht der Verwaltung»: im Bau, Schritte 0 bis 5 fertig (2. November 2026)
 
 Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
 `docs/planning/11-verwaltung-uebersicht.md` Abschnitt 11.8 mit OMC (`executor` je Schritt,
@@ -36,6 +36,35 @@ Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach
   Wiederherstellung ebenso), `server_restart` mit Konto; `RestartPanel` aus `BackupPage` gelöst und
   allgemein (`useId`, Tests für Aufgeben nach 90 s und «Erneut prüfen»). Noch kein Knopf in der
   Oberfläche (Schritt 5). Review: freigegeben, Befunde behoben.
+
+- **Schritt 5** (`a67fdf9`, `2d52b1f`, `c265df3`, `65cf024`, `00b6880`): Verwaltungsleiste im
+  Gerüst statt der App-Leiste auf `/admin*` (lazy geladen mit Rückfall, `data-shell="admin"` aus
+  `index.html` vor dem ersten Bild, Breite ab 768 px reserviert, Fokus wandert beim Wechsel der
+  Leisten mit), Blatt-Knopf unter 768 px; Übersicht neu mit acht Karten in zwei Spalten, Hinweisen
+  in der Reihenfolge von 11.1, «Letzte Aktivität», zugeklapptem Server-Protokoll, «Nach Updates
+  suchen» und «Neu starten» mit Rückfrage und `RestartPanel` (409 `restart_pending` zeigt direkt
+  die Warteanzeige); Verlust-Bedingung auf «Bibliotheken» wie im Server (`!lossAcceptedAt`);
+  `ui/AdminNav`, Bereichskarten und Fehlschlag-Tabelle entfernt, Sprachschlüssel bereinigt.
+  Abweichungen (Review bestätigt): Abzeichen A-5 ausserhalb von `/admin` zusätzlich an
+  «Verwaltung» der App-Leiste; Karte Webhooks behält ihren Satz statt drei Kennzahlen; Karte
+  Server nur mit Fakten, Warnungen zu Grafikchip und inotify in den Hinweisen; Symbol `download`
+  für Webhooks; Laufzeit aus `Health.uptimeSeconds`. Review: Änderungen verlangt (Fokusverlust
+  beim Leistenwechsel, Major), alle Befunde ausser Dateiaufteilung von `AdminHomePage.tsx` behoben.
+
+**Belege Schritt 5** (`verifier`, HEAD `00b6880`, frischer Lauf):
+
+```
+$ task ci                                   EXIT=0
+web test:  Test Files  93 passed (93)
+web test:       Tests  741 passed (741)
+web:storybook:test  212 passed (16.7s)
+ci:e2e  498 passed (25.4m)                  Chromium und Firefox, 0 rot
+A-9 log scan: 83154 lines of …/server.log, 17 secrets of the run, 0 findings
+```
+
+Server: `go test -race` 33 Pakete ok, kein `FAIL`. Fokus-Nachweis in
+`web/e2e/admin-home.spec.ts` (Enter auf «Verwaltung» fokussiert «Übersicht», «Zurück zur App»
+fokussiert «Start»); Fokusfalle im Blatt mit Tab und Umschalt+Tab geprüft.
 
 **Belege Schritt 2 und 3** (Agentenläufe, frischer lokaler Server):
 
@@ -78,8 +107,10 @@ dem Handlertest: `jobs.active`, `jobs.failedByType` mit geschwärztem Fehler, `j
 `attention.abortedScans`, `counts {accounts, maintenanceOpen, titles}`, `streams[].posterUrl` mit
 dem Hash des Serienposters. e2e lief noch nicht (keine Änderung der Oberfläche bis Schritt 5).
 
-**Offen:** Schritt 5 (Gerüst, Verwaltungsleiste, Übersicht, alle Tests inklusive e2e) und Schritt 6
-(Abnahme auf CT 190).
+**Offen:** Schritt 6: Abbild bauen und auf CT 190 ausrollen; Abnahme durch Marco am Desktop (mit
+und ohne ausgeblendete App-Leiste) und am Handy; p95 von `GET /admin/dashboard` kalt und warm und
+Zeilen in `activity_events` nach einem Tag in `docs/perf/verwaltung.md`; Vergleich Prototyp und
+gebaute Seite; Release Notes 1.7.0.
 
 ## Nachtrag Konzept 10: «Nur Bilder» bei Ordnern mit einer Quelle (1. November 2026)
 
