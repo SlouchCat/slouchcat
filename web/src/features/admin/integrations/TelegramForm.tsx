@@ -29,6 +29,9 @@ export function TelegramForm({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Empty means «keep what is stored»: nothing to send, the focus stays on «Speichern»
+    // (decision 18).
+    if (token === '') return;
     setMessage(null);
     const sent = token;
     void save.run({ telegram: { botToken: token.trim() } }).then((outcome) => {
@@ -55,10 +58,12 @@ export function TelegramForm({
           spellCheck="false"
           mono
           isDisabled={env}
-          isRequired={!env}
           value={token}
           onChange={(text) => fields.set(TELEGRAM_DRAFT, text)}
-          validate={(text) => (env || text.trim() ? null : t('errors.field.required'))}
+          // Empty keeps the stored token; only blanks alone are no token.
+          validate={(text) =>
+            env || text === '' || text.trim() ? null : t('errors.field.required')
+          }
         />
         {!env && (
           <Actions

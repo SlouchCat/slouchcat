@@ -101,7 +101,7 @@ describe('integrations (A-2)', () => {
     );
   });
 
-  it('saves a key write-only and shows its hint; an empty key is not sent', async () => {
+  it('saves a key write-only and shows its hint; an empty or blank key is not sent', async () => {
     let current = settings();
     const { calls } = mockApi(
       routes({
@@ -118,6 +118,13 @@ describe('integrations (A-2)', () => {
     const user = userEvent.setup();
     const save = await screen.findByRole('button', { name: 'YouTube-Schlüssel speichern' });
     const field = screen.getByLabelText('YouTube-API-Schlüssel');
+    // Empty keeps what is stored (decision 18): nothing is sent, the focus stays on «Speichern».
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(field).not.toHaveAccessibleDescription(/Pflichtfeld/);
+    expect(puts(calls)).toHaveLength(0);
+    // Blanks alone are no key: the field says so.
+    await fill(user, field, '   ');
     await user.click(save);
     await waitFor(() => expect(field).toHaveAccessibleDescription(/Pflichtfeld/));
     expect(puts(calls)).toHaveLength(0);
@@ -282,6 +289,11 @@ describe('integrations (A-2)', () => {
     const user = userEvent.setup();
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     const token = within(telegram).getByLabelText('Bot-Token');
+    // Empty keeps what is stored (decision 18): nothing is sent, the focus stays on «Speichern».
+    const save = within(telegram).getByRole('button', { name: 'Speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(puts(calls)).toHaveLength(0);
     await fill(user, token, '123:abc');
     await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
     await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));

@@ -34,6 +34,9 @@ export function KeyRow({
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Empty means «keep what is stored»: nothing to send, the focus stays on «Speichern»
+    // (decision 18).
+    if (value === '') return;
     setMessage(null);
     const sent = value;
     void save.run({ keys: { [keyName]: value.trim() } }).then((outcome) => {
@@ -61,10 +64,12 @@ export function KeyRow({
             spellCheck="false"
             mono
             isDisabled={env}
-            isRequired={!env}
             value={value}
             onChange={(text) => drafts.set(draft, text)}
-            validate={(text) => (env || text.trim() ? null : t('errors.field.required'))}
+            // Empty keeps the stored key; only blanks alone are no key.
+            validate={(text) =>
+              env || text === '' || text.trim() ? null : t('errors.field.required')
+            }
           />
           {env ? (
             <SourceChip source={state.source} />
