@@ -1,12 +1,20 @@
-import type { AdminSettings } from '@slouchcat/api-client';
-import { useQueryClient } from '@tanstack/react-query';
+import type { AdminSettings, AdminSettingsUpdate } from '@slouchcat/api-client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors } from '@/api/errors';
 import { sessionQuery } from '@/app/session';
 import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui/aria';
 import styles from './Integrations.module.css';
-import { Actions, Outcome, PUBLIC_URL_DRAFT, SourceChip, useSettingsUpdate } from './shared';
+import { updateSettings } from '../queries';
+import {
+  Actions,
+  Outcome,
+  PUBLIC_URL_DRAFT,
+  SourceChip,
+  useSettingsSaved,
+  useSettingsUpdate,
+} from './shared';
 
 /** The daily update check (A-5): a switch that is stored at once. */
 function UpdateRow({ enabled }: { enabled: boolean }) {
@@ -50,30 +58,33 @@ function PublicUrlRow({ settings, fields }: { settings: AdminSettings; fields: D
   const [message, setMessage] = useStatusMessage();
   const value = fields.valueOf(PUBLIC_URL_DRAFT) ?? '';
   const name = t('admin.integrations.publicUrl.name');
-  const save = useSettingsUpdate((body) => {
-    // A cleared address takes the typed input with it; a saved one only what was sent.
-    if (body.clear) fields.discard(PUBLIC_URL_DRAFT);
-    setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name }));
+  const settingsSaved = useSettingsSaved((body) =>
+    setMessage(t(body.clear ? 'admin.integrations.cleared' : 'admin.integrations.saved', { name })),
+  );
+  const save = useMutation({
+    // `sent` is the draft as it was sent (null for «Löschen»).
+    mutationFn: ({ body }: { body: AdminSettingsUpdate; sent: string | null }) =>
+      updateSettings(body),
+    onSuccess: async (saved, { body, sent }) => {
+      // A cleared address takes the typed input with it; a saved one only what was sent, so
+      // what was typed while the save ran stays a draft (decision 18).
+      if (sent === null) fields.discard(PUBLIC_URL_DRAFT);
+      else
+        fields.set(PUBLIC_URL_DRAFT, (current) =>
+          current === sent ? (saved.publicUrl ?? '') : current,
+        );
+      await settingsSaved(saved, body);
+    },
   });
   const errors = save.error ? formErrors(t, save.error) : null;
   const env = settings.publicUrlSource === 'env';
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setMessage(null);
     // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
     if (!fields.isDirty(PUBLIC_URL_DRAFT)) return;
-    const sent = value;
-    save.mutate(
-      { publicUrl: value.trim() },
-      {
-        // What was typed while the save ran stays a draft; what was sent is spent.
-        onSuccess: (saved) =>
-          fields.set(PUBLIC_URL_DRAFT, (current) =>
-            current === sent ? (saved.publicUrl ?? '') : current,
-          ),
-      },
-    );
+    setMessage(null);
+    save.mutate({ body: { publicUrl: value.trim() }, sent: value });
   };
 
   return (
@@ -114,7 +125,7 @@ function PublicUrlRow({ settings, fields }: { settings: AdminSettings; fields: D
               isPending={save.isPending}
               onClear={() => {
                 setMessage(null);
-                save.mutate({ clear: ['publicUrl'] });
+                save.mutate({ body: { clear: ['publicUrl'] }, sent: null });
               }}
             >
               <SourceChip source={settings.publicUrlSource} />

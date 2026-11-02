@@ -460,6 +460,36 @@ describe('integrations (A-2)', () => {
     expect(puts(calls)).toHaveLength(0);
   });
 
+  it('keeps a public address typed while its save waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = mockApi(
+      routes({
+        'PUT /admin/settings': async (call) => {
+          await answered;
+          const body = call.body as AdminSettingsUpdate;
+          return json(settings({ publicUrl: body.publicUrl, publicUrlSource: 'stored' }));
+        },
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const address = await serverRow('Öffentliche Adresse');
+    const field = within(address).getByLabelText('Adresse');
+    await fill(user, field, 'https://media.example.ch');
+    await user.click(within(address).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(puts(calls)).toHaveLength(1));
+    // Typed while the save runs: it stays once the answer is there.
+    await user.click(field);
+    await user.paste('/neu');
+    release();
+    expect(await within(address).findByText('Öffentliche Adresse gespeichert.')).toBeVisible();
+    expect(field).toHaveValue('https://media.example.ch/neu');
+    expect(puts(calls)).toEqual([{ publicUrl: 'https://media.example.ch' }]);
+  });
+
   it('keeps a key typed while its save waits for the server', async () => {
     let release = () => undefined as void;
     const answered = new Promise<void>((resolve) => {
