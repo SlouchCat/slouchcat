@@ -531,8 +531,8 @@ function AccountsContent() {
                       }
                     />
                   )}
+                  {/* The first work row of the page (docs/perf/verwaltungsseiten.md). */}
                   {accounts.data && (
-                    // The first work row of the page (docs/perf/verwaltungsseiten.md).
                     <div data-perf="first-work-row">
                       <DataTable
                         caption={t('admin.accounts.list')}
