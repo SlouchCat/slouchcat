@@ -31,16 +31,21 @@ const PAGES = [
   '/settings/profiles',
 ];
 
+/** What a page shows while its data is on the way: a busy region or a skeleton. */
+const LOADING = '#content [aria-busy="true"], #content [class*="skeleton"]';
+
 test.use({ viewport: PHONE, hasTouch: true });
 
 for (const path of [...PAGES, 'title']) {
   test(`${path} is not wider than the phone`, async ({ page }) => {
-    const target = path === 'title' ? `/admin/items/${idOf(await itemPath(page, H264_TITLE))}` : path;
+    const target =
+      path === 'title' ? `/admin/items/${idOf(await itemPath(page, H264_TITLE))}` : path;
     await page.goto(target);
+    // Loaded: the h1 shows and nothing in the content waits for an answer any more.
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await page.waitForLoadState('networkidle');
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-      PHONE.width,
-    );
+    await expect(page.locator(LOADING)).toHaveCount(0);
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth))
+      .toBeLessThanOrEqual(PHONE.width);
   });
 }

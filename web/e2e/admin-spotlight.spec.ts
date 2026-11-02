@@ -134,8 +134,8 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry',
       '/admin/integrations',
     );
 
-    // Tab to the switch and on to the list; the arrow keys choose a kind (one per line: ↓ and ↑). Box office offers films
-    // only (listKinds), and back on Trending all three media return.
+    // Tab to the switch and on to the list; the arrow keys choose a kind (one per line: ↓ and
+    // ↑). Box office offers films only (listKinds), and back on Trending all three media return.
     const media = source.getByRole('radiogroup', { name: 'Medienart' });
     await tabTo(page, show, 5);
     const trending = source.getByRole('radio', { name: 'Trending bei Trakt' });
