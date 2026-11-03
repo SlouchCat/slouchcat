@@ -131,8 +131,6 @@ func TestValidation(t *testing.T) {
 		"bad public url":       {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "media.example.test"}},
 		"public url query":     {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "https://media.example.test/?x=1"}},
 		"bad hero start":       {env: map[string]string{"SLOUCHCAT_HERO_START": "first"}},
-		"bad refresh gap":      {env: map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": "soon"}},
-		"zero refresh gap":     {env: map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": "0s"}},
 		"negative hero start":  {args: []string{"--hero-start", "-2"}},
 		"unknown flag":         {args: []string{"--nope"}},
 		"extra arguments":      {args: []string{"serve"}},
@@ -249,6 +247,20 @@ func TestSpotlightRefreshGapNeedsDevMode(t *testing.T) {
 	}
 	if got := cfg.SpotlightRefreshGap(); got != 0 {
 		t.Errorf("--dev without the variable: gap %v, want 0", got)
+	}
+	// A broken value stops a development server, not a production one: there it is ignored
+	// (main warns) and the minute holds.
+	for _, bad := range []string{"soon", "0s", "-1s"} {
+		env := envMap(map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": bad})
+		if _, err := Load([]string{"--dev"}, env); err == nil {
+			t.Errorf("--dev with gap %q: expected an error", bad)
+		}
+		cfg, err := Load(nil, env)
+		if err != nil {
+			t.Errorf("without --dev, gap %q: %v; want it ignored", bad, err)
+		} else if got := cfg.SpotlightRefreshGap(); got != 0 {
+			t.Errorf("without --dev, gap %q: %v, want 0", bad, got)
+		}
 	}
 }
 

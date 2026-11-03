@@ -282,6 +282,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	} else if cfg.TraktBaseURL != "" {
 		log.Warn("SLOUCHCAT_TRAKT_BASE_URL is ignored without --dev")
 	}
+	// The e2e suite's shortened spotlight limit (wireAdmin); without --dev the minute holds.
+	if !cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
+		log.Warn("SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP is ignored without --dev")
+	}
 	// The match hands a matched title to the library, which is created after the metadata service
 	// because it takes the metadata checks; the closure reads libSvc when a match runs.
 	var libSvc *library.Service
