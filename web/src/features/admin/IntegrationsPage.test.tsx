@@ -186,6 +186,10 @@ describe('integrations (A-2)', () => {
     expect(await screen.findByText('TMDB-Token gelöscht.')).toBeVisible();
     expect(puts(calls)).toEqual([{ clear: ['tmdb'] }]);
     expect(screen.queryByRole('button', { name: 'TMDB-Token löschen' })).not.toBeInTheDocument();
+    // «Löschen …» is gone with the key: the row's «Speichern» takes the focus (ALL-2).
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'TMDB-Token speichern' })).toHaveFocus(),
+    );
   });
 
   it('a value the environment sets cannot be overridden (env_wins)', async () => {
@@ -243,7 +247,7 @@ describe('integrations (A-2)', () => {
       'Slouchcat <media@example.ch>',
     );
     await user.click(within(email).getByRole('radio', { name: 'TLS' }));
-    await user.click(within(email).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(email).getByRole('button', { name: 'E-Mail-Server speichern' }));
 
     expect(await within(email).findByText('E-Mail-Server gespeichert.')).toBeVisible();
     expect(puts(calls)).toEqual([
@@ -298,7 +302,7 @@ describe('integrations (A-2)', () => {
     expect(within(email).getByLabelText('Server und Port', INPUT)).toBeDisabled();
     expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveValue('mail.local');
     expect(within(email).getByText(/Ändern lässt sich der Wert nur dort/)).toBeVisible();
-    expect(within(email).queryByRole('button', { name: 'Speichern' })).toBeNull();
+    expect(within(email).queryByRole('button', { name: 'E-Mail-Server speichern' })).toBeNull();
     expect(within(email).getByRole('button', { name: 'Testmail senden' })).toBeEnabled();
   });
 
@@ -329,7 +333,7 @@ describe('integrations (A-2)', () => {
     expect(within(email).getByText(`Die Testmail geht an ${session.account.email}.`)).toBeVisible();
 
     // Unchanged: «Speichern» sends nothing and keeps the focus; there is nothing to discard.
-    const save = within(email).getByRole('button', { name: 'Speichern' });
+    const save = within(email).getByRole('button', { name: 'E-Mail-Server speichern' });
     expect(within(email).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
     await user.click(save);
     expect(save).toHaveFocus();
@@ -345,8 +349,61 @@ describe('integrations (A-2)', () => {
     expect(within(email).getByLabelText('Passwort', INPUT)).toHaveValue('');
     expect(within(email).queryByRole('button', { name: 'Verwerfen' })).toBeNull();
     expect(within(email).queryByText('ungespeichert')).toBeNull();
-    expect(save).toHaveFocus();
+    await waitFor(() =>
+      expect(within(email).getByRole('button', { name: 'E-Mail-Server speichern' })).toHaveFocus(),
+    );
     expect(puts(calls)).toHaveLength(0);
+  });
+
+  it('«Verwerfen» takes the messages about the discarded input with it', async () => {
+    const { calls } = mockApi(
+      routes({
+        'PUT /admin/settings': () =>
+          problem(422, 'validation_failed', {
+            errors: [{ field: 'email.host', code: 'invalid_value' }],
+          }),
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
+    const save = () => within(email).getByRole('button', { name: 'E-Mail-Server speichern' });
+
+    // The field's own check: an invalid port is marked and nothing is sent.
+    await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.example.ch');
+    await fill(user, within(email).getByLabelText('Absender', INPUT), 'a@b.ch');
+    await fill(user, within(email).getByLabelText('Port', INPUT), 'abc');
+    await user.click(save());
+    await waitFor(() =>
+      expect(within(email).getByLabelText('Port', INPUT)).toHaveAttribute('aria-invalid', 'true'),
+    );
+    expect(within(email).getByText('Ungültiger Wert.')).toBeVisible();
+    expect(puts(calls)).toHaveLength(0);
+    await user.click(within(email).getByRole('button', { name: 'Verwerfen' }));
+    expect(within(email).getByLabelText('Port', INPUT)).toHaveValue('587');
+    expect(within(email).getByLabelText('Port', INPUT)).not.toHaveAttribute('aria-invalid');
+    expect(within(email).queryByText('Ungültiger Wert.')).toBeNull();
+    await waitFor(() => expect(save()).toHaveFocus());
+
+    // The server's answer: the field and the notice under the block go as well.
+    await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.example.ch');
+    await fill(user, within(email).getByLabelText('Absender', INPUT), 'a@b.ch');
+    await user.click(save());
+    await waitFor(() =>
+      expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      ),
+    );
+    expect(within(email).getByRole('alert')).toBeVisible();
+    expect(puts(calls)).toHaveLength(1);
+    await user.click(within(email).getByRole('button', { name: 'Verwerfen' }));
+    expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveValue('');
+    for (const name of ['Server und Port', 'Port', 'Absender']) {
+      expect(within(email).getByLabelText(name, INPUT)).not.toHaveAttribute('aria-invalid');
+    }
+    expect(within(email).queryByRole('alert')).toBeNull();
+    await waitFor(() => expect(save()).toHaveFocus());
   });
 
   it('keeps e-mail input typed while its save waits; deletes the server after the confirmation', async () => {
@@ -373,7 +430,7 @@ describe('integrations (A-2)', () => {
     await fill(user, host, 'smtp.example.ch');
     await fill(user, within(email).getByLabelText('Absender', INPUT), 'a@b.ch');
     await user.click(within(email).getByRole('radio', { name: 'TLS' }));
-    await user.click(within(email).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(email).getByRole('button', { name: 'E-Mail-Server speichern' }));
     await waitFor(() => expect(puts(calls)).toHaveLength(1));
     // Typed while the save runs: it stays a draft once the answer is there.
     await user.click(host);
@@ -395,6 +452,10 @@ describe('integrations (A-2)', () => {
     expect(within(email).getByLabelText('Server und Port', INPUT)).toHaveValue('');
     expect(within(email).queryByRole('button', { name: 'E-Mail-Server löschen' })).toBeNull();
     expect(within(email).queryByRole('button', { name: 'Testmail senden' })).toBeNull();
+    // «Löschen …» is gone with the server: «Speichern» takes the focus (ALL-2).
+    await waitFor(() =>
+      expect(within(email).getByRole('button', { name: 'E-Mail-Server speichern' })).toHaveFocus(),
+    );
   });
 
   it('shows the Telegram bot and its token as setting rows', async () => {
@@ -414,8 +475,47 @@ describe('integrations (A-2)', () => {
     expect(token).toHaveValue('');
     expect(token).toHaveAttribute('placeholder', 'Leer lassen zum Behalten');
     expect(token).toHaveAccessibleDescription(/Leer lassen, um den gespeicherten Wert zu behalten/);
-    expect(within(row).getByRole('button', { name: 'Speichern' })).toBeVisible();
+    expect(within(row).getByRole('button', { name: 'Telegram-Bot speichern' })).toBeVisible();
     expect(within(row).getByRole('button', { name: 'Telegram-Bot löschen' })).toBeVisible();
+    expect(row).toHaveTextContent('Für Benachrichtigungen per Telegram.');
+    expect(row).toHaveTextContent('Ein neues Token ersetzt das gespeicherte.');
+  });
+
+  it('a Telegram token from deploy/.env still says what it is for', async () => {
+    mockApi(
+      routes({ 'GET /admin/settings': () => json(settings({ telegram: { source: 'env' } })) }),
+    );
+    renderApp('/admin/integrations');
+    const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
+    expect(within(telegram).queryByRole('group', { name: 'Bot' })).toBeNull();
+    const row = within(telegram).getByRole('group', { name: 'Bot-Token' });
+    expect(row).toHaveTextContent('Für Benachrichtigungen per Telegram.');
+    expect(row).not.toHaveTextContent('Ein neues Token ersetzt das gespeicherte.');
+    expect(within(row).getByLabelText('Bot-Token', INPUT)).toBeDisabled();
+  });
+
+  it('deletes the Telegram bot token; the focus moves on to «Speichern»', async () => {
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/settings': () =>
+          json(settings({ telegram: { source: 'stored', botUsername: 'slouchcat_bot' } })),
+        'PUT /admin/settings': () => json(settings()),
+      }),
+    );
+    renderApp('/admin/integrations');
+    const user = userEvent.setup();
+    const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
+    await user.click(within(telegram).getByRole('button', { name: 'Telegram-Bot löschen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Telegram-Bot löschen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Löschen' }));
+    expect(await within(telegram).findByText('Telegram-Bot gelöscht.')).toBeVisible();
+    expect(puts(calls)).toEqual([{ clear: ['telegram'] }]);
+    expect(within(telegram).queryByRole('button', { name: 'Telegram-Bot löschen' })).toBeNull();
+    await waitFor(() =>
+      expect(
+        within(telegram).getByRole('button', { name: 'Telegram-Bot speichern' }),
+      ).toHaveFocus(),
+    );
   });
 
   it('a Telegram bot that is not set up says so', async () => {
@@ -445,12 +545,12 @@ describe('integrations (A-2)', () => {
     const telegram = await screen.findByRole('region', { name: 'Telegram-Bot' });
     const token = within(telegram).getByLabelText('Bot-Token', INPUT);
     // Empty keeps what is stored (decision 18): nothing is sent, the focus stays on «Speichern».
-    const save = within(telegram).getByRole('button', { name: 'Speichern' });
+    const save = within(telegram).getByRole('button', { name: 'Telegram-Bot speichern' });
     await user.click(save);
     expect(save).toHaveFocus();
     expect(puts(calls)).toHaveLength(0);
     await fill(user, token, '123:abc');
-    await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(telegram).getByRole('button', { name: 'Telegram-Bot speichern' }));
     await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));
     expect(token).toHaveAccessibleDescription(/Telegram hat das Token abgelehnt/);
 
@@ -458,7 +558,7 @@ describe('integrations (A-2)', () => {
     reject = false;
     await user.clear(token);
     await fill(user, token, '123:good');
-    await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(telegram).getByRole('button', { name: 'Telegram-Bot speichern' }));
     expect(await within(telegram).findByText('Telegram-Bot gespeichert.')).toBeVisible();
     expect(within(telegram).getByText('Bot: @slouchcat_bot')).toBeVisible();
     expect(puts(calls)).toEqual([
@@ -500,7 +600,7 @@ describe('integrations (A-2)', () => {
     await fill(user, within(email).getByLabelText('Server und Port', INPUT), 'smtp.example.ch');
     await fill(user, within(email).getByLabelText('Passwort', INPUT), secrets[1]!);
     await fill(user, within(email).getByLabelText(/Absender/, INPUT), 'media@example.ch');
-    await user.click(within(email).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(email).getByRole('button', { name: 'E-Mail-Server speichern' }));
     expect(await within(email).findByText('E-Mail-Server gespeichert.')).toBeVisible();
 
     // A refused token does not stay either. `gcTime: 0` drops a settled mutation on a zero
@@ -508,11 +608,11 @@ describe('integrations (A-2)', () => {
     const telegram = section('Telegram-Bot');
     const token = within(telegram).getByLabelText('Bot-Token', INPUT);
     await fill(user, token, secrets[2]!);
-    await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(telegram).getByRole('button', { name: 'Telegram-Bot speichern' }));
     await waitFor(() => expect(token).toHaveAttribute('aria-invalid', 'true'));
     await waitFor(() => expect(held()).toEqual([]));
     await fill(user, token, secrets[3]!);
-    await user.click(within(telegram).getByRole('button', { name: 'Speichern' }));
+    await user.click(within(telegram).getByRole('button', { name: 'Telegram-Bot speichern' }));
     expect(await within(telegram).findByText('Telegram-Bot gespeichert.')).toBeVisible();
     await waitFor(() => expect(held()).toEqual([]));
   });

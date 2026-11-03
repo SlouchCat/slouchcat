@@ -1960,10 +1960,11 @@
       },
       "envHint": "In deploy/.env gesetzt. Ändern lässt sich der Wert nur dort.",
       "save": "Speichern",
+      "saveLabel": "{{name}} speichern",
       "saving": "Wird gespeichert …",
       "discard": "Verwerfen",
       "clear": {
-        "action": "Löschen",
+        "action": "Löschen …",
         "label": "{{name}} löschen",
         "title": "{{name}} löschen?",
         "body": "Der gespeicherte Wert wird entfernt. Was ihn braucht, funktioniert danach nicht mehr.",
@@ -1976,25 +1977,24 @@
       "keys": {
         "title": "Schlüssel der Anbieter",
         "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
-        "saveLabel": "{{name}} speichern",
         "count": "{{set}} von {{total}} gesetzt",
         "keepPlaceholder": "Leer lassen zum Behalten",
         "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
         "tmdb": {
           "name": "TMDB-Token",
-          "description": "Beschreibungen, Poster und Altersfreigaben von themoviedb.org."
+          "description": "Lesezugriffs-Token (API Read Access Token) von themoviedb.org: Beschreibungen, Poster und Altersfreigaben."
         },
         "tvdb": {
           "name": "TVDB-Schlüssel",
-          "description": "Optionale zweite Quelle für Serien."
+          "description": "API-Schlüssel von thetvdb.com: optionale zweite Quelle für Serien."
         },
         "tvdbPin": {
           "name": "TVDB-PIN",
-          "description": "Nur für ein TVDB-Abonnement mit PIN."
+          "description": "Abonnenten-PIN, nur für ein TVDB-Abonnement mit PIN."
         },
         "youtube": {
           "name": "YouTube-Schlüssel",
-          "description": "Sucht Trailer, wenn TMDB keinen kennt."
+          "description": "API-Schlüssel der YouTube Data API: sucht Trailer, wenn TMDB keinen kennt."
         },
         "trakt": {
           "name": "Trakt-Client-ID",
@@ -2003,7 +2003,7 @@
         "traktStatus": "Stand der Trakt-Listen",
         "fanart": {
           "name": "Fanart.tv-Schlüssel",
-          "description": "Logos und Poster in hoher Güte als letzte Bildquelle; eingeschaltet wird sie unter «Metadaten». Neue Bilder erscheinen nach 7 Tagen."
+          "description": "Projektschlüssel (API-Schlüssel) von fanart.tv: Logos und Poster in hoher Güte als letzte Bildquelle; eingeschaltet wird sie unter «Metadaten». Neue Bilder erscheinen nach 7 Tagen."
         },
         "fanartClient": {
           "name": "Persönlicher Fanart.tv-Schlüssel",
@@ -2119,9 +2119,10 @@
         "title": "Telegram-Bot",
         "name": "Telegram-Bot",
         "botLabel": "Bot",
-        "botHelp": "Für Benachrichtigungen per Telegram; Slouchcat findet ihn über das Token.",
+        "botHelp": "Slouchcat findet ihn über das Token.",
         "token": "Bot-Token",
-        "tokenHelp": "Von @BotFather. Ein neues Token ersetzt das gespeicherte. Slouchcat prüft es bei Telegram.",
+        "tokenHelp": "Für Benachrichtigungen per Telegram. Das Token kommt von @BotFather, Slouchcat prüft es bei Telegram.",
+        "tokenReplace": "Ein neues Token ersetzt das gespeicherte.",
         "bot": "Bot: @{{name}}",
         "noBot": "Kein Bot eingerichtet."
       },

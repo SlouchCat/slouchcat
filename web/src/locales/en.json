@@ -1960,10 +1960,11 @@
       },
       "envHint": "Set in deploy/.env. The value can only be changed there.",
       "save": "Save",
+      "saveLabel": "Save {{name}}",
       "saving": "Saving …",
       "discard": "Discard",
       "clear": {
-        "action": "Delete",
+        "action": "Delete …",
         "label": "Delete {{name}}",
         "title": "Delete {{name}}?",
         "body": "The stored value is removed. Whatever needs it stops working.",
@@ -1976,25 +1977,24 @@
       "keys": {
         "title": "Provider keys",
         "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
-        "saveLabel": "Save {{name}}",
         "count": "{{set}} of {{total}} set",
         "keepPlaceholder": "Leave empty to keep it",
         "newValue": "Leave empty to keep the stored value. A new value replaces it.",
         "tmdb": {
           "name": "TMDB token",
-          "description": "Overviews, posters and age ratings from themoviedb.org."
+          "description": "API read access token from themoviedb.org: overviews, posters and age ratings."
         },
         "tvdb": {
           "name": "TVDB key",
-          "description": "Optional second source for series."
+          "description": "API key from thetvdb.com: optional second source for series."
         },
         "tvdbPin": {
           "name": "TVDB PIN",
-          "description": "Only for a TVDB subscription with a PIN."
+          "description": "Subscriber PIN, only for a TVDB subscription with a PIN."
         },
         "youtube": {
           "name": "YouTube key",
-          "description": "Finds trailers when TMDB knows none."
+          "description": "YouTube Data API key: finds trailers when TMDB knows none."
         },
         "trakt": {
           "name": "Trakt client ID",
@@ -2003,7 +2003,7 @@
         "traktStatus": "State of the Trakt lists",
         "fanart": {
           "name": "Fanart.tv key",
-          "description": "Logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days."
+          "description": "Project key (API key) from fanart.tv: logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days."
         },
         "fanartClient": {
           "name": "Fanart.tv personal key",
@@ -2119,9 +2119,10 @@
         "title": "Telegram bot",
         "name": "Telegram bot",
         "botLabel": "Bot",
-        "botHelp": "For notifications by Telegram; Slouchcat finds it through the token.",
+        "botHelp": "Slouchcat finds it through the token.",
         "token": "Bot token",
-        "tokenHelp": "From @BotFather. A new token replaces the stored one. Slouchcat checks it with Telegram.",
+        "tokenHelp": "For notifications by Telegram. The token comes from @BotFather; Slouchcat checks it with Telegram.",
+        "tokenReplace": "A new token replaces the stored one.",
         "bot": "Bot: @{{name}}",
         "noBot": "No bot set up."
       },

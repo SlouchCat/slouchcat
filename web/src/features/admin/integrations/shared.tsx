@@ -5,12 +5,19 @@ import type {
   SMTPTLS,
 } from '@slouchcat/api-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice } from '@/ui';
-import { AriaButton, ConfirmDialog, StatusRegion, type StatusMessage } from '@/ui/aria';
+import {
+  afterDialogsClosed,
+  AriaButton,
+  ConfirmDialog,
+  focusLost,
+  StatusRegion,
+  type StatusMessage,
+} from '@/ui/aria';
 import { dashboardQuery, settingsQuery, updateSettings } from '../queries';
 import styles from './Integrations.module.css';
 
@@ -109,7 +116,10 @@ export function Outcome({ error, message }: { error: unknown; message: StatusMes
   );
 }
 
-/** The buttons of a stored value: save, and delete after a confirmation. */
+/**
+ * The buttons of a stored value: save, and delete after a confirmation. «Löschen …» disappears
+ * with the value it deletes: the focus then moves on to «Speichern» (ALL-2).
+ */
 export function Actions({
   name,
   saveLabel,
@@ -119,19 +129,33 @@ export function Actions({
   children,
 }: {
   name: string;
+  /** The accessible name of «Speichern» when it should say what it saves («X speichern»). */
   saveLabel?: string;
   stored: boolean;
   isPending: boolean;
-  onClear: () => void;
+  /** Deletes the value; a returned promise holds the focus back until the deletion is done. */
+  onClear: () => Promise<unknown> | void;
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
+  const saveRef = useRef<HTMLButtonElement>(null);
+  const clear = async () => {
+    await onClear();
+    await afterDialogsClosed();
+    if (focusLost()) saveRef.current?.focus();
+  };
   return (
     <div className={styles.actions}>
-      <AriaButton type="submit" variant="primary" isPending={isPending} aria-label={saveLabel}>
+      <AriaButton
+        ref={saveRef}
+        type="submit"
+        variant="primary"
+        isPending={isPending}
+        aria-label={saveLabel}
+      >
         {isPending ? t('admin.integrations.saving') : t('admin.integrations.save')}
       </AriaButton>
-      {stored && <ClearButton name={name} onClear={onClear} />}
+      {stored && <ClearButton name={name} onClear={() => void clear()} />}
       {children}
     </div>
   );
@@ -166,6 +190,14 @@ export interface EmailValues {
   user: string;
   from: string;
   tls: SMTPTLS;
+}
+
+/** A port as typed: digits only (no «0x19», «1e3» or «25.0»), from 1 to 65535. */
+export function validPort(text: string): boolean {
+  const digits = text.trim();
+  if (!/^\d{1,5}$/.test(digits)) return false;
+  const port = Number(digits);
+  return port > 0 && port < 65536;
 }
 
 export const emailValues = (email: AdminSettings['email']): EmailValues => ({

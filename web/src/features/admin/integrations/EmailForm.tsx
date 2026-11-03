@@ -1,6 +1,6 @@
 import type { AdminSettings } from '@slouchcat/api-client';
 import { useMutation } from '@tanstack/react-query';
-import { useId, useRef, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -8,7 +8,10 @@ import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { Notice, Text, TextLink } from '@/ui';
 import {
+  afterDialogsClosed,
+  afterRender,
   AriaButton,
+  focusLost,
   Form,
   RadioGroup,
   SettingRow,
@@ -26,6 +29,7 @@ import {
   PASSWORD_DRAFT,
   TLS_MODES,
   useSecretUpdate,
+  validPort,
   type EmailValues,
 } from './shared';
 
@@ -47,6 +51,9 @@ export function EmailForm({
   const session = useActiveSession();
   const [message, setMessage] = useStatusMessage();
   const saveRef = useRef<HTMLButtonElement>(null);
+  // «Verwerfen» starts the form afresh: react-aria keeps a field's own validation until the field
+  // changes again, so a new form is the way to drop it with the input.
+  const [formKey, setFormKey] = useState(0);
   const passwordHelpId = useId();
   const values = drafts.valueOf(EMAIL_DRAFT) ?? emailValues(email);
   const password = fields.valueOf(PASSWORD_DRAFT) ?? '';
@@ -102,12 +109,23 @@ export function EmailForm({
       });
   };
 
-  // «Verwerfen» disappears with the change it discards: the focus moves on to «Speichern».
+  // «Verwerfen» disappears with the change it discards, and so do the messages about it: the
+  // server's answer and each field's own check. The focus moves on to the new «Speichern».
   const onDiscard = () => {
     setMessage(null);
+    save.clearError();
     drafts.discard(EMAIL_DRAFT);
     fields.discard(PASSWORD_DRAFT);
-    saveRef.current?.focus();
+    setFormKey((key) => key + 1);
+    void afterRender().then(() => saveRef.current?.focus());
+  };
+
+  // «Löschen …» disappears with the server it deletes: the focus moves on to «Speichern» (ALL-2).
+  const onClear = async () => {
+    setMessage(null);
+    await save.run({ clear: ['email'] });
+    await afterDialogsClosed();
+    if (focusLost()) saveRef.current?.focus();
   };
 
   // `email_send_failed` names why (without secrets) in the problem's detail.
@@ -124,7 +142,7 @@ export function EmailForm({
   return (
     <div className={styles.stack}>
       {env && <Text tone="secondary">{t('admin.integrations.envHint')}</Text>}
-      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
+      <Form key={formKey} onSubmit={onSubmit} validationErrors={errors?.fields}>
         <SettingRow
           label={t('admin.integrations.email.hostPort')}
           help={
@@ -162,13 +180,7 @@ export function EmailForm({
               isRequired={!env}
               value={values.port}
               onChange={change('port')}
-              validate={(text) => {
-                if (env) return null;
-                const port = Number(text);
-                return Number.isInteger(port) && port > 0 && port < 65536
-                  ? null
-                  : t('errors.field.invalid');
-              }}
+              validate={(text) => (env || validPort(text) ? null : t('errors.field.invalid'))}
             />
           </div>
         </SettingRow>
@@ -272,15 +284,15 @@ export function EmailForm({
                 </AriaButton>
               )}
               {email.source === 'stored' && (
-                <ClearButton
-                  name={name}
-                  onClear={() => {
-                    setMessage(null);
-                    void save.run({ clear: ['email'] });
-                  }}
-                />
+                <ClearButton name={name} onClear={() => void onClear()} />
               )}
-              <AriaButton ref={saveRef} type="submit" variant="primary" isPending={save.isPending}>
+              <AriaButton
+                ref={saveRef}
+                type="submit"
+                variant="primary"
+                isPending={save.isPending}
+                aria-label={t('admin.integrations.saveLabel', { name })}
+              >
                 {save.isPending ? t('admin.integrations.saving') : t('admin.integrations.save')}
               </AriaButton>
             </div>

@@ -50,8 +50,8 @@ export function TelegramForm({
 
   return (
     <div>
-      {/* The bot's name is known once a token is saved here (getMe); a token from deploy/.env
-          leaves it unknown, and then the row is left out rather than saying «no bot». */}
+      {/* The bot's name comes only with a token saved here (getMe); for a token from deploy/.env
+          the server names none, and then the row is left out rather than saying «no bot». */}
       {(telegram.botUsername || telegram.source === 'none') && (
         <SettingRow
           label={t('admin.integrations.telegram.botLabel')}
@@ -66,7 +66,12 @@ export function TelegramForm({
       )}
       <SettingRow
         label={t('admin.integrations.telegram.token')}
-        help={t('admin.integrations.telegram.tokenHelp')}
+        help={
+          // The purpose is said here: the «Bot» row is left out for a token from deploy/.env.
+          telegram.source === 'stored'
+            ? `${t('admin.integrations.telegram.tokenHelp')} ${t('admin.integrations.telegram.tokenReplace')}`
+            : t('admin.integrations.telegram.tokenHelp')
+        }
       >
         <div className={styles.stack}>
           <Form className={styles.keyForm} onSubmit={onSubmit} validationErrors={errors?.fields}>
@@ -92,11 +97,12 @@ export function TelegramForm({
             {!env && (
               <Actions
                 name={name}
+                saveLabel={t('admin.integrations.saveLabel', { name })}
                 stored={telegram.source === 'stored'}
                 isPending={save.isPending}
                 onClear={() => {
                   setMessage(null);
-                  void save.run({ clear: ['telegram'] });
+                  return save.run({ clear: ['telegram'] });
                 }}
               />
             )}

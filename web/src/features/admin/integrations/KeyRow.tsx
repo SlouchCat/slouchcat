@@ -93,12 +93,12 @@ export function KeyRow({
           {!env && (
             <Actions
               name={name}
-              saveLabel={t('admin.integrations.keys.saveLabel', { name })}
+              saveLabel={t('admin.integrations.saveLabel', { name })}
               stored={state.source === 'stored'}
               isPending={save.isPending}
               onClear={() => {
                 setMessage(null);
-                void save.run({ clear: [keyName] });
+                return save.run({ clear: [keyName] });
               }}
             />
           )}

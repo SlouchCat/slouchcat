@@ -230,6 +230,8 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
     await page.keyboard.press('Enter');
     await expect(keys.getByText('YouTube-Schlüssel gelöscht.')).toBeVisible();
     await expect(remove).toHaveCount(0);
+    // «Löschen …» is gone with the key: the row's «Speichern» takes the focus (ALL-2).
+    await expectFocusOn(page, save);
     expect((await settingsOf(owner)).keys.youtube?.source).toBe('none');
     await expectNoFocusTrap(page, 120);
   } finally {
@@ -304,7 +306,7 @@ test('the e-mail server and the Telegram bot are setting rows; the test mail by 
   const portBox = await port.boundingBox();
   expect(Math.round(portBox?.y ?? -1)).toBe(Math.round(hostBox?.y ?? 0));
   expect(portBox?.x ?? 0).toBeGreaterThan(hostBox?.x ?? 0);
-  await expect(email.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
+  await expect(email.getByRole('button', { name: 'E-Mail-Server speichern' })).toHaveCount(0);
 
   // The disabled fields are no Tab stops: Tab goes from the notification link to the test mail.
   await expect(email.getByText(/^Die Testmail geht an .+\.$/)).toBeVisible();
@@ -326,7 +328,9 @@ test('the e-mail server and the Telegram bot are setting rows; the test mail by 
     .getByRole('textbox', { name: 'Bot-Token', exact: true });
   await expect(token).toBeDisabled();
   await expect(telegram.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
-  await expect(telegram.getByRole('button', { name: 'Speichern' })).toHaveCount(0);
+  await expect(telegram.getByRole('button', { name: 'Telegram-Bot speichern' })).toHaveCount(0);
+  // Without the «Bot» row the token's own help says what the bot is for.
+  await expect(telegram).toContainText('Für Benachrichtigungen per Telegram.');
   await expectNoFocusTrap(page, 200);
 });
 

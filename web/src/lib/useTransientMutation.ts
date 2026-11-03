@@ -11,6 +11,8 @@ interface TransientMutation<TData, TVariables> {
   error: unknown;
   /** Counter that changes with every failed run, to restart timers on the same error. */
   failures: number;
+  /** Forgets the error of the last run, for input that was discarded. */
+  clearError: () => void;
 }
 
 /**
@@ -47,5 +49,7 @@ export function useTransientMutation<TData, TVariables>(
     [mutateAsync, reset, onSuccess],
   );
 
-  return { run, isPending: mutation.isPending, error, failures };
+  const clearError = useCallback(() => setError(null), []);
+
+  return { run, isPending: mutation.isPending, error, failures, clearError };
 }
