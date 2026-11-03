@@ -120,7 +120,9 @@ describe('maintenance page', () => {
     );
     expect(within(tabs).getByRole('tab', { name: 'Nicht abspielbar 1 Eintrag' })).toBeVisible();
     expect(within(tabs).getByRole('tab', { name: 'Ohne Bilder 0 Einträge' })).toBeVisible();
-    expect(within(tabs).getByRole('tab', { name: 'Altersfreigabe fehlt 2 Einträge' })).toBeVisible();
+    expect(
+      within(tabs).getByRole('tab', { name: 'Altersfreigabe fehlt 2 Einträge' }),
+    ).toBeVisible();
     expect(within(tabs).getByRole('tab', { name: 'Verwaist 1 Eintrag' })).toBeVisible();
     expect(within(tabs).getByRole('tab', { name: 'Freigabe abweichend 1 Eintrag' })).toBeVisible();
     expect(await within(tabs).findByRole('tab', { name: 'Duplikate 2 Gruppen' })).toBeVisible();
