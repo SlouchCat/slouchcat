@@ -19,6 +19,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 )
 
 const (
@@ -199,7 +200,7 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: dir, Version: "test", Logger: log})
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: dir, Version: "test", Logger: log})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -23,6 +23,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 	"github.com/slouchcat/slouchcat/server/internal/trakt"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
@@ -146,7 +147,7 @@ func newTraktEnv(t *testing.T, fixedID string, keys KeySource, opts ...TraktOpti
 	logs := &bytes.Buffer{}
 	ring := logging.NewErrorRing(logging.ErrorRingSize)
 	log := slog.New(logging.NewRedactingHandler(ring.Wrap(slog.NewTextHandler(&lockedWriter{w: logs}, nil))))
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
 	if err != nil {
 		t.Fatal(err)
 	}
