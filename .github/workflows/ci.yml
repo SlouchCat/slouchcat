@@ -1,7 +1,7 @@
 # Runs the same checks as `task ci` locally -- the same tasks, split over parallel jobs instead of
 # one after the other. `task ci` remains the one local command that builds and checks everything
-# (plan section 4); what the jobs below run are its parts, `task ci:server`, `task ci:web` and
-# `task ci:e2e`, and `task ci` still runs all of them. Why the split, and what it costs in exchange:
+# (plan section 4); what the jobs below run are its parts, `task ci:server`, `task ci:web`,
+# `task ci:storybook` and `task ci:e2e`, and `task ci` still runs all of them. Why the split, and what it costs in exchange:
 # ADR docs/adr/0013-ci-parallele-jobs.md. Measured times: docs/perf/ci.md.
 #
 # The serial job this replaced took 56 minutes, which is longer than most pull requests deserve to
@@ -173,12 +173,14 @@ jobs:
           GOFLAGS: -count=1
 
   # ---------------------------------------------------------------------------------------------
-  # Web: generators with their drift check, linters, Vitest and the Storybook screenshot checks.
-  # No Go, no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official
-  # Playwright Docker image, which brings its own Chromium and its own libraries.
+  # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot
+  # checks in another. The two need nothing from each other, and together they were the longest
+  # job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5, Storybook 3.6). No Go,
+  # no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official Playwright
+  # Docker image, which brings its own Chromium and its own libraries.
   # ---------------------------------------------------------------------------------------------
   web:
-    name: web (linters, unit tests, Storybook)
+    name: web (generators, linters, unit tests)
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
@@ -191,6 +193,21 @@ jobs:
       - uses: ./.github/actions/task
 
       - run: task ci:web
+
+  storybook:
+    name: web (Storybook screenshots)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - run: task ci:storybook
 
       # Screenshot diffs of the Storybook run (storybook.config.ts). The folder starts with a dot,
       # and the action skips hidden files unless told otherwise: without the flag every red run
@@ -419,7 +436,7 @@ jobs:
     # Must run even when something before it failed, otherwise the gate would be "skipped" instead
     # of red and a broken run could look mergeable.
     if: always()
-    needs: [changes, server-lint, server-groups, server-test, web, build, e2e, image]
+    needs: [changes, server-lint, server-groups, server-test, web, storybook, build, e2e, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -493,6 +510,7 @@ jobs:
           check server-groups '${{ needs.server-groups.result }}'
           check server-test   '${{ needs.server-test.result }}'
           check web           '${{ needs.web.result }}'
+          check storybook     '${{ needs.storybook.result }}'
           check build         '${{ needs.build.result }}'
           check e2e           '${{ needs.e2e.result }}'
           check image         '${{ needs.image.result }}'

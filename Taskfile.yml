@@ -62,19 +62,20 @@ tasks:
       - task: server:apicheck
 
   # The one local command that builds and checks everything (plan section 4). It runs the same
-  # checks as CI, in an order that makes sense on one machine; CI runs the three ci:* tasks below
-  # in parallel jobs instead. Whatever is added to one of them is therefore in `task ci` too --
-  # that is the point of the split (ADR 0013).
+  # checks as CI, in an order that makes sense on one machine; CI runs the ci:* tasks below in
+  # parallel jobs instead. Whatever is added to one of them is therefore in `task ci` too -- that
+  # is the point of the split (ADR 0013).
   ci:
     desc: Everything CI runs, in order; fails on codegen drift
     cmds:
       - task: ci:server
       - task: ci:web
+      - task: ci:storybook
       - task: build
       - task: ci:e2e
 
-  # The three halves `task ci` is made of, each one a CI job. Not to be confused with `server:ci`
-  # and `web:ci`, which are the older per-area shortcuts and also run `server:vuln` (network).
+  # The parts `task ci` is made of, each one a CI job. Not to be confused with `server:ci` and
+  # `web:ci`, which are the older per-area shortcuts and also run `server:vuln` (network).
   ci:server:
     desc: The server half of `task ci` (CI job "server"); needs ffmpeg and the test media
     cmds:
@@ -84,12 +85,18 @@ tasks:
       - task: server:test
 
   ci:web:
-    desc: The web half of `task ci` (CI job "web"); the Storybook screenshots need Docker
+    desc: The web linters and unit tests of `task ci` (CI job "web")
     cmds:
       - task: web:gen
       - task: web:gen:check
       - task: web:lint
       - task: web:test
+
+  # A job of its own in CI since 3 November 2026: the screenshots took 3.6 of the web job's 8 to 10
+  # minutes and need nothing the linters and Vitest produce (ADR 0013, addendum).
+  ci:storybook:
+    desc: The Storybook screenshot checks of `task ci` (CI job "storybook"); need Docker
+    cmds:
       - task: storybook:test
 
   ci:e2e:

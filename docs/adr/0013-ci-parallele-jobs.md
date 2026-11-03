@@ -180,3 +180,9 @@ Umsetzung:
 - **`GOFLAGS=-count=1`** im Testschritt: Der Cache enthält auch Testergebnisse, und `go test`
   meldete schon vorher vier Pakete als «(cached)», statt sie auszuführen (Run 41707865418). Der
   Cache soll das Übersetzen sparen, nie einen Test.
+
+### Web-Job geteilt
+
+- Der Web-Job (8 bis 10 Minuten: Lint 1,7, Vitest 3,5, Storybook 3,6) ist zwei Jobs: **`web`**
+  (`task ci:web`: Generatoren, Drift, Linter, Vitest) und **`storybook`** (`task ci:storybook`:
+  Bildvergleich im Playwright-Image). `task ci` ruft beide auf; der Gate-Job nennt beide.
