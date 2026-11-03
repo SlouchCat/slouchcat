@@ -144,6 +144,10 @@ tasks:
       - task: web:gen:check
       - task: web:lint
       - task: web:test
+      # The e2e shard plan's self-test (3 s): every test in exactly one CI shard. Here and not in
+      # the e2e job, so a broken plan is red before the shards start; each shard counts its own
+      # list again (web:e2e with SHARD).
+      - task: web:e2e:shards:check
 
   # A job of its own in CI since 3 November 2026: the screenshots took 3.6 of the web job's 8 to 10
   # minutes and need nothing the linters and Vitest produce (ADR 0013, addendum).

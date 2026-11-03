@@ -80,7 +80,7 @@ tasks:
         if [ -n "{{.SHARD}}" ]; then
           list="node_modules/.playwright-shards/shard-$(echo '{{.SHARD}}' | tr / -).txt"
           mkdir -p node_modules/.playwright-shards
-          node e2e/shard-plan.mjs --shard '{{.SHARD}}' --out "$list"
+          node e2e/shard-plan.mjs --shard '{{.SHARD}}' --out "$list" -- {{.CLI_ARGS}}
           pnpm exec playwright test --test-list "$list" {{.CLI_ARGS}}
         else
           pnpm exec playwright test {{.CLI_ARGS}}

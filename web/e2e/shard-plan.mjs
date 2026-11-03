@@ -18,7 +18,8 @@
 //     equal inputs: every shard computes the same plan.
 //
 // Usage (from web/):
-//   node e2e/shard-plan.mjs --shard 2/7 --out <file>   test list of shard 2 of 7
+//   node e2e/shard-plan.mjs --shard 2/7 --out <file> [-- <playwright args>]
+//                                                      test list of shard 2 of 7, counted back
 //   node e2e/shard-plan.mjs --shards 7                 the plan: tests and seconds per shard
 //   node e2e/shard-plan.mjs --check --shards 7         self-test, see check() below
 //
@@ -214,7 +215,12 @@ function report(shards) {
   }
 }
 
-function main(argv) {
+function main(args) {
+  // Arguments after `--` are Playwright's (a spec, --project …): the plan lists with them, so it
+  // holds only what the run with the same arguments will execute.
+  const split = args.indexOf('--');
+  const argv = split >= 0 ? args.slice(0, split) : args;
+  const extra = split >= 0 ? args.slice(split + 1).filter(Boolean) : [];
   const value = (name) => {
     const index = argv.indexOf(name);
     return index >= 0 ? argv[index + 1] : undefined;
@@ -228,17 +234,24 @@ function main(argv) {
     const [current, total] = shardArg.split('/').map(Number);
     if (!(current >= 1 && total >= current)) fail(`--shard wants i/n, got ${shardArg}`);
     const out = value('--out') ?? fail('--shard needs --out <file>');
-    const shards = plan(groupsOf(listTests(), readDurations()), total);
+    const shards = plan(groupsOf(listTests(extra), readDurations()), total);
     const shard = shards[current - 1];
     writeFileSync(out, testList(shard));
+    // The shard's own share of the self-test, in every CI shard: Playwright must read the written
+    // list as the plan means it. A list line it does not match would otherwise run fewer tests
+    // and stay green.
+    const listed = listTests(['--test-list', out, ...extra]).length;
+    if (listed !== shard.tests) {
+      fail(`shard ${current}/${total}: planned ${shard.tests} tests, Playwright lists ${listed}`);
+    }
     console.log(
-      `shard ${current}/${total}: ${shard.tests} tests in ${shard.groups.length} spec files, ` +
-        `about ${Math.round(shard.seconds)} s by durations.json`,
+      `shard ${current}/${total}: ${shard.tests} tests in ${shard.groups.length} spec files ` +
+        `(Playwright lists the same), about ${Math.round(shard.seconds)} s by durations.json`,
     );
     return;
   }
   const count = Number(value('--shards') ?? 0) || fail('usage: see the head of shard-plan.mjs');
-  report(plan(groupsOf(listTests(), readDurations()), count));
+  report(plan(groupsOf(listTests(extra), readDurations()), count));
 }
 
 function fail(message) {
