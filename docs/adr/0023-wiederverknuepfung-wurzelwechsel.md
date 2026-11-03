@@ -78,6 +78,46 @@ Ursache (Idee 04, Abschnitt 2):
 - Nicht gebaut: eine Sperre beim Entfernen (C2), der Abgleich über den Namen ohne Jahr (A2) und
   ein Abgleich von Dateien über Wurzeln hinweg.
 
+## Nachträge aus dem Bau (3. November 2026)
+
+Die Reviews der Schritte W-1 bis W-5 und zwei weitere Antworten von Marco haben den Entscheid
+genauer gefasst:
+
+- **Nur frische Kopien, automatisch mit 7 Tagen Spielraum.** Die späte Wiederverknüpfung
+  (Punkt 1) gilt nur für eine Kopie, die frühestens **7 Tage vor** dem Löschen des Zwillings
+  entstanden ist (`relinkGrace`). Ohne diese Regel würde ein seit Jahren lebender Titel beim
+  nächsten Match in ein altes gelöschtes Duplikat gezogen. Der Spielraum deckt die Reihenfolge
+  «neuen Ordner hinzufügen, scannen, alten entfernen» ab (Marco, 3. November 2026). Die
+  **Pflegeaktion kennt diese Regel nicht**, weil der Administrator dort beide Titel sieht.
+- **Dauerhafter Job statt Speicher.** Der Haken nach dem Match prüft nur, ob es einen Zwilling
+  gibt. Gibt es einen, endet der Match der Kopie nach dem Titel, und der Job `library.relink`
+  (Schlüssel `relink:<id>`) wird eingereiht. Ist die Scan-Sperre belegt, reiht er sich mit
+  `jobs.RetryLater` nach einer Minute neu ein, ohne einen Versuch zu verbrauchen (neu im Paket
+  `jobs`: `Queue.Defer`). Ein Neustart verliert nichts.
+- **Ältere Zwillinge werden mitgefaltet.** Gibt es mehrere gelöschte Zwillinge, überlebt der
+  zuletzt gelöschte. Die älteren gehen in derselben Transaktion in ihm auf. Bei gleichem
+  Löschzeitpunkt entscheidet die höhere ID.
+- **Gepflegte Werte der Kopie bleiben:**
+  - Bei der Freigabe gilt die strengere. Eine vom Administrator gesperrte Freigabe der Kopie
+    gilt immer.
+  - Sperren, die dem Zwilling fehlen, gehen mit ihrem Wert über.
+  - Bildwahl und eigene Bilder gehen über, wo der Zwilling keine hat.
+  - Kapitel und erkannte Intro- und Abspann-Marken wandern mit der Datei.
+  - Fehlt einer Folge die Erkennung, wird ihre Staffel neu geprüft.
+- **Downloads:** Ein unbrauchbarer Download des Zwillings (fehlgeschlagen, verdrängt, Datei weg)
+  weicht dem funktionierenden der Kopie. Das Gerät behält sein Paket.
+- **Pflegeaktion:**
+  - Alle Paare sind vorausgewählt. Abgewählte bleiben abgewählt (Marco, 3. November 2026).
+  - Die Tabelle zeigt den gelöschten Titel und die Kopie.
+  - Paare, die es nicht mehr gibt, zählen als übersprungen.
+  - Läuft mitten im Lauf ein Scan, meldet die Antwort den Teilerfolg (`stoppedBy: scan_running`).
+- **«Pfad ändern»:** Ein neuer Pfad lässt sich nicht mit einem Inhaltswechsel verbinden (neuer
+  Fehlercode `path_with_content`), wohl aber mit einer neuen Anbieterliste. Gleicher Pfad
+  ändert nichts.
+- **Scanner:** Der Index lädt gelöschte Titel mit einer schmalen Abfrage (11 Spalten, nur Filme,
+  Serien, Hörbücher, Podcasts, Staffeln, Folgen). Die Suche über Name und Jahr gilt nur für
+  Filme und Serien.
+
 ## Verworfen
 
 - **B2, die neue ID bleibt:** einfacher, macht aber Titel-IDs ungültig, die schon auf Geräten, in

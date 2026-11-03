@@ -6,12 +6,23 @@ Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemer
 `claude/wurzelwechsel` ab `main` `cbf17fb`, Frage 21, ADR 0023, Vertrag **1.9.0** additiv als eigenes
 Release vor Konzept 13 und 14, keine Migration. Schritte:
 
-- **W-0** Papiere: Frage 21, ADR 0023, Plan 3.2, Ideenstatus «Übernommen».
-- **W-1** Zusammenführung über den Baum im Paket `library` (die alte ID bleibt).
-- **W-2** Scanner: Wiederverknüpfung über Anbieter-ID ohne Frist, über (`sort_title`, Jahr) 30 Tage.
-- **W-3** Haken nach `metadata.match` (`metadata.WithRelink`).
-- **W-4** Pflegeaktion «Verwaiste Benutzerdaten umhängen» (Vertrag, Server, Oberfläche, Tastaturtest).
-- **W-5** «Pfad ändern» für einen Ordner (Vertrag, Server, Oberfläche, Tastaturtest).
+- **W-0** (`258abce`) Papiere: Frage 21, ADR 0023, Plan 3.2, Ideenstatus «Übernommen».
+- **W-1** (`167abe0`) Zusammenführung über den Baum im Paket `library` (die alte ID bleibt).
+- **W-2** (`4d96de0`) Scanner: Wiederverknüpfung über Anbieter-ID ohne Frist, über (`sort_title`, Jahr)
+  30 Tage.
+- **W-3** (`c4eb17d`) Haken nach `metadata.match` (`metadata.WithRelink`).
+- **Review W-1 bis W-3** (4 Major, 7 Minor) behoben in `1673ec8`, `85f2734` (`jobs.RetryLater`,
+  `Queue.Defer`) und `256b954`. Wichtigste Änderungen: dauerhafter Job `library.relink`,
+  Mitfalten älterer Zwillinge, gepflegte Werte der Kopie bleiben, nur frische Kopien.
+- **W-4** (`3ca1243`, `469f7ba`) Pflegeaktion «Verwaiste Benutzerdaten» (Vertrag 1.9.0, Server,
+  Reiter unter «Pflege», Tastaturtest).
+- **Review W-4** (4 Major, 10 Minor) behoben in `5c74811`, `db606bc` und `e480d78`. Marcos Antworten:
+  **7 Tage Spielraum** für die automatische Wiederverknüpfung, keine Frische-Regel in der
+  Pflegeaktion; **alle Paare vorausgewählt**, abgewählte bleiben abgewählt. Ein wackliger Test
+  (`TestRelinkFoldsOlderTwins`) hatte seine Ursache in der Testhilfe: gleich grosse Dateien und ein
+  wiederverwendeter inode. Belegt mit `-count=200` und `-race -count=50`.
+- **W-5** (`4e6e9b1`, `f9696b3`) «Pfad ändern» für einen Ordner (Vertrag, Server, Oberfläche,
+  Tastaturtest). Der e2e-Test zieht einen echten Ordner um, und der Titel behält seine ID.
 - **W-6** Messung (`docs/perf/wurzelwechsel.md`), `task ci`, Pull Request. Abnahme und Reparatur auf
   CT 190 erst auf Marcos Wort.
 
