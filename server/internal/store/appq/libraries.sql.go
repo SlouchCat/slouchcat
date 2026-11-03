@@ -321,6 +321,43 @@ func (q *Queries) UpdateLibraryRoot(ctx context.Context, arg UpdateLibraryRootPa
 	return i, err
 }
 
+const updateLibraryRootPath = `-- name: UpdateLibraryRootPath :one
+UPDATE library_roots SET path = ?1, fs_type = ?2, watch = ?3 WHERE id = ?4 AND library_id = ?5
+RETURNING id, library_id, path, fs_type, watch, created_at, content, providers
+`
+
+type UpdateLibraryRootPathParams struct {
+	Path      string
+	FsType    string
+	Watch     string
+	ID        int64
+	LibraryID int64
+}
+
+// A new path for a folder that moved (updateLibraryRoot, ADR 0023 point 4) with the file system
+// facts of the new place; its media files stay and the next scan finds them again.
+func (q *Queries) UpdateLibraryRootPath(ctx context.Context, arg UpdateLibraryRootPathParams) (LibraryRoot, error) {
+	row := q.db.QueryRowContext(ctx, updateLibraryRootPath,
+		arg.Path,
+		arg.FsType,
+		arg.Watch,
+		arg.ID,
+		arg.LibraryID,
+	)
+	var i LibraryRoot
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.FsType,
+		&i.Watch,
+		&i.CreatedAt,
+		&i.Content,
+		&i.Providers,
+	)
+	return i, err
+}
+
 const updateLibrarySettings = `-- name: UpdateLibrarySettings :one
 UPDATE libraries SET name = ?1, default_rating = ?2, updated_at = ?3 WHERE id = ?4
 RETURNING id, name, kind, default_rating, created_at, updated_at, last_scan_state, last_scan_started_at, last_scan_finished_at, last_scan_error, scan_files_seen, scan_files_total, loss_accepted_at

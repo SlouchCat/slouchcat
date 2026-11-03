@@ -103,7 +103,8 @@ type AdminService interface {
 	// AddLibraryRoots adds folders to a library in one transaction (idea 02, E8; F-13). Errors:
 	// model.ErrNotFound, *model.ValidationError with the index of the folder that broke a rule.
 	AddLibraryRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error)
-	// UpdateLibraryRoot changes the content or the provider list of a folder (ADR 0015). Errors:
+	// UpdateLibraryRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023)
+	// of a folder. Errors:
 	// model.ErrNotFound, *model.ValidationError, model.ErrConfirmMismatch, model.ErrScanRunning.
 	UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
 	// ListMetadataProviders describes the four providers (ADR 0015).

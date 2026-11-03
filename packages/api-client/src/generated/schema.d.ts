@@ -1284,9 +1284,9 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change the content or the metadata sources of a folder (F-4)
-         * @description Changes what a folder holds or who describes it (ADR 0015). The three effects differ in
-         *     weight, and the weight decides what the request has to carry:
+         * Change the content, the metadata sources or the path of a folder (F-4, ADR 0023)
+         * @description Changes what a folder holds, who describes it (ADR 0015) or where it lies (ADR 0023). The
+         *     four effects differ in weight, and the weight decides what the request has to carry:
          *
          *     - A new provider list with the same first entry writes the list on every title of the
          *       folder and queues one metadata job per title. Nothing is deleted, no confirmation.
@@ -1299,6 +1299,14 @@ export interface paths {
          *       folder's files forgotten and read afresh by a queued scan. It therefore needs the typed
          *       path in `confirmPath`, exactly like `removeLibraryRoot` (`confirm_mismatch`), and a
          *       running scan refuses it (`scan_running`).
+         *     - A new `path` (the folder moved, ADR 0023 point 4) is checked like a new folder:
+         *       absolute, readable, below a browsable root (`library_path_invalid`), overlapping no
+         *       other folder (`root_overlap`). The folder keeps its titles and files; the server takes
+         *       the new path under the scan lock (a running scan refuses it, `scan_running`), restarts
+         *       the folder's watcher and queues a scan, which finds the files again by name, inode or
+         *       partial hash. Files it does not find count towards the loss threshold of the scan. No
+         *       `confirmPath`; the same path is no change. It cannot be combined with `content`
+         *       (`path_with_content`), but with `providers`.
          */
         patch: operations["updateLibraryRoot"];
         trace?: never;
@@ -5101,10 +5109,17 @@ export interface components {
             roots: components["schemas"]["LibraryRootRequest"][];
         };
         /**
-         * @description A change to a folder (`updateLibraryRoot`); at least one of `content` and `providers`. A
-         *     content change empties the folder's titles like a removal and therefore repeats the path.
+         * @description A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers` and
+         *     `path`. A content change empties the folder's titles like a removal and therefore repeats
+         *     the path; a new path keeps them and cannot be combined with a content change.
          */
         LibraryRootUpdate: {
+            /**
+             * @description The new absolute directory of the folder (it moved, ADR 0023 point 4), below a
+             *     browsable root, for example `/media/Filme-neu`. Its titles, files and user data stay
+             *     when the scan finds the files there under the same names.
+             */
+            path?: string;
             content?: components["schemas"]["RootContent"];
             providers?: components["schemas"]["MetadataProvider"][];
             /** @description The folder's path, repeated by the administrator; required for a content change. */
@@ -9902,7 +9917,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description A scan of this library is running (`scan_running`); only a content change is refused by it. */
+            /** @description A scan of this library is running (`scan_running`); only a content or path change is refused by it. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -9913,7 +9928,8 @@ export interface operations {
             };
             /**
              * @description `validation_failed` (`content` `content_not_allowed`, `providers`
-             *     `providers_not_allowed`, or neither field given), or a content change whose
+             *     `providers_not_allowed`, `path` `library_path_invalid`, `root_overlap` or
+             *     `path_with_content`, or none of the fields given), or a content change whose
              *     `confirmPath` does not repeat the folder's path (`confirm_mismatch`).
              */
             422: {

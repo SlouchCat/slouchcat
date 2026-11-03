@@ -1159,6 +1159,8 @@ const (
 	CodeContentNotAllowed   = "content_not_allowed"
 	CodeRootsRequired       = "roots_required"
 	CodeRootOverlap         = "root_overlap"
+	// CodePathWithContent refuses a new path of a folder together with a new content (ADR 0023).
+	CodePathWithContent = "path_with_content"
 )
 
 // identifiers lists the providers that may stand first in the list of a root content, fillers
@@ -1322,12 +1324,14 @@ type LibraryRootRequest struct {
 	Providers []string // ordered; the first identifies, the others fill
 }
 
-// LibraryRootUpdate changes the content or the provider list of a folder (updateLibraryRoot).
-// A content change empties the folder's titles like a removal would and therefore repeats the
-// path (ConfirmPath); a list change needs no confirmation.
+// LibraryRootUpdate changes the content, the provider list or the path of a folder
+// (updateLibraryRoot). A content change empties the folder's titles like a removal would and
+// therefore repeats the path (ConfirmPath); a list change and a new path (ADR 0023 point 4) need no
+// confirmation.
 type LibraryRootUpdate struct {
 	Content     *string
 	Providers   []string // nil = unchanged
+	Path        *string  // nil = unchanged
 	ConfirmPath string
 }
 

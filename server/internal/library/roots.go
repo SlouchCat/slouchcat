@@ -185,13 +185,7 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 // forgetRoot stops the watcher of a removed root and drops what the service still holds for it:
 // the directories waiting to become a scan.path job and the extras files a scan deferred.
 func (s *Service) forgetRoot(libraryID, rootID int64) {
-	s.mu.Lock()
-	if stop := s.watcherStop[rootID]; stop != nil {
-		stop()
-	}
-	delete(s.watcherStop, rootID)
-	delete(s.watchers, rootID)
-	s.mu.Unlock()
+	s.stopWatcher(rootID)
 
 	s.pathMu.Lock()
 	if byRoot := s.pathPending[libraryID]; byRoot != nil {
@@ -205,6 +199,17 @@ func (s *Service) forgetRoot(libraryID, rootID int64) {
 	s.orphanMu.Lock()
 	delete(s.orphans, rootID)
 	s.orphanMu.Unlock()
+}
+
+// stopWatcher ends the watcher of a root, if one runs.
+func (s *Service) stopWatcher(rootID int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if stop := s.watcherStop[rootID]; stop != nil {
+		stop()
+	}
+	delete(s.watcherStop, rootID)
+	delete(s.watchers, rootID)
 }
 
 // settleScans clears what the removed root left in the queue. It takes the root out of a queued

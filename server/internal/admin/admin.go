@@ -92,8 +92,8 @@ type Libraries interface {
 	// AddRoots adds further folders to a library in one transaction (idea 02, E8; F-13);
 	// model.ErrNotFound, *model.ValidationError with the index of the folder that broke a rule.
 	AddRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error)
-	// UpdateRoot changes the content or the provider list of a folder (ADR 0015); a content
-	// change repeats the path like a removal. model.ErrNotFound, *model.ValidationError,
+	// UpdateRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023) of a
+	// folder; a content change repeats the path like a removal. model.ErrNotFound, *model.ValidationError,
 	// model.ErrConfirmMismatch, model.ErrScanRunning.
 	UpdateRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
 	// RemoveRoot removes a folder and soft-deletes the titles that live only there (E12).
@@ -520,13 +520,16 @@ func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []
 	return s.libraries.AddRoots(ctx, libraryID, roots)
 }
 
-// UpdateLibraryRoot changes the content or the provider list of a folder (ADR 0015). The rules
-// and the typed confirmation of a content change live in package library.
+// UpdateLibraryRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023) of a
+// folder. The rules and the typed confirmation of a content change live in package library.
 func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
-	if upd.Content == nil && upd.Providers == nil {
+	if upd.Content == nil && upd.Providers == nil && upd.Path == nil {
 		verr = verr.Add("body", "required")
+	}
+	if upd.Path != nil && len(*upd.Path) > maxLibraryPath {
+		verr = verr.Add("path", "too_long")
 	}
 	if upd.Content != nil && !model.ValidRootContent(*upd.Content) {
 		verr = verr.Add("content", "invalid_value")

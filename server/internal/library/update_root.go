@@ -5,16 +5,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
-// UpdateRoot changes the content or the provider list of a folder (updateLibraryRoot, ADR 0015,
-// concept 6.3). The three effects differ in weight, and the weight decides what the request has
-// to carry:
+// UpdateRoot changes the content, the provider list or the path of a folder (updateLibraryRoot,
+// ADR 0015, concept 6.3, ADR 0023 point 4). The four effects differ in weight, and the weight
+// decides what the request has to carry:
 //
 //   - A change of the list that keeps the identifier (["tmdb"] → ["tmdb","anilist"], or the
 //     order of the fillers) writes the new list on every title with a file in the folder, its
@@ -34,10 +36,16 @@ import (
 //     offline packages and detaches progress from titles, exactly like a removal, and so it must
 //     not be easier to reach: confirmPath has to repeat the stored path (model.ErrConfirmMismatch),
 //     and a running scan refuses it (model.ErrScanRunning).
+//   - A new path (the folder moved) passes the rules of a new folder (prepareRootPath: absolute,
+//     readable, below a browsable root, no overlap with another folder) and is taken over under
+//     the scan lock by changeRootPath: the folder keeps its media files, so the queued scan finds
+//     them again by name, inode or partial hash, and titles, ids and user data stay. Files it does
+//     not find count towards the loss threshold. No confirmation; it cannot be combined with a
+//     content change (path_with_content), only with a provider list. The same path is no change.
 //
 // Errors: model.ErrNotFound (unknown library, or the root belongs to another one),
-// *model.ValidationError (content_not_allowed, providers_not_allowed), model.ErrConfirmMismatch,
-// model.ErrScanRunning.
+// *model.ValidationError (content_not_allowed, providers_not_allowed, path library_path_invalid,
+// root_overlap or path_with_content), model.ErrConfirmMismatch, model.ErrScanRunning.
 func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
 	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -74,16 +82,101 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 	if !model.ValidRootProviders(content, providers) {
 		verr = verr.Add("providers", model.CodeProvidersNotAllowed)
 	}
+	var moved *preparedRoot
+	if upd.Path != nil {
+		p, err := s.prepareMovedRoot(ctx, root, *upd.Path, upd.Content != nil)
+		var field *model.ValidationError
+		switch {
+		case errors.As(err, &field):
+			verr = verr.Add("path", field.Fields[0].Code)
+		case err != nil:
+			return model.Library{}, err
+		}
+		moved = p
+	}
 	if verr != nil {
 		return model.Library{}, verr
 	}
 	if content != root.Content {
 		return s.changeRootContent(ctx, lib, root, content, providers, upd.ConfirmPath)
 	}
+	if moved != nil {
+		var err error
+		if root, err = s.changeRootPath(ctx, lib, root, *moved); err != nil {
+			return model.Library{}, err
+		}
+	}
 	if err := s.changeRootProviders(ctx, root, old, providers); err != nil {
 		return model.Library{}, err
 	}
+	if moved != nil {
+		return s.QueueScan(ctx, libraryID)
+	}
 	return s.Get(ctx, libraryID)
+}
+
+// prepareMovedRoot checks the new path of root: nil when it is the stored one, else the folder
+// with its file system facts, or a *model.ValidationError with one field error (its code is used
+// for the field "path"): path_with_content when the request changes the content as well,
+// library_path_invalid or root_overlap from the rules of a new folder, where root itself does not
+// count as an overlap.
+func (s *Service) prepareMovedRoot(ctx context.Context, root appq.LibraryRoot, path string, withContent bool) (*preparedRoot, error) {
+	var verr *model.ValidationError
+	if withContent {
+		return nil, verr.Add("path", model.CodePathWithContent)
+	}
+	if p := strings.TrimSpace(path); filepath.IsAbs(p) && filepath.Clean(p) == root.Path {
+		return nil, nil
+	}
+	clean, err := s.prepareRootPath(ctx, path, nil, root.ID)
+	switch {
+	case errors.Is(err, errRootOverlap):
+		return nil, verr.Add("path", model.CodeRootOverlap)
+	case errors.Is(err, model.ErrLibraryPathInvalid):
+		return nil, verr.Add("path", "library_path_invalid")
+	case err != nil:
+		return nil, err
+	}
+	fsType, err := paths.DetectFS(clean)
+	if err != nil {
+		return nil, verr.Add("path", "library_path_invalid")
+	}
+	watch, _ := WatchMode(string(fsType))
+	return &preparedRoot{path: clean, content: root.Content, fsType: string(fsType), watch: watch}, nil
+}
+
+// changeRootPath takes over the new path of a folder that moved (ADR 0023 point 4) under the scan
+// lock, so no scan walks the old path while the row changes: it writes the path with the file
+// system facts of the new place, keeps the media files, replaces the watcher and drops what the
+// service and the queue hold for the old place. The caller queues the scan that finds the files
+// again. A running scan refuses it (model.ErrScanRunning).
+func (s *Service) changeRootPath(ctx context.Context, lib appq.Library, root appq.LibraryRoot, moved preparedRoot) (appq.LibraryRoot, error) {
+	unlock, ok := s.tryLockScan(lib.ID)
+	if !ok {
+		return root, fmt.Errorf("%w: library %d", model.ErrScanRunning, lib.ID)
+	}
+	defer unlock()
+
+	files, err := systemq.New(s.db.Read).CountMediaFilesOfRoot(ctx, root.ID)
+	if err != nil {
+		return root, fmt.Errorf("count media files of root %d: %w", root.ID, err)
+	}
+	row, err := appq.New(s.db.Write).UpdateLibraryRootPath(ctx, appq.UpdateLibraryRootPathParams{
+		Path: moved.path, FsType: moved.fsType, Watch: moved.watch, ID: root.ID, LibraryID: root.LibraryID,
+	})
+	if err != nil {
+		return root, fmt.Errorf("update path of library root %d: %w", root.ID, err)
+	}
+	s.stopWatcher(root.ID)
+	s.resetRootState(lib.ID, root.ID)
+	s.dropQueuedPathScan(ctx, lib.ID, root.ID)
+	s.startWatcher(row)
+
+	// Warn and not Info, as for a content change: the project keeps no audit table.
+	s.log.WarnContext(ctx, "library root path changed", "library_id", lib.ID, "library", lib.Name,
+		"root_id", root.ID, "from", root.Path, "to", row.Path, "fs_type", row.FsType, "watch", row.Watch,
+		"media_files_kept", files)
+	return row, nil
 }
 
 // changeRootProviders writes the new list on the root and its titles and queues one job per

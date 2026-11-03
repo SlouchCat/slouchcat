@@ -283,8 +283,9 @@ func nested(path, dir string) bool {
 	return path == dir || strings.HasPrefix(path, strings.TrimSuffix(dir, "/")+"/")
 }
 
-// refuseOverlap rejects a folder that is, or lies below, or holds a folder of any library. path
-// must be absolute and cleaned.
+// refuseOverlap rejects a folder that is, or lies below, or holds a folder of any library other
+// than the root except (0 for none: a folder that moves may overlap its own old path). path must
+// be absolute and cleaned.
 //
 // It compares twice: once on the paths as they are written, and once on what
 // filepath.EvalSymlinks makes of them. The second pass matters because the first one compares
@@ -299,13 +300,16 @@ func nested(path, dir string) bool {
 // Unicode-folding share. Both need a stat of every stored root on every call; the folders of one
 // server are few and set by hand, and the damage is a double index, not an escape from the
 // browsable roots.
-func (s *Service) refuseOverlap(ctx context.Context, path string) error {
+func (s *Service) refuseOverlap(ctx context.Context, path string, except int64) error {
 	roots, err := appq.New(s.db.Read).ListAllLibraryRoots(ctx)
 	if err != nil {
 		return fmt.Errorf("list roots: %w", err)
 	}
 	real := resolved(path)
 	for _, r := range roots {
+		if r.ID == except {
+			continue
+		}
 		old := filepath.Clean(r.Path)
 		oldReal := resolved(old)
 		if nested(path, old) || nested(old, path) || nested(real, oldReal) || nested(oldReal, real) {
