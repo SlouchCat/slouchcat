@@ -124,6 +124,17 @@ func (f *authTestLibraries) UpdateRoot(ctx context.Context, id, rootID int64, up
 	if idx < 0 {
 		return model.Library{}, model.ErrNotFound
 	}
+	// A new path (ADR 0023) goes without a content change and not under a running scan.
+	if upd.Path != nil {
+		if upd.Content != nil {
+			var verr *model.ValidationError
+			return model.Library{}, verr.Add("path", model.CodePathWithContent)
+		}
+		if f.scanRunning {
+			return model.Library{}, model.ErrScanRunning
+		}
+		lib.Roots[idx].Path = *upd.Path
+	}
 	// A content change is a removal and a re-read: it needs the typed path and no running scan,
 	// exactly like RemoveRoot (ADR 0015).
 	if upd.Content != nil && *upd.Content != lib.Roots[idx].Content {

@@ -282,16 +282,22 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	} else if cfg.TraktBaseURL != "" {
 		log.Warn("SLOUCHCAT_TRAKT_BASE_URL is ignored without --dev")
 	}
+	// The match hands a matched title to the library, which is created after the metadata service
+	// because it takes the metadata checks; the closure reads libSvc when a match runs.
+	var libSvc *library.Service
+	relink := func(ctx context.Context, itemID string) (bool, error) {
+		return libSvc.QueueRelink(ctx, itemID)
+	}
 	metaSvc := metadata.New(db, queue, keys, cfg.CacheDir, runner, log, metadata.WithTrailerAI(cfg.TrailerAI),
 		metadata.WithVisibilityRecheck(playbackSvc.RecheckVisibility), metadata.WithFeedUserAgent("Slouchcat/"+version),
-		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList),
+		metadata.WithNewEpisodes(notifySvc.NewEpisodes), metadata.WithAniList(cfg.AniList), metadata.WithRelink(relink),
 		metadata.WithTrakt(cfg.TraktClientID, metadata.WithTraktBaseURL(traktBase)))
-	libSvc := library.New(db, queue, runner, log,
+	libSvc = library.New(db, queue, runner, log,
 		library.WithImageCheck(metaSvc.QueueIncompleteImages),
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
-		library.WithBrowseRoots(cfg.BrowseRoots))
+		library.WithBrowseRoots(cfg.BrowseRoots), library.WithVisibilityRecheck(playbackSvc.RecheckVisibility))
 	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	// The zone of the watch-time grid, resolved once by name (concept 12).

@@ -1,12 +1,13 @@
 import type { Library, LibraryRoot, LibraryRootUpdate } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { Chip, Notice, Text } from '@/ui';
 import {
   AriaButton,
+  ConfirmDialog,
   ConfirmInputDialog,
   FolderList,
   Form,
@@ -23,6 +24,7 @@ import {
 } from '@/ui/aria';
 import { browseKey } from '../../shared/pathBrowser';
 import { PathBrowserButton } from '../../shared/PathBrowserButton';
+import { PathBrowserDialog } from '../../shared/PathBrowserDialog';
 import { librariesQuery, metadataProvidersQuery } from '../queries';
 import { watchKeys } from './libraryColumns';
 import styles from './LibraryFoldersDialog.module.css';
@@ -37,9 +39,10 @@ interface LibraryFoldersDialogProps {
 
 /**
  * "Edit library": the folders of a library, one row each with content and provider list, a way
- * in («Neue Ordner», several at once, F-13), «Ändern» (content and list, ADR 0015) and a way out
- * (idea 02, E8 and E16). The page's row only names how many there are and lists them in its
- * fold-out; the sources are ordered by position here (concept 12, S-16).
+ * in («Neue Ordner», several at once, F-13), «Ändern» (content and list, ADR 0015), «Pfad ändern»
+ * (the folder moved, ADR 0023 point 4) and a way out (idea 02, E8 and E16). The page's row only
+ * names how many there are and lists them in its fold-out; the sources are ordered by position
+ * here (concept 12, S-16).
  *
  * Removing is the first destructive operation on a library in this project, so it goes through
  * ConfirmInputDialog: the path has to be typed out (E12, E17). What the text promises is what
@@ -59,6 +62,10 @@ export function LibraryFoldersDialog({
   const [folders, setFolders] = useState<FolderEntry[]>([]);
   const [removing, setRemoving] = useState<LibraryRoot | null>(null);
   const [changing, setChanging] = useState<LibraryRoot | null>(null);
+  // «Pfad ändern»: the folder browser picks the new path, a plain confirmation names both paths.
+  const [browsing, setBrowsing] = useState<LibraryRoot | null>(null);
+  const [moving, setMoving] = useState<{ root: LibraryRoot; path: string } | null>(null);
+  const moveButtons = useRef(new Map<number, HTMLButtonElement>());
   const [saved, setSaved] = useState<string | null>(null);
   const providers = useQuery({ ...metadataProvidersQuery, enabled: isOpen });
 
@@ -114,6 +121,34 @@ export function LibraryFoldersDialog({
     },
   });
 
+  // A new path keeps the folder's titles, files and user data (ADR 0023 point 4); the server
+  // checks the path like a new folder's and queues the scan that finds the files again.
+  const move = useMutation({
+    mutationFn: ({ root, path }: { root: LibraryRoot; path: string }): Promise<Library> =>
+      request(
+        api.PATCH('/admin/libraries/{id}/roots/{rootId}', {
+          params: { path: { id: library.id, rootId: root.id } },
+          body: { path },
+        }),
+      ),
+    onSuccess: async (updated, { root, path }) => {
+      // The notice names the path the server stored (cleaned), not the one that was sent.
+      const stored = updated.roots.find((r) => r.id === root.id)?.path ?? path;
+      setSaved(t('admin.libraries.folders.move.saved', { path: stored }));
+      await refresh(updated);
+    },
+  });
+  const moveError = move.error
+    ? (formErrors(t, move.error).fields.path ?? problemMessage(t, move.error))
+    : null;
+  // The confirmation opens as the folder browser closes, so react-aria has no opener to return
+  // the focus to: the row's «Pfad ändern» takes it, after the dialog is gone.
+  const endMove = () => {
+    const id = moving?.root.id;
+    setMoving(null);
+    if (id !== undefined) requestAnimationFrame(() => moveButtons.current.get(id)?.focus());
+  };
+
   const addErrors = add.error ? formErrors(t, add.error) : null;
   const listError = folderListError(t, folders, providers.data);
 
@@ -122,14 +157,18 @@ export function LibraryFoldersDialog({
   const close = () => {
     add.reset();
     remove.reset();
+    move.reset();
     setFolders([]);
     setRemoving(null);
     setChanging(null);
+    setBrowsing(null);
+    setMoving(null);
     setSaved(null);
     onOpenChange(false);
   };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    move.reset(); // the message of a refused «Pfad ändern» belongs to that action only
     if (folders.length > 0 && !listError) add.mutate(folders);
   };
 
@@ -150,6 +189,7 @@ export function LibraryFoldersDialog({
       >
         <div className={styles.body}>
           {saved && <Notice>{saved}</Notice>}
+          {moveError && <Notice tone="danger">{moveError}</Notice>}
           {library.roots.length === 0 ? (
             <Notice tone="warning" live={false}>
               {library.kind === 'podcasts'
@@ -190,10 +230,28 @@ export function LibraryFoldersDialog({
                       aria-label={t('admin.libraries.folders.change.label', { path: root.path })}
                       onPress={() => {
                         setSaved(null);
+                        move.reset();
                         setChanging(root);
                       }}
                     >
                       {t('admin.libraries.folders.change.action')}
+                    </AriaButton>
+                    <AriaButton
+                      variant="ghost"
+                      icon="folder"
+                      ref={(node) => {
+                        if (node) moveButtons.current.set(root.id, node);
+                        else moveButtons.current.delete(root.id);
+                      }}
+                      aria-label={t('admin.libraries.folders.move.label', { path: root.path })}
+                      isPending={move.isPending && move.variables?.root.id === root.id}
+                      onPress={() => {
+                        setSaved(null);
+                        move.reset();
+                        setBrowsing(root);
+                      }}
+                    >
+                      {t('admin.libraries.folders.move.action')}
                     </AriaButton>
                     <AriaButton
                       variant="dangerQuiet"
@@ -202,6 +260,7 @@ export function LibraryFoldersDialog({
                       isPending={remove.isPending && remove.variables?.root.id === root.id}
                       onPress={() => {
                         remove.reset();
+                        move.reset();
                         setRemoving(root);
                       }}
                     >
@@ -288,6 +347,38 @@ export function LibraryFoldersDialog({
         {remove.error && <Notice tone="danger">{problemMessage(t, remove.error)}</Notice>}
         {removing && <RemovalConsequences library={library} root={removing} />}
       </ConfirmInputDialog>
+
+      <PathBrowserDialog
+        isOpen={browsing !== null}
+        onOpenChange={(open) => {
+          if (!open) setBrowsing(null);
+        }}
+        currentPath={browsing?.path ?? ''}
+        onApply={(path) => {
+          // The same folder again is no change: nothing to confirm, nothing to send. The paths
+          // are compared as the server cleans them (spaces, a trailing slash).
+          const next = cleanPath(path);
+          if (browsing && next !== cleanPath(browsing.path))
+            setMoving({ root: browsing, path: next });
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={moving !== null}
+        onOpenChange={(open) => {
+          if (!open) endMove();
+        }}
+        title={t('admin.libraries.folders.move.title')}
+        body={t('admin.libraries.folders.move.body', {
+          old: moving?.root.path ?? '',
+          new: moving?.path ?? '',
+        })}
+        confirmLabel={t('admin.libraries.folders.move.confirm')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => {
+          if (moving) move.mutate(moving);
+        }}
+      />
 
       {changing && (
         <ChangeRootDialog
@@ -455,8 +546,8 @@ function ChangeRootDialog({
 
 /**
  * What removing a folder really does. It is longer than a confirmation usually is on purpose:
- * "delete" is both too frightening (the titles are soft-deleted and come back with their user
- * data when the folder returns within 30 days) and too harmless (the offline packages on the
+ * "delete" is both too frightening (the titles are soft-deleted and return with their user
+ * data once they come back with the same provider id, ADR 0023) and too harmless (the offline packages on the
  * devices are gone, a running playback breaks off, and the path map of Radarr and Sonarr points
  * nowhere afterwards).
  */
@@ -483,4 +574,10 @@ function RemovalConsequences({ library, root }: { library: Library; root: Librar
       </ul>
     </>
   );
+}
+
+/** A path as the server stores it: without surrounding spaces and without a trailing slash. */
+function cleanPath(path: string): string {
+  const trimmed = path.trim();
+  return trimmed.length > 1 ? trimmed.replace(/\/+$/, '') || '/' : trimmed;
 }

@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -119,5 +120,49 @@ func TestWorkerShutdownReleasesJob(t *testing.T) {
 	}
 	if j.State != StateQueued || j.Attempts != 0 {
 		t.Fatalf("interrupted job must be queued again without a used attempt: %+v", j)
+	}
+}
+
+// A handler that cannot start yet (RetryLater, also wrapped) puts its job back for later without
+// using an attempt; it runs again once the wait is over.
+func TestWorkerRetryLaterDefersWithoutAttempt(t *testing.T) {
+	q, c := newTestQueue(t)
+	w := NewWorker(q, "w1", discard)
+	calls := make(chan int, 4)
+	n := 0
+	w.Handle("a", func(context.Context, *Job) error {
+		n++
+		calls <- n
+		if n == 1 {
+			return fmt.Errorf("lock busy: %w", RetryLater(time.Minute, "scan lock"))
+		}
+		return nil
+	})
+	stop := startWorker(t, w)
+	defer stop()
+
+	id := mustEnqueue(t, q, NewJob{Type: "a", MaxAttempts: 1})
+	<-calls
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		j, err := q.Get(context.Background(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if j.State == StateQueued && j.RunAfter.Equal(c.Now().Add(time.Minute)) {
+			if j.Attempts != 0 || j.LastError != "" {
+				t.Fatalf("deferred job used an attempt or recorded an error: %+v", j)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("job not deferred: %+v", j)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	c.Advance(time.Minute)
+	<-calls
+	if j := waitForState(t, q, id, StateDone); j.Attempts != 1 {
+		t.Errorf("attempts after the deferred run = %d, want 1", j.Attempts)
 	}
 }

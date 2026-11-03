@@ -2,11 +2,13 @@
 
 ## Scanner: wiederverwendete Inode ist keine Verschiebung (3. November 2026)
 
-Zweig `claude/scanner-inode-reuse` ab `main` `cbf17fb`. Der Scanner ordnete eine neue Datei einer
-bekannten zu, sobald (`dev`, `inode`, `size`) übereinstimmten. ext4 vergibt die Inode einer eben
-gelöschten Datei neu; bei gleicher Grösse hielt der Scanner die neue Datei für die verschobene alte
-und holte deren Titel zurück, statt einen neuen anzulegen. Aufgefallen als wackliger
-`TestRelinkFoldsOlderTwins` in PR #76 (Idee 04), dort nur in der Testhilfe entschärft.
+Zweig `claude/scanner-inode-reuse` ab `main` `cbf17fb`, `main` `ae0502b` (mit Idee 04) eingemergt;
+PR #79. Der Scanner ordnete eine neue Datei einer bekannten zu, sobald (`dev`, `inode`, `size`)
+übereinstimmten. ext4 vergibt die Inode einer eben gelöschten Datei neu; bei gleicher Grösse hielt
+der Scanner die neue Datei für die verschobene alte und holte deren Titel zurück, statt einen neuen
+anzulegen. Aufgefallen als wackliger
+`TestRelinkFoldsOlderTwins` in PR #76 (Idee 04), dort nur in der Testhilfe `addFilm` entschärft
+(jede Datei eigene Grösse); die Entschärfung bleibt.
 
 - Fix in `planRoot`: Ein Treffer über die Inode gilt direkt nur bei gleicher `mtime` (eine
   Umbenennung behält sie, ein Umbenennen kostet also weiterhin kein Lesen). Bei anderer `mtime`
@@ -28,13 +30,89 @@ und holte deren Titel zurück, statt einen neuen anzulegen. Aufgefallen als wack
   dieselbe Datei; ohne alten `partial_hash` entscheidet die Inode. Paketbeschreibung in
   `server/internal/library/doc.go` angepasst.
 
+## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: gemergt und auf CT 190 abgenommen (3. November 2026)
+
+**PR #76 am 3. November 2026 in `main` gemergt (`34822aa`).** Marcos Wort «Jetzt mergen» kam,
+während der neu gestartete e2e-Shard 2 noch lief. Zuvor war er nur wegen des Zeitbudgets von
+`hdr.spec.ts` rot (5122 ms statt < 5000 ms, CPU-Tonemapping auf dem Runner).
+
+**Abnahme auf CT 190 (Marcos Wort «Schreibe auf CT 190»):**
+- **Image:** `wurzelwechsel-34822aa` (`v1.8.0-28-g34822aa`), auf dem CT gebaut nach
+  `/root/build-34822aa`. Container sauber gestoppt, Datenbank gesichert nach
+  `config/backups/pre-wurzelwechsel-20261103/`, alte `.env` als `.env.bak-vor-wurzelwechsel`.
+  Keine Migration.
+- **Automatisch** wurde nichts zusammengeführt. Das ist erwartet: Beide Kopien waren schon vor dem
+  Update zugeordnet, und ausgelöst wird nur nach einem Match oder einem Löschen.
+- **Pflegeaktion:** Sie zeigte die zwei Paare erst nach einem Neuladen des Browsers; vorher sah
+  Marco noch den alten Stand der App. Marco hat beide umgehängt.
+  - «Silo»: `01M5TG0K…` bleibt, `merged=34`.
+  - «Two and a Half Men»: `01M5TG28…` bleibt, `merged=274`.
+- **Prüfung, lesend in der Datenbank:**
+  - Beide alten Serien leben (`available=1`), die Kopien sind weg.
+  - 15 Staffeln und 291 Folgen hängen unter den alten Serien.
+  - 6 Fortschritte (3 alte, 3 aus der Kopie), 168 Wiedergabe-Ereignisse und 11 Wiedergaben hängen
+    an den alten Folgen.
+  - Kein Fortschritt hängt mehr an einem gelöschten Titel.
+  - Je ein `metadata.match` für die beiden Serien ist gelaufen.
+  - Die übrigen 496 gelöschten Serien bleiben gelöscht.
+- **Scanzeit «Serien» vor dem Update:** 213 bis 608 ms (8 Läufe nach Zeitplan, Median etwa 345 ms).
+  Der Wert danach folgt mit dem nächsten Scan nach Zeitplan.
+- **Nachgezogen:** Der Hinweis im Dialog «Ordner entfernen» sprach noch von «binnen 30 Tagen». Er
+  sagt jetzt, dass Titel über ihre Anbieter-ID zurückfinden, und verweist für einen Umzug auf
+  «Pfad ändern».
+- **Offen:** Release 1.9.0 (Tag setzt Marco).
+
+
+Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemergt `cbf17fb`). Zweig
+`claude/wurzelwechsel` ab `main` `cbf17fb`, Frage 21, ADR 0023, Vertrag **1.9.0** additiv als eigenes
+Release vor Konzept 13 und 14, keine Migration. Schritte:
+
+- **W-0** (`258abce`) Papiere: Frage 21, ADR 0023, Plan 3.2, Ideenstatus «Übernommen».
+- **W-1** (`167abe0`) Zusammenführung über den Baum im Paket `library` (die alte ID bleibt).
+- **W-2** (`4d96de0`) Scanner: Wiederverknüpfung über Anbieter-ID ohne Frist, über (`sort_title`, Jahr)
+  30 Tage.
+- **W-3** (`c4eb17d`) Haken nach `metadata.match` (`metadata.WithRelink`).
+- **Review W-1 bis W-3** (4 Major, 7 Minor) behoben in `1673ec8`, `85f2734` (`jobs.RetryLater`,
+  `Queue.Defer`) und `256b954`. Wichtigste Änderungen: dauerhafter Job `library.relink`,
+  Mitfalten älterer Zwillinge, gepflegte Werte der Kopie bleiben, nur frische Kopien.
+- **W-4** (`3ca1243`, `469f7ba`) Pflegeaktion «Verwaiste Benutzerdaten» (Vertrag 1.9.0, Server,
+  Reiter unter «Pflege», Tastaturtest).
+- **Review W-4** (4 Major, 10 Minor) behoben in `5c74811`, `db606bc` und `e480d78`. Marcos Antworten:
+  **7 Tage Spielraum** für die automatische Wiederverknüpfung, keine Frische-Regel in der
+  Pflegeaktion; **alle Paare vorausgewählt**, abgewählte bleiben abgewählt. Ein wackliger Test
+  (`TestRelinkFoldsOlderTwins`) hatte seine Ursache in der Testhilfe: gleich grosse Dateien und ein
+  wiederverwendeter inode. Belegt mit `-count=200` und `-race -count=50`.
+- **W-5** (`4e6e9b1`, `f9696b3`) «Pfad ändern» für einen Ordner (Vertrag, Server, Oberfläche,
+  Tastaturtest). Der e2e-Test zieht einen echten Ordner um, und der Titel behält seine ID.
+- **Schluss-Review** (1 Blocker, 1 Major, 11 Minor) behoben in `b891821`, `fa59c21` und `1dafa0e`.
+  Blocker: Eine gesperrte mildere Freigabe des Zwillings konnte die strengere der Kopie verdrängen.
+  Major: Auch das Löschen reiht jetzt die Wiederverknüpfung ein («hinzufügen, scannen, entfernen»).
+- **Kontroll-Review** der Schluss-Fixes: alle 11 Befunde behoben. Drei kleine Punkte nachgezogen in
+  `55b1bf5`: Die Zwillingsabfragen nutzen fest die Indizes der Anbieter-IDs. Nach `ANALYZE` brauchte
+  `ListRelinkPairs` vorher 56 s, jetzt 33 ms. Ein neuer Plan-Test sichert das ab.
+- **W-6** Messung `docs/perf/wurzelwechsel.md` (`ec2546f`). **Voller `task ci` auf `55b1bf5` grün**
+  (Exit 0, 616 e2e-Tests, Log-Scan ohne Befund). Ein Lauf davor scheiterte am bekannten Ausreisser
+  `LoginPage.test.tsx` («document is not defined», siehe unten), den dieser Zweig nicht berührt.
+- **Offen:** Pull Request, Merge auf Marcos Wort, Release 1.9.0. Abnahme auf CT 190: Image bauen,
+  Pflegeaktion für die zwei Serien vom 28. Oktober ausführen, Scanzeit der Bibliothek «Serien»
+  messen. Schreibzugriffe auf CT 190 nur auf Marcos Wort.
+- **W-6** Messung (`docs/perf/wurzelwechsel.md`), `task ci`, Pull Request. Abnahme und Reparatur auf
+  CT 190 erst auf Marcos Wort.
+
 ## Konzept 12 «Seitenmuster der Verwaltungsseiten»: umgesetzt und abgenommen, Schritte K12-0 bis K12-9 (3. November 2026)
 
-**Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.
-Nächster Schritt: Push und Pull Request, Merge auf Marcos Wort, danach Release 1.8.0.
+**Abgeschlossen (3. November 2026).**
+- Von Marco auf CT 190 abgenommen (K12-9, unten).
+- PR #72 in `main` gemergt (`af87164`).
+- **Release 1.8.0 veröffentlicht:** Versionsstellen in PR #75 (`a9b6fe6`), Tag `v1.8.0`,
+  Release-Lauf grün.
+- Telegram-Hinweistexte bleiben, wie sie sind (Marco, 3. November 2026).
+- Die Worktrees und Zweige des Baus sind aufgeräumt.
 
-**PR #72 am 3. November 2026 in `main` gemergt (`af87164`); Release 1.8.0 wird veröffentlicht**
-(Versionsstellen auf 1.8.0 im Zweig `claude/release-1.8.0`, Tag `v1.8.0` setzt Marco).
+Was aus der Abnahme übrig blieb, läuft anderswo weiter:
+- Verlauf bei ersetztem Ordner: Idee 04, gemergt mit PR #76, Abschnitt oben.
+- Admin-Stopp bei voll gepuffertem Titel und `autoFocus`-Dialoge: Konzept 13.
+- Weiterer Anbieter für Altersfreigaben: Idee 03, Issue #71.
 
 Zweig `claude/verwaltungsseiten` ab `main` `4c860bc` (nach Konzept 11 und Release 1.7.0), Bau nach
 `docs/planning/12-verwaltungsseiten.md` Abschnitt 11.8 (Schritte K12-0 bis K12-9). Marcos Auftrag

@@ -18,11 +18,19 @@ SELECT * FROM items WHERE id = @id;
 -- name: ListItemsByLibrary :many
 SELECT * FROM items WHERE library_id = @library_id AND deleted_at IS NULL ORDER BY id;
 
--- name: ListRecentlyDeletedItemsByLibrary :many
--- Soft-deleted titles that a re-downloaded file may bring back by provider id (plan 3.2).
-SELECT * FROM items
-WHERE library_id = @library_id AND deleted_at IS NOT NULL AND deleted_at >= @since
-ORDER BY deleted_at DESC, id;
+-- name: ListDeletedItemsByLibrary :many
+-- Soft-deleted items that a re-downloaded file may bring back (plan 3.2, ADR 0023): titles by
+-- provider id without a time limit, by (sort_title, year) within titleRelinkWindow, and their
+-- seasons and episodes; extras and podcast episodes only for the tree (kind, parent), so a
+-- returning extra restores its season and series in the index as well. Only the columns of the
+-- scanner's item index (loadItemIndex); the most recently deleted first, the later id among equal
+-- times (as FindDeletedTwin). The list names every kind, so the planner seeks items_library_kind
+-- (library, kind, deleted_at) instead of walking the live titles of the library.
+SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at
+FROM items
+WHERE library_id = @library_id AND deleted_at IS NOT NULL
+  AND kind IN ('movie', 'series', 'season', 'episode', 'extra', 'audiobook', 'podcast', 'podcast_episode')
+ORDER BY deleted_at DESC, id DESC;
 
 -- name: CountLibraryItems :one
 SELECT count(*) FROM items WHERE library_id = @library_id AND deleted_at IS NULL;

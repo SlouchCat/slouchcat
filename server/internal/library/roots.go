@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -158,6 +159,9 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	if _, err := q.SoftDeleteEmptySeries(ctx, ms); err != nil {
 		return 0, 0, fmt.Errorf("soft delete empty series: %w", err)
 	}
+	if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
+		return 0, 0, err
+	}
 	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: rootID, Now: now}); err != nil {
 		return 0, 0, fmt.Errorf("move downloads off root %d: %w", rootID, err)
 	}
@@ -185,13 +189,7 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 // forgetRoot stops the watcher of a removed root and drops what the service still holds for it:
 // the directories waiting to become a scan.path job and the extras files a scan deferred.
 func (s *Service) forgetRoot(libraryID, rootID int64) {
-	s.mu.Lock()
-	if stop := s.watcherStop[rootID]; stop != nil {
-		stop()
-	}
-	delete(s.watcherStop, rootID)
-	delete(s.watchers, rootID)
-	s.mu.Unlock()
+	s.stopWatcher(rootID)
 
 	s.pathMu.Lock()
 	if byRoot := s.pathPending[libraryID]; byRoot != nil {
@@ -205,6 +203,17 @@ func (s *Service) forgetRoot(libraryID, rootID int64) {
 	s.orphanMu.Lock()
 	delete(s.orphans, rootID)
 	s.orphanMu.Unlock()
+}
+
+// stopWatcher ends the watcher of a root, if one runs.
+func (s *Service) stopWatcher(rootID int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if stop := s.watcherStop[rootID]; stop != nil {
+		stop()
+	}
+	delete(s.watcherStop, rootID)
+	delete(s.watchers, rootID)
 }
 
 // settleScans clears what the removed root left in the queue. It takes the root out of a queued

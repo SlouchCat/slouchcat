@@ -865,13 +865,14 @@ func TestRelinkDeletedTitleByProviderID(t *testing.T) {
 		t.Errorf("progress rows = %d, want 1", n)
 	}
 
-	// Deleted again and back only after the relink window: a new title.
+	// Deleted again and back after 60 days: the provider id relinks without a time limit
+	// (ADR 0023).
 	gone("Heat (1995) [tmdb-949]/Heat (1995) - 2160p.mkv")
-	e.clock.Advance(31 * 24 * time.Hour)
+	e.clock.Advance(60 * 24 * time.Hour)
 	writeFile(t, dir, "Heat (1995) [tmdb-949]/Heat (1995) - 720p.mkv", "yet another download")
 	e.scan(lib.ID)
-	if v := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Heat (1995) [tmdb-949]/Heat (1995) - 720p.mkv'`); v == itemID {
-		t.Error("file joined a title deleted more than 30 days ago")
+	if v := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Heat (1995) [tmdb-949]/Heat (1995) - 720p.mkv'`); v != itemID {
+		t.Errorf("file joined item %q, want the title deleted 60 days ago %q", v, itemID)
 	}
 }
 

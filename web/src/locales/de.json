@@ -194,6 +194,8 @@
       "library_kind": "Wähle eine Podcast-Bibliothek.",
       "unknown_item": "Diesen Titel gibt es nicht.",
       "root_overlap": "Dieser Ordner überschneidet sich mit einem anderen Ordner.",
+      "path_with_content": "Ein neuer Pfad lässt sich nicht mit einem Inhaltswechsel verbinden.",
+      "root_files_missing": "Unter dem neuen Pfad liegt keine der bisherigen Dateien.",
       "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
       "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
       "roots_required": "Mindestens ein Ordner ist nötig.",
@@ -856,7 +858,7 @@
           "downloads": "Wirklich weg sind die Offline-Downloads: Geräte, die einen dieser Titel geladen haben, löschen das Paket beim nächsten Abgleich.",
           "playback": "Eine laufende Wiedergabe aus diesem Ordner bricht mitten im Strom ab.",
           "webhooks": "Die Umsetzungstabelle von Radarr und Sonarr zeigt für diesen Pfad danach ins Leere; Meldungen dazu werden abgelehnt.",
-          "relink": "Legst du denselben Ordner binnen 30 Tagen wieder an, kommen Titel mit TMDB-, TVDB- oder IMDb-Id samt ihren Benutzerdaten zurück. Titel ohne solche Id werden neu angelegt.",
+          "relink": "Kommen die Titel später wieder in die Bibliothek, auch über einen anderen Ordner, findet Slouchcat sie über ihre TMDB-, TVDB- oder IMDb-Id wieder und hängt Fortschritt und Listen um. Ziehst du den Ordner nur um, nimm statt «Entfernen» besser «Pfad ändern».",
           "oneWay": "Liegt der Ordner ausserhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen.",
           "last": "Es ist der letzte Ordner: {{name}} bleibt bestehen, hat danach aber keinen Ordner mehr und scannt nichts."
         },
@@ -873,6 +875,14 @@
           "confirmTitle": "Inhalt wirklich wechseln?",
           "confirm": "Inhalt wechseln",
           "saved": "Der Ordner {{path}} ist geändert."
+        },
+        "move": {
+          "action": "Pfad ändern",
+          "label": "Pfad von {{path}} ändern",
+          "title": "Pfad ändern?",
+          "body": "Alter Pfad: {{old}} · Neuer Pfad: {{new}}. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen. Danach wird der Ordner neu eingelesen.",
+          "confirm": "Ändern",
+          "saved": "Der Ordner liegt jetzt unter {{path}} und wird neu eingelesen."
         }
       },
       "openFolders": "Ordner",
@@ -907,7 +917,8 @@
         "orphaned": "Verwaist",
         "unplayable": "Nicht abspielbar",
         "rating_mismatch": "Freigabe abweichend",
-        "duplicates": "Duplikate"
+        "duplicates": "Duplikate",
+        "relink": "Verwaiste Benutzerdaten"
       },
       "hint": {
         "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.",
@@ -916,7 +927,8 @@
         "orphaned": "Titel ohne Datei oder mit fehlenden Dateien, leere Staffeln und Serien.",
         "unplayable": "Dateien, die sich nicht lesen lassen. Prüfe sie erneut oder entferne sie aus der Bibliothek.",
         "rating_mismatch": "Die gespeicherte Freigabe weicht von der berechneten ab. Eine Freigabe-Änderung oder der nächste Scan korrigiert sie. Hier gibt es nichts auszuwählen.",
-        "duplicates": "Titel, die doppelt vorkommen. Wähle den Titel, der bleiben soll, und führe die anderen mit ihm zusammen."
+        "duplicates": "Titel, die doppelt vorkommen. Wähle den Titel, der bleiben soll, und führe die anderen mit ihm zusammen.",
+        "relink": "Gelöschte Titel, die als neue Kopie zurück in der Bibliothek sind. Fortschritt, Verlauf und Listen hängen noch am gelöschten Titel. «Umhängen» führt die Kopie mit ihm zusammen, der alte Titel bleibt."
       },
       "empty": "Nichts zu tun.",
       "selection": "Auswahl",
@@ -959,7 +971,12 @@
         "rating_other": "Freigabe für {{count}} Titel gesetzt.",
         "cleanup": "Entfernt: {{items}}, {{files}}.",
         "merge": "Titel zusammengeführt.",
-        "match": "Zuordnung gespeichert, die Metadaten werden geladen."
+        "match": "Zuordnung gespeichert, die Metadaten werden geladen.",
+        "relink": "Umgehängt: {{titles}}.",
+        "relinkStopped_one": "{{count}} umgehängt. Ein Scan läuft gerade. Starte «Umhängen» nach dem Scan noch einmal für den Rest.",
+        "relinkStopped_other": "{{count}} umgehängt. Ein Scan läuft gerade. Starte «Umhängen» nach dem Scan noch einmal für den Rest.",
+        "relinkSkipped_one": "1 übersprungen: Das Paar gibt es nicht mehr, zum Beispiel weil es schon zusammengeführt wurde.",
+        "relinkSkipped_other": "{{count}} übersprungen: Das Paar gibt es nicht mehr, zum Beispiel weil es schon zusammengeführt wurde."
       },
       "cleanup": {
         "title": "Titel bereinigen?",
@@ -1004,6 +1021,56 @@
         "meta_other": "{{reason}} · {{title}} · {{count}} Titel",
         "keep": "bleibt",
         "noFiles": "Keine Datei"
+      },
+      "relink": {
+        "empty": "Keine verwaisten Benutzerdaten.",
+        "action": "Umhängen",
+        "noUserData": "keine Benutzerdaten",
+        "columns": {
+          "library": "Bibliothek",
+          "deletedAt": "Gelöscht am",
+          "userData": "Benutzerdaten",
+          "deleted": "Gelöschter Titel",
+          "copy": "Kopie"
+        },
+        "confirmTitle": "Benutzerdaten umhängen?",
+        "data": {
+          "progress_one": "{{count}} Fortschritt",
+          "progress_other": "{{count}} Fortschritte",
+          "progressEvents_one": "{{count}} Wiedergabe-Ereignis",
+          "progressEvents_other": "{{count}} Wiedergabe-Ereignisse",
+          "progressDays_one": "{{count}} Tagesstatistik",
+          "progressDays_other": "{{count}} Tagesstatistiken",
+          "playbackSessions_one": "{{count}} Wiedergabe",
+          "playbackSessions_other": "{{count}} Wiedergaben",
+          "watchlist_one": "{{count}} Merklisten-Eintrag",
+          "watchlist_other": "{{count}} Merklisten-Einträge",
+          "favorites_one": "{{count}} Favorit",
+          "favorites_other": "{{count}} Favoriten",
+          "collectionItems_one": "{{count}} Sammlungseintrag",
+          "collectionItems_other": "{{count}} Sammlungseinträge",
+          "notifications_one": "{{count}} Benachrichtigung",
+          "notifications_other": "{{count}} Benachrichtigungen",
+          "topPicks_one": "{{count}} Top-Pick",
+          "topPicks_other": "{{count}} Top-Picks",
+          "downloads_one": "{{count}} Download",
+          "downloads_other": "{{count}} Downloads",
+          "activityEvents_one": "{{count}} Aktivität",
+          "activityEvents_other": "{{count}} Aktivitäten"
+        },
+        "copies_one": "{{count}} Kopie",
+        "copies_other": "{{count}} Kopien",
+        "selectPair": "{{copy}} auswählen ({{library}}, gelöscht am {{date}})",
+        "selectPairOf": "{{copy}} auswählen ({{library}}, gelöscht am {{date}}, Kopie {{index}} von {{copies}})",
+        "confirmMerge_one": "1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse.",
+        "confirmMerge_other": "{{count}} Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen.",
+        "confirmKept": "Es bleiben erhalten: {{data}}.",
+        "confirmNoData_one": "Am gelöschten Titel hängen keine Benutzerdaten.",
+        "confirmNoData_other": "An den gelöschten Titeln hängen keine Benutzerdaten.",
+        "confirmRemoved_one": "Die Kopie wird endgültig entfernt.",
+        "confirmRemoved_other": "Die Kopien werden endgültig entfernt.",
+        "confirmExtra_one": "Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».",
+        "confirmExtra_other": "{{count}} weitere Kopien derselben Titel werden übersprungen und stehen danach unter «Duplikate»."
       }
     },
     "item": {
@@ -2775,6 +2842,10 @@
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
           "trigger": "vom Scan je Serienstaffel"
+        },
+        "library_relink": {
+          "name": "Gelöschten Titel wiederverknüpfen",
+          "trigger": "nach der Zuordnung eines Titels, der einen gelöschten Zwilling hat"
         },
         "metadata_match": {
           "name": "Titel zuordnen",

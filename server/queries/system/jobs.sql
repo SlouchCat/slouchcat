@@ -95,6 +95,14 @@ UPDATE jobs
 SET state = 'queued', attempts = attempts - 1, lease_owner = NULL, lease_until = NULL, updated_at = @now
 WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
 
+-- name: DeferJob :execrows
+-- A handler that cannot start yet (jobs.RetryLater) returns its job to the queue for later without
+-- counting the attempt.
+UPDATE jobs
+SET state = 'queued', attempts = attempts - 1, run_after = @run_after, lease_owner = NULL, lease_until = NULL,
+    updated_at = @now
+WHERE id = @id AND state = 'running' AND lease_owner = @worker_id;
+
 -- name: CancelJob :execrows
 -- A queued or running job stops; a failed one is dismissed (the dashboard offers both).
 UPDATE jobs

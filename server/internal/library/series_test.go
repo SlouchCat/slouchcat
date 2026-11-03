@@ -597,9 +597,9 @@ func TestSeriesRelinkByProviderID(t *testing.T) {
 		t.Fatalf("sweep = %d, %v; want episode, season and series", n, err)
 	}
 
-	// Re-downloaded under another folder name and with other content within 30 days: the series
-	// comes back by its TVDB id with its season and episode.
-	e.clock.Advance(10 * 24 * time.Hour)
+	// Re-downloaded under another folder name and with other content after 60 days: the series
+	// comes back by its TVDB id with its season and episode (no time limit, ADR 0023).
+	e.clock.Advance(60 * 24 * time.Hour)
 	writeFile(t, dir, "Gone {tvdb-4242}/Season 1/Gone.S01E01.1080p.WEB.x264-GRP.mkv", "new release")
 	got := e.scan(lib.ID)
 	if got.Scan.State != "done" {
@@ -613,6 +613,57 @@ func TestSeriesRelinkByProviderID(t *testing.T) {
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE kind = 'series' AND deleted_at IS NULL`); n != 2 {
 		t.Errorf("series = %d, want 2", n)
+	}
+}
+
+// A soft-deleted series comes back by (sort_title, year) within 30 days, when the file has a year
+// and no live series matches (ADR 0023, A1); not after 30 days and not without a year.
+func TestSeriesRelinkByTitleAndYear(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name   string
+		after  time.Duration
+		folder string
+		want   bool
+	}{
+		{"within 30 days", 20 * 24 * time.Hour, "Gone (2010)", true},
+		{"after 30 days", 31 * 24 * time.Hour, "Gone (2010)", false},
+		{"without year", 20 * 24 * time.Hour, "Gone", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			files := []string{
+				"Keep (2001)/Season 01/Keep - S01E01.mkv", "Keep (2001)/Season 01/Keep - S01E02.mkv",
+				"Keep (2001)/Season 01/Keep - S01E03.mkv", "Keep (2001)/Season 01/Keep - S01E04.mkv",
+				"Keep (2001)/Season 01/Keep - S01E05.mkv", "Keep (2001)/Season 01/Keep - S01E06.mkv",
+				"Gone (2010)/Season 01/Gone - S01E01.mkv",
+			}
+			dir := tree(t, files)
+			lib := e.createSeries(dir)
+			e.scan(lib.ID)
+			series := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Gone'`)
+			if err := os.RemoveAll(filepath.Join(dir, "Gone (2010)")); err != nil {
+				t.Fatal(err)
+			}
+			e.scan(lib.ID)
+			e.clock.Advance(25 * time.Hour)
+			if n, err := e.svc.Sweep(e.ctx); err != nil || n != 3 {
+				t.Fatalf("sweep = %d, %v; want episode, season and series", n, err)
+			}
+
+			e.clock.Advance(tc.after)
+			writeFile(t, dir, tc.folder+"/Season 1/Gone - S01E02.mkv", "new release")
+			e.scan(lib.ID)
+			got := e.str(`SELECT i.parent_id FROM media_files AS m JOIN items AS s ON s.id = m.item_id JOIN items AS i ON i.id = s.parent_id
+			              WHERE m.rel_path LIKE '%Gone - S01E02.mkv'`)
+			if (got == series) != tc.want {
+				t.Errorf("new episode in series %q, old series %q, want relink %v", got, series, tc.want)
+			}
+			if live := e.count(`SELECT count(*) FROM items WHERE id = ? AND deleted_at IS NULL`, series) == 1; live != tc.want {
+				t.Errorf("old series live = %v, want %v", live, tc.want)
+			}
+		})
 	}
 }
 
@@ -634,5 +685,37 @@ func TestScanRunsMetadataCheck(t *testing.T) {
 	e.pathScan(lib, showDir+"/Season 01")
 	if len(checked) != 1 {
 		t.Errorf("path scan ran the metadata check: %v", checked)
+	}
+}
+
+// The scanner's index knows soft-deleted extras with their parent, so a returning extra finds its
+// title and its restore clears the season and series in the index as well (ADR 0023).
+func TestItemIndexKnowsDeletedExtras(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	lib := e.createSeries(seriesDirTree(t))
+	e.scan(lib.ID)
+	show := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Show'`)
+	season1 := e.str(`SELECT id FROM items WHERE kind = 'season' AND parent_id = ? AND season_number = 1`, show)
+	extra := e.str(`SELECT id FROM items WHERE kind = 'extra' AND parent_id = ? AND extra_kind = 'featurette'`, season1)
+	e.exec(`UPDATE items SET deleted_at = 1 WHERE library_id = ?`, lib.ID)
+	row, err := appq.New(e.db.Read).GetLibrary(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	li, err := e.svc.loadItemIndex(e.ctx, row, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := li.byKind["series"]
+	if got := idx.title(extra, "series"); got != show {
+		t.Fatalf("title of the deleted extra = %q, want %s", got, show)
+	}
+	if !idx.deleted[show] || !idx.deleted[season1] {
+		t.Fatal("series and season are not known as deleted")
+	}
+	idx.undelete(extra)
+	if idx.deleted[show] || idx.deleted[season1] {
+		t.Errorf("deleted after the extra's restore: series %v, season %v", idx.deleted[show], idx.deleted[season1])
 	}
 }

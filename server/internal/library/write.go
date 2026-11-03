@@ -435,7 +435,8 @@ func (w *batchWriter) insert(ctx context.Context, p systemq.InsertItemParams) er
 func (w *batchWriter) titleItem(ctx context.Context, info fileInfo, kind string) (string, error) {
 	id := w.ix().find(info.titleInfo, info.folder)
 	if id != "" {
-		// Re-downloaded within relinkWindow: the title returns with its user data.
+		// Re-downloaded (by provider id any time, by title and year within titleRelinkWindow):
+		// the title returns with its user data.
 		if err := w.restore(ctx, id, false); err != nil {
 			return "", err
 		}

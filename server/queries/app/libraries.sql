@@ -22,6 +22,12 @@ RETURNING *;
 UPDATE library_roots SET content = @content, providers = @providers WHERE id = @id AND library_id = @library_id
 RETURNING *;
 
+-- name: UpdateLibraryRootPath :one
+-- A new path for a folder that moved (updateLibraryRoot, ADR 0023 point 4) with the file system
+-- facts of the new place; its media files stay and the next scan finds them again.
+UPDATE library_roots SET path = @path, fs_type = @fs_type, watch = @watch WHERE id = @id AND library_id = @library_id
+RETURNING *;
+
 -- name: ListLibraries :many
 SELECT * FROM libraries ORDER BY id;
 

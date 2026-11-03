@@ -81,6 +81,19 @@ var (
 	ErrAdminLimitsFixed = errors.New("admin limits fixed") // 409 admin_limits_fixed
 )
 
+// ScanRunningError is ErrScanRunning with the name of the library whose scan runs;
+// errors.Is(err, ErrScanRunning) holds.
+type ScanRunningError struct {
+	Library string
+}
+
+func (e *ScanRunningError) Error() string {
+	return fmt.Sprintf("scan of library %q running", e.Library)
+}
+
+// Is makes errors.Is(err, ErrScanRunning) true.
+func (e *ScanRunningError) Is(target error) bool { return target == ErrScanRunning }
+
 // PinLockedError is ErrPinLocked with the remaining lock; errors.Is(err, ErrPinLocked) holds.
 type PinLockedError struct {
 	RetryAfter time.Duration
@@ -414,6 +427,60 @@ type DuplicateItem struct {
 type DuplicateGroup struct {
 	Reason string // provider_id, title_year, file_hash
 	Items  []DuplicateItem
+}
+
+// RelinkUserData counts the user data rows of a title and its descendants per table (ADR 0023).
+type RelinkUserData struct {
+	Progress         int64
+	ProgressEvents   int64
+	ProgressDays     int64
+	PlaybackSessions int64
+	Watchlist        int64
+	Favorites        int64
+	CollectionItems  int64
+	Notifications    int64
+	TopPicks         int64
+	Downloads        int64
+	ActivityEvents   int64
+}
+
+// RelinkPair is a soft-deleted film or series and the live copy that would merge into it, with
+// the user data on the deleted title (ADR 0023, maintenance action D1).
+type RelinkPair struct {
+	DeletedID, LiveID string
+	LibraryID         int64
+	LibraryName       string
+	Kind              string // movie or series
+	Title             string // of the live copy
+	Year              *int   // of the live copy
+	DeletedTitle      string
+	DeletedYear       *int
+	DeletedAt         time.Time
+	UserData          RelinkUserData
+}
+
+// RelinkPairList is the first pairs and the number of all pairs.
+type RelinkPairList struct {
+	Total int
+	Pairs []RelinkPair
+}
+
+// RelinkPairRef names a pair to merge: the deleted title and its live copy.
+type RelinkPairRef struct{ DeletedID, LiveID string }
+
+// RelinkedPair is one merged pair: the kept (formerly deleted) id, the removed copy, the merged
+// and the moved nodes.
+type RelinkedPair struct {
+	KeptID, RemovedID string
+	Merged, Moved     int
+}
+
+// RelinkOutcome is the result of the maintenance relink: the merged pairs, the skipped ones and,
+// when a running scan stopped the run before the last pair, StoppedBy "scan_running".
+type RelinkOutcome struct {
+	Relinked  []RelinkedPair
+	Skipped   int
+	StoppedBy string
 }
 
 // Image is a poster or backdrop reference as the client uses it.
@@ -1092,6 +1159,11 @@ const (
 	CodeContentNotAllowed   = "content_not_allowed"
 	CodeRootsRequired       = "roots_required"
 	CodeRootOverlap         = "root_overlap"
+	// CodePathWithContent refuses a new path of a folder together with a new content (ADR 0023).
+	CodePathWithContent = "path_with_content"
+	// CodeRootFilesMissing refuses a new path of a folder under which none of its known files
+	// lies (ADR 0023): a wrong folder would let the next scan lose them all.
+	CodeRootFilesMissing = "root_files_missing"
 )
 
 // identifiers lists the providers that may stand first in the list of a root content, fillers
@@ -1255,12 +1327,14 @@ type LibraryRootRequest struct {
 	Providers []string // ordered; the first identifies, the others fill
 }
 
-// LibraryRootUpdate changes the content or the provider list of a folder (updateLibraryRoot).
-// A content change empties the folder's titles like a removal would and therefore repeats the
-// path (ConfirmPath); a list change needs no confirmation.
+// LibraryRootUpdate changes the content, the provider list or the path of a folder
+// (updateLibraryRoot). A content change empties the folder's titles like a removal would and
+// therefore repeats the path (ConfirmPath); a list change and a new path (ADR 0023 point 4) need no
+// confirmation.
 type LibraryRootUpdate struct {
 	Content     *string
 	Providers   []string // nil = unchanged
+	Path        *string  // nil = unchanged
 	ConfirmPath string
 }
 

@@ -142,7 +142,7 @@ Noch nicht in der Tabelle und mit ihrem Meilenstein spezifiziert: `accounts`, `p
 
 Löschschutz:
 
-- Fehlt eine Datei, setzt der Scanner `missing_since`; das Item verschwindet aus Zuschauerlisten, bleibt aber **24 h** erhalten und kehrt bei Wiederauftauchen mit allen Benutzerdaten zurück. Danach Soft-Delete (`deleted_at`); Benutzerdaten bleiben 30 Tage und werden bei gleicher Provider-ID wieder verknüpft.
+- Fehlt eine Datei, setzt der Scanner `missing_since`; das Item verschwindet aus Zuschauerlisten, bleibt aber **24 h** erhalten und kehrt bei Wiederauftauchen mit allen Benutzerdaten zurück. Danach Soft-Delete (`deleted_at`); Benutzerdaten bleiben 30 Tage und werden bei gleicher Provider-ID wieder verknüpft. **Seit Frage 21 / ADR 0023 (3. November 2026):** Über die Anbieter-ID wird ohne Frist wieder verknüpft, auch erst nach `metadata.match` (die alte ID bleibt); über (`sort_title`, Jahr) 30 Tage. Ein Ordner kann einen neuen Pfad bekommen, ohne seine Titel zu verlieren.
 - **Scan-Abbruch:** Fehlt die Bibliothekswurzel, ist sie leer, oder verschwinden in einem Lauf mehr als **20 %** der Dateien einer Bibliothek, bricht der Scan ohne Änderungen ab und meldet einen Fehler im Dashboard (A-3). War das Aufräumen gewollt, bestätigt der Admin dort "Verlust akzeptieren" für diese Bibliothek; erst dann übernimmt der nächste Scan die Löschungen.
 
 ### 3.3 Sichtbarkeit (K-3) und SystemScope

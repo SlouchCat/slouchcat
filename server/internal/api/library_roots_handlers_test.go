@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
@@ -93,6 +94,29 @@ func TestUpdateLibraryRootEndpoint(t *testing.T) {
 	}
 	if lib.Roots[0].Content != gen.RootContentSeries {
 		t.Fatalf("root after the content change = %+v", lib.Roots[0])
+	}
+	// A new path (ADR 0023): not with a content change, not under a running scan, with a list.
+	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/media/Serien-neu", "content": "movie", "confirmPath": "/media/Filme"}, owner)
+	wantStatus(t, rec, http.StatusUnprocessableEntity)
+	if f := fieldProblem(t, rec); f != "path path_with_content" {
+		t.Fatalf("path with content: %s", f)
+	}
+	e.libs.scanRunning = true
+	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/media/Serien-neu"}, owner)
+	wantStatus(t, rec, http.StatusConflict)
+	e.libs.scanRunning = false
+	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/media/Serien-neu", "providers": []string{"tvdb", "tmdb"}}, owner)
+	wantStatus(t, rec, http.StatusOK)
+	if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
+		t.Fatal(err)
+	}
+	if r := lib.Roots[0]; r.Path != "/media/Serien-neu" || r.Content != gen.RootContentSeries || r.Providers[0] != gen.MetadataProviderTvdb {
+		t.Fatalf("root after the path change = %+v", r)
+	}
+	rec = e.call(t, http.MethodPatch, root, map[string]any{"path": "/" + strings.Repeat("x", 4096)}, owner)
+	wantStatus(t, rec, http.StatusUnprocessableEntity)
+	if f := fieldProblem(t, rec); f != "path too_long" {
+		t.Fatalf("long path: %s", f)
 	}
 	// Nothing to change, an unknown folder, an unknown value.
 	rec = e.call(t, http.MethodPatch, root, map[string]any{}, owner)

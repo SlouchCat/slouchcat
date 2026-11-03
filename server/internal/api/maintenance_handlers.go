@@ -11,7 +11,8 @@ import (
 
 // Handlers of the M3 administration (contract tag admin): the administration view of a title,
 // manual match, refresh, trailers, mass rating, metadata search, maintenance lists, merge,
-// cleanup and scan cancellation. The answers carry ids and paths, never an ItemRef.
+// cleanup, relink (ADR 0023) and scan cancellation. The answers carry ids and paths, never an
+// ItemRef.
 
 func (e serviceProblem) VisitCancelLibraryScanResponse(w http.ResponseWriter) error {
 	return e.visit(w)
@@ -35,9 +36,11 @@ func (e serviceProblem) VisitSearchMetadataResponse(w http.ResponseWriter) error
 func (e serviceProblem) VisitListMaintenanceIssuesResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
-func (e serviceProblem) VisitListDuplicatesResponse(w http.ResponseWriter) error { return e.visit(w) }
-func (e serviceProblem) VisitMergeItemsResponse(w http.ResponseWriter) error     { return e.visit(w) }
-func (e serviceProblem) VisitCleanupItemsResponse(w http.ResponseWriter) error   { return e.visit(w) }
+func (e serviceProblem) VisitListDuplicatesResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitMergeItemsResponse(w http.ResponseWriter) error      { return e.visit(w) }
+func (e serviceProblem) VisitCleanupItemsResponse(w http.ResponseWriter) error    { return e.visit(w) }
+func (e serviceProblem) VisitListRelinkPairsResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitRelinkItemsResponse(w http.ResponseWriter) error     { return e.visit(w) }
 
 func (s *server) CancelLibraryScan(ctx context.Context, req gen.CancelLibraryScanRequestObject) (gen.CancelLibraryScanResponseObject, error) {
 	lib, err := s.opts.Admin.CancelLibraryScan(ctx, req.Id)
@@ -241,6 +244,53 @@ func (s *server) CleanupItems(ctx context.Context, req gen.CleanupItemsRequestOb
 		return s.problem(ctx, err), nil
 	}
 	return gen.CleanupItems200JSONResponse{Items: removedItems, Files: removedFiles}, nil
+}
+
+func (s *server) ListRelinkPairs(ctx context.Context, req gen.ListRelinkPairsRequestObject) (gen.ListRelinkPairsResponseObject, error) {
+	list, err := s.opts.Admin.ListRelinkPairs(ctx, req.Params.LibraryId)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.ListRelinkPairs200JSONResponse{Total: int64(list.Total), Pairs: make([]gen.RelinkPair, 0, len(list.Pairs))}
+	for _, p := range list.Pairs {
+		u := p.UserData
+		out.Pairs = append(out.Pairs, gen.RelinkPair{
+			DeletedId: p.DeletedID, LiveId: p.LiveID, LibraryId: p.LibraryID, LibraryName: p.LibraryName,
+			Kind: gen.RelinkPairKind(p.Kind), Title: p.Title, Year: p.Year, DeletedTitle: p.DeletedTitle,
+			DeletedYear: p.DeletedYear, DeletedAt: p.DeletedAt.UTC(),
+			UserData: gen.RelinkUserData{
+				Progress: u.Progress, ProgressEvents: u.ProgressEvents, ProgressDays: u.ProgressDays,
+				PlaybackSessions: u.PlaybackSessions, Watchlist: u.Watchlist, Favorites: u.Favorites,
+				CollectionItems: u.CollectionItems, Notifications: u.Notifications, TopPicks: u.TopPicks,
+				Downloads: u.Downloads, ActivityEvents: u.ActivityEvents,
+			},
+		})
+	}
+	return out, nil
+}
+
+func (s *server) RelinkItems(ctx context.Context, req gen.RelinkItemsRequestObject) (gen.RelinkItemsResponseObject, error) {
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("pairs", "required")), nil
+	}
+	pairs := make([]model.RelinkPairRef, 0, len(req.Body.Pairs))
+	for _, p := range req.Body.Pairs {
+		pairs = append(pairs, model.RelinkPairRef{DeletedID: p.DeletedId, LiveID: p.LiveId})
+	}
+	res, err := s.opts.Admin.RelinkItems(ctx, pairs)
+	// Streams of the deleted copies end.
+	if err := s.recheckAfter(ctx, err); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.RelinkItems200JSONResponse{Relinked: make([]gen.RelinkedPair, 0, len(res.Relinked)), Skipped: int64(res.Skipped)}
+	for _, d := range res.Relinked {
+		out.Relinked = append(out.Relinked, gen.RelinkedPair{KeptId: d.KeptID, RemovedId: d.RemovedID, Merged: d.Merged, Moved: d.Moved})
+	}
+	if res.StoppedBy != "" {
+		stopped := gen.RelinkOutcomeStoppedBy(res.StoppedBy)
+		out.StoppedBy = &stopped
+	}
+	return out, nil
 }
 
 // toAdminItem maps the administration view; times are UTC.

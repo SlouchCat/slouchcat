@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
@@ -364,6 +365,11 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusUnprocessableEntity, "library_path_invalid", "The library path must be an absolute, readable directory on the server.")
 	case errors.Is(err, model.ErrScanRunning):
 		w.Header().Set("Retry-After", "30")
+		var sr *model.ScanRunningError
+		if errors.As(err, &sr) && sr.Library != "" {
+			p.write(w, r, http.StatusConflict, "scan_running", fmt.Sprintf("A scan of the library %q is running; try again when it has finished.", sr.Library))
+			break
+		}
 		p.write(w, r, http.StatusConflict, "scan_running", "A scan of this library is running; it holds the folders it started with.")
 	case errors.Is(err, model.ErrConfirmMismatch):
 		p.write(w, r, http.StatusUnprocessableEntity, "confirm_mismatch", "The typed path does not repeat the folder that is about to be removed.")

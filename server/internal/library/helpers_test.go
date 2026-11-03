@@ -46,6 +46,8 @@ type env struct {
 	queue *jobs.Queue
 	clock *testClock
 	svc   *Service
+	// films counts the files of addFilm, which gives each its own size.
+	films int
 }
 
 func newEnv(t *testing.T) *env {

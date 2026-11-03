@@ -1284,9 +1284,9 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Change the content or the metadata sources of a folder (F-4)
-         * @description Changes what a folder holds or who describes it (ADR 0015). The three effects differ in
-         *     weight, and the weight decides what the request has to carry:
+         * Change the content, the metadata sources or the path of a folder (F-4, ADR 0023)
+         * @description Changes what a folder holds, who describes it (ADR 0015) or where it lies (ADR 0023). The
+         *     four effects differ in weight, and the weight decides what the request has to carry:
          *
          *     - A new provider list with the same first entry writes the list on every title of the
          *       folder and queues one metadata job per title. Nothing is deleted, no confirmation.
@@ -1299,6 +1299,16 @@ export interface paths {
          *       folder's files forgotten and read afresh by a queued scan. It therefore needs the typed
          *       path in `confirmPath`, exactly like `removeLibraryRoot` (`confirm_mismatch`), and a
          *       running scan refuses it (`scan_running`).
+         *     - A new `path` (the folder moved, ADR 0023 point 4) is checked like a new folder:
+         *       absolute, readable, below a browsable root (`library_path_invalid`), overlapping no
+         *       other folder (`root_overlap`). A folder with known files must hold at least one of them
+         *       at its relative path under the new path (`root_files_missing`), so a wrong folder cannot
+         *       let the scan lose them all. The folder keeps its titles and files; the server takes the
+         *       new path and a new `providers` list in one transaction under the scan lock (a running
+         *       scan refuses it, `scan_running`), restarts the folder's watcher and queues a scan, which
+         *       finds the files again by name, inode or partial hash. Files it does not find count
+         *       towards the loss threshold of the scan. No `confirmPath`; the same path is no change. It
+         *       cannot be combined with `content` (`path_with_content`), but with `providers`.
          */
         patch: operations["updateLibraryRoot"];
         trace?: never;
@@ -1956,6 +1966,44 @@ export interface paths {
          *     not add them again; a title left without a file is soft-deleted too.
          */
         post: operations["cleanupItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/maintenance/relink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deleted titles with a live copy and the user data left on them (ADR 0023)
+         * @description Pairs of a soft-deleted film or series and the live copy that carries one of its provider ids
+         *     (TMDB, TVDB, IMDb) in the same library, without a contradicting id; with several deleted
+         *     twins the most recently deleted one. Unlike the automatic relink after a match, the copy may
+         *     be of any age: the administrator sees both titles and decides. Each pair counts the user data
+         *     on the deleted title and its seasons, episodes and extras, per table. At most 200 pairs,
+         *     ordered by library name, title of the copy and id of the copy; `total` counts all of them.
+         */
+        get: operations["listRelinkPairs"];
+        put?: never;
+        /**
+         * Merge live copies into their deleted titles (ADR 0023)
+         * @description Each pair names a deleted film or series and its live copy; an id that is no ULID refuses
+         *     the whole request before anything moves (`validation_failed`). A pair named twice counts
+         *     once. A pair that is no pair of `listRelinkPairs` any more is skipped: an id is unknown or
+         *     names neither film nor series (the copy merged meanwhile, by the automatic relink or an
+         *     earlier request), the deleted title came back (two copies of one title, the first merged) or
+         *     the titles changed. One transaction per pair: the deleted title comes back with its
+         *     id, the files, seasons, episodes and user data of the live copy merge into it (progress:
+         *     completed wins, then the larger position) and the copy is deleted for good. A running scan of
+         *     a library stops the run: with pairs merged before, the answer is 200 with `stoppedBy`
+         *     `scan_running`, and a repeated request merges the rest; with nothing merged it is 409.
+         */
+        post: operations["relinkItems"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4919,6 +4967,92 @@ export interface components {
             itemIds?: components["schemas"]["ItemID"][];
             mediaFileIds?: string[];
         };
+        /** @description User data rows on a title and its descendants, per table. */
+        RelinkUserData: {
+            /** Format: int64 */
+            progress: number;
+            /** Format: int64 */
+            progressEvents: number;
+            /** Format: int64 */
+            progressDays: number;
+            /** Format: int64 */
+            playbackSessions: number;
+            /** Format: int64 */
+            watchlist: number;
+            /** Format: int64 */
+            favorites: number;
+            /** Format: int64 */
+            collectionItems: number;
+            /** Format: int64 */
+            notifications: number;
+            /** Format: int64 */
+            topPicks: number;
+            /** Format: int64 */
+            downloads: number;
+            /** Format: int64 */
+            activityEvents: number;
+        };
+        RelinkPair: {
+            deletedId: components["schemas"]["ItemID"];
+            liveId: components["schemas"]["ItemID"];
+            /** Format: int64 */
+            libraryId: number;
+            libraryName: string;
+            /** @enum {string} */
+            kind: "movie" | "series";
+            /** @description Title of the live copy. */
+            title: string;
+            /** @description Year of the live copy, if known. */
+            year?: number;
+            /** @description Title of the deleted title, which the merge keeps. */
+            deletedTitle: string;
+            /** @description Year of the deleted title, if known. */
+            deletedYear?: number;
+            /** Format: date-time */
+            deletedAt: string;
+            /** @description The user data on the deleted title, which the merge keeps. */
+            userData: components["schemas"]["RelinkUserData"];
+        };
+        RelinkPairList: {
+            /**
+             * Format: int64
+             * @description All pairs; `pairs` holds at most 200 of them.
+             */
+            total: number;
+            pairs: components["schemas"]["RelinkPair"][];
+        };
+        RelinkRequest: {
+            pairs: components["schemas"]["RelinkPairRef"][];
+        };
+        RelinkPairRef: {
+            deletedId: components["schemas"]["ItemID"];
+            liveId: components["schemas"]["ItemID"];
+        };
+        RelinkedPair: {
+            /** @description The formerly deleted title, which keeps its id. */
+            keptId: components["schemas"]["ItemID"];
+            /** @description The live copy, now deleted. */
+            removedId: components["schemas"]["ItemID"];
+            /** @description Nodes of the copy (title, seasons, episodes) that merged into a counterpart. */
+            merged: number;
+            /** @description Children of the copy that moved below the title for want of a counterpart. */
+            moved: number;
+        };
+        RelinkOutcome: {
+            relinked: components["schemas"]["RelinkedPair"][];
+            /**
+             * Format: int64
+             * @description Pairs that are no pair any more (an id unknown because the copy merged meanwhile, the deleted title came back, the titles changed).
+             */
+            skipped: number;
+            /**
+             * @description Why the run stopped before the last pair: `scan_running`, a scan of a library holds it.
+             *     The pairs in `relinked` are merged; a repeated request merges the rest. Absent when the
+             *     run went through.
+             * @enum {string}
+             */
+            stoppedBy?: "scan_running";
+        };
         /**
          * @description The family of a library (ADR 0015): what its folders may hold, nothing else. `video` takes
          *     `movie` and `series` folders (one library may hold both); `audiobooks` takes `audiobook`
@@ -4977,10 +5111,18 @@ export interface components {
             roots: components["schemas"]["LibraryRootRequest"][];
         };
         /**
-         * @description A change to a folder (`updateLibraryRoot`); at least one of `content` and `providers`. A
-         *     content change empties the folder's titles like a removal and therefore repeats the path.
+         * @description A change to a folder (`updateLibraryRoot`); at least one of `content`, `providers` and
+         *     `path`. A content change empties the folder's titles like a removal and therefore repeats
+         *     the path; a new path keeps them and cannot be combined with a content change.
          */
         LibraryRootUpdate: {
+            /**
+             * @description The new absolute directory of the folder (it moved, ADR 0023 point 4), below a
+             *     browsable root, for example `/media/Filme-neu`, holding at least one of the folder's
+             *     known files (`root_files_missing`). Its titles, files and user data stay when the scan
+             *     finds the files there under the same names.
+             */
+            path?: string;
             content?: components["schemas"]["RootContent"];
             providers?: components["schemas"]["MetadataProvider"][];
             /** @description The folder's path, repeated by the administrator; required for a content change. */
@@ -9778,7 +9920,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description A scan of this library is running (`scan_running`); only a content change is refused by it. */
+            /** @description A scan of this library is running (`scan_running`); only a content or path change is refused by it. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -9789,8 +9931,10 @@ export interface operations {
             };
             /**
              * @description `validation_failed` (`content` `content_not_allowed`, `providers`
-             *     `providers_not_allowed`, or neither field given), or a content change whose
-             *     `confirmPath` does not repeat the folder's path (`confirm_mismatch`).
+             *     `providers_not_allowed`, `path` `library_path_invalid`, `root_overlap`,
+             *     `root_files_missing` or `path_with_content`, or none of the fields given), or a
+             *     content change whose `confirmPath` does not repeat the folder's path
+             *     (`confirm_mismatch`).
              */
             422: {
                 headers: {
@@ -11031,6 +11175,77 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRelinkPairs: {
+        parameters: {
+            query?: {
+                libraryId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pairs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelinkPairList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    relinkItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelinkRequest"];
+            };
+        };
+        responses: {
+            /** @description The merged pairs and the skipped ones. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelinkOutcome"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description A scan of a library is running and no pair was merged (`scan_running`; the detail names the library). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): `pairs` `required` or `too_long`, `pairs[i]`
+             *     `invalid_value` for an id that is no ULID.
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
