@@ -1,8 +1,8 @@
 # Konzept: Seitenmuster der Verwaltungsseiten (alle Seiten unter `/admin/*`)
 
-- **Status: umgesetzt und abgenommen (3. November 2026, Schritte K12-0 bis K12-9 auf dem Zweig
-  `claude/verwaltungsseiten`, von Marco auf CT 190 abgenommen; Vertrag 1.8.0, Release 1.8.0 nach
-  dem Merge).** In Umsetzung seit 2. November 2026, ohne Zwischenhalt. Fassung 3
+- **Status: abgeschlossen (3. November 2026). Umgesetzt in den Schritten K12-0 bis K12-9 auf dem
+  Zweig `claude/verwaltungsseiten`, von Marco auf CT 190 abgenommen, gemergt mit PR #72
+  (`af87164`), veröffentlicht als Release 1.8.0 (Vertrag 1.8.0, Tag `v1.8.0`).** In Umsetzung seit 2. November 2026, ohne Zwischenhalt. Fassung 3
   (1. November 2026), Bauplan (Abschnitt 11). Als Papier abgeschlossen
   (Marco, 1. November 2026: «Ja, abschliessen»). Fassung 1 hat der
   OMC-Kritiker geprüft (1 Blocker, 9 Major, 8 Minor; Abschnitt 12); Fassung 2 arbeitet alle ein.

@@ -71,11 +71,18 @@ Release vor Konzept 13 und 14, keine Migration. Schritte:
 
 ## Konzept 12 «Seitenmuster der Verwaltungsseiten»: umgesetzt und abgenommen, Schritte K12-0 bis K12-9 (3. November 2026)
 
-**Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.
-Nächster Schritt: Push und Pull Request, Merge auf Marcos Wort, danach Release 1.8.0.
+**Abgeschlossen (3. November 2026).**
+- Von Marco auf CT 190 abgenommen (K12-9, unten).
+- PR #72 in `main` gemergt (`af87164`).
+- **Release 1.8.0 veröffentlicht:** Versionsstellen in PR #75 (`a9b6fe6`), Tag `v1.8.0`,
+  Release-Lauf grün.
+- Telegram-Hinweistexte bleiben, wie sie sind (Marco, 3. November 2026).
+- Die Worktrees und Zweige des Baus sind aufgeräumt.
 
-**PR #72 am 3. November 2026 in `main` gemergt (`af87164`); Release 1.8.0 wird veröffentlicht**
-(Versionsstellen auf 1.8.0 im Zweig `claude/release-1.8.0`, Tag `v1.8.0` setzt Marco).
+Was aus der Abnahme übrig blieb, läuft anderswo weiter:
+- Verlauf bei ersetztem Ordner: Idee 04, gemergt mit PR #76, Abschnitt oben.
+- Admin-Stopp bei voll gepuffertem Titel und `autoFocus`-Dialoge: Konzept 13.
+- Weiterer Anbieter für Altersfreigaben: Idee 03, Issue #71.
 
 Zweig `claude/verwaltungsseiten` ab `main` `4c860bc` (nach Konzept 11 und Release 1.7.0), Bau nach
 `docs/planning/12-verwaltungsseiten.md` Abschnitt 11.8 (Schritte K12-0 bis K12-9). Marcos Auftrag

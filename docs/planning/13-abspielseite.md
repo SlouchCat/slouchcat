@@ -738,6 +738,16 @@ Jede Stufe ein eigener Zweig und Pull Request, jeder Schritt ein Commit, `task c
     fragt seinen Range-Stream alle 2 s ab, 404 gilt als gültig, 401 als Stopp) wurde gebaut und wieder
     verworfen. Gewählt ist eine saubere Lösung für Video und Audio zugleich; die Option wählt das
     Konzept in der Fassung zur Abnahme.
+- **Erster Fokus in Player- und Offline-Dialogen** (gefunden am 3. November 2026 beim Bau von
+  Konzept 12, nicht dort behoben).
+  - **Befund:** Die Verwaltung setzt den ersten Fokus eines Dialogs über `focusOnMount`
+    (`web/src/ui/focusOnMount.ts`). react-arias `autoFocus` wartet nach einem Tastendruck auf
+    Enter, bis keine CSS-Transition mehr läuft. Ein Modal bricht die Transition des Fokusrings ab,
+    und react-aria fokussiert dann erst nach 500 ms den Dialog selbst statt der Schaltfläche.
+  - **Wo noch `autoFocus` steht:** `VideoPlayer.tsx`, `AudioPlayer.tsx`, `OfflinePlayer.tsx`,
+    `OfflinePlayerPage.tsx`, `DownloadDialog.tsx`, `OfflinePinDialog.tsx`, `OfflineLibraryPage.tsx`.
+  - **Vorschlag:** Beim Umbau der Abspielseite auf `focusOnMount` umstellen und je einen
+    Tastaturtest ergänzen, der Enter als Auslöser prüft.
 
 ### 11.14 Risiken
 
