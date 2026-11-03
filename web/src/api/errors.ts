@@ -104,6 +104,7 @@ const fieldKeys = {
   library_path_invalid: 'errors.code.library_path_invalid',
   // The folders of a library (ADR 0015): `roots[n].path`, `.content`, `.providers` and `roots`.
   root_overlap: 'errors.field.root_overlap',
+  path_with_content: 'errors.field.path_with_content',
   content_not_allowed: 'errors.field.content_not_allowed',
   providers_not_allowed: 'errors.field.providers_not_allowed',
   roots_required: 'errors.field.roots_required',

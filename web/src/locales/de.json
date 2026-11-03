@@ -194,6 +194,7 @@
       "library_kind": "Wähle eine Podcast-Bibliothek.",
       "unknown_item": "Diesen Titel gibt es nicht.",
       "root_overlap": "Dieser Ordner überschneidet sich mit einem anderen Ordner.",
+      "path_with_content": "Ein neuer Pfad lässt sich nicht mit einem Inhaltswechsel verbinden.",
       "content_not_allowed": "Dieser Inhalt passt nicht zur Art der Bibliothek.",
       "providers_not_allowed": "Diese Liste von Metadatenquellen ist für diesen Inhalt nicht erlaubt.",
       "roots_required": "Mindestens ein Ordner ist nötig.",
@@ -873,6 +874,14 @@
           "confirmTitle": "Inhalt wirklich wechseln?",
           "confirm": "Inhalt wechseln",
           "saved": "Der Ordner {{path}} ist geändert."
+        },
+        "move": {
+          "action": "Pfad ändern",
+          "label": "Pfad von {{path}} ändern",
+          "title": "Pfad ändern?",
+          "body": "Alter Pfad: {{old}} · Neuer Pfad: {{new}}. Titel und Benutzerdaten bleiben erhalten, wenn die Dateien dort unter denselben Namen liegen. Danach wird der Ordner neu eingelesen.",
+          "confirm": "Ändern",
+          "saved": "Der Ordner liegt jetzt unter {{path}} und wird neu eingelesen."
         }
       },
       "openFolders": "Ordner",
