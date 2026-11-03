@@ -1627,7 +1627,7 @@
         "minHitsHint": "hits in the library, per profile (0–10)",
         "intervalHours": "Fetch every … hours",
         "intervalHoursHint": "6 to 48 hours",
-        "rotation": "Stage rhythm … seconds",
+        "rotation": "Spotlight rotation interval",
         "rotationHint": "3 to 15 seconds",
         "refresh": "Fetch now",
         "queued": "The list is being fetched.",

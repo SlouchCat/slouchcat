@@ -375,7 +375,9 @@ alle 5 s, solange ein Scan läuft)
 - SPO-1a Satz, warum die Reihe fehlt (kein Schlüssel, aus, Fehler, leer, unter Mindesttreffern;
   `SpotlightPage.tsx:81-90,118`).
 - SPO-2 Quelle: Liste (mit Link → Integrationen), Listen-Adresse, Medien, Anzahl, Mindesttreffer,
-  Takt in Stunden, Rotation; Abrufzustand (Treffer, letzter Abruf oder Fehler mit Grund,
+  Takt in Stunden, «Spotlight Wechsel Takt» (umbenannt bei der Abnahme K12-9, 3. November 2026;
+  vorher «Takt der Bühne … Sekunden», die Einheit steht jetzt im Hilfetext «3 bis 15 Sekunden»);
+  Abrufzustand (Treffer, letzter Abruf oder Fehler mit Grund,
   Schlüssel-Link; `:93-99`); Jetzt abrufen (danach Abfrage alle 2 s), Speichern. «Aktiv» (SPO-1)
   wird mit diesem Speichern gespeichert (`:187-189,689`).
 - SPO-3 Einträge: Rang, Titel mit Poster, Medium, Jahr, Zustand, Notiz; Anheften (Dialog mit

@@ -1627,7 +1627,7 @@
         "minHitsHint": "Treffern in der Bibliothek, je Profil (0–10)",
         "intervalHours": "Abruf alle … Stunden",
         "intervalHoursHint": "6 bis 48 Stunden",
-        "rotation": "Takt der Bühne … Sekunden",
+        "rotation": "Spotlight Wechsel Takt",
         "rotationHint": "3 bis 15 Sekunden",
         "refresh": "Jetzt abrufen",
         "queued": "Die Liste wird abgerufen.",

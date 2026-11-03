@@ -338,7 +338,7 @@ describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
     await user.clear(count);
     await user.type(count, '10');
     // The band's rhythm on the start page (concept 08, F-10).
-    const rotation = number(card, /Takt der Bühne/);
+    const rotation = number(card, /Spotlight Wechsel Takt/);
     expect(rotation).toHaveValue(5);
     expect(within(card).getByText('3 bis 15 Sekunden')).toBeVisible();
     await user.clear(rotation);

@@ -163,7 +163,7 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry',
       await tabTo(page, source.getByRole('spinbutton', { name: label, exact: true }), 5);
     }
     const rotation = source.getByRole('spinbutton', {
-      name: 'Takt der Bühne … Sekunden',
+      name: 'Spotlight Wechsel Takt',
       exact: true,
     });
     await tabTo(page, rotation, 5);
