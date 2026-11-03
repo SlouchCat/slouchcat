@@ -99,6 +99,11 @@ WHERE downloads.media_file_id IN (SELECT m.id FROM media_files AS m WHERE m.root
 -- For the Warn line of the removal: how many files go with the folder.
 SELECT count(*) FROM media_files WHERE root_id = @root_id;
 
+-- name: ListMediaFileRelPathsOfRoot :many
+-- The known files of a folder that gets a new path (updateLibraryRoot, ADR 0023): at least one of
+-- them must lie under the new path.
+SELECT rel_path FROM media_files WHERE root_id = @root_id ORDER BY rel_path;
+
 -- name: DeleteLibraryRoot :execrows
 -- ON DELETE CASCADE clears media_files of the folder; the triggers set items.available.
 DELETE FROM library_roots WHERE id = @id AND library_id = @library_id;

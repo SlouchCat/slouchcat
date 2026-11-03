@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
 // TestUpdateRootPathKeepsTitlesAndUserData covers ADR 0023 point 4: a folder copied to a new
@@ -116,6 +117,8 @@ func TestUpdateRootPathRules(t *testing.T) {
 	}
 	writeFile(t, media, "Andere/Dune (2021)/Dune (2021).mkv", "video d")
 	writeFile(t, media, "Neu/Alien (1979)/Alien (1979).mkv", "video a")
+	writeFile(t, media, "Neu/Innen/Heat (1995)/Heat (1995).mkv", "video h")
+	writeFile(t, media, "Fremd/Dune (2021)/Dune (2021).mkv", "video f")
 	WithBrowseRoots([]string{media})(e.svc)
 	lib := e.create(dir)
 	e.scan(lib.ID)
@@ -150,6 +153,7 @@ func TestUpdateRootPathRules(t *testing.T) {
 		{"missing", filepath.Join(media, "Fehlt"), "library_path_invalid"},
 		{"a file", filepath.Join(media, "Neu/Alien (1979)/Alien (1979).mkv"), "library_path_invalid"},
 		{"outside the browsable roots", t.TempDir(), "library_path_invalid"},
+		{"none of the known files", filepath.Join(media, "Fremd"), model.CodeRootFilesMissing},
 	} {
 		if err := update(path(c.path)); !hasFieldError(err, "path", c.code) {
 			t.Errorf("%s: %v, want path %s", c.name, err, c.code)
@@ -172,6 +176,26 @@ func TestUpdateRootPathRules(t *testing.T) {
 	if v := e.str(`SELECT path FROM library_roots WHERE id = ?`, rootID); v != dir {
 		t.Fatalf("path after the refused changes = %s, want %s", v, dir)
 	}
+	// Under the scan lock the overlap is checked again, and a root removed meanwhile is unknown.
+	row, err := appq.New(e.db.Read).GetLibrary(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cur, err := appq.New(e.db.Read).GetLibraryRoot(e.ctx, rootID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := model.ParseProviders(cur.Providers)
+	taken := preparedRoot{path: other.Roots[0].Path, content: cur.Content, fsType: cur.FsType, watch: cur.Watch}
+	if err := e.svc.changeRootPath(e.ctx, row, cur, taken, old, old); !hasFieldError(err, "path", model.CodeRootOverlap) {
+		t.Errorf("overlap under the lock: %v, want path root_overlap", err)
+	}
+	gone := cur
+	gone.ID = rootID + 1000
+	free := preparedRoot{path: newPath, content: cur.Content, fsType: cur.FsType, watch: cur.Watch}
+	if err := e.svc.changeRootPath(e.ctx, row, gone, free, old, old); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("path of a removed root: %v, want ErrNotFound", err)
+	}
 
 	// A folder below its own old path is no overlap, and a provider list comes along.
 	after, err := e.svc.UpdateRoot(e.ctx, lib.ID, rootID, model.LibraryRootUpdate{Path: &newPath, Providers: []string{"tmdb", "anilist"}})
@@ -187,7 +211,7 @@ func TestUpdateRootPathRules(t *testing.T) {
 	if n := e.jobCount(JobScanLibrary); n != 1 {
 		t.Fatalf("scan jobs after the change = %d, want 1", n)
 	}
-	inside := filepath.Join(newPath, "Alien (1979)")
+	inside := filepath.Join(newPath, "Innen")
 	if err := update(path(inside)); err != nil {
 		t.Fatalf("a folder below the folder's own path: %v", err)
 	}

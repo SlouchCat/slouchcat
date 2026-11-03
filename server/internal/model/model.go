@@ -1161,6 +1161,9 @@ const (
 	CodeRootOverlap         = "root_overlap"
 	// CodePathWithContent refuses a new path of a folder together with a new content (ADR 0023).
 	CodePathWithContent = "path_with_content"
+	// CodeRootFilesMissing refuses a new path of a folder under which none of its known files
+	// lies (ADR 0023): a wrong folder would let the next scan lose them all.
+	CodeRootFilesMissing = "root_files_missing"
 )
 
 // identifiers lists the providers that may stand first in the list of a root content, fillers

@@ -38,15 +38,18 @@ import (
 //     not be easier to reach: confirmPath has to repeat the stored path (model.ErrConfirmMismatch),
 //     and a running scan refuses it (model.ErrScanRunning).
 //   - A new path (the folder moved) passes the rules of a new folder (prepareRootPath: absolute,
-//     readable, below a browsable root, no overlap with another folder) and is taken over under
-//     the scan lock by changeRootPath: the folder keeps its media files, so the queued scan finds
-//     them again by name, inode or partial hash, and titles, ids and user data stay. Files it does
-//     not find count towards the loss threshold. No confirmation; it cannot be combined with a
-//     content change (path_with_content), only with a provider list. The same path is no change.
+//     readable, below a browsable root, no overlap with another folder) and must hold at least one
+//     of the folder's known files (root_files_missing). It is taken over under the scan lock by
+//     changeRootPath, together with a new provider list in one transaction: the folder keeps its
+//     media files, so the queued scan finds them again by name, inode or partial hash, and titles,
+//     ids and user data stay. Files it does not find count towards the loss threshold. No
+//     confirmation; it cannot be combined with a content change (path_with_content), only with a
+//     provider list. The same path is no change.
 //
 // Errors: model.ErrNotFound (unknown library, or the root belongs to another one),
 // *model.ValidationError (content_not_allowed, providers_not_allowed, path library_path_invalid,
-// root_overlap or path_with_content), model.ErrConfirmMismatch, model.ErrScanRunning.
+// root_overlap, root_files_missing or path_with_content), model.ErrConfirmMismatch,
+// model.ErrScanRunning.
 func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
 	lib, err := appq.New(s.db.Read).GetLibrary(ctx, libraryID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -102,16 +105,13 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 		return s.changeRootContent(ctx, lib, root, content, providers, upd.ConfirmPath)
 	}
 	if moved != nil {
-		var err error
-		if root, err = s.changeRootPath(ctx, lib, root, *moved); err != nil {
+		if err := s.changeRootPath(ctx, lib, root, *moved, old, providers); err != nil {
 			return model.Library{}, err
 		}
+		return s.QueueScan(ctx, libraryID)
 	}
 	if err := s.changeRootProviders(ctx, root, old, providers); err != nil {
 		return model.Library{}, err
-	}
-	if moved != nil {
-		return s.QueueScan(ctx, libraryID)
 	}
 	return s.Get(ctx, libraryID)
 }
@@ -120,7 +120,8 @@ func (s *Service) UpdateRoot(ctx context.Context, libraryID, rootID int64, upd m
 // with its file system facts, or a *model.ValidationError with one field error (its code is used
 // for the field "path"): path_with_content when the request changes the content as well,
 // library_path_invalid or root_overlap from the rules of a new folder, where root itself does not
-// count as an overlap.
+// count as an overlap, and root_files_missing when none of the folder's known files lies under the
+// new path.
 func (s *Service) prepareMovedRoot(ctx context.Context, root appq.LibraryRoot, path string, withContent bool) (*preparedRoot, error) {
 	var verr *model.ValidationError
 	if withContent {
@@ -142,31 +143,101 @@ func (s *Service) prepareMovedRoot(ctx context.Context, root appq.LibraryRoot, p
 	if err != nil {
 		return nil, verr.Add("path", "library_path_invalid")
 	}
+	holds, err := s.holdsKnownFile(ctx, root.ID, clean)
+	if err != nil {
+		return nil, err
+	}
+	if !holds {
+		return nil, verr.Add("path", model.CodeRootFilesMissing)
+	}
 	watch, _ := WatchMode(string(fsType))
 	return &preparedRoot{path: clean, content: root.Content, fsType: string(fsType), watch: watch}, nil
 }
 
+// holdsKnownFile reports whether at least one known media file of the root lies under dir at its
+// rel_path; a root without files holds them all. It reads the top level of dir once and looks up
+// only the files whose first path segment is there, so a wrong folder costs one directory read.
+func (s *Service) holdsKnownFile(ctx context.Context, rootID int64, dir string) (bool, error) {
+	rels, err := systemq.New(s.db.Read).ListMediaFileRelPathsOfRoot(ctx, rootID)
+	if err != nil {
+		return false, fmt.Errorf("list media files of root %d: %w", rootID, err)
+	}
+	if len(rels) == 0 {
+		return true, nil
+	}
+	pr, err := paths.NewRoot(dir)
+	if err != nil {
+		return false, err
+	}
+	names, err := paths.ReadDirNames(pr, ".", 0)
+	if err != nil {
+		return false, nil // unreadable since the check of the path: nothing lies there
+	}
+	top := make(map[string]bool, len(names))
+	for _, n := range names {
+		top[n] = true
+	}
+	r, err := paths.Open(pr)
+	if err != nil {
+		return false, nil
+	}
+	defer r.Close()
+	for _, rel := range rels {
+		if first, _, _ := strings.Cut(rel, "/"); !top[first] {
+			continue
+		}
+		if _, err := r.Lstat(rel); err == nil {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // changeRootPath takes over the new path of a folder that moved (ADR 0023 point 4) under the scan
-// lock, so no scan walks the old path while the row changes: it writes the path with the file
-// system facts of the new place, keeps the media files, replaces the watcher and drops what the
-// service and the queue hold for the old place. The caller queues the scan that finds the files
-// again. A running scan refuses it (model.ErrScanRunning).
-func (s *Service) changeRootPath(ctx context.Context, lib appq.Library, root appq.LibraryRoot, moved preparedRoot) (appq.LibraryRoot, error) {
+// lock, so no scan walks the old path while the row changes: it checks the overlap again (another
+// folder may have been added since the request was checked), writes the path with the file system
+// facts of the new place and a new provider list (writeRootProviders) in one transaction, keeps the
+// media files, replaces the watcher and drops what the service and the queue hold for the old
+// place. The caller queues the scan that finds the files again. A running scan refuses it
+// (model.ErrScanRunning), a root removed meanwhile is model.ErrNotFound, an overlap a
+// *model.ValidationError (root_overlap on path).
+func (s *Service) changeRootPath(ctx context.Context, lib appq.Library, root appq.LibraryRoot, moved preparedRoot, old, providers []string) error {
 	unlock, ok := s.tryLockScan(lib.ID)
 	if !ok {
-		return root, fmt.Errorf("%w: library %d", model.ErrScanRunning, lib.ID)
+		return fmt.Errorf("%w: library %d", model.ErrScanRunning, lib.ID)
 	}
 	defer unlock()
 
-	files, err := systemq.New(s.db.Read).CountMediaFilesOfRoot(ctx, root.ID)
-	if err != nil {
-		return root, fmt.Errorf("count media files of root %d: %w", root.ID, err)
+	if err := s.refuseOverlap(ctx, moved.path, root.ID); errors.Is(err, errRootOverlap) {
+		var verr *model.ValidationError
+		return verr.Add("path", model.CodeRootOverlap)
+	} else if err != nil {
+		return err
 	}
-	row, err := appq.New(s.db.Write).UpdateLibraryRootPath(ctx, appq.UpdateLibraryRootPathParams{
+	tx, err := s.db.Write.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	files, err := systemq.New(tx).CountMediaFilesOfRoot(ctx, root.ID)
+	if err != nil {
+		return fmt.Errorf("count media files of root %d: %w", root.ID, err)
+	}
+	row, err := appq.New(tx).UpdateLibraryRootPath(ctx, appq.UpdateLibraryRootPathParams{
 		Path: moved.path, FsType: moved.fsType, Watch: moved.watch, ID: root.ID, LibraryID: root.LibraryID,
 	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("%w: library root %d", model.ErrNotFound, root.ID)
+	}
 	if err != nil {
-		return root, fmt.Errorf("update path of library root %d: %w", root.ID, err)
+		return fmt.Errorf("update path of library root %d: %w", root.ID, err)
+	}
+	change, err := s.writeRootProviders(ctx, tx, row, old, providers)
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("change path of root %d: %w", root.ID, err)
 	}
 	s.stopWatcher(root.ID)
 	s.resetRootState(lib.ID, root.ID)
@@ -177,54 +248,85 @@ func (s *Service) changeRootPath(ctx context.Context, lib appq.Library, root app
 	s.log.WarnContext(ctx, "library root path changed", "library_id", lib.ID, "library", lib.Name,
 		"root_id", root.ID, "from", root.Path, "to", row.Path, "fs_type", row.FsType, "watch", row.Watch,
 		"media_files_kept", files)
-	return row, nil
+	s.logProviderChange(ctx, row, old, providers, change)
+	return nil
 }
 
-// changeRootProviders writes the new list on the root and its titles and queues one job per
-// title: metadata.match when the identifier changed (the fill follows it), else metadata.fill.
+// providerChange is what writeRootProviders wrote, for the log line after the commit.
+type providerChange struct {
+	titles            int64
+	queued            int
+	identifierChanged bool
+}
+
+// changeRootProviders writes the new list on the root and its titles in one transaction
+// (writeRootProviders).
 func (s *Service) changeRootProviders(ctx context.Context, root appq.LibraryRoot, old, providers []string) error {
 	if model.ProvidersJSON(old) == model.ProvidersJSON(providers) {
 		return nil
 	}
-	identifierChanged := len(old) == 0 || old[0] != providers[0]
-	job := fillJob
-	if identifierChanged {
-		job = matchJob
-	}
-	now := s.now()
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
+	change, err := s.writeRootProviders(ctx, tx, root, old, providers)
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("change providers of root %d: %w", root.ID, err)
+	}
+	s.logProviderChange(ctx, root, old, providers, change)
+	return nil
+}
+
+// writeRootProviders writes the new list on the root and its titles in tx and queues one job per
+// title: metadata.match when the identifier changed (the fill follows it), else metadata.fill. The
+// same list writes nothing.
+func (s *Service) writeRootProviders(ctx context.Context, tx *sql.Tx, root appq.LibraryRoot, old, providers []string) (providerChange, error) {
+	if model.ProvidersJSON(old) == model.ProvidersJSON(providers) {
+		return providerChange{}, nil
+	}
+	ch := providerChange{identifierChanged: len(old) == 0 || old[0] != providers[0]}
+	job := fillJob
+	if ch.identifierChanged {
+		job = matchJob
+	}
+	now := s.now()
 	q := systemq.New(tx)
 	if _, err := appq.New(tx).UpdateLibraryRoot(ctx, appq.UpdateLibraryRootParams{
 		Content: root.Content, Providers: model.ProvidersJSON(providers), ID: root.ID, LibraryID: root.LibraryID,
 	}); err != nil {
-		return fmt.Errorf("update library root %d: %w", root.ID, err)
+		return ch, fmt.Errorf("update library root %d: %w", root.ID, err)
 	}
 	titles, err := q.UpdateItemsProvidersByRoot(ctx, systemq.UpdateItemsProvidersByRootParams{
 		Providers: model.ProvidersJSON(providers), Now: now.UnixMilli(), RootID: root.ID,
 	})
 	if err != nil {
-		return fmt.Errorf("update providers of root %d: %w", root.ID, err)
+		return ch, fmt.Errorf("update providers of root %d: %w", root.ID, err)
 	}
 	ids, err := q.ListTitleIDsOfRoot(ctx, root.ID)
 	if err != nil {
-		return fmt.Errorf("list titles of root %d: %w", root.ID, err)
+		return ch, fmt.Errorf("list titles of root %d: %w", root.ID, err)
 	}
 	for _, id := range ids {
 		if err := enqueueTx(ctx, q, now, job(id)); err != nil {
-			return err
+			return ch, err
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("change providers of root %d: %w", root.ID, err)
+	ch.titles, ch.queued = titles, len(ids)
+	return ch, nil
+}
+
+// logProviderChange logs a committed change of the provider list; the same list logs nothing.
+func (s *Service) logProviderChange(ctx context.Context, root appq.LibraryRoot, old, providers []string, ch providerChange) {
+	if model.ProvidersJSON(old) == model.ProvidersJSON(providers) {
+		return
 	}
 	s.log.InfoContext(ctx, "library root providers changed", "library_id", root.LibraryID, "root_id", root.ID,
 		"root", root.Path, "from", model.ProvidersJSON(old), "to", model.ProvidersJSON(providers),
-		"items", titles, "titles_queued", len(ids), "identifier_changed", identifierChanged)
-	return nil
+		"items", ch.titles, "titles_queued", ch.queued, "identifier_changed", ch.identifierChanged)
 }
 
 // changeRootContent runs the removal steps of RemoveRoot without removing the row, writes the new

@@ -1301,12 +1301,14 @@ export interface paths {
          *       running scan refuses it (`scan_running`).
          *     - A new `path` (the folder moved, ADR 0023 point 4) is checked like a new folder:
          *       absolute, readable, below a browsable root (`library_path_invalid`), overlapping no
-         *       other folder (`root_overlap`). The folder keeps its titles and files; the server takes
-         *       the new path under the scan lock (a running scan refuses it, `scan_running`), restarts
-         *       the folder's watcher and queues a scan, which finds the files again by name, inode or
-         *       partial hash. Files it does not find count towards the loss threshold of the scan. No
-         *       `confirmPath`; the same path is no change. It cannot be combined with `content`
-         *       (`path_with_content`), but with `providers`.
+         *       other folder (`root_overlap`). A folder with known files must hold at least one of them
+         *       at its relative path under the new path (`root_files_missing`), so a wrong folder cannot
+         *       let the scan lose them all. The folder keeps its titles and files; the server takes the
+         *       new path and a new `providers` list in one transaction under the scan lock (a running
+         *       scan refuses it, `scan_running`), restarts the folder's watcher and queues a scan, which
+         *       finds the files again by name, inode or partial hash. Files it does not find count
+         *       towards the loss threshold of the scan. No `confirmPath`; the same path is no change. It
+         *       cannot be combined with `content` (`path_with_content`), but with `providers`.
          */
         patch: operations["updateLibraryRoot"];
         trace?: never;
@@ -5116,8 +5118,9 @@ export interface components {
         LibraryRootUpdate: {
             /**
              * @description The new absolute directory of the folder (it moved, ADR 0023 point 4), below a
-             *     browsable root, for example `/media/Filme-neu`. Its titles, files and user data stay
-             *     when the scan finds the files there under the same names.
+             *     browsable root, for example `/media/Filme-neu`, holding at least one of the folder's
+             *     known files (`root_files_missing`). Its titles, files and user data stay when the scan
+             *     finds the files there under the same names.
              */
             path?: string;
             content?: components["schemas"]["RootContent"];
@@ -9928,9 +9931,10 @@ export interface operations {
             };
             /**
              * @description `validation_failed` (`content` `content_not_allowed`, `providers`
-             *     `providers_not_allowed`, `path` `library_path_invalid`, `root_overlap` or
-             *     `path_with_content`, or none of the fields given), or a content change whose
-             *     `confirmPath` does not repeat the folder's path (`confirm_mismatch`).
+             *     `providers_not_allowed`, `path` `library_path_invalid`, `root_overlap`,
+             *     `root_files_missing` or `path_with_content`, or none of the fields given), or a
+             *     content change whose `confirmPath` does not repeat the folder's path
+             *     (`confirm_mismatch`).
              */
             422: {
                 headers: {
