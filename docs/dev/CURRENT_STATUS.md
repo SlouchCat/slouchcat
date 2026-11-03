@@ -23,6 +23,11 @@ Release vor Konzept 13 und 14, keine Migration. Schritte:
   wiederverwendeter inode. Belegt mit `-count=200` und `-race -count=50`.
 - **W-5** (`4e6e9b1`, `f9696b3`) «Pfad ändern» für einen Ordner (Vertrag, Server, Oberfläche,
   Tastaturtest). Der e2e-Test zieht einen echten Ordner um, und der Titel behält seine ID.
+- **Schluss-Review** (1 Blocker, 1 Major, 11 Minor) behoben in `b891821`, `fa59c21` und `1dafa0e`.
+  Blocker: Eine gesperrte mildere Freigabe des Zwillings konnte die strengere der Kopie verdrängen.
+  Major: Auch das Löschen reiht jetzt die Wiederverknüpfung ein («hinzufügen, scannen, entfernen»).
+- **W-6** Messung `docs/perf/wurzelwechsel.md` (`ec2546f`). Voller `task ci` auf `e2da78d` grün
+  (616 e2e-Tests, 323 Storybook-Tests).
 - **W-6** Messung (`docs/perf/wurzelwechsel.md`), `task ci`, Pull Request. Abnahme und Reparatur auf
   CT 190 erst auf Marcos Wort.
 

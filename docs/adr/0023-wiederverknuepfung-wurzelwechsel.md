@@ -89,17 +89,25 @@ genauer gefasst:
   nächsten Match in ein altes gelöschtes Duplikat gezogen. Der Spielraum deckt die Reihenfolge
   «neuen Ordner hinzufügen, scannen, alten entfernen» ab (Marco, 3. November 2026). Die
   **Pflegeaktion kennt diese Regel nicht**, weil der Administrator dort beide Titel sieht.
+- **Auch nach dem Löschen wird verknüpft.** Wird ein Film oder eine Serie soft-gelöscht (Ordner
+  entfernen, Inhaltswechsel, Sweep, Bereinigung in der Pflege, ignorierte Dateien), reiht dieselbe
+  Transaktion `library.relink` für frische Kopien mit gleicher Anbieter-ID ein. Erst damit greift
+  der Spielraum von 7 Tagen auch für «neuen Ordner hinzufügen, scannen, alten entfernen».
 - **Dauerhafter Job statt Speicher.** Der Haken nach dem Match prüft nur, ob es einen Zwilling
   gibt. Gibt es einen, endet der Match der Kopie nach dem Titel, und der Job `library.relink`
   (Schlüssel `relink:<id>`) wird eingereiht. Ist die Scan-Sperre belegt, reiht er sich mit
   `jobs.RetryLater` nach einer Minute neu ein, ohne einen Versuch zu verbrauchen (neu im Paket
-  `jobs`: `Queue.Defer`). Ein Neustart verliert nichts.
+  `jobs`: `Queue.Defer`). Ein Neustart verliert nichts. Scheitert der Job endgültig oder bricht ihn der Administrator ab, wird
+  der Match der Kopie mit `noRelink` neu eingereiht, damit Staffeln und Bilder nicht fehlen. Nach
+  einer Zusammenführung prüft der Server offene Wiedergaben nach (`library.WithVisibilityRecheck`).
 - **Ältere Zwillinge werden mitgefaltet.** Gibt es mehrere gelöschte Zwillinge, überlebt der
   zuletzt gelöschte. Die älteren gehen in derselben Transaktion in ihm auf. Bei gleichem
   Löschzeitpunkt entscheidet die höhere ID.
 - **Gepflegte Werte der Kopie bleiben:**
-  - Bei der Freigabe gilt die strengere. Eine vom Administrator gesperrte Freigabe der Kopie
-    gilt immer.
+  - Die Freigabe wird **nie milder als die der lebenden Kopie**, ausser der Administrator hat sie
+    an der Kopie selbst gesperrt. Dann gilt die gesperrte Freigabe der Kopie. Sonst gilt die
+    strengere der beiden, auch gegen eine gesperrte Freigabe des Zwillings. Dessen Sperre bleibt
+    und hält dann den strengeren Wert. Eine Kopie ohne Freigabe lässt die des Zwillings stehen.
   - Sperren, die dem Zwilling fehlen, gehen mit ihrem Wert über.
   - Bildwahl und eigene Bilder gehen über, wo der Zwilling keine hat.
   - Kapitel und erkannte Intro- und Abspann-Marken wandern mit der Datei.
@@ -111,9 +119,14 @@ genauer gefasst:
   - Die Tabelle zeigt den gelöschten Titel und die Kopie.
   - Paare, die es nicht mehr gibt, zählen als übersprungen.
   - Läuft mitten im Lauf ein Scan, meldet die Antwort den Teilerfolg (`stoppedBy: scan_running`).
-- **«Pfad ändern»:** Ein neuer Pfad lässt sich nicht mit einem Inhaltswechsel verbinden (neuer
-  Fehlercode `path_with_content`), wohl aber mit einer neuen Anbieterliste. Gleicher Pfad
-  ändert nichts.
+- **«Pfad ändern»:**
+  - Ein neuer Pfad lässt sich nicht mit einem Inhaltswechsel verbinden (neuer Fehlercode
+    `path_with_content`), wohl aber mit einer neuen Anbieterliste. Pfad und Anbieterliste werden
+    in einer Transaktion unter der Scan-Sperre geschrieben.
+  - Kennt der Ordner schon Dateien, muss mindestens eine davon unter dem neuen Pfad liegen. Sonst
+    lehnt der Server ab (neuer Fehlercode `root_files_missing`). Ein Tippfehler im Pfad löscht so
+    keine Titel.
+  - Gleicher Pfad ändert nichts.
 - **Scanner:** Der Index lädt gelöschte Titel mit einer schmalen Abfrage (11 Spalten, nur Filme,
   Serien, Hörbücher, Podcasts, Staffeln, Folgen). Die Suche über Name und Jahr gilt nur für
   Filme und Serien.
