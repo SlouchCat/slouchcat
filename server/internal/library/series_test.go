@@ -687,3 +687,35 @@ func TestScanRunsMetadataCheck(t *testing.T) {
 		t.Errorf("path scan ran the metadata check: %v", checked)
 	}
 }
+
+// The scanner's index knows soft-deleted extras with their parent, so a returning extra finds its
+// title and its restore clears the season and series in the index as well (ADR 0023).
+func TestItemIndexKnowsDeletedExtras(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	lib := e.createSeries(seriesDirTree(t))
+	e.scan(lib.ID)
+	show := e.str(`SELECT id FROM items WHERE kind = 'series' AND title = 'Show'`)
+	season1 := e.str(`SELECT id FROM items WHERE kind = 'season' AND parent_id = ? AND season_number = 1`, show)
+	extra := e.str(`SELECT id FROM items WHERE kind = 'extra' AND parent_id = ? AND extra_kind = 'featurette'`, season1)
+	e.exec(`UPDATE items SET deleted_at = 1 WHERE library_id = ?`, lib.ID)
+	row, err := appq.New(e.db.Read).GetLibrary(e.ctx, lib.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	li, err := e.svc.loadItemIndex(e.ctx, row, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := li.byKind["series"]
+	if got := idx.title(extra, "series"); got != show {
+		t.Fatalf("title of the deleted extra = %q, want %s", got, show)
+	}
+	if !idx.deleted[show] || !idx.deleted[season1] {
+		t.Fatal("series and season are not known as deleted")
+	}
+	idx.undelete(extra)
+	if idx.deleted[show] || idx.deleted[season1] {
+		t.Errorf("deleted after the extra's restore: series %v, season %v", idx.deleted[show], idx.deleted[season1])
+	}
+}

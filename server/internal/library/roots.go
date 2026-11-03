@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -157,6 +158,9 @@ func (s *Service) removeRootRows(ctx context.Context, libraryID, rootID int64) (
 	}
 	if _, err := q.SoftDeleteEmptySeries(ctx, ms); err != nil {
 		return 0, 0, fmt.Errorf("soft delete empty series: %w", err)
+	}
+	if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
+		return 0, 0, err
 	}
 	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: rootID, Now: now}); err != nil {
 		return 0, 0, fmt.Errorf("move downloads off root %d: %w", rootID, err)

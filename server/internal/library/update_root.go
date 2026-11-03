@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
@@ -260,6 +261,9 @@ func (s *Service) changeRootContent(ctx context.Context, lib appq.Library, root 
 	}
 	if _, err := q.SoftDeleteEmptySeries(ctx, ms); err != nil {
 		return model.Library{}, fmt.Errorf("soft delete empty series: %w", err)
+	}
+	if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
+		return model.Library{}, err
 	}
 	if _, err := q.MoveDownloadsOffRoot(ctx, systemq.MoveDownloadsOffRootParams{RootID: root.ID, Now: now}); err != nil {
 		return model.Library{}, fmt.Errorf("move downloads off root %d: %w", root.ID, err)

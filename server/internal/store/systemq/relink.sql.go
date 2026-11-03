@@ -167,6 +167,54 @@ func (q *Queries) FindDeletedTwin(ctx context.Context, arg FindDeletedTwinParams
 	return id, err
 }
 
+const listFreshCopiesOfDeleted = `-- name: ListFreshCopiesOfDeleted :many
+SELECT DISTINCT l.id FROM libraries AS lib
+CROSS JOIN items AS d ON d.library_id = lib.id AND d.kind IN ('movie', 'series') AND d.deleted_at = ?1
+CROSS JOIN items AS l ON +l.library_id = d.library_id AND +l.kind = d.kind AND l.id <> d.id
+WHERE l.deleted_at IS NULL
+  AND l.created_at > d.deleted_at - CAST(?2 AS INTEGER)
+  AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
+  AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
+  AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
+  AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
+ORDER BY l.id
+`
+
+type ListFreshCopiesOfDeletedParams struct {
+	Now     sql.NullInt64
+	GraceMs int64
+}
+
+// The live films and series that became twins of a title soft-deleted at now in the caller's
+// transaction (a folder removed or changed, the sweep, the cleanup): fresh copies created at most
+// grace_ms before the deletion, sharing a provider id and contradicting none (FindDeletedTwin with
+// grace_ms). Each gets library.relink, so the order "add the new folder, scan, remove the old one"
+// relinks without another match. CROSS JOIN fixes the order: the libraries, then their titles
+// deleted at now through items_library_kind (library, kind, deleted_at), then each one's copies by
+// provider id (see FindDeletedTwin), so no statement walks every title.
+func (q *Queries) ListFreshCopiesOfDeleted(ctx context.Context, arg ListFreshCopiesOfDeletedParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listFreshCopiesOfDeleted, arg.Now, arg.GraceMs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRelinkChainTwins = `-- name: ListRelinkChainTwins :many
 SELECT d.id FROM items AS d
 WHERE +d.library_id = ?1 AND +d.kind = ?2 AND +d.deleted_at IS NOT NULL

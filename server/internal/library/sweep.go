@@ -55,6 +55,9 @@ func (s *Service) Sweep(ctx context.Context) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("soft delete empty folder podcasts: %w", err)
 	}
+	if err := QueueRelinksTx(ctx, q, now); err != nil {
+		return 0, err
+	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("sweep: %w", err)
 	}

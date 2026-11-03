@@ -64,6 +64,9 @@ type Service struct {
 	// rootContentChanged is told when an administrator changed the content of a folder, which
 	// empties it like a removal does (optional, ADR 0015).
 	rootContentChanged func(ctx context.Context, libraryName, path, from, to string, items, files int64) error
+	// recheck ends open direct-play streams whose title became invisible after library.relink
+	// merged a copy (WithVisibilityRecheck; optional).
+	recheck func(ctx context.Context) error
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
@@ -155,6 +158,15 @@ func WithRootRemoved(fn func(ctx context.Context, libraryName, path string, item
 // either way.
 func WithRootContentChanged(fn func(ctx context.Context, libraryName, path, from, to string, items, files int64) error) Option {
 	return func(s *Service) { s.rootContentChanged = fn }
+}
+
+// WithVisibilityRecheck sets the function library.relink calls after it merged a copy into its
+// soft-deleted twin (playback.Service.RecheckVisibility, ADR 0023): the survivor may carry a
+// stricter rating, and the streams of the copy name an id that is gone. Without it nothing is
+// rechecked. The counts of the admin sidebar need no hook: like those of scans, sweeps and
+// matches, they expire after the dashboard's TTL (admin.dashboardCountsTTL).
+func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
+	return func(s *Service) { s.recheck = recheck }
 }
 
 // New returns the library service. queue must work on db.Write.
@@ -483,6 +495,11 @@ func (s *Service) ignoreChunk(ctx context.Context, ids []string, reason string) 
 		}
 		files++
 		itemsDeleted += int(n)
+	}
+	if itemsDeleted > 0 {
+		if err := QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
+			return 0, 0, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, 0, fmt.Errorf("store ignored files: %w", err)

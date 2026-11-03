@@ -202,24 +202,58 @@ func (s *Service) QueueRelink(ctx context.Context, liveID string) (bool, error) 
 	return true, nil
 }
 
+// QueueRelinksTx queues library.relink in the caller's transaction for every live film or series
+// that became the fresh twin (relinkGrace) of a title soft-deleted at now in that transaction. A
+// copy matched while its original still lived found no twin then (QueueRelink); this catches the
+// order "add the new folder, scan, remove the old one" (ADR 0023). Every soft delete of titles
+// calls it: RemoveRoot, a content change of a folder, the sweep, IgnoreFiles and the cleanup of
+// package admin.
+func QueueRelinksTx(ctx context.Context, q *systemq.Queries, now time.Time) error {
+	ids, err := q.ListFreshCopiesOfDeleted(ctx, systemq.ListFreshCopiesOfDeletedParams{
+		Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, GraceMs: relinkGrace.Milliseconds(),
+	})
+	if err != nil {
+		return fmt.Errorf("list fresh copies of deleted titles: %w", err)
+	}
+	for _, id := range ids {
+		if err := enqueueTx(ctx, q, now, newJob{JobRelink, prioMatch, relinkKey(id), itemPayload{id}}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // handleRelink runs library.relink: it merges a live film or series into its soft-deleted twin
 // under the scan lock of the library, because a running scan's item index still names the copy.
 // While a scan holds the lock, the job waits relinkRetry without using an attempt
-// (jobs.RetryLater). A title that is gone has merged already (the maintenance action). When the
-// twin is gone meanwhile (another copy of it merged first), the title's match runs again: it
-// stopped after the title and now completes seasons, images and the rest. Database errors are
-// returned for a retry.
+// (jobs.RetryLater). A title that is gone has merged already (the maintenance action). After a
+// merge the open streams are rechecked (WithVisibilityRecheck). When the twin is gone meanwhile
+// (another copy of it merged first), the title's match runs again: it stopped after the title and
+// now completes seasons, images and the rest. Database errors are returned for a retry; when the
+// last attempt fails, the title's match runs again without the relink hook (queueCopyMatch), so
+// the copy is still completed and the maintenance action can merge it later.
 func (s *Service) handleRelink(ctx context.Context, j *jobs.Job) error {
 	var p itemPayload
 	if err := decodePayload(j, &p); err != nil {
 		return err
 	}
-	live, err := systemq.New(s.db.Read).GetItemSystem(ctx, p.ItemID)
+	err := s.runRelink(ctx, p.ItemID)
+	var later *jobs.RetryLaterError
+	if err != nil && !errors.As(err, &later) && j.Attempts >= j.MaxAttempts {
+		if qerr := s.queueCopyMatch(context.WithoutCancel(ctx), p.ItemID, true); qerr != nil {
+			return errors.Join(err, qerr)
+		}
+	}
+	return err
+}
+
+func (s *Service) runRelink(ctx context.Context, itemID string) error {
+	live, err := systemq.New(s.db.Read).GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("load item %s: %w", p.ItemID, err)
+		return fmt.Errorf("load item %s: %w", itemID, err)
 	}
 	if live.DeletedAt.Valid {
 		return nil
@@ -229,14 +263,46 @@ func (s *Service) handleRelink(ctx context.Context, j *jobs.Job) error {
 		return jobs.RetryLater(relinkRetry, fmt.Sprintf("a scan of library %d holds the scan lock", live.LibraryID))
 	}
 	defer unlock()
-	if _, merged, err := s.relinkTwin(ctx, live.ID); err != nil || merged {
+	_, merged, err := s.relinkTwin(ctx, live.ID)
+	if err != nil {
 		return err
 	}
-	m := matchJob(live.ID)
-	payload, err := json.Marshal(m.payload)
-	if err != nil {
-		return fmt.Errorf("encode %s payload: %w", m.typ, err)
+	if !merged {
+		return s.queueCopyMatch(ctx, live.ID, false)
 	}
+	if s.recheck != nil {
+		// The merge is stored; a failed recheck only leaves streams open until the next change.
+		if err := s.recheck(ctx); err != nil {
+			s.log.WarnContext(ctx, "visibility recheck after a relink failed", "item_id", live.ID, "err", err)
+		}
+	}
+	return nil
+}
+
+// cancelRelink is the cancel hook of library.relink (jobs.Type.Cancel): the administration's
+// cancel leaves the copy unmerged, so its match runs again without the relink hook and completes
+// the title (queueCopyMatch).
+func (s *Service) cancelRelink(ctx context.Context, j jobs.Job) error {
+	var p itemPayload
+	if err := decodePayload(&j, &p); err != nil {
+		return err
+	}
+	return s.queueCopyMatch(ctx, p.ItemID, true)
+}
+
+// queueCopyMatch queues metadata.match for a copy whose match stopped after the title for
+// library.relink (metadata.WithRelink). noRelink (the payload's noRelink) makes the match skip the
+// relink hook: after a failed or cancelled relink it would otherwise hand the title straight back.
+// A title that is gone meanwhile ends the match at once.
+func (s *Service) queueCopyMatch(ctx context.Context, itemID string, noRelink bool) error {
+	payload, err := json.Marshal(struct {
+		ItemID   string `json:"itemId"`
+		NoRelink bool   `json:"noRelink,omitempty"`
+	}{itemID, noRelink})
+	if err != nil {
+		return fmt.Errorf("encode %s payload: %w", JobMetadataMatch, err)
+	}
+	m := matchJob(itemID)
 	_, err = s.queue.Enqueue(ctx, jobs.NewJob{Type: m.typ, Priority: m.priority, IdempotencyKey: m.key, Payload: payload})
 	return err
 }
@@ -268,14 +334,14 @@ func (s *Service) relinkTwin(ctx context.Context, liveID string) (string, bool, 
 // user data of every merged node follows with the rules of the duplicate merge (B-9): progress per
 // profile (completed wins, then the larger position), events, days, top picks, watchlist,
 // favourites, collections, notifications and downloads, plus playback sessions and activity
-// events. The copy's curated state comes along (relinker.carry): locked provider ids and rating,
-// the stricter age rating, the administrator's images, local images, chapters and segments. The
-// emptied nodes of the copy are deleted for good, the copy last; a deleted child of the twin
-// without counterpart stays deleted. Then every other soft-deleted twin of the survivor (an older
-// generation of the title) folds into it the same way, user data only, so a later match of the
-// survivor finds no older twin. The triggers recompute availability and ratings. The twin gets a
-// metadata.match, which describes the episodes that moved in. grace is the freshness rule of the
-// twins (autoGrace or anyAge).
+// events. The copy's curated state comes along (relinker.carry): locked provider ids, an age
+// rating never milder than the copy's (its locked one wins), the administrator's images, local
+// images, chapters and segments. The emptied nodes of the copy are deleted for good, the copy last;
+// a deleted child of the twin without counterpart stays deleted. Then every other soft-deleted twin
+// of the survivor (an older generation of the title) folds into it the same way, user data only,
+// so a later match of the survivor finds no older twin. The triggers recompute availability and
+// ratings. The twin gets a metadata.match, which describes the episodes that moved in. grace is the
+// freshness rule of the twins (autoGrace or anyAge).
 func (s *Service) relink(ctx context.Context, deletedID, liveID string, grace sql.NullInt64) (RelinkResult, error) {
 	now := s.now()
 	tx, err := s.db.Write.BeginTx(ctx, nil)
@@ -535,10 +601,14 @@ var carriedLocks = map[string]bool{
 
 // carry moves the curated state of the copy's node source to the survivor's node target before
 // source is deleted:
-//   - locked fields the survivor lacks (carriedLocks) with their values: provider ids, the age
-//     rating with its source, and the image kinds whose choice moves below;
-//   - otherwise the stricter age rating (the higher FSK) with its source, unless the survivor
-//     locks its rating;
+//   - locked fields the survivor lacks (carriedLocks) with their values: provider ids and the image
+//     kinds whose choice moves below;
+//   - the age rating (decision 21): the merged title is never milder than the copy, unless the
+//     administrator locked the copy's rating. A locked rating of the copy wins with its source and
+//     its lock, even over a locked rating of the survivor. Otherwise the stricter of the two (the
+//     higher FSK) wins with its source, even over a locked rating of the survivor; that lock stays
+//     and now holds the stricter value, so the next match cannot lower it again. A copy without a
+//     rating brings no information and leaves the survivor's alone;
 //   - the administrator's image choices (item_images chosen = 1) over the survivor's automatic
 //     ones, and image choices and local images of a kind the survivor has none of;
 //   - for a film or an episode, whose media file moved: the copy's chapters replace the
@@ -573,11 +643,10 @@ func (r *relinker) carry(ctx context.Context, target, source, kind string) error
 			p.TvdbID = src.TvdbID
 		case "imdb_id":
 			p.ImdbID = src.ImdbID
-		case "own_rating":
-			p.OwnRating, p.RatingSource = src.OwnRating, src.RatingSource
 		}
 	}
-	if !slices.Contains(locks, "own_rating") && src.OwnRating.Valid && (!p.OwnRating.Valid || p.OwnRating.Int64 < src.OwnRating.Int64) {
+	if slices.Contains(sLocks, "own_rating") ||
+		(src.OwnRating.Valid && (!p.OwnRating.Valid || p.OwnRating.Int64 < src.OwnRating.Int64)) {
 		p.OwnRating, p.RatingSource = src.OwnRating, src.RatingSource
 	}
 	if len(locks) > len(tLocks) {

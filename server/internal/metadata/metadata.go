@@ -374,10 +374,14 @@ func (s *Service) CheckKey(ctx context.Context, key string) error {
 
 // itemPayload is the payload of both jobs. Images marks a fill queued by metadata.apply for
 // the images: it fetches the records and decides the image kinds again even for a folder with
-// one provider, which an ordinary fill leaves to the match (section 1.1 of concept 10).
+// one provider, which an ordinary fill leaves to the match (section 1.1 of concept 10). NoRelink
+// marks a match queued by package library after its library.relink of the title failed for good
+// or was cancelled: the match skips the relink hook (WithRelink) and completes the title, so it
+// does not hand the title back to the relink it just left.
 type itemPayload struct {
-	ItemID string `json:"itemId"`
-	Images bool   `json:"images,omitempty"`
+	ItemID   string `json:"itemId"`
+	Images   bool   `json:"images,omitempty"`
+	NoRelink bool   `json:"noRelink,omitempty"`
 }
 
 func parsePayload(j *jobs.Job) (string, error) {

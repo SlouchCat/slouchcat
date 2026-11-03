@@ -211,3 +211,22 @@ WHERE downloads.item_id = @target_id
   AND (downloads.state IN ('failed', 'evicted')
        OR (downloads.media_file_id IS NOT NULL
            AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.id = downloads.media_file_id AND m.missing_since IS NULL)));
+
+-- name: ListFreshCopiesOfDeleted :many
+-- The live films and series that became twins of a title soft-deleted at now in the caller's
+-- transaction (a folder removed or changed, the sweep, the cleanup): fresh copies created at most
+-- grace_ms before the deletion, sharing a provider id and contradicting none (FindDeletedTwin with
+-- grace_ms). Each gets library.relink, so the order "add the new folder, scan, remove the old one"
+-- relinks without another match. CROSS JOIN fixes the order: the libraries, then their titles
+-- deleted at now through items_library_kind (library, kind, deleted_at), then each one's copies by
+-- provider id (see FindDeletedTwin), so no statement walks every title.
+SELECT DISTINCT l.id FROM libraries AS lib
+CROSS JOIN items AS d ON d.library_id = lib.id AND d.kind IN ('movie', 'series') AND d.deleted_at = @now
+CROSS JOIN items AS l ON +l.library_id = d.library_id AND +l.kind = d.kind AND l.id <> d.id
+WHERE l.deleted_at IS NULL
+  AND l.created_at > d.deleted_at - CAST(@grace_ms AS INTEGER)
+  AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
+  AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
+  AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
+  AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
+ORDER BY l.id;

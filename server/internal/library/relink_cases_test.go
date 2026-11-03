@@ -1,7 +1,9 @@
 package library
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -9,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -225,21 +228,164 @@ func TestRelinkKeepsCuratedStateOfCopy(t *testing.T) {
 	}
 }
 
-// A copy with a milder rating leaves the survivor's stricter one alone.
-func TestRelinkKeepsStricterRatingOfSurvivor(t *testing.T) {
+// The merged title is never milder than the copy, unless the administrator locked the copy's
+// rating (decision 21): a locked rating of the copy wins, even over a locked one of the survivor;
+// otherwise the stricter wins, even over a locked rating of the survivor, whose lock then holds
+// the stricter value. A copy without a rating leaves the survivor's alone.
+func TestRelinkRatingNeverMilderThanCopy(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	dir, lib := e.filmLibrary()
-	dead := e.addFilm(dir, lib.ID, "Heat/Heat.mkv", 949)
-	e.exec(`UPDATE items SET own_rating = 16, rating_source = 'tmdb:DE' WHERE id = ?`, dead)
-	e.dropFilm(dir, lib.ID, "Heat/Heat.mkv")
-	c := e.addFilm(dir, lib.ID, "Heat Copy/Heat.mkv", 949)
-	e.exec(`UPDATE items SET own_rating = 12, rating_source = 'tmdb:US' WHERE id = ?`, c)
-	if twin, err := e.relinkJob(c); err != nil || !twin {
-		t.Fatalf("relink = %v, %v", twin, err)
+	rating := func(id string, v any, locks string) {
+		e.exec(`UPDATE items SET own_rating = ?, rating_source = CASE WHEN ? IS NULL THEN NULL ELSE 'tmdb:' || ? END,
+		        locked_fields = ? WHERE id = ?`, v, v, id, locks, id)
 	}
-	if v := e.str(`SELECT own_rating || '/' || rating_source FROM items WHERE id = ?`, dead); v != "16/tmdb:DE" {
-		t.Errorf("rating = %s, want 16/tmdb:DE", v)
+	for i, tc := range []struct {
+		name                     string
+		dead, copy               any // own_rating, nil for none
+		deadLocks, copyLocks     string
+		wantRating, wantSourceOf string // wantSourceOf: "dead" or "copy"
+		wantLocks                string
+	}{
+		{"survivor locked, copy stricter", 6, 16, `["own_rating"]`, `[]`, "16", "copy", `["own_rating"]`},
+		{"both locked", 6, 16, `["own_rating"]`, `["own_rating"]`, "16", "copy", `["own_rating"]`},
+		{"copy locked milder", 16, 6, `[]`, `["own_rating"]`, "6", "copy", `["own_rating"]`},
+		{"copy without rating", 12, nil, `[]`, `[]`, "12", "dead", `[]`},
+		{"copy milder", 16, 12, `[]`, `[]`, "16", "dead", `[]`},
+	} {
+		rel := fmt.Sprintf("Film %d/Film.mkv", i)
+		dead := e.addFilm(dir, lib.ID, rel, int64(9000+i))
+		rating(dead, tc.dead, tc.deadLocks)
+		e.dropFilm(dir, lib.ID, rel)
+		c := e.addFilm(dir, lib.ID, fmt.Sprintf("Film %d Copy/Film.mkv", i), int64(9000+i))
+		rating(c, tc.copy, tc.copyLocks)
+		if twin, err := e.relinkJob(c); err != nil || !twin {
+			t.Fatalf("%s: relink = %v, %v", tc.name, twin, err)
+		}
+		source := map[string]string{"dead": "tmdb:" + dead, "copy": "tmdb:" + c}[tc.wantSourceOf]
+		want := tc.wantRating + "/" + source + "/" + tc.wantRating + "/" + tc.wantLocks
+		if v := e.str(`SELECT own_rating || '/' || rating_source || '/' || effective_rating || '/' || locked_fields
+		               FROM items WHERE id = ?`, dead); v != want {
+			t.Errorf("%s: rating/source/effective/locks = %s, want %s", tc.name, v, want)
+		}
+	}
+}
+
+// The order "add the new folder, scan, remove the old one" (ADR 0023): the copy in the new folder
+// is matched while the film still lives, so its match finds no twin. Removing the old folder
+// soft-deletes the film and queues library.relink for the fresh copy in the same transaction;
+// the job merges the copy into the film, whose id survives.
+func TestRelinkQueuedWhenOriginalFolderRemoved(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.profiles(1)
+	oldDir := tree(t, []string{"Heat/Heat.mkv"})
+	lib := e.create(oldDir)
+	e.scan(lib.ID)
+	film := e.str(`SELECT item_id FROM media_files WHERE rel_path = 'Heat/Heat.mkv'`)
+	e.exec(`UPDATE items SET tmdb_id = 949 WHERE id = ?`, film)
+	e.progress(1, film, 4200, false)
+
+	newDir := t.TempDir()
+	writeFile(t, newDir, "Heat/Heat.mkv", "the same film in a new folder")
+	if _, err := e.svc.AddRoots(e.ctx, lib.ID, rootReq(newDir, model.RootMovie)); err != nil {
+		t.Fatal(err)
+	}
+	e.scan(lib.ID)
+	newRoot := rootIDOf(t, e, lib.ID, newDir)
+	c := e.str(`SELECT item_id FROM media_files WHERE root_id = ?`, newRoot)
+	if c == "" || c == film {
+		t.Fatalf("copy = %q, film = %q; want a new title", c, film)
+	}
+	e.exec(`UPDATE items SET tmdb_id = 949 WHERE id = ?`, c)
+	if twin, err := e.svc.QueueRelink(e.ctx, c); err != nil || twin {
+		t.Fatalf("twin while the film lives = %v, %v; want none", twin, err)
+	}
+
+	if _, err := e.svc.RemoveRoot(e.ctx, lib.ID, rootIDOf(t, e, lib.ID, oldDir), oldDir); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ? AND state = 'queued'`, JobRelink, relinkKey(c)); n != 1 {
+		t.Fatalf("library.relink jobs of the copy = %d, want 1", n)
+	}
+	payload, err := json.Marshal(itemPayload{c})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.handleRelink(e.ctx, &jobs.Job{Type: JobRelink, Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.str(`SELECT (deleted_at IS NULL) || '/' || (SELECT count(*) FROM items WHERE id = ?) || '/' ||
+	               (SELECT item_id FROM media_files WHERE root_id = ?) FROM items WHERE id = ?`, c, newRoot, film); v != "1/0/"+film {
+		t.Errorf("film live / copy rows / owner of the new file = %s, want 1/0/%s", v, film)
+	}
+	if v := e.str(`SELECT position_ms FROM progress WHERE profile_id = 1 AND item_id = ?`, film); v != "4200" {
+		t.Errorf("progress of the film = %q, want 4200", v)
+	}
+}
+
+// A merge by library.relink rechecks the open streams (WithVisibilityRecheck). A relink whose last
+// attempt fails, or that the administration cancels, leaves the copy unmerged: its match runs again
+// with noRelink, so it completes the title instead of handing it back. An earlier attempt that
+// fails is only retried.
+func TestRelinkJobRecheckAndFallbackMatch(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir, lib := e.filmLibrary()
+	rechecks := 0
+	e.svc.recheck = func(context.Context) error { rechecks++; return nil }
+	pair := func(i int) string {
+		rel := fmt.Sprintf("Film %d/Film.mkv", i)
+		e.addFilm(dir, lib.ID, rel, int64(9100+i))
+		e.dropFilm(dir, lib.ID, rel)
+		c := e.addFilm(dir, lib.ID, fmt.Sprintf("Film %d Copy/Film.mkv", i), int64(9100+i))
+		e.exec(`DELETE FROM jobs`)
+		return c
+	}
+	job := func(id string, attempts int) *jobs.Job {
+		payload, err := json.Marshal(itemPayload{id})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return &jobs.Job{Type: JobRelink, Payload: payload, Attempts: attempts, MaxAttempts: jobs.DefaultMaxAttempts}
+	}
+	matchPayload := func(id string) string {
+		return e.str(`SELECT (SELECT payload FROM jobs WHERE type = ? AND idempotency_key = ?)`, JobMetadataMatch, "match:"+id)
+	}
+
+	merged := pair(0)
+	if err := e.svc.handleRelink(e.ctx, job(merged, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if rechecks != 1 {
+		t.Errorf("rechecks after a merge = %d, want 1", rechecks)
+	}
+
+	failing := pair(1)
+	stopped, cancel := context.WithCancel(e.ctx)
+	cancel()
+	if err := e.svc.handleRelink(stopped, job(failing, 1)); err == nil {
+		t.Fatal("relink with a stopped context succeeded")
+	}
+	if p := matchPayload(failing); p != "" {
+		t.Errorf("match after a failed first attempt = %s, want none", p)
+	}
+	if err := e.svc.handleRelink(stopped, job(failing, jobs.DefaultMaxAttempts)); err == nil {
+		t.Fatal("relink with a stopped context succeeded")
+	}
+	if p, want := matchPayload(failing), `{"itemId":"`+failing+`","noRelink":true}`; p != want {
+		t.Errorf("match after the last attempt = %s, want %s", p, want)
+	}
+
+	cancelled := pair(2)
+	if err := e.svc.cancelRelink(e.ctx, *job(cancelled, 0)); err != nil {
+		t.Fatal(err)
+	}
+	if p, want := matchPayload(cancelled), `{"itemId":"`+cancelled+`","noRelink":true}`; p != want {
+		t.Errorf("match after a cancel = %s, want %s", p, want)
+	}
+	if rechecks != 1 {
+		t.Errorf("rechecks = %d, want 1 (no merge since)", rechecks)
 	}
 }
 

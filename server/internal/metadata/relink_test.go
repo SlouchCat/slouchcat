@@ -5,6 +5,8 @@ import (
 	"errors"
 	"slices"
 	"testing"
+
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 )
 
 // fakeRelink is a relink hook (WithRelink) that records its calls.
@@ -101,5 +103,27 @@ func TestMatchMovieStopsAfterRelink(t *testing.T) {
 		if jobs := e.jobList(t, typ); len(jobs) != 0 {
 			t.Errorf("%s jobs %v, want none", typ, jobs)
 		}
+	}
+}
+
+// A match queued with noRelink (library.relink failed for good or was cancelled) skips the hook
+// and completes the series: seasons and fill.
+func TestMatchWithNoRelinkSkipsTheHook(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	hook := &fakeRelink{twin: true}
+	e.svc.relink = hook.relink
+	e.addTree(t, node{title: "Test Show", year: 2010})
+	if err := e.svc.handleMatch(context.Background(), &jobs.Job{Type: JobMatch, Payload: []byte(`{"itemId":"` + idSeries + `","noRelink":true}`)}); err != nil {
+		t.Fatal(err)
+	}
+	if len(hook.calls) != 0 {
+		t.Errorf("hook calls %v, want none", hook.calls)
+	}
+	if r := e.child(t, idSeason1); r.State != "matched" {
+		t.Errorf("season 1 state %q, want matched", r.State)
+	}
+	if fills := e.jobList(t, JobFill); len(fills) != 1 {
+		t.Errorf("fill jobs %v, want one", fills)
 	}
 }
