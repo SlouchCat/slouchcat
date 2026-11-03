@@ -24,7 +24,7 @@ test('arrow keys land on play, move to back; facts are shown', async ({ page }) 
   await expect(file.getByText('MP4')).toBeVisible();
 });
 
-test('Tab reaches play and back after the header and the side navigation; no focus trap', async ({
+test('Tab reaches play and back after the header and the side navigation; no focus trap @keyboard', async ({
   page,
 }) => {
   // The side navigation's last stop (concept 08) comes right before the page.

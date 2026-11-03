@@ -47,7 +47,7 @@ const sideNavState = (page: Page) =>
 const isFocused = (locator: Locator) =>
   locator.evaluate((element) => element === document.activeElement);
 
-test('the column at 1280 px: its entries, arrows between them, Enter, into the content and back', async ({
+test('the column at 1280 px: its entries, arrows between them, Enter, into the content and back @keyboard', async ({
   page,
   owner,
 }) => {

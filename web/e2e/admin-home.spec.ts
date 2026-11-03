@@ -306,7 +306,7 @@ test('a provoked error shows in the card and the opened server log within 10 s (
   }
 });
 
-test('Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap', async ({
+test('Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap @keyboard', async ({
   page,
 }) => {
   // Never a real restart: the suite's server must stay up. Should the confirmation be pressed by

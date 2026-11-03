@@ -27,7 +27,7 @@ import { arrowTo } from './playback';
 // address without http(s) already in the browser), "Jetzt abrufen" and "Abo löschen" with its
 // confirmation; visible focus throughout, no focus trap.
 
-test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at the field', async ({
+test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at the field @keyboard', async ({
   page,
   owner,
 }, testInfo) => {

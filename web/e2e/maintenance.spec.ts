@@ -200,7 +200,7 @@ test('duplicates list the H264 copy (same file hash) in a group of its own', asy
   ).toHaveLength(1);
 });
 
-test('unrated: select by keyboard, assign a rating, the title leaves the list', async ({
+test('unrated: select by keyboard, assign a rating, the title leaves the list @keyboard', async ({
   page,
   owner,
 }) => {

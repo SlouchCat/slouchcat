@@ -69,7 +69,9 @@ test('arrows: play → back, down to the next episode', async ({ page }) => {
 // Tab order from the top of the page, like detail.spec: in Playwright's Firefox a Tab that would
 // leave the document after the last link does not wrap to the start, so this does not follow the
 // arrow test above.
-test('Tab reaches play and the next episode after the header; no focus trap', async ({ page }) => {
+test('Tab reaches play and the next episode after the header; no focus trap @keyboard', async ({
+  page,
+}) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, play(page), 2);
   // Back, the download, "Verwalten", then "Merken" and "Zu Cat's Empfehlungen" (M7).

@@ -250,7 +250,7 @@ test('the default scope lists the areas and the languages, the save bar is clean
   await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
 });
 
-test('a language is added, put on its place with several arrow steps, saved and removed, all by keyboard', async ({
+test('a language is added, put on its place with several arrow steps, saved and removed, all by keyboard @keyboard', async ({
   page,
   owner,
 }) => {

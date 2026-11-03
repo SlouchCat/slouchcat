@@ -862,7 +862,7 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
 
 // Concept 08: the side navigation stands between the header and the page (DOM order), so Tab goes
 // skip link, header, the navigation's column (Start first, "Seitenleiste ausblenden" last), page.
-test('Tab: skip link, header, side navigation, hero, then the cards; no focus trap', async ({
+test('Tab: skip link, header, side navigation, hero, then the cards; no focus trap @keyboard', async ({
   page,
 }) => {
   await page.keyboard.press('Tab');

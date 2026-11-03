@@ -39,7 +39,7 @@ const filterButton = (page: Page) => page.getByRole('button', { name: /^Filter/ 
 const isInside = (locator: Locator) =>
   locator.evaluate((element) => element.contains(document.activeElement));
 
-test('library by keyboard: Tab order, arrows into the letter bar and back, Enter, back', async ({
+test('library by keyboard: Tab order, arrows into the letter bar and back, Enter, back @keyboard', async ({
   page,
   owner,
 }) => {

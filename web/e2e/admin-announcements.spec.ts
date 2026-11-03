@@ -53,7 +53,7 @@ async function arrowTo(
   await expectFocusOn(page, target);
 }
 
-test('A-7: draft, change, publish and delete an announcement by keyboard', async ({
+test('A-7: draft, change, publish and delete an announcement by keyboard @keyboard', async ({
   page,
   owner,
 }) => {

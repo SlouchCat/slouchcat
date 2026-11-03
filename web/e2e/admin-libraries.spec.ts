@@ -96,7 +96,7 @@ test('tabs by kind with the arrow keys, counts and the tab in the address', asyn
   await expect(page).toHaveURL(/\/admin\/libraries$/);
 });
 
-test('Tab reaches header, the add dialog and its fields in order; no focus trap', async ({
+test('Tab reaches header, the add dialog and its fields in order; no focus trap @keyboard', async ({
   page,
 }) => {
   // The admin sidebar is one Tab stop: its current page.

@@ -233,7 +233,7 @@ test('A-2: change the own e-mail and back by keyboard; a wrong password stays at
  * the real server; the `owner` fixture removes the account afterwards, and its cleanup takes a
  * leftover administrator role off first.
  */
-test('ADR 0014: appoint and demote by keyboard, with the confirmation and no focus trap', async ({
+test('ADR 0014: appoint and demote by keyboard, with the confirmation and no focus trap @keyboard', async ({
   page,
   owner,
   playwright,

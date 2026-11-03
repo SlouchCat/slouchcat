@@ -81,7 +81,7 @@ test('a new episode of a favourite series shows in the badge and the inbox (E-8)
   }
 });
 
-test('inbox by keyboard: arrows, Enter, "Alle als gelesen markieren"; no focus trap', async ({
+test('inbox by keyboard: arrows, Enter, "Alle als gelesen markieren"; no focus trap @keyboard', async ({
   page,
   owner,
 }, testInfo) => {

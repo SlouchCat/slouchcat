@@ -63,7 +63,7 @@ async function created(page: Page, action: () => Promise<void>): Promise<BackupD
   return (await answer.json()) as BackupData;
 }
 
-test('A-4: create a backup without secrets, download it and delete it, by keyboard', async ({
+test('A-4: create a backup without secrets, download it and delete it, by keyboard @keyboard', async ({
   page,
   owner,
 }) => {

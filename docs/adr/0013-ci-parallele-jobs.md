@@ -181,6 +181,24 @@ Umsetzung:
   meldete schon vorher vier Pakete als «(cached)», statt sie auszuführen (Run 41707865418). Der
   Cache soll das Übersetzen sparen, nie einen Test.
 
+### Firefox nur, wo sich die Engines unterscheiden
+
+- Bisher lief jede Spec in beiden Browsern; Firefox brauchte 1320 der 2428 Sekunden Testzeit
+  (Run 41707865418). **Marcos Entscheid:** Firefox läuft nur noch für Wiedergabe (Video, HLS, MSE,
+  Spuren, Qualität, Kapitel, Versionen, HDR), Audio (Hörbücher, Podcasts), Offline,
+  Anmeldung/Einrichtung und für **je einen Tastaturtest je Seite** (harte Regel 8), im Titel mit
+  `@keyboard` markiert. Chromium läuft weiter alles.
+- Die Liste steht ausdrücklich in `web/playwright.config.ts` (`FIREFOX_WHOLE_SPECS`, als `grep` des
+  Projekts), mit der Zuordnung aller 73 Specs im Kommentar: 31 Dateien ganz, 39 `@keyboard`-Tests in
+  38 Dateien, drei Dateien nur in Chromium (`admin-density`, `admin-phone`, `announcements`), dazu
+  wie bisher `offline-cold-start`. Firefox hat damit 118 statt 307 Tests.
+- Die bekannten Firefox-Fokusfehler bleiben abgedeckt: `admin-jobs` (Abbruchmenü, Fokus auf das h1)
+  und `admin-library-folders` (Tab-Budget bis zum Ordnerdialog) sind die `@keyboard`-Tests ihrer
+  Seiten.
+- Restrisiko: Ein Fehler, der nur in Firefox und nur in einem Test ohne `@keyboard` auftritt,
+  fällt erst bei Marco auf. Für eine neue Seite gilt: Ihr Tastaturtest bekommt `@keyboard`, sonst
+  läuft sie nur in Chromium.
+
 ### Web-Job geteilt
 
 - Der Web-Job (8 bis 10 Minuten: Lint 1,7, Vitest 3,5, Storybook 3,6) ist zwei Jobs: **`web`**

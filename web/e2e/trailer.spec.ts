@@ -46,7 +46,9 @@ test.afterEach(async ({ owner }) => {
   }
 });
 
-test('arrows reach "Trailer"; Enter opens the YouTube frame; Escape closes', async ({ page }) => {
+test('arrows reach "Trailer"; Enter opens the YouTube frame; Escape closes @keyboard', async ({
+  page,
+}) => {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));

@@ -236,7 +236,7 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
 });
 
-test('background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1', async ({
+test('background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1 @keyboard', async ({
   page,
   owner,
 }) => {

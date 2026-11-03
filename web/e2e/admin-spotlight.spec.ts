@@ -82,7 +82,7 @@ async function openSpotlight(page: Page) {
   await expect(region(page, 'Quelle').getByRole('switch')).toBeVisible();
 }
 
-test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry', async ({
+test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @keyboard', async ({
   page,
   owner,
 }) => {

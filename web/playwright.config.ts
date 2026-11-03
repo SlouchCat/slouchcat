@@ -5,6 +5,86 @@ import { ARTEFACTS, BASE_URL, EXTERNAL_BASE_URL, PORT, STORAGE_STATE } from './e
 // that a dev machine may lack; its project runs only when SLOUCHCAT_E2E_WEBKIT=1.
 const withWebkit = process.env.SLOUCHCAT_E2E_WEBKIT === '1';
 
+// What Firefox runs (Marco's decision of 3 November 2026, ADR 0013 addendum). Chromium runs every
+// spec; Firefox runs what differs between the engines: media in the browser and the flows a viewer
+// cannot get around, whole, and of every other page exactly one keyboard test (rule 8), tagged
+// `@keyboard` in its title. Firefox's focus model is where the two engines part most often (Tab
+// does not wrap, the sequential start point stays behind a replaced button, :focus-visible after a
+// pointer), and one Tab and arrow walk per page in Firefox keeps catching that; the other tests
+// of those pages check what the server answers and the page draws, which the engine does not
+// change. Before: Chromium 309 tests, Firefox 307. After: Chromium 309, Firefox 118 (31 whole
+// files with 79 tests, 39 `@keyboard` tests in 38 files).
+//
+// Every spec, by group (73 files; whole = all tests of the file run in Firefox):
+//
+//  Playback, whole (Video/HLS/MSE, tracks, quality, chapters, versions, HDR, the player reacting
+//  to the server): audio-transcode, admin-streams, chapters, hdr, hls, player, quality, resume,
+//  sidecar, stream-token, tracks, versions, watch-limit.
+//  Audio, whole (audiobooks, podcasts): audio-download, audio-offline, audiobook, podcast,
+//  podcast-auto-download.
+//  Offline, whole: auto-download, downloads, offline-measure, offline-pin, offline-playback,
+//  offline-profiles, offline-revocation, offline-start, offline-watch-limit, season-download.
+//  (offline-cold-start stays Chromium-only, see testIgnore below.)
+//  Sign-in and setup, whole: invite, login, setup.
+//  One `@keyboard` test each: admin-accounts, admin-announcements, admin-backup,
+//  admin-collections, admin-devices, admin-folder-browser, admin-home, admin-home-rows,
+//  admin-integrations, admin-item, admin-jobs (the cancel menu and the h1 focus, a known Firefox
+//  focus bug), admin-libraries, admin-library-folders (the Tab budget to the folders dialog, a
+//  known Firefox focus bug), admin-metadata, admin-picks, admin-podcasts, admin-spotlight,
+//  admin-stats, admin-webhooks, collection, detail, episode, extras, favorites, home,
+//  invitations, library, maintenance, notification-channels, notifications, person, picks-page,
+//  profiles (two: the picker and the profile management are two pages), search, series, sidenav,
+//  trailer, watchlist.
+//  Chromium only, no keyboard test of a page of their own: admin-density and admin-phone (sizes
+//  and widths of the admin pages), announcements (the notice at the next start).
+//
+// A new spec runs in Chromium only until it is listed here or one of its tests carries
+// `@keyboard`; a new page needs its keyboard test anyway (rule 8), so tag that one.
+const FIREFOX_WHOLE_SPECS = [
+  // playback
+  'audio-transcode',
+  'admin-streams',
+  'chapters',
+  'hdr',
+  'hls',
+  'player',
+  'quality',
+  'resume',
+  'sidecar',
+  'stream-token',
+  'tracks',
+  'versions',
+  'watch-limit',
+  // audio
+  'audio-download',
+  'audio-offline',
+  'audiobook',
+  'podcast',
+  'podcast-auto-download',
+  // offline
+  'auto-download',
+  'downloads',
+  'offline-measure',
+  'offline-pin',
+  'offline-playback',
+  'offline-profiles',
+  'offline-revocation',
+  'offline-start',
+  'offline-watch-limit',
+  'season-download',
+  // sign-in and setup
+  'invite',
+  'login',
+  'setup',
+];
+
+// A project's grep is matched against "<project> <file> <describe…> <title> <tags>" with the file
+// relative to testDir, so the first pattern picks the whole files and the second the tagged tests.
+const firefoxGrep = [
+  new RegExp(` (${FIREFOX_WHOLE_SPECS.join('|')})\\.spec\\.ts `),
+  /(^| )@keyboard( |$)/,
+];
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -62,6 +142,8 @@ export default defineConfig({
         // without a sound card therefore needs a null sink (CI workflow, docs/dev/SETUP.md).
         launchOptions: { firefoxUserPrefs: { 'media.volume_scale': '0.0' } },
       },
+      // Media, offline, sign-in and one keyboard test per page (FIREFOX_WHOLE_SPECS above).
+      grep: firefoxGrep,
       // Flight mode cannot be emulated with a service worker in Playwright's Firefox: setOffline
       // does not reach the worker's own requests (the app still gets its session), and a route
       // that cuts the API makes Firefox bypass the worker for the page (NS_ERROR_OFFLINE). The

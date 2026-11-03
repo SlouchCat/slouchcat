@@ -228,7 +228,7 @@ test('E-8: a new episode of a favourite reaches the e-mail channel with the prof
   }
 });
 
-test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter in the blocks, fold, leave; no trap', async ({
+test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter in the blocks, fold, leave; no trap @keyboard', async ({
   page,
   owner,
 }) => {
