@@ -12,6 +12,13 @@ const current = (pathname: string) =>
   adminSections.filter((entry) => isSectionPath(entry, pathname)).map((entry) => entry.key);
 
 describe('isSectionPath', () => {
+  it('compares bare paths: no section href carries a query or a fragment', () => {
+    for (const entry of adminSections) {
+      expect(entry.href).not.toMatch(/[?#]/);
+      for (const prefix of entry.also ?? []) expect(prefix).not.toMatch(/[?#]/);
+    }
+  });
+
   it('matches the page and its sub-pages, not a page that only shares the prefix', () => {
     expect(isSectionPath(section('streams'), '/admin/streams')).toBe(true);
     expect(isSectionPath(section('streams'), '/admin/streams/ps-1')).toBe(true);

@@ -66,6 +66,9 @@ export const adminSections: readonly AdminSection[] = [
 const under = (pathname: string, prefix: string) =>
   pathname === prefix || pathname.startsWith(`${prefix}/`);
 
-/** The page is `section`'s (or one of its sub-pages). */
+/**
+ * The page is `section`'s (or one of its sub-pages). Section hrefs are bare paths without `?` or
+ * `#` (sections.test.ts), so they compare with the pathname as they are.
+ */
 export const isSectionPath = (section: AdminSection, pathname: string) =>
   under(pathname, section.href) || (section.also ?? []).some((prefix) => under(pathname, prefix));
