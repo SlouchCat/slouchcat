@@ -49,11 +49,6 @@ export const paths = {
   /** Background jobs (concept 09): job types, their runs, schedules, pause and cancel. */
   adminJobs: '/admin/jobs',
   adminAccounts: '/admin/accounts',
-  /**
-   * The own account in «Konten», opened at «Meine Profile» (concept 12, KP-1): `item=me` is
-   * resolved by the page, so the link needs no account id.
-   */
-  adminMyProfiles: '/admin/accounts?item=me#meine-profile',
   adminAnnouncements: '/admin/announcements',
   /** Usage statistics; `days` picks the period (7, 30, 90 or 365, default 30). */
   adminStats: '/admin/stats',

@@ -40,7 +40,7 @@ import { accountsQuery, invitationsQuery } from './queries';
 import styles from './accounts/Accounts.module.css';
 
 const TABS = ['accounts', 'invitations'];
-/** `?item=me`: the own account (the sidebar's «Profile» needs no account id). */
+/** `?item=me`: the own account (the link to «Meine Profile» needs no account id). */
 const ME = 'me';
 
 interface Confirmation {

@@ -628,13 +628,12 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     });
     expect(mine).toHaveAttribute('id', 'meine-profile');
     expect(await within(mine).findByRole('article', { name: 'Lena' })).toBeVisible();
-    // The sidebar marks «Profile», not «Konten».
+    // The sidebar marks «Konten»: the profiles are a part of it.
     const nav = screen.getByRole('navigation', { name: 'Verwaltung' });
-    expect(within(nav).getByRole('link', { name: /^Profile/ })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: /^Konten/ })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(within(nav).getByRole('link', { name: /^Konten/ })).not.toHaveAttribute('aria-current');
 
     await act(() => router.navigate({ href: '/admin/accounts?item=999&tab=bogus' }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
@@ -746,31 +745,6 @@ describe('admin accounts (A-2, KP-1)', { timeout: 15_000 }, () => {
     );
     expect(cached).not.toContain('geheim-0123456');
     expect(cached).not.toContain('neues-passwort-42');
-  });
-
-  it('keeps a draft when the sidebar switches from «Konten» to «Profile»: same page, no question', async () => {
-    mockApi(routes());
-    const { router } = renderApp('/admin/accounts');
-    await screen.findByRole('table', { name: 'Konten' });
-    const user = userEvent.setup();
-    const access = () =>
-      within(foldOut('gast@example.test')).getByRole('region', {
-        name: 'Zugriff von gast@example.test',
-      });
-    await openRow(user, 'gast@example.test');
-    await user.click(within(access()).getByRole('radio', { name: 'FSK 16' }));
-
-    await user.click(
-      within(screen.getByRole('navigation', { name: 'Verwaltung' })).getByRole('link', {
-        name: /^Profile/,
-      }),
-    );
-    await waitFor(() => expect(router.state.location.search).toEqual({ item: 'me' }));
-    expect(screen.queryByRole('alertdialog')).toBeNull();
-    await waitFor(() =>
-      expect(toggleOf('owner@example.test')).toHaveAttribute('aria-expanded', 'true'),
-    );
-    expect(within(access()).getByRole('radio', { name: 'FSK 16' })).toBeChecked();
   });
 
   it('shows the tabs when only the account list failed, with its error and retry in «Konten»', async () => {

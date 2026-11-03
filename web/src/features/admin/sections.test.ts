@@ -7,9 +7,9 @@ const section = (key: AdminSection['key']): AdminSection => {
   return found;
 };
 
-/** The keys of the entries that are current on `pathname` with `item`. */
-const current = (pathname: string, item?: unknown) =>
-  adminSections.filter((entry) => isSectionPath(entry, pathname, item)).map((entry) => entry.key);
+/** The keys of the entries that are current on `pathname`. */
+const current = (pathname: string) =>
+  adminSections.filter((entry) => isSectionPath(entry, pathname)).map((entry) => entry.key);
 
 describe('isSectionPath', () => {
   it('matches the page and its sub-pages, not a page that only shares the prefix', () => {
@@ -24,17 +24,8 @@ describe('isSectionPath', () => {
     expect(current('/admin/maintenance')).toEqual(['maintenance']);
   });
 
-  it('compares the path of an entry without its search and fragment', () => {
-    // «Profile» links to /admin/accounts?item=me#meine-profile.
-    expect(isSectionPath(section('profiles'), '/admin/accounts', 'me')).toBe(true);
-  });
-
-  it('gives /admin/accounts to «Konten», and to «Profile» only with item=me', () => {
+  it('gives /admin/accounts to «Konten» alone', () => {
     expect(current('/admin/accounts')).toEqual(['accounts']);
-    expect(current('/admin/accounts', '7')).toEqual(['accounts']);
-    expect(current('/admin/accounts', 'me')).toEqual(['profiles']);
-    // `item=me` on another page takes nothing from that page's entry.
-    expect(current('/admin/devices', 'me')).toEqual(['devices']);
   });
 
   it('knows the entry outside /admin: «Benachrichtigungen» is /settings/notifications', () => {

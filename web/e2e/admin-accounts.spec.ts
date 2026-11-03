@@ -502,22 +502,17 @@ test('tabs «Konten» and «Einladungen» by arrows; an unknown tab or item leav
   }
 });
 
-// KP-1: an administrator manages the own profiles in «Konten»; the sidebar's «Profile» opens the
-// own account there. `/settings/profiles` stays for every account (profiles.spec).
-test('KP-1: «Profile» opens «Meine Profile»; create, PIN, report and delete by keyboard', async ({
+// KP-1: an administrator manages the own profiles in «Konten», in the own account's fold-out;
+// `?item=me#meine-profile` opens it there (the sidebar has no entry of its own since the
+// acceptance K12-9). `/settings/profiles` stays for every account (profiles.spec).
+test('KP-1: `?item=me` opens «Meine Profile»; create, PIN, report and delete by keyboard', async ({
   page,
 }) => {
-  await page.goto('/admin/devices');
-  await expect(page.getByRole('heading', { level: 1, name: 'Geräte' })).toBeVisible();
+  await page.goto('/admin/accounts?item=me#meine-profile');
+  await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Verwaltung' });
-  const entry = nav.getByRole('link', { name: /^Profile/ });
-  await resetFocus(page);
-  await tabTo(page, nav.getByRole('link', { name: /^Geräte/ }), TAB_MAX);
-  await arrowTo(page, entry, 'ArrowUp');
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/admin\/accounts\?item=me#meine-profile$/);
+  const entry = nav.getByRole('link', { name: /^Konten/ });
   await expect(entry).toHaveAttribute('aria-current', 'page');
-  await expect(nav.getByRole('link', { name: /^Konten/ })).not.toHaveAttribute('aria-current');
   await expect(accountToggle(page, OWNER.email)).toHaveAttribute('aria-expanded', 'true');
   const mine = accountFoldOut(page, OWNER.email).getByRole('region', { name: 'Meine Profile' });
   await expect(mine).toBeInViewport();

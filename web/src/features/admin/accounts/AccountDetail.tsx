@@ -11,7 +11,7 @@ import { AccessForm, type AccessDraft } from './AccessForm';
 import { OwnAccountForm, type OwnAccountDraft } from './OwnAccountForm';
 import styles from './Accounts.module.css';
 
-/** The fragment of the sidebar entry «Profile» (`/admin/accounts?item=me#meine-profile`). */
+/** The fragment of «Meine Profile» (`/admin/accounts?item=me#meine-profile`). */
 export const MY_PROFILES = 'meine-profile';
 
 /** A draft of one form in a fold-out, held by the page (S-17). */
@@ -24,7 +24,7 @@ export interface DraftProps<T> {
 
 /**
  * The fold-out of the own account (KON-3, KP-1): «Konto ändern» inline, then «Meine Profile» with
- * every profile action (PRO-1 to PRO-3). The sidebar's «Profile» opens it here; the block scrolls
+ * every profile action (PRO-1 to PRO-3). `?item=me#meine-profile` opens it here; the block scrolls
  * into view once per arrival at `#meine-profile`, when the profiles are there to scroll to.
  */
 export function OwnAccountDetail({

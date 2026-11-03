@@ -61,7 +61,7 @@ Unterseite Titel `/admin/items/$itemId`, alle in Abschnitt 7 mit ihrem vollen In
 | Gruppe | Seiten |
 |---|---|
 | Bibliothek | Bibliotheken, Podcasts, Pflege (mit Unterseite Titel `/admin/items/$itemId`), Metadaten |
-| Konten | Konten (mit Einladungen), Profile (`/settings/profiles`), Geräte, Streams |
+| Konten | Konten (mit Einladungen), Profile (`/settings/profiles`; bei der Abnahme K12-9 am 3. November 2026 entfernt), Geräte, Streams |
 | Kuratierung | Spotlight, Cat's Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen |
 | System | Hintergrundjobs, Integrationen (mit Webhooks), Benachrichtigungen (`/settings/notifications`), Statistik, Sicherung |
 
@@ -340,8 +340,9 @@ alle 5 s, solange ein Scan läuft)
 - KON-3 Eigene Zeile (geändert 3. November 2026): «Konto ändern» inline im Klappbereich (E-Mail, neues Passwort
   zweimal, aktuelles Passwort) und darunter «Meine Profile» (KP-1). Der frühere Knopf «Profile →
   `/settings/profiles`» entfällt; an seiner Stelle stehen «Meine Profile» und der Leisten-Eintrag
-  «Profile» (→ `/admin/accounts?item=me#meine-profile`; `AccountDetail.tsx:26`,
-  `sections.ts:58`). `/settings/profiles` bleibt für alle Konten erreichbar (`router.tsx:491`).
+  «Profile» (→ `/admin/accounts?item=me#meine-profile`; `AccountDetail.tsx:26`) (bei der Abnahme
+  K12-9 am 3. November 2026 entfernt). Die Adresse `?item=me#meine-profile` bleibt gültig.
+  `/settings/profiles` bleibt für alle Konten erreichbar (`router.tsx:491`).
 - KON-4 Andere Zeilen: Zugriff (nur Benutzer: Freigabe, Bibliotheken, Limits),
   Befördern/Zurückstufen (nur Besitzer, Rückfrage), Entfernen (Rückfrage).
 - KON-5 Einladungen: Notiz, Zustand, Freigabe, benutzt von / läuft ab; Widerrufen (Rückfrage,
@@ -504,7 +505,8 @@ offenem Dialog)
   Integrationen, Profilwahl → Profile (`ProfilePickerPage.tsx:145`), Mitteilungen →
   Benachrichtigungen (`NotificationsPage.tsx:93`), App-Leiste → Profile (`AppLayout.tsx:257`;
   geändert 3. November 2026). Das Ziel `/settings/profiles` bleibt, auch für
-  Administratoren; die Verwaltungsleiste führt mit «Profile» nach `/admin/accounts?item=me` (KON-3).
+  Administratoren; die Verwaltungsleiste führt mit «Profile» nach `/admin/accounts?item=me` (KON-3;
+  der Eintrag wurde bei der Abnahme K12-9 am 3. November 2026 entfernt).
 - ALL-4 Adressen und Suchparameter bleiben (`?library=`, `?add=`, `?days=`).
 
 ## 8. Ablauf
@@ -594,7 +596,7 @@ eigener Commit, `task ci` grün.
 | Pflege | **C «Reiter und Klappbereiche»** (Reiter je Problemart, je Bibliothek ein Klappbereich) | 1. November 2026 |
 | Titel (Unterseite von Pflege) | **C «Reiter und Klappbereiche»** (Reiter Metadaten, Bilder, Dateien, Trailer) | 1. November 2026 |
 | Konten | **C «Reiter und Klappbereiche»**, zusammengelegt mit Profile nach **KP-1 «Profile im Konto»**: das aufgeklappte eigene Konto zeigt unter «Konto ändern» den Block «Meine Profile» mit allen Profilaktionen (PRO-1 bis PRO-3); fremde Konten zeigen ihre Profilnamen nur zum Lesen («Profile verwaltet jedes Konto selbst.»). Marco: «Profile im Konto ist gut.» | 1. November 2026 |
-| Profile | **In Konten aufgegangen (KP-1)** für Administratoren. Der Eintrag «Profile» der Verwaltungsleiste öffnet Konten mit dem eigenen Konto aufgeklappt bei «Meine Profile» (Abweichung von Konzept 11, 11.1 Punkt 4 und O-3, geht in Frage 18). `/settings/profiles` bleibt unverändert für Konten ohne Verwaltung (PRO-0, S-1). Keine Vertragsänderung: die Profil-Endpunkte bleiben `x-visibility: account`. | 1. November 2026 |
+| Profile | **In Konten aufgegangen (KP-1)** für Administratoren. Der Eintrag «Profile» der Verwaltungsleiste öffnet Konten mit dem eigenen Konto aufgeklappt bei «Meine Profile» (bei der Abnahme K12-9 am 3. November 2026 entfernt) (Abweichung von Konzept 11, 11.1 Punkt 4 und O-3, geht in Frage 18). `/settings/profiles` bleibt unverändert für Konten ohne Verwaltung (PRO-0, S-1). Keine Vertragsänderung: die Profil-Endpunkte bleiben `x-visibility: account`. | 1. November 2026 |
 | Geräte | **C «Reiter und Klappbereiche»** (Reiter Geräte und Fähigkeiten, je Typ ein Klappbereich) | 1. November 2026 |
 | Streams | **D «Kacheln» mit der Leiste «Serverlast» aus E** (Marco korrigierte zuerst gemeldetes «A»). Kachelbild = **Hintergrundbild quer** des Films bzw. der Serie: neues Feld `AdminStream.backdropUrl` (additiv, Vertrag 1.8.0 statt 1.7.0, O-1; Hash wie `posterUrl` aus Konzept 11, bei Folgen das Bild der Serie). Zähler Transcode HW/SW, Remux, Direct und Bandbreite als Summe der Bitraten im Client aus `AdminStream`. **Marco: «genehmigt».** | 1. November 2026 |
 | Podcasts | **C «Reiter und Klappbereiche»** (Reiter je Bibliothek, je Podcast ein Klappbereich) | 1. November 2026 |
@@ -772,7 +774,7 @@ wie heute. Die Erhaltungsliste (Abschnitt 7) gilt vollständig (E-2).
 | Bibliotheken | `Bib-C` | Filterreiter nach Art mit Zahl; je Bibliothek eine Klappzeile mit Aktionen, Fortschritt, Fehlerband und Ordnern; «Bibliothek hinzufügen» als Dialog (heute ein Bereich in der Seite, `LibrariesPage.tsx:76,360`); Ordnerdialog wie heute (`LibraryFoldersDialog`, Bestätigung durch Eintippen des Pfads) | Keine Vertragsänderung. Anbieterkette mit `RankSelect` (S-16) nur im Ordnerdialog der Verwaltung. Live-Anzeige nur während eines Scans. |
 | Pflege | `Pfl-C` | Reiter je Problemart mit Zahl (PFL-1); je Reiter Werkzeugzeile und ein Klappbereich je Bibliothek; Duplikate als Gruppen | Keine Vertragsänderung: `Issue.libraryId` ist Pflicht (`openapi.yaml:9094-9119`), Namen aus der Bibliotheksliste. Gruppiert werden die **geladenen** Einträge; «Mehr laden» und «X von Y» bleiben je Reiter (50 je Seite, O-3). **Duplikate** werden nicht nach Bibliothek gruppiert (eine Gruppe kann mehrere Bibliotheken umfassen, `libraryId` ist dort optional, `openapi.yaml:3862-3863,9156`); jede Gruppe ist ein Klappbereich wie im Mockup. |
 | Titel | `Tit-C` | Reiter Metadaten, Bilder, Dateien, Trailer; Freigabe und Herkunft als Klappbereiche; Bildwahl im Dialog wie heute | Keine Vertragsänderung. |
-| Konten mit Profilen | `KP-1` | Zustandsleiste mit vier Zahlen; Reiter Konten und Einladungen; je Konto eine Klappzeile; Zugriff eines Benutzerkontos inline mit eigenem Speichern (heute Dialog); im eigenen Konto «Konto ändern» inline (heute `AccountDialog`, `AccountsPage.tsx:59-154`) und «Meine Profile»; Profil anlegen und bearbeiten im Dialog wie heute (`ProfileSettingsPage.tsx:235-248`) | Keine Vertragsänderung (`/profiles` bleibt `x-visibility: account`). `ProfileForm` und `WatchReport` sind schon eigene Dateien; nur die Profilliste zieht aus `ProfileSettingsPage.tsx` in eine Komponente, die `/settings/profiles` und Konten gemeinsam benutzen. **Leisten-Eintrag «Profile»** (in K12-5): Ziel `/admin/accounts?item=me#meine-profile`; `me` steht für das eigene Konto, die Seite löst es auf, die Leiste braucht keine Konto-Id. `isSectionPath` (`sections.ts:70-71`) bekommt für diesen Eintrag die Bedingung `item=me`, damit «Profile» und nicht «Konten» aktuell ist. Angepasst werden `sections.ts:51`, `AdminShellNav` aus Konzept 11 und dessen Tests (`admin-home.spec.ts:213-215`, `AdminHomePage.test.tsx:384`). **`/settings/profiles` bleibt für alle Konten erreichbar, auch für Administratoren; keine Weiterleitung** (`profiles.spec.ts:23`, `watch-limit.spec.ts:81` laufen als Besitzer). |
+| Konten mit Profilen | `KP-1` | Zustandsleiste mit vier Zahlen; Reiter Konten und Einladungen; je Konto eine Klappzeile; Zugriff eines Benutzerkontos inline mit eigenem Speichern (heute Dialog); im eigenen Konto «Konto ändern» inline (heute `AccountDialog`, `AccountsPage.tsx:59-154`) und «Meine Profile»; Profil anlegen und bearbeiten im Dialog wie heute (`ProfileSettingsPage.tsx:235-248`) | Keine Vertragsänderung (`/profiles` bleibt `x-visibility: account`). `ProfileForm` und `WatchReport` sind schon eigene Dateien; nur die Profilliste zieht aus `ProfileSettingsPage.tsx` in eine Komponente, die `/settings/profiles` und Konten gemeinsam benutzen. **Leisten-Eintrag «Profile»** (in K12-5;bei der Abnahme K12-9 am 3. November 2026 entfernt): Ziel `/admin/accounts?item=me#meine-profile`; `me` steht für das eigene Konto, die Seite löst es auf, die Leiste braucht keine Konto-Id. `isSectionPath` (`sections.ts:70-71`) bekommt für diesen Eintrag die Bedingung `item=me`, damit «Profile» und nicht «Konten» aktuell ist. Angepasst werden `sections.ts:51`, `AdminShellNav` aus Konzept 11 und dessen Tests (`admin-home.spec.ts:213-215`, `AdminHomePage.test.tsx:384`). **`/settings/profiles` bleibt für alle Konten erreichbar, auch für Administratoren; keine Weiterleitung** (`profiles.spec.ts:23`, `watch-limit.spec.ts:81` laufen als Besitzer). |
 | Geräte | `Ger-C` | Reiter Geräte und Fähigkeiten im Band; je Gerätetyp ein Klappbereich | Keine Vertragsänderung; Geräte ohne `type` (`openapi.yaml:8454`, optional) unter «Unbekannt». |
 | Streams | `Str-D2` | `BandPanel` «Serverlast» mit vier Zählern und Bandbreite (Summe von `AdminStream.bitrate`); Kacheln mit Hintergrundbild, Profil, Gerät, Qualität, Fortschritt, «Beenden» mit Rückfrage | **`AdminStream.backdropUrl`** (11.4). Live alle 5 s, pausiert bei offener Rückfrage (`StreamsPage.tsx:57`). |
 | Podcasts | `Pod-C` | Filterreiter «Alle» und je Podcast-Bibliothek; je Podcast eine Klappzeile | Keine Vertragsänderung (`AdminPodcast.libraryId`, `openapi.yaml:8369`). |
@@ -801,7 +803,8 @@ Nichts wird entfernt oder im Typ geändert.
 ### 11.5 Abweichungen (gehen in Frage 18)
 
 1. **Profile in Konten (KP-1):** Für Administratoren verwaltet «Konten» die eigenen Profile; der
-   Leisten-Eintrag «Profile» zeigt dorthin (Abweichung von Konzept 11, 11.1 Punkt 4 und O-3).
+   Leisten-Eintrag «Profile» zeigt dorthin (bei der Abnahme K12-9 am 3. November 2026 entfernt)
+   (Abweichung von Konzept 11, 11.1 Punkt 4 und O-3).
    `/settings/profiles` bleibt für Konten ohne Verwaltung (PRO-0).
 2. **Fehlschläge aller Jobarten (JOB-8)** stehen als Reiter auf «Hintergrundjobs»; das schliesst
    die Lücke, die Konzept 11 F-2 auf der Übersicht lässt.
@@ -828,8 +831,8 @@ Nichts wird entfernt oder im Typ geändert.
     «Aufgaben» der Übersicht bekommt ihn in K11-5. Der Satz in Konzept 11, 11.3, die eigene
     Oberfläche lese `recentFailed` nicht mehr, wird in K12-0 berichtigt: «Hintergrundjobs» liest es
     (JOB-8).
-12. **Profile:** der Leisten-Eintrag führt nach Konten (`?item=me`), `/settings/profiles` bleibt für
-    alle Konten.
+12. **Profile:** der Leisten-Eintrag führt nach Konten (`?item=me`) (bei der Abnahme K12-9 am
+    3. November 2026 entfernt), `/settings/profiles` bleibt für alle Konten.
 13. **Cat's Empfehlungen:** Reiter «Aktiv» statt «Sichtbar» (Mockup).
 14. **K12-3 und K12-4 (3. November 2026):** die angenommenen Abweichungen der Seiten
     Metadaten, Hintergrundjobs, Integrationen, Bibliotheken, Pflege, Titel und Podcasts stehen in

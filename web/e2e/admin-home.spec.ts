@@ -10,7 +10,7 @@ import {
 } from './keyboard';
 
 // The administration (concept 11, A-2, A-3): the app column has one entry "Verwaltung"; on every
-// /admin page the administration's sidebar stands in its place (20 entries, one Tab stop,
+// /admin page the administration's sidebar stands in its place (19 entries, one Tab stop,
 // ↑ ↓ Home End, wrapping), on a phone a button opens it as a sheet. The overview shows eight
 // cards of the real server (polled every 5 s) and the server log collapsed below them.
 
@@ -25,7 +25,7 @@ const serverLog = (page: Page) => card(page, 'Server-Protokoll');
 const errorList = (page: Page) =>
   serverLog(page).getByRole('list', { name: 'Fehler aus dem Server-Log', includeHidden: true });
 
-/** Every entry of the sidebar, in its order, with its path (11.1: 20 entries). */
+/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries). */
 const NAV_ENTRIES = [
   ['Zurück zur App', '/'],
   ['Übersicht', '/admin'],
@@ -34,7 +34,6 @@ const NAV_ENTRIES = [
   ['Pflege', '/admin/maintenance'],
   ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
-  ['Profile', '/admin/accounts?item=me#meine-profile'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
@@ -128,7 +127,7 @@ test('the focus stays on «Übersicht» after entering the administration with E
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
 });
 
-test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
+test('admin sidebar: 19 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
   page,
 }) => {
   await page.goto('/admin/devices');
@@ -145,7 +144,7 @@ test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, 
   await expectFocusOn(page, entry(page, 'Streams'));
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, entry(page, 'Profile'));
+  await expectFocusOn(page, entry(page, 'Konten'));
   await page.keyboard.press('End');
   await expectFocusOn(page, entry(page, 'Sicherung'));
   // The arrows wrap around.
@@ -175,17 +174,14 @@ test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, 
   await expectNoFocusTrap(page);
 });
 
-test('every admin page is reached through the sidebar; Profile opens the own account (A-2, KP-1)', async ({
-  page,
-}) => {
+test('every admin page is reached through the sidebar (A-2)', async ({ page }) => {
   test.setTimeout(90_000);
   await openOverview(page);
   await resetFocus(page);
   await tabTo(page, entry(page, 'Übersicht'));
   for (const [name, path] of NAV_ENTRIES.slice(2)) {
-    // Notifications belong to the account (/settings), Profile is a part of «Konten»: both are
-    // checked below.
-    if (!path.startsWith('/admin/') || name === 'Profile') continue;
+    // Notifications belong to the account (/settings): checked below.
+    if (!path.startsWith('/admin/')) continue;
     const link = entry(page, name);
     await arrowTo(page, link);
     await page.keyboard.press('Enter');
@@ -196,20 +192,6 @@ test('every admin page is reached through the sidebar; Profile opens the own acc
     await expectFocusOn(page, link);
   }
 
-  // «Profile» opens the own account in «Konten» at «Meine Profile» (KP-1): the sidebar stays,
-  // marks «Profile» and keeps the focus; Back returns.
-  await page.keyboard.press('Home');
-  const profiles = entry(page, 'Profile');
-  await arrowTo(page, profiles);
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/admin\/accounts\?item=me#meine-profile$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
-  await expect(page.getByRole('region', { name: 'Meine Profile' })).toBeVisible();
-  await expect(profiles).toHaveAttribute('aria-current', 'page');
-  await expect(entry(page, 'Konten')).not.toHaveAttribute('aria-current');
-  await expectFocusOn(page, profiles);
-  await page.goBack();
-  await expect(page).toHaveURL(/\/admin\/backup$/);
   await expect(entry(page, 'Benachrichtigungen')).toHaveAttribute(
     'href',
     '/settings/notifications',
