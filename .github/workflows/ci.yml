@@ -147,9 +147,30 @@ jobs:
         with:
           group: server
 
+      # setup-go caches the module and build cache under a key of go.sum alone. Its primary key hits
+      # on every run, so it never saves again: the build cache it restores is whatever the first job
+      # after a go.sum change compiled -- often a job without -race -- and every group then compiles
+      # the race-instrumented packages from scratch ("Cache hit occurred on the primary key ...,
+      # not saving cache" in the post step). This cache holds the -race build cache of one group.
+      # The run id in the key makes every run save its own; restore-keys hand the newest one to the
+      # next run, of this branch or of main.
+      - name: Cache the -race build cache of this group
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/go-build
+          key: go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-${{ github.run_id }}
+          restore-keys: |
+            go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-
+            go-race-${{ runner.os }}-${{ matrix.group }}-
+
       - uses: ./.github/actions/test-media
 
+      # -count=1: the restored cache also holds test results, and `go test` would report a package
+      # whose inputs it thinks unchanged as "(cached)" instead of running it. The cache is there to
+      # skip compiling, never to skip a test (run 41707865418 already showed four such packages).
       - run: task server:test GROUP=${{ matrix.group }}
+        env:
+          GOFLAGS: -count=1
 
   # ---------------------------------------------------------------------------------------------
   # Web: generators with their drift check, linters, Vitest and the Storybook screenshot checks.
