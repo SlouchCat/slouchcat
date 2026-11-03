@@ -192,12 +192,16 @@ Umsetzung:
   Anmeldung/Einrichtung und für **je einen Tastaturtest je Seite** (harte Regel 8), im Titel mit
   `@keyboard` markiert. Chromium läuft weiter alles.
 - Die Liste steht ausdrücklich in `web/playwright.config.ts` (`FIREFOX_WHOLE_SPECS`, als `grep` des
-  Projekts), mit der Zuordnung aller 73 Specs im Kommentar: 31 Dateien ganz, 39 `@keyboard`-Tests in
-  38 Dateien, drei Dateien nur in Chromium (`admin-density`, `admin-phone`, `announcements`), dazu
-  wie bisher `offline-cold-start`. Firefox hat damit 118 statt 307 Tests.
-- Die bekannten Firefox-Fokusfehler bleiben abgedeckt: `admin-jobs` (Abbruchmenü, Fokus auf das h1)
-  und `admin-library-folders` (Tab-Budget bis zum Ordnerdialog) sind die `@keyboard`-Tests ihrer
-  Seiten.
+  Projekts), mit der Zuordnung aller 73 Specs im Kommentar: 31 Dateien ganz, 43 `@keyboard`-Tests in
+  39 Dateien, zwei Dateien nur in Chromium (`admin-density`, `admin-phone`), dazu wie bisher
+  `offline-cold-start`. Firefox hat damit 122 statt 307 Tests.
+- Die bekannten Firefox-Fokusfehler bleiben abgedeckt, auch wo das einen zweiten Test einer Seite
+  heisst (Review vom 3. November 2026): `admin-jobs` (Abbruchmenü und Fokus auf das h1;
+  Fehlschläge mit der Bestätigung, die Firefox für ihre Ausblend-Animation stehen lässt),
+  `admin-library-folders` (Tab-Budget bis zum Ordnerdialog), `admin-announcements` (sofort
+  veröffentlichen: das h1 nimmt den Fokus einige Frames später, Firefox springt mit Tab nicht
+  zurück an den Anfang), `library` (Filterbereich: `:focus-visible` nach Zeigerklick) und
+  `announcements` (Fokus im Dialog der Ankündigung).
 - Restrisiko: Ein Fehler, der nur in Firefox und nur in einem Test ohne `@keyboard` auftritt,
   fällt erst bei Marco auf. Für eine neue Seite gilt: Ihr Tastaturtest bekommt `@keyboard`, sonst
   läuft sie nur in Chromium.

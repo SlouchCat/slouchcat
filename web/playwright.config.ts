@@ -7,13 +7,14 @@ const withWebkit = process.env.SLOUCHCAT_E2E_WEBKIT === '1';
 
 // What Firefox runs (Marco's decision of 3 November 2026, ADR 0013 addendum). Chromium runs every
 // spec; Firefox runs what differs between the engines: media in the browser and the flows a viewer
-// cannot get around, whole, and of every other page exactly one keyboard test (rule 8), tagged
-// `@keyboard` in its title. Firefox's focus model is where the two engines part most often (Tab
-// does not wrap, the sequential start point stays behind a replaced button, :focus-visible after a
-// pointer), and one Tab and arrow walk per page in Firefox keeps catching that; the other tests
+// cannot get around, whole, and of every other page one keyboard test (rule 8), tagged `@keyboard`
+// in its title -- plus the tests that once found a Firefox focus difference. Firefox's focus model
+// is where the two engines part most often (Tab does not wrap, the sequential start point stays
+// behind a replaced button, :focus-visible after a pointer, a dialog kept for its exit
+// animation), and one Tab and arrow walk per page in Firefox keeps catching that; the other tests
 // of those pages check what the server answers and the page draws, which the engine does not
-// change. Before: Chromium 309 tests, Firefox 307. After: Chromium 309, Firefox 118 (31 whole
-// files with 79 tests, 39 `@keyboard` tests in 38 files).
+// change. Before: Chromium 309 tests, Firefox 307. After: Chromium 309, Firefox 122 (31 whole
+// files with 79 tests, 43 `@keyboard` tests in 39 files).
 //
 // Every spec, by group (73 files; whole = all tests of the file run in Firefox):
 //
@@ -26,17 +27,22 @@ const withWebkit = process.env.SLOUCHCAT_E2E_WEBKIT === '1';
 //  offline-profiles, offline-revocation, offline-start, offline-watch-limit, season-download.
 //  (offline-cold-start stays Chromium-only, see testIgnore below.)
 //  Sign-in and setup, whole: invite, login, setup.
-//  One `@keyboard` test each: admin-accounts, admin-announcements, admin-backup,
-//  admin-collections, admin-devices, admin-folder-browser, admin-home, admin-home-rows,
-//  admin-integrations, admin-item, admin-jobs (the cancel menu and the h1 focus, a known Firefox
-//  focus bug), admin-libraries, admin-library-folders (the Tab budget to the folders dialog, a
-//  known Firefox focus bug), admin-metadata, admin-picks, admin-podcasts, admin-spotlight,
-//  admin-stats, admin-webhooks, collection, detail, episode, extras, favorites, home,
-//  invitations, library, maintenance, notification-channels, notifications, person, picks-page,
-//  profiles (two: the picker and the profile management are two pages), search, series, sidenav,
-//  trailer, watchlist.
+//  One `@keyboard` test each: admin-accounts, admin-backup, admin-collections, admin-devices,
+//  admin-folder-browser, admin-home, admin-home-rows, admin-integrations, admin-item,
+//  admin-libraries, admin-library-folders (the Tab budget to the folders dialog, a known Firefox
+//  focus bug), admin-metadata, admin-picks, admin-podcasts, admin-spotlight, admin-stats,
+//  admin-webhooks, announcements (the notice's dialog: focus inside, Tab cycles, arrows stay),
+//  collection, detail, episode, extras, favorites, home, invitations, maintenance,
+//  notification-channels, notifications, person, picks-page, search, series, sidenav, trailer,
+//  watchlist.
+//  Two: admin-announcements (the editor walk; «sofort veröffentlichen», where the h1 takes the
+//  focus a few frames late and headless Firefox does not wrap Tab), admin-jobs (the cancel menu
+//  and the h1 focus, a known Firefox focus bug; the failures tab, where Firefox keeps the closing
+//  confirmation for its exit animation), library (the keyboard walk; the filter panel, where
+//  Firefox draws :focus-visible after a script focus only after a key), profiles (the picker and
+//  the profile management are two pages).
 //  Chromium only, no keyboard test of a page of their own: admin-density and admin-phone (sizes
-//  and widths of the admin pages), announcements (the notice at the next start).
+//  and widths of the admin pages).
 //
 // A new spec runs in Chromium only until it is listed here or one of its tests carries
 // `@keyboard`; a new page needs its keyboard test anyway (rule 8), so tag that one.

@@ -219,7 +219,7 @@ test('A-7: draft, change, publish and delete an announcement by keyboard @keyboa
   await expectNoFocusTrap(page);
 });
 
-test('A-7: a new announcement can go out at once', async ({ page }) => {
+test('A-7: a new announcement can go out at once @keyboard', async ({ page }) => {
   await page.goto('/admin/announcements');
   await expect(heading(page)).toBeVisible();
   await resetFocus(page);

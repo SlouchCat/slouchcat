@@ -98,7 +98,7 @@ test('library by keyboard: Tab order, arrows into the letter bar and back, Enter
   await expectNoFocusTrap(page, 120);
 });
 
-test('the filter panel opens from "Filter", closes with Escape and gives the focus back', async ({
+test('the filter panel opens from "Filter", closes with Escape and gives the focus back @keyboard', async ({
   page,
   owner,
 }) => {
