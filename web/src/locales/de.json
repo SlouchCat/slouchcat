@@ -1978,7 +1978,7 @@
         "title": "Schlüssel der Anbieter",
         "intro": "Für Metadaten (TMDB, TVDB), Bilder (Fanart.tv), Trailer (YouTube) und die Trakt-Listen der Startseite.",
         "count": "{{set}} von {{total}} gesetzt",
-        "keepPlaceholder": "Leer lassen zum Behalten",
+        "setPlaceholder": "API Key gesetzt",
         "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
         "tmdb": {
           "name": "TMDB-Token",
@@ -2128,6 +2128,7 @@
         "botLabel": "Bot",
         "botHelp": "Slouchcat findet ihn über das Token.",
         "token": "Bot-Token",
+        "setPlaceholder": "Token gesetzt",
         "tokenHelp": "Für Benachrichtigungen per Telegram. Das Token kommt von @BotFather, Slouchcat prüft es bei Telegram.",
         "tokenReplace": "Ein neues Token ersetzt das gespeicherte.",
         "bot": "Bot: @{{name}}",

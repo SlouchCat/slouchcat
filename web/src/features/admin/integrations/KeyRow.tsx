@@ -60,8 +60,8 @@ export function KeyRow({
     });
   };
 
-  // A stored key: the field is empty and says so in a short placeholder; the whole sentence is
-  // its accessible description. A key from deploy/.env keeps its visible note under the field.
+  // A stored key: the field is empty, its placeholder says a key is set (K12-9); that empty keeps
+  // it is its accessible description. A key from deploy/.env keeps its visible note under the field.
   const keepHint = state.source === 'stored' ? t('admin.integrations.keys.newValue') : undefined;
 
   // One line per key (Int-A): the source next to the label, field and buttons side by side.
@@ -94,7 +94,7 @@ export function KeyRow({
             label={name}
             hideLabel
             description={env ? t('admin.integrations.envHint') : undefined}
-            placeholder={keepHint && t('admin.integrations.keys.keepPlaceholder')}
+            placeholder={keepHint && t('admin.integrations.keys.setPlaceholder')}
             aria-describedby={keepHint && keepHintId}
             autoComplete="off"
             spellCheck="false"

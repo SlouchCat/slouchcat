@@ -89,10 +89,11 @@ describe('integrations (A-2)', () => {
     expect(within(keys).queryByRole('button', { name: 'YouTube-Schlüssel löschen' })).toBeNull();
     expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveValue('');
     expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAttribute('type', 'password');
-    // A stored key says in its placeholder and its description that empty keeps it.
+    // A stored key says in its placeholder that it is set (K12-9), in its description that empty
+    // keeps it.
     expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAttribute(
       'placeholder',
-      'Leer lassen zum Behalten',
+      'API Key gesetzt',
     );
     expect(within(keys).getByLabelText('TMDB-Token', INPUT)).toHaveAccessibleDescription(
       /Leer lassen, um den gespeicherten Wert zu behalten/,
@@ -516,9 +517,9 @@ describe('integrations (A-2)', () => {
     expect(within(bot).getByText('Bot: @slouchcat_bot')).toBeVisible();
     const row = within(telegram).getByRole('group', { name: 'Bot-Token' });
     const token = within(row).getByLabelText('Bot-Token', INPUT);
-    // Write-only: empty, with a short placeholder and the whole sentence as its description.
+    // Write-only: empty, its placeholder says a token is set, the description that empty keeps it.
     expect(token).toHaveValue('');
-    expect(token).toHaveAttribute('placeholder', 'Leer lassen zum Behalten');
+    expect(token).toHaveAttribute('placeholder', 'Token gesetzt');
     expect(token).toHaveAccessibleDescription(/Leer lassen, um den gespeicherten Wert zu behalten/);
     expect(within(row).getByRole('button', { name: 'Telegram-Bot speichern' })).toBeVisible();
     expect(within(row).getByRole('button', { name: 'Telegram-Bot löschen' })).toBeVisible();

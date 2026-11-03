@@ -1978,7 +1978,7 @@
         "title": "Provider keys",
         "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
         "count": "{{set}} of {{total}} set",
-        "keepPlaceholder": "Leave empty to keep it",
+        "setPlaceholder": "API key set",
         "newValue": "Leave empty to keep the stored value. A new value replaces it.",
         "tmdb": {
           "name": "TMDB token",
@@ -2128,6 +2128,7 @@
         "botLabel": "Bot",
         "botHelp": "Slouchcat finds it through the token.",
         "token": "Bot token",
+        "setPlaceholder": "Token set",
         "tokenHelp": "For notifications by Telegram. The token comes from @BotFather; Slouchcat checks it with Telegram.",
         "tokenReplace": "A new token replaces the stored one.",
         "bot": "Bot: @{{name}}",
