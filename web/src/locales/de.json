@@ -907,7 +907,8 @@
         "orphaned": "Verwaist",
         "unplayable": "Nicht abspielbar",
         "rating_mismatch": "Freigabe abweichend",
-        "duplicates": "Duplikate"
+        "duplicates": "Duplikate",
+        "relink": "Verwaiste Benutzerdaten"
       },
       "hint": {
         "unmatched": "Ohne Zuordnung fehlen Beschreibung, Bilder und Freigabe. Ordne den Titel zu oder aktualisiere ihn.",
@@ -916,7 +917,8 @@
         "orphaned": "Titel ohne Datei oder mit fehlenden Dateien, leere Staffeln und Serien.",
         "unplayable": "Dateien, die sich nicht lesen lassen. Prüfe sie erneut oder entferne sie aus der Bibliothek.",
         "rating_mismatch": "Die gespeicherte Freigabe weicht von der berechneten ab. Eine Freigabe-Änderung oder der nächste Scan korrigiert sie. Hier gibt es nichts auszuwählen.",
-        "duplicates": "Titel, die doppelt vorkommen. Wähle den Titel, der bleiben soll, und führe die anderen mit ihm zusammen."
+        "duplicates": "Titel, die doppelt vorkommen. Wähle den Titel, der bleiben soll, und führe die anderen mit ihm zusammen.",
+        "relink": "Gelöschte Titel, die als neue Kopie zurück in der Bibliothek sind. Fortschritt, Verlauf und Listen hängen noch am gelöschten Titel. «Umhängen» führt die Kopie mit ihm zusammen, der alte Titel bleibt."
       },
       "empty": "Nichts zu tun.",
       "selection": "Auswahl",
@@ -959,7 +961,9 @@
         "rating_other": "Freigabe für {{count}} Titel gesetzt.",
         "cleanup": "Entfernt: {{items}}, {{files}}.",
         "merge": "Titel zusammengeführt.",
-        "match": "Zuordnung gespeichert, die Metadaten werden geladen."
+        "match": "Zuordnung gespeichert, die Metadaten werden geladen.",
+        "relink": "Umgehängt: {{titles}}.",
+        "relinkSkipped": "Umgehängt: {{titles}}. Übersprungen: {{skipped}}."
       },
       "cleanup": {
         "title": "Titel bereinigen?",
@@ -1004,6 +1008,43 @@
         "meta_other": "{{reason}} · {{title}} · {{count}} Titel",
         "keep": "bleibt",
         "noFiles": "Keine Datei"
+      },
+      "relink": {
+        "empty": "Keine verwaisten Benutzerdaten.",
+        "action": "Umhängen",
+        "noUserData": "keine Benutzerdaten",
+        "columns": {
+          "library": "Bibliothek",
+          "deletedAt": "Gelöscht am",
+          "userData": "Benutzerdaten"
+        },
+        "confirmTitle": "Benutzerdaten umhängen?",
+        "confirmBody_one": "1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse. Es bleiben erhalten: {{data}}.",
+        "confirmBody_other": "{{count}} Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen. Es bleiben erhalten: {{data}}.",
+        "data": {
+          "progress_one": "{{count}} Fortschritt",
+          "progress_other": "{{count}} Fortschritte",
+          "progressEvents_one": "{{count}} Ereignis",
+          "progressEvents_other": "{{count}} Ereignisse",
+          "progressDays_one": "{{count}} Tageswert",
+          "progressDays_other": "{{count}} Tageswerte",
+          "playbackSessions_one": "{{count}} Wiedergabe",
+          "playbackSessions_other": "{{count}} Wiedergaben",
+          "watchlist_one": "{{count}} Merklisten-Eintrag",
+          "watchlist_other": "{{count}} Merklisten-Einträge",
+          "favorites_one": "{{count}} Favorit",
+          "favorites_other": "{{count}} Favoriten",
+          "collectionItems_one": "{{count}} Sammlungseintrag",
+          "collectionItems_other": "{{count}} Sammlungseinträge",
+          "notifications_one": "{{count}} Benachrichtigung",
+          "notifications_other": "{{count}} Benachrichtigungen",
+          "topPicks_one": "{{count}} Empfehlung",
+          "topPicks_other": "{{count}} Empfehlungen",
+          "downloads_one": "{{count}} Download",
+          "downloads_other": "{{count}} Downloads",
+          "activityEvents_one": "{{count}} Aktivität",
+          "activityEvents_other": "{{count}} Aktivitäten"
+        }
       }
     },
     "item": {

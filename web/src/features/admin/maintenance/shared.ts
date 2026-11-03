@@ -1,4 +1,10 @@
-import type { DuplicateGroup, Issue, IssueKind } from '@slouchcat/api-client';
+import type {
+  DuplicateGroup,
+  Issue,
+  IssueKind,
+  RelinkPair,
+  RelinkUserData,
+} from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { issueKinds } from '../queries';
 
@@ -6,15 +12,48 @@ import { issueKinds } from '../queries';
 // page's confirmation.
 
 export const DUPLICATES = 'duplicates';
+export const RELINK = 'relink';
 
-/** The tabs in their order: one per kind of issue, then the duplicates (PFL-1). */
-export const TABS: readonly string[] = [...issueKinds, DUPLICATES];
+/**
+ * The tabs in their order: one per kind of issue, the duplicates (PFL-1), then the orphaned user
+ * data (ADR 0023).
+ */
+export const TABS: readonly string[] = [...issueKinds, DUPLICATES, RELINK];
 
 /** Selection key of an issue: unplayable issues are per file, the others per title. */
 export const issueKey = (issue: Issue) => `${issue.itemId}:${issue.mediaFileId ?? ''}`;
 
 /** Key of a duplicate group: its titles, which no other group shares. */
 export const groupKey = (group: DuplicateGroup) => group.items.map((item) => item.itemId).join('-');
+
+/** Key of a pair of a deleted title and its live copy. */
+export const pairKey = (pair: RelinkPair) => `${pair.deletedId}:${pair.liveId}`;
+
+/** The tables of the user data in the order the summary names them. */
+const userDataKeys = [
+  'progress',
+  'progressEvents',
+  'progressDays',
+  'playbackSessions',
+  'watchlist',
+  'favorites',
+  'collectionItems',
+  'notifications',
+  'topPicks',
+  'downloads',
+  'activityEvents',
+] as const satisfies readonly (keyof RelinkUserData)[];
+
+/**
+ * The user data of the pairs, summed per table: «3 Fortschritte, 140 Ereignisse». Tables without
+ * a row are left out; no row at all gives an empty string.
+ */
+export const userDataSummary = (t: TFunction, pairs: readonly RelinkPair[]) =>
+  userDataKeys
+    .map((key) => [key, pairs.reduce((sum, pair) => sum + pair.userData[key], 0)] as const)
+    .filter(([, count]) => count > 0)
+    .map(([key, count]) => t(`admin.maintenance.relink.data.${key}`, { count }))
+    .join(', ');
 
 /** Open-state key of a library's section in a tab. */
 export const libraryKey = (kind: IssueKind, libraryId: number) => `${kind}:${libraryId}`;

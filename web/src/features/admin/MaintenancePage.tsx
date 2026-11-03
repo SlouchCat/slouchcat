@@ -1,4 +1,4 @@
-import type { DuplicateGroup, Issue, IssueKind } from '@slouchcat/api-client';
+import type { DuplicateGroup, Issue, IssueKind, RelinkPair } from '@slouchcat/api-client';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -20,7 +20,16 @@ import {
 import { DuplicatesTab } from './maintenance/DuplicatesTab';
 import { IssueTab, type IssueHandlers } from './maintenance/IssueTab';
 import { RatingDialog } from './maintenance/RatingDialog';
-import { DUPLICATES, groupKey, TABS, type Confirmation, type Outcome } from './maintenance/shared';
+import { RelinkTab } from './maintenance/RelinkTab';
+import {
+  DUPLICATES,
+  groupKey,
+  RELINK,
+  TABS,
+  userDataSummary,
+  type Confirmation,
+  type Outcome,
+} from './maintenance/shared';
 import { MatchDialog } from './MatchDialog';
 import {
   duplicatesQuery,
@@ -28,6 +37,7 @@ import {
   issueKinds,
   librariesQuery,
   maintenanceKey,
+  relinkQuery,
 } from './queries';
 
 /** The dialog of the page besides its confirmation: assignment or rating of the selection. */
@@ -37,8 +47,9 @@ type ActionDialog = { type: 'match'; issue: Issue } | { type: 'rating'; itemIds:
  * Library maintenance (B-9; concept 12, variant C): one tab per kind of issue with its count
  * (PFL-1) and the duplicates. A tab shows its hint, the toolbar with the actions and the
  * selection, and the loaded issues in one section per library with «Mehr laden» (PFL-2, PFL-3);
- * the duplicates come as one section per group (PFL-4). Selection, outcome and the title to keep
- * belong to the page, so they stay when the tab changes (S-17).
+ * the duplicates come as one section per group (PFL-4), the orphaned user data as one table of
+ * pairs (ADR 0023). Selection, outcome and the title to keep belong to the page, so they stay
+ * when the tab changes (S-17).
  */
 export function MaintenancePage() {
   const { t } = useTranslation();
@@ -71,6 +82,8 @@ function MaintenanceContent() {
   const [outcomes, setOutcomes] = useState<Partial<Record<string, StatusMessage>>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [targets, setTargets] = useState<Record<string, string>>({});
+  // The pairs taken out of the orphaned user data; every other pair is selected.
+  const [relinkExcluded, setRelinkExcluded] = useState<string[]>([]);
   const [dialog, setDialog] = useState<ActionDialog>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -84,6 +97,7 @@ function MaintenanceContent() {
     })),
   });
   const duplicates = useQuery({ ...duplicatesQuery, refetchOnWindowFocus: !hold });
+  const relinkPairs = useQuery({ ...relinkQuery, refetchOnWindowFocus: !hold });
   // The names of the sections; the page does not follow a scan.
   const libraries = useQuery({
     ...librariesQuery,
@@ -188,6 +202,31 @@ function MaintenanceContent() {
     onError: (error) => failed(DUPLICATES, error),
   });
 
+  const relink = useMutation({
+    mutationFn: (pairs: RelinkPair[]) =>
+      request(
+        api.POST('/admin/maintenance/relink', {
+          body: { pairs: pairs.map(({ deletedId, liveId }) => ({ deletedId, liveId })) },
+        }),
+      ),
+    onSuccess: (result) => {
+      setRelinkExcluded([]);
+      const titles = t('admin.maintenance.titleCount', { count: result.relinked.length });
+      return finish(
+        RELINK,
+        {
+          tone: 'info',
+          text:
+            result.skipped > 0
+              ? t('admin.maintenance.done.relinkSkipped', { titles, skipped: result.skipped })
+              : t('admin.maintenance.done.relink', { titles }),
+        },
+        true,
+      );
+    },
+    onError: (error) => failed(RELINK, error),
+  });
+
   // Every confirmation is the page's own: the rows that asked for it may go while it is open.
   const ask = useCallback((next: Confirmation) => {
     setConfirmation(next);
@@ -207,6 +246,7 @@ function MaintenanceContent() {
   const { mutate: refreshMutate } = refreshItems;
   const { mutate: cleanupMutate } = cleanup;
   const { mutate: mergeMutate } = merge;
+  const { mutate: relinkMutate } = relink;
   const handlers = useMemo<IssueHandlers>(
     () => ({
       onSelect: (kind, keys) => setSelection((current) => ({ ...current, [kind]: keys })),
@@ -251,6 +291,23 @@ function MaintenanceContent() {
     [ask, t, mergeMutate],
   );
 
+  const onRelink = useCallback(
+    (pairs: RelinkPair[]) => {
+      const data = userDataSummary(t, pairs);
+      ask({
+        title: t('admin.maintenance.relink.confirmTitle'),
+        body: t('admin.maintenance.relink.confirmBody', {
+          count: pairs.length,
+          data: data || t('admin.maintenance.relink.noUserData'),
+        }),
+        confirmLabel: t('admin.maintenance.relink.action'),
+        onConfirm: () => relinkMutate(pairs),
+      });
+    },
+    [ask, t, relinkMutate],
+  );
+
+  const relinkTotal = relinkPairs.data?.total;
   const tabs: TabItem[] = [
     ...issueKinds.map((kind, index) => {
       const count = counts[index]?.data;
@@ -292,6 +349,25 @@ function MaintenanceContent() {
           onTarget={(key, itemId) => setTargets((current) => ({ ...current, [key]: itemId }))}
           onExpandedChange={handlers.onExpandedChange}
           onMerge={onMerge}
+        />
+      ),
+    },
+    {
+      id: RELINK,
+      label: t('admin.maintenance.tab.relink'),
+      count: relinkTotal === undefined ? undefined : number.format(relinkTotal),
+      countLabel:
+        relinkTotal === undefined
+          ? undefined
+          : t('admin.maintenance.titleCount', { count: relinkTotal }),
+      content: (
+        <RelinkTab
+          outcome={outcomes[RELINK]}
+          excluded={relinkExcluded}
+          hold={hold}
+          relinking={relink.isPending}
+          onExcludedChange={setRelinkExcluded}
+          onRelink={onRelink}
         />
       ),
     },

@@ -907,7 +907,8 @@
         "orphaned": "Orphaned",
         "unplayable": "Unplayable",
         "rating_mismatch": "Rating mismatch",
-        "duplicates": "Duplicates"
+        "duplicates": "Duplicates",
+        "relink": "Orphaned user data"
       },
       "hint": {
         "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
@@ -916,7 +917,8 @@
         "orphaned": "Titles without a file or with missing files, empty seasons and series.",
         "unplayable": "Files that cannot be read. Check them again or remove them from the library.",
         "rating_mismatch": "The stored rating differs from the computed one. A rating change or the next scan corrects it. There is nothing to select here.",
-        "duplicates": "Titles that exist twice. Pick the title to keep and merge the others into it."
+        "duplicates": "Titles that exist twice. Pick the title to keep and merge the others into it.",
+        "relink": "Deleted titles that are back in the library as a new copy. Progress, history and lists still hang on the deleted title. «Relink» merges the copy into it; the old title stays."
       },
       "empty": "Nothing to do.",
       "selection": "Selection",
@@ -959,7 +961,9 @@
         "rating_other": "Rating set for {{count}} titles.",
         "cleanup": "Removed: {{items}}, {{files}}.",
         "merge": "Titles merged.",
-        "match": "Match saved, the metadata is being loaded."
+        "match": "Match saved, the metadata is being loaded.",
+        "relink": "Relinked: {{titles}}.",
+        "relinkSkipped": "Relinked: {{titles}}. Skipped: {{skipped}}."
       },
       "cleanup": {
         "title": "Clean up titles?",
@@ -1004,6 +1008,43 @@
         "meta_other": "{{reason}} · {{title}} · {{count}} titles",
         "keep": "stays",
         "noFiles": "No file"
+      },
+      "relink": {
+        "empty": "No orphaned user data.",
+        "action": "Relink",
+        "noUserData": "no user data",
+        "columns": {
+          "library": "Library",
+          "deletedAt": "Deleted on",
+          "userData": "User data"
+        },
+        "confirmTitle": "Relink user data?",
+        "confirmBody_one": "1 copy merges into its deleted title. The old title comes back and keeps its address. Kept: {{data}}.",
+        "confirmBody_other": "{{count}} copies merge into their deleted titles. The old titles come back and keep their addresses. Kept: {{data}}.",
+        "data": {
+          "progress_one": "{{count}} progress entry",
+          "progress_other": "{{count}} progress entries",
+          "progressEvents_one": "{{count}} event",
+          "progressEvents_other": "{{count}} events",
+          "progressDays_one": "{{count}} daily total",
+          "progressDays_other": "{{count}} daily totals",
+          "playbackSessions_one": "{{count}} playback",
+          "playbackSessions_other": "{{count}} playbacks",
+          "watchlist_one": "{{count}} watchlist entry",
+          "watchlist_other": "{{count}} watchlist entries",
+          "favorites_one": "{{count}} favourite",
+          "favorites_other": "{{count}} favourites",
+          "collectionItems_one": "{{count}} collection entry",
+          "collectionItems_other": "{{count}} collection entries",
+          "notifications_one": "{{count}} notification",
+          "notifications_other": "{{count}} notifications",
+          "topPicks_one": "{{count}} pick",
+          "topPicks_other": "{{count}} picks",
+          "downloads_one": "{{count}} download",
+          "downloads_other": "{{count}} downloads",
+          "activityEvents_one": "{{count}} activity",
+          "activityEvents_other": "{{count}} activities"
+        }
       }
     },
     "item": {

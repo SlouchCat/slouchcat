@@ -1,4 +1,12 @@
-import type { DuplicateGroup, Issue, IssueKind, IssuePage } from '@slouchcat/api-client';
+import type {
+  DuplicateGroup,
+  Issue,
+  IssueKind,
+  IssuePage,
+  RelinkPair,
+  RelinkPairList,
+  RelinkUserData,
+} from '@slouchcat/api-client';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -70,6 +78,45 @@ const groups: DuplicateGroup[] = [
   },
 ];
 
+const noUserData: RelinkUserData = {
+  progress: 0,
+  progressEvents: 0,
+  progressDays: 0,
+  playbackSessions: 0,
+  watchlist: 0,
+  favorites: 0,
+  collectionItems: 0,
+  notifications: 0,
+  topPicks: 0,
+  downloads: 0,
+  activityEvents: 0,
+};
+
+const pair = (n: number, extra: Partial<RelinkPair> = {}): RelinkPair => ({
+  deletedId: id(20 + n),
+  liveId: id(30 + n),
+  libraryId: 2,
+  libraryName: 'Serien',
+  kind: 'series',
+  title: `Serie ${n}`,
+  deletedAt: '2026-10-28T09:00:00Z',
+  userData: noUserData,
+  ...extra,
+});
+
+const initialPairs: RelinkPairList = {
+  total: 2,
+  pairs: [
+    pair(1, {
+      title: 'Two and a Half Men',
+      userData: { ...noUserData, progress: 2, progressEvents: 100, playbackSessions: 1 },
+    }),
+    pair(2, { title: 'Silo', userData: { ...noUserData, progress: 1, progressEvents: 40 } }),
+  ],
+};
+
+let relinkPairs = initialPairs;
+
 /** The issue endpoint over `lists`, with limit and offset like the server. */
 function issuesRoute(url: URL): Response {
   const kind = url.searchParams.get('kind') as IssueKind;
@@ -93,6 +140,7 @@ function setup(extra: Record<string, (call: Call) => Response> = {}) {
     ...signedIn,
     'GET /admin/maintenance/issues': () => issuesRoute(lastUrl()),
     'GET /admin/maintenance/duplicates': () => json(groups),
+    'GET /admin/maintenance/relink': () => json(relinkPairs),
     'GET /admin/libraries': () => json(libraries),
     ...extra,
   });
@@ -107,6 +155,7 @@ describe('maintenance page', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     lists = { ...initial };
+    relinkPairs = initialPairs;
   });
 
   it('shows a tab per issue kind with its count and lists the first one by library', async () => {
@@ -126,6 +175,9 @@ describe('maintenance page', () => {
     expect(within(tabs).getByRole('tab', { name: 'Verwaist 1 Eintrag' })).toBeVisible();
     expect(within(tabs).getByRole('tab', { name: 'Freigabe abweichend 1 Eintrag' })).toBeVisible();
     expect(await within(tabs).findByRole('tab', { name: 'Duplikate 2 Gruppen' })).toBeVisible();
+    expect(
+      await within(tabs).findByRole('tab', { name: 'Verwaiste Benutzerdaten 2 Titel' }),
+    ).toBeVisible();
     // The intro sits behind the help button (S-2); the tab's hint stays visible.
     expect(within(panel()).getByText(/^Ohne Zuordnung fehlen Beschreibung/)).toBeVisible();
 
@@ -408,7 +460,7 @@ describe('maintenance page', () => {
         })) as unknown as () => Response,
     });
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /^Verwaist/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Verwaist \d/ }));
     await screen.findByRole('link', { name: 'Titel 5' });
     await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
     const trigger = screen.getByRole('button', { name: 'Bereinigen' });
@@ -554,6 +606,122 @@ describe('maintenance page', () => {
     await waitFor(() => expect(title()).toHaveFocus());
   });
 
+  it('orphaned user data: every pair starts selected; «Umhängen» sums the user data, asks and relinks', async () => {
+    const user = userEvent.setup();
+    let finish: (response: Response) => void = () => undefined;
+    const { calls } = setup({
+      'POST /admin/maintenance/relink': (() =>
+        new Promise<Response>((resolve) => {
+          finish = resolve;
+        })) as unknown as () => Response,
+    });
+    renderApp('/admin/maintenance?tab=relink');
+    const table = await screen.findByRole('table', { name: 'Verwaiste Benutzerdaten' });
+    expect(within(panel()).getByText(/^Gelöschte Titel, die als neue Kopie/)).toBeVisible();
+    const row = within(table).getByRole('row', { name: /^Two and a Half Men/ });
+    // The live copy has the administration page; the deleted title has none.
+    expect(within(row).getByRole('link', { name: 'Two and a Half Men' })).toHaveAttribute(
+      'href',
+      `/admin/items/${id(31)}`,
+    );
+    expect(within(row).getByText('Serie')).toBeVisible();
+    expect(within(row).getByText('Serien')).toBeVisible();
+    expect(within(row).getByText('28.10.2026')).toBeVisible();
+    expect(within(row).getByText('2 Fortschritte, 100 Ereignisse, 1 Wiedergabe')).toBeVisible();
+    for (const box of within(table).getAllByRole('checkbox')) expect(box).toBeChecked();
+    expect(screen.getByText('2 ausgewählt')).toBeVisible();
+
+    // One pair taken out: the question sums the other's user data only.
+    await user.click(screen.getByRole('checkbox', { name: 'Silo auswählen' }));
+    expect(screen.getByText('1 ausgewählt')).toBeVisible();
+    const trigger = screen.getByRole('button', { name: 'Umhängen' });
+    await user.click(trigger);
+    const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    expect(
+      within(dialog).getByText(
+        '1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse. Es bleiben erhalten: 2 Fortschritte, 100 Ereignisse, 1 Wiedergabe.',
+      ),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
+    await waitFor(() =>
+      expect(
+        calls.find((call) => call.method === 'POST' && call.path === '/admin/maintenance/relink')
+          ?.body,
+      ).toEqual({
+        pairs: [{ deletedId: id(21), liveId: id(31) }],
+      }),
+    );
+    await waitFor(() => expect(trigger).toBeDisabled());
+
+    relinkPairs = { total: 1, pairs: [initialPairs.pairs[1] as RelinkPair] };
+    finish(
+      json({ relinked: [{ keptId: id(21), removedId: id(31), merged: 3, moved: 1 }], skipped: 0 }),
+    );
+    const outcome = await within(panel()).findByText('Umgehängt: 1 Titel.');
+    expect(outcome.closest('[role="status"]')).not.toBeNull();
+    // The list reloads; the pair taken out is selected again.
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: 'Two and a Half Men' })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('checkbox', { name: 'Silo auswählen' })).toBeChecked();
+    await waitFor(() => expect(title()).toHaveFocus());
+  });
+
+  it('orphaned user data: «Auswahl aufheben» turns the button off; skipped pairs are named', async () => {
+    const user = userEvent.setup();
+    const { calls } = setup({
+      'POST /admin/maintenance/relink': () => {
+        relinkPairs = { total: 0, pairs: [] };
+        return json({
+          relinked: [{ keptId: id(21), removedId: id(31), merged: 1, moved: 0 }],
+          skipped: 1,
+        });
+      },
+    });
+    renderApp('/admin/maintenance?tab=relink');
+    await screen.findByRole('table', { name: 'Verwaiste Benutzerdaten' });
+    await user.click(screen.getByRole('button', { name: 'Auswahl aufheben' }));
+    expect(screen.getByRole('button', { name: 'Umhängen' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
+    await user.click(screen.getByRole('button', { name: 'Umhängen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    expect(
+      within(dialog).getByText(
+        /^2 Kopien gehen .* 3 Fortschritte, 140 Ereignisse, 1 Wiedergabe\.$/,
+      ),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
+    expect(await screen.findByText('Umgehängt: 1 Titel. Übersprungen: 1.')).toBeVisible();
+    expect(
+      calls.find((call) => call.method === 'POST' && call.path === '/admin/maintenance/relink')
+        ?.body,
+    ).toEqual({
+      pairs: [
+        { deletedId: id(21), liveId: id(31) },
+        { deletedId: id(22), liveId: id(32) },
+      ],
+    });
+    // Nothing left: the tab says so.
+    expect(await screen.findByText('Keine verwaisten Benutzerdaten.')).toBeVisible();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('orphaned user data: a refused relink shows the problem; more pairs than shown are counted', async () => {
+    const user = userEvent.setup();
+    relinkPairs = { ...initialPairs, total: 250 };
+    setup({ 'POST /admin/maintenance/relink': () => problem(409, 'scan_running') });
+    renderApp('/admin/maintenance?tab=relink');
+    expect(await screen.findByText('2 von 250')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Umhängen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
+    expect(
+      await within(panel()).findByText(/^Ein Scan dieser Bibliothek läuft gerade\./),
+    ).toBeVisible();
+    // The pairs stay.
+    expect(screen.getByRole('link', { name: 'Silo' })).toBeVisible();
+  });
+
   it('loads further pages with "Mehr laden" per tab; the new entries join their sections', async () => {
     const user = userEvent.setup();
     lists.orphaned = Array.from({ length: 60 }, (_, index) =>
@@ -561,7 +729,7 @@ describe('maintenance page', () => {
     );
     setup();
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /^Verwaist/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Verwaist \d/ }));
     expect(await screen.findByText('50 von 60')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Filme 50 Einträge' })).toBeVisible();
     expect(screen.queryByRole('button', { name: /^Serien/ })).not.toBeInTheDocument();
@@ -574,7 +742,7 @@ describe('maintenance page', () => {
     // Every tab counts its own: another tab shows its own «X von Y».
     await user.click(screen.getByRole('tab', { name: /^Altersfreigabe fehlt/ }));
     expect(await screen.findByText('2 von 2')).toBeVisible();
-    await user.click(screen.getByRole('tab', { name: /^Verwaist/ }));
+    await user.click(screen.getByRole('tab', { name: /^Verwaist \d/ }));
     expect(await screen.findByText('60 von 60')).toBeVisible();
   });
 
@@ -585,7 +753,7 @@ describe('maintenance page', () => {
     await user.click(
       await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' }),
     );
-    await user.click(screen.getByRole('tab', { name: /^Verwaist/ }));
+    await user.click(screen.getByRole('tab', { name: /^Verwaist \d/ }));
     await screen.findByRole('link', { name: 'Titel 5' });
     expect(screen.getByText('0 ausgewählt')).toBeVisible();
     await user.click(screen.getByRole('tab', { name: /^Altersfreigabe fehlt/ }));
