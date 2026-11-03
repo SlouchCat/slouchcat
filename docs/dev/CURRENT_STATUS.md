@@ -156,9 +156,65 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
     schon an ist (Telegram verknüpfen schaltet ihn ein; «Speichern» schickt dann nichts).
   - *Sichtbare Verhaltensänderungen:* nach «Verwerfen» verschwindet der Knopf, statt gesperrt zu
     bleiben; nach dem Speichern auf der Startseite bleibt der Fokus auf «Speichern».
-- **Offen:** der Prüfer läuft mit einem vollen `task ci`; K12-8 und K12-9. Ausserhalb von Konzept 12:
-  Dialoge mit `autoFocus` in Offline und Player. Mögliche spätere Bausteine: `OneLine` und `Muted`.
-- **Nächster Schritt:** Ergebnis des Prüfers abwarten, dann K12-8 und K12-9.
+- **Testhärtung** (2. November 2026): Zurück-Schritte und Unit-Lücken geschlossen (bis `2b9bf4d`;
+  Unit-Lücken PRO-3, BIB-3, TIT-7, PIC-1, BEN-2, PFL-2, PFL-4). Stopp-Lücke des Players: der Fix
+  «let the video player notice a stop by the server within 5 s» ist zurückgenommen (`d754f10`). Der
+  e2e zum Stopp durch die Verwaltung ist deterministisch, weil die Segmente des Zuschauers im Test
+  1 s gehalten werden (`5df15d2`). Die Lücke liegt in Konzept 13, Abschnitt 11.13 (`0e27e0e`).
+- **K12-8 Dichte** (2. November 2026, `2078fa9`): `density.css` in `main.tsx` eingeschaltet;
+  Tokens `page.title-line-height` (kompakt 0) und `density.compact.page.gutter` (32 px); `/admin` in
+  `AdminDensityScope` (`035e068`); e2e `admin-density.spec.ts`; Review-Befunde behoben (`8f4c512`,
+  `5936483`).
+  - Messung in `docs/perf/verwaltungsseiten.md` (1440 px, Maus, Chromium, Ausgang K12-2a):
+
+    | Seite           | Ausgang | K12-8  | nach Designer-Abgleich | Anteil |
+    | --------------- | ------- | ------ | ---------------------- | ------ |
+    | Hintergrundjobs | 476 px  | 272 px | 272 px                 | 57 %   |
+    | Integrationen   | 432 px  | 259 px | 250 px                 | 58 %   |
+    | Konten          | 353 px  | 315 px | 315 px                 | 89 %   |
+
+    **Ziel «höchstens die Hälfte» verfehlt.** Marcos Entscheid vom 3. November: Entscheid bei der
+    Abnahme in K12-9. Optionen: Zähler unter der Liste (Hintergrundjobs), Erklärsatz in den
+    Hilfe-Knopf (Integrationen), Zähler oder Reiter über der Liste (Konten).
+- **Designer-Abgleich** (3. November 2026, alle 21 Seiten gegen die Mockups, `a04c56b` bis `cd1dc75`):
+  - Fliesstext 14 px kompakt (`text.body-size`); Tabellenzeilen 40 px, Zellen mittig (`05043f9`,
+    `938720a`).
+  - Handy: Überlauf durch versteckte Texte in Scroll-Boxen behoben (`27b111c`); Seitentitel bricht nur
+    am Handy um (`236e097`, `4ab8331`). Neuer e2e `admin-phone.spec.ts`: 21 Seiten bei 390 px.
+  - Einstellungen als Zeilen (`SettingRow` mit `labelAddon`, Höhe nach Mockup: `6906932`, `4ba905d`).
+    Mail-Server und Telegram als Zeilen mit «Verwerfen» (`22ef698`; 607 → 461 px, 205 → 159 px).
+  - Integrationen: Schlüssel auf einer Zeile (`ab5d9dd`, 122 → 58 bis 78 px); Quelle neben der
+    Bezeichnung (`5fd4174`); Felder nach der sichtbaren Bezeichnung benannt (WCAG 2.5.3, `9182d9c`,
+    `cd1dc75`).
+  - Weiteres: Spotlight-Auswahl untereinander als `RadioGroup` (`952732f`, `8de93cd`); `RankSelect`
+    fluchtet mit der Zeile (`e783aed`); Abstand der Worker-Zeile bei Hintergrundjobs (`f78c5a7`);
+    Bandtitel entfällt, wenn er den ersten Reiter wiederholt (`BandPanel hideTitle`, S-9, `8f63a49`);
+    Sprung zu «Meine Profile» unter dem App-Kopf behoben (`f9eff4e`).
+- **Entscheide Marco vom 3. November** (Frage 18, Nachtrag 5): Seitentitel `/admin` 24 px wie auf allen
+  Verwaltungsseiten (`035e068`). Auslöser in der Seite als rote Schrift ohne Füllung (`Button`
+  Variante `dangerQuiet`, `7d2393b`, `b8d9373`, `e1eeb3f`); Bestätigungsknöpfe in Dialogen bleiben
+  gefüllt rot. Höhe: Entscheid bei K12-9.
+- **Fokus-Wettlauf** (3. November 2026, `263347e`): `afterDialogsClosed()` auf zwölf Verwaltungsseiten
+  und in `ProfileList`; behebt den Firefox-Wackler in `admin-jobs.spec.ts:239`.
+- **Offen nach K12-8:**
+  - K12-9 auf CT 190 mit Marco: Desktop mit Maus, Handy mit 44 px; Höhen-Entscheid (siehe oben);
+    p95 von `GET /admin/stats?days=90` (Zwischenspeicher nur über 200 ms); Release-Notes 1.8.0.
+  - Push und PR erst auf Marcos Wort; Merge danach.
+  - Designer, nicht umgesetzt: Metadaten-Bereichsliste ohne Symbole; Titel mit Art und Jahr auf eigener
+    Zeile (Tit-C); «Letzter Scan» bei Bibliotheken umbricht; Pflege zeigt roh `no_tmdb_key`
+    (vorbestehend). Primäre Knöpfe bleiben weisse Pillen statt Orange wie im Mockup (beibehalten).
+  - Ausserhalb von Konzept 12: `autoFocus` in Dialogen von Offline und Player (eigene Aufgabe).
+    Mögliche spätere Bausteine: `OneLine` und `Muted`.
+- **Nächster Schritt:** Abnahme auf CT 190 mit Marco (K12-9).
+
+**Belege K12-8 und Designer-Abgleich:**
+
+voller `task ci` auf `cd1dc75`: läuft
+
+```
+web:test                    1058 Tests, 119 Dateien
+storybook                   323
+```
 
 **Belege K12-3** (Prüfer auf `6e46c6d`):
 
@@ -281,7 +337,7 @@ p95 **96.4 ms**. Schätzung für CT 190 (Faktor 2.5): rund 105 ms beim realen Be
 beim Bestand der Messung. Ob ein Zwischenspeicher nötig ist, fällt mit der Messung auf CT 190 in
 K12-9.
 
-**Offen:** Ankündigungen, Aufräumrunde 2, K12-8 und K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
+**Offen (Stand K12-1, überholt, aktueller Stand oben):** Ankündigungen, Aufräumrunde 2, K12-8 und K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
 mit 44 px); Release 1.8.0 danach als eigenes Release.
 
 ## Konzept 11 «Übersicht der Verwaltung»: umgesetzt und abgenommen, Schritte 0 bis 6 (2. November 2026)

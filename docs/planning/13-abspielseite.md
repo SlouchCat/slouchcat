@@ -716,7 +716,7 @@ Jede Stufe ein eigener Zweig und Pull Request, jeder Schritt ein Commit, `task c
 - **Safari und Web Audio** (Spike in Schritt 4): offen, ändert höchstens, ob Nachtmodus und 150 %
   in Safari erscheinen.
 - Die Streams-Ansicht der Verwaltung zeigt `audioReason` nicht; bei Bedarf später.
-- **Stopp durch die Verwaltung erkennen** (gefunden am 4. November 2026 beim Härten der Tests von
+- **Stopp durch die Verwaltung erkennen** (gefunden am 2. November 2026 beim Härten der Tests von
   Konzept 12, Firefox-e2e `admin-streams`; besteht seit 1.7.0 und stammt nicht aus Konzept 12).
   - **Befund:** Beendet ein Administrator einen Stream («Beenden» unter `/admin/streams`), erfährt der
     Videoplayer das erst mit seiner nächsten Medienanfrage (401). hls.js lädt einen kurzen Titel ganz;
@@ -734,7 +734,7 @@ Jede Stufe ein eigener Zweig und Pull Request, jeder Schritt ein Commit, `task c
        trägt ein Stopp-Kennzeichen. Das braucht keine neue Anfrage. Die Erkennung dauert bis zu 10 s
        und erfüllt die Anforderung von 5 s nur, wenn der Takt dafür verkürzt wird oder die Option mit
        einer der anderen verbunden wird.
-  - **Entscheid Marco 4. November 2026:** in Konzept 13 lösen. Eine schnelle Zwischenlösung (der Player
+  - **Entscheid Marco 2. November 2026:** in Konzept 13 lösen. Eine schnelle Zwischenlösung (der Player
     fragt seinen Range-Stream alle 2 s ab, 404 gilt als gültig, 401 als Stopp) wurde gebaut und wieder
     verworfen. Gewählt ist eine saubere Lösung für Video und Audio zugleich; die Option wählt das
     Konzept in der Fassung zur Abnahme.
