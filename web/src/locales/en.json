@@ -903,7 +903,7 @@
       "tab": {
         "unmatched": "Unmatched",
         "no_images": "No images",
-        "unrated": "Unrated",
+        "unrated": "Age rating missing",
         "orphaned": "Orphaned",
         "unplayable": "Unplayable",
         "rating_mismatch": "Rating mismatch",

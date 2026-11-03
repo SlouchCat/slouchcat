@@ -291,8 +291,8 @@ alle 5 s, solange ein Scan läuft)
   (Rückfrage; nur wenn kein Ordner es trägt).
 
 **Pflege** (`MaintenancePage.tsx`, `MatchDialog.tsx`)
-- PFL-1 Sieben Reiter mit Zahl: Nicht zugeordnet, Ohne Bilder, Ohne Freigabe, Verwaist,
-  Nicht abspielbar, Freigabe-Abweichung, Doppelte.
+- PFL-1 Sieben Reiter mit Zahl: Nicht zugeordnet, Ohne Bilder, Altersfreigabe fehlt (umbenannt bei
+  der Abnahme K12-9, 3. November 2026), Verwaist, Nicht abspielbar, Freigabe-Abweichung, Doppelte.
 - PFL-2 Je Reiter: Hinweis, Ergebnis-Meldung, Auswahl (alle / keine, «N gewählt»), Liste mit
   Auswahlkästchen und Link → Titel, «X von Y», Mehr laden (50 je Seite).
 - PFL-3 Aktionen: Zuordnen (Dialog: Suche, Jahr, Anbieter TMDB/TVDB, Art; Kandidaten), Metadaten

@@ -903,7 +903,7 @@
       "tab": {
         "unmatched": "Nicht zugeordnet",
         "no_images": "Ohne Bilder",
-        "unrated": "Ohne Freigabe",
+        "unrated": "Altersfreigabe fehlt",
         "orphaned": "Verwaist",
         "unplayable": "Nicht abspielbar",
         "rating_mismatch": "Freigabe abweichend",

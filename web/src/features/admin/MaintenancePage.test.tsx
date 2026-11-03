@@ -120,7 +120,7 @@ describe('maintenance page', () => {
     );
     expect(within(tabs).getByRole('tab', { name: 'Nicht abspielbar 1 Eintrag' })).toBeVisible();
     expect(within(tabs).getByRole('tab', { name: 'Ohne Bilder 0 Einträge' })).toBeVisible();
-    expect(within(tabs).getByRole('tab', { name: 'Ohne Freigabe 2 Einträge' })).toBeVisible();
+    expect(within(tabs).getByRole('tab', { name: 'Altersfreigabe fehlt 2 Einträge' })).toBeVisible();
     expect(within(tabs).getByRole('tab', { name: 'Verwaist 1 Eintrag' })).toBeVisible();
     expect(within(tabs).getByRole('tab', { name: 'Freigabe abweichend 1 Eintrag' })).toBeVisible();
     expect(await within(tabs).findByRole('tab', { name: 'Duplikate 2 Gruppen' })).toBeVisible();
@@ -255,7 +255,7 @@ describe('maintenance page', () => {
     const user = userEvent.setup();
     const { calls } = setup({ 'POST /admin/items/rating': () => json({ updated: 2 }) });
     renderApp('/admin/maintenance');
-    await user.click(await screen.findByRole('tab', { name: /^Ohne Freigabe/ }));
+    await user.click(await screen.findByRole('tab', { name: /^Altersfreigabe fehlt/ }));
     await screen.findByRole('link', { name: 'Slouchcat Test Unrated' });
     await user.click(screen.getByRole('button', { name: 'Alle auswählen' }));
     await user.click(screen.getByRole('button', { name: 'Freigabe zuweisen' }));
@@ -570,7 +570,7 @@ describe('maintenance page', () => {
     expect(screen.getByRole('button', { name: 'Serien 5 Einträge' })).toBeVisible();
 
     // Every tab counts its own: another tab shows its own «X von Y».
-    await user.click(screen.getByRole('tab', { name: /^Ohne Freigabe/ }));
+    await user.click(screen.getByRole('tab', { name: /^Altersfreigabe fehlt/ }));
     expect(await screen.findByText('2 von 2')).toBeVisible();
     await user.click(screen.getByRole('tab', { name: /^Verwaist/ }));
     expect(await screen.findByText('60 von 60')).toBeVisible();
@@ -586,7 +586,7 @@ describe('maintenance page', () => {
     await user.click(screen.getByRole('tab', { name: /^Verwaist/ }));
     await screen.findByRole('link', { name: 'Titel 5' });
     expect(screen.getByText('0 ausgewählt')).toBeVisible();
-    await user.click(screen.getByRole('tab', { name: /^Ohne Freigabe/ }));
+    await user.click(screen.getByRole('tab', { name: /^Altersfreigabe fehlt/ }));
     expect(
       await screen.findByRole('checkbox', { name: 'Slouchcat Test Unrated auswählen' }),
     ).toBeChecked();

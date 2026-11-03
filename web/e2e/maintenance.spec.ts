@@ -82,7 +82,7 @@ test('every issue kind has a tab with its count; arrows move between the tabs', 
   for (const name of [
     'Nicht zugeordnet',
     'Ohne Bilder',
-    'Ohne Freigabe',
+    'Altersfreigabe fehlt',
     'Verwaist',
     'Nicht abspielbar',
     'Freigabe abweichend',
@@ -207,7 +207,7 @@ test('unrated: select by keyboard, assign a rating, the title leaves the list', 
   const unrated = (await issues(owner, 'unrated')).find((issue) => issue.title === UNRATED_TITLE);
   expect(unrated, `${UNRATED_TITLE} is unrated`).toBeDefined();
   try {
-    await openTab(page, /^Ohne Freigabe/);
+    await openTab(page, /^Altersfreigabe fehlt/);
     const box = panel(page).getByRole('checkbox', { name: `${UNRATED_TITLE} auswählen` });
     await expect(box).toBeVisible();
     await tabTo(page, box, TAB_MAX);
@@ -290,8 +290,8 @@ test('unplayable lists the broken file; "Entfernen" removes it after confirmatio
 });
 
 test('a title links to its administration page; Back returns to the tab', async ({ page }) => {
-  // Every title of the test media is unmatched and unrated (no TMDB key): «Ohne Freigabe» has rows.
-  await openTab(page, /^Ohne Freigabe/);
+  // Every title of the test media is unmatched and unrated (no TMDB key): «Altersfreigabe fehlt» has rows.
+  await openTab(page, /^Altersfreigabe fehlt/);
   await expect(page).toHaveURL(/\/admin\/maintenance\?tab=unrated$/);
   const first = panel(page).getByRole('link').first();
   await expect(first).toBeVisible();
@@ -307,7 +307,7 @@ test('a title links to its administration page; Back returns to the tab', async 
   await page.goBack();
   await expect(page).toHaveURL(/\/admin\/maintenance\?tab=unrated$/);
   await expect(h1(page)).toBeVisible();
-  await expect(tab(page, /^Ohne Freigabe/)).toHaveAttribute('aria-selected', 'true');
+  await expect(tab(page, /^Altersfreigabe fehlt/)).toHaveAttribute('aria-selected', 'true');
   await expect(
     panel(page).getByRole('link', { name: (await first.textContent()) ?? '' }),
   ).toBeVisible();
