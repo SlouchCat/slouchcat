@@ -209,7 +209,18 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
 
 **Belege K12-8 und Designer-Abgleich:**
 
-voller `task ci` auf `cd1dc75`: läuft
+- `task ci` auf `cd1dc75`: **rot (EXIT 201)**.
+  - Web-Unit `OfflinePlayer.test.tsx` unter Last: Testrace, behoben `7469eb3`.
+  - e2e `admin-home.spec.ts:79` Firefox: echter Fokusfehler. norigin holt 300 ms nach dem Wechsel in die Verwaltung den Fokus in den App-Kopf zurück. Behoben `f3c2f7f`: `autoRestoreFocus=false` auf der Gruppe `shell`, neuer Test.
+- `task ci` auf `f3c2f7f`: 605/606. e2e `admin-announcements.spec.ts:222` Firefox: Testrace, der Tab begann vor der Fokussetzung der Seite auf die h1. Behoben `ec5c123`: `tabTo` meldet besuchte Elemente.
+- Review-Fixes Integrationen:
+  - `a862b43` Server: Botname nur bei gespeichertem Token.
+  - `50d4c74` `afterDialogsClosed()` nach dem Entfernen.
+  - `6f7efed` Verwerfen räumt Fehler, Fokus nach Löschen, Zugangsart in Beschreibungen, Portprüfung, Speichern-Namen.
+- **Voller `task ci` auf `ec5c123`: EXIT 0** (3. November 2026, Last 8–27): Server-Lint `0 issues.`, Server-Tests 33 Pakete ok (aus Go-Cache), Web 120 Dateien / 1063 Tests, api-client 4, design-tokens 2, Storybook 323, e2e 606 bestanden (33.4 min, 0 flaky), A-9 0 Funde.
+- Commits seit `cd1dc75`: `a862b43`, `50d4c74`, `6f7efed`, `7469eb3`, `e4ff097` (Doku), `f3c2f7f`, `ec5c123`.
+
+Belege der Teilläufe vor `ec5c123` (Designer-Runde):
 
 ```
 web:test                    1058 Tests, 119 Dateien
