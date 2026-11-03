@@ -44,8 +44,9 @@ export function TelegramForm({
     });
   };
 
-  // A stored token: the field is empty, its placeholder says a token is set; that empty keeps it is
-  // its accessible description (like a provider key). From deploy/.env the note stays visible.
+  // A stored token: the field is empty and its placeholder says a token is set. That leaving the
+  // field empty keeps the token is the field's accessible description, hidden from view (like a
+  // provider key). A token from deploy/.env keeps its visible note.
   const keepHint = telegram.source === 'stored' ? t('admin.integrations.keys.newValue') : undefined;
 
   return (

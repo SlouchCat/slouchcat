@@ -60,8 +60,9 @@ export function KeyRow({
     });
   };
 
-  // A stored key: the field is empty, its placeholder says a key is set (K12-9); that empty keeps
-  // it is its accessible description. A key from deploy/.env keeps its visible note under the field.
+  // A stored key: the field is empty and its placeholder says a key is set (K12-9). That leaving
+  // the field empty keeps the key is the field's accessible description, hidden from view. A key
+  // from deploy/.env keeps its visible note under the field.
   const keepHint = state.source === 'stored' ? t('admin.integrations.keys.newValue') : undefined;
 
   // One line per key (Int-A): the source next to the label, field and buttons side by side.
