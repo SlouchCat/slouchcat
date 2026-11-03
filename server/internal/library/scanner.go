@@ -371,15 +371,11 @@ func (s *Service) endScan(ctx context.Context, lib appq.Library, what string, er
 // plan against the same rows and could insert the same new file twice. It waits until ctx ends.
 func (s *Service) lockScan(ctx context.Context, libraryID int64) (func(), error) {
 	s.mu.Lock()
-	ch := s.scanLocks[libraryID]
-	if ch == nil {
-		ch = make(chan struct{}, 1)
-		s.scanLocks[libraryID] = ch
-	}
+	ch := s.scanLockLocked(libraryID)
 	s.mu.Unlock()
 	select {
 	case ch <- struct{}{}:
-		return func() { <-ch }, nil
+		return func() { s.unlockScan(libraryID, ch) }, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
@@ -390,17 +386,49 @@ func (s *Service) lockScan(ctx context.Context, libraryID int64) (func(), error)
 // request open for hours; the administrator is told to try again instead (model.ErrScanRunning).
 func (s *Service) tryLockScan(libraryID int64) (unlock func(), ok bool) {
 	s.mu.Lock()
+	ch := s.scanLockLocked(libraryID)
+	s.mu.Unlock()
+	select {
+	case ch <- struct{}{}:
+		return func() { s.unlockScan(libraryID, ch) }, true
+	default:
+		return func() {}, false
+	}
+}
+
+// scanLockLocked returns the scan lock of a library, a channel with room for one holder; s.mu
+// must be held.
+func (s *Service) scanLockLocked(libraryID int64) chan struct{} {
 	ch := s.scanLocks[libraryID]
 	if ch == nil {
 		ch = make(chan struct{}, 1)
 		s.scanLocks[libraryID] = ch
 	}
-	s.mu.Unlock()
-	select {
-	case ch <- struct{}{}:
-		return func() { <-ch }, true
-	default:
-		return func() {}, false
+	return ch
+}
+
+// unlockScan releases the scan lock of a library after running the relinks that waited for it
+// (RelinkDeletedTwin). The check for waiting relinks and the release happen under s.mu, so a
+// relink queued meanwhile is run by this holder or finds the lock free. The relinks run detached
+// from the holder's context: a cancelled scan still releases its lock, and each relink is one
+// short transaction.
+func (s *Service) unlockScan(libraryID int64, ch chan struct{}) {
+	for {
+		s.mu.Lock()
+		ids := s.relinkPending[libraryID]
+		if len(ids) == 0 {
+			<-ch
+			s.mu.Unlock()
+			return
+		}
+		delete(s.relinkPending, libraryID)
+		s.mu.Unlock()
+		ctx := context.Background()
+		for _, id := range ids {
+			if _, _, err := s.relinkTwin(ctx, id); err != nil {
+				s.log.WarnContext(ctx, "relink after the scan lock failed", "library_id", libraryID, "item_id", id, "err", err)
+			}
+		}
 	}
 }
 

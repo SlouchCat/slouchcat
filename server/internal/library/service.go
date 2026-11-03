@@ -77,6 +77,9 @@ type Service struct {
 	retrying    map[int64]bool              // library ids with a pending re-queue (scan was running)
 	scanLocks   map[int64]chan struct{}     // by library id; see lockScan
 	runs        map[int64]map[*scanRun]bool // running scans by library id; see CancelScan
+	// relinkPending holds live titles whose relink waits for the scan lock, by library id
+	// (RelinkDeletedTwin, unlockScan).
+	relinkPending map[int64][]string
 
 	statsMu    sync.Mutex
 	writeStats WriteStats // see TakeWriteStats
@@ -162,7 +165,7 @@ func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logg
 	s := &Service{
 		db: db, queue: queue, probe: probe, log: log, now: time.Now,
 		watchers: map[int64]*Watcher{}, watcherStop: map[int64]context.CancelFunc{},
-		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
+		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{}, relinkPending: map[int64][]string{},
 		runs:        map[int64]map[*scanRun]bool{},
 		pathPending: map[int64]map[int64]map[string]bool{}, pathRetrying: map[int64]bool{},
 		orphans: map[int64]map[string]fileStamp{},
