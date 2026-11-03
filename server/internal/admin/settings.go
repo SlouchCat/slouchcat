@@ -240,7 +240,9 @@ func (s *Service) storedSMTP(ctx context.Context, withPassword bool) (model.SMTP
 	return cfg, true, nil
 }
 
-// telegramSettings returns the bot's source and user name without its token.
+// telegramSettings returns the bot's source and user name without its token. The user name is
+// the stored token's (getMe on save): a token from the environment wins over that one and may
+// belong to another bot, so it comes without a name.
 func (s *Service) telegramSettings(ctx context.Context) (model.TelegramSettings, error) {
 	st := model.TelegramSettings{Source: model.SourceNone}
 	if s.ops.env.TelegramBotToken != "" {
@@ -250,7 +252,7 @@ func (s *Service) telegramSettings(ctx context.Context) (model.TelegramSettings,
 	} else if ok {
 		st.Source = model.SourceStored
 	}
-	if st.Source == model.SourceNone {
+	if st.Source != model.SourceStored {
 		return st, nil
 	}
 	name, _, err := s.setting(ctx, SettingTelegramBotUsername)
