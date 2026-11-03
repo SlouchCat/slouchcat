@@ -18,10 +18,12 @@ SELECT * FROM items WHERE id = @id;
 -- name: ListItemsByLibrary :many
 SELECT * FROM items WHERE library_id = @library_id AND deleted_at IS NULL ORDER BY id;
 
--- name: ListRecentlyDeletedItemsByLibrary :many
--- Soft-deleted titles that a re-downloaded file may bring back by provider id (plan 3.2).
+-- name: ListDeletedItemsByLibrary :many
+-- Soft-deleted items that a re-downloaded file may bring back (plan 3.2, ADR 0023): titles by
+-- provider id without a time limit, by (sort_title, year) within titleRelinkWindow, and their
+-- seasons and episodes. The most recently deleted first.
 SELECT * FROM items
-WHERE library_id = @library_id AND deleted_at IS NOT NULL AND deleted_at >= @since
+WHERE library_id = @library_id AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id;
 
 -- name: CountLibraryItems :one

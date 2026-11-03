@@ -14,11 +14,12 @@ import (
 // itemIndex finds the items of a library during a scan.
 //
 // Titles of one kind (movies, series, audiobooks or podcasts; see libraryIndex): undeleted ones by provider id
-// (TVDB, TMDB, IMDb) or by (sort_title, year), titles soft-deleted within relinkWindow by
-// provider id only. Seasons by (series, season number), episodes by (season, episode number),
-// both including those soft-deleted within relinkWindow, so a series that comes back keeps its
-// tree. Folders map titles to the folders of their files and back, for titles without a year and
-// for extras, whose parent is the title of their folder.
+// (TVDB, TMDB, IMDb) or by (sort_title, year), soft-deleted ones by provider id without a time
+// limit and, when deleted within titleRelinkWindow and with a year, by (sort_title, year) after
+// every undeleted title (ADR 0023). Seasons by (series, season number), episodes by (season,
+// episode number), both including soft-deleted ones, so a series that comes back keeps its tree.
+// Folders map titles to the folders of their files and back, for titles without a year and for
+// extras, whose parent is the title of their folder.
 type itemIndex struct {
 	byTMDB   map[int64]string
 	byTVDB   map[int64]string
@@ -34,6 +35,9 @@ type itemIndex struct {
 	seasons  map[string]string          // seriesKey(series id, season number) → season id
 	episodes map[string]string          // seriesKey(season id, episode number) → episode id
 	matched  map[string]bool            // series with metadata_state 'matched'
+	// deletedByTitle holds the titles soft-deleted within titleRelinkWindow that have a year, by
+	// titleKey, the most recently deleted first.
+	deletedByTitle map[string][]itemRef
 }
 
 type itemRef struct {
@@ -45,7 +49,7 @@ type itemRef struct {
 func newItemIndex() *itemIndex {
 	return &itemIndex{
 		byTMDB: map[int64]string{}, byTVDB: map[int64]string{}, byIMDB: map[string]string{},
-		byTitle: map[string][]itemRef{}, refs: map[string]itemRef{}, deleted: map[string]bool{}, parent: map[string]string{}, kinds: map[string]string{},
+		byTitle: map[string][]itemRef{}, deletedByTitle: map[string][]itemRef{}, refs: map[string]itemRef{}, deleted: map[string]bool{}, parent: map[string]string{}, kinds: map[string]string{},
 		folders: map[string]map[string]bool{}, byFolder: map[string]string{},
 		seasons: map[string]string{}, episodes: map[string]string{}, matched: map[string]bool{},
 	}
@@ -152,12 +156,11 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
-	deleted, err := q.ListRecentlyDeletedItemsByLibrary(ctx, systemq.ListRecentlyDeletedItemsByLibraryParams{
-		LibraryID: lib.ID, Since: sql.NullInt64{Int64: s.now().Add(-relinkWindow).UnixMilli(), Valid: true},
-	})
+	deleted, err := q.ListDeletedItemsByLibrary(ctx, lib.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list deleted items: %w", err)
 	}
+	byTitleSince := s.now().Add(-titleRelinkWindow).UnixMilli()
 	li := newLibraryIndex()
 	add := func(it systemq.Item, isDeleted bool) {
 		// The tree maps are shared, so any index may record them.
@@ -173,7 +176,7 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 		switch it.Kind {
 		case "movie", "series", "audiobook", "podcast":
 			if isDeleted {
-				idx.addDeleted(it.ID, it.TmdbID.Int64, it.TvdbID.Int64, it.ImdbID.String)
+				idx.addDeleted(it, it.DeletedAt.Int64 >= byTitleSince)
 				return
 			}
 			idx.add(it.ID, it.SortTitle, it.Year, it.TmdbID.Int64, it.TvdbID.Int64, it.ImdbID.String)
@@ -264,10 +267,16 @@ func (idx *itemIndex) addIDs(id string, tmdb, tvdb int64, imdb string) {
 }
 
 // addDeleted marks a soft-deleted title as deleted, so no extra attaches to it through its
-// folder, and makes it reachable by its provider ids, not by its title.
-func (idx *itemIndex) addDeleted(id string, tmdb, tvdb int64, imdb string) {
-	idx.deleted[id] = true
-	idx.addIDs(id, tmdb, tvdb, imdb)
+// folder, and makes it reachable by its provider ids; byTitle also by (sort_title, year), for a
+// title with a year. Callers add the most recently deleted first, which wins both ways.
+func (idx *itemIndex) addDeleted(it systemq.Item, byTitle bool) {
+	idx.deleted[it.ID] = true
+	idx.addIDs(it.ID, it.TmdbID.Int64, it.TvdbID.Int64, it.ImdbID.String)
+	if byTitle && it.Year.Valid {
+		key := titleKey(it.SortTitle, it.Year)
+		idx.deletedByTitle[key] = append(idx.deletedByTitle[key],
+			itemRef{id: it.ID, tmdb: it.TmdbID.Int64, tvdb: it.TvdbID.Int64, imdb: it.ImdbID.String})
+	}
 }
 
 // addChild adds a season or an episode; a soft-deleted one only when no undeleted one holds the
@@ -313,6 +322,8 @@ func (idx *itemIndex) folderTitle(folder string) string {
 // episode in "Show (2019)" still joins the series that TMDB dates 2020. Without a year, a title
 // only matches an item that already has a file in the same folder (as titleFolderKey or
 // seriesFolderKey name it), so two titles of the same name in different folders stay apart.
+// Last, a file with a year finds a title soft-deleted within titleRelinkWindow by (sort_title,
+// year), the most recently deleted that fits (ADR 0023, A1); without a year it does not.
 func (idx *itemIndex) find(m titleInfo, folder string) string {
 	if m.tvdb != 0 {
 		if id, ok := idx.byTVDB[m.tvdb]; ok {
@@ -340,6 +351,14 @@ func (idx *itemIndex) find(m titleInfo, folder string) string {
 		}
 		if ref.fits(m) {
 			return ref.id
+		}
+	}
+	if m.year.Valid {
+		// Restored by an earlier file of this scan or not: the restore is idempotent.
+		for _, ref := range idx.deletedByTitle[titleKey(m.sortTitle, m.year)] {
+			if ref.fits(m) {
+				return ref.id
+			}
 		}
 	}
 	return ""
