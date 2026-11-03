@@ -50,7 +50,15 @@ Wiedergabe-Ereignisse. Mittel aus 20 Runden.
 Die Zähler je Paar liefen über einen Baumausdruck mit `OR` und lasen dabei jedes Mal alle Titel.
 Die zusammengefasste Abfrage ersetzt sie im Review-Fix `5c74811`.
 
-## Offen
+## CT 190
 
-Eine Messung auf CT 190 (Scanzeit der Bibliothek «Serien» vor und nach dem Einspielen) folgt mit der
-Abnahme, auf Marcos Wort.
+Bibliothek «Serien» (2 lebende Serien, 291 Folgen, rund 31 600 gelöschte Zeilen), Scans nach Zeitplan,
+Dauer aus `jobs.finished_at - started_at`:
+
+| Stand | Läufe | Dauer |
+|---|---:|---|
+| 1.8.0 (`verwaltungsseiten-bf456e1` und `1.8.0`), 2. und 3. November 2026 | 8 | 213–608 ms, Median etwa 345 ms |
+| `wurzelwechsel-34822aa` | – | folgt mit dem nächsten Scan nach Zeitplan |
+
+Die Pflegeaktion auf CT 190 (3. November 2026, Marco): die Liste in 1,4–1,6 s; das Umhängen der Paare
+in 1,47 s (Two and a Half Men, 274 Knoten) und etwa gleich lang für Silo (34 Knoten).

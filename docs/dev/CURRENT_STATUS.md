@@ -1,6 +1,37 @@
 # Aktueller Stand
 
-## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: gebaut, `task ci` grün (3. November 2026)
+## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: gemergt und auf CT 190 abgenommen (3. November 2026)
+
+**PR #76 am 3. November 2026 in `main` gemergt (`34822aa`).** Marcos Wort «Jetzt mergen» kam,
+während der neu gestartete e2e-Shard 2 noch lief. Zuvor war er nur wegen des Zeitbudgets von
+`hdr.spec.ts` rot (5122 ms statt < 5000 ms, CPU-Tonemapping auf dem Runner).
+
+**Abnahme auf CT 190 (Marcos Wort «Schreibe auf CT 190»):**
+- **Image:** `wurzelwechsel-34822aa` (`v1.8.0-28-g34822aa`), auf dem CT gebaut nach
+  `/root/build-34822aa`. Container sauber gestoppt, Datenbank gesichert nach
+  `config/backups/pre-wurzelwechsel-20261103/`, alte `.env` als `.env.bak-vor-wurzelwechsel`.
+  Keine Migration.
+- **Automatisch** wurde nichts zusammengeführt. Das ist erwartet: Beide Kopien waren schon vor dem
+  Update zugeordnet, und ausgelöst wird nur nach einem Match oder einem Löschen.
+- **Pflegeaktion:** Sie zeigte die zwei Paare erst nach einem Neuladen des Browsers; vorher sah
+  Marco noch den alten Stand der App. Marco hat beide umgehängt.
+  - «Silo»: `01M5TG0K…` bleibt, `merged=34`.
+  - «Two and a Half Men»: `01M5TG28…` bleibt, `merged=274`.
+- **Prüfung, lesend in der Datenbank:**
+  - Beide alten Serien leben (`available=1`), die Kopien sind weg.
+  - 15 Staffeln und 291 Folgen hängen unter den alten Serien.
+  - 6 Fortschritte (3 alte, 3 aus der Kopie), 168 Wiedergabe-Ereignisse und 11 Wiedergaben hängen
+    an den alten Folgen.
+  - Kein Fortschritt hängt mehr an einem gelöschten Titel.
+  - Je ein `metadata.match` für die beiden Serien ist gelaufen.
+  - Die übrigen 496 gelöschten Serien bleiben gelöscht.
+- **Scanzeit «Serien» vor dem Update:** 213 bis 608 ms (8 Läufe nach Zeitplan, Median etwa 345 ms).
+  Der Wert danach folgt mit dem nächsten Scan nach Zeitplan.
+- **Nachgezogen:** Der Hinweis im Dialog «Ordner entfernen» sprach noch von «binnen 30 Tagen». Er
+  sagt jetzt, dass Titel über ihre Anbieter-ID zurückfinden, und verweist für einen Umzug auf
+  «Pfad ändern».
+- **Offen:** Release 1.9.0 (Tag setzt Marco).
+
 
 Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemergt `cbf17fb`). Zweig
 `claude/wurzelwechsel` ab `main` `cbf17fb`, Frage 21, ADR 0023, Vertrag **1.9.0** additiv als eigenes

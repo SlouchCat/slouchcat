@@ -546,8 +546,8 @@ function ChangeRootDialog({
 
 /**
  * What removing a folder really does. It is longer than a confirmation usually is on purpose:
- * "delete" is both too frightening (the titles are soft-deleted and come back with their user
- * data when the folder returns within 30 days) and too harmless (the offline packages on the
+ * "delete" is both too frightening (the titles are soft-deleted and return with their user
+ * data once they come back with the same provider id, ADR 0023) and too harmless (the offline packages on the
  * devices are gone, a running playback breaks off, and the path map of Radarr and Sonarr points
  * nowhere afterwards).
  */

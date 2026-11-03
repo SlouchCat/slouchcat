@@ -189,7 +189,7 @@ describe('library folders dialog', () => {
     expect(within(confirm).getByText(/weich gelöscht/)).toBeVisible();
     expect(within(confirm).getByText(/Offline-Downloads/)).toBeVisible();
     expect(within(confirm).getByText(/Radarr und Sonarr/)).toBeVisible();
-    expect(within(confirm).getByText(/30 Tagen/)).toBeVisible();
+    expect(within(confirm).getByText(/über ihre TMDB-, TVDB- oder IMDb-Id wieder/)).toBeVisible();
     expect(within(confirm).getByText(/SLOUCHCAT_BROWSE_ROOTS/)).toBeVisible();
 
     const remove = within(confirm).getByRole('button', { name: 'Ordner entfernen' });
