@@ -56,7 +56,7 @@ func (s *Service) prepareRoots(ctx context.Context, kind string, reqs []model.Li
 			verr = verr.Add(name+"providers", model.CodeProvidersNotAllowed)
 			ok = false
 		}
-		clean, err := s.prepareRootPath(ctx, r.Path, seen)
+		clean, err := s.prepareRootPath(ctx, r.Path, seen, 0)
 		switch {
 		case errors.Is(err, errRootOverlap):
 			verr = verr.Add(name+"path", model.CodeRootOverlap)
@@ -86,9 +86,9 @@ func (s *Service) prepareRoots(ctx context.Context, kind string, reqs []model.Li
 }
 
 // prepareRootPath validates one folder path (ValidateNewRoot) and refuses it when it overlaps a
-// stored root (refuseOverlap) or one of the folders of the same request (earlier). It returns the
-// cleaned path.
-func (s *Service) prepareRootPath(ctx context.Context, path string, earlier []string) (string, error) {
+// stored root other than except (refuseOverlap; 0 for none) or one of the folders of the same
+// request (earlier). It returns the cleaned path.
+func (s *Service) prepareRootPath(ctx context.Context, path string, earlier []string, except int64) (string, error) {
 	path = strings.TrimSpace(path)
 	if err := s.ValidateNewRoot(ctx, path); err != nil {
 		return "", err
@@ -101,7 +101,7 @@ func (s *Service) prepareRootPath(ctx context.Context, path string, earlier []st
 			return "", errRootOverlap
 		}
 	}
-	if err := s.refuseOverlap(ctx, clean); err != nil {
+	if err := s.refuseOverlap(ctx, clean, except); err != nil {
 		return "", err
 	}
 	return clean, nil

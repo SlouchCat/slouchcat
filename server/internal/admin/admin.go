@@ -19,6 +19,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -91,8 +92,8 @@ type Libraries interface {
 	// AddRoots adds further folders to a library in one transaction (idea 02, E8; F-13);
 	// model.ErrNotFound, *model.ValidationError with the index of the folder that broke a rule.
 	AddRoots(ctx context.Context, libraryID int64, roots []model.LibraryRootRequest) (model.Library, error)
-	// UpdateRoot changes the content or the provider list of a folder (ADR 0015); a content
-	// change repeats the path like a removal. model.ErrNotFound, *model.ValidationError,
+	// UpdateRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023) of a
+	// folder; a content change repeats the path like a removal. model.ErrNotFound, *model.ValidationError,
 	// model.ErrConfirmMismatch, model.ErrScanRunning.
 	UpdateRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error)
 	// RemoveRoot removes a folder and soft-deletes the titles that live only there (E12).
@@ -109,6 +110,19 @@ type LibraryMaintenance interface {
 	// IgnoreFiles removes the media files, records them in ignored_files with the reason and
 	// soft-deletes titles left without a file; unknown ids are skipped.
 	IgnoreFiles(ctx context.Context, mediaFileIDs []string, reason string) (files, itemsDeleted int, err error)
+	// ListRelinkPairs lists the live films and series with a soft-deleted twin of any age
+	// (ADR 0023), of one library or of all (libraryID 0).
+	ListRelinkPairs(ctx context.Context, libraryID int64) ([]library.RelinkPair, error)
+	// CountRelinkUserData counts the user data of the titles and their descendants per table, in
+	// one statement; a title without user data is missing from the map.
+	CountRelinkUserData(ctx context.Context, itemIDs []string) (map[string]library.RelinkUserData, error)
+	// CheckRelinkPair checks a pair before anything moves and returns the library of the live
+	// title: model.ErrNotFound for an unknown id or a title that is neither film nor series,
+	// library.ErrNotTwins when the pair is no pair (any more).
+	CheckRelinkPair(ctx context.Context, deletedID, liveID string) (int64, error)
+	// Relink merges the live copy into its soft-deleted twin; model.ErrNotFound,
+	// library.ErrNotTwins, model.ErrScanRunning.
+	Relink(ctx context.Context, deletedID, liveID string) (library.RelinkResult, error)
 }
 
 // Metadata is implemented by package metadata (M3): provider search, manual match, refresh and
@@ -506,13 +520,16 @@ func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []
 	return s.libraries.AddRoots(ctx, libraryID, roots)
 }
 
-// UpdateLibraryRoot changes the content or the provider list of a folder (ADR 0015). The rules
-// and the typed confirmation of a content change live in package library.
+// UpdateLibraryRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023) of a
+// folder. The rules and the typed confirmation of a content change live in package library.
 func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64, upd model.LibraryRootUpdate) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
-	if upd.Content == nil && upd.Providers == nil {
+	if upd.Content == nil && upd.Providers == nil && upd.Path == nil {
 		verr = verr.Add("body", "required")
+	}
+	if upd.Path != nil && len(*upd.Path) > maxLibraryPath {
+		verr = verr.Add("path", "too_long")
 	}
 	if upd.Content != nil && !model.ValidRootContent(*upd.Content) {
 		verr = verr.Add("content", "invalid_value")

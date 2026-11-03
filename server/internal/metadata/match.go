@@ -97,17 +97,22 @@ func genresEmpty(raw string) bool {
 }
 
 func (s *Service) handleMatch(ctx context.Context, j *jobs.Job) error {
-	itemID, err := parsePayload(j)
+	p, err := parseItemPayload(j)
 	if err != nil {
 		return err
 	}
-	return s.match(ctx, itemID)
+	return s.matchItem(ctx, p.ItemID, !p.NoRelink)
 }
 
 // match enriches one item. Transient provider errors are returned so the queue retries; an
 // invalid key, a missing key and a title the provider does not know end the job with a state on
 // the item.
 func (s *Service) match(ctx context.Context, itemID string) error {
+	return s.matchItem(ctx, itemID, true)
+}
+
+// matchItem is match; relink false skips the relink hook after the title (relinkQueued).
+func (s *Service) matchItem(ctx context.Context, itemID string, relink bool) error {
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
@@ -120,9 +125,9 @@ func (s *Service) match(ctx context.Context, itemID string) error {
 	}
 	switch item.Kind {
 	case "movie":
-		return s.matchMovie(ctx, item)
+		return s.matchMovie(ctx, item, relink)
 	case "series":
-		return s.matchSeries(ctx, item)
+		return s.matchSeries(ctx, item, relink)
 	case "season":
 		if item.MetadataState == stateMatched {
 			return nil // the series job wrote it
@@ -151,7 +156,7 @@ func (s *Service) providerFailure(ctx context.Context, item systemq.Item, provid
 	}
 }
 
-func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
+func (s *Service) matchMovie(ctx context.Context, item systemq.Item, relink bool) error {
 	key, err := s.keys.TMDBKey(ctx)
 	if err != nil {
 		return fmt.Errorf("metadata.match: read tmdb key: %w", err)
@@ -173,6 +178,9 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
 	rec.Fanart = s.fanartImages(ctx, item.ID, "movie", rec.TMDBID)
 	_, applied, err := s.applyTitle(ctx, item, rec.TitleRecord, langs)
 	if err != nil || !applied {
+		return err
+	}
+	if twin, err := s.relinkQueued(ctx, item.ID, relink); err != nil || twin {
 		return err
 	}
 	if err := s.enqueueImages(ctx, item.ID, imageFetchPriority); err != nil {
@@ -221,7 +229,7 @@ func itemYear(item systemq.Item) *int {
 	return &y
 }
 
-func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
+func (s *Service) matchSeries(ctx context.Context, item systemq.Item, relink bool) error {
 	tmdbKey, err := s.keys.TMDBKey(ctx)
 	if err != nil {
 		return fmt.Errorf("metadata.match: read tmdb key: %w", err)
@@ -281,6 +289,9 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	if err != nil || !applied {
 		return err
 	}
+	if twin, err := s.relinkQueued(ctx, item.ID, relink); err != nil || twin {
+		return err
+	}
 	if err := s.matchSeasons(ctx, series, prov, rec, langs); err != nil {
 		return err
 	}
@@ -288,6 +299,26 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 		return fmt.Errorf("metadata.match: %w", err)
 	}
 	return s.enqueueTrailerAfterMatch(ctx, item.ID)
+}
+
+// relinkQueued runs the relink hook (WithRelink) after a match wrote the provider ids of a film or
+// series. It reports whether the title has a soft-deleted twin; then the hook has queued the job
+// that merges it into the twin, and the rest of the match (seasons, images, fill, trailer) is left
+// to the twin's own match after the merge. A failed hook is returned, so the queue retries the
+// match. With relink false (the payload's noRelink: library.relink failed for good or was
+// cancelled) the hook does not run and the match completes the title.
+func (s *Service) relinkQueued(ctx context.Context, itemID string, relink bool) (bool, error) {
+	if s.relink == nil || !relink {
+		return false, nil
+	}
+	twin, err := s.relink(ctx, itemID)
+	if err != nil {
+		return false, fmt.Errorf("metadata.match: relink hook of %s: %w", itemID, err)
+	}
+	if twin {
+		s.log.Info("matched title has a deleted twin, relink queued", "item_id", itemID)
+	}
+	return twin, nil
 }
 
 // resolveSeriesTMDB finds the TMDB series of item: tmdb_id, else tvdb_id or imdb_id through /find,

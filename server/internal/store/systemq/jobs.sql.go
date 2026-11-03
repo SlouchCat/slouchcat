@@ -161,6 +161,35 @@ func (q *Queries) CountQueuedJobRuns(ctx context.Context, arg CountQueuedJobRuns
 	return count, err
 }
 
+const deferJob = `-- name: DeferJob :execrows
+UPDATE jobs
+SET state = 'queued', attempts = attempts - 1, run_after = ?1, lease_owner = NULL, lease_until = NULL,
+    updated_at = ?2
+WHERE id = ?3 AND state = 'running' AND lease_owner = ?4
+`
+
+type DeferJobParams struct {
+	RunAfter int64
+	Now      int64
+	ID       int64
+	WorkerID sql.NullString
+}
+
+// A handler that cannot start yet (jobs.RetryLater) returns its job to the queue for later without
+// counting the attempt.
+func (q *Queries) DeferJob(ctx context.Context, arg DeferJobParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deferJob,
+		arg.RunAfter,
+		arg.Now,
+		arg.ID,
+		arg.WorkerID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const ensureJobType = `-- name: EnsureJobType :exec
 
 INSERT INTO job_types (type, updated_at) VALUES (?1, ?2)

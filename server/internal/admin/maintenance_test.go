@@ -13,6 +13,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
@@ -113,6 +114,14 @@ type fakeMaintenance struct {
 	cancelled []int64
 	ignored   []string
 	reason    string
+	// The relink (ADR 0023): the listed pairs, the user data per deleted title, the counted
+	// titles per call, the relinked pairs, and the errors of the relinks in their order
+	// (nil = merged). A pair is checked against the listed pairs: an id ending in "?" is unknown.
+	pairs     []library.RelinkPair
+	userData  map[string]library.RelinkUserData
+	counted   [][]string
+	relinked  []string
+	relinkErr []error
 }
 
 func (m *fakeMaintenance) CancelScan(_ context.Context, id int64) (model.Library, error) {
@@ -126,6 +135,47 @@ func (m *fakeMaintenance) CancelScan(_ context.Context, id int64) (model.Library
 func (m *fakeMaintenance) IgnoreFiles(_ context.Context, ids []string, reason string) (files, itemsDeleted int, err error) {
 	m.ignored, m.reason = append(m.ignored, ids...), reason
 	return len(ids), 1, nil
+}
+
+func (m *fakeMaintenance) ListRelinkPairs(_ context.Context, libraryID int64) ([]library.RelinkPair, error) {
+	out := []library.RelinkPair{}
+	for _, p := range m.pairs {
+		if libraryID == 0 || p.LibraryID == libraryID {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+func (m *fakeMaintenance) CountRelinkUserData(_ context.Context, itemIDs []string) (map[string]library.RelinkUserData, error) {
+	m.counted = append(m.counted, itemIDs)
+	out := map[string]library.RelinkUserData{}
+	for _, id := range itemIDs {
+		if d, ok := m.userData[id]; ok {
+			out[id] = d
+		}
+	}
+	return out, nil
+}
+
+func (m *fakeMaintenance) CheckRelinkPair(_ context.Context, deletedID, liveID string) (int64, error) {
+	if strings.HasSuffix(deletedID, "?") || strings.HasSuffix(liveID, "?") {
+		return 0, model.ErrNotFound
+	}
+	for _, p := range m.pairs {
+		if p.DeletedID == deletedID && p.LiveID == liveID {
+			return p.LibraryID, nil
+		}
+	}
+	return 0, library.ErrNotTwins
+}
+
+func (m *fakeMaintenance) Relink(_ context.Context, deletedID, liveID string) (library.RelinkResult, error) {
+	m.relinked = append(m.relinked, deletedID+"<"+liveID)
+	if n := len(m.relinked); n <= len(m.relinkErr) && m.relinkErr[n-1] != nil {
+		return library.RelinkResult{}, m.relinkErr[n-1]
+	}
+	return library.RelinkResult{KeptID: deletedID, RemovedID: liveID, Merged: 1}, nil
 }
 
 type maintFixture struct {

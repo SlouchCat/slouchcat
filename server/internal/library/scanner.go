@@ -35,9 +35,10 @@ const (
 	maxRowsPerSeriesOp = 8
 	// lossThresholdPercent is the share of known files that may disappear in one scan.
 	lossThresholdPercent = 20
-	// relinkWindow is how long a soft-deleted title can come back through a new file with the same
-	// TMDB, TVDB or IMDb id, keeping its user data (plan 3.2).
-	relinkWindow = 30 * 24 * time.Hour
+	// titleRelinkWindow is how long a soft-deleted title can come back through a new file with the
+	// same sort title and year, keeping its user data. Through the same TMDB, TVDB or IMDb id it
+	// comes back without a time limit (ADR 0023, point 2).
+	titleRelinkWindow = 30 * 24 * time.Hour
 )
 
 // Abort codes stored in libraries.last_scan_error with state aborted (plan 3.2), and the code of

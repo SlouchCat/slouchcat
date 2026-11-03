@@ -252,6 +252,35 @@ func (q *Queries) ListIgnoredFilesByRoot(ctx context.Context, rootID int64) ([]s
 	return items, nil
 }
 
+const listMediaFileRelPathsOfRoot = `-- name: ListMediaFileRelPathsOfRoot :many
+SELECT rel_path FROM media_files WHERE root_id = ?1 ORDER BY rel_path
+`
+
+// The known files of a folder that gets a new path (updateLibraryRoot, ADR 0023): at least one of
+// them must lie under the new path.
+func (q *Queries) ListMediaFileRelPathsOfRoot(ctx context.Context, rootID int64) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listMediaFileRelPathsOfRoot, rootID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var rel_path string
+		if err := rows.Scan(&rel_path); err != nil {
+			return nil, err
+		}
+		items = append(items, rel_path)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTitleIDsOfRoot = `-- name: ListTitleIDsOfRoot :many
 
 SELECT DISTINCT COALESCE(

@@ -209,11 +209,13 @@ UPDATE OR IGNORE credits SET item_id = @target_id WHERE item_id = @source_id;
 
 -- name: AdminMergeProgress :exec
 -- Per profile the further progress wins: completed over not completed, then the larger position.
-INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at)
-SELECT p.profile_id, @target_id, p.position_ms, p.duration_ms, p.completed, p.updated_at
+-- The playback rate goes with the winning row; a winner without one keeps the target's.
+INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, playback_rate, updated_at)
+SELECT p.profile_id, @target_id, p.position_ms, p.duration_ms, p.completed, p.playback_rate, p.updated_at
 FROM progress AS p WHERE p.item_id = @source_id AND true
 ON CONFLICT (profile_id, item_id) DO UPDATE
 SET position_ms = excluded.position_ms, duration_ms = excluded.duration_ms, completed = excluded.completed,
+    playback_rate = coalesce(excluded.playback_rate, progress.playback_rate),
     updated_at = max(progress.updated_at, excluded.updated_at)
 WHERE excluded.completed > progress.completed
    OR (excluded.completed = progress.completed AND excluded.position_ms > progress.position_ms);

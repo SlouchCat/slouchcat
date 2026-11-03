@@ -142,6 +142,8 @@ type Service struct {
 	recheck func(ctx context.Context) error
 	// newEpisodes is told the ids of new podcast episodes after their transaction (WithNewEpisodes).
 	newEpisodes func(ctx context.Context, ids []string) error
+	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
+	relink func(ctx context.Context, itemID string) (bool, error)
 
 	trakt traktConfig // Trakt lists (trakt.go)
 
@@ -176,6 +178,7 @@ type options struct {
 	feedNow     func() time.Time
 	feedAgent   string
 	newEpisodes func(ctx context.Context, ids []string) error
+	relink      func(ctx context.Context, itemID string) (bool, error)
 	traktID     string
 	trakt       traktOptions
 }
@@ -247,6 +250,15 @@ func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
 	return func(o *options) { o.newEpisodes = fn }
 }
 
+// WithRelink sets the function a match calls after it wrote the provider ids of a film or series
+// (library.Service.QueueRelink, ADR 0023): it reports whether the title has a soft-deleted twin
+// with the same ids and then queues the job that merges the title into it. A title with a twin is
+// about to go, so its match ends there; the survivor gets its own match after the merge. An error
+// fails the match, which the queue retries.
+func WithRelink(fn func(ctx context.Context, itemID string) (bool, error)) Option {
+	return func(o *options) { o.relink = fn }
+}
+
 // WithHTTPClient replaces the HTTP client (default: 15 s timeout).
 func WithHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.http = c }
@@ -302,6 +314,7 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 		trailersAI:      newAITrailers(o.trailerAI, log),
 		recheck:         o.recheck,
 		newEpisodes:     o.newEpisodes,
+		relink:          o.relink,
 		trakt:           newTraktConfig(o.traktID, o.trakt, o.now, o.feedAgent),
 
 		accentRetries: map[string]int{},
@@ -361,10 +374,14 @@ func (s *Service) CheckKey(ctx context.Context, key string) error {
 
 // itemPayload is the payload of both jobs. Images marks a fill queued by metadata.apply for
 // the images: it fetches the records and decides the image kinds again even for a folder with
-// one provider, which an ordinary fill leaves to the match (section 1.1 of concept 10).
+// one provider, which an ordinary fill leaves to the match (section 1.1 of concept 10). NoRelink
+// marks a match queued by package library after its library.relink of the title failed for good
+// or was cancelled: the match skips the relink hook (WithRelink) and completes the title, so it
+// does not hand the title back to the relink it just left.
 type itemPayload struct {
-	ItemID string `json:"itemId"`
-	Images bool   `json:"images,omitempty"`
+	ItemID   string `json:"itemId"`
+	Images   bool   `json:"images,omitempty"`
+	NoRelink bool   `json:"noRelink,omitempty"`
 }
 
 func parsePayload(j *jobs.Job) (string, error) {

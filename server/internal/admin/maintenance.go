@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -628,6 +629,12 @@ func (s *Service) softDeleteOrphanBatch(ctx context.Context, ids []string) (int,
 			return 0, fmt.Errorf("soft-delete item: %w", err)
 		}
 		n += int(rows)
+	}
+	if n > 0 {
+		// A fresh copy of a removed film or series merges into it (ADR 0023).
+		if err := library.QueueRelinksTx(ctx, q, time.UnixMilli(now)); err != nil {
+			return 0, err
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit: %w", err)

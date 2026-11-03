@@ -1,5 +1,43 @@
 # Aktueller Stand
 
+## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: gebaut, `task ci` grün (3. November 2026)
+
+Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemergt `cbf17fb`). Zweig
+`claude/wurzelwechsel` ab `main` `cbf17fb`, Frage 21, ADR 0023, Vertrag **1.9.0** additiv als eigenes
+Release vor Konzept 13 und 14, keine Migration. Schritte:
+
+- **W-0** (`258abce`) Papiere: Frage 21, ADR 0023, Plan 3.2, Ideenstatus «Übernommen».
+- **W-1** (`167abe0`) Zusammenführung über den Baum im Paket `library` (die alte ID bleibt).
+- **W-2** (`4d96de0`) Scanner: Wiederverknüpfung über Anbieter-ID ohne Frist, über (`sort_title`, Jahr)
+  30 Tage.
+- **W-3** (`c4eb17d`) Haken nach `metadata.match` (`metadata.WithRelink`).
+- **Review W-1 bis W-3** (4 Major, 7 Minor) behoben in `1673ec8`, `85f2734` (`jobs.RetryLater`,
+  `Queue.Defer`) und `256b954`. Wichtigste Änderungen: dauerhafter Job `library.relink`,
+  Mitfalten älterer Zwillinge, gepflegte Werte der Kopie bleiben, nur frische Kopien.
+- **W-4** (`3ca1243`, `469f7ba`) Pflegeaktion «Verwaiste Benutzerdaten» (Vertrag 1.9.0, Server,
+  Reiter unter «Pflege», Tastaturtest).
+- **Review W-4** (4 Major, 10 Minor) behoben in `5c74811`, `db606bc` und `e480d78`. Marcos Antworten:
+  **7 Tage Spielraum** für die automatische Wiederverknüpfung, keine Frische-Regel in der
+  Pflegeaktion; **alle Paare vorausgewählt**, abgewählte bleiben abgewählt. Ein wackliger Test
+  (`TestRelinkFoldsOlderTwins`) hatte seine Ursache in der Testhilfe: gleich grosse Dateien und ein
+  wiederverwendeter inode. Belegt mit `-count=200` und `-race -count=50`.
+- **W-5** (`4e6e9b1`, `f9696b3`) «Pfad ändern» für einen Ordner (Vertrag, Server, Oberfläche,
+  Tastaturtest). Der e2e-Test zieht einen echten Ordner um, und der Titel behält seine ID.
+- **Schluss-Review** (1 Blocker, 1 Major, 11 Minor) behoben in `b891821`, `fa59c21` und `1dafa0e`.
+  Blocker: Eine gesperrte mildere Freigabe des Zwillings konnte die strengere der Kopie verdrängen.
+  Major: Auch das Löschen reiht jetzt die Wiederverknüpfung ein («hinzufügen, scannen, entfernen»).
+- **Kontroll-Review** der Schluss-Fixes: alle 11 Befunde behoben. Drei kleine Punkte nachgezogen in
+  `55b1bf5`: Die Zwillingsabfragen nutzen fest die Indizes der Anbieter-IDs. Nach `ANALYZE` brauchte
+  `ListRelinkPairs` vorher 56 s, jetzt 33 ms. Ein neuer Plan-Test sichert das ab.
+- **W-6** Messung `docs/perf/wurzelwechsel.md` (`ec2546f`). **Voller `task ci` auf `55b1bf5` grün**
+  (Exit 0, 616 e2e-Tests, Log-Scan ohne Befund). Ein Lauf davor scheiterte am bekannten Ausreisser
+  `LoginPage.test.tsx` («document is not defined», siehe unten), den dieser Zweig nicht berührt.
+- **Offen:** Pull Request, Merge auf Marcos Wort, Release 1.9.0. Abnahme auf CT 190: Image bauen,
+  Pflegeaktion für die zwei Serien vom 28. Oktober ausführen, Scanzeit der Bibliothek «Serien»
+  messen. Schreibzugriffe auf CT 190 nur auf Marcos Wort.
+- **W-6** Messung (`docs/perf/wurzelwechsel.md`), `task ci`, Pull Request. Abnahme und Reparatur auf
+  CT 190 erst auf Marcos Wort.
+
 ## Konzept 12 «Seitenmuster der Verwaltungsseiten»: umgesetzt und abgenommen, Schritte K12-0 bis K12-9 (3. November 2026)
 
 **Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.

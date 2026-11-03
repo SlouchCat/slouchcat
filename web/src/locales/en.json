@@ -194,6 +194,8 @@
       "library_kind": "Choose a podcast library.",
       "unknown_item": "This title does not exist.",
       "root_overlap": "This folder overlaps another folder.",
+      "path_with_content": "A new path cannot be combined with a content change.",
+      "root_files_missing": "None of the folder's files lies under the new path.",
       "content_not_allowed": "This content does not fit the kind of the library.",
       "providers_not_allowed": "This list of metadata sources is not allowed for this content.",
       "roots_required": "At least one folder is required.",
@@ -873,6 +875,14 @@
           "confirmTitle": "Really change the content?",
           "confirm": "Change content",
           "saved": "The folder {{path}} is changed."
+        },
+        "move": {
+          "action": "Change path",
+          "label": "Change the path of {{path}}",
+          "title": "Change path?",
+          "body": "Old path: {{old}} · New path: {{new}}. Titles and user data stay when the files lie there under the same names. The folder is read anew afterwards.",
+          "confirm": "Change",
+          "saved": "The folder now lies at {{path}} and is read anew."
         }
       },
       "openFolders": "Folders",
@@ -907,7 +917,8 @@
         "orphaned": "Orphaned",
         "unplayable": "Unplayable",
         "rating_mismatch": "Rating mismatch",
-        "duplicates": "Duplicates"
+        "duplicates": "Duplicates",
+        "relink": "Orphaned user data"
       },
       "hint": {
         "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
@@ -916,7 +927,8 @@
         "orphaned": "Titles without a file or with missing files, empty seasons and series.",
         "unplayable": "Files that cannot be read. Check them again or remove them from the library.",
         "rating_mismatch": "The stored rating differs from the computed one. A rating change or the next scan corrects it. There is nothing to select here.",
-        "duplicates": "Titles that exist twice. Pick the title to keep and merge the others into it."
+        "duplicates": "Titles that exist twice. Pick the title to keep and merge the others into it.",
+        "relink": "Deleted titles that are back in the library as a new copy. Progress, history and lists still hang on the deleted title. «Relink» merges the copy into it; the old title stays."
       },
       "empty": "Nothing to do.",
       "selection": "Selection",
@@ -959,7 +971,12 @@
         "rating_other": "Rating set for {{count}} titles.",
         "cleanup": "Removed: {{items}}, {{files}}.",
         "merge": "Titles merged.",
-        "match": "Match saved, the metadata is being loaded."
+        "match": "Match saved, the metadata is being loaded.",
+        "relink": "Relinked: {{titles}}.",
+        "relinkStopped_one": "{{count}} relinked. A scan is running. Start «Relink» again after the scan for the rest.",
+        "relinkStopped_other": "{{count}} relinked. A scan is running. Start «Relink» again after the scan for the rest.",
+        "relinkSkipped_one": "1 skipped: the pair no longer exists, for example because it was already merged.",
+        "relinkSkipped_other": "{{count}} skipped: the pair no longer exists, for example because it was already merged."
       },
       "cleanup": {
         "title": "Clean up titles?",
@@ -1004,6 +1021,56 @@
         "meta_other": "{{reason}} · {{title}} · {{count}} titles",
         "keep": "stays",
         "noFiles": "No file"
+      },
+      "relink": {
+        "empty": "No orphaned user data.",
+        "action": "Relink",
+        "noUserData": "no user data",
+        "columns": {
+          "library": "Library",
+          "deletedAt": "Deleted on",
+          "userData": "User data",
+          "deleted": "Deleted title",
+          "copy": "Copy"
+        },
+        "confirmTitle": "Relink user data?",
+        "data": {
+          "progress_one": "{{count}} progress entry",
+          "progress_other": "{{count}} progress entries",
+          "progressEvents_one": "{{count}} playback event",
+          "progressEvents_other": "{{count}} playback events",
+          "progressDays_one": "{{count}} daily statistic",
+          "progressDays_other": "{{count}} daily statistics",
+          "playbackSessions_one": "{{count}} playback",
+          "playbackSessions_other": "{{count}} playbacks",
+          "watchlist_one": "{{count}} watchlist entry",
+          "watchlist_other": "{{count}} watchlist entries",
+          "favorites_one": "{{count}} favourite",
+          "favorites_other": "{{count}} favourites",
+          "collectionItems_one": "{{count}} collection entry",
+          "collectionItems_other": "{{count}} collection entries",
+          "notifications_one": "{{count}} notification",
+          "notifications_other": "{{count}} notifications",
+          "topPicks_one": "{{count}} top pick",
+          "topPicks_other": "{{count}} top picks",
+          "downloads_one": "{{count}} download",
+          "downloads_other": "{{count}} downloads",
+          "activityEvents_one": "{{count}} activity",
+          "activityEvents_other": "{{count}} activities"
+        },
+        "copies_one": "{{count}} copy",
+        "copies_other": "{{count}} copies",
+        "selectPair": "Select {{copy}} ({{library}}, deleted on {{date}})",
+        "selectPairOf": "Select {{copy}} ({{library}}, deleted on {{date}}, copy {{index}} of {{copies}})",
+        "confirmMerge_one": "1 copy merges into its deleted title. The old title comes back and keeps its address.",
+        "confirmMerge_other": "{{count}} copies merge into their deleted titles. The old titles come back and keep their addresses.",
+        "confirmKept": "Kept: {{data}}.",
+        "confirmNoData_one": "The deleted title has no user data.",
+        "confirmNoData_other": "The deleted titles have no user data.",
+        "confirmRemoved_one": "The copy is removed for good.",
+        "confirmRemoved_other": "The copies are removed for good.",
+        "confirmExtra_one": "One more copy of the same title is skipped and is then listed under «Duplicates».",
+        "confirmExtra_other": "{{count}} more copies of the same titles are skipped and are then listed under «Duplicates»."
       }
     },
     "item": {
@@ -2775,6 +2842,10 @@
         "segments_detect": {
           "name": "Detect intro and outro",
           "trigger": "From the scan per season"
+        },
+        "library_relink": {
+          "name": "Relink deleted title",
+          "trigger": "After the match of a title with a deleted twin"
         },
         "metadata_match": {
           "name": "Match title",

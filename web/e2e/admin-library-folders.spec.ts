@@ -1,7 +1,7 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
-import { MEDIA_DIR } from './env';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { MEDIA_DIR, MOVIES_DIR } from './env';
 import {
   expectFocusOn,
   expectNoFocusTrap,
@@ -25,6 +25,12 @@ const first = join(base, 'eins');
 const second = join(base, 'zwei');
 const third = join(base, 'drei');
 const fourth = join(base, 'vier');
+// «Pfad ändern» (ADR 0023 point 4): one film in two folders under the same name, the old place
+// and the new one, so the scan at the new place finds the file again.
+const before = join(base, 'fuenf');
+const after = join(base, 'sechs');
+const MOVED_TITLE = 'E2E Umzug';
+const movedFile = `${MOVED_TITLE} (2001)/${MOVED_TITLE} (2001).mp4`;
 
 /** The toggle of the library's row, its row and its fold-out (concept 12, Bib-C). */
 const toggle = (page: Page) => page.getByRole('button', { name: NAME, exact: true });
@@ -42,6 +48,13 @@ test.beforeAll(() => {
   for (const dir of [first, second, third, fourth]) {
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'readme.txt'), 'no media here');
+  }
+  for (const dir of [before, after]) {
+    mkdirSync(join(dir, `${MOVED_TITLE} (2001)`), { recursive: true });
+    copyFileSync(
+      join(MOVIES_DIR, 'Slouchcat Test H264 (2024)', 'Slouchcat Test H264 (2024) - 720p.mp4'),
+      join(dir, movedFile),
+    );
   }
 });
 
@@ -300,6 +313,131 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
   await typed.getByLabel('Tippe den Pfad, um zu bestätigen').fill(first);
   await typed.getByRole('button', { name: 'Inhalt wechseln' }).click();
   await expect(change(page)).toHaveCount(0);
+  await closeDialog(page);
+  await expectNoFocusTrap(page);
+});
+
+/** The library of this spec as the administration lists it. */
+async function ownLibrary(api: APIRequestContext) {
+  const response = await api.get('/api/v1/admin/libraries');
+  expect(response.status()).toBe(200);
+  const libraries = (await response.json()) as {
+    id: number;
+    name: string;
+    scan: { state: string; finishedAt?: string };
+  }[];
+  const library = libraries.find((candidate) => candidate.name === NAME);
+  expect(library, NAME).toBeDefined();
+  return library!;
+}
+
+/** Waits until a scan of the library finished after `since`, and returns the id of the film. */
+async function movedTitleAfterScan(api: APIRequestContext, since: number): Promise<string> {
+  let libraryId = 0;
+  await expect
+    .poll(
+      async () => {
+        const library = await ownLibrary(api);
+        libraryId = library.id;
+        const finished = library.scan.finishedAt ? Date.parse(library.scan.finishedAt) : 0;
+        return library.scan.state === 'done' && finished >= since;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+  const response = await api.get(`/api/v1/libraries/${libraryId}/items?limit=100`);
+  expect(response.status()).toBe(200);
+  const { items } = (await response.json()) as { items: { id: string; title: string }[] };
+  const item = items.find((candidate) => candidate.title === MOVED_TITLE);
+  expect(item, MOVED_TITLE).toBeDefined();
+  return item!.id;
+}
+
+test('«Pfad ändern» picks the new place by keyboard and keeps the title (ADR 0023)', async ({
+  page,
+}) => {
+  const browser = page.getByRole('dialog', { name: 'Ordner auswählen' });
+  const confirmMove = page.getByRole('alertdialog', { name: 'Pfad ändern?' });
+  const moveButton = (path: string) =>
+    dialog(page).getByRole('button', { name: `Pfad von ${path} ändern` });
+
+  await openDialog(page);
+  let since = Date.now();
+  await addFolders(page, [before]);
+  const titleId = await movedTitleAfterScan(page.request, since);
+
+  /**
+   * Opens the browser from the row by keyboard and types the new place into its path field: the
+   * folders of this spec lie below a hidden folder, which the list does not show, and a library
+   * folder opens as a root of its own (PathBrowserDialog.startPosition).
+   */
+  const pickNewPlace = async () => {
+    const open = moveButton(before);
+    if (!(await open.evaluate((element) => element === document.activeElement)))
+      await tabTo(page, open, 30);
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    await expect(browser).toBeVisible();
+    // The browser opens in the folder's own path, the focus on its first row.
+    const field = browser.getByLabel('Ordner', { exact: true });
+    await expect(field).toHaveValue(before);
+    const film = browser.getByRole('option', { name: new RegExp(MOVED_TITLE) });
+    await expectFocusOn(page, film);
+    await expectVisibleFocus(page);
+    await tabTo(page, field, 10);
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type(after);
+    await tabTo(page, browser.getByRole('button', { name: 'OK', exact: true }), 10);
+    await page.keyboard.press('Enter');
+    await expect(browser).toHaveCount(0);
+    await expect(confirmMove).toBeVisible();
+    await expect(
+      confirmMove.getByText(`Alter Pfad: ${before} · Neuer Pfad: ${after}.`, { exact: false }),
+    ).toBeVisible();
+    await expectFocusOn(page, confirmMove.getByRole('button', { name: 'Ändern' }));
+    await expectVisibleFocus(page);
+  };
+
+  // Escape leaves the folder where it was and hands the focus back to its «Pfad ändern».
+  let patched = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH' && /\/roots\/\d+$/.test(request.url())) patched += 1;
+  });
+  await pickNewPlace();
+  await page.keyboard.press('Escape');
+  await expect(confirmMove).toHaveCount(0);
+  await expectFocusOn(page, moveButton(before));
+  await expect(dialog(page).getByText(before, { exact: true })).toBeVisible();
+  expect(patched).toBe(0);
+
+  // Enter confirms: the server takes the new path, the list and the status say so.
+  await pickNewPlace();
+  const saved = page.waitForResponse(
+    (response) => response.request().method() === 'PATCH' && /\/roots\/\d+$/.test(response.url()),
+  );
+  since = Date.now();
+  await page.keyboard.press('Enter');
+  const answer = await saved;
+  expect(answer.status()).toBe(200);
+  expect(answer.request().postDataJSON()).toEqual({ path: after });
+  await expect(confirmMove).toHaveCount(0);
+  await expect(
+    dialog(page).getByText(`Der Ordner liegt jetzt unter ${after} und wird neu eingelesen.`),
+  ).toBeVisible();
+  await expect(dialog(page).getByText(after, { exact: true })).toBeVisible();
+  await expect(dialog(page).getByText(before, { exact: true })).toHaveCount(0);
+  await expectFocusOn(page, moveButton(after));
+
+  // The scan at the new place finds the file under the same name: the title keeps its id.
+  expect(await movedTitleAfterScan(page.request, since)).toBe(titleId);
+
+  // Out again, so the spec can run again on the same server.
+  await dialog(page)
+    .getByRole('button', { name: `Ordner ${after} entfernen` })
+    .click();
+  await confirm(page).getByLabel('Tippe den Pfad, um zu bestätigen').fill(after);
+  await confirm(page).getByRole('button', { name: 'Ordner entfernen' }).click();
+  await expect(confirm(page)).toHaveCount(0);
   await closeDialog(page);
   await expectNoFocusTrap(page);
 });

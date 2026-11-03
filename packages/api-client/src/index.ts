@@ -94,6 +94,11 @@ export type IssuePage = components['schemas']['IssuePage'];
 export type DuplicateGroup = components['schemas']['DuplicateGroup'];
 export type MergeRequest = components['schemas']['MergeRequest'];
 export type CleanupRequest = components['schemas']['CleanupRequest'];
+export type RelinkPair = components['schemas']['RelinkPair'];
+export type RelinkPairList = components['schemas']['RelinkPairList'];
+export type RelinkUserData = components['schemas']['RelinkUserData'];
+export type RelinkPairRef = components['schemas']['RelinkPairRef'];
+export type RelinkOutcome = components['schemas']['RelinkOutcome'];
 /** RFC 9457 problem details as returned by every failing JSON endpoint. */
 export type Problem = components['schemas']['Problem'];
 export type ApiClient = Client<paths>;

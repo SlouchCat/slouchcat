@@ -103,7 +103,7 @@ test('every issue kind has a tab with its count; arrows move between the tabs', 
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, tab(page, /^Nicht abspielbar/));
   await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, tab(page, /^Verwaist/));
+  await expectFocusOn(page, tab(page, /^Verwaist \d/));
   await expectNoFocusTrap(page, TAB_MAX);
 });
 
@@ -311,6 +311,164 @@ test('a title links to its administration page; Back returns to the tab', async 
   await expect(
     panel(page).getByRole('link', { name: (await first.textContent()) ?? '' }),
   ).toBeVisible();
+});
+
+test('orphaned user data: the tab is reached by keyboard and lists what the server finds', async ({
+  page,
+  owner,
+}) => {
+  const response = await owner.get('/api/v1/admin/maintenance/relink');
+  expect(response.status(), await response.text()).toBe(200);
+  const { total } = (await response.json()) as { total: number };
+
+  await openTab(page, /^Verwaiste Benutzerdaten/);
+  await expect(page).toHaveURL(/\?tab=relink$/);
+  await expect(tab(page, /^Verwaiste Benutzerdaten/)).toHaveAccessibleName(
+    `Verwaiste Benutzerdaten ${total} Titel`,
+  );
+  await expect(panel(page).getByText(/^Gelöschte Titel, die als neue Kopie/)).toBeVisible();
+  // The test media carries no provider ids (no TMDB key), so nothing is orphaned normally.
+  if (total === 0) {
+    await expect(panel(page).getByText('Keine verwaisten Benutzerdaten.')).toBeVisible();
+    await expect(panel(page).getByRole('table')).toHaveCount(0);
+  } else {
+    await expect(panel(page).getByRole('table', { name: 'Verwaiste Benutzerdaten' })).toBeVisible();
+  }
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, tab(page, /^Duplikate/));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, tab(page, /^Verwaiste Benutzerdaten/));
+  await expectNoFocusTrap(page, TAB_MAX);
+});
+
+test.describe('orphaned user data (requests intercepted)', () => {
+  // The test media has no deleted title with a live copy, and making one needs provider ids the
+  // run does not have: the list and the relink are answered here (the Go tests of admin and
+  // library relink real pairs). The service worker stays out, as below.
+  test.use({ serviceWorkers: 'block' });
+
+  test('select by keyboard, «Umhängen» asks, Esc goes back, Enter relinks the selection', async ({
+    page,
+  }) => {
+    const none = {
+      progress: 0,
+      progressEvents: 0,
+      progressDays: 0,
+      playbackSessions: 0,
+      watchlist: 0,
+      favorites: 0,
+      collectionItems: 0,
+      notifications: 0,
+      topPicks: 0,
+      downloads: 0,
+      activityEvents: 0,
+    };
+    const pair = (
+      n: number,
+      deletedTitle: string,
+      title: string,
+      userData: Partial<typeof none>,
+    ) => ({
+      deletedId: `01JB8Z6Q4M7N9P2R3S5T7V9X2${n}`,
+      liveId: `01JB8Z6Q4M7N9P2R3S5T7V9X3${n}`,
+      libraryId: 2,
+      libraryName: 'Serien',
+      kind: 'series',
+      title,
+      year: 2003,
+      deletedTitle,
+      deletedYear: 2003,
+      deletedAt: '2026-10-28T09:00:00Z',
+      userData: { ...none, ...userData },
+    });
+    let pairs = [
+      pair(1, 'E2E Two and a Half Men', 'E2E Two and a Half Men Copy', {
+        progress: 2,
+        progressEvents: 100,
+      }),
+      pair(2, 'E2E Silo', 'E2E Silo', { progress: 1, progressEvents: 40 }),
+    ];
+    const posted: unknown[] = [];
+    await page.route('**/api/v1/admin/maintenance/relink', async (route) => {
+      if (route.request().method() === 'POST') {
+        posted.push(route.request().postDataJSON());
+        const [first] = pairs;
+        pairs = pairs.slice(1);
+        return route.fulfill({
+          json: {
+            relinked: [{ keptId: first?.deletedId, removedId: first?.liveId, merged: 3, moved: 0 }],
+            skipped: 0,
+          },
+        });
+      }
+      return route.fulfill({ json: { total: pairs.length, pairs } });
+    });
+    await page.goto('/admin/maintenance');
+    await expect(h1(page)).toBeVisible();
+
+    await openTab(page, /^Verwaiste Benutzerdaten 2 Titel$/);
+    const table = panel(page).getByRole('table', { name: 'Verwaiste Benutzerdaten' });
+    // Both titles: the deleted one heads the row, the copy links to its administration page.
+    const first = table.getByRole('row', { name: /E2E Two and a Half Men \(2003\)/ });
+    await expect(first.getByRole('rowheader')).toHaveText('E2E Two and a Half Men (2003)');
+    await expect(
+      first.getByRole('link', { name: 'E2E Two and a Half Men Copy (2003)' }),
+    ).toBeVisible();
+    await expect(table.getByText('2 Fortschritte, 100 Wiedergabe-Ereignisse')).toBeVisible();
+    const boxes = table.getByRole('checkbox');
+    await expect(boxes).toHaveCount(2);
+    await expect(boxes.nth(0)).toBeChecked();
+    await expect(boxes.nth(1)).toBeChecked();
+
+    // Tab into the table, ↓ to the second row, Space takes it out.
+    await tabTo(page, boxes.first(), TAB_MAX);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, boxes.nth(1));
+    await page.keyboard.press('Space');
+    await expect(boxes.nth(1)).not.toBeChecked();
+    await expect(panel(page).getByText('1 ausgewählt')).toBeVisible();
+
+    // «Umhängen» asks first; Esc closes the question and the focus goes back to the button.
+    const relink = panel(page).getByRole('button', { name: 'Umhängen' });
+    await tabBackTo(page, relink);
+    await page.keyboard.press('Enter');
+    const confirm = page.getByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    await expect(confirm).toBeVisible();
+    await expect(
+      confirm.getByText(
+        /Es bleiben erhalten: 2 Fortschritte, 100 Wiedergabe-Ereignisse\. Die Kopie wird endgültig entfernt\.$/,
+      ),
+    ).toBeVisible();
+    await expectFocusOn(page, confirm.getByRole('button', { name: 'Umhängen' }));
+    await page.keyboard.press('Escape');
+    await expect(confirm).toHaveCount(0);
+    await expectFocusOn(page, relink);
+    expect(posted).toHaveLength(0);
+
+    // Enter twice: open the question, confirm. Only the selected pair goes to the server.
+    await page.keyboard.press('Enter');
+    await expect(confirm).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(confirm).toHaveCount(0);
+    await expect(panel(page).getByText('Umgehängt: 1 Titel.')).toBeVisible();
+    expect(posted).toEqual([
+      {
+        pairs: [{ deletedId: '01JB8Z6Q4M7N9P2R3S5T7V9X21', liveId: '01JB8Z6Q4M7N9P2R3S5T7V9X31' }],
+      },
+    ]);
+    await expect(
+      table.getByRole('link', { name: 'E2E Two and a Half Men Copy (2003)' }),
+    ).toHaveCount(0);
+    // The pair taken out stays out, so «Umhängen» turned off and the h1 takes the focus (ALL-2).
+    await expect(
+      table.getByRole('checkbox', {
+        name: 'E2E Silo (2003) auswählen (Serien, gelöscht am 28.10.2026)',
+      }),
+    ).not.toBeChecked();
+    await expect(relink).toBeDisabled();
+    await expect(h1(page)).toBeFocused();
+    await expectNoFocusTrap(page, TAB_MAX);
+  });
 });
 
 test.describe('refresh (requests intercepted)', () => {

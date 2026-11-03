@@ -67,7 +67,7 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 			t.Errorf("%s = %+v, want a schedule type that fires at the start", name, ty)
 		}
 	}
-	if len(r.Types()) != 7 {
-		t.Errorf("registered types = %d, want the six job types of the library plus jobs.prune", len(r.Types()))
+	if len(r.Types()) != 8 {
+		t.Errorf("registered types = %d, want the seven job types of the library plus jobs.prune", len(r.Types()))
 	}
 }

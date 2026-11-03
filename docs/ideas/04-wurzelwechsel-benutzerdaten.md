@@ -1,6 +1,7 @@
 # Idee 04: Benutzerdaten beim Wechsel eines Bibliotheksordners behalten
 
-- Status: **Vorgemerkt** für 1.9.0 (Analyse vom 3. November 2026; F-1 bis F-6 am selben Tag von Marco
+- Status: **Übernommen** (Frage 21, ADR 0023, Bau auf Marcos Wort vom 3. November 2026 auf dem Zweig
+  `claude/wurzelwechsel`, Vertrag 1.9.0). Analyse vom 3. November 2026; F-1 bis F-6 am selben Tag von Marco
   beantwortet, Abschnitt 7: B1 + A1 + C1 + D1, Wiederverknüpfung über Anbieter-ID ohne Frist). Issue [#73](https://github.com/SlouchCat/slouchcat/issues/73)
 - Frühestens: sofort möglich, weil es eine Fehlerbehebung ist. Plan 3.2 verspricht das Verhalten
   schon (Abschnitt 3). Gebaut wird erst auf Marcos ausdrückliches Wort.

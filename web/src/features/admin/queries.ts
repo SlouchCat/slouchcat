@@ -28,6 +28,7 @@ import type {
   JobRunPage,
   JobScheduleUpdate,
   JobSummary,
+  RelinkPairList,
   JobTypeInfo,
   Library,
   LibraryMetadata,
@@ -138,6 +139,13 @@ export const duplicatesQuery = queryOptions({
   queryKey: [...maintenanceKey, 'duplicates'],
   queryFn: ({ signal }): Promise<DuplicateGroup[]> =>
     request(api.GET('/admin/maintenance/duplicates', { signal })),
+});
+
+/** Deleted titles with a live copy and the user data left on them (ADR 0023). */
+export const relinkQuery = queryOptions({
+  queryKey: [...maintenanceKey, 'relink'],
+  queryFn: ({ signal }): Promise<RelinkPairList> =>
+    request(api.GET('/admin/maintenance/relink', { signal })),
 });
 
 export const adminItemQuery = (id: string) =>

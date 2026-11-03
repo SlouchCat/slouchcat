@@ -78,10 +78,11 @@ func (s *server) AddLibraryRoot(ctx context.Context, req gen.AddLibraryRootReque
 	return gen.AddLibraryRoot201JSONResponse(toLibrary(lib)), nil
 }
 
-// UpdateLibraryRoot changes the content or the metadata sources of a folder (ADR 0015).
+// UpdateLibraryRoot changes the content, the metadata sources (ADR 0015) or the path (ADR 0023)
+// of a folder.
 func (s *server) UpdateLibraryRoot(ctx context.Context, req gen.UpdateLibraryRootRequestObject) (gen.UpdateLibraryRootResponseObject, error) {
 	body := deref(req.Body)
-	upd := model.LibraryRootUpdate{ConfirmPath: deref(body.ConfirmPath)}
+	upd := model.LibraryRootUpdate{ConfirmPath: deref(body.ConfirmPath), Path: body.Path}
 	if body.Content != nil {
 		c := string(*body.Content)
 		upd.Content = &c
