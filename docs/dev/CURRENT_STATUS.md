@@ -5,6 +5,9 @@
 **Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.
 Nächster Schritt: Push und Pull Request, Merge auf Marcos Wort, danach Release 1.8.0.
 
+**PR #72 am 3. November 2026 in `main` gemergt (`af87164`); Release 1.8.0 wird veröffentlicht**
+(Versionsstellen auf 1.8.0 im Zweig `claude/release-1.8.0`, Tag `v1.8.0` setzt Marco).
+
 Zweig `claude/verwaltungsseiten` ab `main` `4c860bc` (nach Konzept 11 und Release 1.7.0), Bau nach
 `docs/planning/12-verwaltungsseiten.md` Abschnitt 11.8 (Schritte K12-0 bis K12-9). Marcos Auftrag
 vom 2. November 2026: «Bitte beginne mit der Umsetzung und Entwicklung von Konzept 12.» Seine
@@ -228,8 +231,8 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
   - Release-Notes: `release-notes-1.8.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.7.0).
 - **Offen (Konzept 12):**
   - Push und Pull Request auf Marcos Wort; Merge danach; Release 1.8.0 mit Tag `v1.8.0` (setzt Marco).
-  - Versionsstellen stehen noch auf 1.7.0 (`deploy/.env.example`, `deploy/compose.yaml`,
-    `deploy/README.md`, `docs/INSTALLATION.md`); auf 1.8.0 setzen wie bei 1.7.0.
+  - Versionsstellen auf 1.8.0 gesetzt (`deploy/.env.example`, `deploy/compose.yaml`,
+    `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Zweig `claude/release-1.8.0`.
   - Designer, nicht umgesetzt: Metadaten-Bereichsliste ohne Symbole; Titel mit Art und Jahr auf eigener
     Zeile (Tit-C); «Letzter Scan» bei Bibliotheken umbricht; Pflege zeigt roh `no_tmdb_key`
     (vorbestehend). Primäre Knöpfe bleiben weisse Pillen statt Orange wie im Mockup (beibehalten).
