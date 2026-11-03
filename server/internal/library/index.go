@@ -15,8 +15,8 @@ import (
 //
 // Titles of one kind (movies, series, audiobooks or podcasts; see libraryIndex): undeleted ones by provider id
 // (TVDB, TMDB, IMDb) or by (sort_title, year), soft-deleted ones by provider id without a time
-// limit and, when deleted within titleRelinkWindow and with a year, by (sort_title, year) after
-// every undeleted title (ADR 0023). Seasons by (series, season number), episodes by (season,
+// limit and, for films and series deleted within titleRelinkWindow and with a year, by
+// (sort_title, year) after every undeleted title (ADR 0023). Seasons by (series, season number), episodes by (season,
 // episode number), both including soft-deleted ones, so a series that comes back keeps its tree.
 // Folders map titles to the folders of their files and back, for titles without a year and for
 // extras, whose parent is the title of their folder.
@@ -35,8 +35,8 @@ type itemIndex struct {
 	seasons  map[string]string          // seriesKey(series id, season number) → season id
 	episodes map[string]string          // seriesKey(season id, episode number) → episode id
 	matched  map[string]bool            // series with metadata_state 'matched'
-	// deletedByTitle holds the titles soft-deleted within titleRelinkWindow that have a year, by
-	// titleKey, the most recently deleted first.
+	// deletedByTitle holds the films and series soft-deleted within titleRelinkWindow that have a
+	// year, by titleKey, the most recently deleted first.
 	deletedByTitle map[string][]itemRef
 }
 
@@ -197,8 +197,11 @@ func (s *Service) loadItemIndex(ctx context.Context, lib appq.Library, scans []*
 		add(it, false)
 	}
 	// After the undeleted items, so an undeleted item with the same id or number wins.
-	for _, it := range deleted {
-		add(it, true)
+	for _, d := range deleted {
+		add(systemq.Item{
+			ID: d.ID, Kind: d.Kind, ParentID: d.ParentID, SeasonNumber: d.SeasonNumber, EpisodeNumber: d.EpisodeNumber,
+			SortTitle: d.SortTitle, Year: d.Year, TmdbID: d.TmdbID, TvdbID: d.TvdbID, ImdbID: d.ImdbID, DeletedAt: d.DeletedAt,
+		}, true)
 	}
 	for _, rs := range scans {
 		content := rs.root.Content
@@ -268,11 +271,13 @@ func (idx *itemIndex) addIDs(id string, tmdb, tvdb int64, imdb string) {
 
 // addDeleted marks a soft-deleted title as deleted, so no extra attaches to it through its
 // folder, and makes it reachable by its provider ids; byTitle also by (sort_title, year), for a
-// title with a year. Callers add the most recently deleted first, which wins both ways.
+// film or series with a year. Audiobooks and podcasts come back by provider id only: a podcast
+// is unique by its feed address among live titles, and neither has a reliable year. Callers add
+// the most recently deleted first, which wins both ways.
 func (idx *itemIndex) addDeleted(it systemq.Item, byTitle bool) {
 	idx.deleted[it.ID] = true
 	idx.addIDs(it.ID, it.TmdbID.Int64, it.TvdbID.Int64, it.ImdbID.String)
-	if byTitle && it.Year.Valid {
+	if byTitle && it.Year.Valid && (it.Kind == "movie" || it.Kind == "series") {
 		key := titleKey(it.SortTitle, it.Year)
 		idx.deletedByTitle[key] = append(idx.deletedByTitle[key],
 			itemRef{id: it.ID, tmdb: it.TmdbID.Int64, tvdb: it.TvdbID.Int64, imdb: it.ImdbID.String})

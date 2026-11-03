@@ -433,84 +433,52 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 }
 
 const listDeletedItemsByLibrary = `-- name: ListDeletedItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items
+SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at
+FROM items
 WHERE library_id = ?1 AND deleted_at IS NOT NULL
+  AND kind IN ('movie', 'series', 'audiobook', 'podcast', 'season', 'episode')
 ORDER BY deleted_at DESC, id
 `
 
+type ListDeletedItemsByLibraryRow struct {
+	ID            string
+	Kind          string
+	ParentID      sql.NullString
+	SeasonNumber  sql.NullInt64
+	EpisodeNumber sql.NullInt64
+	SortTitle     string
+	Year          sql.NullInt64
+	TmdbID        sql.NullInt64
+	TvdbID        sql.NullInt64
+	ImdbID        sql.NullString
+	DeletedAt     sql.NullInt64
+}
+
 // Soft-deleted items that a re-downloaded file may bring back (plan 3.2, ADR 0023): titles by
 // provider id without a time limit, by (sort_title, year) within titleRelinkWindow, and their
-// seasons and episodes. The most recently deleted first.
-func (q *Queries) ListDeletedItemsByLibrary(ctx context.Context, libraryID int64) ([]Item, error) {
+// seasons and episodes. Only the columns of the scanner's item index (loadItemIndex); the most
+// recently deleted first.
+func (q *Queries) ListDeletedItemsByLibrary(ctx context.Context, libraryID int64) ([]ListDeletedItemsByLibraryRow, error) {
 	rows, err := q.db.QueryContext(ctx, listDeletedItemsByLibrary, libraryID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Item{}
+	items := []ListDeletedItemsByLibraryRow{}
 	for rows.Next() {
-		var i Item
+		var i ListDeletedItemsByLibraryRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Kind,
 			&i.ParentID,
-			&i.LibraryID,
-			&i.Title,
-			&i.SortTitle,
-			&i.OriginalTitle,
-			&i.Year,
-			&i.ReleaseDate,
-			&i.RuntimeMinutes,
-			&i.Genres,
-			&i.TmdbID,
-			&i.ImdbID,
-			&i.OwnRating,
-			&i.EffectiveRating,
-			&i.MinChildRating,
-			&i.Available,
-			&i.RatingSource,
-			&i.EnclosureUrl,
-			&i.LockedFields,
-			&i.MetadataState,
-			&i.MetadataError,
-			&i.MatchedAt,
-			&i.AddedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
 			&i.SeasonNumber,
 			&i.EpisodeNumber,
-			&i.EpisodeEnd,
+			&i.SortTitle,
+			&i.Year,
+			&i.TmdbID,
 			&i.TvdbID,
-			&i.ExtraKind,
-			&i.TmdbPosterPath,
-			&i.TmdbBackdropPath,
-			&i.TrailerState,
-			&i.TrailerCheckedAt,
-			&i.SegmentsState,
-			&i.SegmentsCheckedAt,
-			&i.Author,
-			&i.Narrator,
-			&i.SeriesName,
-			&i.SeriesIndex,
-			&i.Explicit,
-			&i.DurationMs,
-			&i.CoverUrl,
-			&i.CoverPath,
-			&i.FeedUrl,
-			&i.FeedEtag,
-			&i.FeedModified,
-			&i.FeedCheckedAt,
-			&i.FeedError,
-			&i.Guid,
-			&i.PublishedAt,
-			&i.EnclosureType,
-			&i.EnclosureLength,
-			&i.Providers,
-			&i.AnilistID,
-			&i.FeedOrigin,
-			&i.FilledProviders,
-			&i.VoteAverage,
+			&i.ImdbID,
+			&i.DeletedAt,
 		); err != nil {
 			return nil, err
 		}

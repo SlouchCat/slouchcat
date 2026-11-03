@@ -21,9 +21,12 @@ SELECT * FROM items WHERE library_id = @library_id AND deleted_at IS NULL ORDER 
 -- name: ListDeletedItemsByLibrary :many
 -- Soft-deleted items that a re-downloaded file may bring back (plan 3.2, ADR 0023): titles by
 -- provider id without a time limit, by (sort_title, year) within titleRelinkWindow, and their
--- seasons and episodes. The most recently deleted first.
-SELECT * FROM items
+-- seasons and episodes. Only the columns of the scanner's item index (loadItemIndex); the most
+-- recently deleted first.
+SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at
+FROM items
 WHERE library_id = @library_id AND deleted_at IS NOT NULL
+  AND kind IN ('movie', 'series', 'audiobook', 'podcast', 'season', 'episode')
 ORDER BY deleted_at DESC, id;
 
 -- name: CountLibraryItems :one
