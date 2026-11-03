@@ -69,7 +69,9 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
 ```
 
 - `task check:fast` ersetzt `task ci` nicht; vor einem Commit eines Planschritts gilt weiter
-  `task ci`. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`).
+  `task ci`. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`); er kommt mit
+  dem Commit zur Server-Testbeschleunigung. Bis dahin bricht `task check:fast` mit «task does not
+  exist» ab, und `task web:check:fast` läuft allein.
 - `task ci:e2e:parallel` (auch in `task ci`) startet je Shard einen eigenen Server auf
   `E2E_PORT`, `+10`, `+20` … (Standard 8097) samt den Mocks auf den acht Ports darunter, mit eigenem
   Artefaktordner (`web/node_modules/.playwright-parallel/shard-<i>/`, Protokoll `run.log`) und einer
