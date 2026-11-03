@@ -199,6 +199,35 @@ Umsetzung:
   fällt erst bei Marco auf. Für eine neue Seite gilt: Ihr Tastaturtest bekommt `@keyboard`, sonst
   läuft sie nur in Chromium.
 
+### e2e-Shards nach gemessener Dauer
+
+- Playwright 1.64 teilt mit `--shard=i/n` nach **Anzahl** Tests, nicht nach Zeit; die einzige
+  Gewichtung (`PWTEST_SHARD_WEIGHTS`, nicht dokumentiert) verschiebt nur die Anteile, weiter in
+  Tests gezählt. Eine Spec mit einem 67-Sekunden-Test wiegt dort so viel wie eine mit 21 kurzen;
+  gemessen lief der längste Shard 507 s, der kürzeste 353 s, und die Shards 1–3 waren nur
+  Chromium, 4–6 nur Firefox.
+- **`web/e2e/shard-plan.mjs`** plant deshalb selbst: Es fragt `playwright test --list` nach allen
+  Tests, die die Config laufen liesse (samt Firefox-Auswahl), fasst sie wie Playwright zu Gruppen
+  zusammen (eine Spec-Datei je Projekt, nie zerschnitten), gewichtet jede mit den gemessenen
+  Sekunden aus **`web/e2e/durations.json`** und verteilt die längste Gruppe zuerst auf den Shard mit
+  der wenigsten Zeit. Jeder Shard rechnet denselben Plan und führt seinen Teil mit
+  `--test-list` aus (`task ci:e2e SHARD=i/n`). Ein Test ohne Messwert (neu, umbenannt) zählt mit
+  dem Median seines Projekts: Er wird verplant, nie vergessen.
+- **Selbsttest** `task web:e2e:shards:check`: Die Vereinigung aller Shards ist genau die Menge
+  aller Tests, geprüft am Plan und an dem, was Playwright selbst aus den geschriebenen Listen
+  macht (`--list --test-list` je Shard). Ein Listenformat, das Playwright nicht erkennt, fällt so
+  auf, statt still Tests auszulassen.
+- **Auffrischen:** `task web:e2e:durations RUNS="<id> <id>"` lädt die Blob-Berichte der Läufe, mittelt
+  je Test (`web/e2e/durations.mjs`) und zeigt den neuen Plan. Die eingecheckte Tabelle stammt aus
+  den Läufen 41705191279 und 41707865418, also von **vor** den kürzeren Wartezeiten und der
+  Firefox-Auswahl; sie überschätzt die drei Specs mit der Spotlight-Sperre. Nach den ersten
+  grünen Läufen auf `main` auffrischen.
+- **Sechs Shards** bleiben: Nach Firefox-Auswahl und kürzeren Wartezeiten sind es rund 1600 s
+  Testzeit (die alte Tabelle sagt 1830 s), also etwa 270 bis 305 s je Shard, dazu rund 90 s fester
+  Anteil (Einrichtung 70 s, Server und `globalSetup` 20 s): rund 6 Minuten je Shard statt bis zu
+  10. Sieben Shards brächten 40 s, kosten aber einen Runner mehr, und der kritische Pfad ist
+  ohnehin `server-test`.
+
 ### Web-Job geteilt
 
 - Der Web-Job (8 bis 10 Minuten: Lint 1,7, Vitest 3,5, Storybook 3,6) ist zwei Jobs: **`web`**

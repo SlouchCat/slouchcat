@@ -10,6 +10,9 @@ vars:
   PLAYWRIGHT_VERSION:
     sh: node -p "require('./package.json').devDependencies['@playwright/test']"
   PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v{{.PLAYWRIGHT_VERSION}}-noble
+  # The e2e shards of CI: the length of the matrix in .github/workflows/ci.yml (job e2e). Six keep
+  # the longest shard at about 4.5 min of tests plus 1.5 min of setup (ADR 0013, addendum).
+  CI_E2E_SHARDS: "6"
   REPO:
     sh: git rev-parse --show-toplevel
   # The repository is mounted at the same path inside the container: pnpm's bin shims and
@@ -60,13 +63,51 @@ tasks:
       - rm -rf {{.WEBASSETS}}/*
       - cp -r dist/. {{.WEBASSETS}}/
 
+  # SHARD=i/n runs one shard of the plan e2e/shard-plan.mjs makes from e2e/durations.json (CI: one
+  # runner per shard), instead of Playwright's `--shard`, which splits by count, not by time. The
+  # blob report of a shard is then named report-<i>.zip, so the gate can merge all of them.
   e2e:
     desc: >-
       Playwright keyboard suite (P-15) against a fresh server on :8097 with a temporary config dir;
-      expects server/bin/slouchcat with the current web build embedded (run `task build` first)
+      expects server/bin/slouchcat with the current web build embedded (run `task build` first).
+      SHARD=i/n runs one shard planned by duration (e2e/shard-plan.mjs)
     deps: [tokens]
+    env:
+      SLOUCHCAT_E2E_SHARD: "{{.SHARD}}"
     cmds:
-      - pnpm exec playwright test {{.CLI_ARGS}}
+      - |
+        set -eu
+        if [ -n "{{.SHARD}}" ]; then
+          list="node_modules/.playwright-shards/shard-$(echo '{{.SHARD}}' | tr / -).txt"
+          mkdir -p node_modules/.playwright-shards
+          node e2e/shard-plan.mjs --shard '{{.SHARD}}' --out "$list"
+          pnpm exec playwright test --test-list "$list" {{.CLI_ARGS}}
+        else
+          pnpm exec playwright test {{.CLI_ARGS}}
+        fi
+
+  # Self-test of the shard plan: every test in exactly one shard, as Playwright reads the lists.
+  e2e:shards:check:
+    desc: Check that the e2e shards together hold every test exactly once (E2E_SHARDS, default the CI count)
+    cmds:
+      - node e2e/shard-plan.mjs --check --shards {{.E2E_SHARDS | default .CI_E2E_SHARDS}}
+
+  # Downloads the blob reports of CI runs and rewrites e2e/durations.json from them; review and
+  # commit the result. RUNS: space-separated run ids, e.g. the last two green runs on main.
+  e2e:durations:
+    desc: Refresh e2e/durations.json from the blob reports of CI runs (RUNS="<id> <id>", needs gh)
+    requires:
+      vars: [RUNS]
+    cmds:
+      - |
+        set -eu
+        dir=$(mktemp -d)
+        trap 'rm -rf "$dir"' EXIT
+        for run in {{.RUNS}}; do
+          gh run download "$run" -p 'e2e-blob-*' -D "$dir/$run"
+        done
+        node e2e/durations.mjs "$dir"/*
+        node e2e/shard-plan.mjs --shards {{.CI_E2E_SHARDS}}
 
   storybook:
     desc: Storybook dev server for web/src/ui on http://localhost:6006

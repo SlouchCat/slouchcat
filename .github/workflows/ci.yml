@@ -275,7 +275,9 @@ jobs:
       fail-fast: false
       matrix:
         # The length of this list is the shard count: `strategy.job-total` below reads it, so the
-        # two can never drift apart.
+        # two can never drift apart. The shards are cut by measured duration, not by test count
+        # (web/e2e/shard-plan.mjs from web/e2e/durations.json); `task web:e2e:shards:check` and
+        # web:e2e:durations take the same count from CI_E2E_SHARDS in web/Taskfile.yml.
         shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -327,7 +329,8 @@ jobs:
       - name: Make the binary executable again (artefacts lose the bit)
         run: chmod +x server/bin/slouchcat
 
-      - run: task ci:e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      # Every shard plans the same split (deterministic) and runs its part with --test-list.
+      - run: task ci:e2e SHARD=${{ matrix.shard }}/${{ strategy.job-total }}
 
       # The blob report is the machine-readable form of the run, traces and screenshots included.
       # The gate job merges the six of them into one HTML report; a single report per shard would

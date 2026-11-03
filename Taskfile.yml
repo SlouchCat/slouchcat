@@ -102,7 +102,8 @@ tasks:
   ci:e2e:
     desc: >-
       The Playwright suite of `task ci` (CI job "e2e"); expects `task build` and `task
-      testdata:media`. Arguments after `--` go to Playwright, for example `-- --shard=1/6`.
+      testdata:media`. SHARD=i/n runs one shard planned by duration (CI); arguments after `--`
+      go to Playwright.
     cmds:
       - task: e2e
 
