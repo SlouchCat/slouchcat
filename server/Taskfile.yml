@@ -50,8 +50,12 @@ tasks:
       Quick Go check while working (`task server:check:fast`, BASE=<ref> to compare with something
       other than origin/main): go vet and go test without the race detector, only for the packages
       changed since the merge base with BASE (committed, staged, unstaged, new) and the packages
-      that import them directly (scripts/changedpkgs.sh). Does nothing when no Go package changed.
-      Not a replacement for `task ci`, which still runs every package with -race.
+      that import them directly (scripts/changedpkgs.sh). Files outside a package that tests read
+      count for the reading package (testdata/db, testdata/podcasts, testdata/webhooks,
+      api/openapi.yaml); not seen are the generated media in testdata/media (library, transcode,
+      playback, offline, metadata, cmd/slouchcat) and the web build embedded by webassets. Does
+      nothing when no Go package changed. Not a replacement for `task ci`, which still runs every
+      package with -race.
     vars:
       BASE: '{{.BASE | default "origin/main"}}'
     cmds:
@@ -67,6 +71,11 @@ tasks:
         echo "$packages"
         go vet $packages
         go test -count=1 $packages
+
+  check:fast:selftest:
+    desc: Check scripts/changedpkgs.sh, which `check:fast` relies on, against a throwaway repository
+    cmds:
+      - scripts/changedpkgs_selftest.sh
 
   build:
     desc: Build the static server binary into bin/slouchcat
