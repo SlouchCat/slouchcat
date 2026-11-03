@@ -1,8 +1,9 @@
 # Idee 04: Benutzerdaten beim Wechsel eines Bibliotheksordners behalten
 
-- Status: **Entwurf** (Analyse und Vorschlag vom 3. November 2026, Fragen F-1 bis F-6 an Marco offen). Issue [#73](https://github.com/SlouchCat/slouchcat/issues/73)
+- Status: **Vorgemerkt** für 1.9.0 (Analyse vom 3. November 2026; F-1 bis F-6 am selben Tag von Marco
+  beantwortet, Abschnitt 7: B1 + A1 + C1 + D1, Wiederverknüpfung über Anbieter-ID ohne Frist). Issue [#73](https://github.com/SlouchCat/slouchcat/issues/73)
 - Frühestens: sofort möglich, weil es eine Fehlerbehebung ist. Plan 3.2 verspricht das Verhalten
-  schon (Abschnitt 3). Gebaut wird erst auf Marcos Wort.
+  schon (Abschnitt 3). Gebaut wird erst auf Marcos ausdrückliches Wort.
 - Auslöser: Abnahme von Konzept 12 (K12-9, PR #72) am 3. November 2026. In der Statistik hatte
   eine Folge kein Bild. Ihre ganze Serie war seit dem 28. Oktober 2026 soft-gelöscht, und eine
   zweite Kopie lief unter neuen IDs. Für die Bilder gibt es seit `e4e323a` einen Rückfall auf die
@@ -201,6 +202,10 @@ B oder D muss sie mitnehmen.
 
 ### Empfehlung
 
+**Gewählt (Abschnitt 7):** B1 + A1 + C1 + D1. Die Empfehlung unten ist die Fassung vor dem
+Interview.
+
+
 **B1 + D1, dazu C1, wenn ein Ordnerwechsel öfter vorkommt.**
 
 - **B1** schliesst die Lücke dort, wo sie sicher zu schliessen ist: über die Anbieter-ID nach dem
@@ -232,24 +237,52 @@ B oder D muss sie mitnehmen.
   einen Tastaturtest.
 - **Regel 12:** Nicht berührt. Die Zuordnung entscheidet allein der Server.
 
-## 7. Offene Fragen an Marco
+## 7. Fragen an Marco und seine Antworten
 
-- **F-1:** Soll ein neu zugeordneter Titel automatisch mit einem gelöschten Titel gleicher
-  Anbieter-ID zusammengeführt werden (Option B)? Empfehlung: ja.
-- **F-2:** Welche ID soll überleben, wenn zwei Kopien zusammenkommen (B und D)? Empfehlung: die
-  **alte (B1)**, damit Verlauf, Statistik und Offline-Pakete gültig bleiben, auch wenn der Bau
-  grösser wird.
-- **F-3:** Soll der Scanner zusätzlich über Name und Jahr wiederverknüpfen (A1)? Oder, riskanter,
-  auch über den Namen allein, wenn der Ordner kein Jahr trägt (A2)? Empfehlung: A1 ja, A2 nein.
-- **F-4:** Wie sollen die bestehenden Daten repariert werden? Zur Wahl stehen eine Pflegeaktion
-  (D1, Empfehlung), eine einmalige Migration (D2) oder keine Reparatur, weil CT 190 ein Testserver
-  ist (D3).
-- **F-5:** Braucht es «Pfad ändern» als eigene Operation (C1)? Oder kommt ein Umzug desselben Baums
-  so selten vor, dass B genügt?
-- **F-6:** Soll das gebaut werden, und wann? B1 + D1 wäre ein eigener PR nach Konzept 12 (1.8.0).
-  Ohne neue Operation ginge es als Patch, mit D1 (additiver Vertrag) als nächste Minor-Version.
-  Daneben: Soll der Bildrückfall aus `e4e323a` danach bleiben? Er schadet nicht und fängt Fälle
-  ohne Reparatur.
+Marco hat alle Fragen am 3. November 2026 im Interview beantwortet. Seine Antworten folgen der
+Empfehlung, mit zwei Abweichungen: C1 wird gleich mitgebaut, und die Wiederverknüpfung über
+Anbieter-IDs gilt ohne Frist.
+
+- **F-1 / F-2, späte Wiederverknüpfung:** **Ja, die alte ID bleibt (B1).** Bekommt ein neuer
+  Titel durch `metadata.match` eine TMDB-, TVDB- oder IMDb-ID, die ein gelöschter Titel derselben
+  Art und Bibliothek trägt, lebt der gelöschte Titel wieder auf. Dateien, Staffeln und Folgen der
+  Kopie wandern zu ihm. Staffeln werden nach Staffelnummer zusammengeführt, Folgen nach
+  Folgennummer, und die Kopie verschwindet. `playback_sessions` wandern mit.
+- **F-3, Scanner über den Namen:** **Nur Name und Jahr (A1).** Ein Abgleich über den Namen allein
+  (A2) entfällt.
+- **F-4, Reparatur:** **Pflegeaktion (D1).** Sie steht unter «Pflege», zeigt zuerst die Zahlen
+  und läuft erst auf Klick. Sie ist wiederholbar und kennt keine Frist. Sie verwendet dieselbe
+  Zusammenführung wie B1, und die alte ID bleibt.
+- **F-5, «Pfad ändern»:** **Gleich mitbauen (C1)**, abweichend von der Empfehlung «später». Die
+  Bestätigung ist ein **einfacher Dialog** «Pfad ändern?» mit altem und neuem Pfad und den Knöpfen
+  «Ändern» und «Abbrechen». Der alte Pfad muss nicht abgetippt werden. Als zweite Sicherung wirkt
+  die bestehende Verlustschwelle von 20 % («Verlust akzeptieren»).
+- **F-6, Zeitpunkt:** **Eigenes Release zuerst.** Es kommt ein eigener PR als nächster Bau nach
+  1.8.0, als **1.9.0** (Vertrag additiv, wegen D1 und C1). Konzept 13 und 14 rücken eine
+  Version nach.
+- **Frist der Wiederverknüpfung:** **Ohne Frist für die Wiederverknüpfung über Anbieter-IDs**,
+  abweichend von der Empfehlung «30 Tage lassen». Das gilt für B1 und für IDs, die die Datei selbst
+  mitbringt (heute `relinkWindow`). Für **A1 bleiben 30 Tage**. Damit wird `relinkWindow` in zwei
+  Fristen geteilt: Anbieter-ID ohne Ende, Name und Jahr 30 Tage. Das weicht von Plan 3.2 ab
+  («Benutzerdaten bleiben 30 Tage») und braucht beim Bau einen Eintrag im Entscheidungsprotokoll.
+- **Bildrückfall `e4e323a`:** **Bleibt.**
+
+### 7.1 Folgen der Antworten für den Bau
+
+- **Der Index wird grösser.** Ohne Frist lädt `loadItemIndex` alle gelöschten Titel einer
+  Bibliothek mit Anbieter-ID. Auf CT 190 sind das heute 497 gelöschte Serien. Staffeln und Folgen
+  darunter lädt er über die Tabellen `seasons` und `episodes` des Index mit, zusammen 31 641
+  gelöschte Zeilen. Das ist vertretbar, muss aber beim Bau gemessen werden (Scan der Bibliothek «Serien» vor
+  und nach dem Bau, nach `docs/perf/`). Bei Bedarf werden nur gelöschte Titel geladen, und ihre
+  Kinder erst dann, wenn ein Titel wiederauflebt.
+- **Frist 27. November 2026 entfällt.** Ohne Frist verknüpft B1 auch die Fälle vom 28. Oktober,
+  sobald ein Titel neu zugeordnet wird. Bei den zwei Serien auf CT 190 ist der Match schon
+  gelaufen, darum repariert sie trotzdem erst D1.
+- **C1 und gelöschte Titel:** Zeigt «Pfad ändern» auf einen Ordner mit weniger Dateien, werden
+  die fehlenden nach 24 h soft-gelöscht. Kehren sie später zurück, verknüpft sie B1 oder die Datei-ID
+  wieder, jetzt ohne Frist.
+- **Nummern:** Frage, ADR, Migration (C1 und D1 brauchen voraussichtlich keine) und Vertragsfassung
+  werden beim Baubeginn vergeben (Regel «Vertrag = Tag»).
 
 ## 8. Grobe Aufwandsschätzung und Abhängigkeiten
 
@@ -261,7 +294,9 @@ B oder D muss sie mitnehmen.
 | C2 | ½–1 Tag | eventuell | additiv (Fehlercode) | nein |
 | D1 | 1 Tag (auf B aufbauend) | nein | additiv | – (Reparatur) |
 
-Abhängigkeiten: keine zu offenen Konzepten. B und D1 teilen sich die Zusammenführung über den ganzen
-Baum und ergänzen `playback_sessions` (Abschnitt 4 D). Die automatische Wiederverknüpfung über
-`relinkWindow` endet für CT 190 am **27. November 2026**. Wird B danach gebaut, verknüpft es die
-Fälle vom 28. Oktober nicht mehr. Dann hilft nur D.
+Abhängigkeiten: keine zu offenen Konzepten. B1 und D1 teilen sich die Zusammenführung über den
+ganzen Baum und nehmen `playback_sessions` mit (Abschnitt 4 D).
+
+**Gewählter Umfang (Abschnitt 7):** A1 + B1 + C1 + D1, zusammen etwa **4½ bis 5½ Tage**, als
+eigener PR und Release 1.9.0. Die Frist vom 27. November 2026 entfällt mit der
+Wiederverknüpfung ohne Frist (7.1).
