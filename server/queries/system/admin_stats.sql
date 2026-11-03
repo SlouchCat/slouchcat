@@ -17,7 +17,11 @@
 -- else the parsed title). The events are aggregated first, so only the listed titles are joined;
 -- the plays are the distinct playback sessions plus the events without one. For an episode the id
 -- of its series (episode -> season -> series over parent_id, or a series without seasons) names
--- the images (concept 12, 11.4).
+-- the images (concept 12, 11.4). The watch history keeps deleted titles, but a deleted title has no
+-- image; when that title (the series of an episode, else the title itself) is deleted, the live
+-- title of the same kind with a shared TMDB, TVDB or IMDb id names the images instead (the newest
+-- id first). A library moved to a new path imports its titles anew with new ids, and the history of
+-- the old ones would otherwise show no image (acceptance finding K12-9).
 WITH watched AS (
     SELECT item_id, SUM(watched_ms) AS watched_ms, SUM(plays) AS plays
     FROM (
@@ -38,13 +42,19 @@ WITH watched AS (
     LIMIT @limit_count
 )
 SELECT w.item_id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year,
-       CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays, s.id AS series_id
+       CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays,
+       CAST(COALESCE((SELECT o.id FROM items AS o
+                      WHERE b.deleted_at IS NOT NULL AND o.deleted_at IS NULL AND o.kind = b.kind
+                        AND (o.tmdb_id = b.tmdb_id OR o.tvdb_id = b.tvdb_id OR o.imdb_id = b.imdb_id)
+                      ORDER BY o.id DESC
+                      LIMIT 1), b.id) AS TEXT) AS image_item_id
 FROM watched AS w
 JOIN items AS i ON i.id = w.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
 LEFT JOIN items AS p ON i.kind = 'episode' AND p.id = i.parent_id
 LEFT JOIN items AS s ON s.kind = 'series' AND (s.id = p.parent_id OR s.id = p.id)
+JOIN items AS b ON b.id = COALESCE(s.id, i.id)
 ORDER BY w.watched_ms DESC, w.item_id;
 
 -- name: StatsWatchTimeByProfile :many

@@ -99,13 +99,11 @@ func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 	}
 	imageIDs := make([]string, 0, len(top))
 	for _, t := range top {
-		st := model.StatTitle{ItemID: t.ItemID, Title: t.Title, Kind: t.Kind, Plays: int(t.Plays), WatchedMs: t.WatchedMs, ImageItemID: t.ItemID}
+		// The series of an episode, or the live copy of a deleted title, names the images (StatsTopTitles).
+		st := model.StatTitle{ItemID: t.ItemID, Title: t.Title, Kind: t.Kind, Plays: int(t.Plays), WatchedMs: t.WatchedMs, ImageItemID: t.ImageItemID}
 		if t.Year.Valid {
 			year := int(t.Year.Int64)
 			st.Year = &year
-		}
-		if t.SeriesID.Valid {
-			st.ImageItemID = t.SeriesID.String // an episode shows the images of its series (concept 12)
 		}
 		imageIDs = append(imageIDs, st.ImageItemID)
 		out.TopTitles = append(out.TopTitles, st)
