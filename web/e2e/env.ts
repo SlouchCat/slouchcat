@@ -10,33 +10,40 @@ export const EXTERNAL_BASE_URL = process.env.SLOUCHCAT_E2E_BASE_URL;
 export const BASE_URL = EXTERNAL_BASE_URL ?? `http://localhost:${PORT}`;
 
 /**
- * Run artefacts (session state, traces, report) live under node_modules/.playwright, which git,
- * ESLint and Prettier already ignore.
+ * Run artefacts (session state, traces, report, server log) live under node_modules/.playwright,
+ * which git, ESLint and Prettier already ignore. SLOUCHCAT_E2E_ARTEFACTS moves them, so runs side by
+ * side on one machine (e2e/parallel.mjs, one folder per shard) do not share a session file or a
+ * server log. Ends with a slash, like the default.
  */
-export const ARTEFACTS = fileURLToPath(new URL('../node_modules/.playwright/', import.meta.url));
+export const ARTEFACTS = process.env.SLOUCHCAT_E2E_ARTEFACTS
+  ? `${process.env.SLOUCHCAT_E2E_ARTEFACTS.replace(/\/+$/, '')}/`
+  : fileURLToPath(new URL('../node_modules/.playwright/', import.meta.url));
 
 /** Storage state with the session cookie of the main account, written by global-setup.ts. */
 export const STORAGE_STATE = `${ARTEFACTS}owner.json`;
 
-/** Generated test media (`task testdata:media`), scanned as the first library. */
-export const MOVIES_DIR = fileURLToPath(new URL('../../testdata/media/Movies', import.meta.url));
-
-/** Generated series (`task testdata:media`), scanned as the series library "Serien" (M3). */
-export const TV_DIR = fileURLToPath(new URL('../../testdata/media/TV', import.meta.url));
-
 /**
  * The media root of the run: the server may browse it and a library folder must lie below it
- * (idea 02, E14, web/e2e/start-server.mjs sets SLOUCHCAT_BROWSE_ROOTS to it).
+ * (idea 02, E14, web/e2e/start-server.mjs sets SLOUCHCAT_BROWSE_ROOTS to it). Specs write into it
+ * (a sidecar subtitle, a copied episode, library folders under .e2e), so runs side by side get a
+ * copy each through SLOUCHCAT_E2E_MEDIA (e2e/parallel.mjs; a folder that ends in testdata/media,
+ * the folder browser specs look for that path).
  */
-export const MEDIA_DIR = fileURLToPath(new URL('../../testdata/media', import.meta.url));
+export const MEDIA_DIR = process.env.SLOUCHCAT_E2E_MEDIA
+  ? process.env.SLOUCHCAT_E2E_MEDIA.replace(/\/+$/, '')
+  : fileURLToPath(new URL('../../testdata/media', import.meta.url));
+
+/** Generated test media (`task testdata:media`), scanned as the first library. */
+export const MOVIES_DIR = `${MEDIA_DIR}/Movies`;
+
+/** Generated series (`task testdata:media`), scanned as the series library "Serien" (M3). */
+export const TV_DIR = `${MEDIA_DIR}/TV`;
 
 /**
  * Generated audiobooks (`task testdata:media`, M6): one M4B with 12 chapters and one folder of 10
  * MP3 files, scanned as the library "Hörbücher" (kind audiobooks, default rating 0).
  */
-export const AUDIOBOOKS_DIR = fileURLToPath(
-  new URL('../../testdata/media/Audiobooks', import.meta.url),
-);
+export const AUDIOBOOKS_DIR = `${MEDIA_DIR}/Audiobooks`;
 
 /**
  * Port of the local podcast feed (feed-server.mjs, started by start-server.mjs): the server

@@ -86,6 +86,52 @@ tasks:
           pnpm exec playwright test {{.CLI_ARGS}}
         fi
 
+  # `task e2e:quick` in the root builds first; this half only runs Playwright.
+  e2e:quick:
+    desc: Chromium only, no retries, stop at the first failure, port E2E_PORT (8097); specs after --
+    deps: [tokens]
+    env:
+      SLOUCHCAT_E2E_PORT: '{{.E2E_PORT | default "8097"}}'
+    cmds:
+      - pnpm exec playwright test --project=chromium --retries=0 --max-failures=1 {{.CLI_ARGS}}
+
+  e2e:parallel:
+    desc: E2E_SHARDS (3) shards side by side from port E2E_PORT (8097) in steps of 10, one merged report
+    deps: [tokens]
+    cmds:
+      - >-
+        node e2e/parallel.mjs --shards {{.E2E_SHARDS | default "3"}}
+        --base-port {{.E2E_PORT | default "8097"}} -- {{.CLI_ARGS}}
+
+  # The web half of `task check:fast`: ESLint (with its cache), stylelint and Prettier on the files
+  # changed against BASE (default HEAD: the working tree, untracked files included), both tsc
+  # projects, and Vitest on the tests related to the changed sources. `task ci:web` stays the
+  # whole check.
+  check:fast:
+    desc: Fast web checks of the changed files (BASE=HEAD); ESLint cached, tsc, vitest related
+    deps: [tokens]
+    vars:
+      BASE: '{{.BASE | default "HEAD"}}'
+    cmds:
+      - |
+        set -eu
+        changed=$( { git diff --name-only --relative --diff-filter=d '{{.BASE}}' -- . ;
+          git ls-files --others --exclude-standard -- . ; } | sort -u )
+        code=$(printf '%s\n' "$changed" | grep -E '\.(ts|tsx|js|mjs)$' || true)
+        css=$(printf '%s\n' "$changed" | grep -E '^src/.*\.css$' || true)
+        pretty=$(printf '%s\n' "$changed" | grep -E '\.(ts|tsx|js|mjs|json|css|md|yaml|yml|html)$' || true)
+        src=$(printf '%s\n' "$changed" | grep -E '^src/.*\.(ts|tsx)$' || true)
+        echo "changed in web/: $(printf '%s\n' "$changed" | grep -c . || true) files"
+        if [ -n "$code" ]; then
+          pnpm exec eslint --cache --cache-location node_modules/.cache/eslint/ --no-warn-ignored \
+            --max-warnings 0 $code
+        fi
+        if [ -n "$css" ]; then pnpm exec stylelint --max-warnings 0 $css; fi
+        if [ -n "$pretty" ]; then pnpm -w exec prettier --check --ignore-unknown $(printf 'web/%s ' $pretty); fi
+        pnpm exec tsc --noEmit -p tsconfig.json
+        pnpm exec tsc --noEmit -p tsconfig.node.json
+        if [ -n "$src" ]; then pnpm exec vitest related --run $src; fi
+
   # Self-test of the shard plan: every test in exactly one shard, as Playwright reads the lists.
   e2e:shards:check:
     desc: Check that the e2e shards together hold every test exactly once (E2E_SHARDS, default the CI count)

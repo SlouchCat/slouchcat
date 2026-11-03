@@ -111,10 +111,12 @@ export default defineConfig({
   //
   // A shard of the duration plan (SLOUCHCAT_E2E_SHARD=i/n, set by `task web:e2e SHARD=i/n`) runs
   // with --test-list instead of --shard, and Playwright then names every blob report.zip; the
-  // index keeps the merged download of the shards apart.
-  reporter: process.env.CI
-    ? [['list'], ['blob', { outputDir: `${ARTEFACTS}blob`, fileName: blobFileName }]]
-    : 'list',
+  // index keeps the merged download of the shards apart. Locally e2e/parallel.mjs asks for the
+  // blob report too (SLOUCHCAT_E2E_BLOB=1) and merges its shards the same way.
+  reporter:
+    process.env.CI || process.env.SLOUCHCAT_E2E_BLOB === '1'
+      ? [['list'], ['blob', { outputDir: `${ARTEFACTS}blob`, fileName: blobFileName }]]
+      : 'list',
   timeout: 30_000,
   expect: { timeout: 10_000 },
   globalSetup: './e2e/global-setup.ts',
