@@ -13,8 +13,10 @@
 //     library without an episode marker are skipped and logged once per directory. Then match them
 //     against the known media files of the root: the same rel_path is the same file (size and
 //     mtime are updated, a changed file is probed again); otherwise an equal (dev, inode, size)
-//     means renamed or moved on the same device; otherwise an equal partial_hash (SHA-256 over the
-//     first and last 64 KiB and the size) means moved across devices; everything else is new.
+//     means renamed or moved on the same device, with another mtime only together with an equal
+//     partial_hash (a file system reuses the inode of a removed file); otherwise an equal
+//     partial_hash (SHA-256 over the first and last 64 KiB and the size) means moved across
+//     devices; everything else is new.
 //     Known files without a match are missing.
 //  2. Write: in transactions of at most 500 rows on the writer connection, with the context
 //     checked between batches and the progress recorded with each. New extras are written after

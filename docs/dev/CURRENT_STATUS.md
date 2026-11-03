@@ -1,5 +1,33 @@
 # Aktueller Stand
 
+## Scanner: wiederverwendete Inode ist keine Verschiebung (3. November 2026)
+
+Zweig `claude/scanner-inode-reuse` ab `main` `cbf17fb`. Der Scanner ordnete eine neue Datei einer
+bekannten zu, sobald (`dev`, `inode`, `size`) übereinstimmten. ext4 vergibt die Inode einer eben
+gelöschten Datei neu; bei gleicher Grösse hielt der Scanner die neue Datei für die verschobene alte
+und holte deren Titel zurück, statt einen neuen anzulegen. Aufgefallen als wackliger
+`TestRelinkFoldsOlderTwins` in PR #76 (Idee 04), dort nur in der Testhilfe entschärft.
+
+- Fix in `planRoot`: Ein Treffer über die Inode gilt direkt nur bei gleicher `mtime` (eine
+  Umbenennung behält sie, ein Umbenennen kostet also weiterhin kein Lesen). Bei anderer `mtime`
+  entscheidet der `partial_hash`: gleich, dann dieselbe Datei; sonst geht es weiter wie bei einer
+  neuen Datei (Abgleich über `partial_hash`, sonst neu). Die alte Datei fehlt dann, im Pfad-Scan
+  erst, wenn ihr Ordner zum Scan gehört (sonst beim nächsten vollen Scan).
+- Mehrere bekannte Dateien mit derselben Inode (die fehlende alte und die neue) sind alle
+  Kandidaten; die mit gleicher `mtime` gewinnt.
+- Ausnahmen, in denen die Inode wie bisher allein entscheidet: Die bekannte Datei hat keinen
+  `partial_hash` (Hashen schlug damals fehl), oder die neue Datei lässt sich gerade nicht lesen
+  (abgerissene Freigabe). So geht keine Datei verloren, und der Schwellwert für verlorene Dateien
+  springt nicht an.
+- Kosten: gehasht (128 KiB) wird zusätzlich nur eine Datei mit fremdem Pfad, bekannter Inode und
+  neuer `mtime`; solche Dateien wurden vorher ohnehin neu geprüft (`ffprobe`).
+- Grenzfall: Eine verschobene Datei, die am Ort im Kopf oder Ende umgeschrieben wurde (gleiche
+  Grösse), gilt jetzt als neue Datei. Vorher galt sie als dieselbe.
+- Test `TestScanReusedInodeIsNoMove`: gleiche Inode und Grösse, neuer Inhalt und neue `mtime`
+  ergibt eine neue Datei mit neuem Titel (ohne Fix rot); verschoben und nur berührt bleibt
+  dieselbe Datei; ohne alten `partial_hash` entscheidet die Inode. Paketbeschreibung in
+  `server/internal/library/doc.go` angepasst.
+
 ## Konzept 12 «Seitenmuster der Verwaltungsseiten»: umgesetzt und abgenommen, Schritte K12-0 bis K12-9 (3. November 2026)
 
 **Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.
