@@ -8,6 +8,20 @@ import { Form, SettingRow, TextField, useStatusMessage, type Drafts } from '@/ui
 import styles from './Integrations.module.css';
 import { Actions, keyDraft, Outcome, SourceChip, useSecretUpdate, type KeyName } from './shared';
 
+/**
+ * Where a signed-in user gets each key at its provider (acceptance K12-9). Addresses, not text:
+ * they stay out of the locales.
+ */
+const KEY_URLS = {
+  tmdb: 'https://www.themoviedb.org/settings/api',
+  tvdb: 'https://thetvdb.com/dashboard/account/apikey',
+  tvdbPin: 'https://thetvdb.com/dashboard/account/subscription',
+  youtube: 'https://console.cloud.google.com/apis/credentials',
+  fanart: 'https://fanart.tv/get-an-api-key/',
+  fanartClient: 'https://fanart.tv/get-an-api-key/',
+  trakt: 'https://developer.trakt.tv/apps',
+} as const satisfies Record<KeyName, string>;
+
 /** One provider key: write-only input, save and delete; read-only when deploy/.env sets it. */
 export function KeyRow({
   keyName,
@@ -57,7 +71,10 @@ export function KeyRow({
       labelAddon={<SourceChip source={state.source} hint={state.hint} />}
       help={
         <>
-          {t(`admin.integrations.keys.${keyName}.description`)}
+          {t(`admin.integrations.keys.${keyName}.description`)}{' '}
+          <TextLink href={KEY_URLS[keyName]} external>
+            {t(`admin.integrations.keys.${keyName}.link`)}
+          </TextLink>
           {keyName === 'trakt' && (
             <>
               {' '}

@@ -1982,32 +1982,39 @@
         "newValue": "Leer lassen, um den gespeicherten Wert zu behalten. Ein neuer Wert ersetzt ihn.",
         "tmdb": {
           "name": "TMDB-Token",
-          "description": "Lesezugriffs-Token (API Read Access Token) von themoviedb.org: Beschreibungen, Poster und Altersfreigaben."
+          "description": "Lesezugriffs-Token (API Read Access Token) von themoviedb.org: Beschreibungen, Poster und Altersfreigaben.",
+          "link": "Token bei themoviedb.org holen"
         },
         "tvdb": {
           "name": "TVDB-Schlüssel",
-          "description": "API-Schlüssel von thetvdb.com: optionale zweite Quelle für Serien."
+          "description": "API-Schlüssel von thetvdb.com: optionale zweite Quelle für Serien.",
+          "link": "Schlüssel bei thetvdb.com holen"
         },
         "tvdbPin": {
           "name": "TVDB-PIN",
-          "description": "Abonnenten-PIN, nur für ein TVDB-Abonnement mit PIN."
+          "description": "Abonnenten-PIN, nur für ein TVDB-Abonnement mit PIN.",
+          "link": "PIN bei thetvdb.com nachsehen"
         },
         "youtube": {
           "name": "YouTube-Schlüssel",
-          "description": "API-Schlüssel der YouTube Data API: sucht Trailer, wenn TMDB keinen kennt."
+          "description": "API-Schlüssel der YouTube Data API: sucht Trailer, wenn TMDB keinen kennt.",
+          "link": "Schlüssel in der Google Cloud Console holen"
         },
         "trakt": {
           "name": "Trakt-Client-ID",
-          "description": "Für die Reihen «Trending» und «Beliebt» der Startseite."
+          "description": "Für die Reihen «Trending» und «Beliebt» der Startseite.",
+          "link": "Client-ID bei trakt.tv holen"
         },
         "traktStatus": "Stand der Trakt-Listen",
         "fanart": {
           "name": "Fanart.tv-Schlüssel",
-          "description": "Projektschlüssel (API-Schlüssel) von fanart.tv: Logos und Poster in hoher Güte als letzte Bildquelle; eingeschaltet wird sie unter «Metadaten». Neue Bilder erscheinen nach 7 Tagen."
+          "description": "Projektschlüssel (API-Schlüssel) von fanart.tv: Logos und Poster in hoher Güte als letzte Bildquelle; eingeschaltet wird sie unter «Metadaten». Neue Bilder erscheinen nach 7 Tagen.",
+          "link": "Projektschlüssel bei fanart.tv holen"
         },
         "fanartClient": {
           "name": "Persönlicher Fanart.tv-Schlüssel",
-          "description": "Optional: neue Bilder schon nach 2 Tagen statt nach 7."
+          "description": "Optional: neue Bilder schon nach 2 Tagen statt nach 7.",
+          "link": "Persönlichen Schlüssel bei fanart.tv holen"
         }
       },
       "webhooks": {

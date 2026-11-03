@@ -446,7 +446,8 @@ offenem Dialog)
 **Integrationen** (`IntegrationsPage.tsx`, `WebhooksSection.tsx`)
 - INT-1 Schlüssel TMDB, TVDB, TVDB-PIN, YouTube, Fanart, Fanart-Client, Trakt: Herkunft
   (Umgebung, gespeichert), Feld, Speichern, Löschen (Rückfrage); Trakt mit Zustandslink →
-  Spotlight.
+  Spotlight. Jeder Schlüssel verlinkt die Seite, auf der angemeldete Benutzer ihn beim Anbieter
+  holen (Abnahme K12-9, 3. November 2026).
 - INT-2 Webhooks: neue Integration (Name, Art Radarr/Sonarr) → einmalige Adresse mit Kopieren,
   Schliessen.
 - INT-3 Je Webhook-Integration: Art, Token-Ende, zuletzt gesehen; Pfadzuordnung Von/Nach mit

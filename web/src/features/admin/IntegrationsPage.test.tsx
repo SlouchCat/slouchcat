@@ -99,6 +99,51 @@ describe('integrations (A-2)', () => {
     );
   });
 
+  it('links every key to the page that issues it at its provider, in a new tab (K12-9)', async () => {
+    mockApi(routes());
+    renderApp('/admin/integrations');
+    const keys = await screen.findByRole('region', { name: 'Schlüssel der Anbieter' });
+    const links: [string, string, string][] = [
+      ['TMDB-Token', 'Token bei themoviedb.org holen', 'https://www.themoviedb.org/settings/api'],
+      [
+        'TVDB-Schlüssel',
+        'Schlüssel bei thetvdb.com holen',
+        'https://thetvdb.com/dashboard/account/apikey',
+      ],
+      [
+        'TVDB-PIN',
+        'PIN bei thetvdb.com nachsehen',
+        'https://thetvdb.com/dashboard/account/subscription',
+      ],
+      [
+        'YouTube-Schlüssel',
+        'Schlüssel in der Google Cloud Console holen',
+        'https://console.cloud.google.com/apis/credentials',
+      ],
+      [
+        'Fanart.tv-Schlüssel',
+        'Projektschlüssel bei fanart.tv holen',
+        'https://fanart.tv/get-an-api-key/',
+      ],
+      [
+        'Persönlicher Fanart.tv-Schlüssel',
+        'Persönlichen Schlüssel bei fanart.tv holen',
+        'https://fanart.tv/get-an-api-key/',
+      ],
+      ['Trakt-Client-ID', 'Client-ID bei trakt.tv holen', 'https://developer.trakt.tv/apps'],
+    ];
+    for (const [row, name, href] of links) {
+      const group = within(keys).getByRole('group', { name: row });
+      const link = within(group).getByRole('link', { name });
+      expect(link).toHaveAttribute('href', href);
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noreferrer noopener');
+      // The link sits in the row's help: the field keeps the row's visible label as its name.
+      expect(within(group).getByLabelText(row, INPUT)).toBeInTheDocument();
+    }
+    expect(within(keys).getAllByRole('link', { name: /holen|nachsehen/ })).toHaveLength(7);
+  });
+
   it('names every hidden-label field like the visible label of its row (WCAG 2.5.3)', async () => {
     mockApi(routes());
     renderApp('/admin/integrations');
