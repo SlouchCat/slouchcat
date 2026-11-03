@@ -21,6 +21,7 @@ func sumPlayed(t *testing.T, f *vistest.Fixture, profileID int64) int64 {
 // K-5: an exact duplicate of an event (a retry) is stored once; the played time of an event counts
 // at most the server time since the previous event of the playback (or its start) plus 10 %.
 func TestReportDedupesAndBoundsPlayedTime(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)}
 	s := New(f.DB, vistest.Logger(), WithClock(clock.Now), WithTokenKey(testKey))
@@ -80,6 +81,7 @@ func TestReportDedupesAndBoundsPlayedTime(t *testing.T) {
 // K-5 backstop: the sweep ends the running playback of a profile whose watch time is used up,
 // also when no progress event of that playback reached the limit.
 func TestSweepEndsPlaybackOverWatchLimit(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)}
 	s := New(f.DB, vistest.Logger(), WithClock(clock.Now), WithTokenKey(testKey))
@@ -116,6 +118,7 @@ func TestSweepEndsPlaybackOverWatchLimit(t *testing.T) {
 // The report sums one query per range and assigns quarter hours to the calendar days of the
 // server's time zone.
 func TestWatchReportDayBoundaries(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	clock := &manualClock{now: time.Date(2026, 10, 21, 12, 0, 0, 0, zurich)}
 	s := New(f.DB, vistest.Logger(), WithClock(clock.Now), WithTokenKey(testKey))

@@ -16,6 +16,7 @@ import (
 // session without media file, Range passed through, visibility re-checked on every request, and
 // failures of the podcast host answered as enclosure_unavailable.
 func TestEnclosurePlayback(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddAudio(t)
 	s := New(f.DB, vistest.Logger())
@@ -92,6 +93,7 @@ func TestEnclosurePlayback(t *testing.T) {
 // M6 review M-1: whatever type the podcast host sends, the proxied answer is audio (or
 // application/octet-stream) with nosniff and a sandboxing CSP, never a page on the server's origin.
 func TestEnclosureContentType(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddAudio(t)
 	s := New(f.DB, vistest.Logger())
@@ -154,6 +156,7 @@ func TestEnclosureContentType(t *testing.T) {
 // too (the fixture feed lives on the loopback address); the enclosure of a public feed that points
 // into the local network is refused after DNS resolution.
 func TestEnclosureLocalNetwork(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddAudio(t)
 	s := New(f.DB, vistest.Logger())

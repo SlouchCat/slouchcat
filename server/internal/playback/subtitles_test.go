@@ -77,6 +77,7 @@ func subtitleGrant(t *testing.T, s *Service, f *vistest.Fixture, m vistest.Movie
 // Ten concurrent requests of one playback and track run one conversion; a request whose client
 // goes away does not cancel it for the others.
 func TestSubtitleConversionShared(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tracks := f.AddTracks(t)
 	m := f.Rated(6)
@@ -132,6 +133,7 @@ func TestSubtitleConversionShared(t *testing.T) {
 
 // At most maxSubtitleConversions conversions run at once.
 func TestSubtitleConversionsBounded(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tracks := f.AddTracks(t)
 	m := f.Rated(6)
@@ -167,6 +169,7 @@ func TestSubtitleConversionsBounded(t *testing.T) {
 // A missing source answers 404 instead of a failed conversion: the sidecar file was deleted, the
 // media file was deleted.
 func TestSubtitleMissingSource(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tracks := f.AddTracks(t)
 	m := f.Rated(6)

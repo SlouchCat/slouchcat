@@ -107,6 +107,7 @@ func seedCondense(t *testing.T, f *vistest.Fixture) {
 // raw rows go, and everything inside the window stays untouched. Only whole UTC days are condensed,
 // so the day the boundary falls in keeps both its events.
 func TestCondenseProgressKeepsTheRetentionWindowRaw(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return condenseNow }), WithTokenKey(testKey))
 	seedCondense(t, f)
@@ -140,6 +141,7 @@ func TestCondenseProgressKeepsTheRetentionWindowRaw(t *testing.T) {
 // Plan 3.6: a second run condenses nothing twice. It finds no whole day outside the window any
 // more, removes nothing and leaves every day row as it was.
 func TestCondenseProgressIsIdempotent(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return condenseNow }), WithTokenKey(testKey))
 	seedCondense(t, f)
@@ -168,6 +170,7 @@ func TestCondenseProgressIsIdempotent(t *testing.T) {
 // migration 00019) is added to the stored day row instead of starting a second one, and its raw row
 // goes with the next run.
 func TestCondenseProgressAddsALateEventToItsDay(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return condenseNow }), WithTokenKey(testKey))
 	seedCondense(t, f)
@@ -197,6 +200,7 @@ func TestCondenseProgressAddsALateEventToItsDay(t *testing.T) {
 
 // Deleting the profile takes its condensed days with it (ON DELETE CASCADE, like progress_events).
 func TestCondenseProgressDaysFollowTheProfile(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return condenseNow }), WithTokenKey(testKey))
 	seedCondense(t, f)

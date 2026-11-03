@@ -16,6 +16,7 @@ import (
 // here: the error mapping and the admission error of the adapter.
 
 func TestNotFoundIfEnded(t *testing.T) {
+	t.Parallel()
 	for _, err := range []error{fmt.Errorf("%w: 99", transcode.ErrNoSegment), transcode.ErrClosed} {
 		if got := notFoundIfEnded(err); !errors.Is(got, model.ErrNotFound) {
 			t.Errorf("%v → %v, want ErrNotFound", err, got)
@@ -33,6 +34,7 @@ func TestNotFoundIfEnded(t *testing.T) {
 }
 
 func TestSegmentAt(t *testing.T) {
+	t.Parallel()
 	sec := func(n float64) time.Duration { return time.Duration(n * float64(time.Second)) }
 	grid := []transcode.Segment{{Start: 0, Duration: sec(4)}, {Start: sec(4), Duration: sec(4)}, {Start: sec(8), Duration: sec(5)}}
 	keyframes := []transcode.Segment{{Start: 0, Duration: sec(5.2)}, {Start: sec(5.2), Duration: sec(4.1)}, {Start: sec(9.3), Duration: sec(6)}}
@@ -52,6 +54,7 @@ func TestSegmentAt(t *testing.T) {
 }
 
 func TestManagerTranscoderRejectsUnplannableSource(t *testing.T) {
+	t.Parallel()
 	m, err := transcode.NewManager(transcode.ManagerOptions{
 		Runner: transcode.Runner{FFmpegPath: "ffmpeg", FFprobePath: "ffprobe"}, WorkDir: filepath.Join(t.TempDir(), "transcode"),
 		Backend: transcode.BackendSoftware,
