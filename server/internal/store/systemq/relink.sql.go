@@ -8,29 +8,62 @@ package systemq
 import (
 	"context"
 	"database/sql"
+	"strings"
 )
 
-const countRelinkUserData = `-- name: CountRelinkUserData :one
-WITH tree AS (
-    SELECT t.id FROM items AS t
-    WHERE t.id = ?1 OR t.parent_id = ?1
-       OR t.parent_id IN (SELECT s.id FROM items AS s WHERE s.parent_id = ?1)
+const countRelinkUserData = `-- name: CountRelinkUserData :many
+WITH roots AS (
+    SELECT r.id FROM items AS r WHERE r.id IN (/*SLICE:ids*/?)
+),
+tree AS (
+    SELECT roots.id AS root, roots.id AS id FROM roots
+    UNION ALL
+    SELECT c.parent_id AS root, c.id AS id FROM items AS c WHERE c.parent_id IN (SELECT roots.id FROM roots)
+    UNION ALL
+    SELECT s.parent_id AS root, g.id AS id FROM items AS s JOIN items AS g ON g.parent_id = s.id
+    WHERE s.parent_id IN (SELECT roots.id FROM roots)
+),
+counts AS (
+    SELECT t.root AS root, 'progress' AS tbl, count(*) AS n FROM tree AS t JOIN progress AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'progress_events', count(*) FROM tree AS t JOIN progress_events AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'progress_days', count(*) FROM tree AS t JOIN progress_days AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'playback_sessions', count(*) FROM tree AS t JOIN playback_sessions AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'watchlist', count(*) FROM tree AS t JOIN watchlist AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'favorites', count(*) FROM tree AS t JOIN favorites AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'collection_items', count(*) FROM tree AS t JOIN collection_items AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'notifications', count(*) FROM tree AS t JOIN notifications AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'top_picks', count(*) FROM tree AS t JOIN top_picks AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'downloads', count(*) FROM tree AS t JOIN downloads AS x ON x.item_id = t.id GROUP BY t.root
+    UNION ALL
+    SELECT t.root, 'activity_events', count(*) FROM tree AS t JOIN activity_events AS x ON x.item_id = t.id GROUP BY t.root
 )
-SELECT
-    (SELECT count(*) FROM progress WHERE item_id IN (SELECT id FROM tree))          AS progress,
-    (SELECT count(*) FROM progress_events WHERE item_id IN (SELECT id FROM tree))   AS progress_events,
-    (SELECT count(*) FROM progress_days WHERE item_id IN (SELECT id FROM tree))     AS progress_days,
-    (SELECT count(*) FROM playback_sessions WHERE item_id IN (SELECT id FROM tree)) AS playback_sessions,
-    (SELECT count(*) FROM watchlist WHERE item_id IN (SELECT id FROM tree))         AS watchlist,
-    (SELECT count(*) FROM favorites WHERE item_id IN (SELECT id FROM tree))         AS favorites,
-    (SELECT count(*) FROM collection_items WHERE item_id IN (SELECT id FROM tree))  AS collection_items,
-    (SELECT count(*) FROM notifications WHERE item_id IN (SELECT id FROM tree))     AS notifications,
-    (SELECT count(*) FROM top_picks WHERE item_id IN (SELECT id FROM tree))         AS top_picks,
-    (SELECT count(*) FROM downloads WHERE item_id IN (SELECT id FROM tree))         AS downloads,
-    (SELECT count(*) FROM activity_events WHERE item_id IN (SELECT id FROM tree))   AS activity_events
+SELECT CAST(counts.root AS TEXT) AS id,
+    CAST(sum(CASE counts.tbl WHEN 'progress' THEN counts.n ELSE 0 END) AS INTEGER)          AS progress,
+    CAST(sum(CASE counts.tbl WHEN 'progress_events' THEN counts.n ELSE 0 END) AS INTEGER)   AS progress_events,
+    CAST(sum(CASE counts.tbl WHEN 'progress_days' THEN counts.n ELSE 0 END) AS INTEGER)     AS progress_days,
+    CAST(sum(CASE counts.tbl WHEN 'playback_sessions' THEN counts.n ELSE 0 END) AS INTEGER) AS playback_sessions,
+    CAST(sum(CASE counts.tbl WHEN 'watchlist' THEN counts.n ELSE 0 END) AS INTEGER)         AS watchlist,
+    CAST(sum(CASE counts.tbl WHEN 'favorites' THEN counts.n ELSE 0 END) AS INTEGER)         AS favorites,
+    CAST(sum(CASE counts.tbl WHEN 'collection_items' THEN counts.n ELSE 0 END) AS INTEGER)  AS collection_items,
+    CAST(sum(CASE counts.tbl WHEN 'notifications' THEN counts.n ELSE 0 END) AS INTEGER)     AS notifications,
+    CAST(sum(CASE counts.tbl WHEN 'top_picks' THEN counts.n ELSE 0 END) AS INTEGER)         AS top_picks,
+    CAST(sum(CASE counts.tbl WHEN 'downloads' THEN counts.n ELSE 0 END) AS INTEGER)         AS downloads,
+    CAST(sum(CASE counts.tbl WHEN 'activity_events' THEN counts.n ELSE 0 END) AS INTEGER)   AS activity_events
+FROM counts
+GROUP BY counts.root
 `
 
 type CountRelinkUserDataRow struct {
+	ID               string
 	Progress         int64
 	ProgressEvents   int64
 	ProgressDays     int64
@@ -44,24 +77,53 @@ type CountRelinkUserDataRow struct {
 	ActivityEvents   int64
 }
 
-// The user data on a title and its descendants (seasons, episodes, extras), per table.
-func (q *Queries) CountRelinkUserData(ctx context.Context, id string) (CountRelinkUserDataRow, error) {
-	row := q.db.QueryRowContext(ctx, countRelinkUserData, id)
-	var i CountRelinkUserDataRow
-	err := row.Scan(
-		&i.Progress,
-		&i.ProgressEvents,
-		&i.ProgressDays,
-		&i.PlaybackSessions,
-		&i.Watchlist,
-		&i.Favorites,
-		&i.CollectionItems,
-		&i.Notifications,
-		&i.TopPicks,
-		&i.Downloads,
-		&i.ActivityEvents,
-	)
-	return i, err
+// The user data on titles and their descendants (seasons, episodes, extras), per title and table,
+// in one statement for the listed pairs of the maintenance action. A title without any row is
+// missing from the result.
+func (q *Queries) CountRelinkUserData(ctx context.Context, ids []string) ([]CountRelinkUserDataRow, error) {
+	query := countRelinkUserData
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountRelinkUserDataRow{}
+	for rows.Next() {
+		var i CountRelinkUserDataRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Progress,
+			&i.ProgressEvents,
+			&i.ProgressDays,
+			&i.PlaybackSessions,
+			&i.Watchlist,
+			&i.Favorites,
+			&i.CollectionItems,
+			&i.Notifications,
+			&i.TopPicks,
+			&i.Downloads,
+			&i.ActivityEvents,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const findDeletedTwin = `-- name: FindDeletedTwin :one
@@ -69,7 +131,8 @@ const findDeletedTwin = `-- name: FindDeletedTwin :one
 SELECT d.id FROM items AS l
 JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
 WHERE l.id = ?1 AND l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
-  AND +d.deleted_at IS NOT NULL AND l.created_at > d.deleted_at
+  AND +d.deleted_at IS NOT NULL
+  AND (CAST(?2 AS INTEGER) IS NULL OR l.created_at > d.deleted_at - CAST(?2 AS INTEGER))
   AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
   AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
   AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
@@ -78,17 +141,27 @@ ORDER BY d.deleted_at DESC, d.id DESC
 LIMIT 1
 `
 
+type FindDeletedTwinParams struct {
+	LiveID  string
+	GraceMs sql.NullInt64
+}
+
 // Relinking of soft-deleted titles (ADR 0023, idea 04). Owner: library package. A live film or
 // series and a soft-deleted one are twins when they share the library, the kind and at least one
-// provider id (TMDB, TVDB, IMDb), and no provider id contradicts. Only a fresh copy counts: the
-// live title was created after the twin was deleted, so two titles that lived side by side are
-// never merged. The deleted twin survives with its id; the live copy merges into it. Times are
-// Unix milliseconds.
+// provider id (TMDB, TVDB, IMDb), and no provider id contradicts. The automatic relink after a
+// match only takes a fresh copy: the live title was created at most a grace period before the twin
+// was deleted (library.relinkGrace, decision 21), so two titles that lived side by side for longer
+// are never merged on their own. The maintenance action knows no such rule: the administrator sees
+// both titles and decides. The deleted twin survives with its id; the live copy merges into it.
+// Times are Unix milliseconds.
 // The soft-deleted twin of a live film or series; among several the most recently deleted wins.
-// No time limit (ADR 0023, point 2). The unary + keeps the planner off items_library_kind, which
-// would walk every deleted title of the library, and on the provider id indexes (MULTI-INDEX OR).
-func (q *Queries) FindDeletedTwin(ctx context.Context, liveID string) (string, error) {
-	row := q.db.QueryRowContext(ctx, findDeletedTwin, liveID)
+// With grace_ms the live title must have been created after the twin's deletion less grace_ms
+// (the automatic relink); without it any age counts (the maintenance action). No limit on how long
+// ago the twin was deleted (ADR 0023, point 2). The unary + keeps the planner off
+// items_library_kind, which would walk every deleted title of the library, and on the provider id
+// indexes (MULTI-INDEX OR).
+func (q *Queries) FindDeletedTwin(ctx context.Context, arg FindDeletedTwinParams) (string, error) {
+	row := q.db.QueryRowContext(ctx, findDeletedTwin, arg.LiveID, arg.GraceMs)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -192,36 +265,40 @@ func (q *Queries) ListRelinkChildren(ctx context.Context, parentID sql.NullStrin
 const listRelinkPairs = `-- name: ListRelinkPairs :many
 WITH pairs AS (
     SELECT l.id AS live_id, d.id AS deleted_id, l.library_id AS library_id, l.kind AS kind, l.title AS title,
-           d.deleted_at AS deleted_at,
+           l.year AS year, d.title AS deleted_title, d.year AS deleted_year, d.deleted_at AS deleted_at,
            row_number() OVER (PARTITION BY l.id ORDER BY d.deleted_at DESC, d.id DESC) AS rn
     FROM items AS l
     CROSS JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
     WHERE l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
       AND (CAST(?1 AS INTEGER) = 0 OR l.library_id = ?1)
-      AND +d.deleted_at IS NOT NULL AND l.created_at > d.deleted_at
+      AND +d.deleted_at IS NOT NULL
       AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
       AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
       AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
       AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
 )
-SELECT live_id, deleted_id, library_id, kind, title, deleted_at FROM pairs
+SELECT live_id, deleted_id, library_id, kind, title, year, deleted_title, deleted_year, deleted_at FROM pairs
 WHERE rn = 1
 ORDER BY library_id, title, live_id
 `
 
 type ListRelinkPairsRow struct {
-	LiveID    string
-	DeletedID string
-	LibraryID int64
-	Kind      string
-	Title     string
-	DeletedAt sql.NullInt64
+	LiveID       string
+	DeletedID    string
+	LibraryID    int64
+	Kind         string
+	Title        string
+	Year         sql.NullInt64
+	DeletedTitle string
+	DeletedYear  sql.NullInt64
+	DeletedAt    sql.NullInt64
 }
 
 // Every live film or series of a library (all libraries with library_id 0) with its soft-deleted
-// twin, as FindDeletedTwin picks it. Two live copies may name the same deleted twin; the first
-// merge revives it, and the second copy then has no deleted twin any more. CROSS JOIN keeps the
-// live titles in the outer loop, so each looks up its twins by provider id (see FindDeletedTwin).
+// twin, as FindDeletedTwin picks it without grace_ms: the maintenance action knows no freshness
+// rule. Two live copies may name the same deleted twin; the first merge revives it, and the second
+// copy then has no deleted twin any more. CROSS JOIN keeps the live titles in the outer loop, so
+// each looks up its twins by provider id (see FindDeletedTwin).
 func (q *Queries) ListRelinkPairs(ctx context.Context, libraryID int64) ([]ListRelinkPairsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listRelinkPairs, libraryID)
 	if err != nil {
@@ -237,6 +314,9 @@ func (q *Queries) ListRelinkPairs(ctx context.Context, libraryID int64) ([]ListR
 			&i.LibraryID,
 			&i.Kind,
 			&i.Title,
+			&i.Year,
+			&i.DeletedTitle,
+			&i.DeletedYear,
 			&i.DeletedAt,
 		); err != nil {
 			return nil, err

@@ -110,11 +110,16 @@ type LibraryMaintenance interface {
 	// IgnoreFiles removes the media files, records them in ignored_files with the reason and
 	// soft-deletes titles left without a file; unknown ids are skipped.
 	IgnoreFiles(ctx context.Context, mediaFileIDs []string, reason string) (files, itemsDeleted int, err error)
-	// ListRelinkPairs lists the live films and series with a soft-deleted twin (ADR 0023), of one
-	// library or of all (libraryID 0).
+	// ListRelinkPairs lists the live films and series with a soft-deleted twin of any age
+	// (ADR 0023), of one library or of all (libraryID 0).
 	ListRelinkPairs(ctx context.Context, libraryID int64) ([]library.RelinkPair, error)
-	// CountRelinkUserData counts the user data of a title and its descendants per table.
-	CountRelinkUserData(ctx context.Context, itemID string) (library.RelinkUserData, error)
+	// CountRelinkUserData counts the user data of the titles and their descendants per table, in
+	// one statement; a title without user data is missing from the map.
+	CountRelinkUserData(ctx context.Context, itemIDs []string) (map[string]library.RelinkUserData, error)
+	// CheckRelinkPair checks a pair before anything moves and returns the library of the live
+	// title: model.ErrNotFound for an unknown id or a title that is neither film nor series,
+	// library.ErrNotTwins when the pair is no pair (any more).
+	CheckRelinkPair(ctx context.Context, deletedID, liveID string) (int64, error)
 	// Relink merges the live copy into its soft-deleted twin; model.ErrNotFound,
 	// library.ErrNotTwins, model.ErrScanRunning.
 	Relink(ctx context.Context, deletedID, liveID string) (library.RelinkResult, error)

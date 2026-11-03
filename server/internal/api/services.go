@@ -156,10 +156,11 @@ type AdminService interface {
 	// CleanupItems soft-deletes orphaned titles and removes media files as ignored.
 	CleanupItems(ctx context.Context, itemIDs, mediaFileIDs []string) (items, files int, err error)
 	// ListRelinkPairs returns the soft-deleted titles with a live copy and their user data
-	// (ADR 0023); RelinkItems merges the copies into them (*model.ValidationError for a pair that
-	// is not listed, model.ErrScanRunning) and returns the merged pairs and the skipped count.
+	// (ADR 0023); RelinkItems merges the copies into them (*model.ValidationError for a malformed
+	// request, *model.ScanRunningError when a scan stopped the run before any merge) and returns
+	// the merged pairs, the skipped count and why the run stopped early.
 	ListRelinkPairs(ctx context.Context, libraryID *int64) (model.RelinkPairList, error)
-	RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) ([]model.RelinkedPair, int, error)
+	RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) (model.RelinkOutcome, error)
 
 	// M4 (design section 8): devices (W-7) and running streams (W-6).
 

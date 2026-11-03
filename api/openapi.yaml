@@ -3971,9 +3971,10 @@ paths:
       description: |
         Pairs of a soft-deleted film or series and the live copy that carries one of its provider ids
         (TMDB, TVDB, IMDb) in the same library, without a contradicting id; with several deleted
-        twins the most recently deleted one. Each pair counts the user data on the deleted title and
-        its seasons, episodes and extras, per table. At most 200 pairs, ordered by library and title;
-        `total` counts all of them.
+        twins the most recently deleted one. Unlike the automatic relink after a match, the copy may
+        be of any age: the administrator sees both titles and decides. Each pair counts the user data
+        on the deleted title and its seasons, episodes and extras, per table. At most 200 pairs,
+        ordered by library name, title of the copy and id of the copy; `total` counts all of them.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -3998,12 +3999,15 @@ paths:
       operationId: relinkItems
       summary: Merge live copies into their deleted titles (ADR 0023)
       description: |
-        Each pair must be listed by `listRelinkPairs`; otherwise nothing is merged (`validation_failed`).
-        One transaction per pair: the deleted title comes back with its id, the files, seasons,
-        episodes and user data of the live copy merge into it (progress: completed wins, then the
-        larger position) and the copy is deleted. A pair whose deleted title came back meanwhile (two
-        copies of one title) is skipped. A running scan of the library refuses a pair (`scan_running`);
-        the pairs before it stay merged, and a repeated request merges the rest.
+        Each pair must name a film or series that is deleted and one that is live; an unknown id or
+        another kind refuses the whole request before anything moves (`validation_failed`). A pair
+        named twice counts once. A pair that is no pair of `listRelinkPairs` any more is skipped: the
+        deleted title came back meanwhile (two copies of one title, the first merged), the copy
+        merged or the titles changed. One transaction per pair: the deleted title comes back with its
+        id, the files, seasons, episodes and user data of the live copy merge into it (progress:
+        completed wins, then the larger position) and the copy is deleted for good. A running scan of
+        a library stops the run: with pairs merged before, the answer is 200 with `stoppedBy`
+        `scan_running`, and a repeated request merges the rest; with nothing merged it is 409.
       tags: [admin]
       x-visibility: admin
       requestBody:
@@ -4024,13 +4028,15 @@ paths:
         "403":
           $ref: "#/components/responses/AdminOnly"
         "409":
-          description: A scan of the library is running (`scan_running`).
+          description: A scan of a library is running and no pair was merged (`scan_running`; the detail names the library).
           content:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
         "422":
-          description: Validation failed (`validation_failed`; `pairs[i]` `invalid_value` for a pair that is not listed).
+          description: |
+            Validation failed (`validation_failed`): `pairs` `required` or `too_long`, `pairs[i]`
+            `invalid_value` for an unknown id or a title that is no film or series.
           content:
             application/problem+json:
               schema:
@@ -9362,7 +9368,7 @@ components:
 
     RelinkPair:
       type: object
-      required: [deletedId, liveId, libraryId, libraryName, kind, title, deletedAt, userData]
+      required: [deletedId, liveId, libraryId, libraryName, kind, title, deletedTitle, deletedAt, userData]
       properties:
         deletedId:
           $ref: "#/components/schemas/ItemID"
@@ -9379,6 +9385,15 @@ components:
         title:
           type: string
           description: Title of the live copy.
+        year:
+          type: integer
+          description: Year of the live copy, if known.
+        deletedTitle:
+          type: string
+          description: Title of the deleted title, which the merge keeps.
+        deletedYear:
+          type: integer
+          description: Year of the deleted title, if known.
         deletedAt:
           type: string
           format: date-time
@@ -9392,6 +9407,7 @@ components:
       properties:
         total:
           type: integer
+          format: int64
           description: All pairs; `pairs` holds at most 200 of them.
         pairs:
           type: array
@@ -9446,7 +9462,15 @@ components:
             $ref: "#/components/schemas/RelinkedPair"
         skipped:
           type: integer
-          description: Pairs whose deleted title came back meanwhile or that are gone.
+          format: int64
+          description: Pairs that are no pair any more (the deleted title came back meanwhile, the copy merged, the titles changed).
+        stoppedBy:
+          type: string
+          enum: [scan_running]
+          description: |
+            Why the run stopped before the last pair: `scan_running`, a scan of a library holds it.
+            The pairs in `relinked` are merged; a repeated request merges the rest. Absent when the
+            run went through.
 
     LibraryKind:
       type: string

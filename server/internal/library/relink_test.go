@@ -138,9 +138,13 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 	if err != nil || len(pairs) != 1 || pairs[0].LiveID != live || pairs[0].DeletedID != dead || pairs[0].Kind != "series" {
 		t.Fatalf("pairs = %+v, %v", pairs, err)
 	}
-	counts, err := e.svc.CountRelinkUserData(e.ctx, dead)
-	if err != nil || counts.Progress != 3 || counts.ProgressEvents != 1 || counts.PlaybackSessions != 1 || counts.Watchlist != 1 {
+	byTitle, err := e.svc.CountRelinkUserData(e.ctx, []string{dead, live})
+	if counts := byTitle[dead]; err != nil || counts.Progress != 3 || counts.ProgressEvents != 1 || counts.PlaybackSessions != 1 || counts.Watchlist != 1 {
 		t.Fatalf("user data of the deleted series = %+v, %v", counts, err)
+	}
+	// The copy's own rows count apart: progress on two episodes, an event, a session, an activity.
+	if counts := byTitle[live]; counts != (RelinkUserData{Progress: 3, ProgressEvents: 1, PlaybackSessions: 1, ActivityEvents: 1}) {
+		t.Fatalf("user data of the copy = %+v", counts)
 	}
 
 	// The scans queued a match of every title; only the relink may queue one for the kept series.

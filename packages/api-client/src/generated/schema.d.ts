@@ -1973,20 +1973,24 @@ export interface paths {
          * Deleted titles with a live copy and the user data left on them (ADR 0023)
          * @description Pairs of a soft-deleted film or series and the live copy that carries one of its provider ids
          *     (TMDB, TVDB, IMDb) in the same library, without a contradicting id; with several deleted
-         *     twins the most recently deleted one. Each pair counts the user data on the deleted title and
-         *     its seasons, episodes and extras, per table. At most 200 pairs, ordered by library and title;
-         *     `total` counts all of them.
+         *     twins the most recently deleted one. Unlike the automatic relink after a match, the copy may
+         *     be of any age: the administrator sees both titles and decides. Each pair counts the user data
+         *     on the deleted title and its seasons, episodes and extras, per table. At most 200 pairs,
+         *     ordered by library name, title of the copy and id of the copy; `total` counts all of them.
          */
         get: operations["listRelinkPairs"];
         put?: never;
         /**
          * Merge live copies into their deleted titles (ADR 0023)
-         * @description Each pair must be listed by `listRelinkPairs`; otherwise nothing is merged (`validation_failed`).
-         *     One transaction per pair: the deleted title comes back with its id, the files, seasons,
-         *     episodes and user data of the live copy merge into it (progress: completed wins, then the
-         *     larger position) and the copy is deleted. A pair whose deleted title came back meanwhile (two
-         *     copies of one title) is skipped. A running scan of the library refuses a pair (`scan_running`);
-         *     the pairs before it stay merged, and a repeated request merges the rest.
+         * @description Each pair must name a film or series that is deleted and one that is live; an unknown id or
+         *     another kind refuses the whole request before anything moves (`validation_failed`). A pair
+         *     named twice counts once. A pair that is no pair of `listRelinkPairs` any more is skipped: the
+         *     deleted title came back meanwhile (two copies of one title, the first merged), the copy
+         *     merged or the titles changed. One transaction per pair: the deleted title comes back with its
+         *     id, the files, seasons, episodes and user data of the live copy merge into it (progress:
+         *     completed wins, then the larger position) and the copy is deleted for good. A running scan of
+         *     a library stops the run: with pairs merged before, the answer is 200 with `stoppedBy`
+         *     `scan_running`, and a repeated request merges the rest; with nothing merged it is 409.
          */
         post: operations["relinkItems"];
         delete?: never;
@@ -4987,13 +4991,22 @@ export interface components {
             kind: "movie" | "series";
             /** @description Title of the live copy. */
             title: string;
+            /** @description Year of the live copy, if known. */
+            year?: number;
+            /** @description Title of the deleted title, which the merge keeps. */
+            deletedTitle: string;
+            /** @description Year of the deleted title, if known. */
+            deletedYear?: number;
             /** Format: date-time */
             deletedAt: string;
             /** @description The user data on the deleted title, which the merge keeps. */
             userData: components["schemas"]["RelinkUserData"];
         };
         RelinkPairList: {
-            /** @description All pairs; `pairs` holds at most 200 of them. */
+            /**
+             * Format: int64
+             * @description All pairs; `pairs` holds at most 200 of them.
+             */
             total: number;
             pairs: components["schemas"]["RelinkPair"][];
         };
@@ -5016,8 +5029,18 @@ export interface components {
         };
         RelinkOutcome: {
             relinked: components["schemas"]["RelinkedPair"][];
-            /** @description Pairs whose deleted title came back meanwhile or that are gone. */
+            /**
+             * Format: int64
+             * @description Pairs that are no pair any more (the deleted title came back meanwhile, the copy merged, the titles changed).
+             */
             skipped: number;
+            /**
+             * @description Why the run stopped before the last pair: `scan_running`, a scan of a library holds it.
+             *     The pairs in `relinked` are merged; a repeated request merges the rest. Absent when the
+             *     run went through.
+             * @enum {string}
+             */
+            stoppedBy?: "scan_running";
         };
         /**
          * @description The family of a library (ADR 0015): what its folders may hold, nothing else. `video` takes
@@ -11189,7 +11212,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description A scan of the library is running (`scan_running`). */
+            /** @description A scan of a library is running and no pair was merged (`scan_running`; the detail names the library). */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -11198,7 +11221,10 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description Validation failed (`validation_failed`; `pairs[i]` `invalid_value` for a pair that is not listed). */
+            /**
+             * @description Validation failed (`validation_failed`): `pairs` `required` or `too_long`, `pairs[i]`
+             *     `invalid_value` for an unknown id or a title that is no film or series.
+             */
             422: {
                 headers: {
                     [name: string]: unknown;

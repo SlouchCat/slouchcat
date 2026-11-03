@@ -97,27 +97,95 @@ func TestRelinkFoldsOlderTwins(t *testing.T) {
 	}
 }
 
-// Only a copy that appeared after its twin was deleted counts: two films that lived side by side
-// stay apart, in the hook, the maintenance list and Relink.
-func TestRelinkOnlyFreshCopies(t *testing.T) {
+// The automatic relink takes a copy created up to relinkGrace before its twin was deleted (a new
+// folder scanned before the old one is removed, decision 21); a copy that lived beside the twin
+// for longer stays apart. The maintenance action knows no freshness rule: it lists that pair and
+// merges it.
+func TestRelinkFreshnessGrace(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	dir, lib := e.filmLibrary()
-	old := e.addFilm(dir, lib.ID, "Heat/Heat.mkv", 949)
-	other := e.addFilm(dir, lib.ID, "Heat Other/Heat.mkv", 949)
-	e.clock.Advance(time.Hour)
+	heat := e.addFilm(dir, lib.ID, "Heat/Heat.mkv", 949)
+	heatCopy := e.addFilm(dir, lib.ID, "Heat Copy/Heat.mkv", 949)
+	alien := e.addFilm(dir, lib.ID, "Alien/Alien.mkv", 348)
+	alienCopy := e.addFilm(dir, lib.ID, "Alien Copy/Alien.mkv", 348)
 	e.dropFilm(dir, lib.ID, "Heat/Heat.mkv")
-	if twin, err := e.relinkJob(other); err != nil || twin {
-		t.Errorf("twin of the older live film = %v, %v; want none", twin, err)
+	e.dropFilm(dir, lib.ID, "Alien/Alien.mkv")
+	createdBefore := func(copyID, deadID string, d time.Duration) {
+		e.exec(`UPDATE items SET created_at = (SELECT deleted_at FROM items WHERE id = ?) - ? WHERE id = ?`, deadID, d.Milliseconds(), copyID)
 	}
-	if pairs, err := e.svc.ListRelinkPairs(e.ctx, 0); err != nil || len(pairs) != 0 {
-		t.Errorf("pairs = %+v, %v; want none", pairs, err)
+	createdBefore(heatCopy, heat, time.Hour)
+	createdBefore(alienCopy, alien, 8*24*time.Hour)
+
+	if twin, err := e.relinkJob(alienCopy); err != nil || twin {
+		t.Errorf("twin of a copy created 8 days before = %v, %v; want none", twin, err)
 	}
-	if _, err := e.svc.Relink(e.ctx, old, other); !errors.Is(err, ErrNotTwins) {
-		t.Errorf("Relink = %v, want ErrNotTwins", err)
+	pairs, err := e.svc.ListRelinkPairs(e.ctx, 0)
+	if err != nil || len(pairs) != 2 {
+		t.Fatalf("pairs = %+v, %v; want both copies", pairs, err)
 	}
-	if v := e.str(`SELECT (deleted_at IS NULL) FROM items WHERE id = ?`, old); v != "0" {
-		t.Error("deleted film restored")
+	if twin, err := e.relinkJob(heatCopy); err != nil || !twin {
+		t.Fatalf("twin of a copy created an hour before = %v, %v", twin, err)
+	}
+	if v := e.str(`SELECT (deleted_at IS NULL) || '/' || (SELECT count(*) FROM items WHERE id = ?) FROM items WHERE id = ?`, heatCopy, heat); v != "1/0" {
+		t.Errorf("film live / copy rows = %s, want 1/0", v)
+	}
+	if v := e.str(`SELECT (deleted_at IS NULL) FROM items WHERE id = ?`, alien); v != "0" {
+		t.Error("the automatic relink restored the film with the old copy")
+	}
+
+	if libID, err := e.svc.CheckRelinkPair(e.ctx, alien, alienCopy); err != nil || libID != lib.ID {
+		t.Errorf("check of the old copy = %v, %v; want library %d", libID, err, lib.ID)
+	}
+	if _, err := e.svc.Relink(e.ctx, alien, alienCopy); err != nil {
+		t.Fatalf("maintenance relink of the old copy = %v", err)
+	}
+	if v := e.str(`SELECT (deleted_at IS NULL) || '/' || (SELECT count(*) FROM items WHERE id = ?) FROM items WHERE id = ?`, alienCopy, alien); v != "1/0" {
+		t.Errorf("film live / copy rows = %s, want 1/0", v)
+	}
+}
+
+// Two copies of one deleted title: the maintenance list shows both pairs; the first merges, the
+// second is no pair any more, since its deleted title is back, and stays as a live duplicate. An
+// unknown id names no film or series.
+func TestRelinkTwoCopiesOfOneTitle(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir, lib := e.filmLibrary()
+	heat := e.addFilm(dir, lib.ID, "Heat/Heat.mkv", 949)
+	e.dropFilm(dir, lib.ID, "Heat/Heat.mkv")
+	first := e.addFilm(dir, lib.ID, "Heat A/Heat.mkv", 949)
+	second := e.addFilm(dir, lib.ID, "Heat B/Heat.mkv", 949)
+
+	pairs, err := e.svc.ListRelinkPairs(e.ctx, lib.ID)
+	if err != nil || len(pairs) != 2 || pairs[0].DeletedID != heat || pairs[1].DeletedID != heat {
+		t.Fatalf("pairs = %+v, %v; want both copies of the deleted film", pairs, err)
+	}
+	if pairs[0].DeletedTitle != "Heat" {
+		t.Errorf("deleted title = %q", pairs[0].DeletedTitle)
+	}
+	for _, c := range []string{first, second} {
+		if _, err := e.svc.CheckRelinkPair(e.ctx, heat, c); err != nil {
+			t.Fatalf("check of %s = %v", c, err)
+		}
+	}
+	if _, err := e.svc.Relink(e.ctx, heat, first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.CheckRelinkPair(e.ctx, heat, second); !errors.Is(err, ErrNotTwins) {
+		t.Errorf("check of the second copy = %v, want ErrNotTwins", err)
+	}
+	if _, err := e.svc.Relink(e.ctx, heat, second); !errors.Is(err, ErrNotTwins) {
+		t.Errorf("relink of the second copy = %v, want ErrNotTwins", err)
+	}
+	if v := e.str(`SELECT (deleted_at IS NULL) FROM items WHERE id = ?`, second); v != "1" {
+		t.Error("the second copy is gone")
+	}
+	if pairs, err := e.svc.ListRelinkPairs(e.ctx, lib.ID); err != nil || len(pairs) != 0 {
+		t.Errorf("pairs after the merge = %+v, %v", pairs, err)
+	}
+	if _, err := e.svc.CheckRelinkPair(e.ctx, heat, "01ZZZZZZZZZZZZZZZZZZZZZZZZ"); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("check of an unknown id = %v, want ErrNotFound", err)
 	}
 }
 

@@ -251,12 +251,13 @@ func (s *server) ListRelinkPairs(ctx context.Context, req gen.ListRelinkPairsReq
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.ListRelinkPairs200JSONResponse{Total: list.Total, Pairs: make([]gen.RelinkPair, 0, len(list.Pairs))}
+	out := gen.ListRelinkPairs200JSONResponse{Total: int64(list.Total), Pairs: make([]gen.RelinkPair, 0, len(list.Pairs))}
 	for _, p := range list.Pairs {
 		u := p.UserData
 		out.Pairs = append(out.Pairs, gen.RelinkPair{
 			DeletedId: p.DeletedID, LiveId: p.LiveID, LibraryId: p.LibraryID, LibraryName: p.LibraryName,
-			Kind: gen.RelinkPairKind(p.Kind), Title: p.Title, DeletedAt: p.DeletedAt.UTC(),
+			Kind: gen.RelinkPairKind(p.Kind), Title: p.Title, Year: p.Year, DeletedTitle: p.DeletedTitle,
+			DeletedYear: p.DeletedYear, DeletedAt: p.DeletedAt.UTC(),
 			UserData: gen.RelinkUserData{
 				Progress: u.Progress, ProgressEvents: u.ProgressEvents, ProgressDays: u.ProgressDays,
 				PlaybackSessions: u.PlaybackSessions, Watchlist: u.Watchlist, Favorites: u.Favorites,
@@ -276,14 +277,18 @@ func (s *server) RelinkItems(ctx context.Context, req gen.RelinkItemsRequestObje
 	for _, p := range req.Body.Pairs {
 		pairs = append(pairs, model.RelinkPairRef{DeletedID: p.DeletedId, LiveID: p.LiveId})
 	}
-	done, skipped, err := s.opts.Admin.RelinkItems(ctx, pairs)
+	res, err := s.opts.Admin.RelinkItems(ctx, pairs)
 	// Streams of the deleted copies end.
 	if err := s.recheckAfter(ctx, err); err != nil {
 		return s.problem(ctx, err), nil
 	}
-	out := gen.RelinkItems200JSONResponse{Relinked: make([]gen.RelinkedPair, 0, len(done)), Skipped: skipped}
-	for _, d := range done {
+	out := gen.RelinkItems200JSONResponse{Relinked: make([]gen.RelinkedPair, 0, len(res.Relinked)), Skipped: int64(res.Skipped)}
+	for _, d := range res.Relinked {
 		out.Relinked = append(out.Relinked, gen.RelinkedPair{KeptId: d.KeptID, RemovedId: d.RemovedID, Merged: d.Merged, Moved: d.Moved})
+	}
+	if res.StoppedBy != "" {
+		stopped := gen.RelinkOutcomeStoppedBy(res.StoppedBy)
+		out.StoppedBy = &stopped
 	}
 	return out, nil
 }

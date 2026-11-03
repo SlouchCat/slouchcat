@@ -1,9 +1,11 @@
 package admin
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -12,14 +14,16 @@ import (
 // The maintenance action «Verwaiste Benutzerdaten umhängen» (ADR 0023 point 3, idea 04 D1): it
 // lists the soft-deleted films and series that have a live copy, with the user data left on
 // them, and on confirmation merges the copies into them with the relink of package library. It
-// knows no time limit and can be repeated.
+// knows no time limit and no freshness rule (decision 21): the administrator sees both titles and
+// decides. It can be repeated.
 
 // maxRelinkPairs caps the pairs of one preview and of one request.
 const maxRelinkPairs = 200
 
 // ListRelinkPairs returns the first maxRelinkPairs pairs of a soft-deleted title and its live
-// copy, of one library or of all (nil), each with the user data on the deleted title and the
-// name of its library, and the number of all pairs.
+// copy, of one library or of all (nil), ordered by library name, title of the copy and its id,
+// each with the user data on the deleted title and the name of its library, and the number of all
+// pairs. The user data of the listed pairs is counted in one statement.
 func (s *Service) ListRelinkPairs(ctx context.Context, libraryID *int64) (model.RelinkPairList, error) {
 	if s.maint == nil {
 		return model.RelinkPairList{}, ErrNotConfigured
@@ -32,34 +36,55 @@ func (s *Service) ListRelinkPairs(ctx context.Context, libraryID *int64) (model.
 	if err != nil {
 		return model.RelinkPairList{}, err
 	}
-	libs, err := s.libraries.List(ctx)
+	names, err := s.libraryNames(ctx)
 	if err != nil {
-		return model.RelinkPairList{}, fmt.Errorf("list libraries: %w", err)
+		return model.RelinkPairList{}, err
 	}
-	names := make(map[int64]string, len(libs))
-	for _, l := range libs {
-		names[l.ID] = l.Name
+	slices.SortStableFunc(pairs, func(a, b library.RelinkPair) int {
+		return cmp.Or(cmp.Compare(names[a.LibraryID], names[b.LibraryID]), cmp.Compare(a.LibraryID, b.LibraryID),
+			cmp.Compare(a.Title, b.Title), cmp.Compare(a.LiveID, b.LiveID))
+	})
+	shown := pairs[:min(len(pairs), maxRelinkPairs)]
+	ids := make([]string, 0, len(shown))
+	for _, p := range shown {
+		ids = append(ids, p.DeletedID)
 	}
-	out := model.RelinkPairList{Total: len(pairs), Pairs: make([]model.RelinkPair, 0, min(len(pairs), maxRelinkPairs))}
-	for _, p := range pairs[:min(len(pairs), maxRelinkPairs)] {
-		counts, err := s.maint.CountRelinkUserData(ctx, p.DeletedID)
-		if err != nil {
-			return model.RelinkPairList{}, err
-		}
+	counts, err := s.maint.CountRelinkUserData(ctx, ids)
+	if err != nil {
+		return model.RelinkPairList{}, err
+	}
+	out := model.RelinkPairList{Total: len(pairs), Pairs: make([]model.RelinkPair, 0, len(shown))}
+	for _, p := range shown {
 		out.Pairs = append(out.Pairs, model.RelinkPair{
 			DeletedID: p.DeletedID, LiveID: p.LiveID, LibraryID: p.LibraryID, LibraryName: names[p.LibraryID],
-			Kind: p.Kind, Title: p.Title, DeletedAt: p.DeletedAt, UserData: model.RelinkUserData(counts),
+			Kind: p.Kind, Title: p.Title, Year: p.Year, DeletedTitle: p.DeletedTitle, DeletedYear: p.DeletedYear,
+			DeletedAt: p.DeletedAt, UserData: model.RelinkUserData(counts[p.DeletedID]),
 		})
 	}
 	return out, nil
 }
 
-// RelinkItems merges the live copies into their soft-deleted titles, one transaction per pair.
-// Every pair must be listed by ListRelinkPairs, else nothing is merged (*model.ValidationError,
-// pairs[i] invalid_value). A pair whose deleted title came back meanwhile (two copies of one
-// title, or the pair twice) or whose titles are gone is skipped and counted. model.ErrScanRunning
-// stops the run; the pairs before stay merged and a repeated request merges the rest.
-func (s *Service) RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) ([]model.RelinkedPair, int, error) {
+func (s *Service) libraryNames(ctx context.Context) (map[int64]string, error) {
+	libs, err := s.libraries.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list libraries: %w", err)
+	}
+	names := make(map[int64]string, len(libs))
+	for _, l := range libs {
+		names[l.ID] = l.Name
+	}
+	return names, nil
+}
+
+// RelinkItems merges the live copies into their soft-deleted titles, one transaction per pair; a
+// pair named twice counts once. A malformed request moves nothing (*model.ValidationError): no
+// pair, more than maxRelinkPairs, or pairs[i] invalid_value for an unknown id or a title that is
+// neither film nor series. A pair that is no pair (any more) is skipped and counted: the deleted
+// title came back meanwhile (two copies of one title, the first merged), the copy merged or the
+// titles changed. A running scan stops the run: with pairs merged before, the outcome carries
+// StoppedBy "scan_running" and a repeated request merges the rest; with none, the error is a
+// *model.ScanRunningError naming the library.
+func (s *Service) RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) (model.RelinkOutcome, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	var verr *model.ValidationError
 	switch {
@@ -69,40 +94,60 @@ func (s *Service) RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) 
 		verr = verr.Add("pairs", "too_long")
 	}
 	if verr != nil {
-		return nil, 0, verr
+		return model.RelinkOutcome{}, verr
 	}
 	if s.maint == nil {
-		return nil, 0, ErrNotConfigured
+		return model.RelinkOutcome{}, ErrNotConfigured
 	}
-	listed, err := s.maint.ListRelinkPairs(ctx, 0)
-	if err != nil {
-		return nil, 0, err
+	type pending struct {
+		ref     model.RelinkPairRef
+		library int64
 	}
-	known := make(map[[2]string]bool, len(listed))
-	for _, p := range listed {
-		known[[2]string{p.DeletedID, p.LiveID}] = true
-	}
+	out := model.RelinkOutcome{Relinked: []model.RelinkedPair{}}
+	seen := make(map[model.RelinkPairRef]bool, len(pairs))
+	run := make([]pending, 0, len(pairs))
 	for i, p := range pairs {
-		if !known[[2]string{p.DeletedID, p.LiveID}] {
+		if seen[p] {
+			continue
+		}
+		seen[p] = true
+		lib, err := s.maint.CheckRelinkPair(ctx, p.DeletedID, p.LiveID)
+		switch {
+		case errors.Is(err, model.ErrNotFound):
 			verr = verr.Add(fmt.Sprintf("pairs[%d]", i), "invalid_value")
+		case errors.Is(err, library.ErrNotTwins):
+			out.Skipped++
+		case err != nil:
+			return model.RelinkOutcome{}, err
+		default:
+			run = append(run, pending{ref: p, library: lib})
 		}
 	}
 	if verr != nil {
-		return nil, 0, verr
+		return model.RelinkOutcome{}, verr
 	}
-	done := []model.RelinkedPair{}
-	skipped := 0
-	for _, p := range pairs {
-		res, err := s.maint.Relink(ctx, p.DeletedID, p.LiveID)
+	for _, p := range run {
+		res, err := s.maint.Relink(ctx, p.ref.DeletedID, p.ref.LiveID)
+		if errors.Is(err, model.ErrScanRunning) {
+			if len(out.Relinked) > 0 {
+				out.StoppedBy = "scan_running"
+				break
+			}
+			names, nerr := s.libraryNames(ctx)
+			if nerr != nil {
+				return model.RelinkOutcome{}, errors.Join(err, nerr)
+			}
+			return model.RelinkOutcome{}, &model.ScanRunningError{Library: names[p.library]}
+		}
 		switch {
 		case errors.Is(err, library.ErrNotTwins) || errors.Is(err, model.ErrNotFound):
-			skipped++
+			out.Skipped++
 			continue
 		case err != nil:
-			return done, skipped, err
+			return out, err
 		}
-		done = append(done, model.RelinkedPair{KeptID: res.KeptID, RemovedID: res.RemovedID, Merged: res.Merged, Moved: res.Moved})
+		out.Relinked = append(out.Relinked, model.RelinkedPair{KeptID: res.KeptID, RemovedID: res.RemovedID, Merged: res.Merged, Moved: res.Moved})
 	}
-	s.log.InfoContext(ctx, "maintenance relink", "relinked", len(done), "skipped", skipped)
-	return done, skipped, nil
+	s.log.InfoContext(ctx, "maintenance relink", "relinked", len(out.Relinked), "skipped", out.Skipped, "stopped_by", out.StoppedBy)
+	return out, nil
 }

@@ -99,6 +99,7 @@ const pair = (n: number, extra: Partial<RelinkPair> = {}): RelinkPair => ({
   libraryName: 'Serien',
   kind: 'series',
   title: `Serie ${n}`,
+  deletedTitle: `Serie ${n}`,
   deletedAt: '2026-10-28T09:00:00Z',
   userData: noUserData,
   ...extra,

@@ -259,10 +259,10 @@ var adminRegistry = map[string]adminCall{
 	"cleanupItems": {contract: "POST /admin/maintenance/cleanup", path: "/admin/maintenance/cleanup",
 		body: `{"itemIds":["` + fixtureFilm6 + `"]}`, ownerStatus: http.StatusOK},
 	// ADR 0023: the fixture has no deleted title with a live copy, so no pair is listed and a
-	// requested one is refused.
+	// requested one is skipped.
 	"listRelinkPairs": {contract: "GET /admin/maintenance/relink", path: "/admin/maintenance/relink", ownerStatus: http.StatusOK},
 	"relinkItems": {contract: "POST /admin/maintenance/relink", path: "/admin/maintenance/relink",
-		body: `{"pairs":[{"deletedId":"` + fixtureFilm6 + `","liveId":"` + fixtureSeries + `"}]}`, ownerStatus: http.StatusUnprocessableEntity},
+		body: `{"pairs":[{"deletedId":"` + fixtureFilm6 + `","liveId":"` + fixtureSeries + `"}]}`, ownerStatus: http.StatusOK},
 	// M4: device and stream overviews (W-6, W-7).
 	"listDevices":  {contract: "GET /admin/devices", path: "/admin/devices", ownerStatus: http.StatusOK},
 	"deleteDevice": {contract: "DELETE /admin/devices/{id}", path: "/admin/devices/zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", ownerStatus: http.StatusNotFound},

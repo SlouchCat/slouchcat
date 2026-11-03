@@ -81,6 +81,19 @@ var (
 	ErrAdminLimitsFixed = errors.New("admin limits fixed") // 409 admin_limits_fixed
 )
 
+// ScanRunningError is ErrScanRunning with the name of the library whose scan runs;
+// errors.Is(err, ErrScanRunning) holds.
+type ScanRunningError struct {
+	Library string
+}
+
+func (e *ScanRunningError) Error() string {
+	return fmt.Sprintf("scan of library %q running", e.Library)
+}
+
+// Is makes errors.Is(err, ErrScanRunning) true.
+func (e *ScanRunningError) Is(target error) bool { return target == ErrScanRunning }
+
 // PinLockedError is ErrPinLocked with the remaining lock; errors.Is(err, ErrPinLocked) holds.
 type PinLockedError struct {
 	RetryAfter time.Duration
@@ -439,6 +452,9 @@ type RelinkPair struct {
 	LibraryName       string
 	Kind              string // movie or series
 	Title             string // of the live copy
+	Year              *int   // of the live copy
+	DeletedTitle      string
+	DeletedYear       *int
 	DeletedAt         time.Time
 	UserData          RelinkUserData
 }
@@ -457,6 +473,14 @@ type RelinkPairRef struct{ DeletedID, LiveID string }
 type RelinkedPair struct {
 	KeptID, RemovedID string
 	Merged, Moved     int
+}
+
+// RelinkOutcome is the result of the maintenance relink: the merged pairs, the skipped ones and,
+// when a running scan stopped the run before the last pair, StoppedBy "scan_running".
+type RelinkOutcome struct {
+	Relinked  []RelinkedPair
+	Skipped   int
+	StoppedBy string
 }
 
 // Image is a poster or backdrop reference as the client uses it.

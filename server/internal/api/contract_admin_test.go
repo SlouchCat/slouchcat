@@ -46,12 +46,16 @@ func (contractLibraryMaintenance) IgnoreFiles(_ context.Context, ids []string, _
 }
 
 // The contract fixture has no soft-deleted title with a live copy: the list is empty, and a
-// requested pair is not listed (the Go tests of admin and library relink real pairs).
+// requested pair is no pair, so it is skipped (the Go tests of admin and library relink real
+// pairs).
 func (contractLibraryMaintenance) ListRelinkPairs(context.Context, int64) ([]library.RelinkPair, error) {
 	return []library.RelinkPair{}, nil
 }
-func (contractLibraryMaintenance) CountRelinkUserData(context.Context, string) (library.RelinkUserData, error) {
-	return library.RelinkUserData{}, nil
+func (contractLibraryMaintenance) CountRelinkUserData(context.Context, []string) (map[string]library.RelinkUserData, error) {
+	return map[string]library.RelinkUserData{}, nil
+}
+func (contractLibraryMaintenance) CheckRelinkPair(context.Context, string, string) (int64, error) {
+	return 0, library.ErrNotTwins
 }
 func (contractLibraryMaintenance) Relink(context.Context, string, string) (library.RelinkResult, error) {
 	return library.RelinkResult{}, library.ErrNotTwins

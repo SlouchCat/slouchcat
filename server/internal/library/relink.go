@@ -16,13 +16,27 @@ import (
 
 // Late relinking of soft-deleted titles (ADR 0023, idea 04). A live film or series and a
 // soft-deleted one are twins when they lie in the same library, have the same kind, share at least
-// one provider id (TMDB, TVDB, IMDb) and no provider id contradicts, and the live copy was created
-// after the twin was deleted. The deleted twin survives with its id, so ids on devices, in links
-// and in offline packages stay valid; the live copy merges into it and is deleted for good.
+// one provider id (TMDB, TVDB, IMDb) and no provider id contradicts. The deleted twin survives with
+// its id, so ids on devices, in links and in offline packages stay valid; the live copy merges
+// into it and is deleted for good.
 //
 // After metadata.match wrote the provider ids of a title, QueueRelink (metadata.WithRelink) queues
 // the job library.relink for a title with a deleted twin; the job merges it under the scan lock of
-// the library (handleRelink).
+// the library (handleRelink). This automatic path only takes a fresh copy (relinkGrace). The
+// maintenance action (ListRelinkPairs, CheckRelinkPair, Relink) knows no freshness rule: the
+// administrator sees both titles and decides.
+
+// relinkGrace is how long before its twin's deletion a live copy may have been created and still
+// merge on its own (decision 21, ADR 0023): a new folder is added and scanned first, the old one
+// removed afterwards. Two titles that lived side by side for longer stay apart unless the
+// administrator merges them with the maintenance action.
+const relinkGrace = 7 * 24 * time.Hour
+
+// autoGrace is relinkGrace for FindDeletedTwin; anyAge lets a copy of any age count.
+var (
+	autoGrace = sql.NullInt64{Int64: relinkGrace.Milliseconds(), Valid: true}
+	anyAge    = sql.NullInt64{}
+)
 
 // ErrNotTwins is returned by Relink when the two titles are not a soft-deleted title and its live
 // copy (anymore).
@@ -34,6 +48,9 @@ type RelinkPair struct {
 	LibraryID         int64
 	Kind              string // movie or series
 	Title             string // of the live copy
+	Year              *int   // of the live copy
+	DeletedTitle      string
+	DeletedYear       *int
 	DeletedAt         time.Time
 }
 
@@ -62,35 +79,85 @@ type RelinkResult struct {
 	Folded int
 }
 
-// ListRelinkPairs lists the live films and series with a soft-deleted twin, of one library or of
-// all libraries (libraryID 0). Several live copies may name the same twin.
+// ListRelinkPairs lists the live films and series with a soft-deleted twin of any age, of one
+// library or of all libraries (libraryID 0), for the maintenance action. Several live copies may
+// name the same twin.
 func (s *Service) ListRelinkPairs(ctx context.Context, libraryID int64) ([]RelinkPair, error) {
 	rows, err := systemq.New(s.db.Read).ListRelinkPairs(ctx, libraryID)
 	if err != nil {
 		return nil, fmt.Errorf("list relink pairs: %w", err)
 	}
+	year := func(v sql.NullInt64) *int {
+		if !v.Valid {
+			return nil
+		}
+		y := int(v.Int64)
+		return &y
+	}
 	pairs := make([]RelinkPair, 0, len(rows))
 	for _, r := range rows {
 		pairs = append(pairs, RelinkPair{
 			LiveID: r.LiveID, DeletedID: r.DeletedID, LibraryID: r.LibraryID, Kind: r.Kind, Title: r.Title,
+			Year: year(r.Year), DeletedTitle: r.DeletedTitle, DeletedYear: year(r.DeletedYear),
 			DeletedAt: time.UnixMilli(r.DeletedAt.Int64).UTC(),
 		})
 	}
 	return pairs, nil
 }
 
-// CountRelinkUserData counts the user data of a title and its descendants per table.
-func (s *Service) CountRelinkUserData(ctx context.Context, itemID string) (RelinkUserData, error) {
-	row, err := systemq.New(s.db.Read).CountRelinkUserData(ctx, itemID)
-	if err != nil {
-		return RelinkUserData{}, fmt.Errorf("count user data of %s: %w", itemID, err)
+// CountRelinkUserData counts the user data of the titles and their descendants per table, in one
+// statement; a title without user data is missing from the map.
+func (s *Service) CountRelinkUserData(ctx context.Context, itemIDs []string) (map[string]RelinkUserData, error) {
+	out := make(map[string]RelinkUserData, len(itemIDs))
+	if len(itemIDs) == 0 {
+		return out, nil
 	}
-	return RelinkUserData(row), nil
+	rows, err := systemq.New(s.db.Read).CountRelinkUserData(ctx, itemIDs)
+	if err != nil {
+		return nil, fmt.Errorf("count user data of %d titles: %w", len(itemIDs), err)
+	}
+	for _, r := range rows {
+		out[r.ID] = RelinkUserData{
+			Progress: r.Progress, ProgressEvents: r.ProgressEvents, ProgressDays: r.ProgressDays,
+			PlaybackSessions: r.PlaybackSessions, Watchlist: r.Watchlist, Favorites: r.Favorites,
+			CollectionItems: r.CollectionItems, Notifications: r.Notifications, TopPicks: r.TopPicks,
+			Downloads: r.Downloads, ActivityEvents: r.ActivityEvents,
+		}
+	}
+	return out, nil
 }
 
-// Relink merges the live copy liveID into its soft-deleted twin deletedID (see relink). It
-// returns model.ErrNotFound when one of them does not exist, ErrNotTwins when they are no twins
-// and model.ErrScanRunning while a scan of the library runs.
+// CheckRelinkPair checks a pair of the maintenance action before anything moves and returns the
+// library of the live title. It returns model.ErrNotFound when an id is unknown or names neither a
+// film nor a series, and ErrNotTwins when deletedID is not (any more) the twin ListRelinkPairs
+// would show for liveID: the deleted title came back, the copy is deleted or the titles changed.
+func (s *Service) CheckRelinkPair(ctx context.Context, deletedID, liveID string) (int64, error) {
+	q := systemq.New(s.db.Read)
+	var libraryID int64
+	for _, id := range []string{deletedID, liveID} {
+		it, err := q.GetItemSystem(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) || (err == nil && it.Kind != "movie" && it.Kind != "series") {
+			return 0, fmt.Errorf("%w: film or series %s", model.ErrNotFound, id)
+		}
+		if err != nil {
+			return 0, fmt.Errorf("load item %s: %w", id, err)
+		}
+		libraryID = it.LibraryID
+	}
+	twin, err := q.FindDeletedTwin(ctx, systemq.FindDeletedTwinParams{LiveID: liveID, GraceMs: anyAge})
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && twin != deletedID) {
+		return libraryID, fmt.Errorf("%w: %s and %s", ErrNotTwins, deletedID, liveID)
+	}
+	if err != nil {
+		return libraryID, fmt.Errorf("find deleted twin of %s: %w", liveID, err)
+	}
+	return libraryID, nil
+}
+
+// Relink is the maintenance action's merge of the live copy liveID into its soft-deleted twin
+// deletedID (see relink), without the freshness rule of the automatic path. It returns
+// model.ErrNotFound when one of them does not exist, ErrNotTwins when they are no twins and
+// model.ErrScanRunning while a scan of the library runs.
 func (s *Service) Relink(ctx context.Context, deletedID, liveID string) (RelinkResult, error) {
 	live, err := systemq.New(s.db.Read).GetItemSystem(ctx, liveID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -104,7 +171,7 @@ func (s *Service) Relink(ctx context.Context, deletedID, liveID string) (RelinkR
 		return RelinkResult{}, fmt.Errorf("%w: library %d", model.ErrScanRunning, live.LibraryID)
 	}
 	defer unlock()
-	return s.relink(ctx, deletedID, liveID)
+	return s.relink(ctx, deletedID, liveID, anyAge)
 }
 
 // relinkRetry is how long library.relink waits when a scan of the library holds the scan lock.
@@ -118,7 +185,7 @@ func relinkKey(itemID string) string { return "relink:" + itemID }
 // title into its twin; the caller's match ends there. The job waits for the debounce window, so
 // the match that queued it has finished before the job may queue the title's match again.
 func (s *Service) QueueRelink(ctx context.Context, liveID string) (bool, error) {
-	if _, err := systemq.New(s.db.Read).FindDeletedTwin(ctx, liveID); errors.Is(err, sql.ErrNoRows) {
+	if _, err := systemq.New(s.db.Read).FindDeletedTwin(ctx, systemq.FindDeletedTwinParams{LiveID: liveID, GraceMs: autoGrace}); errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	} else if err != nil {
 		return false, fmt.Errorf("find deleted twin of %s: %w", liveID, err)
@@ -174,17 +241,17 @@ func (s *Service) handleRelink(ctx context.Context, j *jobs.Job) error {
 	return err
 }
 
-// relinkTwin merges liveID into its most recently deleted twin, if any; the caller holds the scan
-// lock of the library.
+// relinkTwin merges liveID into its most recently deleted twin within relinkGrace, if any; the
+// caller holds the scan lock of the library.
 func (s *Service) relinkTwin(ctx context.Context, liveID string) (string, bool, error) {
-	deletedID, err := systemq.New(s.db.Read).FindDeletedTwin(ctx, liveID)
+	deletedID, err := systemq.New(s.db.Read).FindDeletedTwin(ctx, systemq.FindDeletedTwinParams{LiveID: liveID, GraceMs: autoGrace})
 	if errors.Is(err, sql.ErrNoRows) {
 		return liveID, false, nil
 	}
 	if err != nil {
 		return liveID, false, fmt.Errorf("find deleted twin of %s: %w", liveID, err)
 	}
-	if _, err := s.relink(ctx, deletedID, liveID); err != nil {
+	if _, err := s.relink(ctx, deletedID, liveID, autoGrace); err != nil {
 		if errors.Is(err, ErrNotTwins) || errors.Is(err, model.ErrNotFound) {
 			return liveID, false, nil // changed since the lookup
 		}
@@ -207,8 +274,9 @@ func (s *Service) relinkTwin(ctx context.Context, liveID string) (string, bool, 
 // without counterpart stays deleted. Then every other soft-deleted twin of the survivor (an older
 // generation of the title) folds into it the same way, user data only, so a later match of the
 // survivor finds no older twin. The triggers recompute availability and ratings. The twin gets a
-// metadata.match, which describes the episodes that moved in.
-func (s *Service) relink(ctx context.Context, deletedID, liveID string) (RelinkResult, error) {
+// metadata.match, which describes the episodes that moved in. grace is the freshness rule of the
+// twins (autoGrace or anyAge).
+func (s *Service) relink(ctx context.Context, deletedID, liveID string, grace sql.NullInt64) (RelinkResult, error) {
 	now := s.now()
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
@@ -234,7 +302,7 @@ func (s *Service) relink(ctx context.Context, deletedID, liveID string) (RelinkR
 	if err != nil {
 		return RelinkResult{}, err
 	}
-	if !twins(dead, live) {
+	if !twins(dead, live, grace) {
 		return RelinkResult{}, fmt.Errorf("%w: %s and %s", ErrNotTwins, deletedID, liveID)
 	}
 	r := &relinker{q: q, now: now.UnixMilli(), copy: true}
@@ -260,11 +328,12 @@ func (s *Service) relink(ctx context.Context, deletedID, liveID string) (RelinkR
 	return res, nil
 }
 
-// twins reports whether dead is a soft-deleted film or series and live its live copy, created
-// after dead was deleted (FindDeletedTwin).
-func twins(dead, live systemq.Item) bool {
+// twins reports whether dead is a soft-deleted film or series and live its live copy; with a valid
+// grace, live was created after dead's deletion less grace (FindDeletedTwin).
+func twins(dead, live systemq.Item, grace sql.NullInt64) bool {
 	if dead.ID == live.ID || !dead.DeletedAt.Valid || live.DeletedAt.Valid || dead.LibraryID != live.LibraryID ||
-		dead.Kind != live.Kind || (live.Kind != "movie" && live.Kind != "series") || live.CreatedAt <= dead.DeletedAt.Int64 {
+		dead.Kind != live.Kind || (live.Kind != "movie" && live.Kind != "series") ||
+		(grace.Valid && live.CreatedAt <= dead.DeletedAt.Int64-grace.Int64) {
 		return false
 	}
 	shared := (dead.TmdbID.Valid && dead.TmdbID == live.TmdbID) || (dead.TvdbID.Valid && dead.TvdbID == live.TvdbID) ||
