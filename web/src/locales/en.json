@@ -2921,7 +2921,7 @@
         "chainOf": "Image language {{kind}}"
       },
       "quality": {
-        "title": "Quality",
+        "title": "Image quality",
         "intro": "Applies to every library. The delivered sizes (poster 200/400/800, backdrop 780/1280/1920, logo 400/800) are fixed.",
         "minPoster": "Minimum poster width",
         "minBackdrop": "Minimum backdrop width",

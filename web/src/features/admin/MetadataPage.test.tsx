@@ -188,7 +188,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     ).toEqual([
       expect.stringContaining('Sprachen'),
       expect.stringContaining('Bilder'),
-      expect.stringContaining('Güte'),
+      expect.stringContaining('Bildqualität'),
       expect.stringContaining('Quellen'),
       expect.stringContaining('Altersfreigabe'),
       expect.stringContaining('Anwenden'),
@@ -268,7 +268,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
       }),
     ).toBeInTheDocument();
 
-    const quality = await openArea(user, 'Güte');
+    const quality = await openArea(user, 'Bildqualität');
     expect(within(quality).getByRole('radio', { name: '500 px' })).toBeChecked();
     expect(within(quality).getByRole('radio', { name: '1280 px' })).toBeChecked();
     expect(within(quality).getByRole('switch', { name: 'Nach Bewertung wählen' })).toBeChecked();
@@ -309,7 +309,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     const { router } = renderApp('/admin/metadata?item=rating');
     expect(await screen.findByRole('region', { name: 'Altersfreigabe' })).toBeVisible();
     const user = userEvent.setup();
-    await openArea(user, 'Güte');
+    await openArea(user, 'Bildqualität');
     expect(router.state.location.search).toMatchObject({ item: 'quality' });
     // The default area drops the parameter.
     await openArea(user, 'Sprachen');
@@ -425,7 +425,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(scopeSelect()).toHaveValue('2');
     // Quality, sources, rating and apply belong to the server: not on a library.
     expect(within(areas()).getAllByRole('option')).toHaveLength(2);
-    expect(within(areas()).queryByRole('option', { name: 'Güte' })).toBeNull();
+    expect(within(areas()).queryByRole('option', { name: 'Bildqualität' })).toBeNull();
     expect(within(areas()).queryByRole('option', { name: 'Altersfreigabe' })).toBeNull();
     const languages = region('Sprachen');
     expect(within(languages).getByText('wie Server')).toBeVisible();
@@ -527,7 +527,7 @@ describe('metadata settings page (concept 10, concept 12 Met-B)', () => {
     expect(
       await screen.findByText(/Gilt für alle Bibliotheken ohne eigene Abweichung/),
     ).toBeVisible();
-    expect(within(areas()).getByRole('option', { name: 'Güte' })).toBeVisible();
+    expect(within(areas()).getByRole('option', { name: 'Bildqualität' })).toBeVisible();
   });
 
   it('keeps the drafts of every scope while the scope and the area change (S-13, S-17)', async () => {

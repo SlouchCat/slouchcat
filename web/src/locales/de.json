@@ -2854,7 +2854,7 @@
     },
     "metadata": {
       "title": "Metadaten",
-      "intro": "Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Güte, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für alle Bibliotheken; eine Bibliothek kann bei Sprachen und Bildern abweichen.",
+      "intro": "Welche Sprachen die Metadatenquellen liefern, welche Bilder in welcher Sprache und Qualität, und welches Land die Altersfreigabe zuerst bestimmt. Der Standard gilt für alle Bibliotheken; eine Bibliothek kann bei Sprachen und Bildern abweichen.",
       "links": {
         "roots": "Die Reihenfolge der Quellen steht je Ordner unter Bibliotheken.",
         "jobs": "Die Zeitpläne stehen unter Hintergrundjobs.",
@@ -2921,7 +2921,7 @@
         "chainOf": "Bildsprache {{kind}}"
       },
       "quality": {
-        "title": "Güte",
+        "title": "Bildqualität",
         "intro": "Gilt für alle Bibliotheken. Die ausgelieferten Grössen (Poster 200/400/800, Hintergrund 780/1280/1920, Logo 400/800) sind fest.",
         "minPoster": "Mindestbreite Poster",
         "minBackdrop": "Mindestbreite Hintergrund",

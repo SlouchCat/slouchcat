@@ -231,7 +231,7 @@ test('the default scope lists the areas and the languages, the save bar is clean
   await expect(region(page, 'Bilder').getByText('immer')).toHaveCount(2);
   await expect(page).toHaveURL(/[?&]item=images/);
   for (const [option, title] of [
-    ['Güte', 'Güte'],
+    ['Bildqualität', 'Bildqualität'],
     ['Quellen', 'Quellen'],
     ['Altersfreigabe', 'Altersfreigabe'],
     ['Anwenden', 'Auf bestehende Titel anwenden'],
