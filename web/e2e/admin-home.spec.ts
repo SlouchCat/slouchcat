@@ -108,6 +108,26 @@ test('the app column has one "Verwaltung" entry; Enter opens the overview in the
   await expectFocusOn(page, appNav(page).getByRole('link', { name: 'Start', exact: true }));
 });
 
+test('the focus stays on «Übersicht» after entering the administration with Enter', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
+  await resetFocus(page);
+  await tabTo(page, appNav(page).getByRole('link', { name: 'Verwaltung' }));
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin$/);
+  await expectFocusOn(page, entry(page, 'Übersicht'));
+  // norigin restores the focus of a removed element 300 ms later (its auto-restore); the app
+  // column that had the focus is gone by now, and that restore must not pull the focus out of the
+  // administration's sidebar into the header. Wait past it, then check where the focus is.
+  await page.waitForTimeout(800);
+  await expectFocusOn(page, entry(page, 'Übersicht'));
+  // A slow machine used to hit this by chance: ↑ then Enter went to the bell, not to the app.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, entry(page, 'Zurück zur App'));
+});
+
 test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
   page,
 }) => {

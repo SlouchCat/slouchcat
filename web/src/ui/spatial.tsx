@@ -163,6 +163,11 @@ interface SpatialGroupProps {
   rememberLastChild?: boolean;
   /** Child that receives focus when the group is entered and no last child is remembered. */
   preferredChildFocusKey?: string;
+  /**
+   * norigin focuses this group again 300 ms after its focused child or group goes away (default
+   * true). False for a group whose owner moves the focus itself (the app shell).
+   */
+  autoRestoreFocus?: boolean;
   /** Arrow keys never leave the group (a modal drawer). */
   focusBoundary?: boolean;
   /**
@@ -192,6 +197,7 @@ export function SpatialGroup({
   className,
   rememberLastChild = true,
   preferredChildFocusKey,
+  autoRestoreFocus,
   focusBoundary,
   nextFocusKey,
   ordered,
@@ -203,6 +209,7 @@ export function SpatialGroup({
     focusKey,
     saveLastFocusedChild: rememberLastChild,
     preferredChildFocusKey,
+    autoRestoreFocus,
     isFocusBoundary: focusBoundary,
     nextFocusResolver: nextFocusKey
       ? (direction, from, siblings) => {
