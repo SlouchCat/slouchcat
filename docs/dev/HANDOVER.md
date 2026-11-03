@@ -160,11 +160,13 @@ einem eigenen Branch). `background` fasst Abschnitt 6, den Stand der Meilenstein
    Schlüssel erklärt Marco in drei Sätzen, er trägt sie selbst in deploy/.env ein.
 4. Umfang: die Schritte aus dem Plan-Abschnitt, ausformuliert, mit den Spec-IDs.
 5. Definition of Done: Plan-DoD plus 6.2, Abnahmematrix-Zeilen grün mit Belegen, Kinderprofil-Vertragstest
-   10.2 für alle neuen Operationen, Playwright-Tastaturtests, `task ci` grün, Code-Review-Passage und
-   Verifier, `docs/dev/CURRENT_STATUS.md` und `docs/perf/Mx.md` mit Belegen (Befehl und Ausgabe).
+   10.2 für alle neuen Operationen, Playwright-Tastaturtests, `task ci` grün einmal vor dem Pull Request
+   (Teststufen in `docs/dev/SETUP.md`), Code-Review-Passage und Verifier auf den Belegen,
+   `docs/dev/CURRENT_STATUS.md` und `docs/perf/Mx.md` mit Belegen (Befehl und Ausgabe).
 6. Arbeitsweise: OMC-Ausführungs-Skill (execute oder ralph) mit dem Plan als Kontext; ein englischer Commit
    je Schritt mit Bereich im Titel; Branch pushen und am Ende Pull Request gegen main öffnen (Summary,
-   Evidence, Not covered), nicht mergen ohne Marcos Wort; keine Nicht-Ziele; Regeln der CLAUDE.md strikt;
+   Evidence, Not covered), nicht mergen ohne Marcos Wort; keine Nicht-Ziele; Regeln der CLAUDE.md strikt,
+   auch «Agenten und Prüfungen»;
    fehlende Werkzeuge mit genauem Befehl nennen, sudo macht Marco; nach dem Merge baut die Hauptsession das
    Image neu.
 

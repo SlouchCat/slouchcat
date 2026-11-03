@@ -59,8 +59,39 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
 ## Arbeitsweise
 
 - Jeder Planschritt ist ein eigener Commit; nicht pushen, bevor Marco das Remote eingerichtet hat.
-- Vor dem Abschluss eines Schritts: `task ci` grün, DoD-Belege (Befehl und Ausgabe) sammeln,
-  `docs/dev/CURRENT_STATUS.md` aktualisieren.
+- Geprüft wird in drei Stufen (Entscheid vom 4. November 2026, Einzelheiten in `docs/dev/SETUP.md`
+  «Teststufen»):
+  1. **Beim Arbeiten und je Planschritt:** nur das Betroffene: `task check:fast` und die Tests, die
+     der Schritt anfasst (`go test ./internal/<paket> -run <Test>`, `task e2e:quick -- <spec>`,
+     `task storybook:test` bei geänderten Bauteilen in `web/src/ui`). Kein `task ci`, keine ganze
+     e2e-Suite und kein voller Build nach jeder Änderung. DoD-Belege (Befehl und Ausgabe) je Schritt.
+  2. **Vor dem Pull Request, einmal auf dem fertigen Zweig:** `task ci` grün, Belege in den PR,
+     `docs/dev/CURRENT_STATUS.md` aktualisieren. Spätere Korrekturen: `task check:fast` plus
+     gezielte Tests; die CI prüft den neuen Stand vollständig.
+  3. **GitHub CI:** prüft jeden PR und jeden Commit auf main vollständig; gemergt wird nur mit grünem
+     Gate `ci`.
 - Messwerte nach `docs/perf/<Mx>.md`; neue Architekturentscheide als ADR in `docs/adr/`.
 - Platzhalter wie TODO ohne Umsetzung, übersprungene Tests oder Stub-Tests gelten als Blocker, nicht als
   Fortschritt.
+
+## Agenten und Prüfungen
+
+Diese Regeln gehen den allgemeinen OMC-Vorgaben in `~/.claude/CLAUDE.md` vor («keep iterating»,
+Verifier für jede Abnahme).
+
+- **Höchstens drei Executor-Agenten gleichzeitig.** Ganze Go-Suite unter `-race`, e2e-Läufe und
+  Storybook nur über die Task-Ziele starten (`task server:test`, `task e2e`, `task ci:e2e:parallel`,
+  `task storybook:test`), nicht direkt mit `go test -race ./...` oder `pnpm exec playwright test`:
+  Die Ziele warten auf einen von zwei Plätzen der Maschine (`scripts/heavy-slot.sh`). Parallele
+  e2e-Läufe brauchen eigene Ports (`E2E_PORT=8197`, `8297` …).
+- **Executor:** prüft nach Stufe 1 und meldet Befehl, Ausgabe und Commit-SHA.
+- **Verifier und Reviewer:** lesen diese Belege und wiederholen keinen Lauf auf derselben SHA. Eigene
+  Läufe nur gezielt, für eine Lücke oder einen Zweifel. `task ci` startet nur der Koordinator vor
+  dem PR.
+- **git-master:** nach Cherry-pick oder Merge ohne Konflikt keine Tests; nach einem gelösten Konflikt
+  `task check:fast`.
+- **Höchstens drei Korrekturversuche** je roter Prüfung, dann anhalten und mit Befund melden. Nie
+  grün machen durch Überspringen (`.skip`, `.only`, `t.Skip`), mehr Wiederholungen, längere Timeouts
+  ohne Begründung oder gelockerte Grenzen.
+- Flake-Suche mit `-count=N` oder `--repeat-each` nur für ein Paket oder einen Test, nicht für die
+  ganze Suite.
