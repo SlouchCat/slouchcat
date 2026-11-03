@@ -132,7 +132,8 @@ WITH watched AS (
 SELECT w.item_id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year,
        CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays,
        CAST(COALESCE((SELECT o.id FROM items AS o
-                      WHERE b.deleted_at IS NOT NULL AND o.deleted_at IS NULL AND o.kind = b.kind
+                      WHERE b.deleted_at IS NOT NULL AND b.kind <> 'episode'
+                        AND o.deleted_at IS NULL AND o.kind = b.kind
                         AND (o.tmdb_id = b.tmdb_id OR o.tvdb_id = b.tvdb_id OR o.imdb_id = b.imdb_id)
                       ORDER BY o.id DESC
                       LIMIT 1), b.id) AS TEXT) AS image_item_id
@@ -183,7 +184,9 @@ type StatsTopTitlesRow struct {
 // image; when that title (the series of an episode, else the title itself) is deleted, the live
 // title of the same kind with a shared TMDB, TVDB or IMDb id names the images instead (the newest
 // id first). A library moved to a new path imports its titles anew with new ids, and the history of
-// the old ones would otherwise show no image (acceptance finding K12-9).
+// the old ones would otherwise show no image (acceptance finding K12-9). Only a series or a film is
+// replaced so: an episode without a findable series keeps its own (missing) images rather than the
+// still of another episode that shares an id.
 func (q *Queries) StatsTopTitles(ctx context.Context, arg StatsTopTitlesParams) ([]StatsTopTitlesRow, error) {
 	rows, err := q.db.QueryContext(ctx, statsTopTitles, arg.FromMs, arg.ToMs, arg.LimitCount)
 	if err != nil {

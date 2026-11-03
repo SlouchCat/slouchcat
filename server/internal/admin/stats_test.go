@@ -410,6 +410,7 @@ func TestStatsTopTitleImagesOfSeriesAndLiveCopy(t *testing.T) {
 		oldSeries, oldSeason, oldEpisode = "01J9000000000000000000OS01", "01J9000000000000000000OS02", "01J9000000000000000000OS03"
 		newSeries, newSeason, newEpisode = "01J9000000000000000000NS01", "01J9000000000000000000NS02", "01J9000000000000000000NS03"
 		goneMovie                        = "01J9000000000000000000GM01"
+		loneEpisode, liveEpisode         = "01J9000000000000000000LE01", "01J9000000000000000000LE02"
 	)
 	gone := ago(2 * day)
 	exec(t, st.db.Write,
@@ -423,8 +424,11 @@ func TestStatsTopTitleImagesOfSeriesAndLiveCopy(t *testing.T) {
 		   ('%[4]s', 'series', NULL, 1, 'Show', 'show', 2691, 1, 1, 1, NULL),
 		   ('%[5]s', 'season', '%[4]s', 1, 'Season 1', 's1', NULL, 1, 1, 1, NULL),
 		   ('%[6]s', 'episode', '%[5]s', 1, 'New Episode', 'e', NULL, 1, 1, 1, NULL),
-		   ('%[8]s', 'movie', NULL, 1, 'Gone', 'gone', 77, 1, 1, 1, %[7]d)`,
-			oldSeries, oldSeason, oldEpisode, newSeries, newSeason, newEpisode, gone, goneMovie),
+		   ('%[8]s', 'movie', NULL, 1, 'Gone', 'gone', 77, 1, 1, 1, %[7]d),
+		   ('%[9]s', 'episode', NULL, 1, 'Lone Episode', 'e', 555, 1, 1, 1, %[7]d),
+		   ('%[10]s', 'episode', '%[5]s', 1, 'Live Episode', 'e', 555, 1, 1, 1, NULL)`,
+			oldSeries, oldSeason, oldEpisode, newSeries, newSeason, newEpisode, gone, goneMovie,
+			loneEpisode, liveEpisode),
 	)
 	image := func(itemID, kind, size, hash string) {
 		t.Helper()
@@ -439,10 +443,11 @@ func TestStatsTopTitleImagesOfSeriesAndLiveCopy(t *testing.T) {
 	image(newSeries, "backdrop", model.AdminBackdropSize, "newBackdrop")
 	image(newEpisode, "backdrop", model.AdminBackdropSize, "episodeStill")
 	image(goneMovie, "poster", model.AdminPosterSize, "gonePoster")
+	image(liveEpisode, "backdrop", model.AdminBackdropSize, "otherStill")
 	for i, e := range []struct {
 		item   string
 		played int64
-	}{{oldEpisode, 3_000_000}, {newEpisode, 2_000_000}, {goneMovie, 1_000_000}} {
+	}{{oldEpisode, 3_000_000}, {newEpisode, 2_000_000}, {goneMovie, 1_000_000}, {loneEpisode, 500_000}} {
 		if _, err := st.db.Write.Exec(`INSERT INTO progress_events (profile_id, item_id, position_ms, duration_ms, played_ms, seq,
 			state, client_time, server_time) VALUES (1, ?, 0, 7200000, ?, 1, 'playing', ?, ?)`,
 			e.item, e.played, ago(time.Duration(i+1)*time.Hour), ago(time.Duration(i+1)*time.Hour)); err != nil {
@@ -458,6 +463,7 @@ func TestStatsTopTitleImagesOfSeriesAndLiveCopy(t *testing.T) {
 		oldEpisode + " " + newSeries + " newPoster newBackdrop", // deleted series: the live copy
 		newEpisode + " " + newSeries + " newPoster newBackdrop", // the series, not the episode's still
 		goneMovie + " " + goneMovie + "  ",                      // deleted, no live copy: no image
+		loneEpisode + " " + loneEpisode + "  ",                  // no series: never another episode's still
 	}
 	images := make([]string, 0, len(got.TopTitles))
 	for _, tt := range got.TopTitles {
