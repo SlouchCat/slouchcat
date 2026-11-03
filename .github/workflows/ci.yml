@@ -61,7 +61,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT" = pull_request ]; then
-            git diff --name-only HEAD^1 HEAD | tee changed.txt
+            # --no-renames: a file moved from code into docs/ (server/x.go -> docs/x.go) is then
+            # listed under both paths, the deleted code path included. With rename detection it
+            # would show only the new path under docs/ and the code change would count as docs.
+            git diff --name-only --no-renames HEAD^1 HEAD | tee changed.txt
             docs_only=$(.github/scripts/docs-only.sh < changed.txt)
           else
             docs_only=false
