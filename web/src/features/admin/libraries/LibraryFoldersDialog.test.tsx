@@ -444,7 +444,8 @@ describe('library folders dialog', () => {
   }
 
   it('«Pfad ändern» picks the new folder, names both paths and sends only the path', async () => {
-    const moved = library({ roots: [{ ...library().roots[0]!, path: '/media/Filme-neu' }] });
+    // The notice names the path the server stored, here written differently than sent.
+    const moved = library({ roots: [{ ...library().roots[0]!, path: '/media/filme-neu' }] });
     // The list the server answers with follows the change, like the real one.
     let current = library();
     const { calls } = mockApi({
@@ -476,10 +477,10 @@ describe('library folders dialog', () => {
     );
     expect(
       await within(dialog).findByText(
-        'Der Ordner liegt jetzt unter /media/Filme-neu und wird neu eingelesen.',
+        'Der Ordner liegt jetzt unter /media/filme-neu und wird neu eingelesen.',
       ),
     ).toBeVisible();
-    expect(within(dialog).getByText('/media/Filme-neu')).toBeVisible();
+    expect(within(dialog).getByText('/media/filme-neu')).toBeVisible();
   });
 
   it('«Pfad ändern» sends nothing on Abbrechen or for the same folder', async () => {
@@ -499,9 +500,11 @@ describe('library folders dialog', () => {
     const dialog = screen.getByRole('dialog', { name: 'Ordner von Filme' });
     await user.click(within(dialog).getByRole('button', { name: 'Pfad von /media/Filme ändern' }));
     const browser = await screen.findByRole('dialog', { name: 'Ordner auswählen' });
-    await waitFor(() =>
-      expect(within(browser).getByRole('textbox', { name: 'Ordner' })).toHaveValue('/media/Filme'),
-    );
+    const field = within(browser).getByRole('textbox', { name: 'Ordner' });
+    await waitFor(() => expect(field).toHaveValue('/media/Filme'));
+    // Written with a trailing slash and a space, it is still the same folder.
+    await user.clear(field);
+    await user.type(field, '/media/Filme/ ');
     await user.click(within(browser).getByRole('button', { name: 'OK' }));
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Ordner auswählen' })).toBeNull(),
@@ -522,6 +525,12 @@ describe('library folders dialog', () => {
       }),
       /Diesen Ordner gibt es auf dem Server nicht/,
     ],
+    [
+      problem(422, 'validation_failed', {
+        errors: [{ field: 'path', code: 'root_files_missing' }],
+      }),
+      'Unter dem neuen Pfad liegt keine der bisherigen Dateien.',
+    ],
   ])('«Pfad ändern» reports what the server refuses (%#)', async (answer, message) => {
     mockApi({
       ...signedIn,
@@ -537,5 +546,8 @@ describe('library folders dialog', () => {
     expect(await within(dialog).findByText(message)).toBeVisible();
     // The folder keeps its path.
     expect(within(dialog).getByText('/media/Filme')).toBeVisible();
+    // Another folder action starts: the refusal belonged to «Pfad ändern» only.
+    await user.click(within(dialog).getByRole('button', { name: 'Ordner /media/Filme entfernen' }));
+    await waitFor(() => expect(within(dialog).queryByText(message)).toBeNull());
   });
 });

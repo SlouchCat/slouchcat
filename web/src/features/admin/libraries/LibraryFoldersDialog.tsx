@@ -131,8 +131,10 @@ export function LibraryFoldersDialog({
           body: { path },
         }),
       ),
-    onSuccess: async (updated, { path }) => {
-      setSaved(t('admin.libraries.folders.move.saved', { path }));
+    onSuccess: async (updated, { root, path }) => {
+      // The notice names the path the server stored (cleaned), not the one that was sent.
+      const stored = updated.roots.find((r) => r.id === root.id)?.path ?? path;
+      setSaved(t('admin.libraries.folders.move.saved', { path: stored }));
       await refresh(updated);
     },
   });
@@ -166,6 +168,7 @@ export function LibraryFoldersDialog({
   };
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    move.reset(); // the message of a refused «Pfad ändern» belongs to that action only
     if (folders.length > 0 && !listError) add.mutate(folders);
   };
 
@@ -227,6 +230,7 @@ export function LibraryFoldersDialog({
                       aria-label={t('admin.libraries.folders.change.label', { path: root.path })}
                       onPress={() => {
                         setSaved(null);
+                        move.reset();
                         setChanging(root);
                       }}
                     >
@@ -256,6 +260,7 @@ export function LibraryFoldersDialog({
                       isPending={remove.isPending && remove.variables?.root.id === root.id}
                       onPress={() => {
                         remove.reset();
+                        move.reset();
                         setRemoving(root);
                       }}
                     >
@@ -350,8 +355,11 @@ export function LibraryFoldersDialog({
         }}
         currentPath={browsing?.path ?? ''}
         onApply={(path) => {
-          // The same folder again is no change: nothing to confirm, nothing to send.
-          if (browsing && path !== browsing.path) setMoving({ root: browsing, path });
+          // The same folder again is no change: nothing to confirm, nothing to send. The paths
+          // are compared as the server cleans them (spaces, a trailing slash).
+          const next = cleanPath(path);
+          if (browsing && next !== cleanPath(browsing.path))
+            setMoving({ root: browsing, path: next });
         }}
       />
 
@@ -566,4 +574,10 @@ function RemovalConsequences({ library, root }: { library: Library; root: Librar
       </ul>
     </>
   );
+}
+
+/** A path as the server stores it: without surrounding spaces and without a trailing slash. */
+function cleanPath(path: string): string {
+  const trimmed = path.trim();
+  return trimmed.length > 1 ? trimmed.replace(/\/+$/, '') || '/' : trimmed;
 }

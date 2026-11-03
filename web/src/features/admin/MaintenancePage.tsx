@@ -2,7 +2,7 @@ import type { DuplicateGroup, Issue, IssueKind, RelinkPair } from '@slouchcat/ap
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, isApiError, request } from '@/api/client';
+import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -229,16 +229,14 @@ function MaintenanceContent() {
       setRelinkExcluded((current) => current.filter((key) => listed.has(key)));
     },
     // A refused request means a scan runs (409) or the request was malformed (422; a pair that is
-    // gone is skipped, not refused): the list reloads either way, so a second try acts on what is
-    // there now.
+    // gone is skipped, not refused): the outcome names the server's answer, and the list reloads
+    // either way, so a second try acts on what is there now.
     onError: (error) => {
       setOutcomes((current) => ({
         ...current,
         [RELINK]: {
           tone: 'danger',
-          text: isApiError(error, 422)
-            ? t('admin.maintenance.relink.listChanged')
-            : problemMessage(t, error),
+          text: problemMessage(t, error),
           key: (current[RELINK]?.key ?? 0) + 1,
         },
       }));
