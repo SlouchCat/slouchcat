@@ -12,7 +12,6 @@ import {
   ConfirmDialog,
   FormDialog,
   afterDialogsClosed,
-  afterRender,
   focusTitleIfLost,
 } from '@/ui/aria';
 import { limitParts } from '../shared/LimitFields';
@@ -106,8 +105,8 @@ export function ProfileList({
     onSuccess: async () => {
       await invalidate();
       onChanged?.();
-      // The card and its buttons are gone: once React rendered that, the h1 takes the focus.
-      await afterRender();
+      // The card and its buttons are gone: once the dialog has closed, the h1 takes the focus.
+      await afterDialogsClosed();
       titleRef.current?.focus();
     },
   });

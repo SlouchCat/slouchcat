@@ -19,7 +19,6 @@ import {
   StatusStrip,
   Tabs,
   afterDialogsClosed,
-  afterRender,
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
@@ -240,8 +239,8 @@ function AccountsContent() {
       onExpandedChange(String(account.id), false);
       access.discard(String(account.id));
       await refresh();
-      // The row and its buttons are gone: once React rendered that, the h1 takes the focus.
-      await afterRender();
+      // The row and its buttons are gone: once the dialog has closed, the h1 takes the focus.
+      await afterDialogsClosed();
       titleRef.current?.focus();
     },
     onError: failed,

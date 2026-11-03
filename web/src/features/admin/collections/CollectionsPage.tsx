@@ -20,7 +20,6 @@ import {
   DataTable,
   StatusRegion,
   afterDialogsClosed,
-  afterRender,
   focusTitleIfLost,
   useDrafts,
   useSearchSelection,
@@ -211,8 +210,8 @@ function CollectionsContent() {
       setOpened((current) => without(current, collection.id));
       discardDraft(collection.id);
       await invalidate();
-      // The row and its buttons are gone: once React rendered that, the h1 takes the focus.
-      await afterRender();
+      // The row and its buttons are gone: once the dialog has closed, the h1 takes the focus.
+      await afterDialogsClosed();
       titleRef.current?.focus();
     },
     onError: failed,

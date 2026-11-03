@@ -16,7 +16,6 @@ import {
   DisclosureGroup,
   StatusRegion,
   afterDialogsClosed,
-  afterRender,
   focusTitleIfLost,
   useSearchSelection,
   useStatusMessage,
@@ -117,8 +116,8 @@ function DevicesContent() {
         queryClient.invalidateQueries({ queryKey: devicesQuery.queryKey }),
         queryClient.invalidateQueries({ queryKey: ['admin', 'streams'] }),
       ]);
-      // The row and its button are gone: once React rendered that, the h1 takes the focus.
-      await afterRender();
+      // The row and its button are gone: once the dialog has closed, the h1 takes the focus.
+      await afterDialogsClosed();
       titleRef.current?.focus();
     },
     onError: (error) => {

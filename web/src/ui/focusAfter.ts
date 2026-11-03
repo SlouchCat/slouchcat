@@ -26,7 +26,9 @@ export const afterRender = () =>
 /**
  * Resolves once React has rendered and no overlay is closing any more: a react-aria dialog,
  * popover or menu stays in the DOM while it plays its exit animation (`data-exiting`), and only
- * then gives the focus back to the element that opened it. Waits for about one second at most.
+ * then gives the focus back to the element that opened it. Waits for at most 60 more rounds:
+ * about one second at 60 frames per second, about six seconds in a background tab, where each
+ * round takes the 100 ms of the fallback.
  */
 export async function afterDialogsClosed(): Promise<void> {
   await afterRender();
