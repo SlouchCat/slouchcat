@@ -3,6 +3,7 @@ package library
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -23,9 +24,12 @@ func (e *env) filmLibrary() (string, model.Library) {
 }
 
 // addFilm writes the file rel, scans, gives its new film the TMDB id tmdb and returns the film.
+// Each file gets its own size: the file system may give a new file the inode of one removed
+// before, and with the same size the scanner would take it for that file moved (dev, inode, size).
 func (e *env) addFilm(dir string, libID int64, rel string, tmdb int64) string {
 	e.t.Helper()
-	writeFile(e.t, dir, rel, "release "+rel)
+	e.films++
+	writeFile(e.t, dir, rel, fmt.Sprintf("release %-100s", rel)+strings.Repeat("+", e.films))
 	e.scan(libID)
 	id := e.str(`SELECT item_id FROM media_files WHERE rel_path = ?`, rel)
 	e.exec(`UPDATE items SET tmdb_id = ? WHERE id = ?`, tmdb, id)

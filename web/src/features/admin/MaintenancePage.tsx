@@ -228,8 +228,9 @@ function MaintenanceContent() {
       const listed = new Set(queryClient.getQueryData(relinkQuery.queryKey)?.pairs.map(pairKey));
       setRelinkExcluded((current) => current.filter((key) => listed.has(key)));
     },
-    // A refused request means the list was stale (422: a pair is gone) or a scan runs (409): the
-    // list reloads either way, so a second try acts on what is there now.
+    // A refused request means a scan runs (409) or the request was malformed (422; a pair that is
+    // gone is skipped, not refused): the list reloads either way, so a second try acts on what is
+    // there now.
     onError: (error) => {
       setOutcomes((current) => ({
         ...current,

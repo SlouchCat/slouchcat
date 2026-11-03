@@ -16,9 +16,9 @@ import (
 // ADR 0023 point 3 with the relink of package library: the preview lists the deleted film with
 // both its live copies, a fresh one and one that lived beside it for a month (the maintenance
 // action knows no freshness rule, decision 21), with both titles and the user data left on the
-// deleted film. An unknown id refuses the request before anything moves. The relink keeps the
-// deleted film's id; the same pair twice counts once, and the second copy, the pair turned round,
-// is skipped like the second copy once its deleted title is back.
+// deleted film. An id that is no ULID refuses the request before anything moves. The relink keeps
+// the deleted film's id; the same pair twice counts once, and the second copy, the pair turned
+// round and a pair with an unknown id (a copy merged meanwhile) are skipped.
 func TestAdminRelinkItems(t *testing.T) {
 	m := newMaintFixture(t)
 	f := m.f
@@ -73,11 +73,11 @@ func TestAdminRelinkItems(t *testing.T) {
 		t.Errorf("pair of the old copy = %+v", p)
 	}
 
-	// An unknown id: nothing moves.
+	// An id that is no ULID: nothing moves.
 	var verr *model.ValidationError
-	_, err := m.svc.RelinkItems(m.ctx, []model.RelinkPairRef{{DeletedID: dead.ID, LiveID: live.ID}, {DeletedID: dead.ID, LiveID: "01ZZZZZZZZZZZZZZZZZZZZZZZZ"}})
+	_, err := m.svc.RelinkItems(m.ctx, []model.RelinkPairRef{{DeletedID: dead.ID, LiveID: live.ID}, {DeletedID: dead.ID, LiveID: "not-an-id"}})
 	if !errors.As(err, &verr) || len(verr.Fields) != 1 || verr.Fields[0] != (model.FieldError{Field: "pairs[1]", Code: "invalid_value"}) {
-		t.Fatalf("unknown id: %v, want pairs[1] invalid_value", err)
+		t.Fatalf("malformed id: %v, want pairs[1] invalid_value", err)
 	}
 	if len(listed()) != 2 {
 		t.Fatal("the refused request merged a pair")
@@ -88,14 +88,15 @@ func TestAdminRelinkItems(t *testing.T) {
 
 	out, err := m.svc.RelinkItems(m.ctx, []model.RelinkPairRef{
 		{DeletedID: dead.ID, LiveID: live.ID}, {DeletedID: dead.ID, LiveID: live.ID}, // the same pair twice
-		{DeletedID: dead.ID, LiveID: old.ID},  // the second copy: its deleted title is back by then
-		{DeletedID: live.ID, LiveID: dead.ID}, // turned round: no pair
+		{DeletedID: dead.ID, LiveID: old.ID},                       // the second copy: its deleted title is back by then
+		{DeletedID: live.ID, LiveID: dead.ID},                      // turned round: no pair
+		{DeletedID: dead.ID, LiveID: "01ZZZZZZZZZZZZZZZZZZZZZZZZ"}, // unknown: merged meanwhile
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(out.Relinked) != 1 || out.Relinked[0].KeptID != dead.ID || out.Relinked[0].RemovedID != live.ID ||
-		out.Relinked[0].Merged != 1 || out.Skipped != 2 || out.StoppedBy != "" {
+		out.Relinked[0].Merged != 1 || out.Skipped != 3 || out.StoppedBy != "" {
 		t.Errorf("relink = %+v", out)
 	}
 	var state string
@@ -124,14 +125,16 @@ func TestAdminRelinkCapAndScanRunning(t *testing.T) {
 	libs := &fakeLibraries{}
 	libs.created = []model.LibraryRequest{{Name: "Serien", Kind: "video"}, {Name: "Filme", Kind: "video"}}
 	m.svc.libraries = libs
+	// ULID-shaped ids: a live copy starts with 1, its deleted title with 2.
+	liveID := func(i int) string { return fmt.Sprintf("1%025d", i) }
+	deadID := func(i int) string { return fmt.Sprintf("2%025d", i) }
 	for i := range 201 {
 		m.maint.pairs = append(m.maint.pairs, library.RelinkPair{
-			LiveID: fmt.Sprintf("live%03d", i), DeletedID: fmt.Sprintf("dead%03d", i), LibraryID: 1, Kind: "series",
-			Title: fmt.Sprintf("Show %03d", 200-i),
+			LiveID: liveID(i), DeletedID: deadID(i), LibraryID: 1, Kind: "series", Title: fmt.Sprintf("Show %03d", 200-i),
 		})
 	}
-	m.maint.pairs = append(m.maint.pairs, library.RelinkPair{LiveID: "liveF", DeletedID: "deadF", LibraryID: 2, Kind: "movie", Title: "Zulu"})
-	m.maint.userData = map[string]library.RelinkUserData{"deadF": {ProgressEvents: 140, PlaybackSessions: 3}}
+	m.maint.pairs = append(m.maint.pairs, library.RelinkPair{LiveID: liveID(999), DeletedID: deadID(999), LibraryID: 2, Kind: "movie", Title: "Zulu"})
+	m.maint.userData = map[string]library.RelinkUserData{deadID(999): {ProgressEvents: 140, PlaybackSessions: 3}}
 	list, err := m.svc.ListRelinkPairs(m.ctx, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -171,7 +174,7 @@ func TestAdminRelinkCapAndScanRunning(t *testing.T) {
 	// Nothing merged: the error names the library.
 	m.maint.relinked, m.maint.relinkErr = nil, []error{model.ErrScanRunning}
 	var sr *model.ScanRunningError
-	if _, err := m.svc.RelinkItems(m.ctx, []model.RelinkPairRef{{DeletedID: "deadF", LiveID: "liveF"}}); !errors.As(err, &sr) ||
+	if _, err := m.svc.RelinkItems(m.ctx, []model.RelinkPairRef{{DeletedID: deadID(999), LiveID: liveID(999)}}); !errors.As(err, &sr) ||
 		sr.Library != "Filme" || !errors.Is(err, model.ErrScanRunning) {
 		t.Errorf("scan running before any merge = %v, want the library «Filme»", err)
 	}

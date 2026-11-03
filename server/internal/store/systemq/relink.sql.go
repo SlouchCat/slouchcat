@@ -221,7 +221,7 @@ func (q *Queries) ListRelinkChainTwins(ctx context.Context, arg ListRelinkChainT
 const listRelinkChildren = `-- name: ListRelinkChildren :many
 SELECT id, kind, season_number, episode_number, deleted_at FROM items
 WHERE parent_id = ?1
-ORDER BY deleted_at IS NOT NULL, deleted_at DESC, id
+ORDER BY deleted_at IS NOT NULL, deleted_at DESC, id DESC
 `
 
 type ListRelinkChildrenRow struct {

@@ -1982,11 +1982,12 @@ export interface paths {
         put?: never;
         /**
          * Merge live copies into their deleted titles (ADR 0023)
-         * @description Each pair must name a film or series that is deleted and one that is live; an unknown id or
-         *     another kind refuses the whole request before anything moves (`validation_failed`). A pair
-         *     named twice counts once. A pair that is no pair of `listRelinkPairs` any more is skipped: the
-         *     deleted title came back meanwhile (two copies of one title, the first merged), the copy
-         *     merged or the titles changed. One transaction per pair: the deleted title comes back with its
+         * @description Each pair names a deleted film or series and its live copy; an id that is no ULID refuses
+         *     the whole request before anything moves (`validation_failed`). A pair named twice counts
+         *     once. A pair that is no pair of `listRelinkPairs` any more is skipped: an id is unknown or
+         *     names neither film nor series (the copy merged meanwhile, by the automatic relink or an
+         *     earlier request), the deleted title came back (two copies of one title, the first merged) or
+         *     the titles changed. One transaction per pair: the deleted title comes back with its
          *     id, the files, seasons, episodes and user data of the live copy merge into it (progress:
          *     completed wins, then the larger position) and the copy is deleted for good. A running scan of
          *     a library stops the run: with pairs merged before, the answer is 200 with `stoppedBy`
@@ -5031,7 +5032,7 @@ export interface components {
             relinked: components["schemas"]["RelinkedPair"][];
             /**
              * Format: int64
-             * @description Pairs that are no pair any more (the deleted title came back meanwhile, the copy merged, the titles changed).
+             * @description Pairs that are no pair any more (an id unknown because the copy merged meanwhile, the deleted title came back, the titles changed).
              */
             skipped: number;
             /**
@@ -11223,7 +11224,7 @@ export interface operations {
             };
             /**
              * @description Validation failed (`validation_failed`): `pairs` `required` or `too_long`, `pairs[i]`
-             *     `invalid_value` for an unknown id or a title that is no film or series.
+             *     `invalid_value` for an id that is no ULID.
              */
             422: {
                 headers: {

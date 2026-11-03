@@ -963,8 +963,8 @@
         "merge": "Titles merged.",
         "match": "Match saved, the metadata is being loaded.",
         "relink": "Relinked: {{titles}}.",
-        "relinkStopped_one": "{{count}} relinked. A scan is running; the rest follows after the scan.",
-        "relinkStopped_other": "{{count}} relinked. A scan is running; the rest follows after the scan.",
+        "relinkStopped_one": "{{count}} relinked. A scan is running. Start «Relink» again after the scan for the rest.",
+        "relinkStopped_other": "{{count}} relinked. A scan is running. Start «Relink» again after the scan for the rest.",
         "relinkSkipped_one": "1 skipped: the deleted title is already back. The remaining copy is listed under «Duplicates».",
         "relinkSkipped_other": "{{count}} skipped: the deleted titles are already back. The remaining copies are listed under «Duplicates»."
       },

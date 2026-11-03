@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
@@ -19,6 +20,9 @@ import (
 
 // maxRelinkPairs caps the pairs of one preview and of one request.
 const maxRelinkPairs = 200
+
+// itemIDShape is the form of an item id (a ULID, schema ItemID of the contract).
+var itemIDShape = regexp.MustCompile(`^[0-9A-HJKMNP-TV-Z]{26}$`)
 
 // ListRelinkPairs returns the first maxRelinkPairs pairs of a soft-deleted title and its live
 // copy, of one library or of all (nil), ordered by library name, title of the copy and its id,
@@ -78,10 +82,11 @@ func (s *Service) libraryNames(ctx context.Context) (map[int64]string, error) {
 
 // RelinkItems merges the live copies into their soft-deleted titles, one transaction per pair; a
 // pair named twice counts once. A malformed request moves nothing (*model.ValidationError): no
-// pair, more than maxRelinkPairs, or pairs[i] invalid_value for an unknown id or a title that is
-// neither film nor series. A pair that is no pair (any more) is skipped and counted: the deleted
-// title came back meanwhile (two copies of one title, the first merged), the copy merged or the
-// titles changed. A running scan stops the run: with pairs merged before, the outcome carries
+// pair, more than maxRelinkPairs, or pairs[i] invalid_value for an id that is no ULID. A pair that
+// is no pair (any more) is skipped and counted: an id is unknown or names neither film nor series
+// (the copy merged meanwhile, by library.relink or an earlier request), the deleted title came back
+// (two copies of one title, the first merged) or the titles changed. A running scan stops the run:
+// with pairs merged before, the outcome carries
 // StoppedBy "scan_running" and a repeated request merges the rest; with none, the error is a
 // *model.ScanRunningError naming the library.
 func (s *Service) RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) (model.RelinkOutcome, error) {
@@ -92,6 +97,12 @@ func (s *Service) RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) 
 		verr = verr.Add("pairs", "required")
 	case len(pairs) > maxRelinkPairs:
 		verr = verr.Add("pairs", "too_long")
+	default:
+		for i, p := range pairs {
+			if !itemIDShape.MatchString(p.DeletedID) || !itemIDShape.MatchString(p.LiveID) {
+				verr = verr.Add(fmt.Sprintf("pairs[%d]", i), "invalid_value")
+			}
+		}
 	}
 	if verr != nil {
 		return model.RelinkOutcome{}, verr
@@ -106,25 +117,20 @@ func (s *Service) RelinkItems(ctx context.Context, pairs []model.RelinkPairRef) 
 	out := model.RelinkOutcome{Relinked: []model.RelinkedPair{}}
 	seen := make(map[model.RelinkPairRef]bool, len(pairs))
 	run := make([]pending, 0, len(pairs))
-	for i, p := range pairs {
+	for _, p := range pairs {
 		if seen[p] {
 			continue
 		}
 		seen[p] = true
 		lib, err := s.maint.CheckRelinkPair(ctx, p.DeletedID, p.LiveID)
 		switch {
-		case errors.Is(err, model.ErrNotFound):
-			verr = verr.Add(fmt.Sprintf("pairs[%d]", i), "invalid_value")
-		case errors.Is(err, library.ErrNotTwins):
+		case errors.Is(err, model.ErrNotFound) || errors.Is(err, library.ErrNotTwins):
 			out.Skipped++
 		case err != nil:
 			return model.RelinkOutcome{}, err
 		default:
 			run = append(run, pending{ref: p, library: lib})
 		}
-	}
-	if verr != nil {
-		return model.RelinkOutcome{}, verr
 	}
 	for _, p := range run {
 		res, err := s.maint.Relink(ctx, p.ref.DeletedID, p.ref.LiveID)

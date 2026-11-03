@@ -963,8 +963,8 @@
         "merge": "Titel zusammengeführt.",
         "match": "Zuordnung gespeichert, die Metadaten werden geladen.",
         "relink": "Umgehängt: {{titles}}.",
-        "relinkStopped_one": "{{count}} umgehängt. Ein Scan läuft gerade, der Rest folgt nach dem Scan.",
-        "relinkStopped_other": "{{count}} umgehängt. Ein Scan läuft gerade, der Rest folgt nach dem Scan.",
+        "relinkStopped_one": "{{count}} umgehängt. Ein Scan läuft gerade. Starte «Umhängen» nach dem Scan noch einmal für den Rest.",
+        "relinkStopped_other": "{{count}} umgehängt. Ein Scan läuft gerade. Starte «Umhängen» nach dem Scan noch einmal für den Rest.",
         "relinkSkipped_one": "1 übersprungen: Der gelöschte Titel ist schon zurück. Die übrige Kopie steht unter «Duplikate».",
         "relinkSkipped_other": "{{count}} übersprungen: Die gelöschten Titel sind schon zurück. Die übrigen Kopien stehen unter «Duplikate»."
       },

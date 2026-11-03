@@ -801,7 +801,7 @@ describe('maintenance page', () => {
     ).toBeVisible();
   });
 
-  it('orphaned user data: a stale list (422) reloads and says so instead of pointing at fields', async () => {
+  it('orphaned user data: a refused request (422) reloads the list and says so instead of pointing at fields', async () => {
     const user = userEvent.setup();
     const { calls } = setup({
       'POST /admin/maintenance/relink': () => {
@@ -858,7 +858,7 @@ describe('maintenance page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
     expect(
       await within(panel()).findByText(
-        '1 umgehängt. Ein Scan läuft gerade, der Rest folgt nach dem Scan.',
+        '1 umgehängt. Ein Scan läuft gerade. Starte «Umhängen» nach dem Scan noch einmal für den Rest.',
       ),
     ).toBeVisible();
     await waitFor(() =>

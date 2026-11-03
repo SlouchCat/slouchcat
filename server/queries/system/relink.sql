@@ -107,7 +107,7 @@ GROUP BY counts.root;
 -- All children of an item, soft-deleted ones too: live ones first, then the most recently deleted.
 SELECT id, kind, season_number, episode_number, deleted_at FROM items
 WHERE parent_id = @parent_id
-ORDER BY deleted_at IS NOT NULL, deleted_at DESC, id;
+ORDER BY deleted_at IS NOT NULL, deleted_at DESC, id DESC;
 
 -- name: RelinkSetParent :exec
 -- A child of the copy without a counterpart in the twin moves below the twin; the triggers

@@ -437,7 +437,7 @@ SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmd
 FROM items
 WHERE library_id = ?1 AND deleted_at IS NOT NULL
   AND kind IN ('movie', 'series', 'audiobook', 'podcast', 'season', 'episode')
-ORDER BY deleted_at DESC, id
+ORDER BY deleted_at DESC, id DESC
 `
 
 type ListDeletedItemsByLibraryRow struct {
@@ -457,7 +457,7 @@ type ListDeletedItemsByLibraryRow struct {
 // Soft-deleted items that a re-downloaded file may bring back (plan 3.2, ADR 0023): titles by
 // provider id without a time limit, by (sort_title, year) within titleRelinkWindow, and their
 // seasons and episodes. Only the columns of the scanner's item index (loadItemIndex); the most
-// recently deleted first.
+// recently deleted first, the later id among equal times (as FindDeletedTwin).
 func (q *Queries) ListDeletedItemsByLibrary(ctx context.Context, libraryID int64) ([]ListDeletedItemsByLibraryRow, error) {
 	rows, err := q.db.QueryContext(ctx, listDeletedItemsByLibrary, libraryID)
 	if err != nil {
