@@ -61,7 +61,8 @@ export function entryColumns(
     },
     {
       key: 'title',
-      width: '23%',
+      // Leaves the note column room for «Bearbeiten» at the table's least width (48rem).
+      width: '21%',
       header: t('admin.spotlight.entries.columns.title'),
       rowHeader: true,
       // A hidden entry: poster and title at half strength (mockup Spo-A).

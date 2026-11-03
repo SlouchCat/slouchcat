@@ -11,7 +11,9 @@ import styles from './Backup.module.css';
  * The columns of a kind's table (SIC-3, mockup Sic-C): the file name in full (wrapped, S-5), when
  * it was made, its size, whether it holds the keys and whether it is encrypted; then «Herunterladen»
  * and the row's «Weitere Aktionen» (`actionsOf`). The kind is the table's group; the widths line
- * the groups' tables up (K12-9), the file name takes what is left.
+ * the groups' tables up (K12-9). Every column has a width in rem, sized from the longest header
+ * word and content in German and English with room for a wider system font: the table is at least
+ * as wide as their sum (it scrolls in its frame below that) and shares more room out among them.
  */
 export function backupColumns(
   t: TFunction,
@@ -23,6 +25,7 @@ export function backupColumns(
   return [
     {
       key: 'name',
+      width: '12rem',
       header: t('admin.backup.columns.name'),
       rowHeader: true,
       cell: (backup) => (
@@ -36,7 +39,8 @@ export function backupColumns(
     },
     {
       key: 'created',
-      width: '18%',
+      // The longest date of either language on one line («Sep 30, 2026, 12:59 PM»).
+      width: '12rem',
       header: t('admin.backup.columns.created'),
       cell: (backup) => (
         <time className={styles.nowrap} dateTime={backup.createdAt}>
@@ -46,7 +50,7 @@ export function backupColumns(
     },
     {
       key: 'size',
-      width: '10%',
+      width: '5.5rem',
       header: t('admin.backup.columns.size'),
       align: 'end',
       cell: (backup) => (
@@ -55,19 +59,19 @@ export function backupColumns(
     },
     {
       key: 'secrets',
-      width: '10%',
+      width: '7.5rem',
       header: t('admin.backup.columns.secrets'),
       cell: (backup) => yesNo(backup.includesSecrets),
     },
     {
       key: 'encrypted',
-      width: '10%',
+      width: '9.5rem',
       header: t('admin.backup.columns.encrypted'),
       cell: (backup) => yesNo(backup.encrypted),
     },
     {
       key: 'actions',
-      width: '13rem',
+      width: '16rem',
       header: t('admin.backup.columns.actions'),
       hideHeader: true,
       align: 'end',

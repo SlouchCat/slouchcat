@@ -97,7 +97,8 @@ export function deviceColumns(
     },
     {
       key: 'lastSeen',
-      width: '20%',
+      // The longest date of either language on one line («Sep 30, 2026, 12:59 PM»).
+      width: '12rem',
       header: t('admin.devices.columns.lastSeen'),
       cell: (device) => (
         <time className={styles.nowrap} dateTime={device.lastSeenAt}>
@@ -107,7 +108,7 @@ export function deviceColumns(
     },
     {
       key: 'streams',
-      width: '6rem',
+      width: '6.5rem',
       header: t('admin.devices.columns.streams'),
       align: 'end',
       cell: (device) => (
@@ -116,8 +117,8 @@ export function deviceColumns(
     },
     {
       key: 'actions',
-      // «Vergessen» in full, also with the larger buttons of a phone (S-1).
-      width: '9rem',
+      // «Vergessen» in full, with room for a wider system font.
+      width: '10rem',
       header: t('admin.devices.columns.actions'),
       hideHeader: true,
       align: 'end',
@@ -149,19 +150,20 @@ export function capabilityColumns(t: TFunction): DataColumn<AdminDevice>[] {
     },
     {
       key: 'video',
-      width: '16%',
+      width: '14%',
       header: t('admin.devices.columns.video'),
       cell: (device) => codecList(t, device.capabilities?.video),
     },
     {
       key: 'audio',
-      width: '16%',
+      width: '14%',
       header: t('admin.devices.columns.audio'),
       cell: (device) => codecList(t, device.capabilities?.audio),
     },
     {
       key: 'resolution',
-      width: '14%',
+      // «Auflösung» and «resolution» in full at the table's least width (48rem).
+      width: '18%',
       header: t('admin.devices.columns.resolution'),
       cell: ({ capabilities }) =>
         capabilities?.maxWidth && capabilities.maxHeight ? (
