@@ -201,3 +201,20 @@ Zwischenspeicher. Liegt der p95 dort über 200 ms, gilt als Ausweg:
   5 min, eine Berechnung zur Zeit (singleflight); die übrigen Blöcke bleiben frisch.
 - **Abdeckender Index `(server_time, played_ms)`:** würde die Gruppierung verkürzen, braucht aber eine
   Migration und ist nicht geplant.
+
+## Messung K12-9 (CT 190)
+
+Gemessen am 3. November 2026 bei der Abnahme auf CT 190 (Image `verwaltungsseiten-bf456e1`,
+`v1.7.0-158-gbf456e1`) mit dem realen Bestand des CT: 40 Aufrufe von
+`GET /api/v1/admin/stats?days=90` aus dem Browser in einer angemeldeten Administratorsitzung,
+gemessen im Browser (ganze Antwort mit allen fünf Blöcken, einschliesslich Netz):
+
+| Aufrufe | p50    | p95     | max   |
+| ------- | ------ | ------- | ----- |
+| 40      | 6.2 ms | 10.1 ms | 15 ms |
+
+**Entscheid: kein Zwischenspeicher.** Die Schwelle von 200 ms aus Konzept 12, 11.10 gilt für die
+Rasterabfrage allein; schon die ganze Antwort liegt mit p95 10.1 ms weit darunter. Die Schätzung aus
+K12-1 (rund 105 ms für einen Haushalt mit 3 Stunden am Tag) lag deutlich zu hoch; die Zahl der
+Ereignisse auf CT 190 wurde dabei nicht gezählt. Der Ausweg oben (Zwischenspeicher nur für das
+Raster) bleibt beschrieben für den Fall, dass ein grösserer Bestand die Schwelle später erreicht.

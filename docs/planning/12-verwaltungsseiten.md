@@ -1,7 +1,8 @@
 # Konzept: Seitenmuster der Verwaltungsseiten (alle Seiten unter `/admin/*`)
 
-- **Status: in Umsetzung seit 2. November 2026 (Zweig `claude/verwaltungsseiten`, Schritte K12-0
-  bis K12-9 ohne Zwischenhalt, Abnahme in K12-9 auf CT 190; Vertrag 1.8.0).** Fassung 3
+- **Status: umgesetzt und abgenommen (3. November 2026, Schritte K12-0 bis K12-9 auf dem Zweig
+  `claude/verwaltungsseiten`, von Marco auf CT 190 abgenommen; Vertrag 1.8.0, Release 1.8.0 nach
+  dem Merge).** In Umsetzung seit 2. November 2026, ohne Zwischenhalt. Fassung 3
   (1. November 2026), Bauplan (Abschnitt 11). Als Papier abgeschlossen
   (Marco, 1. November 2026: «Ja, abschliessen»). Fassung 1 hat der
   OMC-Kritiker geprüft (1 Blocker, 9 Major, 8 Minor; Abschnitt 12); Fassung 2 arbeitet alle ein.
@@ -949,7 +950,7 @@ ist die einzige Abnahme auf CT 190 und endet mit **Release 1.8.0**.
 | K12-6 Kuratierung | Startseite, Spotlight, Cat's Empfehlungen, Sammlungen, Ankündigungen | wie oben | 5 |
 | K12-7 System | Benachrichtigungen, Statistik, Sicherung. Danach entfallen die seiteneigenen CSS-Module für Kopf, Abstände und Seitenaufbau (S-12): `AdminData`, `AdminTablePage`, `AdminItemPage`, `Curation`, `IntegrationsPage`, `Invitations`, `JobsPage`, `LibrariesPage`, `MaintenancePage`, `MetadataPage`, `PicksPage`, `SpotlightPage`. Es bleiben `AdminHomePage` (Konzept 11), `LibraryFoldersDialog` und `PosterTitle` (Bausteine, kein Seitenaufbau) | wie oben | 4 |
 | K12-8 Dichte | `density.compact` unter `[data-shell="admin"]` und `AdminDensityScope` einschalten, Messung wiederholen (Ziel: höchstens die Hälfte), `designer` vergleicht jede Seite mit dem Mockup | Messwerte in `docs/perf/verwaltungsseiten.md`. **Stand 3. November 2026:** Dichte an (`2078fa9`), Designer-Abgleich aller 21 Seiten erledigt (`a04c56b` bis `cd1dc75`); Messung 272, 250 und 315 px (57, 58 und 89 % des Ausgangs), Ziel verfehlt, Entscheid bei K12-9 (Frage 18, Nachtrag 5) | 1,5 |
-| K12-9 Abnahme | auf CT 190 mit Marco am Desktop (Maus) und am Handy (44 px); p95 von `GET /admin/stats?days=90` in `docs/perf/verwaltungsseiten.md`; `CURRENT_STATUS.md`, Release-Notes | Marcos Abnahme | 1 |
+| K12-9 Abnahme | auf CT 190 mit Marco am Desktop (Maus) und am Handy (44 px); p95 von `GET /admin/stats?days=90` in `docs/perf/verwaltungsseiten.md`; `CURRENT_STATUS.md`, Release-Notes | Marcos Abnahme. **Erledigt am 3. November 2026:** abgenommen auf CT 190 (Image `verwaltungsseiten-bf456e1`, `v1.7.0-158-gbf456e1`). Desktop mit Maus: alle 18 Seiten mit Marco im Browser durchgegangen; Handy (44 px): Marco. Korrekturen aus der Abnahme (`583fd8b` bis `bf456e1`): Idee 03 mit Issue #71 (`583fd8b`), Pflege-Reiter «Altersfreigabe fehlt» (`3a9b876`), «Bildqualität» (`5b2dfc1`), Links zu den Schlüsselseiten der Anbieter (`4d77104`), «API Key gesetzt» und «Token gesetzt» (`81bca41`), feste Spalten über die Tabellen einer Gruppe ab 768 px (`7265dc4`, `0d09bca`, `e8921cb`), Leisten-Eintrag «Profile» entfernt (`8fd9e00`), Bilder der Statistik für gelöschte und neu eingelesene Titel (`e4e323a`, `7d12315`), «Spotlight Wechsel Takt» (`8b712a0`), «Woche und Stunde» immer sichtbar (`1204562`), Review-Nachträge und Doku (`037f760`, `b51a658`, `f4d97eb`, `3f21258`, `bf456e1`). `GET /admin/stats?days=90` auf CT 190, 40 Aufrufe aus dem Browser: p50 6.2 ms, p95 10.1 ms, max 15 ms, unter der Schwelle von 200 ms, kein Zwischenspeicher (`docs/perf/verwaltungsseiten.md`). Höhen-Ziel verfehlt, Marco nimmt die Seiten so ab, wie sie sind (Frage 18, Nachtrag 6). Release-Notes `release-notes-1.8.0.txt` im Wurzelordner (unversioniert) | 1 |
 
 **Aufwand:** Summe **37,5 Tage** (Spanne 33 bis 42), dazu die 15 Tage von Konzept 11. Grundlage:
 rund 10'500 Zeilen Seitencode, 6'000 Zeilen Unit-Tests und 10'000 Zeilen e2e, die angepasst
@@ -985,6 +986,8 @@ werden.
   **Klarstellung (2. November 2026):** die Schwelle von 200 ms gilt für die Rasterabfrage allein
   (längstes Fenster, 84 Tage), nicht für die ganze Antwort von `GET /admin/stats`. Der Entscheid
   fällt mit der Messung auf CT 190 in K12-9 (`docs/perf/verwaltungsseiten.md`).
+  **Ergebnis K12-9 (3. November 2026):** p95 der ganzen Antwort bei 90 Tagen auf CT 190 10.1 ms
+  (40 Aufrufe), weit unter 200 ms; kein Zwischenspeicher.
 
 ## 12. Review-Protokoll
 

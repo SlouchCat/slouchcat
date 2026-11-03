@@ -1,6 +1,9 @@
 # Aktueller Stand
 
-## Konzept 12 «Seitenmuster der Verwaltungsseiten»: im Bau (3. November 2026)
+## Konzept 12 «Seitenmuster der Verwaltungsseiten»: umgesetzt und abgenommen, Schritte K12-0 bis K12-9 (3. November 2026)
+
+**Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.
+Nächster Schritt: Push und Pull Request, Merge auf Marcos Wort, danach Release 1.8.0.
 
 Zweig `claude/verwaltungsseiten` ab `main` `4c860bc` (nach Konzept 11 und Release 1.7.0), Bau nach
 `docs/planning/12-verwaltungsseiten.md` Abschnitt 11.8 (Schritte K12-0 bis K12-9). Marcos Auftrag
@@ -196,16 +199,53 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
   gefüllt rot. Höhe: Entscheid bei K12-9.
 - **Fokus-Wettlauf** (3. November 2026, `263347e`): `afterDialogsClosed()` auf zwölf Verwaltungsseiten
   und in `ProfileList`; behebt den Firefox-Wackler in `admin-jobs.spec.ts:239`.
-- **Offen nach K12-8:**
-  - K12-9 auf CT 190 mit Marco: Desktop mit Maus, Handy mit 44 px; Höhen-Entscheid (siehe oben);
-    p95 von `GET /admin/stats?days=90` (Zwischenspeicher nur über 200 ms); Release-Notes 1.8.0.
-  - Push und PR erst auf Marcos Wort; Merge danach.
+- **K12-9 Abnahme** (3. November 2026): CT 190 auf Image `verwaltungsseiten-bf456e1`
+  (`v1.7.0-158-gbf456e1`). **Von Marco abgenommen.**
+  - *Desktop mit Maus:* alle 18 Seiten mit Marco im Browser durchgegangen. *Handy (44 px):* Marco.
+  - *Korrekturen aus der Abnahme* (`583fd8b` bis `bf456e1`):
+    - Idee 03 «Weiterer Metadatenanbieter» für Titel ohne Altersfreigabe, Issue #71 (`583fd8b`;
+      17 Filme auf CT 190 ohne Freigabe in DE, AT, CH, GB und US).
+    - Pflege-Reiter «Altersfreigabe fehlt» statt «Ohne Freigabe» (`3a9b876`).
+    - Metadaten: Bereich «Bildqualität» statt «Güte» (`5b2dfc1`).
+    - Integrationen: Link je Anbieter-Schlüssel zur Seite, die ihn ausgibt (`4d77104`); leere Felder
+      gespeicherter Schlüssel zeigen «API Key gesetzt», der Telegram-Bot-Token «Token gesetzt»
+      (`81bca41`).
+    - Feste Spalten über die Tabellen einer Gruppe (Geräte, Sicherung, Pflege) und in Tabellen mit
+      wechselndem Inhalt, ab 768 px (`DataTable` `layout="fixed"`; `7265dc4`, `0d09bca`, `e8921cb`).
+    - Leisten-Eintrag «Profile» entfernt (`8fd9e00`); «Meine Profile» über die eigene Kontozeile.
+    - Statistik: Bilder für gelöschte und neu eingelesene Titel über die lebende Kopie mit gleicher
+      TMDB-, TVDB- oder IMDb-Id (`e4e323a`, `7d12315`).
+    - Spotlight: «Spotlight Wechsel Takt» statt «Takt der Bühne … Sekunden» (`8b712a0`).
+    - Statistik: «Woche und Stunde» immer sichtbar, nicht mehr zugeklappt (`1204562`).
+    - Review-Nachträge und Doku (`037f760`, `b51a658`, `f4d97eb`, `3f21258`, `bf456e1`).
+  - *Messung:* `GET /api/v1/admin/stats?days=90`, 40 Aufrufe auf CT 190 aus dem Browser:
+    p50 6.2 ms, p95 10.1 ms, max 15 ms. Schwelle 200 ms, **kein Zwischenspeicher**
+    (`docs/perf/verwaltungsseiten.md`, «Messung K12-9 (CT 190)»).
+  - *Entscheide Marco* (Frage 18, Nachtrag 6): Höhen-Ziel verfehlt, die Seiten bleiben, wie sie sind
+    (Konten, Hintergrundjobs, Integrationen unverändert, keine Verschiebung von Zählern oder
+    Erklärsatz); Telegram-Satz in der Token-Hilfe bleibt; Rückfallkette DE/AT/CH/GB/US und
+    «Freigabe zuweisen» reichen («Reicht so»); Beschriftungen nach Marco.
+  - Release-Notes: `release-notes-1.8.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.7.0).
+- **Offen (Konzept 12):**
+  - Push und Pull Request auf Marcos Wort; Merge danach; Release 1.8.0 mit Tag `v1.8.0` (setzt Marco).
+  - Versionsstellen stehen noch auf 1.7.0 (`deploy/.env.example`, `deploy/compose.yaml`,
+    `deploy/README.md`, `docs/INSTALLATION.md`); auf 1.8.0 setzen wie bei 1.7.0.
   - Designer, nicht umgesetzt: Metadaten-Bereichsliste ohne Symbole; Titel mit Art und Jahr auf eigener
     Zeile (Tit-C); «Letzter Scan» bei Bibliotheken umbricht; Pflege zeigt roh `no_tmdb_key`
     (vorbestehend). Primäre Knöpfe bleiben weisse Pillen statt Orange wie im Mockup (beibehalten).
-  - Ausserhalb von Konzept 12: `autoFocus` in Dialogen von Offline und Player (eigene Aufgabe).
     Mögliche spätere Bausteine: `OneLine` und `Muted`.
-- **Nächster Schritt:** Abnahme auf CT 190 mit Marco (K12-9).
+- **Offen / ausserhalb Konzept 12:**
+  1. **Bibliothekswurzel ersetzt:** der Scanner liest den Baum mit neuen Ids neu ein; Verlauf und
+     Fortschritt bleiben an den gelöschten Ids hängen (CT 190: 29'106 Folgen). Entscheid durch Marco
+     offen.
+  2. **`autoFocus` in Dialogen von Offline und Player** (`OfflinePinDialog`, `DownloadDialog`,
+     `PlayerPage`, `OfflinePlayer`): für Konzept 13.
+- **Nächster Schritt:** Pull Request, Merge auf Marcos Wort, Release 1.8.0.
+
+**Belege K12-9:**
+
+- **task ci auf bf456e1: läuft** (Ergebnis trägt Marco nach).
+- `GET /api/v1/admin/stats?days=90` auf CT 190, 40 Aufrufe: p50 6.2 ms, p95 10.1 ms, max 15 ms.
 
 **Belege K12-8 und Designer-Abgleich:**
 
