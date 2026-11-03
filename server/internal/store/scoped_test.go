@@ -12,6 +12,7 @@ import (
 // package scopedq is the only read path of the visibility package, so a query without the join
 // would leak titles to every profile.
 func TestScopedQueriesJoinVisibleItems(t *testing.T) {
+	t.Parallel()
 	dir := filepath.Join("..", "..", "queries", "scoped")
 	entries, err := os.ReadDir(dir)
 	if err != nil {

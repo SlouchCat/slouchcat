@@ -15,6 +15,7 @@ import (
 // link code, a delivery of the queue, a published announcement with an acknowledgement next to a
 // draft, the encrypted mail server settings and a progress event that names its device.
 func TestFrozenM8StateCoversM8Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M8.sql"))
 	if err != nil {
 		t.Fatal(err)

@@ -21,6 +21,7 @@ import (
 // Whatever row order a state stored, migration 00021 (M11, ADR 0011) leaves exactly the eight
 // keys of today on the positions 0 to 7, spotlight first and released directly behind recent.
 func TestFrozenStatesMigrate(t *testing.T) {
+	t.Parallel()
 	dir := filepath.Join("..", "..", "..", "testdata", "db")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -37,6 +38,7 @@ func TestFrozenStatesMigrate(t *testing.T) {
 	}
 	for _, name := range states {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			script, err := os.ReadFile(filepath.Join(dir, name))
 			if err != nil {
 				t.Fatal(err)
@@ -107,6 +109,7 @@ func homeRowOrder(t *testing.T, db *DB) []string {
 
 // Dump followed by replay yields the same tables, rows and schema objects.
 func TestDumpRoundTrip(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	seedTree(t, db.Write)
 	addFile(t, db.Write, "01FILE0000000000000000000A", idEp1, "Show/Season 01/E1.mkv")

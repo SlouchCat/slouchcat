@@ -13,6 +13,7 @@ import (
 // library (with no default rating), every download and every tombstone; the rebuild must not leave
 // tombstones of the moved rows behind, and the tombstone trigger must still fire afterwards.
 func TestMigration00014KeepsFrozenData(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M5.sql"))
 	if err != nil {
 		t.Fatal(err)
@@ -86,6 +87,7 @@ func TestMigration00014KeepsFrozenData(t *testing.T) {
 // M6 review m-7 and m-2: an episode with an enclosure stays available when its local file goes
 // missing (as when it is deleted), and a library has one live subscription per feed URL.
 func TestMigration00014EpisodeAvailabilityAndFeedIndex(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	w := db.Write
 	mustExec(t, w, `INSERT INTO libraries (id, name, kind, default_rating, created_at, updated_at) VALUES (1, 'Podcasts', 'podcasts', 0, 0, 0)`)

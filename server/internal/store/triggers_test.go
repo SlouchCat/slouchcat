@@ -95,6 +95,7 @@ func visible(t *testing.T, db *sql.DB, profile int64, id string) bool {
 }
 
 func TestTriggersInheritRatings(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	seedTree(t, db.Write)
 
@@ -123,6 +124,7 @@ func TestTriggersInheritRatings(t *testing.T) {
 }
 
 func TestTriggersAvailabilityAndVisibility(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	seedTree(t, db.Write)
 
@@ -186,6 +188,7 @@ func TestTriggersAvailabilityAndVisibility(t *testing.T) {
 }
 
 func TestTriggersMovieAndLibraryRights(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	seedTree(t, db.Write)
 	addFile(t, db.Write, "01FILE0000000000000000000B", idMovie, "Film/Film.mkv")
@@ -217,6 +220,7 @@ const (
 // Migration 00008: extras never make a container available and never lower its smallest child
 // rating, but they inherit the ratings of their parent chain like every other child.
 func TestTriggersExtrasAreNoContent(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	seedTree(t, db.Write)
 	item := `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, own_rating, extra_kind, added_at, created_at, updated_at)
@@ -264,7 +268,9 @@ func TestTriggersExtrasAreNoContent(t *testing.T) {
 // smallest episode rating, so a series whose episodes are all above a level is above it too, and
 // an extra is visible only below a visible parent.
 func TestTriggersAllEpisodesAboveTheLevel(t *testing.T) {
+	t.Parallel()
 	t.Run("all episodes above the level hide the series and the season", func(t *testing.T) {
+		t.Parallel()
 		db := openTestDB(t)
 		seedTree(t, db.Write)
 		mustExec(t, db.Write, `INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, extra_kind, added_at, created_at, updated_at)
@@ -311,6 +317,7 @@ func TestTriggersAllEpisodesAboveTheLevel(t *testing.T) {
 	})
 
 	t.Run("extras of a hidden, unavailable or deleted parent are hidden", func(t *testing.T) {
+		t.Parallel()
 		db := openTestDB(t)
 		seedTree(t, db.Write)
 		const idMovieExtra = "01EXTRA0000000000000000MOV"

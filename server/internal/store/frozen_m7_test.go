@@ -17,6 +17,7 @@ import (
 // triggers. Migration 00021 (M11, ADR 0011) carries the trending entries over into
 // spotlight_entries and seeds the singleton spotlight_config with the former constants.
 func TestFrozenM7StateCoversM7Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M7.sql"))
 	if err != nil {
 		t.Fatal(err)

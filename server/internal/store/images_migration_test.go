@@ -15,6 +15,7 @@ import (
 // 'jpeg' without an accent, the new unique key allows both formats of a size, and the checks
 // reject unknown formats and malformed accents.
 func TestImagesMigrationKeepsM1aRows(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M1a.sql"))
 	if err != nil {
 		t.Fatal(err)

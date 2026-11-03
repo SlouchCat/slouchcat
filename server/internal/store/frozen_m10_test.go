@@ -14,6 +14,7 @@ import (
 // progress_events and a condensed day in progress_days, written by the server's own condensation
 // run (migration 00019). A later migration that touches the playback history has to migrate both.
 func TestFrozenM10StateCoversM10Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M10.sql"))
 	if err != nil {
 		t.Fatal(err)

@@ -18,6 +18,7 @@ import (
 // and the indexes of the rank and the decided sources. TestFrozenStatesMigrate replays it like
 // every state; this test checks that each of those is really in it.
 func TestFrozenMetadatenStateCoversTheConcept(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "metadaten.sql"))
 	if err != nil {
 		t.Fatal(err)

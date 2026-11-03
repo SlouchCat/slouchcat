@@ -15,6 +15,7 @@ import (
 // characters, AN-19) and none to profiles without a PIN (M5 review K12). The state before 00013 is
 // built here: the migrations up to 00012, then an account with two PIN profiles and one without.
 func TestMigration00013SaltsExistingPins(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	before := fstest.MapFS{}
 	entries, err := fs.ReadDir(migrations.FS, ".")
