@@ -20,10 +20,14 @@ on:
   pull_request:
   workflow_dispatch:
 
-# One run per branch: a new push replaces the run of the commit it supersedes. Runs on main are
-# never cancelled -- they record whether what was merged is sound.
+# One run per pull request branch: a new push replaces the run of the commit it supersedes. On main
+# every commit gets a run of its own: the runs record whether what was merged is sound, so none of
+# them may be cancelled -- and none may wait either. With one group for all of main a merge waited
+# for the run before it (3.75 min), and a second waiting run replaced the first, which then never
+# ran at all: the merge of #77 (run 41704343177) got no main run. The commit id in the group
+# gives each one its own.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.ref == 'refs/heads/main' && format('-{0}', github.sha) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:

@@ -158,3 +158,12 @@ Umsetzung:
   muss in `docs-only.sh` als Ausnahme eingetragen werden, sonst sähe ein Pull Request, der nur
   diese Datei ändert, die Prüfung nicht. Der Lauf auf `main` nach dem Merge fände den Fehler
   trotzdem.
+
+### Ein Lauf je Commit auf `main`
+
+- Die `concurrency`-Gruppe enthält auf `main` die Commit-ID (`github.sha`). Bisher teilten sich alle
+  Läufe auf `main` eine Gruppe: Ein Merge wartete auf den Lauf davor (3,75 Minuten gemessen), und
+  ein zweiter wartender Lauf **verdrängte** den ersten, der dann nie lief — der Merge von #77
+  (Run 41704343177) bekam keinen Lauf auf `main`. GitHub hält je Gruppe nur einen wartenden Lauf.
+- Pull Requests bleiben bei einer Gruppe je Branch mit `cancel-in-progress`: Ein neuer Push ersetzt
+  den Lauf des überholten Commits.
