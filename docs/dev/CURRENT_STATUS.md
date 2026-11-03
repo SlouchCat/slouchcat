@@ -1,5 +1,20 @@
 # Aktueller Stand
 
+## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: Bau läuft (3. November 2026)
+
+Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemergt `cbf17fb`). Zweig
+`claude/wurzelwechsel` ab `main` `cbf17fb`, Frage 21, ADR 0023, Vertrag **1.9.0** additiv als eigenes
+Release vor Konzept 13 und 14, keine Migration. Schritte:
+
+- **W-0** Papiere: Frage 21, ADR 0023, Plan 3.2, Ideenstatus «Übernommen».
+- **W-1** Zusammenführung über den Baum im Paket `library` (die alte ID bleibt).
+- **W-2** Scanner: Wiederverknüpfung über Anbieter-ID ohne Frist, über (`sort_title`, Jahr) 30 Tage.
+- **W-3** Haken nach `metadata.match` (`metadata.WithRelink`).
+- **W-4** Pflegeaktion «Verwaiste Benutzerdaten umhängen» (Vertrag, Server, Oberfläche, Tastaturtest).
+- **W-5** «Pfad ändern» für einen Ordner (Vertrag, Server, Oberfläche, Tastaturtest).
+- **W-6** Messung (`docs/perf/wurzelwechsel.md`), `task ci`, Pull Request. Abnahme und Reparatur auf
+  CT 190 erst auf Marcos Wort.
+
 ## Konzept 12 «Seitenmuster der Verwaltungsseiten»: umgesetzt und abgenommen, Schritte K12-0 bis K12-9 (3. November 2026)
 
 **Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.
