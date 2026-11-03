@@ -1,9 +1,8 @@
 import type { Stats } from '@slouchcat/api-client';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatDuration } from '@/lib/format';
 import { Text } from '@/ui';
-import { BarChart, DisclosureGroup, HeatGrid } from '@/ui/aria';
+import { BarChart, HeatGrid } from '@/ui/aria';
 import styles from './Stats.module.css';
 import {
   WEEKDAYS,
@@ -20,13 +19,12 @@ type WhenProps = Pick<Stats, 'watchTimeByQuarterHour' | 'timeWindowDays' | 'time
 
 /**
  * «Wann geschaut wird» (concept 12, 10.2): the watch time of the last whole weeks by hour of the
- * day and by day of the week, side by side, and folded away below them the grid of 7 × 24 hours
- * with its peak in the heading line. The hours are those of the server's time zone, named under
+ * day and by day of the week, side by side, and below them the grid of 7 × 24 hours with its peak in the
+ * heading line (always shown, acceptance K12-9). The hours are those of the server's time zone, named under
  * the charts. Every chart carries its numbers as a table for screen readers.
  */
 export function WhenWatched({ watchTimeByQuarterHour, timeWindowDays, timeZone }: WhenProps) {
   const { t } = useTranslation();
-  const [gridOpen, setGridOpen] = useState(false);
   const grid = hourGrid(watchTimeByQuarterHour);
   const hours = byHour(grid);
   const days = byWeekday(grid);
@@ -103,21 +101,20 @@ export function WhenWatched({ watchTimeByQuarterHour, timeWindowDays, timeZone }
       <Text variant="caption" tone="muted">
         {t('admin.stats.when.zone', { zone: timeZone })}
       </Text>
-      <DisclosureGroup
-        title={t('admin.stats.when.grid')}
-        meta={
+      <div className={styles.whenGrid}>
+        <div className={styles.whenGridHead}>
+          <Text as="h3" variant="title">
+            {t('admin.stats.when.grid')}
+          </Text>
           <Text as="span" variant="caption" tone="secondary">
             {t('admin.stats.when.peak', {
               day: dayName(peak.day),
               hour: hourSpan(peak.hour),
             })}
           </Text>
-        }
-        isExpanded={gridOpen}
-        onExpandedChange={setGridOpen}
-      >
+        </div>
         <HeatGrid title={t('admin.stats.when.gridChart')} values={grid} formatValue={duration} />
-      </DisclosureGroup>
+      </div>
     </div>
   );
 }

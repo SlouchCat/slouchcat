@@ -283,15 +283,10 @@ describe('admin statistics (A-8)', () => {
     ]);
     expect(within(when).getByText('Am meisten am Freitag')).toBeVisible();
 
-    // «Woche und Stunde» starts folded, with the peak hour of the week in its heading line.
-    const toggle = within(when).getByRole('button', { name: 'Woche und Stunde' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    // «Woche und Stunde» is always shown: a plain heading, no toggle, the peak in its line.
+    expect(within(when).getByRole('heading', { name: 'Woche und Stunde', level: 3 })).toBeVisible();
+    expect(within(when).queryByRole('button', { name: 'Woche und Stunde' })).toBeNull();
     expect(within(when).getByText('Spitze: Freitag, 20–21 Uhr')).toBeVisible();
-    expect(
-      within(when).queryByRole('table', { name: 'Schauzeit nach Wochentag und Stunde' }),
-    ).toBeNull();
-    await userEvent.setup().click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     const grid = within(when).getByRole('table', { name: 'Schauzeit nach Wochentag und Stunde' });
     const friday = within(grid).getByRole('rowheader', { name: 'Freitag' }).closest('tr')!;
     const cells = within(friday).getAllByRole('cell');

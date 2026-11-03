@@ -480,6 +480,7 @@ offenem Dialog)
 - STA-1 Zeitraum 7, 30, 90, 365 Tage (in der Adresse).
 - STA-2 Meistgesehene Titel (Link → Titel), Sehzeit je Profil (Diagramm und Tabelle),
   Wiedergabe (direkt, Remux, Transcode, Hardware), Geräte (Diagramm und Tabelle).
+- STA-3 «Wann geschaut wird»: Woche und Stunde ist immer eingeblendet (Abnahme K12-9, 3. November 2026).
 
 **Sicherung** (`BackupPage.tsx`)
 - SIC-1 Sicherung erstellen (Dialog: mit/ohne Geheimnisse, Passphrase zweimal).

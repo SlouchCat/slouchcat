@@ -107,11 +107,11 @@ test('A-8: a playback shows up in the statistics; period, tables, grid and Back 
   await expect(when.getByText('Aus der letzten Woche')).toBeVisible();
   await expect(when).toContainText(`Stunden in der Zeitzone des Servers (${numbers.timeZone}).`);
   await expect(when).toContainText(/Spitze: \S+, \d+–\d+ Uhr/);
-  await expect(when.getByRole('table', { name: 'Nach Tageszeit' }).getByRole('row')).toHaveCount(
-    25,
-  );
   await expect(
-    when.getByRole('table', { name: 'Nach Wochentag' }).getByRole('rowheader'),
+    when.getByRole('table', { name: 'Nach Tageszeit', exact: true }).getByRole('row'),
+  ).toHaveCount(25);
+  await expect(
+    when.getByRole('table', { name: 'Nach Wochentag', exact: true }).getByRole('rowheader'),
   ).toHaveText(['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag']);
 
   // The checked period is the group's Tab stop; arrow keys switch and keep it in the address.
@@ -127,15 +127,11 @@ test('A-8: a playback shows up in the statistics; period, tables, grid and Back 
   await expect(page).toHaveURL(/\/admin\/stats\?days=7$/);
   await expect(film).toBeVisible();
 
-  // «Woche und Stunde» starts folded; Enter opens it and its table is there for screen readers.
+  // «Woche und Stunde» is always shown: a plain heading without a toggle, its table is there for
+  // screen readers, and the grid adds no focus stop.
   const grid = when.getByRole('table', { name: 'Schauzeit nach Wochentag und Stunde' });
-  const fold = when.getByRole('button', { name: 'Woche und Stunde' });
-  await expect(fold).toHaveAttribute('aria-expanded', 'false');
-  await expect(grid).toHaveCount(0);
-  await tabTo(page, fold, 80);
-  await expectFocusOn(page, fold);
-  await page.keyboard.press('Enter');
-  await expect(fold).toHaveAttribute('aria-expanded', 'true');
+  await expect(when.getByRole('heading', { name: 'Woche und Stunde', level: 3 })).toBeVisible();
+  await expect(when.getByRole('button', { name: 'Woche und Stunde' })).toHaveCount(0);
   await expect(grid.getByRole('rowheader')).toHaveCount(7);
   await expect(grid.getByRole('row').first().getByRole('columnheader')).toHaveCount(25);
 

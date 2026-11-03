@@ -146,3 +146,19 @@
   gap: var(--sc-space-2);
   min-width: 0;
 }
+
+/* «Woche und Stunde»: heading on the left, the peak at the end of the line. */
+.whenGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.whenGridHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: baseline;
+  justify-content: space-between;
+}
