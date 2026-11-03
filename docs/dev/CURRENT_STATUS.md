@@ -30,7 +30,12 @@ während der neu gestartete e2e-Shard 2 noch lief. Zuvor war er nur wegen des Ze
 - **Nachgezogen:** Der Hinweis im Dialog «Ordner entfernen» sprach noch von «binnen 30 Tagen». Er
   sagt jetzt, dass Titel über ihre Anbieter-ID zurückfinden, und verweist für einen Umzug auf
   «Pfad ändern».
-- **Offen:** Release 1.9.0 (Tag setzt Marco).
+- **Release 1.9.0 wird veröffentlicht** (Marcos Wort «Erst 1.9.0 taggen», 3. November 2026):
+  Versionsstellen auf 1.9.0 im Zweig `claude/release-1.9.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
+  `v1.9.0` setzt Marco auf den Merge-Commit. PR #79 (Scanner, wiederverwendete Inode) kommt nicht
+  mit (Marco), sondern in ein späteres Release. Release-Notes: `release-notes-1.9.0.txt` im
+  Wurzelordner (unversioniert wie 1.5.0 bis 1.8.0). Danach beginnt Konzept 13 als Vertrag 1.10.0.
 
 
 Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemergt `cbf17fb`). Zweig
