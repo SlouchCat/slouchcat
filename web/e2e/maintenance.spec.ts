@@ -363,19 +363,30 @@ test.describe('orphaned user data (requests intercepted)', () => {
       downloads: 0,
       activityEvents: 0,
     };
-    const pair = (n: number, title: string, userData: Partial<typeof none>) => ({
+    const pair = (
+      n: number,
+      deletedTitle: string,
+      title: string,
+      userData: Partial<typeof none>,
+    ) => ({
       deletedId: `01JB8Z6Q4M7N9P2R3S5T7V9X2${n}`,
       liveId: `01JB8Z6Q4M7N9P2R3S5T7V9X3${n}`,
       libraryId: 2,
       libraryName: 'Serien',
       kind: 'series',
       title,
+      year: 2003,
+      deletedTitle,
+      deletedYear: 2003,
       deletedAt: '2026-10-28T09:00:00Z',
       userData: { ...none, ...userData },
     });
     let pairs = [
-      pair(1, 'E2E Two and a Half Men', { progress: 2, progressEvents: 100 }),
-      pair(2, 'E2E Silo', { progress: 1, progressEvents: 40 }),
+      pair(1, 'E2E Two and a Half Men', 'E2E Two and a Half Men Copy', {
+        progress: 2,
+        progressEvents: 100,
+      }),
+      pair(2, 'E2E Silo', 'E2E Silo', { progress: 1, progressEvents: 40 }),
     ];
     const posted: unknown[] = [];
     await page.route('**/api/v1/admin/maintenance/relink', async (route) => {
@@ -397,7 +408,13 @@ test.describe('orphaned user data (requests intercepted)', () => {
 
     await openTab(page, /^Verwaiste Benutzerdaten 2 Titel$/);
     const table = panel(page).getByRole('table', { name: 'Verwaiste Benutzerdaten' });
-    await expect(table.getByText('2 Fortschritte, 100 Ereignisse')).toBeVisible();
+    // Both titles: the deleted one heads the row, the copy links to its administration page.
+    const first = table.getByRole('row', { name: /E2E Two and a Half Men \(2003\)/ });
+    await expect(first.getByRole('rowheader')).toHaveText('E2E Two and a Half Men (2003)');
+    await expect(
+      first.getByRole('link', { name: 'E2E Two and a Half Men Copy (2003)' }),
+    ).toBeVisible();
+    await expect(table.getByText('2 Fortschritte, 100 Wiedergabe-Ereignisse')).toBeVisible();
     const boxes = table.getByRole('checkbox');
     await expect(boxes).toHaveCount(2);
     await expect(boxes.nth(0)).toBeChecked();
@@ -418,7 +435,9 @@ test.describe('orphaned user data (requests intercepted)', () => {
     const confirm = page.getByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
     await expect(confirm).toBeVisible();
     await expect(
-      confirm.getByText(/Es bleiben erhalten: 2 Fortschritte, 100 Ereignisse\.$/),
+      confirm.getByText(
+        /Es bleiben erhalten: 2 Fortschritte, 100 Wiedergabe-Ereignisse\. Die Kopie wird endgültig entfernt\.$/,
+      ),
     ).toBeVisible();
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Umhängen' }));
     await page.keyboard.press('Escape');
@@ -437,9 +456,16 @@ test.describe('orphaned user data (requests intercepted)', () => {
         pairs: [{ deletedId: '01JB8Z6Q4M7N9P2R3S5T7V9X21', liveId: '01JB8Z6Q4M7N9P2R3S5T7V9X31' }],
       },
     ]);
-    await expect(table.getByRole('link', { name: 'E2E Two and a Half Men' })).toHaveCount(0);
-    await expect(table.getByRole('checkbox', { name: 'E2E Silo auswählen' })).toBeChecked();
-    // The row went away: the h1 takes the focus (ALL-2).
+    await expect(
+      table.getByRole('link', { name: 'E2E Two and a Half Men Copy (2003)' }),
+    ).toHaveCount(0);
+    // The pair taken out stays out, so «Umhängen» turned off and the h1 takes the focus (ALL-2).
+    await expect(
+      table.getByRole('checkbox', {
+        name: 'E2E Silo (2003) auswählen (Serien, gelöscht am 28.10.2026)',
+      }),
+    ).not.toBeChecked();
+    await expect(relink).toBeDisabled();
     await expect(h1(page)).toBeFocused();
     await expectNoFocusTrap(page, TAB_MAX);
   });

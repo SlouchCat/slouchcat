@@ -963,7 +963,10 @@
         "merge": "Titel zusammengeführt.",
         "match": "Zuordnung gespeichert, die Metadaten werden geladen.",
         "relink": "Umgehängt: {{titles}}.",
-        "relinkSkipped": "Umgehängt: {{titles}}. Übersprungen: {{skipped}}."
+        "relinkStopped_one": "{{count}} umgehängt. Ein Scan läuft gerade, der Rest folgt nach dem Scan.",
+        "relinkStopped_other": "{{count}} umgehängt. Ein Scan läuft gerade, der Rest folgt nach dem Scan.",
+        "relinkSkipped_one": "1 übersprungen: Der gelöschte Titel ist schon zurück. Die übrige Kopie steht unter «Duplikate».",
+        "relinkSkipped_other": "{{count}} übersprungen: Die gelöschten Titel sind schon zurück. Die übrigen Kopien stehen unter «Duplikate»."
       },
       "cleanup": {
         "title": "Titel bereinigen?",
@@ -1016,18 +1019,18 @@
         "columns": {
           "library": "Bibliothek",
           "deletedAt": "Gelöscht am",
-          "userData": "Benutzerdaten"
+          "userData": "Benutzerdaten",
+          "deleted": "Gelöschter Titel",
+          "copy": "Kopie"
         },
         "confirmTitle": "Benutzerdaten umhängen?",
-        "confirmBody_one": "1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse. Es bleiben erhalten: {{data}}.",
-        "confirmBody_other": "{{count}} Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen. Es bleiben erhalten: {{data}}.",
         "data": {
           "progress_one": "{{count}} Fortschritt",
           "progress_other": "{{count}} Fortschritte",
-          "progressEvents_one": "{{count}} Ereignis",
-          "progressEvents_other": "{{count}} Ereignisse",
-          "progressDays_one": "{{count}} Tageswert",
-          "progressDays_other": "{{count}} Tageswerte",
+          "progressEvents_one": "{{count}} Wiedergabe-Ereignis",
+          "progressEvents_other": "{{count}} Wiedergabe-Ereignisse",
+          "progressDays_one": "{{count}} Tagesstatistik",
+          "progressDays_other": "{{count}} Tagesstatistiken",
           "playbackSessions_one": "{{count}} Wiedergabe",
           "playbackSessions_other": "{{count}} Wiedergaben",
           "watchlist_one": "{{count}} Merklisten-Eintrag",
@@ -1038,13 +1041,27 @@
           "collectionItems_other": "{{count}} Sammlungseinträge",
           "notifications_one": "{{count}} Benachrichtigung",
           "notifications_other": "{{count}} Benachrichtigungen",
-          "topPicks_one": "{{count}} Empfehlung",
-          "topPicks_other": "{{count}} Empfehlungen",
+          "topPicks_one": "{{count}} Top-Pick",
+          "topPicks_other": "{{count}} Top-Picks",
           "downloads_one": "{{count}} Download",
           "downloads_other": "{{count}} Downloads",
           "activityEvents_one": "{{count}} Aktivität",
           "activityEvents_other": "{{count}} Aktivitäten"
-        }
+        },
+        "copies_one": "{{count}} Kopie",
+        "copies_other": "{{count}} Kopien",
+        "selectPair": "{{copy}} auswählen ({{library}}, gelöscht am {{date}})",
+        "selectPairOf": "{{copy}} auswählen ({{library}}, gelöscht am {{date}}, Kopie {{index}} von {{copies}})",
+        "confirmMerge_one": "1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse.",
+        "confirmMerge_other": "{{count}} Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen.",
+        "confirmKept": "Es bleiben erhalten: {{data}}.",
+        "confirmNoData_one": "Am gelöschten Titel hängen keine Benutzerdaten.",
+        "confirmNoData_other": "An den gelöschten Titeln hängen keine Benutzerdaten.",
+        "confirmRemoved_one": "Die Kopie wird endgültig entfernt.",
+        "confirmRemoved_other": "Die Kopien werden endgültig entfernt.",
+        "confirmExtra_one": "Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».",
+        "confirmExtra_other": "{{count}} weitere Kopien derselben Titel werden übersprungen und stehen danach unter «Duplikate».",
+        "listChanged": "Die Liste hat sich geändert und wurde neu geladen."
       }
     },
     "item": {

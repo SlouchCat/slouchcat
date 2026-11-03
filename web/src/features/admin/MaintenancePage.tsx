@@ -2,7 +2,7 @@ import type { DuplicateGroup, Issue, IssueKind, RelinkPair } from '@slouchcat/ap
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, request } from '@/api/client';
+import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
@@ -24,6 +24,7 @@ import { RelinkTab } from './maintenance/RelinkTab';
 import {
   DUPLICATES,
   groupKey,
+  pairKey,
   RELINK,
   TABS,
   userDataSummary,
@@ -209,22 +210,39 @@ function MaintenanceContent() {
           body: { pairs: pairs.map(({ deletedId, liveId }) => ({ deletedId, liveId })) },
         }),
       ),
-    onSuccess: (result) => {
-      setRelinkExcluded([]);
-      const titles = t('admin.maintenance.titleCount', { count: result.relinked.length });
-      return finish(
-        RELINK,
-        {
-          tone: 'info',
-          text:
-            result.skipped > 0
-              ? t('admin.maintenance.done.relinkSkipped', { titles, skipped: result.skipped })
-              : t('admin.maintenance.done.relink', { titles }),
-        },
-        true,
-      );
+    onSuccess: async (result) => {
+      const count = result.relinked.length;
+      const text = [
+        result.stoppedBy === 'scan_running'
+          ? t('admin.maintenance.done.relinkStopped', { count })
+          : t('admin.maintenance.done.relink', {
+              titles: t('admin.maintenance.titleCount', { count }),
+            }),
+        result.skipped > 0 && t('admin.maintenance.done.relinkSkipped', { count: result.skipped }),
+      ]
+        .filter(Boolean)
+        .join(' ');
+      // The h1 takes the focus only when the rows are gone (focusTitleIfLost).
+      await finish(RELINK, { tone: 'info', text });
+      // The pairs taken out stay out; only those no longer listed are forgotten.
+      const listed = new Set(queryClient.getQueryData(relinkQuery.queryKey)?.pairs.map(pairKey));
+      setRelinkExcluded((current) => current.filter((key) => listed.has(key)));
     },
-    onError: (error) => failed(RELINK, error),
+    // A refused request means the list was stale (422: a pair is gone) or a scan runs (409): the
+    // list reloads either way, so a second try acts on what is there now.
+    onError: (error) => {
+      setOutcomes((current) => ({
+        ...current,
+        [RELINK]: {
+          tone: 'danger',
+          text: isApiError(error, 422)
+            ? t('admin.maintenance.relink.listChanged')
+            : problemMessage(t, error),
+          key: (current[RELINK]?.key ?? 0) + 1,
+        },
+      }));
+      void queryClient.invalidateQueries({ queryKey: maintenanceKey });
+    },
   });
 
   // Every confirmation is the page's own: the rows that asked for it may go while it is open.
@@ -293,13 +311,24 @@ function MaintenanceContent() {
 
   const onRelink = useCallback(
     (pairs: RelinkPair[]) => {
-      const data = userDataSummary(t, pairs);
+      // Two copies of one deleted title: one merges, the other is skipped; the user data of the
+      // title counts once.
+      const titles = [...new Map(pairs.map((pair) => [pair.deletedId, pair])).values()];
+      const data = userDataSummary(t, titles);
+      const count = titles.length;
+      const extra = pairs.length - count;
       ask({
         title: t('admin.maintenance.relink.confirmTitle'),
-        body: t('admin.maintenance.relink.confirmBody', {
-          count: pairs.length,
-          data: data || t('admin.maintenance.relink.noUserData'),
-        }),
+        body: [
+          t('admin.maintenance.relink.confirmMerge', { count }),
+          data
+            ? t('admin.maintenance.relink.confirmKept', { data })
+            : t('admin.maintenance.relink.confirmNoData', { count }),
+          t('admin.maintenance.relink.confirmRemoved', { count }),
+          extra > 0 && t('admin.maintenance.relink.confirmExtra', { count: extra }),
+        ]
+          .filter(Boolean)
+          .join(' '),
         confirmLabel: t('admin.maintenance.relink.action'),
         onConfirm: () => relinkMutate(pairs),
       });

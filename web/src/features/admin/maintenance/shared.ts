@@ -45,8 +45,8 @@ const userDataKeys = [
 ] as const satisfies readonly (keyof RelinkUserData)[];
 
 /**
- * The user data of the pairs, summed per table: «3 Fortschritte, 140 Ereignisse». Tables without
- * a row are left out; no row at all gives an empty string.
+ * The user data of the pairs, summed per table: «3 Fortschritte, 140 Wiedergabe-Ereignisse».
+ * Tables without a row are left out; no row at all gives an empty string.
  */
 export const userDataSummary = (t: TFunction, pairs: readonly RelinkPair[]) =>
   userDataKeys

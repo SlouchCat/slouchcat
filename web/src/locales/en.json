@@ -963,7 +963,10 @@
         "merge": "Titles merged.",
         "match": "Match saved, the metadata is being loaded.",
         "relink": "Relinked: {{titles}}.",
-        "relinkSkipped": "Relinked: {{titles}}. Skipped: {{skipped}}."
+        "relinkStopped_one": "{{count}} relinked. A scan is running; the rest follows after the scan.",
+        "relinkStopped_other": "{{count}} relinked. A scan is running; the rest follows after the scan.",
+        "relinkSkipped_one": "1 skipped: the deleted title is already back. The remaining copy is listed under «Duplicates».",
+        "relinkSkipped_other": "{{count}} skipped: the deleted titles are already back. The remaining copies are listed under «Duplicates»."
       },
       "cleanup": {
         "title": "Clean up titles?",
@@ -1016,18 +1019,18 @@
         "columns": {
           "library": "Library",
           "deletedAt": "Deleted on",
-          "userData": "User data"
+          "userData": "User data",
+          "deleted": "Deleted title",
+          "copy": "Copy"
         },
         "confirmTitle": "Relink user data?",
-        "confirmBody_one": "1 copy merges into its deleted title. The old title comes back and keeps its address. Kept: {{data}}.",
-        "confirmBody_other": "{{count}} copies merge into their deleted titles. The old titles come back and keep their addresses. Kept: {{data}}.",
         "data": {
           "progress_one": "{{count}} progress entry",
           "progress_other": "{{count}} progress entries",
-          "progressEvents_one": "{{count}} event",
-          "progressEvents_other": "{{count}} events",
-          "progressDays_one": "{{count}} daily total",
-          "progressDays_other": "{{count}} daily totals",
+          "progressEvents_one": "{{count}} playback event",
+          "progressEvents_other": "{{count}} playback events",
+          "progressDays_one": "{{count}} daily statistic",
+          "progressDays_other": "{{count}} daily statistics",
           "playbackSessions_one": "{{count}} playback",
           "playbackSessions_other": "{{count}} playbacks",
           "watchlist_one": "{{count}} watchlist entry",
@@ -1038,13 +1041,27 @@
           "collectionItems_other": "{{count}} collection entries",
           "notifications_one": "{{count}} notification",
           "notifications_other": "{{count}} notifications",
-          "topPicks_one": "{{count}} pick",
-          "topPicks_other": "{{count}} picks",
+          "topPicks_one": "{{count}} top pick",
+          "topPicks_other": "{{count}} top picks",
           "downloads_one": "{{count}} download",
           "downloads_other": "{{count}} downloads",
           "activityEvents_one": "{{count}} activity",
           "activityEvents_other": "{{count}} activities"
-        }
+        },
+        "copies_one": "{{count}} copy",
+        "copies_other": "{{count}} copies",
+        "selectPair": "Select {{copy}} ({{library}}, deleted on {{date}})",
+        "selectPairOf": "Select {{copy}} ({{library}}, deleted on {{date}}, copy {{index}} of {{copies}})",
+        "confirmMerge_one": "1 copy merges into its deleted title. The old title comes back and keeps its address.",
+        "confirmMerge_other": "{{count}} copies merge into their deleted titles. The old titles come back and keep their addresses.",
+        "confirmKept": "Kept: {{data}}.",
+        "confirmNoData_one": "The deleted title has no user data.",
+        "confirmNoData_other": "The deleted titles have no user data.",
+        "confirmRemoved_one": "The copy is removed for good.",
+        "confirmRemoved_other": "The copies are removed for good.",
+        "confirmExtra_one": "One more copy of the same title is skipped and is then listed under «Duplicates».",
+        "confirmExtra_other": "{{count}} more copies of the same titles are skipped and are then listed under «Duplicates».",
+        "listChanged": "The list has changed and was reloaded."
       }
     },
     "item": {

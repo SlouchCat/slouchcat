@@ -110,9 +110,16 @@ const initialPairs: RelinkPairList = {
   pairs: [
     pair(1, {
       title: 'Two and a Half Men',
+      year: 2003,
+      deletedTitle: 'Two and a Half Men',
+      deletedYear: 2003,
       userData: { ...noUserData, progress: 2, progressEvents: 100, playbackSessions: 1 },
     }),
-    pair(2, { title: 'Silo', userData: { ...noUserData, progress: 1, progressEvents: 40 } }),
+    pair(2, {
+      title: 'Silo',
+      deletedTitle: 'Silo',
+      userData: { ...noUserData, progress: 1, progressEvents: 40 },
+    }),
   ],
 };
 
@@ -619,28 +626,33 @@ describe('maintenance page', () => {
     renderApp('/admin/maintenance?tab=relink');
     const table = await screen.findByRole('table', { name: 'Verwaiste Benutzerdaten' });
     expect(within(panel()).getByText(/^Gelöschte Titel, die als neue Kopie/)).toBeVisible();
-    const row = within(table).getByRole('row', { name: /^Two and a Half Men/ });
-    // The live copy has the administration page; the deleted title has none.
-    expect(within(row).getByRole('link', { name: 'Two and a Half Men' })).toHaveAttribute(
+    const row = within(table).getByRole('row', { name: /^Two and a Half Men \(2003\)/ });
+    // Both titles side by side: the deleted one, and the live copy with its administration page.
+    expect(within(row).getByRole('rowheader')).toHaveTextContent('Two and a Half Men (2003)');
+    expect(within(row).getByRole('link', { name: 'Two and a Half Men (2003)' })).toHaveAttribute(
       'href',
       `/admin/items/${id(31)}`,
     );
     expect(within(row).getByText('Serie')).toBeVisible();
     expect(within(row).getByText('Serien')).toBeVisible();
     expect(within(row).getByText('28.10.2026')).toBeVisible();
-    expect(within(row).getByText('2 Fortschritte, 100 Ereignisse, 1 Wiedergabe')).toBeVisible();
+    expect(
+      within(row).getByText('2 Fortschritte, 100 Wiedergabe-Ereignisse, 1 Wiedergabe'),
+    ).toBeVisible();
     for (const box of within(table).getAllByRole('checkbox')) expect(box).toBeChecked();
     expect(screen.getByText('2 ausgewählt')).toBeVisible();
 
     // One pair taken out: the question sums the other's user data only.
-    await user.click(screen.getByRole('checkbox', { name: 'Silo auswählen' }));
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Silo auswählen (Serien, gelöscht am 28.10.2026)' }),
+    );
     expect(screen.getByText('1 ausgewählt')).toBeVisible();
     const trigger = screen.getByRole('button', { name: 'Umhängen' });
     await user.click(trigger);
     const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
     expect(
       within(dialog).getByText(
-        '1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse. Es bleiben erhalten: 2 Fortschritte, 100 Ereignisse, 1 Wiedergabe.',
+        '1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse. Es bleiben erhalten: 2 Fortschritte, 100 Wiedergabe-Ereignisse, 1 Wiedergabe. Die Kopie wird endgültig entfernt.',
       ),
     ).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
@@ -652,7 +664,7 @@ describe('maintenance page', () => {
         pairs: [{ deletedId: id(21), liveId: id(31) }],
       }),
     );
-    await waitFor(() => expect(trigger).toBeDisabled());
+    await waitFor(() => expect(trigger).toHaveAttribute('data-pending'));
 
     relinkPairs = { total: 1, pairs: [initialPairs.pairs[1] as RelinkPair] };
     finish(
@@ -660,22 +672,28 @@ describe('maintenance page', () => {
     );
     const outcome = await within(panel()).findByText('Umgehängt: 1 Titel.');
     expect(outcome.closest('[role="status"]')).not.toBeNull();
-    // The list reloads; the pair taken out is selected again.
+    // The list reloads; the pair taken out stays out (M3), so the button is off and the h1 takes
+    // the focus.
     await waitFor(() =>
-      expect(screen.queryByRole('link', { name: 'Two and a Half Men' })).not.toBeInTheDocument(),
+      expect(
+        screen.queryByRole('link', { name: 'Two and a Half Men (2003)' }),
+      ).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole('checkbox', { name: 'Silo auswählen' })).toBeChecked();
+    expect(
+      screen.getByRole('checkbox', { name: 'Silo auswählen (Serien, gelöscht am 28.10.2026)' }),
+    ).not.toBeChecked();
+    expect(screen.getByRole('button', { name: 'Umhängen' })).toBeDisabled();
     await waitFor(() => expect(title()).toHaveFocus());
   });
 
-  it('orphaned user data: «Auswahl aufheben» turns the button off; skipped pairs are named', async () => {
+  it('orphaned user data: «Auswahl aufheben» turns the button off; skipped pairs are explained', async () => {
     const user = userEvent.setup();
     const { calls } = setup({
       'POST /admin/maintenance/relink': () => {
         relinkPairs = { total: 0, pairs: [] };
         return json({
           relinked: [{ keptId: id(21), removedId: id(31), merged: 1, moved: 0 }],
-          skipped: 1,
+          skipped: 2,
         });
       },
     });
@@ -688,11 +706,15 @@ describe('maintenance page', () => {
     const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
     expect(
       within(dialog).getByText(
-        /^2 Kopien gehen .* 3 Fortschritte, 140 Ereignisse, 1 Wiedergabe\.$/,
+        /^2 Kopien gehen .* 3 Fortschritte, 140 Wiedergabe-Ereignisse, 1 Wiedergabe\. Die Kopien werden endgültig entfernt\.$/,
       ),
     ).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
-    expect(await screen.findByText('Umgehängt: 1 Titel. Übersprungen: 1.')).toBeVisible();
+    expect(
+      await screen.findByText(
+        'Umgehängt: 1 Titel. 2 übersprungen: Die gelöschten Titel sind schon zurück. Die übrigen Kopien stehen unter «Duplikate».',
+      ),
+    ).toBeVisible();
     expect(
       calls.find((call) => call.method === 'POST' && call.path === '/admin/maintenance/relink')
         ?.body,
@@ -702,23 +724,177 @@ describe('maintenance page', () => {
         { deletedId: id(22), liveId: id(32) },
       ],
     });
-    // Nothing left: the tab says so.
+    // Nothing left: the tab says so, and the h1 takes the focus.
     expect(await screen.findByText('Keine verwaisten Benutzerdaten.')).toBeVisible();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    await waitFor(() => expect(title()).toHaveFocus());
   });
 
-  it('orphaned user data: a refused relink shows the problem; more pairs than shown are counted', async () => {
+  it('orphaned user data: two copies of one deleted title are marked, counted once and told apart', async () => {
+    const user = userEvent.setup();
+    const heat = (live: number) =>
+      pair(1, {
+        liveId: id(30 + live),
+        libraryId: 1,
+        libraryName: 'Filme',
+        kind: 'movie',
+        title: 'Heat',
+        year: 1995,
+        deletedTitle: 'Heat',
+        deletedYear: 1995,
+        userData: { ...noUserData, progress: 2, topPicks: 1 },
+      });
+    relinkPairs = {
+      total: 3,
+      pairs: [heat(1), heat(2), pair(3, { title: 'Dark', deletedTitle: 'Dark' })],
+    };
+    setup({
+      'POST /admin/maintenance/relink': () => {
+        relinkPairs = { total: 0, pairs: [] };
+        return json({
+          relinked: [
+            { keptId: id(21), removedId: id(31), merged: 1, moved: 0 },
+            { keptId: id(23), removedId: id(33), merged: 1, moved: 0 },
+          ],
+          skipped: 1,
+        });
+      },
+    });
+    renderApp('/admin/maintenance?tab=relink');
+    const table = await screen.findByRole('table', { name: 'Verwaiste Benutzerdaten' });
+    expect(within(table).getAllByText('2 Kopien')).toHaveLength(2);
+    const first = screen.getByRole('checkbox', {
+      name: 'Heat (1995) auswählen (Filme, gelöscht am 28.10.2026, Kopie 1 von 2)',
+    });
+    const second = screen.getByRole('checkbox', {
+      name: 'Heat (1995) auswählen (Filme, gelöscht am 28.10.2026, Kopie 2 von 2)',
+    });
+
+    // Only the title without user data: the question says so instead of listing nothing.
+    await user.click(first);
+    await user.click(second);
+    await user.click(screen.getByRole('button', { name: 'Umhängen' }));
+    let dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    expect(
+      within(dialog).getByText(
+        '1 Kopie geht in ihrem gelöschten Titel auf. Der alte Titel kommt zurück und behält seine Adresse. Am gelöschten Titel hängen keine Benutzerdaten. Die Kopie wird endgültig entfernt.',
+      ),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+
+    // Both copies: the deleted title and its user data count once, the second copy is skipped.
+    await user.click(first);
+    await user.click(second);
+    await user.click(screen.getByRole('button', { name: 'Umhängen' }));
+    dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    expect(
+      within(dialog).getByText(
+        '2 Kopien gehen in ihren gelöschten Titeln auf. Die alten Titel kommen zurück und behalten ihre Adressen. Es bleiben erhalten: 2 Fortschritte, 1 Top-Pick. Die Kopien werden endgültig entfernt. Eine weitere Kopie desselben Titels wird übersprungen und steht danach unter «Duplikate».',
+      ),
+    ).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
+    expect(
+      await screen.findByText(
+        'Umgehängt: 2 Titel. 1 übersprungen: Der gelöschte Titel ist schon zurück. Die übrige Kopie steht unter «Duplikate».',
+      ),
+    ).toBeVisible();
+  });
+
+  it('orphaned user data: a stale list (422) reloads and says so instead of pointing at fields', async () => {
+    const user = userEvent.setup();
+    const { calls } = setup({
+      'POST /admin/maintenance/relink': () => {
+        relinkPairs = { total: 1, pairs: [initialPairs.pairs[1] as RelinkPair] };
+        return problem(422, 'validation_failed', {
+          errors: [{ field: 'pairs[0]', code: 'invalid_value' }],
+        });
+      },
+    });
+    const lists = () =>
+      calls.filter((call) => call.method === 'GET' && call.path === '/admin/maintenance/relink')
+        .length;
+    renderApp('/admin/maintenance?tab=relink');
+    await screen.findByRole('table', { name: 'Verwaiste Benutzerdaten' });
+    const before = lists();
+    await user.click(screen.getByRole('button', { name: 'Umhängen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
+    const outcome = await within(panel()).findByText(
+      'Die Liste hat sich geändert und wurde neu geladen.',
+    );
+    expect(outcome.closest('[role="status"]')).not.toBeNull();
+    await waitFor(() => expect(lists()).toBeGreaterThan(before));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('link', { name: 'Two and a Half Men (2003)' }),
+      ).not.toBeInTheDocument(),
+    );
+    // The reloaded pair is selected and can go again.
+    expect(screen.getByRole('button', { name: 'Umhängen' })).toBeEnabled();
+  });
+
+  it('orphaned user data: a scan after a merge reports the partial run; the focus stays on the button', async () => {
+    const user = userEvent.setup();
+    relinkPairs = {
+      total: 3,
+      pairs: [...initialPairs.pairs, pair(3, { title: 'Dark', deletedTitle: 'Dark' })],
+    };
+    setup({
+      'POST /admin/maintenance/relink': () => {
+        relinkPairs = { total: 2, pairs: relinkPairs.pairs.slice(1) };
+        return json({
+          relinked: [{ keptId: id(21), removedId: id(31), merged: 1, moved: 0 }],
+          skipped: 0,
+          stoppedBy: 'scan_running',
+        });
+      },
+    });
+    renderApp('/admin/maintenance?tab=relink');
+    await screen.findByRole('table', { name: 'Verwaiste Benutzerdaten' });
+    const trigger = screen.getByRole('button', { name: 'Umhängen' });
+    await user.click(trigger);
+    const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
+    expect(
+      await within(panel()).findByText(
+        '1 umgehängt. Ein Scan läuft gerade, der Rest folgt nach dem Scan.',
+      ),
+    ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('link', { name: 'Two and a Half Men (2003)' }),
+      ).not.toBeInTheDocument(),
+    );
+    // Rows remain and the button is still on: the focus stays where the dialog left it (m1).
+    expect(screen.getByText('2 ausgewählt')).toBeVisible();
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(title()).not.toHaveFocus();
+  });
+
+  it('orphaned user data: a refused relink shows the problem and reloads; more pairs than shown are counted', async () => {
     const user = userEvent.setup();
     relinkPairs = { ...initialPairs, total: 250 };
-    setup({ 'POST /admin/maintenance/relink': () => problem(409, 'scan_running') });
+    const { calls } = setup({
+      'POST /admin/maintenance/relink': () => problem(409, 'scan_running'),
+    });
     renderApp('/admin/maintenance?tab=relink');
     expect(await screen.findByText('2 von 250')).toBeVisible();
+    const before = calls.filter(
+      (call) => call.method === 'GET' && call.path === '/admin/maintenance/relink',
+    ).length;
     await user.click(screen.getByRole('button', { name: 'Umhängen' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Benutzerdaten umhängen?' });
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
     expect(
       await within(panel()).findByText(/^Ein Scan dieser Bibliothek läuft gerade\./),
     ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.method === 'GET' && call.path === '/admin/maintenance/relink')
+          .length,
+      ).toBeGreaterThan(before),
+    );
     // The pairs stay.
     expect(screen.getByRole('link', { name: 'Silo' })).toBeVisible();
   });
