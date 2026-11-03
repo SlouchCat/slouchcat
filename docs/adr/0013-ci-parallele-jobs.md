@@ -128,3 +128,33 @@ wird.
   Runner-Minuten steigt. Für ein öffentliches Repository ist das kostenlos, für ein privates wäre
   es eine Rechnung. Und ein Shard, der flattert, flattert jetzt in einem von sechs Berichten;
   dagegen hilft der zusammengeführte Bericht des Gate-Jobs, nicht die Aufteilung selbst.
+
+## Nachtrag vom 3. November 2026: schnellere CI ohne weniger Prüfungen
+
+Gemessen in den Läufen 41705191279 und 41707865418: Das Gate brauchte rund 18 Minuten, auch für
+einen Pull Request, der nur Dokumentation ändert. Marcos Entscheide vom 3. November 2026 und ihre
+Umsetzung:
+
+### Pull Requests mit reiner Dokumentation
+
+- Ein Job **`changes`** liest die Dateien des Pull Requests (`git diff --name-only HEAD^1 HEAD`;
+  der Merge-Commit eines Pull Requests hat die Basis als ersten Elternteil, ein Checkout mit
+  `fetch-depth: 2` genügt) und fragt `.github/scripts/docs-only.sh`, ob es **nur Dokumentation**
+  ist: `docs/**`, Markdown-Dateien und Release-Notes. **Keine fremde Action**: Ein
+  `git diff`-Schritt ist kürzer als die Prüfung einer weiteren gepinnten Abhängigkeit.
+- **Ausnahmen, weil eine Prüfung sie liest:** Markdown unter `web/` und `packages/` prüft
+  `prettier --check web packages` mit, und `deploy/licenses/FFMPEG-NOTICE.md` kopiert das Image.
+  Eine Änderung dort zählt als Code. Ein leerer Diff zählt ebenfalls als Code: Was sich nicht
+  beurteilen lässt, läuft ganz.
+- Alle schweren Jobs hängen an `changes` und laufen nur, wenn es **nicht** «nur Dokumentation» ist.
+- **Das Gate wertet «skipped» nur in genau diesem Fall als grün:** `changes` war erfolgreich und
+  hat «nur Dokumentation» gemeldet. Jedes andere «skipped» bleibt rot wie bisher, und ein
+  fehlgeschlagener `changes`-Job ist selbst rot. Damit gilt die Regel «`skipped` ist rot» weiter
+  für jeden Fall, in dem ein Job übersprungen wurde, weil etwas vor ihm brach.
+- **Push auf `main` und Läufe von Hand prüfen immer alles** (`changes` antwortet dort ohne Diff
+  «nein»): `main` bleibt der Nachweis dessen, was gemergt ist. Tags lösen diesen Workflow nicht aus
+  (`release.yml`); auch dort läuft also nie ein verkürzter Lauf.
+- Restrisiko: Eine Prüfung, die künftig eine Datei unter `docs/` oder eine Markdown-Datei liest,
+  muss in `docs-only.sh` als Ausnahme eingetragen werden, sonst sähe ein Pull Request, der nur
+  diese Datei ändert, die Prüfung nicht. Der Lauf auf `main` nach dem Merge fände den Fehler
+  trotzdem.
