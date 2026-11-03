@@ -712,7 +712,7 @@ describe('maintenance page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
     expect(
       await screen.findByText(
-        'Umgehängt: 1 Titel. 2 übersprungen: Die gelöschten Titel sind schon zurück. Die übrigen Kopien stehen unter «Duplikate».',
+        'Umgehängt: 1 Titel. 2 übersprungen: Das Paar gibt es nicht mehr, zum Beispiel weil es schon zusammengeführt wurde.',
       ),
     ).toBeVisible();
     expect(
@@ -796,7 +796,7 @@ describe('maintenance page', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Umhängen' }));
     expect(
       await screen.findByText(
-        'Umgehängt: 2 Titel. 1 übersprungen: Der gelöschte Titel ist schon zurück. Die übrige Kopie steht unter «Duplikate».',
+        'Umgehängt: 2 Titel. 1 übersprungen: Das Paar gibt es nicht mehr, zum Beispiel weil es schon zusammengeführt wurde.',
       ),
     ).toBeVisible();
   });

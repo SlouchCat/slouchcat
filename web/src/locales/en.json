@@ -974,8 +974,8 @@
         "relink": "Relinked: {{titles}}.",
         "relinkStopped_one": "{{count}} relinked. A scan is running. Start «Relink» again after the scan for the rest.",
         "relinkStopped_other": "{{count}} relinked. A scan is running. Start «Relink» again after the scan for the rest.",
-        "relinkSkipped_one": "1 skipped: the deleted title is already back. The remaining copy is listed under «Duplicates».",
-        "relinkSkipped_other": "{{count}} skipped: the deleted titles are already back. The remaining copies are listed under «Duplicates»."
+        "relinkSkipped_one": "1 skipped: the pair no longer exists, for example because it was already merged.",
+        "relinkSkipped_other": "{{count}} skipped: the pair no longer exists, for example because it was already merged."
       },
       "cleanup": {
         "title": "Clean up titles?",
