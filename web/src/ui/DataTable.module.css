@@ -28,6 +28,14 @@
   white-space: nowrap;
 }
 
+/* Columns from their definitions, not from their content (K12-9): the tables of a page's groups
+   line up. Below the least width (a phone) the table scrolls sideways in its frame instead of
+   squeezing its columns; text wraps inside its column. */
+.fixed {
+  min-width: 48rem;
+  table-layout: fixed;
+}
+
 .head {
   padding: var(--sc-table-cell-padding-y) var(--sc-space-4);
   border-bottom: 1px solid var(--sc-color-border-subtle);
@@ -62,6 +70,15 @@
   font-weight: var(--sc-font-weight-regular);
   text-align: left;
   vertical-align: middle;
+}
+
+.fixed .cell {
+  overflow-wrap: anywhere;
+}
+
+/* Headers wrap between words only: a caps word broken in two reads as two. */
+.fixed .head {
+  white-space: normal;
 }
 
 th.cell {

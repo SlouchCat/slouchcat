@@ -199,6 +199,7 @@ function DevicesContent() {
                     columns={columns[id]}
                     rows={group.devices}
                     rowKey={(device) => device.id}
+                    layout="fixed"
                   />
                 </DisclosureGroup>
               );

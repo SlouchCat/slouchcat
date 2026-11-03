@@ -10,7 +10,8 @@ import styles from './Backup.module.css';
 /**
  * The columns of a kind's table (SIC-3, mockup Sic-C): the file name in full (wrapped, S-5), when
  * it was made, its size, whether it holds the keys and whether it is encrypted; then «Herunterladen»
- * and the row's «Weitere Aktionen» (`actionsOf`). The kind is the table's group.
+ * and the row's «Weitere Aktionen» (`actionsOf`). The kind is the table's group; the widths line
+ * the groups' tables up (K12-9), the file name takes what is left.
  */
 export function backupColumns(
   t: TFunction,
@@ -35,6 +36,7 @@ export function backupColumns(
     },
     {
       key: 'created',
+      width: '18%',
       header: t('admin.backup.columns.created'),
       cell: (backup) => (
         <time className={styles.nowrap} dateTime={backup.createdAt}>
@@ -44,6 +46,7 @@ export function backupColumns(
     },
     {
       key: 'size',
+      width: '10%',
       header: t('admin.backup.columns.size'),
       align: 'end',
       cell: (backup) => (
@@ -52,16 +55,19 @@ export function backupColumns(
     },
     {
       key: 'secrets',
+      width: '10%',
       header: t('admin.backup.columns.secrets'),
       cell: (backup) => yesNo(backup.includesSecrets),
     },
     {
       key: 'encrypted',
+      width: '10%',
       header: t('admin.backup.columns.encrypted'),
       cell: (backup) => yesNo(backup.encrypted),
     },
     {
       key: 'actions',
+      width: '13rem',
       header: t('admin.backup.columns.actions'),
       hideHeader: true,
       align: 'end',

@@ -299,6 +299,7 @@ function SpotlightContent() {
             columns={columns}
             rows={list.entries}
             rowKey={entryKey}
+            layout="fixed"
           />
         )}
       </BandPanel>

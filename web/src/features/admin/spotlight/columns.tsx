@@ -44,7 +44,8 @@ export interface EntryActions {
 
 /**
  * The entries of the list (SPO-3): rank, poster and title, state, note and the actions. An entry
- * without a library title has no actions; it says why it never reaches the start page.
+ * without a library title has no actions; it says why it never reaches the start page. The widths
+ * keep the columns in place when an entry is hidden or pinned (K12-9); the note takes the rest.
  */
 export function entryColumns(
   t: TFunction,
@@ -53,12 +54,14 @@ export function entryColumns(
   return [
     {
       key: 'rank',
+      width: '5rem',
       header: t('admin.spotlight.entries.columns.rank'),
       align: 'end',
       cell: (entry) => <span className={styles.rank}>{entry.position}</span>,
     },
     {
       key: 'title',
+      width: '23%',
       header: t('admin.spotlight.entries.columns.title'),
       rowHeader: true,
       // A hidden entry: poster and title at half strength (mockup Spo-A).
@@ -70,6 +73,7 @@ export function entryColumns(
     },
     {
       key: 'status',
+      width: '14%',
       header: t('admin.spotlight.entries.columns.status'),
       cell: (entry) => {
         const [state, word] =
@@ -113,6 +117,8 @@ export function entryColumns(
     },
     {
       key: 'actions',
+      // Both buttons in full whichever words they carry (Anheften/Lösen, Ausblenden/Einblenden).
+      width: '18.5rem',
       header: t('admin.spotlight.entries.columns.actions'),
       hideHeader: true,
       align: 'end',

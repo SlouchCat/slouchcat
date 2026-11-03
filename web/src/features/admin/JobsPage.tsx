@@ -746,6 +746,7 @@ function JobsContent() {
                           rows={types}
                           rowKey={(info) => info.type}
                           expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+                          layout="fixed"
                         />
                       )}
                     </div>
@@ -789,17 +790,22 @@ function JobsContent() {
   );
 }
 
-/** The columns of a group's table: the row folds out on the name (JOB-5). */
+/**
+ * The columns of a group's table: the row folds out on the name (JOB-5). The widths keep the
+ * columns in place across the group tabs and when a state changes (K12-9).
+ */
 function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
   return [
     {
       key: 'name',
+      width: '30%',
       header: t('admin.jobs.columns.job'),
       rowHeader: true,
       cell: (info) => typeName(t, info.type),
     },
     {
       key: 'state',
+      width: '14%',
       header: t('admin.jobs.columns.state'),
       cell: (info) => {
         const state = typeState(info);
@@ -808,11 +814,13 @@ function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
     },
     {
       key: 'queued',
+      width: '14%',
       header: t('admin.jobs.card.queued'),
       cell: (info) => queuedText(t, info),
     },
     {
       key: 'last',
+      width: '22%',
       header: t('admin.jobs.card.lastRun'),
       // Cut to one line here; the fold-out shows the whole text.
       cell: (info) => <LastRun info={info} oneLine />,

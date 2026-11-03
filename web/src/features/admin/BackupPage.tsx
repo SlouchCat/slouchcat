@@ -307,6 +307,7 @@ function BackupContent() {
                 columns={columns}
                 rows={rows}
                 rowKey={(backup) => backup.name}
+                layout="fixed"
               />
             </div>
           </DisclosureGroup>

@@ -12,6 +12,12 @@ export interface DataColumn<T> {
   hideHeader?: boolean;
   /** Right-aligned content (actions, numbers). */
   align?: 'start' | 'end';
+  /**
+   * The column's width in a table with `layout="fixed"`: a share of the table (`'24%'`) or a
+   * length in rem for content of a known size (a checkbox, a button). Columns without one share
+   * what is left equally. Ignored in the automatic layout.
+   */
+  width?: string;
 }
 
 /** Rows that fold out (concept 12, 11.2): what a row shows below itself when it is open. */
@@ -34,6 +40,13 @@ interface DataTableProps<T> {
    * `aria-expanded` and `aria-controls`; its content must not hold controls of its own.
    */
   expand?: DataTableExpand<T>;
+  /**
+   * `fixed`: the columns take their `width`, not the width of their content, so several tables
+   * with the same columns (one per group of a page) line up (K12-9). Text wraps inside its
+   * column; below a least width the table scrolls sideways in its frame. `auto` (the default):
+   * the browser sizes the columns from their content.
+   */
+  layout?: 'auto' | 'fixed';
 }
 
 const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), [tabindex="0"]';
@@ -81,7 +94,14 @@ function moveBetweenRows(event: KeyboardEvent) {
  * scrolls sideways inside its frame instead of widening the page. With `expand` a row folds out
  * into a row of its own below it; the table, its headers and the roles row/cell stay as they are.
  */
-export function DataTable<T>({ caption, columns, rows, rowKey, expand }: DataTableProps<T>) {
+export function DataTable<T>({
+  caption,
+  columns,
+  rows,
+  rowKey,
+  expand,
+  layout = 'auto',
+}: DataTableProps<T>) {
   const id = useId();
   const [ownExpanded, setOwnExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const expanded = expand?.expandedKeys ?? ownExpanded;
@@ -106,8 +126,18 @@ export function DataTable<T>({ caption, columns, rows, rowKey, expand }: DataTab
   }, []);
   return (
     <div className={styles.frame}>
-      <table className={styles.table}>
+      <table className={`${styles.table} ${layout === 'fixed' ? styles.fixed : ''}`}>
         <caption className={styles.caption}>{caption}</caption>
+        {layout === 'fixed' && (
+          <colgroup>
+            {columns.map((column) => (
+              <col
+                key={column.key}
+                style={column.width === undefined ? undefined : { width: column.width }}
+              />
+            ))}
+          </colgroup>
+        )}
         <thead>
           <tr>
             {columns.map((column) => (

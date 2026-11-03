@@ -63,17 +63,18 @@ function throwawayContext(
   });
 }
 
-/** Signs `context` in and starts one playback there, reported as type `other`; its device id. */
+/** Signs `context` in and starts one playback there, reported as `type`; its device id. */
 async function playOn(
   context: BrowserContext,
   owner: APIRequestContext,
   name: string,
+  type = 'other',
 ): Promise<string> {
   await loginOwner(context.request);
   const itemId = await itemIdByTitle(owner, H264_TITLE);
   const started = await context.request.post(`/api/v1/items/${itemId}/play`, {
     headers: CSRF,
-    data: { capabilities: { video: ['h264'], audio: ['aac'], hls: 'mse', name, type: 'other' } },
+    data: { capabilities: { video: ['h264'], audio: ['aac'], hls: 'mse', name, type } },
   });
   expect(started.status(), await started.text()).toBe(200);
   const id = ((await started.json()) as { device?: { id: string } }).device?.id;
@@ -212,6 +213,57 @@ test('tabs in the band by arrow keys, the type sections by Enter; forgets a thro
     const session = await throwaway.request.get('/api/v1/auth/session');
     expect(session.status()).toBe(401);
     await expectNoFocusTrap(page);
+  } finally {
+    for (const id of leftover) {
+      await owner.delete(`/api/v1/admin/devices/${id}`, { headers: CSRF });
+    }
+    for (const context of contexts) await context.close();
+  }
+});
+
+/** The left edge of each column header of a table, in its order. */
+const headerLefts = (page: Page, name: string) =>
+  page
+    .getByRole('table', { name })
+    .getByRole('columnheader')
+    .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().left));
+
+test('the columns of the type sections line up in both tabs (K12-9)', async ({
+  page,
+  owner,
+  browser,
+  baseURL,
+  extraHTTPHeaders,
+}) => {
+  const project = test.info().project.name;
+  const contexts: BrowserContext[] = [];
+  const leftover = new Set<string>();
+  try {
+    // Two sections whose rows differ in length: a long name and owner beside a short one.
+    const other = await throwawayContext(browser, { baseURL, extraHTTPHeaders });
+    contexts.push(other);
+    leftover.add(
+      await playOn(other, owner, `E2E Spalten mit einem recht langen Gerätenamen ${project}`),
+    );
+    const tablet = await throwawayContext(browser, { baseURL, extraHTTPHeaders });
+    contexts.push(tablet);
+    leftover.add(await playOn(tablet, owner, `E2E T ${project}`, 'tablet'));
+
+    for (const [path, view] of [
+      ['/admin/devices', 'Geräte'],
+      ['/admin/devices?tab=capabilities', 'Fähigkeiten'],
+    ] as const) {
+      await page.goto(path);
+      await expect(page.getByRole('table', { name: `${view}: Tablet` })).toBeVisible();
+      await expect(page.getByRole('table', { name: `${view}: Anderes` })).toBeVisible();
+      const tablets = await headerLefts(page, `${view}: Tablet`);
+      const others = await headerLefts(page, `${view}: Anderes`);
+      expect(others).toHaveLength(tablets.length);
+      // The same column starts at the same x in both sections (1 px for rounding).
+      tablets.forEach((left, column) =>
+        expect(Math.abs(left - others[column]), `${view}, column ${column}`).toBeLessThanOrEqual(1),
+      );
+    }
   } finally {
     for (const id of leftover) {
       await owner.delete(`/api/v1/admin/devices/${id}`, { headers: CSRF });

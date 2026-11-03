@@ -35,6 +35,7 @@ const nameColumn = (t: TFunction, profile = false): DataColumn<AdminDevice> => (
   key: 'name',
   header: t('admin.devices.columns.name'),
   rowHeader: true,
+  width: '24%',
   cell: (device) => {
     const name = deviceName(t, device);
     if (!profile || device.capabilities !== undefined) {
@@ -52,6 +53,9 @@ const nameColumn = (t: TFunction, profile = false): DataColumn<AdminDevice> => (
 });
 
 /**
+ * The columns of both tabs carry widths: the page lays its tables out fixed, so the sections of a
+ * tab line up (K12-9). In «Geräte» the owner takes what is left.
+ *
  * The tab «Geräte» (GER-1, mockup Ger-C): the owner of the last playback start, the last
  * contact, the running streams and «Vergessen», which the page confirms in its own dialog.
  */
@@ -93,6 +97,7 @@ export function deviceColumns(
     },
     {
       key: 'lastSeen',
+      width: '20%',
       header: t('admin.devices.columns.lastSeen'),
       cell: (device) => (
         <time className={styles.nowrap} dateTime={device.lastSeenAt}>
@@ -102,6 +107,7 @@ export function deviceColumns(
     },
     {
       key: 'streams',
+      width: '6rem',
       header: t('admin.devices.columns.streams'),
       align: 'end',
       cell: (device) => (
@@ -110,6 +116,8 @@ export function deviceColumns(
     },
     {
       key: 'actions',
+      // «Vergessen» in full, also with the larger buttons of a phone (S-1).
+      width: '9rem',
       header: t('admin.devices.columns.actions'),
       hideHeader: true,
       align: 'end',
@@ -135,21 +143,25 @@ export function capabilityColumns(t: TFunction): DataColumn<AdminDevice>[] {
     nameColumn(t, true),
     {
       key: 'containers',
+      width: '18%',
       header: t('admin.devices.columns.containers'),
       cell: (device) => codecList(t, device.capabilities?.containers),
     },
     {
       key: 'video',
+      width: '16%',
       header: t('admin.devices.columns.video'),
       cell: (device) => codecList(t, device.capabilities?.video),
     },
     {
       key: 'audio',
+      width: '16%',
       header: t('admin.devices.columns.audio'),
       cell: (device) => codecList(t, device.capabilities?.audio),
     },
     {
       key: 'resolution',
+      width: '14%',
       header: t('admin.devices.columns.resolution'),
       cell: ({ capabilities }) =>
         capabilities?.maxWidth && capabilities.maxHeight ? (
@@ -165,6 +177,7 @@ export function capabilityColumns(t: TFunction): DataColumn<AdminDevice>[] {
     },
     {
       key: 'hdr',
+      width: '12%',
       header: t('admin.devices.columns.hdr'),
       cell: ({ capabilities }) =>
         capabilities?.hdr === undefined ? (

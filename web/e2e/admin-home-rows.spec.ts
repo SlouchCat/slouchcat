@@ -251,3 +251,37 @@ test('the Trakt line links to the spotlight page by keyboard', async ({ page }) 
   await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeVisible();
   await expectNoFocusTrap(page);
 });
+
+/** The left edge of each column header of the rows table, in its order. */
+const headerLefts = (page: Page) =>
+  rowsTable(page)
+    .getByRole('columnheader')
+    .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().left));
+
+test('ticking «Ausblenden» leaves the columns where they are (K12-9)', async ({ page, owner }) => {
+  await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  await page.goto('/admin/home-rows');
+  const table = rowsTable(page);
+  await expect(table.getByRole('rowheader')).toHaveCount(8);
+  const before = await headerLefts(page);
+
+  // The state of the row changes from «sichtbar» to «ausgeblendet», unsaved.
+  const hide = table.getByRole('checkbox', { name: 'Neu hinzugefügt ausblenden' });
+  await expect(hide).not.toBeChecked();
+  await hide.check();
+  await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
+  const after = await headerLefts(page);
+  expect(after).toHaveLength(before.length);
+  before.forEach((left, column) =>
+    expect(Math.abs(left - after[column]), `column ${column}`).toBeLessThanOrEqual(1),
+  );
+
+  // Nothing is saved: «Verwerfen», confirmed, brings the stored state back.
+  await saveBar(page).getByRole('button', { name: 'Verwerfen' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Änderungen verwerfen?' })
+    .getByRole('button', { name: 'Verwerfen' })
+    .click();
+  await expect(saveBar(page).getByText('Gespeichert', { exact: true })).toBeVisible();
+  await expect(hide).not.toBeChecked();
+});

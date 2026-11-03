@@ -190,6 +190,7 @@ export function IssueTab({
     ),
   };
 
+  // The widths line the libraries' tables up (K12-9); the finding takes what is left.
   const columns: DataColumn<Issue>[] = [
     ...(selectable
       ? [
@@ -197,6 +198,7 @@ export function IssueTab({
             key: 'select',
             header: t('admin.maintenance.selection'),
             hideHeader: true,
+            width: '3.5rem',
             cell: (issue: Issue) => (
               <SelectCheck
                 label={t('admin.maintenance.selectItem', { title: issue.title })}
@@ -209,6 +211,7 @@ export function IssueTab({
       : []),
     {
       key: 'title',
+      width: '30%',
       header: t('admin.maintenance.columns.title'),
       rowHeader: true,
       cell: (issue) => (
@@ -219,11 +222,13 @@ export function IssueTab({
     },
     {
       key: 'kind',
+      width: '12%',
       header: t('admin.maintenance.columns.kind'),
       cell: (issue) => t(`kind.${issue.itemKind}`),
     },
     {
       key: 'path',
+      width: '30%',
       header: t('admin.maintenance.columns.path'),
       cell: (issue) => <LongText text={issue.path} code />,
     },
@@ -302,6 +307,7 @@ export function IssueTab({
                   columns={columns}
                   rows={section.issues}
                   rowKey={issueKey}
+                  layout="fixed"
                 />
               </DisclosureGroup>
             );

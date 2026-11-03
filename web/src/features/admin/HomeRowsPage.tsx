@@ -152,9 +152,11 @@ function HomeRowsContent() {
     void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
   }, []);
 
+  // Fixed widths: ticking «Ausblenden» changes the state's word, not the columns (K12-9).
   const columns: DataColumn<HomeRow>[] = [
     {
       key: 'position',
+      width: '20%',
       header: t('admin.homeRows.columns.position'),
       cell: (row) => (
         <RankSelect
@@ -169,12 +171,14 @@ function HomeRowsContent() {
     },
     {
       key: 'row',
+      width: '36%',
       header: t('admin.homeRows.columns.row'),
       rowHeader: true,
       cell: (row) => name(row),
     },
     {
       key: 'state',
+      width: '18%',
       header: t('admin.homeRows.columns.state'),
       cell: (row) => (
         <span className={styles.state}>
@@ -234,6 +238,7 @@ function HomeRowsContent() {
             rows={rows}
             rowKey={(row) => row.key}
             expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+            layout="fixed"
           />
         </div>
       ),

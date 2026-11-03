@@ -51,7 +51,8 @@ function windowState(
  * The columns of the picks table (PIC-2, mockup Pic-C): the place in the row, the title with its
  * poster (it folds the row out, «geändert» while the pick has unsaved changes), the target, the
  * note in full and the time window. `place` is the 1-based place in the whole row, also in a
- * filtered tab; the list comes in carousel order, whose `position` may have gaps.
+ * filtered tab; the list comes in carousel order, whose `position` may have gaps. The widths keep
+ * the columns in place when «geändert» appears and across the tabs (K12-9); the note takes the rest.
  */
 export function pickColumns(
   t: TFunction,
@@ -63,12 +64,14 @@ export function pickColumns(
   return [
     {
       key: 'position',
+      width: '4rem',
       header: t('admin.picks.columns.position'),
       align: 'end',
       cell: (pick) => <span className={styles.numbers}>{place(pick)}</span>,
     },
     {
       key: 'title',
+      width: '34%',
       header: t('admin.picks.columns.title'),
       rowHeader: true,
       cell: (pick) => (
@@ -85,6 +88,7 @@ export function pickColumns(
     },
     {
       key: 'target',
+      width: '14%',
       header: t('admin.picks.columns.target'),
       cell: (pick) => pick.profileName ?? t('admin.picks.allProfiles'),
     },
@@ -104,6 +108,7 @@ export function pickColumns(
     },
     {
       key: 'window',
+      width: '20%',
       header: t('admin.picks.columns.window'),
       cell: (pick) => {
         const state = windowState(t, pick, now);

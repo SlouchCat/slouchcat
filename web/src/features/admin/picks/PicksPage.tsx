@@ -418,6 +418,7 @@ function PicksContent() {
           rows={rows}
           rowKey={(pick) => String(pick.id)}
           expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
+          layout="fixed"
         />
       ),
   });
