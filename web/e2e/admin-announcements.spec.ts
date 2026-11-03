@@ -247,6 +247,11 @@ test('A-7: a new announcement can go out at once', async ({ page }) => {
   expect(((await created.json()) as AnnouncementData).publishedAt).toBeTruthy();
   await expect(page.getByText('„Neue Filme“ ist veröffentlicht.')).toBeVisible();
   await expect(region(page, 'Neue Filme')).toContainText(/0 von \d+ Profilen/);
+  // The form and its buttons went: the page puts the focus on the h1 a few frames after the
+  // message (focusTitleIfLost). Only then does the keyboard run start from the top: a focus
+  // placement that lands between resetFocus and the first Tab would start the Tab sequence at the
+  // h1, below the sidebar, and headless Firefox does not wrap around to it.
+  await expect(heading(page)).toBeFocused();
 
   // Back (rule 8): the sidebar leads to «Hintergrundjobs», the browser's Back returns to the
   // announcement in the address.

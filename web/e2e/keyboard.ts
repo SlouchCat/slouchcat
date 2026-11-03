@@ -48,14 +48,19 @@ export async function expectFocusOn(page: Page, locator: Locator): Promise<void>
 
 /** Presses Tab until `locator` has focus; fails after `max` presses. Checks the ring on the way. */
 export async function tabTo(page: Page, locator: Locator, max = 40): Promise<void> {
+  const seen: string[] = [];
   for (let presses = 0; presses < max; presses += 1) {
     await page.keyboard.press('Tab');
     if (await locator.evaluate((element) => element === document.activeElement)) {
       await expectVisibleFocus(page);
       return;
     }
+    const now = await focused(page);
+    seen.push(`${now.tag}:${now.name}`);
   }
-  throw new Error(`Tab did not reach the element within ${max} presses`);
+  throw new Error(
+    `Tab did not reach the element within ${max} presses: ${seen.slice(0, 12).join(' | ')} ... ${seen.slice(-4).join(' | ')}`,
+  );
 }
 
 /** Marks the last element of the page's Tab sequence with `data-e2e-last-tabbable`. */
