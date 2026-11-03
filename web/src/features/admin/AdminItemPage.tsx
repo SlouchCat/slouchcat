@@ -1,398 +1,96 @@
-import type { AdminItem, MetadataProvider, Trailer, TrailerRequest } from '@slouchcat/api-client';
+import type { AdminItem } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import type { TFunction } from 'i18next';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
-import { formErrors, problemMessage } from '@/api/errors';
+import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { formText } from '@/lib/form';
-import { formatBytes, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { ButtonLink, Chip, FactList, Notice, Page, Panel, Skeleton, Text, TextLink } from '@/ui';
+import { ButtonLink, Chip, Notice, Page, Skeleton } from '@/ui';
 import {
+  AdminPage,
   AriaButton,
   ConfirmDialog,
-  Form,
-  FormDialog,
-  RadioGroup,
-  TextField,
-  providerChain,
+  StatusRegion,
+  Tabs,
+  afterDialogsClosed,
+  focusTitleIfLost,
+  useDrafts,
+  useSearchSelection,
+  useStatusMessage,
+  useUnsavedChanges,
+  type TabItem,
 } from '@/ui/aria';
-import { ratingOptions, titleRatingOf } from '../shared/choices';
-import { ImagesPanel } from './ImagesPanel';
+import { titleRatingOf } from '../shared/choices';
+import { FilesTab } from './item/FilesTab';
+import { ImagesTab, imageKindsOf } from './item/ImagesTab';
+import { FROM_METADATA, MetadataTab, ratingChoiceOf } from './item/MetadataTab';
+import { TrailersTab } from './item/TrailersTab';
 import { MatchDialog } from './MatchDialog';
 import { adminItemQuery, maintenanceKey } from './queries';
-import styles from './AdminItemPage.module.css';
+import styles from './item/AdminItem.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/items/$itemId');
 
-/** A bare YouTube video id; anything else goes to the server as a URL. */
-const YOUTUBE_ID = /^[A-Za-z0-9_-]{8,16}$/;
-const LANG_CODE = /^[a-z]{2,3}$/;
-const FROM_METADATA = 'metadata';
-/** The fields of "Herkunft je Feld" in display order; the server may send more later. */
-const SOURCE_FIELDS = [
-  'title',
-  'overview',
-  'tagline',
-  'original_title',
-  'genres',
-  'runtime_minutes',
-  'release_date',
-  'own_rating',
-  'poster',
-  'backdrop',
-] as const;
-type SourceField = (typeof SOURCE_FIELDS)[number];
-const PROVIDERS: readonly MetadataProvider[] = ['tmdb', 'tvdb', 'anilist', 'local'];
+/** The first tab; every other tab is in `?tab=` (S-14). */
+const FIRST_TAB = 'metadata';
 
-const isSourceField = (field: string): field is SourceField =>
-  (SOURCE_FIELDS as readonly string[]).includes(field);
-const isProvider = (provider: string): provider is MetadataProvider =>
-  (PROVIDERS as readonly string[]).includes(provider);
-const anilistUrl = (id: number) => `https://anilist.co/anime/${id}`;
+type ItemTrailer = AdminItem['trailers'][number];
 
-/** A provider's name; `union` stands for the genres merged from every provider. */
-function providerName(t: TFunction, provider: string): string {
-  if (provider === 'union') return t('admin.item.sources.union');
-  return isProvider(provider) ? t(`library.provider.${provider}`) : provider;
-}
-
-function sourceFacts(t: TFunction, sources: AdminItem['fieldSources']): [string, string][] {
-  // Unknown fields go last, under their own name, instead of vanishing.
-  const rank = (field: string) =>
-    isSourceField(field) ? SOURCE_FIELDS.indexOf(field) : SOURCE_FIELDS.length;
-  return [...sources]
-    .sort((a, b) => rank(a.field) - rank(b.field) || a.lang.localeCompare(b.lang))
-    .map((source): [string, string] => {
-      const field = isSourceField(source.field)
-        ? t(`admin.item.sources.field.${source.field}`)
-        : source.field;
-      return [
-        source.lang ? t('admin.item.sources.fieldLang', { field, lang: source.lang }) : field,
-        providerName(t, source.provider),
-      ];
-    });
-}
-
-function itemFacts(t: TFunction, item: AdminItem, language: string): [string, ReactNode][] {
-  const none = t('admin.item.facts.none');
-  const rows: [string, ReactNode][] = [
-    [t('admin.item.facts.kind'), t(`kind.${item.kind}`)],
-    [t('admin.item.facts.id'), item.id],
-    [t('admin.item.facts.library'), String(item.libraryId)],
-  ];
-  if (item.seasonNumber !== undefined) {
-    rows.push([t('admin.item.facts.season'), String(item.seasonNumber)]);
-  }
-  if (item.episodeNumber !== undefined) {
-    rows.push([
-      t('admin.item.facts.episode'),
-      item.episodeEnd !== undefined && item.episodeEnd > item.episodeNumber
-        ? `${item.episodeNumber}–${item.episodeEnd}`
-        : String(item.episodeNumber),
-    ]);
-  }
-  rows.push([t('admin.item.facts.metadata'), t(`admin.item.state.${item.metadataState}`)]);
-  if (item.metadataError) rows.push([t('admin.item.facts.metadataError'), item.metadataError]);
-  rows.push(
-    [
-      t('admin.item.facts.matchedAt'),
-      item.matchedAt ? formatDateTime(item.matchedAt, language) : none,
-    ],
-    [t('admin.item.facts.tmdb'), item.tmdbId !== undefined ? String(item.tmdbId) : none],
-    [t('admin.item.facts.tvdb'), item.tvdbId !== undefined ? String(item.tvdbId) : none],
-    [t('admin.item.facts.imdb'), item.imdbId ?? none],
-    [
-      t('admin.item.facts.providers'),
-      item.providers.length > 0 ? providerChain(t, item.providers) : none,
-    ],
-    // 0 means "looked up, no entry"; a found id links to the entry.
-    [
-      t('library.provider.anilist'),
-      item.anilistId ? (
-        <TextLink href={anilistUrl(item.anilistId)} external>
-          {String(item.anilistId)}
-        </TextLink>
-      ) : (
-        none
-      ),
-    ],
-    [
-      t('admin.item.facts.locked'),
-      item.lockedFields.length > 0 ? item.lockedFields.join(', ') : none,
-    ],
-  );
-  if (item.kind === 'series' || item.kind === 'season' || item.kind === 'movie') {
-    rows.push([t('admin.item.facts.children'), t('admin.item.facts.childCounts', item.children)]);
-  }
-  return rows;
-}
-
-function RatingPanel({ item, onSaved }: { item: AdminItem; onSaved: () => Promise<void> }) {
-  const { t } = useTranslation();
-  const none = t('admin.item.facts.none');
-  const [value, setValue] = useState(
-    item.ownRating !== undefined ? String(item.ownRating) : FROM_METADATA,
-  );
-  const save = useMutation({
-    mutationFn: () =>
-      request(
-        api.PUT('/admin/items/{id}/rating', {
-          params: { path: { id: item.id } },
-          body: { rating: value === FROM_METADATA ? null : (titleRatingOf(value) ?? null) },
-        }),
-      ),
-    onSuccess: onSaved,
-  });
-  const fsk = (age: number | undefined) => (age !== undefined ? t('rating.fsk', { age }) : none);
-
-  return (
-    <Panel as="section" aria-labelledby="admin-item-rating">
-      <h2 id="admin-item-rating" className={styles.panelTitle}>
-        {t('admin.item.rating.title')}
-      </h2>
-      <FactList
-        facts={[
-          [t('admin.item.rating.own'), fsk(item.ownRating)],
-          [t('admin.item.rating.effective'), fsk(item.effectiveRating)],
-          [t('admin.item.rating.source'), item.ratingSource || none],
-        ]}
-      />
-      <div className={styles.inline}>
-        <RadioGroup
-          label={t('admin.item.rating.label')}
-          value={value}
-          onChange={setValue}
-          options={[
-            { value: FROM_METADATA, label: t('admin.item.rating.fromMetadata') },
-            ...ratingOptions(t),
-          ]}
-        />
-        <AriaButton variant="primary" isPending={save.isPending} onPress={() => save.mutate()}>
-          {save.isPending ? t('common.saving') : t('common.save')}
-        </AriaButton>
-      </div>
-      {save.isError && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
-    </Panel>
-  );
-}
-
-function TrailerForm({
-  itemId,
-  onClose,
-  onAdded,
-}: {
-  itemId: string;
-  onClose: () => void;
-  onAdded: () => Promise<void>;
-}) {
-  const { t, i18n } = useTranslation();
-  const [lang, setLang] = useState(i18n.language === 'en' ? 'en' : 'de');
-  const add = useMutation({
-    mutationFn: (body: TrailerRequest): Promise<Trailer> =>
-      request(api.POST('/admin/items/{id}/trailers', { params: { path: { id: itemId } }, body })),
-    onSuccess: async () => {
-      await onAdded();
-      onClose();
-    },
-  });
-  const errors = add.error
-    ? formErrors(t, add.error, { youtubeId: 'source', url: 'source', lang: 'langCode' })
-    : null;
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const source = formText(data, 'source');
-    const code = lang === 'other' ? formText(data, 'langCode') : lang;
-    add.mutate({
-      lang: code,
-      ...(YOUTUBE_ID.test(source) ? { youtubeId: source } : { url: source }),
-    });
-  };
-
-  return (
-    <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-      {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-      <TextField
-        name="source"
-        label={t('admin.item.trailers.url')}
-        description={t('admin.item.trailers.urlHint')}
-        autoComplete="off"
-        spellCheck="false"
-        mono
-        isRequired
-        validate={(value) => (value.trim() ? null : t('errors.field.required'))}
-      />
-      <RadioGroup
-        label={t('admin.item.trailers.lang')}
-        value={lang}
-        onChange={setLang}
-        options={[
-          { value: 'de', label: t('language.de') },
-          { value: 'en', label: t('language.en') },
-          { value: 'other', label: t('admin.item.trailers.langOther') },
-        ]}
-      />
-      {lang === 'other' && (
-        <TextField
-          name="langCode"
-          label={t('admin.item.trailers.langCode')}
-          description={t('admin.item.trailers.langCodeHint')}
-          autoComplete="off"
-          isRequired
-          validate={(value) => (LANG_CODE.test(value.trim()) ? null : t('errors.field.invalid'))}
-        />
-      )}
-      <div className={styles.dialogActions}>
-        <AriaButton variant="ghost" onPress={onClose}>
-          {t('common.cancel')}
-        </AriaButton>
-        <AriaButton type="submit" variant="primary" isPending={add.isPending}>
-          {add.isPending ? t('admin.item.trailers.submitting') : t('admin.item.trailers.submit')}
-        </AriaButton>
-      </div>
-    </Form>
-  );
-}
-
-function TrailersPanel({ item, onChanged }: { item: AdminItem; onChanged: () => Promise<void> }) {
-  const { t } = useTranslation();
-  const [adding, setAdding] = useState(false);
-  const remove = useMutation({
-    mutationFn: (trailerId: number) =>
-      request(
-        api.DELETE('/admin/items/{id}/trailers/{trailerId}', {
-          params: { path: { id: item.id, trailerId } },
-        }),
-      ),
-    onSuccess: onChanged,
-  });
-
-  return (
-    <Panel as="section" aria-labelledby="admin-item-trailers">
-      <div className={styles.panelHead}>
-        <h2 id="admin-item-trailers" className={styles.panelTitle}>
-          {t('admin.item.trailers.title')}
-        </h2>
-        <Chip tone="info">{t(`admin.item.trailers.state.${item.trailerState}`)}</Chip>
-      </div>
-      {remove.isError && <Notice tone="danger">{problemMessage(t, remove.error)}</Notice>}
-      {item.trailers.length === 0 ? (
-        <Text tone="secondary">{t('admin.item.trailers.empty')}</Text>
-      ) : (
-        <ul className={styles.list} aria-label={t('admin.item.trailers.title')}>
-          {item.trailers.map((trailer) => {
-            const labelId = `trailer-${trailer.id}`;
-            return (
-              <li key={trailer.id} className={styles.row}>
-                <div className={styles.rowMain}>
-                  <span id={labelId} className={styles.rowHead}>
-                    <Chip tone="outline">{trailer.lang.toUpperCase()}</Chip>
-                    <code className={styles.path}>{trailer.youtubeId}</code>
-                    {trailer.title && <span>{trailer.title}</span>}
-                  </span>
-                  <span className={styles.rowHead}>
-                    <span className={styles.muted}>
-                      {t(`admin.item.trailers.source.${trailer.source}`)}
-                    </span>
-                    {trailer.official && (
-                      <Chip tone="info">{t('admin.item.trailers.official')}</Chip>
-                    )}
-                  </span>
-                </div>
-                <ConfirmDialog
-                  trigger={
-                    <AriaButton variant="ghost" aria-describedby={labelId}>
-                      {t('admin.item.trailers.delete.action')}
-                    </AriaButton>
-                  }
-                  title={t('admin.item.trailers.delete.title')}
-                  body={t('admin.item.trailers.delete.body')}
-                  confirmLabel={t('admin.item.trailers.delete.confirm')}
-                  cancelLabel={t('common.cancel')}
-                  tone="danger"
-                  onConfirm={() => remove.mutate(trailer.id)}
-                />
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      <div>
-        <AriaButton icon="plus" onPress={() => setAdding(true)}>
-          {t('admin.item.trailers.add')}
-        </AriaButton>
-      </div>
-      {adding && (
-        <FormDialog
-          isOpen
-          onOpenChange={(open) => {
-            if (!open) setAdding(false);
-          }}
-          title={t('admin.item.trailers.addTitle')}
-        >
-          <TrailerForm itemId={item.id} onClose={() => setAdding(false)} onAdded={onChanged} />
-        </FormDialog>
-      )}
-    </Panel>
-  );
-}
-
-function FilesPanel({ item }: { item: AdminItem }) {
-  const { t, i18n } = useTranslation();
-  return (
-    <Panel as="section" aria-labelledby="admin-item-files">
-      <h2 id="admin-item-files" className={styles.panelTitle}>
-        {t('admin.item.files.title')}
-      </h2>
-      {item.mediaFiles.length === 0 ? (
-        <Text tone="secondary">{t('admin.item.files.none')}</Text>
-      ) : (
-        <ul className={styles.list} aria-label={t('admin.item.files.title')}>
-          {item.mediaFiles.map((file) => (
-            <li key={file.id} className={styles.fileRow}>
-              <code className={styles.path}>{file.path}</code>
-              <span className={styles.rowHead}>
-                {file.versionLabel && <Chip tone="outline">{file.versionLabel}</Chip>}
-                {!file.available && (
-                  <Chip tone="warning" icon="warning">
-                    {t('item.file.unavailable')}
-                  </Chip>
-                )}
-                <span className={styles.muted}>{formatBytes(file.sizeBytes, i18n.language)}</span>
-                {file.probedAt && (
-                  <span className={styles.muted}>
-                    {t('admin.item.files.probedAt', {
-                      date: formatDateTime(file.probedAt, i18n.language),
-                    })}
-                  </span>
-                )}
-              </span>
-              {file.probeError && (
-                <Notice tone="warning" title={t('admin.item.files.probeError')}>
-                  {file.probeError}
-                </Notice>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}
-
+/**
+ * Administration view of one title (TIT-1 to TIT-7, concept 12 variant C): the header with
+ * «Zuordnen», «Aktualisieren» and the link to the detail page; tabs Metadaten, Bilder, Dateien
+ * and Trailer bound to `?tab=`. The rating choice is a draft of the page (S-17): it survives the
+ * tabs, pauses the refetch and asks before the page is left (S-13).
+ */
 function AdminItemView({ itemId }: { itemId: string }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  const item = useQuery(adminItemQuery(itemId));
-  useDocumentTitle(item.data?.title ?? t('admin.item.title'));
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const number = new Intl.NumberFormat(i18n.language);
+
+  // The draft needs what the server holds before the query knows whether to pause for it: a
+  // passive observer reads the same cache entry without fetching.
+  const cached = useQuery({ ...adminItemQuery(itemId), enabled: false }).data;
+  const originalOf = useCallback(
+    (id: string) => (cached && id === cached.id ? ratingChoiceOf(cached) : undefined),
+    [cached],
+  );
+  const drafts = useDrafts<string>(originalOf);
+  const unsaved = useUnsavedChanges(drafts.dirty);
+  const [deleting, setDeleting] = useState<ItemTrailer | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const item = useQuery({
+    ...adminItemQuery(itemId),
+    refetchOnWindowFocus: !(unsaved.pausePolling || confirmOpen),
+  });
+  const data = item.data;
+  useDocumentTitle(data?.title ?? t('admin.item.title'));
+
+  const kinds = data ? imageKindsOf(data) : undefined;
+  const tabIds = [FIRST_TAB, ...(kinds ? ['images'] : []), 'files', 'trailers'];
+  // An unknown `?tab=` (or «Bilder» of an episode) shows the first tab; the address says so too.
+  const [tab, selectTab] = useSearchSelection('tab', tabIds, FIRST_TAB, {
+    normalise: data !== undefined,
+  });
+
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
+  const isExpanded = useCallback((key: string) => expanded.has(key), [expanded]);
+  const onExpandedChange = useCallback(
+    (key: string, open: boolean) =>
+      setExpanded((current) => {
+        const next = new Set(current);
+        if (open) next.add(key);
+        else next.delete(key);
+        return next;
+      }),
+    [],
+  );
+
   const [matching, setMatching] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
 
   const reload = async () => {
     await Promise.all([
@@ -401,39 +99,156 @@ function AdminItemView({ itemId }: { itemId: string }) {
       queryClient.invalidateQueries({ queryKey: ['item', itemId] }),
     ]);
   };
-  const adopt = async (next: AdminItem, message: string) => {
-    queryClient.setQueryData(adminItemQuery(itemId).queryKey, next);
-    setNotice(message);
+  /** Shows the outcome and reads the title again; once React rendered it, a lost focus goes up. */
+  const settle = async (text: string, removed = false) => {
+    setMessage(text);
     await reload();
+    await afterDialogsClosed();
+    if (removed) titleRef.current?.focus();
+    else focusTitleIfLost(titleRef);
+  };
+  const adopt = async (next: AdminItem, text: string) => {
+    queryClient.setQueryData(adminItemQuery(itemId).queryKey, next);
+    await settle(text);
   };
   const refresh = useMutation({
     mutationFn: (): Promise<AdminItem> =>
       request(api.POST('/admin/items/{id}/refresh', { params: { path: { id: itemId } } })),
     onSuccess: (next) => adopt(next, t('admin.item.refreshed')),
   });
+  const saveRating = useMutation({
+    mutationFn: (value: string) =>
+      request(
+        api.PUT('/admin/items/{id}/rating', {
+          params: { path: { id: itemId } },
+          body: { rating: value === FROM_METADATA ? null : (titleRatingOf(value) ?? null) },
+        }),
+      ),
+    // The draft is spent once the reread title holds the saved choice (useDrafts).
+    onSuccess: () => settle(t('admin.item.rating.saved')),
+  });
+  const removeTrailer = useMutation({
+    mutationFn: (trailer: ItemTrailer) =>
+      request(
+        api.DELETE('/admin/items/{id}/trailers/{trailerId}', {
+          params: { path: { id: itemId, trailerId: trailer.id } },
+        }),
+      ),
+    // The row and its button are gone: the h1 takes the focus (ALL-2).
+    onSuccess: () => settle(t('admin.item.trailers.deleted'), true),
+  });
 
-  if (item.isPending) return <Skeleton shape="block" />;
-  if (item.isError) {
+  const askDelete = useCallback((trailer: ItemTrailer) => {
+    setDeleting(trailer);
+    setConfirmOpen(true);
+  }, []);
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone by now.
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  }, []);
+
+  const loadError = item.isError ? (
+    <Notice
+      tone="danger"
+      title={problemMessage(t, item.error)}
+      actions={
+        <AriaButton icon="refresh" onPress={() => void item.refetch()}>
+          {t('common.retry')}
+        </AriaButton>
+      }
+    />
+  ) : null;
+  const current = data;
+  if (current === undefined) {
     return (
-      <Notice tone={isApiError(item.error, 404) ? 'info' : 'danger'}>
-        {isApiError(item.error, 404) ? t('admin.item.notFound') : problemMessage(t, item.error)}
-      </Notice>
+      <AdminPage title={t('admin.item.title')} titleRef={titleRef}>
+        {!item.isError && <Skeleton shape="block" />}
+        {item.isError &&
+          (isApiError(item.error, 404) ? <Notice>{t('admin.item.notFound')}</Notice> : loadError)}
+      </AdminPage>
     );
   }
 
-  const data = item.data;
-  const matchable = data.kind === 'movie' || data.kind === 'series';
+  const matchable = current.kind === 'movie' || current.kind === 'series';
+  const tabs: TabItem[] = [
+    {
+      id: FIRST_TAB,
+      label: t('admin.item.facts.metadata'),
+      // A dot while the rating has unsaved changes, so they show from every tab.
+      ...(drafts.dirty
+        ? {
+            count: t('admin.item.tabs.unsavedMark'),
+            countLabel: t('admin.item.rating.unsaved'),
+            tone: 'warning' as const,
+          }
+        : {}),
+      content: (
+        <MetadataTab
+          item={current}
+          isExpanded={isExpanded}
+          onExpandedChange={onExpandedChange}
+          rating={drafts.valueOf(current.id) ?? ratingChoiceOf(current)}
+          ratingDirty={drafts.isDirty(current.id)}
+          onRatingChange={(value) => drafts.set(current.id, value)}
+          onRatingSave={() => {
+            // Nothing changed: nothing to send, the focus stays on «Speichern» (decision 18).
+            if (!drafts.isDirty(current.id)) return;
+            saveRating.mutate(drafts.valueOf(current.id) ?? ratingChoiceOf(current));
+          }}
+          ratingSaving={saveRating.isPending}
+          ratingError={saveRating.error}
+        />
+      ),
+    },
+    ...(kinds
+      ? [
+          {
+            id: 'images',
+            label: t('admin.item.images.title'),
+            count: number.format(kinds.length),
+            countLabel: t('admin.item.tabs.imageKinds', { count: kinds.length }),
+            content: (
+              <ImagesTab
+                item={current}
+                kinds={kinds}
+                onChanged={(next, text) => void adopt(next, text)}
+              />
+            ),
+          },
+        ]
+      : []),
+    {
+      id: 'files',
+      label: t('admin.item.files.title'),
+      count: number.format(current.mediaFiles.length),
+      countLabel: t('admin.item.tabs.files', { count: current.mediaFiles.length }),
+      content: (
+        <FilesTab item={current} isExpanded={isExpanded} onExpandedChange={onExpandedChange} />
+      ),
+    },
+    {
+      id: 'trailers',
+      label: t('admin.item.trailers.title'),
+      count: number.format(current.trailers.length),
+      countLabel: t('admin.item.tabs.trailers', { count: current.trailers.length }),
+      content: (
+        <TrailersTab
+          item={current}
+          onAdded={() => settle(t('admin.item.trailers.added'))}
+          onDelete={askDelete}
+        />
+      ),
+    },
+  ];
+
   return (
-    <div className={styles.layout}>
-      <div className={styles.header}>
-        <span className={styles.rowHead}>
-          <Chip tone="info">{t(`kind.${data.kind}`)}</Chip>
-          {data.year !== undefined && <span className={styles.muted}>{data.year}</span>}
-        </span>
-        <Text as="h1" variant="display">
-          {data.title}
-        </Text>
-        <div className={styles.actions}>
+    <AdminPage
+      title={current.title}
+      titleRef={titleRef}
+      actions={
+        <>
           {matchable && (
             <AriaButton variant="primary" onPress={() => setMatching(true)}>
               {t('admin.maintenance.action.match')}
@@ -442,69 +257,71 @@ function AdminItemView({ itemId }: { itemId: string }) {
           <AriaButton icon="refresh" isPending={refresh.isPending} onPress={() => refresh.mutate()}>
             {t('admin.maintenance.action.refresh')}
           </AriaButton>
-          <ButtonLink href={paths.item(data.id)} variant="ghost" icon="chevronRight">
+          <ButtonLink href={paths.item(current.id)} variant="ghost" icon="chevronRight">
             {t('admin.item.view')}
           </ButtonLink>
-        </div>
-        {refresh.isError && <Notice tone="danger">{problemMessage(t, refresh.error)}</Notice>}
-        {notice && <Notice>{notice}</Notice>}
-      </div>
-
-      <Panel as="section" aria-labelledby="admin-item-facts">
-        <h2 id="admin-item-facts" className={styles.panelTitle}>
-          {t('admin.item.facts.metadata')}
-        </h2>
-        <FactList facts={itemFacts(t, data, i18n.language)} />
-      </Panel>
-      {data.fieldSources.length > 0 && (
-        <Panel as="section" aria-labelledby="admin-item-sources">
-          <h2 id="admin-item-sources" className={styles.panelTitle}>
-            {t('admin.item.sources.title')}
-          </h2>
-          <FactList facts={sourceFacts(t, data.fieldSources)} />
-        </Panel>
+        </>
+      }
+      status={
+        <p className={styles.kindLine}>
+          <Chip tone="info">{t(`kind.${current.kind}`)}</Chip>
+          {current.year !== undefined && <span className={styles.muted}>{current.year}</span>}
+        </p>
+      }
+    >
+      {/* A failed reread keeps the title on the page; the error and «Erneut versuchen» go above. */}
+      {loadError}
+      {refresh.isError && <Notice tone="danger">{problemMessage(t, refresh.error)}</Notice>}
+      {removeTrailer.isError && (
+        <Notice tone="danger">{problemMessage(t, removeTrailer.error)}</Notice>
       )}
-      {/* Remount on a new rating so the choice starts from the stored value; the confirmation
-          lives here, so it survives that remount. */}
-      <RatingPanel
-        key={`${data.ownRating ?? 'none'}`}
-        item={data}
-        onSaved={async () => {
-          setNotice(t('admin.item.rating.saved'));
-          await reload();
-        }}
+      <StatusRegion message={message} />
+      <Tabs
+        label={t('admin.item.tabs.label')}
+        selectedKey={tab}
+        onSelectionChange={selectTab}
+        tabs={tabs}
       />
-      <ImagesPanel item={data} onChanged={(next, message) => void adopt(next, message)} />
-      <FilesPanel item={data} />
-      <TrailersPanel item={data} onChanged={reload} />
 
       {matching && (
         <MatchDialog
-          itemId={data.id}
-          title={data.title}
-          year={data.year}
-          kind={data.kind === 'series' ? 'series' : 'movie'}
+          itemId={current.id}
+          title={current.title}
+          year={current.year}
+          kind={current.kind === 'series' ? 'series' : 'movie'}
           onClose={() => setMatching(false)}
           onMatched={(next) => void adopt(next, t('admin.maintenance.done.match'))}
         />
       )}
-    </div>
+      {deleting && (
+        <ConfirmDialog
+          isOpen={confirmOpen}
+          onOpenChange={onConfirmOpenChange}
+          title={t('admin.item.trailers.delete.title')}
+          body={t('admin.item.trailers.delete.body')}
+          confirmLabel={t('admin.item.trailers.delete.confirm')}
+          cancelLabel={t('common.cancel')}
+          tone="danger"
+          onConfirm={() => removeTrailer.mutate(deleting)}
+        />
+      )}
+      <ConfirmDialog {...unsaved.dialog} />
+    </AdminPage>
   );
 }
 
-/** Administration view of one title (B-6, B-8, B-9): state, ids, rating, files and trailers. */
+/** Administration view of one title (B-6, B-8, B-9): state, ids, rating, images, files, trailers. */
 export function AdminItemPage() {
   const { t } = useTranslation();
   const { itemId } = route.useParams();
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
-  return (
-    <Page>
-      {allowed ? (
-        <AdminItemView key={itemId} itemId={itemId} />
-      ) : (
+  if (!allowed) {
+    return (
+      <Page>
         <Notice title={t('admin.item.notAllowed.title')}>{t('admin.item.notAllowed.body')}</Notice>
-      )}
-    </Page>
-  );
+      </Page>
+    );
+  }
+  return <AdminItemView key={itemId} itemId={itemId} />;
 }

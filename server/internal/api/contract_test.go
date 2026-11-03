@@ -132,6 +132,7 @@ func TestContractOpenAPI(t *testing.T) {
 	for _, p := range checkContract(doc) {
 		t.Error(p)
 	}
+	checkAdminTileFields(t, doc)
 }
 
 func TestContractRejectsViolations(t *testing.T) {

@@ -797,6 +797,9 @@ type AdminPick struct {
 // AdminPosterSize is the poster size of the administration tables (posterUrl, M11 step 5b).
 const AdminPosterSize = "w200"
 
+// AdminBackdropSize is the backdrop size of the administration tiles (backdropUrl, concept 12).
+const AdminBackdropSize = "w780"
+
 // PickRequest creates picks: one global pick, or one per profile in ProfileIDs.
 type PickRequest struct {
 	ItemID     string
@@ -839,11 +842,12 @@ type AdminCollection struct {
 
 // AdminCollectionItem is one member of a collection in the administration.
 type AdminCollectionItem struct {
-	ItemID   string
-	Kind     string
-	Title    string
-	Year     *int
-	Position int
+	ItemID     string
+	Kind       string
+	Title      string
+	Year       *int
+	Position   int
+	PosterHash string // content hash of the AdminPosterSize poster; "" = none stored
 }
 
 // TraktStatus is the state of the spotlight list fetched from Trakt (E-7, I-7, ADR 0011): ListKey
@@ -1475,6 +1479,9 @@ type AdminStream struct {
 	// for an episode its series'; empty without a stored poster.
 	PosterItemID string
 	PosterHash   string
+	// BackdropItemID and BackdropHash name the AdminBackdropSize backdrop the same way (concept 12).
+	BackdropItemID string
+	BackdropHash   string
 }
 
 // PlaybackGrant is a valid stream token resolved to its playback session: the browser session

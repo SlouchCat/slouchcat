@@ -35,7 +35,7 @@ export {
 export { Form } from './Form';
 export { LinkCard } from './LinkCard';
 export { MenuButton } from './Menu';
-export { MessageDialog } from './MessageDialog';
+export { MessageContent, MessageDialog } from './MessageDialog';
 export { PathList, type PathItem } from './PathList';
 export { PinField } from './PinField';
 export {
@@ -46,7 +46,7 @@ export {
   providerListError,
 } from './ProviderList';
 export { RadioGroup } from './RadioGroup';
-export { SelectableList, type SelectableItem } from './SelectableList';
+export { SelectCheck } from './SelectCheck';
 export { StatTile } from './StatTile';
 export { StorageMeter, type StoragePart } from './StorageMeter';
 export { Switch } from './Switch';
@@ -54,3 +54,27 @@ export { Tabs } from './Tabs';
 export { TextField } from './TextField';
 export { TrailerDialog } from './TrailerDialog';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
+// Building blocks of the administration pages (concept 12, 11.2).
+export { ActionMenu, type ActionMenuItem } from './ActionMenu';
+export { AdminDensityScope, useDensityPortalProps } from './adminDensity';
+export { AdminPage } from './AdminPage';
+export { BandPanel } from './BandPanel';
+export { type DataTableExpand } from './DataTable';
+export { DisclosureGroup } from './DisclosureGroup';
+export { HeatGrid } from './HeatGrid';
+export { ImageTile } from './ImageTile';
+export { MasterDetail, type MasterDetailItem } from './MasterDetail';
+export { RankedChoiceList, type RankedChoice } from './RankedChoiceList';
+export { RankHint, RankSelect, rankTo, type RankMode } from './RankSelect';
+export { SaveBar } from './SaveBar';
+export { SectionHeader } from './SectionHeader';
+export { SettingRow } from './SettingRow';
+export { StatusStrip } from './StatusStrip';
+export { StreamTile, type StreamFact } from './StreamTile';
+export { type TabItem } from './Tabs';
+export { useDrafts, type Drafts } from './useDrafts';
+export { useSearchSelection } from './useSearchSelection';
+export { useUnsavedChanges, type UnsavedChangesDialog } from './useUnsavedChanges';
+
+export { afterDialogsClosed, afterRender, focusLost, focusTitleIfLost } from './focusAfter';
+export { StatusRegion, useStatusMessage, type StatusMessage } from './StatusRegion';

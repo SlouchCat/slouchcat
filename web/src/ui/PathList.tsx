@@ -40,8 +40,8 @@ interface PathListProps {
 
 /**
  * A list of folders with one Tab stop (react-aria ListBox): the arrow keys move from row to row,
- * Home and End jump, and Enter or a single click enters the folder. SelectableList is a
- * CheckboxGroup with a Tab stop per row, which is the opposite of what a long folder list needs.
+ * Home and End jump, and Enter or a single click enters the folder. A CheckboxGroup has a Tab
+ * stop per row, which is the opposite of what a long folder list needs.
  *
  * The rows carry no selection. A folder picker has nothing to select -- the folder you are
  * standing in is the answer -- and with selectionMode "single" react-aria makes the first click

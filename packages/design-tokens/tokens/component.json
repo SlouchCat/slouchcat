@@ -1,0 +1,182 @@
+{
+  "control": {
+    "$type": "dimension",
+    "$description": "Component tokens (concept 12, ADR 0020): what the ui building blocks read instead of the general scale. The default is today's value; density.compact holds the administration's values.",
+    "height": {
+      "$value": "{size.control.height}",
+      "$description": "Height of buttons, inputs, selects, switches and checkbox rows."
+    },
+    "font-size": {
+      "$value": "{font.size.md}",
+      "$description": "Text in buttons and inputs."
+    }
+  },
+  "panel": {
+    "$type": "dimension",
+    "padding": {
+      "$value": "{space.6}",
+      "$description": "Inner padding of panels and dialogs."
+    },
+    "gap": {
+      "$value": "{space.5}",
+      "$description": "Gap between the children of a panel."
+    },
+    "radius": {
+      "$value": "{radius.xl}",
+      "$description": "Corner radius of panels and dialogs."
+    }
+  },
+  "table": {
+    "$type": "dimension",
+    "cell-padding-y": {
+      "$value": "{space.3}",
+      "$description": "Vertical padding of table header and body cells."
+    },
+    "row-height": {
+      "$value": "0px",
+      "$description": "Minimum height of a body row, border included; 0: the padding and the content set it."
+    }
+  },
+  "page": {
+    "$type": "dimension",
+    "title-size": {
+      "$value": "{font.size.display}",
+      "$description": "Size of the page title (h1) from 768 px; below, titles use font.size.3xl."
+    },
+    "title-weight": {
+      "$type": "fontWeight",
+      "$value": "{font.weight.bold}",
+      "$description": "Weight of the page title (h1)."
+    },
+    "title-tracking": {
+      "$value": "{font.letter-spacing.display}",
+      "$description": "Letter spacing of the page title (h1)."
+    },
+    "title-line-height": {
+      "$type": "number",
+      "$value": "{font.line-height.normal}",
+      "$description": "Line height of the h1 itself around its title text (AdminPage): what an h1 inherits today."
+    }
+  },
+  "section": {
+    "$type": "dimension",
+    "gap": {
+      "$value": "{space.10}",
+      "$description": "Gap between the sections of a page."
+    },
+    "title-size": {
+      "$value": "{font.size.xl}",
+      "$description": "Size of a section title (h2, SectionHeader)."
+    }
+  },
+  "dialog": {
+    "$type": "dimension",
+    "gap": {
+      "$value": "{space.4}",
+      "$description": "Gap between title, body and actions of a dialog."
+    }
+  },
+  "text": {
+    "$type": "dimension",
+    "body-size": {
+      "$value": "{font.size.lg}",
+      "$description": "Size of running text (Text variant body): intro sentences, hints, empty states, the save bar's status."
+    }
+  },
+  "setting": {
+    "$type": "dimension",
+    "help-size": {
+      "$value": "{font.size.sm}",
+      "$description": "Size of the help line under a setting's label (SettingRow)."
+    },
+    "text-gap": {
+      "$value": "{space.1}",
+      "$description": "Gap between a setting's label and its help line."
+    }
+  },
+  "density": {
+    "compact": {
+      "$type": "dimension",
+      "$description": "Compact density of the administration's content and dialogs (concept 12, 5.1). web/src/ui/density.css maps these onto the component tokens under [data-shell=\"admin\"] with (min-width: 48rem) and (pointer: fine); touch and phones keep 44 px.",
+      "control": {
+        "height": {
+          "$value": "2rem",
+          "$description": "32 px: below the 44 px touch recommendation, above WCAG 2.2 AA 2.5.8 (24 px); for a fine pointer only."
+        },
+        "font-size": {
+          "$value": "{font.size.sm}"
+        }
+      },
+      "panel": {
+        "padding": {
+          "$value": "{space.4}"
+        },
+        "gap": {
+          "$value": "{space.3}"
+        },
+        "radius": {
+          "$value": "{radius.lg}"
+        }
+      },
+      "table": {
+        "cell-padding-y": {
+          "$value": "6px",
+          "$description": "6 px: room for a 24 px chip, checkbox or fold-out button (and its baseline) inside a 40 px row."
+        },
+        "row-height": {
+          "$value": "40px",
+          "$description": "40 px (concept 12, S-5): a row of 14 px text, and one with a 24 px chip or button, is 40 px high."
+        }
+      },
+      "page": {
+        "title-size": {
+          "$value": "{font.size.xl}"
+        },
+        "title-weight": {
+          "$type": "fontWeight",
+          "$value": "{font.weight.semibold}"
+        },
+        "title-tracking": {
+          "$value": "{font.letter-spacing.normal}"
+        },
+        "title-line-height": {
+          "$type": "number",
+          "$value": 0,
+          "$description": "No line of the h1's own: the 24 px title sets the height (26 px), not the browser's 2em of an h1 (48 px)."
+        },
+        "gutter": {
+          "$value": "{space.8}",
+          "$description": "Side margin of the page (--page-gutter in web/src/ui/global.css: 40 px from 768 px, 64 px from 1440 px)."
+        }
+      },
+      "section": {
+        "gap": {
+          "$value": "{space.6}"
+        },
+        "title-size": {
+          "$value": "{font.size.md}"
+        }
+      },
+      "dialog": {
+        "gap": {
+          "$value": "{space.3}"
+        }
+      },
+      "text": {
+        "body-size": {
+          "$value": "{font.size.sm}",
+          "$description": "14 px: running text as in the mockups (13 to 14 px), the size of the setting rows' labels."
+        }
+      },
+      "setting": {
+        "help-size": {
+          "$value": "{font.size.xs}",
+          "$description": "12 px like the mockups (Int-A, Spo-A, Met-B): a setting with one line of help is about 56 px high."
+        },
+        "text-gap": {
+          "$value": "0px"
+        }
+      }
+    }
+  }
+}

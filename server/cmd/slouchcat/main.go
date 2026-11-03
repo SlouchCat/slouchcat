@@ -294,6 +294,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithBrowseRoots(cfg.BrowseRoots))
 	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
+	// The zone of the watch-time grid, resolved once by name (concept 12).
+	zone, zoneName := admin.ResolveZone(os.Getenv)
+	adminSvc.WithLocation(zone)
+	log.Info("time zone of the statistics", "zone", zoneName)
 	adminSvc.WithAniList(cfg.AniList).WithQueue(queue).WithLibraryMaintenance(libSvc).WithMetadata(metaSvc).WithStreams(playbackSvc).WithPodcasts(metaSvc).
 		WithTrakt(metaSvc).WithBackups(cfg.ConfigDir, version).WithRestart(requestRestart).
 		// The browsable roots are classified once, here: the wizard's root list answers before

@@ -165,6 +165,21 @@ export const accountRow = (page: Page, email: string) =>
     .getByRole('row')
     .filter({ has: page.getByRole('rowheader', { name: email, exact: true }) });
 
+/** The button on the e-mail that folds an account's row out (concept 12, KP-1). */
+export const accountToggle = (page: Page, email: string) =>
+  accountRow(page, email).getByRole('button', { name: email, exact: true });
+
+/** The fold-out of an account: the table row right below its own. */
+export const accountFoldOut = (page: Page, email: string) =>
+  accountRow(page, email).locator('xpath=following-sibling::tr[1]');
+
+/** Opens the account page on its tab «Einladungen» and waits for the invitation table. */
+export async function openInvitations(page: Page): Promise<void> {
+  await page.goto('/admin/accounts?tab=invitations');
+  await expect(page.getByRole('heading', { level: 1, name: 'Konten' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Bestehende Einladungen' })).toBeVisible();
+}
+
 /**
  * Removes the podcast subscriptions a spec created for itself (feeds under `/f/<key>/` of the mock
  * feed server, M6); the shared feed of the global setup stays. A spec that times out never reaches

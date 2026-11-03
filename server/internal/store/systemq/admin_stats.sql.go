@@ -130,11 +130,20 @@ WITH watched AS (
     LIMIT ?3
 )
 SELECT w.item_id, i.kind, COALESCE(td.title, te.title, (SELECT tr.title FROM item_texts AS tr WHERE tr.item_id = i.id ORDER BY tr.rank, tr.lang LIMIT 1), i.title) AS title, i.year,
-       CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays
+       CAST(w.watched_ms AS INTEGER) AS watched_ms, CAST(w.plays AS INTEGER) AS plays,
+       CAST(COALESCE((SELECT o.id FROM items AS o
+                      WHERE b.deleted_at IS NOT NULL AND b.kind <> 'episode'
+                        AND o.deleted_at IS NULL AND o.kind = b.kind
+                        AND (o.tmdb_id = b.tmdb_id OR o.tvdb_id = b.tvdb_id OR o.imdb_id = b.imdb_id)
+                      ORDER BY o.id DESC
+                      LIMIT 1), b.id) AS TEXT) AS image_item_id
 FROM watched AS w
 JOIN items AS i ON i.id = w.item_id
 LEFT JOIN item_texts AS td ON td.item_id = i.id AND td.lang = 'de'
 LEFT JOIN item_texts AS te ON te.item_id = i.id AND te.lang = 'en'
+LEFT JOIN items AS p ON i.kind = 'episode' AND p.id = i.parent_id
+LEFT JOIN items AS s ON s.kind = 'series' AND (s.id = p.parent_id OR s.id = p.id)
+JOIN items AS b ON b.id = COALESCE(s.id, i.id)
 ORDER BY w.watched_ms DESC, w.item_id
 `
 
@@ -145,19 +154,20 @@ type StatsTopTitlesParams struct {
 }
 
 type StatsTopTitlesRow struct {
-	ItemID    string
-	Kind      string
-	Title     string
-	Year      sql.NullInt64
-	WatchedMs int64
-	Plays     int64
+	ItemID      string
+	Kind        string
+	Title       string
+	Year        sql.NullInt64
+	WatchedMs   int64
+	Plays       int64
+	ImageItemID string
 }
 
 // Usage statistics of the administration (M8, A-8, design 3.6; package admin). Unfiltered: the
 // administration sees every profile. The period is [from_ms, to_ms) in Unix milliseconds. Watch time
 // is the played time of the progress events whose server time lies in the period (offline events
-// count with their upload time); a play is one playback session, an event without one counts on
-// its own.
+// count with their play time, the device clock corrected to the server's, AN-18); a play is one
+// playback session, an event without one counts on its own.
 //
 // Since M10 events older than 90 days are condensed into progress_days (migration 00019), so every
 // watch-time query reads two sources and adds them up: the raw events of progress_events and the
@@ -168,7 +178,15 @@ type StatsTopTitlesRow struct {
 // can cut a day in two, because nothing newer than 90 days is ever condensed.
 // The most watched titles by played time, with the plays and the title (German text, else English,
 // else the parsed title). The events are aggregated first, so only the listed titles are joined;
-// the plays are the distinct playback sessions plus the events without one.
+// the plays are the distinct playback sessions plus the events without one. For an episode the id
+// of its series (episode -> season -> series over parent_id, or a series without seasons) names
+// the images (concept 12, 11.4). The watch history keeps deleted titles, but a deleted title has no
+// image; when that title (the series of an episode, else the title itself) is deleted, the live
+// title of the same kind with a shared TMDB, TVDB or IMDb id names the images instead (the newest
+// id first). A library moved to a new path imports its titles anew with new ids, and the history of
+// the old ones would otherwise show no image (acceptance finding K12-9). Only a series or a film is
+// replaced so: an episode without a findable series keeps its own (missing) images rather than the
+// still of another episode that shares an id.
 func (q *Queries) StatsTopTitles(ctx context.Context, arg StatsTopTitlesParams) ([]StatsTopTitlesRow, error) {
 	rows, err := q.db.QueryContext(ctx, statsTopTitles, arg.FromMs, arg.ToMs, arg.LimitCount)
 	if err != nil {
@@ -185,6 +203,7 @@ func (q *Queries) StatsTopTitles(ctx context.Context, arg StatsTopTitlesParams) 
 			&i.Year,
 			&i.WatchedMs,
 			&i.Plays,
+			&i.ImageItemID,
 		); err != nil {
 			return nil, err
 		}
@@ -254,6 +273,51 @@ func (q *Queries) StatsWatchTimeByProfile(ctx context.Context, arg StatsWatchTim
 			&i.WatchedMs,
 			&i.Plays,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const statsWatchTimeByQuarter = `-- name: StatsWatchTimeByQuarter :many
+SELECT CAST(server_time / 900000 AS INTEGER) AS quarter, CAST(SUM(played_ms) AS INTEGER) AS watched_ms
+FROM progress_events
+WHERE server_time >= ?1 AND server_time < ?2
+GROUP BY server_time / 900000
+ORDER BY quarter
+`
+
+type StatsWatchTimeByQuarterParams struct {
+	FromMs int64
+	ToMs   int64
+}
+
+type StatsWatchTimeByQuarterRow struct {
+	Quarter   int64
+	WatchedMs int64
+}
+
+// Played time per UTC quarter hour (Unix milliseconds / 900000) of the raw events in the period,
+// for the watch-time grid by weekday and time of day (concept 12, 11.4). Only progress_events: the
+// period is whole weeks, at most 84 days, and condensed days have lost their time of day. Package admin maps
+// each quarter hour to a weekday and a time of day in the server's time zone.
+func (q *Queries) StatsWatchTimeByQuarter(ctx context.Context, arg StatsWatchTimeByQuarterParams) ([]StatsWatchTimeByQuarterRow, error) {
+	rows, err := q.db.QueryContext(ctx, statsWatchTimeByQuarter, arg.FromMs, arg.ToMs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []StatsWatchTimeByQuarterRow{}
+	for rows.Next() {
+		var i StatsWatchTimeByQuarterRow
+		if err := rows.Scan(&i.Quarter, &i.WatchedMs); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

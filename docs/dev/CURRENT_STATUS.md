@@ -1,5 +1,400 @@
 # Aktueller Stand
 
+## Konzept 12 «Seitenmuster der Verwaltungsseiten»: umgesetzt und abgenommen, Schritte K12-0 bis K12-9 (3. November 2026)
+
+**Von Marco am 3. November 2026 auf CT 190 abgenommen (K12-9, unten).** Konzept 12 ist fertig.
+Nächster Schritt: Push und Pull Request, Merge auf Marcos Wort, danach Release 1.8.0.
+
+Zweig `claude/verwaltungsseiten` ab `main` `4c860bc` (nach Konzept 11 und Release 1.7.0), Bau nach
+`docs/planning/12-verwaltungsseiten.md` Abschnitt 11.8 (Schritte K12-0 bis K12-9). Marcos Auftrag
+vom 2. November 2026: «Bitte beginne mit der Umsetzung und Entwicklung von Konzept 12.» Seine
+Antworten: **Durchbauen** (kein Zwischenhalt, abgenommen wird nur in K12-9 auf CT 190); der Vertrag
+**1.8.0** erscheint als **eigenes Release**; «Wann geschaut wird» rechnet über **ganze Wochen**
+(Entscheid unten). Gebaut mit OMC (`executor` je Schritt, `code-reviewer` je Schritt, `git-master`
+für die Merges); Befunde sind vor dem nächsten Schritt behoben.
+
+- **K12-0** (`040f157`): Frage 18 im Entscheidungsprotokoll, ADR 0020, Papier auf `main` `4c860bc`
+  verankert.
+- **K12-2a** (`6cbbf0f`, `773d0a0`, `4878564`): Komponententokens mit den heutigen Werten,
+  `density.compact` definiert, aber ausgeschaltet. Alle 212 Storybook-Referenzbilder pixelgleich,
+  auch in einem strengen Lauf ohne Toleranz (0 Differenz). Ausgangshöhe bis zur ersten Arbeitszeile
+  bei 1440 px: **Hintergrundjobs 476 px, Integrationen 432 px, Konten 353 px** (Skript
+  `web/e2e-perf/admin-height.spec.ts` mit `web/perf.config.ts`, nicht Teil von `task ci`;
+  `docs/perf/verwaltungsseiten.md`). Review: freigegeben, kein Major, Befunde behoben.
+- **K12-2b** (`edb40c4`, `6a605e2`, `e0c065c`, `fb0fc14`, `f60452c`): alle Bausteine aus 11.2:
+  `AdminPage`, `SectionHeader`, `StatusStrip`, `BandPanel`, `Tabs` mit Zahlen, `DataTable` mit
+  Klappzeilen, `DisclosureGroup`, `MasterDetail`, `SettingRow`, `SaveBar`, `RankSelect` mit
+  `ProviderList` und `FolderList` im Platzwahl-Modus, `ActionMenu`, steuerbarer `ConfirmDialog`,
+  `AdminDensityScope` und `density.css` (gilt nur unter
+  `:root[data-shell='admin'] :is(#content, [data-density='compact'])` und ab 768 px mit Maus),
+  `useDrafts`, `useUnsavedChanges`, `useSearchSelection`, `adminSearch`, `BarChart` horizontal,
+  `HeatGrid` mit Legende, `ImageTile`. Stories in beiden Dichten; kein Referenzbild von `main`
+  geändert. Review: Änderungen verlangt, drei Major (Pfeiltasten in aufgeklappten Zeilen,
+  Fokusverlust in `RankSelect`, Dialoge unter `/settings` kompakt), alle in `f60452c` behoben.
+- **K12-1** (`643bdf4`, `7eecf83`, `5c3df2d`, `b5aa092`): Vertrag **1.8.0** additiv mit den Feldern
+  aus 11.4, `AdminListImages` statt `AdminListPosters`, Serienbilder für Folgen,
+  `StatsWatchTimeByQuarter`, `admin.ResolveZone` beim Start, ganze Wochen
+  (`timeWindowDays` 7, 28 oder 84). Review: Änderungen verlangt (falsche Mengenangabe im
+  Messpapier, Zonenabweichung), behoben.
+- **K12-3** (Hintergrundjobs, Metadaten, Integrationen; letzter Commit `6e46c6d`):
+  - *Integrationen* (`5b9212c`, `e96ac0c`, `78b2fc8`): sechs auf- und zuklappbare Felder, alle
+    offen; Schlüssel als Zeilen, Webhooks als Tabelle mit Klappzeile (Pfad-Umsetzung und
+    Ereignisprotokoll), Entwürfe gehören der Seite; Seite in `features/admin/integrations/` geteilt.
+  - *Hintergrundjobs* (`3129a82`, `ab2cbc8`): Zustandsleiste mit fünf Zahlen, Klappbereich «Läuft
+    gerade», Reiter je Jobgruppe und «Fehlschläge»; je Jobart eine Klappzeile mit Aktionen,
+    Zeitplan und Läufen (statt zweier Dialoge).
+  - *Metadaten* (`cbc3251`, `be800a1`, `6e46c6d`): Geltung als Auswahl im Kopf, Bereiche links
+    (`MasterDetail`), eine `SaveBar` für alle Geltungen; Sprachen als feste Plätze mit dem neuen
+    Baustein `RankedChoiceList`.
+  - *Gemeinsame Korrekturen* (`988d1a6`, `470a49b`, `c61fe4b`): Anfangsfokus der Dialoge, siehe
+    unten.
+  - *Review:* je Seite ein `code-reviewer`-Lauf, Befunde behoben (Metadaten zwei Läufe, einer mit
+    einem High-Befund zu den Pfeiltasten in `RankedChoiceList`).
+- **K12-4** (Bibliotheken, Pflege, Titel, Podcasts; Stand `ce34f53`):
+  - *Pflege* (`0473896`, `55da553`): Reiter je Problemart mit Zahl, je Reiter ein Klappbereich je
+    Bibliothek mit Tabelle; Duplikate als Gruppen; Auswahl und Ergebnis gehören der Seite.
+  - *Titel* (`fb74426`, `34cef47`): Reiter Metadaten, Bilder, Dateien und Trailer; Bilder und
+    Dateien als Tabellen, «Herkunft je Feld» und «Freigabe» als Klappbereiche; die Freigabe ist ein
+    Entwurf der Seite.
+  - *Podcasts* (`7960b73`, `6a0fe90`): Filterreiter «Alle» und je Podcast-Bibliothek in
+    `?tab=library-<id>`; je Podcast eine Klappzeile mit Autor, Feed-Adresse, Bibliothek und Fehler.
+  - *Bibliotheken* (`e069714`, `ce34f53`): Filterreiter nach Art mit Zahl, je Bibliothek eine
+    Klappzeile (Scan, Ordner, «Weitere Aktionen» mit «Gefahr», Fehlerband); «Bibliothek
+    hinzufügen» als Dialog mit Entwurf.
+  - *Gemeinsame Korrektur* (`b593486`): Fokus in verschachtelten Formulardialogen.
+  - *Review:* je Seite ein `code-reviewer`-Lauf, Befunde behoben.
+- **Aufräumrunde 1** (`653cf80`, `a0b7ba9`, `f6c6f6c`, `b1a158a`, `2b128e7`): wackliger Unit-Test von
+  `IntegrationsPage` (Text per Einfügen statt Taste für Taste, Warten auf das Entfernen aus dem
+  Cache); wackliger Firefox-e2e der Podcasts (`expectNoFocusTrap` wartet, bis kein Dialog mehr
+  `[data-exiting]` trägt); Live-Regionen von Hintergrundjobs und Metadaten bleiben im
+  Zugänglichkeitsbaum; Testlücken von K12-3 (Zurück-Taste, Fokus der Rückfrage, JOB-4a, JOB-6,
+  JOB-7, MET-1 bis MET-3) geschlossen.
+- **K12-5** (Geräte, Streams, Konten mit Profilen; Stand `b802319`): je Seite ein
+  `code-reviewer`-Lauf, Befunde behoben.
+  - *Geräte* (`5d452c5`, `a9b993e`): Reiter «Geräte» und «Fähigkeiten» im `BandPanel`, je Gerätetyp
+    ein Klappbereich (ohne Typ unter «Unbekannt»); eine Rückfrage der Seite für «Vergessen».
+  - *Streams* (`8bfaa04`, `fdc1be7`): laufende Streams als Kacheln mit Hintergrundbild, darüber
+    die Leiste «Serverlast»; Pfeiltasten zwischen den Kacheln, Abfrage pausiert bei offener
+    Rückfrage. Neue Bausteine `StreamTile` und `StreamProgress` (von `StreamRow` mitgenutzt,
+    dessen Bilder unverändert bleiben).
+  - *Konten* (`cac31f2`, `b802319`): Zustandsleiste mit vier Zahlen, Reiter «Konten» und
+    «Einladungen»; je Konto eine Klappzeile (eigenes Konto: E-Mail, Passwort, «Meine Profile»;
+    fremdes: Zugriff). `ProfileList` aus `ProfileSettingsPage` herausgelöst und von
+    `/settings/profiles` und «Konten» geteilt; Einladungen als Tabelle.
+- **K12-6** (Startseite, Sammlungen, Spotlight, Cat's Empfehlungen, Ankündigungen; Stand `0490a03`):
+  je Seite ein `code-reviewer`-Lauf, Befunde behoben.
+  - *Startseite* (`afb2fb3`, `d4aac2c`): Reiter «Reihenfolge» und «Vorschau», Platzwahl statt
+    «Nach oben»/«Nach unten», Klappzeile mit Beschreibung, eine `SaveBar` mit «Verwerfen».
+  - *Sammlungen* (`0786112`, `7952385`): Filterreiter, Mitglieder inline in der Klappzeile statt im
+    Dialog; Entwurf je Sammlung, TMDB-Sammlungen nur lesbar.
+  - *Spotlight* (`f71ab06`, `e288d51`, `7e76c51`): drei auf- und zuklappbare `BandPanel`
+    («Quelle», «Einträge der Liste», «Verwaiste Anpassungen»); Quelle als `SettingRow`-Zeilen
+    mit einem Entwurf der Seite.
+  - *Cat's Empfehlungen* (`6186790`, `a5c803b`): Filterreiter nach Zeitfenster, Notiz und Zeitfenster
+    in der Klappzeile, Platzwahl, Entwurf je Eintrag.
+  - *Ankündigungen* (`8b8b363`, `f1d0c19`, `0490a03`): Liste und Detail (`MasterDetail`) statt
+    Dialoge. Gemeinsame Korrektur `f1d0c19`: `MasterDetail` setzt den Fokus beim Tabben in die Liste
+    auf den gewählten Eintrag. `0490a03` behebt die Befunde des Reviews.
+- **K12-7** (Statistik, Sicherung, Benachrichtigungen; Stand `c2a969d`): je Seite ein
+  `code-reviewer`-Lauf, Befunde behoben.
+  - *Statistik* (`c37e3d4`, `c5c190b`, `52fdada`): Mockup «Raster»; neu «Wann geschaut wird»
+    (Stunde, Wochentag, Raster «Woche und Stunde»), Plätze 1 bis 3 als Kacheln, Rest als Tabelle.
+  - *Sicherung* (`6503cfc`, `e1cab40`): Reiter «Sicherungen», «Neue Sicherung» und «Aus Datei
+    wiederherstellen», je Art ein Klappbereich; Wiederherstellen und Löschen im Menü unter
+    «Gefahr»; Passwörter nur in Reiter oder Dialog.
+  - *Benachrichtigungen* (`80a9432`, `c2a969d`): E-Mail, Telegram und Web Push als drei
+    auf- und zuklappbare Felder in heutiger Dichte (S-1); Entwurf je Kanal; neue Rückfrage vor
+    «Verknüpfung lösen».
+- **Aufräumrunde 2** (`46e5fc1` bis `fa81401`, 19 Commits, nach dem Merge `26e5d48`): gemeinsame
+  Bausteine, die Speicherregel von Frage 18 auf jeder Seite, Befunde des Reviews.
+  - *Fokus-Helfer* (`46e5fc1`, `fa81401`): `afterRender`, `afterDialogsClosed` und `focusTitleIfLost`
+    stehen einmal in `ui/focusAfter.ts` (über `@/ui/aria`) und ersetzen 17 Kopien und drei Arten, auf
+    ein schliessendes Dialogfenster zu warten. Verlorener Fokus heisst: `body`, ein abgehängtes
+    Element oder ein fokussiertes Steuerelement, das gesperrt wurde. `afterDialogsClosed` wartet,
+    bis kein Overlay mehr `data-exiting` trägt. `afterRender` läuft in einem verborgenen Reiter
+    weiter: es wartet auf den Frame höchstens 100 ms (kein Frame, `requestAnimationFrame` feuerte nie).
+  - *Auswahl in der Adresse* (`98ee610`, `0b0893c`): `useSearchSelection` ersetzt zwölf eigene
+    Effekte für unbekannte `?tab=` und `?item=` durch die Option `normalise` (ersetzt, kein Eintrag im
+    Verlauf). Seiten mit Ids aus einer Liste übergeben `normalise` erst nach dem Laden (Podcasts,
+    Titel, Ankündigungen). Konten nutzt es für den Reiter, `?item=` (me, Hash) bleibt bei der Seite.
+  - *StatusRegion* (`755034d`, `bb111df`): `ui/StatusRegion` und `useStatusMessage` ersetzen die
+    Kopien der Seiten, Integrationsblöcke, Pflegereiter und Benachrichtigungskanäle samt `.live`-CSS
+    und Zählern. Die Region bleibt im Zugänglichkeitsbaum, auch leer, verlässt aber den Fluss; es gibt
+    eine `alert`-Variante, und jede Meldung hat einen eigenen Schlüssel (derselbe Text zweimal wird
+    zweimal vorgelesen). Der Schlüssel zählt über einen Ref, damit er nach `say(null)` nicht von vorn
+    beginnt. Story in beiden Dichten mit Referenzbildern.
+  - *Speichern-Leiste* (`6ab38a3`, `6e7196a`): die `SaveBar` klebt auf Metadaten und Startseite am
+    unteren Rand (sie ist jetzt direkt Kind der Spalte, danach Fehlerhinweis und `StatusRegion`).
+    Sie trägt `data-save-bar`; solange eine auf der Seite steht, hat das Dokument ein
+    `scroll-padding-block-end`, damit die Leiste das fokussierte Feld nie verdeckt (WCAG 2.4.11).
+    Ein e2e auf Metadaten tabbt zum letzten Link über der Leiste; ohne Padding scheiterte er in
+    beiden Browsern.
+  - *Speicherregel auf jeder Seite* (`4586daa`): «Speichern» ist immer bedienbar und schickt ohne
+    Änderung nichts (Fokus bleibt), «Verwerfen» steht nur bei einer Änderung da, und ein Entwurf fällt
+    nur weg, wenn er noch dem Gesendeten gleicht. Angewendet auf `SaveBar` (Referenzbild
+    `ui-savebar--clean` neu), Hintergrundjobs, Integrationen (Schlüssel, Bot-Token, E-Mail-Server,
+    öffentliche Adresse), Konten (Zugriff, eigenes Konto), Spotlight (Quelle), Benachrichtigungen
+    (Kanäle), Sammlungen (Mitglieder) und Titel (Freigabe); je Fix ein Test.
+  - *Geheimnisfelder* (`0f56bea`): Schlüssel der Anbieter und der Telegram-Bot-Token folgen der
+    Regel. Leeres Feld heisst «gespeicherten Wert behalten»: keine Anfrage, kein «Pflichtfeld», der
+    Fokus bleibt auf «Speichern». Nur Leerzeichen allein weist das Feld ab.
+  - *Ordnerdialog* (`c7831bb`): «Speichern» in «Ordner ändern» ist ohne Änderung bedienbar; gedrückt
+    schickt es nichts, Dialog und Fokus bleiben. Eine ungültige Quellenreihenfolge sperrt es weiter.
+  - *Passwörter* (`fed0971`): Ein Entwurf des eigenen Kontos, der während des Speicherns weiter
+    getippt wurde, bleibt (Frage 18); aktuelles und neues Passwort werden trotzdem geleert.
+  - *Öffentliche Adresse* (`b872bcf`): die Zeile hat eine eigene Mutation mit dem gesendeten Entwurf
+    in den Variablen (`null` bei «Löschen»); vorher lief die Freigabe in einem `onSuccess` von
+    `mutate()`, das nicht läuft, wenn die Zeile vor der Antwort aushängt.
+  - *Seitenstile (S-12)* (`d309560`, `e54a12f`): die seiteneigenen CSS-Module entfallen (`AdminData`,
+    `AdminTablePage`, `Curation`; reine Seitenteile ziehen in den Ordner der Seite um); `moveBy`,
+    `useMoveButtons` und der Schlüssel `admin.backup.restore.confirmBody` hatten keinen Aufrufer mehr.
+    `e54a12f` entfernt Verweise auf nicht vorhandene Klassen (`styles.label` in `MasterDetail`,
+    `styles.addTitle` im Ordnerdialog); ein Scan aller CSS-Modul-Importe findet keine weiteren.
+  - *Tests* (`b870fb1`, `7e179ec`, `c66944f`, `3a6ab4f`): `fill()` (leeren, klicken, einfügen) liegt
+    in `web/src/test/fill.ts`; die Integrations- und Kontentests füllen damit (der langsamste Fall
+    fällt von etwa 760 ms auf 300 ms, unter 2.6 s mit zwei weiteren vollen Läufen parallel); beide
+    Kontenblöcke haben 15 s Zeitgrenze, weil die Passwortfälle unter Last 5 s erreichten und Tasten
+    in den nächsten Test liefen. Neue Stories `Tabs` `Disabled` und `DisabledCompact` mit Referenzbildern
+    (`isDisabled` kam in K12-7 ohne Story). Der e2e-Helfer `switchOn` kehrt früh zurück, wenn der Kanal
+    schon an ist (Telegram verknüpfen schaltet ihn ein; «Speichern» schickt dann nichts).
+  - *Sichtbare Verhaltensänderungen:* nach «Verwerfen» verschwindet der Knopf, statt gesperrt zu
+    bleiben; nach dem Speichern auf der Startseite bleibt der Fokus auf «Speichern».
+- **Testhärtung** (2. November 2026): Zurück-Schritte und Unit-Lücken geschlossen (bis `2b9bf4d`;
+  Unit-Lücken PRO-3, BIB-3, TIT-7, PIC-1, BEN-2, PFL-2, PFL-4). Stopp-Lücke des Players: der Fix
+  «let the video player notice a stop by the server within 5 s» ist zurückgenommen (`d754f10`). Der
+  e2e zum Stopp durch die Verwaltung ist deterministisch, weil die Segmente des Zuschauers im Test
+  1 s gehalten werden (`5df15d2`). Die Lücke liegt in Konzept 13, Abschnitt 11.13 (`0e27e0e`).
+- **K12-8 Dichte** (2. November 2026, `2078fa9`): `density.css` in `main.tsx` eingeschaltet;
+  Tokens `page.title-line-height` (kompakt 0) und `density.compact.page.gutter` (32 px); `/admin` in
+  `AdminDensityScope` (`035e068`); e2e `admin-density.spec.ts`; Review-Befunde behoben (`8f4c512`,
+  `5936483`).
+  - Messung in `docs/perf/verwaltungsseiten.md` (1440 px, Maus, Chromium, Ausgang K12-2a):
+
+    | Seite           | Ausgang | K12-8  | nach Designer-Abgleich | Anteil |
+    | --------------- | ------- | ------ | ---------------------- | ------ |
+    | Hintergrundjobs | 476 px  | 272 px | 272 px                 | 57 %   |
+    | Integrationen   | 432 px  | 259 px | 250 px                 | 58 %   |
+    | Konten          | 353 px  | 315 px | 315 px                 | 89 %   |
+
+    **Ziel «höchstens die Hälfte» verfehlt.** Marcos Entscheid vom 3. November: Entscheid bei der
+    Abnahme in K12-9. Optionen: Zähler unter der Liste (Hintergrundjobs), Erklärsatz in den
+    Hilfe-Knopf (Integrationen), Zähler oder Reiter über der Liste (Konten).
+- **Designer-Abgleich** (3. November 2026, alle 21 Seiten gegen die Mockups, `a04c56b` bis `cd1dc75`):
+  - Fliesstext 14 px kompakt (`text.body-size`); Tabellenzeilen 40 px, Zellen mittig (`05043f9`,
+    `938720a`).
+  - Handy: Überlauf durch versteckte Texte in Scroll-Boxen behoben (`27b111c`); Seitentitel bricht nur
+    am Handy um (`236e097`, `4ab8331`). Neuer e2e `admin-phone.spec.ts`: 21 Seiten bei 390 px.
+  - Einstellungen als Zeilen (`SettingRow` mit `labelAddon`, Höhe nach Mockup: `6906932`, `4ba905d`).
+    Mail-Server und Telegram als Zeilen mit «Verwerfen» (`22ef698`; 607 → 461 px, 205 → 159 px).
+  - Integrationen: Schlüssel auf einer Zeile (`ab5d9dd`, 122 → 58 bis 78 px); Quelle neben der
+    Bezeichnung (`5fd4174`); Felder nach der sichtbaren Bezeichnung benannt (WCAG 2.5.3, `9182d9c`,
+    `cd1dc75`).
+  - Weiteres: Spotlight-Auswahl untereinander als `RadioGroup` (`952732f`, `8de93cd`); `RankSelect`
+    fluchtet mit der Zeile (`e783aed`); Abstand der Worker-Zeile bei Hintergrundjobs (`f78c5a7`);
+    Bandtitel entfällt, wenn er den ersten Reiter wiederholt (`BandPanel hideTitle`, S-9, `8f63a49`);
+    Sprung zu «Meine Profile» unter dem App-Kopf behoben (`f9eff4e`).
+- **Entscheide Marco vom 3. November** (Frage 18, Nachtrag 5): Seitentitel `/admin` 24 px wie auf allen
+  Verwaltungsseiten (`035e068`). Auslöser in der Seite als rote Schrift ohne Füllung (`Button`
+  Variante `dangerQuiet`, `7d2393b`, `b8d9373`, `e1eeb3f`); Bestätigungsknöpfe in Dialogen bleiben
+  gefüllt rot. Höhe: Entscheid bei K12-9.
+- **Fokus-Wettlauf** (3. November 2026, `263347e`): `afterDialogsClosed()` auf zwölf Verwaltungsseiten
+  und in `ProfileList`; behebt den Firefox-Wackler in `admin-jobs.spec.ts:239`.
+- **K12-9 Abnahme** (3. November 2026): CT 190 auf Image `verwaltungsseiten-bf456e1`
+  (`v1.7.0-158-gbf456e1`). **Von Marco abgenommen.**
+  - *Desktop mit Maus:* alle 18 Seiten mit Marco im Browser durchgegangen. *Handy (44 px):* Marco.
+  - *Korrekturen aus der Abnahme* (`583fd8b` bis `bf456e1`):
+    - Idee 03 «Weiterer Metadatenanbieter» für Titel ohne Altersfreigabe, Issue #71 (`583fd8b`;
+      17 Filme auf CT 190 ohne Freigabe in DE, AT, CH, GB und US).
+    - Pflege-Reiter «Altersfreigabe fehlt» statt «Ohne Freigabe» (`3a9b876`).
+    - Metadaten: Bereich «Bildqualität» statt «Güte» (`5b2dfc1`).
+    - Integrationen: Link je Anbieter-Schlüssel zur Seite, die ihn ausgibt (`4d77104`); leere Felder
+      gespeicherter Schlüssel zeigen «API Key gesetzt», der Telegram-Bot-Token «Token gesetzt»
+      (`81bca41`).
+    - Feste Spalten über die Tabellen einer Gruppe (Geräte, Sicherung, Pflege) und in Tabellen mit
+      wechselndem Inhalt, ab 768 px (`DataTable` `layout="fixed"`; `7265dc4`, `0d09bca`, `e8921cb`).
+    - Leisten-Eintrag «Profile» entfernt (`8fd9e00`); «Meine Profile» über die eigene Kontozeile.
+    - Statistik: Bilder für gelöschte und neu eingelesene Titel über die lebende Kopie mit gleicher
+      TMDB-, TVDB- oder IMDb-Id (`e4e323a`, `7d12315`).
+    - Spotlight: «Spotlight Wechsel Takt» statt «Takt der Bühne … Sekunden» (`8b712a0`).
+    - Statistik: «Woche und Stunde» immer sichtbar, nicht mehr zugeklappt (`1204562`).
+    - Review-Nachträge und Doku (`037f760`, `b51a658`, `f4d97eb`, `3f21258`, `bf456e1`).
+  - *Messung:* `GET /api/v1/admin/stats?days=90`, 40 Aufrufe auf CT 190 aus dem Browser:
+    p50 6.2 ms, p95 10.1 ms, max 15 ms. Schwelle 200 ms, **kein Zwischenspeicher**
+    (`docs/perf/verwaltungsseiten.md`, «Messung K12-9 (CT 190)»).
+  - *Entscheide Marco* (Frage 18, Nachtrag 6): Höhen-Ziel verfehlt, die Seiten bleiben, wie sie sind
+    (Konten, Hintergrundjobs, Integrationen unverändert, keine Verschiebung von Zählern oder
+    Erklärsatz); Telegram-Satz in der Token-Hilfe bleibt; Rückfallkette DE/AT/CH/GB/US und
+    «Freigabe zuweisen» reichen («Reicht so»); Beschriftungen nach Marco.
+  - Release-Notes: `release-notes-1.8.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.7.0).
+- **Offen (Konzept 12):**
+  - Push und Pull Request auf Marcos Wort; Merge danach; Release 1.8.0 mit Tag `v1.8.0` (setzt Marco).
+  - Versionsstellen stehen noch auf 1.7.0 (`deploy/.env.example`, `deploy/compose.yaml`,
+    `deploy/README.md`, `docs/INSTALLATION.md`); auf 1.8.0 setzen wie bei 1.7.0.
+  - Designer, nicht umgesetzt: Metadaten-Bereichsliste ohne Symbole; Titel mit Art und Jahr auf eigener
+    Zeile (Tit-C); «Letzter Scan» bei Bibliotheken umbricht; Pflege zeigt roh `no_tmdb_key`
+    (vorbestehend). Primäre Knöpfe bleiben weisse Pillen statt Orange wie im Mockup (beibehalten).
+    Mögliche spätere Bausteine: `OneLine` und `Muted`.
+- **Offen / ausserhalb Konzept 12:**
+  1. **Bibliothekswurzel ersetzt:** der Scanner liest den Baum mit neuen Ids neu ein; Verlauf und
+     Fortschritt bleiben an den gelöschten Ids hängen (CT 190: 29'106 Folgen). Entscheid durch Marco
+     offen.
+  2. **`autoFocus` in Dialogen von Offline und Player** (`OfflinePinDialog`, `DownloadDialog`,
+     `PlayerPage`, `OfflinePlayer`): für Konzept 13.
+- **Nächster Schritt:** Pull Request, Merge auf Marcos Wort, Release 1.8.0.
+
+**Belege K12-9:**
+
+- **`task ci` auf `bf456e1` am 3. November 2026: EXIT 0** — Server-Lint `0 issues.`, Go-Tests
+  33 Pakete ok, Web 120 Dateien / 1064 Tests, api-client 4, design-tokens 2, Storybook 323 passed
+  (38.1 s), e2e 610 passed (33.6 min, Chromium und Firefox), 0 failed, 0 flaky; A-9-Logscan:
+  101'895 Zeilen, 17 Secrets des Laufs, 0 Funde. `7c3e29e` und der Status-Commit danach ändern
+  nur Doku.
+- `GET /api/v1/admin/stats?days=90` auf CT 190, 40 Aufrufe: p50 6.2 ms, p95 10.1 ms, max 15 ms.
+
+**Belege K12-8 und Designer-Abgleich:**
+
+- `task ci` auf `cd1dc75`: **rot (EXIT 201)**.
+  - Web-Unit `OfflinePlayer.test.tsx` unter Last: Testrace, behoben `7469eb3`.
+  - e2e `admin-home.spec.ts:79` Firefox: echter Fokusfehler. norigin holt 300 ms nach dem Wechsel in die Verwaltung den Fokus in den App-Kopf zurück. Behoben `f3c2f7f`: `autoRestoreFocus=false` auf der Gruppe `shell`, neuer Test.
+- `task ci` auf `f3c2f7f`: 605/606. e2e `admin-announcements.spec.ts:222` Firefox: Testrace, der Tab begann vor der Fokussetzung der Seite auf die h1. Behoben `ec5c123`: `tabTo` meldet besuchte Elemente.
+- Review-Fixes Integrationen:
+  - `a862b43` Server: Botname nur bei gespeichertem Token.
+  - `50d4c74` `afterDialogsClosed()` nach dem Entfernen.
+  - `6f7efed` Verwerfen räumt Fehler, Fokus nach Löschen, Zugangsart in Beschreibungen, Portprüfung, Speichern-Namen.
+- **Voller `task ci` auf `ec5c123`: EXIT 0** (3. November 2026, Last 8–27): Server-Lint `0 issues.`, Server-Tests 33 Pakete ok (aus Go-Cache), Web 120 Dateien / 1063 Tests, api-client 4, design-tokens 2, Storybook 323, e2e 606 bestanden (33.4 min, 0 flaky), A-9 0 Funde.
+- Commits seit `cd1dc75`: `a862b43`, `50d4c74`, `6f7efed`, `7469eb3`, `e4ff097` (Doku), `f3c2f7f`, `ec5c123`.
+
+Belege der Teilläufe vor `ec5c123` (Designer-Runde):
+
+```
+web:test                    1058 Tests, 119 Dateien
+storybook                   323
+```
+
+**Belege K12-3** (Prüfer auf `6e46c6d`):
+
+```
+task ci                     EXIT=0
+Go                          33 Pakete ok
+web:test                    112 Dateien, 844 Tests bestanden
+storybook                   290 bestanden
+e2e                         510 bestanden (29.0 min), Chromium und Firefox
+```
+
+Erhaltungsliste (Abschnitt 7) JOB-1 bis JOB-8, MET-1 bis MET-6 und INT-1 bis INT-8 nachgeprüft.
+Dichte aus. Kein Referenzbild von `main` geändert, 63 neue Bilder.
+
+**Belege K12-4** (nach dem Merge auf `ce34f53`):
+
+```
+task web:test               874 bestanden
+storybook                   295 bestanden
+e2e (libraries, folders, folder-browser, podcasts, podcast, metadata, setup)   92 bestanden
+e2e Pflege, Titel, Podcasts                                                    52 bestanden
+```
+
+**Belege K12-5 bis K12-7** (Agentenläufe `git-master`, Merges auf dem Zweig):
+
+```
+K12-5 Stand b802319                    task web:test 906 bestanden, e2e 74 bestanden
+Streams (fdc1be7)                      task web:test 895 bestanden, storybook 300, e2e 26
+Startseite und Sammlungen (7952385)    task web:test 931 bestanden, e2e 68 bestanden
+Spotlight, Empfehlungen, Statistik,
+  Sicherung (e1cab40)                  task web:test 976 bestanden, storybook 307,
+                                       e2e 44 bestanden (Chromium und Firefox)
+Benachrichtigungen (c2a969d)           task web:test 982 bestanden, e2e 28 bestanden
+```
+
+Die Zahlen stammen aus den Läufen je Merge, nicht aus einem vollen `task ci`-Lauf. Der
+Zugänglichkeitsbaum ist weiter nur über CDP geprüft, nicht mit einem Bildschirmleser.
+
+**Belege Ankündigungen und Aufräumrunde 2:**
+
+```
+nach dem Merge 26e5d48 (mit Ankündigungen)   task web:test 996 bestanden, storybook 308, e2e 24
+Aufräumrunde 2, task web:test                3 Läufe mit je 117 Dateien, 1034 Tests bestanden
+Aufräumrunde 2, storybook                    315 bestanden
+e2e vor den Review-Korrekturen (voll)        532 bestanden, 2 gescheitert (Telegram-Fall,
+                                             behoben in 3a6ab4f)
+e2e nach den Korrekturen                     sechs Specs 72/72, Chromium und Firefox
+```
+
+Das volle `task ci` auf `fa81401` steht aus (Prüfer läuft). Der volle e2e-Lauf stammt von vor den
+Review-Korrekturen; nach ihnen liefen nur die sechs betroffenen Specs.
+
+**Gemeinsame Korrekturen unterwegs:**
+
+- Fokus in Dialogen bei «Bewegung reduzieren»: react-aria `runAfterTransition` zählt nur das erste
+  `transitioncancel`, der Fokus blieb aus (`988d1a6`, `470a49b`). `focusOnMount` fokussiert nun in
+  einem Microtask nach dem Commit (`c61fe4b`); der Fokus im Commit selbst warf in den Unit-Tests
+  «Should not already be working.».
+- Fokus in verschachtelten `FormDialog` (`b593486`): ebenfalls im Microtask, sonst zog der
+  äussere Fokusbereich den Fokus zurück.
+- e2e-Helfer `markLastTabbable` überspringt `[hidden]` und `[inert]` und fragt `checkVisibility`.
+- Firefox malte die Beschriftung der versteckten Diagrammtabellen über den Diagrammtitel; die
+  Versteckklasse steht nun auf einem umhüllenden `div` (`c5c190b`, `BarChart`, `HeatGrid`,
+  `WatchReport`).
+- Neue und erweiterte Bausteine unterwegs: `ui/Tabs` mit `isDisabled`, `RadioGroup` mit `hideLabel`
+  und `inline`, `TextField` mit `hideLabel`, `BarChart` mit `tickEvery`, `VisuallyHidden` mit
+  `as` und `role`, `SelectCheck`, `StreamTile`, `StreamProgress`, `ProfileList` (geteilt).
+
+**Offen (nach K12-7):**
+
+- Ankündigungen (K12-6): Fokus in `MasterDetail` noch zu beheben.
+- Aufräumrunde 2: gemeinsame Helfer `afterRender`, `focusTitleIfLost` und `afterDialogClosed`;
+  `useSearchSelection` mit unbekannten Reitern; `SaveBar` klebend; Speicher-Wettlauf in
+  Hintergrundjobs («Speichern» immer aktiv, keine Anfrage ohne Änderung, «Verwerfen» nur bei
+  Änderung, Eingabe während des Speicherns bleibt, wie auf den anderen Seiten); Test von
+  `IntegrationsPage` unter hoher Last; Block der `StatusRegion`; Story für `Tabs isDisabled`.
+- K12-8 und K12-9.
+- Dialoge mit `autoFocus` in Offline und Player (ausserhalb von Konzept 12).
+
+**Entscheid «Wann geschaut wird»** (Marco, 2. November 2026, Frage 18 Nachtrag): das Fenster
+umfasst ganze Wochen, `timeWindowDays` = `min(days, 90)` abgerundet auf ein Vielfaches von 7, also
+7, 28 oder 84 (365 Tage rechnen über 84). Sonst wirkte ein Wochentag, der 5-mal statt 4-mal im
+Fenster liegt, 25 % stärker. Die Schwelle von 200 ms (11.10) gilt für die Rasterabfrage allein;
+über einen Zwischenspeicher entscheidet die Messung in K12-9.
+
+**Abweichungen vom Bauplan** (im Review von K12-2b angenommen, in Frage 18 nachgetragen):
+`?tab=` und `?item=` über den Hook `useSearchSelection` (`Tabs` und `MasterDetail` bleiben
+darstellend); `useUnsavedChanges` gibt die Props für `ConfirmDialog` zurück und kennt die Option
+`keep` für Parameter derselben Seite (`library`, `add`, `days`); zusätzliche Tokens
+`section.title-size`, `page.title-weight`, `page.title-tracking`, `dialog.gap`; `SaveBar` mit Rand
+und Fläche (die alten Tokens gab es nicht); Hilfe-Knopf in Steuerelement-Grösse (44 px, kompakt
+32 px statt 24 px im Mockup).
+
+**Belege K12-2b** (Agentenläufe auf dem Zweig):
+
+```
+task web:test              111 Dateien, 805 Tests bestanden
+task web:storybook:test    269 bestanden
+task gen:check             Exit 0
+task web:lint              Exit 0
+```
+
+Bekannt: `LoginPage.test.tsx` schlägt vereinzelt mit «document is not defined» fehl (schon vor
+Konzept 12 vorhanden, ein Wackler, keine Folge dieser Änderungen). Die Bausteine mit Klappzeilen
+sind über den Zugänglichkeitsbaum von Chromium (CDP) geprüft, **nicht mit einem echten
+Bildschirmleser**; das ist ein Stellvertreter.
+
+**Belege K12-1** (Agentenläufe auf dem Zweig):
+
+```
+task server:lint            0 issues.
+task gen:check              ohne Abweichung
+go test -race               admin, api, cmd/slouchcat ok
+task web:test               grün
+```
+
+Messung (`docs/perf/verwaltungsseiten.md`, Entwicklungsrechner i7, 1 Mio. Ereignisse):
+`GET /admin/stats` bei 90 Tagen p95 **303.8 → 402.2 ms**; die Rasterabfrage allein bei 84 Tagen
+p95 **96.4 ms**. Schätzung für CT 190 (Faktor 2.5): rund 105 ms beim realen Bestand, rund 240 ms
+beim Bestand der Messung. Ob ein Zwischenspeicher nötig ist, fällt mit der Messung auf CT 190 in
+K12-9.
+
+**Offen (Stand K12-1, überholt, aktueller Stand oben):** Ankündigungen, Aufräumrunde 2, K12-8 und K12-9; Abnahme durch Marco nur in K12-9 auf CT 190 (Desktop mit Maus und Handy
+mit 44 px); Release 1.8.0 danach als eigenes Release.
+
 ## Konzept 11 «Übersicht der Verwaltung»: umgesetzt und abgenommen, Schritte 0 bis 6 (2. November 2026)
 
 Zweig `claude/verwaltung-uebersicht` ab `main` `43311b0`, Umsetzung nach

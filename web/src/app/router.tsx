@@ -33,6 +33,37 @@ export interface RouterContext {
   queryClient: QueryClient;
 }
 
+/** The selection of an administration page in its address (concept 12, S-14). */
+export interface AdminSearch {
+  /** The selected tab (Tabs, useSearchSelection). */
+  tab?: string;
+  /** The selected item of a MasterDetail, or a row that is open; `me` is the own account. */
+  item?: string;
+}
+
+/**
+ * A tab id or an item id: a slug, a number, a ULID or a dotted job type (`metadata.apply`), never
+ * a path or a whole sentence.
+ */
+const SELECTION = /^[A-Za-z0-9](?:[A-Za-z0-9_-]|\.(?!\.)){0,63}$/;
+
+/**
+ * `validateSearch` of the administration pages with tabs or a selection: keeps `?tab=` and
+ * `?item=` when they look like an id and drops them otherwise; whether the id exists is the
+ * page's business (useSearchSelection falls back to its default). A route with parameters of its
+ * own spreads this into its validator: `(search) => ({ ...adminSearch(search), library: … })`.
+ * A number in the address (`?item=12`) arrives parsed as a number and is kept as text.
+ */
+export function adminSearch(search: Record<string, unknown>): AdminSearch {
+  const pick = (value: unknown) => {
+    const text = typeof value === 'number' && Number.isInteger(value) ? String(value) : value;
+    return typeof text === 'string' && SELECTION.test(text) ? text : undefined;
+  };
+  const tab = pick(search.tab);
+  const item = pick(search.item);
+  return { ...(tab === undefined ? {} : { tab }), ...(item === undefined ? {} : { item }) };
+}
+
 /** The offline library and its player: they never ask the server (C-1, O-4). */
 const isOfflinePath = (pathname: string) =>
   pathname === paths.offline || pathname.startsWith(`${paths.offline}/`);
@@ -289,6 +320,8 @@ const integrationsRoute = createRoute({
 const maintenanceRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/maintenance',
+  // `?tab=` selects a kind of issue or the duplicates.
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
     () => import('@/features/admin/MaintenancePage'),
     'MaintenancePage',
@@ -298,6 +331,8 @@ const maintenanceRoute = createRoute({
 const devicesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/devices',
+  // `?tab=` selects «Fähigkeiten».
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/DevicesPage'), 'DevicesPage'),
 });
 
@@ -310,18 +345,27 @@ const streamsRoute = createRoute({
 const adminItemRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/items/$itemId',
+  // `?tab=` selects Bilder, Dateien or Trailer (concept 12, S-14).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/AdminItemPage'), 'AdminItemPage'),
 });
 
 const librariesRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/libraries',
-  component: lazyRouteComponent(() => import('@/features/admin/LibrariesPage'), 'LibrariesPage'),
+  // `?tab=` filters the libraries by kind (concept 12, Bib-C).
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(
+    () => import('@/features/admin/libraries/LibrariesPage'),
+    'LibrariesPage',
+  ),
 });
 
 const podcastsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/podcasts',
+  // `?tab=` is the library filter, «all» by default (concept 12, S-14).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
 });
 
@@ -336,22 +380,28 @@ const accessRoute = createRoute({
 });
 
 // admin M7
-/** Cat's recommendations; `add` (the detail page's link) opens the dialog with that title. */
+/**
+ * Cat's recommendations; `add` (the detail page's link) opens the dialog with that title, `tab`
+ * filters the list by time.
+ */
 const picksRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/picks',
-  validateSearch: (search: Record<string, unknown>): { add?: string } =>
-    typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
+  validateSearch: (search: Record<string, unknown>): AdminSearch & { add?: string } => ({
+    ...adminSearch(search),
+    ...(typeof search.add === 'string' && /^[0-9A-HJKMNP-TV-Z]{26}$/.test(search.add)
       ? { add: search.add }
-      : {},
-  component: lazyRouteComponent(() => import('@/features/admin/PicksPage'), 'PicksPage'),
+      : {}),
+  }),
+  component: lazyRouteComponent(() => import('@/features/admin/picks/PicksPage'), 'PicksPage'),
 });
 
 const collectionsAdminRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/collections',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
-    () => import('@/features/admin/CollectionsPage'),
+    () => import('@/features/admin/collections/CollectionsPage'),
     'CollectionsPage',
   ),
 });
@@ -359,6 +409,8 @@ const collectionsAdminRoute = createRoute({
 const homeRowsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/home-rows',
+  // `?tab=preview` shows the preview of the start page (concept 12, S-14).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/HomeRowsPage'), 'HomeRowsPage'),
 });
 // end admin M7
@@ -374,6 +426,8 @@ const spotlightRoute = createRoute({
 const jobsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/jobs',
+  // `?tab=` selects a group or the failures (`?tab=failed`, the link of the overview).
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/JobsPage'), 'JobsPage'),
 });
 
@@ -381,11 +435,14 @@ const jobsRoute = createRoute({
 const metadataRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/metadata',
-  // `?library=<id>` opens the page on that library's deviation (the link on the library card).
-  validateSearch: (search: Record<string, unknown>): { library?: number } =>
-    typeof search.library === 'number' && Number.isInteger(search.library) && search.library > 0
+  // `?library=<id>` opens the page on that library's deviation (the link on the library card);
+  // `?item=` is the selected settings area (concept 12, S-14).
+  validateSearch: (search: Record<string, unknown>): AdminSearch & { library?: number } => ({
+    ...adminSearch(search),
+    ...(typeof search.library === 'number' && Number.isInteger(search.library) && search.library > 0
       ? { library: search.library }
-      : {},
+      : {}),
+  }),
   component: lazyRouteComponent(() => import('@/features/admin/MetadataPage'), 'MetadataPage'),
 });
 
@@ -393,12 +450,14 @@ const metadataRoute = createRoute({
 const accountsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/accounts',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/AccountsPage'), 'AccountsPage'),
 });
 
 const backupRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/backup',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/BackupPage'), 'BackupPage'),
 });
 
@@ -419,6 +478,7 @@ const statsRoute = createRoute({
 const announcementsRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: '/announcements',
+  validateSearch: adminSearch,
   component: lazyRouteComponent(
     () => import('@/features/admin/AnnouncementsPage'),
     'AnnouncementsPage',

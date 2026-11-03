@@ -1,21 +1,31 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, resetFocus } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 
 // Keyboard test of the folder browser in the library form (CLAUDE.md rule 8, idea 02 steps 10
 // and 13a): arrow keys move and mark, Enter and the right arrow go down, Backspace comes back
 // up, Escape returns the focus to the button, every row shows a ring, and the page keeps no
 // focus trap. Since E18 the dialog carries a path field of its own, so the two "Ordner" fields
-// are told apart by where they sit. The suite's browsable root is testdata/media
-// (web/e2e/start-server.mjs), which holds the library folders of the run.
+// are told apart by where they sit. Since concept 12 the library form is a dialog itself
+// («Bibliothek hinzufügen»), and the folder browser opens on top of it. The suite's browsable
+// root is testdata/media (web/e2e/start-server.mjs), which holds the library folders of the run.
 
-const browse = (page: Page) => page.getByRole('button', { name: 'Durchsuchen …' }).first();
+/** The dialog «Bibliothek hinzufügen», the library form. */
+const form = (page: Page) => page.getByRole('dialog', { name: 'Bibliothek hinzufügen' });
+/** The folder browser on top of it. */
+const browser = (page: Page) => page.getByRole('dialog', { name: 'Ordner auswählen' });
+const browse = (page: Page) => form(page).getByRole('button', { name: 'Durchsuchen …' }).first();
 /** The folder field of the "add library" form, the one the dialog writes into. */
-const folder = (page: Page) =>
-  page.getByRole('region', { name: 'Bibliothek hinzufügen' }).getByLabel('Ordner', { exact: true });
+const folder = (page: Page) => form(page).getByLabel('Ordner', { exact: true });
 /** The path field inside the dialog, which "OK" hands on (E18). */
-const dialogFolder = (page: Page) => page.getByRole('dialog').getByLabel('Ordner', { exact: true });
-const rows = (page: Page) => page.getByRole('option');
-const movies = (page: Page) => page.getByRole('option', { name: /Movies/ });
+const dialogFolder = (page: Page) => browser(page).getByLabel('Ordner', { exact: true });
+const rows = (page: Page) => browser(page).getByRole('option');
+const movies = (page: Page) => browser(page).getByRole('option', { name: /Movies/ });
 
 /** Presses ArrowDown until `row` has the focus; fails after `max` presses. */
 async function arrowDownTo(page: Page, row: Locator, max = 12) {
@@ -26,21 +36,31 @@ async function arrowDownTo(page: Page, row: Locator, max = 12) {
   throw new Error(`ArrowDown did not reach the row within ${max} presses`);
 }
 
+/** Opens «Bibliothek hinzufügen» from the page's head by keyboard, unless it is open. */
+async function openForm(page: Page) {
+  if ((await form(page).count()) > 0) return;
+  await tabTo(page, page.getByRole('button', { name: 'Bibliothek hinzufügen' }), 10);
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, form(page).getByLabel('Name', { exact: true }));
+}
+
 /**
  * Opens the dialog from the keyboard and waits until the rows are there. With one configured
  * root the dialog opens inside it, so the first rows are the folders of testdata/media.
  */
 async function openDialog(page: Page) {
-  await browse(page).focus();
+  await openForm(page);
+  if (!(await browse(page).evaluate((element) => element === document.activeElement)))
+    await tabTo(page, browse(page), 10);
   await page.keyboard.press('Enter');
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(browser(page)).toBeVisible();
   await expect(rows(page).first()).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/admin/libraries');
   await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Filme' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Filme', exact: true })).toBeVisible();
   await resetFocus(page);
 });
 
@@ -86,8 +106,7 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
   await page.keyboard.press('Enter');
   await expect(dialogFolder(page)).toHaveValue(/testdata\/media\/Movies$/);
   await expect(
-    page
-      .getByRole('dialog')
+    browser(page)
       .getByText(/testdata\/media\/Movies$/)
       .first(),
   ).toBeVisible();
@@ -97,7 +116,7 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
   await page.keyboard.press('Backspace');
   await expect(movies(page)).toBeVisible();
   await page.keyboard.press('Backspace');
-  await expect(page.getByRole('dialog').getByText('Freigegebene Ordner')).toBeVisible();
+  await expect(browser(page).getByText('Freigegebene Ordner')).toBeVisible();
 
   // Back down with the right arrow instead of Enter, then into "Movies" and apply it.
   await page.keyboard.press('ArrowRight');
@@ -107,7 +126,7 @@ test('Enter goes into a folder, Backspace comes back, OK writes the path field',
   const chosen = await dialogFolder(page).inputValue();
   expect(chosen).toMatch(/testdata\/media\/Movies$/);
   await page.getByRole('button', { name: 'OK', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(browser(page)).toHaveCount(0);
   await expect(folder(page)).toHaveValue(String(chosen));
   // The focus is in the folder field, so the path can be corrected without tabbing back.
   await expectFocusOn(page, folder(page));
@@ -118,22 +137,28 @@ test('a folder already in the field opens the dialog in that folder', async ({ p
   await openDialog(page);
   await movies(page).click();
   await page.getByRole('button', { name: 'OK', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(browser(page)).toHaveCount(0);
   const chosen = await folder(page).inputValue();
   expect(chosen).toMatch(/testdata\/media\/Movies$/);
 
   // Reopened, the dialog stands in that folder instead of on the roots.
   await openDialog(page);
-  await expect(page.getByRole('dialog').getByText(chosen).first()).toBeVisible();
+  await expect(browser(page).getByText(chosen).first()).toBeVisible();
   await page.keyboard.press('Escape');
   await folder(page).fill('');
 });
 
 test('Escape closes without a change and returns the focus to the button', async ({ page }) => {
-  await folder(page).fill('/unveraendert');
+  await openForm(page);
+  await page.keyboard.press('Tab'); // Video
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, folder(page));
+  await page.keyboard.type('/unveraendert');
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, browse(page));
   await openDialog(page);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(browser(page)).toHaveCount(0);
   await expect(folder(page)).toHaveValue('/unveraendert');
   await expectFocusOn(page, browse(page));
   await folder(page).fill('');
@@ -153,7 +178,7 @@ test('one click enters a folder instead of marking it', async ({ page }) => {
   await expect(movies(page)).toHaveCount(0);
   await expect(dialogFolder(page)).toHaveValue(/testdata\/media\/Movies$/);
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(browser(page)).toHaveCount(0);
   await folder(page).fill('');
 });
 
@@ -177,7 +202,7 @@ test('the path field takes a typed folder and Backspace there edits instead of g
   await page.getByRole('button', { name: 'Gehe zu' }).click();
   await expect(movies(page)).toHaveCount(0);
   await page.getByRole('button', { name: 'OK', exact: true }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(browser(page)).toHaveCount(0);
   await expect(folder(page)).toHaveValue(`${inside}/Movies`);
   await folder(page).fill('');
 });
@@ -190,6 +215,6 @@ test('a path below no browsable folder stays in the field and is explained', asy
   // The dialog refuses nothing: the server decides when the form is submitted (rule 12).
   await expect(dialogFolder(page)).toHaveValue('/etc/geheim');
   await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(browser(page)).toHaveCount(0);
   await expect(folder(page)).toHaveValue('');
 });

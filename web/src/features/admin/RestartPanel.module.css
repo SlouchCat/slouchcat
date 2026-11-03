@@ -1,0 +1,13 @@
+/* The panel that follows a restart (restore, update): its title and the status line. */
+
+.panelTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

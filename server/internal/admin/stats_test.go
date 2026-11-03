@@ -101,11 +101,25 @@ func seedStats(t *testing.T, db *sql.DB) {
 	}
 }
 
+// zurich is the zone the statistics tests pin (concept 12: the grid of the week).
+var zurich = mustZone("Europe/Zurich")
+
+func mustZone(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		panic(err)
+	}
+	return loc
+}
+
 // expectedStats computes the statistics from the raw rows in Go, without the queries of
-// admin_stats.sql.
-func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
+// admin_stats.sql; the grid of the week in loc.
+func expectedStats(t *testing.T, db *sql.DB, days int, loc *time.Location) model.Stats {
 	t.Helper()
 	from, to := statsNow.Add(-time.Duration(days)*day).UnixMilli(), statsNow.UnixMilli()
+	window := min(days, 90) / 7 * 7 // whole weeks; every period here is at least a week
+	fromWindow := statsNow.Add(-time.Duration(window) * day).UnixMilli()
+	grid := make([]int64, 7*96)
 	type event struct {
 		id, profile, played, server int64
 		item                        string
@@ -120,6 +134,10 @@ func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
 			}
 			if e.server >= from && e.server <= to {
 				events = append(events, e)
+			}
+			if e.server >= fromWindow && e.server <= to {
+				local := time.UnixMilli(e.server).In(loc)
+				grid[((int(local.Weekday())+6)%7)*96+local.Hour()*4+local.Minute()/15] += e.played
 			}
 			return nil
 		})
@@ -141,7 +159,8 @@ func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
 		return fmt.Sprint("event ", e.id)
 	}
 
-	out := model.Stats{Days: days, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{}}
+	out := model.Stats{Days: days, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{},
+		WatchTimeByQuarterHour: grid, TimeWindowDays: window, TimeZone: loc.String()}
 	type agg struct {
 		watched int64
 		plays   map[string]bool
@@ -173,7 +192,8 @@ func expectedStats(t *testing.T, db *sql.DB, days int) model.Stats {
 			}
 		}
 		kind, _ := lookup("SELECT kind FROM items WHERE id = ?", item)
-		st := model.StatTitle{ItemID: item, Title: title, Kind: kind, Plays: len(a.plays), WatchedMs: a.watched}
+		// The fixture's episode has no series and no title has an image: the images are its own.
+		st := model.StatTitle{ItemID: item, Title: title, Kind: kind, Plays: len(a.plays), WatchedMs: a.watched, ImageItemID: item}
 		if y, ok := lookup("SELECT year FROM items WHERE id = ?", item); ok {
 			var year int
 			_, _ = fmt.Sscan(y, &year)
@@ -264,6 +284,7 @@ func TestStatsMatchRawData(t *testing.T) {
 	ctx := context.Background()
 	st := newStack(t, "0.9.0")
 	st.svc.now = func() time.Time { return statsNow }
+	st.svc.WithLocation(zurich)
 	seedStats(t, st.db.Write)
 
 	for _, days := range []int{7, 30, 90, 365} {
@@ -271,7 +292,7 @@ func TestStatsMatchRawData(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := expectedStats(t, st.db.Read, days)
+		want := expectedStats(t, st.db.Read, days, zurich)
 		if !reflect.DeepEqual(got, want) {
 			t.Errorf("days %d:\n got %+v\nwant %+v", days, got, want)
 		}
@@ -309,11 +330,13 @@ func TestStatsMatchRawData(t *testing.T) {
 func TestStatsEmptyAndInvalid(t *testing.T) {
 	ctx := context.Background()
 	st := newStack(t, "0.9.0")
+	st.svc.WithLocation(time.UTC)
 	got, err := st.svc.Stats(ctx, 7)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := model.Stats{Days: 7, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{}}
+	want := model.Stats{Days: 7, TopTitles: []model.StatTitle{}, WatchTime: []model.StatProfile{}, Devices: []model.StatDevice{},
+		WatchTimeByQuarterHour: make([]int64, 7*96), TimeWindowDays: 7, TimeZone: "UTC"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("empty database: %+v, want zeros and empty lists", got)
 	}
@@ -371,5 +394,82 @@ func TestStatsKeepEndedPlaybackSessions(t *testing.T) {
 	}
 	if got := left(); len(got) != 0 {
 		t.Errorf("browser sessions after their playback sessions went %v, want none", got)
+	}
+}
+
+// Acceptance finding K12-9: an episode shows the images of its series, and the history keeps
+// titles that were deleted since. A library moved to a new path imports its series anew with new
+// ids; a watched episode of the old, deleted series then shows the images of the live series with
+// the same provider id. A deleted film without a live copy has no image.
+func TestStatsTopTitleImagesOfSeriesAndLiveCopy(t *testing.T) {
+	ctx := context.Background()
+	st := newStack(t, "0.9.0")
+	st.svc.now = func() time.Time { return statsNow }
+	st.svc.WithLocation(time.UTC)
+	const (
+		oldSeries, oldSeason, oldEpisode = "01J9000000000000000000OS01", "01J9000000000000000000OS02", "01J9000000000000000000OS03"
+		newSeries, newSeason, newEpisode = "01J9000000000000000000NS01", "01J9000000000000000000NS02", "01J9000000000000000000NS03"
+		goneMovie                        = "01J9000000000000000000GM01"
+		loneEpisode, liveEpisode         = "01J9000000000000000000LE01", "01J9000000000000000000LE02"
+	)
+	gone := ago(2 * day)
+	exec(t, st.db.Write,
+		`INSERT INTO accounts (id, email, password_hash, role, created_at, updated_at) VALUES (1, 'owner@example.test', 'x', 'admin', 1, 1)`,
+		`INSERT INTO profiles (id, account_id, name, max_rating, is_default, created_at, updated_at) VALUES (1, 1, 'Marco', 18, 1, 1, 1)`,
+		`INSERT INTO libraries (id, name, kind, created_at, updated_at) VALUES (1, 'Serien', 'video', 1, 1)`,
+		fmt.Sprintf(`INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, tmdb_id, added_at, created_at, updated_at, deleted_at) VALUES
+		   ('%[1]s', 'series', NULL, 1, 'Show', 'show', 2691, 1, 1, 1, %[7]d),
+		   ('%[2]s', 'season', '%[1]s', 1, 'Season 6', 's6', NULL, 1, 1, 1, %[7]d),
+		   ('%[3]s', 'episode', '%[2]s', 1, 'Old Episode', 'e', NULL, 1, 1, 1, %[7]d),
+		   ('%[4]s', 'series', NULL, 1, 'Show', 'show', 2691, 1, 1, 1, NULL),
+		   ('%[5]s', 'season', '%[4]s', 1, 'Season 1', 's1', NULL, 1, 1, 1, NULL),
+		   ('%[6]s', 'episode', '%[5]s', 1, 'New Episode', 'e', NULL, 1, 1, 1, NULL),
+		   ('%[8]s', 'movie', NULL, 1, 'Gone', 'gone', 77, 1, 1, 1, %[7]d),
+		   ('%[9]s', 'episode', NULL, 1, 'Lone Episode', 'e', 555, 1, 1, 1, %[7]d),
+		   ('%[10]s', 'episode', '%[5]s', 1, 'Live Episode', 'e', 555, 1, 1, 1, NULL)`,
+			oldSeries, oldSeason, oldEpisode, newSeries, newSeason, newEpisode, gone, goneMovie,
+			loneEpisode, liveEpisode),
+	)
+	image := func(itemID, kind, size, hash string) {
+		t.Helper()
+		exec(t, st.db.Write, fmt.Sprintf(`INSERT INTO images (item_id, kind, size, format, source_url, rel_path, content_hash, media_type, width, height, bytes, created_at)
+		   VALUES ('%s', '%s', '%s', 'jpeg', 'https://example.org/i.jpg', 'images/%s.jpg', '%s', 'image/jpeg', 200, 300, 1, 1)`,
+			itemID, kind, size, hash, hash))
+	}
+	// The deleted series keeps its rows, as on the server; they are never served.
+	image(oldSeries, "poster", model.AdminPosterSize, "oldPoster")
+	image(oldSeries, "backdrop", model.AdminBackdropSize, "oldBackdrop")
+	image(newSeries, "poster", model.AdminPosterSize, "newPoster")
+	image(newSeries, "backdrop", model.AdminBackdropSize, "newBackdrop")
+	image(newEpisode, "backdrop", model.AdminBackdropSize, "episodeStill")
+	image(goneMovie, "poster", model.AdminPosterSize, "gonePoster")
+	image(liveEpisode, "backdrop", model.AdminBackdropSize, "otherStill")
+	for i, e := range []struct {
+		item   string
+		played int64
+	}{{oldEpisode, 3_000_000}, {newEpisode, 2_000_000}, {goneMovie, 1_000_000}, {loneEpisode, 500_000}} {
+		if _, err := st.db.Write.Exec(`INSERT INTO progress_events (profile_id, item_id, position_ms, duration_ms, played_ms, seq,
+			state, client_time, server_time) VALUES (1, ?, 0, 7200000, ?, 1, 'playing', ?, ?)`,
+			e.item, e.played, ago(time.Duration(i+1)*time.Hour), ago(time.Duration(i+1)*time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, err := st.svc.Stats(ctx, 7)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		oldEpisode + " " + newSeries + " newPoster newBackdrop", // deleted series: the live copy
+		newEpisode + " " + newSeries + " newPoster newBackdrop", // the series, not the episode's still
+		goneMovie + " " + goneMovie + "  ",                      // deleted, no live copy: no image
+		loneEpisode + " " + loneEpisode + "  ",                  // no series: never another episode's still
+	}
+	images := make([]string, 0, len(got.TopTitles))
+	for _, tt := range got.TopTitles {
+		images = append(images, fmt.Sprintf("%s %s %s %s", tt.ItemID, tt.ImageItemID, tt.PosterHash, tt.BackdropHash))
+	}
+	if !slices.Equal(images, want) {
+		t.Errorf("top title images:\n got %q\nwant %q", images, want)
 	}
 }

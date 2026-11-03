@@ -9,8 +9,20 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formErrors, problemMessage } from '@/api/errors';
 import { formatDateTime } from '@/lib/format';
+import { useTransientMutation } from '@/lib/useTransientMutation';
 import { Chip, Notice, Panel, Skeleton, Text } from '@/ui';
-import { AriaButton, ConfirmDialog, DataTable, Form, RadioGroup, TextField } from '@/ui/aria';
+import {
+  AriaButton,
+  ConfirmDialog,
+  DataTable,
+  Form,
+  RadioGroup,
+  SettingRow,
+  StatusRegion,
+  TextField,
+  useStatusMessage,
+  type Drafts,
+} from '@/ui/aria';
 import {
   createIntegration,
   dashboardQuery,
@@ -20,8 +32,7 @@ import {
   renewIntegrationToken,
   setIntegrationPathMap,
 } from './queries';
-import styles from './IntegrationsPage.module.css';
-import table from './AdminTablePage.module.css';
+import styles from './integrations/Integrations.module.css';
 
 const KINDS = ['radarr', 'sonarr'] as const satisfies readonly Integration['kind'][];
 
@@ -32,6 +43,16 @@ const resultTone = {
   outside_roots: 'warning',
   invalid_payload: 'warning',
 } as const satisfies Record<IntegrationEvent['result'], string>;
+
+/**
+ * The unsaved path mapping of one integration (S-17), keyed by its id in the page's drafts:
+ * `base` is the stored mapping the rows started from; comparing it with the stored mapping of the
+ * moment says whether somebody else has saved this integration in between.
+ */
+export interface PathMapDraft {
+  base: PathMapping[];
+  rows: PathMapping[];
+}
 
 /** One mapping as a string, to tell two versions of it apart. */
 const stored = (pairs: PathMapping[]) => JSON.stringify(pairs);
@@ -92,108 +113,140 @@ function CreatedAddress({
           {t('admin.integrations.webhooks.created.dismiss')}
         </AriaButton>
       </div>
-      <p role="status" className={styles.live}>
+      <StatusRegion>
         {status === 'copied' && t('admin.integrations.webhooks.created.copied')}
         {status === 'failed' && t('admin.integrations.webhooks.created.copyFailed')}
-      </p>
+      </StatusRegion>
     </Panel>
   );
 }
 
-/** Name and kind of a new integration. */
-function NewIntegrationForm({ onCreated }: { onCreated: (created: IntegrationCreated) => void }) {
+/**
+ * Name and kind of a new integration. The name is held by the page, so leaving it with a typed
+ * name asks first (S-13). The answer carries the secret address: the mutation keeps nothing of it
+ * once it is handed over (useTransientMutation).
+ */
+function NewIntegrationForm({
+  name,
+  onNameChange,
+  onCreated,
+}: {
+  name: string;
+  onNameChange: (name: string) => void;
+  onCreated: (created: IntegrationCreated) => void;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const [name, setName] = useState('');
   const [kind, setKind] = useState<Integration['kind']>('radarr');
 
-  const create = useMutation({
-    mutationFn: createIntegration,
-    onSuccess: async (created) => {
-      onCreated(created);
-      setName('');
-      setKind('radarr');
-      await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
-      await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
-    },
+  const create = useTransientMutation(createIntegration, async (created) => {
+    onCreated(created);
+    onNameChange('');
+    setKind('radarr');
+    await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
+    await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
   });
   const errors = create.error ? formErrors(t, create.error) : null;
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate({ name: name.trim(), kind });
+    void create.run({ name: name.trim(), kind });
   };
 
   return (
-    <Form className={styles.form} onSubmit={onSubmit} validationErrors={errors?.fields}>
-      <TextField
-        name="name"
-        label={t('admin.integrations.webhooks.form.name')}
-        description={t('admin.integrations.webhooks.form.nameHint')}
-        autoComplete="off"
-        isRequired
-        value={name}
-        onChange={setName}
-        validate={(text) => (text.trim() ? null : t('errors.field.required'))}
-      />
-      <RadioGroup
-        name="kind"
-        label={t('admin.integrations.webhooks.form.kind')}
-        value={kind}
-        onChange={(value) => setKind(KINDS.find((k) => k === value) ?? 'radarr')}
-        options={KINDS.map((k) => ({
-          value: k,
-          label: t(`admin.integrations.webhooks.kind.${k}`),
-        }))}
-      />
-      <div className={styles.actions}>
-        <AriaButton type="submit" variant="primary" isPending={create.isPending}>
-          {t('admin.integrations.webhooks.form.submit')}
-        </AriaButton>
-      </div>
-      {errors?.form && <Notice tone="danger">{problemMessage(t, create.error)}</Notice>}
-    </Form>
+    <SettingRow
+      label={t('admin.integrations.webhooks.form.title')}
+      help={t('admin.integrations.webhooks.form.nameHint')}
+    >
+      <Form className={styles.stack} onSubmit={onSubmit} validationErrors={errors?.fields}>
+        <TextField
+          name="name"
+          label={t('admin.integrations.webhooks.form.name')}
+          autoComplete="off"
+          isRequired
+          value={name}
+          onChange={onNameChange}
+          validate={(text) => (text.trim() ? null : t('errors.field.required'))}
+        />
+        <RadioGroup
+          name="kind"
+          label={t('admin.integrations.webhooks.form.kind')}
+          value={kind}
+          onChange={(value) => setKind(KINDS.find((k) => k === value) ?? 'radarr')}
+          options={KINDS.map((k) => ({
+            value: k,
+            label: t(`admin.integrations.webhooks.kind.${k}`),
+          }))}
+        />
+        <div className={styles.actions}>
+          <AriaButton type="submit" variant="primary" icon="plus" isPending={create.isPending}>
+            {t('admin.integrations.webhooks.form.submit')}
+          </AriaButton>
+        </div>
+        {errors?.form && <Notice tone="danger">{problemMessage(t, create.error)}</Notice>}
+      </Form>
+    </SettingRow>
   );
 }
 
+/**
+ * Where the unsaved rows of an integration stand. Rows that match the stored mapping, or the one
+ * they started from, are no change of their own (`spent`): the section drops them, even while the
+ * row is folded. `elsewhere`: a second admin saved this integration while rows were typed here;
+ * they stay, with an offer to take the other version.
+ */
+function pathMapState(integration: Integration, drafts: Drafts<PathMapDraft>) {
+  const id = String(integration.id);
+  const draft = drafts.valueOf(id) ?? { base: integration.pathMap, rows: integration.pathMap };
+  const server = stored(integration.pathMap);
+  const typed = drafts.isDirty(id);
+  const spent =
+    typed && (stored(draft.rows) === server || stored(draft.rows) === stored(draft.base));
+  return {
+    draft,
+    spent,
+    dirty: typed && !spent,
+    elsewhere: typed && !spent && stored(draft.base) !== server,
+  };
+}
+
 /** The prefix pairs of one integration: add, change and remove rows, then save them together. */
-function PathMapForm({ integration }: { integration: Integration }) {
+function PathMapForm({
+  integration,
+  drafts,
+}: {
+  integration: Integration;
+  drafts: Drafts<PathMapDraft>;
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  // `server` is the stored mapping this form started from; comparing it with the stored mapping of
-  // the moment says whether somebody else has saved this integration in between.
-  const [edit, setEdit] = useState(() => ({
-    server: stored(integration.pathMap),
-    rows: integration.pathMap,
-  }));
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useStatusMessage();
+  const id = String(integration.id);
+  const { discard } = drafts;
+  const { draft, elsewhere } = pathMapState(integration, drafts);
+  const rows = draft.rows;
 
   const save = useMutation({
     mutationFn: (pairs: PathMapping[]) => setIntegrationPathMap(integration.id, pairs),
     onSuccess: async (updated) => {
-      setEdit({ server: stored(updated.pathMap), rows: updated.pathMap });
+      // The stored rows first, so the form never shows the old ones between the two.
+      queryClient.setQueryData(integrationsQuery.queryKey, (list) =>
+        list?.map((entry) => (entry.id === updated.id ? updated : entry)),
+      );
+      discard(id);
       setMessage(t('admin.integrations.webhooks.pathMap.saved'));
       await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
     },
   });
   const errors = save.error ? formErrors(t, save.error) : null;
 
-  // A second admin saved this integration while this form was open. With nothing typed here the
-  // form simply follows; with unsaved rows it keeps them and offers to take the other version.
-  const server = stored(integration.pathMap);
-  const typed = stored(edit.rows) !== edit.server;
-  if (edit.server !== server && !typed) {
-    setEdit({ server, rows: integration.pathMap });
-  }
-  const elsewhere = edit.server !== server && typed;
   const takeOver = () => {
     setMessage(null);
-    setEdit({ server, rows: integration.pathMap });
+    discard(id);
   };
 
-  const rows = edit.rows;
   const setRows = (next: (current: PathMapping[]) => PathMapping[]) =>
-    setEdit((current) => ({ ...current, rows: next(current.rows) }));
+    drafts.set(id, (current) => ({ ...current, rows: next(current.rows) }));
 
   const change = (index: number, field: keyof PathMapping) => (value: string) =>
     setRows((current) => current.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
@@ -253,14 +306,19 @@ function PathMapForm({ integration }: { integration: Integration }) {
         >
           {t('admin.integrations.webhooks.pathMap.add')}
         </AriaButton>
-        <AriaButton type="submit" variant="primary" isPending={save.isPending}>
+        <AriaButton
+          type="submit"
+          variant="primary"
+          isPending={save.isPending}
+          aria-label={t('admin.integrations.webhooks.pathMap.saveLabel', {
+            name: integration.name,
+          })}
+        >
           {t('admin.integrations.save')}
         </AriaButton>
       </div>
       {errors?.form && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
-      <div role="status" className={styles.live}>
-        {message && !save.error && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={!save.error ? message : null} />
     </Form>
   );
 }
@@ -295,12 +353,12 @@ function EventLog({ integration }: { integration: Integration }) {
         {
           key: 'reportedPath',
           header: t('admin.integrations.webhooks.log.reported'),
-          cell: (event) => <code className={table.url}>{event.reportedPath ?? '—'}</code>,
+          cell: (event) => <code className={styles.url}>{event.reportedPath ?? '—'}</code>,
         },
         {
           key: 'resolvedPath',
           header: t('admin.integrations.webhooks.log.resolved'),
-          cell: (event) => <code className={table.url}>{event.resolvedPath ?? '—'}</code>,
+          cell: (event) => <code className={styles.url}>{event.resolvedPath ?? '—'}</code>,
         },
         {
           key: 'result',
@@ -316,123 +374,135 @@ function EventLog({ integration }: { integration: Integration }) {
   );
 }
 
-/** One integration: last contact, the path mapping, the event log, renew and delete. */
-function IntegrationItem({
+/** Renew and delete of one integration, each after a confirmation. */
+function RowActions({
   integration,
   onRenewed,
+  onRemoved,
+  onError,
 }: {
   integration: Integration;
   onRenewed: (created: IntegrationCreated) => void;
+  onRemoved: () => void;
+  onError: (error: unknown) => void;
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const headingId = useId();
 
   const invalidate = async () => {
     await queryClient.invalidateQueries({ queryKey: integrationsQuery.queryKey });
     await queryClient.invalidateQueries({ queryKey: dashboardQuery.queryKey });
   };
-  const renew = useMutation({
-    mutationFn: () => renewIntegrationToken(integration.id),
-    onSuccess: async (created) => {
+  // The answer carries the new secret address: nothing of it stays in the mutation cache.
+  const renew = useTransientMutation(
+    () => renewIntegrationToken(integration.id),
+    async (created: IntegrationCreated) => {
       onRenewed(created);
       await invalidate();
     },
-  });
+  );
+  const renewNow = async () => {
+    onError(null);
+    const outcome = await renew.run(undefined);
+    if (!outcome.ok) onError(outcome.error);
+  };
   const remove = useMutation({
     mutationFn: () => deleteIntegration(integration.id),
-    onSuccess: invalidate,
+    onMutate: () => onError(null),
+    onSuccess: async () => {
+      await invalidate();
+      // The row and its buttons are gone: the focus goes to the page's heading (ALL-2).
+      onRemoved();
+    },
+    onError,
   });
 
   return (
-    <div className={styles.item} aria-labelledby={headingId}>
-      <div className={styles.head}>
-        <h3 id={headingId} className={styles.itemTitle}>
-          {integration.name}
-        </h3>
-        <Chip tone="info">{t(`admin.integrations.webhooks.kind.${integration.kind}`)}</Chip>
-      </div>
-      <Text tone="secondary">
-        {t('admin.integrations.webhooks.address', { tail: integration.tokenTail })}
-      </Text>
-      <Text tone="secondary">
-        {integration.lastSeenAt
-          ? t('admin.integrations.webhooks.lastSeen', {
-              at: formatDateTime(integration.lastSeenAt, i18n.language),
-            })
-          : t('admin.integrations.webhooks.neverSeen')}
-      </Text>
-
-      <PathMapForm integration={integration} />
-      <EventLog integration={integration} />
-
-      <div className={styles.actions}>
-        <ConfirmDialog
-          trigger={
-            <AriaButton
-              icon="refresh"
-              isPending={renew.isPending}
-              aria-label={t('admin.integrations.webhooks.renew.label', { name: integration.name })}
-            >
-              {t('admin.integrations.webhooks.renew.action')}
-            </AriaButton>
-          }
-          title={t('admin.integrations.webhooks.renew.title', { name: integration.name })}
-          body={t('admin.integrations.webhooks.renew.body')}
-          confirmLabel={t('admin.integrations.webhooks.renew.confirm')}
-          cancelLabel={t('common.cancel')}
-          tone="danger"
-          onConfirm={() => renew.mutate()}
-        />
-        <ConfirmDialog
-          trigger={
-            <AriaButton
-              variant="ghost"
-              isPending={remove.isPending}
-              aria-label={t('admin.integrations.webhooks.delete.label', { name: integration.name })}
-            >
-              {t('admin.integrations.webhooks.delete.action')}
-            </AriaButton>
-          }
-          title={t('admin.integrations.webhooks.delete.title', { name: integration.name })}
-          body={t('admin.integrations.webhooks.delete.body')}
-          confirmLabel={t('admin.integrations.webhooks.delete.confirm')}
-          cancelLabel={t('common.cancel')}
-          tone="danger"
-          onConfirm={() => remove.mutate()}
-        />
-      </div>
-      {renew.error && <Notice tone="danger">{problemMessage(t, renew.error)}</Notice>}
-      {remove.error && <Notice tone="danger">{problemMessage(t, remove.error)}</Notice>}
+    <div className={styles.actions}>
+      <ConfirmDialog
+        trigger={
+          <AriaButton
+            variant="dangerQuiet"
+            icon="refresh"
+            isPending={renew.isPending}
+            aria-label={t('admin.integrations.webhooks.renew.label', { name: integration.name })}
+          >
+            {t('admin.integrations.webhooks.renew.action')}
+          </AriaButton>
+        }
+        title={t('admin.integrations.webhooks.renew.title', { name: integration.name })}
+        body={t('admin.integrations.webhooks.renew.body')}
+        confirmLabel={t('admin.integrations.webhooks.renew.confirm')}
+        cancelLabel={t('common.cancel')}
+        tone="danger"
+        onConfirm={() => void renewNow()}
+      />
+      <ConfirmDialog
+        trigger={
+          <AriaButton
+            variant="dangerQuiet"
+            isPending={remove.isPending}
+            aria-label={t('admin.integrations.webhooks.delete.label', { name: integration.name })}
+          >
+            {t('admin.integrations.webhooks.delete.action')}
+          </AriaButton>
+        }
+        title={t('admin.integrations.webhooks.delete.title', { name: integration.name })}
+        body={t('admin.integrations.webhooks.delete.body')}
+        confirmLabel={t('admin.integrations.webhooks.delete.confirm')}
+        cancelLabel={t('common.cancel')}
+        tone="danger"
+        onConfirm={() => remove.mutate()}
+      />
     </div>
   );
 }
 
 /**
  * Incoming webhooks of Radarr and Sonarr (I-8, decision 5.6): one address per integration, shown
- * once, plus its path mapping and the newest 20 reports. Slouchcat never calls those services.
+ * once; a table of the integrations whose rows fold out into the path mapping and the newest 20
+ * reports. The mapping's unsaved rows live in the page (`drafts`), so folding a row away keeps
+ * them. Slouchcat never calls those services.
  */
-export function WebhooksSection() {
-  const { t } = useTranslation();
-  const headingId = useId();
+export function WebhooksSection({
+  drafts,
+  newName,
+  onNewNameChange,
+  onRemoved,
+}: {
+  drafts: Drafts<PathMapDraft>;
+  /** The name typed for a new integration, held by the page (S-13). */
+  newName: string;
+  onNewNameChange: (name: string) => void;
+  /** An integration was deleted: the page moves the focus to its heading. */
+  onRemoved: () => void;
+}) {
+  const { t, i18n } = useTranslation();
   const [created, setCreated] = useState<IntegrationCreated | null>(null);
+  const [error, setError] = useState<unknown>(null);
   const integrations = useQuery(integrationsQuery);
 
+  // Drafts that came to match the stored mapping (a save elsewhere, rows typed back) are dropped
+  // here, for every integration, whether its row is open or folded.
+  const { discard } = drafts;
+  const spent = (integrations.data ?? [])
+    .filter((integration) => pathMapState(integration, drafts).spent)
+    .map((integration) => String(integration.id))
+    .join(',');
+  useEffect(() => {
+    for (const id of spent.split(',').filter(Boolean)) discard(id);
+  }, [spent, discard]);
+
   return (
-    <Panel as="section" aria-labelledby={headingId}>
-      <div className={styles.head}>
-        <div className={styles.headText}>
-          <h2 id={headingId} className={styles.title}>
-            {t('admin.integrations.webhooks.title')}
-          </h2>
-          <Text tone="secondary">{t('admin.integrations.webhooks.intro')}</Text>
-        </div>
-      </div>
-
-      {created && <CreatedAddress created={created} onDismiss={() => setCreated(null)} />}
-      <NewIntegrationForm onCreated={setCreated} />
-
-      <div className={styles.items} aria-busy={integrations.isPending}>
+    <>
+      <Text tone="secondary">{t('admin.integrations.webhooks.intro')}</Text>
+      {/* Keyed by the address: a second one starts afresh (status line, focus on its field). */}
+      {created && (
+        <CreatedAddress key={created.url} created={created} onDismiss={() => setCreated(null)} />
+      )}
+      <NewIntegrationForm name={newName} onNameChange={onNewNameChange} onCreated={setCreated} />
+      {error ? <Notice tone="danger">{problemMessage(t, error)}</Notice> : null}
+      <div aria-busy={integrations.isPending}>
         {integrations.isPending && <Skeleton shape="block" />}
         {integrations.isError && (
           <Notice tone="danger">{problemMessage(t, integrations.error)}</Notice>
@@ -440,10 +510,87 @@ export function WebhooksSection() {
         {integrations.data?.length === 0 && (
           <Text tone="secondary">{t('admin.integrations.webhooks.empty')}</Text>
         )}
-        {integrations.data?.map((integration) => (
-          <IntegrationItem key={integration.id} integration={integration} onRenewed={setCreated} />
-        ))}
+        {integrations.data && integrations.data.length > 0 && (
+          <DataTable
+            caption={t('admin.integrations.webhooks.caption')}
+            rows={integrations.data}
+            rowKey={(integration) => String(integration.id)}
+            expand={{
+              render: (integration) => (
+                <div className={styles.detail}>
+                  <PathMapForm integration={integration} drafts={drafts} />
+                  <EventLog integration={integration} />
+                </div>
+              ),
+            }}
+            columns={[
+              {
+                key: 'name',
+                header: t('admin.integrations.webhooks.columns.name'),
+                rowHeader: true,
+                cell: (integration) => {
+                  const state = pathMapState(integration, drafts);
+                  return (
+                    <>
+                      {integration.name}
+                      {state.dirty && <Chip tone="warning">{t('admin.integrations.unsaved')}</Chip>}
+                      {state.elsewhere && (
+                        <Chip tone="danger">
+                          {t('admin.integrations.webhooks.pathMap.elsewhereChip')}
+                        </Chip>
+                      )}
+                    </>
+                  );
+                },
+              },
+              {
+                key: 'kind',
+                header: t('admin.integrations.webhooks.columns.kind'),
+                cell: (integration) => (
+                  <Chip tone="info">
+                    {t(`admin.integrations.webhooks.kind.${integration.kind}`)}
+                  </Chip>
+                ),
+              },
+              {
+                key: 'address',
+                header: t('admin.integrations.webhooks.columns.address'),
+                cell: (integration) => (
+                  <code className={styles.url}>
+                    {t('admin.integrations.webhooks.tail', { tail: integration.tokenTail })}
+                  </code>
+                ),
+              },
+              {
+                key: 'lastSeen',
+                header: t('admin.integrations.webhooks.columns.lastSeen'),
+                cell: (integration) =>
+                  integration.lastSeenAt
+                    ? formatDateTime(integration.lastSeenAt, i18n.language)
+                    : t('admin.integrations.webhooks.neverSeen'),
+              },
+              {
+                key: 'actions',
+                header: t('admin.integrations.webhooks.columns.actions'),
+                align: 'end',
+                cell: (integration) => (
+                  <RowActions
+                    integration={integration}
+                    onRenewed={setCreated}
+                    onRemoved={() => {
+                      setCreated((current) =>
+                        current?.integration.id === integration.id ? null : current,
+                      );
+                      onRemoved();
+                    }}
+                    onError={setError}
+                  />
+                ),
+              },
+            ]}
+          />
+        )}
       </div>
-    </Panel>
+    </>
   );
 }

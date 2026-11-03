@@ -15,7 +15,7 @@ vi.mock('./restart', async (original) => ({
 }));
 
 // The administration (concept 11, A-2, A-3): the sidebar in the shell's column on every /admin
-// page (20 entries, numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet on a phone, and the
+// page (19 entries, numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet on a phone, and the
 // overview with eight equal cards asked every 5 s, the hints, the collapsed server log and the
 // restart.
 
@@ -222,6 +222,11 @@ describe('admin overview (concept 11, A-3)', () => {
       'href',
       '/admin/jobs',
     );
+    // Concept 12 (JOB-8, 11.5 point 11): the failures of every type are a tab of the jobs page.
+    expect(within(tasks).getByRole('link', { name: 'Fehlschläge ansehen' })).toHaveAttribute(
+      'href',
+      '/admin/jobs?tab=failed',
+    );
     // F-2: no table with «Erneut» and «Abbrechen» on the overview any more.
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
 
@@ -306,9 +311,12 @@ describe('admin overview (concept 11, A-3)', () => {
       '/config ist zu über 90 % belegt',
       'Version 0.9.1 ist verfügbar',
     ]);
+    // The failures hint opens the tab «Fehlschläge», the paused hint the page.
     expect(
-      within(hints).getAllByRole('link', { name: 'Zu den Hintergrundjobs' })[0],
-    ).toHaveAttribute('href', '/admin/jobs');
+      within(hints)
+        .getAllByRole('link', { name: 'Zu den Hintergrundjobs' })
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/admin/jobs?tab=failed', '/admin/jobs']);
     expect(within(hints).getByRole('link', { name: 'Zu den Bibliotheken' })).toHaveAttribute(
       'href',
       '/admin/libraries',
@@ -577,6 +585,8 @@ describe('admin overview (concept 11, A-3)', () => {
     act(() => restart.focus());
     await user.keyboard('{Enter}');
     const dialog = await screen.findByRole('alertdialog', { name: 'Server neu starten?' });
+    // The overview opens its own AdminDensityScope, so its dialog is compact too (ADR 0020).
+    expect(dialog.closest('[data-density]')).toHaveAttribute('data-density', 'compact');
     expect(dialog).toHaveTextContent(
       '1 laufender Stream bricht ab. Laufende Downloads für unterwegs werden unterbrochen.',
     );
@@ -714,7 +724,7 @@ describe('admin overview (concept 11, A-3)', () => {
   });
 });
 
-/** Every entry of the sidebar, in its order, with its path (11.1: 20 entries). */
+/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries). */
 const SIDEBAR = [
   ['Zurück zur App', '/'],
   ['Übersicht', '/admin'],
@@ -723,7 +733,6 @@ const SIDEBAR = [
   ['Pflege', '/admin/maintenance'],
   ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
-  ['Profile', '/settings/profiles'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
@@ -744,7 +753,7 @@ describe('admin sidebar (A-2, concept 11)', () => {
     localStorage.clear();
   });
 
-  it('stands in the column with 20 entries and their numbers; ↑ ↓ Home End move, one Tab stop', async () => {
+  it('stands in the column with 19 entries and their numbers; ↑ ↓ Home End move, one Tab stop', async () => {
     mockApi(routes({ 'GET /admin/devices': () => json([]) }));
     const { nav } = await renderAdminPage('/admin/devices');
     const links = within(nav).getAllByRole('link');
@@ -805,7 +814,7 @@ describe('admin sidebar (A-2, concept 11)', () => {
     await waitFor(() =>
       expect(queryClient.getQueryState(['admin', 'dashboard'])?.status).toBe('error'),
     );
-    expect(within(nav).getAllByRole('link')).toHaveLength(20);
+    expect(within(nav).getAllByRole('link')).toHaveLength(19);
     expect(within(nav).getByRole('link', { name: 'Bibliotheken' })).toHaveTextContent(
       /^Bibliotheken$/,
     );
@@ -898,7 +907,7 @@ describe('admin sidebar (A-2, concept 11)', () => {
     await user.click(button);
     const sheet = await screen.findByRole('dialog', { name: 'Seiten der Verwaltung' });
     const nav = within(sheet).getByRole('navigation', { name: 'Verwaltung' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(20);
+    expect(within(nav).getAllByRole('link')).toHaveLength(19);
     expect(within(nav).getByRole('link', { name: 'Geräte' })).toHaveFocus();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

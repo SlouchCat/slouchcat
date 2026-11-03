@@ -1,0 +1,84 @@
+.popover {
+  min-width: 12rem;
+  padding: var(--sc-space-1);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
+  outline: none;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  max-height: min(60vh, 28rem);
+  overflow-y: auto;
+  outline: none;
+}
+
+/* The fade runs on the menu, not on the popover (see Menu.module.css). */
+.popover[data-entering] .menu {
+  animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.section + .section {
+  padding-top: var(--sc-space-2);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.header {
+  padding: var(--sc-space-1) var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.item {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  cursor: pointer;
+  outline: none;
+}
+
+.item[data-focused],
+.item[data-hovered] {
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+}
+
+.item[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
+}
+
+.item.danger,
+.item.danger[data-focused],
+.item.danger[data-hovered] {
+  color: var(--sc-color-state-danger);
+}
+
+.item[data-disabled] {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}

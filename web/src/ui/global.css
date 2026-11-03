@@ -39,6 +39,15 @@ body {
   min-height: 100%;
 }
 
+/*
+ * A sticky SaveBar covers the bottom of the viewport: what takes the focus scrolls into view above
+ * it, not under it (WCAG 2.2, 2.4.11). Room for the bar wrapped to two lines on a narrow screen,
+ * its padding and its distance from the bottom.
+ */
+:root:has([data-save-bar]) {
+  scroll-padding-block-end: calc(2 * var(--sc-control-height) + 4 * var(--sc-space-3));
+}
+
 body {
   background-color: var(--sc-color-bg-base);
   color: var(--sc-color-text-primary);

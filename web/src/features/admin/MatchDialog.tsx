@@ -7,7 +7,7 @@ import { problemMessage } from '@/api/errors';
 import { formText } from '@/lib/form';
 import { CandidateCard, Notice } from '@/ui';
 import { AriaButton, Form, FormDialog, RadioGroup, TextField } from '@/ui/aria';
-import styles from './MaintenancePage.module.css';
+import styles from './maintenance/Maintenance.module.css';
 
 type MatchKind = 'movie' | 'series';
 

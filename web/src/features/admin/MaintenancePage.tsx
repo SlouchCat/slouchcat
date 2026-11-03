@@ -1,167 +1,129 @@
-import type { DuplicateGroup, Issue, IssueKind, Rating } from '@slouchcat/api-client';
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQueries,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
-import type { TFunction } from 'i18next';
-import { useState, type FormEvent, type ReactNode } from 'react';
+import type { DuplicateGroup, Issue, IssueKind } from '@slouchcat/api-client';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { formatBytes } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Page, Panel, Skeleton, Text } from '@/ui';
+import { Notice, Page } from '@/ui';
 import {
-  AriaButton,
+  AdminPage,
   ConfirmDialog,
-  Form,
-  FormDialog,
-  RadioGroup,
-  SelectableList,
   Tabs,
-  type SelectableItem,
+  afterDialogsClosed,
+  focusTitleIfLost,
+  useSearchSelection,
+  type StatusMessage,
+  type TabItem,
 } from '@/ui/aria';
-import { ratingOptions, titleRatingOf } from '../shared/choices';
+import { DuplicatesTab } from './maintenance/DuplicatesTab';
+import { IssueTab, type IssueHandlers } from './maintenance/IssueTab';
+import { RatingDialog } from './maintenance/RatingDialog';
+import { DUPLICATES, groupKey, TABS, type Confirmation, type Outcome } from './maintenance/shared';
 import { MatchDialog } from './MatchDialog';
 import {
   duplicatesQuery,
   issueCountQuery,
   issueKinds,
-  issuesQuery,
+  librariesQuery,
   maintenanceKey,
 } from './queries';
-import styles from './MaintenancePage.module.css';
 
-const DUPLICATES = 'duplicates';
+/** The dialog of the page besides its confirmation: assignment or rating of the selection. */
+type ActionDialog = { type: 'match'; issue: Issue } | { type: 'rating'; itemIds: string[] } | null;
 
-/** Selection key of an issue: unplayable issues are per file, the others per title. */
-const issueKey = (issue: Issue) => `${issue.itemId}:${issue.mediaFileId ?? ''}`;
+/**
+ * Library maintenance (B-9; concept 12, variant C): one tab per kind of issue with its count
+ * (PFL-1) and the duplicates. A tab shows its hint, the toolbar with the actions and the
+ * selection, and the loaded issues in one section per library with «Mehr laden» (PFL-2, PFL-3);
+ * the duplicates come as one section per group (PFL-4). Selection, outcome and the title to keep
+ * belong to the page, so they stay when the tab changes (S-17).
+ */
+export function MaintenancePage() {
+  const { t } = useTranslation();
+  useDocumentTitle(t('admin.maintenance.title'));
+  const session = useActiveSession();
+  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!allowed) {
+    return (
+      <Page>
+        <Notice title={t('admin.access.notAllowed.title')}>
+          {t('admin.access.notAllowed.body')}
+        </Notice>
+      </Page>
+    );
+  }
+  return <MaintenanceContent />;
+}
 
-const titleWithYear = (t: TFunction, title: string, year: number | undefined) =>
-  year !== undefined ? t('admin.titleYear', { title, year }) : title;
-
-/** Outcome line above the list after an action. */
-type Outcome = { tone: 'info' | 'danger'; text: string } | null;
-
-function useMaintenanceRefresh() {
+function MaintenanceContent() {
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
-  return () => queryClient.invalidateQueries({ queryKey: maintenanceKey });
-}
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
 
-function RatingDialog({
-  itemIds,
-  onClose,
-  onDone,
-}: {
-  itemIds: string[];
-  onClose: () => void;
-  onDone: (outcome: Outcome) => void;
-}) {
-  const { t } = useTranslation();
-  // No preselection: an unrated title counts as FSK 18, and a wrong default (FSK 0) would open it
-  // to every profile with two key presses.
-  const [rating, setRating] = useState('');
-  const chosen = titleRatingOf(rating);
-  const assign = useMutation({
-    mutationFn: (value: Rating) =>
-      request(api.POST('/admin/items/rating', { body: { itemIds, rating: value } })),
-    onSuccess: (result) => {
-      onDone({ tone: 'info', text: t('admin.maintenance.done.rating', { count: result.updated }) });
-      onClose();
-    },
+  // An unknown `?tab=` shows the first tab; the address says so too.
+  const [tab, selectTab] = useSearchSelection('tab', TABS, issueKinds[0], { normalise: true });
+
+  const [selection, setSelection] = useState<Partial<Record<IssueKind, string[]>>>({});
+  // Keyed per message, so the same outcome twice in a row is announced again.
+  const [outcomes, setOutcomes] = useState<Partial<Record<string, StatusMessage>>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [targets, setTargets] = useState<Record<string, string>>({});
+  const [dialog, setDialog] = useState<ActionDialog>(null);
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // While a dialog is open nothing refetches on its own: the rows it was opened for stay.
+  const hold = confirmOpen || dialog !== null;
+
+  const counts = useQueries({
+    queries: issueKinds.map((kind) => ({
+      ...issueCountQuery(kind),
+      refetchOnWindowFocus: !hold,
+    })),
   });
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (chosen !== undefined && !assign.isPending) assign.mutate(chosen);
-  };
-  return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      title={t('admin.maintenance.rating.title')}
-      description={t('admin.maintenance.rating.description', { count: itemIds.length })}
-    >
-      <Form className={styles.form} onSubmit={onSubmit}>
-        {assign.isError && <Notice tone="danger">{problemMessage(t, assign.error)}</Notice>}
-        <RadioGroup
-          name="rating"
-          label={t('admin.maintenance.rating.label')}
-          value={rating}
-          onChange={setRating}
-          options={ratingOptions(t)}
-          isRequired
-        />
-        <p className={styles.muted} aria-live="polite">
-          {chosen !== undefined &&
-            t('admin.maintenance.rating.summary', {
-              count: itemIds.length,
-              rating: t('rating.fsk', { age: chosen }),
-            })}
-        </p>
-        <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={onClose}>
-            {t('common.cancel')}
-          </AriaButton>
-          <AriaButton
-            type="submit"
-            variant="primary"
-            isDisabled={chosen === undefined}
-            isPending={assign.isPending}
-          >
-            {assign.isPending
-              ? t('admin.maintenance.rating.submitting')
-              : t('admin.maintenance.rating.submit')}
-          </AriaButton>
-        </div>
-      </Form>
-    </FormDialog>
+  const duplicates = useQuery({ ...duplicatesQuery, refetchOnWindowFocus: !hold });
+  // The names of the sections; the page does not follow a scan.
+  const libraries = useQuery({
+    ...librariesQuery,
+    refetchInterval: false,
+    refetchOnWindowFocus: !hold,
+  });
+
+  /**
+   * Shows the outcome in the tab, drops its selection and fetches again. Once React has rendered
+   * the answer, the focus moves to the h1 when the rows that had it are gone (ALL-2), or when the
+   * button that had it went off with the selection.
+   */
+  const finish = useCallback(
+    async (tabId: string, outcome: Outcome, removed = false) => {
+      setOutcomes((current) => ({
+        ...current,
+        [tabId]: { ...outcome, key: (current[tabId]?.key ?? 0) + 1 },
+      }));
+      setSelection((current) => ({ ...current, [tabId]: [] }));
+      await queryClient.invalidateQueries({ queryKey: maintenanceKey });
+      await afterDialogsClosed();
+      if (removed) titleRef.current?.focus();
+      else focusTitleIfLost(titleRef);
+    },
+    [queryClient],
   );
-}
-
-function issueMeta(t: TFunction, issue: Issue): ReactNode {
-  return (
-    <>
-      <span>{t(`kind.${issue.itemKind}`)}</span>
-      {issue.path && <code className={styles.path}>{issue.path}</code>}
-      {issue.detail && <span>{issue.detail}</span>}
-    </>
-  );
-}
-
-/** One tab of the maintenance page: the issues of one kind, selectable, with its actions. */
-function IssueTab({ kind }: { kind: IssueKind }) {
-  const { t } = useTranslation();
-  const refresh = useMaintenanceRefresh();
-  const issues = useInfiniteQuery(issuesQuery(kind));
-  const [selected, setSelected] = useState<string[]>([]);
-  const [outcome, setOutcome] = useState<Outcome>(null);
-  const [dialog, setDialog] = useState<'match' | 'rating' | null>(null);
-
-  const list = issues.data?.pages.flatMap((page) => page.items) ?? [];
-  const total = issues.data?.pages.at(-1)?.total ?? 0;
-  const chosen = list.filter((issue) => selected.includes(issueKey(issue)));
-  const itemIds = [...new Set(chosen.map((issue) => issue.itemId))];
-  const mediaFileIds = chosen.flatMap((issue) => (issue.mediaFileId ? [issue.mediaFileId] : []));
-  const selectable = kind !== 'rating_mismatch';
-
-  const finish = async (next: Outcome) => {
-    setOutcome(next);
-    setSelected([]);
-    await refresh();
-  };
-  const failed = (error: unknown) => setOutcome({ tone: 'danger', text: problemMessage(t, error) });
+  const failed = (tabId: string, error: unknown) =>
+    setOutcomes((current) => ({
+      ...current,
+      [tabId]: {
+        tone: 'danger',
+        text: problemMessage(t, error),
+        key: (current[tabId]?.key ?? 0) + 1,
+      },
+    }));
 
   const refreshItems = useMutation({
     // One request after the other: a selection over several pages must not fire hundreds of
     // requests at once, and one failure must not hide what the others did.
-    mutationFn: async (ids: string[]) => {
+    mutationFn: async ({ ids }: { kind: IssueKind; ids: string[] }) => {
       let failures = 0;
       let firstError: unknown;
       for (const id of ids) {
@@ -174,8 +136,9 @@ function IssueTab({ kind }: { kind: IssueKind }) {
       }
       return { failures, firstError };
     },
-    onSuccess: ({ failures, firstError }, ids) =>
+    onSuccess: ({ failures, firstError }, { kind, ids }) =>
       finish(
+        kind,
         failures === 0
           ? { tone: 'info', text: t('admin.maintenance.done.refresh', { count: ids.length }) }
           : {
@@ -187,353 +150,199 @@ function IssueTab({ kind }: { kind: IssueKind }) {
               }),
             },
       ),
-    onError: failed,
+    onError: (error, { kind }) => failed(kind, error),
   });
   const cleanup = useMutation({
-    mutationFn: (body: { itemIds?: string[]; mediaFileIds?: string[] }) =>
-      request(api.POST('/admin/maintenance/cleanup', { body })),
-    onSuccess: (result) =>
-      finish({
-        tone: 'info',
-        text: t('admin.maintenance.done.cleanup', {
-          items: t('admin.maintenance.titleCount', { count: result.items }),
-          files: t('admin.maintenance.fileCount', { count: result.files }),
-        }),
-      }),
-    onError: failed,
+    mutationFn: ({
+      body,
+    }: {
+      kind: IssueKind;
+      body: { itemIds?: string[]; mediaFileIds?: string[] };
+    }) => request(api.POST('/admin/maintenance/cleanup', { body })),
+    onSuccess: (result, { kind }) =>
+      finish(
+        kind,
+        {
+          tone: 'info',
+          text: t('admin.maintenance.done.cleanup', {
+            items: t('admin.maintenance.titleCount', { count: result.items }),
+            files: t('admin.maintenance.fileCount', { count: result.files }),
+          }),
+        },
+        true,
+      ),
+    onError: (error, { kind }) => failed(kind, error),
   });
-
-  const none = chosen.length === 0;
-  const matchTarget = chosen.length === 1 ? chosen[0] : undefined;
-  const canMatch =
-    matchTarget !== undefined &&
-    (matchTarget.itemKind === 'movie' || matchTarget.itemKind === 'series');
-
-  const refreshButton = (label: string) => (
-    <AriaButton
-      icon="refresh"
-      isDisabled={none}
-      isPending={refreshItems.isPending}
-      onPress={() => refreshItems.mutate(itemIds)}
-    >
-      {label}
-    </AriaButton>
-  );
-
-  const actions: Partial<Record<IssueKind, ReactNode>> = {
-    unmatched: (
-      <>
-        <AriaButton variant="primary" isDisabled={!canMatch} onPress={() => setDialog('match')}>
-          {t('admin.maintenance.action.match')}
-        </AriaButton>
-        {refreshButton(t('admin.maintenance.action.refresh'))}
-      </>
-    ),
-    no_images: refreshButton(t('admin.maintenance.action.refresh')),
-    unrated: (
-      <AriaButton variant="primary" isDisabled={none} onPress={() => setDialog('rating')}>
-        {t('admin.maintenance.action.rating')}
-      </AriaButton>
-    ),
-    orphaned: (
-      <ConfirmDialog
-        trigger={
-          <AriaButton variant="danger" isDisabled={none || cleanup.isPending}>
-            {t('admin.maintenance.action.cleanup')}
-          </AriaButton>
-        }
-        title={t('admin.maintenance.cleanup.title')}
-        body={t('admin.maintenance.cleanup.body', { count: itemIds.length })}
-        confirmLabel={t('admin.maintenance.cleanup.confirm')}
-        cancelLabel={t('common.cancel')}
-        tone="danger"
-        onConfirm={() => cleanup.mutate({ itemIds })}
-      />
-    ),
-    unplayable: (
-      <>
-        {refreshButton(t('admin.maintenance.action.recheck'))}
-        <ConfirmDialog
-          trigger={
-            <AriaButton variant="danger" isDisabled={none || cleanup.isPending}>
-              {t('admin.maintenance.action.remove')}
-            </AriaButton>
-          }
-          title={t('admin.maintenance.remove.title')}
-          body={t('admin.maintenance.remove.body', { count: mediaFileIds.length })}
-          confirmLabel={t('admin.maintenance.remove.confirm')}
-          cancelLabel={t('common.cancel')}
-          tone="danger"
-          onConfirm={() => cleanup.mutate({ mediaFileIds })}
-        />
-      </>
-    ),
-  };
-
-  const items: SelectableItem[] = list.map((issue) => ({
-    id: issueKey(issue),
-    title: titleWithYear(t, issue.title, issue.year),
-    href: paths.adminItem(issue.itemId),
-    meta: issueMeta(t, issue),
-    selectLabel: t('admin.maintenance.selectItem', { title: issue.title }),
-  }));
-  const allKeys = items.map((item) => item.id);
-
-  return (
-    <div className={styles.tab}>
-      <Text tone="secondary">{t(`admin.maintenance.hint.${kind}`)}</Text>
-      {outcome && <Notice tone={outcome.tone}>{outcome.text}</Notice>}
-      {issues.isPending && <Skeleton shape="block" />}
-      {issues.isError && (
-        <Notice
-          tone="danger"
-          title={problemMessage(t, issues.error)}
-          actions={
-            <AriaButton icon="refresh" onPress={() => void issues.refetch()}>
-              {t('common.retry')}
-            </AriaButton>
-          }
-        />
-      )}
-      {issues.isSuccess && list.length === 0 && <Notice>{t('admin.maintenance.empty')}</Notice>}
-      {list.length > 0 && (
-        <>
-          {selectable && (
-            <div className={styles.toolbar}>
-              <div className={styles.actions}>{actions[kind]}</div>
-              <div className={styles.actions}>
-                <span className={styles.muted} aria-live="polite">
-                  {t('admin.maintenance.selected', { count: chosen.length })}
-                </span>
-                <AriaButton
-                  variant="ghost"
-                  onPress={() => setSelected(chosen.length === items.length ? [] : allKeys)}
-                >
-                  {chosen.length === items.length
-                    ? t('admin.maintenance.selectNone')
-                    : t('admin.maintenance.selectAll')}
-                </AriaButton>
-              </div>
-            </div>
-          )}
-          <SelectableList
-            label={t('admin.maintenance.selection')}
-            items={items}
-            value={selectable ? selected : undefined}
-            onChange={selectable ? setSelected : undefined}
-          />
-          <div className={styles.actions}>
-            <span className={styles.muted}>
-              {t('admin.maintenance.shown', { shown: list.length, total })}
-            </span>
-            {issues.hasNextPage && (
-              <AriaButton
-                variant="secondary"
-                isPending={issues.isFetchingNextPage}
-                onPress={() => void issues.fetchNextPage()}
-              >
-                {t('admin.maintenance.more')}
-              </AriaButton>
-            )}
-          </div>
-        </>
-      )}
-
-      {dialog === 'match' && matchTarget && (
-        <MatchDialog
-          itemId={matchTarget.itemId}
-          title={matchTarget.title}
-          year={matchTarget.year}
-          kind={matchTarget.itemKind === 'series' ? 'series' : 'movie'}
-          onClose={() => setDialog(null)}
-          onMatched={() => void finish({ tone: 'info', text: t('admin.maintenance.done.match') })}
-        />
-      )}
-      {dialog === 'rating' && (
-        <RatingDialog
-          itemIds={itemIds}
-          onClose={() => setDialog(null)}
-          onDone={(next) => void finish(next)}
-        />
-      )}
-    </div>
-  );
-}
-
-function DuplicateCard({
-  group,
-  index,
-  onMerged,
-}: {
-  group: DuplicateGroup;
-  index: number;
-  onMerged: (outcome: Outcome) => void;
-}) {
-  const { t, i18n } = useTranslation();
-  const [target, setTarget] = useState(group.items[0]?.itemId ?? '');
-  const targetItem = group.items.find((item) => item.itemId === target);
   const merge = useMutation({
-    mutationFn: () =>
+    mutationFn: ({ group, targetId }: { group: DuplicateGroup; targetId: string }) =>
       request(
         api.POST('/admin/maintenance/merge', {
           body: {
-            targetId: target,
-            sourceIds: group.items.map((item) => item.itemId).filter((id) => id !== target),
+            targetId,
+            sourceIds: group.items.map((item) => item.itemId).filter((id) => id !== targetId),
           },
         }),
       ),
-    onSuccess: () => onMerged({ tone: 'info', text: t('admin.maintenance.done.merge') }),
-    onError: (error) => onMerged({ tone: 'danger', text: problemMessage(t, error) }),
+    onSuccess: () =>
+      finish(DUPLICATES, { tone: 'info', text: t('admin.maintenance.done.merge') }, true),
+    onError: (error) => failed(DUPLICATES, error),
   });
-  const headingId = `duplicate-${index}`;
+
+  // Every confirmation is the page's own: the rows that asked for it may go while it is open.
+  const ask = useCallback((next: Confirmation) => {
+    setConfirmation(next);
+    setConfirmOpen(true);
+  }, []);
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The button that opened it may be gone or off by now.
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  }, []);
+  const closeDialog = useCallback(() => {
+    setDialog(null);
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  }, []);
+
+  const { mutate: refreshMutate } = refreshItems;
+  const { mutate: cleanupMutate } = cleanup;
+  const { mutate: mergeMutate } = merge;
+  const handlers = useMemo<IssueHandlers>(
+    () => ({
+      onSelect: (kind, keys) => setSelection((current) => ({ ...current, [kind]: keys })),
+      onExpandedChange: (key, open) => setExpanded((current) => ({ ...current, [key]: open })),
+      onMatch: (issue) => setDialog({ type: 'match', issue }),
+      onRefresh: (kind, ids) => refreshMutate({ kind, ids }),
+      onRating: (itemIds) => setDialog({ type: 'rating', itemIds }),
+      onCleanup: (kind, itemIds) =>
+        ask({
+          title: t('admin.maintenance.cleanup.title'),
+          body: t('admin.maintenance.cleanup.body', { count: itemIds.length }),
+          confirmLabel: t('admin.maintenance.cleanup.confirm'),
+          tone: 'danger',
+          onConfirm: () => cleanupMutate({ kind, body: { itemIds } }),
+        }),
+      onRemove: (kind, mediaFileIds) =>
+        ask({
+          title: t('admin.maintenance.remove.title'),
+          body: t('admin.maintenance.remove.body', { count: mediaFileIds.length }),
+          confirmLabel: t('admin.maintenance.remove.confirm'),
+          tone: 'danger',
+          onConfirm: () => cleanupMutate({ kind, body: { mediaFileIds } }),
+        }),
+    }),
+    [ask, t, refreshMutate, cleanupMutate],
+  );
+  const onMerge = useCallback(
+    (group: DuplicateGroup, targetId: string) => {
+      const target = group.items.find((item) => item.itemId === targetId);
+      ask({
+        title: t('admin.maintenance.duplicates.confirmTitle'),
+        body: t('admin.maintenance.duplicates.confirmBody', {
+          count: group.items.length - 1,
+          title: target?.title ?? '',
+        }),
+        confirmLabel: t('admin.maintenance.duplicates.merge'),
+        // The other titles are deleted; the button that asks stays primary (mockup Pfl-C).
+        tone: 'danger',
+        onConfirm: () => mergeMutate({ group, targetId }),
+      });
+    },
+    [ask, t, mergeMutate],
+  );
+
+  const tabs: TabItem[] = [
+    ...issueKinds.map((kind, index) => {
+      const count = counts[index]?.data;
+      return {
+        id: kind,
+        label: t(`admin.maintenance.tab.${kind}`),
+        count: count === undefined ? undefined : number.format(count),
+        countLabel: count === undefined ? undefined : t('admin.maintenance.entries', { count }),
+        content: (
+          <IssueTab
+            kind={kind}
+            libraries={libraries.data}
+            selected={selection[kind] ?? []}
+            outcome={outcomes[kind]}
+            expanded={expanded}
+            hold={hold}
+            refreshing={refreshItems.isPending && refreshItems.variables.kind === kind}
+            cleaning={cleanup.isPending}
+            handlers={handlers}
+          />
+        ),
+      };
+    }),
+    {
+      id: DUPLICATES,
+      label: t('admin.maintenance.tab.duplicates'),
+      count: duplicates.data === undefined ? undefined : number.format(duplicates.data.length),
+      countLabel:
+        duplicates.data === undefined
+          ? undefined
+          : t('admin.maintenance.duplicates.groups', { count: duplicates.data.length }),
+      content: (
+        <DuplicatesTab
+          outcome={outcomes[DUPLICATES]}
+          targets={targets}
+          expanded={expanded}
+          hold={hold}
+          merging={merge.isPending ? groupKey(merge.variables.group) : undefined}
+          onTarget={(key, itemId) => setTargets((current) => ({ ...current, [key]: itemId }))}
+          onExpandedChange={handlers.onExpandedChange}
+          onMerge={onMerge}
+        />
+      ),
+    },
+  ];
 
   return (
-    <Panel as="article" aria-labelledby={headingId}>
-      <div className={styles.groupHead}>
-        <h3 id={headingId} className={styles.groupTitle}>
-          {t('admin.maintenance.duplicates.group', { index: index + 1 })}
-        </h3>
-        <span className={styles.muted}>
-          {t(`admin.maintenance.duplicates.reason.${group.reason}`)}
-        </span>
-      </div>
-      <SelectableList
-        label={t('admin.maintenance.duplicates.group', { index: index + 1 })}
-        items={group.items.map((item) => ({
-          id: item.itemId,
-          title: titleWithYear(t, item.title, item.year),
-          href: paths.adminItem(item.itemId),
-          selectLabel: item.title,
-          meta: (
-            <>
-              <span>{t(`kind.${item.kind}`)}</span>
-              {item.files.map((file) => (
-                <span key={file.id} className={styles.fileLine}>
-                  <code className={styles.path}>{file.path}</code>
-                  <span>{formatBytes(file.sizeBytes, i18n.language)}</span>
-                </span>
-              ))}
-            </>
-          ),
-        }))}
+    <AdminPage
+      title={t('admin.maintenance.title')}
+      help={t('admin.maintenance.intro')}
+      titleRef={titleRef}
+    >
+      <Tabs
+        label={t('admin.maintenance.tabs')}
+        selectedKey={tab}
+        onSelectionChange={selectTab}
+        tabs={tabs}
       />
-      <div className={styles.mergeRow}>
-        <RadioGroup
-          label={t('admin.maintenance.duplicates.target')}
-          value={target}
-          onChange={setTarget}
-          options={group.items.map((item, position) => ({
-            value: item.itemId,
-            label: t('admin.maintenance.duplicates.option', {
-              index: position + 1,
-              title: item.title,
-            }),
-          }))}
+      {dialog?.type === 'match' && (
+        <MatchDialog
+          itemId={dialog.issue.itemId}
+          title={dialog.issue.title}
+          year={dialog.issue.year}
+          kind={dialog.issue.itemKind === 'series' ? 'series' : 'movie'}
+          onClose={closeDialog}
+          onMatched={() =>
+            void finish(dialog.issue.kind, {
+              tone: 'info',
+              text: t('admin.maintenance.done.match'),
+            })
+          }
         />
+      )}
+      {dialog?.type === 'rating' && (
+        <RatingDialog
+          itemIds={dialog.itemIds}
+          onClose={closeDialog}
+          onDone={(outcome) => void finish('unrated', outcome)}
+        />
+      )}
+      {confirmation && (
         <ConfirmDialog
-          trigger={
-            <AriaButton variant="primary" isPending={merge.isPending}>
-              {t('admin.maintenance.duplicates.merge')}
-            </AriaButton>
-          }
-          title={t('admin.maintenance.duplicates.confirmTitle')}
-          body={t('admin.maintenance.duplicates.confirmBody', {
-            count: group.items.length - 1,
-            title: targetItem?.title ?? '',
-          })}
-          confirmLabel={t('admin.maintenance.duplicates.merge')}
+          isOpen={confirmOpen}
+          onOpenChange={onConfirmOpenChange}
+          title={confirmation.title}
+          body={confirmation.body}
+          confirmLabel={confirmation.confirmLabel}
           cancelLabel={t('common.cancel')}
-          onConfirm={() => merge.mutate()}
-        />
-      </div>
-    </Panel>
-  );
-}
-
-function DuplicatesTab() {
-  const { t } = useTranslation();
-  const refresh = useMaintenanceRefresh();
-  const duplicates = useQuery(duplicatesQuery);
-  const [outcome, setOutcome] = useState<Outcome>(null);
-
-  return (
-    <div className={styles.tab}>
-      <Text tone="secondary">{t('admin.maintenance.hint.duplicates')}</Text>
-      {outcome && <Notice tone={outcome.tone}>{outcome.text}</Notice>}
-      {duplicates.isPending && <Skeleton shape="block" />}
-      {duplicates.isError && (
-        <Notice
-          tone="danger"
-          title={problemMessage(t, duplicates.error)}
-          actions={
-            <AriaButton icon="refresh" onPress={() => void duplicates.refetch()}>
-              {t('common.retry')}
-            </AriaButton>
-          }
+          tone={confirmation.tone}
+          onConfirm={confirmation.onConfirm}
         />
       )}
-      {duplicates.data?.length === 0 && <Notice>{t('admin.maintenance.duplicates.empty')}</Notice>}
-      {duplicates.data?.map((group, index) => (
-        <DuplicateCard
-          key={group.items.map((item) => item.itemId).join('-')}
-          group={group}
-          index={index}
-          onMerged={(next) => {
-            setOutcome(next);
-            void refresh();
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** Library maintenance (B-9): what needs attention, per kind of issue, with the fitting actions. */
-export function MaintenancePage() {
-  const { t } = useTranslation();
-  useDocumentTitle(t('admin.maintenance.title'));
-  const session = useActiveSession();
-  const allowed = session.account.role === 'admin' && session.profile.isPrimary;
-  const [tab, setTab] = useState<string>(issueKinds[0]);
-  const counts = useQueries({
-    queries: issueKinds.map((kind) => ({ ...issueCountQuery(kind), enabled: allowed })),
-  });
-  const duplicates = useQuery({ ...duplicatesQuery, enabled: allowed });
-
-  const label = (text: string, count: number | undefined) =>
-    count === undefined ? text : t('admin.maintenance.tabCount', { label: text, count });
-
-  return (
-    <Page>
-      <div className={styles.header}>
-        <Text as="h1" variant="display">
-          {t('admin.maintenance.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.maintenance.intro')}</Text>
-      </div>
-      {allowed ? (
-        <Tabs
-          label={t('admin.maintenance.tabs')}
-          selectedKey={tab}
-          onSelectionChange={setTab}
-          tabs={[
-            ...issueKinds.map((kind, index) => ({
-              id: kind,
-              label: label(t(`admin.maintenance.tab.${kind}`), counts[index]?.data),
-              content: <IssueTab kind={kind} />,
-            })),
-            {
-              id: DUPLICATES,
-              label: label(t('admin.maintenance.tab.duplicates'), duplicates.data?.length),
-              content: <DuplicatesTab />,
-            },
-          ]}
-        />
-      ) : (
-        <Notice title={t('admin.maintenance.notAllowed.title')}>
-          {t('admin.maintenance.notAllowed.body')}
-        </Notice>
-      )}
-    </Page>
+    </AdminPage>
   );
 }

@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, signedIn, type Routes } from '@/test/api';
 
 // M9 webhooks (I-8, decision 5.6): one address per integration, shown exactly once with a copy
-// button, afterwards only its last four characters; path mapping, event log, renew and delete.
+// button, afterwards only its last four characters; a table whose rows fold out into the path
+// mapping and the event log (concept 12, Int-A); renew and delete. Unsaved rows of a mapping live
+// in the page, so folding the row or the block away keeps them (S-13, S-17).
 
 const settings: AdminSettings = {
   publicUrlSource: 'none',
@@ -54,20 +56,50 @@ const routes = (extra: Routes = {}): Routes => ({
   ...extra,
 });
 
-const webhooks = () => screen.getByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
+const BLOCK = 'Webhooks von Radarr und Sonarr';
+
+const webhooks = () => screen.getByRole('region', { name: BLOCK });
+
+/** The row of an integration in the table; its first cell is the button that folds it out. */
+async function integrationRow(name: string) {
+  const section = await screen.findByRole('region', { name: BLOCK });
+  const table = within(section).getByRole('table', { name: 'Webhook-Integrationen' });
+  const toggle = await within(table).findByRole('button', { name });
+  return { section, table, toggle, row: toggle.closest('tr')! };
+}
+
+/** Folds the row of an integration out and returns its section. */
+async function openIntegration(name: string) {
+  const user = userEvent.setup();
+  const { section, toggle } = await integrationRow(name);
+  await user.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  return section;
+}
 
 describe('webhook integrations (I-8)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('lists an integration with its last four characters, last contact and event log', async () => {
-    mockApi(routes());
+  it('lists an integration with its last four characters and last contact; the row folds out into mapping and event log', async () => {
+    const { calls } = mockApi(routes());
     renderApp('/admin/integrations');
 
-    const section = await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
-    expect(await within(section).findByRole('heading', { level: 3, name: 'Radarr' })).toBeVisible();
-    expect(within(section).getByText('Adresse endet auf …wxyz')).toBeVisible();
-    expect(within(section).getByText(/Letzte Meldung:/)).toBeVisible();
+    const { table, toggle, row } = await integrationRow('Radarr');
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((header) => header.textContent);
+    expect(headers).toEqual(['Name', 'Dienst', 'Adresse', 'Letzte Meldung', 'Aktionen']);
+    expect(within(row).getByRole('rowheader')).toContainElement(toggle);
+    expect(within(row).getByText('…wxyz')).toBeVisible();
+    expect(within(row).getByText('Radarr', { selector: 'span' })).toBeVisible();
+    expect(within(row).getByText(/2026/)).toBeVisible();
+    expect(within(row).queryByText('Hat noch nie etwas gemeldet.')).toBeNull();
+    // Folded: neither the mapping nor the log, and the log is not even asked for.
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Pfad im Dienst')).toBeNull();
+    expect(calls.some((call) => call.path === '/admin/integrations/1/events')).toBe(false);
 
+    const section = await openIntegration('Radarr');
     // The mapping is editable, pre-filled with the stored pair.
     expect(within(section).getByLabelText('Pfad im Dienst')).toHaveValue('/movies');
     expect(within(section).getByLabelText('Pfad auf diesem Server')).toHaveValue('/media/Filme');
@@ -81,11 +113,20 @@ describe('webhook integrations (I-8)', () => {
     expect(within(testRow!).getByText('Test quittiert')).toBeVisible();
   });
 
+  it('an integration that never reported says so', async () => {
+    mockApi(
+      routes({ 'GET /admin/integrations': () => json([{ ...radarr, lastSeenAt: undefined }]) }),
+    );
+    renderApp('/admin/integrations');
+    const { row } = await integrationRow('Radarr');
+    expect(within(row).getByText('Hat noch nie etwas gemeldet.')).toBeVisible();
+  });
+
   it('shows the full address once after creating an integration, with the warning and a copy button', async () => {
     const url = 'https://slouchcat.example.ch/api/v1/webhooks/TOKEN-shown-once';
     const user = userEvent.setup();
     const writeText = vi.spyOn(navigator.clipboard, 'writeText');
-    mockApi(
+    const { calls } = mockApi(
       routes({
         'POST /admin/integrations': () =>
           json(
@@ -100,17 +141,22 @@ describe('webhook integrations (I-8)', () => {
     );
     renderApp('/admin/integrations');
 
-    const section = await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
-    await within(section).findByRole('heading', { level: 3, name: 'Radarr' });
-    await user.type(within(section).getByLabelText('Name'), 'Sonarr');
-    await user.click(within(section).getByRole('radio', { name: 'Sonarr' }));
-    await user.click(within(section).getByRole('button', { name: 'Integration anlegen' }));
+    const { section } = await integrationRow('Radarr');
+    const form = within(section).getByRole('group', { name: 'Neue Integration' });
+    await user.type(within(form).getByLabelText('Name'), 'Sonarr');
+    await user.click(within(form).getByRole('radio', { name: 'Sonarr' }));
+    await user.click(within(form).getByRole('button', { name: 'Integration anlegen' }));
+    expect(calls.find((call) => call.method === 'POST')?.body).toEqual({
+      name: 'Sonarr',
+      kind: 'sonarr',
+    });
 
     const panel = await screen.findByRole('region', { name: 'Adresse für «Sonarr»' });
     expect(
       within(panel).getByText('Jetzt kopieren — danach ist die Adresse nicht mehr sichtbar.'),
     ).toBeVisible();
     expect(within(panel).getByLabelText('Vollständige Adresse')).toHaveValue(url);
+    expect(within(panel).getByLabelText('Vollständige Adresse')).toHaveFocus();
 
     await user.click(within(panel).getByRole('button', { name: 'Adresse kopieren' }));
     expect(writeText).toHaveBeenCalledWith(url);
@@ -132,15 +178,93 @@ describe('webhook integrations (I-8)', () => {
     );
     renderApp('/admin/integrations');
 
-    const section = await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
-    await within(section).findByRole('heading', { level: 3, name: 'Radarr' });
-    await user.click(within(section).getByRole('button', { name: 'Token von Radarr erneuern' }));
-    const dialog = await screen.findByRole('alertdialog');
+    const { row } = await integrationRow('Radarr');
+    await user.click(within(row).getByRole('button', { name: 'Token von Radarr erneuern' }));
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Token von «Radarr» erneuern?',
+    });
     expect(within(dialog).getByText(/hört sofort auf zu arbeiten/)).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Erneuern' }));
 
     const panel = await screen.findByRole('region', { name: 'Adresse für «Radarr»' });
     expect(within(panel).getByLabelText('Vollständige Adresse')).toHaveValue(url);
+  });
+
+  it('a second address replaces the first one afresh, and no address stays in the mutation cache', async () => {
+    const first = 'https://slouchcat.example.ch/api/v1/webhooks/FIRST-token';
+    const second = 'https://slouchcat.example.ch/api/v1/webhooks/SECOND-token';
+    const user = userEvent.setup();
+    vi.spyOn(navigator.clipboard, 'writeText');
+    mockApi(
+      routes({
+        'POST /admin/integrations': () =>
+          json(
+            {
+              integration: { ...radarr, id: 2, name: 'Sonarr', kind: 'sonarr' },
+              url: first,
+              token: 'FIRST-token',
+            },
+            201,
+          ),
+        'POST /admin/integrations/1/token': () =>
+          json({ integration: radarr, url: second, token: 'SECOND-token' }),
+      }),
+    );
+    const { queryClient } = renderApp('/admin/integrations');
+    const held = () =>
+      queryClient
+        .getMutationCache()
+        .getAll()
+        .map((mutation) => JSON.stringify([mutation.state.variables, mutation.state.data]))
+        .filter((state) => state.includes('-token'));
+
+    const { section, row } = await integrationRow('Radarr');
+    await user.type(within(section).getByLabelText('Name'), 'Sonarr');
+    await user.click(within(section).getByRole('button', { name: 'Integration anlegen' }));
+    const panel = await screen.findByRole('region', { name: 'Adresse für «Sonarr»' });
+    await user.click(within(panel).getByRole('button', { name: 'Adresse kopieren' }));
+    expect(await within(panel).findByText('Adresse kopiert.')).toBeVisible();
+    expect(held()).toEqual([]);
+
+    // Renewing while the first address is shown: the panel starts afresh for the new one.
+    await user.click(within(row).getByRole('button', { name: 'Token von Radarr erneuern' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Erneuern' }),
+    );
+    const next = await screen.findByRole('region', { name: 'Adresse für «Radarr»' });
+    const field = within(next).getByLabelText('Vollständige Adresse');
+    expect(field).toHaveValue(second);
+    await waitFor(() => expect(field).toHaveFocus());
+    expect(within(next).queryByText('Adresse kopiert.')).toBeNull();
+    expect(screen.queryByDisplayValue(first)).toBeNull();
+    await waitFor(() => expect(held()).toEqual([]));
+  });
+
+  it('a typed name of a new integration makes leaving the page ask first', async () => {
+    const user = userEvent.setup();
+    mockApi(routes());
+    const { router } = renderApp('/admin/integrations');
+    const { section } = await integrationRow('Radarr');
+    await user.type(within(section).getByLabelText('Name'), 'Sonarr Kinder');
+    expect(within(section).getByText('ungespeichert')).toBeVisible();
+    void router.navigate({ to: '/admin' });
+    expect(
+      await screen.findByRole('alertdialog', {
+        name: 'Seite mit ungespeicherten Änderungen verlassen?',
+      }),
+    ).toBeVisible();
+  });
+
+  it('a failed renewal is reported in the block', async () => {
+    const user = userEvent.setup();
+    mockApi(routes({ 'POST /admin/integrations/1/token': () => problem(500, 'internal') }));
+    renderApp('/admin/integrations');
+    const { row } = await integrationRow('Radarr');
+    await user.click(within(row).getByRole('button', { name: 'Token von Radarr erneuern' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Erneuern' }),
+    );
+    expect(await within(webhooks()).findByRole('alert')).toBeVisible();
   });
 
   it('saves the path mapping and reports a rejected pair on its field', async () => {
@@ -158,16 +282,114 @@ describe('webhook integrations (I-8)', () => {
     );
     renderApp('/admin/integrations');
 
-    const section = await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
-    await within(section).findByRole('heading', { level: 3, name: 'Radarr' });
+    const section = await openIntegration('Radarr');
     const from = within(section).getByLabelText('Pfad im Dienst');
     await user.clear(from);
     await user.type(from, 'relativ');
-    await user.click(within(section).getByRole('button', { name: 'Speichern' }));
+    await user.click(
+      within(section).getByRole('button', { name: 'Pfad-Umsetzung von Radarr speichern' }),
+    );
 
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0]).toEqual({ pathMap: [{ from: 'relativ', to: '/media/Filme' }] });
     await waitFor(() => expect(from).toHaveAccessibleDescription(/ungültig/i));
+  });
+
+  it('adds and removes rows and saves them together', async () => {
+    const user = userEvent.setup();
+    let pathMap = radarr.pathMap;
+    const calls: unknown[] = [];
+    mockApi(
+      routes({
+        'GET /admin/integrations': () => json([{ ...radarr, pathMap }]),
+        'PUT /admin/integrations/1/path-map': (call) => {
+          calls.push(call.body);
+          pathMap = (call.body as { pathMap: Integration['pathMap'] }).pathMap;
+          return json({ ...radarr, pathMap });
+        },
+      }),
+    );
+    renderApp('/admin/integrations');
+
+    const section = await openIntegration('Radarr');
+    await user.click(within(section).getByRole('button', { name: 'Zeile hinzufügen' }));
+    const froms = within(section).getAllByLabelText('Pfad im Dienst');
+    const tos = within(section).getAllByLabelText('Pfad auf diesem Server');
+    expect(froms).toHaveLength(2);
+    await user.type(froms[1]!, ' /tv ');
+    await user.type(tos[1]!, '/media/Serien');
+    await user.click(within(section).getByRole('button', { name: 'Zeile für /movies entfernen' }));
+    await user.click(
+      within(section).getByRole('button', { name: 'Pfad-Umsetzung von Radarr speichern' }),
+    );
+    expect(await within(section).findByText('Pfad-Umsetzung gespeichert.')).toBeVisible();
+    expect(calls).toEqual([{ pathMap: [{ from: '/tv', to: '/media/Serien' }] }]);
+    expect(within(section).getByLabelText('Pfad im Dienst')).toHaveValue('/tv');
+    expect(within(section).queryByText('ungespeichert')).toBeNull();
+  });
+
+  it('keeps unsaved rows when the row or the block is folded away (S-13)', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi(routes());
+    renderApp('/admin/integrations');
+
+    const section = await openIntegration('Radarr');
+    const { toggle } = await integrationRow('Radarr');
+    await user.clear(within(section).getByLabelText('Pfad auf diesem Server'));
+    await user.type(within(section).getByLabelText('Pfad auf diesem Server'), '/media/Kino');
+
+    // Folding the row away unmounts the form; the draft stays in the page and the row says so.
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByLabelText('Pfad auf diesem Server')).toBeNull();
+    expect(within(toggle).getByText('ungespeichert')).toBeVisible();
+    const band = within(section).getByRole('button', { name: BLOCK });
+    expect(band).toHaveAttribute('aria-expanded', 'true');
+    await user.click(band);
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    await user.click(band);
+    await user.click(toggle);
+    expect(within(section).getByLabelText('Pfad auf diesem Server')).toHaveValue('/media/Kino');
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+
+    // Typing the stored value back is no change any more.
+    await user.clear(within(section).getByLabelText('Pfad auf diesem Server'));
+    await user.type(within(section).getByLabelText('Pfad auf diesem Server'), '/media/Filme');
+    await waitFor(() => expect(within(section).queryByText('ungespeichert')).toBeNull());
+  });
+
+  it('with the row folded, a draft the server catches up with is dropped and a conflict is marked', async () => {
+    const user = userEvent.setup();
+    let pathMap = radarr.pathMap;
+    mockApi(routes({ 'GET /admin/integrations': () => json([{ ...radarr, pathMap }]) }));
+    const { queryClient } = renderApp('/admin/integrations');
+
+    const section = await openIntegration('Radarr');
+    const { toggle } = await integrationRow('Radarr');
+    const to = within(section).getByLabelText('Pfad auf diesem Server');
+    await user.clear(to);
+    await user.type(to, '/media/Kino');
+    await user.click(toggle);
+    expect(toggle).toHaveTextContent('Radarrungespeichert');
+
+    // Another admin saves the very rows typed here: nothing is unsaved any more, still folded.
+    pathMap = [{ from: '/movies', to: '/media/Kino' }];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'integrations'] });
+    await waitFor(() => expect(within(section).queryByText('ungespeichert')).toBeNull());
+    expect(toggle).toHaveTextContent(/^Radarr$/);
+
+    // Rows typed here, then a different version saved elsewhere: the folded row says so.
+    await user.click(toggle);
+    await user.clear(within(section).getByLabelText('Pfad auf diesem Server'));
+    await user.type(within(section).getByLabelText('Pfad auf diesem Server'), '/media/Eigen');
+    await user.click(toggle);
+    pathMap = [{ from: '/movies', to: '/media/Fremd' }];
+    await queryClient.invalidateQueries({ queryKey: ['admin', 'integrations'] });
+    expect(await within(toggle).findByText('anderswo geändert')).toBeVisible();
+    expect(within(toggle).getByText('ungespeichert')).toBeVisible();
+    await user.click(toggle);
+    expect(within(section).getByText(/Ein anderer Zugang/)).toBeVisible();
+    expect(within(section).getByLabelText('Pfad auf diesem Server')).toHaveValue('/media/Eigen');
   });
 
   it('follows a mapping another admin saved, and keeps unsaved rows with a warning', async () => {
@@ -176,8 +398,7 @@ describe('webhook integrations (I-8)', () => {
     mockApi(routes({ 'GET /admin/integrations': () => json([{ ...radarr, pathMap }]) }));
     const { queryClient } = renderApp('/admin/integrations');
 
-    const section = await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
-    await within(section).findByRole('heading', { level: 3, name: 'Radarr' });
+    const section = await openIntegration('Radarr');
     const to = within(section).getByLabelText('Pfad auf diesem Server');
 
     // Nothing typed here: the form takes the other version over without saying anything.
@@ -200,11 +421,12 @@ describe('webhook integrations (I-8)', () => {
     expect(within(section).queryByText(/Ein anderer Zugang/)).not.toBeInTheDocument();
   });
 
-  it('deletes an integration after a confirmation', async () => {
+  it('deletes an integration after a confirmation and moves the focus to the page heading', async () => {
     const user = userEvent.setup();
     let deleted = 0;
     mockApi(
       routes({
+        'GET /admin/integrations': () => json(deleted ? [] : [radarr]),
         'DELETE /admin/integrations/1': () => {
           deleted += 1;
           return new Response(null, { status: 204 });
@@ -213,22 +435,27 @@ describe('webhook integrations (I-8)', () => {
     );
     renderApp('/admin/integrations');
 
-    const section = await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' });
-    await within(section).findByRole('heading', { level: 3, name: 'Radarr' });
-    await user.click(within(section).getByRole('button', { name: 'Radarr löschen' }));
-    const dialog = await screen.findByRole('alertdialog');
+    const { row } = await integrationRow('Radarr');
+    await user.click(within(row).getByRole('button', { name: 'Radarr löschen' }));
+    const dialog = await screen.findByRole('alertdialog', { name: '«Radarr» löschen?' });
     await user.click(within(dialog).getByRole('button', { name: 'Löschen' }));
     await waitFor(() => expect(deleted).toBe(1));
+    expect(
+      await within(webhooks()).findByText('Noch keine Integration eingerichtet.'),
+    ).toBeVisible();
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Integrationen' })).toHaveFocus(),
+    );
   });
 
   it('says so when no integration exists yet', async () => {
     mockApi(routes({ 'GET /admin/integrations': () => json([]) }));
     renderApp('/admin/integrations');
     expect(
-      await within(
-        await screen.findByRole('region', { name: 'Webhooks von Radarr und Sonarr' }),
-      ).findByText('Noch keine Integration eingerichtet.'),
+      await within(await screen.findByRole('region', { name: BLOCK })).findByText(
+        'Noch keine Integration eingerichtet.',
+      ),
     ).toBeVisible();
-    expect(webhooks()).toBeVisible();
+    expect(within(webhooks()).queryByRole('table')).toBeNull();
   });
 });

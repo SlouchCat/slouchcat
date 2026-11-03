@@ -36,7 +36,15 @@ const infos: MetadataProviderInfo[] = [
   },
 ];
 
-function Harness({ kind, min }: { kind: 'video' | 'podcasts'; min: number }) {
+function Harness({
+  kind,
+  min,
+  ordering,
+}: {
+  kind: 'video' | 'podcasts';
+  min: number;
+  ordering?: 'arrows' | 'rank';
+}) {
   const [entries, setEntries] = useState<FolderEntry[]>(() =>
     min > 0 ? [newFolderEntry(kind, [])] : [],
   );
@@ -49,6 +57,7 @@ function Harness({ kind, min }: { kind: 'video' | 'podcasts'; min: number }) {
         infos={infos}
         min={min}
         namePrefix="roots"
+        ordering={ordering}
       />
       <output data-testid="value">
         {entries
@@ -118,5 +127,20 @@ describe('FolderList', () => {
     expect(folderListError(t, [{ ...one, providers: ['anilist'] }], infos)).toContain(
       'library.roots.providers',
     );
+  });
+
+  it('orders the providers with arrow buttons by default, by position when asked (S-16)', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Harness kind="video" min={1} />);
+    await user.click(screen.getByRole('radio', { name: 'Serien' }));
+    expect(screen.getByRole('button', { name: 'TVDB nach oben' })).toBeVisible();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    unmount();
+
+    render(<Harness kind="video" min={1} ordering="rank" />);
+    await user.click(screen.getByRole('radio', { name: 'Serien' }));
+    expect(screen.queryByRole('button', { name: /nach (oben|unten)$/ })).toBeNull();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Platz für TVDB' }), 'Platz 1');
+    expect(screen.getByTestId('value')).toHaveTextContent('|series|tvdb,tmdb');
   });
 });

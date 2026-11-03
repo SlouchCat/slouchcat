@@ -1,10 +1,14 @@
 import type { TraktStatus, components } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import de from '@/locales/de.json';
-import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
+import { json, mockApi, problem, renderApp, session, signedIn, type Call } from '@/test/api';
 import { adminShell, renderAdminPage } from '@/test/admin';
+
+// /admin/spotlight (M11, ADR 0011; concept 12, variant A, mockup Spo-A): three bands that fold
+// away, «Quelle» with the switch and one «Speichern» (SPO-1, SPO-1a, SPO-2), «Einträge der Liste»
+// (SPO-3) and «Verwaiste Anpassungen» (SPO-4); the link to the start page's rows (SPO-5).
 
 type SpotlightConfig = components['schemas']['SpotlightConfig'];
 type SpotlightEntry = components['schemas']['SpotlightEntry'];
@@ -81,9 +85,12 @@ const orphan: SpotlightEntry = {
 };
 
 /** The routes of the page with a server that keeps the overrides it is sent. */
-function spotlightApi(overrides: Record<string, unknown> = {}) {
-  let entries = [dune, severance];
-  let orphans = [orphan];
+function spotlightApi(
+  overrides: Record<string, unknown> = {},
+  lists: { entries?: SpotlightEntry[]; orphans?: SpotlightEntry[] } = {},
+) {
+  let entries = lists.entries ?? [dune, severance];
+  let orphans = lists.orphans ?? [orphan];
   const apply = (call: Call) => {
     const [, , , , media, id] = call.path.split('/');
     const body = call.body as SpotlightEntryOverride;
@@ -118,59 +125,92 @@ function spotlightApi(overrides: Record<string, unknown> = {}) {
   });
 }
 
+const region = (name: string) => screen.findByRole('region', { name });
+/** A number of the source: its input by the (screen reader only) label of its setting row. */
+const number = (card: HTMLElement, name: string | RegExp) =>
+  within(card).getByRole('spinbutton', { name });
+const source = () => region('Quelle');
 const entriesTable = () => screen.findByRole('table', { name: 'Einträge der Liste' });
-const source = () => screen.findByRole('region', { name: 'Quelle' });
+const statusRegion = () =>
+  screen.getAllByRole('status').find((element) => element.closest('form') === null)!;
 const patches = (calls: Call[]) =>
   calls.filter((call) => call.method === 'PATCH').map((call) => [call.path, call.body]);
 
-describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
+describe('admin spotlight (M11, ADR 0011; concept 12, mockup Spo-A)', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
-  it('shows the switch, the source with the state of the fetch, and the entries', async () => {
+  it('shows the source with the switch and the state of the fetch, and the entries', async () => {
     spotlightApi();
     const { nav } = await renderAdminPage('/admin/spotlight');
+    const user = userEvent.setup();
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
     expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent('Spotlight');
-    expect(await screen.findByRole('switch', { name: 'Auf der Startseite zeigen' })).toBeChecked();
+    // S-2: the intro sits behind the help button of the title.
+    const intro = screen.getByText(/Eine öffentliche Trakt-Liste als Reihe der Startseite/);
+    expect(intro).not.toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
+    expect(intro).toBeVisible();
 
     const card = await source();
+    // SPO-1: the switch stays in its form, as a setting row that says it is stored with it.
+    const show = await within(card).findByRole('switch', { name: 'Auf der Startseite zeigen' });
+    expect(show).toBeChecked();
+    expect(
+      within(card).getByRole('group', { name: 'Auf der Startseite zeigen' }),
+    ).toHaveAccessibleDescription('Gilt erst mit «Speichern», zusammen mit der Quelle.');
     expect(within(card).getByRole('radio', { name: 'Trending bei Trakt' })).toBeChecked();
     expect(within(card).getByRole('radio', { name: 'Filme und Serien' })).toBeChecked();
     // Plan 5.5: the per-profile numbers are named apart from the system-wide counts below.
-    const count = within(card).getByLabelText('Höchstens');
-    expect(count).toHaveValue(20);
-    expect(count).toHaveAccessibleDescription('Titel in der Reihe, je Profil (5–20)');
-    const below = within(card).getByLabelText('Ausblenden unter');
-    expect(below).toHaveValue(5);
-    expect(below).toHaveAccessibleDescription('Treffern in der Bibliothek, je Profil (0–10)');
-    expect(within(card).getByLabelText('Abruf alle … Stunden')).toHaveValue(24);
+    // Every setting is a row: its label and help on the left (the group names and describes the
+    // control), the control on the right; no label shows twice.
+    expect(number(card, 'Höchstens')).toHaveValue(20);
+    expect(within(card).getByRole('group', { name: 'Höchstens' })).toHaveAccessibleDescription(
+      'Titel in der Reihe, je Profil (5–20)',
+    );
+    expect(number(card, 'Ausblenden unter')).toHaveValue(5);
+    expect(
+      within(card).getByRole('group', { name: 'Ausblenden unter' }),
+    ).toHaveAccessibleDescription('Treffern in der Bibliothek, je Profil (0–10)');
+    expect(number(card, 'Abruf alle … Stunden')).toHaveValue(24);
+    // The field's own label is for screen readers only.
+    expect(within(card).getByText('Höchstens', { selector: 'label' })).toHaveClass('hiddenLabel');
+    expect(within(card).getByRole('group', { name: 'Trakt-Liste' })).toHaveAccessibleDescription(
+      'Öffentliche Listen, kein Trakt-Login. Schlüssel unter Integrationen',
+    );
 
-    // The card's foot: fetched, hits of the fetched entries, the key as a link (never its value).
+    // The foot: fetched, hits of the fetched entries, the key as a link (never its value).
     expect(await within(card).findByText(/^Zuletzt abgerufen /)).toBeVisible();
     expect(await within(card).findByText('1 von 40 Titeln in der Bibliothek')).toBeVisible();
     expect(within(card).getByRole('link', { name: 'Schlüssel gesetzt' })).toHaveAttribute(
       'href',
       '/admin/integrations',
     );
-    // Plan 7.1: one hit is below the minimum of five, so the page says why the row is missing.
+    // SPO-1a: one hit is below the minimum of five, so the page says why the row is missing; the
+    // band says so too, folded or not.
     expect(
       within(card).getByText(/Nur 1 Treffer in der Bibliothek, weniger als die verlangten 5/),
     ).toBeVisible();
+    expect(within(card).getByText('Fehlt auf der Startseite')).toBeVisible();
     expect(within(card).getByRole('button', { name: 'Jetzt abrufen' })).toBeVisible();
 
+    const entries = await region('Einträge der Liste');
+    expect(within(entries).getByText('2 Einträge')).toBeVisible();
     const table = await entriesTable();
     const [first, second] = within(table).getAllByRole('row').slice(1);
     expect(within(first!).getByRole('rowheader')).toHaveTextContent('DuneFilm · 2021');
-    // Mockup H: the poster in front of the title, decorative (system-wide admin image route).
+    // The poster in front of the title, decorative (system-wide admin image route).
     const poster = within(first!).getByRole('rowheader').querySelector('img');
     expect(poster).toHaveAttribute('alt', '');
     expect(poster).toHaveAttribute('src', dune.posterUrl);
     expect(within(first!).getByText('Sichtbar')).toBeVisible();
     expect(within(first!).getByRole('button', { name: 'Dune anheften' })).toBeVisible();
+    expect(within(first!).getByRole('button', { name: 'Dune ausblenden' })).toBeVisible();
+    expect(within(first!).getByRole('button', { name: 'Notiz zu Dune' })).toBeVisible();
     // Plan S-4: an entry without a library title is listed, says so and has no actions.
     expect(within(second!).getByRole('rowheader')).toHaveTextContent('SeveranceSerie · 2022');
     // Without a library hit there is no poster: the placeholder, never a broken image.
@@ -181,10 +221,43 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
       within(second!).getByText('Nicht in der Bibliothek, erscheint nicht auf der Startseite'),
     ).toBeVisible();
     expect(within(second!).queryByRole('button')).toBeNull();
+    // SPO-5.
     expect(screen.getByRole('link', { name: 'Zur Seite «Startseite»' })).toHaveAttribute(
       'href',
       '/admin/home-rows',
     );
+  });
+
+  it('the three bands fold by their title; a folded source keeps its draft', async () => {
+    spotlightApi();
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    for (const name of ['Quelle', 'Einträge der Liste', 'Verwaiste Anpassungen']) {
+      expect(
+        within(await region(name)).getByRole('button', { name, expanded: true }),
+      ).toBeVisible();
+    }
+
+    const count = number(card, 'Höchstens');
+    await user.clear(count);
+    await user.type(count, '12');
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    const band = within(card).getByRole('button', { name: 'Quelle' });
+    band.focus();
+    await user.keyboard('{Enter}');
+    expect(band).toHaveAttribute('aria-expanded', 'false');
+    expect(within(card).queryByRole('spinbutton', { name: 'Höchstens' })).toBeNull();
+    // Folded, the band still says the source holds unsaved input and why the row is missing.
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    expect(within(card).getByText('Fehlt auf der Startseite')).toBeVisible();
+    await user.keyboard(' ');
+    expect(number(card, 'Höchstens')).toHaveValue(12);
+
+    // Typed back to the stored value, nothing is unsaved any more.
+    await user.clear(number(card, 'Höchstens'));
+    await user.type(number(card, 'Höchstens'), '20');
+    expect(within(card).queryByText('Ungespeicherte Änderungen')).toBeNull();
   });
 
   it('offers the media the chosen list allows: box office is locked to films, trending has all three', async () => {
@@ -210,6 +283,8 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
       'Filme und Serien',
     ]);
     for (const radio of radios) expect(radio).toBeEnabled();
+    // The choice made before box office is back.
+    expect(within(media()).getByRole('radio', { name: 'Filme und Serien' })).toBeChecked();
   });
 
   it('the address list asks for its address; a watchlist address comes back as a field error', async () => {
@@ -244,7 +319,7 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     });
   });
 
-  it('"Speichern" stores the switch of the page head with the source in one PUT', async () => {
+  it('"Speichern" stores the switch with the source in one PUT', async () => {
     const { calls } = spotlightApi({
       'PUT /admin/spotlight': (call: Call) =>
         json({ ...config, ...(call.body as object) } satisfies SpotlightConfig),
@@ -253,24 +328,24 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     const user = userEvent.setup();
     const card = await source();
 
-    const show = await screen.findByRole('switch', { name: 'Auf der Startseite zeigen' });
+    const show = await within(card).findByRole('switch', { name: 'Auf der Startseite zeigen' });
     await user.click(show);
     // Nothing is stored before "Speichern".
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
     await user.click(within(card).getByRole('radio', { name: 'Beliebt bei Trakt' }));
     await user.click(within(card).getByRole('radio', { name: 'Nur Serien' }));
-    const count = within(card).getByLabelText('Höchstens');
+    const count = number(card, 'Höchstens');
     await user.clear(count);
     await user.type(count, '10');
     // The band's rhythm on the start page (concept 08, F-10).
-    const rotation = within(card).getByLabelText(/Takt der Bühne/);
+    const rotation = number(card, /Spotlight Wechsel Takt/);
     expect(rotation).toHaveValue(5);
     expect(within(card).getByText('3 bis 15 Sekunden')).toBeVisible();
     await user.clear(rotation);
     await user.type(rotation, '7');
     await user.click(within(card).getByRole('button', { name: 'Speichern' }));
 
-    expect(await within(card).findByText('Spotlight ist gespeichert.')).toBeVisible();
+    expect(await within(statusRegion()).findByText('Spotlight ist gespeichert.')).toBeVisible();
     expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
       enabled: false,
       listKey: 'popular',
@@ -281,8 +356,65 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
       rotationSeconds: 7,
     });
     expect(show).not.toBeChecked();
-    // Switched off, the card names that as the reason the row is missing.
+    expect(within(card).queryByText('Ungespeicherte Änderungen')).toBeNull();
+    // Switched off, the source names that as the reason the row is missing.
     expect(await within(card).findByText(/Spotlight ist ausgeschaltet/)).toBeVisible();
+  });
+
+  it('«Speichern» without a change sends nothing and keeps the focus', async () => {
+    const { calls } = spotlightApi();
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const save = within(card).getByRole('button', { name: 'Speichern' });
+    await user.click(save);
+    expect(save).toHaveFocus();
+    expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
+  it('keeps what is typed while the save of the source waits for the server', async () => {
+    let release = () => undefined as void;
+    const answered = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { calls } = spotlightApi({
+      'PUT /admin/spotlight': async (call: Call) => {
+        await answered;
+        return json({ ...config, ...(call.body as object) } satisfies SpotlightConfig);
+      },
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const count = number(card, 'Höchstens');
+    await user.clear(count);
+    await user.type(count, '10');
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(calls.some((call) => call.method === 'PUT')).toBe(true));
+    // Typed while the save runs: it stays a draft once the answer is there.
+    await user.clear(count);
+    await user.type(count, '12');
+    release();
+    expect(await within(statusRegion()).findByText('Spotlight ist gespeichert.')).toBeVisible();
+    expect(count).toHaveValue(12);
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+  });
+
+  it('a failed save that is not about a field shows on the page', async () => {
+    spotlightApi({ 'PUT /admin/spotlight': () => problem(503, 'unavailable') });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    await user.click(
+      await within(card).findByRole('switch', { name: 'Auf der Startseite zeigen' }),
+    );
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }));
+    expect(await screen.findByRole('alert')).toBeVisible();
+    // The draft stays.
+    expect(
+      within(card).getByRole('switch', { name: 'Auf der Startseite zeigen' }),
+    ).not.toBeChecked();
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
   });
 
   it('hides and shows, pins and unpins, and annotates an entry with one PATCH each', async () => {
@@ -304,9 +436,14 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     expect(await screen.findByText('Dune wird wieder gezeigt.')).toBeVisible();
     expect(await within(row()).findByText('Sichtbar')).toBeVisible();
 
+    // «Anheften»: the places of the row as a choice up to «Höchstens».
     await user.click(within(table).getByRole('button', { name: 'Dune anheften' }));
     let dialog = await screen.findByRole('dialog', { name: 'Dune anheften' });
-    await user.type(within(dialog).getByLabelText(/Platz in der Reihe/), '3');
+    const places = within(dialog).getByRole('radiogroup', { name: 'Platz in der Reihe' });
+    expect(within(places).getAllByRole('radio')).toHaveLength(20);
+    // The first free place has the focus.
+    await waitFor(() => expect(within(places).getByRole('radio', { name: '1' })).toHaveFocus());
+    await user.click(within(places).getByRole('radio', { name: '3' }));
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     expect(await screen.findByText('Dune ist auf Platz 3 angeheftet.')).toBeVisible();
     expect(await within(row()).findByText('Angeheftet auf Platz 3')).toBeVisible();
@@ -320,6 +457,13 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     await user.type(within(dialog).getByRole('textbox', { name: 'Notiz' }), 'Im Kino gesehen');
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     expect(await within(row()).findByText('«Im Kino gesehen»')).toBeVisible();
+
+    // An unchanged note closes without a request.
+    await user.click(note);
+    dialog = await screen.findByRole('dialog', { name: 'Notiz zu Dune' });
+    expect(within(dialog).getByRole('textbox', { name: 'Notiz' })).toHaveValue('Im Kino gesehen');
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
     // An emptied note removes it.
     await user.click(note);
@@ -340,7 +484,51 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     ]);
   });
 
-  it('a place another entry holds is refused with a notice in the dialog', async () => {
+  it('places other entries hold cannot be chosen; the dialog names who holds them', async () => {
+    const arrival: SpotlightEntry = {
+      ...dune,
+      tmdbId: 7002,
+      position: 3,
+      title: 'Arrival',
+      year: 2016,
+      itemId: '01J00000000000000000000002',
+      pinnedRank: 2,
+    };
+    const pinnedOrphan: SpotlightEntry = { ...orphan, pinnedRank: 4 };
+    const { calls } = spotlightApi(
+      { 'GET /admin/spotlight': () => json({ ...config, itemCount: 6 }) },
+      { entries: [dune, severance, arrival], orphans: [pinnedOrphan] },
+    );
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const table = await entriesTable();
+
+    await user.click(within(table).getByRole('button', { name: 'Dune anheften' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Dune anheften' });
+    const places = within(dialog).getByRole('radiogroup', { name: 'Platz in der Reihe' });
+    // «Höchstens» is 6: six places, 2 and 4 are taken.
+    expect(within(places).getAllByRole('radio')).toHaveLength(6);
+    expect(within(places).getByRole('radio', { name: '2' })).toBeDisabled();
+    expect(within(places).getByRole('radio', { name: '4' })).toBeDisabled();
+    expect(within(places).getByRole('radio', { name: '3' })).toBeEnabled();
+    expect(places).toHaveAccessibleDescription(
+      /Belegt: Platz 2 \(Arrival\) · Platz 4 \(Old Film\)\.$/,
+    );
+
+    // Without a choice nothing is sent.
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    expect(await within(dialog).findByText('Pflichtfeld.')).toBeVisible();
+    expect(patches(calls)).toEqual([]);
+
+    // Escape closes it; the focus returns to its button.
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(within(table).getByRole('button', { name: 'Dune anheften' })).toHaveFocus(),
+    );
+  });
+
+  it('a place someone took meanwhile is refused with a notice in the dialog', async () => {
     spotlightApi({ 'PATCH /admin/spotlight/entries/*/*': () => problem(409, 'rank_taken') });
     renderApp('/admin/spotlight');
     const user = userEvent.setup();
@@ -348,18 +536,31 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
 
     await user.click(within(table).getByRole('button', { name: 'Dune anheften' }));
     const dialog = await screen.findByRole('dialog', { name: 'Dune anheften' });
-    await user.type(within(dialog).getByLabelText(/Platz in der Reihe/), '1');
+    await user.click(within(dialog).getByRole('radio', { name: '1' }));
     await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
     expect(
       await within(dialog).findByText('Diesen Platz hat schon ein anderer Eintrag der Liste.'),
     ).toBeVisible();
   });
 
-  it('lists an orphaned override and removes it with an empty PATCH', async () => {
+  it('a failed hide shows the error on the page and keeps the entry as it was', async () => {
+    spotlightApi({ 'PATCH /admin/spotlight/entries/*/*': () => problem(503, 'unavailable') });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const table = await entriesTable();
+    await user.click(within(table).getByRole('button', { name: 'Dune ausblenden' }));
+    expect(await screen.findByRole('alert')).toBeVisible();
+    expect(within(table).getByRole('button', { name: 'Dune ausblenden' })).toBeVisible();
+    expect(within(statusRegion()).queryByText(/ausgeblendet/)).toBeNull();
+  });
+
+  it('lists an orphaned override and removes it with an empty PATCH; the h1 takes the focus', async () => {
     const { calls } = spotlightApi();
     renderApp('/admin/spotlight');
     const user = userEvent.setup();
 
+    const band = await region('Verwaiste Anpassungen');
+    expect(within(band).getByText('1 Anpassung')).toBeVisible();
     const orphans = await screen.findByRole('table', { name: 'Verwaiste Anpassungen' });
     expect(within(orphans).getByRole('rowheader')).toHaveTextContent('Old Film');
     expect(within(orphans).getByText('Ausgeblendet · «Alt»')).toBeVisible();
@@ -368,9 +569,12 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     );
     expect(await screen.findByText('Die Anpassung für Old Film ist entfernt.')).toBeVisible();
     await waitFor(() =>
-      expect(screen.queryByRole('table', { name: 'Verwaiste Anpassungen' })).toBeNull(),
+      expect(screen.queryByRole('region', { name: 'Verwaiste Anpassungen' })).toBeNull(),
     );
     expect(patches(calls)).toEqual([['/admin/spotlight/entries/movie/9001', {}]]);
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: 'Spotlight' })).toHaveFocus(),
+    );
   });
 
   it.each([
@@ -384,9 +588,96 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
     const card = await source();
 
     await user.click(within(card).getByRole('button', { name: 'Jetzt abrufen' }));
-    expect(await within(card).findByText(text)).toBeVisible();
+    expect(await screen.findByText(text)).toBeVisible();
     expect(calls.some((call) => call.path === '/admin/spotlight/refresh')).toBe(true);
     expect(calls.some((call) => call.method === 'PUT')).toBe(false);
+  });
+
+  it('the same message twice is a new node in the status region, so it is said again', async () => {
+    spotlightApi({ 'POST /admin/spotlight/refresh': () => new Response(null, { status: 202 }) });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const refresh = within(card).getByRole('button', { name: 'Jetzt abrufen' });
+
+    await user.click(refresh);
+    const first = await within(statusRegion()).findByText('Die Liste wird abgerufen.');
+    await user.click(refresh);
+    await waitFor(() =>
+      expect(within(statusRegion()).getByText('Die Liste wird abgerufen.')).not.toBe(first),
+    );
+    expect(first).not.toBeInTheDocument();
+  });
+
+  it('polls every 2 s for 30 s after «Jetzt abrufen», held while a dialog is open or the source is changed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { calls } = spotlightApi({
+      'POST /admin/spotlight/refresh': () => new Response(null, { status: 202 }),
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const asked = () => calls.filter((call) => call.path === '/admin/spotlight/entries').length;
+    const card = await source();
+    const table = await entriesTable();
+    expect(screen.queryByText(/^Live/)).toBeNull();
+
+    await user.click(within(card).getByRole('button', { name: 'Jetzt abrufen' }));
+    expect(await screen.findByText('Live, alle 2 Sekunden')).toBeVisible();
+    const before = asked();
+    await act(() => vi.advanceTimersByTimeAsync(2000));
+    await waitFor(() => expect(asked()).toBe(before + 1));
+
+    // The open dialog holds the polling and the live indicator.
+    await user.click(within(table).getByRole('button', { name: 'Notiz zu Dune' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Notiz zu Dune' });
+    expect(screen.queryByText('Live, alle 2 Sekunden')).toBeNull();
+    const held = asked();
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    expect(asked()).toBe(held);
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
+    expect(await screen.findByText('Live, alle 2 Sekunden')).toBeVisible();
+
+    // So does unsaved input in the source.
+    await user.click(within(card).getByRole('switch', { name: 'Auf der Startseite zeigen' }));
+    expect(screen.queryByText('Live, alle 2 Sekunden')).toBeNull();
+    const typed = asked();
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    expect(asked()).toBe(typed);
+    await user.click(within(card).getByRole('switch', { name: 'Auf der Startseite zeigen' }));
+    expect(await screen.findByText('Live, alle 2 Sekunden')).toBeVisible();
+
+    // 30 s after the press the polling ends.
+    await act(() => vi.advanceTimersByTimeAsync(30_000));
+    await waitFor(() => expect(screen.queryByText('Live, alle 2 Sekunden')).toBeNull());
+    const after = asked();
+    await act(() => vi.advanceTimersByTimeAsync(6000));
+    expect(asked()).toBe(after);
+  });
+
+  it('leaving the page with an unsaved source asks first; staying keeps it', async () => {
+    spotlightApi();
+    const { router } = renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    await user.click(
+      await within(card).findByRole('switch', { name: 'Auf der Startseite zeigen' }),
+    );
+
+    void router.navigate({ to: '/admin' });
+    const question = await screen.findByRole('alertdialog', {
+      name: 'Seite mit ungespeicherten Änderungen verlassen?',
+    });
+    expect(within(question).getByRole('button', { name: 'Auf der Seite bleiben' })).toHaveFocus();
+    await user.click(within(question).getByRole('button', { name: 'Auf der Seite bleiben' }));
+    await waitFor(() => expect(question).not.toBeInTheDocument());
+    expect(router.state.location.pathname).toBe('/admin/spotlight');
+    expect(
+      within(card).getByRole('switch', { name: 'Auf der Startseite zeigen' }),
+    ).not.toBeChecked();
+
+    void router.navigate({ to: '/admin' });
+    await user.click(await screen.findByRole('button', { name: 'Verwerfen und verlassen' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
   });
 
   it('without a Trakt key the foot says so and links to the integrations', async () => {
@@ -435,5 +726,142 @@ describe('admin spotlight (M11, ADR 0011, mockup H)', () => {
 
     expect(await within(card).findByText(/Die Liste ist leer/)).toBeVisible();
     expect(await screen.findByText(/Noch keine Einträge/)).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Verwaiste Anpassungen' })).toBeNull();
+  });
+
+  it('with enough hits the band says the row is on the start page', async () => {
+    spotlightApi({ 'GET /admin/spotlight': () => json({ ...config, minHits: 1 }) });
+    renderApp('/admin/spotlight');
+    const card = await source();
+    expect(await within(card).findByText('Auf der Startseite')).toBeVisible();
+    expect(within(card).queryByText(/fehlt/)).toBeNull();
+  });
+
+  it('the entries fail to load: the error offers «Erneut versuchen»', async () => {
+    spotlightApi({ 'GET /admin/spotlight/entries': () => problem(503, 'unavailable') });
+    renderApp('/admin/spotlight');
+    const entries = await region('Einträge der Liste');
+    expect(await within(entries).findByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+  });
+
+  it('the address typed back to its stored value is no change; the request trims it', async () => {
+    const stored = 'https://trakt.tv/users/marco/lists/kino';
+    const { calls } = spotlightApi({
+      'GET /admin/spotlight': () => json({ ...config, listKey: 'url', listUrl: stored }),
+      'PUT /admin/spotlight': (call: Call) =>
+        json({ ...config, ...(call.body as object) } satisfies SpotlightConfig),
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const card = await source();
+    const address = await within(card).findByRole('textbox', { name: /Adresse der Liste/ });
+
+    await user.type(address, '/');
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    await user.type(address, '{Backspace}');
+    expect(address).toHaveValue(stored);
+    expect(within(card).queryByText('Ungespeicherte Änderungen')).toBeNull();
+
+    await user.clear(address);
+    await user.type(address, ' https://trakt.tv/users/marco/lists/neu ');
+    expect(within(card).getByText('Ungespeicherte Änderungen')).toBeVisible();
+    await user.click(within(card).getByRole('button', { name: 'Speichern' }));
+    expect(await within(statusRegion()).findByText('Spotlight ist gespeichert.')).toBeVisible();
+    expect(calls.find((call) => call.method === 'PUT')?.body).toMatchObject({
+      listKey: 'url',
+      listUrl: 'https://trakt.tv/users/marco/lists/neu',
+    });
+  });
+
+  it('with every place taken the pin dialog says so, «Speichern» is off and «Abbrechen» has the focus', async () => {
+    const holders = [1, 2, 3, 4, 5].map((rank): SpotlightEntry => ({
+      ...dune,
+      tmdbId: 7100 + rank,
+      position: rank + 1,
+      title: `Platzhalter ${rank}`,
+      itemId: `01J0000000000000000000010${rank}`,
+      pinnedRank: rank,
+    }));
+    spotlightApi(
+      { 'GET /admin/spotlight': () => json({ ...config, itemCount: 5 }) },
+      { entries: [dune, ...holders], orphans: [] },
+    );
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const table = await entriesTable();
+
+    await user.click(within(table).getByRole('button', { name: 'Dune anheften' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Dune anheften' });
+    expect(within(dialog).getByText('Alle Plätze sind belegt; löse zuerst einen.')).toBeVisible();
+    for (const radio of within(dialog).getAllByRole('radio')) expect(radio).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Abbrechen' })).toHaveFocus(),
+    );
+  });
+
+  it('a 409 rank_taken asks the entries again, so the grid shows the new holder', async () => {
+    const arrival: SpotlightEntry = {
+      ...dune,
+      tmdbId: 7002,
+      position: 2,
+      title: 'Arrival',
+      itemId: '01J00000000000000000000002',
+    };
+    let entries = [dune, arrival];
+    const { calls } = mockApi({
+      ...signedIn,
+      ...adminShell,
+      'GET /admin/trakt': () => json(status),
+      'GET /admin/spotlight': () => json(config),
+      'GET /admin/spotlight/entries': () => json({ listKey: 'trending', entries, orphans: [] }),
+      // Another administrator pinned Arrival to place 1 meanwhile.
+      'PATCH /admin/spotlight/entries/*/*': () => {
+        entries = [dune, { ...arrival, pinnedRank: 1 }];
+        return problem(409, 'rank_taken');
+      },
+    });
+    renderApp('/admin/spotlight');
+    const user = userEvent.setup();
+    const table = await entriesTable();
+    const asked = () => calls.filter((call) => call.path === '/admin/spotlight/entries').length;
+
+    await user.click(within(table).getByRole('button', { name: 'Dune anheften' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Dune anheften' });
+    const first = within(dialog).getByRole('radio', { name: '1' });
+    await user.click(first);
+    const before = asked();
+    await user.click(within(dialog).getByRole('button', { name: 'Speichern' }));
+    expect(
+      await within(dialog).findByText('Diesen Platz hat schon ein anderer Eintrag der Liste.'),
+    ).toBeVisible();
+    await waitFor(() => expect(asked()).toBeGreaterThan(before));
+    await waitFor(() => expect(first).toBeDisabled());
+    expect(first).not.toBeChecked();
+    expect(within(dialog).getByRole('radiogroup')).toHaveAccessibleDescription(
+      /Belegt: Platz 1 \(Arrival\)\.$/,
+    );
+  });
+
+  it('the state fails to load: the error offers «Erneut versuchen», the foot shows no placeholder', async () => {
+    spotlightApi({ 'GET /admin/trakt': () => problem(503, 'unavailable') });
+    renderApp('/admin/spotlight');
+    const card = await source();
+    expect(await screen.findByRole('button', { name: 'Erneut versuchen' })).toBeVisible();
+    await entriesTable();
+    expect(card.querySelector('[aria-hidden="true"][class~="skeleton"]')).toBeNull();
+    expect(within(card).queryByText(/auf der Startseite$/i)).toBeNull();
+    expect(within(card).getByRole('button', { name: 'Jetzt abrufen' })).toBeVisible();
+  });
+
+  it('a guest gets the notice and no request', async () => {
+    const guest = {
+      ...session,
+      account: { ...session.account, role: 'user' as const, isOwner: false },
+    };
+    const { calls } = mockApi({ 'GET /auth/session': () => json(guest) });
+    renderApp('/admin/spotlight');
+    expect(await screen.findByText('Nur für Administratoren')).toBeVisible();
+    expect(calls.some((call) => call.path.startsWith('/admin/'))).toBe(false);
   });
 });

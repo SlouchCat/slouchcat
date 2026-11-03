@@ -11,8 +11,8 @@ import {
 } from './keyboard';
 
 // Keyboard test of the folder list of a library and of the typed confirmation that removes one
-// (CLAUDE.md rule 8, idea 02 steps 13 and 14, E16 and E17): the card names how many folders
-// there are, the dialog lists them, "Ordner hinzufügen" puts one in, and removing one stays
+// (CLAUDE.md rule 8, idea 02 steps 13 and 14, E16 and E17): the library's row names how many
+// folders there are, its fold-out and the dialog list them, "Ordner hinzufügen" puts one in, and removing one stays
 // refused until its path has been typed out character for character.
 //
 // It works on a library of its own, in a hidden folder below the media root of the run: hidden
@@ -26,7 +26,12 @@ const second = join(base, 'zwei');
 const third = join(base, 'drei');
 const fourth = join(base, 'vier');
 
-const card = (page: Page) => page.getByRole('article', { name: NAME });
+/** The toggle of the library's row, its row and its fold-out (concept 12, Bib-C). */
+const toggle = (page: Page) => page.getByRole('button', { name: NAME, exact: true });
+const row = (page: Page) => page.getByRole('row').filter({ has: toggle(page) });
+const foldOut = (page: Page) => page.getByRole('region', { name: NAME, exact: true });
+const foldersButton = (page: Page) =>
+  foldOut(page).getByRole('button', { name: `Ordner von ${NAME} bearbeiten` });
 const dialog = (page: Page) => page.getByRole('dialog', { name: `Ordner von ${NAME}` });
 const confirm = (page: Page) =>
   page.getByRole('alertdialog', { name: 'Ordner wirklich entfernen?' });
@@ -43,36 +48,50 @@ test.beforeAll(() => {
 test.beforeEach(async ({ page }) => {
   await page.goto('/admin/libraries');
   await expect(page.getByRole('heading', { level: 1, name: 'Bibliotheken' })).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Filme' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Filme', exact: true })).toBeVisible();
 
-  if ((await card(page).count()) === 0) {
-    await page.getByLabel('Name', { exact: true }).fill(NAME);
-    await page.getByLabel('Ordner', { exact: true }).fill(first);
-    await page.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }).click();
-    await expect(card(page)).toBeVisible();
+  if ((await toggle(page).count()) === 0) {
+    await page.getByRole('button', { name: 'Bibliothek hinzufügen' }).click();
+    const add = page.getByRole('dialog', { name: 'Bibliothek hinzufügen' });
+    await add.getByLabel('Name', { exact: true }).fill(NAME);
+    await add.getByLabel('Ordner', { exact: true }).fill(first);
+    await add.getByRole('button', { name: 'Bibliothek mit 1 Ordner hinzufügen' }).click();
+    await expect(add).toHaveCount(0);
+    await expect(toggle(page)).toBeVisible();
   }
   await resetFocus(page);
 });
 
 // While a modal is open react-aria hides the rest of the page from the accessibility tree, so
-// anything on the card is asserted with the dialog closed.
+// anything in the row or its fold-out is asserted with the dialog closed.
 const closeDialog = async (page: Page) => {
   await dialog(page).getByRole('button', { name: 'Schliessen' }).click();
   await expect(dialog(page)).toHaveCount(0);
 };
 
+/** Folds the library's row out (the fold-out carries the button to the dialog). */
+const openRow = async (page: Page) => {
+  if ((await toggle(page).getAttribute('aria-expanded')) !== 'true') await toggle(page).click();
+  await expect(foldOut(page)).toBeVisible();
+};
+
 const openDialog = async (page: Page) => {
-  await card(page)
-    .getByRole('button', { name: `Ordner von ${NAME} bearbeiten` })
-    .click();
+  await openRow(page);
+  await foldersButton(page).click();
   await expect(dialog(page)).toBeVisible();
 };
 
 test('the folders dialog opens from the keyboard and lists the folder', async ({ page }) => {
-  const open = card(page).getByRole('button', { name: `Ordner von ${NAME} bearbeiten` });
   // Tabbed to, not focused by script: a ring only counts when the keyboard put it there.
-  // The page carries a button or two per library, so the budget is generous.
-  await tabTo(page, open, 80);
+  // The page carries a row per library, so the budget is generous. Enter folds the row out;
+  // its first stops are «Erneut scannen» and «Ordner».
+  await tabTo(page, toggle(page), 80);
+  await page.keyboard.press('Enter');
+  await expect(toggle(page)).toHaveAttribute('aria-expanded', 'true');
+  const open = foldersButton(page);
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, open);
   await page.keyboard.press('Enter');
 
   await expect(dialog(page)).toBeVisible();
@@ -120,9 +139,10 @@ test('a second folder goes in, and comes out only after its path is typed', asyn
   await page.keyboard.press('Enter');
   await expect(dialog(page).getByText(second)).toBeVisible();
 
-  // The card counts instead of naming a path (E16).
+  // The row counts instead of naming a path (E16); the fold-out lists both.
   await closeDialog(page);
-  await expect(card(page).getByText('2 Ordner')).toBeVisible();
+  await expect(row(page).getByText('2 Ordner')).toBeVisible();
+  await expect(foldOut(page).getByText(second)).toBeVisible();
   await openDialog(page);
 
   // Remove: the confirming button stays refused until the path is repeated exactly.
@@ -157,7 +177,7 @@ test('a second folder goes in, and comes out only after its path is typed', asyn
   await expect(confirm(page)).toHaveCount(0);
   await expect(dialog(page).getByText(second)).toHaveCount(0);
   await closeDialog(page);
-  await expect(card(page).getByText(first)).toBeVisible();
+  await expect(row(page).getByText(first)).toBeVisible();
   await expectNoFocusTrap(page);
 });
 
@@ -176,8 +196,9 @@ test('a library without a folder says so and offers no scan (E13)', async ({ pag
   await expect(dialog(page).getByText(/Diese Bibliothek hat keinen Ordner/)).toBeVisible();
   await closeDialog(page);
 
-  await expect(card(page).getByText(/Kein Ordner: Es wird nichts gescannt/)).toBeVisible();
-  await expect(card(page).getByRole('button', { name: 'Erneut scannen' })).toBeDisabled();
+  await expect(row(page).getByText('0 Ordner')).toBeVisible();
+  await expect(foldOut(page).getByText(/Kein Ordner: Es wird nichts gescannt/)).toBeVisible();
+  await expect(foldOut(page).getByRole('button', { name: 'Erneut scannen' })).toBeDisabled();
 
   // Put it back, so the spec can run again on the same server.
   await openDialog(page);
@@ -190,8 +211,8 @@ test('two folders go in with one submit, each with its own content (F-13)', asyn
   await addFolders(page, [third, fourth]);
   await closeDialog(page);
   // The second new card proposed the other content of a video library: a series folder.
-  await expect(card(page).getByText('3 Ordner')).toBeVisible();
-  await expect(card(page).getByText('2 Filme, 1 Serien')).toBeVisible();
+  await expect(row(page).getByText('3 Ordner')).toBeVisible();
+  await expect(row(page).getByText('2 Filme, 1 Serien')).toBeVisible();
   // Out again, so the other tests find the one folder they expect.
   await openDialog(page);
   for (const path of [third, fourth]) {
@@ -203,7 +224,7 @@ test('two folders go in with one submit, each with its own content (F-13)', asyn
     await expect(confirm(page)).toHaveCount(0);
   }
   await closeDialog(page);
-  await expect(card(page).getByText(first)).toBeVisible();
+  await expect(row(page).getByText(first)).toBeVisible();
 });
 
 test('«Ändern» edits content and sources by keyboard; a content change needs the typed path', async ({
@@ -211,9 +232,15 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
 }) => {
   await openDialog(page);
   const open = dialog(page).getByRole('button', { name: `Ordner ${first} ändern` });
-  await tabTo(page, open, 20);
-  await page.keyboard.press('Enter');
-  await expect(change(page)).toBeVisible();
+  /** Opens «Ändern» by keyboard; the dialog starts on the checked content (its first field). */
+  const openChange = async () => {
+    if (!(await open.evaluate((element) => element === document.activeElement)))
+      await tabTo(page, open, 20);
+    await page.keyboard.press('Enter');
+    await expect(change(page)).toBeVisible();
+    await expectFocusOn(page, change(page).getByRole('radio', { checked: true }));
+  };
+  await openChange();
 
   // The fillers only: ticking AniList needs no confirmation, the dialog says what happens.
   const sources = change(page).getByRole('group', { name: 'Metadatenquellen' });
@@ -222,6 +249,16 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
   await expectVisibleFocus(page);
   await page.keyboard.press('Space');
   await expect(change(page).getByText(/Nur die Auffüller ändern sich/)).toBeVisible();
+  // The order is a position per source (S-16): ↑ puts AniList first, where it may not stand.
+  const rank = sources.getByRole('combobox', { name: 'Platz für AniList' });
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, rank);
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, rank);
+  await expect(sources.getByRole('alert')).toHaveText(/AniList kann keinen Titel erkennen/);
+  await expect(change(page).getByRole('button', { name: 'Speichern' })).toBeDisabled();
+  await page.keyboard.press('ArrowDown');
+  await expect(sources.getByRole('alert')).toHaveCount(0);
   const saved = page.waitForResponse(
     (response) => response.request().method() === 'PATCH' && /\/roots\/\d+$/.test(response.url()),
   );
@@ -233,8 +270,8 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
   await expect(row.getByText('TMDB › AniList')).toBeVisible();
 
   // The content: Escape leaves the confirmation, the typed path confirms it.
-  await open.click();
-  await change(page).getByRole('radio', { name: 'Filme' }).focus();
+  await openChange();
+  await expect(change(page).getByRole('radio', { name: 'Filme' })).toBeFocused();
   await page.keyboard.press('ArrowRight');
   await expect(change(page).getByRole('radio', { name: 'Serien' })).toBeChecked();
   await expect(change(page).getByText(/wirkt wie Ordner entfernen und neu anlegen/)).toBeVisible();
@@ -254,9 +291,9 @@ test('«Ändern» edits content and sources by keyboard; a content change needs 
   await expect(row.getByText('TMDB › TVDB')).toBeVisible();
 
   // Back to films, so the spec can run again on the same server.
-  await open.click();
+  await openChange();
   // The radio inputs are visually hidden (react-aria segments): the keyboard switches them.
-  await change(page).getByRole('radio', { name: 'Serien' }).focus();
+  await expect(change(page).getByRole('radio', { name: 'Serien' })).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await expect(change(page).getByRole('radio', { name: 'Filme' })).toBeChecked();
   await change(page).getByRole('button', { name: 'Speichern' }).click();

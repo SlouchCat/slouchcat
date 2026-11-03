@@ -1,0 +1,112 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3) var(--sc-space-6);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.actions,
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.dialogActions {
+  justify-content: flex-end;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* Paths and findings in full, wrapped where they have to (S-5: reachable without a pointer). */
+.path {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.wrap {
+  overflow-wrap: anywhere;
+}
+
+.duplicates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.duplicate {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.duplicateHead,
+.fileLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  align-items: baseline;
+}
+
+.keep {
+  padding: 0 var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+}
+
+.listTitle {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.candidates {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.candidateList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mergeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  align-items: flex-end;
+  margin-top: var(--sc-space-4);
+}

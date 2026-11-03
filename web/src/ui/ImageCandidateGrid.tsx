@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ListBox, ListBoxItem } from 'react-aria-components';
 import styles from './ImageCandidateGrid.module.css';
 
-export interface ImageTile {
+export interface ImageCandidateTile {
   /** Stable key: the source's address of the image. */
   id: string;
   /** Preview address; a provider's is loaded without a referrer. */
@@ -20,7 +20,7 @@ export interface ImageTile {
 interface ImageCandidateGridProps {
   /** Spoken name of the grid. */
   label: string;
-  items: readonly ImageTile[];
+  items: readonly ImageCandidateTile[];
   /** Enter or a click on a tile. */
   onAction: (id: string) => void;
   /** Shown instead of the tiles when there are none. */
@@ -69,7 +69,7 @@ export function ImageCandidateGrid({
       onAction={(key) => onAction(String(key))}
       renderEmptyState={() => <div className={styles.empty}>{emptyText}</div>}
     >
-      {(item: ImageTile) => (
+      {(item: ImageCandidateTile) => (
         <ListBoxItem
           id={item.id}
           textValue={item.actionLabel}

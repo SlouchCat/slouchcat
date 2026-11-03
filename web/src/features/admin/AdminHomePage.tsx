@@ -30,6 +30,7 @@ import {
 } from '@/ui';
 import {
   ActivityFeed,
+  AdminDensityScope,
   AriaButton,
   CodeBlock,
   ConfirmDialog,
@@ -47,7 +48,7 @@ import { formatSeconds, typeName } from './jobsFormat';
 import { DASHBOARD_POLL_MS, dashboardQuery, systemQuery } from './queries';
 import { reloadPage } from './restart';
 import { RestartPanel } from './RestartPanel';
-import { streamMode } from './StreamsPage';
+import { streamMode } from './streams/format';
 import styles from './AdminHomePage.module.css';
 
 /** The dot of an integration's state; the text next to it carries the meaning. */
@@ -175,6 +176,9 @@ function Command({ code, label }: { code: string; label: string }) {
   );
 }
 
+/** The tab «Fehlschläge» of the jobs page (concept 12, JOB-8, 11.5 point 11). */
+const jobsFailed = `${paths.adminJobs}?tab=failed`;
+
 /**
  * What needs doing (11.1), most urgent first. Integration errors and silent webhooks stand in
  * their own cards (G-8), the errors of the log in the server log.
@@ -192,7 +196,7 @@ function useHints(data: Dashboard, system: SystemInfo | undefined): Hint[] {
         count: data.jobs.failed,
         formatted: number.format(data.jobs.failed),
       }),
-      action: toJobs,
+      action: <TextLink href={jobsFailed}>{t('admin.home.hints.toJobs')}</TextLink>,
     });
   }
   if ((data.jobs.paused ?? 0) > 0) {
@@ -532,7 +536,14 @@ function TasksCard({ jobs }: { jobs: Dashboard['jobs'] }) {
     <DashCard
       icon="refresh"
       title={t('admin.home.jobs.title')}
-      footer={<TextLink href={paths.adminJobs}>{t('admin.home.jobs.all')}</TextLink>}
+      footer={
+        <>
+          <TextLink href={paths.adminJobs}>{t('admin.home.jobs.all')}</TextLink>
+          {jobs.failed > 0 && (
+            <TextLink href={jobsFailed}>{t('admin.home.jobs.toFailed')}</TextLink>
+          )}
+        </>
+      }
     >
       <div className={styles.counters}>
         <StatTile label={t('admin.home.jobs.queued')} value={number.format(jobs.queued)} />
@@ -909,55 +920,60 @@ export function AdminHomePage() {
   const system = useQuery({ ...systemQuery, enabled: allowed });
   const data = dashboard.data;
 
+  // The overview sits in the administration's content: its title is a page title like on every
+  // administration page (24 px compact, Marco 3 November 2026), its buttons are compact (ADR 0020),
+  // and the scope makes the restart dialog compact as well.
   return (
     <Page>
-      <div className={styles.head}>
-        <Text as="h1" variant="display">
-          {t('admin.home.title')}
-        </Text>
-        {allowed && (
-          <span className={styles.live}>
-            <StatusDot state={dashboard.isError ? 'danger' : 'success'} />
-            {dashboard.isError ? t('admin.home.liveFailed') : t('admin.home.live')}
-          </span>
-        )}
-      </div>
-      {!allowed ? (
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      ) : restartAt !== null ? (
-        <RestartPanel
-          acceptedAt={restartAt}
-          title={t('admin.home.restart.waitTitle')}
-          body={t('admin.home.restart.waitBody')}
-          onBack={reloadPage}
-        />
-      ) : (
-        <div aria-busy={dashboard.isPending} className={styles.body}>
-          {dashboard.isPending && <Skeleton shape="block" />}
-          {dashboard.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, dashboard.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void dashboard.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {data && (
-            <Cards
-              data={data}
-              now={dashboard.dataUpdatedAt}
-              system={system.data}
-              systemError={system.error}
-              onRestart={() => setRestartAt(Date.now())}
-            />
+      <AdminDensityScope>
+        <div className={styles.head}>
+          <Text as="h1" variant="pageTitle">
+            {t('admin.home.title')}
+          </Text>
+          {allowed && (
+            <span className={styles.live}>
+              <StatusDot state={dashboard.isError ? 'danger' : 'success'} />
+              {dashboard.isError ? t('admin.home.liveFailed') : t('admin.home.live')}
+            </span>
           )}
         </div>
-      )}
+        {!allowed ? (
+          <Notice title={t('admin.access.notAllowed.title')}>
+            {t('admin.access.notAllowed.body')}
+          </Notice>
+        ) : restartAt !== null ? (
+          <RestartPanel
+            acceptedAt={restartAt}
+            title={t('admin.home.restart.waitTitle')}
+            body={t('admin.home.restart.waitBody')}
+            onBack={reloadPage}
+          />
+        ) : (
+          <div aria-busy={dashboard.isPending} className={styles.body}>
+            {dashboard.isPending && <Skeleton shape="block" />}
+            {dashboard.isError && (
+              <Notice
+                tone="danger"
+                title={problemMessage(t, dashboard.error)}
+                actions={
+                  <AriaButton icon="refresh" onPress={() => void dashboard.refetch()}>
+                    {t('common.retry')}
+                  </AriaButton>
+                }
+              />
+            )}
+            {data && (
+              <Cards
+                data={data}
+                now={dashboard.dataUpdatedAt}
+                system={system.data}
+                systemError={system.error}
+                onRestart={() => setRestartAt(Date.now())}
+              />
+            )}
+          </div>
+        )}
+      </AdminDensityScope>
     </Page>
   );
 }

@@ -452,6 +452,63 @@ func (q *Queries) AdminListHashDuplicates(ctx context.Context, libraryID interfa
 	return items, nil
 }
 
+const adminListImages = `-- name: AdminListImages :many
+SELECT im.item_id, im.content_hash
+FROM images AS im
+JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
+WHERE im.size = ?1 AND im.kind = ?2 AND im.format = 'jpeg' AND im.item_id IN (/*SLICE:item_ids*/?)
+`
+
+type AdminListImagesParams struct {
+	Size    string
+	Kind    string
+	ItemIds []string
+}
+
+type AdminListImagesRow struct {
+	ItemID      string
+	ContentHash string
+}
+
+// The image of one kind (poster, backdrop) in one size of each title (one row per title, the JPEG
+// row: the URL only needs the content hash, the handler picks the format by Accept); titles without
+// that image are absent. @size and @kind come before the slice: sqlc numbers them after it
+// otherwise, which the expanded slice takes.
+func (q *Queries) AdminListImages(ctx context.Context, arg AdminListImagesParams) ([]AdminListImagesRow, error) {
+	query := adminListImages
+	var queryParams []interface{}
+	queryParams = append(queryParams, arg.Size)
+	queryParams = append(queryParams, arg.Kind)
+	if len(arg.ItemIds) > 0 {
+		for _, v := range arg.ItemIds {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminListImagesRow{}
+	for rows.Next() {
+		var i AdminListImagesRow
+		if err := rows.Scan(&i.ItemID, &i.ContentHash); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminListMediaFiles = `-- name: AdminListMediaFiles :many
 
 
@@ -629,60 +686,6 @@ func (q *Queries) AdminListOrphaned(ctx context.Context, arg AdminListOrphanedPa
 			&i.LibraryID,
 			&i.Detail,
 		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const adminListPosters = `-- name: AdminListPosters :many
-SELECT im.item_id, im.content_hash
-FROM images AS im
-JOIN items AS i ON i.id = im.item_id AND i.deleted_at IS NULL
-WHERE im.size = ?1 AND im.kind = 'poster' AND im.format = 'jpeg' AND im.item_id IN (/*SLICE:item_ids*/?)
-`
-
-type AdminListPostersParams struct {
-	Size    string
-	ItemIds []string
-}
-
-type AdminListPostersRow struct {
-	ItemID      string
-	ContentHash string
-}
-
-// The poster of each title in one size (one row per title, the JPEG row: the URL only needs the
-// content hash, the handler picks the format by Accept); titles without that poster are absent.
-// @size comes before the slice: sqlc numbers it ?2 otherwise, which the expanded slice takes.
-func (q *Queries) AdminListPosters(ctx context.Context, arg AdminListPostersParams) ([]AdminListPostersRow, error) {
-	query := adminListPosters
-	var queryParams []interface{}
-	queryParams = append(queryParams, arg.Size)
-	if len(arg.ItemIds) > 0 {
-		for _, v := range arg.ItemIds {
-			queryParams = append(queryParams, v)
-		}
-		query = strings.Replace(query, "/*SLICE:item_ids*/?", strings.Repeat(",?", len(arg.ItemIds))[1:], 1)
-	} else {
-		query = strings.Replace(query, "/*SLICE:item_ids*/?", "NULL", 1)
-	}
-	rows, err := q.db.QueryContext(ctx, query, queryParams...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []AdminListPostersRow{}
-	for rows.Next() {
-		var i AdminListPostersRow
-		if err := rows.Scan(&i.ItemID, &i.ContentHash); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

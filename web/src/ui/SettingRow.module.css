@@ -1,0 +1,58 @@
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-2) var(--sc-space-6);
+
+  /* Label and control start at the top of the row (mockups Spo-A, Met-B): a control of several
+     lines (a list of radio buttons, a ranked list) keeps its label beside its first line. */
+  align-items: start;
+  min-height: var(--sc-control-height);
+  padding: var(--sc-space-2) 0;
+}
+
+.row + .row {
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-setting-text-gap);
+  min-width: 0;
+}
+
+.label {
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+/* The label and a small addon (a chip) on one line. */
+.labelLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
+.help {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-setting-help-size);
+}
+
+.control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-width: 0;
+}
+
+/* Labels and help in two fifths of the row, the controls left-aligned in one column beside
+   them: every control of a form starts at the same line, however wide it is (mockups Spo-A,
+   Met-B, Int-A). */
+@media (width >= 768px) {
+  .row {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+}

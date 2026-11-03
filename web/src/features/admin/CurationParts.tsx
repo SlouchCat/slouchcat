@@ -1,7 +1,7 @@
 import type { AdminItemHit } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { Notice } from '@/ui';
@@ -9,10 +9,10 @@ import { AriaButton, TextField } from '@/ui/aria';
 import { adminItemSearchQuery, MIN_SEARCH } from './queries';
 
 type ItemKind = AdminItemHit['kind'];
-import styles from './Curation.module.css';
+import styles from './CurationParts.module.css';
 
-// Parts shared by the curation pages (M7): the title search of the pick and collection dialogs,
-// the up/down buttons of an ordered list and the datetime-local conversion of a pick's window.
+// Parts shared by the curation pages (M7): the title search of the pick and collection dialogs
+// and the datetime-local conversion of a pick's window.
 
 /** Wait after the last key before the search asks the server. */
 const SEARCH_DEBOUNCE_MS = 200;
@@ -118,42 +118,6 @@ export function TitleSearch({
       )}
     </div>
   );
-}
-
-/** The list with the entry at `index` moved one place up (-1) or down (+1). */
-export function moveBy<T>(list: readonly T[], index: number, delta: -1 | 1): T[] {
-  const target = index + delta;
-  if (target < 0 || target >= list.length) return [...list];
-  const next = [...list];
-  [next[index], next[target]] = [next[target]!, next[index]!];
-  return next;
-}
-
-/**
- * The "Nach oben"/"Nach unten" buttons of an ordered list. `buttonRef(key, delta)` registers a
- * button; `keepFocus(key, delta)` puts the focus back on the pressed button once the list shows
- * the new order (`order` changed), or on the other one when the entry reached the end of the list
- * and the pressed one is disabled now. Moving a row moves its DOM nodes, which drops the focus.
- */
-export function useMoveButtons(order: string) {
-  const buttons = useRef(new Map<string, HTMLButtonElement>());
-  const pending = useRef<{ key: string; delta: -1 | 1 } | null>(null);
-  useLayoutEffect(() => {
-    const move = pending.current;
-    if (!move) return;
-    pending.current = null;
-    const pressed = buttons.current.get(`${move.key}:${move.delta}`);
-    const other = buttons.current.get(`${move.key}:${-move.delta}`);
-    (pressed && !pressed.disabled ? pressed : other)?.focus();
-  }, [order]);
-  const buttonRef = (key: string, delta: -1 | 1) => (node: HTMLButtonElement | null) => {
-    if (node) buttons.current.set(`${key}:${delta}`, node);
-    else buttons.current.delete(`${key}:${delta}`);
-  };
-  const keepFocus = (key: string, delta: -1 | 1) => {
-    pending.current = { key, delta };
-  };
-  return { buttonRef, keepFocus };
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');

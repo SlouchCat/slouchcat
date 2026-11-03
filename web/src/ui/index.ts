@@ -61,4 +61,4 @@ export { Text } from './Text';
 export { TextLink } from './TextLink';
 export { TitleOrLogo } from './TitleOrLogo';
 export { VisuallyHidden } from './VisuallyHidden';
-export { ImageCandidateGrid, type ImageTile } from './ImageCandidateGrid';
+export { ImageCandidateGrid, type ImageCandidateTile } from './ImageCandidateGrid';

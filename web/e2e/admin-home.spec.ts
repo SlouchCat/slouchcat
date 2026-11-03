@@ -10,7 +10,7 @@ import {
 } from './keyboard';
 
 // The administration (concept 11, A-2, A-3): the app column has one entry "Verwaltung"; on every
-// /admin page the administration's sidebar stands in its place (20 entries, one Tab stop,
+// /admin page the administration's sidebar stands in its place (19 entries, one Tab stop,
 // ↑ ↓ Home End, wrapping), on a phone a button opens it as a sheet. The overview shows eight
 // cards of the real server (polled every 5 s) and the server log collapsed below them.
 
@@ -25,7 +25,7 @@ const serverLog = (page: Page) => card(page, 'Server-Protokoll');
 const errorList = (page: Page) =>
   serverLog(page).getByRole('list', { name: 'Fehler aus dem Server-Log', includeHidden: true });
 
-/** Every entry of the sidebar, in its order, with its path (11.1: 20 entries). */
+/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries). */
 const NAV_ENTRIES = [
   ['Zurück zur App', '/'],
   ['Übersicht', '/admin'],
@@ -34,7 +34,6 @@ const NAV_ENTRIES = [
   ['Pflege', '/admin/maintenance'],
   ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
-  ['Profile', '/settings/profiles'],
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
@@ -108,7 +107,27 @@ test('the app column has one "Verwaltung" entry; Enter opens the overview in the
   await expectFocusOn(page, appNav(page).getByRole('link', { name: 'Start', exact: true }));
 });
 
-test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
+test('the focus stays on «Übersicht» after entering the administration with Enter', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
+  await resetFocus(page);
+  await tabTo(page, appNav(page).getByRole('link', { name: 'Verwaltung' }));
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin$/);
+  await expectFocusOn(page, entry(page, 'Übersicht'));
+  // norigin restores the focus of a removed element 300 ms later (its auto-restore); the app
+  // column that had the focus is gone by now, and that restore must not pull the focus out of the
+  // administration's sidebar into the header. Wait past it, then check where the focus is.
+  await page.waitForTimeout(800);
+  await expectFocusOn(page, entry(page, 'Übersicht'));
+  // A slow machine used to hit this by chance: ↑ then Enter went to the bell, not to the app.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, entry(page, 'Zurück zur App'));
+});
+
+test('admin sidebar: 19 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
   page,
 }) => {
   await page.goto('/admin/devices');
@@ -125,7 +144,7 @@ test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, 
   await expectFocusOn(page, entry(page, 'Streams'));
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  await expectFocusOn(page, entry(page, 'Profile'));
+  await expectFocusOn(page, entry(page, 'Konten'));
   await page.keyboard.press('End');
   await expectFocusOn(page, entry(page, 'Sicherung'));
   // The arrows wrap around.
@@ -155,14 +174,13 @@ test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, 
   await expectNoFocusTrap(page);
 });
 
-test('every admin page is reached through the sidebar; Profile leaves for the app (A-2)', async ({
-  page,
-}) => {
+test('every admin page is reached through the sidebar (A-2)', async ({ page }) => {
   test.setTimeout(90_000);
   await openOverview(page);
-  await adminNav(page).locator('a[tabindex="0"]').focus();
+  await resetFocus(page);
+  await tabTo(page, entry(page, 'Übersicht'));
   for (const [name, path] of NAV_ENTRIES.slice(2)) {
-    // Profile and notifications belong to the account (/settings): checked below.
+    // Notifications belong to the account (/settings): checked below.
     if (!path.startsWith('/admin/')) continue;
     const link = entry(page, name);
     await arrowTo(page, link);
@@ -174,16 +192,6 @@ test('every admin page is reached through the sidebar; Profile leaves for the ap
     await expectFocusOn(page, link);
   }
 
-  // «Profile» leaves the administration: there the app column stands again; Back returns.
-  await page.keyboard.press('Home');
-  await arrowTo(page, entry(page, 'Profile'));
-  await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/settings\/profiles$/);
-  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
-  await expect(adminNav(page)).toHaveCount(0);
-  await expect(appNav(page)).toBeVisible();
-  await page.goBack();
-  await expect(page).toHaveURL(/\/admin\/backup$/);
   await expect(entry(page, 'Benachrichtigungen')).toHaveAttribute(
     'href',
     '/settings/notifications',

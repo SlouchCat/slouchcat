@@ -1,0 +1,140 @@
+/* Cat's Empfehlungen (concept 12, variant C): what AdminPage, BandPanel and DataTable do not lay
+   out themselves. The cells of a row, its fold-out, the hint and the add dialog. */
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+/* The title in the row: the name, then «geändert» while the pick has unsaved changes. */
+.title {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
+.muted {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+/* The note in full: wrapped, never clipped (at most 280 characters). */
+.note {
+  display: block;
+  max-width: 24rem;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.dot {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* The fold-out: the form on the left, place, target and «Entfernen» on the right. */
+.detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-5) var(--sc-space-8);
+  align-items: flex-start;
+}
+
+.editForm {
+  display: flex;
+  flex: 2 1 24rem;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sc-space-4);
+}
+
+/* The note takes the whole width of the fields. */
+.fields > :first-child {
+  grid-column: 1 / -1;
+}
+
+.side {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.rank {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sc-space-1) var(--sc-space-4);
+  margin: 0;
+  font-size: var(--sc-font-size-sm);
+}
+
+.facts > div {
+  display: contents;
+}
+
+.facts dt {
+  color: var(--sc-color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* The line under the list that points to the start page settings (PIC-4). */
+.hint {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* «Hinzufügen». */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.chosen {
+  margin: 0;
+  color: var(--sc-color-text-primary);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}

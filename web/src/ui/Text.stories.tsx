@@ -30,3 +30,15 @@ export const Variants: Story = {
     </Stack>
   ),
 };
+
+/** The h1 of an administration page (AdminPage): today the display size. */
+export const PageTitle: Story = {
+  render: () => (
+    <Text variant="pageTitle" as="h1">
+      Hintergrundjobs
+    </Text>
+  ),
+};
+
+/** The same h1 in the compact density: 24 px, semibold, normal tracking. */
+export const PageTitleCompact: Story = { ...PageTitle, globals: { density: 'compact' } };

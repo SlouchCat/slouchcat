@@ -1,0 +1,32 @@
+.check {
+  display: inline-flex;
+  flex: none;
+  border-radius: var(--sc-radius-sm);
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.check[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.box {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-6);
+  height: var(--sc-space-6);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-3);
+  color: transparent;
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.check[data-selected] .box {
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+}

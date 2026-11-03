@@ -6,8 +6,10 @@ import {
   feedEpisodes,
   feedKey,
   feedUrl,
+  openPodcastRow,
   PODCAST_TITLE,
   playAudio,
+  podcastRow,
   subscribeFeed,
   unsubscribe,
   visibleEpisodes,
@@ -50,12 +52,16 @@ test('H-2: the new episode appears after "Jetzt abrufen"; explicit stays hidden 
     // The feed gets episode 3; the admin fetches it now (keyboard on /admin/podcasts).
     await feedEpisodes(key, 3);
     await page.goto('/admin/podcasts');
-    const row = page
-      .getByRole('row')
-      .filter({ has: page.getByRole('rowheader').filter({ hasText: feedUrl(key) }) });
+    const row = podcastRow(page, podcast.id);
     await expect(row).toBeVisible();
-    const fetchButton = row.getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` });
-    await tabTo(page, fetchButton, 60);
+    // The row folds out (Enter on its title) into the feed address and «Jetzt abrufen».
+    const detail = await openPodcastRow(page, podcast.id);
+    await expect(detail.getByText(feedUrl(key), { exact: true })).toBeVisible();
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
+      detail.getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` }),
+    );
     await page.keyboard.press('Enter');
     await expect(page.getByText(`${PODCAST_TITLE} wird abgerufen.`)).toBeVisible();
     const episodes = await waitForEpisodes(owner, podcast.id, 3);

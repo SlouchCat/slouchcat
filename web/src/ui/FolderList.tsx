@@ -103,6 +103,11 @@ interface FolderListProps {
   onPathBlur?: (entry: FolderEntry) => void;
   /** The server's field messages by input name (`roots[1].providers`), shown at the field. */
   fieldErrors?: Readonly<Record<string, string>>;
+  /**
+   * How each card orders its providers: arrow buttons (the default, the setup wizard) or a
+   * position per entry (`rank`, concept 12 S-16, the administration's folder dialog).
+   */
+  ordering?: 'arrows' | 'rank';
 }
 
 /**
@@ -124,6 +129,7 @@ export function FolderList({
   pathAddon,
   onPathBlur,
   fieldErrors,
+  ordering,
 }: FolderListProps) {
   const { t } = useTranslation();
   const contents = contentsOf(kind);
@@ -245,6 +251,7 @@ export function FolderList({
                   value={entry.providers}
                   onChange={(providers) => update(entry.key, { providers })}
                   infos={infos}
+                  ordering={ordering}
                   error={fieldErrors?.[`${name}.providers`] ?? fieldErrors?.[`${name}.content`]}
                 />
               </div>

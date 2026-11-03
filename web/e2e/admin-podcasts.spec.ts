@@ -1,4 +1,15 @@
-import { feedEpisodes, feedKey, feedUrl, PODCAST_TITLE, subscribeFeed, unsubscribe } from './audio';
+import {
+  feedEpisodes,
+  feedKey,
+  feedUrl,
+  openPodcastRow,
+  PODCAST_TITLE,
+  podcastIdByFeed,
+  podcastRow,
+  podcastToggle,
+  subscribeFeed,
+  unsubscribe,
+} from './audio';
 import { FEED_BASE } from './env';
 import { expect, test } from './fixtures';
 import {
@@ -10,10 +21,11 @@ import {
 } from './keyboard';
 import { arrowTo } from './playback';
 
-// /admin/podcasts (M6, H-2) by keyboard (rule 8): subscribe through the dialog (a feed the
-// server cannot fetch is reported at the URL field, an address without http(s) already in the
-// browser), "Jetzt abrufen" and "Abo löschen" with its confirmation; visible focus throughout,
-// no focus trap.
+// /admin/podcasts (M6, H-2; concept 12, variant C) by keyboard (rule 8): tabs «Alle» and one per
+// podcast library, each podcast a row that folds out (Enter) into its feed address and actions;
+// subscribe through the dialog (a feed the server cannot fetch is reported at the URL field, an
+// address without http(s) already in the browser), "Jetzt abrufen" and "Abo löschen" with its
+// confirmation; visible focus throughout, no focus trap.
 
 test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at the field', async ({
   page,
@@ -22,16 +34,28 @@ test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at th
   test.setTimeout(90_000);
   const key = feedKey(testInfo);
   await feedEpisodes(key, 2);
+  const setupId = await podcastIdByFeed(owner, `${FEED_BASE}/feed.xml`);
   let created: string | undefined;
   try {
     await page.goto('/admin/podcasts');
-    await expect(page.getByRole('heading', { level: 1, name: 'Podcasts' })).toBeVisible();
+    const heading = page.getByRole('heading', { level: 1, name: 'Podcasts' });
+    await expect(heading).toBeVisible();
     await expect(
       page.getByRole('navigation', { name: 'Verwaltung' }).getByRole('link', { name: 'Podcasts' }),
     ).toHaveAttribute('aria-current', 'page');
-    // The feed of the global setup is listed with its URL.
+    await expect(
+      page
+        .getByRole('tablist', { name: 'Podcasts nach Bibliothek' })
+        .getByRole('tab', { selected: true }),
+    ).toHaveAccessibleName(/^Alle \d+ Podcasts?$/);
+    // The feed of the global setup is listed; its fold-out shows the URL.
     await expect(page.getByRole('table', { name: 'Abonnierte Podcasts' })).toBeVisible();
-    await expect(page.getByText(`${FEED_BASE}/feed.xml`, { exact: true })).toBeVisible();
+    await resetFocus(page);
+    const setupDetail = await openPodcastRow(page, setupId);
+    await expect(setupDetail.getByText(`${FEED_BASE}/feed.xml`, { exact: true })).toBeVisible();
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    await expect(podcastToggle(page, setupId)).toHaveAttribute('aria-expanded', 'false');
 
     await resetFocus(page);
     const subscribe = page.getByRole('button', { name: 'Feed abonnieren' });
@@ -75,88 +99,87 @@ test('podcasts page by keyboard: subscribe, fetch now, unsubscribe; errors at th
     await expect(dialog).toHaveCount(0);
     await expect(page.getByText(`${PODCAST_TITLE} ist abonniert.`)).toBeVisible();
     await expectFocusOn(page, subscribe);
-    const row = page
-      .getByRole('row')
-      .filter({ has: page.getByRole('rowheader').filter({ hasText: feedUrl(key) }) });
-    await expect(row).toBeVisible();
+    const row = podcastRow(page, created);
+    await expect(row.getByRole('rowheader')).toHaveText(PODCAST_TITLE);
     await expect(row.getByRole('cell').filter({ hasText: /^2$/ })).toBeVisible();
 
-    // "Jetzt abrufen" by keyboard.
-    const fetchButton = row.getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` });
-    await tabTo(page, fetchButton, 60);
+    // The row folds out by keyboard: the whole feed address, the library, the actions.
+    const detail = await openPodcastRow(page, created);
+    await expect(detail.getByText(feedUrl(key), { exact: true })).toBeVisible();
+    await expect(detail.getByText('Podcasts', { exact: true })).toBeVisible();
+
+    // "Jetzt abrufen" by keyboard: the page polls every 2 s for a while.
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
+      detail.getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` }),
+    );
     await page.keyboard.press('Enter');
     await expect(page.getByText(`${PODCAST_TITLE} wird abgerufen.`)).toBeVisible();
+    await expect(page.getByText('Live, alle 2 Sekunden')).toBeVisible();
     await expectVisibleFocus(page);
 
     // "Abo löschen": Tab to it, confirm in the dialog; the row goes, the focus to the heading.
     await page.keyboard.press('Tab');
-    await expectFocusOn(page, row.getByRole('button', { name: `Abo ${PODCAST_TITLE} löschen` }));
+    await expectFocusOn(page, detail.getByRole('button', { name: `Abo ${PODCAST_TITLE} löschen` }));
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: `Abo ${PODCAST_TITLE} löschen?` });
     await expect(confirm).toBeVisible();
+    // An open confirmation holds the polling.
+    await expect(page.getByText('Live, alle 2 Sekunden')).toHaveCount(0);
     await expectFocusOn(page, confirm.getByRole('button', { name: 'Abo löschen' }));
     await page.keyboard.press('Enter');
     await expect(row).toHaveCount(0);
     created = undefined;
     await expect(page.getByText(`Das Abo ${PODCAST_TITLE} ist gelöscht.`)).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1, name: 'Podcasts' })).toBeVisible();
+    await expect(heading).toBeFocused();
     await expectNoFocusTrap(page);
   } finally {
     if (created) await unsubscribe(owner, created);
   }
 });
 
-test('podcasts table: arrows move between the rows; browser back leaves the page', async ({
+test('podcasts page: library tabs and rows by arrow keys; browser back leaves the page', async ({
   page,
   owner,
 }, testInfo) => {
   const key = feedKey(testInfo);
   const second = await subscribeFeed(owner, key);
+  const setupId = await podcastIdByFeed(owner, `${FEED_BASE}/feed.xml`);
   try {
     // Both pages must have rendered before going back (Firefox, see admin-libraries.spec).
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 2, name: 'Neu hinzugefügt' })).toBeVisible();
     await page.goto('/admin/podcasts');
-    const table = page.getByRole('table', { name: 'Abonnierte Podcasts' });
-    const row = (url: string) =>
-      table.getByRole('row').filter({ has: page.getByRole('rowheader').filter({ hasText: url }) });
-    const fetchOf = (url: string) =>
-      row(url).getByRole('button', { name: `${PODCAST_TITLE} jetzt abrufen` });
-    await expect(row(feedUrl(key))).toBeVisible();
+    await expect(podcastRow(page, second.id)).toBeVisible();
+
+    // ←/→ move between the tabs and select them; the tab lives in the address (replaced).
+    const tabs = page.getByRole('tablist', { name: 'Podcasts nach Bibliothek' });
+    const all = tabs.getByRole('tab', { name: /^Alle/ });
+    await resetFocus(page);
+    await tabTo(page, all);
+    await page.keyboard.press('ArrowRight');
+    const library = tabs.getByRole('tab', { selected: true });
+    await expect(library).not.toHaveAccessibleName(/^Alle/);
+    await expect(library).toBeFocused();
+    await expectVisibleFocus(page);
+    await expect(page).toHaveURL(/\/admin\/podcasts\?tab=library-\d+$/);
+    await expect(page.getByRole('table', { name: /^Abonnierte Podcasts in / })).toBeVisible();
+    await page.keyboard.press('ArrowLeft');
+    await expect(all).toHaveAttribute('aria-selected', 'true');
+    await expectFocusOn(page, all);
+    await expect(page).toHaveURL(/\/admin\/podcasts$/);
+
     // ↓/↑ move between the rows like in the other admin tables (DataTable); the newest
     // subscription is listed first, the global setup's feed below it.
-    await fetchOf(feedUrl(key)).focus();
-    await arrowTo(page, fetchOf(`${FEED_BASE}/feed.xml`), 'ArrowDown');
+    await tabTo(page, podcastToggle(page, second.id), 60);
+    await arrowTo(page, podcastToggle(page, setupId), 'ArrowDown');
     await expectVisibleFocus(page);
-    await arrowTo(page, fetchOf(feedUrl(key)), 'ArrowUp');
+    await arrowTo(page, podcastToggle(page, second.id), 'ArrowUp');
     await expectVisibleFocus(page);
     await page.goBack();
     await expect(page).toHaveURL(/\/$/);
   } finally {
     await unsubscribe(owner, second.id);
   }
-});
-
-test('libraries page: the audio libraries show kind and default rating', async ({ page }) => {
-  await page.goto('/admin/libraries');
-  const books = page.getByRole('article', { name: 'Hörbücher' });
-  await expect(books.getByText('Hörbücher', { exact: true })).toHaveCount(2);
-  await expect(books.getByText('Standard: FSK 0')).toBeVisible();
-  const podcasts = page.getByRole('article', { name: 'Podcasts' });
-  await expect(podcasts.getByText('Standard: FSK 0')).toBeVisible();
-  await expect(
-    podcasts.getByText('Kein Ordner: Die Titel kommen aus abonnierten Feeds.'),
-  ).toBeVisible();
-  // "Standardstufe ändern" opens the dialog with the current rating; Escape leaves it unchanged.
-  await books.getByRole('button', { name: 'Standardstufe von Hörbücher ändern' }).focus();
-  await page.keyboard.press('Enter');
-  const dialog = page.getByRole('dialog', { name: 'Standardstufe von Hörbücher' });
-  await expect(dialog.getByRole('radio', { name: 'FSK 0' })).toBeChecked();
-  await expectVisibleFocus(page);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toHaveCount(0);
-  await expectFocusOn(
-    page,
-    books.getByRole('button', { name: 'Standardstufe von Hörbücher ändern' }),
-  );
 });

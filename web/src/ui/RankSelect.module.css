@@ -1,0 +1,44 @@
+.field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  align-items: flex-start;
+
+  /* At the top of its line, not on the text's baseline: in a table row the select would
+     otherwise sit lower than the other cells and make the row taller. */
+  vertical-align: top;
+}
+
+.select {
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.select:focus-visible {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.select:disabled {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
+.select option {
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+}
+
+.hint {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}

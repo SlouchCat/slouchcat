@@ -6,12 +6,15 @@ import (
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // BenchmarkStatsMillionEvents measures Stats over one million progress events (docs/perf/M8.md:
 // "Statistik-Abfrage p95 bei 1 Mio progress_events"): 3 profiles, 50 devices, 5000 titles, 1000
 // playback sessions, events evenly spread over the last 400 days. It reports p50 and p95 per
-// period. Run: go test -run '^$' -bench StatsMillionEvents -benchtime 40x ./internal/admin/
+// period, and since concept 12 the query of the grid of the week on its own (docs/perf/verwaltungsseiten.md).
+// Run: go test -run '^$' -bench StatsMillionEvents -benchtime 40x ./internal/admin/
 func BenchmarkStatsMillionEvents(b *testing.B) {
 	ctx := context.Background()
 	st := newStack(b, "0.9.0")
@@ -55,6 +58,28 @@ func BenchmarkStatsMillionEvents(b *testing.B) {
 				if _, err := st.svc.Stats(ctx, days); err != nil {
 					b.Fatal(err)
 				}
+				lat = append(lat, time.Since(t0))
+			}
+			slices.Sort(lat)
+			b.ReportMetric(float64(lat[len(lat)/2].Microseconds())/1000, "p50-ms")
+			b.ReportMetric(float64(lat[(len(lat)*95+99)/100-1].Microseconds())/1000, "p95-ms")
+		})
+	}
+	// Concept 12: the query of the grid of the week on its own, over its window (whole weeks, at
+	// most 84 days), with the mapping into the server's time zone.
+	for _, window := range []int{7, 28, 84} {
+		b.Run(fmt.Sprintf("quarters/window=%d", window), func(b *testing.B) {
+			params := systemq.StatsWatchTimeByQuarterParams{
+				FromMs: statsNow.Add(-time.Duration(window) * day).UnixMilli(), ToMs: statsNow.UnixMilli() + 1,
+			}
+			var lat []time.Duration
+			for b.Loop() {
+				t0 := time.Now()
+				rows, err := st.svc.sys.StatsWatchTimeByQuarter(ctx, params)
+				if err != nil {
+					b.Fatal(err)
+				}
+				_ = weekGrid(rows, time.Local)
 				lat = append(lat, time.Since(t0))
 			}
 			slices.Sort(lat)

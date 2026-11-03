@@ -1,4 +1,7 @@
 .frame {
+  /* The containing block of the hidden caption and headers: they stay inside the box that
+     scrolls instead of widening the page on a phone. */
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--sc-color-border-subtle);
   border-radius: var(--sc-radius-lg);
@@ -11,9 +14,10 @@
   font-size: var(--sc-font-size-sm);
 }
 
-/* Caption and hidden headers: for screen readers only. */
+/* Caption and hidden headers: for screen readers only (like VisuallyHidden). */
 .caption {
   position: absolute;
+  inset-inline-start: 0;
   overflow: hidden;
   width: 1px;
   height: 1px;
@@ -24,8 +28,32 @@
   white-space: nowrap;
 }
 
+/* Columns from their definitions, not from their content (K12-9): the tables of a page's groups
+   line up. Below the least width the table scrolls sideways in its frame instead of squeezing
+   its columns; text wraps inside its column. On a phone the alignment across groups is worth
+   less than the room: there the table sizes its columns from their content as without `fixed`. */
+@media (width >= 768px) {
+  .fixed {
+    min-width: 48rem;
+    table-layout: fixed;
+  }
+
+  .fixed col {
+    width: var(--column-width, auto);
+  }
+
+  .fixed .cell {
+    overflow-wrap: anywhere;
+  }
+
+  /* Headers wrap between words only: a caps word broken in two reads as two. */
+  .fixed .head {
+    white-space: normal;
+  }
+}
+
 .head {
-  padding: var(--sc-space-3) var(--sc-space-4);
+  padding: var(--sc-table-cell-padding-y) var(--sc-space-4);
   border-bottom: 1px solid var(--sc-color-border-subtle);
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-xs);
@@ -40,7 +68,8 @@
   transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
-.row + .row {
+.row + .row,
+.detailRow + .row {
   border-top: 1px solid var(--sc-color-border-subtle);
 }
 
@@ -49,11 +78,14 @@
 }
 
 .cell {
-  padding: var(--sc-space-3) var(--sc-space-4);
+  /* A table cell's height is the least height of its row (component token, 40 px in the
+     compact density, S-5); text, thumbnails and buttons share the row's middle. */
+  height: var(--sc-table-row-height);
+  padding: var(--sc-table-cell-padding-y) var(--sc-space-4);
   color: var(--sc-color-text-secondary);
   font-weight: var(--sc-font-weight-regular);
   text-align: left;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 th.cell {
@@ -63,4 +95,44 @@ th.cell {
 
 .end {
   text-align: right;
+}
+
+/* The first cell of a row that folds out: the whole cell is the button. */
+.toggle {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  min-height: var(--sc-space-6);
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.toggle:focus-visible {
+  border-radius: var(--sc-radius-sm);
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.chevron {
+  display: inline-flex;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+}
+
+.detailRow {
+  background-color: var(--sc-color-surface-2);
+}
+
+.detail {
+  padding: var(--sc-space-3) var(--sc-space-4) var(--sc-space-4);
+  color: var(--sc-color-text-secondary);
 }

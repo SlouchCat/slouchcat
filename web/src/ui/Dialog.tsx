@@ -8,69 +8,110 @@ import {
   type RefObject,
 } from 'react';
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
+import { useDensityPortalProps } from './adminDensity';
 import { AriaButton } from './AriaButton';
+import { focusOnMount } from './focusOnMount';
 import { TextField } from './TextField';
 import styles from './Dialog.module.css';
 
-interface ConfirmDialogProps {
-  /** The button that opens the dialog. */
-  trigger: ReactElement;
+interface ConfirmDialogTexts {
   title: string;
   body: string;
   confirmLabel: string;
   cancelLabel: string;
   onConfirm: () => void;
   tone?: 'primary' | 'danger';
+  /**
+   * The button that has the focus when the dialog opens: `confirm` (the default) for a question
+   * the reader asked for, `cancel` where pressing Enter by habit must not lose anything (leaving
+   * a page with unsaved input).
+   */
+  defaultFocus?: 'confirm' | 'cancel';
+}
+
+/** Opened by its own button; the page may still follow or set the open state. */
+interface TriggeredConfirm {
+  /** The button that opens the dialog. */
+  trigger: ReactElement;
+  isOpen?: boolean;
   /** Told when the dialog opens and closes (a page pauses its polling meanwhile). */
   onOpenChange?: (isOpen: boolean) => void;
 }
 
+/** Opened by the page (from a menu or an expandable row, which have no button for it). */
+interface ControlledConfirm {
+  trigger?: undefined;
+  isOpen: boolean;
+  /** Escape, Cancel and Confirm close it through this. */
+  onOpenChange: (isOpen: boolean) => void;
+}
+
+type ConfirmDialogProps = ConfirmDialogTexts & (TriggeredConfirm | ControlledConfirm);
+
 /**
  * Modal confirmation (react-aria): focus moves into the dialog, Escape and Cancel close it and
- * focus returns to the trigger.
+ * focus returns to the trigger, or to where it was when the page opened the dialog.
  */
 export function ConfirmDialog({
   trigger,
+  isOpen,
   title,
   body,
   confirmLabel,
   cancelLabel,
   onConfirm,
   tone = 'primary',
+  defaultFocus = 'confirm',
   onOpenChange,
 }: ConfirmDialogProps) {
+  const density = useDensityPortalProps();
+  // The default button takes the focus when it mounts (focusOnMount, not react-aria's autoFocus).
+  const overlay = (
+    <ModalOverlay
+      className={styles.overlay}
+      isDismissable
+      {...density}
+      // Inside a DialogTrigger the trigger holds the state; on its own the page does.
+      {...(trigger ? {} : { isOpen, onOpenChange })}
+    >
+      <Modal className={styles.modal}>
+        <Dialog className={styles.dialog} role="alertdialog">
+          {({ close }) => (
+            <>
+              <Heading slot="title" className={styles.title}>
+                {title}
+              </Heading>
+              <p className={styles.body}>{body}</p>
+              <div className={styles.actions}>
+                <AriaButton
+                  variant="ghost"
+                  ref={defaultFocus === 'cancel' ? focusOnMount : undefined}
+                  onPress={close}
+                >
+                  {cancelLabel}
+                </AriaButton>
+                <AriaButton
+                  variant={tone}
+                  ref={defaultFocus === 'confirm' ? focusOnMount : undefined}
+                  onPress={() => {
+                    onConfirm();
+                    close();
+                  }}
+                >
+                  {confirmLabel}
+                </AriaButton>
+              </div>
+            </>
+          )}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+  if (!trigger) return overlay;
   return (
-    <DialogTrigger onOpenChange={onOpenChange}>
+    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       {trigger}
-      <ModalOverlay className={styles.overlay} isDismissable>
-        <Modal className={styles.modal}>
-          <Dialog className={styles.dialog} role="alertdialog">
-            {({ close }) => (
-              <>
-                <Heading slot="title" className={styles.title}>
-                  {title}
-                </Heading>
-                <p className={styles.body}>{body}</p>
-                <div className={styles.actions}>
-                  <AriaButton variant="ghost" onPress={close}>
-                    {cancelLabel}
-                  </AriaButton>
-                  <AriaButton
-                    variant={tone}
-                    autoFocus
-                    onPress={() => {
-                      onConfirm();
-                      close();
-                    }}
-                  >
-                    {confirmLabel}
-                  </AriaButton>
-                </div>
-              </>
-            )}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      {overlay}
     </DialogTrigger>
   );
 }
@@ -134,6 +175,7 @@ export function ConfirmInputDialog({
   const typed = entry.asked === asked ? entry.typed : '';
   const matches = typed.trim() === expected;
   const clear = () => setEntry({ asked: '', typed: '' });
+  const density = useDensityPortalProps();
   const close = () => {
     clear();
     onOpenChange(false);
@@ -142,6 +184,7 @@ export function ConfirmInputDialog({
   return (
     <ModalOverlay
       className={styles.overlay}
+      {...density}
       isOpen={isOpen}
       onOpenChange={(open) => {
         if (open) {
@@ -164,7 +207,7 @@ export function ConfirmInputDialog({
             value={typed}
             onChange={(value) => setEntry({ asked, typed: value })}
             mono
-            autoFocus
+            inputRef={focusOnMount}
             autoComplete="off"
             spellCheck="false"
             description={matches ? undefined : mismatchText}
@@ -236,28 +279,33 @@ export function FormDialog({
   children,
 }: FormDialogProps) {
   // A dialog opened with Enter counts as a "virtual" click for react-aria, which then focuses the
-  // dialog itself and skips `autoFocus` of a field inside. The first field gets the focus here,
-  // before the dialog's own effect looks at the focus.
+  // dialog itself and skips `autoFocus` of a field inside. The first field gets the focus here.
+  // It moves in a microtask, after React's commit (like focusOnMount): during the commit the
+  // dialog's own FocusScope has not registered yet (it does so in a layout effect), so in a dialog
+  // opened from inside another one the outer scope's `contain` would pull the focus back out.
   const focusFirstField = useCallback(
     (root: HTMLDivElement | null) => {
       if (!root) return;
-      if (initialFocus) {
-        const wanted =
-          typeof initialFocus === 'string'
-            ? root.querySelector<HTMLElement>(initialFocus)
-            : initialFocus.current;
-        if (wanted) {
-          wanted.focus();
-          return;
+      queueMicrotask(() => {
+        if (!root.isConnected) return;
+        if (initialFocus) {
+          const wanted =
+            typeof initialFocus === 'string'
+              ? root.querySelector<HTMLElement>(initialFocus)
+              : initialFocus.current;
+          if (wanted) {
+            wanted.focus();
+            return;
+          }
         }
-      }
-      // The first field in document order: a text field, or the checked radio of a group that
-      // comes first (a dialog may start with radios and have text fields further down).
-      const field =
-        root.querySelector<HTMLElement>(
-          'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), textarea, select, input:checked',
-        ) ?? root.querySelector<HTMLElement>('input, button');
-      field?.focus();
+        // The first field in document order: a text field, or the checked radio of a group that
+        // comes first (a dialog may start with radios and have text fields further down).
+        const field =
+          root.querySelector<HTMLElement>(
+            'input:not([type="radio"]):not([type="checkbox"]):not([type="hidden"]), textarea, select, input:checked',
+          ) ?? root.querySelector<HTMLElement>('input, button');
+        field?.focus();
+      });
     },
     [initialFocus],
   );
@@ -278,8 +326,14 @@ export function FormDialog({
     return () => cancelAnimationFrame(frame);
   }, [isOpen, returnFocus]);
 
+  const density = useDensityPortalProps();
   return (
-    <ModalOverlay className={styles.overlay} isOpen={isOpen} onOpenChange={onOpenChange}>
+    <ModalOverlay
+      className={styles.overlay}
+      {...density}
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <Modal className={`${styles.modal} ${size === 'wide' ? styles.wide : ''}`}>
         <Dialog className={styles.dialog}>
           <div className={styles.head}>
