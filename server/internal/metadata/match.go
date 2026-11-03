@@ -175,6 +175,9 @@ func (s *Service) matchMovie(ctx context.Context, item systemq.Item) error {
 	if err != nil || !applied {
 		return err
 	}
+	if s.relinked(ctx, item.ID) {
+		return nil
+	}
 	if err := s.enqueueImages(ctx, item.ID, imageFetchPriority); err != nil {
 		return fmt.Errorf("metadata.match: %w", err)
 	}
@@ -281,6 +284,9 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 	if err != nil || !applied {
 		return err
 	}
+	if s.relinked(ctx, item.ID) {
+		return nil
+	}
 	if err := s.matchSeasons(ctx, series, prov, rec, langs); err != nil {
 		return err
 	}
@@ -288,6 +294,25 @@ func (s *Service) matchSeries(ctx context.Context, item systemq.Item) error {
 		return fmt.Errorf("metadata.match: %w", err)
 	}
 	return s.enqueueTrailerAfterMatch(ctx, item.ID)
+}
+
+// relinked runs the relink hook (WithRelink) after a match wrote the provider ids of a film or
+// series. It reports whether the title merged into its soft-deleted twin and is gone; then the
+// rest of the match (seasons, images, fill, trailer) is left to the twin's own match job. A failed
+// relink is logged and the match goes on, because the match itself is stored.
+func (s *Service) relinked(ctx context.Context, itemID string) bool {
+	if s.relink == nil {
+		return false
+	}
+	kept, merged, err := s.relink(ctx, itemID)
+	if err != nil {
+		s.log.Warn("relink after the match failed", "item_id", itemID, "err", err)
+		return false
+	}
+	if merged {
+		s.log.Info("matched title merged into its deleted twin", "item_id", itemID, "kept_id", kept)
+	}
+	return merged
 }
 
 // resolveSeriesTMDB finds the TMDB series of item: tmdb_id, else tvdb_id or imdb_id through /find,
