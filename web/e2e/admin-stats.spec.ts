@@ -134,6 +134,10 @@ test('A-8: a playback shows up in the statistics; period, tables, grid and Back 
   await expect(when.getByRole('button', { name: 'Woche und Stunde' })).toHaveCount(0);
   await expect(grid.getByRole('rowheader')).toHaveCount(7);
   await expect(grid.getByRole('row').first().getByRole('columnheader')).toHaveCount(25);
+  // The figure holds the drawn grid and the table: neither has anything to focus.
+  const figure = grid.locator('xpath=ancestor::figure[1]');
+  await expect(figure).toHaveCount(1);
+  await expect(figure.locator('[tabindex], a, button, input, select')).toHaveCount(0);
 
   // From the period into the titles: Enter opens the title's admin page, Back returns to 7 days.
   await resetFocus(page);
