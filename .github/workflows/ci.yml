@@ -155,10 +155,14 @@ jobs:
       # after a go.sum change compiled -- often a job without -race -- and every group then compiles
       # the race-instrumented packages from scratch ("Cache hit occurred on the primary key ...,
       # not saving cache" in the post step). This cache holds the -race build cache of one group.
-      # The run id in the key makes every run save its own; restore-keys hand the newest one to the
-      # next run, of this branch or of main.
-      - name: Cache the -race build cache of this group
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      # The run id in the key gives every save a key of its own; restore-keys hand the newest one to
+      # the next run. Only pushes to main save (step "Save the -race build cache" below): a pull
+      # request restores main's cache, which every branch may read, but a cache it saved would be
+      # readable by that branch alone, and five groups of them per push would crowd main's caches
+      # (and the Playwright browsers) out of the 10-GB budget of the repository.
+      - name: Restore the -race build cache of this group
+        id: race-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/go-build
           key: go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-${{ github.run_id }}
@@ -174,6 +178,14 @@ jobs:
       - run: task server:test GROUP=${{ matrix.group }}
         env:
           GOFLAGS: -count=1
+
+      # Also after red tests: what was compiled is valid either way.
+      - name: Save the -race build cache
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.race-cache.outputs.cache-primary-key }}
 
   # ---------------------------------------------------------------------------------------------
   # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot

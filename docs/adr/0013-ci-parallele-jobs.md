@@ -174,9 +174,12 @@ Umsetzung:
   Schlüssel bei jedem Lauf trifft, speichert es nie neu («Cache hit occurred on the primary key»
   im Post-Schritt): Der Build-Cache ist der des ersten Jobs nach einer `go.sum`-Änderung, oft einer
   ohne `-race`, und jede Testgruppe übersetzt die mit `-race` instrumentierten Pakete neu.
-- Jede Testgruppe hat deshalb einen eigenen **`actions/cache`** auf `~/.cache/go-build`, Schlüssel
-  mit Gruppe, `go.sum`-Hash und `run_id`, dazu `restore-keys` als Präfix: Jeder Lauf speichert
-  seinen Stand, der nächste beginnt mit dem neuesten.
+- Jede Testgruppe hat deshalb einen eigenen Cache auf `~/.cache/go-build`, Schlüssel mit Gruppe,
+  `go.sum`-Hash und `run_id`, dazu `restore-keys` als Präfix. **Gespeichert wird nur bei einem Push
+  auf `main`** (`actions/cache/save`), gelesen in jedem Lauf (`actions/cache/restore`): Jeder Branch
+  darf die Caches von `main` lesen, einen eigenen Cache aber nur er selbst; fünf Gruppen je Push
+  eines Pull Requests würden die Caches von `main` und die Playwright-Browser aus den 10 GB des
+  Repositorys verdrängen.
 - **`GOFLAGS=-count=1`** im Testschritt: Der Cache enthält auch Testergebnisse, und `go test`
   meldete schon vorher vier Pakete als «(cached)», statt sie auszuführen (Run 41707865418). Der
   Cache soll das Übersetzen sparen, nie einen Test.
