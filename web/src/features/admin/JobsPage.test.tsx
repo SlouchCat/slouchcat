@@ -450,12 +450,6 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     await user.click(within(groupPanel()).getByRole('button', { name: 'Bibliotheksscan' }));
     scan = await openRow(user, 'Bibliotheksscan');
     expect(within(scan).getByRole('combobox', { name: 'Takt' })).toHaveValue('7200');
-    // The select is a spatial item and had norigin's focus when the tab switch unmounted it, so
-    // norigin restores its group 300 ms later and focuses the group's first item: the select of
-    // the row folded out again. On a slow runner that landed after the click on «Speichern» below
-    // and took its focus (toHaveFocus, run 41705097285). Back on the select, as a reader returning
-    // to the field, norigin's focus is current again and the pending restore is cancelled.
-    await user.click(within(scan).getByRole('combobox', { name: 'Takt' }));
 
     // Leaving the page with the draft asks; staying keeps it.
     await user.click(
