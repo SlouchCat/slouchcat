@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.8.0
+  version: 1.9.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -3959,6 +3959,78 @@ paths:
           $ref: "#/components/responses/AdminOnly"
         "422":
           description: Validation failed (`validation_failed`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/maintenance/relink:
+    get:
+      operationId: listRelinkPairs
+      summary: Deleted titles with a live copy and the user data left on them (ADR 0023)
+      description: |
+        Pairs of a soft-deleted film or series and the live copy that carries one of its provider ids
+        (TMDB, TVDB, IMDb) in the same library, without a contradicting id; with several deleted
+        twins the most recently deleted one. Each pair counts the user data on the deleted title and
+        its seasons, episodes and extras, per table. At most 200 pairs, ordered by library and title;
+        `total` counts all of them.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - name: libraryId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: The pairs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelinkPairList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+    post:
+      operationId: relinkItems
+      summary: Merge live copies into their deleted titles (ADR 0023)
+      description: |
+        Each pair must be listed by `listRelinkPairs`; otherwise nothing is merged (`validation_failed`).
+        One transaction per pair: the deleted title comes back with its id, the files, seasons,
+        episodes and user data of the live copy merge into it (progress: completed wins, then the
+        larger position) and the copy is deleted. A pair whose deleted title came back meanwhile (two
+        copies of one title) is skipped. A running scan of the library refuses a pair (`scan_running`);
+        the pairs before it stay merged, and a repeated request merges the rest.
+      tags: [admin]
+      x-visibility: admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RelinkRequest"
+      responses:
+        "200":
+          description: The merged pairs and the skipped ones.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RelinkOutcome"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "409":
+          description: A scan of the library is running (`scan_running`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: Validation failed (`validation_failed`; `pairs[i]` `invalid_value` for a pair that is not listed).
           content:
             application/problem+json:
               schema:
@@ -9247,6 +9319,134 @@ components:
           maxItems: 5000
           items:
             type: string
+
+    RelinkUserData:
+      type: object
+      description: User data rows on a title and its descendants, per table.
+      required: [progress, progressEvents, progressDays, playbackSessions, watchlist, favorites, collectionItems,
+        notifications, topPicks, downloads, activityEvents]
+      properties:
+        progress:
+          type: integer
+          format: int64
+        progressEvents:
+          type: integer
+          format: int64
+        progressDays:
+          type: integer
+          format: int64
+        playbackSessions:
+          type: integer
+          format: int64
+        watchlist:
+          type: integer
+          format: int64
+        favorites:
+          type: integer
+          format: int64
+        collectionItems:
+          type: integer
+          format: int64
+        notifications:
+          type: integer
+          format: int64
+        topPicks:
+          type: integer
+          format: int64
+        downloads:
+          type: integer
+          format: int64
+        activityEvents:
+          type: integer
+          format: int64
+
+    RelinkPair:
+      type: object
+      required: [deletedId, liveId, libraryId, libraryName, kind, title, deletedAt, userData]
+      properties:
+        deletedId:
+          $ref: "#/components/schemas/ItemID"
+        liveId:
+          $ref: "#/components/schemas/ItemID"
+        libraryId:
+          type: integer
+          format: int64
+        libraryName:
+          type: string
+        kind:
+          type: string
+          enum: [movie, series]
+        title:
+          type: string
+          description: Title of the live copy.
+        deletedAt:
+          type: string
+          format: date-time
+        userData:
+          $ref: "#/components/schemas/RelinkUserData"
+          description: The user data on the deleted title, which the merge keeps.
+
+    RelinkPairList:
+      type: object
+      required: [total, pairs]
+      properties:
+        total:
+          type: integer
+          description: All pairs; `pairs` holds at most 200 of them.
+        pairs:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/RelinkPair"
+
+    RelinkRequest:
+      type: object
+      required: [pairs]
+      properties:
+        pairs:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/RelinkPairRef"
+
+    RelinkPairRef:
+      type: object
+      required: [deletedId, liveId]
+      properties:
+        deletedId:
+          $ref: "#/components/schemas/ItemID"
+        liveId:
+          $ref: "#/components/schemas/ItemID"
+
+    RelinkedPair:
+      type: object
+      required: [keptId, removedId, merged, moved]
+      properties:
+        keptId:
+          $ref: "#/components/schemas/ItemID"
+          description: The formerly deleted title, which keeps its id.
+        removedId:
+          $ref: "#/components/schemas/ItemID"
+          description: The live copy, now deleted.
+        merged:
+          type: integer
+          description: Nodes of the copy (title, seasons, episodes) that merged into a counterpart.
+        moved:
+          type: integer
+          description: Children of the copy that moved below the title for want of a counterpart.
+
+    RelinkOutcome:
+      type: object
+      required: [relinked, skipped]
+      properties:
+        relinked:
+          type: array
+          items:
+            $ref: "#/components/schemas/RelinkedPair"
+        skipped:
+          type: integer
+          description: Pairs whose deleted title came back meanwhile or that are gone.
 
     LibraryKind:
       type: string

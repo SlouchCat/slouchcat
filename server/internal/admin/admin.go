@@ -19,6 +19,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/auth"
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -109,6 +110,14 @@ type LibraryMaintenance interface {
 	// IgnoreFiles removes the media files, records them in ignored_files with the reason and
 	// soft-deletes titles left without a file; unknown ids are skipped.
 	IgnoreFiles(ctx context.Context, mediaFileIDs []string, reason string) (files, itemsDeleted int, err error)
+	// ListRelinkPairs lists the live films and series with a soft-deleted twin (ADR 0023), of one
+	// library or of all (libraryID 0).
+	ListRelinkPairs(ctx context.Context, libraryID int64) ([]library.RelinkPair, error)
+	// CountRelinkUserData counts the user data of a title and its descendants per table.
+	CountRelinkUserData(ctx context.Context, itemID string) (library.RelinkUserData, error)
+	// Relink merges the live copy into its soft-deleted twin; model.ErrNotFound,
+	// library.ErrNotTwins, model.ErrScanRunning.
+	Relink(ctx context.Context, deletedID, liveID string) (library.RelinkResult, error)
 }
 
 // Metadata is implemented by package metadata (M3): provider search, manual match, refresh and

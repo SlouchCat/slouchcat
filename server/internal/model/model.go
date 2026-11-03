@@ -416,6 +416,49 @@ type DuplicateGroup struct {
 	Items  []DuplicateItem
 }
 
+// RelinkUserData counts the user data rows of a title and its descendants per table (ADR 0023).
+type RelinkUserData struct {
+	Progress         int64
+	ProgressEvents   int64
+	ProgressDays     int64
+	PlaybackSessions int64
+	Watchlist        int64
+	Favorites        int64
+	CollectionItems  int64
+	Notifications    int64
+	TopPicks         int64
+	Downloads        int64
+	ActivityEvents   int64
+}
+
+// RelinkPair is a soft-deleted film or series and the live copy that would merge into it, with
+// the user data on the deleted title (ADR 0023, maintenance action D1).
+type RelinkPair struct {
+	DeletedID, LiveID string
+	LibraryID         int64
+	LibraryName       string
+	Kind              string // movie or series
+	Title             string // of the live copy
+	DeletedAt         time.Time
+	UserData          RelinkUserData
+}
+
+// RelinkPairList is the first pairs and the number of all pairs.
+type RelinkPairList struct {
+	Total int
+	Pairs []RelinkPair
+}
+
+// RelinkPairRef names a pair to merge: the deleted title and its live copy.
+type RelinkPairRef struct{ DeletedID, LiveID string }
+
+// RelinkedPair is one merged pair: the kept (formerly deleted) id, the removed copy, the merged
+// and the moved nodes.
+type RelinkedPair struct {
+	KeptID, RemovedID string
+	Merged, Moved     int
+}
+
 // Image is a poster or backdrop reference as the client uses it.
 type Image struct {
 	Kind        string // poster, backdrop

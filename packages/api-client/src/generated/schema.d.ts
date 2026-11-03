@@ -1962,6 +1962,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/maintenance/relink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deleted titles with a live copy and the user data left on them (ADR 0023)
+         * @description Pairs of a soft-deleted film or series and the live copy that carries one of its provider ids
+         *     (TMDB, TVDB, IMDb) in the same library, without a contradicting id; with several deleted
+         *     twins the most recently deleted one. Each pair counts the user data on the deleted title and
+         *     its seasons, episodes and extras, per table. At most 200 pairs, ordered by library and title;
+         *     `total` counts all of them.
+         */
+        get: operations["listRelinkPairs"];
+        put?: never;
+        /**
+         * Merge live copies into their deleted titles (ADR 0023)
+         * @description Each pair must be listed by `listRelinkPairs`; otherwise nothing is merged (`validation_failed`).
+         *     One transaction per pair: the deleted title comes back with its id, the files, seasons,
+         *     episodes and user data of the live copy merge into it (progress: completed wins, then the
+         *     larger position) and the copy is deleted. A pair whose deleted title came back meanwhile (two
+         *     copies of one title) is skipped. A running scan of the library refuses a pair (`scan_running`);
+         *     the pairs before it stay merged, and a repeated request merges the rest.
+         */
+        post: operations["relinkItems"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/devices": {
         parameters: {
             query?: never;
@@ -4918,6 +4951,73 @@ export interface components {
         CleanupRequest: {
             itemIds?: components["schemas"]["ItemID"][];
             mediaFileIds?: string[];
+        };
+        /** @description User data rows on a title and its descendants, per table. */
+        RelinkUserData: {
+            /** Format: int64 */
+            progress: number;
+            /** Format: int64 */
+            progressEvents: number;
+            /** Format: int64 */
+            progressDays: number;
+            /** Format: int64 */
+            playbackSessions: number;
+            /** Format: int64 */
+            watchlist: number;
+            /** Format: int64 */
+            favorites: number;
+            /** Format: int64 */
+            collectionItems: number;
+            /** Format: int64 */
+            notifications: number;
+            /** Format: int64 */
+            topPicks: number;
+            /** Format: int64 */
+            downloads: number;
+            /** Format: int64 */
+            activityEvents: number;
+        };
+        RelinkPair: {
+            deletedId: components["schemas"]["ItemID"];
+            liveId: components["schemas"]["ItemID"];
+            /** Format: int64 */
+            libraryId: number;
+            libraryName: string;
+            /** @enum {string} */
+            kind: "movie" | "series";
+            /** @description Title of the live copy. */
+            title: string;
+            /** Format: date-time */
+            deletedAt: string;
+            /** @description The user data on the deleted title, which the merge keeps. */
+            userData: components["schemas"]["RelinkUserData"];
+        };
+        RelinkPairList: {
+            /** @description All pairs; `pairs` holds at most 200 of them. */
+            total: number;
+            pairs: components["schemas"]["RelinkPair"][];
+        };
+        RelinkRequest: {
+            pairs: components["schemas"]["RelinkPairRef"][];
+        };
+        RelinkPairRef: {
+            deletedId: components["schemas"]["ItemID"];
+            liveId: components["schemas"]["ItemID"];
+        };
+        RelinkedPair: {
+            /** @description The formerly deleted title, which keeps its id. */
+            keptId: components["schemas"]["ItemID"];
+            /** @description The live copy, now deleted. */
+            removedId: components["schemas"]["ItemID"];
+            /** @description Nodes of the copy (title, seasons, episodes) that merged into a counterpart. */
+            merged: number;
+            /** @description Children of the copy that moved below the title for want of a counterpart. */
+            moved: number;
+        };
+        RelinkOutcome: {
+            relinked: components["schemas"]["RelinkedPair"][];
+            /** @description Pairs whose deleted title came back meanwhile or that are gone. */
+            skipped: number;
         };
         /**
          * @description The family of a library (ADR 0015): what its folders may hold, nothing else. `video` takes
@@ -11031,6 +11131,74 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRelinkPairs: {
+        parameters: {
+            query?: {
+                libraryId?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pairs. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelinkPairList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    relinkItems: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelinkRequest"];
+            };
+        };
+        responses: {
+            /** @description The merged pairs and the skipped ones. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelinkOutcome"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description A scan of the library is running (`scan_running`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`; `pairs[i]` `invalid_value` for a pair that is not listed). */
             422: {
                 headers: {
                     [name: string]: unknown;

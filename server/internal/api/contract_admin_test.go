@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -42,6 +43,18 @@ func (contractLibraryMaintenance) CancelScan(context.Context, int64) (model.Libr
 }
 func (contractLibraryMaintenance) IgnoreFiles(_ context.Context, ids []string, _ string) (files, itemsDeleted int, err error) {
 	return len(ids), 0, nil
+}
+
+// The contract fixture has no soft-deleted title with a live copy: the list is empty, and a
+// requested pair is not listed (the Go tests of admin and library relink real pairs).
+func (contractLibraryMaintenance) ListRelinkPairs(context.Context, int64) ([]library.RelinkPair, error) {
+	return []library.RelinkPair{}, nil
+}
+func (contractLibraryMaintenance) CountRelinkUserData(context.Context, string) (library.RelinkUserData, error) {
+	return library.RelinkUserData{}, nil
+}
+func (contractLibraryMaintenance) Relink(context.Context, string, string) (library.RelinkResult, error) {
+	return library.RelinkResult{}, library.ErrNotTwins
 }
 
 // itemRefsIn returns the ids of the JSON objects in the response that have the shape of an
