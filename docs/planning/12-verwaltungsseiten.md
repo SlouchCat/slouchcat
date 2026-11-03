@@ -61,7 +61,7 @@ Unterseite Titel `/admin/items/$itemId`, alle in Abschnitt 7 mit ihrem vollen In
 | Gruppe | Seiten |
 |---|---|
 | Bibliothek | Bibliotheken, Podcasts, Pflege (mit Unterseite Titel `/admin/items/$itemId`), Metadaten |
-| Konten | Konten (mit Einladungen), Profile (`/settings/profiles`; bei der Abnahme K12-9 am 3. November 2026 entfernt), Geräte, Streams |
+| Konten | Konten (mit Einladungen), Profile (Leisten-Eintrag bei der Abnahme K12-9 am 3. November 2026 entfernt; `/settings/profiles` bleibt), Geräte, Streams |
 | Kuratierung | Spotlight, Cat's Empfehlungen, Sammlungen, Startseitenreihen, Ankündigungen |
 | System | Hintergrundjobs, Integrationen (mit Webhooks), Benachrichtigungen (`/settings/notifications`), Statistik, Sicherung |
 
@@ -117,7 +117,14 @@ Ziel: höchstens die Hälfte. Der Ausgangswert wird vor dem Bau gemessen und in
 - **S-4 Zustand zuerst:** Hat eine Seite Zählwerte (Jobs, Pflege, Streams), stehen sie als
   schmale Zustandsleiste (`StatTile` kompakt, 56 px hoch) direkt unter dem Kopf.
 - **S-5 Tabellen dicht:** Zeilen 40 px, Kopf 12 px Grossbuchstaben gedämpft; lange Texte
-  (Pfade, Fehler) einzeilig gekürzt mit vollem Text im Tooltip bzw. Detail.
+  (Pfade, Fehler) einzeilig gekürzt mit vollem Text im Tooltip bzw. Detail. Tabellen mit Gruppen
+  (Geräte, Sicherung, Pflege, Hintergrundjobs) und Tabellen, deren Inhalt sich beim Bedienen
+  ändert (Startseite, Spotlight, Empfehlungen), haben ab 768 px feste Spaltenbreiten
+  (`DataTable` `layout="fixed"`): die Spalten der Gruppen stehen untereinander und springen beim
+  Bedienen nicht. Kurze Spalten sind in rem nach dem längsten Kopfwort und Inhalt auf Deutsch und
+  Englisch bemessen; unter der Mindestbreite rollt die Tabelle in ihrem Rahmen. Auf dem Handy
+  (unter 768 px) richtet sich die Tabelle wie sonst nach dem Inhalt (Abnahme K12-9,
+  3. November 2026).
 - **S-6 Zeilenaktionen:** höchstens zwei sichtbare Knöpfe je Zeile (die häufigsten); der Rest in
   einem Menü «Weitere Aktionen» (neuer Baustein `ActionMenu`, react-aria `Menu` mit Abschnitt
   «Gefahr», `aria-label` mit Zeilenname; der heutige `MenuButton` ist ein Auswahlmenü mit Häkchen
@@ -479,7 +486,11 @@ offenem Dialog)
 **Statistik** (`StatsPage.tsx`)
 - STA-1 Zeitraum 7, 30, 90, 365 Tage (in der Adresse).
 - STA-2 Meistgesehene Titel (Link → Titel), Sehzeit je Profil (Diagramm und Tabelle),
-  Wiedergabe (direkt, Remux, Transcode, Hardware), Geräte (Diagramm und Tabelle).
+  Wiedergabe (direkt, Remux, Transcode, Hardware), Geräte (Diagramm und Tabelle). Ist eine Serie
+  oder ein Film gelöscht (etwa nach dem Umzug einer Bibliothek, der die Titel mit neuen Ids neu
+  einliest), zeigt die Kachel die Bilder des lebenden Titels derselben Art mit gleicher TMDB-,
+  TVDB- oder IMDb-Id; eine Folge ohne auffindbare Serie bekommt nie das Standbild einer anderen
+  Folge (Abnahme K12-9, 3. November 2026).
 - STA-3 «Wann geschaut wird»: Woche und Stunde ist immer eingeblendet (Abnahme K12-9, 3. November 2026).
 
 **Sicherung** (`BackupPage.tsx`)
@@ -777,7 +788,7 @@ wie heute. Die Erhaltungsliste (Abschnitt 7) gilt vollständig (E-2).
 | Bibliotheken | `Bib-C` | Filterreiter nach Art mit Zahl; je Bibliothek eine Klappzeile mit Aktionen, Fortschritt, Fehlerband und Ordnern; «Bibliothek hinzufügen» als Dialog (heute ein Bereich in der Seite, `LibrariesPage.tsx:76,360`); Ordnerdialog wie heute (`LibraryFoldersDialog`, Bestätigung durch Eintippen des Pfads) | Keine Vertragsänderung. Anbieterkette mit `RankSelect` (S-16) nur im Ordnerdialog der Verwaltung. Live-Anzeige nur während eines Scans. |
 | Pflege | `Pfl-C` | Reiter je Problemart mit Zahl (PFL-1); je Reiter Werkzeugzeile und ein Klappbereich je Bibliothek; Duplikate als Gruppen | Keine Vertragsänderung: `Issue.libraryId` ist Pflicht (`openapi.yaml:9094-9119`), Namen aus der Bibliotheksliste. Gruppiert werden die **geladenen** Einträge; «Mehr laden» und «X von Y» bleiben je Reiter (50 je Seite, O-3). **Duplikate** werden nicht nach Bibliothek gruppiert (eine Gruppe kann mehrere Bibliotheken umfassen, `libraryId` ist dort optional, `openapi.yaml:3862-3863,9156`); jede Gruppe ist ein Klappbereich wie im Mockup. |
 | Titel | `Tit-C` | Reiter Metadaten, Bilder, Dateien, Trailer; Freigabe und Herkunft als Klappbereiche; Bildwahl im Dialog wie heute | Keine Vertragsänderung. |
-| Konten mit Profilen | `KP-1` | Zustandsleiste mit vier Zahlen; Reiter Konten und Einladungen; je Konto eine Klappzeile; Zugriff eines Benutzerkontos inline mit eigenem Speichern (heute Dialog); im eigenen Konto «Konto ändern» inline (heute `AccountDialog`, `AccountsPage.tsx:59-154`) und «Meine Profile»; Profil anlegen und bearbeiten im Dialog wie heute (`ProfileSettingsPage.tsx:235-248`) | Keine Vertragsänderung (`/profiles` bleibt `x-visibility: account`). `ProfileForm` und `WatchReport` sind schon eigene Dateien; nur die Profilliste zieht aus `ProfileSettingsPage.tsx` in eine Komponente, die `/settings/profiles` und Konten gemeinsam benutzen. **Leisten-Eintrag «Profile»** (in K12-5;bei der Abnahme K12-9 am 3. November 2026 entfernt): Ziel `/admin/accounts?item=me#meine-profile`; `me` steht für das eigene Konto, die Seite löst es auf, die Leiste braucht keine Konto-Id. `isSectionPath` (`sections.ts:70-71`) bekommt für diesen Eintrag die Bedingung `item=me`, damit «Profile» und nicht «Konten» aktuell ist. Angepasst werden `sections.ts:51`, `AdminShellNav` aus Konzept 11 und dessen Tests (`admin-home.spec.ts:213-215`, `AdminHomePage.test.tsx:384`). **`/settings/profiles` bleibt für alle Konten erreichbar, auch für Administratoren; keine Weiterleitung** (`profiles.spec.ts:23`, `watch-limit.spec.ts:81` laufen als Besitzer). |
+| Konten mit Profilen | `KP-1` | Zustandsleiste mit vier Zahlen; Reiter Konten und Einladungen; je Konto eine Klappzeile; Zugriff eines Benutzerkontos inline mit eigenem Speichern (heute Dialog); im eigenen Konto «Konto ändern» inline (heute `AccountDialog`, `AccountsPage.tsx:59-154`) und «Meine Profile»; Profil anlegen und bearbeiten im Dialog wie heute (`ProfileSettingsPage.tsx:235-248`) | Keine Vertragsänderung (`/profiles` bleibt `x-visibility: account`). `ProfileForm` und `WatchReport` sind schon eigene Dateien; nur die Profilliste zieht aus `ProfileSettingsPage.tsx` in eine Komponente, die `/settings/profiles` und Konten gemeinsam benutzen. **Leisten-Eintrag «Profile»** (in K12-5; bei der Abnahme K12-9 am 3. November 2026 entfernt): Ziel `/admin/accounts?item=me#meine-profile`; `me` steht für das eigene Konto, die Seite löst es auf, die Leiste braucht keine Konto-Id. `isSectionPath` (`sections.ts:70-71`) bekommt für diesen Eintrag die Bedingung `item=me`, damit «Profile» und nicht «Konten» aktuell ist. Angepasst werden `sections.ts:51`, `AdminShellNav` aus Konzept 11 und dessen Tests (`admin-home.spec.ts:213-215`, `AdminHomePage.test.tsx:384`). **`/settings/profiles` bleibt für alle Konten erreichbar, auch für Administratoren; keine Weiterleitung** (`profiles.spec.ts:23`, `watch-limit.spec.ts:81` laufen als Besitzer). |
 | Geräte | `Ger-C` | Reiter Geräte und Fähigkeiten im Band; je Gerätetyp ein Klappbereich | Keine Vertragsänderung; Geräte ohne `type` (`openapi.yaml:8454`, optional) unter «Unbekannt». |
 | Streams | `Str-D2` | `BandPanel` «Serverlast» mit vier Zählern und Bandbreite (Summe von `AdminStream.bitrate`); Kacheln mit Hintergrundbild, Profil, Gerät, Qualität, Fortschritt, «Beenden» mit Rückfrage | **`AdminStream.backdropUrl`** (11.4). Live alle 5 s, pausiert bei offener Rückfrage (`StreamsPage.tsx:57`). |
 | Podcasts | `Pod-C` | Filterreiter «Alle» und je Podcast-Bibliothek; je Podcast eine Klappzeile | Keine Vertragsänderung (`AdminPodcast.libraryId`, `openapi.yaml:8369`). |
