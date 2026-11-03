@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: Bau läuft (3. November 2026)
+## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: gebaut, `task ci` grün (3. November 2026)
 
 Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemergt `cbf17fb`). Zweig
 `claude/wurzelwechsel` ab `main` `cbf17fb`, Frage 21, ADR 0023, Vertrag **1.9.0** additiv als eigenes
@@ -26,8 +26,15 @@ Release vor Konzept 13 und 14, keine Migration. Schritte:
 - **Schluss-Review** (1 Blocker, 1 Major, 11 Minor) behoben in `b891821`, `fa59c21` und `1dafa0e`.
   Blocker: Eine gesperrte mildere Freigabe des Zwillings konnte die strengere der Kopie verdrängen.
   Major: Auch das Löschen reiht jetzt die Wiederverknüpfung ein («hinzufügen, scannen, entfernen»).
-- **W-6** Messung `docs/perf/wurzelwechsel.md` (`ec2546f`). Voller `task ci` auf `e2da78d` grün
-  (616 e2e-Tests, 323 Storybook-Tests).
+- **Kontroll-Review** der Schluss-Fixes: alle 11 Befunde behoben. Drei kleine Punkte nachgezogen in
+  `55b1bf5`: Die Zwillingsabfragen nutzen fest die Indizes der Anbieter-IDs. Nach `ANALYZE` brauchte
+  `ListRelinkPairs` vorher 56 s, jetzt 33 ms. Ein neuer Plan-Test sichert das ab.
+- **W-6** Messung `docs/perf/wurzelwechsel.md` (`ec2546f`). **Voller `task ci` auf `55b1bf5` grün**
+  (Exit 0, 616 e2e-Tests, Log-Scan ohne Befund). Ein Lauf davor scheiterte am bekannten Ausreisser
+  `LoginPage.test.tsx` («document is not defined», siehe unten), den dieser Zweig nicht berührt.
+- **Offen:** Pull Request, Merge auf Marcos Wort, Release 1.9.0. Abnahme auf CT 190: Image bauen,
+  Pflegeaktion für die zwei Serien vom 28. Oktober ausführen, Scanzeit der Bibliothek «Serien»
+  messen. Schreibzugriffe auf CT 190 nur auf Marcos Wort.
 - **W-6** Messung (`docs/perf/wurzelwechsel.md`), `task ci`, Pull Request. Abnahme und Reparatur auf
   CT 190 erst auf Marcos Wort.
 
