@@ -6,20 +6,35 @@
 -- are never merged on their own. The maintenance action knows no such rule: the administrator sees
 -- both titles and decides. The deleted twin survives with its id; the live copy merges into it.
 -- Times are Unix milliseconds.
+--
+-- The twin lookups are a UNION of one lookup per provider id, each through its own index
+-- (INDEXED BY items_tmdb, items_tvdb, items_imdb), and CROSS JOIN fixes the order of the tables.
+-- An OR over the three ids lets the planner choose, and with ANALYZE statistics (a film library
+-- has no TVDB ids, so items_tvdb looks useless) it walks items_library_kind or the whole table for
+-- every title: seconds instead of milliseconds inside the transaction of a folder removal
+-- (TestRelinkLookupsUseProviderIndexes).
 
 -- name: FindDeletedTwin :one
 -- The soft-deleted twin of a live film or series; among several the most recently deleted wins.
 -- With grace_ms the live title must have been created after the twin's deletion less grace_ms
 -- (the automatic relink); without it any age counts (the maintenance action). No limit on how long
--- ago the twin was deleted (ADR 0023, point 2). The unary + keeps the planner off
--- items_library_kind, which would walk every deleted title of the library, and on the provider id
--- indexes (MULTI-INDEX OR).
-SELECT d.id FROM items AS l
-JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
-WHERE l.id = @live_id AND l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
-  AND +d.deleted_at IS NOT NULL
+-- ago the twin was deleted (ADR 0023, point 2).
+WITH live AS (
+    SELECT i.id, i.library_id, i.kind, i.created_at, i.tmdb_id, i.tvdb_id, i.imdb_id FROM items AS i
+    WHERE i.id = @live_id AND i.deleted_at IS NULL AND i.kind IN ('movie', 'series')
+),
+hits AS (
+    SELECT d.id FROM live AS l CROSS JOIN items AS d INDEXED BY items_tmdb ON d.tmdb_id = l.tmdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM live AS l CROSS JOIN items AS d INDEXED BY items_tvdb ON d.tvdb_id = l.tvdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM live AS l CROSS JOIN items AS d INDEXED BY items_imdb ON d.imdb_id = l.imdb_id WHERE d.deleted_at IS NOT NULL
+)
+SELECT d.id FROM live AS l
+CROSS JOIN hits AS h
+CROSS JOIN items AS d ON d.id = h.id
+WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id
   AND (CAST(sqlc.narg('grace_ms') AS INTEGER) IS NULL OR l.created_at > d.deleted_at - CAST(sqlc.narg('grace_ms') AS INTEGER))
-  AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
   AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
   AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
   AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
@@ -31,17 +46,30 @@ LIMIT 1;
 -- twin, as FindDeletedTwin picks it without grace_ms: the maintenance action knows no freshness
 -- rule. Two live copies may name the same deleted twin; the first merge revives it, and the second
 -- copy then has no deleted twin any more. CROSS JOIN keeps the live titles in the outer loop, so
--- each looks up its twins by provider id (see FindDeletedTwin).
-WITH pairs AS (
+-- each looks up its twins by provider id.
+WITH live AS (
+    SELECT i.id, i.tmdb_id, i.tvdb_id, i.imdb_id FROM items AS i
+    WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series')
+      AND (CAST(@library_id AS INTEGER) = 0 OR i.library_id = @library_id)
+),
+hits AS (
+    SELECT l.id AS live_id, d.id AS deleted_id FROM live AS l
+    CROSS JOIN items AS d INDEXED BY items_tmdb ON d.tmdb_id = l.tmdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT l.id, d.id FROM live AS l
+    CROSS JOIN items AS d INDEXED BY items_tvdb ON d.tvdb_id = l.tvdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT l.id, d.id FROM live AS l
+    CROSS JOIN items AS d INDEXED BY items_imdb ON d.imdb_id = l.imdb_id WHERE d.deleted_at IS NOT NULL
+),
+pairs AS (
     SELECT l.id AS live_id, d.id AS deleted_id, l.library_id AS library_id, l.kind AS kind, l.title AS title,
            l.year AS year, d.title AS deleted_title, d.year AS deleted_year, d.deleted_at AS deleted_at,
            row_number() OVER (PARTITION BY l.id ORDER BY d.deleted_at DESC, d.id DESC) AS rn
-    FROM items AS l
-    CROSS JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
-    WHERE l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
-      AND (CAST(@library_id AS INTEGER) = 0 OR l.library_id = @library_id)
-      AND +d.deleted_at IS NOT NULL
-      AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
+    FROM hits AS h
+    CROSS JOIN items AS l ON l.id = h.live_id
+    CROSS JOIN items AS d ON d.id = h.deleted_id
+    WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id
       AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
       AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
       AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
@@ -128,9 +156,16 @@ UPDATE activity_events SET item_id = @target_id WHERE item_id = @source_id;
 -- most recently deleted first: they share at least one of the given provider ids (the survivor's,
 -- completed by its copy's) and contradict none. The relink folds them into the survivor, so a
 -- later match of the survivor finds no older twin.
-SELECT d.id FROM items AS d
-WHERE +d.library_id = @library_id AND +d.kind = @kind AND +d.deleted_at IS NOT NULL
-  AND (d.tmdb_id = sqlc.narg('tmdb_id') OR d.tvdb_id = sqlc.narg('tvdb_id') OR d.imdb_id = sqlc.narg('imdb_id'))
+WITH hits AS (
+    SELECT d.id FROM items AS d INDEXED BY items_tmdb WHERE d.tmdb_id = sqlc.narg('tmdb_id') AND d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM items AS d INDEXED BY items_tvdb WHERE d.tvdb_id = sqlc.narg('tvdb_id') AND d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM items AS d INDEXED BY items_imdb WHERE d.imdb_id = sqlc.narg('imdb_id') AND d.deleted_at IS NOT NULL
+)
+SELECT d.id FROM hits AS h
+CROSS JOIN items AS d ON d.id = h.id
+WHERE d.library_id = @library_id AND d.kind = @kind
   AND (d.tmdb_id IS NULL OR sqlc.narg('tmdb_id') IS NULL OR d.tmdb_id = sqlc.narg('tmdb_id'))
   AND (d.tvdb_id IS NULL OR sqlc.narg('tvdb_id') IS NULL OR d.tvdb_id = sqlc.narg('tvdb_id'))
   AND (d.imdb_id IS NULL OR sqlc.narg('imdb_id') IS NULL OR d.imdb_id = sqlc.narg('imdb_id'))
@@ -219,13 +254,26 @@ WHERE downloads.item_id = @target_id
 -- grace_ms). Each gets library.relink, so the order "add the new folder, scan, remove the old one"
 -- relinks without another match. CROSS JOIN fixes the order: the libraries, then their titles
 -- deleted at now through items_library_kind (library, kind, deleted_at), then each one's copies by
--- provider id (see FindDeletedTwin), so no statement walks every title.
-SELECT DISTINCT l.id FROM libraries AS lib
-CROSS JOIN items AS d ON d.library_id = lib.id AND d.kind IN ('movie', 'series') AND d.deleted_at = @now
-CROSS JOIN items AS l ON +l.library_id = d.library_id AND +l.kind = d.kind AND l.id <> d.id
-WHERE l.deleted_at IS NULL
+-- provider id, so no statement walks every title.
+WITH deleted AS (
+    SELECT d.id, d.tmdb_id, d.tvdb_id, d.imdb_id FROM libraries AS lib
+    CROSS JOIN items AS d ON d.library_id = lib.id AND d.kind IN ('movie', 'series') AND d.deleted_at = @now
+),
+hits AS (
+    SELECT d.id AS deleted_id, l.id AS live_id FROM deleted AS d
+    CROSS JOIN items AS l INDEXED BY items_tmdb ON l.tmdb_id = d.tmdb_id WHERE l.deleted_at IS NULL
+    UNION
+    SELECT d.id, l.id FROM deleted AS d
+    CROSS JOIN items AS l INDEXED BY items_tvdb ON l.tvdb_id = d.tvdb_id WHERE l.deleted_at IS NULL
+    UNION
+    SELECT d.id, l.id FROM deleted AS d
+    CROSS JOIN items AS l INDEXED BY items_imdb ON l.imdb_id = d.imdb_id WHERE l.deleted_at IS NULL
+)
+SELECT DISTINCT l.id FROM hits AS h
+CROSS JOIN items AS d ON d.id = h.deleted_id
+CROSS JOIN items AS l ON l.id = h.live_id
+WHERE l.library_id = d.library_id AND l.kind = d.kind AND l.id <> d.id
   AND l.created_at > d.deleted_at - CAST(@grace_ms AS INTEGER)
-  AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
   AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
   AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
   AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)

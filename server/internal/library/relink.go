@@ -1,6 +1,7 @@
 package library
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -231,7 +232,8 @@ func QueueRelinksTx(ctx context.Context, q *systemq.Queries, now time.Time) erro
 // (another copy of it merged first), the title's match runs again: it stopped after the title and
 // now completes seasons, images and the rest. Database errors are returned for a retry; when the
 // last attempt fails, the title's match runs again without the relink hook (queueCopyMatch), so
-// the copy is still completed and the maintenance action can merge it later.
+// the copy is still completed and the maintenance action can merge it later. A stopped context
+// (pause, shutdown) is no failure: the worker releases the job without counting the attempt.
 func (s *Service) handleRelink(ctx context.Context, j *jobs.Job) error {
 	var p itemPayload
 	if err := decodePayload(j, &p); err != nil {
@@ -239,7 +241,7 @@ func (s *Service) handleRelink(ctx context.Context, j *jobs.Job) error {
 	}
 	err := s.runRelink(ctx, p.ItemID)
 	var later *jobs.RetryLaterError
-	if err != nil && !errors.As(err, &later) && j.Attempts >= j.MaxAttempts {
+	if err != nil && ctx.Err() == nil && !errors.As(err, &later) && j.Attempts >= j.MaxAttempts {
 		if qerr := s.queueCopyMatch(context.WithoutCancel(ctx), p.ItemID, true); qerr != nil {
 			return errors.Join(err, qerr)
 		}
@@ -293,7 +295,8 @@ func (s *Service) cancelRelink(ctx context.Context, j jobs.Job) error {
 // queueCopyMatch queues metadata.match for a copy whose match stopped after the title for
 // library.relink (metadata.WithRelink). noRelink (the payload's noRelink) makes the match skip the
 // relink hook: after a failed or cancelled relink it would otherwise hand the title straight back.
-// A title that is gone meanwhile ends the match at once.
+// A queued match that already holds the key takes noRelink over (Queue.SetQueuedPayload); a
+// running one is left alone. A title that is gone meanwhile ends the match at once.
 func (s *Service) queueCopyMatch(ctx context.Context, itemID string, noRelink bool) error {
 	payload, err := json.Marshal(struct {
 		ItemID   string `json:"itemId"`
@@ -303,7 +306,19 @@ func (s *Service) queueCopyMatch(ctx context.Context, itemID string, noRelink bo
 		return fmt.Errorf("encode %s payload: %w", JobMetadataMatch, err)
 	}
 	m := matchJob(itemID)
-	_, err = s.queue.Enqueue(ctx, jobs.NewJob{Type: m.typ, Priority: m.priority, IdempotencyKey: m.key, Payload: payload})
+	id, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: m.typ, Priority: m.priority, IdempotencyKey: m.key, Payload: payload})
+	if err != nil || !noRelink {
+		return err
+	}
+	j, err := s.queue.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if j.State != jobs.StateQueued || bytes.Equal(j.Payload, payload) {
+		return nil
+	}
+	// A worker may claim the job meanwhile; SetQueuedPayload then leaves it as it runs.
+	_, err = s.queue.SetQueuedPayload(ctx, id, payload)
 	return err
 }
 

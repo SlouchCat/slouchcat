@@ -128,12 +128,22 @@ func (q *Queries) CountRelinkUserData(ctx context.Context, ids []string) ([]Coun
 
 const findDeletedTwin = `-- name: FindDeletedTwin :one
 
-SELECT d.id FROM items AS l
-JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
-WHERE l.id = ?1 AND l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
-  AND +d.deleted_at IS NOT NULL
-  AND (CAST(?2 AS INTEGER) IS NULL OR l.created_at > d.deleted_at - CAST(?2 AS INTEGER))
-  AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
+WITH live AS (
+    SELECT i.id, i.library_id, i.kind, i.created_at, i.tmdb_id, i.tvdb_id, i.imdb_id FROM items AS i
+    WHERE i.id = ?2 AND i.deleted_at IS NULL AND i.kind IN ('movie', 'series')
+),
+hits AS (
+    SELECT d.id FROM live AS l CROSS JOIN items AS d INDEXED BY items_tmdb ON d.tmdb_id = l.tmdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM live AS l CROSS JOIN items AS d INDEXED BY items_tvdb ON d.tvdb_id = l.tvdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM live AS l CROSS JOIN items AS d INDEXED BY items_imdb ON d.imdb_id = l.imdb_id WHERE d.deleted_at IS NOT NULL
+)
+SELECT d.id FROM live AS l
+CROSS JOIN hits AS h
+CROSS JOIN items AS d ON d.id = h.id
+WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id
+  AND (CAST(?1 AS INTEGER) IS NULL OR l.created_at > d.deleted_at - CAST(?1 AS INTEGER))
   AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
   AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
   AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
@@ -142,8 +152,8 @@ LIMIT 1
 `
 
 type FindDeletedTwinParams struct {
-	LiveID  string
 	GraceMs sql.NullInt64
+	LiveID  string
 }
 
 // Relinking of soft-deleted titles (ADR 0023, idea 04). Owner: library package. A live film or
@@ -154,26 +164,44 @@ type FindDeletedTwinParams struct {
 // are never merged on their own. The maintenance action knows no such rule: the administrator sees
 // both titles and decides. The deleted twin survives with its id; the live copy merges into it.
 // Times are Unix milliseconds.
+//
+// The twin lookups are a UNION of one lookup per provider id, each through its own index
+// (INDEXED BY items_tmdb, items_tvdb, items_imdb), and CROSS JOIN fixes the order of the tables.
+// An OR over the three ids lets the planner choose, and with ANALYZE statistics (a film library
+// has no TVDB ids, so items_tvdb looks useless) it walks items_library_kind or the whole table for
+// every title: seconds instead of milliseconds inside the transaction of a folder removal
+// (TestRelinkLookupsUseProviderIndexes).
 // The soft-deleted twin of a live film or series; among several the most recently deleted wins.
 // With grace_ms the live title must have been created after the twin's deletion less grace_ms
 // (the automatic relink); without it any age counts (the maintenance action). No limit on how long
-// ago the twin was deleted (ADR 0023, point 2). The unary + keeps the planner off
-// items_library_kind, which would walk every deleted title of the library, and on the provider id
-// indexes (MULTI-INDEX OR).
+// ago the twin was deleted (ADR 0023, point 2).
 func (q *Queries) FindDeletedTwin(ctx context.Context, arg FindDeletedTwinParams) (string, error) {
-	row := q.db.QueryRowContext(ctx, findDeletedTwin, arg.LiveID, arg.GraceMs)
+	row := q.db.QueryRowContext(ctx, findDeletedTwin, arg.GraceMs, arg.LiveID)
 	var id string
 	err := row.Scan(&id)
 	return id, err
 }
 
 const listFreshCopiesOfDeleted = `-- name: ListFreshCopiesOfDeleted :many
-SELECT DISTINCT l.id FROM libraries AS lib
-CROSS JOIN items AS d ON d.library_id = lib.id AND d.kind IN ('movie', 'series') AND d.deleted_at = ?1
-CROSS JOIN items AS l ON +l.library_id = d.library_id AND +l.kind = d.kind AND l.id <> d.id
-WHERE l.deleted_at IS NULL
-  AND l.created_at > d.deleted_at - CAST(?2 AS INTEGER)
-  AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
+WITH deleted AS (
+    SELECT d.id, d.tmdb_id, d.tvdb_id, d.imdb_id FROM libraries AS lib
+    CROSS JOIN items AS d ON d.library_id = lib.id AND d.kind IN ('movie', 'series') AND d.deleted_at = ?2
+),
+hits AS (
+    SELECT d.id AS deleted_id, l.id AS live_id FROM deleted AS d
+    CROSS JOIN items AS l INDEXED BY items_tmdb ON l.tmdb_id = d.tmdb_id WHERE l.deleted_at IS NULL
+    UNION
+    SELECT d.id, l.id FROM deleted AS d
+    CROSS JOIN items AS l INDEXED BY items_tvdb ON l.tvdb_id = d.tvdb_id WHERE l.deleted_at IS NULL
+    UNION
+    SELECT d.id, l.id FROM deleted AS d
+    CROSS JOIN items AS l INDEXED BY items_imdb ON l.imdb_id = d.imdb_id WHERE l.deleted_at IS NULL
+)
+SELECT DISTINCT l.id FROM hits AS h
+CROSS JOIN items AS d ON d.id = h.deleted_id
+CROSS JOIN items AS l ON l.id = h.live_id
+WHERE l.library_id = d.library_id AND l.kind = d.kind AND l.id <> d.id
+  AND l.created_at > d.deleted_at - CAST(?1 AS INTEGER)
   AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
   AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
   AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
@@ -181,8 +209,8 @@ ORDER BY l.id
 `
 
 type ListFreshCopiesOfDeletedParams struct {
-	Now     sql.NullInt64
 	GraceMs int64
+	Now     sql.NullInt64
 }
 
 // The live films and series that became twins of a title soft-deleted at now in the caller's
@@ -191,9 +219,9 @@ type ListFreshCopiesOfDeletedParams struct {
 // grace_ms). Each gets library.relink, so the order "add the new folder, scan, remove the old one"
 // relinks without another match. CROSS JOIN fixes the order: the libraries, then their titles
 // deleted at now through items_library_kind (library, kind, deleted_at), then each one's copies by
-// provider id (see FindDeletedTwin), so no statement walks every title.
+// provider id, so no statement walks every title.
 func (q *Queries) ListFreshCopiesOfDeleted(ctx context.Context, arg ListFreshCopiesOfDeletedParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, listFreshCopiesOfDeleted, arg.Now, arg.GraceMs)
+	rows, err := q.db.QueryContext(ctx, listFreshCopiesOfDeleted, arg.GraceMs, arg.Now)
 	if err != nil {
 		return nil, err
 	}
@@ -216,9 +244,16 @@ func (q *Queries) ListFreshCopiesOfDeleted(ctx context.Context, arg ListFreshCop
 }
 
 const listRelinkChainTwins = `-- name: ListRelinkChainTwins :many
-SELECT d.id FROM items AS d
-WHERE +d.library_id = ?1 AND +d.kind = ?2 AND +d.deleted_at IS NOT NULL
-  AND (d.tmdb_id = ?3 OR d.tvdb_id = ?4 OR d.imdb_id = ?5)
+WITH hits AS (
+    SELECT d.id FROM items AS d INDEXED BY items_tmdb WHERE d.tmdb_id = ?3 AND d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM items AS d INDEXED BY items_tvdb WHERE d.tvdb_id = ?4 AND d.deleted_at IS NOT NULL
+    UNION
+    SELECT d.id FROM items AS d INDEXED BY items_imdb WHERE d.imdb_id = ?5 AND d.deleted_at IS NOT NULL
+)
+SELECT d.id FROM hits AS h
+CROSS JOIN items AS d ON d.id = h.id
+WHERE d.library_id = ?1 AND d.kind = ?2
   AND (d.tmdb_id IS NULL OR ?3 IS NULL OR d.tmdb_id = ?3)
   AND (d.tvdb_id IS NULL OR ?4 IS NULL OR d.tvdb_id = ?4)
   AND (d.imdb_id IS NULL OR ?5 IS NULL OR d.imdb_id = ?5)
@@ -228,9 +263,9 @@ ORDER BY d.deleted_at DESC, d.id DESC
 type ListRelinkChainTwinsParams struct {
 	LibraryID int64
 	Kind      string
-	TmdbID    sql.NullInt64
-	TvdbID    sql.NullInt64
-	ImdbID    sql.NullString
+	TmdbID    interface{}
+	TvdbID    interface{}
+	ImdbID    interface{}
 }
 
 // The other soft-deleted twins of a relinked title (an older generation of the same title), the
@@ -311,16 +346,29 @@ func (q *Queries) ListRelinkChildren(ctx context.Context, parentID sql.NullStrin
 }
 
 const listRelinkPairs = `-- name: ListRelinkPairs :many
-WITH pairs AS (
+WITH live AS (
+    SELECT i.id, i.tmdb_id, i.tvdb_id, i.imdb_id FROM items AS i
+    WHERE i.deleted_at IS NULL AND i.kind IN ('movie', 'series')
+      AND (CAST(?1 AS INTEGER) = 0 OR i.library_id = ?1)
+),
+hits AS (
+    SELECT l.id AS live_id, d.id AS deleted_id FROM live AS l
+    CROSS JOIN items AS d INDEXED BY items_tmdb ON d.tmdb_id = l.tmdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT l.id, d.id FROM live AS l
+    CROSS JOIN items AS d INDEXED BY items_tvdb ON d.tvdb_id = l.tvdb_id WHERE d.deleted_at IS NOT NULL
+    UNION
+    SELECT l.id, d.id FROM live AS l
+    CROSS JOIN items AS d INDEXED BY items_imdb ON d.imdb_id = l.imdb_id WHERE d.deleted_at IS NOT NULL
+),
+pairs AS (
     SELECT l.id AS live_id, d.id AS deleted_id, l.library_id AS library_id, l.kind AS kind, l.title AS title,
            l.year AS year, d.title AS deleted_title, d.year AS deleted_year, d.deleted_at AS deleted_at,
            row_number() OVER (PARTITION BY l.id ORDER BY d.deleted_at DESC, d.id DESC) AS rn
-    FROM items AS l
-    CROSS JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
-    WHERE l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
-      AND (CAST(?1 AS INTEGER) = 0 OR l.library_id = ?1)
-      AND +d.deleted_at IS NOT NULL
-      AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
+    FROM hits AS h
+    CROSS JOIN items AS l ON l.id = h.live_id
+    CROSS JOIN items AS d ON d.id = h.deleted_id
+    WHERE d.library_id = l.library_id AND d.kind = l.kind AND d.id <> l.id
       AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
       AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
       AND (d.imdb_id IS NULL OR l.imdb_id IS NULL OR d.imdb_id = l.imdb_id)
@@ -346,7 +394,7 @@ type ListRelinkPairsRow struct {
 // twin, as FindDeletedTwin picks it without grace_ms: the maintenance action knows no freshness
 // rule. Two live copies may name the same deleted twin; the first merge revives it, and the second
 // copy then has no deleted twin any more. CROSS JOIN keeps the live titles in the outer loop, so
-// each looks up its twins by provider id (see FindDeletedTwin).
+// each looks up its twins by provider id.
 func (q *Queries) ListRelinkPairs(ctx context.Context, libraryID int64) ([]ListRelinkPairsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listRelinkPairs, libraryID)
 	if err != nil {

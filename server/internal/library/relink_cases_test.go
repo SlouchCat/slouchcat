@@ -326,8 +326,9 @@ func TestRelinkQueuedWhenOriginalFolderRemoved(t *testing.T) {
 
 // A merge by library.relink rechecks the open streams (WithVisibilityRecheck). A relink whose last
 // attempt fails, or that the administration cancels, leaves the copy unmerged: its match runs again
-// with noRelink, so it completes the title instead of handing it back. An earlier attempt that
-// fails is only retried.
+// with noRelink, so it completes the title instead of handing it back; a queued match of the title
+// takes noRelink over, a running one is left alone. An earlier attempt that fails is only retried,
+// and a stopped context (pause, shutdown) is no failure: the job runs again.
 func TestRelinkJobRecheckAndFallbackMatch(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -361,21 +362,53 @@ func TestRelinkJobRecheckAndFallbackMatch(t *testing.T) {
 		t.Errorf("rechecks after a merge = %d, want 1", rechecks)
 	}
 
-	failing := pair(1)
-	stopped, cancel := context.WithCancel(e.ctx)
-	cancel()
-	if err := e.svc.handleRelink(stopped, job(failing, 1)); err == nil {
-		t.Fatal("relink with a stopped context succeeded")
+	failing, running := pair(1), pair(3)
+	// The merge fails in its transaction while the context lives.
+	e.exec(`CREATE TRIGGER relink_fails BEFORE UPDATE OF locked_fields ON items BEGIN SELECT RAISE(ABORT, 'relink fails'); END`)
+	if err := e.svc.handleRelink(e.ctx, job(failing, 1)); err == nil {
+		t.Fatal("failing relink succeeded")
 	}
 	if p := matchPayload(failing); p != "" {
 		t.Errorf("match after a failed first attempt = %s, want none", p)
 	}
+	stopped, cancel := context.WithCancel(e.ctx)
+	cancel()
 	if err := e.svc.handleRelink(stopped, job(failing, jobs.DefaultMaxAttempts)); err == nil {
 		t.Fatal("relink with a stopped context succeeded")
 	}
-	if p, want := matchPayload(failing), `{"itemId":"`+failing+`","noRelink":true}`; p != want {
-		t.Errorf("match after the last attempt = %s, want %s", p, want)
+	if p := matchPayload(failing); p != "" {
+		t.Errorf("match after a stopped last attempt = %s, want none", p)
 	}
+	queueMatch := func(id string) int64 {
+		m := matchJob(id)
+		payload, err := json.Marshal(m.payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		jobID, err := e.svc.queue.Enqueue(e.ctx, jobs.NewJob{Type: m.typ, Priority: m.priority, IdempotencyKey: m.key, Payload: payload})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return jobID
+	}
+	queueMatch(failing)
+	if err := e.svc.handleRelink(e.ctx, job(failing, jobs.DefaultMaxAttempts)); err == nil {
+		t.Fatal("failing relink succeeded")
+	}
+	if p, want := matchPayload(failing), `{"itemId":"`+failing+`","noRelink":true}`; p != want {
+		t.Errorf("queued match after the last attempt = %s, want %s", p, want)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE idempotency_key = ?`, "match:"+failing); n != 1 {
+		t.Errorf("match jobs of the failing title = %d, want 1", n)
+	}
+	e.exec(`UPDATE jobs SET state = 'running' WHERE id = ?`, queueMatch(running))
+	if err := e.svc.handleRelink(e.ctx, job(running, jobs.DefaultMaxAttempts)); err == nil {
+		t.Fatal("failing relink succeeded")
+	}
+	if p, want := matchPayload(running), `{"itemId":"`+running+`"}`; p != want {
+		t.Errorf("running match after the last attempt = %s, want %s", p, want)
+	}
+	e.exec(`DROP TRIGGER relink_fails`)
 
 	cancelled := pair(2)
 	if err := e.svc.cancelRelink(e.ctx, *job(cancelled, 0)); err != nil {
