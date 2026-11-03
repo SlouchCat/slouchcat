@@ -69,7 +69,7 @@ const findDeletedTwin = `-- name: FindDeletedTwin :one
 SELECT d.id FROM items AS l
 JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
 WHERE l.id = ?1 AND l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
-  AND +d.deleted_at IS NOT NULL
+  AND +d.deleted_at IS NOT NULL AND l.created_at > d.deleted_at
   AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
   AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
   AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
@@ -80,8 +80,10 @@ LIMIT 1
 
 // Relinking of soft-deleted titles (ADR 0023, idea 04). Owner: library package. A live film or
 // series and a soft-deleted one are twins when they share the library, the kind and at least one
-// provider id (TMDB, TVDB, IMDb), and no provider id contradicts. The deleted twin survives with
-// its id; the live copy merges into it. Times are Unix milliseconds.
+// provider id (TMDB, TVDB, IMDb), and no provider id contradicts. Only a fresh copy counts: the
+// live title was created after the twin was deleted, so two titles that lived side by side are
+// never merged. The deleted twin survives with its id; the live copy merges into it. Times are
+// Unix milliseconds.
 // The soft-deleted twin of a live film or series; among several the most recently deleted wins.
 // No time limit (ADR 0023, point 2). The unary + keeps the planner off items_library_kind, which
 // would walk every deleted title of the library, and on the provider id indexes (MULTI-INDEX OR).
@@ -90,6 +92,57 @@ func (q *Queries) FindDeletedTwin(ctx context.Context, liveID string) (string, e
 	var id string
 	err := row.Scan(&id)
 	return id, err
+}
+
+const listRelinkChainTwins = `-- name: ListRelinkChainTwins :many
+SELECT d.id FROM items AS d
+WHERE +d.library_id = ?1 AND +d.kind = ?2 AND +d.deleted_at IS NOT NULL
+  AND (d.tmdb_id = ?3 OR d.tvdb_id = ?4 OR d.imdb_id = ?5)
+  AND (d.tmdb_id IS NULL OR ?3 IS NULL OR d.tmdb_id = ?3)
+  AND (d.tvdb_id IS NULL OR ?4 IS NULL OR d.tvdb_id = ?4)
+  AND (d.imdb_id IS NULL OR ?5 IS NULL OR d.imdb_id = ?5)
+ORDER BY d.deleted_at DESC, d.id DESC
+`
+
+type ListRelinkChainTwinsParams struct {
+	LibraryID int64
+	Kind      string
+	TmdbID    sql.NullInt64
+	TvdbID    sql.NullInt64
+	ImdbID    sql.NullString
+}
+
+// The other soft-deleted twins of a relinked title (an older generation of the same title), the
+// most recently deleted first: they share at least one of the given provider ids (the survivor's,
+// completed by its copy's) and contradict none. The relink folds them into the survivor, so a
+// later match of the survivor finds no older twin.
+func (q *Queries) ListRelinkChainTwins(ctx context.Context, arg ListRelinkChainTwinsParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listRelinkChainTwins,
+		arg.LibraryID,
+		arg.Kind,
+		arg.TmdbID,
+		arg.TvdbID,
+		arg.ImdbID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listRelinkChildren = `-- name: ListRelinkChildren :many
@@ -145,7 +198,7 @@ WITH pairs AS (
     CROSS JOIN items AS d ON +d.library_id = l.library_id AND +d.kind = l.kind AND d.id <> l.id
     WHERE l.deleted_at IS NULL AND l.kind IN ('movie', 'series')
       AND (CAST(?1 AS INTEGER) = 0 OR l.library_id = ?1)
-      AND +d.deleted_at IS NOT NULL
+      AND +d.deleted_at IS NOT NULL AND l.created_at > d.deleted_at
       AND (d.tmdb_id = l.tmdb_id OR d.tvdb_id = l.tvdb_id OR d.imdb_id = l.imdb_id)
       AND (d.tmdb_id IS NULL OR l.tmdb_id IS NULL OR d.tmdb_id = l.tmdb_id)
       AND (d.tvdb_id IS NULL OR l.tvdb_id IS NULL OR d.tvdb_id = l.tvdb_id)
@@ -199,6 +252,86 @@ func (q *Queries) ListRelinkPairs(ctx context.Context, libraryID int64) ([]ListR
 	return items, nil
 }
 
+const relinkCountSegments = `-- name: RelinkCountSegments :one
+SELECT count(*) FROM media_segments WHERE item_id = ?1
+`
+
+func (q *Queries) RelinkCountSegments(ctx context.Context, itemID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, relinkCountSegments, itemID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const relinkDropCachedImages = `-- name: RelinkDropCachedImages :exec
+DELETE FROM images
+WHERE images.item_id = ?1
+  AND images.kind IN (SELECT s.kind FROM item_images AS s WHERE s.item_id = ?2)
+  AND images.kind NOT IN (SELECT t.kind FROM item_images AS t WHERE t.item_id = ?1)
+`
+
+type RelinkDropCachedImagesParams struct {
+	TargetID string
+	SourceID string
+}
+
+// The cached files of the survivor for the kinds whose choice comes from the copy.
+func (q *Queries) RelinkDropCachedImages(ctx context.Context, arg RelinkDropCachedImagesParams) error {
+	_, err := q.db.ExecContext(ctx, relinkDropCachedImages, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkDropDeadDownloads = `-- name: RelinkDropDeadDownloads :exec
+DELETE FROM downloads
+WHERE downloads.item_id = ?1
+  AND downloads.device_id IN (SELECT s.device_id FROM downloads AS s WHERE s.item_id = ?2)
+  AND (downloads.state IN ('failed', 'evicted')
+       OR (downloads.media_file_id IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.id = downloads.media_file_id AND m.missing_since IS NULL)))
+`
+
+type RelinkDropDeadDownloadsParams struct {
+	TargetID string
+	SourceID string
+}
+
+// A download of the survivor that cannot be served any more (failed, evicted, or its file is
+// missing) gives way to the copy's download for the same device, which then moves in. The delete
+// trigger leaves a tombstone for the dead package only; the device keeps the copy's package.
+func (q *Queries) RelinkDropDeadDownloads(ctx context.Context, arg RelinkDropDeadDownloadsParams) error {
+	_, err := q.db.ExecContext(ctx, relinkDropDeadDownloads, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkDropDetectedSegments = `-- name: RelinkDropDetectedSegments :exec
+DELETE FROM media_segments WHERE item_id = ?1 AND source <> 'manual'
+`
+
+// The copy's segments were detected on the file that moved: they replace the survivor's detected
+// ones; a manual segment of the survivor stays.
+func (q *Queries) RelinkDropDetectedSegments(ctx context.Context, targetID string) error {
+	_, err := q.db.ExecContext(ctx, relinkDropDetectedSegments, targetID)
+	return err
+}
+
+const relinkDropUnchosenImages = `-- name: RelinkDropUnchosenImages :exec
+DELETE FROM item_images
+WHERE item_images.item_id = ?1 AND item_images.chosen = 0
+  AND item_images.kind IN (SELECT s.kind FROM item_images AS s WHERE s.item_id = ?2 AND s.chosen = 1)
+`
+
+type RelinkDropUnchosenImagesParams struct {
+	TargetID string
+	SourceID string
+}
+
+// An image the administrator chose for the copy (chosen = 1) replaces the survivor's automatic
+// choice of the kind.
+func (q *Queries) RelinkDropUnchosenImages(ctx context.Context, arg RelinkDropUnchosenImagesParams) error {
+	_, err := q.db.ExecContext(ctx, relinkDropUnchosenImages, arg.TargetID, arg.SourceID)
+	return err
+}
+
 const relinkMoveActivityEvents = `-- name: RelinkMoveActivityEvents :exec
 UPDATE activity_events SET item_id = ?1 WHERE item_id = ?2
 `
@@ -211,6 +344,69 @@ type RelinkMoveActivityEventsParams struct {
 // activity_events has no foreign key on items; the rows follow the title all the same.
 func (q *Queries) RelinkMoveActivityEvents(ctx context.Context, arg RelinkMoveActivityEventsParams) error {
 	_, err := q.db.ExecContext(ctx, relinkMoveActivityEvents, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkMoveCachedImages = `-- name: RelinkMoveCachedImages :exec
+UPDATE OR IGNORE images SET item_id = ?1
+WHERE images.item_id = ?2
+  AND images.kind NOT IN (SELECT t.kind FROM item_images AS t WHERE t.item_id = ?1)
+`
+
+type RelinkMoveCachedImagesParams struct {
+	TargetID string
+	SourceID string
+}
+
+// The copy's cached files of the kinds whose choice moves with them (run before RelinkMoveImages).
+func (q *Queries) RelinkMoveCachedImages(ctx context.Context, arg RelinkMoveCachedImagesParams) error {
+	_, err := q.db.ExecContext(ctx, relinkMoveCachedImages, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkMoveChapters = `-- name: RelinkMoveChapters :exec
+UPDATE chapters SET item_id = ?1 WHERE item_id = ?2
+`
+
+type RelinkMoveChaptersParams struct {
+	TargetID string
+	SourceID string
+}
+
+func (q *Queries) RelinkMoveChapters(ctx context.Context, arg RelinkMoveChaptersParams) error {
+	_, err := q.db.ExecContext(ctx, relinkMoveChapters, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkMoveImages = `-- name: RelinkMoveImages :exec
+UPDATE OR IGNORE item_images SET item_id = ?1 WHERE item_id = ?2
+`
+
+type RelinkMoveImagesParams struct {
+	TargetID string
+	SourceID string
+}
+
+// The copy's image choice of a kind the survivor has none of.
+func (q *Queries) RelinkMoveImages(ctx context.Context, arg RelinkMoveImagesParams) error {
+	_, err := q.db.ExecContext(ctx, relinkMoveImages, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkMoveLocalImages = `-- name: RelinkMoveLocalImages :exec
+UPDATE item_local_images SET item_id = ?1
+WHERE item_local_images.item_id = ?2
+  AND item_local_images.kind NOT IN (SELECT t.kind FROM item_local_images AS t WHERE t.item_id = ?1)
+`
+
+type RelinkMoveLocalImagesParams struct {
+	TargetID string
+	SourceID string
+}
+
+// The copy's local images (poster.jpg next to its files) of a kind the survivor has none of.
+func (q *Queries) RelinkMoveLocalImages(ctx context.Context, arg RelinkMoveLocalImagesParams) error {
+	_, err := q.db.ExecContext(ctx, relinkMoveLocalImages, arg.TargetID, arg.SourceID)
 	return err
 }
 
@@ -227,6 +423,89 @@ type RelinkMovePlaybackSessionsParams struct {
 // stream token names the copy's id.
 func (q *Queries) RelinkMovePlaybackSessions(ctx context.Context, arg RelinkMovePlaybackSessionsParams) error {
 	_, err := q.db.ExecContext(ctx, relinkMovePlaybackSessions, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkMoveSegments = `-- name: RelinkMoveSegments :exec
+UPDATE OR IGNORE media_segments SET item_id = ?1 WHERE item_id = ?2
+`
+
+type RelinkMoveSegmentsParams struct {
+	TargetID string
+	SourceID string
+}
+
+func (q *Queries) RelinkMoveSegments(ctx context.Context, arg RelinkMoveSegmentsParams) error {
+	_, err := q.db.ExecContext(ctx, relinkMoveSegments, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkReplaceChapters = `-- name: RelinkReplaceChapters :exec
+DELETE FROM chapters
+WHERE chapters.item_id = ?1 AND EXISTS (SELECT 1 FROM chapters AS s WHERE s.item_id = ?2)
+`
+
+type RelinkReplaceChaptersParams struct {
+	TargetID string
+	SourceID string
+}
+
+// The chapters belong to the copy's media file, which moved to the survivor: they replace the
+// survivor's chapters, if the copy has any.
+func (q *Queries) RelinkReplaceChapters(ctx context.Context, arg RelinkReplaceChaptersParams) error {
+	_, err := q.db.ExecContext(ctx, relinkReplaceChapters, arg.TargetID, arg.SourceID)
+	return err
+}
+
+const relinkSeasonSegmentsPending = `-- name: RelinkSeasonSegmentsPending :exec
+UPDATE items SET segments_state = 'pending', updated_at = ?1
+WHERE items.id = (SELECT e.parent_id FROM items AS e WHERE e.id = ?2 AND e.kind = 'episode')
+  AND items.kind = 'season'
+`
+
+type RelinkSeasonSegmentsPendingParams struct {
+	Now       int64
+	EpisodeID string
+}
+
+// An episode whose file moved in without segments sets its season back to pending, so the next
+// scan queues the detection.
+func (q *Queries) RelinkSeasonSegmentsPending(ctx context.Context, arg RelinkSeasonSegmentsPendingParams) error {
+	_, err := q.db.ExecContext(ctx, relinkSeasonSegmentsPending, arg.Now, arg.EpisodeID)
+	return err
+}
+
+const relinkSetCurated = `-- name: RelinkSetCurated :exec
+UPDATE items
+SET tmdb_id = ?1, tvdb_id = ?2, imdb_id = ?3, own_rating = ?4,
+    rating_source = ?5, locked_fields = ?6, updated_at = ?7
+WHERE id = ?8
+`
+
+type RelinkSetCuratedParams struct {
+	TmdbID       sql.NullInt64
+	TvdbID       sql.NullInt64
+	ImdbID       sql.NullString
+	OwnRating    sql.NullInt64
+	RatingSource sql.NullString
+	LockedFields string
+	Now          int64
+	ID           string
+}
+
+// The curated state the survivor takes over from its copy (relinker.carry): provider ids and age
+// rating with the locks the copy adds. The rating triggers recompute the effective ratings.
+func (q *Queries) RelinkSetCurated(ctx context.Context, arg RelinkSetCuratedParams) error {
+	_, err := q.db.ExecContext(ctx, relinkSetCurated,
+		arg.TmdbID,
+		arg.TvdbID,
+		arg.ImdbID,
+		arg.OwnRating,
+		arg.RatingSource,
+		arg.LockedFields,
+		arg.Now,
+		arg.ID,
+	)
 	return err
 }
 

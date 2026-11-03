@@ -23,6 +23,8 @@ func TestAdminRelinkItems(t *testing.T) {
 	dead, live := f.Rated(16), f.Rated(18)
 	m.exec(t, `UPDATE items SET tmdb_id = 424242, tvdb_id = NULL, imdb_id = NULL WHERE id IN (?, ?)`, dead.ID, live.ID)
 	m.exec(t, `UPDATE items SET deleted_at = ? WHERE id = ?`, time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC).UnixMilli(), dead.ID)
+	// The copy appeared after the film was deleted; a film that lived beside it is no copy.
+	m.exec(t, `UPDATE items SET created_at = ? WHERE id = ?`, time.Date(2026, 10, 29, 9, 0, 0, 0, time.UTC).UnixMilli(), live.ID)
 	for _, table := range []string{"progress", "watchlist", "favorites", "progress_events"} {
 		m.exec(t, fmt.Sprintf(`DELETE FROM %s WHERE item_id IN (?, ?)`, table), dead.ID, live.ID)
 	}

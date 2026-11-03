@@ -21,6 +21,7 @@ const (
 	JobProbeFile      = "probe.file"      // payload {"mediaFileId": "<ULID>"}, key probe:<id>
 	JobProbeKeyframes = "probe.keyframes" // payload {"mediaFileId": "<ULID>"}, key keyframes:<id>
 	JobSweep          = "library.sweep"   // key sweep
+	JobRelink         = "library.relink"  // payload {"itemId": "<ULID>"}, key relink:<id> (relink.go)
 	JobMetadataMatch  = "metadata.match"  // handled by package metadata; payload {"itemId": "<ULID>"}
 	JobMetadataFill   = "metadata.fill"   // handled by package metadata; payload {"itemId": "<ULID>"}
 	JobImageFetch     = "image.fetch"     // handled by package metadata; payload {"itemId": "<ULID>"}, key image:<id>
@@ -174,7 +175,8 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 
 // RegisterTypes registers the job types of the library on r (concept 09, ADR 0017): the full
 // scan and the sweep are schedule types (every 6 h and hourly, both at the start of the server),
-// the rest are event types queued by scans, watchers, webhooks and playbacks.
+// the rest are event types queued by scans, watchers, webhooks, playbacks and matches
+// (library.relink).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{
@@ -189,6 +191,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Priority: prioSweep, Handler: s.handleSweep, Run: s.runSweep, Every: sweepInterval, StartDelay: &atStart,
 	})
 	r.Register(jobs.Type{Name: JobSegmentsDetect, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioSegments, Handler: s.handleSegments})
+	r.Register(jobs.Type{Name: JobRelink, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioMatch, Handler: s.handleRelink})
 }
 
 // cancelScanJob is the cancel hook of scan.library and scan.path (jobs.Type.Cancel, concept 09

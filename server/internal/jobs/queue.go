@@ -16,7 +16,8 @@
 //     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen")
 //     6 scan.path
 //     5 scan.library, download.prepare
-//     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override
+//     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
+//     library.relink
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
 //     library.sweep, nightly trakt.refresh

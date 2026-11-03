@@ -1,10 +1,13 @@
 package library
 
 import (
+	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
@@ -44,7 +47,30 @@ func (e *env) playbackSession(id, itemID string) {
 	        VALUES (?, 1, 1, 1, ?, 'f', 'direct', 1, 1, 2)`, id, itemID)
 }
 
-// seriesRoot returns the id of the series folder dir of the library.
+// relinkJob runs the relink hook (QueueRelink) for the live title and, when it queued
+// library.relink, runs that job; a finished job leaves the queue. It reports whether the hook found
+// a twin.
+func (e *env) relinkJob(live string) (bool, error) {
+	e.t.Helper()
+	twin, err := e.svc.QueueRelink(e.ctx, live)
+	if err != nil || !twin {
+		return twin, err
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ? AND state = 'queued'`, JobRelink, relinkKey(live)); n != 1 {
+		e.t.Fatalf("library.relink jobs of %s = %d, want 1", live, n)
+	}
+	payload, err := json.Marshal(itemPayload{live})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if err := e.svc.handleRelink(e.ctx, &jobs.Job{Type: JobRelink, Payload: payload}); err != nil {
+		return true, err
+	}
+	e.exec(`DELETE FROM jobs WHERE idempotency_key = ?`, relinkKey(live))
+	return true, nil
+}
+
+// rootID returns the id of the folder dir of the library.
 func (e *env) rootID(lib model.Library, dir string) int64 {
 	e.t.Helper()
 	for _, r := range lib.Roots {
@@ -91,6 +117,7 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 	if _, err := e.svc.RemoveRoot(e.ctx, lib.ID, e.rootID(got, oldDir), filepath.Clean(oldDir)); err != nil {
 		t.Fatal(err)
 	}
+	e.clock.Advance(time.Minute) // the copy appears after the old series was deleted
 	e.scan(lib.ID)
 	if v := e.str(`SELECT deleted_at IS NOT NULL FROM items WHERE id = ?`, dead); v != "1" {
 		t.Fatalf("old series not deleted: %s", v)
@@ -116,9 +143,10 @@ func TestRelinkSeriesMergesTreeAndUserData(t *testing.T) {
 		t.Fatalf("user data of the deleted series = %+v, %v", counts, err)
 	}
 
-	kept, relinked, err := e.svc.RelinkDeletedTwin(e.ctx, live)
-	if err != nil || !relinked || kept != dead {
-		t.Fatalf("relink = %q, %v, %v; want %q", kept, relinked, err, dead)
+	// The scans queued a match of every title; only the relink may queue one for the kept series.
+	e.exec(`DELETE FROM jobs WHERE type = ?`, JobMetadataMatch)
+	if twin, err := e.relinkJob(live); err != nil || !twin {
+		t.Fatalf("relink = %v, %v", twin, err)
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, live); n != 0 {
 		t.Error("copy still exists")
@@ -210,25 +238,29 @@ func TestRelinkMovieAndContradictingID(t *testing.T) {
 	e.exec(`UPDATE items SET tmdb_id = 348, imdb_id = 'tt9999999' WHERE id = ?`, alienCopy)
 
 	// The other id contradicts: no relink.
-	if kept, relinked, err := e.svc.RelinkDeletedTwin(e.ctx, alienCopy); err != nil || relinked || kept != alienCopy {
-		t.Errorf("contradicting relink = %q, %v, %v", kept, relinked, err)
+	if twin, err := e.svc.QueueRelink(e.ctx, alienCopy); err != nil || twin {
+		t.Errorf("contradicting twin = %v, %v", twin, err)
 	}
-	if _, err := e.svc.Relink(e.ctx, alien, alienCopy); err == nil {
-		t.Error("Relink of a contradicting pair succeeded")
+	if _, err := e.svc.Relink(e.ctx, alien, alienCopy); !errors.Is(err, ErrNotTwins) {
+		t.Errorf("Relink of a contradicting pair = %v, want ErrNotTwins", err)
 	}
 
-	// While the scan lock is held, the relink waits and runs when the holder releases it.
+	// While a scan holds the lock, the job waits without using an attempt and merges afterwards.
 	unlock, ok := e.svc.tryLockScan(lib.ID)
 	if !ok {
 		t.Fatal("scan lock busy")
 	}
-	if kept, relinked, err := e.svc.RelinkDeletedTwin(e.ctx, heatCopy); err != nil || relinked || kept != heatCopy {
-		t.Fatalf("relink under the lock = %q, %v, %v", kept, relinked, err)
+	var later *jobs.RetryLaterError
+	if twin, err := e.relinkJob(heatCopy); !twin || !errors.As(err, &later) || later.After != relinkRetry {
+		t.Fatalf("relink under the lock = %v, %v; want a retry after %v", twin, err, relinkRetry)
 	}
 	if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, heatCopy); n != 1 {
 		t.Fatal("copy merged while the lock was held")
 	}
 	unlock()
+	if twin, err := e.relinkJob(heatCopy); err != nil || !twin {
+		t.Fatalf("relink after the lock = %v, %v", twin, err)
+	}
 	if n := e.count(`SELECT count(*) FROM items WHERE id = ?`, heatCopy); n != 0 {
 		t.Error("copy not merged after the lock was released")
 	}

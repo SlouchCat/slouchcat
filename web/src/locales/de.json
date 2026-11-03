@@ -2817,6 +2817,10 @@
           "name": "Intro und Abspann erkennen",
           "trigger": "vom Scan je Serienstaffel"
         },
+        "library_relink": {
+          "name": "Gelöschten Titel wiederverknüpfen",
+          "trigger": "nach der Zuordnung eines Titels, der einen gelöschten Zwilling hat"
+        },
         "metadata_match": {
           "name": "Titel zuordnen",
           "trigger": "vom Scan, Zuordnung von Hand, Ordner ändern"

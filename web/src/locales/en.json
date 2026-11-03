@@ -2817,6 +2817,10 @@
           "name": "Detect intro and outro",
           "trigger": "From the scan per season"
         },
+        "library_relink": {
+          "name": "Relink deleted title",
+          "trigger": "After the match of a title with a deleted twin"
+        },
         "metadata_match": {
           "name": "Match title",
           "trigger": "From the scan, manual match, folder change"

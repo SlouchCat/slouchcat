@@ -3,19 +3,26 @@ package library
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // Late relinking of soft-deleted titles (ADR 0023, idea 04). A live film or series and a
 // soft-deleted one are twins when they lie in the same library, have the same kind, share at least
-// one provider id (TMDB, TVDB, IMDb) and no provider id contradicts. The deleted twin survives with
-// its id, so ids on devices, in links and in offline packages stay valid; the live copy merges
-// into it and is deleted for good.
+// one provider id (TMDB, TVDB, IMDb) and no provider id contradicts, and the live copy was created
+// after the twin was deleted. The deleted twin survives with its id, so ids on devices, in links
+// and in offline packages stay valid; the live copy merges into it and is deleted for good.
+//
+// After metadata.match wrote the provider ids of a title, QueueRelink (metadata.WithRelink) queues
+// the job library.relink for a title with a deleted twin; the job merges it under the scan lock of
+// the library (handleRelink).
 
 // ErrNotTwins is returned by Relink when the two titles are not a soft-deleted title and its live
 // copy (anymore).
@@ -51,6 +58,8 @@ type RelinkUserData struct {
 type RelinkResult struct {
 	KeptID, RemovedID string
 	Merged, Moved     int
+	// Folded counts the older soft-deleted twins of the kept title that merged into it as well.
+	Folded int
 }
 
 // ListRelinkPairs lists the live films and series with a soft-deleted twin, of one library or of
@@ -98,37 +107,71 @@ func (s *Service) Relink(ctx context.Context, deletedID, liveID string) (RelinkR
 	return s.relink(ctx, deletedID, liveID)
 }
 
-// RelinkDeletedTwin merges a live film or series into its soft-deleted twin, if it has one
-// (metadata.WithRelink: called after metadata.match wrote the provider ids). It returns the id
-// that survives and whether the copy merged; a title without twin stays as it is. While a scan of
-// the library holds the scan lock, whose item index still names the copy, the relink waits until
-// the lock is released (unlockScan) and the copy is reported as not merged.
-func (s *Service) RelinkDeletedTwin(ctx context.Context, liveID string) (string, bool, error) {
-	live, err := systemq.New(s.db.Read).GetItemSystem(ctx, liveID)
+// relinkRetry is how long library.relink waits when a scan of the library holds the scan lock.
+const relinkRetry = time.Minute
+
+func relinkKey(itemID string) string { return "relink:" + itemID }
+
+// QueueRelink is the hook after metadata.match wrote the provider ids of a title
+// (metadata.WithRelink, ADR 0023). It reports whether the title is a live film or series with a
+// soft-deleted twin and then queues library.relink for it (key relink:<id>), which merges the
+// title into its twin; the caller's match ends there. The job waits for the debounce window, so
+// the match that queued it has finished before the job may queue the title's match again.
+func (s *Service) QueueRelink(ctx context.Context, liveID string) (bool, error) {
+	if _, err := systemq.New(s.db.Read).FindDeletedTwin(ctx, liveID); errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("find deleted twin of %s: %w", liveID, err)
+	}
+	payload, err := json.Marshal(itemPayload{liveID})
+	if err != nil {
+		return false, fmt.Errorf("encode %s payload: %w", JobRelink, err)
+	}
+	if _, err := s.queue.Enqueue(ctx, jobs.NewJob{
+		Type: JobRelink, Priority: prioMatch, IdempotencyKey: relinkKey(liveID), Payload: payload, Delay: jobs.DebounceWindow,
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// handleRelink runs library.relink: it merges a live film or series into its soft-deleted twin
+// under the scan lock of the library, because a running scan's item index still names the copy.
+// While a scan holds the lock, the job waits relinkRetry without using an attempt
+// (jobs.RetryLater). A title that is gone has merged already (the maintenance action). When the
+// twin is gone meanwhile (another copy of it merged first), the title's match runs again: it
+// stopped after the title and now completes seasons, images and the rest. Database errors are
+// returned for a retry.
+func (s *Service) handleRelink(ctx context.Context, j *jobs.Job) error {
+	var p itemPayload
+	if err := decodePayload(j, &p); err != nil {
+		return err
+	}
+	live, err := systemq.New(s.db.Read).GetItemSystem(ctx, p.ItemID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return liveID, false, nil
+		return nil
 	}
 	if err != nil {
-		return liveID, false, fmt.Errorf("load item %s: %w", liveID, err)
+		return fmt.Errorf("load item %s: %w", p.ItemID, err)
 	}
-	if live.DeletedAt.Valid || (live.Kind != "movie" && live.Kind != "series") {
-		return liveID, false, nil
+	if live.DeletedAt.Valid {
+		return nil
 	}
-	// Taking the lock or queueing behind its holder happens under s.mu, like the holder's check
-	// for queued relinks before it releases the lock, so no relink is left behind.
-	s.mu.Lock()
-	ch := s.scanLockLocked(live.LibraryID)
-	select {
-	case ch <- struct{}{}:
-		s.mu.Unlock()
-	default:
-		s.relinkPending[live.LibraryID] = append(s.relinkPending[live.LibraryID], liveID)
-		s.mu.Unlock()
-		s.log.InfoContext(ctx, "relink waits for the scan lock", "library_id", live.LibraryID, "item_id", liveID)
-		return liveID, false, nil
+	unlock, ok := s.tryLockScan(live.LibraryID)
+	if !ok {
+		return jobs.RetryLater(relinkRetry, fmt.Sprintf("a scan of library %d holds the scan lock", live.LibraryID))
 	}
-	defer s.unlockScan(live.LibraryID, ch)
-	return s.relinkTwin(ctx, liveID)
+	defer unlock()
+	if _, merged, err := s.relinkTwin(ctx, live.ID); err != nil || merged {
+		return err
+	}
+	m := matchJob(live.ID)
+	payload, err := json.Marshal(m.payload)
+	if err != nil {
+		return fmt.Errorf("encode %s payload: %w", m.typ, err)
+	}
+	_, err = s.queue.Enqueue(ctx, jobs.NewJob{Type: m.typ, Priority: m.priority, IdempotencyKey: m.key, Payload: payload})
+	return err
 }
 
 // relinkTwin merges liveID into its most recently deleted twin, if any; the caller holds the scan
@@ -158,9 +201,13 @@ func (s *Service) relinkTwin(ctx context.Context, liveID string) (string, bool, 
 // user data of every merged node follows with the rules of the duplicate merge (B-9): progress per
 // profile (completed wins, then the larger position), events, days, top picks, watchlist,
 // favourites, collections, notifications and downloads, plus playback sessions and activity
-// events. The emptied nodes of the copy are deleted for good, the copy last; a deleted child of
-// the twin without counterpart stays deleted. The triggers recompute availability and ratings. The
-// twin gets a metadata.match, which describes the episodes that moved in.
+// events. The copy's curated state comes along (relinker.carry): locked provider ids and rating,
+// the stricter age rating, the administrator's images, local images, chapters and segments. The
+// emptied nodes of the copy are deleted for good, the copy last; a deleted child of the twin
+// without counterpart stays deleted. Then every other soft-deleted twin of the survivor (an older
+// generation of the title) folds into it the same way, user data only, so a later match of the
+// survivor finds no older twin. The triggers recompute availability and ratings. The twin gets a
+// metadata.match, which describes the episodes that moved in.
 func (s *Service) relink(ctx context.Context, deletedID, liveID string) (RelinkResult, error) {
 	now := s.now()
 	tx, err := s.db.Write.BeginTx(ctx, nil)
@@ -190,11 +237,15 @@ func (s *Service) relink(ctx context.Context, deletedID, liveID string) (RelinkR
 	if !twins(dead, live) {
 		return RelinkResult{}, fmt.Errorf("%w: %s and %s", ErrNotTwins, deletedID, liveID)
 	}
-	r := &relinker{q: q, now: now.UnixMilli()}
+	r := &relinker{q: q, now: now.UnixMilli(), copy: true}
 	if err := r.restore(ctx, deletedID); err != nil {
 		return RelinkResult{}, err
 	}
-	if err := r.merge(ctx, deletedID, liveID); err != nil {
+	if err := r.merge(ctx, deletedID, liveID, live.Kind); err != nil {
+		return RelinkResult{}, err
+	}
+	folded, err := r.foldOlderTwins(ctx, dead, live)
+	if err != nil {
 		return RelinkResult{}, err
 	}
 	if err := enqueueTx(ctx, q, now, matchJob(deletedID)); err != nil {
@@ -203,16 +254,17 @@ func (s *Service) relink(ctx context.Context, deletedID, liveID string) (RelinkR
 	if err := tx.Commit(); err != nil {
 		return RelinkResult{}, fmt.Errorf("commit relink: %w", err)
 	}
-	res := RelinkResult{KeptID: deletedID, RemovedID: liveID, Merged: r.merged, Moved: r.moved}
+	res := RelinkResult{KeptID: deletedID, RemovedID: liveID, Merged: r.merged, Moved: r.moved, Folded: folded}
 	s.log.InfoContext(ctx, "deleted title relinked", "library_id", live.LibraryID, "kind", live.Kind,
-		"kept_id", deletedID, "removed_id", liveID, "merged", res.Merged, "moved", res.Moved)
+		"kept_id", deletedID, "removed_id", liveID, "merged", res.Merged, "moved", res.Moved, "folded", res.Folded)
 	return res, nil
 }
 
-// twins reports whether dead is a soft-deleted film or series and live its live copy.
+// twins reports whether dead is a soft-deleted film or series and live its live copy, created
+// after dead was deleted (FindDeletedTwin).
 func twins(dead, live systemq.Item) bool {
 	if dead.ID == live.ID || !dead.DeletedAt.Valid || live.DeletedAt.Valid || dead.LibraryID != live.LibraryID ||
-		dead.Kind != live.Kind || (live.Kind != "movie" && live.Kind != "series") {
+		dead.Kind != live.Kind || (live.Kind != "movie" && live.Kind != "series") || live.CreatedAt <= dead.DeletedAt.Int64 {
 		return false
 	}
 	shared := (dead.TmdbID.Valid && dead.TmdbID == live.TmdbID) || (dead.TvdbID.Valid && dead.TvdbID == live.TvdbID) ||
@@ -223,9 +275,42 @@ func twins(dead, live systemq.Item) bool {
 
 // relinker writes one relink in its transaction.
 type relinker struct {
-	q             *systemq.Queries
-	now           int64
+	q   *systemq.Queries
+	now int64
+	// copy is set while the live copy merges: its curated state, chapters and segments come along
+	// (carry). An older twin that folds in brings its user data only.
+	copy          bool
 	merged, moved int
+}
+
+// foldOlderTwins merges every other soft-deleted twin of the survivor dead (restored by now) into
+// it: same library and kind, a shared provider id of the survivor or its copy live, none
+// contradicting. It returns their number.
+func (r *relinker) foldOlderTwins(ctx context.Context, dead, live systemq.Item) (int, error) {
+	pick := func(a, b sql.NullInt64) sql.NullInt64 {
+		if a.Valid {
+			return a
+		}
+		return b
+	}
+	imdb := dead.ImdbID
+	if !imdb.Valid {
+		imdb = live.ImdbID
+	}
+	ids, err := r.q.ListRelinkChainTwins(ctx, systemq.ListRelinkChainTwinsParams{
+		LibraryID: dead.LibraryID, Kind: dead.Kind,
+		TmdbID: pick(dead.TmdbID, live.TmdbID), TvdbID: pick(dead.TvdbID, live.TvdbID), ImdbID: imdb,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("relink: list older twins of %s: %w", dead.ID, err)
+	}
+	fold := &relinker{q: r.q, now: r.now}
+	for _, id := range ids {
+		if err := fold.merge(ctx, dead.ID, id, dead.Kind); err != nil {
+			return 0, err
+		}
+	}
+	return len(ids), nil
 }
 
 func (r *relinker) restore(ctx context.Context, id string) error {
@@ -235,9 +320,15 @@ func (r *relinker) restore(ctx context.Context, id string) error {
 	return nil
 }
 
-// merge moves the files, the user data and the children of the copy's node source into the
-// twin's node target, then deletes source. target is restored by the caller when it should be.
-func (r *relinker) merge(ctx context.Context, target, source string) error {
+// merge moves the files, the user data and the children of the copy's node source (of kind
+// kind) into the twin's node target, then deletes source. target is restored by the caller when it
+// should be.
+func (r *relinker) merge(ctx context.Context, target, source, kind string) error {
+	if r.copy {
+		if err := r.carry(ctx, target, source, kind); err != nil {
+			return err
+		}
+	}
 	if err := r.moveRows(ctx, target, source); err != nil {
 		return err
 	}
@@ -300,7 +391,7 @@ func (r *relinker) mergeChildren(ctx context.Context, target, source string) err
 				return err
 			}
 		}
-		if err := r.merge(ctx, counterpart, k.ID); err != nil {
+		if err := r.merge(ctx, counterpart, k.ID, k.Kind); err != nil {
 			return err
 		}
 	}
@@ -346,6 +437,9 @@ func (r *relinker) moveRows(ctx context.Context, target, source string) error {
 		{"notification parents", func() error {
 			return q.AdminMoveNotificationParents(ctx, systemq.AdminMoveNotificationParentsParams{TargetID: tn, SourceID: sn})
 		}},
+		{"dead downloads", func() error {
+			return q.RelinkDropDeadDownloads(ctx, systemq.RelinkDropDeadDownloadsParams{TargetID: target, SourceID: source})
+		}},
 		{"downloads", func() error {
 			return q.AdminMoveDownloads(ctx, systemq.AdminMoveDownloadsParams{TargetID: target, SourceID: source, Now: now})
 		}},
@@ -362,4 +456,127 @@ func (r *relinker) moveRows(ctx context.Context, target, source string) error {
 		}
 	}
 	return nil
+}
+
+// carriedLocks are the locked fields whose values carry moves from the copy to the survivor; other
+// locks stay with the copy.
+var carriedLocks = map[string]bool{
+	"tmdb_id": true, "tvdb_id": true, "imdb_id": true, "own_rating": true, "poster": true, "backdrop": true, "logo": true,
+}
+
+// carry moves the curated state of the copy's node source to the survivor's node target before
+// source is deleted:
+//   - locked fields the survivor lacks (carriedLocks) with their values: provider ids, the age
+//     rating with its source, and the image kinds whose choice moves below;
+//   - otherwise the stricter age rating (the higher FSK) with its source, unless the survivor
+//     locks its rating;
+//   - the administrator's image choices (item_images chosen = 1) over the survivor's automatic
+//     ones, and image choices and local images of a kind the survivor has none of;
+//   - for a film or an episode, whose media file moved: the copy's chapters replace the
+//     survivor's, and its segments replace the survivor's detected ones (manual ones stay). An
+//     episode without segments sets its season back to pending, so the detection runs again.
+func (r *relinker) carry(ctx context.Context, target, source, kind string) error {
+	t, err := r.q.GetItemSystem(ctx, target)
+	if err != nil {
+		return fmt.Errorf("relink: load %s: %w", target, err)
+	}
+	src, err := r.q.GetItemSystem(ctx, source)
+	if err != nil {
+		return fmt.Errorf("relink: load %s: %w", source, err)
+	}
+	var tLocks, sLocks []string
+	_ = json.Unmarshal([]byte(t.LockedFields), &tLocks) // a broken list counts as empty
+	_ = json.Unmarshal([]byte(src.LockedFields), &sLocks)
+	p := systemq.RelinkSetCuratedParams{
+		TmdbID: t.TmdbID, TvdbID: t.TvdbID, ImdbID: t.ImdbID, OwnRating: t.OwnRating, RatingSource: t.RatingSource,
+		LockedFields: t.LockedFields, Now: r.now, ID: target,
+	}
+	locks := slices.Clone(tLocks)
+	for _, f := range sLocks {
+		if !carriedLocks[f] || slices.Contains(locks, f) {
+			continue
+		}
+		locks = append(locks, f)
+		switch f {
+		case "tmdb_id":
+			p.TmdbID = src.TmdbID
+		case "tvdb_id":
+			p.TvdbID = src.TvdbID
+		case "imdb_id":
+			p.ImdbID = src.ImdbID
+		case "own_rating":
+			p.OwnRating, p.RatingSource = src.OwnRating, src.RatingSource
+		}
+	}
+	if !slices.Contains(locks, "own_rating") && src.OwnRating.Valid && (!p.OwnRating.Valid || p.OwnRating.Int64 < src.OwnRating.Int64) {
+		p.OwnRating, p.RatingSource = src.OwnRating, src.RatingSource
+	}
+	if len(locks) > len(tLocks) {
+		raw, err := json.Marshal(locks)
+		if err != nil {
+			return fmt.Errorf("relink: locked fields of %s: %w", target, err)
+		}
+		p.LockedFields = string(raw)
+	}
+	q := r.q
+	steps := []struct {
+		what string
+		run  func() error
+	}{
+		{"curated fields", func() error { return q.RelinkSetCurated(ctx, p) }},
+		{"unchosen images", func() error {
+			return q.RelinkDropUnchosenImages(ctx, systemq.RelinkDropUnchosenImagesParams{TargetID: target, SourceID: source})
+		}},
+		{"cached images", func() error {
+			return q.RelinkDropCachedImages(ctx, systemq.RelinkDropCachedImagesParams{TargetID: target, SourceID: source})
+		}},
+		{"move cached images", func() error {
+			return q.RelinkMoveCachedImages(ctx, systemq.RelinkMoveCachedImagesParams{TargetID: target, SourceID: source})
+		}},
+		{"images", func() error {
+			return q.RelinkMoveImages(ctx, systemq.RelinkMoveImagesParams{TargetID: target, SourceID: source})
+		}},
+		{"local images", func() error {
+			return q.RelinkMoveLocalImages(ctx, systemq.RelinkMoveLocalImagesParams{TargetID: target, SourceID: source})
+		}},
+		{"chapters", func() error {
+			if kind != "movie" && kind != "episode" {
+				return nil
+			}
+			if err := q.RelinkReplaceChapters(ctx, systemq.RelinkReplaceChaptersParams{TargetID: target, SourceID: source}); err != nil {
+				return err
+			}
+			return q.RelinkMoveChapters(ctx, systemq.RelinkMoveChaptersParams{TargetID: target, SourceID: source})
+		}},
+		{"segments", func() error { return r.carrySegments(ctx, target, source, kind) }},
+	}
+	for _, step := range steps {
+		if err := step.run(); err != nil {
+			return fmt.Errorf("relink %s of %s: %w", step.what, source, err)
+		}
+	}
+	return nil
+}
+
+// carrySegments moves the segments of the copy's film or episode source to target, replacing the
+// detected ones of target; an episode without segments sets the season of target to pending. Other
+// kinds have no segments.
+func (r *relinker) carrySegments(ctx context.Context, target, source, kind string) error {
+	if kind != "movie" && kind != "episode" {
+		return nil
+	}
+	n, err := r.q.RelinkCountSegments(ctx, source)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		if kind != "episode" {
+			return nil
+		}
+		return r.q.RelinkSeasonSegmentsPending(ctx, systemq.RelinkSeasonSegmentsPendingParams{Now: r.now, EpisodeID: target})
+	}
+	if err := r.q.RelinkDropDetectedSegments(ctx, target); err != nil {
+		return err
+	}
+	return r.q.RelinkMoveSegments(ctx, systemq.RelinkMoveSegmentsParams{TargetID: target, SourceID: source})
 }

@@ -142,8 +142,8 @@ type Service struct {
 	recheck func(ctx context.Context) error
 	// newEpisodes is told the ids of new podcast episodes after their transaction (WithNewEpisodes).
 	newEpisodes func(ctx context.Context, ids []string) error
-	// relink merges a matched film or series into its soft-deleted twin (WithRelink).
-	relink func(ctx context.Context, itemID string) (string, bool, error)
+	// relink queues the merge of a matched film or series into its soft-deleted twin (WithRelink).
+	relink func(ctx context.Context, itemID string) (bool, error)
 
 	trakt traktConfig // Trakt lists (trakt.go)
 
@@ -178,7 +178,7 @@ type options struct {
 	feedNow     func() time.Time
 	feedAgent   string
 	newEpisodes func(ctx context.Context, ids []string) error
-	relink      func(ctx context.Context, itemID string) (string, bool, error)
+	relink      func(ctx context.Context, itemID string) (bool, error)
 	traktID     string
 	trakt       traktOptions
 }
@@ -251,11 +251,11 @@ func WithNewEpisodes(fn func(ctx context.Context, ids []string) error) Option {
 }
 
 // WithRelink sets the function a match calls after it wrote the provider ids of a film or series
-// (library.Service.RelinkDeletedTwin, ADR 0023): it merges the title into a soft-deleted twin with
-// the same ids and returns the id that survives and whether the title merged. A merged title is
-// gone, so the match ends there; the survivor gets its own match. An error is logged and the
-// match goes on.
-func WithRelink(fn func(ctx context.Context, itemID string) (string, bool, error)) Option {
+// (library.Service.QueueRelink, ADR 0023): it reports whether the title has a soft-deleted twin
+// with the same ids and then queues the job that merges the title into it. A title with a twin is
+// about to go, so its match ends there; the survivor gets its own match after the merge. An error
+// fails the match, which the queue retries.
+func WithRelink(fn func(ctx context.Context, itemID string) (bool, error)) Option {
 	return func(o *options) { o.relink = fn }
 }
 
