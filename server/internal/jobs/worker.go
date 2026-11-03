@@ -140,6 +140,7 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 	rep.flush(fctx)
 	rep.stop()
 	var ferr error
+	var later *RetryLaterError
 	switch {
 	case leaseLost.Load():
 		return
@@ -154,6 +155,9 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 	case err != nil && ctx.Err() != nil:
 		log.Info("job interrupted by shutdown, released")
 		ferr = w.queue.Release(fctx, w.id, job.ID)
+	case errors.As(err, &later):
+		log.Info("job deferred", "reason", later.Reason, "after", later.After)
+		ferr = w.queue.Defer(fctx, w.id, job.ID, later.After)
 	case err != nil:
 		log.Warn("job failed", "err", err, "duration", time.Since(start))
 		ferr = w.queue.Fail(fctx, w.id, job, err)

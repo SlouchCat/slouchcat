@@ -32,6 +32,8 @@
 //     needs the work of both enqueues merges it into the pending job with SetQueuedPayload.
 //   - Retry: a failed attempt is retried after 10 s · 2^(attempt-1) (10 s, 20 s, 40 s, …) until
 //     MaxAttempts is reached; then the job ends in state failed with the last error.
+//   - Retry later: a handler that cannot start yet (another job holds a lock it needs) returns
+//     RetryLater; the job waits for the given time without using an attempt.
 //   - Cancel: queued and running jobs can be cancelled; a running handler sees its context
 //     cancelled at the next heartbeat.
 //
@@ -73,6 +75,21 @@ var ErrPaused = errors.New("job type paused")
 // ErrCancelled is the cause of a job context that an administrator's cancel ended
 // (Registry.CancelJob, CancelRuns); the queue row is cancelled already.
 var ErrCancelled = errors.New("job cancelled")
+
+// RetryLaterError is returned by a handler that cannot start its job yet, for example because
+// another job holds a lock it needs: the worker queues the job again after After without counting
+// the attempt (Queue.Defer). Wrapped errors count too.
+type RetryLaterError struct {
+	After  time.Duration
+	Reason string
+}
+
+func (e *RetryLaterError) Error() string { return "retry later: " + e.Reason }
+
+// RetryLater returns a RetryLaterError: the job runs again after after, without using an attempt.
+func RetryLater(after time.Duration, reason string) error {
+	return &RetryLaterError{After: after, Reason: reason}
+}
 
 // State is the lifecycle state of a job.
 type State string
@@ -268,6 +285,16 @@ func (q *Queue) Release(ctx context.Context, workerID string, id int64) error {
 		Now: q.now().UnixMilli(), ID: id, WorkerID: sql.NullString{String: workerID, Valid: true},
 	})
 	return leaseResult("release", n, err)
+}
+
+// Defer returns a running job to the queue to run again after after, without counting the attempt
+// (RetryLater).
+func (q *Queue) Defer(ctx context.Context, workerID string, id int64, after time.Duration) error {
+	now := q.now()
+	n, err := q.q.DeferJob(ctx, systemq.DeferJobParams{
+		RunAfter: now.Add(after).UnixMilli(), Now: now.UnixMilli(), ID: id, WorkerID: sql.NullString{String: workerID, Valid: true},
+	})
+	return leaseResult("defer", n, err)
 }
 
 // Cancel cancels a queued or running job, or dismisses a failed one. It reports whether a job was
