@@ -58,6 +58,19 @@ func (c *blockingConverter) stats() (calls, peak int) {
 	return c.calls, c.peak
 }
 
+// awaitN receives n values from ch; it fails after 5 s, which only a broken conversion reaches.
+func awaitN(t *testing.T, ch <-chan struct{}, n int, what string) {
+	t.Helper()
+	timeout := time.After(5 * time.Second)
+	for i := range n {
+		select {
+		case <-ch:
+		case <-timeout:
+			t.Fatalf("%d of %d %s", i, n, what)
+		}
+	}
+}
+
 // subtitleGrant starts a playback with the embedded text track in a new browser session and
 // returns its grant.
 func subtitleGrant(t *testing.T, s *Service, f *vistest.Fixture, m vistest.Movie, track int64) model.PlaybackGrant {
@@ -85,6 +98,8 @@ func TestSubtitleConversionShared(t *testing.T) {
 	conv := newBlockingConverter()
 	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey), WithSubtitleConverter(conv.embedded, conv.sidecar), WithCacheDir(t.TempDir()))
 	g := subtitleGrant(t, s, f, m, tracks[m.FileID].Text)
+	joined := make(chan struct{}, 10)
+	s.onSubtitleJoin = func() { joined <- struct{}{} }
 
 	gone, cancel := context.WithCancel(context.Background())
 	goneErr := make(chan error, 1)
@@ -110,7 +125,9 @@ func TestSubtitleConversionShared(t *testing.T) {
 			errs <- err
 		}()
 	}
-	time.Sleep(50 * time.Millisecond) // let the requests join the running conversion
+	// All ten join the running conversion before it may finish; one that came later would find
+	// no flight and start a second conversion.
+	awaitN(t, joined, 10, "requests joined the running conversion")
 	close(conv.release)
 	wg.Wait()
 	close(errs)
@@ -141,6 +158,8 @@ func TestSubtitleConversionsBounded(t *testing.T) {
 	conv := newBlockingConverter()
 	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey), WithSubtitleConverter(conv.embedded, conv.sidecar))
 	const n = maxSubtitleConversions + 3
+	waiting := make(chan struct{}, n)
+	s.onSubtitleSlotWait = func() { waiting <- struct{}{} }
 	var wg sync.WaitGroup
 	for range n {
 		g := subtitleGrant(t, s, f, m, tracks[m.FileID].Text)
@@ -152,10 +171,10 @@ func TestSubtitleConversionsBounded(t *testing.T) {
 			}
 		}()
 	}
-	for range maxSubtitleConversions {
-		<-conv.entered
-	}
-	time.Sleep(50 * time.Millisecond)
+	// The first maxSubtitleConversions run and block in the converter; the other three found every
+	// slot taken. Only then is the peak final: nothing else can start before the release.
+	awaitN(t, conv.entered, maxSubtitleConversions, "conversions started")
+	awaitN(t, waiting, n-maxSubtitleConversions, "conversions waited for a slot")
 	if _, peak := conv.stats(); peak != maxSubtitleConversions {
 		t.Errorf("conversions at once = %d, want %d", peak, maxSubtitleConversions)
 	}

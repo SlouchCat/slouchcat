@@ -870,8 +870,10 @@ func TestRevokeEndsOpenStream(t *testing.T) {
 			if !errors.Is(err, model.ErrUnauthenticated) {
 				t.Errorf("%s: read ended with %v", name, err)
 			}
-		case <-time.After(time.Second):
-			t.Errorf("%s: stream still open a second after the revocation", name)
+		// Stop and logout cancel the stream at once and the recheck runs every 100 ms, so a second
+		// is plenty in principle; 5 s leaves room for -race on a busy runner, as in the sweep test.
+		case <-time.After(5 * time.Second):
+			t.Errorf("%s: stream still open 5 s after the revocation", name)
 		}
 	}
 
@@ -905,7 +907,7 @@ func TestRevokeEndsOpenStream(t *testing.T) {
 	// The reader goroutine reports the end first and closes its file right after (deferred), so the
 	// registry empties a moment later.
 	var left int
-	for deadline := time.Now().Add(time.Second); ; {
+	for deadline := time.Now().Add(5 * time.Second); ; {
 		s.streamsMu.Lock()
 		left = len(s.streams)
 		s.streamsMu.Unlock()

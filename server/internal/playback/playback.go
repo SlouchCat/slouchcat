@@ -71,6 +71,9 @@ type Service struct {
 	subFlights map[string]*subtitleFlight // running conversions per playback id and track
 	subSlots   chan struct{}              // maxSubtitleConversions slots
 	starts     startLocks                 // stream counts of starts under a stream limit
+	// Test hooks, nil outside tests: a request joins a running conversion (onSubtitleJoin); a
+	// conversion finds every slot taken and starts to wait (onSubtitleSlotWait).
+	onSubtitleJoin, onSubtitleSlotWait func()
 
 	// activity is the writer of the activity log (WithActivity, concept 11); nil = none.
 	activity func(ctx context.Context, e model.ActivityEvent)

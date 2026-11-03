@@ -120,6 +120,9 @@ func (s *Service) convertShared(ctx context.Context, key string, loc visibility.
 		go s.runConversion(context.WithoutCancel(ctx), key, f, loc, track, cached)
 	}
 	s.subMu.Unlock()
+	if running && s.onSubtitleJoin != nil {
+		s.onSubtitleJoin()
+	}
 	select {
 	case <-f.done:
 		return f.data, f.err
@@ -139,11 +142,18 @@ func (s *Service) runConversion(ctx context.Context, key string, f *subtitleFlig
 	}()
 	select {
 	case s.subSlots <- struct{}{}:
-		defer func() { <-s.subSlots }()
-	case <-ctx.Done():
-		f.err = fmt.Errorf("wait for a subtitle conversion slot: %w", ctx.Err())
-		return
+	default:
+		if s.onSubtitleSlotWait != nil {
+			s.onSubtitleSlotWait()
+		}
+		select {
+		case s.subSlots <- struct{}{}:
+		case <-ctx.Done():
+			f.err = fmt.Errorf("wait for a subtitle conversion slot: %w", ctx.Err())
+			return
+		}
 	}
+	defer func() { <-s.subSlots }()
 	f.data, f.err = s.convert(ctx, loc, track)
 	if f.err == nil && cached != "" {
 		if err := writeAtomic(cached, f.data); err != nil {
