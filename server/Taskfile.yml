@@ -43,7 +43,9 @@ tasks:
       - |
         set -eu
         packages=$(scripts/testgroups.sh "{{.GROUP}}")
-        go test -race -timeout 30m $packages
+        # The whole suite under -race is a heavy run: it waits for a machine-wide slot locally
+        # (scripts/heavy-slot.sh, docs/dev/SETUP.md); CI runs it straight away.
+        ../scripts/heavy-slot.sh go test -race -timeout 30m $packages
 
   check:fast:
     desc: >-
