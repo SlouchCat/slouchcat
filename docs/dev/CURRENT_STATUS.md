@@ -244,7 +244,11 @@ für die Merges); Befunde sind vor dem nächsten Schritt behoben.
 
 **Belege K12-9:**
 
-- **task ci auf bf456e1: läuft** (Ergebnis trägt Marco nach).
+- **`task ci` auf `bf456e1` am 3. November 2026: EXIT 0** — Server-Lint `0 issues.`, Go-Tests
+  33 Pakete ok, Web 120 Dateien / 1064 Tests, api-client 4, design-tokens 2, Storybook 323 passed
+  (38.1 s), e2e 610 passed (33.6 min, Chromium und Firefox), 0 failed, 0 flaky; A-9-Logscan:
+  101'895 Zeilen, 17 Secrets des Laufs, 0 Funde. `7c3e29e` und der Status-Commit danach ändern
+  nur Doku.
 - `GET /api/v1/admin/stats?days=90` auf CT 190, 40 Aufrufe: p50 6.2 ms, p95 10.1 ms, max 15 ms.
 
 **Belege K12-8 und Designer-Abgleich:**
