@@ -3,7 +3,7 @@ import { cleanup } from '@testing-library/react';
 import { destroyAnnouncer } from 'react-aria/private/live-announcer/LiveAnnouncer';
 import { afterEach, beforeAll } from 'vitest';
 import { setLanguage } from '@/i18n';
-import { loadSpatialNavigation } from '@/ui';
+import { loadSpatialNavigation, setSpatialFocus } from '@/ui';
 
 // @testing-library/react marks the React act environment only where Jest's globals exist
 // (beforeAll/afterAll); Vitest runs without globals here. Without the flag react-aria's live
@@ -28,6 +28,14 @@ beforeAll(async () => {
 
 afterEach(async () => {
   cleanup();
+  // norigin is one service for the whole file. When cleanup unmounts the element norigin has
+  // focused (a select the test used), its group schedules an auto-restore 300 ms later
+  // (setFocusDebounced). That timer fired inside the next test, found the same focus key
+  // ("content") again and pulled the DOM focus into its first item: the schedule's «Takt» select
+  // took the focus from «Speichern» in JobsPage.test.tsx (toHaveFocus, run 41705097285) whenever
+  // the next test was still running 300 ms after the previous one ended. Any setFocus cancels the
+  // pending restore first; with nothing mounted, the root finds nothing to focus and stops there.
+  setSpatialFocus('SN:ROOT');
   // The flag above is not always set when the announcer starts: @testing-library/react switches
   // it off while findBy and waitFor run, so an announcement made then still takes the 100-ms
   // path. When the file ended inside those 100 ms, the timer fired after jsdom was gone and its
