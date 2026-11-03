@@ -858,7 +858,7 @@
           "downloads": "Wirklich weg sind die Offline-Downloads: Geräte, die einen dieser Titel geladen haben, löschen das Paket beim nächsten Abgleich.",
           "playback": "Eine laufende Wiedergabe aus diesem Ordner bricht mitten im Strom ab.",
           "webhooks": "Die Umsetzungstabelle von Radarr und Sonarr zeigt für diesen Pfad danach ins Leere; Meldungen dazu werden abgelehnt.",
-          "relink": "Legst du denselben Ordner binnen 30 Tagen wieder an, kommen Titel mit TMDB-, TVDB- oder IMDb-Id samt ihren Benutzerdaten zurück. Titel ohne solche Id werden neu angelegt.",
+          "relink": "Kommen die Titel später wieder in die Bibliothek, auch über einen anderen Ordner, findet Slouchcat sie über ihre TMDB-, TVDB- oder IMDb-Id wieder und hängt Fortschritt und Listen um. Ziehst du den Ordner nur um, nimm statt «Entfernen» besser «Pfad ändern».",
           "oneWay": "Liegt der Ordner ausserhalb der freigegebenen Ordner (SLOUCHCAT_BROWSE_ROOTS), lässt er sich ohne Änderung an der Konfiguration nicht wieder hinzufügen.",
           "last": "Es ist der letzte Ordner: {{name}} bleibt bestehen, hat danach aber keinen Ordner mehr und scannt nichts."
         },

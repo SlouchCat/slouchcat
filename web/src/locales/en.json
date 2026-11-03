@@ -858,7 +858,7 @@
           "downloads": "Really gone are the offline downloads: devices that hold one of these titles delete the package at their next sync.",
           "playback": "A playback running from this folder breaks off mid-stream.",
           "webhooks": "The path map of Radarr and Sonarr points nowhere for this path afterwards; reports about it are refused.",
-          "relink": "Add the same folder again within 30 days and titles with a TMDB, TVDB or IMDb id come back with their user data. Titles without such an id are created anew.",
+          "relink": "If the titles come back later, even through another folder, Slouchcat finds them by their TMDB, TVDB or IMDb id and moves progress and lists back. If you only move the folder, use «Change path» instead of «Remove».",
           "oneWay": "If the folder lies outside the browsable folders (SLOUCHCAT_BROWSE_ROOTS), it cannot be added again without a change to the configuration.",
           "last": "It is the last folder: {{name}} stays, but holds no folder afterwards and scans nothing."
         },
