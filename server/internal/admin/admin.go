@@ -197,6 +197,9 @@ type Service struct {
 	now       func() time.Time
 	zone      *time.Location // time zone of the watch-time grid (stats.go); UTC until WithLocation
 	anilist   bool           // AniList switched on (SLOUCHCAT_ANILIST, WithAniList); true until set
+	// spotlightGap replaces the minute between two manual spotlight fetches; 0 = the minute
+	// (WithSpotlightRefreshGap, e2e suite only).
+	spotlightGap time.Duration
 
 	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)

@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 )
@@ -130,6 +131,8 @@ func TestValidation(t *testing.T) {
 		"bad public url":       {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "media.example.test"}},
 		"public url query":     {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "https://media.example.test/?x=1"}},
 		"bad hero start":       {env: map[string]string{"SLOUCHCAT_HERO_START": "first"}},
+		"bad refresh gap":      {env: map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": "soon"}},
+		"zero refresh gap":     {env: map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": "0s"}},
 		"negative hero start":  {args: []string{"--hero-start", "-2"}},
 		"unknown flag":         {args: []string{"--nope"}},
 		"extra arguments":      {args: []string{"serve"}},
@@ -216,6 +219,36 @@ func TestNotifyConfig(t *testing.T) {
 	}
 	if logged := cfg.LogValue().String(); !strings.Contains(logged, "update_manifest_default=true") || !strings.Contains(logged, "smtp_configured=false") {
 		t.Errorf("LogValue: %s", logged)
+	}
+}
+
+// The shortened spotlight limit of the e2e suite takes effect in development mode only: a
+// production server keeps one manual fetch a minute even with the variable in its environment.
+func TestSpotlightRefreshGapNeedsDevMode(t *testing.T) {
+	env := map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": "1s"}
+	cfg, err := Load(nil, envMap(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.SpotlightRefreshGap(); got != 0 {
+		t.Errorf("without --dev: gap %v, want 0 (the administration's minute)", got)
+	}
+	if logged := cfg.LogValue().String(); !strings.Contains(logged, "spotlight_refresh_gap=0s") {
+		t.Errorf("LogValue without --dev: %s", logged)
+	}
+	cfg, err = Load([]string{"--dev"}, envMap(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.SpotlightRefreshGap(); got != time.Second {
+		t.Errorf("with --dev: gap %v, want 1s", got)
+	}
+	cfg, err = Load([]string{"--dev"}, envMap(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.SpotlightRefreshGap(); got != 0 {
+		t.Errorf("--dev without the variable: gap %v, want 0", got)
 	}
 }
 

@@ -114,6 +114,10 @@ const server = spawn(
       SLOUCHCAT_UPDATE_MANIFEST_URL: `http://127.0.0.1:${update.port}/manifest.json`,
       // The spotlight stage starts at slide 0 in the suite instead of a random one (concept 08).
       SLOUCHCAT_HERO_START: '0',
+      // One manual spotlight fetch every 2 s instead of every minute (discover.ts refreshSpotlight):
+      // the specs that refresh twice waited the minute out, up to 60 s per test and browser. The
+      // server honours it with --dev only; the full minute is checked by TestSpotlightRefresh.
+      SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP: '2s',
     },
   },
 );

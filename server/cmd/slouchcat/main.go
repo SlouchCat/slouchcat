@@ -467,6 +467,7 @@ func wireAdmin(a *admin.Service, cfg config.Config, queue *jobs.Queue, errRing *
 	caps transcode.Capabilities, started time.Time,
 ) {
 	a.WithJobs(queue).WithErrors(errRing).WithUpdateCheck(cfg.ManifestURL(), nil).
+		WithSpotlightRefreshGap(cfg.SpotlightRefreshGap()). // 0 outside --dev: the minute holds
 		WithSystem(admin.SystemSource{
 			Version: version, StartedAt: started, ConfigDir: cfg.ConfigDir, CacheDir: cfg.CacheDir, Caps: caps,
 			WatchedDirs: lib.WatchedDirs,

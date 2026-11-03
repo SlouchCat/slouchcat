@@ -544,16 +544,31 @@ test('"Jetzt anwenden" sends what and where and reports the queued run', async (
 test('«Anwenden» polls the jobs every 10 s, and pauses while changes are unsaved', async ({
   page,
 }) => {
-  const polls: number[] = [];
-  page.on('request', (request) => {
-    if (request.url().endsWith('/api/v1/admin/job-types')) polls.push(Date.now());
+  // The page's clock instead of the wall clock: runFor fires the 10-s interval at once, so the
+  // test proves "every 10 s" and "nothing for 12 s" without waiting 26 s. The clock flows on its
+  // own between the steps, so the keyboard part runs as it does without it. The requests are
+  // counted in the page, where the interval's fetch starts before runFor returns; the network
+  // events of the browser would arrive a moment later and make "none" a race.
+  await page.clock.install();
+  await page.addInitScript(() => {
+    const counter = window as unknown as { jobTypePolls: number };
+    counter.jobTypePolls = 0;
+    const fetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.endsWith('/api/v1/admin/job-types')) counter.jobTypePolls += 1;
+      return fetch(input, init);
+    };
   });
+  const polls = () =>
+    page.evaluate(() => (window as unknown as { jobTypePolls: number }).jobTypePolls);
   await openMetadata(page, '?item=apply');
   await expect(region(page, 'Auf bestehende Titel anwenden')).toBeVisible();
-  await expect.poll(() => polls.length).toBeGreaterThan(0);
-  // Clean: another request within 12 s.
-  const clean = polls.length;
-  await expect.poll(() => polls.length, { timeout: 12_000 }).toBeGreaterThan(clean);
+  await expect.poll(polls).toBeGreaterThan(0);
+  // Clean: another request once 10 s have passed on the page's clock.
+  const clean = await polls();
+  await page.clock.runFor(10_500);
+  await expect.poll(polls).toBeGreaterThan(clean);
 
   // A change (the rating country, by keyboard), then back to «Anwenden»: no request for 12 s.
   const rating = areas(page).getByRole('option', { name: 'Altersfreigabe' });
@@ -567,9 +582,12 @@ test('«Anwenden» polls the jobs every 10 s, and pauses while changes are unsav
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await expect(region(page, 'Auf bestehende Titel anwenden')).toBeVisible();
-  // The area mounts and asks once; after that nothing while the change waits.
-  await page.waitForTimeout(1_000);
-  const paused = polls.length;
-  await page.waitForTimeout(12_000);
-  expect(polls.length).toBe(paused);
+  // The area mounts and asks once (the query is stale on mount); after that nothing for 12 s on
+  // the page's clock while the change waits.
+  const mounted = await polls();
+  await page.clock.runFor(12_000);
+  expect(await polls()).toBeLessThanOrEqual(mounted + 1);
+  const paused = await polls();
+  await page.clock.runFor(12_000);
+  expect(await polls()).toBe(paused);
 });
