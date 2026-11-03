@@ -17,6 +17,7 @@ import (
 // The frozen M8 state never chose the event (it was not a default), so the test adds it to the
 // state first — that is the case the migration exists for.
 func TestMigration00018DropsTheAcquisitionEvent(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M8.sql"))
 	if err != nil {
 		t.Fatal(err)

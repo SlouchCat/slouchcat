@@ -27,7 +27,7 @@ async function startAtPicker(page: Page) {
 }
 
 test.describe('picker', () => {
-  test('arrow keys move between tiles, Enter picks, back returns; no focus trap', async ({
+  test('arrow keys move between tiles, Enter picks, back returns; no focus trap @keyboard', async ({
     page,
     owner,
   }) => {
@@ -377,7 +377,7 @@ test.describe('profile management', () => {
     await expect(form.getByLabel('Name', { exact: true })).toHaveAttribute('aria-invalid', 'true');
   });
 
-  test('Tab order, radios with arrows, Enter submits, Escape closes; no focus trap', async ({
+  test('Tab order, radios with arrows, Enter submits, Escape closes; no focus trap @keyboard', async ({
     page,
   }) => {
     await tabTo(page, page.getByRole('link', { name: 'Verwaltung' }));

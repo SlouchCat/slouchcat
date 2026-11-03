@@ -33,6 +33,7 @@ func audioProbe(codec string, channels int, bitrate int64, cover bool) *transcod
 }
 
 func TestDecideAudio(t *testing.T) {
+	t.Parallel()
 	mixedAAC := transcode.ConcatProbe([]transcode.Probe{*audioProbe("aac", 2, 96_000, true), *audioProbe("aac", 2, 96_000, false)})
 	file := func(container, codec string) model.MediaFile {
 		return model.MediaFile{Container: container, AudioCodec: codec}
@@ -102,6 +103,7 @@ func TestDecideAudio(t *testing.T) {
 }
 
 func TestAudioMimeTypes(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ container, video, audio, want string }{
 		{"mp3", "", "mp3", "audio/mpeg"},
 		{"m4b", "", "aac", `audio/mp4; codecs="mp4a.40.2"`},
@@ -153,6 +155,7 @@ func mp3Parts(n int) []testPart {
 }
 
 func TestStartAudiobookParts(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -231,6 +234,7 @@ func TestStartAudiobookParts(t *testing.T) {
 }
 
 func TestStartSingleFileAudiobookDirect(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger(), WithTranscoder(newFakeTranscoder()))
 	ctx := context.Background()
@@ -278,6 +282,7 @@ func TestStartSingleFileAudiobookDirect(t *testing.T) {
 // TestAudioHLSWithFFmpeg starts the HLS output of a book of three MP3 parts (copies of the
 // generated fixture) with the real transcoder and reads its segments.
 func TestAudioHLSWithFFmpeg(t *testing.T) {
+	t.Parallel()
 	ffmpeg, ffprobe := lookPath("ffmpeg"), lookPath("ffprobe")
 	if ffmpeg == "" || ffprobe == "" {
 		t.Skip("ffmpeg not installed")
@@ -382,6 +387,7 @@ func copyFile(src, dst string) error {
 }
 
 func TestReportPlaybackRate(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	now := time.Date(2026, 10, 18, 20, 0, 0, 0, time.UTC)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { now = now.Add(time.Second); return now }))

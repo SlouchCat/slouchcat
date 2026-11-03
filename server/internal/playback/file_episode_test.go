@@ -13,6 +13,7 @@ import (
 // enclosure proxy is only the fallback. The fixture's episodes carry both, the file-only episode
 // of a folder has no enclosure at all.
 func TestPodcastEpisodeWithFilePlaysFromTheFile(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddAudio(t)
 	s := New(f.DB, vistest.Logger())

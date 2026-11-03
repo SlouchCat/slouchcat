@@ -160,7 +160,7 @@ test('an invalid YouTube link is reported at the field', async ({ page }) => {
   await expect(dialog).toHaveCount(0);
 });
 
-test('Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap', async ({
+test('Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap @keyboard', async ({
   page,
 }) => {
   // The admin sidebar's Tab stop is its current page: a title's page belongs to "Pflege".

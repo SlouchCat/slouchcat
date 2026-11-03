@@ -16,6 +16,7 @@ import (
 // episode with a file and an enclosure). A later migration that touches those has to migrate
 // all of it.
 func TestFrozenBibliothekenStateCoversTheConcept(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "bibliotheken.sql"))
 	if err != nil {
 		t.Fatal(err)

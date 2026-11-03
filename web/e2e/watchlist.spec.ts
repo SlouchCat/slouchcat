@@ -65,7 +65,7 @@ test('"Entfernen" takes a title off; the row goes with the last one (E-9)', asyn
   await expect(watchlistRow(page)).toHaveCount(0);
 });
 
-test('watchlist by keyboard: arrows, Enter, remove, back; no focus trap', async ({
+test('watchlist by keyboard: arrows, Enter, remove, back; no focus trap @keyboard', async ({
   page,
   owner,
 }) => {

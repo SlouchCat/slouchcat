@@ -14,6 +14,7 @@ import (
 // a podcast subscription with enclosure-only episodes (one explicit), audio downloads, a playback
 // rate on a progress row and a rule for new podcast episodes.
 func TestFrozenM6StateCoversM6Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M6.sql"))
 	if err != nil {
 		t.Fatal(err)

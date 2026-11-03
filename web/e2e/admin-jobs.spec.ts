@@ -236,7 +236,7 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
 });
 
-test('background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1', async ({
+test('background jobs by keyboard: the menu cancels waiting runs after asking; a cancelled run hands the focus to the h1 @keyboard', async ({
   page,
   owner,
 }) => {
@@ -332,7 +332,7 @@ test.describe('failures', () => {
   // see them; the dashboard is answered here, so the worker stays out.
   test.use({ serviceWorkers: 'block' });
 
-  test('the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1', async ({
+  test('the overview links the tab «Fehlschläge»; retry and cancel there by keyboard, the focus goes to the h1 @keyboard', async ({
     page,
   }) => {
     // No API of the e2e server ends a run as failed in time: every type has five attempts with a

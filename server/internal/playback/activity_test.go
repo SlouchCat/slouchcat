@@ -13,6 +13,7 @@ import (
 // Concept 11: on shutdown WaitActivity waits for the start events still being written (bounded by
 // its context) and drops every later one, so no write reaches a closed database.
 func TestWaitActivityDrainsStarts(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	release := make(chan struct{})
 	var written atomic.Int32

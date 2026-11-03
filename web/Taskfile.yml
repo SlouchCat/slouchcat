@@ -10,6 +10,9 @@ vars:
   PLAYWRIGHT_VERSION:
     sh: node -p "require('./package.json').devDependencies['@playwright/test']"
   PLAYWRIGHT_IMAGE: mcr.microsoft.com/playwright:v{{.PLAYWRIGHT_VERSION}}-noble
+  # The e2e shards of CI: the length of the matrix in .github/workflows/ci.yml (job e2e). Six keep
+  # the longest shard at about 4.5 min of tests plus 1.5 min of setup (ADR 0013, addendum).
+  CI_E2E_SHARDS: "6"
   REPO:
     sh: git rev-parse --show-toplevel
   # The repository is mounted at the same path inside the container: pnpm's bin shims and
@@ -60,13 +63,97 @@ tasks:
       - rm -rf {{.WEBASSETS}}/*
       - cp -r dist/. {{.WEBASSETS}}/
 
+  # SHARD=i/n runs one shard of the plan e2e/shard-plan.mjs makes from e2e/durations.json (CI: one
+  # runner per shard), instead of Playwright's `--shard`, which splits by count, not by time. The
+  # blob report of a shard is then named report-<i>.zip, so the gate can merge all of them.
   e2e:
     desc: >-
       Playwright keyboard suite (P-15) against a fresh server on :8097 with a temporary config dir;
-      expects server/bin/slouchcat with the current web build embedded (run `task build` first)
+      expects server/bin/slouchcat with the current web build embedded (run `task build` first).
+      SHARD=i/n runs one shard planned by duration (e2e/shard-plan.mjs)
+    deps: [tokens]
+    env:
+      SLOUCHCAT_E2E_SHARD: "{{.SHARD}}"
+    cmds:
+      - |
+        set -eu
+        if [ -n "{{.SHARD}}" ]; then
+          list="node_modules/.playwright-shards/shard-$(echo '{{.SHARD}}' | tr / -).txt"
+          mkdir -p node_modules/.playwright-shards
+          node e2e/shard-plan.mjs --shard '{{.SHARD}}' --out "$list" -- {{.CLI_ARGS}}
+          pnpm exec playwright test --test-list "$list" {{.CLI_ARGS}}
+        else
+          pnpm exec playwright test {{.CLI_ARGS}}
+        fi
+
+  # `task e2e:quick` in the root builds first; this half only runs Playwright.
+  e2e:quick:
+    desc: Chromium only, no retries, stop at the first failure, port E2E_PORT (8097); specs after --
+    deps: [tokens]
+    env:
+      SLOUCHCAT_E2E_PORT: '{{.E2E_PORT | default "8097"}}'
+    cmds:
+      - pnpm exec playwright test --project=chromium --retries=0 --max-failures=1 {{.CLI_ARGS}}
+
+  e2e:parallel:
+    desc: E2E_SHARDS (3) shards side by side from port E2E_PORT (8097) in steps of 10, one merged report
     deps: [tokens]
     cmds:
-      - pnpm exec playwright test {{.CLI_ARGS}}
+      - >-
+        node e2e/parallel.mjs --shards {{.E2E_SHARDS | default "3"}}
+        --base-port {{.E2E_PORT | default "8097"}} -- {{.CLI_ARGS}}
+
+  # The web half of `task check:fast`: ESLint (with its cache), stylelint and Prettier on the files
+  # changed against BASE (default HEAD: the working tree, untracked files included), both tsc
+  # projects, and Vitest on the tests related to the changed sources. `task ci:web` stays the
+  # whole check.
+  check:fast:
+    desc: Fast web checks of the changed files (BASE=HEAD); ESLint cached, tsc, vitest related
+    deps: [tokens]
+    vars:
+      BASE: '{{.BASE | default "HEAD"}}'
+    cmds:
+      - |
+        set -eu
+        changed=$( { git diff --name-only --relative --diff-filter=d '{{.BASE}}' -- . ;
+          git ls-files --others --exclude-standard -- . ; } | sort -u )
+        code=$(printf '%s\n' "$changed" | grep -E '\.(ts|tsx|js|mjs)$' || true)
+        css=$(printf '%s\n' "$changed" | grep -E '^src/.*\.css$' || true)
+        pretty=$(printf '%s\n' "$changed" | grep -E '\.(ts|tsx|js|mjs|json|css|md|yaml|yml|html)$' || true)
+        src=$(printf '%s\n' "$changed" | grep -E '^src/.*\.(ts|tsx)$' || true)
+        echo "changed in web/: $(printf '%s\n' "$changed" | grep -c . || true) files"
+        if [ -n "$code" ]; then
+          pnpm exec eslint --cache --cache-location node_modules/.cache/eslint/ --no-warn-ignored \
+            --max-warnings 0 $code
+        fi
+        if [ -n "$css" ]; then pnpm exec stylelint --max-warnings 0 $css; fi
+        if [ -n "$pretty" ]; then pnpm -w exec prettier --check --ignore-unknown $(printf 'web/%s ' $pretty); fi
+        pnpm exec tsc --noEmit -p tsconfig.json
+        pnpm exec tsc --noEmit -p tsconfig.node.json
+        if [ -n "$src" ]; then pnpm exec vitest related --run $src; fi
+
+  # Self-test of the shard plan: every test in exactly one shard, as Playwright reads the lists.
+  e2e:shards:check:
+    desc: Check that the e2e shards together hold every test exactly once (E2E_SHARDS, default the CI count)
+    cmds:
+      - node e2e/shard-plan.mjs --check --shards {{.E2E_SHARDS | default .CI_E2E_SHARDS}}
+
+  # Downloads the blob reports of CI runs and rewrites e2e/durations.json from them; review and
+  # commit the result. RUNS: space-separated run ids, e.g. the last two green runs on main.
+  e2e:durations:
+    desc: Refresh e2e/durations.json from the blob reports of CI runs (RUNS="<id> <id>", needs gh)
+    requires:
+      vars: [RUNS]
+    cmds:
+      - |
+        set -eu
+        dir=$(mktemp -d)
+        trap 'rm -rf "$dir"' EXIT
+        for run in {{.RUNS}}; do
+          gh run download "$run" -p 'e2e-blob-*' -D "$dir/$run"
+        done
+        node e2e/durations.mjs "$dir"/*
+        node e2e/shard-plan.mjs --shards {{.CI_E2E_SHARDS}}
 
   storybook:
     desc: Storybook dev server for web/src/ui on http://localhost:6006

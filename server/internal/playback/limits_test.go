@@ -12,6 +12,7 @@ import (
 
 // W-8 guest cap: maxStreams of a guest account counts the streams of all its profiles.
 func TestStartGuestStreamCap(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddGuest(t)
 	if _, err := f.DB.Write.Exec(`UPDATE accounts SET max_streams = 1 WHERE id = ?`, f.Guest.ID); err != nil {
@@ -50,6 +51,7 @@ func TestStartGuestStreamCap(t *testing.T) {
 // A start reserves its stream before its output waits for the budget: a second start of the
 // profile meanwhile gets the stream-limit error at once instead of waiting for the first.
 func TestStartReservesStreamDuringAdmission(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc), WithTokenKey(testKey))
@@ -82,6 +84,7 @@ func TestStartReservesStreamDuringAdmission(t *testing.T) {
 
 // The start lock gives up with the context of the waiting start.
 func TestStartLockCancellable(t *testing.T) {
+	t.Parallel()
 	var l startLocks
 	key := startKey{id: 7}
 	unlock, err := l.lock(context.Background(), key)
@@ -106,6 +109,7 @@ func TestStartLockCancellable(t *testing.T) {
 
 // A switch whose request is invalid keeps the playback it would replace.
 func TestStartInvalidSwitchKeepsPlayback(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey))
 	ctx := context.Background()
@@ -127,6 +131,7 @@ func TestStartInvalidSwitchKeepsPlayback(t *testing.T) {
 // K-5 race: a progress event that uses up the limit while a start waits for its output revokes
 // the profile's playback before the new row exists; the start then ends its own playback.
 func TestStartRechecksWatchLimitAfterInsert(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)}

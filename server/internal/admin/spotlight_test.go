@@ -470,3 +470,25 @@ func TestSpotlightRefresh(t *testing.T) {
 		t.Errorf("without WithTrakt: %v", err)
 	}
 }
+
+// The e2e suite's shortened limit (WithSpotlightRefreshGap, honoured with --dev only) still
+// refuses a second fetch within the gap; a gap of 0 keeps the minute of TestSpotlightRefresh.
+func TestSpotlightRefreshGap(t *testing.T) {
+	sf := newSpotlightFixture(t)
+	sf.svc.WithSpotlightRefreshGap(0)
+	if got := sf.svc.refreshGap(); got != time.Minute {
+		t.Fatalf("gap 0: %v, want the minute", got)
+	}
+	sf.svc.WithSpotlightRefreshGap(2 * time.Second)
+	if err := sf.svc.RefreshSpotlight(sf.ctx); err != nil {
+		t.Fatalf("first refresh: %v", err)
+	}
+	sf.now = sf.now.Add(time.Second)
+	if err := sf.svc.RefreshSpotlight(sf.ctx); !errors.Is(err, model.ErrRefreshTooSoon) {
+		t.Errorf("within the gap: %v", err)
+	}
+	sf.now = sf.now.Add(time.Second)
+	if err := sf.svc.RefreshSpotlight(sf.ctx); err != nil {
+		t.Errorf("after the gap: %v", err)
+	}
+}

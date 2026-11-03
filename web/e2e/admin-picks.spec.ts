@@ -95,7 +95,7 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
-test('picks page by keyboard: add with a note, place at the top, time window in the fold-out, tabs, remove', async ({
+test('picks page by keyboard: add with a note, place at the top, time window in the fold-out, tabs, remove @keyboard', async ({
   page,
   owner,
 }) => {

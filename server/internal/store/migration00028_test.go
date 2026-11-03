@@ -14,6 +14,7 @@ import (
 // in a third language reaches the search index, and a genres object with a third key fills
 // item_genres for it.
 func TestMigration00028KeepsTriggersAndOpensTheLanguages(t *testing.T) {
+	t.Parallel()
 	cfg := t.TempDir()
 	replay(t, cfg+"/"+FileName, frozenState(t, "startseite.sql"))
 	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})

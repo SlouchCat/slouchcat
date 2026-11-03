@@ -113,6 +113,7 @@ func (c *fakeConverter) count() int {
 // W-4: audio and subtitle tracks, text subtitles as WebVTT (cached per playback), bitmap and
 // requested burn-in as transcode, validation of the wanted tracks.
 func TestStartTracksAndSubtitles(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tracks := f.AddTracks(t)
 	m := f.Rated(6)
@@ -317,6 +318,7 @@ var zurich = time.FixedZone("CET", 3600)
 // start after the limit answers the watch-limit error; the next day starts fresh; the report
 // shows the minutes per day.
 func TestWatchLimit(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddGuest(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)}
@@ -410,6 +412,7 @@ func TestWatchLimit(t *testing.T) {
 // W-8: the profile's limits shape the output (height, bit rate), the manual rung is honoured, and
 // a profile with one stream gets the stream-limit error for a second one.
 func TestStartLimits(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)}
 	tc := newFakeTranscoder()
@@ -520,6 +523,7 @@ func TestStartLimits(t *testing.T) {
 // Plan 3.5: an exhausted budget runs an SDR source one rung lower (budget_lowered); an HDR source
 // answers transcode_busy.
 func TestStartBudgetLowered(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	tc.busyAbove = 720
@@ -554,6 +558,7 @@ func TestStartBudgetLowered(t *testing.T) {
 // are listed with profile, device, quality and mode; the administration ends one (401 for its
 // token, ffmpeg stopped, stopped_by admin) or every stream of a device.
 func TestDevicesAndStreamOverview(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, time.UTC)}
 	tc := newFakeTranscoder()
@@ -676,6 +681,7 @@ func TestDevicesAndStreamOverview(t *testing.T) {
 
 // Every end of a playback records why (stopped_by).
 func TestStoppedBy(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddGuest(t)
 	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey))
@@ -715,6 +721,7 @@ func TestStoppedBy(t *testing.T) {
 
 // W-9: chapters, intro and outro and the next episode come with the playback.
 func TestStartSegmentsAndNextEpisode(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	segs := f.AddSegments(t, f.Show.E1.ID)

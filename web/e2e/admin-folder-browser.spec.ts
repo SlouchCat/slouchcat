@@ -92,7 +92,7 @@ test('the dialog opens inside the root, walks the rows and shows a ring on each'
   expect(insideList, 'Tab left the list').toBe(false);
 });
 
-test('Enter goes into a folder, Backspace comes back, OK writes the path field', async ({
+test('Enter goes into a folder, Backspace comes back, OK writes the path field @keyboard', async ({
   page,
 }) => {
   await openDialog(page);

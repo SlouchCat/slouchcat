@@ -127,7 +127,7 @@ test('after a playback the device rows show owner, last contact and the reported
   await expect(row).toContainText(reported.hdr ? 'Ja' : 'Nein');
 });
 
-test('tabs in the band by arrow keys, the type sections by Enter; forgets a throw-away device by keyboard', async ({
+test('tabs in the band by arrow keys, the type sections by Enter; forgets a throw-away device by keyboard @keyboard', async ({
   page,
   owner,
   browser,

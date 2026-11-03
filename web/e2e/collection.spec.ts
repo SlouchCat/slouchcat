@@ -42,7 +42,10 @@ test('a manual collection: page, start page row and detail page (E-6)', async ({
   await expect(page.getByText('Sammlung nicht gefunden')).toBeVisible();
 });
 
-test('collection by keyboard: arrows, Enter, back; no focus trap', async ({ page, owner }) => {
+test('collection by keyboard: arrows, Enter, back; no focus trap @keyboard', async ({
+  page,
+  owner,
+}) => {
   const { id } = await createCollection(owner, NAME, [
     await itemIdByTitle(owner, H264_TITLE),
     await itemIdByTitle(owner, CHAPTERS_TITLE),

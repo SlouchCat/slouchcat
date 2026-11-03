@@ -25,7 +25,7 @@ const rowOf = (page: Page, id: string): Locator => page.locator(`tr[data-row-key
 const toggleOf = (page: Page, id: string): Locator =>
   rowOf(page, id).getByRole('rowheader').getByRole('button');
 
-test('collections page by keyboard: create, fill, order, show on the start page, rename, delete', async ({
+test('collections page by keyboard: create, fill, order, show on the start page, rename, delete @keyboard', async ({
   page,
   owner,
 }) => {

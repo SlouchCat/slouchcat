@@ -11,28 +11,39 @@
 #
 # Locally this file does nothing: `task server:test` and `task ci` run every package at once.
 #
-# How the groups were cut. Serial run 40207488836 on a four-core runner needed 19 minutes for
-# `go test -race ./...`; the same thing measured locally with `taskset -c 0-3` took 1196 s, so the
-# four-core model is faithful. The per-package elapsed times of that run are the weights -- not CPU
-# time, but close enough to it while all four cores are busy:
+# How the groups are cut. The weights are the per-package elapsed times of one local
+# `taskset -c 4-7 go test -race -count=1 -json ./...` -- the four-core model of the runner, which
+# matched the serial CI run 40207488836 when the groups were first cut. Not CPU time, but close
+# enough to it while all four cores are busy. Measured on 4 November 2026, after the test helpers
+# moved to the template database of internal/store/storetest and the store and playback tests
+# went parallel (whole run 671 s; 2146 s before the template database, 1078 s with it but still
+# serial; the machine was shared, so the absolute numbers are high, the proportions hold):
 #
-#   api 775.6  admin 762.9  store 416.0  library 360.5  metadata 329.9  playback 262.4
-#   offline 251.3  notify 162.8  auth 153.2  integrations 120.8  visibility 97.4  jobs 87.3
-#   transcode 76.2  cmd/slouchcat 51.5  discover 51.4  segments 18.6  everything else under 2
+#   api 474.4  store 399.3  library 141.7  admin 126.1  transcode 115.4  notify 108.0
+#   visibility 104.4  offline 100.0  metadata 83.4  playback 71.2  discover 71.2
+#   cmd/slouchcat 48.7  jobs 32.1  auth 26.1  segments 24.0  store/storetest 19.0
+#   integrations 17.5  everything else under 2 (18.5 together)
 #
-# Five groups of roughly 780 to 845 each. First cut was api, admin and one big "rest": run
-# 40220711169 then had `server tests (rest)` at 18 min 45 s, which was the whole workflow's floor,
-# so "rest" was split further along the same weights.
+# api is the floor: one test, TestContractChildProfiles, takes 437 of its 474 and runs its
+# subtests one after the other on a shared fixture, so no split of the package would help.
+# store follows as the second group of its own. Its tests are the migration, frozen-state, backup
+# and restore tests that must run the real store.Open, now in parallel.
 #
-# Group 1 and group 2 are one package each because they are the two heavy ones; the others are
-# bundles, which also use the four cores better -- `go test -p 4` runs several package binaries at
-# once, and a single serial package leaves three cores idle.
+# The other 1108 go into three bundles of 366 to 374 each (groups 3, 4 and "rest"), which also use
+# the four cores better -- `go test -p 4` runs several package binaries at once. Fewer jobs would
+# not be faster: two bundles of the remainder would be 554 each, above the api floor. metadata and
+# playback sit in different groups; both were heavy before and are the first to grow again.
 1 internal/api
-2 internal/admin
 
-3 internal/store
+2 internal/store
+
 3 internal/library
+3 internal/transcode
+3 internal/metadata
+3 internal/auth
 
-4 internal/metadata
+4 internal/admin
+4 internal/visibility
 4 internal/playback
-4 internal/offline
+4 cmd/slouchcat
+4 internal/segments

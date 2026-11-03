@@ -9,6 +9,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 )
 
 // Benchmarks of the access path with the production argon2id parameters (docs/perf/M2.md):
@@ -19,7 +20,7 @@ import (
 func benchService(b *testing.B) (*Service, model.Session, model.Profile) {
 	b.Helper()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: b.TempDir(), Version: "bench", Logger: log})
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: b.TempDir(), Version: "bench", Logger: log})
 	if err != nil {
 		b.Fatal(err)
 	}

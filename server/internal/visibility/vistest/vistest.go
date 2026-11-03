@@ -35,6 +35,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 )
 
 // Duration of every fixture movie in milliseconds (2 h).
@@ -314,7 +315,7 @@ func Logger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil
 func New(t testing.TB) *Fixture {
 	t.Helper()
 	ctx := context.Background()
-	db, err := store.Open(ctx, store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: Logger()})
+	db, err := storetest.Open(ctx, store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: Logger()})
 	if err != nil {
 		t.Fatal(err)
 	}

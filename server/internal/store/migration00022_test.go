@@ -20,6 +20,7 @@ import (
 // right and the three W-8 caps, so the columns that came after 00002 are carried over as well —
 // a forgotten column in the INSERT ... SELECT would vanish without a sound.
 func TestMigration00022RenamesTheRolesAndMarksTheOwner(t *testing.T) {
+	t.Parallel()
 	cfg := migratedM11WithGuest(t)
 	db, err := Open(context.Background(), Options{
 		ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),

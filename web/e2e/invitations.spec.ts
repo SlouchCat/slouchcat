@@ -244,7 +244,7 @@ test('a revoked invitation answers 410', async ({
   }
 });
 
-test('keyboard: invitation dialog, link and revoke dialog; no focus trap', async ({
+test('keyboard: invitation dialog, link and revoke dialog; no focus trap @keyboard', async ({
   page,
   playwright,
   baseURL,

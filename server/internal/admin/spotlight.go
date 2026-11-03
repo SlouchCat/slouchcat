@@ -32,9 +32,26 @@ const (
 	maxSpotlightListURL  = 500 // contract SpotlightConfigUpdate.listUrl
 	maxSpotlightNote     = 280 // like a pick's note (spotlight_overrides.note)
 
-	// spotlightRefreshGap is the least time between two manual fetches (refreshSpotlight 429).
+	// spotlightRefreshGap is the least time between two manual fetches (refreshSpotlight 429);
+	// WithSpotlightRefreshGap shortens it for the e2e suite only.
 	spotlightRefreshGap = time.Minute
 )
+
+// WithSpotlightRefreshGap replaces the minute between two manual spotlight fetches with gap, and
+// returns the receiver; gap <= 0 keeps the minute. main passes config.SpotlightRefreshGap, which
+// is 0 outside development mode, so only the e2e suite's server ever runs with less.
+func (s *Service) WithSpotlightRefreshGap(gap time.Duration) *Service {
+	s.spotlightGap = gap
+	return s
+}
+
+// refreshGap is the least time between two manual spotlight fetches.
+func (s *Service) refreshGap() time.Duration {
+	if s.spotlightGap > 0 {
+		return s.spotlightGap
+	}
+	return spotlightRefreshGap
+}
 
 // SpotlightConfig returns the stored configuration with the catalogue of list kinds.
 func (s *Service) SpotlightConfig(ctx context.Context) (model.SpotlightConfig, error) {
@@ -242,7 +259,7 @@ func (s *Service) RefreshSpotlight(ctx context.Context) error {
 	now := s.now()
 	if cfg.LastManualRefresh.Valid {
 		// A stamp in the future (the clock was set back) does not block.
-		if gap := now.Sub(time.UnixMilli(cfg.LastManualRefresh.Int64)); gap >= 0 && gap < spotlightRefreshGap {
+		if gap := now.Sub(time.UnixMilli(cfg.LastManualRefresh.Int64)); gap >= 0 && gap < s.refreshGap() {
 			return model.ErrRefreshTooSoon
 		}
 	}

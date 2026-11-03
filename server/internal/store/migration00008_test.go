@@ -13,6 +13,7 @@ import (
 // The frozen M3 state carries every kind of M3 data (testdata/db/README.md), so later migrations
 // are tested against it.
 func TestFrozenM3StateCoversM3Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M3.sql"))
 	if err != nil {
 		t.Fatal(err)
@@ -51,9 +52,11 @@ func TestFrozenM3StateCoversM3Data(t *testing.T) {
 // playback_sessions survive, the new columns take their defaults, the new tables start empty and
 // the container state follows the new rule (only seasons, episodes and podcast episodes count).
 func TestMigration00008KeepsFrozenData(t *testing.T) {
+	t.Parallel()
 	tables := []string{"items", "media_files", "playback_sessions"}
 	for _, name := range []string{"M1b.sql", "M2.sql"} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", name))
 			if err != nil {
 				t.Fatal(err)

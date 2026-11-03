@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 )
 
 // clock is a manually advanced clock, safe for concurrent use.
@@ -39,7 +40,7 @@ func newTestQueue(t *testing.T) (*Queue, *clock) {
 
 func newBenchQueue(tb testing.TB) (*Queue, *clock) {
 	tb.Helper()
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: tb.TempDir(), Version: "test", Logger: discard})
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: tb.TempDir(), Version: "test", Logger: discard})
 	if err != nil {
 		tb.Fatal(err)
 	}

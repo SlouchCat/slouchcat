@@ -28,6 +28,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 )
 
 const (
@@ -53,7 +54,7 @@ func newStack(t testing.TB, serverVersion string) *stack {
 		t.Fatal(err)
 	}
 	st := &stack{dir: t.TempDir(), logs: &logs}
-	st.db, err = store.Open(context.Background(), store.Options{ConfigDir: st.dir, Version: serverVersion, Logger: log})
+	st.db, err = storetest.Open(context.Background(), store.Options{ConfigDir: st.dir, Version: serverVersion, Logger: log})
 	if err != nil {
 		t.Fatal(err)
 	}

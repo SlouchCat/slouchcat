@@ -15,6 +15,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -41,7 +42,7 @@ func (c *fakeClock) advance(d time.Duration) {
 func newService(t *testing.T) (*Service, *fakeClock) {
 	t.Helper()
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 )
 
@@ -15,11 +16,19 @@ import (
 // off with new content, errors, invitations and announcements chosen; push and Telegram off with the
 // same event lists. The frozen states M2 to M7 must come out that way (M2 carries a guest account).
 func TestMigration00016DefaultChannels(t *testing.T) {
+	t.Parallel()
 	const ownerEvents = `["new_content","errors","invitations","announcements"]`
 	const guestEvents = `["announcements"]`
-	guests := 0
+	// The subtests run in parallel; the parent's cleanup runs once all of them are done.
+	var guests atomic.Int64
+	t.Cleanup(func() {
+		if guests.Load() == 0 {
+			t.Error("no frozen state carried a guest account; the guest default went unchecked")
+		}
+	})
 	for _, state := range []string{"M2", "M3", "M4", "M5", "M6", "M7"} {
 		t.Run(state, func(t *testing.T) {
+			t.Parallel()
 			script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", state+".sql"))
 			if err != nil {
 				t.Fatal(err)
@@ -65,7 +74,7 @@ func TestMigration00016DefaultChannels(t *testing.T) {
 					wantEvents = guestEvents
 					if channel == "email" {
 						wantEnabled = 1
-						guests++
+						guests.Add(1)
 					}
 				}
 				if enabled != wantEnabled || events != wantEvents || config != "{}" {
@@ -77,8 +86,5 @@ func TestMigration00016DefaultChannels(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
-	}
-	if guests == 0 {
-		t.Error("no frozen state carried a guest account; the guest default went unchecked")
 	}
 }

@@ -107,7 +107,7 @@ async function openRow(page: Page, name: string) {
   return toggle;
 }
 
-test('an integration is created by keyboard and its address is shown exactly once', async ({
+test('an integration is created by keyboard and its address is shown exactly once @keyboard', async ({
   page,
   owner,
 }) => {

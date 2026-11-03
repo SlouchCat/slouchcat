@@ -15,6 +15,7 @@ import (
 // of migration 00021 with a changed order. A later migration that touches the spotlight has to
 // migrate all of it.
 func TestFrozenM11StateCoversM11Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M11.sql"))
 	if err != nil {
 		t.Fatal(err)

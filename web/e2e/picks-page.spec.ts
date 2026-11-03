@@ -14,7 +14,7 @@ const NOTE = 'E2E: unbedingt mit Ton schauen.';
 const grid = (page: Page) => page.getByRole('list', { name: ROW_TITLES.picks });
 const cards = (page: Page) => grid(page).getByRole('link');
 
-test("Cat's recommendations by keyboard: the note, arrows, Enter, back; no focus trap", async ({
+test("Cat's recommendations by keyboard: the note, arrows, Enter, back; no focus trap @keyboard", async ({
   page,
   owner,
 }) => {

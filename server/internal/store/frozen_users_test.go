@@ -17,6 +17,7 @@ import (
 // TestFrozenStatesMigrate picks the file up through its glob and runs the migrations over it;
 // this test is about what the state contains, not about migrating it.
 func TestFrozenUserManagementStateCoversTheThreeLevels(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "benutzerverwaltung.sql"))
 	if err != nil {
 		t.Fatal(err)

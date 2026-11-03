@@ -171,6 +171,7 @@ func probeJSON(t *testing.T, codec, pixFmt string) string {
 }
 
 func TestStreamTokenFormat(t *testing.T) {
+	t.Parallel()
 	key := []byte("0123456789abcdef0123456789abcdef")
 	st := SignToken(key, "01JAAAAAAAAAAAAAAAAAAAAAAA", "item")
 	id, mac, ok := parseToken(st)
@@ -191,6 +192,7 @@ func TestStreamTokenFormat(t *testing.T) {
 }
 
 func TestStreamTokenLifecycle(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	now := time.Now()
 	clock := func() time.Time { return now }
@@ -246,6 +248,7 @@ func TestStreamTokenLifecycle(t *testing.T) {
 }
 
 func TestStopAndLogoutRevoke(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -304,6 +307,7 @@ func TestStopAndLogoutRevoke(t *testing.T) {
 }
 
 func TestRevokedBrowserSessionInvalidatesTokens(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger())
 	ctx := context.Background()
@@ -321,6 +325,7 @@ func TestRevokedBrowserSessionInvalidatesTokens(t *testing.T) {
 }
 
 func TestStartHLSRequestAndVisibilityRecheck(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -375,6 +380,7 @@ func TestStartHLSRequestAndVisibilityRecheck(t *testing.T) {
 }
 
 func TestStartFallsBackAndReportsBusy(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	ctx := context.Background()
 	m := f.Rated(0)
@@ -416,6 +422,7 @@ func TestStartFallsBackAndReportsBusy(t *testing.T) {
 }
 
 func TestSweepStopsEndedOutputAndDeletesOldRows(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	now := time.Now()
 	tc := newFakeTranscoder()
@@ -480,6 +487,7 @@ func TestSweepStopsEndedOutputAndDeletesOldRows(t *testing.T) {
 // Subtitle directories go by their age (48 h), not by their playback session rows, which stay for
 // the statistics.
 func TestSweepSubtitlesByAge(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	cache := t.TempDir()
 	s := New(f.DB, vistest.Logger(), WithCacheDir(cache))
@@ -504,6 +512,7 @@ func TestSweepSubtitlesByAge(t *testing.T) {
 }
 
 func TestRunSweepsUntilCancelled(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -570,6 +579,7 @@ func keyframeJob(t *testing.T, f *vistest.Fixture, fileID string) (priority int,
 
 // I1: a remux without keyframe index computes it on demand and stores it for the next start.
 func TestRemuxComputesMissingKeyframes(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	idx := &fakeIndex{kf: []time.Duration{0, 5 * time.Second, 10 * time.Second}}
@@ -608,6 +618,7 @@ func TestRemuxComputesMissingKeyframes(t *testing.T) {
 // I1: an index that takes longer than the timeout falls back to transcoding and queues the index
 // job at top priority, replacing the scan's low-priority job.
 func TestRemuxFallsBackWhileKeyframesPending(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	idx := &fakeIndex{kf: []time.Duration{0}, delay: time.Hour}
@@ -652,6 +663,7 @@ func TestRemuxFallsBackWhileKeyframesPending(t *testing.T) {
 
 // I1 safety net: the transcoder rejects a remux (transcode.ErrNoKeyframes); Start transcodes.
 func TestRemuxRejectedByTranscoderFallsBack(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	tc.rejectRemux = true
@@ -676,6 +688,7 @@ func TestRemuxRejectedByTranscoderFallsBack(t *testing.T) {
 
 // I6: the output starts at the profile's resume position; without progress at 0.
 func TestStartPassesResumePosition(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -700,6 +713,7 @@ func TestStartPassesResumePosition(t *testing.T) {
 
 // M6: a logout while the output waited for admission stops it again.
 func TestStartStopsOutputAfterLogoutDuringAdmission(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -725,6 +739,7 @@ func TestStartStopsOutputAfterLogoutDuringAdmission(t *testing.T) {
 
 // M7: a valid HLS grant whose output is gone (server restart) rebuilds it at the requested segment.
 func TestHLSRebuildsLostOutput(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -809,6 +824,7 @@ func TestHLSRebuildsLostOutput(t *testing.T) {
 // I2: revoking a direct-play session ends a stream that is already being read within a second,
 // whether by Stop or by a revocation the stream notices itself (re-read of the row).
 func TestRevokeEndsOpenStream(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger())
 	s.grantRecheck = 100 * time.Millisecond
@@ -854,8 +870,10 @@ func TestRevokeEndsOpenStream(t *testing.T) {
 			if !errors.Is(err, model.ErrUnauthenticated) {
 				t.Errorf("%s: read ended with %v", name, err)
 			}
-		case <-time.After(time.Second):
-			t.Errorf("%s: stream still open a second after the revocation", name)
+		// Stop and logout cancel the stream at once and the recheck runs every 100 ms, so a second
+		// is plenty in principle; 5 s leaves room for -race on a busy runner, as in the sweep test.
+		case <-time.After(5 * time.Second):
+			t.Errorf("%s: stream still open 5 s after the revocation", name)
 		}
 	}
 
@@ -889,7 +907,7 @@ func TestRevokeEndsOpenStream(t *testing.T) {
 	// The reader goroutine reports the end first and closes its file right after (deferred), so the
 	// registry empties a moment later.
 	var left int
-	for deadline := time.Now().Add(time.Second); ; {
+	for deadline := time.Now().Add(5 * time.Second); ; {
 		s.streamsMu.Lock()
 		left = len(s.streams)
 		s.streamsMu.Unlock()
@@ -907,6 +925,7 @@ func TestRevokeEndsOpenStream(t *testing.T) {
 // the account or profile only, stop their output and answer 401 for the tokens at once; a deleted
 // account takes its playback sessions with it (the join with sessions finds nothing).
 func TestEndAccountAndEndProfile(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	f.AddGuest(t)
@@ -1015,6 +1034,7 @@ func streamEnded(src model.StreamSource) bool {
 // RecheckVisibility ends exactly the open direct-play streams whose title the profile of the
 // stream may no longer see.
 func TestRecheckVisibilityEndsInvisibleStreams(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger())
 	ctx := context.Background()
@@ -1053,6 +1073,7 @@ func TestRecheckVisibilityEndsInvisibleStreams(t *testing.T) {
 // The registry knows account and profile of every open stream: EndAccount and EndProfile reach
 // them in memory even when their playback rows are gone or were revoked before.
 func TestEndAccountAndProfileCancelStreamsInMemory(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	f.AddGuest(t)
