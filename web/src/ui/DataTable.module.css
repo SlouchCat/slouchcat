@@ -29,11 +29,27 @@
 }
 
 /* Columns from their definitions, not from their content (K12-9): the tables of a page's groups
-   line up. Below the least width (a phone) the table scrolls sideways in its frame instead of
-   squeezing its columns; text wraps inside its column. */
-.fixed {
-  min-width: 48rem;
-  table-layout: fixed;
+   line up. Below the least width the table scrolls sideways in its frame instead of squeezing
+   its columns; text wraps inside its column. On a phone the alignment across groups is worth
+   less than the room: there the table sizes its columns from their content as without `fixed`. */
+@media (width >= 768px) {
+  .fixed {
+    min-width: 48rem;
+    table-layout: fixed;
+  }
+
+  .fixed col {
+    width: var(--column-width, auto);
+  }
+
+  .fixed .cell {
+    overflow-wrap: anywhere;
+  }
+
+  /* Headers wrap between words only: a caps word broken in two reads as two. */
+  .fixed .head {
+    white-space: normal;
+  }
 }
 
 .head {
@@ -70,15 +86,6 @@
   font-weight: var(--sc-font-weight-regular);
   text-align: left;
   vertical-align: middle;
-}
-
-.fixed .cell {
-  overflow-wrap: anywhere;
-}
-
-/* Headers wrap between words only: a caps word broken in two reads as two. */
-.fixed .head {
-  white-space: normal;
 }
 
 th.cell {

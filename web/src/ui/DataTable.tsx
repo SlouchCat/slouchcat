@@ -1,4 +1,12 @@
-import { Fragment, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
 import { Icon } from './Icon';
 import styles from './DataTable.module.css';
 
@@ -14,8 +22,10 @@ export interface DataColumn<T> {
   align?: 'start' | 'end';
   /**
    * The column's width in a table with `layout="fixed"`: a share of the table (`'24%'`) or a
-   * length in rem for content of a known size (a checkbox, a button). Columns without one share
-   * what is left equally. Ignored in the automatic layout.
+   * length in rem for content of a known size (a checkbox, a button, a short header word).
+   * Columns without one share what is left equally. When every column has a length, the table
+   * is at least as wide as their sum and shares more room out among them. Ignored in the
+   * automatic layout and on a phone.
    */
   width?: string;
 }
@@ -43,8 +53,9 @@ interface DataTableProps<T> {
   /**
    * `fixed`: the columns take their `width`, not the width of their content, so several tables
    * with the same columns (one per group of a page) line up (K12-9). Text wraps inside its
-   * column; below a least width the table scrolls sideways in its frame. `auto` (the default):
-   * the browser sizes the columns from their content.
+   * column; below a least width the table scrolls sideways in its frame. Below 768 px (a phone)
+   * the table lays out as `auto`. `auto` (the default): the browser sizes the columns from their
+   * content.
    */
   layout?: 'auto' | 'fixed';
 }
@@ -133,7 +144,12 @@ export function DataTable<T>({
             {columns.map((column) => (
               <col
                 key={column.key}
-                style={column.width === undefined ? undefined : { width: column.width }}
+                // A variable, not the width itself: the stylesheet applies it from 768 px only.
+                style={
+                  column.width === undefined
+                    ? undefined
+                    : ({ '--column-width': column.width } as CSSProperties)
+                }
               />
             ))}
           </colgroup>

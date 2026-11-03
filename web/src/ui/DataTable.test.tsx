@@ -185,9 +185,8 @@ describe('DataTable with a fixed layout (K12-9)', () => {
     const grid = screen.getByRole('table', { name });
     return {
       grid,
-      cols: Array.from(
-        grid.querySelectorAll('colgroup > col'),
-        (col) => (col as HTMLTableColElement).style.width,
+      cols: Array.from(grid.querySelectorAll('colgroup > col'), (col) =>
+        (col as HTMLTableColElement).style.getPropertyValue('--column-width'),
       ),
     };
   };
