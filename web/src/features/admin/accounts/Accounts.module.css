@@ -1,0 +1,128 @@
+/* The accounts page (concept 12, variant C with KP-1): what AdminPage, Tabs and DataTable do not
+   lay out themselves. The cells of a row, its fold-out with the inline forms and the profiles,
+   and the invitation dialog. */
+
+.tabBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+.strong {
+  font-weight: var(--sc-font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* The profile names in the row: one line (S-5); the names in full are in the fold-out. */
+.clip {
+  display: block;
+  overflow: hidden;
+  max-width: 16rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The fold-out of an account. */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+
+  /* The jump to #meine-profile stops below the fixed app header, not under it. */
+  scroll-margin-block-start: calc(var(--sc-size-header-height) + var(--sc-space-6));
+}
+
+.blockHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.blockTitle {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+/* «Zugriff»: rating and libraries beside the limits where there is room. */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--sc-space-4) var(--sc-space-6);
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+/* The invitation dialog. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+.status {
+  min-height: 1.5em;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

@@ -66,6 +66,8 @@ interface LibraryFieldsProps {
   onPathBlur?: (folder: FolderEntry) => void;
   /** The server's field messages by input name, for the parts of a card without an input. */
   fieldErrors?: Readonly<Record<string, string>>;
+  /** How the sources of a card are ordered: arrows (setup wizard) or by position (admin, S-16). */
+  ordering?: 'arrows' | 'rank';
 }
 
 /**
@@ -87,6 +89,7 @@ export function LibraryFields({
   pathAddon,
   onPathBlur,
   fieldErrors,
+  ordering,
 }: LibraryFieldsProps) {
   const { t } = useTranslation();
   return (
@@ -112,6 +115,7 @@ export function LibraryFields({
         pathAddon={pathAddon}
         onPathBlur={onPathBlur}
         fieldErrors={fieldErrors}
+        ordering={ordering}
       />
       {isAudioLibrary(kind) && (
         <RadioGroup

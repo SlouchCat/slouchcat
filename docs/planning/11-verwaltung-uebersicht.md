@@ -446,8 +446,10 @@ Nichts wird entfernt oder im Typ geändert. **Pflicht** (`required`) in der Antw
 neuen Felder `JobCounts.active`, `JobCounts.failedByType`, `Dashboard.attention`,
 `Dashboard.counts`, `Dashboard.activity` (je leere Liste statt fehlend); **optional** sind
 `JobCounts.nextRun` (fehlt ohne aktiven Zeitplan) und `AdminStream.posterUrl` (fehlt ohne Poster).
-`JobCounts.recentFailed` bleibt im Vertrag und wird weiter gefüllt (fremde Clients); die eigene
-Oberfläche liest es nicht mehr. Die Beschreibung von `getDashboard` (`api/openapi.yaml:5062-5065`,
+`JobCounts.recentFailed` bleibt im Vertrag und wird weiter gefüllt (fremde Clients); ~~die eigene
+Oberfläche liest es nicht mehr.~~ **Berichtigt (2. November 2026, Konzept 12, 11.5 Punkt 11):**
+die Übersicht liest es nicht mehr, aber «Hintergrundjobs» liest es für den Reiter «Fehlschläge»
+(JOB-8). Die Beschreibung von `getDashboard` (`api/openapi.yaml:5062-5065`,
 «last ten failed jobs») wird nachgeführt.
 
 | Ort | Neu | Herkunft im Server |

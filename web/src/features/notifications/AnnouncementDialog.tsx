@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
-import { formatDate } from '@/lib/format';
 import { Notice } from '@/ui';
 import { MessageDialog } from '@/ui/aria';
+import { announcementMessage } from './AnnouncementContent';
 import { ackAnnouncement, announcementsQuery } from './announcements';
 
 interface AnnouncementDialogProps {
@@ -43,12 +43,7 @@ export function AnnouncementDialog({ profileId, announcements, onClose }: Announ
     <MessageDialog
       isOpen
       onDismiss={onClose}
-      kicker={t('announcements.kicker')}
-      title={current.title}
-      meta={t('announcements.published', {
-        date: formatDate(current.publishedAt, i18n.language),
-      })}
-      body={current.body}
+      {...announcementMessage(t, i18n.language, current)}
       status={
         total > 1
           ? t('announcements.counter', { index: total - announcements.length + 1, count: total })

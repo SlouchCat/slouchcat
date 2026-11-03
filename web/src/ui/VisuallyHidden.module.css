@@ -1,5 +1,10 @@
 .hidden {
   position: absolute;
+
+  /* At the start of its containing block, not at its static place: in a box that scrolls
+     sideways (a table, a tab list) that place may lie far beyond the screen, and with no
+     positioned box in between the hidden text would widen the whole page. */
+  inset-inline-start: 0;
   overflow: hidden;
   width: 1px;
   height: 1px;

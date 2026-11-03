@@ -3,12 +3,12 @@
   gap: var(--sc-space-2);
   align-items: center;
   justify-content: center;
-  min-height: var(--sc-size-control-height);
+  min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-5);
   border: 0;
   border-radius: var(--sc-radius-full);
   font: inherit;
-  font-size: var(--sc-font-size-md);
+  font-size: var(--sc-control-font-size);
   font-weight: var(--sc-font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
@@ -37,7 +37,7 @@
 }
 
 .lg {
-  min-height: calc(var(--sc-size-control-height) + var(--sc-space-1));
+  min-height: calc(var(--sc-control-height) + var(--sc-space-1));
   padding: 0 var(--sc-space-6);
   font-size: var(--sc-font-size-md);
 }
@@ -53,7 +53,7 @@
  * of a confirmation itself (ConfirmDialog, `autoFocus`). react-aria tracks the input modality on
  * its own and marks the button `data-focus-visible`, so the ring and the fill follow that marker as
  * well. The other react-aria components here already do it this way (Menu, Tabs, Switch,
- * CheckboxGroup, SelectableList, AccentPicker, Field, PathList); the button was the one left out,
+ * CheckboxGroup, SelectCheck, AccentPicker, Field, PathList); the button was the one left out,
  * and "Entfernen" in a confirmation therefore had no visible focus in Firefox (hard rule 8).
  */
 .button[data-focus-visible] {
@@ -109,8 +109,25 @@
   color: var(--sc-color-bg-base);
 }
 
+/* A dangerous action in a row or toolbar: red text, a fill only on hover and focus like ghost. */
+.dangerQuiet {
+  background-color: transparent;
+  color: var(--sc-color-state-danger);
+}
+
+.dangerQuiet:focus-visible,
+.dangerQuiet[data-focus-visible] {
+  background-color: var(--sc-color-surface-2);
+}
+
+@media (hover: hover) {
+  .dangerQuiet:hover:not(:disabled) {
+    background-color: var(--sc-color-surface-2);
+  }
+}
+
 .iconOnly {
-  width: var(--sc-size-control-height);
+  width: var(--sc-control-height);
   padding: 0;
 }
 

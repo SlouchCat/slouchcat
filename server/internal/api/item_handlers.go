@@ -451,6 +451,15 @@ func adminPosterURL(itemID, hash string) *string {
 	return &u
 }
 
+// adminBackdropURL is the backdrop URL of an administration tile (concept 12), nil without backdrop.
+func adminBackdropURL(itemID, hash string) *string {
+	if hash == "" {
+		return nil
+	}
+	u := adminImageURL(itemID, "backdrop", model.AdminBackdropSize, hash)
+	return &u
+}
+
 func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef {
 	if img == nil {
 		return nil

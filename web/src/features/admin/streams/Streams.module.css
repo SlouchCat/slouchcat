@@ -1,0 +1,16 @@
+/* The streams page (concept 12, mockup Str-D2): what AdminPage, BandPanel and StreamTile do not
+   lay out themselves. */
+
+/* The tiles: as many columns as fit, equally high per row (S-8). */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: var(--sc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tiles > li {
+  min-width: 0;
+}

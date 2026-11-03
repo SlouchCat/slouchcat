@@ -544,6 +544,11 @@ describe('start page', () => {
     );
     // M8: the administration is one entry; its pages have their own navigation.
     expect(within(nav).getByRole('link', { name: 'Verwaltung' })).toHaveAttribute('href', '/admin');
+    // ALL-3: the own profiles stay in the app for every account, the administrator's too.
+    expect(within(nav).getByRole('link', { name: 'Profile' })).toHaveAttribute(
+      'href',
+      '/settings/profiles',
+    );
     expect(within(nav).queryByRole('link', { name: 'Bibliotheken' })).not.toBeInTheDocument();
     expect(screen.getByText('Marco')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Abmelden' })).toBeVisible();

@@ -15,8 +15,10 @@
   line-height: var(--sc-font-line-height-snug);
 }
 
+/* Running text: the size is a component token, so the compact density (ADR 0020) sets 14 px
+   without a variant of its own. */
 .body {
-  font-size: var(--sc-font-size-lg);
+  font-size: var(--sc-text-body-size);
   font-weight: var(--sc-font-weight-regular);
   line-height: var(--sc-font-line-height-normal);
 }
@@ -39,8 +41,32 @@
   color: var(--sc-color-text-muted);
 }
 
+/* The h1 of a page with the page pattern (AdminPage): size, weight and tracking are component
+   tokens, so the compact density (ADR 0020) sets them without a variant of its own. */
+.pageTitle {
+  font-size: var(--sc-font-size-3xl);
+  font-weight: var(--sc-page-title-weight);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-page-title-tracking);
+
+  /* A long word («Benachrichtigungskanäle», 44 px on a phone) is wider than the screen: it is
+     hyphenated where the browser knows the language (<html lang>), else broken anywhere. A
+     wider screen keeps its titles whole. */
+  overflow-wrap: anywhere;
+}
+
+@media (width < 768px) {
+  .pageTitle {
+    hyphens: auto;
+  }
+}
+
 @media (width >= 768px) {
   .display {
     font-size: var(--sc-font-size-display);
+  }
+
+  .pageTitle {
+    font-size: var(--sc-page-title-size);
   }
 }

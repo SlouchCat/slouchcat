@@ -11,10 +11,12 @@ import {
   tabTo,
 } from './keyboard';
 
-// Integrations (A-2) against the real server: provider keys with their source (the e2e server
-// sets the Trakt client id in its environment, no TMDB key), a YouTube key saved and deleted by
-// keyboard, the public address and the update check. Every test leaves the settings as it found
-// them. The test mail with the SMTP mock is covered by notification-channels.spec.ts.
+// Integrations (A-2; concept 12, variant A) against the real server: six blocks that fold away by
+// their band, provider keys with their source (the e2e server sets the Trakt client id in its
+// environment, no TMDB key), a YouTube key saved and deleted by keyboard, the public address and
+// the update check in the «Server» block, the e-mail server and the Telegram bot as setting rows
+// (both from the environment, with a test mail through the SMTP mock), and the question before
+// leaving with unsaved input. Every test leaves the settings as it found them.
 
 interface SettingsData {
   publicUrl?: string;
@@ -36,11 +38,125 @@ async function putSettings(api: APIRequestContext, data: object): Promise<void> 
 
 const region = (page: Page, name: string) => page.getByRole('region', { name, exact: true });
 
+/** A setting row of the «Server» block: a group named by its label. */
+const serverRow = (page: Page, name: string) =>
+  region(page, 'Server').getByRole('group', { name, exact: true });
+
+const BLOCKS = [
+  'Schlüssel der Anbieter',
+  'Webhooks von Radarr und Sonarr',
+  'E-Mail-Server',
+  'Telegram-Bot',
+  'Web-Push',
+  'Server',
+];
+
 async function openIntegrations(page: Page) {
   await page.goto('/admin/integrations');
   await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
   await expect(region(page, 'Schlüssel der Anbieter')).toBeVisible();
 }
+
+test('the six blocks start open and fold by keyboard from their band', async ({ page }) => {
+  await openIntegrations(page);
+  for (const name of BLOCKS) {
+    await expect(
+      region(page, name).getByRole('button', { name, exact: true, expanded: true }),
+    ).toBeVisible();
+  }
+
+  // Tab reaches the band of the keys first; Enter folds the block away, Space opens it again.
+  const band = region(page, 'Schlüssel der Anbieter').getByRole('button', {
+    name: 'Schlüssel der Anbieter',
+  });
+  const field = region(page, 'Schlüssel der Anbieter').getByRole('textbox', {
+    name: 'YouTube-Schlüssel',
+    exact: true,
+  });
+  await resetFocus(page);
+  await tabTo(page, band, 40);
+  await page.keyboard.press('Enter');
+  await expect(band).toHaveAttribute('aria-expanded', 'false');
+  await expect(field).toBeHidden();
+  await expectFocusOn(page, band);
+  // Folded, the block's controls are out of the Tab order: the next stop is the next band.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    region(page, 'Webhooks von Radarr und Sonarr').getByRole('button', {
+      name: 'Webhooks von Radarr und Sonarr',
+    }),
+  );
+  await band.focus();
+  await page.keyboard.press('Space');
+  await expect(band).toHaveAttribute('aria-expanded', 'true');
+  await expect(field).toBeVisible();
+
+  // The intro sentence sits behind the help button of the title (S-2).
+  const help = page.getByRole('button', { name: 'Hilfe zu dieser Seite' });
+  await expect(page.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeHidden();
+  await help.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/Geheime Werte speichert Slouchcat verschlüsselt/)).toBeVisible();
+  await expectNoFocusTrap(page, 200);
+});
+
+test('unsaved input survives a folded block; leaving asks first', async ({ page, owner }) => {
+  const before = await settingsOf(owner);
+  await openIntegrations(page);
+  const keys = region(page, 'Schlüssel der Anbieter');
+  const field = keys.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true });
+  await field.fill('unsaved-key');
+  await expect(keys.getByText('ungespeichert', { exact: true })).toBeVisible();
+
+  const band = keys.getByRole('button', { name: 'Schlüssel der Anbieter' });
+  await band.focus();
+  await page.keyboard.press('Enter');
+  await expect(field).toBeHidden();
+  await expect(keys.getByText('ungespeichert', { exact: true })).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(field).toHaveValue('unsaved-key');
+
+  // The sidebar link waits for the question, which takes the focus; Escape stays on the page.
+  const jobs = page
+    .getByRole('navigation', { name: 'Verwaltung' })
+    .getByRole('link', { name: /^Hintergrundjobs(,|$)/ });
+  await jobs.focus();
+  await page.keyboard.press('Enter');
+  const question = page.getByRole('alertdialog', {
+    name: 'Seite mit ungespeicherten Änderungen verlassen?',
+  });
+  await expect(question).toBeVisible();
+  await expect
+    .poll(() => question.evaluate((dialog) => dialog.contains(document.activeElement)))
+    .toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(question).toHaveCount(0);
+  await expect(page).toHaveURL(/\/admin\/integrations$/);
+  await expect(field).toHaveValue('unsaved-key');
+
+  // «Auf der Seite bleiben» by keyboard stays as well.
+  await jobs.focus();
+  await page.keyboard.press('Enter');
+  const stay = question.getByRole('button', { name: 'Auf der Seite bleiben' });
+  await expect(stay).toBeVisible();
+  await stay.focus();
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect(question).toHaveCount(0);
+  await expect(page).toHaveURL(/\/admin\/integrations$/);
+  await expect(field).toHaveValue('unsaved-key');
+
+  // «Verwerfen und verlassen» leaves without saving anything.
+  await jobs.focus();
+  await page.keyboard.press('Enter');
+  const leave = question.getByRole('button', { name: 'Verwerfen und verlassen' });
+  await expect(leave).toBeVisible();
+  await leave.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin\/jobs$/);
+  expect(await settingsOf(owner)).toEqual(before);
+});
 
 test('keys show their source; the Trakt id from the environment is read-only', async ({ page }) => {
   await openIntegrations(page);
@@ -50,13 +166,22 @@ test('keys show their source; the Trakt id from the environment is read-only', a
       .getByRole('link', { name: 'Integrationen' }),
   ).toHaveAttribute('aria-current', 'page');
   const keys = region(page, 'Schlüssel der Anbieter');
-  const trakt = keys.getByLabel('Trakt-Client-ID');
+  // One row per key (S-7): a group named like the key, the field inside it.
+  const trakt = keys
+    .getByRole('group', { name: 'Trakt-Client-ID' })
+    .getByRole('textbox', { name: 'Trakt-Client-ID', exact: true });
   await expect(trakt).toBeDisabled();
   await expect(keys.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
   await expect(keys.getByRole('button', { name: 'Trakt-Client-ID speichern' })).toHaveCount(0);
   // The e2e server runs without a TMDB key.
-  await expect(keys.getByLabel('TMDB-Lesezugriffs-Token')).toBeEnabled();
+  await expect(keys.getByRole('textbox', { name: 'TMDB-Token', exact: true })).toBeEnabled();
   await expect(keys.getByRole('button', { name: 'TMDB-Token löschen' })).toHaveCount(0);
+  // One line per key (Int-A): the field and its «Speichern» stand side by side.
+  const tmdbField = await keys
+    .getByRole('textbox', { name: 'TMDB-Token', exact: true })
+    .boundingBox();
+  const tmdbSave = await keys.getByRole('button', { name: 'TMDB-Token speichern' }).boundingBox();
+  expect(Math.round(tmdbSave?.y ?? -1)).toBe(Math.round(tmdbField?.y ?? 0));
   await expect(keys.getByRole('link', { name: 'Stand der Trakt-Listen' })).toHaveAttribute(
     'href',
     '/admin/spotlight',
@@ -71,9 +196,9 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
   try {
     await openIntegrations(page);
     const keys = region(page, 'Schlüssel der Anbieter');
-    const field = keys.getByLabel('YouTube-API-Schlüssel');
+    const field = keys.getByRole('textbox', { name: 'YouTube-Schlüssel', exact: true });
     await resetFocus(page);
-    await tabTo(page, field, 60);
+    await tabTo(page, field, 80);
     await page.keyboard.type(key);
     await page.keyboard.press('Tab');
     const save = keys.getByRole('button', { name: 'YouTube-Schlüssel speichern' });
@@ -105,6 +230,8 @@ test('a YouTube key is saved write-only and deleted again, all by keyboard', asy
     await page.keyboard.press('Enter');
     await expect(keys.getByText('YouTube-Schlüssel gelöscht.')).toBeVisible();
     await expect(remove).toHaveCount(0);
+    // «Löschen …» is gone with the key: the row's «Speichern» takes the focus (ALL-2).
+    await expectFocusOn(page, save);
     expect((await settingsOf(owner)).keys.youtube?.source).toBe('none');
     await expectNoFocusTrap(page, 120);
   } finally {
@@ -118,11 +245,11 @@ test('the public address and the update check by keyboard', async ({ page, owner
   const before = await settingsOf(owner);
   try {
     await openIntegrations(page);
-    const address = region(page, 'Öffentliche Adresse');
+    const address = serverRow(page, 'Öffentliche Adresse');
     const field = address.getByLabel('Adresse');
     // Emptied once reached: a field focused before resetFocus would be where Firefox resumes Tab.
     await resetFocus(page);
-    await tabTo(page, field, 120);
+    await tabTo(page, field, 160);
     await field.fill('');
     // Not an http(s) address: the field says so and nothing is sent.
     await page.keyboard.type('media.e2e.test');
@@ -136,7 +263,7 @@ test('the public address and the update check by keyboard', async ({ page, owner
     expect((await settingsOf(owner)).publicUrl).toBe('https://media.e2e.test');
 
     // The update check: Space switches it off and on; each change is stored at once.
-    const update = region(page, 'Update-Prüfung');
+    const update = serverRow(page, 'Update-Prüfung');
     const toggle = update.getByRole('checkbox', { name: 'Täglich nach neuen Versionen suchen' });
     await expect(toggle).toBeChecked({ checked: before.updateCheckEnabled });
     await toggle.focus();
@@ -161,13 +288,59 @@ test('the public address and the update check by keyboard', async ({ page, owner
   }
 });
 
+test('the e-mail server and the Telegram bot are setting rows; the test mail by keyboard', async ({
+  page,
+}) => {
+  // The e2e server sets both in its environment (start-server.mjs): read-only rows here.
+  await openIntegrations(page);
+  const email = region(page, 'E-Mail-Server');
+  for (const name of ['Server und Port', 'Benutzer', 'Passwort', 'Absender', 'Verschlüsselung']) {
+    await expect(email.getByRole('group', { name, exact: true })).toBeVisible();
+  }
+  // Int-A: host and port share one row, the port on the right of the host.
+  const host = email.getByRole('textbox', { name: 'Server und Port', exact: true });
+  const port = email.getByRole('textbox', { name: 'Port', exact: true });
+  await expect(host).toBeDisabled();
+  await expect(host).toHaveValue('127.0.0.1');
+  const hostBox = await host.boundingBox();
+  const portBox = await port.boundingBox();
+  expect(Math.round(portBox?.y ?? -1)).toBe(Math.round(hostBox?.y ?? 0));
+  expect(portBox?.x ?? 0).toBeGreaterThan(hostBox?.x ?? 0);
+  await expect(email.getByRole('button', { name: 'E-Mail-Server speichern' })).toHaveCount(0);
+
+  // The disabled fields are no Tab stops: Tab goes from the notification link to the test mail.
+  await expect(email.getByText(/^Die Testmail geht an .+\.$/)).toBeVisible();
+  const link = email.getByRole('link', { name: 'Zu den Benachrichtigungskanälen' });
+  const send = email.getByRole('button', { name: 'Testmail senden' });
+  await resetFocus(page);
+  await tabTo(page, link, 120);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, send);
+  await page.keyboard.press('Enter');
+  await expect(email.getByText(/^Testmail an .+ gesendet\.$/)).toBeVisible();
+  await expectFocusOn(page, send);
+
+  // A token from deploy/.env leaves the bot's name unknown: no «Bot» row, only the token's row.
+  const telegram = region(page, 'Telegram-Bot');
+  await expect(telegram.getByRole('group', { name: 'Bot', exact: true })).toHaveCount(0);
+  const token = telegram
+    .getByRole('group', { name: 'Bot-Token', exact: true })
+    .getByRole('textbox', { name: 'Bot-Token', exact: true });
+  await expect(token).toBeDisabled();
+  await expect(telegram.getByText('In deploy/.env gesetzt', { exact: true })).toBeVisible();
+  await expect(telegram.getByRole('button', { name: 'Telegram-Bot speichern' })).toHaveCount(0);
+  // Without the «Bot» row the token's own help says what the bot is for.
+  await expect(telegram).toContainText('Für Benachrichtigungen per Telegram.');
+  await expectNoFocusTrap(page, 200);
+});
+
 test('"Schlüssel neu erzeugen" asks first; Escape keeps the keys', async ({ page, owner }) => {
   const before = await settingsOf(owner);
   await openIntegrations(page);
   const push = region(page, 'Web-Push');
   const rotate = push.getByRole('button', { name: 'Schlüssel neu erzeugen' });
   await resetFocus(page);
-  await tabTo(page, rotate, 120);
+  await tabTo(page, rotate, 160);
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('alertdialog', { name: 'Neue Web-Push-Schlüssel erzeugen?' });
   await expect(dialog).toContainText('Alle Geräte verlieren ihr Abo');

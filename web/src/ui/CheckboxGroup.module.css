@@ -8,7 +8,7 @@
   display: flex;
   gap: var(--sc-space-3);
   align-items: center;
-  min-height: var(--sc-size-control-height);
+  min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-3);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
@@ -46,6 +46,19 @@
   transition:
     background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+/* An option with a description: the label and a line below it. */
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  padding-block: var(--sc-space-2);
+}
+
+.description {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
 }
 
 .option[data-selected] .box {

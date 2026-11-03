@@ -1,0 +1,115 @@
+/* The podcasts page (concept 12, variant C): what AdminPage, BandPanel and DataTable do not lay
+   out themselves. The cells of a row, its fold-out and the subscribe dialog. */
+
+/* The title cell: the name, then «aus Ordner» and «Explizit». */
+.title {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* The error in the row: one line, the whole text in the tooltip and the fold-out (S-5). The
+   warning sign and the text are drawn here, so the line can be clipped. */
+.errorCell {
+  display: inline-flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+  max-width: 20rem;
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
+}
+
+.clip {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The fold-out of a podcast. */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sc-space-1) var(--sc-space-4);
+  margin: 0;
+  font-size: var(--sc-font-size-sm);
+}
+
+.facts > div {
+  display: contents;
+}
+
+.facts dt {
+  color: var(--sc-color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A feed address or the server's error text: in full, wrapped where it has to. */
+.url {
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
+}
+
+.error p {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}

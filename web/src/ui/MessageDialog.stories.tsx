@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState } from 'react';
 import { AriaButton } from './AriaButton';
 import { MessageDialog } from './MessageDialog';
 import { Notice } from './Notice';
@@ -41,3 +42,32 @@ export const WithStatusAndError: Story = {
     error: <Notice tone="danger">Der Server ist nicht erreichbar.</Notice>,
   },
 };
+
+/**
+ * Opened by Enter on a link (a "virtual" click for react-aria): the focus still starts on
+ * "Verstanden" (e2e-storybook/dialog-focus.spec.ts).
+ */
+function MessageFromLink(args: Parameters<typeof MessageDialog>[0]) {
+  const [isOpen, setOpen] = useState(false);
+  return (
+    <>
+      <a
+        href="#message"
+        onClick={(event) => {
+          event.preventDefault();
+          setOpen(true);
+        }}
+      >
+        Ankündigung lesen
+      </a>
+      <MessageDialog
+        {...args}
+        isOpen={isOpen}
+        onDismiss={() => setOpen(false)}
+        onConfirm={() => setOpen(false)}
+      />
+    </>
+  );
+}
+
+export const OpenedByLink: Story = { render: (args) => <MessageFromLink {...args} /> };

@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { ImageCandidateGrid, type ImageTile } from './ImageCandidateGrid';
+import { ImageCandidateGrid, type ImageCandidateTile } from './ImageCandidateGrid';
 import { art } from './stories/fixtures';
 
-const posters: ImageTile[] = [
+const posters: ImageCandidateTile[] = [
   {
     id: 'a',
     previewUrl: art.posterDusk,

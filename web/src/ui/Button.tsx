@@ -8,7 +8,12 @@ import { useSpatialItem } from './spatial';
 // pages): native <button> and <a> without react-aria, so the start page does not load it (P-10).
 // Forms, dialogs and the player use AriaButton from '@/ui/aria' with the same look.
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+/**
+ * `danger`: filled red, for the button that confirms a dangerous action (ConfirmDialog).
+ * `dangerQuiet`: red text without a fill, for a dangerous action in a row or toolbar that asks
+ * before it acts («Löschen …», «Vergessen»; the mockups of concept 12).
+ */
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dangerQuiet';
 
 export interface ButtonLook {
   variant?: ButtonVariant;

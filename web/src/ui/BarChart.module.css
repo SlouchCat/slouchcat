@@ -74,7 +74,47 @@
   justify-content: flex-end;
 }
 
-/* The numbers for screen readers (the bars are hidden from them). */
+/* Horizontal: one row per bar, label before and value after the track. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  gap: var(--sc-space-3);
+  align-items: center;
+  font-size: var(--sc-font-size-xs);
+}
+
+.rowLabel {
+  color: var(--sc-color-text-secondary);
+}
+
+.rowValue {
+  min-width: 4rem;
+  color: var(--sc-color-text-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  display: flex;
+  height: var(--sc-space-3);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-1);
+}
+
+.hbar {
+  min-width: 1px;
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-accent);
+}
+
+/* The numbers for screen readers (the bars are hidden from them). The wrapper hides the
+   table: Gecko clips only the inner table box, not the caption beside it in the table wrapper. */
 .table {
   position: absolute;
   overflow: hidden;

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import styles from './Text.module.css';
 
-type Variant = 'display' | 'title' | 'body' | 'caption';
+type Variant = 'display' | 'pageTitle' | 'title' | 'body' | 'caption';
 type Tone = 'primary' | 'secondary' | 'muted';
 
 interface TextProps {

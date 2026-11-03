@@ -126,6 +126,12 @@ func TestUpdateSettingsStoresSecretsEncrypted(t *testing.T) {
 	if tok, _ := f.svc.TelegramToken(ctx); tok != fakeBotToken {
 		t.Errorf("TelegramToken = %q", tok)
 	}
+	// A token from the environment wins; the stored bot's name does not belong to it.
+	f.svc.WithNotifyEnv(NotifyEnv{TelegramBotToken: "654321:FAKE-env-bot"})
+	if env, err := f.svc.Settings(ctx); err != nil || env.Telegram != (model.TelegramSettings{Source: "env"}) {
+		t.Errorf("telegram with a token from the environment = %+v, %v; want no bot name", env.Telegram, err)
+	}
+	f.svc.WithNotifyEnv(NotifyEnv{})
 	if u, _ := f.svc.PublicURL(ctx); u != "https://media.example.ch" {
 		t.Errorf("PublicURL = %q", u)
 	}

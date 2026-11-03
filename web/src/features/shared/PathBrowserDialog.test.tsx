@@ -49,11 +49,16 @@ function mount() {
 
 const dialog = () => screen.getByRole('dialog', { name: 'Ordner auswählen' });
 
-/** Opens the picker of the "add library" form and waits for the roots. */
+/** Opens the picker of the "add library" dialog and waits for the roots. */
 async function open(user: ReturnType<typeof userEvent.setup>) {
-  const page = await screen.findByRole('heading', { level: 1, name: 'Bibliotheken' });
-  expect(page).toBeVisible();
-  await user.click(screen.getAllByRole('button', { name: 'Durchsuchen …' })[0]!);
+  // The library form is a dialog of its own (concept 12); it may be open already.
+  if (!screen.queryByRole('dialog', { name: 'Bibliothek hinzufügen' })) {
+    const page = await screen.findByRole('heading', { level: 1, name: 'Bibliotheken' });
+    expect(page).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Bibliothek hinzufügen' }));
+  }
+  const form = await screen.findByRole('dialog', { name: 'Bibliothek hinzufügen' });
+  await user.click(within(form).getAllByRole('button', { name: 'Durchsuchen …' })[0]!);
   await waitFor(() => expect(within(dialog()).getAllByRole('option').length).toBeGreaterThan(0));
 }
 
@@ -87,9 +92,11 @@ describe('path browser dialog (Emby shape, idea 02 E18)', () => {
     );
 
     await user.click(within(dialog()).getByRole('button', { name: 'OK' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Ordner auswählen' })).toBeNull(),
+    );
     // The library form's own folder field now carries it.
-    const form = screen.getByRole('region', { name: 'Bibliothek hinzufügen' });
+    const form = screen.getByRole('dialog', { name: 'Bibliothek hinzufügen' });
     expect(within(form).getByLabelText('Ordner')).toHaveValue('/media/Serien');
   });
 
@@ -126,8 +133,10 @@ describe('path browser dialog (Emby shape, idea 02 E18)', () => {
     expect(field).toHaveValue('/etc/secrets');
     // The dialog refuses nothing: OK hands the typed path on, the server answers it.
     await user.click(within(dialog()).getByRole('button', { name: 'OK' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    const form = screen.getByRole('region', { name: 'Bibliothek hinzufügen' });
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Ordner auswählen' })).toBeNull(),
+    );
+    const form = screen.getByRole('dialog', { name: 'Bibliothek hinzufügen' });
     expect(within(form).getByLabelText('Ordner')).toHaveValue('/etc/secrets');
   });
 
@@ -142,7 +151,9 @@ describe('path browser dialog (Emby shape, idea 02 E18)', () => {
     await user.clear(field);
     await user.type(field, '/media/Tippfehler');
     await user.click(within(dialog()).getByRole('button', { name: 'Abbrechen' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Ordner auswählen' })).toBeNull(),
+    );
 
     await open(user);
     await waitFor(() => expect(within(dialog()).getByLabelText('Ordner')).toHaveValue('/media'));

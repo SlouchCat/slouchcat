@@ -1,15 +1,30 @@
 import type { Page } from '@playwright/test';
 import { CSRF, H264_TITLE, idOf, itemPath } from './catalog';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, tabTo } from './keyboard';
+import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 
-// Administration view of a title (B-6, B-8, B-9): state, files, the match dialog (the e2e server
-// has no TMDB key: the search answers with the provider error), manual trailers.
+// Administration view of a title (B-6, B-8, B-9; concept 12 variant C): tabs Metadaten, Bilder,
+// Dateien and Trailer in `?tab=`, «Herkunft je Feld» and «Freigabe» as disclosures, the match
+// dialog (the e2e server has no TMDB key: the search answers with the provider error), manual
+// trailers, the image choice and the question before leaving with an unsaved rating. Keyboard
+// only (rule 8).
 
 let detail = '';
 let admin = '';
 
+const TAB_MAX = 40;
+const tabList = (page: Page) => page.getByRole('tablist', { name: 'Bereiche des Titels' });
 const trailers = (page: Page) => page.getByRole('region', { name: 'Trailer' });
+const heading = (page: Page) => page.getByRole('heading', { level: 1, name: H264_TITLE });
+
+/** From the top of the page to the selected tab, then with the arrow keys to `name`. */
+async function selectTab(page: Page, name: RegExp, steps: number): Promise<void> {
+  await resetFocus(page);
+  await tabTo(page, tabList(page).getByRole('tab', { selected: true }), TAB_MAX);
+  const key = steps < 0 ? 'ArrowLeft' : 'ArrowRight';
+  for (let step = 0; step < Math.abs(steps); step += 1) await page.keyboard.press(key);
+  await expect(tabList(page).getByRole('tab', { selected: true })).toHaveText(name);
+}
 
 test.beforeEach(async ({ page }) => {
   if (!admin) {
@@ -17,7 +32,7 @@ test.beforeEach(async ({ page }) => {
     admin = `/admin/items/${idOf(detail)}`;
   }
   await page.goto(admin);
-  await expect(page.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
+  await expect(heading(page)).toBeVisible();
 });
 
 test.afterEach(async ({ owner }) => {
@@ -36,18 +51,48 @@ test('shows kind, state, both version files and the trailer state', async ({ pag
   const facts = page.getByRole('region', { name: 'Metadaten' });
   await expect(facts.getByRole('term').filter({ hasText: /^Art$/ })).toBeVisible();
   await expect(facts.getByRole('definition').filter({ hasText: /^Film$/ })).toBeVisible();
-  const files = page.getByRole('region', { name: 'Dateien' });
-  await expect(files.getByRole('listitem')).toHaveCount(2);
-  await expect(files.getByText(/Slouchcat Test H264 \(2024\)\.mp4$/)).toBeVisible();
-  await expect(files.getByText(/Slouchcat Test H264 \(2024\) - 720p\.mp4$/)).toBeVisible();
-  await expect(trailers(page)).toBeVisible();
   await expect(page.getByRole('link', { name: 'Zur Detailseite' })).toHaveAttribute('href', detail);
+
+  await selectTab(page, /^Dateien/, 2);
+  const files = page.getByRole('region', { name: 'Dateien' });
+  await expect(files.getByRole('row')).toHaveCount(3);
+  // The row shows the file's name and its folder; Enter folds out the whole path.
+  const short = files.getByRole('button', { name: /^Slouchcat Test H264 \(2024\)\.mp4 / });
+  await tabTo(page, short, 10);
+  await expect(short).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(short).toHaveAttribute('aria-expanded', 'true');
+  await expect(files.getByText(/\/Slouchcat Test H264 \(2024\)\.mp4$/)).toBeVisible();
+  await expect(
+    files.getByRole('button', { name: /^Slouchcat Test H264 \(2024\) - 720p\.mp4 / }),
+  ).toBeVisible();
+
+  await selectTab(page, /^Trailer/, 1);
+  await expect(trailers(page)).toBeVisible();
+  await expect(
+    trailers(page).getByText(/^(Suche ausstehend|Gefunden|Keiner gefunden|Suche fehlgeschlagen)$/),
+  ).toBeVisible();
+});
+
+test('Back from the detail page returns to the tab of the address', async ({ page }) => {
+  await selectTab(page, /^Dateien/, 2);
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=files$`));
+  const view = page.getByRole('link', { name: 'Zur Detailseite' });
+  await resetFocus(page);
+  await tabTo(page, view, TAB_MAX);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`${detail}$`));
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=files$`));
+  await expect(heading(page)).toBeVisible();
+  await expect(tabList(page).getByRole('tab', { selected: true })).toHaveText(/^Dateien/);
+  await expect(page.getByRole('region', { name: 'Dateien' })).toBeVisible();
 });
 
 test('the detail page links here with "Verwalten"', async ({ page }) => {
   await page.goto(detail);
   const manage = page.getByRole('link', { name: 'Verwalten' });
-  await manage.focus();
+  await tabTo(page, manage, 60);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`${admin}$`));
 });
@@ -73,8 +118,10 @@ test('match dialog: the search without a key shows the provider error; Escape cl
 });
 
 test('add a manual trailer by keyboard, then delete it after confirmation', async ({ page }) => {
+  await selectTab(page, /^Trailer/, 3);
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=trailers$`));
   const add = trailers(page).getByRole('button', { name: 'Hinzufügen' });
-  await add.focus();
+  await tabTo(page, add, 10);
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Trailer hinzufügen' });
   const source = dialog.getByLabel('YouTube-Link oder Video-ID');
@@ -84,30 +131,38 @@ test('add a manual trailer by keyboard, then delete it after confirmation', asyn
   await expect(dialog).toHaveCount(0);
   await expect(trailers(page).getByText('dQw4w9WgXcQ')).toBeVisible();
   await expect(trailers(page).getByText('Manuell')).toBeVisible();
+  await expect(page.getByText('Trailer hinzugefügt.')).toBeVisible();
+  await expect(tabList(page).getByRole('tab', { selected: true })).toHaveText(/^Trailer\s*1/);
 
   const remove = trailers(page).getByRole('button', { name: 'Löschen' });
-  await remove.focus();
+  await tabTo(page, remove, 10);
   await page.keyboard.press('Enter');
   const confirm = page.getByRole('alertdialog', { name: 'Trailer löschen?' });
   await expectFocusOn(page, confirm.getByRole('button', { name: 'Löschen' }));
   await page.keyboard.press('Enter');
   await expect(trailers(page).getByText('dQw4w9WgXcQ')).toHaveCount(0);
+  await expect(page.getByText('Trailer gelöscht.')).toBeVisible();
+  // The row went with its button: the h1 takes the focus (ALL-2).
+  await expect(heading(page)).toBeFocused();
 });
 
 test('an invalid YouTube link is reported at the field', async ({ page }) => {
-  await trailers(page).getByRole('button', { name: 'Hinzufügen' }).click();
+  await selectTab(page, /^Trailer/, 3);
+  await tabTo(page, trailers(page).getByRole('button', { name: 'Hinzufügen' }), 10);
+  await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Trailer hinzufügen' });
-  await dialog.getByLabel('YouTube-Link oder Video-ID').fill('https://example.com/video');
-  await dialog.getByRole('button', { name: 'Hinzufügen' }).click();
-  await expect(dialog.getByLabel('YouTube-Link oder Video-ID')).toHaveAttribute(
-    'aria-invalid',
-    'true',
-  );
+  const source = dialog.getByLabel('YouTube-Link oder Video-ID');
+  await expectFocusOn(page, source);
+  await page.keyboard.type('https://example.com/video');
+  await page.keyboard.press('Enter');
+  await expect(source).toHaveAttribute('aria-invalid', 'true');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
 
-test('Tab: header, actions, rating, files, trailers; no focus trap', async ({ page }) => {
+test('Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus trap', async ({
+  page,
+}) => {
   // The admin sidebar's Tab stop is its current page: a title's page belongs to "Pflege".
   await tabTo(
     page,
@@ -118,8 +173,95 @@ test('Tab: header, actions, rating, files, trailers; no focus trap', async ({ pa
   await tabTo(page, page.getByRole('button', { name: 'Zuordnen' }), 12);
   await tabTo(page, page.getByRole('button', { name: 'Aktualisieren' }), 2);
   await tabTo(page, page.getByRole('link', { name: 'Zur Detailseite' }), 2);
-  await tabTo(page, trailers(page).getByRole('button', { name: 'Hinzufügen' }), 20);
+
+  // The tabs move with the arrow keys; the selection lives in `?tab=`.
+  const selected = tabList(page).getByRole('tab', { selected: true });
+  await tabTo(page, selected, 4);
+  await expect(selected).toHaveText('Metadaten');
+  await page.keyboard.press('ArrowRight');
+  await expect(selected).toHaveText(/^Bilder/);
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=images$`));
+  await page.keyboard.press('ArrowRight');
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=files$`));
+  await page.keyboard.press('ArrowRight');
+  await expect(selected).toHaveText(/^Trailer/);
+  await expect(page).toHaveURL(new RegExp(`${admin}\\?tab=trailers$`));
+  for (let presses = 0; presses < 3; presses += 1) await page.keyboard.press('ArrowLeft');
+  await expect(selected).toHaveText('Metadaten');
+  await expect(page).toHaveURL(new RegExp(`${admin}$`));
+  await expectFocusOn(page, selected);
+
+  // «Freigabe» folds out with Enter and in again.
+  const rating = page.getByRole('button', { name: /^Freigabe/ });
+  await tabTo(page, rating, 10);
+  await expect(rating).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(rating).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('radiogroup', { name: 'Eigene Freigabe setzen' })).toBeVisible();
+  await page.keyboard.press('Enter');
+  await expect(rating).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('radiogroup', { name: 'Eigene Freigabe setzen' })).toBeHidden();
   await expectNoFocusTrap(page);
+});
+
+test('an unknown tab in the address shows «Metadaten» and leaves the address', async ({ page }) => {
+  await page.goto(`${admin}?tab=nonsense`);
+  await expect(heading(page)).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`${admin}$`));
+  await expect(tabList(page).getByRole('tab', { selected: true })).toHaveText('Metadaten');
+});
+
+test('an unsaved rating survives the tabs; leaving asks first', async ({ page }) => {
+  const rating = page.getByRole('button', { name: /^Freigabe/ });
+  await tabTo(page, rating, TAB_MAX);
+  await page.keyboard.press('Enter');
+  const group = page.getByRole('radiogroup', { name: 'Eigene Freigabe setzen' });
+  const checked = group.getByRole('radio', { checked: true });
+  const before = await checked.getAttribute('value');
+  await tabTo(page, checked, 10);
+  await page.keyboard.press('ArrowDown');
+  await expect(checked).not.toHaveAttribute('value', before ?? '');
+  const choice = await checked.getAttribute('value');
+  // The chip next to «Freigabe», and the mark on the tab that every tab shows.
+  const unsaved = page.getByRole('tabpanel').getByText('ungespeichert', { exact: true });
+  await expect(unsaved).toBeVisible();
+  const marked = tabList(page).getByRole('tab', { name: 'Metadaten ungespeichert' });
+  await expect(marked).toBeVisible();
+
+  // Another tab and back: the choice is still there and not saved.
+  await selectTab(page, /^Bilder/, 1);
+  await expect(marked).toBeVisible();
+  await selectTab(page, /^Metadaten/, -1);
+  await expect(unsaved).toBeVisible();
+  await expect(group.getByRole('radio', { checked: true })).toHaveAttribute('value', choice ?? '');
+
+  // The link to the detail page waits for the question, whose default stays on the page.
+  const view = page.getByRole('link', { name: 'Zur Detailseite' });
+  await resetFocus(page);
+  await tabTo(page, view, TAB_MAX);
+  await page.keyboard.press('Enter');
+  const question = page.getByRole('alertdialog', {
+    name: 'Seite mit ungespeicherten Änderungen verlassen?',
+  });
+  await expectFocusOn(page, question.getByRole('button', { name: 'Auf der Seite bleiben' }));
+  await page.keyboard.press('Enter');
+  await expect(question).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`${admin}$`));
+  await expect(unsaved).toBeVisible();
+
+  // Escape stays as well; «Verwerfen und verlassen» goes.
+  await expectFocusOn(page, view);
+  await page.keyboard.press('Enter');
+  await expect(question).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(question).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`${admin}$`));
+  await expectFocusOn(page, view);
+  await page.keyboard.press('Enter');
+  const leave = question.getByRole('button', { name: 'Verwerfen und verlassen' });
+  await tabTo(page, leave, 3);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`${detail}$`));
 });
 
 test.describe('image choice', () => {
@@ -228,12 +370,11 @@ test.describe('image choice', () => {
       },
     );
 
+    await selectTab(page, /^Bilder/, 1);
     const images = page.getByRole('region', { name: 'Bilder' });
-    const pick = images
-      .getByRole('listitem')
-      .filter({ hasText: 'Poster' })
-      .getByRole('button', { name: 'Andere wählen' });
-    await tabTo(page, pick, 30);
+    const poster = images.getByRole('row').filter({ hasText: 'Poster' });
+    const pick = poster.getByRole('button', { name: 'Andere wählen' });
+    await tabTo(page, pick, 10);
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: 'Poster wählen' });
     const grid = dialog.getByRole('listbox', { name: 'Kandidaten für Poster' });
@@ -258,9 +399,9 @@ test.describe('image choice', () => {
     await expect(
       page.getByText('Poster gewählt und gesperrt; das Bild wird geholt.'),
     ).toBeVisible();
-    const poster = images.getByRole('listitem').filter({ hasText: 'Poster' });
     await expect(poster.getByText('von Hand gewählt')).toBeVisible();
     await expect(poster.getByRole('button', { name: 'Sperre aufheben' })).toBeVisible();
+    await expectFocusOn(page, pick);
     await expectNoFocusTrap(page);
   });
 });

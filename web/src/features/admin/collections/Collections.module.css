@@ -1,0 +1,154 @@
+/* The collections page (concept 12, variant C, Sam-C): what AdminPage, BandPanel and DataTable do
+   not lay out themselves. The cells of a collection row, its fold-out with the members and the
+   name dialog. */
+
+/* The cells of a row. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.state {
+  display: inline-flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+  white-space: nowrap;
+}
+
+/* The fold-out of a collection. */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+/* The search on the left, the members on the right; one column on narrow screens. */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--sc-space-5);
+  align-items: start;
+}
+
+.members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.membersHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.membersTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  padding-block: var(--sc-space-2);
+  border-block-end: 1px solid var(--sc-color-border-subtle);
+}
+
+/* The poster in front of a member: small and upright. */
+.thumb {
+  flex: none;
+  width: 2.5rem;
+}
+
+/* Titles wrap instead of being cut: the whole text is there without a tooltip. */
+.entryText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* «Ungespeicherte Änderungen», «Verwerfen», «Speichern»; «Umbenennen» and «Löschen» at the end. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  padding-block-start: var(--sc-space-3);
+  border-block-start: 1px solid var(--sc-color-border-subtle);
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* A TMDB collection: why it is locked, then its members as posters. */
+.lockNote {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* The name dialog. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}

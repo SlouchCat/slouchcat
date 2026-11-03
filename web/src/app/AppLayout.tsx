@@ -301,7 +301,17 @@ export function AppLayout() {
       <a className={styles.skip} href="#content">
         {t('nav.skip')}
       </a>
-      <SpatialGroup focusKey="shell" rememberLastChild={false} nextFocusKey={shellFocus}>
+      {/*
+        The column (or the admin sidebar) that had the focus goes away with the page: norigin
+        would pull the focus into the header 300 ms later, out of the sidebar that took it
+        (focusAfter and AdminSideNav place the focus themselves).
+      */}
+      <SpatialGroup
+        focusKey="shell"
+        rememberLastChild={false}
+        autoRestoreFocus={false}
+        nextFocusKey={shellFocus}
+      >
         <AppHeader
           appName={t('app.name')}
           homeHref={paths.home}

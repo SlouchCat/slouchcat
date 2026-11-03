@@ -1,54 +1,41 @@
-import type { Backup, BackupRequest, components, RestoreResult } from '@slouchcat/api-client';
+import type { Backup, RestoreResult } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, apiUrl, request } from '@/api/client';
-import { formErrors, problemMessage } from '@/api/errors';
+import { api, request } from '@/api/client';
+import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
-import { formatBytes, formatDateTime } from '@/lib/format';
+import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useTransientMutation } from '@/lib/useTransientMutation';
-import { ButtonLink, Notice, Page, Skeleton, Text } from '@/ui';
+import { Notice, Skeleton, Text } from '@/ui';
 import {
+  ActionMenu,
+  AdminPage,
   AriaButton,
+  BandPanel,
   ConfirmDialog,
   DataTable,
-  Form,
-  FormDialog,
-  RadioGroup,
-  TextField,
-  type DataColumn,
+  DisclosureGroup,
+  StatusRegion,
+  afterDialogsClosed,
+  focusTitleIfLost,
+  useSearchSelection,
+  useStatusMessage,
+  type TabItem,
 } from '@/ui/aria';
+import { restoreBackup, restoreUpload, type Confirmation } from './backup/api';
+import { backupColumns } from './backup/columns';
+import { CreateTab, type CreateMode } from './backup/CreateTab';
+import { PassphraseDialog } from './backup/PassphraseDialog';
+import { UploadTab } from './backup/UploadTab';
 import { backupsQuery } from './queries';
 import { reloadToLogin } from './restart';
 import { RestartPanel } from './RestartPanel';
-import data from './AdminData.module.css';
-import styles from './AdminTablePage.module.css';
+import styles from './backup/Backup.module.css';
 
-/** Shortest passphrase of a backup with secrets (plan 3.8 point 3). */
-const MIN_PASSPHRASE = 12;
-
-type RestoreUpload = components['schemas']['RestoreUpload'];
-
-const downloadUrl = (backup: Backup) =>
-  apiUrl(`/admin/backups/${encodeURIComponent(backup.name)}/download`);
-
-const restoreBackup = (name: string, passphrase: string): Promise<RestoreResult> =>
-  request(
-    api.POST('/admin/backups/{name}/restore', {
-      params: { path: { name } },
-      body: passphrase ? { passphrase } : {},
-    }),
-  );
-
-function restoreUpload(file: File, passphrase: string): Promise<RestoreResult> {
-  // The server reads the passphrase before the archive streams in (RestoreUpload): it must be the
-  // first part. openapi-fetch sends a FormData as it is; its type knows the parts only as strings.
-  const form = new FormData();
-  if (passphrase) form.append('passphrase', passphrase);
-  form.append('file', file);
-  return request(api.POST('/admin/backups/restore', { body: form as unknown as RestoreUpload }));
-}
+const TABS = ['list', 'create', 'upload'];
+const KINDS = ['manual', 'auto'] as const;
 
 /** A restore the server accepted: it restarts now. `acceptedAt` is when the 202 arrived. */
 interface Restart {
@@ -56,375 +43,313 @@ interface Restart {
   acceptedAt: number;
 }
 
-/** «Sicherung erstellen» (A-4): without secrets (default) or with them behind a passphrase. */
-function CreateDialog({ onClose }: { onClose: (created: Backup | null) => void }) {
-  const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [mode, setMode] = useState<'without' | 'with'>('without');
-  const [passphrase, setPassphrase] = useState('');
-  const create = useTransientMutation(
-    (body: BackupRequest): Promise<Backup> => request(api.POST('/admin/backups', { body })),
-    async (backup) => {
-      await queryClient.invalidateQueries({ queryKey: backupsQuery.queryKey });
-      onClose(backup);
-    },
-  );
-  const errors = create.error ? formErrors(t, create.error) : null;
-
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void create.run(
-      mode === 'with' ? { includeSecrets: true, passphrase } : { includeSecrets: false },
-    );
-  };
-
-  return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose(null);
-      }}
-      title={t('admin.backup.create.title')}
-      description={t('admin.backup.create.intro')}
-    >
-      <Form onSubmit={onSubmit} validationErrors={errors?.fields}>
-        <div className={styles.form}>
-          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-          <RadioGroup
-            name="includeSecrets"
-            label={t('admin.backup.create.scope')}
-            value={mode}
-            onChange={(value) => setMode(value === 'with' ? 'with' : 'without')}
-            options={[
-              { value: 'without', label: t('admin.backup.create.without') },
-              { value: 'with', label: t('admin.backup.create.with') },
-            ]}
-            description={
-              mode === 'with'
-                ? t('admin.backup.create.withHint', { min: MIN_PASSPHRASE })
-                : t('admin.backup.create.withoutHint')
-            }
-          />
-          {mode === 'with' && (
-            <>
-              <TextField
-                name="passphrase"
-                type="password"
-                label={t('admin.backup.create.passphrase')}
-                description={t('admin.backup.create.passphraseHint', { min: MIN_PASSPHRASE })}
-                autoComplete="new-password"
-                isRequired
-                value={passphrase}
-                onChange={setPassphrase}
-                validate={(value) =>
-                  value.length >= MIN_PASSPHRASE
-                    ? null
-                    : t('admin.backup.create.passphraseTooShort', { min: MIN_PASSPHRASE })
-                }
-              />
-              <TextField
-                name="passphraseRepeat"
-                type="password"
-                label={t('admin.backup.create.passphraseRepeat')}
-                autoComplete="new-password"
-                isRequired
-                validate={(value) =>
-                  value === passphrase ? null : t('admin.backup.create.passphraseMismatch')
-                }
-              />
-            </>
-          )}
-          <div className={styles.dialogActions}>
-            <AriaButton variant="ghost" onPress={() => onClose(null)}>
-              {t('common.cancel')}
-            </AriaButton>
-            <AriaButton type="submit" variant="primary" isPending={create.isPending}>
-              {create.isPending
-                ? t('admin.backup.create.creating')
-                : t('admin.backup.create.submit')}
-            </AriaButton>
-          </div>
-        </div>
-      </Form>
-    </FormDialog>
-  );
-}
-
 /**
- * «Wiederherstellen» with input: an uploaded archive (`backup` null) or an encrypted backup of
- * the list. Either way the last step is the confirmation with the warning.
- */
-function RestoreDialog({
-  backup,
-  onClose,
-  onAccepted,
-}: {
-  backup: Backup | null;
-  onClose: () => void;
-  onAccepted: (result: RestoreResult) => void;
-}) {
-  const { t } = useTranslation();
-  const fileId = useId();
-  const [file, setFile] = useState<File | null>(null);
-  const [passphrase, setPassphrase] = useState('');
-  const restore = useTransientMutation(
-    (): Promise<RestoreResult> =>
-      backup ? restoreBackup(backup.name, passphrase) : restoreUpload(file!, passphrase),
-    onAccepted,
-  );
-  const errors = restore.error ? formErrors(t, restore.error) : null;
-  const ready = backup ? passphrase !== '' : file !== null;
-
-  return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      title={
-        backup
-          ? t('admin.backup.restore.titleNamed', { name: backup.name })
-          : t('admin.backup.restore.titleUpload')
-      }
-    >
-      <Form onSubmit={(event) => event.preventDefault()} validationErrors={errors?.fields}>
-        <div className={styles.form}>
-          {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
-          <Notice tone="warning" live={false}>
-            {t('admin.backup.restore.warning')}
-          </Notice>
-          {!backup && (
-            <div className={data.field}>
-              <label htmlFor={fileId} className={data.label}>
-                {t('admin.backup.restore.file')}
-              </label>
-              <input
-                id={fileId}
-                name="file"
-                type="file"
-                accept=".gz,.age"
-                aria-describedby={`${fileId}-hint`}
-                className={data.file}
-                onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
-              />
-              <p id={`${fileId}-hint`} className={data.hint}>
-                {t('admin.backup.restore.fileHint')}
-              </p>
-            </div>
-          )}
-          <TextField
-            name="passphrase"
-            type="password"
-            label={t('admin.backup.restore.passphrase')}
-            description={
-              backup
-                ? t('admin.backup.restore.passphraseHint')
-                : t('admin.backup.restore.passphraseUploadHint')
-            }
-            autoComplete="off"
-            isRequired={backup !== null}
-            value={passphrase}
-            onChange={setPassphrase}
-          />
-          <div className={styles.dialogActions}>
-            <AriaButton variant="ghost" onPress={onClose}>
-              {t('common.cancel')}
-            </AriaButton>
-            <ConfirmDialog
-              trigger={
-                <AriaButton variant="danger" isDisabled={!ready} isPending={restore.isPending}>
-                  {restore.isPending
-                    ? t('admin.backup.restore.running')
-                    : t('admin.backup.restore.action')}
-                </AriaButton>
-              }
-              title={t('admin.backup.restore.confirmTitle')}
-              body={t('admin.backup.restore.confirmBody')}
-              confirmLabel={t('admin.backup.restore.confirm')}
-              cancelLabel={t('common.cancel')}
-              tone="danger"
-              onConfirm={() => {
-                void restore.run(undefined);
-              }}
-            />
-          </div>
-        </div>
-      </Form>
-    </FormDialog>
-  );
-}
-
-/**
- * Backup (A-4): the archives in the backup directory with download, delete and restore, a new
- * backup with or without secrets, and the restore of an uploaded archive. A restore replaces every
- * piece of data and restarts the server; the page then waits for it and opens the sign-in.
+ * Backup (A-4; concept 12, variant C): the archives in the backup directory, one section per kind,
+ * with download, restore and delete; a new backup with or without secrets and the restore of an
+ * uploaded archive in tabs of their own (SIC-1 to SIC-4). A restore replaces every piece of data
+ * and restarts the server; the page then waits for it and opens the sign-in.
  */
 export function BackupPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   useDocumentTitle(t('admin.backup.title'));
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
-  const queryClient = useQueryClient();
-  const [restart, setRestart] = useState<Restart | null>(null);
-  const backups = useQuery({ ...backupsQuery, enabled: allowed && restart === null });
-  const [creating, setCreating] = useState(false);
-  // The dialog of a restore with input: `null` uploads a file, a backup restores that one.
-  const [restoring, setRestoring] = useState<{ backup: Backup | null } | null>(null);
-  const [done, setDone] = useState<string | null>(null);
-  // A deleted row goes away with its button: the focus moves to the page heading.
-  const header = useRef<HTMLDivElement>(null);
+  if (!allowed) {
+    return (
+      <AdminPage title={t('admin.backup.title')}>
+        <Notice title={t('admin.access.notAllowed.title')}>
+          {t('admin.access.notAllowed.body')}
+        </Notice>
+      </AdminPage>
+    );
+  }
+  return <BackupContent />;
+}
 
-  const accepted = (result: RestoreResult) => {
-    setRestoring(null);
-    setRestart({ result, acceptedAt: Date.now() });
+function BackupContent() {
+  const { t, i18n } = useTranslation();
+  const queryClient = useQueryClient();
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+
+  const [restart, setRestart] = useState<Restart | null>(null);
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // The passphrase dialog of an encrypted backup of the list.
+  const [unlocking, setUnlocking] = useState<Backup | null>(null);
+  const hold = confirmOpen || unlocking !== null;
+  const backups = useQuery({
+    ...backupsQuery,
+    enabled: restart === null,
+    refetchOnWindowFocus: !hold,
+  });
+
+  // An unknown `?tab=` shows «Sicherungen»; the address says so too.
+  const [tab, selectTab] = useSearchSelection('tab', TABS, 'list', { normalise: true });
+
+  // The scope of «Neue Sicherung» is the page's: it stays when the tab changes (S-17). The
+  // passphrases are not; they live in the tab only.
+  const [mode, setMode] = useState<CreateMode>('without');
+  const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set());
+  // The backup this page just made, marked «neu» in its row.
+  const [fresh, setFresh] = useState<string | null>(null);
+  // Each message gets its own key, so the same text twice in a row is announced again.
+  const [message, setMessage] = useStatusMessage();
+  const [failure, setFailure] = useState<unknown>(null);
+  const said = (text: string) => {
+    setFailure(null);
+    setMessage(text);
   };
-  // A backup without passphrase restores straight from its row's confirmation.
+  const failed = (error: unknown) => {
+    setMessage(null);
+    setFailure(error);
+  };
+  /** A new action starts: the outcome of the last one (message or error) goes away. */
+  const start = useCallback(() => {
+    setMessage(null);
+    setFailure(null);
+  }, [setMessage]);
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: backupsQuery.queryKey });
+
+  const accepted = useCallback((result: RestoreResult) => {
+    setUnlocking(null);
+    setRestart({ result, acceptedAt: Date.now() });
+  }, []);
+  // The archive of «Aus Datei wiederherstellen» is the page's (not a secret): it survives a tab
+  // change, and so does the answer to its upload. The passphrase is in the request only while it
+  // runs (useTransientMutation).
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const upload = useTransientMutation(
+    ({ file, passphrase }: { file: File; passphrase: string }) => restoreUpload(file, passphrase),
+    accepted,
+  );
+  // A backup without passphrase restores straight from the confirmation.
   const restore = useMutation({
     mutationFn: (backup: Backup) => restoreBackup(backup.name, ''),
     onSuccess: accepted,
+    onError: failed,
   });
   const remove = useMutation({
     mutationFn: (backup: Backup) =>
       request(api.DELETE('/admin/backups/{name}', { params: { path: { name: backup.name } } })),
     onSuccess: async (_data, backup) => {
-      setDone(t('admin.backup.deleted', { name: backup.name }));
-      await queryClient.invalidateQueries({ queryKey: backupsQuery.queryKey });
-      header.current?.focus();
+      said(t('admin.backup.deleted', { name: backup.name }));
+      await invalidate();
+      // The row and its buttons are gone: once the dialog has closed, the h1 takes the focus.
+      await afterDialogsClosed();
+      titleRef.current?.focus();
     },
+    onError: failed,
   });
-  const failure = remove.error ?? restore.error;
-  /** A new action starts: the outcome of the last one (message or error) goes away. */
-  const start = () => {
-    setDone(null);
-    restore.reset();
-    remove.reset();
+
+  // Every confirmation is the page's own: a row that goes while it is open cannot take the
+  // dialog with it.
+  const ask = useCallback(
+    (next: Confirmation) => {
+      start();
+      setConfirmation(next);
+      setConfirmOpen(true);
+    },
+    [start],
+  );
+  const onConfirmOpenChange = useCallback((open: boolean) => {
+    if (open) return;
+    setConfirmOpen(false);
+    // The texts stay for the closing animation; the action goes (it may hold a passphrase).
+    setConfirmation((current) => current && { ...current, onConfirm: () => undefined });
+    // The button that opened it may be gone by now.
+    void afterDialogsClosed().then(() => focusTitleIfLost(titleRef));
+  }, []);
+
+  const { mutate: restoreMutate } = restore;
+  const { mutate: removeMutate } = remove;
+  const askRestore = useCallback(
+    (backup: Backup) => {
+      if (backup.encrypted) {
+        start();
+        setUnlocking(backup);
+        return;
+      }
+      ask({
+        title: t('admin.backup.restore.confirmTitle'),
+        body: t('admin.backup.restore.confirmBodyNamed', { name: backup.name }),
+        confirmLabel: t('admin.backup.restore.confirm'),
+        defaultFocus: 'cancel',
+        onConfirm: () => restoreMutate(backup),
+      });
+    },
+    [ask, start, t, restoreMutate],
+  );
+  const { run: uploadRun } = upload;
+  const askUpload = useCallback(
+    (file: File, passphrase: string) =>
+      ask({
+        title: t('admin.backup.restore.confirmTitle'),
+        body: t('admin.backup.restore.confirmBodyNamed', { name: file.name }),
+        confirmLabel: t('admin.backup.restore.confirm'),
+        defaultFocus: 'cancel',
+        onConfirm: () => void uploadRun({ file, passphrase }),
+      }),
+    [ask, t, uploadRun],
+  );
+  // While a restore runs nothing else starts: the tabs and the rows' menus wait (and while a
+  // backup is deleted, the menus).
+  const restoring = restore.isPending || upload.isPending;
+  const busy = restoring || remove.isPending;
+  const askRemove = useCallback(
+    (backup: Backup) =>
+      ask({
+        title: t('admin.backup.delete.title', { name: backup.name }),
+        body: t('admin.backup.delete.body'),
+        confirmLabel: t('admin.backup.delete.confirm'),
+        onConfirm: () => removeMutate(backup),
+      }),
+    [ask, t, removeMutate],
+  );
+  // «Weitere Aktionen» of a row (S-6): both actions destroy data (a restore replaces all of it),
+  // so both stand under «Gefahr», restore first.
+  const actionsOf = useCallback(
+    (backup: Backup) => (
+      <ActionMenu
+        rowName={backup.name}
+        isDisabled={busy}
+        items={[
+          {
+            id: 'restore',
+            label: t('admin.backup.restore.menu'),
+            icon: 'refresh',
+            danger: true,
+          },
+          { id: 'remove', label: t('admin.backup.delete.action'), icon: 'trash', danger: true },
+        ]}
+        onAction={(action) => (action === 'remove' ? askRemove(backup) : askRestore(backup))}
+      />
+    ),
+    [t, busy, askRestore, askRemove],
+  );
+  const columns = useMemo(
+    () => backupColumns(t, i18n.language, fresh, actionsOf),
+    [t, i18n.language, fresh, actionsOf],
+  );
+
+  const created = async (backup: Backup) => {
+    said(t('admin.backup.created', { name: backup.name }));
+    setFresh(backup.name);
+    setFolded((current) => {
+      const next = new Set(current);
+      next.delete(backup.kind);
+      return next;
+    });
+    await invalidate();
+    // The new backup is a row of «Sicherungen»: that tab shows, and the h1 takes the focus the
+    // form's button had.
+    selectTab('list');
+    await afterDialogsClosed();
+    focusTitleIfLost(titleRef);
   };
 
-  const yesNo = (value: boolean) => (value ? t('admin.backup.yes') : t('admin.backup.no'));
-  const columns: DataColumn<Backup>[] = [
-    {
-      key: 'name',
-      header: t('admin.backup.columns.name'),
-      rowHeader: true,
-      cell: (backup) => <span className={styles.url}>{backup.name}</span>,
-    },
-    {
-      key: 'created',
-      header: t('admin.backup.columns.created'),
-      cell: (backup) => (
-        <time className={styles.nowrap} dateTime={backup.createdAt}>
-          {formatDateTime(backup.createdAt, i18n.language)}
-        </time>
-      ),
-    },
-    {
-      key: 'size',
-      header: t('admin.backup.columns.size'),
-      align: 'end',
-      cell: (backup) => (
-        <span className={styles.numbers}>{formatBytes(backup.sizeBytes, i18n.language)}</span>
-      ),
-    },
-    {
-      key: 'kind',
-      header: t('admin.backup.columns.kind'),
-      cell: (backup) => t(`admin.backup.kinds.${backup.kind}`),
-    },
-    {
-      key: 'secrets',
-      header: t('admin.backup.columns.secrets'),
-      cell: (backup) => yesNo(backup.includesSecrets),
-    },
-    {
-      key: 'encrypted',
-      header: t('admin.backup.columns.encrypted'),
-      cell: (backup) => yesNo(backup.encrypted),
-    },
-    {
-      key: 'actions',
-      header: t('admin.backup.columns.actions'),
-      hideHeader: true,
-      align: 'end',
-      cell: (backup) => (
-        <span className={styles.rowActions}>
-          <ButtonLink
-            variant="ghost"
-            icon="download"
-            href={downloadUrl(backup)}
-            download={backup.name}
-            aria-label={t('admin.backup.download.label', { name: backup.name })}
-          >
-            {t('admin.backup.download.action')}
-          </ButtonLink>
-          {backup.encrypted ? (
-            <AriaButton
-              variant="ghost"
-              aria-label={t('admin.backup.restore.label', { name: backup.name })}
-              onPress={() => {
-                start();
-                setRestoring({ backup });
-              }}
-            >
-              {t('admin.backup.restore.action')}
+  const list = backups.data ?? [];
+  const groups = KINDS.map((kind) => ({
+    kind,
+    rows: list.filter((backup) => backup.kind === kind),
+  })).filter((group) => group.rows.length > 0);
+  const countOf = (count: number) =>
+    t('admin.backup.count', { count, number: number.format(count) });
+
+  const listContent = (
+    <div className={styles.list}>
+      {backups.isPending && <Skeleton shape="block" />}
+      {backups.isError && (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, backups.error)}
+          actions={
+            <AriaButton icon="refresh" onPress={() => void backups.refetch()}>
+              {t('common.retry')}
             </AriaButton>
-          ) : (
-            <ConfirmDialog
-              trigger={
-                <AriaButton
-                  variant="ghost"
-                  aria-label={t('admin.backup.restore.label', { name: backup.name })}
-                >
-                  {t('admin.backup.restore.action')}
-                </AriaButton>
-              }
-              title={t('admin.backup.restore.confirmTitle')}
-              body={t('admin.backup.restore.confirmBodyNamed', { name: backup.name })}
-              confirmLabel={t('admin.backup.restore.confirm')}
-              cancelLabel={t('common.cancel')}
-              tone="danger"
-              onConfirm={() => {
-                start();
-                restore.mutate(backup);
-              }}
-            />
-          )}
-          <ConfirmDialog
-            trigger={
-              <AriaButton
-                variant="ghost"
-                aria-label={t('admin.backup.delete.label', { name: backup.name })}
-              >
-                {t('admin.backup.delete.action')}
-              </AriaButton>
+          }
+        />
+      )}
+      {backups.data?.length === 0 && <Text tone="secondary">{t('admin.backup.empty')}</Text>}
+      {groups.map(({ kind, rows }) => {
+        const name = t(`admin.backup.kinds.${kind}`);
+        const newest = rows.map((backup) => backup.createdAt).sort((a, b) => b.localeCompare(a))[0];
+        const encrypted = rows.filter((backup) => backup.encrypted).length;
+        const meta = [
+          ...(kind === 'manual'
+            ? [t('admin.backup.groups.encrypted', { number: number.format(encrypted) })]
+            : []),
+          ...(newest
+            ? [t('admin.backup.groups.newest', { date: formatDateTime(newest, i18n.language) })]
+            : []),
+        ].join(t('format.separator'));
+        return (
+          <DisclosureGroup
+            key={kind}
+            title={name}
+            count={number.format(rows.length)}
+            countLabel={countOf(rows.length)}
+            meta={<span className={styles.muted}>{meta}</span>}
+            isExpanded={!folded.has(kind)}
+            onExpandedChange={(open) =>
+              setFolded((current) => {
+                const next = new Set(current);
+                if (open) next.delete(kind);
+                else next.add(kind);
+                return next;
+              })
             }
-            title={t('admin.backup.delete.title', { name: backup.name })}
-            body={t('admin.backup.delete.body')}
-            confirmLabel={t('admin.backup.delete.confirm')}
-            cancelLabel={t('common.cancel')}
-            tone="danger"
-            onConfirm={() => {
-              start();
-              remove.mutate(backup);
-            }}
-          />
-        </span>
+          >
+            <div className={styles.groupBody}>
+              {kind === 'auto' && <Text tone="secondary">{t('admin.backup.groups.autoHint')}</Text>}
+              <DataTable
+                caption={t('admin.backup.caption', { kind: name })}
+                columns={columns}
+                rows={rows}
+                rowKey={(backup) => backup.name}
+                layout="fixed"
+              />
+            </div>
+          </DisclosureGroup>
+        );
+      })}
+    </div>
+  );
+
+  const tabs: TabItem[] = [
+    {
+      id: 'list',
+      label: t('admin.backup.tabs.list'),
+      ...(backups.data
+        ? { count: number.format(list.length), countLabel: countOf(list.length) }
+        : {}),
+      content: listContent,
+    },
+    {
+      id: 'create',
+      label: t('admin.backup.tabs.create'),
+      content: <CreateTab mode={mode} onModeChange={setMode} onCreated={created} />,
+    },
+    {
+      id: 'upload',
+      label: t('admin.backup.tabs.upload'),
+      content: (
+        <UploadTab
+          file={uploadFile}
+          onFileChange={setUploadFile}
+          error={upload.error}
+          isPending={upload.isPending}
+          onRestore={askUpload}
+        />
       ),
     },
   ];
 
   return (
-    <Page>
-      <div ref={header} tabIndex={-1} className={styles.header}>
-        <Text as="h1" variant="display">
-          {t('admin.backup.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.backup.intro')}</Text>
-      </div>
-      {!allowed ? (
-        <Notice title={t('admin.access.notAllowed.title')}>
-          {t('admin.access.notAllowed.body')}
-        </Notice>
-      ) : restart ? (
+    <AdminPage title={t('admin.backup.title')} help={t('admin.backup.intro')} titleRef={titleRef}>
+      {failure !== null && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
+      <StatusRegion message={failure === null ? message : null} />
+      {restart ? (
         <RestartPanel
           acceptedAt={restart.acceptedAt}
           title={t('admin.backup.restart.title')}
@@ -439,67 +364,43 @@ export function BackupPage() {
           onBack={reloadToLogin}
         />
       ) : (
-        <div className={styles.body} aria-busy={backups.isPending}>
-          <div className={data.toolbar}>
-            <AriaButton
-              variant="primary"
-              icon="plus"
-              onPress={() => {
-                start();
-                setCreating(true);
-              }}
-            >
-              {t('admin.backup.create.action')}
-            </AriaButton>
-            <AriaButton
-              onPress={() => {
-                start();
-                setRestoring({ backup: null });
-              }}
-            >
-              {t('admin.backup.restore.upload')}
-            </AriaButton>
-          </div>
-          {failure && <Notice tone="danger">{problemMessage(t, failure)}</Notice>}
-          {done && !failure && <Notice>{done}</Notice>}
-          {backups.isPending && <Skeleton shape="block" />}
-          {backups.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, backups.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void backups.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {backups.data?.length === 0 && <Notice>{t('admin.backup.empty')}</Notice>}
-          {backups.data && backups.data.length > 0 && (
-            <DataTable
-              caption={t('admin.backup.list')}
-              columns={columns}
-              rows={backups.data}
-              rowKey={(backup) => backup.name}
-            />
-          )}
-        </div>
-      )}
-      {creating && !restart && (
-        <CreateDialog
-          onClose={(created) => {
-            if (created) setDone(t('admin.backup.created', { name: created.name }));
-            setCreating(false);
+        <BandPanel
+          title={t('admin.backup.list')}
+          hideTitle
+          icon="archive"
+          tabs={{
+            label: t('admin.backup.tabs.label'),
+            selectedKey: tab,
+            onSelectionChange: (key) => {
+              start();
+              selectTab(key);
+            },
+            isDisabled: restoring,
+            tabs,
           }}
         />
       )}
-      {restoring && !restart && (
-        <RestoreDialog
-          backup={restoring.backup}
-          onClose={() => setRestoring(null)}
+      {confirmation && (
+        <ConfirmDialog
+          isOpen={confirmOpen}
+          onOpenChange={onConfirmOpenChange}
+          title={confirmation.title}
+          body={confirmation.body}
+          confirmLabel={confirmation.confirmLabel}
+          cancelLabel={t('common.cancel')}
+          tone="danger"
+          defaultFocus={confirmation.defaultFocus}
+          onConfirm={confirmation.onConfirm}
+        />
+      )}
+      {unlocking && !restart && (
+        <PassphraseDialog
+          backup={unlocking}
+          ask={ask}
+          onClose={() => setUnlocking(null)}
           onAccepted={accepted}
         />
       )}
-    </Page>
+    </AdminPage>
   );
 }

@@ -3,14 +3,21 @@ import type {
   Library,
   LibraryImages,
   LibraryMetadata,
-  LibraryMetadataUpdate,
   MetadataProviderInfo,
   MetadataSettings,
   MetadataSettingsUpdate,
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useId, useMemo, useState, type ReactNode } from 'react';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { getRouteApi } from '@tanstack/react-router';
 import { formErrors, problemMessage } from '@/api/errors';
@@ -18,8 +25,26 @@ import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Chip, Notice, Page, Panel, SelectField, Skeleton, Text, TextLink } from '@/ui';
-import { AriaButton, CheckboxGroup, RadioGroup, Switch } from '@/ui/aria';
+import { Chip, Notice, Panel, SelectField, Skeleton, Text, TextLink, VisuallyHidden } from '@/ui';
+import {
+  AdminPage,
+  AriaButton,
+  CheckboxGroup,
+  ConfirmDialog,
+  MasterDetail,
+  RadioGroup,
+  RankedChoiceList,
+  SaveBar,
+  SectionHeader,
+  SettingRow,
+  StatusRegion,
+  Switch,
+  useDrafts,
+  useSearchSelection,
+  useStatusMessage,
+  useUnsavedChanges,
+  type MasterDetailItem,
+} from '@/ui/aria';
 import {
   applyMetadata,
   jobTypesQuery,
@@ -30,14 +55,16 @@ import {
   updateLibraryMetadata,
   updateMetadataSettings,
 } from './queries';
-import styles from './MetadataPage.module.css';
-import table from './AdminTablePage.module.css';
+import styles from './metadata/Metadata.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/metadata');
 
 /** The chain kinds in the order of the page. */
 const CHAIN_KINDS = ['poster', 'backdrop', 'logo'] as const;
 type ChainKind = (typeof CHAIN_KINDS)[number];
+
+/** The image kinds that are always fetched. */
+const ALWAYS_KINDS = ['poster', 'backdrop'] as const;
 
 /** The switchable image kinds (poster and backdrop are always on, E-1). */
 const SWITCHABLE = ['logo', 'season_poster', 'episode_still'] as const;
@@ -51,32 +78,45 @@ type Country = (typeof COUNTRIES)[number];
 /** The YouTube quota: 10'000 units a day, a search costs 100 (ADR 0006). */
 const YOUTUBE_SEARCHES_PER_DAY = 100;
 
-/** The select value of the chain entry "no text" (the empty language code cannot be an option value). */
-const NO_TEXT = '__none__';
+/** The scope id of the server default; a library's scope id is its id. */
+const SERVER = 'server';
 
-/** The segments show up to five libraries; above that a select picks the scope. */
-const MAX_SEGMENTS = 5;
+/** The settings areas of the list (Met-B); a library has only the two it can deviate in. */
+const SERVER_AREAS = ['languages', 'images', 'quality', 'sources', 'rating', 'apply'] as const;
+const LIBRARY_AREAS = ['languages', 'images'] as const;
+type Area = (typeof SERVER_AREAS)[number];
 
-/** The server part of the form: everything but the counts. */
+/** The draft of the server default: everything `PUT` takes. */
 type ServerValues = MetadataSettingsUpdate;
 
-/** The library part of the form: the two switches with the values they carry. */
+/** The draft of a library: its two deviations, null where it follows the default. */
 interface LibraryValues {
-  textsDeviate: boolean;
-  textLangs: string[];
-  imagesDeviate: boolean;
-  imageLangs: ImageLangs;
-  imageKinds: LibraryImages['kinds'];
+  textLangs: string[] | null;
+  images: LibraryImages | null;
 }
+
+/** What the drafts hold per scope id (S-17): the default under SERVER, a library under its id. */
+type ScopeValues = ServerValues | LibraryValues;
+
+/** The image part a page shows: the chains and the switchable kinds. */
+interface ImagesView {
+  langs: ImageLangs;
+  kinds: Switchable[];
+}
+
+const switchable = (kinds: readonly string[]): Switchable[] =>
+  kinds.filter((kind): kind is Switchable => (SWITCHABLE as readonly string[]).includes(kind));
+
+const copyLangs = (langs: ImageLangs): ImageLangs => ({
+  poster: [...langs.poster],
+  backdrop: [...langs.backdrop],
+  logo: [...langs.logo],
+});
 
 function serverValues(s: MetadataSettings): ServerValues {
   return {
     textLangs: [...s.textLangs],
-    imageLangs: {
-      poster: [...s.imageLangs.poster],
-      backdrop: [...s.imageLangs.backdrop],
-      logo: [...s.imageLangs.logo],
-    },
+    imageLangs: copyLangs(s.imageLangs),
     imageKinds: [...s.imageKinds],
     imageMinWidth: { ...s.imageMinWidth },
     imageByVote: s.imageByVote,
@@ -89,24 +129,27 @@ function serverValues(s: MetadataSettings): ServerValues {
 
 function libraryValues(lm: LibraryMetadata): LibraryValues {
   return {
-    textsDeviate: lm.textLangs != null,
-    textLangs: [...(lm.textLangs ?? lm.effective.textLangs)],
-    imagesDeviate: lm.images != null,
-    imageLangs: {
-      poster: [...(lm.images?.langs.poster ?? lm.effective.imageLangs.poster)],
-      backdrop: [...(lm.images?.langs.backdrop ?? lm.effective.imageLangs.backdrop)],
-      logo: [...(lm.images?.langs.logo ?? lm.effective.imageLangs.logo)],
-    },
-    imageKinds: [...(lm.images?.kinds ?? lm.effective.imageKinds)],
+    textLangs: lm.textLangs ? [...lm.textLangs] : null,
+    images: lm.images ? { langs: copyLangs(lm.images.langs), kinds: [...lm.images.kinds] } : null,
   };
 }
 
-function libraryUpdate(v: LibraryValues): LibraryMetadataUpdate {
-  return {
-    textLangs: v.textsDeviate ? v.textLangs : null,
-    images: v.imagesDeviate ? { langs: v.imageLangs, kinds: v.imageKinds } : null,
-  };
-}
+/** The image settings a library inherits from the default. */
+const inheritedImages = (lm: LibraryMetadata): ImagesView => ({
+  langs: copyLangs(lm.effective.imageLangs),
+  kinds: switchable(lm.effective.imageKinds),
+});
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** The fields of the default that each area edits, for the «geändert» mark in the list. */
+const SERVER_FIELDS: Record<Exclude<Area, 'apply'>, (keyof ServerValues)[]> = {
+  languages: ['textLangs'],
+  images: ['imageLangs', 'imageKinds'],
+  quality: ['imageMinWidth', 'imageByVote'],
+  sources: ['tmdbIncludeAdult', 'localImages', 'fanartEnabled'],
+  rating: ['ratingCountry'],
+};
 
 /** The display name of a language code in the interface language (rule 9: no name in the code). */
 function useLanguageName(): (code: string) => string {
@@ -118,143 +161,71 @@ function useLanguageName(): (code: string) => string {
   return (code: string) => (code ? (names.of(code) ?? code) : '');
 }
 
-function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
-  if (to < 0 || to >= list.length) return [...list];
-  const out = [...list];
-  const [item] = out.splice(from, 1);
-  out.splice(to, 0, item as T);
-  return out;
-}
+/**
+ * The rule of a text language list (MET-2, as the server checks it in
+ * `metadata/settings.go`): the default needs German, a library German or English.
+ */
+const satisfiesDefault = (list: readonly string[]) => list.includes('de');
+const satisfiesLibrary = (list: readonly string[]) => list.includes('de') || list.includes('en');
 
 /**
- * An ordered list of language codes as chips (7.1): the position, the name, move forward or back,
- * remove; a picker adds one of the known codes. The last de/en of a text list cannot be removed
- * (E-9); a chain may hold "" (no text).
+ * An ordered list of language codes as fixed places (concept 12, 10.2): «1. Sprache», «2.
+ * Sprache» … each with a select of every known language; picking one that sits on another place
+ * swaps the two. «Weitere Sprache» appends a place, «×» removes one. `satisfies` is the rule of
+ * the list: choices and removals that would break it are off; a chain offers "" (no text).
  */
-function LanguageChips({
-  label,
+function LanguageRanks({
   value,
   onChange,
   known,
   allowNoText,
-  protectUI,
+  satisfies,
   disabled,
 }: {
-  label: string;
   value: string[];
   onChange: (value: string[]) => void;
   known: readonly string[];
   allowNoText?: boolean;
-  protectUI?: boolean;
+  satisfies?: (list: readonly string[]) => boolean;
   disabled?: boolean;
 }) {
   const { t } = useTranslation();
   const nameOf = useLanguageName();
-  const id = useId();
-  const [adding, setAdding] = useState('');
-  const display = (code: string) =>
-    code === '' ? t('admin.metadata.images.noText') : nameOf(code);
-  const uiCount = value.filter((code) => code === 'de' || code === 'en').length;
-  const options = useMemo(() => {
-    const rest = known.filter((code) => !value.includes(code));
-    const list = rest.map((code) => ({ code, name: nameOf(code) }));
-    list.sort((a, b) => a.name.localeCompare(b.name));
-    return allowNoText && !value.includes('')
-      ? [{ code: '', name: t('admin.metadata.images.noText') }, ...list]
-      : list;
+  const choices = useMemo(() => {
+    const codes = [...new Set([...known, ...value.filter((code) => code !== '')])];
+    const list = codes.map((code) => ({ value: code, label: nameOf(code) }));
+    list.sort((a, b) => a.label.localeCompare(b.label));
+    return allowNoText ? [{ value: '', label: t('admin.metadata.images.noText') }, ...list] : list;
   }, [known, value, allowNoText, nameOf, t]);
   return (
-    <div className={styles.block} role="group" aria-labelledby={`${id}-label`}>
-      <span id={`${id}-label`} className={styles.hint}>
-        {label}
-      </span>
-      <ol className={styles.chips}>
-        {value.map((code, index) => {
-          const removable =
-            !disabled && !(protectUI && (code === 'de' || code === 'en') && uiCount <= 1);
-          return (
-            <li key={code || 'none'} className={styles.chipRow}>
-              <span className={styles.chipIndex}>
-                {t('admin.metadata.languages.position', { index: index + 1 })}
-              </span>
-              <span className={styles.chipName}>{display(code)}</span>
-              <span className={styles.chipButtons}>
-                <AriaButton
-                  variant="ghost"
-                  icon="chevronLeft"
-                  isDisabled={disabled || index === 0}
-                  aria-label={t('admin.metadata.languages.moveUp', { name: display(code) })}
-                  onPress={() => onChange(moveItem(value, index, index - 1))}
-                />
-                <AriaButton
-                  variant="ghost"
-                  icon="chevronRight"
-                  isDisabled={disabled || index === value.length - 1}
-                  aria-label={t('admin.metadata.languages.moveDown', { name: display(code) })}
-                  onPress={() => onChange(moveItem(value, index, index + 1))}
-                />
-                <AriaButton
-                  variant="ghost"
-                  icon="close"
-                  isDisabled={!removable}
-                  aria-label={t('admin.metadata.languages.remove', { name: display(code) })}
-                  onPress={() => onChange(value.filter((_, i) => i !== index))}
-                />
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      {!disabled && options.length > 0 && (
-        <div className={styles.add}>
-          <SelectField
-            label={t('admin.metadata.languages.addLabel')}
-            value={adding}
-            onChange={setAdding}
-            options={[
-              { value: '', label: t('admin.metadata.languages.add') },
-              ...options.map((option) => ({ value: option.code || NO_TEXT, label: option.name })),
-            ]}
-          />
-          <AriaButton
-            variant="secondary"
-            isDisabled={adding === ''}
-            onPress={() => {
-              onChange([...value, adding === NO_TEXT ? '' : adding]);
-              setAdding('');
-            }}
-          >
-            {t('admin.metadata.languages.addButton')}
-          </AriaButton>
-        </div>
-      )}
-    </div>
+    <RankedChoiceList
+      choices={choices}
+      value={value}
+      onChange={onChange}
+      rankLabel={(index) => t('admin.metadata.languages.rank', { position: index + 1 })}
+      addLabel={t('admin.metadata.languages.more')}
+      isAllowed={satisfies}
+      isDisabled={disabled}
+    />
   );
 }
 
-function Section({
+/** One settings area in the detail: a section named by its h2 (S-3). */
+function AreaPanel({
   title,
   intro,
-  aside,
+  actions,
   children,
 }: {
   title: string;
   intro: string;
-  aside?: ReactNode;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const id = useId();
   return (
     <Panel as="section" aria-labelledby={id}>
-      <div className={styles.head}>
-        <div className={styles.headText}>
-          <h2 id={id} className={styles.title}>
-            {title}
-          </h2>
-          <Text tone="secondary">{intro}</Text>
-        </div>
-        {aside}
-      </div>
+      <SectionHeader id={id} title={title} description={intro} actions={actions} />
       {children}
     </Panel>
   );
@@ -264,6 +235,7 @@ function Section({
 function unknownLanguages(
   t: TFunction,
   nameOf: (code: string) => string,
+  listOf: (items: string[]) => string,
   providers: MetadataProviderInfo[],
   langs: string[],
 ): string[] {
@@ -275,7 +247,7 @@ function unknownLanguages(
       lines.push(
         t('admin.metadata.languages.unknownAt', {
           provider: p.id.toUpperCase(),
-          languages: missing.map(nameOf).join(', '),
+          languages: listOf(missing.map(nameOf)),
         }),
       );
     }
@@ -283,20 +255,24 @@ function unknownLanguages(
   return lines;
 }
 
-/** The "Anwenden" section: what, where, the button, the waiting children of the jobs page. */
+/** The area "Anwenden": what, where, the button, the waiting children of the jobs page. */
 function ApplySection({
   libraries,
+  titlesOf,
   settings,
+  paused,
 }: {
   libraries: Library[];
+  titlesOf: (id: number) => number | undefined;
   settings: MetadataSettings;
+  paused: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [what, setWhat] = useState<'both' | 'texts' | 'images'>('both');
   const [where, setWhere] = useState('all');
-  const [message, setMessage] = useState<string | null>(null);
-  const jobTypes = useQuery({ ...jobTypesQuery, refetchInterval: 10_000 });
+  const [message, setMessage] = useStatusMessage();
+  const jobTypes = useQuery({ ...jobTypesQuery, refetchInterval: paused ? false : 10_000 });
   const run = useMutation({
     mutationFn: applyMetadata,
     onSuccess: async (result) => {
@@ -307,9 +283,10 @@ function ApplySection({
   const waiting = (type: string) =>
     jobTypes.data?.types.find((entry) => entry.type === type)?.counts.queued ?? 0;
   const lastRun = jobTypes.data?.types.find((entry) => entry.type === 'metadata.apply')?.lastRun;
-  const video = libraries.filter((library) => library.kind === 'video');
+  const withTitles = (name: string, count: number | undefined) =>
+    count === undefined ? name : `${name} (${t('admin.metadata.apply.titles', { count })})`;
   return (
-    <Section title={t('admin.metadata.apply.title')} intro={t('admin.metadata.apply.intro')}>
+    <AreaPanel title={t('admin.metadata.apply.title')} intro={t('admin.metadata.apply.intro')}>
       <div className={styles.fields}>
         <RadioGroup
           name="what"
@@ -330,9 +307,12 @@ function ApplySection({
           options={[
             {
               value: 'all',
-              label: `${t('admin.metadata.apply.all')} (${t('admin.metadata.apply.titles', { count: settings.affectedTitles })})`,
+              label: withTitles(t('admin.metadata.apply.all'), settings.affectedTitles),
             },
-            ...video.map((library) => ({ value: String(library.id), label: library.name })),
+            ...libraries.map((library) => ({
+              value: String(library.id),
+              label: withTitles(library.name, titlesOf(library.id)),
+            })),
           ]}
         />
       </div>
@@ -353,9 +333,7 @@ function ApplySection({
         <TextLink href={paths.adminJobs}>{t('admin.metadata.apply.jobsLink')}</TextLink>
       </div>
       {run.error ? <Notice tone="danger">{problemMessage(t, run.error)}</Notice> : null}
-      <div role="status" className={styles.live}>
-        {message && !run.error && <Notice live={false}>{message}</Notice>}
-      </div>
+      <StatusRegion message={!run.error ? message : null} />
       {jobTypes.data && (
         <Text tone="secondary" variant="caption">
           {t('admin.metadata.apply.waiting', {
@@ -373,480 +351,694 @@ function ApplySection({
             : t('admin.metadata.apply.noRun')}
         </Text>
       )}
-    </Section>
+    </AreaPanel>
   );
 }
 
 /**
- * The page "Metadaten" (concept 10, 7.1, ADR 0018): scope (server default or one library),
- * languages, images, quality, sources, rating country and the apply run; a sticky save bar. A
- * library edits only its two deviations; everything else is dimmed and read-only there.
+ * The page "Metadaten" (concept 10, ADR 0018; layout concept 12 Met-B): the scope (the server
+ * default or one video library) as a select in the header, bound to `?library=`; the settings
+ * areas in a list on the left (`?item=`), the selected area on the right. A library edits only
+ * its two deviations. Unsaved changes are kept per scope (useDrafts, S-17), so switching scope or
+ * area loses nothing; one save bar saves every changed scope, the default first, then the
+ * libraries in list order, and stops at the first failure.
  */
 export function MetadataPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useDocumentTitle(t('admin.metadata.title'));
   const session = useActiveSession();
   const allowed = session.account.role === 'admin' && session.profile.isPrimary;
   const queryClient = useQueryClient();
   const nameOf = useLanguageName();
+  const navigate = route.useNavigate();
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const settings = useQuery({ ...metadataSettingsQuery, enabled: allowed });
   const libraries = useQuery({ ...librariesQuery, enabled: allowed });
   const providers = useQuery({ ...metadataProvidersQuery, enabled: allowed });
-  const videoLibraries = (libraries.data ?? []).filter((library) => library.kind === 'video');
+  const videoLibraries = useMemo(
+    () => (libraries.data ?? []).filter((library) => library.kind === 'video'),
+    [libraries.data],
+  );
+  // Every library's deviation is loaded: its draft must keep its original while another scope
+  // is shown, and the save messages and the apply list name its titles.
+  const libraryMetas = useQueries({
+    queries: videoLibraries.map((library) => ({
+      ...libraryMetadataQuery(library.id),
+      enabled: allowed,
+    })),
+  });
+  const metaQueryOf = (id: string) =>
+    libraryMetas[videoLibraries.findIndex((library) => String(library.id) === id)];
+
+  const originalOf = (id: string): ScopeValues | undefined => {
+    if (id === SERVER) return settings.data ? serverValues(settings.data) : undefined;
+    const meta = metaQueryOf(id)?.data;
+    return meta ? libraryValues(meta) : undefined;
+  };
+  const drafts = useDrafts<ScopeValues>(originalOf);
+  const unsaved = useUnsavedChanges(drafts.dirty, { keep: ['library'] });
+  // The drafts of the last render, for a save that is still waiting for the server: what was
+  // typed meanwhile must not be dropped with the saved scope.
+  const latestDrafts = useRef(drafts);
+  useLayoutEffect(() => {
+    latestDrafts.current = drafts;
+  });
 
   const { library: wanted } = route.useSearch();
-  const [scope, setScope] = useState<string>(wanted ? String(wanted) : 'server');
-  const libraryId = scope === 'server' ? undefined : Number(scope);
-  const libraryMeta = useQuery({
-    ...libraryMetadataQuery(libraryId ?? 0),
-    enabled: allowed && libraryId !== undefined,
-  });
+  const wantedKnown =
+    wanted !== undefined && videoLibraries.some((library) => library.id === wanted);
+  const scope = wantedKnown ? String(wanted) : SERVER;
+  // An unknown `?library=` (deleted, or not a video library) leaves the address once the list is
+  // there; the page shows the default meanwhile.
+  const staleLibrary = libraries.data !== undefined && wanted !== undefined && !wantedKnown;
+  useEffect(() => {
+    if (staleLibrary)
+      void navigate({
+        to: '.',
+        replace: true,
+        search: (previous) => ({ ...previous, library: undefined }),
+      });
+  }, [staleLibrary, navigate]);
+  const inLibrary = scope !== SERVER;
+  const selectScope = (id: string) =>
+    void navigate({
+      to: '.',
+      replace: true,
+      search: (previous) => ({ ...previous, library: id === SERVER ? undefined : Number(id) }),
+    });
+  const [area, selectArea] = useSearchSelection(
+    'item',
+    inLibrary ? LIBRARY_AREAS : SERVER_AREAS,
+    'languages',
+  );
 
-  // The form values follow the loaded data: when a query delivers a new object (first load, a
-  // save, another scope), the values are seeded from it again during the render (the React way
-  // of adjusting state to a changed prop; no effect, no extra render pass).
-  const [server, setServer] = useState<ServerValues | null>(null);
-  const [serverSource, setServerSource] = useState<MetadataSettings | undefined>(undefined);
-  const [library, setLibrary] = useState<LibraryValues | null>(null);
-  const [librarySource, setLibrarySource] = useState<LibraryMetadata | undefined>(undefined);
-  const [message, setMessage] = useState<string | null>(null);
-  if (settings.data !== serverSource) {
-    setServerSource(settings.data);
-    setServer(settings.data ? serverValues(settings.data) : null);
+  const scopeIds = [SERVER, ...videoLibraries.map((library) => String(library.id))];
+  const scopeName = (id: string) =>
+    id === SERVER
+      ? t('admin.metadata.scope.server')
+      : (videoLibraries.find((library) => String(library.id) === id)?.name ?? id);
+  /** The changed scopes in save order: the default first, then the libraries in list order. */
+  const dirtyScopes = scopeIds.filter((id) => drafts.isDirty(id));
+  const listOf = (names: string[]) =>
+    new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(names);
+
+  const [saving, setSaving] = useState(false);
+  const [savedMessages, setSavedMessages] = useState<{ scope: string; text: string }[]>([]);
+  const [failure, setFailure] = useState<{ scope: string; error: unknown } | null>(null);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  // The last deviating lists of a library whose «abweichend» was switched off, so switching it on
+  // again brings them back (S-13).
+  const [parked, setParked] = useState<
+    Record<string, { textLangs?: string[]; images?: LibraryImages }>
+  >({});
+  // Input of a scope that changed while its save waited for the server, to be put back as a
+  // draft once the page sees the saved values as the original (L-5): a field set back to the
+  // old value during the save would otherwise turn into the saved one.
+  const [restores, setRestores] = useState<
+    { id: string; value: ScopeValues; original: ScopeValues }[]
+  >([]);
+  const due = restores.filter((entry) => same(originalOf(entry.id), entry.original));
+  if (due.length > 0) {
+    setRestores(restores.filter((entry) => !due.includes(entry)));
+    for (const entry of due) drafts.set(entry.id, entry.value);
   }
-  if (libraryMeta.data !== librarySource) {
-    setLibrarySource(libraryMeta.data);
-    setLibrary(libraryMeta.data ? libraryValues(libraryMeta.data) : null);
-  }
+  const errors = failure ? formErrors(t, failure.error) : null;
+  const fieldError = (field: string) =>
+    failure?.scope === scope ? errors?.fields?.[field] : undefined;
 
-  const dirty =
-    (settings.data &&
-      server &&
-      JSON.stringify(server) !== JSON.stringify(serverValues(settings.data))) ||
-    (libraryMeta.data &&
-      library &&
-      JSON.stringify(library) !== JSON.stringify(libraryValues(libraryMeta.data)));
-
-  const saveServer = useMutation({
-    mutationFn: updateMetadataSettings,
-    onSuccess: async (stored) => {
-      queryClient.setQueryData(metadataSettingsQuery.queryKey, stored);
-      setMessage(t('admin.metadata.save.saved', { count: stored.affectedTitles }));
+  const onSave = async () => {
+    const queue = dirtyScopes.map((id) => ({ id, values: drafts.valueOf(id) }));
+    setSaving(true);
+    setSavedMessages([]);
+    setFailure(null);
+    const messages: { scope: string; text: string }[] = [];
+    let serverSaved = false;
+    for (const { id, values } of queue) {
+      if (!values) continue;
+      try {
+        let latest: ScopeValues | undefined;
+        let original: ScopeValues;
+        let titles: number;
+        if (id === SERVER) {
+          const stored = await updateMetadataSettings(values as ServerValues);
+          latest = latestDrafts.current.valueOf(id);
+          queryClient.setQueryData(metadataSettingsQuery.queryKey, stored);
+          serverSaved = true;
+          original = serverValues(stored);
+          titles = stored.affectedTitles;
+        } else {
+          const stored = await updateLibraryMetadata(Number(id), values);
+          latest = latestDrafts.current.valueOf(id);
+          queryClient.setQueryData(libraryMetadataQuery(Number(id)).queryKey, stored);
+          original = libraryValues(stored);
+          titles = stored.affectedTitles;
+        }
+        messages.push({
+          scope: id,
+          text: t('admin.metadata.save.savedScope', { name: scopeName(id), count: titles }),
+        });
+        // The draft is spent only while it is still what was sent; what was typed meanwhile
+        // (also a field set back to its old value) stays as a draft against the saved values.
+        if (latest === undefined || same(latest, values)) drafts.discard(id);
+        else setRestores((current) => [...current, { id, value: latest, original }]);
+        setSavedMessages([...messages]);
+      } catch (error) {
+        // Stop here: this scope and the ones after it keep their drafts.
+        setFailure({ scope: id, error });
+        break;
+      }
+    }
+    setSaving(false);
+    // A library that follows the default shows the new default.
+    if (serverSaved)
       await queryClient.invalidateQueries({ queryKey: ['admin', 'library-metadata'] });
-      await queryClient.invalidateQueries({ queryKey: ['session'] });
-    },
-  });
-  const saveLibrary = useMutation({
-    mutationFn: (body: LibraryMetadataUpdate) => updateLibraryMetadata(libraryId ?? 0, body),
-    onSuccess: async (stored) => {
-      queryClient.setQueryData(libraryMetadataQuery(libraryId ?? 0).queryKey, stored);
-      setMessage(
-        t('admin.metadata.save.savedLibrary', {
-          name: videoLibraries.find((l) => l.id === libraryId)?.name ?? '',
-        }),
-      );
-      await queryClient.invalidateQueries({ queryKey: ['session'] });
-    },
-  });
-  const saving = saveServer.isPending || saveLibrary.isPending;
-  const saveError = saveServer.error ?? saveLibrary.error;
-  const errors = saveError ? formErrors(t, saveError) : null;
-  const fieldError = (field: string) => errors?.fields?.[field];
-  const textLangsError = fieldError('textLangs');
-  const ratingCountryError = fieldError('ratingCountry');
-
-  const onSave = () => {
-    setMessage(null);
-    saveServer.reset();
-    saveLibrary.reset();
-    if (libraryId !== undefined && library) void saveLibrary.mutate(libraryUpdate(library));
-    else if (server) void saveServer.mutate(server);
+    if (messages.length > 0) await queryClient.invalidateQueries({ queryKey: ['session'] });
   };
   const onDiscard = () => {
-    setMessage(null);
-    if (settings.data) setServer(serverValues(settings.data));
-    if (libraryMeta.data) setLibrary(libraryValues(libraryMeta.data));
+    drafts.discardAll();
+    setParked({});
+    setRestores([]);
+    setSavedMessages([]);
+    setFailure(null);
+    // «Verwerfen» went with the changes; the focus goes to the page head (ALL-2).
+    requestAnimationFrame(() => titleRef.current?.focus());
   };
 
+  const selectedMeta = inLibrary ? metaQueryOf(scope) : undefined;
+  const lm = selectedMeta?.data;
+  const serverDraft = drafts.valueOf(SERVER) as ServerValues | undefined;
+  const libraryDraft = inLibrary ? (drafts.valueOf(scope) as LibraryValues | undefined) : undefined;
   const known = settings.data?.knownLanguages ?? [];
-  const effective = libraryId !== undefined ? libraryMeta.data?.effective : settings.data;
-  const inLibrary = libraryId !== undefined;
-  const textsEditable = !inLibrary || (library?.textsDeviate ?? false);
-  const imagesEditable = !inLibrary || (library?.imagesDeviate ?? false);
-  const textLangs = inLibrary ? library?.textLangs : server?.textLangs;
-  const imageLangs = inLibrary ? library?.imageLangs : server?.imageLangs;
-  const imageKinds = inLibrary ? library?.imageKinds : server?.imageKinds;
+
+  const setServer = (change: (values: ServerValues) => ServerValues) =>
+    drafts.set(SERVER, (values) => change(values as ServerValues));
+  const setLibrary = (change: (values: LibraryValues) => LibraryValues) =>
+    drafts.set(scope, (values) => change(values as LibraryValues));
+
+  const textLangs = inLibrary
+    ? lm && libraryDraft && (libraryDraft.textLangs ?? lm.effective.textLangs)
+    : serverDraft?.textLangs;
+  const textsEditable = !inLibrary || (libraryDraft?.textLangs ?? null) !== null;
+  const images: ImagesView | undefined = inLibrary
+    ? lm && libraryDraft && (libraryDraft.images ?? inheritedImages(lm))
+    : serverDraft && { langs: serverDraft.imageLangs, kinds: switchable(serverDraft.imageKinds) };
+  const imagesEditable = !inLibrary || (libraryDraft?.images ?? null) !== null;
+
   const setTextLangs = (langs: string[]) =>
     inLibrary
-      ? setLibrary((v) => v && { ...v, textLangs: langs })
-      : setServer((v) => v && { ...v, textLangs: langs });
+      ? setLibrary((values) => ({ ...values, textLangs: langs }))
+      : setServer((values) => ({ ...values, textLangs: langs }));
+  const setImages = (change: (view: ImagesView) => ImagesView) => {
+    if (inLibrary) {
+      if (!lm) return;
+      setLibrary((values) => ({ ...values, images: change(values.images ?? inheritedImages(lm)) }));
+    } else {
+      setServer((values) => {
+        const next = change({ langs: values.imageLangs, kinds: switchable(values.imageKinds) });
+        return { ...values, imageLangs: next.langs, imageKinds: next.kinds };
+      });
+    }
+  };
   const setChain = (kind: ChainKind, chain: string[]) =>
-    inLibrary
-      ? setLibrary((v) => v && { ...v, imageLangs: { ...v.imageLangs, [kind]: chain } })
-      : setServer((v) => v && { ...v, imageLangs: { ...v.imageLangs, [kind]: chain } });
-  const setKinds = (kinds: string[]) => {
-    const typed = kinds.filter((kind): kind is Switchable =>
-      (SWITCHABLE as readonly string[]).includes(kind),
-    );
-    if (inLibrary) setLibrary((v) => v && { ...v, imageKinds: typed });
-    else setServer((v) => v && { ...v, imageKinds: typed });
+    setImages((view) => ({ ...view, langs: { ...view.langs, [kind]: chain } }));
+
+  /**
+   * «abweichend» of a library: off keeps the deviating list aside, on brings it back (or starts
+   * from the default when there is none).
+   */
+  const toggleTexts = (on: boolean) => {
+    if (!lm || !libraryDraft) return;
+    if (!on && libraryDraft.textLangs)
+      setParked((all) => ({
+        ...all,
+        [scope]: { ...all[scope], textLangs: libraryDraft.textLangs! },
+      }));
+    setLibrary((values) => ({
+      ...values,
+      textLangs: on ? (parked[scope]?.textLangs ?? [...lm.effective.textLangs]) : null,
+    }));
+  };
+  const toggleImages = (on: boolean) => {
+    if (!lm || !libraryDraft) return;
+    if (!on && libraryDraft.images)
+      setParked((all) => ({ ...all, [scope]: { ...all[scope], images: libraryDraft.images! } }));
+    setLibrary((values) => ({
+      ...values,
+      images: on ? (parked[scope]?.images ?? inheritedImages(lm)) : null,
+    }));
   };
 
-  const scopeOptions = [
-    { value: 'server', label: t('admin.metadata.scope.server') },
-    ...videoLibraries.map((l) => ({ value: String(l.id), label: l.name })),
-  ];
-  const scopeName = videoLibraries.find((l) => String(l.id) === scope)?.name ?? '';
+  /** Whether the default has unsaved changes in an area (a library shows the saved default). */
+  const serverAreaDirty = (id: Exclude<Area, 'apply'>): boolean => {
+    if (!settings.data || !serverDraft || !drafts.isDirty(SERVER)) return false;
+    const original = serverValues(settings.data);
+    return SERVER_FIELDS[id].some((field) => !same(serverDraft[field], original[field]));
+  };
+  const serverDirtyNote = (id: 'languages' | 'images') =>
+    inLibrary && serverAreaDirty(id) ? (
+      <Notice live={false}>{t('admin.metadata.scope.serverDirty')}</Notice>
+    ) : null;
+
+  /** Whether an area of the shown scope differs from what the server holds. */
+  const areaDirty = (id: Area): boolean => {
+    if (id === 'apply' || !drafts.isDirty(scope)) return false;
+    if (inLibrary) {
+      const original = lm ? libraryValues(lm) : undefined;
+      if (!original || !libraryDraft) return false;
+      if (id === 'languages') return !same(libraryDraft.textLangs, original.textLangs);
+      if (id === 'images') return !same(libraryDraft.images, original.images);
+      return false;
+    }
+    if (!settings.data || !serverDraft) return false;
+    const original = serverValues(settings.data);
+    return SERVER_FIELDS[id].some((field) => !same(serverDraft[field], original[field]));
+  };
+
+  const widthLabel = (width: number) =>
+    width === 0 ? t('admin.metadata.quality.any') : t('admin.metadata.quality.px', { width });
+  const summaryOf = (id: Area): string | undefined => {
+    let summary: string | undefined;
+    if (id === 'languages' && textLangs)
+      summary = textLangs.map(nameOf).join(t('admin.metadata.areas.separator'));
+    if (id === 'images' && images)
+      summary = listOf([
+        t('admin.metadata.images.kind.poster'),
+        t('admin.metadata.images.kind.backdrop'),
+        ...images.kinds.map((kind) => t(`admin.metadata.images.kind.${kind}`)),
+      ]);
+    if (id === 'quality' && serverDraft)
+      summary = t('admin.metadata.areas.quality', {
+        poster: widthLabel(serverDraft.imageMinWidth.poster),
+        backdrop: widthLabel(serverDraft.imageMinWidth.backdrop),
+      });
+    if (id === 'sources' && serverDraft) {
+      const on = [
+        serverDraft.localImages ? t('admin.metadata.areas.sources.local') : '',
+        serverDraft.fanartEnabled ? t('admin.metadata.areas.sources.fanart') : '',
+        serverDraft.tmdbIncludeAdult ? t('admin.metadata.areas.sources.tmdbAdult') : '',
+      ].filter(Boolean);
+      summary = on.length > 0 ? listOf(on) : t('admin.metadata.areas.sources.none');
+    }
+    if (id === 'rating' && serverDraft)
+      summary = t(`admin.metadata.rating.countries.${serverDraft.ratingCountry as Country}`);
+    if (summary !== undefined && inLibrary) {
+      const deviates = id === 'languages' ? textsEditable : imagesEditable;
+      summary = t('admin.metadata.areas.scoped', {
+        state: deviates ? t('admin.metadata.scope.deviates') : t('admin.metadata.scope.likeServer'),
+        summary,
+      });
+    }
+    if (summary !== undefined && areaDirty(id))
+      summary = t('admin.metadata.areas.changed', { summary });
+    return summary;
+  };
+  const areaLabels: Record<Area, string> = {
+    languages: t('admin.metadata.languages.title'),
+    images: t('admin.metadata.images.title'),
+    quality: t('admin.metadata.quality.title'),
+    sources: t('admin.metadata.sources.title'),
+    rating: t('admin.metadata.rating.title'),
+    apply: t('admin.metadata.apply.short'),
+  };
+  const areaItems: MasterDetailItem[] = (inLibrary ? LIBRARY_AREAS : SERVER_AREAS).map((id) => ({
+    id,
+    label: areaLabels[id],
+    description: summaryOf(id),
+  }));
+
+  const scopeHint = (
+    <Text tone="secondary" variant="caption">
+      {inLibrary
+        ? t('admin.metadata.scope.libraryHint', { name: scopeName(scope) })
+        : t('admin.metadata.scope.serverHint')}{' '}
+      {t('admin.metadata.apply.titles', {
+        count: (inLibrary ? lm?.affectedTitles : settings.data?.affectedTitles) ?? 0,
+      })}
+    </Text>
+  );
   const youtubeTitles = textLangs
     ? Math.floor(
         YOUTUBE_SEARCHES_PER_DAY / Math.max(1, new Set(textLangs.map((c) => c.split('-')[0])).size),
       )
     : 0;
+  const textLangsError = fieldError('textLangs');
+  const ratingCountryError = fieldError('ratingCountry');
+
+  const deviation = (label: string, on: boolean, toggle: (on: boolean) => void) => (
+    <>
+      {!on && <Chip tone="outline">{t('admin.metadata.scope.likeServer')}</Chip>}
+      <Switch isSelected={on} onChange={toggle}>
+        {label}
+      </Switch>
+    </>
+  );
+
+  let detail: ReactNode = null;
+  if (inLibrary && !lm) {
+    detail = selectedMeta?.isError ? (
+      <Notice
+        tone="danger"
+        title={problemMessage(t, selectedMeta.error)}
+        actions={
+          <AriaButton icon="refresh" onPress={() => void selectedMeta.refetch()}>
+            {t('common.retry')}
+          </AriaButton>
+        }
+      />
+    ) : (
+      <Skeleton shape="block" />
+    );
+  } else if (area === 'languages' && textLangs) {
+    detail = (
+      <AreaPanel
+        title={t('admin.metadata.languages.title')}
+        intro={t('admin.metadata.languages.intro')}
+        actions={
+          inLibrary && lm
+            ? deviation(t('admin.metadata.scope.textsDeviate'), textsEditable, toggleTexts)
+            : undefined
+        }
+      >
+        {scopeHint}
+        {!textsEditable && serverDirtyNote('languages')}
+        <SettingRow label={t('admin.metadata.languages.list')}>
+          <LanguageRanks
+            value={textLangs}
+            onChange={setTextLangs}
+            known={known}
+            satisfies={inLibrary ? satisfiesLibrary : satisfiesDefault}
+            disabled={!textsEditable}
+          />
+        </SettingRow>
+        {textLangsError && <Notice tone="danger">{textLangsError}</Notice>}
+        <Text tone="secondary" variant="caption">
+          {t('admin.metadata.languages.fallback')}
+        </Text>
+        {providers.data && (
+          <Text tone="secondary" variant="caption">
+            {unknownLanguages(t, nameOf, listOf, providers.data, textLangs).join(' ')}{' '}
+            {t('admin.metadata.languages.youtube', {
+              count: textLangs.length,
+              titles: youtubeTitles,
+            })}
+          </Text>
+        )}
+      </AreaPanel>
+    );
+  } else if (area === 'images' && images) {
+    detail = (
+      <AreaPanel
+        title={t('admin.metadata.images.title')}
+        intro={t('admin.metadata.images.intro')}
+        actions={
+          inLibrary && lm
+            ? deviation(t('admin.metadata.scope.imagesDeviate'), imagesEditable, toggleImages)
+            : undefined
+        }
+      >
+        {scopeHint}
+        {!imagesEditable && serverDirtyNote('images')}
+        <div className={imagesEditable ? undefined : styles.dimmed}>
+          {ALWAYS_KINDS.map((kind) => (
+            <SettingRow
+              key={kind}
+              label={t(`admin.metadata.images.kind.${kind}`)}
+              help={t(`admin.metadata.images.kindHint.${kind}`)}
+            >
+              <Chip tone="outline">{t('admin.metadata.images.always')}</Chip>
+            </SettingRow>
+          ))}
+        </div>
+        <CheckboxGroup
+          label={t('admin.metadata.images.kinds')}
+          value={images.kinds}
+          onChange={(kinds) => setImages((view) => ({ ...view, kinds: switchable(kinds) }))}
+          isDisabled={!imagesEditable}
+          options={SWITCHABLE.map((kind: Switchable) => ({
+            value: kind,
+            label: t(`admin.metadata.images.kind.${kind}`),
+            description: t(`admin.metadata.images.kindHint.${kind}`),
+          }))}
+        />
+        <Text tone="secondary" variant="caption">
+          {t('admin.metadata.images.notBuilt')}
+        </Text>
+        <SectionHeader
+          level={3}
+          title={t('admin.metadata.images.chains')}
+          description={t('admin.metadata.images.chainsIntro')}
+        />
+        {CHAIN_KINDS.map((kind) => (
+          <SettingRow
+            key={kind}
+            label={t('admin.metadata.images.chainOf', {
+              kind: t(`admin.metadata.images.kind.${kind}`),
+            })}
+          >
+            <LanguageRanks
+              value={images.langs[kind]}
+              onChange={(chain) => setChain(kind, chain)}
+              known={known}
+              allowNoText
+              disabled={!imagesEditable}
+            />
+          </SettingRow>
+        ))}
+        {CHAIN_KINDS.map((kind) => fieldError(`imageLangs.${kind}`))
+          .filter(Boolean)
+          .map((error) => (
+            <Notice key={error} tone="danger">
+              {error}
+            </Notice>
+          ))}
+      </AreaPanel>
+    );
+  } else if (area === 'quality' && serverDraft) {
+    detail = (
+      <AreaPanel
+        title={t('admin.metadata.quality.title')}
+        intro={t('admin.metadata.quality.intro')}
+      >
+        <div className={styles.fields}>
+          <RadioGroup
+            name="minPoster"
+            label={t('admin.metadata.quality.minPoster')}
+            value={String(serverDraft.imageMinWidth.poster)}
+            onChange={(value) =>
+              setServer((values) => ({
+                ...values,
+                imageMinWidth: { ...values.imageMinWidth, poster: Number(value) },
+              }))
+            }
+            options={POSTER_WIDTHS.map((width) => ({
+              value: String(width),
+              label: widthLabel(width),
+            }))}
+          />
+          <RadioGroup
+            name="minBackdrop"
+            label={t('admin.metadata.quality.minBackdrop')}
+            value={String(serverDraft.imageMinWidth.backdrop)}
+            onChange={(value) =>
+              setServer((values) => ({
+                ...values,
+                imageMinWidth: { ...values.imageMinWidth, backdrop: Number(value) },
+              }))
+            }
+            options={BACKDROP_WIDTHS.map((width) => ({
+              value: String(width),
+              label: widthLabel(width),
+            }))}
+          />
+        </div>
+        <SettingRow
+          label={t('admin.metadata.quality.byVote')}
+          help={`${t('admin.metadata.quality.byVoteHint')} ${t('admin.metadata.quality.fallback')}`}
+        >
+          <Switch
+            isSelected={serverDraft.imageByVote}
+            onChange={(on) => setServer((values) => ({ ...values, imageByVote: on }))}
+          >
+            <VisuallyHidden>{t('admin.metadata.quality.byVote')}</VisuallyHidden>
+          </Switch>
+        </SettingRow>
+      </AreaPanel>
+    );
+  } else if (area === 'sources' && serverDraft && settings.data) {
+    detail = (
+      <AreaPanel
+        title={t('admin.metadata.sources.title')}
+        intro={t('admin.metadata.sources.intro')}
+      >
+        <div>
+          <SettingRow
+            label={t('admin.metadata.sources.tmdbAdult')}
+            help={t('admin.metadata.sources.tmdbAdultHint')}
+          >
+            <Switch
+              isSelected={serverDraft.tmdbIncludeAdult}
+              onChange={(on) => setServer((values) => ({ ...values, tmdbIncludeAdult: on }))}
+            >
+              <VisuallyHidden>{t('admin.metadata.sources.tmdbAdult')}</VisuallyHidden>
+            </Switch>
+          </SettingRow>
+          <SettingRow
+            label={t('admin.metadata.sources.local')}
+            help={`${t('admin.metadata.sources.localHint')} ${t('admin.metadata.sources.localCount', { count: settings.data.localImageTitles })}.`}
+          >
+            <Switch
+              isSelected={serverDraft.localImages}
+              onChange={(on) => setServer((values) => ({ ...values, localImages: on }))}
+            >
+              <VisuallyHidden>{t('admin.metadata.sources.local')}</VisuallyHidden>
+            </Switch>
+          </SettingRow>
+          <SettingRow
+            label={t('admin.metadata.sources.fanart')}
+            help={t('admin.metadata.sources.fanartHint')}
+          >
+            <TextLink href={paths.adminIntegrations}>{t('admin.metadata.links.keys')}</TextLink>
+            <Switch
+              isSelected={serverDraft.fanartEnabled}
+              onChange={(on) => setServer((values) => ({ ...values, fanartEnabled: on }))}
+            >
+              <VisuallyHidden>{t('admin.metadata.sources.fanart')}</VisuallyHidden>
+            </Switch>
+          </SettingRow>
+        </div>
+        <Text tone="secondary" variant="caption">
+          {t('admin.metadata.sources.localSmall')}
+        </Text>
+      </AreaPanel>
+    );
+  } else if (area === 'rating' && serverDraft) {
+    detail = (
+      <AreaPanel title={t('admin.metadata.rating.title')} intro={t('admin.metadata.rating.intro')}>
+        <RadioGroup
+          name="ratingCountry"
+          label={t('admin.metadata.rating.country')}
+          value={serverDraft.ratingCountry}
+          onChange={(value) => setServer((values) => ({ ...values, ratingCountry: value }))}
+          options={COUNTRIES.map((country: Country) => ({
+            value: country,
+            label: t(`admin.metadata.rating.countries.${country}`),
+          }))}
+        />
+        {ratingCountryError && <Notice tone="danger">{ratingCountryError}</Notice>}
+        <Text tone="secondary" variant="caption">
+          {t('admin.metadata.rating.hint')}
+        </Text>
+      </AreaPanel>
+    );
+  } else if (area === 'apply' && settings.data) {
+    detail = (
+      <ApplySection
+        libraries={videoLibraries}
+        titlesOf={(id) => metaQueryOf(String(id))?.data?.affectedTitles}
+        settings={settings.data}
+        paused={unsaved.pausePolling}
+      />
+    );
+  }
+
+  const ready = allowed && settings.data && libraries.data;
+  const loadError = settings.error ?? libraries.error;
 
   return (
-    <Page>
-      <div className={table.header}>
-        <Text as="h1" variant="display">
-          {t('admin.metadata.title')}
-        </Text>
-        <Text tone="secondary">{t('admin.metadata.intro')}</Text>
-        <Text tone="secondary" variant="caption">
-          <TextLink href={paths.adminLibraries}>{t('admin.metadata.links.roots')}</TextLink>{' '}
-          <TextLink href={paths.adminJobs}>{t('admin.metadata.links.jobs')}</TextLink>
-        </Text>
-      </div>
+    <AdminPage
+      title={t('admin.metadata.title')}
+      help={t('admin.metadata.intro')}
+      titleRef={titleRef}
+      actions={
+        ready ? (
+          <SelectField
+            label={t('admin.metadata.scope.label')}
+            value={scope}
+            onChange={selectScope}
+            options={scopeIds.map((id) => ({
+              value: id,
+              label: drafts.isDirty(id)
+                ? t('admin.metadata.scope.changed', { name: scopeName(id) })
+                : scopeName(id),
+            }))}
+          />
+        ) : undefined
+      }
+    >
       {!allowed ? (
         <Notice title={t('admin.access.notAllowed.title')}>
           {t('admin.access.notAllowed.body')}
         </Notice>
+      ) : loadError ? (
+        <Notice
+          tone="danger"
+          title={problemMessage(t, loadError)}
+          actions={
+            <AriaButton
+              icon="refresh"
+              onPress={() => {
+                void settings.refetch();
+                void libraries.refetch();
+              }}
+            >
+              {t('common.retry')}
+            </AriaButton>
+          }
+        />
+      ) : !ready ? (
+        <Skeleton shape="block" />
       ) : (
-        <div className={styles.sections} aria-busy={settings.isPending}>
-          {settings.isPending && <Skeleton shape="block" />}
-          {settings.isError && (
-            <Notice
-              tone="danger"
-              title={problemMessage(t, settings.error)}
-              actions={
-                <AriaButton icon="refresh" onPress={() => void settings.refetch()}>
-                  {t('common.retry')}
-                </AriaButton>
-              }
-            />
-          )}
-          {settings.data && server && (
-            <>
-              <Panel as="section" aria-label={t('admin.metadata.scope.label')}>
-                {scopeOptions.length <= MAX_SEGMENTS + 1 ? (
-                  <RadioGroup
-                    name="scope"
-                    label={t('admin.metadata.scope.label')}
-                    value={scope}
-                    onChange={setScope}
-                    options={scopeOptions}
-                  />
-                ) : (
-                  <SelectField
-                    label={t('admin.metadata.scope.label')}
-                    value={scope}
-                    onChange={setScope}
-                    options={scopeOptions}
-                  />
-                )}
-                <Text tone="secondary" variant="caption">
-                  {inLibrary
-                    ? t('admin.metadata.scope.libraryHint', { name: scopeName })
-                    : t('admin.metadata.scope.serverHint')}
-                </Text>
-                {inLibrary && library && (
-                  <div className={styles.toggles}>
-                    <Switch
-                      isSelected={library.textsDeviate}
-                      onChange={(on) => setLibrary((v) => v && { ...v, textsDeviate: on })}
-                    >
-                      {t('admin.metadata.scope.textsDeviate')}
-                    </Switch>
-                    <Switch
-                      isSelected={library.imagesDeviate}
-                      onChange={(on) => setLibrary((v) => v && { ...v, imagesDeviate: on })}
-                    >
-                      {t('admin.metadata.scope.imagesDeviate')}
-                    </Switch>
-                  </div>
-                )}
-              </Panel>
-
-              <Section
-                title={t('admin.metadata.languages.title')}
-                intro={t('admin.metadata.languages.intro')}
-                aside={
-                  inLibrary && !textsEditable ? (
-                    <Chip tone="outline">{t('admin.metadata.scope.likeServer')}</Chip>
-                  ) : undefined
-                }
-              >
-                <div className={textsEditable ? styles.block : `${styles.block} ${styles.dimmed}`}>
-                  {textLangs && (
-                    <LanguageChips
-                      label={t('admin.metadata.languages.list')}
-                      value={textLangs}
-                      onChange={setTextLangs}
-                      known={known}
-                      protectUI
-                      disabled={!textsEditable}
-                    />
-                  )}
-                  {textLangsError && <Notice tone="danger">{textLangsError}</Notice>}
-                  <Text tone="secondary" variant="caption">
-                    {t('admin.metadata.languages.fallback')}
-                  </Text>
-                  {providers.data && textLangs && (
-                    <Text tone="secondary" variant="caption">
-                      {unknownLanguages(t, nameOf, providers.data, textLangs).join(' ')}{' '}
-                      {t('admin.metadata.languages.youtube', {
-                        count: textLangs.length,
-                        titles: youtubeTitles,
-                      })}
-                    </Text>
-                  )}
-                </div>
-              </Section>
-
-              <Section
-                title={t('admin.metadata.images.title')}
-                intro={t('admin.metadata.images.intro')}
-                aside={
-                  inLibrary && !imagesEditable ? (
-                    <Chip tone="outline">{t('admin.metadata.scope.likeServer')}</Chip>
-                  ) : undefined
-                }
-              >
-                <div className={imagesEditable ? styles.block : `${styles.block} ${styles.dimmed}`}>
-                  <div className={styles.kindRow}>
-                    <span className={styles.chipName}>
-                      {t('admin.metadata.images.kind.poster')}
-                    </span>
-                    <span className={styles.hint}>
-                      {t('admin.metadata.images.kindHint.poster')}
-                    </span>
-                    <Chip tone="outline">{t('admin.metadata.images.always')}</Chip>
-                  </div>
-                  <div className={styles.kindRow}>
-                    <span className={styles.chipName}>
-                      {t('admin.metadata.images.kind.backdrop')}
-                    </span>
-                    <span className={styles.hint}>
-                      {t('admin.metadata.images.kindHint.backdrop')}
-                    </span>
-                    <Chip tone="outline">{t('admin.metadata.images.always')}</Chip>
-                  </div>
-                  {imageKinds && (
-                    <CheckboxGroup
-                      label={t('admin.metadata.images.kinds')}
-                      value={imageKinds}
-                      onChange={setKinds}
-                      isDisabled={!imagesEditable}
-                      options={SWITCHABLE.map((kind: Switchable) => ({
-                        value: kind,
-                        label: t(`admin.metadata.images.kind.${kind}`),
-                        description: t(`admin.metadata.images.kindHint.${kind}`),
-                      }))}
-                    />
-                  )}
-                  <Text tone="secondary" variant="caption">
-                    {t('admin.metadata.images.notBuilt')}
-                  </Text>
-                  <h3 className={styles.title}>{t('admin.metadata.images.chains')}</h3>
-                  <Text tone="secondary" variant="caption">
-                    {t('admin.metadata.images.chainsIntro')}
-                  </Text>
-                  {imageLangs &&
-                    CHAIN_KINDS.map((kind) => (
-                      <LanguageChips
-                        key={kind}
-                        label={t('admin.metadata.images.chainOf', {
-                          kind: t(`admin.metadata.images.kind.${kind}`),
-                        })}
-                        value={imageLangs[kind]}
-                        onChange={(chain) => setChain(kind, chain)}
-                        known={known}
-                        allowNoText
-                        disabled={!imagesEditable}
-                      />
-                    ))}
-                  {CHAIN_KINDS.map((kind) => fieldError(`imageLangs.${kind}`))
-                    .filter(Boolean)
-                    .map((e) => (
-                      <Notice key={e} tone="danger">
-                        {e}
-                      </Notice>
-                    ))}
-                </div>
-              </Section>
-
-              {!inLibrary && (
-                <>
-                  <Section
-                    title={t('admin.metadata.quality.title')}
-                    intro={t('admin.metadata.quality.intro')}
-                  >
-                    <div className={styles.fields}>
-                      <RadioGroup
-                        name="minPoster"
-                        label={t('admin.metadata.quality.minPoster')}
-                        value={String(server.imageMinWidth.poster)}
-                        onChange={(value) =>
-                          setServer(
-                            (v) =>
-                              v && {
-                                ...v,
-                                imageMinWidth: { ...v.imageMinWidth, poster: Number(value) },
-                              },
-                          )
-                        }
-                        options={POSTER_WIDTHS.map((w) => ({
-                          value: String(w),
-                          label:
-                            w === 0
-                              ? t('admin.metadata.quality.any')
-                              : t('admin.metadata.quality.px', { width: w }),
-                        }))}
-                      />
-                      <RadioGroup
-                        name="minBackdrop"
-                        label={t('admin.metadata.quality.minBackdrop')}
-                        value={String(server.imageMinWidth.backdrop)}
-                        onChange={(value) =>
-                          setServer(
-                            (v) =>
-                              v && {
-                                ...v,
-                                imageMinWidth: { ...v.imageMinWidth, backdrop: Number(value) },
-                              },
-                          )
-                        }
-                        options={BACKDROP_WIDTHS.map((w) => ({
-                          value: String(w),
-                          label:
-                            w === 0
-                              ? t('admin.metadata.quality.any')
-                              : t('admin.metadata.quality.px', { width: w }),
-                        }))}
-                      />
-                    </div>
-                    <Switch
-                      isSelected={server.imageByVote}
-                      onChange={(on) => setServer((v) => v && { ...v, imageByVote: on })}
-                    >
-                      {t('admin.metadata.quality.byVote')}
-                    </Switch>
-                    <Text tone="secondary" variant="caption">
-                      {t('admin.metadata.quality.byVoteHint')}{' '}
-                      {t('admin.metadata.quality.fallback')}
-                    </Text>
-                  </Section>
-
-                  <Section
-                    title={t('admin.metadata.sources.title')}
-                    intro={t('admin.metadata.sources.intro')}
-                  >
-                    <div className={styles.toggles}>
-                      <Switch
-                        isSelected={server.tmdbIncludeAdult}
-                        onChange={(on) => setServer((v) => v && { ...v, tmdbIncludeAdult: on })}
-                      >
-                        {t('admin.metadata.sources.tmdbAdult')}
-                      </Switch>
-                      <Text tone="secondary" variant="caption">
-                        {t('admin.metadata.sources.tmdbAdultHint')}
-                      </Text>
-                      <Switch
-                        isSelected={server.localImages}
-                        onChange={(on) => setServer((v) => v && { ...v, localImages: on })}
-                      >
-                        {t('admin.metadata.sources.local')}
-                      </Switch>
-                      <Text tone="secondary" variant="caption">
-                        {t('admin.metadata.sources.localHint')}{' '}
-                        {t('admin.metadata.sources.localCount', {
-                          count: settings.data.localImageTitles,
-                        })}
-                        . {t('admin.metadata.sources.localSmall')}
-                      </Text>
-                      <Switch
-                        isSelected={server.fanartEnabled}
-                        onChange={(on) => setServer((v) => v && { ...v, fanartEnabled: on })}
-                      >
-                        {t('admin.metadata.sources.fanart')}
-                      </Switch>
-                      <Text tone="secondary" variant="caption">
-                        {t('admin.metadata.sources.fanartHint')}{' '}
-                        <TextLink href={paths.adminIntegrations}>
-                          {t('admin.metadata.links.keys')}
-                        </TextLink>
-                      </Text>
-                    </div>
-                  </Section>
-
-                  <Section
-                    title={t('admin.metadata.rating.title')}
-                    intro={t('admin.metadata.rating.intro')}
-                  >
-                    <RadioGroup
-                      name="ratingCountry"
-                      label={t('admin.metadata.rating.country')}
-                      value={server.ratingCountry}
-                      onChange={(value) => setServer((v) => v && { ...v, ratingCountry: value })}
-                      options={COUNTRIES.map((c: Country) => ({
-                        value: c,
-                        label: t(`admin.metadata.rating.countries.${c}`),
-                      }))}
-                    />
-                    {ratingCountryError && <Notice tone="danger">{ratingCountryError}</Notice>}
-                    <Text tone="secondary" variant="caption">
-                      {t('admin.metadata.rating.hint')}
-                    </Text>
-                  </Section>
-
-                  <ApplySection libraries={libraries.data ?? []} settings={settings.data} />
-                </>
-              )}
-
-              <div
-                className={styles.saveBar}
-                role="region"
-                aria-label={t('admin.metadata.save.save')}
-              >
-                <Text tone={dirty ? 'primary' : 'secondary'}>
-                  {dirty ? t('admin.metadata.save.dirty') : t('admin.metadata.save.clean')}
-                </Text>
-                <div className={styles.actions}>
-                  <AriaButton variant="ghost" isDisabled={!dirty || saving} onPress={onDiscard}>
-                    {t('admin.metadata.save.discard')}
-                  </AriaButton>
-                  <AriaButton
-                    variant="primary"
-                    isDisabled={!dirty}
-                    isPending={saving}
-                    onPress={onSave}
-                  >
-                    {saving ? t('admin.metadata.save.saving') : t('admin.metadata.save.save')}
-                  </AriaButton>
-                </div>
-              </div>
-              {errors?.form ? <Notice tone="danger">{errors.form}</Notice> : null}
-              <div role="status" className={styles.live}>
-                {message && !saveError && <Notice live={false}>{message}</Notice>}
-              </div>
-              {effective && inLibrary && libraryMeta.data && (
-                <Text tone="secondary" variant="caption">
-                  {t('admin.metadata.apply.titles', { count: libraryMeta.data.affectedTitles })}
-                </Text>
-              )}
-            </>
-          )}
-        </div>
+        <>
+          <MasterDetail
+            label={t('admin.metadata.areas.label')}
+            items={areaItems}
+            selectedId={area}
+            onSelect={selectArea}
+          >
+            {detail}
+          </MasterDetail>
+          <Text tone="secondary" variant="caption">
+            <TextLink href={paths.adminLibraries}>{t('admin.metadata.links.roots')}</TextLink>{' '}
+            <TextLink href={paths.adminJobs}>{t('admin.metadata.links.jobs')}</TextLink>
+          </Text>
+          {/* A direct child of the page's column, so it sticks to the bottom while the areas
+              scroll (a wrapper only as tall as the bar would hold it in place). */}
+          <SaveBar
+            dirty={drafts.dirty}
+            saving={saving}
+            onSave={() => void onSave()}
+            onDiscard={() => setDiscardOpen(true)}
+          />
+          {failure && errors ? (
+            <Notice tone="danger">
+              {t('admin.metadata.save.failed', {
+                name: scopeName(failure.scope),
+                reason: errors.form ?? Object.values(errors.fields)[0] ?? '',
+              })}
+            </Notice>
+          ) : null}
+          <StatusRegion>
+            {savedMessages.map((message) => (
+              <Notice key={message.scope} live={false}>
+                {message.text}
+              </Notice>
+            ))}
+          </StatusRegion>
+          <ConfirmDialog
+            isOpen={discardOpen}
+            onOpenChange={setDiscardOpen}
+            title={t('admin.metadata.discard.title')}
+            body={t('admin.metadata.discard.body', { names: listOf(dirtyScopes.map(scopeName)) })}
+            confirmLabel={t('admin.metadata.discard.confirm')}
+            cancelLabel={t('common.cancel')}
+            tone="danger"
+            defaultFocus="cancel"
+            onConfirm={onDiscard}
+          />
+          <ConfirmDialog {...unsaved.dialog} />
+        </>
       )}
-    </Page>
+    </AdminPage>
   );
 }

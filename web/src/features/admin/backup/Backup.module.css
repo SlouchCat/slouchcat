@@ -1,0 +1,110 @@
+/* The backup page (concept 12, variant C): what AdminPage, BandPanel, DisclosureGroup and
+   DataTable do not lay out themselves. The list per kind, the forms of the tabs «Neue Sicherung»
+   and «Aus Datei wiederherstellen», and the passphrase dialog. */
+
+/* The tab «Sicherungen»: one section per kind. */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.groupBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+/* The file name in full, wrapped where it has to (S-5: reachable without a pointer). */
+.name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.file {
+  font-family: var(--sc-font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* The forms of the tabs and the dialog: one column, as wide as a form reads well. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  max-width: 40rem;
+}
+
+.passphrases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--sc-space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+}
+
+.label {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.hint {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.fileInput {
+  max-width: 100%;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+}
+
+.fileInput::file-selector-button {
+  min-height: var(--sc-size-control-height);
+  margin-right: var(--sc-space-3);
+  padding: 0 var(--sc-space-5);
+  border: 0;
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-weight: var(--sc-font-weight-semibold);
+  cursor: pointer;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}

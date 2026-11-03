@@ -1,0 +1,80 @@
+/* A stream tile (concept 12, mockup Str-D2): a card with the backdrop on top; the tiles of a row
+   are equally high (S-8), the footer sits at the bottom. No component token: both densities are
+   the same. */
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  height: 100%;
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
+}
+
+.title {
+  margin: var(--sc-space-1) 0 0;
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--sc-space-2);
+  align-items: baseline;
+  margin: 0;
+  font-size: var(--sc-font-size-sm);
+}
+
+.profile {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+}
+
+.fact {
+  display: flex;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.icon {
+  display: flex;
+  flex: none;
+  color: var(--sc-color-text-muted);
+}
+
+.value {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: var(--sc-space-3);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}

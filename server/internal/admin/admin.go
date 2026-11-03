@@ -181,7 +181,8 @@ type Service struct {
 	getenv    func(string) string
 	log       *slog.Logger
 	now       func() time.Time
-	anilist   bool // AniList switched on (SLOUCHCAT_ANILIST, WithAniList); true until set
+	zone      *time.Location // time zone of the watch-time grid (stats.go); UTC until WithLocation
+	anilist   bool           // AniList switched on (SLOUCHCAT_ANILIST, WithAniList); true until set
 
 	browse        browseState   // zero until WithBrowse (idea 02)
 	announcements Announcements // nil until WithAnnouncements (M8)
@@ -196,8 +197,15 @@ func New(db *store.DB, auth *auth.Service, libraries Libraries, keyring *secrets
 	return &Service{
 		db: db.Write, write: appq.New(db.Write), read: appq.New(db.Read), sys: systemq.New(db.Read), auth: auth, vis: visibility.New(db, log),
 		libraries: libraries,
-		keyring:   keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now, anilist: true,
+		keyring:   keyring, tmdb: tmdb, getenv: getenv, log: log, now: time.Now, zone: time.UTC, anilist: true,
 	}
+}
+
+// WithLocation sets the time zone of the watch-time grid of the statistics (default UTC; main sets
+// the zone of ResolveZone), and returns the receiver; tests pin it. Its name is Stats.TimeZone.
+func (s *Service) WithLocation(loc *time.Location) *Service {
+	s.zone = loc
+	return s
 }
 
 // WithAniList tells the service whether the AniList filler is switched on (config.AniList), for

@@ -3169,7 +3169,9 @@ export interface paths {
          * @description Over the last `days` days, unfiltered (the administration sees every profile): the most watched
          *     titles, the watch time per profile, the share of direct play, remux and transcoding with the
          *     hardware share, and the devices by type. Watch time is the played time of the progress events
-         *     whose server time lies in the period (offline events count with their upload time).
+         *     whose server time lies in the period (offline events count with their play time, the device
+         *     clock corrected to the server's). The watch time per quarter hour of the week covers whole
+         *     weeks, at most the last 84 days (`timeWindowDays`), in the server's time zone.
          */
         get: operations["getStats"];
         put?: never;
@@ -4577,6 +4579,11 @@ export interface components {
              *     absent when no poster is stored.
              */
             posterUrl?: string;
+            /**
+             * @description The backdrop (`w780`) through `getAdminItemImage` with the content hash, for an episode the
+             *     backdrop of its series; absent when no backdrop is stored.
+             */
+            backdropUrl?: string;
         };
         ProgressEvent: {
             mediaFileId?: string;
@@ -5540,6 +5547,8 @@ export interface components {
             title: string;
             year?: number;
             position: number;
+            /** @description The poster (`w200`) through `getAdminItemImage`; absent when no poster is stored. */
+            posterUrl?: string;
         };
         CollectionRequest: {
             name: string;
@@ -6014,8 +6023,8 @@ export interface components {
             /** @description Paused job types (concept 09); the dashboard shows the tile when it is above 0. */
             paused?: number;
             /**
-             * @description The last failed jobs, newest first. Kept for other clients; the overview of the web client
-             *     reads `failedByType`.
+             * @description The last failed jobs, newest first. The web client's overview reads `failedByType`; the
+             *     failures tab of its jobs page lists these (concept 12, JOB-8).
              */
             recentFailed: components["schemas"]["JobSummary"][];
             /**
@@ -6641,6 +6650,21 @@ export interface components {
             playback: components["schemas"]["StatPlayback"];
             /** @description Played time per device type, most first. */
             devices: components["schemas"]["StatDevice"][];
+            /**
+             * @description Played time (`watchedMs`) per quarter hour of the week over the last `timeWindowDays` days
+             *     up to now: 7 days × 96 quarter hours, Monday 00:00 first, then Monday 00:15, up to Sunday
+             *     23:45, in the server's time zone (`timeZone`). Each event counts in the quarter hour of its
+             *     server time. The window is whole weeks, so every weekday counts equally often.
+             */
+            watchTimeByQuarterHour: number[];
+            /**
+             * @description The days `watchTimeByQuarterHour` covers: `days`, at most 90 (events older than 90 days are
+             *     condensed into days and lose their time of day), rounded down to whole weeks so every
+             *     weekday counts equally often (7 → 7, 30 → 28, 90 and 365 → 84).
+             */
+            timeWindowDays: number;
+            /** @description IANA name of the server's time zone (for example `Europe/Zurich`) the quarter hours refer to. */
+            timeZone: string;
         };
         StatTitle: {
             itemId: components["schemas"]["ItemID"];
@@ -6651,6 +6675,16 @@ export interface components {
             plays: number;
             /** Format: int64 */
             watchedMs: number;
+            /**
+             * @description The poster (`w200`) through `getAdminItemImage`, for an episode the poster of its series;
+             *     absent when no poster is stored.
+             */
+            posterUrl?: string;
+            /**
+             * @description The backdrop (`w780`) through `getAdminItemImage`, for an episode the backdrop of its series;
+             *     absent when no backdrop is stored.
+             */
+            backdropUrl?: string;
         };
         StatProfile: {
             /** Format: int64 */

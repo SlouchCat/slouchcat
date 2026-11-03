@@ -1,0 +1,94 @@
+.frame {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-panel-gap);
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  align-self: start;
+  margin: 0;
+  padding: var(--sc-space-2);
+  border-radius: var(--sc-panel-radius);
+  background-color: var(--sc-color-bg-elevated);
+  outline: none;
+}
+
+.list[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.section + .section {
+  margin-top: var(--sc-space-2);
+}
+
+.header {
+  padding: var(--sc-space-1) var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--sc-control-height);
+  padding: var(--sc-space-1) var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.item[data-hovered] {
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+}
+
+.item[data-selected] {
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.item[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
+}
+
+.description {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-regular);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-panel-gap);
+  min-width: 0;
+}
+
+@media (width >= 768px) {
+  .frame {
+    grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+  }
+}

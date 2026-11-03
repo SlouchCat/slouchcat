@@ -44,3 +44,24 @@
 .danger {
   border-left-color: var(--sc-color-state-danger);
 }
+
+/* A tile of a StatusStrip: 56 px high, the label above a smaller number (concept 12, S-4). */
+.compact {
+  justify-content: center;
+  gap: 0;
+  min-height: calc(var(--sc-space-12) + var(--sc-space-2));
+  padding: var(--sc-space-1) var(--sc-space-4);
+}
+
+.compact .value {
+  order: 0;
+  font-size: var(--sc-font-size-lg);
+}
+
+.compact .label {
+  font-size: var(--sc-font-size-xs);
+}
+
+.compact .note {
+  font-size: var(--sc-font-size-xs);
+}

@@ -2,8 +2,10 @@ import { paths } from '@/app/paths';
 import type { IconName } from '@/ui';
 
 // Every page of the administration (A-2 "an einem Ort"), in the groups of the admin sidebar
-// (AdminShellNav, concept 11). Profiles and notification channels belong to the account and live
-// under /settings: their entries leave the administration, where the app's column stands again.
+// (AdminShellNav, concept 11). Notification channels belong to the account and live under
+// /settings: that entry leaves the administration, where the app's column stands again. The
+// profiles of the own account are part of «Konten» (concept 12, KP-1): the own account's row folds
+// out «Meine Profile»; `/settings/profiles` stays for every account.
 
 export const adminGroups = ['library', 'accounts', 'curation', 'system'] as const;
 export type AdminGroup = (typeof adminGroups)[number];
@@ -16,7 +18,6 @@ export interface AdminSection {
     | 'maintenance'
     | 'metadata'
     | 'accounts'
-    | 'profiles'
     | 'devices'
     | 'streams'
     | 'spotlight'
@@ -48,7 +49,6 @@ export const adminSections: readonly AdminSection[] = [
   },
   { key: 'metadata', href: paths.adminMetadata, icon: 'image', group: 'library' },
   { key: 'accounts', href: paths.adminAccounts, icon: 'users', group: 'accounts' },
-  { key: 'profiles', href: paths.profileSettings, icon: 'user', group: 'accounts' },
   { key: 'devices', href: paths.adminDevices, icon: 'monitor', group: 'accounts' },
   { key: 'streams', href: paths.adminStreams, icon: 'play', group: 'accounts' },
   { key: 'spotlight', href: paths.adminSpotlight, icon: 'spotlight', group: 'curation' },
@@ -66,6 +66,9 @@ export const adminSections: readonly AdminSection[] = [
 const under = (pathname: string, prefix: string) =>
   pathname === prefix || pathname.startsWith(`${prefix}/`);
 
-/** The page is `section`'s (or one of its sub-pages). */
+/**
+ * The page is `section`'s (or one of its sub-pages). Section hrefs are bare paths without `?` or
+ * `#` (sections.test.ts), so they compare with the pathname as they are.
+ */
 export const isSectionPath = (section: AdminSection, pathname: string) =>
   under(pathname, section.href) || (section.also ?? []).some((prefix) => under(pathname, prefix));

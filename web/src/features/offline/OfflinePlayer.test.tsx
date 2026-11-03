@@ -169,10 +169,7 @@ describe('offline player', () => {
     expect(screen.getByRole('button', { name: 'Untertitel' })).toBeVisible();
 
     const video = container.querySelector('video')!;
-    act(() => {
-      video.dispatchEvent(new Event('loadedmetadata'));
-    });
-    await waitFor(() => expect(region).toHaveAttribute('data-start-ms'));
+    await startPlaying(container, region);
     media.currentTime = 4;
     await act(() => vi.advanceTimersByTimeAsync(10_000));
     act(() => video.pause());
@@ -267,11 +264,7 @@ describe('offline player', () => {
     mockApi({});
     const { container } = renderApp(`/offline/play/${downloadIds.alien}`);
     const region = await player();
-    await waitFor(() => expect(region).toHaveAttribute('data-engine', 'mse'));
-    act(() => {
-      container.querySelector('video')!.dispatchEvent(new Event('loadedmetadata'));
-    });
-    await waitFor(() => expect(region).toHaveAttribute('data-start-ms'));
+    await startPlaying(container, region);
     expect(media.paused).toBe(false);
     await act(() => vi.advanceTimersByTimeAsync(31_000));
     expect(region).toHaveAttribute('data-ended-reason', 'limit');
@@ -288,9 +281,7 @@ describe('offline player', () => {
     await waitFor(() => expect(region).toHaveAttribute('data-engine', 'blob'));
     const video = container.querySelector('video')!;
     await waitFor(() => expect(video).toHaveAttribute('src', 'blob:offline-test'));
-    act(() => {
-      video.dispatchEvent(new Event('loadedmetadata'));
-    });
+    await startPlaying(container, region);
     expect(media.currentTime).toBe(10);
     media.currentTime = 13;
     await act(() => vi.advanceTimersByTimeAsync(10_000));

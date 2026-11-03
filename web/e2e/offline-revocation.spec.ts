@@ -43,8 +43,13 @@ test('a removed account’s download disappears from the device at the next cont
     // The administration removes the account; the dialog names the limit of AN-4.
     await openAccounts(page);
     const row = accountRow(page, GUEST.email);
-    const remove = row.getByRole('button', { name: `${GUEST.email} entfernen` });
-    await tabTo(page, remove, 80);
+    // The removal is in the row's «Weitere Aktionen» under «Gefahr» (concept 12, S-6).
+    const more = row.getByRole('button', { name: `Weitere Aktionen für ${GUEST.email}` });
+    await tabTo(page, more, 80);
+    await page.keyboard.press('Enter');
+    const remove = page.getByRole('menu').getByRole('menuitem', { name: 'Konto entfernen' });
+    await page.keyboard.press('ArrowDown');
+    await expect(remove).toBeFocused();
     await page.keyboard.press('Enter');
     const dialog = page.getByRole('alertdialog', { name: `Konto ${GUEST.email} entfernen?` });
     await expect(dialog).toContainText('Laufende Sitzungen und Wiedergaben enden sofort');

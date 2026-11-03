@@ -48,14 +48,19 @@ export async function expectFocusOn(page: Page, locator: Locator): Promise<void>
 
 /** Presses Tab until `locator` has focus; fails after `max` presses. Checks the ring on the way. */
 export async function tabTo(page: Page, locator: Locator, max = 40): Promise<void> {
+  const seen: string[] = [];
   for (let presses = 0; presses < max; presses += 1) {
     await page.keyboard.press('Tab');
     if (await locator.evaluate((element) => element === document.activeElement)) {
       await expectVisibleFocus(page);
       return;
     }
+    const now = await focused(page);
+    seen.push(`${now.tag}:${now.name}`);
   }
-  throw new Error(`Tab did not reach the element within ${max} presses`);
+  throw new Error(
+    `Tab did not reach the element within ${max} presses: ${seen.slice(0, 12).join(' | ')} ... ${seen.slice(-4).join(' | ')}`,
+  );
 }
 
 /** Marks the last element of the page's Tab sequence with `data-e2e-last-tabbable`. */
@@ -70,11 +75,10 @@ async function markLastTabbable(page: Page): Promise<void> {
       if (element instanceof HTMLInputElement && element.type === 'radio' && !element.checked) {
         return false;
       }
-      const style = getComputedStyle(element);
+      // A folded react-aria panel is `hidden="until-found"`: laid out, but never a Tab stop.
+      if (element.closest('[hidden], [inert]')) return false;
       return (
-        style.visibility !== 'hidden' &&
-        style.display !== 'none' &&
-        element.getClientRects().length > 0
+        element.checkVisibility({ visibilityProperty: true }) && element.getClientRects().length > 0
       );
     });
     tabbable.at(-1)?.setAttribute('data-e2e-last-tabbable', '');
@@ -87,6 +91,11 @@ async function markLastTabbable(page: Page): Promise<void> {
  * keeps it on the last element) or wrap around. A trap cycles inside a region instead.
  */
 export async function expectNoFocusTrap(page: Page, max = 80): Promise<void> {
+  // A closing react-aria dialog stays in the DOM while its overlay plays the exit animation
+  // (`data-exiting`), focusable buttons and all. Marked then, its last button became the end of
+  // the page and was gone a moment later; headless Firefox stopped on the real last element and
+  // never reached the mark (admin-podcasts.spec, focus on the h1 right after a delete).
+  await expect(page.locator('[data-exiting]')).toHaveCount(0);
   await markLastTabbable(page);
   const seen: string[] = [];
   for (let presses = 0; presses < max; presses += 1) {

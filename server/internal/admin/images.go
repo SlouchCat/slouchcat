@@ -72,13 +72,25 @@ func (s *Service) ItemImage(ctx context.Context, itemID, kind, size string, pref
 // posterHashes returns item id → content hash of the model.AdminPosterSize poster for the titles
 // of ids that have one, in one query.
 func posterHashes(ctx context.Context, q *systemq.Queries, ids []string) (map[string]string, error) {
+	return imageHashes(ctx, q, "poster", model.AdminPosterSize, ids)
+}
+
+// backdropHashes returns item id → content hash of the model.AdminBackdropSize backdrop for the
+// titles of ids that have one, in one query (concept 12).
+func backdropHashes(ctx context.Context, q *systemq.Queries, ids []string) (map[string]string, error) {
+	return imageHashes(ctx, q, "backdrop", model.AdminBackdropSize, ids)
+}
+
+// imageHashes returns item id → content hash of the image of kind in size for the titles of ids
+// that have one, in one query.
+func imageHashes(ctx context.Context, q *systemq.Queries, kind, size string, ids []string) (map[string]string, error) {
 	out := make(map[string]string, len(ids))
 	if len(ids) == 0 {
 		return out, nil
 	}
-	rows, err := q.AdminListPosters(ctx, systemq.AdminListPostersParams{ItemIds: ids, Size: model.AdminPosterSize})
+	rows, err := q.AdminListImages(ctx, systemq.AdminListImagesParams{ItemIds: ids, Kind: kind, Size: size})
 	if err != nil {
-		return nil, fmt.Errorf("list posters: %w", err)
+		return nil, fmt.Errorf("list %s images: %w", kind, err)
 	}
 	for _, r := range rows {
 		out[r.ItemID] = r.ContentHash
@@ -86,18 +98,21 @@ func posterHashes(ctx context.Context, q *systemq.Queries, ids []string) (map[st
 	return out, nil
 }
 
-// withPosters sets the poster hash of each pick.
-func withPosters(ctx context.Context, q *systemq.Queries, picks []model.AdminPick) error {
-	ids := make([]string, 0, len(picks))
-	for _, p := range picks {
-		ids = append(ids, p.ItemID)
+// withPosters sets the poster hash of each row of list; poster returns the item id of a row and
+// where its hash goes.
+func withPosters[T any](ctx context.Context, q *systemq.Queries, list []T, poster func(*T) (itemID string, hash *string)) error {
+	ids := make([]string, 0, len(list))
+	for i := range list {
+		id, _ := poster(&list[i])
+		ids = append(ids, id)
 	}
 	hashes, err := posterHashes(ctx, q, ids)
 	if err != nil {
 		return err
 	}
-	for i := range picks {
-		picks[i].PosterHash = hashes[picks[i].ItemID]
+	for i := range list {
+		id, hash := poster(&list[i])
+		*hash = hashes[id]
 	}
 	return nil
 }

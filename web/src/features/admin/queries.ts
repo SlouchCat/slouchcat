@@ -346,7 +346,7 @@ export const cancelJob = (id: number) =>
   request(api.DELETE('/admin/jobs/{id}', { params: { path: { id } } }));
 
 // Background jobs (concept 09, ADR 0017): the page /admin/jobs polls the overview like the
-// dashboard; the runs of one type are asked when their dialog is open.
+// dashboard; the runs of one type are asked while its row is open on the page.
 export const JOBS_POLL_MS = 5000;
 
 export const jobTypesQuery = queryOptions({

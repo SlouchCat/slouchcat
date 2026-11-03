@@ -5,21 +5,42 @@
   min-width: 0;
 }
 
+/* Label and control on one line, wrapping when narrow (RadioGroup `inline`). */
+.inline {
+  flex-flow: row wrap;
+  align-items: center;
+}
+
 .label {
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
   font-weight: var(--sc-font-weight-medium);
 }
 
+/* A label for screen readers only (`hideLabel`): a SettingRow already shows it on the left. */
+.hiddenLabel {
+  position: absolute;
+  inset-inline-start: 0;
+  overflow: hidden;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .input {
   width: 100%;
-  min-height: var(--sc-size-control-height);
+  min-height: var(--sc-control-height);
   padding: 0 var(--sc-space-4);
   border: 1px solid var(--sc-color-border-subtle);
   border-radius: var(--sc-radius-md);
   background-color: var(--sc-color-surface-1);
   color: var(--sc-color-text-primary);
   font: inherit;
+  font-size: var(--sc-control-font-size);
   transition:
     border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
     background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
@@ -74,7 +95,13 @@
 }
 
 .segment {
-  padding: var(--sc-space-2) var(--sc-space-5);
+  /* 40 px today (24 px of text and 8 px above and below), 28 px in the compact density; the
+     group adds 4 px on each side. */
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--sc-control-height) - var(--sc-space-1));
+  padding: 0 var(--sc-space-5);
+  font-size: var(--sc-control-font-size);
   border-radius: var(--sc-radius-full);
   color: var(--sc-color-text-secondary);
   font-weight: var(--sc-font-weight-medium);
@@ -103,4 +130,69 @@
 .segment[data-focus-visible] {
   outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
   outline-offset: var(--sc-focus-ring-offset);
+}
+
+/* RadioGroup `vertical`: one radio button per line, the label next to its dot. */
+.radios {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.radio {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  min-height: var(--sc-control-height);
+  padding-inline-end: var(--sc-space-2);
+  border-radius: var(--sc-radius-sm);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-control-font-size);
+  cursor: pointer;
+  transition: color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.radio[data-hovered],
+.radio[data-selected] {
+  color: var(--sc-color-text-primary);
+}
+
+.radio[data-disabled] {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.radio[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+}
+
+.dot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--sc-space-4);
+  height: var(--sc-space-4);
+  border: 2px solid var(--sc-color-text-muted);
+  border-radius: var(--sc-radius-full);
+  transition: border-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.dot::after {
+  width: var(--sc-space-2);
+  height: var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  content: '';
+  transform: scale(0);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.radio[data-selected] .dot {
+  border-color: var(--sc-accent);
+}
+
+.radio[data-selected] .dot::after {
+  transform: scale(1);
 }

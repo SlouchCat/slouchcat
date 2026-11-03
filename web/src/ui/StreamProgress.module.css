@@ -1,0 +1,6 @@
+/* The position without a bar (the length is unknown): it starts at the line's start instead of
+   standing right-aligned in the bar's figure column. */
+.alone {
+  min-width: 0;
+  text-align: start;
+}

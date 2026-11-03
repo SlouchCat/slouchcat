@@ -121,4 +121,40 @@ describe('profile limits and watch-time report', () => {
     await user.click(within(lena).getByRole('button', { name: 'Schauzeit ausblenden' }));
     expect(within(lena).queryByRole('region')).not.toBeInTheDocument();
   });
+
+  it('keeps two reports open at once, each with its total; the limit line only with a limit (PRO-3)', async () => {
+    const marcoReport: WatchReport = {
+      profileId: 1,
+      days: [
+        { date: '2026-09-29', minutes: 40 },
+        { date: '2026-09-30', minutes: 5 },
+      ],
+    };
+    mockApi(
+      routes(profiles, {
+        'GET /profiles/1/watch-time': () => json(marcoReport),
+        'GET /profiles/2/watch-time': () => json(report),
+      }),
+    );
+    renderApp('/settings/profiles');
+    const user = userEvent.setup();
+    const marco = await screen.findByRole('article', { name: 'Marco' });
+    const lena = screen.getByRole('article', { name: 'Lena' });
+    await user.click(within(marco).getByRole('button', { name: 'Schauzeit anzeigen' }));
+    await user.click(within(lena).getByRole('button', { name: 'Schauzeit anzeigen' }));
+
+    const marcoSection = await within(marco).findByRole('region', { name: 'Schauzeit von Marco' });
+    const lenaSection = await within(lena).findByRole('region', { name: 'Schauzeit von Lena' });
+    expect(await within(marcoSection).findByText('Heute: 5 min')).toBeVisible();
+    expect(within(marcoSection).getByText('Total: 45 min')).toBeVisible();
+    expect(within(marcoSection).queryByText(/^Limit:/)).not.toBeInTheDocument();
+    // 5 days of 75, 24 of 20 and 12 today.
+    expect(await within(lenaSection).findByText('Total: 867 min')).toBeVisible();
+    expect(within(lenaSection).getByText('Limit: 60 min pro Tag')).toBeVisible();
+
+    // Closing one leaves the other open.
+    await user.click(within(marco).getByRole('button', { name: 'Schauzeit ausblenden' }));
+    expect(within(marco).queryByRole('region')).not.toBeInTheDocument();
+    expect(within(lena).getByRole('region', { name: 'Schauzeit von Lena' })).toBeVisible();
+  });
 });

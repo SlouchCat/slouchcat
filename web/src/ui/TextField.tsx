@@ -12,6 +12,11 @@ import styles from './Field.module.css';
 
 interface TextFieldProps extends Omit<AriaTextFieldProps, 'className' | 'children' | 'style'> {
   label: string;
+  /**
+   * The label for screen readers only, where the visible text stands next to the field already
+   * (a SettingRow); the field keeps its accessible name.
+   */
+  hideLabel?: boolean;
   description?: ReactNode;
   placeholder?: string;
   /** Monospace input for paths and tokens. */
@@ -30,6 +35,7 @@ interface TextFieldProps extends Omit<AriaTextFieldProps, 'className' | 'childre
  */
 export function TextField({
   label,
+  hideLabel,
   description,
   placeholder,
   mono,
@@ -40,7 +46,7 @@ export function TextField({
 }: TextFieldProps) {
   return (
     <AriaTextField className={styles.field} {...rest}>
-      <Label className={styles.label}>{label}</Label>
+      <Label className={hideLabel ? styles.hiddenLabel : styles.label}>{label}</Label>
       {rows ? (
         <TextArea
           rows={rows}

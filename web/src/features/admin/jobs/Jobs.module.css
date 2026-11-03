@@ -1,0 +1,191 @@
+/* The jobs page (concept 09, concept 12 variant C): what AdminPage does not lay out itself. The
+   pools below «Läuft gerade», the fold-out of a job type with its schedule and runs side by side
+   (one column on the phone), and the failures tab. */
+
+.pools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-4);
+
+  /* A footer below the table (mockup Jobs-C): set off from it and in line with its cells. */
+  margin: var(--sc-space-3) 0 0;
+  padding: 0 var(--sc-space-4);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  list-style: none;
+}
+
+/* «Läuft gerade»: the cells of a run. */
+.runName {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  align-items: baseline;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 10rem;
+  max-width: 20rem;
+}
+
+.note {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.rowActions {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+/* Long texts on one line, the whole text in the tooltip (S-5). */
+.oneLine {
+  display: block;
+  overflow: hidden;
+  max-width: 28rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A long text in full, wrapped where it has to (errors in tables, the last run in a fold-out). */
+.wrap {
+  display: block;
+  min-width: 12rem;
+  max-width: 36rem;
+  overflow-wrap: anywhere;
+}
+
+/* «Aktualisierung pausiert» in the head while a draft or a confirmation holds the polling. */
+.livePaused {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  white-space: nowrap;
+}
+
+.numbers {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--sc-color-text-muted);
+}
+
+/* The fold-out of a job type. */
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  min-width: 0;
+}
+
+.detailHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-2);
+  margin: 0;
+  font-size: var(--sc-font-size-sm);
+}
+
+.facts dt {
+  color: var(--sc-color-text-muted);
+}
+
+.facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.code {
+  color: var(--sc-color-text-muted);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-xs);
+}
+
+.blocks {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-4);
+}
+
+@media (width >= 64rem) {
+  .blocks:has(> :nth-child(2)) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  padding: var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.blockTitle {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* The schedule's fields. */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.windowFields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  justify-content: flex-end;
+}
+
+/* The failures tab. */
+.tabBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.tabTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}

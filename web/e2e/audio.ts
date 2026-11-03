@@ -8,6 +8,7 @@ import {
 } from '@playwright/test';
 import { CSRF } from './catalog';
 import { AUDIO_IDS, FEED_BASE } from './env';
+import { tabTo } from './keyboard';
 
 // Helpers of the M6 specs (audiobooks, podcasts, audio downloads). Test media from
 // testdata/generate-media.sh: the M4B book (60 s, 12 chapters of 5 s, cover embedded) and the MP3
@@ -209,6 +210,41 @@ export async function subscribeFeed(
 export async function unsubscribe(owner: APIRequestContext, podcastId: string): Promise<void> {
   const response = await owner.delete(`/api/v1/admin/podcasts/${podcastId}`, { headers: CSRF });
   expect([204, 404]).toContain(response.status());
+}
+
+/** The id of the subscription to `url` (the global setup's feed has no id of its own). */
+export async function podcastIdByFeed(owner: APIRequestContext, url: string): Promise<string> {
+  const response = await owner.get('/api/v1/admin/podcasts');
+  expect(response.status(), await response.text()).toBe(200);
+  const podcast = ((await response.json()) as AdminPodcastData[]).find(
+    (entry) => entry.feedUrl === url,
+  );
+  expect(podcast, `a subscription to ${url}`).toBeDefined();
+  return podcast!.id;
+}
+
+/**
+ * The row of a podcast on /admin/podcasts by its id (DataTable's data-row-key): the specs
+ * subscribe the same feed under several addresses, so titles repeat.
+ */
+export const podcastRow = (page: Page, id: string): Locator =>
+  page.locator(`tr[data-row-key="${id}"]`);
+
+/** The title button that folds the row of podcast `id` out and in. */
+export const podcastToggle = (page: Page, id: string): Locator =>
+  podcastRow(page, id).getByRole('rowheader').getByRole('button');
+
+/**
+ * Folds the row of podcast `id` out by keyboard (Tab to its title, Enter) and returns the
+ * fold-out, the table row right below it.
+ */
+export async function openPodcastRow(page: Page, id: string, max = 60): Promise<Locator> {
+  const toggle = podcastToggle(page, id);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await tabTo(page, toggle, max);
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  return page.locator(`tr[data-row-key="${id}"] + tr`);
 }
 
 /** "Jetzt abrufen" through the API. */

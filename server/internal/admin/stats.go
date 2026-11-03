@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +21,24 @@ import (
 // topTitlesLimit is the length of the most watched list (contract maxItems).
 const topTitlesLimit = 20
 
+// maxTimeWindowDays bounds the watch-time grid: events older than 90 days are condensed into days
+// (progress_days, migration 00019) and have lost their time of day.
+const maxTimeWindowDays = 90
+
+// gridWindowDays is the window of the watch-time grid for a period of days: at most
+// maxTimeWindowDays, rounded down to whole weeks so every weekday counts equally often (Marco,
+// concept 12); a period shorter than a week stays as it is.
+func gridWindowDays(days int) int {
+	w := min(days, maxTimeWindowDays)
+	if w >= 7 {
+		w -= w % 7
+	}
+	return w
+}
+
+// quarterMs is a quarter hour in milliseconds, the unit of StatsWatchTimeByQuarter.
+const quarterMs = int64(15 * time.Minute / time.Millisecond)
+
 // Stats returns the statistics of the last days days (7, 30, 90 or 365) up to now.
 func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 	switch days {
@@ -29,16 +49,19 @@ func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 	to := s.now()
 	// [from, to]: an event stamped in this millisecond counts.
 	from, toMs := to.Add(-time.Duration(days)*24*time.Hour).UnixMilli(), to.UnixMilli()+1
+	window := gridWindowDays(days)
+	fromWindow := to.Add(-time.Duration(window) * 24 * time.Hour).UnixMilli()
 
-	// The four aggregations read the reader pool side by side: a period of a year over a million
+	// The five aggregations read the reader pool side by side: a period of a year over a million
 	// events takes about a second each (docs/perf/M8.md).
 	var (
-		wg                               sync.WaitGroup
-		top                              []systemq.StatsTopTitlesRow
-		profiles                         []systemq.StatsWatchTimeByProfileRow
-		modes                            systemq.StatsPlaybackModesRow
-		devices                          []systemq.StatsDevicesRow
-		errTop, errProf, errMode, errDev error
+		wg                                        sync.WaitGroup
+		top                                       []systemq.StatsTopTitlesRow
+		profiles                                  []systemq.StatsWatchTimeByProfileRow
+		modes                                     systemq.StatsPlaybackModesRow
+		devices                                   []systemq.StatsDevicesRow
+		quarters                                  []systemq.StatsWatchTimeByQuarterRow
+		errTop, errProf, errMode, errDev, errQuar error
 	)
 	wg.Go(func() {
 		top, errTop = s.sys.StatsTopTitles(ctx, systemq.StatsTopTitlesParams{FromMs: from, ToMs: toMs, LimitCount: topTitlesLimit})
@@ -52,8 +75,11 @@ func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 	wg.Go(func() {
 		devices, errDev = s.sys.StatsDevices(ctx, systemq.StatsDevicesParams{FromMs: from, ToMs: toMs})
 	})
+	wg.Go(func() {
+		quarters, errQuar = s.sys.StatsWatchTimeByQuarter(ctx, systemq.StatsWatchTimeByQuarterParams{FromMs: fromWindow, ToMs: toMs})
+	})
 	wg.Wait()
-	if err := errors.Join(errTop, errProf, errMode, errDev); err != nil {
+	if err := errors.Join(errTop, errProf, errMode, errDev, errQuar); err != nil {
 		return model.Stats{}, fmt.Errorf("stats: %w", err)
 	}
 
@@ -66,15 +92,33 @@ func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 			TranscodeShare: share(modes.Transcode, modes.Direct+modes.Remux+modes.Transcode),
 			HardwareShare:  share(modes.TranscodeHardware, modes.Transcode),
 		},
-		Devices: make([]model.StatDevice, 0, len(devices)),
+		Devices:                make([]model.StatDevice, 0, len(devices)),
+		WatchTimeByQuarterHour: weekGrid(quarters, s.zone),
+		TimeWindowDays:         window,
+		TimeZone:               s.zone.String(),
 	}
+	imageIDs := make([]string, 0, len(top))
 	for _, t := range top {
-		st := model.StatTitle{ItemID: t.ItemID, Title: t.Title, Kind: t.Kind, Plays: int(t.Plays), WatchedMs: t.WatchedMs}
+		// The series of an episode, or the live copy of a deleted title, names the images (StatsTopTitles).
+		st := model.StatTitle{ItemID: t.ItemID, Title: t.Title, Kind: t.Kind, Plays: int(t.Plays), WatchedMs: t.WatchedMs, ImageItemID: t.ImageItemID}
 		if t.Year.Valid {
 			year := int(t.Year.Int64)
 			st.Year = &year
 		}
+		imageIDs = append(imageIDs, st.ImageItemID)
 		out.TopTitles = append(out.TopTitles, st)
+	}
+	posters, err := posterHashes(ctx, s.sys, imageIDs)
+	if err != nil {
+		return model.Stats{}, fmt.Errorf("stats posters: %w", err)
+	}
+	backdrops, err := backdropHashes(ctx, s.sys, imageIDs)
+	if err != nil {
+		return model.Stats{}, fmt.Errorf("stats backdrops: %w", err)
+	}
+	for i := range out.TopTitles {
+		t := &out.TopTitles[i]
+		t.PosterHash, t.BackdropHash = posters[t.ImageItemID], backdrops[t.ImageItemID]
 	}
 	for _, p := range profiles {
 		out.WatchTime = append(out.WatchTime, model.StatProfile{ProfileID: p.ProfileID, ProfileName: p.ProfileName,
@@ -84,6 +128,52 @@ func (s *Service) Stats(ctx context.Context, days int) (model.Stats, error) {
 		out.Devices = append(out.Devices, model.StatDevice{Type: d.DeviceType, Count: int(d.Devices), WatchedMs: d.WatchedMs})
 	}
 	return out, nil
+}
+
+// weekGrid adds the played time of each UTC quarter hour to its quarter hour of the week in loc:
+// model.StatsQuarterHours values, Monday 00:00 first. Quarter hours instead of hours keep zones
+// with a half or quarter hour offset right; across a DST switch the local clock decides (the hour
+// that repeats in autumn counts twice into the same slot, the skipped hour in spring stays empty).
+func weekGrid(quarters []systemq.StatsWatchTimeByQuarterRow, loc *time.Location) []int64 {
+	grid := make([]int64, model.StatsQuarterHours)
+	for _, q := range quarters {
+		t := time.UnixMilli(q.Quarter * quarterMs).In(loc)
+		weekday := (int(t.Weekday()) + 6) % 7 // Monday = 0
+		grid[weekday*96+t.Hour()*4+t.Minute()/15] += q.WatchedMs
+	}
+	return grid
+}
+
+// ResolveZone resolves the time zone of the server once at start-up, by its IANA name, so the
+// name in Stats.TimeZone and the grid always agree (time.Local itself is only named "Local"): TZ
+// (as the container sets it, deploy/compose.yaml), else the target of /etc/localtime. A name that
+// does not load, or a zone without a name, is UTC.
+func ResolveZone(getenv func(string) string) (*time.Location, string) {
+	return resolveZone(getenv, "/etc/localtime")
+}
+
+// resolveZone is ResolveZone with the path of the system's zone file.
+func resolveZone(getenv func(string) string, localtime string) (*time.Location, string) {
+	name := strings.TrimPrefix(getenv("TZ"), ":")
+	if name == "" {
+		target, err := filepath.EvalSymlinks(localtime)
+		if err != nil || target == filepath.Clean(localtime) {
+			return time.UTC, "UTC" // no link: a copied zone file carries no name
+		}
+		name = target
+	}
+	if filepath.IsAbs(name) {
+		_, after, ok := strings.Cut(name, "zoneinfo/")
+		if !ok {
+			return time.UTC, "UTC"
+		}
+		name = strings.TrimPrefix(strings.TrimPrefix(after, "posix/"), "right/")
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC, "UTC"
+	}
+	return loc, loc.String()
 }
 
 // share is part/whole, 0 without a whole.

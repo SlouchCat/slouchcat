@@ -119,7 +119,7 @@ func toAdminStream(st model.AdminStream) gen.AdminStream {
 		MediaFileId: st.MediaFileID, Mode: gen.AdminStreamMode(st.Mode), Backend: optString(st.Backend), Hardware: st.Hardware,
 		Width: optPositive(st.Width), Height: optPositive(st.Height), Bitrate: optPositive(st.Bitrate), Reason: optString(st.Reason),
 		StartedAt: st.StartedAt.UTC(), LastActivityAt: st.LastActivityAt.UTC(), PositionMs: st.PositionMs, DurationMs: st.DurationMs,
-		PosterUrl: adminPosterURL(st.PosterItemID, st.PosterHash),
+		PosterUrl: adminPosterURL(st.PosterItemID, st.PosterHash), BackdropUrl: adminBackdropURL(st.BackdropItemID, st.BackdropHash),
 	}
 	if st.Quality != "" {
 		q := gen.Quality(st.Quality)

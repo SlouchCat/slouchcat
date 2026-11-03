@@ -322,6 +322,7 @@
       "noGerman": "no German texts",
       "fillOnly": "fills in only",
       "hint": "The first entry identifies the title, the others only fill in. Reorder with the arrows or the arrow keys.",
+      "hintRank": "The first entry identifies the title, the others only fill in. Choose the order with the position.",
       "required": "Tick at least one source.",
       "cannotIdentify": "{{provider}} cannot identify a title. Put {{identifiers}} first.",
       "fixedHint": "This content has only this source today.",
@@ -442,6 +443,67 @@
     "row": {
       "previous": "Scroll back",
       "next": "Scroll forward"
+    },
+    "adminPage": {
+      "help": "Help for this page",
+      "live_one": "Live, every second",
+      "live_other": "Live, every {{count}} seconds"
+    },
+    "actionMenu": {
+      "label": "More actions for {{name}}",
+      "danger": "Danger"
+    },
+    "rank": {
+      "label": "Position of {{name}}",
+      "option": "Position {{position}}",
+      "hintMove": "The other entries move along.",
+      "hintSwap": "The entry in the chosen position swaps with this one."
+    },
+    "rankedChoice": {
+      "hint": "Picking an entry that holds another place swaps the two.",
+      "swapped": "{{a}} and {{b}} swapped places.",
+      "remove": "Remove {{rank}} ({{choice}})"
+    },
+    "saveBar": {
+      "dirty": "Unsaved changes",
+      "clean": "Saved",
+      "save": "Save",
+      "saving": "Saving …",
+      "discard": "Discard"
+    },
+    "unsaved": {
+      "title": "Leave the page with unsaved changes?",
+      "body": "You have changes on this page that are not saved yet. If you leave the page, they are lost.",
+      "leave": "Discard and leave",
+      "stay": "Stay on the page"
+    },
+    "weekdays": {
+      "short": {
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat",
+        "sun": "Sun"
+      },
+      "long": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    },
+    "heatGrid": {
+      "day": "Day of the week",
+      "hour": "{{hour}}:00",
+      "less": "less",
+      "more": "more",
+      "none": "none",
+      "noneShown": "–"
     }
   },
   "item": {
@@ -703,6 +765,24 @@
       "title": "Libraries",
       "intro": "Folders Slouchcat watches and the state of their scans.",
       "empty": "No library yet.",
+      "tabs": {
+        "label": "Libraries by kind",
+        "all": "All",
+        "count_one": "{{count}} library",
+        "count_other": "{{count}} libraries",
+        "empty": "No library of this kind.",
+        "caption": "Libraries: {{tab}}"
+      },
+      "columns": {
+        "library": "Library",
+        "kind": "Kind",
+        "state": "State",
+        "counts": "Titles · files",
+        "folders": "Folders",
+        "metadata": "Metadata"
+      },
+      "none": "–",
+      "noMetadata": "No metadata scope",
       "roots": "Folders",
       "fsType": "File system {{type}}",
       "watch": {
@@ -740,15 +820,19 @@
       },
       "add": {
         "title": "Add library",
-        "submit": "Add",
-        "submitting": "Adding …"
+        "submitting": "Adding …",
+        "created": "The library {{name}} has been added."
       },
       "cancel": "Cancel scan",
+      "scanStarted": "The scan of {{name}} has started.",
+      "scanCancelled": "The scan of {{name}} has been cancelled.",
+      "scanFailed": "The scan of {{name}} has failed.",
+      "scanAborted": "The scan of {{name}} has been stopped.",
       "defaultRating": "Default: {{rating}}",
       "noRoots": "No folder: the titles come from subscribed feeds.",
+      "feedsOnly": "Titles from feeds",
       "changeRating": {
         "action": "Change default rating",
-        "label": "Change the default rating of {{name}}",
         "title": "Default rating of {{name}}",
         "description": "Every title whose rating comes from the library follows at once. Ratings set by hand stay.",
         "submit": "Save",
@@ -759,10 +843,6 @@
         "description": "A library can hold several folders. The scan and the watcher pick up a new one at once.",
         "none": "This library has no folder. Nothing is scanned until you add one.",
         "content": "Titles: {{items}} · files: {{files}}",
-        "add": {
-          "label": "Add a folder",
-          "submit": "Add"
-        },
         "remove": {
           "action": "Remove",
           "label": "Remove the folder {{path}}",
@@ -803,10 +883,10 @@
       "rootSummary_one": "{{count}} {{content}}",
       "rootSummary_other": "{{count}} {{content}}",
       "metadata": {
-        "like": "Metadata: like the server",
-        "texts": "Metadata: languages deviate",
-        "images": "Metadata: images deviate",
-        "both": "Metadata: languages and images deviate",
+        "like": "like the server",
+        "texts": "languages deviate",
+        "images": "images deviate",
+        "both": "languages and images deviate",
         "link": "Metadata of the library"
       }
     },
@@ -819,21 +899,16 @@
     "maintenance": {
       "title": "Maintenance",
       "intro": "Titles and files that need attention.",
-      "notAllowed": {
-        "title": "Administrators only",
-        "body": "Library maintenance is reserved for the primary profile of an administrator account."
-      },
       "tabs": "Issue kinds",
       "tab": {
         "unmatched": "Unmatched",
         "no_images": "No images",
-        "unrated": "Unrated",
+        "unrated": "Age rating missing",
         "orphaned": "Orphaned",
         "unplayable": "Unplayable",
         "rating_mismatch": "Rating mismatch",
         "duplicates": "Duplicates"
       },
-      "tabCount": "{{label}} ({{count}})",
       "hint": {
         "unmatched": "Without a match there is no description, artwork or rating. Match the title or refresh it.",
         "no_images": "Matched titles without a poster. A refresh loads the artwork again.",
@@ -851,6 +926,18 @@
       "selectNone": "Clear selection",
       "more": "Load more",
       "shown": "{{shown}} of {{total}}",
+      "entries_one": "{{count}} entry",
+      "entries_other": "{{count}} entries",
+      "library": "Library {{id}}",
+      "caption": "{{kind}} in {{library}}",
+      "columns": {
+        "title": "Title",
+        "kind": "Kind",
+        "path": "Path",
+        "detail": "Finding"
+      },
+      "none": "–",
+      "noneSpoken": "not given",
       "titleCount_one": "{{count}} title",
       "titleCount_other": "{{count}} titles",
       "fileCount_one": "{{count}} file",
@@ -910,7 +997,13 @@
         "confirmTitle": "Merge titles?",
         "confirmBody_one": "Files, extras, trailers and progress of the other title move to “{{title}}”. The other title is deleted.",
         "confirmBody_other": "Files, extras, trailers and progress of the {{count}} other titles move to “{{title}}”. The other titles are deleted.",
-        "empty": "No duplicates found."
+        "empty": "No duplicates found.",
+        "groups_one": "{{count}} group",
+        "groups_other": "{{count}} groups",
+        "meta_one": "{{reason}} · {{title}} · {{count}} title",
+        "meta_other": "{{reason}} · {{title}} · {{count}} titles",
+        "keep": "stays",
+        "noFiles": "No file"
       }
     },
     "item": {
@@ -937,7 +1030,8 @@
         "locked": "Locked fields",
         "children": "Content",
         "childCounts": "Seasons: {{seasons}} · Episodes: {{episodes}} · Extras: {{extras}}",
-        "none": "–"
+        "none": "–",
+        "episodeRange": "{{from}}–{{to}}"
       },
       "sources": {
         "title": "Source per field",
@@ -954,7 +1048,10 @@
           "poster": "Poster",
           "backdrop": "Backdrop"
         },
-        "fieldLang": "{{field}} ({{lang}})"
+        "fieldLang": "{{field}} ({{lang}})",
+        "count_one": "{{count}} field",
+        "count_other": "{{count}} fields",
+        "providerCount": "{{provider}} {{count}}"
       },
       "state": {
         "pending": "Pending",
@@ -970,13 +1067,21 @@
         "source": "Source",
         "label": "Set own rating",
         "fromMetadata": "From metadata",
-        "saved": "Rating saved."
+        "saved": "Rating saved.",
+        "unsaved": "unsaved",
+        "summary": "Effective {{effective}} · Own {{own}} · Source {{source}}"
       },
       "files": {
         "title": "Files",
         "probedAt": "Checked at {{date}}",
         "probeError": "Probe error",
-        "none": "No files."
+        "none": "No files.",
+        "columns": {
+          "name": "File",
+          "version": "Version",
+          "size": "Size",
+          "state": "State"
+        }
       },
       "refreshed": "Refresh queued.",
       "trailers": {
@@ -1010,7 +1115,14 @@
           "title": "Delete trailer?",
           "body": "The trailer is removed. An automatically found trailer may come back with the next refresh.",
           "confirm": "Delete"
-        }
+        },
+        "columns": {
+          "video": "Video",
+          "source": "Source",
+          "actions": "Actions"
+        },
+        "deleted": "Trailer deleted.",
+        "added": "Trailer added."
       },
       "images": {
         "title": "Images",
@@ -1040,7 +1152,24 @@
           "tvdb": "TVDB",
           "anilist": "AniList",
           "fanart": "Fanart.tv"
-        }
+        },
+        "columns": {
+          "kind": "Kind",
+          "source": "Source",
+          "state": "State",
+          "actions": "Actions"
+        },
+        "unlockFailed": "Lock on {{kind}} not lifted."
+      },
+      "tabs": {
+        "label": "Parts of the title",
+        "imageKinds_one": "{{count}} image kind",
+        "imageKinds_other": "{{count}} image kinds",
+        "files_one": "{{count}} file",
+        "files_other": "{{count}} files",
+        "trailers_one": "{{count}} trailer",
+        "trailers_other": "{{count}} trailers",
+        "unsavedMark": "•"
       }
     },
     "match": {
@@ -1062,10 +1191,25 @@
       "title": "Devices",
       "intro": "Browsers and devices that signed in, with the capability profile of their last playback start.",
       "list": "Devices",
+      "tabs": {
+        "label": "View of the devices",
+        "devices": "Devices",
+        "capabilities": "Capabilities"
+      },
+      "hint": {
+        "devices": "Grouped by type. The capabilities are in the tab next to it.",
+        "capabilities": "Capability profile of the last playback start of each device."
+      },
+      "caption": "{{view}}: {{type}}",
+      "count_one": "{{number}} device",
+      "count_other": "{{number}} devices",
+      "profiled_one": "{{number}} device with a capability profile",
+      "profiled_other": "{{number}} devices with a capability profile",
+      "streamCount_one": "{{number}} stream",
+      "streamCount_other": "{{number}} streams",
       "empty": "No devices yet.",
       "columns": {
         "name": "Device",
-        "type": "Type",
         "owner": "Owner",
         "lastSeen": "Last contact",
         "containers": "Containers",
@@ -1079,12 +1223,14 @@
       "unnamed": "Unknown device",
       "owner": "{{email}} · {{profile}}",
       "noOwner": "No playback yet",
+      "noProfile": "{{name}}, no capability profile yet",
       "types": {
         "desktop": "Computer",
         "phone": "Phone",
         "tablet": "Tablet",
         "tv": "TV",
-        "other": "Other"
+        "other": "Other",
+        "unknown": "Unknown"
       },
       "forget": {
         "action": "Forget",
@@ -1096,22 +1242,18 @@
       "forgotten": "Device “{{name}}” forgotten.",
       "yes": "Yes",
       "no": "No",
-      "unknown": "–"
+      "unknown": "–",
+      "unknownSpoken": "unknown"
     },
     "streams": {
       "title": "Streams",
       "intro": "Running playbacks. The list refreshes every 5 seconds.",
       "list": "Running streams",
+      "tileLabel": "{{profile}}: {{title}}",
       "empty": "Nothing is playing right now.",
-      "columns": {
-        "profile": "Profile",
+      "facts": {
         "device": "Device",
-        "title": "Title",
-        "quality": "Quality",
-        "mode": "Mode",
-        "position": "Position",
-        "since": "Since",
-        "actions": "Actions"
+        "quality": "Quality"
       },
       "unknownDevice": "Unknown device",
       "original": "Original",
@@ -1124,6 +1266,7 @@
       "hw": "HW",
       "sw": "SW",
       "position": "{{position}} of {{duration}}",
+      "progress": "Progress {{title}}",
       "stop": {
         "action": "Stop",
         "label": "Stop the stream of {{profile}}",
@@ -1132,28 +1275,67 @@
         "confirm": "Stop stream"
       },
       "stopped": "Stream of {{profile}} stopped.",
-      "noPosition": "–"
+      "since": "Since {{time}}",
+      "noPosition": "–",
+      "load": {
+        "title": "Server load",
+        "hw": {
+          "label": "Transcode HW",
+          "note": "Graphics card"
+        },
+        "sw": {
+          "label": "Transcode SW",
+          "note": "Processor"
+        },
+        "remux": {
+          "label": "Remux",
+          "note": "repackaged only"
+        },
+        "direct": {
+          "label": "Direct",
+          "note": "no load"
+        },
+        "bandwidth": {
+          "label": "Total bandwidth",
+          "note": "Sum of the bit rates",
+          "notePartial": "Sum of the known bit rates"
+        }
+      }
     },
     "podcasts": {
       "title": "Podcasts",
-      "intro": "Subscribed feeds and podcasts from folders. Slouchcat fetches every feed hourly and adds new episodes.",
+      "intro": "Subscribed feeds and podcasts from folders. The background job “Check podcast feeds” fetches the subscriptions that are due and adds new episodes.",
       "empty": "No podcast subscribed yet.",
+      "emptyLibrary": "No podcast in this library yet.",
       "list": "Subscribed podcasts",
+      "listOf": "Subscribed podcasts in {{library}}",
       "noLibrary": "Add a library of the kind Podcasts first.",
       "librariesLink": "Go to libraries",
       "never": "Never",
       "noError": "–",
       "explicit": "Explicit",
       "fromFolder": "from folder",
-      "localEpisodes_one": "{{count}} local",
-      "localEpisodes_other": "{{count}} local",
+      "localEpisodes_one": "{{number}} local",
+      "localEpisodes_other": "{{number}} local",
       "columns": {
         "title": "Title",
-        "library": "Library",
         "episodes": "Episodes",
         "lastFetch": "Last fetch",
-        "error": "Error",
-        "actions": "Actions"
+        "error": "Error"
+      },
+      "tabs": {
+        "label": "Podcasts by library",
+        "all": "All",
+        "count_one": "{{number}} podcast",
+        "count_other": "{{number}} podcasts"
+      },
+      "detail": {
+        "author": "Author",
+        "feedUrl": "Feed address",
+        "noFeed": "No feed.",
+        "noFeedFolder": "No feed, the episodes come from the folder.",
+        "library": "Library",
+        "folderNote": "A folder holds this podcast. It comes back with every scan; it can only be removed with the folder under Libraries."
       },
       "subscribe": {
         "action": "Subscribe to feed",
@@ -1169,7 +1351,8 @@
       "refresh": {
         "action": "Fetch now",
         "label": "Fetch {{title}} now",
-        "queued": "{{title}} is being fetched."
+        "queued": "{{title}} is being fetched.",
+        "running": "being fetched"
       },
       "remove": {
         "action": "Unsubscribe",
@@ -1185,15 +1368,27 @@
       "intro": "Hand-picked titles as a row of their own on the start page. For every profile or for single ones; each profile only sees titles of its age rating and only within the chosen time window.",
       "list": "Picks in the order of the row",
       "empty": "No picks yet. Without picks the start page shows no carousel.",
+      "emptyTab": "No pick in this tab.",
       "allProfiles": "Everyone",
       "noNote": "–",
+      "noNoteSpoken": "no note",
       "quoted": "“{{note}}”",
+      "changed": "changed",
       "count": {
-        "entries_one": "{{count}} entry",
-        "entries_other": "{{count}} entries",
-        "planned_one": "{{count}} scheduled",
-        "planned_other": "{{count}} scheduled",
+        "entries_one": "{{number}} entry",
+        "entries_other": "{{number}} entries",
+        "planned_one": "{{number}} scheduled",
+        "planned_other": "{{number}} scheduled",
         "both": "{{entries}} · {{planned}}"
+      },
+      "tabs": {
+        "label": "Picks by time window",
+        "all": "All",
+        "active": "Active",
+        "scheduled": "Scheduled",
+        "expired": "Expired",
+        "count_one": "{{number}} pick",
+        "count_other": "{{number}} picks"
       },
       "homeRowsHint": "Where the row stands on the start page and whether it appears is set under <page>Start page</page>.",
       "moved": "{{title}} is now at position {{position}}.",
@@ -1202,8 +1397,7 @@
         "title": "Title",
         "target": "For",
         "note": "Note",
-        "window": "Time window",
-        "actions": "Actions"
+        "window": "Time window"
       },
       "window": {
         "always": "Always",
@@ -1213,13 +1407,9 @@
         "expired": "Expired",
         "scheduled": "Scheduled"
       },
-      "up": {
-        "action": "Move up",
-        "label": "Move {{title}} up"
-      },
-      "down": {
-        "action": "Move down",
-        "label": "Move {{title}} down"
+      "detail": {
+        "place": "Place in the row",
+        "target": "For"
       },
       "search": {
         "label": "Search titles",
@@ -1256,9 +1446,10 @@
         "presetMissing": "The title of the link no longer exists. Search it again."
       },
       "edit": {
-        "action": "Edit",
         "label": "Edit {{title}}",
-        "title": "Edit {{title}}",
+        "saveLabel": "Save {{title}}",
+        "discard": "Discard",
+        "discardLabel": "Discard the changes to {{title}}",
         "done": "{{title}} is saved."
       },
       "remove": {
@@ -1279,7 +1470,7 @@
         "name": "Name",
         "source": "Source",
         "count": "Titles",
-        "actions": "Actions"
+        "state": "State"
       },
       "source": {
         "tmdb": "TMDB",
@@ -1291,7 +1482,6 @@
       "create": {
         "action": "New collection",
         "title": "New collection",
-        "description": "An empty collection. Add its titles afterwards under “Members”.",
         "submit": "Create",
         "done": "The collection {{name}} is created."
       },
@@ -1310,18 +1500,11 @@
         "done": "The collection {{name}} is deleted."
       },
       "members": {
-        "action": "Members",
-        "label": "Members of {{name}}",
         "title": "Members of {{name}}",
-        "description": "Search titles and add them; the order here is the collection's order.",
         "list": "Titles of the collection",
         "empty": "No titles in this collection yet.",
         "add": "Add",
         "addLabel": "Add {{title}}",
-        "up": "Move up",
-        "upLabel": "Move {{title}} up",
-        "down": "Move down",
-        "downLabel": "Move {{title}} down",
         "remove": "Remove",
         "removeLabel": "Remove {{title}}",
         "done": "The members of {{name}} are saved.",
@@ -1330,26 +1513,77 @@
           "hint": "Two characters or more: films, series, audiobooks and podcasts.",
           "empty": "No matching title found.",
           "results": "Titles found"
-        }
-      }
+        },
+        "count_one": "{{number}} title",
+        "count_other": "{{number}} titles",
+        "meta": "{{kind}} · {{year}}",
+        "unsaved": "Unsaved changes",
+        "discard": "Discard",
+        "discarded": "The changes to {{name}} are discarded."
+      },
+      "tabs": {
+        "label": "Collections by source",
+        "all": "All",
+        "count_one": "{{number}} collection",
+        "count_other": "{{number}} collections"
+      },
+      "listManual": "Manual collections",
+      "listTmdb": "Collections from TMDB",
+      "emptyTab": "No collections in this tab.",
+      "locked": "not editable",
+      "lockedNote": "This collection comes from TMDB: its members, name and deletion are locked.",
+      "changed": "changed"
     },
     "homeRows": {
       "title": "Start page",
       "intro": "Order of the start page rows, for every profile. Hidden and empty rows do not appear.",
       "list": "Rows of the start page",
+      "band": "Rows",
+      "tabs": {
+        "label": "View of the rows",
+        "order": "Order",
+        "preview": "Preview"
+      },
+      "count_one": "{{number}} row",
+      "count_other": "{{number}} rows",
+      "visibleCount_one": "{{number}} visible",
+      "visibleCount_other": "{{number}} visible",
       "columns": {
+        "position": "Position",
         "row": "Row",
-        "hidden": "Hide",
-        "actions": "Actions"
+        "state": "State",
+        "hidden": "Hide"
+      },
+      "state": {
+        "visible": "visible",
+        "hidden": "hidden"
       },
       "hide": "Hide",
       "hideLabel": "Hide {{row}}",
-      "up": "Move up",
-      "upLabel": "Move {{row}} up",
-      "down": "Move down",
-      "downLabel": "Move {{row}} down",
+      "rows": {
+        "spotlight": "The Trakt list, intersected with the library. Shown as a stage with a backdrop at its place; below the minimum number of matches it is left out.",
+        "picks": "Kept by hand, with a note, target profiles and a time window.",
+        "continue": "Titles the profile has started.",
+        "recent": "The titles that came into a library most recently.",
+        "released": "By release date within the last twelve months; a series by its newest episode.",
+        "watchlist": "The watchlist of the profile.",
+        "collections": "Own collections and those from TMDB.",
+        "genres": "The genres of the visible titles."
+      },
+      "pageLink": "Go to “{{page}}”",
       "moved": "{{row}} is now at position {{position}}. Save to apply it.",
       "saved": "The start page is saved.",
+      "discarded": "The changes are discarded.",
+      "discard": {
+        "title": "Discard changes?",
+        "body": "The unsaved order and hiding are lost; what is saved applies again.",
+        "confirm": "Discard"
+      },
+      "preview": {
+        "label": "Preview of the start page",
+        "row": "{{position}}. {{row}}",
+        "note": "A sketch with placeholders, in the unsaved order. On the real start page hidden rows are missing, and empty rows are left out too (an empty watchlist, for example)."
+      },
       "spotlight": "Which Trakt list Spotlight shows, when it was last fetched and whether Trakt is set up is shown under “Spotlight”.",
       "spotlightLink": "Go to “Spotlight”"
     },
@@ -1357,6 +1591,12 @@
       "title": "Spotlight",
       "intro": "A public Trakt list as a row of the start page. Only titles in your own library are shown; each profile sees only what its age rating allows.",
       "enabled": "Show on the start page",
+      "enabledHint": "Takes effect with “Save”, together with the source.",
+      "unsaved": "Unsaved changes",
+      "row": {
+        "shown": "On the start page",
+        "missing": "Missing from the start page"
+      },
       "lists": {
         "trending": "Trending on Trakt",
         "popular": "Popular on Trakt",
@@ -1387,7 +1627,7 @@
         "minHitsHint": "hits in the library, per profile (0–10)",
         "intervalHours": "Fetch every … hours",
         "intervalHoursHint": "6 to 48 hours",
-        "rotation": "Stage rhythm … seconds",
+        "rotation": "Spotlight rotation interval",
         "rotationHint": "3 to 15 seconds",
         "refresh": "Fetch now",
         "queued": "The list is being fetched.",
@@ -1440,7 +1680,9 @@
         "show": "Show",
         "showLabel": "Show {{title}}",
         "hidden": "{{title}} is hidden.",
-        "shown": "{{title}} is shown again."
+        "shown": "{{title}} is shown again.",
+        "count_one": "{{count}} entry",
+        "count_other": "{{count}} entries"
       },
       "pin": {
         "action": "Pin",
@@ -1448,7 +1690,10 @@
         "title": "Pin {{title}}",
         "rank": "Place in the row",
         "rankHint": "1 is the first place. The place holds for the whole list; a profile with fewer hits sees the title earlier.",
-        "done": "{{title}} is pinned to place {{rank}}."
+        "done": "{{title}} is pinned to place {{rank}}.",
+        "taken": "{{hint}} Taken: {{places}}.",
+        "takenPlace": "place {{rank}} ({{title}})",
+        "allTaken": "All places are taken; unpin one first."
       },
       "unpin": {
         "action": "Unpin",
@@ -1470,7 +1715,9 @@
         "override": "Override",
         "remove": "Remove",
         "removeLabel": "Remove the override of {{title}}",
-        "removed": "The override of {{title}} is removed."
+        "removed": "The override of {{title}} is removed.",
+        "count_one": "{{count}} override",
+        "count_other": "{{count}} overrides"
       },
       "rowSettings": "Where the row stands on the start page and whether it appears is set under “Start page”.",
       "rowSettingsLink": "Go to “Start page”"
@@ -1521,9 +1768,6 @@
       },
       "accounts": {
         "title": "Accounts"
-      },
-      "profiles": {
-        "title": "Profiles"
       },
       "devices": {
         "title": "Devices"
@@ -1592,6 +1836,7 @@
         "failed": "Failed",
         "paused": "Paused",
         "all": "Background jobs",
+        "toFailed": "View failures",
         "active": "Running tasks",
         "progress": "Progress {{name}}",
         "next": "No task is running. Next: {{type}}, {{date}}",
@@ -1712,9 +1957,11 @@
       },
       "envHint": "Set in deploy/.env. The value can only be changed there.",
       "save": "Save",
+      "saveLabel": "Save {{name}}",
       "saving": "Saving …",
+      "discard": "Discard",
       "clear": {
-        "action": "Delete",
+        "action": "Delete …",
         "label": "Delete {{name}}",
         "title": "Delete {{name}}?",
         "body": "The stored value is removed. Whatever needs it stops working.",
@@ -1722,60 +1969,73 @@
       },
       "saved": "{{name}} saved.",
       "cleared": "{{name}} deleted.",
+      "unsaved": "unsaved",
+      "notificationsLink": "Go to the notification channels",
       "keys": {
         "title": "Provider keys",
         "intro": "For metadata (TMDB, TVDB), images (Fanart.tv), trailers (YouTube) and the Trakt lists of the home page.",
-        "saveLabel": "Save {{name}}",
+        "count": "{{set}} of {{total}} set",
+        "setPlaceholder": "API key set",
         "newValue": "Leave empty to keep the stored value. A new value replaces it.",
         "tmdb": {
           "name": "TMDB token",
-          "label": "TMDB read access token",
-          "description": "Overviews, posters and age ratings from themoviedb.org."
+          "description": "API read access token from themoviedb.org: overviews, posters and age ratings.",
+          "link": "Get a token at themoviedb.org"
         },
         "tvdb": {
           "name": "TVDB key",
-          "label": "TVDB API key",
-          "description": "Optional second source for series."
+          "description": "API key from thetvdb.com: optional second source for series.",
+          "link": "Get a key at thetvdb.com"
         },
         "tvdbPin": {
           "name": "TVDB PIN",
-          "label": "TVDB subscriber PIN",
-          "description": "Only for a TVDB subscription with a PIN."
+          "description": "Subscriber PIN, only for a TVDB subscription with a PIN.",
+          "link": "Look up the PIN at thetvdb.com"
         },
         "youtube": {
           "name": "YouTube key",
-          "label": "YouTube API key",
-          "description": "Finds trailers when TMDB knows none."
+          "description": "YouTube Data API key: finds trailers when TMDB knows none.",
+          "link": "Get a key in the Google Cloud Console"
         },
         "trakt": {
           "name": "Trakt client ID",
-          "label": "Trakt client ID",
-          "description": "For the rows “Trending” and “Popular” of the home page."
+          "description": "For the rows “Trending” and “Popular” of the home page.",
+          "link": "Get a client ID at trakt.tv"
         },
         "traktStatus": "State of the Trakt lists",
         "fanart": {
           "name": "Fanart.tv key",
-          "label": "Fanart.tv project key",
-          "description": "Logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days."
+          "description": "Project key (API key) from fanart.tv: logos and high-quality posters as the last image source; switch it on under \"Metadata\". New images show after 7 days.",
+          "link": "Get a project key at fanart.tv"
         },
         "fanartClient": {
           "name": "Fanart.tv personal key",
-          "label": "Fanart.tv personal key",
-          "description": "Optional: new images after 2 days instead of 7."
+          "description": "Optional: new images after 2 days instead of 7.",
+          "link": "Get a personal key at fanart.tv"
         }
       },
       "webhooks": {
         "title": "Webhooks from Radarr and Sonarr",
         "intro": "Radarr and Sonarr report changed files here, so new titles appear at once. Slouchcat never calls those services itself.",
         "empty": "No integration set up yet.",
-        "address": "Address ends in …{{tail}}",
-        "lastSeen": "Last report: {{at}}",
+        "caption": "Webhook integrations",
+        "count_one": "{{count}} integration",
+        "count_other": "{{count}} integrations",
+        "tail": "…{{tail}}",
+        "columns": {
+          "name": "Name",
+          "kind": "Service",
+          "address": "Address",
+          "lastSeen": "Last report",
+          "actions": "Actions"
+        },
         "neverSeen": "Has never reported anything.",
         "kind": {
           "radarr": "Radarr",
           "sonarr": "Sonarr"
         },
         "form": {
+          "title": "New integration",
           "name": "Name",
           "nameHint": "Your choice; it only tells the entries of this list apart.",
           "kind": "Service",
@@ -1799,6 +2059,8 @@
           "removeAction": "Remove",
           "elsewhere": "Someone else has changed the path mapping of this integration in the meantime. Your rows are still here and will be stored when you save.",
           "takeOver": "Take the other version",
+          "elsewhereChip": "changed elsewhere",
+          "saveLabel": "Save the path mapping of {{name}}",
           "saved": "Path mapping saved."
         },
         "log": {
@@ -1836,31 +2098,38 @@
         "title": "E-mail server",
         "intro": "For notifications, invitations and announcements by e-mail.",
         "name": "E-mail server",
-        "host": "Server",
+        "hostPort": "Server and port",
         "port": "Port",
         "user": "User",
+        "userHint": "Sign-in name at the e-mail server, if needed.",
         "password": "Password",
         "passwordHint": "Stored encrypted and never shown again.",
         "passwordKeep": "Leave empty to keep the stored password.",
         "from": "Sender",
         "fromHint": "For example Slouchcat <media@example.ch>.",
         "tls": "Encryption",
+        "tlsHint": "STARTTLS for port 587, TLS for port 465.",
         "tlsOptions": {
           "starttls": "STARTTLS",
           "tls": "TLS",
           "none": "None"
         },
         "test": "Send test mail",
+        "testTo": "The test mail goes to {{email}}.",
         "testSent": "Test mail sent to {{email}}.",
         "testFailed": "The test mail did not arrive: {{detail}}"
       },
       "telegram": {
         "title": "Telegram bot",
-        "intro": "For notifications by Telegram. You get the token from @BotFather.",
         "name": "Telegram bot",
+        "botLabel": "Bot",
+        "botHelp": "Slouchcat finds it through the token.",
         "token": "Bot token",
-        "tokenKeep": "A new token replaces the stored one. Slouchcat checks it with Telegram.",
-        "bot": "Bot: @{{name}}"
+        "setPlaceholder": "Token set",
+        "tokenHelp": "For notifications by Telegram. The token comes from @BotFather; Slouchcat checks it with Telegram.",
+        "tokenReplace": "A new token replaces the stored one.",
+        "bot": "Bot: @{{name}}",
+        "noBot": "No bot set up."
       },
       "push": {
         "title": "Web Push",
@@ -1883,6 +2152,9 @@
         "on": "Update check switched on.",
         "off": "Update check switched off."
       },
+      "server": {
+        "title": "Server"
+      },
       "publicUrl": {
         "title": "Public address",
         "intro": "Links in e-mails and messages lead to the server at this address.",
@@ -1893,7 +2165,7 @@
     },
     "accounts": {
       "title": "Accounts",
-      "intro": "Every account with its role, rating level, libraries, profiles and the channels it receives notifications on. A new account starts with an invitation.",
+      "intro": "Every account with its role, rating level, libraries, profiles and the channels it receives notifications on. A new account starts with an invitation. You manage the profiles of your own account here; every other account manages its own profiles.",
       "list": "Accounts",
       "columns": {
         "email": "E-mail",
@@ -1920,11 +2192,7 @@
         "push": "Web push",
         "telegram": "Telegram"
       },
-      "profilesLink": "Profiles",
-      "accessLink": "Access",
-      "accessLabel": "Manage access of {{email}}",
       "edit": {
-        "action": "Change account",
         "title": "Change account",
         "intro": "E-mail address and password of your account. Every change needs your current password.",
         "email": "E-mail address",
@@ -1939,38 +2207,39 @@
       },
       "ownerBadge": "Owner",
       "access": {
-        "action": "Access",
-        "label": "Change the access of {{email}}",
         "title": "Access of {{email}}",
         "rating": "Highest rating",
         "libraries": "Libraries",
-        "limitsHint": "Applies to every profile of this account."
+        "limitsHint": "Applies to every profile of this account.",
+        "heading": "Access",
+        "save": "Save access",
+        "saved": "Access of {{email}} saved.",
+        "adminHint": "An administrator always has rating 18 and all libraries; «Access» exists only for accounts without administration."
       },
       "role": {
         "promote": {
           "action": "Make administrator",
-          "label": "Make {{email}} an administrator",
           "title": "Make {{email}} an administrator?",
           "body": "The account will manage the server, the libraries and the settings. Its rating rises to 18 and all libraries; the account's profiles keep their own levels.",
-          "confirm": "Appoint"
+          "confirm": "Appoint",
+          "done": "{{email}} is an administrator now."
         },
         "demote": {
           "action": "Take the role away",
-          "label": "Take the administrator role away from {{email}}",
           "title": "Take the administrator role away from {{email}}?",
           "body": "The account will manage only its own profiles and is signed out everywhere. Rating and libraries stay where they are; set them again on purpose.",
-          "confirm": "Take away"
+          "confirm": "Take away",
+          "done": "{{email}} is an account without administration now."
         }
       },
       "remove": {
-        "action": "Remove",
-        "label": "Remove {{email}}",
+        "action": "Remove account",
         "title": "Remove the account {{email}}?",
         "body": "The account, its profiles and its progress are deleted. Running sessions and playback end at once. Downloads on the account's devices disappear the next time they reach the server. A device that never comes online again keeps them.",
-        "confirm": "Remove account"
+        "confirm": "Remove account",
+        "done": "Account {{email}} removed."
       },
       "invitations": {
-        "title": "Invitations",
         "intro": "A link works once and for seven days. Whoever opens it creates their own account.",
         "note": "Who is the link for?",
         "noteHint": "A name, for example. The invited person sees the note too.",
@@ -1981,7 +2250,6 @@
           "libraries": "Libraries"
         },
         "created": {
-          "title": "Invitation link created",
           "once": "Copy the link now: it is shown only this once.",
           "label": "Invitation link",
           "copy": "Copy link",
@@ -2004,9 +2272,44 @@
           "action": "Revoke",
           "title": "Revoke invitation?",
           "body": "The link stops working.",
-          "confirm": "Revoke"
+          "confirm": "Revoke",
+          "done": "Invitation «{{note}}» revoked."
         },
-        "invite": "Invite an account"
+        "invite": "Invite an account",
+        "columns": {
+          "note": "Note",
+          "state": "State",
+          "rating": "Rating",
+          "libraries": "Libraries",
+          "detail": "Valid until / accepted",
+          "actions": "Actions"
+        }
+      },
+      "discard": "Discard",
+      "status": {
+        "label": "Summary",
+        "accounts": "Accounts",
+        "admins": "Administrators",
+        "owners_one": "{{number}} of them owner",
+        "owners_other": "{{number}} of them owners",
+        "profiles": "Profiles",
+        "ownProfiles_one": "{{number}} your own",
+        "ownProfiles_other": "{{number}} your own",
+        "openInvitations": "Open invitations",
+        "nextExpiry": "Next valid until {{date}}"
+      },
+      "tabs": {
+        "label": "Parts of the accounts",
+        "accounts": "Accounts",
+        "invitations": "Invitations",
+        "accountsCount_one": "{{number}} account",
+        "accountsCount_other": "{{number}} accounts",
+        "open": "{{number}} open"
+      },
+      "profiles": {
+        "mine": "My profiles",
+        "of": "Profiles of {{email}}",
+        "readOnly": "Every account manages its own profiles."
       }
     },
     "backup": {
@@ -2014,11 +2317,25 @@
       "intro": "Back up and restore the database and the settings. Media are never part of a backup.",
       "list": "Backups",
       "empty": "No backups yet.",
+      "count_one": "{{number}} backup",
+      "count_other": "{{number}} backups",
+      "caption": "Backups: {{kind}}",
+      "new": "new",
+      "tabs": {
+        "label": "Parts of the backup page",
+        "list": "Backups",
+        "create": "New backup",
+        "upload": "Restore from file"
+      },
+      "groups": {
+        "encrypted": "{{number}} encrypted",
+        "newest": "newest {{date}}",
+        "autoHint": "The server makes automatic backups before a migration of the database (with an update) and before a restore."
+      },
       "columns": {
         "name": "File",
         "created": "Created",
         "size": "Size",
-        "kind": "Kind",
         "secrets": "Keys",
         "encrypted": "Encrypted",
         "actions": "Actions"
@@ -2032,8 +2349,6 @@
       "created": "Backup “{{name}}” created.",
       "deleted": "Backup “{{name}}” deleted.",
       "create": {
-        "action": "Create backup",
-        "title": "Create backup",
         "intro": "The backup holds the database with accounts, profiles, progress and settings. Media are never part of it.",
         "scope": "Scope",
         "without": "Without keys (recommended)",
@@ -2053,17 +2368,14 @@
         "label": "Download {{name}}"
       },
       "delete": {
-        "action": "Delete",
-        "label": "Delete {{name}}",
+        "action": "Delete …",
         "title": "Delete the backup “{{name}}”?",
         "body": "The file is deleted from the server's backup folder. Downloaded copies stay.",
         "confirm": "Delete backup"
       },
       "restore": {
         "action": "Restore",
-        "label": "Restore {{name}}",
-        "upload": "Restore from file",
-        "titleUpload": "Restore a backup from a file",
+        "menu": "Restore …",
         "titleNamed": "Restore “{{name}}”",
         "warning": "Restoring replaces all data of this server with the state of the backup. The server restarts afterwards, and everyone is signed out.",
         "file": "Backup file",
@@ -2073,7 +2385,6 @@
         "passphraseUploadHint": "Only for an encrypted backup (….tar.gz.age).",
         "running": "Checking …",
         "confirmTitle": "Replace all data?",
-        "confirmBody": "Accounts, profiles, progress and settings are replaced by the state of the backup. The server restarts afterwards, and everyone is signed out.",
         "confirmBodyNamed": "Accounts, profiles, progress and settings are replaced by the state of “{{name}}”. The server restarts afterwards, and everyone is signed out.",
         "confirm": "Replace and restart"
       },
@@ -2109,8 +2420,18 @@
         "empty": "Nothing was watched in this period.",
         "columns": {
           "title": "Title",
-          "kind": "Kind"
-        }
+          "kind": "Kind",
+          "rank": "Place"
+        },
+        "count_one": "{{count, number}} title",
+        "count_other": "{{count, number}} titles",
+        "podium": "Places 1 to 3",
+        "rest": "Most watched from place 4",
+        "rank": "{{rank}}",
+        "meta": "{{kind}} · {{plays}} · {{watched}}",
+        "full": "Top {{count, number}}",
+        "plays_one": "{{count, number}} play",
+        "plays_other": "{{count, number}} plays"
       },
       "profiles": {
         "title": "Watch time per profile",
@@ -2119,15 +2440,17 @@
         "empty": "No profile watched anything in this period.",
         "columns": {
           "profile": "Profile"
-        }
+        },
+        "summary_one": "{{count, number}} profile · {{watched}}",
+        "summary_other": "{{count, number}} profiles · {{watched}}"
       },
       "playback": {
         "title": "Playback",
         "direct": "Direct play",
         "remux": "Remux",
         "transcode": "Transcode",
-        "sessions_one": "{{count}} play",
-        "sessions_other": "{{count}} plays",
+        "sessions_one": "{{count, number}} play",
+        "sessions_other": "{{count, number}} plays",
         "share": "{{share}} of all plays",
         "hardware": "Transcode on the GPU",
         "hardwareNote": "Share of the transcodes"
@@ -2140,7 +2463,29 @@
         "columns": {
           "type": "Device type",
           "count": "Devices"
-        }
+        },
+        "summary_one": "{{count, number}} device · {{watched}}",
+        "summary_other": "{{count, number}} devices · {{watched}}"
+      },
+      "loaded": "Numbers for {{period}} loaded.",
+      "when": {
+        "title": "When people watch",
+        "window_one": "From the last week",
+        "window_other": "From the last {{count, number}} weeks",
+        "empty": "Nothing was watched in these weeks.",
+        "byHour": "By time of day",
+        "byWeekday": "By day of the week",
+        "columns": {
+          "hour": "Hour",
+          "day": "Day of the week"
+        },
+        "hourSpan": "{{from}}:00–{{to}}:00",
+        "topHour": "Most at {{hour}}",
+        "topDay": "Most on {{day}}",
+        "zone": "Hours in the server's time zone ({{zone}}).",
+        "grid": "Week and hour",
+        "gridChart": "Watch time by day of the week and hour",
+        "peak": "Peak: {{day}}, {{hour}}"
       }
     },
     "announcements": {
@@ -2149,12 +2494,20 @@
       "list": "Announcements",
       "empty": "No announcements yet.",
       "create": "New announcement",
-      "columns": {
-        "title": "Title",
+      "sections": {
+        "drafts": "Drafts {{number}}",
+        "published": "Published {{number}}"
+      },
+      "item": {
+        "new": "Not saved",
+        "changed": "Unsaved changes",
+        "created": "Created on {{date}}",
+        "read": "{{acknowledged}} of {{total}} read"
+      },
+      "facts": {
         "created": "Created",
         "published": "Published",
-        "acknowledged": "Read",
-        "actions": "Actions"
+        "acknowledged": "Read"
       },
       "draft": "Draft",
       "notSent": "Not sent yet",
@@ -2166,15 +2519,25 @@
         "title": "New announcement",
         "editTitle": "Edit draft",
         "titleLabel": "Title",
+        "titleCount": "{{length}} / {{max}}",
         "body": "Text",
         "bodyHint": "At most {{max}} characters. Line breaks are kept.",
         "publishLabel": "Publishing",
         "publishNow": "Publish now",
         "save": "Save as draft"
       },
-      "edit": {
-        "action": "Edit",
-        "label": "Edit “{{title}}”"
+      "preview": {
+        "title": "How profiles see it",
+        "noTitle": "Title of the announcement",
+        "noBody": "The text appears here, the way profiles see it."
+      },
+      "discard": {
+        "action": "Discard",
+        "title": "Discard changes?",
+        "body": "The unsaved changes to “{{title}}” are lost.",
+        "newTitle": "Discard the new announcement?",
+        "newBody": "The new announcement is not saved yet. Its title and text are lost.",
+        "confirm": "Discard"
       },
       "publish": {
         "action": "Publish",
@@ -2182,7 +2545,8 @@
         "title": "Publish “{{title}}”?",
         "body": "Every profile sees the announcement at its next start. It goes to the channels of every account that chose announcements; guests receive it by e-mail by default. It cannot be changed afterwards.",
         "confirm": "Publish",
-        "reach": "Every profile sees it at its next start, and it goes to the channels of every account that chose announcements. Guests receive it by e-mail by default."
+        "reach": "Every profile sees it at its next start, and it goes to the channels of every account that chose announcements. Guests receive it by e-mail by default.",
+        "later": "When it is published: {{reach}} It cannot be changed afterwards."
       },
       "delete": {
         "action": "Delete",
@@ -2200,7 +2564,8 @@
         "queued": "Queued",
         "planned": "Planned",
         "paused": "Paused",
-        "failed": "Failed"
+        "failed": "Failed",
+        "label": "Summary"
       },
       "pools": {
         "title": "Workers",
@@ -2210,7 +2575,8 @@
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
-        "noEstimate": "no estimate"
+        "noEstimate": "no estimate",
+        "line": "{{pool}}: {{workers}} · {{state}}"
       },
       "pausedBanner": {
         "title_one": "{{count}} job paused",
@@ -2226,7 +2592,16 @@
         "pause": "Pause run",
         "pauseLabel": "Pause {{name}} (stops this and every running run of the job)",
         "cancel": "Cancel",
-        "cancelLabel": "Cancel run {{id}} of {{name}}"
+        "cancelLabel": "Cancel run {{id}} of {{name}}",
+        "count_one": "{{count}} run",
+        "count_other": "{{count}} runs",
+        "columns": {
+          "job": "Job",
+          "subject": "Subject",
+          "progress": "Progress",
+          "since": "Since",
+          "left": "Remaining"
+        }
       },
       "estimate": {
         "left": "about {{duration}} left",
@@ -2280,13 +2655,8 @@
         "resume": "Resume",
         "resumeLabel": "Resume {{name}}",
         "cancelQueued": "Cancel queued ({{count}})",
-        "cancelQueuedLabel": "Cancel the queued runs of {{name}}",
         "cancelAll": "Cancel all runs",
-        "cancelAllLabel": "Cancel all runs of {{name}}",
-        "schedule": "Schedule …",
-        "scheduleLabel": "Schedule of {{name}}",
-        "runs": "Runs …",
-        "runsLabel": "Runs of {{name}}"
+        "resumeNamed": "Resume: {{name}}"
       },
       "confirm": {
         "cancelQueuedTitle": "Cancel the queued runs of {{name}}?",
@@ -2300,7 +2670,8 @@
         "scanWarning": "The library ends as “aborted”; the next scan catches up.",
         "downloadWarning": "The downloads end as “failed” and are not prepared again.",
         "confirm": "Cancel",
-        "keep": "Keep"
+        "keep": "Keep",
+        "cancelFailedBody": "Slouchcat no longer retries this run."
       },
       "messages": {
         "ran_zero": "{{name}}: nothing to queue.",
@@ -2342,7 +2713,8 @@
         "retryLabel": "Queue run {{id}} again",
         "cancel": "Cancel",
         "cancelLabel": "Cancel run {{id}}",
-        "runAfter": "not before {{time}}"
+        "runAfter": "not before {{time}}",
+        "heading": "Runs"
       },
       "schedule": {
         "title": "Schedule of {{name}}",
@@ -2367,7 +2739,9 @@
         "windowHint": "Server time zone: {{zone}}. A window may span midnight.",
         "traktHint": "Interval and on/off are the same setting as on the spotlight page.",
         "updateHint": "On/off is the same setting as the update check in the settings.",
-        "save": "Save"
+        "save": "Save",
+        "heading": "Schedule",
+        "discard": "Discard"
       },
       "duration": {
         "seconds": "{{count}} s",
@@ -2418,6 +2792,10 @@
           "name": "Fetch images",
           "trigger": "After the match, catch-up at start"
         },
+        "metadata_apply": {
+          "name": "Apply metadata",
+          "trigger": "«Apply now» on the Metadata page"
+        },
         "trailer_find": {
           "name": "Find trailer",
           "trigger": "After the match"
@@ -2450,7 +2828,34 @@
           "name": "Prune history",
           "trigger": "Schedule daily: finished runs older than 30 days"
         }
-      }
+      },
+      "tabs": {
+        "label": "Jobs by group",
+        "types_one": "{{count}} job type",
+        "types_other": "{{count}} job types",
+        "caption": "Jobs of the group {{group}}",
+        "failed": "Failures",
+        "empty": "No jobs in this group."
+      },
+      "columns": {
+        "job": "Job",
+        "state": "State"
+      },
+      "failed": {
+        "title": "Latest failures (all types)",
+        "count_one": "{{count}} failed",
+        "count_other": "{{count}} failed",
+        "empty": "No failures.",
+        "shown": "{{shown}} of {{total}} · All failures of a job type are under «Runs» in its row.",
+        "columns": {
+          "type": "Job type",
+          "at": "Time"
+        },
+        "retryLabel": "Queue run {{id}} of {{name}} again"
+      },
+      "separator": " · ",
+      "none": "–",
+      "livePaused": "Updates paused"
     },
     "metadata": {
       "title": "Metadata",
@@ -2460,6 +2865,19 @@
         "jobs": "The schedules are under Background jobs.",
         "keys": "Keys under Integrations"
       },
+      "areas": {
+        "label": "Areas",
+        "changed": "Changed · {{summary}}",
+        "scoped": "{{state}} · {{summary}}",
+        "quality": "Poster {{poster}}, backdrop {{backdrop}}",
+        "sources": {
+          "local": "Local files",
+          "fanart": "Fanart.tv",
+          "tmdbAdult": "TMDB with adult content",
+          "none": "Only the folders' sources"
+        },
+        "separator": " › "
+      },
       "scope": {
         "label": "Applies to",
         "server": "Default",
@@ -2468,19 +2886,16 @@
         "deviates": "deviates",
         "textsDeviate": "Languages deviate",
         "imagesDeviate": "Images deviate",
-        "likeServer": "like the server"
+        "likeServer": "like the server",
+        "changed": "{{name}} (changed)",
+        "serverDirty": "The default has unsaved changes; this shows what is saved."
       },
       "languages": {
         "title": "Languages",
         "intro": "Every language here is fetched for every title; profiles pick the language of their descriptions from it. The interface stays German or English. Every further language costs one request per title and season.",
         "list": "Metadata languages",
-        "add": "Add a language",
-        "addLabel": "Choose a language",
-        "addButton": "Add",
-        "moveUp": "Move {{name}} forward",
-        "moveDown": "Move {{name}} back",
-        "remove": "Remove {{name}}",
-        "position": "{{index}}.",
+        "rank": "Language {{position}}",
+        "more": "Another language",
         "fallback": "Order = fallback: when a text is missing in the profile's language, Slouchcat shows the first one of the list, then the file name. The default needs German; a library needs German or English.",
         "unknownAt": "{{provider}} does not know: {{languages}}",
         "youtube": "{{count}} languages: up to {{titles}} titles a day with the YouTube trailer search (quota 10,000)."
@@ -2511,7 +2926,7 @@
         "chainOf": "Image language {{kind}}"
       },
       "quality": {
-        "title": "Quality",
+        "title": "Image quality",
         "intro": "Applies to every library. The delivered sizes (poster 200/400/800, backdrop 780/1280/1920, logo 400/800) are fixed.",
         "minPoster": "Minimum poster width",
         "minBackdrop": "Minimum backdrop width",
@@ -2549,6 +2964,7 @@
       },
       "apply": {
         "title": "Apply to existing titles",
+        "short": "Apply",
         "intro": "New titles use the settings at once. Existing titles stay until you start the run; it appears under Background jobs with progress, pause and cancel.",
         "what": "What",
         "both": "Texts and images",
@@ -2567,14 +2983,14 @@
         "noRun": "No run yet."
       },
       "save": {
-        "dirty": "Unsaved changes",
-        "clean": "Saved",
-        "save": "Save",
-        "saving": "Saving …",
-        "discard": "Discard",
-        "saved_one": "Saved. {{count}} title affected – apply now?",
-        "saved_other": "Saved. {{count}} titles affected – apply now?",
-        "savedLibrary": "Saved for {{name}}."
+        "savedScope_one": "Saved for {{name}}. {{count}} title affected – apply now?",
+        "savedScope_other": "Saved for {{name}}. {{count}} titles affected – apply now?",
+        "failed": "“{{name}}” was not saved: {{reason}}"
+      },
+      "discard": {
+        "title": "Discard the changes?",
+        "body": "The unsaved changes to {{names}} are lost.",
+        "confirm": "Discard"
       },
       "errors": {
         "langs_empty": "At least one language.",
@@ -2725,7 +3141,8 @@
         "limit": "Limit: {{count}} min a day",
         "total": "Total: {{count}} min",
         "tooltip": "{{date}}: {{value}}"
-      }
+      },
+      "metadataLanguageChip": "Language of the descriptions: {{language}}"
     }
   },
   "invite": {
@@ -3050,10 +3467,6 @@
         "body": "The channels apply to the whole account; they are changed in the primary profile. Switch to it to turn channels on or off.",
         "action": "Switch profile"
       },
-      "readOnly": {
-        "noEvents": "None",
-        "link": "Link"
-      },
       "channel": {
         "email": "E-mail",
         "push": "Web Push",
@@ -3070,7 +3483,9 @@
         "new_content": "New content",
         "errors": "Errors",
         "invitations": "Invitations",
-        "announcements": "Announcements"
+        "announcements": "Announcements",
+        "help": "What a message is sent for.",
+        "helpAdmin": "What a message is sent for. “Errors” is for administrators only."
       },
       "unavailable": {
         "body": "The main user sets up this channel in the administration under Integrations.",
@@ -3092,7 +3507,22 @@
         "unlink": "Unlink",
         "unlinked": "The link is removed.",
         "instructionNoBot": "Send the Slouchcat bot the message /start {{code}}",
-        "noBot": "The bot’s name is missing: the main user has to enter the bot token under Integrations first."
+        "noBot": "The bot’s name is missing: the main user has to enter the bot token under Integrations first.",
+        "label": "Link",
+        "help": "Connects the account with your chat with the bot.",
+        "codeOpen": "Code open",
+        "waiting_one": "Waiting for the message, checking every second.",
+        "waiting_other": "Waiting for the message, checking every {{count}} seconds.",
+        "paused": "Checking pauses while there are unsaved changes or a question is open.",
+        "unlinkConfirm": {
+          "title": "Unlink Telegram?",
+          "body": "Telegram messages no longer go to the linked chat. You can link again at any time with a new code."
+        },
+        "discardConfirm": {
+          "title": "Discard the code?",
+          "body": "The open code stops working at once. You can link again at any time with a new code.",
+          "confirm": "Discard code"
+        }
       },
       "push": {
         "devices": "Registered devices",
@@ -3109,11 +3539,16 @@
         "ios": "On iPhone and iPad, Web Push works only in the installed app: choose “Add to Home Screen” in the share menu and open Slouchcat from there.",
         "denied": "Notifications are blocked for Slouchcat. Allow them in the browser’s settings.",
         "noWorker": "The service worker is not running yet. Reload the page and try again.",
-        "failed": "The browser could not register with its push service."
+        "failed": "The browser could not register with its push service.",
+        "count_one": "{{count}} device",
+        "count_other": "{{count}} devices"
       },
       "saved": "Saved.",
       "test": "Test message",
-      "testSent": "Test message sent."
+      "testSent": "Test message sent.",
+      "unsaved": "Unsaved changes",
+      "enabledHelp": "Applies to the whole account with all its profiles.",
+      "noEvents": "None"
     }
   },
   "announcements": {

@@ -7,6 +7,7 @@ import {
   MenuTrigger,
   Popover,
 } from 'react-aria-components';
+import { useDensityPortalProps } from './adminDensity';
 import { AriaButton } from './AriaButton';
 import type { ButtonVariant } from './Button';
 import { Icon, type IconName } from './Icon';
@@ -97,6 +98,7 @@ export function MenuButton({
   onOpenChange,
   isDisabled,
 }: MenuButtonProps) {
+  const density = useDensityPortalProps();
   const groupOf = (key: string) =>
     groups?.find((group) => group.options.some((option) => option.id === key));
   const onAction = (key: Key) => {
@@ -115,6 +117,7 @@ export function MenuButton({
         placement="top end"
         offset={8}
         UNSTABLE_portalContainer={portalContainer}
+        {...density}
       >
         {groups ? (
           <AriaMenu

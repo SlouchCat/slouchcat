@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import row from './DashRow.module.css';
 import { PosterFallback } from './PosterFallback';
-import { ProgressBar } from './ProgressBar';
+import { StreamProgress } from './StreamProgress';
 import styles from './StreamRow.module.css';
 
 interface StreamRowProps {
@@ -54,10 +54,7 @@ export function StreamRow({
         <span className={row.title}>{title}</span>
         <span className={row.line}>{[profile, device].join(t('format.separator'))}</span>
         <span className={row.line}>{mode}</span>
-        <span className={row.progress}>
-          <ProgressBar value={progress} label={progressLabel} />
-          {progressText && <span className={row.figure}>{progressText}</span>}
-        </span>
+        <StreamProgress value={progress} label={progressLabel} text={progressText} />
       </span>
     </div>
   );

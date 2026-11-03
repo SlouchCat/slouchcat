@@ -1,11 +1,12 @@
 import type { MetadataProvider, MetadataProviderInfo, RootContent } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { useLayoutEffect, useRef } from 'react';
+import { useId, useLayoutEffect, useRef } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { AriaButton } from './AriaButton';
 import { Chip } from './Chip';
 import { Icon } from './Icon';
+import { RankHint, RankSelect, rankTo } from './RankSelect';
 import fieldStyles from './Field.module.css';
 import styles from './ProviderList.module.css';
 
@@ -85,6 +86,11 @@ interface ProviderListProps {
   label?: string;
   /** A message of the server about this list (422 providers_not_allowed). */
   error?: string;
+  /**
+   * How the order is changed: arrow buttons (the default, the setup wizard and the library
+   * forms) or a position per entry (`rank`, concept 12 S-16; the administration's folder dialog).
+   */
+  ordering?: 'arrows' | 'rank';
 }
 
 /**
@@ -107,8 +113,10 @@ export function ProviderList({
   name,
   label,
   error,
+  ordering = 'arrows',
 }: ProviderListProps) {
   const { t } = useTranslation();
+  const rankHint = useId();
   const providers = allowedProviders(content, value, infos);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const pending = useRef<{ id: MetadataProvider; delta: -1 | 1 } | null>(null);
@@ -216,32 +224,49 @@ export function ProviderList({
                 )}
               </span>
               <span className={styles.sort}>
-                <AriaButton
-                  ref={buttonRef(id, -1)}
-                  variant="ghost"
-                  icon="chevronUp"
-                  iconOnly
-                  aria-label={t('library.providers.moveUpLabel', { provider: providerName })}
-                  isDisabled={position <= 0}
-                  onPress={() => move(id, -1)}
-                  onKeyDown={arrows(id)}
-                />
-                <AriaButton
-                  ref={buttonRef(id, 1)}
-                  variant="ghost"
-                  icon="chevronDown"
-                  iconOnly
-                  aria-label={t('library.providers.moveDownLabel', { provider: providerName })}
-                  isDisabled={position < 0 || position === tickedOrder.length - 1}
-                  onPress={() => move(id, 1)}
-                  onKeyDown={arrows(id)}
-                />
+                {ordering === 'rank' ? (
+                  ticked && (
+                    <RankSelect
+                      name={providerName}
+                      position={position}
+                      count={tickedOrder.length}
+                      describedBy={rankHint}
+                      onChange={(to) => onChange(rankTo(tickedOrder, position, to, 'move'))}
+                    />
+                  )
+                ) : (
+                  <>
+                    <AriaButton
+                      ref={buttonRef(id, -1)}
+                      variant="ghost"
+                      icon="chevronUp"
+                      iconOnly
+                      aria-label={t('library.providers.moveUpLabel', { provider: providerName })}
+                      isDisabled={position <= 0}
+                      onPress={() => move(id, -1)}
+                      onKeyDown={arrows(id)}
+                    />
+                    <AriaButton
+                      ref={buttonRef(id, 1)}
+                      variant="ghost"
+                      icon="chevronDown"
+                      iconOnly
+                      aria-label={t('library.providers.moveDownLabel', { provider: providerName })}
+                      isDisabled={position < 0 || position === tickedOrder.length - 1}
+                      onPress={() => move(id, 1)}
+                      onKeyDown={arrows(id)}
+                    />
+                  </>
+                )}
               </span>
             </li>
           );
         })}
       </ul>
-      <span className={fieldStyles.description}>{t('library.providers.hint')}</span>
+      <span className={fieldStyles.description}>
+        {ordering === 'rank' ? t('library.providers.hintRank') : t('library.providers.hint')}
+      </span>
+      {ordering === 'rank' && <RankHint id={rankHint} />}
       {message && (
         <span role="alert" className={fieldStyles.error}>
           {message}
