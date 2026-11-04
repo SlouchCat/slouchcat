@@ -174,6 +174,59 @@ describe('versionTracks', () => {
     expect(versionTracks(german, texts)).toMatchObject({ subtitle: 65 });
   });
 
+  it('prefers a decodable sound and a subtitle as SDH as the running one (final review stage 2, G1-m1)', () => {
+    const audio = alienTracks.audio[0]!;
+    const subtitle = alienTracks.subtitles[0]!;
+    const mixed: MediaFileInfo = {
+      ...other,
+      tracks: {
+        mediaFileId: 'mf-2',
+        audio: [
+          { ...audio, id: 71, index: 1, language: 'de', codec: 'dts', default: true },
+          { ...audio, id: 72, index: 2, language: 'de', codec: 'ac3', default: false },
+        ],
+        subtitles: [
+          {
+            ...subtitle,
+            id: 81,
+            language: 'de',
+            title: 'SDH',
+            text: true,
+            default: true,
+            forced: false,
+          },
+          {
+            ...subtitle,
+            id: 82,
+            language: 'de',
+            title: 'Deutsch',
+            text: true,
+            default: false,
+            forced: false,
+          },
+        ],
+      },
+    };
+    const running = (title: string): PlaybackInfo => ({
+      ...playback,
+      tracks: {
+        ...playback.tracks,
+        audio: [{ ...audio, id: 11, index: 1, language: 'de' }],
+        subtitles: [{ ...subtitle, id: 21, language: 'de', title, forced: false }],
+      },
+      selection: { audioTrack: 1, subtitleTrack: 21, subtitleDelivery: 'text' },
+    });
+    expect(versionTracks(running('Deutsch'), mixed, ['aac', 'ac3'])).toEqual({
+      audioTrack: 2,
+      subtitle: 82,
+    });
+    expect(versionTracks(running('Deutsch (SDH)'), mixed, ['aac', 'ac3'])).toMatchObject({
+      subtitle: 81,
+    });
+    // Without a decodable codec in the language the default one comes first again.
+    expect(versionTracks(running('Deutsch'), mixed, ['aac'])).toMatchObject({ audioTrack: 1 });
+  });
+
   it('leaves to the server what the other version lacks', () => {
     const bare: MediaFileInfo = {
       ...other,

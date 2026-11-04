@@ -27,8 +27,9 @@ import {
   type PlaybackEngine,
 } from './capabilities';
 import { AudioPlayerPage } from './AudioPlayerPage';
+import { playbackCapabilities } from './capabilities';
 import { selectedAudio, selectedSubtitle } from './labels';
-import { baseLanguage, isCommentary } from './trackOrder';
+import { baseLanguage, isCommentary, isSdh } from './trackOrder';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { readPlayerPrefs, rememberedQuality } from './usePlayerPrefs';
 import { NO_CARRY, VideoPlayer, type PlaybackChange, type PlayerCarry } from './VideoPlayer';
@@ -153,15 +154,21 @@ export function switchTracks(
 
 /**
  * The first matching track in the order the server prefers within a language (review step 9, m-3,
- * as trackpick's audioIn and pick): not a commentary, then text before bitmap, then the default
+ * as trackpick's audioIn and pick): not a commentary, then one that `prefer` holds for (a sound the
+ * device decodes; a subtitle as SDH as the running one), then text before bitmap, then the default
  * one, then the file's order. Only an order: the server still decides what plays (rule 12).
  */
-function best(tracks: readonly Track[] | undefined, match: (track: Track) => boolean) {
+function best(
+  tracks: readonly Track[] | undefined,
+  match: (track: Track) => boolean,
+  prefer: (track: Track) => boolean,
+) {
   return tracks
     ?.filter(match)
     .sort(
       (a, b) =>
         Number(isCommentary(a)) - Number(isCommentary(b)) ||
+        Number(prefer(b)) - Number(prefer(a)) ||
         Number(b.text) - Number(a.text) ||
         Number(b.default) - Number(a.default),
     )[0];
@@ -169,12 +176,15 @@ function best(tracks: readonly Track[] | undefined, match: (track: Track) => boo
 
 /**
  * The tracks of a version switch (B-5, 11.3): ids and stream indexes belong to one file, so the
- * running tracks are looked up in the other version by language (and forced); what it lacks the
+ * running tracks are looked up in the other version by language (and forced); within it a sound in
+ * a codec of `decodableAudio` (the device's, playbackCapabilities) and a subtitle that is SDH
+ * exactly when the running one is come first (final review stage 2, G1-m1). What it lacks the
  * server chooses. «Aus» stays off.
  */
 export function versionTracks(
   info: PlaybackInfo,
   version: MediaFileInfo | undefined,
+  decodableAudio: readonly string[] = playbackCapabilities().audio,
 ): Omit<TrackChoice, 'file'> {
   const audio = selectedAudio(info);
   const subtitle = selectedSubtitle(info);
@@ -185,6 +195,7 @@ export function versionTracks(
         (track) =>
           baseLanguage(track.language) !== undefined &&
           baseLanguage(track.language) === baseLanguage(audio.language),
+        (track) => decodableAudio.includes(track.codec.toLowerCase()),
       )?.index
     : undefined;
   const subtitleId = subtitle
@@ -194,6 +205,7 @@ export function versionTracks(
           track.forced === subtitle.forced &&
           baseLanguage(track.language) !== undefined &&
           baseLanguage(track.language) === baseLanguage(subtitle.language),
+        (track) => isSdh(track) === isSdh(subtitle),
       )?.id
     : undefined;
   return {
