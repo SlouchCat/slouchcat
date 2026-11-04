@@ -395,7 +395,7 @@ func (p *tvdbProvider) Series(ctx context.Context, id string, langs []string) (S
 	rec := SeriesRecord{TitleRecord: TitleRecord{
 		Provider: ProviderTVDB, ID: strconv.FormatInt(s.ID, 10), TVDBID: s.ID, OriginalTitle: s.Name,
 		Date: s.FirstAired, Runtime: s.AverageRuntime, Texts: map[string]Text{}, Genres: map[string][]string{},
-		Certifications: map[string]string{},
+		Certifications: map[string]string{}, OriginalLanguage: p.shortLanguage(ctx, s.OriginalLanguage),
 	}}
 	var genres []string
 	for _, g := range s.Genres {
@@ -617,6 +617,24 @@ func (p *tvdbProvider) langCode(ctx context.Context, lang string) (string, bool)
 	table := p.languageTable(ctx)
 	code, ok := table[primary]
 	return code, ok
+}
+
+// shortLanguage maps TVDB's ISO 639-3 language id ("jpn") back onto the ISO 639-1 code of the
+// original language through the language table; "" when the table has no such id. The static
+// table names nor for both no and nb: the later code in order wins, no, the ISO 639-1 code of nor.
+func (p *tvdbProvider) shortLanguage(ctx context.Context, id string) string {
+	id = strings.ToLower(strings.TrimSpace(id))
+	if id == "" {
+		return ""
+	}
+	table := p.languageTable(ctx)
+	short := ""
+	for code, tvdbID := range table {
+		if tvdbID == id && code > short {
+			short = code
+		}
+	}
+	return normalizeOriginalLanguage(short)
 }
 
 // languageTable returns the live table when it is loaded (or loadable now), else the static one.

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { OptionLinkRow, OptionList, OptionRow, PlayerPanel, Switch } from '@/ui/aria';
+import { AriaButton, OptionLinkRow, OptionList, OptionRow, PlayerPanel, Switch } from '@/ui/aria';
 import { RATE_MAX, RATE_MIN, RATE_STEP } from '../keymap';
 import type { SubtitleStyle } from '../useSubtitleStyle';
 import styles from './SettingsPanel.module.css';
@@ -24,6 +24,11 @@ export interface SettingsChoice {
   options: readonly SettingsOption[];
   selectedId: string;
   onSelect: (id: string) => void;
+  /**
+   * What this device remembered for the choice (V-17: «Gemerkt: 720p»), shown under the list
+   * with a button that forgets it; `note` says what the memory does to other titles.
+   */
+  remembered?: { label: string; note?: string; resetLabel: string; onReset: () => void };
 }
 
 /** The speeds of the speed page: 0.5× to 2× in steps of 0.25 (V-7, like [ and ]). */
@@ -106,6 +111,27 @@ export function SettingsPanel({
           />
         ))}
       </OptionList>
+      {choice.remembered && (
+        <div className={styles.remembered}>
+          <p className={styles.hint}>{choice.remembered.label}</p>
+          {choice.remembered.note && <p className={styles.hint}>{choice.remembered.note}</p>}
+          <AriaButton
+            variant="secondary"
+            onPress={(event) => {
+              // The button goes away with the memory: the focus moves to the chosen row first
+              // (or the first row that can be chosen, when none is chosen), so it stays in the panel.
+              const dialog = event.target.closest('[role="dialog"]');
+              (
+                dialog?.querySelector<HTMLElement>('[role="option"][aria-selected="true"]') ??
+                dialog?.querySelector<HTMLElement>('[role="option"]:not([aria-disabled="true"])')
+              )?.focus();
+              choice.remembered?.onReset();
+            }}
+          >
+            {choice.remembered.resetLabel}
+          </AriaButton>
+        </div>
+      )}
     </PlayerPanel>
   );
 

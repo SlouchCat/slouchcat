@@ -321,6 +321,10 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 		br = rungFor(p.Height).Bitrate
 	}
 	maxrate, bufsize := strconv.Itoa(br), strconv.Itoa(2*br)
+	// The H.264 level of the output size and the source's frame rate (h264Level): "4.1", "4.2",
+	// "5.1" or "5.2"; h264_qsv takes the level_idc ("41", "42", "51", "52").
+	lvl := h264Level(p.Width, p.Height, v.FrameRate)
+	level, qsvLevel := strconv.Itoa(lvl/10)+"."+strconv.Itoa(lvl%10), strconv.Itoa(lvl)
 	tonemap, cbr := p.Target.Tonemap, p.Target.ConstantRate
 	tm := tonemapperOf(caps)
 	var c chain
@@ -360,7 +364,7 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 			rc = []string{"-rc", "cbr", "-b:v", maxrate}
 		}
 		c.enc = slices.Concat([]string{"-c:v", "h264_nvenc", "-preset", "p4", "-tune", "hq"}, rc, []string{
-			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", "4.1",
+			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", level,
 			"-g", noAutoKeyframes, "-no-scenecut", "1", "-forced-idr", "1"})
 	case BackendQSV:
 		c.in = []string{"-init_hw_device", "vaapi=va:" + vaapiDevice, "-init_hw_device", "qsv=qs@va", "-filter_hw_device", "qs"}
@@ -391,7 +395,7 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 			rc = []string{"-b:v", maxrate}
 		}
 		c.enc = slices.Concat([]string{"-c:v", "h264_qsv", "-preset", "veryfast"}, rc, []string{"-look_ahead", "0",
-			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", "41",
+			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", qsvLevel,
 			"-g", noAutoKeyframes, "-forced_idr", "1"})
 	case BackendVAAPI:
 		c.in = []string{"-init_hw_device", "vaapi=va:" + vaapiDevice, "-filter_hw_device", "va"}
@@ -418,7 +422,7 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 			mode = "CBR"
 		}
 		c.enc = []string{"-c:v", "h264_vaapi", "-rc_mode", mode, "-b:v", maxrate, "-maxrate", maxrate,
-			"-bufsize", bufsize, "-profile:v", "high", "-level:v", "4.1", "-g", noAutoKeyframes}
+			"-bufsize", bufsize, "-profile:v", "high", "-level:v", level, "-g", noAutoKeyframes}
 	default:
 		c.body = append(c.body, softwareChain(w, h, tonemap)...)
 		rc := []string{"-crf", "23", "-maxrate", maxrate, "-bufsize", bufsize}
@@ -428,7 +432,7 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 				"-x264-params", "nal-hrd=cbr"}
 		}
 		c.enc = slices.Concat([]string{"-c:v", "libx264", "-preset", "veryfast"}, rc, []string{
-			"-profile:v", "high", "-level:v", "4.1", "-g", noAutoKeyframes, "-sc_threshold", "0"})
+			"-profile:v", "high", "-level:v", level, "-g", noAutoKeyframes, "-sc_threshold", "0"})
 	}
 	return c
 }

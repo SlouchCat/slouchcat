@@ -27,6 +27,15 @@ func (e serviceProblem) VisitSetProfilePinResponse(w http.ResponseWriter) error 
 func (e serviceProblem) VisitRemoveProfilePinResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
+func (e serviceProblem) VisitGetMyPlaybackPrefsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitPutMyPlaybackPrefsResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitResetMySeriesTracksResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 
 // accountSession returns the session of an account operation together with the profile service.
 func (s *server) accountSession(ctx context.Context) (model.Session, ProfileService, error) {
@@ -100,6 +109,7 @@ func (s *server) CreateProfile(ctx context.Context, req gen.CreateProfileRequest
 	in := model.ProfileInput{
 		Name: &b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), Accent: accentPtr(b.Accent),
 		AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, PIN: b.Pin, Limits: fromPlaybackLimits(b.Limits),
+		AudioLanguages: b.AudioLanguages, SubtitleMode: subtitleModePtr(b.SubtitleMode), SubtitleLanguages: b.SubtitleLanguages,
 	}
 	p, err := svc.CreateProfile(ctx, session, in)
 	if err != nil {
@@ -117,6 +127,7 @@ func (s *server) UpdateProfile(ctx context.Context, req gen.UpdateProfileRequest
 	in := model.ProfileInput{
 		Name: b.Name, MaxRating: ratingPtr(b.MaxRating), Language: languagePtr(b.Language), MetadataLanguage: b.MetadataLanguage,
 		Accent: accentPtr(b.Accent), AllLibraries: b.AllLibraries, LibraryIDs: b.LibraryIds, Limits: fromPlaybackLimits(b.Limits),
+		AudioLanguages: b.AudioLanguages, SubtitleMode: subtitleModePtr(b.SubtitleMode), SubtitleLanguages: b.SubtitleLanguages,
 	}
 	p, err := svc.UpdateProfile(ctx, session, req.Id, in)
 	if err != nil {
@@ -163,6 +174,61 @@ func (s *server) RemoveProfilePin(ctx context.Context, req gen.RemoveProfilePinR
 		return s.problem(ctx, err), nil
 	}
 	return gen.RemoveProfilePin204Response{}, nil
+}
+
+// GetMyPlaybackPrefs, PutMyPlaybackPrefs and ResetMySeriesTracks are the preferences of the
+// active profile (x-visibility scoped, concept 13 11.4): every profile changes its own.
+func (s *server) GetMyPlaybackPrefs(ctx context.Context, _ gen.GetMyPlaybackPrefsRequestObject) (gen.GetMyPlaybackPrefsResponseObject, error) {
+	session, svc, err := s.accountSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	prefs, err := svc.GetPlaybackPrefs(ctx, session)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.GetMyPlaybackPrefs200JSONResponse(toPlaybackPrefs(prefs)), nil
+}
+
+func (s *server) PutMyPlaybackPrefs(ctx context.Context, req gen.PutMyPlaybackPrefsRequestObject) (gen.PutMyPlaybackPrefsResponseObject, error) {
+	session, svc, err := s.accountSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	b := deref(req.Body)
+	prefs, err := svc.SetPlaybackPrefs(ctx, session, model.PlaybackPrefs{
+		AudioLanguages: b.AudioLanguages, SubtitleMode: string(b.SubtitleMode), SubtitleLanguages: b.SubtitleLanguages,
+	})
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.PutMyPlaybackPrefs200JSONResponse(toPlaybackPrefs(prefs)), nil
+}
+
+func (s *server) ResetMySeriesTracks(ctx context.Context, _ gen.ResetMySeriesTracksRequestObject) (gen.ResetMySeriesTracksResponseObject, error) {
+	session, svc, err := s.accountSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := svc.ResetSeriesTracks(ctx, session); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.ResetMySeriesTracks204Response{}, nil
+}
+
+func toPlaybackPrefs(p model.PlaybackPrefs) gen.PlaybackPrefs {
+	return gen.PlaybackPrefs{
+		AudioLanguages: nonNilStrings(p.AudioLanguages), SubtitleMode: gen.SubtitleMode(p.SubtitleMode),
+		SubtitleLanguages: nonNilStrings(p.SubtitleLanguages),
+	}
+}
+
+func subtitleModePtr(m *gen.SubtitleMode) *string {
+	if m == nil {
+		return nil
+	}
+	v := string(*m)
+	return &v
 }
 
 func ratingPtr(r *gen.Rating) *int {

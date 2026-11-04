@@ -817,6 +817,44 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   abweichend von 6.1 «nur Web-App». Fertige Downloads behalten ihr gespeichertes Manifest und
   zeigen Kapitel erst nach einem neuen Download (Release-Notiz). Podcast-Folgen bekommen offline
   weiterhin keine Kapitel.
+- **Stufe 2, Schritt 7** (4. November 2026, Vertrag 1.11.0):
+  - `originalLanguage` steht an `AdminItem` (Verwaltung mit Sperren und Herkunft), nicht an
+    `ItemDetail` (Zuschauer) wie in 11.8.
+  - Die Operationen `getMyPlaybackPrefs`, `putMyPlaybackPrefs` und `resetMySeriesTracks` sind
+    schon in Schritt 7 echt umgesetzt, weil der strict server sie verlangt. Schritt 10 behält
+    Vorbelegung neuer Profile, Seite «Meine Wiedergabe» und `ProfileForm`.
+  - Bis Schritt 11 lehnt der Server `quality: original`, `quality: 2160p` und jede `qualityCap`
+    mit 422 ab, statt etwas anderes zu spielen. Schritt 11 ersetzt das durch 11.5 (c).
+  - Bis Schritt 9 heisst ein fehlendes oder leeres `subtitleTrack` weiter «keine Untertitel».
+- **4K im Breitbild** (Marcos Entscheid vom 4. November 2026, Schritt 12): Eine Quelle gilt für
+  2160p als 4K, wenn sie mindestens 2160 Zeilen **oder** mindestens 3840 Pixel Breite hat. Damit
+  bekommen auch Kinofilme im Breitbild (z. B. 3840×1600) die Stufe 2160p. Das ergänzt 11.5
+  «Quelle mindestens 2160 Zeilen». Das H.264-Level folgt der Bildgrösse, nicht nur der Höhe.
+- **Stufe 2, Schritte 8 und 9:**
+  - Die Originalsprache kommt aus den Anbietern in der Reihenfolge der Anbieterliste der
+    Bibliothek (ADR 0015), nicht in der festen Reihenfolge TMDB, TVDB, AniList aus 11.7.
+  - Die Tests der Spurwahl nutzen nachgebaute Spurlisten in der Form der Probe, nicht die
+    bereinigten Probe-JSON echter Titel aus 11.11; diese lagen nicht im Repo.
+  - «Für diese Serie merken» merkt nur den Teil, der von Hand geändert wurde: ein Tonwechsel
+    ändert den Merker für die Untertitel nicht und umgekehrt.
+  - Bei «Immer» und «Fremdsprache» geht eine volle Bildspur einer SDH-Textspur derselben Sprache
+    vor, wie in 11.3 (Marcos Entscheid vom 4. November 2026), auch wenn das Einbrennen eine sonst
+    direkt spielbare Datei umwandelt.
+- **Stufe 2, Schritt 11** (4. November 2026, Vertrag 1.11.0, ADR 0021 mit Nachträgen):
+  - `qualityCap` hat ein eigenes Enum `QualityCap` (1080p bis 360p, Review 7 m-3). Zusammen mit
+    einer anderen `quality` als `auto` gilt `quality`.
+  - Ein gewähltes 2160p, das nicht geht, läuft auf 1080p; ein `original`, das nicht geht, als
+    `auto` (11.5 (c)). Beides ohne Fehler.
+  - Bei vollem Budget sinkt 2160p auf 1080p, auch bei Tonemapping auf der GPU.
+  - Neu verhält sich 1080p auf einer 4K-Quelle wie jede Stufe unter der Quelle: Transcode, auch
+    wo das Gerät die 4K-Datei direkt spielt. Bisher spielte sie direkt, weil die Leiter bei 1080p
+    endete.
+  - Eine 4K-Quelle hat mindestens 2160 Zeilen oder 3840 Pixel Breite (Marcos Entscheid zum
+    Breitbild); das H.264-Level folgt Bildgrösse und Bildrate.
+  - Der Grund für ein nicht verfügbares `original` steht nicht im Vertrag. Der Client leitet ihn
+    aus der laufenden Wiedergabe ab: eingebrannte Untertitel, Grund `keyframes_pending`, sonst
+    «Nur umgewandelt abspielbar».
+  - «Zurücksetzen» vergisst die gemerkte Stufe, ohne die laufende Wiedergabe neu zu starten.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 

@@ -1561,6 +1561,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/original-language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set and lock the original language of a title (concept 13 11.7)
+         * @description Sets the original language of a movie or series (since contract 1.11.0) and locks the field
+         *     (`lockedFields` gets `original_language`), so `metadata.fill`, a match and
+         *     `metadata.original_language_backfill` keep it. `""` stores "unknown". `null` lifts the lock and
+         *     clears the value; a manual match of the title looks the language up again.
+         */
+        put: operations["setItemOriginalLanguage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/{id}": {
         parameters: {
             query?: never;
@@ -3366,6 +3389,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/playback-prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Language and subtitle preferences of the active profile (contract 1.11.0)
+         * @description Every profile reads and sets its own preferences (concept 13 11.4, F-13); the primary profile
+         *     sets them for every profile of the account with `updateProfile` as well. The server chooses the
+         *     audio and subtitle track of a start from them (rule 12).
+         */
+        get: operations["getMyPlaybackPrefs"];
+        /**
+         * Replace the language and subtitle preferences of the active profile (contract 1.11.0)
+         * @description All three fields are replaced at once.
+         */
+        put: operations["putMyPlaybackPrefs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/playback-prefs/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Forget the languages the active profile chose per series (contract 1.11.0)
+         * @description The player remembers the audio and subtitle language a profile chose by hand for a series
+         *     (`PlaybackRequest.rememberForSeries`); this deletes every such entry of the active profile
+         *     ("Meine Wiedergabe", concept 13 11.3). Nothing to delete is no error.
+         */
+        delete: operations["resetMySeriesTracks"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/channels": {
         parameters: {
             query?: never;
@@ -3832,6 +3903,15 @@ export interface components {
              */
             limits: components["schemas"]["PlaybackLimits"];
             effectiveLimits: components["schemas"]["EffectiveLimits"];
+            /**
+             * @description The audio languages of the profile in order of preference (since contract 1.11.0, concept 13
+             *     11.4). The profile changes them itself with `putMyPlaybackPrefs`, the primary profile for every
+             *     profile with `updateProfile`.
+             */
+            audioLanguages: components["schemas"]["PlaybackLanguages"];
+            subtitleMode: components["schemas"]["SubtitleMode"];
+            /** @description The subtitle languages of the profile in order of preference (since contract 1.11.0). */
+            subtitleLanguages: components["schemas"]["PlaybackLanguages"];
         };
         /** @description A profile as the picker shows it; carries no settings beyond the look and whether a PIN is set. */
         ProfileSummary: {
@@ -3871,6 +3951,11 @@ export interface components {
              *     clears that limit (no limit); an omitted `limits` keeps the stored limits.
              */
             limits?: components["schemas"]["PlaybackLimits"];
+            /** @description The audio languages in order of preference (since contract 1.11.0). */
+            audioLanguages?: components["schemas"]["PlaybackLanguages"];
+            subtitleMode?: components["schemas"]["SubtitleMode"];
+            /** @description The subtitle languages in order of preference (since contract 1.11.0). */
+            subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
         };
         /** @description Partial update; every field is optional and only sent fields change. */
         ProfileUpdate: {
@@ -3891,6 +3976,38 @@ export interface components {
              *     clears that limit (no limit); an omitted `limits` keeps the stored limits.
              */
             limits?: components["schemas"]["PlaybackLimits"];
+            /** @description The audio languages in order of preference (since contract 1.11.0). */
+            audioLanguages?: components["schemas"]["PlaybackLanguages"];
+            subtitleMode?: components["schemas"]["SubtitleMode"];
+            /** @description The subtitle languages in order of preference (since contract 1.11.0). */
+            subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
+        };
+        /**
+         * @description A language of the playback preferences as an ISO 639-1 code (`de`, `en`), like `Profile.language`
+         *     (since contract 1.11.0). A code that is not in ISO 639-1 is refused (422 `invalid_value`).
+         */
+        PlaybackLanguage: string;
+        /**
+         * @description Languages in order of preference, the first one first (since contract 1.11.0); empty = none. A
+         *     duplicate is refused (422 `invalid_value`), more than 10 entries too (`too_long`).
+         */
+        PlaybackLanguages: components["schemas"]["PlaybackLanguage"][];
+        /**
+         * @description The subtitle rule of a profile (since contract 1.11.0, concept 13 11.3): `off` none; `forced`
+         *     (default) the forced text track in the language of the audio; `foreign` like `forced`, and the
+         *     full track in the first subtitle language when the audio is in none of the profile's
+         *     languages; `always` the full track in the first subtitle language, otherwise like `forced`.
+         * @enum {string}
+         */
+        SubtitleMode: "off" | "forced" | "foreign" | "always";
+        /**
+         * @description The language and subtitle preferences of the active profile (`getMyPlaybackPrefs`,
+         *     `putMyPlaybackPrefs`; since contract 1.11.0). A `PUT` replaces all three fields at once.
+         */
+        PlaybackPrefs: {
+            audioLanguages: components["schemas"]["PlaybackLanguages"];
+            subtitleMode: components["schemas"]["SubtitleMode"];
+            subtitleLanguages: components["schemas"]["PlaybackLanguages"];
         };
         /** @description Bandwidth limit in kbit/s (W-8). A source above the limit is transcoded to a rung that fits. */
         BitrateKbps: number;
@@ -4034,6 +4151,10 @@ export interface components {
         ItemRatingRequest: {
             /** @description New own rating, or null to drop the manual override. */
             rating: components["schemas"]["Rating"] | null;
+        };
+        ItemOriginalLanguageRequest: {
+            /** @description An ISO 639-1 code, `""` for "unknown", or null to lift the lock and look it up again. */
+            language: string | null;
         };
         /** @description Administration view of a title's ratings; not an `ItemRef` (unfiltered, admin only). */
         AdminItemRating: {
@@ -4343,10 +4464,29 @@ export interface components {
              */
             deviceId?: string;
             capabilities?: components["schemas"]["PlaybackCapabilities"];
-            /** @description Stream index of the audio track to play (`Track.index`); default the file's default track. */
+            /**
+             * @description Stream index of the audio track to play (`Track.index`). Absent = the server chooses (since
+             *     contract 1.11.0 by the profile's languages, concept 13 11.3; before, the file's default track).
+             */
             audioTrack?: number;
-            /** @description Id of the subtitle track to show (`Track.id`); absent or null = no subtitles. */
+            /**
+             * @description Id of the subtitle track to show (`Track.id`). **Changed meaning since contract 1.11.0:** absent
+             *     or null = the server chooses by the profile's subtitle rule (before: no subtitles); no
+             *     subtitles is `subtitleOff: true`. Every switch in the player (audio, subtitles, quality,
+             *     version) sends audio and subtitles explicitly; only the first start lets the server choose.
+             */
             subtitleTrack?: components["schemas"]["TrackID"] | null;
+            /**
+             * @description No subtitles (since contract 1.11.0); absent = false. Together with `subtitleTrack` the request is refused (422
+             *     `subtitleOff` `not_allowed`).
+             */
+            subtitleOff?: boolean;
+            /**
+             * @description The audio or subtitle choice of this request was made by hand during an episode, and the
+             *     profile keeps its languages for the series (since contract 1.11.0, concept 13 11.3); absent =
+             *     false. Ignored for anything but an episode.
+             */
+            rememberForSeries?: boolean;
             /**
              * @description `text`: the client renders the track from `subtitleUrl` (text tracks only); `burn`: burned into
              *     the video (always a transcode); `auto`: text for text tracks, burned for bitmap tracks (PGS, DVD).
@@ -4355,6 +4495,15 @@ export interface components {
              */
             subtitleDelivery: "auto" | "text" | "burn";
             quality?: components["schemas"]["Quality"];
+            /**
+             * @description A rung below 2160p the device remembered from the quality panel (V-17, since contract
+             *     1.11.0): it caps the output like a device limit. A file within the cap still plays directly
+             *     or as a remux, a file above it is transcoded to the cap (reason `quality`); the playback
+             *     counts as `auto` (`QualityOption.current`). `auto`, `original` and `2160p` are no caps and
+             *     go as `quality`. Together with a `quality` other than `auto`, `quality` applies and the cap
+             *     is ignored.
+             */
+            qualityCap?: components["schemas"]["QualityCap"];
             /**
              * Format: int64
              * @description Start position instead of the stored resume position (a track or quality switch restarts the
@@ -4368,12 +4517,25 @@ export interface components {
          */
         TrackID: number;
         /**
-         * @description Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
-         *     a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
-         *     (video) plus 160 kbit/s AAC.
+         * @description Quality rung (W-8). `auto` = the highest rung up to 1080p the source, the device and the profile's
+         *     limits allow; a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2,
+         *     360p 1 (video) plus 160 kbit/s AAC. Since contract 1.11.0 (concept 13 11.5, F-8, F-14): `original`
+         *     never re-encodes the video (direct play or remux; the audio may be converted) and is unavailable
+         *     where that is impossible (burned-in subtitles, a remux whose keyframe index is still being built,
+         *     a video the device cannot play without a transcode); a requested `original` that is unavailable
+         *     plays as `auto` without an error. `2160p` (25 Mbit/s) only on a hardware backend, from a 4K source
+         *     (at least 2160 lines or at least 3840 pixels wide), a device of at least 1440 lines, a profile
+         *     that allows 2160 and an SDR source or tone mapping on the GPU; a requested `2160p` that is
+         *     unavailable plays as `auto`, at most on the 1080p rung (`current` is the rung of a transcode
+         *     that runs, else `auto`). `auto` never chooses 2160p.
          * @enum {string}
          */
-        Quality: "auto" | "1080p" | "720p" | "480p" | "360p";
+        Quality: "auto" | "original" | "2160p" | "1080p" | "720p" | "480p" | "360p";
+        /**
+         * @description A remembered rung below 2160p (`PlaybackRequest.qualityCap`, V-17, since contract 1.11.0).
+         * @enum {string}
+         */
+        QualityCap: "1080p" | "720p" | "480p" | "360p";
         /**
          * @description The device's capability profile (W-7): what it plays, from `canPlayType` /
          *     `MediaSource.isTypeSupported`, its screen and HDR support. The server stores it with the device
@@ -4444,15 +4606,49 @@ export interface components {
             subtitleTrack?: number;
             /** @enum {string} */
             subtitleDelivery?: "text" | "burn";
+            /**
+             * @description Why the server played this audio track (since contract 1.11.0, concept 13 11.3): asked for in
+             *     the request, remembered for the series, a language of the profile, the original language of the
+             *     title, or the file's default. Absent when the server reports no reason.
+             * @enum {string}
+             */
+            audioReason?: "request" | "series" | "profile" | "original" | "file";
+            /**
+             * @description Why the server shows these subtitles or none (since contract 1.11.0): asked for in the request,
+             *     remembered for the series, the profile's subtitle rule, none, or none although a forced bitmap
+             *     track exists that only a transcode could burn in (F-11). Absent when the server reports no
+             *     reason.
+             * @enum {string}
+             */
+            subtitleReason?: "request" | "series" | "mode" | "off" | "forced_bitmap_available";
         };
         QualityOption: {
             quality: components["schemas"]["Quality"];
             width?: number;
             height?: number;
-            /** @description Peak video bit rate of the rung in bit/s (the source bit rate for `auto` without transcode). */
+            /**
+             * @description Peak video bit rate of the rung in bit/s; the source bit rate for `auto` without transcode, for
+             *     `original` and for a `direct` rung (since contract 1.11.0). The client estimates the data per
+             *     hour from it.
+             */
             bitrate?: number;
-            /** @description False when the source, the device or the profile's limits rule the rung out. */
+            /** @description Video codec of the output, ffprobe name (`h264`, `hevc`; since contract 1.11.0). */
+            codec?: string;
+            /**
+             * @description The rung plays the file without re-encoding the video (direct play or remux; since contract
+             *     1.11.0): `auto` when it runs so, `original` always, a rung when it is the source's rung and
+             *     `original` is available.
+             */
+            direct?: boolean;
+            /**
+             * @description False when the source, the device or the profile's limits rule the rung out; for `original`
+             *     when the video would be re-encoded (see `Quality`).
+             */
             available: boolean;
+            /**
+             * @description What the client asked for: `auto` (also with a `qualityCap` and for an unavailable `original`),
+             *     `original` when it plays, else the rung that runs.
+             */
             current: boolean;
         };
         Chapter: {
@@ -4827,7 +5023,8 @@ export interface components {
         FieldSource: {
             /**
              * @description `title`, `overview`, `tagline` (per language), `original_title`, `genres`,
-             *     `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`.
+             *     `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`, `original_language`
+             *     (since contract 1.11.0).
              */
             field: string;
             /** @description The text language, empty for fields without one. */
@@ -4912,6 +5109,11 @@ export interface components {
              * @description The AniList id the fill job found; `0` for "looked up, no entry".
              */
             anilistId?: number;
+            /**
+             * @description The original language of the title as an ISO 639-1 code (since contract 1.11.0, concept 13 11.7);
+             *     `""` for "looked up, unknown", absent while it was not looked up.
+             */
+            originalLanguage?: string;
             /** @description The ordered metadata sources of the title, copied from its folder (ADR 0015). */
             providers: components["schemas"]["MetadataProvider"][];
             /** @description Which provider won which field; empty until the first fill job ran. */
@@ -7818,7 +8020,10 @@ export interface operations {
             /**
              * @description Validation failed (`validation_failed`): `name` required or too long, `maxRating` above the
              *     account's limit (`above_account_limit`), unknown `accent` or `language`, `libraryIds` outside the
-             *     account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`).
+             *     account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`),
+             *     and since contract 1.11.0 `audioLanguages` or `subtitleLanguages` with a code outside ISO 639-1 or
+             *     a duplicate (`invalid_value`) or more than 10 entries (`too_long`), an unknown `subtitleMode`
+             *     (`invalid_value`).
              */
             422: {
                 headers: {
@@ -10468,6 +10673,53 @@ export interface operations {
                 };
             };
             /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemOriginalLanguage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemOriginalLanguageRequest"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`): field `language` (`invalid_value`) or `kind` (`invalid_value`, not a movie or series). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -13800,6 +14052,111 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown or unpublished announcement (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyPlaybackPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preferences of the active profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackPrefs"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No profile chosen (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    putMyPlaybackPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackPrefs"];
+            };
+        };
+        responses: {
+            /** @description The stored preferences. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackPrefs"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No profile chosen (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): a field missing (`required`), `audioLanguages` or
+             *     `subtitleLanguages` with a code outside ISO 639-1 or a duplicate (`invalid_value`) or more than 10
+             *     entries (`too_long`), an unknown `subtitleMode` (`invalid_value`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    resetMySeriesTracks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Forgotten. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No profile chosen (`profile_required`). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

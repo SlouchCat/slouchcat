@@ -824,6 +824,15 @@ var profileRegistry = map[string]profileCall{
 	"setDownloadRules": {contract: "PUT /offline/rules", path: "/offline/rules",
 		body: `{"enabled":true,"nextEpisodes":true,"newPodcastEpisodes":false,"wifiOnly":true,"maxCount":2,"quality":"low"}`,
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	// Concept 13 (contract 1.11.0): the preferences of the active profile, every profile its own;
+	// the answers carry no title. The positive checks are in playback_prefs_api_test.go.
+	"getMyPlaybackPrefs": {contract: "GET /me/playback-prefs", path: "/me/playback-prefs",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"putMyPlaybackPrefs": {contract: "PUT /me/playback-prefs", path: "/me/playback-prefs",
+		body: `{"audioLanguages":["en","de"],"subtitleMode":"foreign","subtitleLanguages":["de"]}`,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"resetMySeriesTracks": {contract: "DELETE /me/playback-prefs/series", path: "/me/playback-prefs/series",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNoContent }},
 	"reportProgress": {contract: "POST /items/{id}/progress", path: "/items/{id}/progress", perItem: true, okStatus: http.StatusOK,
 		body: fmt.Sprintf(`{"positionMs":%d,"durationMs":%d,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-18T20:00:00Z"}`,
 			vistest.DurationMs/10, vistest.DurationMs),

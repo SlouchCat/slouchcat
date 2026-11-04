@@ -46,3 +46,18 @@
   padding-top: var(--sc-space-3);
   border-top: 1px solid var(--sc-color-border-subtle);
 }
+
+/* «Für diese Serie merken» below the track list of an episode (concept 13 11.3). */
+.remember {
+  margin-top: var(--sc-space-3);
+  padding: var(--sc-space-3) var(--sc-space-3) 0;
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+/* A hint of the server above the subtitle list (F-11). */
+.hint {
+  margin: 0 0 var(--sc-space-2);
+  padding: 0 var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

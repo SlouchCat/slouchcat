@@ -354,7 +354,11 @@ func (s *Service) autoDownload(ctx context.Context, account int64, device string
 	if err != nil {
 		return 0, err
 	}
-	if _, err := s.create(ctx, account, p.ID, device, src, r.Quality, defaultIndex(src), true); errors.Is(err, errOtherAccount) {
+	audio, err := s.chosenAudio(ctx, scope, p, src)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := s.create(ctx, account, p.ID, device, src, r.Quality, audio, true); errors.Is(err, errOtherAccount) {
 		return 0, nil
 	} else if err != nil {
 		return 0, err

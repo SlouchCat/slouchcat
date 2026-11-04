@@ -396,10 +396,14 @@ func TestRegisterTypesSchedules(t *testing.T) {
 	if vote, ok := r.Lookup(JobVoteBackfill); !ok || vote.Trigger != jobs.TriggerEvent || vote.Run != nil {
 		t.Errorf("metadata.vote_backfill = %+v, want an event type without Run (concept 08 queues it)", vote)
 	}
+	if lang, ok := r.Lookup(JobOriginalLanguageBackfill); !ok || lang.Trigger != jobs.TriggerManual || lang.Run == nil ||
+		lang.Handler == nil || lang.Priority != fillPriority {
+		t.Errorf("metadata.original_language_backfill = %+v, want a manual type with Run and handler (concept 13 11.7)", lang)
+	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)
-	if len(w.Handlers()) != 9 {
-		t.Errorf("handlers attached = %v, want the eight metadata types with a handler plus jobs.prune", w.Handlers())
+	if len(w.Handlers()) != 10 {
+		t.Errorf("handlers attached = %v, want the nine metadata types with a handler plus jobs.prune", w.Handlers())
 	}
 }
 

@@ -188,6 +188,24 @@ func TestKeyframeEncoding(t *testing.T) {
 	}
 }
 
+// Review step 9, m-7: an embedded subtitle is SDH by ffprobe's disposition or by its title.
+func TestHearingImpairedStream(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		st   transcode.Stream
+		want bool
+	}{
+		{transcode.Stream{Type: "subtitle", HearingImpaired: true}, true},
+		{transcode.Stream{Type: "subtitle", Title: "English SDH"}, true},
+		{transcode.Stream{Type: "subtitle", Title: "Forced"}, false},
+		{transcode.Stream{Type: "audio", HearingImpaired: true}, false},
+	} {
+		if got := hearingImpaired(tc.st); got != tc.want {
+			t.Errorf("hearingImpaired(%+v) = %v, want %v", tc.st, got, tc.want)
+		}
+	}
+}
+
 func TestParseSidecar(t *testing.T) {
 	t.Parallel()
 	stem := "Hollow Man (2000) [imdb-tt0164052] - [German DL][Bluray-1080p][AC3 5.1][x264]-c0nFuSed"

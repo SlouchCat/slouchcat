@@ -41,6 +41,18 @@ func (s *Service) ClearItemImage(ctx context.Context, itemID, kind string) (mode
 	return s.GetAdminItem(ctx, itemID)
 }
 
+// SetItemOriginalLanguage stores and locks (or, with nil, releases) the original language of a
+// title and answers with the administration view (concept 13 11.7).
+func (s *Service) SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) (model.AdminItem, error) {
+	if s.meta == nil {
+		return model.AdminItem{}, ErrNotConfigured
+	}
+	if err := s.meta.SetItemOriginalLanguage(ctx, itemID, lang); err != nil {
+		return model.AdminItem{}, err
+	}
+	return s.GetAdminItem(ctx, itemID)
+}
+
 // ItemImageCandidatePreview opens a local candidate of a title (getItemImageCandidatePreview).
 func (s *Service) ItemImageCandidatePreview(ctx context.Context, itemID, source string) (model.StreamSource, error) {
 	if s.meta == nil {

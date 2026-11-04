@@ -42,7 +42,13 @@ export interface PlaybackData {
     tonemap?: boolean;
   };
   tracks: { audio: TrackData[]; subtitles: TrackData[] };
-  selection: { audioTrack?: number; subtitleTrack?: number; subtitleDelivery?: 'text' | 'burn' };
+  selection: {
+    audioTrack?: number;
+    subtitleTrack?: number;
+    subtitleDelivery?: 'text' | 'burn';
+    audioReason?: string;
+    subtitleReason?: string;
+  };
   subtitleUrl?: string;
   qualities: { quality: string; available: boolean; current: boolean; height?: number }[];
   chapters: { startMs: number; endMs: number; title?: string }[];
@@ -74,8 +80,11 @@ export interface PlaybackRequestData {
   mediaFileId?: string;
   audioTrack?: number;
   subtitleTrack?: number | null;
+  subtitleOff?: boolean;
+  rememberForSeries?: boolean;
   subtitleDelivery?: string;
   quality?: string;
+  qualityCap?: string;
   positionMs?: number;
   capabilities: {
     containers?: string[];

@@ -165,6 +165,7 @@ func trackList(fileID string, rows []scopedq.Track, channels map[int]int) model.
 		tr := model.Track{
 			ID: t.ID, Index: int(t.StreamIndex), Kind: t.Kind, Codec: t.Codec.String, Language: t.Language.String,
 			Title: t.Title.String, Default: t.IsDefault == 1, Forced: t.IsForced == 1, Source: t.Source, RelPath: t.RelPath.String,
+			HearingImpaired: t.IsHearingImpaired == 1,
 		}
 		if t.Source == "sidecar" {
 			tr.Index = -1

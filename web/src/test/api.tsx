@@ -74,6 +74,9 @@ export const session: SessionInfo = {
     isPrimary: true,
     limits: {},
     effectiveLimits: {},
+    audioLanguages: ['de'],
+    subtitleMode: 'forced',
+    subtitleLanguages: ['de'],
   },
 };
 

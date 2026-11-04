@@ -3,16 +3,18 @@ import { LANGUAGE_CODES, NO_LANGUAGE } from './labels';
 
 /**
  * The language of a track as a profile stores it ("ger" → "de", "pt-BR" → "pt", "gsw" → "de");
- * undefined for none, "und", "xx" or several languages ("mul").
+ * undefined for none, "und", "und-Latn", "xx" or several languages ("mul"). The same rule as
+ * trackpick.Normalize on the server (review step 9, m-5).
  */
 export function baseLanguage(code: string | undefined): string | undefined {
-  if (!code) return undefined;
-  const lower = code.toLowerCase();
-  if (NO_LANGUAGE.has(lower) || lower === 'mul') return undefined;
-  const primary = lower.split(/[-_]/)[0] ?? lower;
+  const lower = code?.trim().toLowerCase();
+  if (!lower || NO_LANGUAGE.has(lower) || lower === 'mul') return undefined;
+  const primary = lower.replaceAll('_', '-').split('-')[0] ?? '';
   // Swiss German counts as German (11.3); on screen it keeps its own name.
   if (primary === 'gsw') return 'de';
-  return LANGUAGE_CODES[primary] ?? primary;
+  if (Object.hasOwn(LANGUAGE_CODES, primary)) return LANGUAGE_CODES[primary];
+  if (NO_LANGUAGE.has(primary)) return undefined;
+  return primary || undefined;
 }
 
 /** A track with its position in the file's list (for «Spur 3» when it has no language). */
@@ -56,6 +58,14 @@ export function orderTracks(
     .sort((a, b) => collator.compare(a.name, b.name) || a.entry.position - b.entry.position)
     .map(({ entry }) => entry);
   return { mine, more };
+}
+
+/** Titles that name a commentary track; the server knows the same (commentaryRe in trackpick). */
+const COMMENTARY = /commentary|kommentar/i;
+
+/** Whether a track is a commentary, by its title. */
+export function isCommentary(track: Track): boolean {
+  return track.title !== undefined && COMMENTARY.test(track.title);
 }
 
 /** Titles that name a subtitle for the deaf and hard of hearing. */

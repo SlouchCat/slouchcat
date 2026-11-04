@@ -357,27 +357,28 @@ func TestQualityOptions(t *testing.T) {
 	mp4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac"}
 	limits := model.PlaybackLimits{MaxHeight: 720}
 	d := Decide(mp4, p, Request{Caps: capsChrome, Limits: limits, AudioStream: -1})
-	opts := QualityOptions(d, 1920, 800, limits, capsChrome, "")
+	opts := QualityOptions(d, newSource(mp4, p, limits, capsChrome, transcode.Capabilities{}), true, "")
 	var got []string
 	for _, o := range opts {
 		got = append(got, o.Quality)
 		if o.Quality == model.Quality1080 && (o.Available || o.Width != 1920 || o.Height != 800) {
 			t.Errorf("1080p = %+v (the source keeps 1920x800, the limit rules it out)", o)
 		}
-		if o.Quality == model.Quality720 && (!o.Available || o.Current || o.Width != 1728) {
+		// 720p fits 1920x800 into its 16:9 box of 1280x720: 1280x532 (G2-m1).
+		if o.Quality == model.Quality720 && (!o.Available || o.Current || o.Width != 1280 || o.Height != 532) {
 			t.Errorf("720p = %+v", o)
 		}
-		if o.Quality == model.QualityAuto && (!o.Current || o.Height != 720 || o.Bitrate != 4_000_000) {
+		if o.Quality == model.QualityAuto && (!o.Current || o.Height != 532 || o.Bitrate != 4_000_000) {
 			t.Errorf("auto = %+v", o)
 		}
 	}
-	if !slices.Equal(got, []string{"auto", "1080p", "720p", "480p", "360p"}) {
+	if !slices.Equal(got, []string{"auto", "original", "2160p", "1080p", "720p", "480p", "360p"}) {
 		t.Errorf("qualities = %v", got)
 	}
 	// A manual rung is current; a rung the source does not fill is unavailable.
 	small := sizedProbe("h264", "bt709", 640, 360, 1_000_000)
 	d = Decide(mp4, small, Request{Caps: capsChrome, AudioStream: -1, Quality: model.Quality360})
-	for _, o := range QualityOptions(d, 640, 360, model.PlaybackLimits{}, capsChrome, model.Quality360) {
+	for _, o := range QualityOptions(d, newSource(mp4, small, model.PlaybackLimits{}, capsChrome, transcode.Capabilities{}), true, model.Quality360) {
 		if want := o.Quality == model.Quality360; o.Current != want || (o.Quality == model.Quality480 && o.Available) {
 			t.Errorf("small source option %+v", o)
 		}

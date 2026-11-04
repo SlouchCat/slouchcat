@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatBitrate, formatResolution } from '@/lib/format';
 import { FactList } from '@/ui';
-import { selectedAudio, selectedSubtitle, trackLabel } from './labels';
+import { qualityName, selectedAudio, selectedSubtitle, trackLabel } from './labels';
 import styles from './Player.module.css';
 
 const reasons = [
@@ -64,7 +64,7 @@ export function StreamInfo({ info }: { info: PlaybackInfo }) {
         ],
       );
     }
-    rows.push([t('player.streamInfo.quality'), transcoding.quality ?? t('player.quality.auto')]);
+    rows.push([t('player.streamInfo.quality'), qualityName(t, transcoding.quality ?? 'auto')]);
     if (transcoding.width && transcoding.height) {
       rows.push([
         t('player.streamInfo.output'),

@@ -17,6 +17,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
 // fakeTranscoder serves fixed playlists and segments for every playback session id, so tokens
@@ -32,6 +33,10 @@ type fakeHLS struct{ id string }
 func newFakeTranscoder() *fakeTranscoder { return &fakeTranscoder{} }
 
 func (*fakeTranscoder) Backend() string { return "software" }
+
+func (*fakeTranscoder) Capabilities() transcode.Capabilities {
+	return transcode.Capabilities{Backend: transcode.BackendSoftware}
+}
 
 func (f *fakeTranscoder) Start(_ context.Context, req playback.HLSRequest) (playback.HLSSession, error) {
 	f.mu.Lock()

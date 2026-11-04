@@ -28,8 +28,10 @@ import (
 //  3. Fields: title, overview, tagline per language; original_title; genres (the union of every
 //     provider's names, source "union"); runtime_minutes; release_date (with the year);
 //     vote_average (TMDB's vote average, AniList's averageScore ÷ 10; concept 08 4.2, ADR 0016);
-//     poster and backdrop. Ratings are the exception (K-3): own_rating is only raised, never
-//     lowered, whatever the provider's place; rating_source names the strictest.
+//     original_language (TMDB, TVDB, AniList's country; concept 13 11.7, original_language.go;
+//     the empty value without provenance when no provider of the list knows it); poster and
+//     backdrop. Ratings are the exception (K-3): own_rating is only raised, never lowered,
+//     whatever the provider's place; rating_source names the strictest.
 //  4. A provider without key (Configured false) is skipped and logged as a warning, like the
 //     interface warns when it is ticked without key. A provider the title has no id for (a TVDB
 //     filler on a series TMDB's record names no tvdb_id for) is skipped quietly.
@@ -113,6 +115,7 @@ func titleFields(rec TitleRecord, country string) providerFields {
 	if rec.VoteAverage > 0 {
 		pf.set(fieldVoteAverage, "", formatVote(rec.VoteAverage))
 	}
+	pf.set(fieldOriginalLanguage, "", rec.OriginalLanguage)
 	pf.images = rec.Images
 	for lang, names := range rec.Genres {
 		if len(names) > 0 {
@@ -519,6 +522,9 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 			// any provider of the list that has a vote now may write it.
 			continue
 		}
+		if src.Field == fieldOriginalLanguage && cur.OriginalLanguage.String == "" {
+			continue // no language to defend: any provider of the list may write it
+		}
 		stored[fieldKey{src.Field, src.Lang}] = src.Provider
 	}
 	locked := lockedFields(cur.LockedFields)
@@ -633,6 +639,12 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 		if anilistID >= 0 {
 			anilist = sql.NullInt64{Int64: anilistID, Valid: true}
 		}
+		origLang := cur.OriginalLanguage
+		if w, ok := writes[fieldKey{fieldOriginalLanguage, ""}]; ok {
+			origLang = sql.NullString{String: w.value, Valid: true}
+		} else if !locked[fieldOriginalLanguage] && !origLang.Valid {
+			origLang = sql.NullString{String: "", Valid: true} // asked the whole list: unknown
+		}
 		vote := cur.VoteAverage
 		if w, ok := writes[fieldKey{fieldVoteAverage, ""}]; ok {
 			if v, ok := parseVote(w.value); ok {
@@ -645,8 +657,8 @@ func (s *Service) writeFill(ctx context.Context, q *systemq.Queries, cur systemq
 			OriginalTitle: originalTitle, Year: year, ReleaseDate: releaseDate, RuntimeMinutes: runtime,
 			Genres: genresRaw, OwnRating: ownRating, RatingSource: ratingSource,
 			TmdbPosterPath: poster, TmdbBackdropPath: backdrop, VoteAverage: vote, AnilistID: anilist,
-			FilledProviders: nullString(model.ProvidersJSON(filled)),
-			Now:             now, ID: cur.ID,
+			OriginalLanguage: origLang, FilledProviders: nullString(model.ProvidersJSON(filled)),
+			Now: now, ID: cur.ID,
 		}); err != nil {
 			return out, fmt.Errorf("metadata.fill: update %s: %w", cur.ID, err)
 		}
@@ -718,6 +730,9 @@ func (s *Service) recordIdentifier(ctx context.Context, item systemq.Item, ident
 	}
 	if cur.VoteAverage.Valid {
 		add(fieldVoteAverage, "", "set")
+	}
+	if !lockedFields(cur.LockedFields)[fieldOriginalLanguage] {
+		add(fieldOriginalLanguage, "", cur.OriginalLanguage.String) // a locked value is the admin's
 	}
 	if !genresEmpty(cur.Genres) {
 		add("genres", "", "set")

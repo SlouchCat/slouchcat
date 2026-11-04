@@ -322,8 +322,10 @@ func (s *Service) AcceptInvitation(ctx context.Context, in model.AcceptInvitatio
 			}
 		}
 	}
+	audio, mode, subs := prefColumns(initialPrefs(lang))
 	prof, err := q.InsertProfile(ctx, appq.InsertProfileParams{
-		AccountID: acc.ID, Name: name, MaxRating: inv.MaxRating, Language: lang, AllLibraries: 1, IsDefault: 1, Now: now,
+		AccountID: acc.ID, Name: name, MaxRating: inv.MaxRating, Language: lang, AllLibraries: 1, IsDefault: 1,
+		AudioLanguages: audio, SubtitleMode: mode, SubtitleLanguages: subs, Now: now,
 	})
 	if err != nil {
 		return model.Session{}, "", fmt.Errorf("insert guest profile: %w", err)

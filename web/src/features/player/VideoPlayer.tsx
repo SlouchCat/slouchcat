@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
-import { formatBitrate, formatRuntime } from '@/lib/format';
+import { formatRuntime } from '@/lib/format';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
 import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
@@ -23,11 +23,19 @@ import { nextChapterStart, previousChapterStart, RESTART_CHAPTER_MS } from './au
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
 import { stepPlaybackRate } from './keymap';
 import { usePlayerLayout, volumeIsReadOnly } from './layout';
-import { chapterAt, languageName, qualityLabel, selectedSubtitle, trackLabel } from './labels';
+import {
+  chapterAt,
+  languageName,
+  qualityDetail,
+  qualityLabel,
+  qualityName,
+  selectedSubtitle,
+  trackLabel,
+} from './labels';
 import { SettingsPanel } from './panels/SettingsPanel';
 import { PANEL_IDS } from './panels/panelIds';
 import { usePlayerPanels } from './panels/usePlayerPanels';
-import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
+import { AudioPanel, SubtitlePanel, type RememberSeries } from './panels/TrackPanels';
 import { PAUSE_VIEW_MS, PauseView } from './PauseView';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
@@ -59,13 +67,18 @@ const RESUME_TAIL_MS = 5000;
 /** The skip button hides this close to the end of the intro. */
 const SKIP_TAIL_MS = 500;
 
-/** A change of the playback the server has to make: a new session (W-4, W-8). */
+/**
+ * A change of the playback the server has to make: a new session (W-4, W-8). PlayerPage names the
+ * other tracks of the running session too (11.3), so only the first start lets the server choose.
+ */
 export interface PlaybackChange {
   /** Stream index of the audio track. */
   audioTrack?: number;
-  /** Track id of the subtitle; null switches subtitles off. */
-  subtitleTrack?: number | null;
+  /** Track id of the subtitle, or `off` (sent as `subtitleOff`). */
+  subtitleTrack?: number | 'off';
   quality?: Quality;
+  /** A choice by hand during an episode that the server keeps for the series (11.3). */
+  rememberForSeries?: boolean;
 }
 
 /**
@@ -112,6 +125,8 @@ interface VideoPlayerProps {
   carried?: PlayerCarry;
   /** Reports what the next session should keep. */
   onCarry?: (patch: Partial<PlayerCarry>) => void;
+  /** An episode: «Für diese Serie merken» in the sound and subtitle panels (11.3). */
+  rememberSeries?: RememberSeries;
 }
 
 /**
@@ -180,6 +195,7 @@ export function VideoPlayer({
   detail,
   carried = NO_CARRY,
   onCarry,
+  rememberSeries,
 }: VideoPlayerProps) {
   const { t, i18n } = useTranslation();
   // Fixed for the life of this player (one playback session).
@@ -818,23 +834,43 @@ export function VideoPlayer({
     (!decodableAudio.includes(track.codec) || (info.mode === 'direct' && !track.default));
   // After the server ended the playback a pick would start a new session behind the notice.
   const tracksDisabled = switching || ended !== null;
-  // The gear (11.2): the server's rung and file (rule 12); a choice starts a new session.
+  // The gear (11.2, 11.5): the server's rungs and file (rule 12); a choice starts a new session.
+  // 2160p shows only where the server offers it; original shows why it is not available.
+  const remembered = prefs.quality && prefs.quality !== 'auto' ? prefs.quality : undefined;
+  // A remembered rung below this title's source: titles above it are converted (V-17 caps them).
+  const rememberedHeight = /^(\d+)p$/.exec(remembered ?? '')?.[1];
+  const sourceHeight = info.qualities.find((option) => option.quality === 'original')?.height;
+  const rememberedBelowSource =
+    rememberedHeight !== undefined &&
+    sourceHeight !== undefined &&
+    Number(rememberedHeight) < sourceHeight;
   const qualityChoice = {
-    options: info.qualities.map((option) => ({
-      id: option.quality,
-      label: qualityLabel(t, option, info),
-      detail: option.bitrate !== undefined ? formatBitrate(option.bitrate, language) : undefined,
-      disabled: !option.available,
-    })),
+    options: info.qualities
+      .filter((option) => option.quality !== '2160p' || option.available)
+      .map((option) => ({
+        id: option.quality,
+        label: qualityLabel(t, option, info),
+        detail: qualityDetail(t, option, info, language),
+        disabled: !option.available,
+      })),
     // The rung the server says it delivers, not the viewer's wish.
     selectedId: info.qualities.find((option) => option.current)?.quality ?? 'auto',
     // The panel closes with the choice: during the switch it would have no rungs to show, and
     // the next session is a new player.
     onSelect: (id: string) => {
       closePanel();
-      // V-17: remembered on this device, sent from stage 2 on (usePlayerPrefs).
+      // V-17: remembered on this device; the next start sends it (rememberedQuality).
       setPrefs({ quality: id as Quality });
       switchPlayback({ quality: id as Quality });
+    },
+    // V-17: «Gemerkt: 720p» with a reset that forgets it (the running session stays).
+    remembered: remembered && {
+      label: t('player.quality.remembered', { quality: qualityName(t, remembered) }),
+      note: rememberedBelowSource
+        ? t('player.quality.rememberedNote', { quality: qualityName(t, remembered) })
+        : undefined,
+      resetLabel: t('player.quality.reset'),
+      onReset: () => setPrefs({ quality: undefined }),
     },
   };
   const versionChoice = {
@@ -1205,8 +1241,12 @@ export function VideoPlayer({
           profileLanguage={profileLanguage}
           selectedIndex={audioIndex}
           converts={converts}
-          onSelect={(index) => switchPlayback({ audioTrack: index })}
+          onSelect={(index) =>
+            switchPlayback({ audioTrack: index, rememberForSeries: rememberSeries?.on })
+          }
           onClose={closePanel}
+          remember={rememberSeries}
+          profileDefault
         />
       )}
       {panel === 'subtitle' && (
@@ -1214,9 +1254,13 @@ export function VideoPlayer({
           tracks={tracks.subtitles}
           profileLanguage={profileLanguage}
           selectedId={info.selection.subtitleTrack}
-          onSelect={(id) => switchPlayback({ subtitleTrack: id })}
+          onSelect={(id) =>
+            switchPlayback({ subtitleTrack: id ?? 'off', rememberForSeries: rememberSeries?.on })
+          }
           onClose={closePanel}
           subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+          remember={rememberSeries}
+          forcedBitmap={info.selection.subtitleReason === 'forced_bitmap_available'}
         />
       )}
 

@@ -224,9 +224,10 @@ func (s *Service) CreateOwner(ctx context.Context, email, password, language str
 	if err != nil {
 		return model.Account{}, model.Profile{}, fmt.Errorf("insert account: %w", err)
 	}
+	audio, mode, subs := prefColumns(initialPrefs(language))
 	prof, err := q.InsertProfile(ctx, appq.InsertProfileParams{
 		AccountID: acc.ID, Name: profileName(email), MaxRating: defaultMaxRating, Language: language,
-		AllLibraries: 1, IsDefault: 1, Now: now,
+		AllLibraries: 1, IsDefault: 1, AudioLanguages: audio, SubtitleMode: mode, SubtitleLanguages: subs, Now: now,
 	})
 	if err != nil {
 		return model.Account{}, model.Profile{}, fmt.Errorf("insert profile: %w", err)
@@ -558,7 +559,7 @@ func toProfile(p appq.Profile, libs []int64, account model.PlaybackLimits) model
 		MetadataLanguage: p.MetadataLanguage.String,
 		AllLibraries:     p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
 		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1,
-		Limits: limits, Effective: limits.Cap(account),
+		Limits: limits, Effective: limits.Cap(account), Prefs: prefsOf(p),
 	}
 }
 

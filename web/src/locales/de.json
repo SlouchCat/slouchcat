@@ -18,6 +18,7 @@
     "logout": "Abmelden",
     "skip": "Zum Inhalt springen",
     "profiles": "Profile",
+    "playback": "Meine Wiedergabe",
     "switchProfile": "Profil wechseln, aktuell {{name}}",
     "downloads": "Downloads",
     "search": "Suche",
@@ -685,11 +686,25 @@
       "off": "Aus",
       "unknown": "Spur {{n}}",
       "forced": "erzwungen",
-      "external": "extern"
+      "external": "extern",
+      "rememberSeries": "Für diese Serie merken",
+      "makeDefault": "Als Standard für dieses Profil",
+      "isDefault": "{{language}} ist Standard für dieses Profil.",
+      "madeDefault": "{{language}} ist jetzt Standard für dieses Profil.",
+      "forcedBitmap": "Erzwungene Untertitel verfügbar (werden eingebrannt)"
     },
     "quality": {
       "auto": "Automatisch",
-      "autoWith": "Automatisch ({{quality}})"
+      "autoWith": "Automatisch ({{quality}})",
+      "autoOriginal": "Automatisch · zurzeit Original",
+      "original": "Original",
+      "detail": "{{bitrate}} · ca. {{size}} pro Stunde",
+      "unavailableBurn": "Untertitel werden eingebrannt",
+      "unavailableIndex": "Index wird erstellt",
+      "unavailableTranscode": "Nur umgewandelt abspielbar",
+      "remembered": "Gemerkt: {{quality}}",
+      "rememberedNote": "Titel über {{quality}} werden dann umgewandelt.",
+      "reset": "Zurücksetzen"
     },
     "chapters": {
       "button": "Kapitel",
@@ -1273,7 +1288,8 @@
           "release_date": "Erscheinungsdatum",
           "own_rating": "Freigabe",
           "poster": "Poster",
-          "backdrop": "Hintergrundbild"
+          "backdrop": "Hintergrundbild",
+          "original_language": "Originalsprache"
         },
         "fieldLang": "{{field}} ({{lang}})",
         "count_one": "{{count}} Feld",
@@ -1297,6 +1313,21 @@
         "saved": "Freigabe gespeichert.",
         "unsaved": "ungespeichert",
         "summary": "Wirksam {{effective}} · Eigene {{own}} · Quelle {{source}}"
+      },
+      "language": {
+        "title": "Originalsprache",
+        "current": "Originalsprache",
+        "source": "Quelle",
+        "label": "Originalsprache setzen",
+        "fromMetadata": "Aus Metadaten",
+        "unknown": "Unbekannt",
+        "notLooked": "Noch nicht abgefragt",
+        "manual": "Von Hand (gesperrt)",
+        "saved": "Originalsprache gespeichert.",
+        "unsaved": "ungespeichert",
+        "summary": "{{language}} · Quelle {{source}}",
+        "hint": "Eine gewählte Sprache oder «Unbekannt» ist gesperrt. «Aus Metadaten» hebt die Sperre auf, und die nächste Zuordnung fragt die Quellen erneut ab.",
+        "knownFailed": "Die Liste der Sprachen konnte nicht geladen werden."
       },
       "files": {
         "title": "Dateien",
@@ -3019,6 +3050,10 @@
           "name": "Wertungen nachholen",
           "trigger": "nach jedem vollständigen Scan, solange Titel ohne Wertung warten"
         },
+        "metadata_original_language_backfill": {
+          "name": "Originalsprachen nachholen",
+          "trigger": "einmal beim ersten Start nach dem Update, danach «Jetzt ausführen»"
+        },
         "image_fetch": {
           "name": "Bilder holen",
           "trigger": "nach der Zuordnung, Nachholen beim Start"
@@ -3356,7 +3391,8 @@
         "saving": "Wird gespeichert …",
         "metadataLanguage": "Sprache der Beschreibungen",
         "metadataLanguageHint": "Titel, Beschreibungen und Genres; die Oberfläche folgt der Sprache oben.",
-        "likeUi": "Wie Oberfläche"
+        "likeUi": "Wie Oberfläche",
+        "playback": "Wiedergabe"
       },
       "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}",
       "report": {
@@ -3687,6 +3723,47 @@
     }
   },
   "settings": {
+    "playback": {
+      "title": "Meine Wiedergabe",
+      "intro": "Ton und Untertitel für das Profil {{name}}, auf jedem Gerät. Was du im Player von Hand wählst, geht vor.",
+      "languages": "Sprachen und Untertitel",
+      "audio": {
+        "legend": "Tonsprachen",
+        "hint": "Ein Titel spielt in der ersten Sprache dieser Liste, die er hat. Hat er keine davon, spielt die Originalsprache.",
+        "rank": "{{position}}. Tonsprache",
+        "more": "Weitere Tonsprache",
+        "none": "Zurzeit keine Tonsprache: Es spielt die Originalsprache."
+      },
+      "subtitleMode": {
+        "label": "Untertitel",
+        "off": "Aus",
+        "forced": "Nur erzwungene (Standard)",
+        "foreign": "Bei fremder Sprache",
+        "always": "Immer",
+        "offHint": "Keine Untertitel, bis du sie im Player einschaltest.",
+        "forcedHint": "Nur Stellen in einer anderen Sprache, etwa Schilder oder fremdsprachige Sätze, in der Sprache des Tons.",
+        "foreignHint": "Wie «Nur erzwungene». Ist der Ton in keiner deiner Tonsprachen, kommen volle Untertitel in der ersten Untertitelsprache.",
+        "alwaysHint": "Immer volle Untertitel in der ersten Untertitelsprache; ohne sie wie «Nur erzwungene»."
+      },
+      "subtitles": {
+        "legend": "Untertitelsprachen",
+        "hint": "Für volle Untertitel, die erste vorhandene zuerst.",
+        "rank": "{{position}}. Untertitelsprache",
+        "more": "Weitere Untertitelsprache",
+        "none": "Zurzeit keine Untertitelsprache: Es kommen nur erzwungene Untertitel."
+      },
+      "limit": "Höchstens {{count}} Sprachen; entferne eine, um eine andere aufzunehmen.",
+      "saved": "Gespeichert.",
+      "series": {
+        "title": "Serienmerker",
+        "body": "Wählst du in einer Folge Ton oder Untertitel von Hand, merkt sich Slouchcat die Sprache für die ganze Serie.",
+        "reset": "Serienmerker zurücksetzen",
+        "confirmTitle": "Serienmerker zurücksetzen?",
+        "confirmBody": "Alle Serien spielen danach wieder nach deinen Sprachen und Untertiteln oben. Das lässt sich nicht rückgängig machen.",
+        "confirm": "Zurücksetzen",
+        "done": "Serienmerker zurückgesetzt."
+      }
+    },
     "notifications": {
       "title": "Benachrichtigungskanäle",
       "intro": "Neue Folgen deiner Favoriten, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.",

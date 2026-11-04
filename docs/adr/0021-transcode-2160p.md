@@ -73,6 +73,79 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
 - Vor dem Merge von Stufe 2 misst Schritt 12 auf CT 190 für 2160p (SDR) Start, Spulen und
   gleichzeitige Ströme (`docs/perf/13-abspielseite.md`).
 
+## Umsetzung (Stufe 2, Schritt 12, Teil Code, 4. November 2026)
+
+- `transcode.MaxOutputHeight(backend, cpuTonemap)` ist die Grenze aus Punkt 1 und 3: 2160 auf
+  NVENC, QSV und VAAPI, 1080 auf Software, bei unbekanntem Backend und bei Tonemapping auf der CPU.
+  (`playback.MaxTranscodeHeight` aus diesem Schritt entfiel in Schritt 11 ungenutzt; `playback`
+  prüft die Grenze über `Rung2160Allowed`.)
+- `transcode.Target` trägt dafür `Backend` und `HWTonemap` (aus `Capabilities`). Ohne Backend
+  bleibt jeder Transcode bei 1080 Zeilen. `MaxHeight` 0 heisst weiterhin 1080 (Punkt 4): über
+  1080 geht es nur mit `MaxHeight` 2160.
+- `transcode.Rung2160Allowed(caps, stream, profileMaxHeight, deviceHeight)` prüft die Bedingungen
+  aus Punkt 2. Die Gerätehöhe ist die kurze Bildschirmseite in Gerätepixeln wie bei der
+  Gerätegrenze (`deviceCap`); 0 (unbekannt) lässt 2160p nicht zu.
+- Die Leiter in `transcode` beginnt mit `2160p` (25 Mbit/s). `QualityFor` gibt über 1080 Zeilen
+  `2160p`, bei unbekannter Höhe weiter `1080p`.
+- Level und Codec-String folgen der Ausgabehöhe (`h264Level`): bis 1080 Zeilen 4.1
+  (`avc1.640029`), darüber 5.1 (`avc1.640033`).
+- **Kosten:** `cost2160p = 5` in `transcode/plan.go` (Punkt 5), für jede Ausgabe über 1080 Zeilen.
+  Der Wert ist der Startwert dieses ADR. Gemessen auf CT 190 am 4. November 2026
+  (`docs/perf/13-abspielseite.md` 1): ein 2160p24-Strom 3,8-fach, zwei je 1,9-fach, 2160p60 allein
+  1,4-fach Echtzeit, synthetische Quellen. Die Kosten 5 bleiben.
+
+## Umsetzung in `playback` (Stufe 2, Schritt 11, 4. November 2026)
+
+- **Eine Leiter (Punkt 7):** `playback` liest `transcode.Rungs`; die eigene Tabelle entfällt.
+  `auto` beginnt höchstens bei 1080p (Punkt 4).
+- **Wirt im Ziel:** `ManagerTranscoder` nimmt Backend und GPU-Tonemapping aus
+  `transcode.Manager.Capabilities` und setzt beide in jedes Transcode-Ziel (`hlsTarget`), auch für
+  die Kosten beim Absenken (`cheaper`). `Target.Backend` und die Fähigkeiten des Managers laufen
+  so nicht auseinander. `Decide` bekommt dieselben Fähigkeiten und bietet 2160p nur, wo
+  `Rung2160Allowed` gilt; sonst läuft ein gewähltes 2160p auf 1080p.
+- **Absenken bei vollem Budget:** 2160p sinkt auf 1080p (auch bei GPU-Tonemapping, 4K mit
+  1080p-Ausgabe kostet weniger als 5), ein SDR-1080p wie bisher auf 720p.
+
+## Nachtrag: Breitbild und Level (Marcos Entscheid vom 4. November 2026)
+
+- **Eine Quelle gilt für 2160p als 4K**, wenn sie mindestens 2160 Zeilen **oder** mindestens
+  3840 Pixel Breite hat (`transcode.Is4KSource`). Das ersetzt in Punkt 2 «Die Quelle hat
+  mindestens 2160 Zeilen». Ein Scope-Film in 3840×1600 bekommt 2160p angeboten, 2560×1440 und
+  3836×1600 nicht.
+- Die 2160p-Stufe skaliert nie hoch: 3840×1600 bleibt 3840×1600 (`heightLimit` ist eine
+  Obergrenze, die Ausgabe ist höchstens so hoch wie die Quelle).
+- **Level aus Bildgrösse und Bildrate.** Das H.264-Level folgt der Zahl der Makroblöcke
+  (16×16 Pixel) je Bild und je Sekunde (MaxFS und MaxMBPS aus Tabelle A-1 der Norm), nicht nur
+  der Höhe. Das ersetzt Punkt 6 und die Zeile zu `h264Level` in der Umsetzung:
+  - bis 8192 Makroblöcke je Bild und 245 760 je Sekunde (1920×1080 mit 30 Bildern/s) Level 4.1,
+    `avc1.640029`;
+  - bis 36 864 und 983 040 (2592×1080 als 1080p-Ausgabe eines Scope-Films, 3840×1600, 3840×2160
+    und 4096×2160 mit 30 Bildern/s, 1080p mit 60 Bildern/s) Level 5.1, `avc1.640033`;
+  - sonst Level 5.2, `avc1.640034` (zum Beispiel 2160p mit 60 Bildern/s).
+- Die Bildrate ist die mittlere Bildrate der Quelle (`avg_frame_rate` von ffprobe, neu
+  `Stream.FrameRate`). Probes, die vor diesem Schritt gespeichert wurden, haben sie nicht; dann
+  entscheidet die Bildgrösse allein, bis die Datei neu geprüft wird.
+
+## Nachtrag: Schluss-Review Stufe 2 (4. November 2026)
+
+- **Level 4.2.** Zwischen 4.1 und 5.1 liegt Level 4.2: bis 8704 Makroblöcke je Bild und
+  522 240 je Sekunde, `avc1.64002A`, bei QSV `-level:v 42`. 1080p mit 50 oder 60 Bildern/s bekommt
+  damit 4.2 statt 5.1. Geräte, die höchstens 4.2 dekodieren, spielen es weiter ab. Das ersetzt im
+  Nachtrag «Breitbild und Level» den Teil «1080p mit 60 Bildern/s» bei Level 5.1.
+- **Unbekannte Bildrate über 1080 Zeilen.** Fehlt die Bildrate in der Probe und ist die Ausgabe
+  höher als 1080 Zeilen, gilt mindestens Level 5.2 (`avc1.640034`). Die Quelle kann 60 Bilder/s
+  haben, und 5.1 wäre dann zu tief. Bis 1080 Zeilen entscheidet bei unbekannter Bildrate weiter
+  die Bildgrösse allein.
+- **Stufe als 16:9-Box.** Eine Stufe ist eine Box aus Stufenhöhe und Stufenhöhe × 16/9 Breite
+  (aufgerundet, bei 480 Zeilen 854 Pixel, damit 854×480 bleibt). Die Quelle wird mit ihrem
+  Seitenverhältnis in diese Box eingepasst und nie hochskaliert (`transcode.FitSize`, genutzt vom
+  Plan, von den Qualitätsoptionen in `playback` und von der Schätzung der Downloads in `offline`).
+  Downloads von Breitbildfilmen werden damit ebenfalls schmaler, zum Beispiel 1920×800 im Profil
+  «Mittel» 1280×532 statt 1728×720. Ein Scope-Film in 3840×1600 wird
+  auf 1080p zu 1920×800 statt 2592×1080 und bekommt damit Level 4.1. Auf 2160p bleibt er
+  3840×1600. Das ersetzt im Nachtrag «Breitbild und Level» das Beispiel 2592×1080 als
+  1080p-Ausgabe.
+
 ## Verworfene Alternativen
 
 - **2160p auch auf dem Software-Backend.** libx264 schafft 4K nicht in Echtzeit auf den

@@ -7,14 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
@@ -91,24 +92,42 @@ func (s *Service) seasonSources(ctx context.Context, scope visibility.Scope, sea
 }
 
 // defaultIndex is the stream index of the default audio track of a source (the probe's, else the
-// track flagged default, else the first embedded audio track), -1 without audio.
+// track flagged default, else the first embedded audio track; trackpick.FileDefault), -1 without
+// audio.
 func defaultIndex(src source) int {
 	if i := defaultAudio(src.probe); i >= 0 {
 		return i
 	}
-	first := -1
-	for _, t := range src.tracks.Audio {
-		if t.Index < 0 {
-			continue
-		}
-		if t.Default {
-			return t.Index
-		}
-		if first < 0 {
-			first = t.Index
+	return trackpick.FileDefault(src.tracks.Audio)
+}
+
+// chosenAudio is the stream index of the audio track a download of src gets when the request names
+// none: the rule of playback (trackpick.Audio, concept 13 11.3) with the profile's languages, the
+// original language of the title and the languages the profile remembered for its series, so a
+// download and an auto-download speak the language the player would. The output is always AAC, so
+// every codec counts as decodable. Audiobooks and podcast episodes keep the file's default track.
+func (s *Service) chosenAudio(ctx context.Context, scope visibility.Scope, profile model.Profile, src source) (int, error) {
+	if isAudio(src.item.Kind) {
+		return defaultIndex(src), nil
+	}
+	tc, err := s.vis.TrackContext(ctx, scope, src.item.ID)
+	if err != nil {
+		return 0, err
+	}
+	c := trackpick.Context{Prefs: profile.Prefs, OriginalLanguage: tc.OriginalLanguage}
+	if tc.SeriesID != "" {
+		row, err := s.app.GetSeriesTracks(ctx, appq.GetSeriesTracksParams{ProfileID: profile.ID, SeriesID: tc.SeriesID})
+		switch {
+		case err == nil:
+			c.Series = trackpick.FromRow(row.AudioLanguage, row.SubtitleLanguage, row.SubtitleOff)
+		case !errors.Is(err, sql.ErrNoRows):
+			return 0, fmt.Errorf("get series tracks: %w", err)
 		}
 	}
-	return first
+	if i, _ := trackpick.Audio(src.tracks.Audio, c, nil); i >= 0 {
+		return i, nil
+	}
+	return defaultIndex(src), nil
 }
 
 // hasAudio reports whether the source has an embedded audio stream with the index.
@@ -125,16 +144,17 @@ func hasAudio(src source, index int) bool {
 	return false
 }
 
-// languageAudio returns the first embedded audio track in the language, else the default one.
+// languageAudio returns the first embedded audio track in the language (codes compared as
+// trackpick.Normalize writes them, "ger" is "de"), else -1.
 func languageAudio(src source, lang string) int {
-	if lang != "" {
+	if want := trackpick.Normalize(lang); want != "" {
 		for _, t := range src.tracks.Audio {
-			if t.Index >= 0 && strings.EqualFold(t.Language, lang) {
+			if t.Index >= 0 && trackpick.Normalize(t.Language) == want {
 				return t.Index
 			}
 		}
 	}
-	return defaultIndex(src)
+	return -1
 }
 
 // textTracks keeps the subtitle tracks that travel along as WebVTT.
@@ -171,7 +191,10 @@ func (s *Service) Options(ctx context.Context, session model.Session, itemID, me
 			// One timeline of one audio track: no track or subtitle choice.
 			out.AudioTracks, out.Subtitles = []model.Track{}, []model.Track{}
 		}
-		audio := defaultIndex(src)
+		audio, err := s.chosenAudio(ctx, scope, session.Profile, src)
+		if err != nil {
+			return model.DownloadOptions{}, err
+		}
 		for _, prof := range model.DownloadProfiles {
 			c := src.choose(prof, audio)
 			out.DurationMs = c.DurationMs
@@ -203,10 +226,16 @@ func (s *Service) Options(ctx context.Context, session model.Session, itemID, me
 		}
 		out := model.DownloadOptions{EpisodeCount: len(srcs), AudioTracks: []model.Track{}, Subtitles: []model.Track{},
 			Qualities: make([]model.DownloadQualityOption, 0, len(model.DownloadProfiles))}
+		audio := make([]int, len(srcs))
+		for j, src := range srcs {
+			if audio[j], err = s.chosenAudio(ctx, scope, session.Profile, src); err != nil {
+				return model.DownloadOptions{}, err
+			}
+		}
 		for i, prof := range model.DownloadProfiles {
 			opt := model.DownloadQualityOption{Quality: prof.Quality, Copy: len(srcs) > 0}
-			for _, src := range srcs {
-				c := decide(src.loc.File, src.probe, prof, defaultIndex(src))
+			for j, src := range srcs {
+				c := decide(src.loc.File, src.probe, prof, audio[j])
 				opt.EstimatedBytes += c.EstimatedBytes
 				opt.Copy = opt.Copy && c.Copy
 				opt.Width, opt.Height = max(opt.Width, c.Width), max(opt.Height, c.Height)
@@ -264,12 +293,14 @@ func (s *Service) Create(ctx context.Context, session model.Session, itemID stri
 		if err != nil {
 			return nil, err
 		}
-		a := defaultIndex(src)
+		var a int
 		if req.AudioTrack != nil {
 			if !hasAudio(src, *req.AudioTrack) {
 				return nil, (&model.ValidationError{}).Add("audioTrack", "unknown_track")
 			}
 			a = *req.AudioTrack
+		} else if a, err = s.chosenAudio(ctx, scope, session.Profile, src); err != nil {
+			return nil, err
 		}
 		srcs, audio[item.ID] = []source{src}, a
 	case "season":
@@ -279,8 +310,15 @@ func (s *Service) Create(ctx context.Context, session model.Session, itemID stri
 		if len(srcs) == 0 {
 			return nil, model.ErrNotFound
 		}
+		// The language the request names, else the track the profile's rule chooses per episode.
 		for _, src := range srcs {
-			audio[src.item.ID] = languageAudio(src, req.AudioLanguage)
+			a := languageAudio(src, req.AudioLanguage)
+			if a < 0 {
+				if a, err = s.chosenAudio(ctx, scope, session.Profile, src); err != nil {
+					return nil, err
+				}
+			}
+			audio[src.item.ID] = a
 		}
 	default:
 		return nil, model.ErrNotDownloadable

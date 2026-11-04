@@ -15,6 +15,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -131,7 +132,8 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode != ModeDirect || info.Selection != (model.TrackSelection{AudioTrack: 1, SubtitleTrack: ft.Text, SubtitleDelivery: model.SubtitleText}) {
+	if info.Mode != ModeDirect || info.Selection != (model.TrackSelection{AudioTrack: 1, SubtitleTrack: ft.Text, SubtitleDelivery: model.SubtitleText,
+		AudioReason: trackpick.AudioFile, SubtitleReason: trackpick.SubtitleRequest}) {
 		t.Fatalf("text subtitle = %s %+v", info.Mode, info.Selection)
 	}
 	if want := "/api/v1/playback/sessions/" + info.PlaybackSessionID + "/subtitles/"; !strings.HasPrefix(info.SubtitleURL, want) ||
@@ -259,10 +261,27 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 		{model.PlaybackRequest{SubtitleTrack: tracks[f.Rated(0).FileID].Text}, "subtitleTrack", "unknown_track"},
 		{model.PlaybackRequest{Quality: "4k"}, "quality", "invalid_value"},
 		{model.PlaybackRequest{SubtitleDelivery: "smoke"}, "subtitleDelivery", "invalid_value"},
+		// Contract 1.11.0: a remembered cap (QualityCap) is a rung below 2160p; auto, original,
+		// 2160p and unknown names are no caps.
+		{model.PlaybackRequest{QualityCap: "2160p"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "auto"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "original"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "4k"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{Quality: "best"}, "quality", "invalid_value"},
+		{model.PlaybackRequest{SubtitleOff: true, SubtitleTrack: ft.Text}, "subtitleOff", "not_allowed"},
 	} {
 		if _, err := s.Start(ctx, session, m.ID, tc.req); !hasField(err, tc.field, tc.code) {
 			t.Errorf("%+v: %v, want %s %s", tc.req, err, tc.field, tc.code)
 		}
+	}
+
+	// subtitleOff plays without subtitles; rememberForSeries is accepted (a film has no series).
+	info, err = s.Start(ctx, session, m.ID, model.PlaybackRequest{Capabilities: &caps, SubtitleOff: true, RememberForSeries: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Selection.SubtitleTrack != 0 || info.Selection.SubtitleDelivery != "" || info.SubtitleURL != "" {
+		t.Errorf("subtitleOff = %+v, subtitle url %q", info.Selection, info.SubtitleURL)
 	}
 
 	// Without a converter text subtitles are not available.

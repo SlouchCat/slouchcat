@@ -396,6 +396,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		if _, err := metaSvc.QueueVoteBackfill(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("vote backfill not queued", "err", err)
 		}
+		// Original languages of the titles matched before migration 00032 (concept 13, 11.7):
+		// queued once at the first start after it, later only by hand.
+		if _, err := metaSvc.QueueOriginalLanguageBackfillOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("original language backfill not queued", "err", err)
+		}
 	})
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes
@@ -553,7 +558,7 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 	stats := mgr.Stats()
 	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap,
 		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version)
-	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)), playback.WithKeyframeIndex(runner.Keyframes))
+	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr)), playback.WithKeyframeIndex(runner.Keyframes))
 	return playback.New(db, log, opts...), mgr, caps, mgr.Close
 }
 

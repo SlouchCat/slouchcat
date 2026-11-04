@@ -18,6 +18,7 @@
     "logout": "Sign out",
     "skip": "Skip to content",
     "profiles": "Profiles",
+    "playback": "My playback",
     "switchProfile": "Switch profile, now {{name}}",
     "downloads": "Downloads",
     "search": "Search",
@@ -685,11 +686,25 @@
       "off": "Off",
       "unknown": "Track {{n}}",
       "forced": "forced",
-      "external": "external"
+      "external": "external",
+      "rememberSeries": "Remember for this series",
+      "makeDefault": "Make default for this profile",
+      "isDefault": "{{language}} is the default for this profile.",
+      "madeDefault": "{{language}} is now the default for this profile.",
+      "forcedBitmap": "Forced subtitles available (burned in)"
     },
     "quality": {
       "auto": "Automatic",
-      "autoWith": "Automatic ({{quality}})"
+      "autoWith": "Automatic ({{quality}})",
+      "autoOriginal": "Automatic · currently original",
+      "original": "Original",
+      "detail": "{{bitrate}} · about {{size}} per hour",
+      "unavailableBurn": "Subtitles are burned in",
+      "unavailableIndex": "Index is being built",
+      "unavailableTranscode": "Plays only converted",
+      "remembered": "Remembered: {{quality}}",
+      "rememberedNote": "Titles above {{quality}} are then converted.",
+      "reset": "Reset"
     },
     "chapters": {
       "button": "Chapters",
@@ -1273,7 +1288,8 @@
           "release_date": "Release date",
           "own_rating": "Rating",
           "poster": "Poster",
-          "backdrop": "Backdrop"
+          "backdrop": "Backdrop",
+          "original_language": "Original language"
         },
         "fieldLang": "{{field}} ({{lang}})",
         "count_one": "{{count}} field",
@@ -1297,6 +1313,21 @@
         "saved": "Rating saved.",
         "unsaved": "unsaved",
         "summary": "Effective {{effective}} · Own {{own}} · Source {{source}}"
+      },
+      "language": {
+        "title": "Original language",
+        "current": "Original language",
+        "source": "Source",
+        "label": "Set original language",
+        "fromMetadata": "From metadata",
+        "unknown": "Unknown",
+        "notLooked": "Not looked up yet",
+        "manual": "By hand (locked)",
+        "saved": "Original language saved.",
+        "unsaved": "unsaved",
+        "summary": "{{language}} · Source {{source}}",
+        "hint": "A chosen language or «Unknown» is locked. «From metadata» lifts the lock, and the next match asks the sources again.",
+        "knownFailed": "The list of languages could not be loaded."
       },
       "files": {
         "title": "Files",
@@ -3019,6 +3050,10 @@
           "name": "Backfill votes",
           "trigger": "After every full scan while titles wait for a vote"
         },
+        "metadata_original_language_backfill": {
+          "name": "Backfill original languages",
+          "trigger": "Once at the first start after the update, then «Run now»"
+        },
         "image_fetch": {
           "name": "Fetch images",
           "trigger": "After the match, catch-up at start"
@@ -3356,7 +3391,8 @@
         "saving": "Saving …",
         "metadataLanguage": "Language of descriptions",
         "metadataLanguageHint": "Titles, descriptions and genres; the interface follows the language above.",
-        "likeUi": "Like the interface"
+        "likeUi": "Like the interface",
+        "playback": "Playback"
       },
       "ratingAboveAccount": "FSK {{age}} · Account at most FSK {{max}}",
       "report": {
@@ -3687,6 +3723,47 @@
     }
   },
   "settings": {
+    "playback": {
+      "title": "My playback",
+      "intro": "Sound and subtitles for the profile {{name}}, on every device. What you pick by hand in the player comes first.",
+      "languages": "Languages and subtitles",
+      "audio": {
+        "legend": "Audio languages",
+        "hint": "A title plays in the first language of this list it has. If it has none of them, the original language plays.",
+        "rank": "{{position}}. audio language",
+        "more": "Another audio language",
+        "none": "No audio language at the moment: the original language plays."
+      },
+      "subtitleMode": {
+        "label": "Subtitles",
+        "off": "Off",
+        "forced": "Forced only (default)",
+        "foreign": "For a foreign language",
+        "always": "Always",
+        "offHint": "No subtitles until you switch them on in the player.",
+        "forcedHint": "Only the parts in another language, such as signs or foreign lines, in the language of the sound.",
+        "foreignHint": "Like «Forced only». When the sound is in none of your audio languages, full subtitles in the first subtitle language.",
+        "alwaysHint": "Always full subtitles in the first subtitle language; without them like «Forced only»."
+      },
+      "subtitles": {
+        "legend": "Subtitle languages",
+        "hint": "For full subtitles, the first one available first.",
+        "rank": "{{position}}. subtitle language",
+        "more": "Another subtitle language",
+        "none": "No subtitle language at the moment: only forced subtitles show."
+      },
+      "limit": "At most {{count}} languages; remove one to take another.",
+      "saved": "Saved.",
+      "series": {
+        "title": "Series memory",
+        "body": "When you pick the sound or subtitles of an episode by hand, Slouchcat remembers the language for the whole series.",
+        "reset": "Reset series memory",
+        "confirmTitle": "Reset series memory?",
+        "confirmBody": "Every series then plays by your languages and subtitles above again. This cannot be undone.",
+        "confirm": "Reset",
+        "done": "Series memory reset."
+      }
+    },
     "notifications": {
       "title": "Notification channels",
       "intro": "New episodes of your favourites, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",

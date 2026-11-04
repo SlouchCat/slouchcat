@@ -38,6 +38,7 @@ type fakeTranscoder struct {
 	stopped     []string
 	touched     int
 	backend     string
+	hwTonemap   bool // the host tonemaps on the GPU (Capabilities)
 }
 
 type fakeHLS struct {
@@ -50,6 +51,10 @@ func newFakeTranscoder() *fakeTranscoder {
 }
 
 func (f *fakeTranscoder) Backend() string { return f.backend }
+
+func (f *fakeTranscoder) Capabilities() transcode.Capabilities {
+	return transcode.Capabilities{Backend: transcode.Backend(f.backend), HWTonemap: f.hwTonemap}
+}
 
 func (f *fakeTranscoder) Start(_ context.Context, req HLSRequest) (HLSSession, error) {
 	f.mu.Lock()

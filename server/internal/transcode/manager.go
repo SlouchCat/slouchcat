@@ -328,6 +328,10 @@ func (m *Manager) Close() {
 	wg.Wait()
 }
 
+// Capabilities returns the capabilities the manager encodes with (backend, tonemapper); they do
+// not change after NewManager. A Target for this manager takes Backend and HWTonemap from them.
+func (m *Manager) Capabilities() Capabilities { return m.caps }
+
 // Stats returns a snapshot of the budget, the sessions and the disk usage of the work directory.
 func (m *Manager) Stats() Stats {
 	m.mu.Lock()

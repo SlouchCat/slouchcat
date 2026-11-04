@@ -22,6 +22,17 @@ JOIN sessions AS s ON s.id = ps.session_id
 WHERE ps.id = @id AND ps.revoked_at IS NULL AND ps.expires_at > @now
   AND s.revoked_at IS NULL AND s.expires_at > @now;
 
+-- name: GetLastPlaybackTracks :one
+-- The tracks of the latest playback of a browser session and title, ended or not: the playback a
+-- track switch replaces (the client stops it before the next start). A start with
+-- rememberForSeries keeps only the part that differs from it (review step 9, M-1). Per browser
+-- session, not per tab: two tabs of one session on the same title share the latest row, and a new
+-- session has none (changedTracks names the limits, final review stage 2).
+SELECT media_file_id, audio_track, subtitle_track FROM playback_sessions
+WHERE session_id = @session_id AND item_id = @item_id
+ORDER BY started_at DESC, id DESC
+LIMIT 1;
+
 -- name: TouchPlaybackSession :exec
 UPDATE playback_sessions SET last_activity_at = @now, expires_at = @expires_at
 WHERE id = @id AND revoked_at IS NULL;

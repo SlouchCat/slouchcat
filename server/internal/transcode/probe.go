@@ -59,7 +59,9 @@ type Stream struct {
 	Title          string `json:"title,omitempty"`
 	Default        bool   `json:"default,omitempty"`
 	Forced         bool   `json:"forced,omitempty"`
-	AttachedPic    bool   `json:"attachedPic,omitempty"` // cover art stored as a video stream
+	// HearingImpaired is the disposition flag of subtitles for the deaf and hard of hearing.
+	HearingImpaired bool `json:"hearingImpaired,omitempty"`
+	AttachedPic     bool `json:"attachedPic,omitempty"` // cover art stored as a video stream
 	// Dolby Vision (M4): the profile of the DOVI configuration record (5, 7, 8; 0 = none) and the
 	// base-layer compatibility id (1 = HDR10 base layer, profile 8.1; 2 = SDR, 8.2/9.2; 4 = HLG,
 	// 8.4). Profile 8 plays its base layer like HDR10 (or SDR, HLG); profiles 5 and 7 are
@@ -68,6 +70,10 @@ type Stream struct {
 	DolbyVisionBLCompat int `json:"dvBLCompat,omitempty"`
 	// HDR10Plus is set when the first frame carries SMPTE ST 2094-40 dynamic metadata (M4).
 	HDR10Plus bool `json:"hdr10plus,omitempty"`
+	// FrameRate is the average frame rate of a video stream in frames per second (ffprobe
+	// avg_frame_rate, for the H.264 level); 0 when unknown and in probes stored before concept 13
+	// step 11.
+	FrameRate float64 `json:"frameRate,omitempty"`
 }
 
 // HDR formats of HDRFormat.
@@ -122,6 +128,23 @@ type Chapter struct {
 	Title string        `json:"title,omitempty"`
 }
 
+// AudioTracks returns the audio streams of p as tracks for the track choice (package trackpick):
+// stream index, codec, language, title, default flag and channels, in stream order. Nil without a
+// probe.
+func (p *Probe) AudioTracks() []model.Track {
+	if p == nil {
+		return nil
+	}
+	var out []model.Track
+	for _, s := range p.Streams {
+		if s.Type == "audio" {
+			out = append(out, model.Track{Index: s.Index, Kind: "audio", Codec: s.Codec, Language: s.Language,
+				Title: s.Title, Default: s.Default, Forced: s.Forced, Channels: s.Channels})
+		}
+	}
+	return out
+}
+
 // ChapterMarks maps the chapter marks of p onto the API's chapters, on the source timeline that HLS
 // outputs and downloads keep (ADR 0003; the client maps both back to it). Empty, never nil, without
 // a probe. Playback and the download manifest of a film or an episode read their chapters here.
@@ -153,6 +176,7 @@ type rawProbe struct {
 		Level          int    `json:"level"`
 		Width          int    `json:"width"`
 		Height         int    `json:"height"`
+		AvgFrameRate   string `json:"avg_frame_rate"`
 		PixFmt         string `json:"pix_fmt"`
 		ColorTransfer  string `json:"color_transfer"`
 		ColorPrimaries string `json:"color_primaries"`
@@ -164,9 +188,10 @@ type rawProbe struct {
 			Title    string `json:"title"`
 		} `json:"tags"`
 		Disposition struct {
-			Default     int `json:"default"`
-			Forced      int `json:"forced"`
-			AttachedPic int `json:"attached_pic"`
+			Default         int `json:"default"`
+			Forced          int `json:"forced"`
+			HearingImpaired int `json:"hearing_impaired"`
+			AttachedPic     int `json:"attached_pic"`
 		} `json:"disposition"`
 		SideData []struct {
 			Type       string `json:"side_data_type"`
@@ -298,6 +323,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Level:               s.Level,
 			Width:               s.Width,
 			Height:              s.Height,
+			FrameRate:           frameRate(s.CodecType, s.AvgFrameRate),
 			PixFmt:              s.PixFmt,
 			ColorTransfer:       s.ColorTransfer,
 			ColorPrimaries:      s.ColorPrimaries,
@@ -308,6 +334,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Title:               s.Tags.Title,
 			Default:             s.Disposition.Default == 1,
 			Forced:              s.Disposition.Forced == 1,
+			HearingImpaired:     s.Disposition.HearingImpaired == 1,
 			AttachedPic:         s.Disposition.AttachedPic == 1,
 		})
 	}
@@ -404,6 +431,24 @@ func seconds(s string) time.Duration {
 		return 0
 	}
 	return time.Duration(math.Round(f * float64(time.Second)))
+}
+
+// frameRate parses the ffprobe avg_frame_rate of a video stream ("24000/1001", "25/1") into
+// frames per second, rounded to three decimals; 0 for other streams and for "0/0" or garbage.
+func frameRate(codecType, s string) float64 {
+	if codecType != "video" {
+		return 0
+	}
+	num, den, ok := strings.Cut(strings.TrimSpace(s), "/")
+	if !ok {
+		den = "1"
+	}
+	n, errN := strconv.ParseFloat(num, 64)
+	d, errD := strconv.ParseFloat(den, 64)
+	if errN != nil || errD != nil || n <= 0 || d <= 0 || math.IsInf(n/d, 0) {
+		return 0
+	}
+	return math.Round(n/d*1000) / 1000
 }
 
 func integer(s string) int64 {

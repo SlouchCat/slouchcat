@@ -304,6 +304,7 @@ type Item struct {
 	FeedOrigin        sql.NullString
 	FilledProviders   sql.NullString
 	VoteAverage       sql.NullFloat64
+	OriginalLanguage  sql.NullString
 }
 
 type ItemFieldSource struct {
@@ -537,11 +538,23 @@ type Profile struct {
 	PinSalt           sql.NullString
 	OfflinePin        sql.NullString
 	MetadataLanguage  sql.NullString
+	AudioLanguages    string
+	SubtitleMode      string
+	SubtitleLanguages string
 }
 
 type ProfileLibrary struct {
 	ProfileID int64
 	LibraryID int64
+}
+
+type ProfileSeriesTrack struct {
+	ProfileID        int64
+	SeriesID         string
+	AudioLanguage    string
+	SubtitleLanguage string
+	SubtitleOff      int64
+	UpdatedAt        int64
 }
 
 type Progress struct {
@@ -683,17 +696,18 @@ type TopPick struct {
 }
 
 type Track struct {
-	ID          int64
-	MediaFileID string
-	StreamIndex int64
-	Kind        string
-	Codec       sql.NullString
-	Language    sql.NullString
-	Title       sql.NullString
-	Source      string
-	RelPath     sql.NullString
-	IsDefault   int64
-	IsForced    int64
+	ID                int64
+	MediaFileID       string
+	StreamIndex       int64
+	Kind              string
+	Codec             sql.NullString
+	Language          sql.NullString
+	Title             sql.NullString
+	Source            string
+	RelPath           sql.NullString
+	IsDefault         int64
+	IsForced          int64
+	IsHearingImpaired int64
 }
 
 type Trailer struct {

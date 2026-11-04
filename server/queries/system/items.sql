@@ -107,8 +107,8 @@ UPDATE media_files SET keyframes = @keyframes, keyframes_at = @now, updated_at =
 DELETE FROM tracks WHERE media_file_id = @media_file_id;
 
 -- name: InsertTrack :exec
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (@media_file_id, @stream_index, @kind, @codec, @language, @title, @source, @rel_path, @is_default, @is_forced);
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (@media_file_id, @stream_index, @kind, @codec, @language, @title, @source, @rel_path, @is_default, @is_forced, @is_hearing_impaired);
 
 -- name: ListMediaFileTracks :many
 SELECT * FROM tracks WHERE media_file_id = @media_file_id ORDER BY source, stream_index;
@@ -127,8 +127,8 @@ SELECT id, rel_path FROM tracks WHERE media_file_id = @media_file_id AND source 
 
 -- name: InsertSidecarTrack :exec
 -- A sidecar found by a scan; stream_index -1 like the API reports sidecars.
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (@media_file_id, -1, 'subtitle', @codec, @language, @title, 'sidecar', @rel_path, 0, @is_forced)
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (@media_file_id, -1, 'subtitle', @codec, @language, @title, 'sidecar', @rel_path, 0, @is_forced, @is_hearing_impaired)
 ON CONFLICT DO NOTHING;
 
 -- name: DeleteTrack :exec

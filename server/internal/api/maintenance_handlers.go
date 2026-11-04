@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 
@@ -25,6 +26,9 @@ func (e serviceProblem) VisitListItemImageCandidatesResponse(w http.ResponseWrit
 }
 func (e serviceProblem) VisitSetItemImageResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitClearItemImageResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitSetItemOriginalLanguageResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitCreateItemTrailerResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -132,6 +136,22 @@ func (s *server) ClearItemImage(ctx context.Context, req gen.ClearItemImageReque
 		return s.problem(ctx, err), nil
 	}
 	return gen.ClearItemImage200JSONResponse(toAdminItem(it)), nil
+}
+
+func (s *server) SetItemOriginalLanguage(ctx context.Context, req gen.SetItemOriginalLanguageRequestObject) (gen.SetItemOriginalLanguageResponseObject, error) {
+	// A missing language is required; null lifts the lock, a string sets the language.
+	if req.Body == nil || len(req.Body.Language) == 0 {
+		return s.problem(ctx, (&model.ValidationError{}).Add("language", "required")), nil
+	}
+	var lang *string
+	if err := json.Unmarshal(req.Body.Language, &lang); err != nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("language", "invalid_value")), nil
+	}
+	it, err := s.opts.Admin.SetItemOriginalLanguage(ctx, req.Id, lang)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetItemOriginalLanguage200JSONResponse(toAdminItem(it)), nil
 }
 
 // candidatePreviewURL is the address of getItemImageCandidatePreview for a local candidate.
@@ -301,12 +321,13 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 		MetadataState: gen.AdminItemMetadataState(it.MetadataState), MetadataError: optString(it.MetadataError), MatchedAt: utc(it.MatchedAt),
 		TmdbId: it.TMDBID, TvdbId: it.TVDBID, ImdbId: optString(it.IMDBID), LockedFields: it.LockedFields,
 		OwnRating: optRating(it.OwnRating), EffectiveRating: optRating(it.EffectiveRating), RatingSource: optString(it.RatingSource),
-		TrailerState: gen.AdminItemTrailerState(it.TrailerState),
-		Trailers:     make([]gen.Trailer, 0, len(it.Trailers)),
-		MediaFiles:   make([]gen.AdminMediaFile, 0, len(it.MediaFiles)),
-		AnilistId:    it.AniListID,
-		Providers:    providerEnums(it.Providers),
-		FieldSources: make([]gen.FieldSource, 0, len(it.FieldSources)),
+		TrailerState:     gen.AdminItemTrailerState(it.TrailerState),
+		Trailers:         make([]gen.Trailer, 0, len(it.Trailers)),
+		MediaFiles:       make([]gen.AdminMediaFile, 0, len(it.MediaFiles)),
+		AnilistId:        it.AniListID,
+		OriginalLanguage: it.OriginalLanguage,
+		Providers:        providerEnums(it.Providers),
+		FieldSources:     make([]gen.FieldSource, 0, len(it.FieldSources)),
 	}
 	for _, f := range it.FieldSources {
 		out.FieldSources = append(out.FieldSources, gen.FieldSource{Field: f.Field, Lang: f.Lang, Provider: f.Provider})

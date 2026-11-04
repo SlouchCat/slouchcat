@@ -85,6 +85,69 @@ test('choosing 480p by keyboard starts a new session with a 480p transcode', asy
   await expect(page).toHaveURL(/\/play\//);
 });
 
+// V-17 and 11.5: the list offers original, a choice by keyboard is remembered on the device and
+// the next start sends it as a cap (the 1080p file is capped at 720p, auto stays current); the
+// panel names the remembered rung, and «Zurücksetzen» forgets it by keyboard without a new
+// session, the focus staying in the panel.
+test('a quality chosen by keyboard is remembered as a cap and reset by keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  const itemId = await itemIdByTitle(owner, H264_TITLE);
+  await resetProgress(page.request, itemId, 10_000);
+  const first = await play(page, itemId);
+  expect(first.qualities.find((option) => option.quality === 'original')?.available).toBe(true);
+
+  await page.keyboard.press('q');
+  const menu = qualityList(page);
+  await expect(menu.getByRole('option', { name: 'Original', exact: true })).toBeVisible();
+  await arrowTo(page, menu.getByRole('option', { name: '720p' }));
+  const second = await startOf(page, () => page.keyboard.press('Enter'));
+  expect(second.status).toBe(200);
+  expect(second.request.quality).toBe('720p');
+  expect(second.request.qualityCap).toBeUndefined();
+  await expect(player(page)).toHaveAttribute(
+    'data-playback-session-id',
+    second.body.playbackSessionId,
+  );
+
+  // A new start of the player on this device: the remembered rung goes as a cap.
+  const third = await startOf(page, () => page.reload());
+  expect(third.status).toBe(200);
+  expect(third.request.qualityCap).toBe('720p');
+  expect(third.request.quality).toBeUndefined();
+  expect(third.body.transcoding?.height).toBe(720);
+  expect(third.body.transcoding?.reason).toBe('quality');
+  expect(third.body.qualities.find((option) => option.current)?.quality).toBe('auto');
+  await expect(player(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 15_000 });
+
+  await page.keyboard.press('q');
+  const panel = page.getByRole('dialog', { name: 'Qualität' });
+  await expect(panel.getByText('Gemerkt: 720p')).toBeVisible();
+  const reset = panel.getByRole('button', { name: 'Zurücksetzen' });
+  // ↓ from the last row of the list reaches the button (a remote has no Tab).
+  await arrowTo(page, reset);
+  await expectVisibleFocus(page);
+  let restarted = false;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/items\/[^/]+\/play$/.test(request.url()))
+      restarted = true;
+  });
+  await page.keyboard.press('Enter');
+  await expect(panel.getByText('Gemerkt: 720p')).toHaveCount(0);
+  await expect(panel.getByRole('option', { selected: true })).toBeFocused();
+  const stored = await page.evaluate(() => localStorage.getItem('slouchcat.player'));
+  expect(JSON.parse(stored ?? '{}')).not.toHaveProperty('quality');
+  expect(restarted).toBe(false);
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+
+  const fourth = await startOf(page, () => page.reload());
+  expect(fourth.request.qualityCap).toBeUndefined();
+  expect(fourth.request.quality).toBeUndefined();
+});
+
 test('a profile limit of 720p: automatic quality plays at most 720p', async ({ page, owner }) => {
   test.setTimeout(60_000);
   const itemId = await itemIdByTitle(owner, H264_TITLE);

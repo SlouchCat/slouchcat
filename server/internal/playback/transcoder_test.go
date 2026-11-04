@@ -63,7 +63,7 @@ func TestManagerTranscoderRejectsUnplannableSource(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	tc := NewManagerTranscoder(m, transcode.BackendSoftware)
+	tc := NewManagerTranscoder(m)
 	if tc.Backend() != "software" {
 		t.Errorf("backend = %q", tc.Backend())
 	}

@@ -69,6 +69,31 @@ func (f *Fixture) AddTracks(t testing.TB) map[string]FileTracks {
 	return out
 }
 
+// SetOriginalLanguage sets items.original_language of a title (concept 13 11.7; "" = looked up,
+// unknown).
+func (f *Fixture) SetOriginalLanguage(t testing.TB, itemID, lang string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE items SET original_language = ? WHERE id = ?`, lang, itemID)
+}
+
+// SetTrackForced marks a track as forced (is_forced).
+func (f *Fixture) SetTrackForced(t testing.TB, trackID int64) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE tracks SET is_forced = 1 WHERE id = ?`, trackID)
+}
+
+// ClearTrackLanguage removes the language of a track (a track without language).
+func (f *Fixture) ClearTrackLanguage(t testing.TB, trackID int64) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE tracks SET language = NULL WHERE id = ?`, trackID)
+}
+
+// DeleteTrack removes a track row.
+func (f *Fixture) DeleteTrack(t testing.TB, trackID int64) {
+	t.Helper()
+	exec(t, f.DB, `DELETE FROM tracks WHERE id = ?`, trackID)
+}
+
 // AddSegments stores an intro (5–35 s, fingerprint) and an outro (the last two minutes, chapter)
 // for an episode (W-9).
 func (f *Fixture) AddSegments(t testing.TB, itemID string) model.Segments {
@@ -88,7 +113,7 @@ func (f *Fixture) AddLimitedProfile(t testing.TB, name string, limits model.Play
 	t.Helper()
 	col := func(v int) sql.NullInt64 { return sql.NullInt64{Int64: int64(v), Valid: v > 0} }
 	p, err := appq.New(f.DB.Write).InsertProfile(context.Background(), appq.InsertProfileParams{
-		AccountID: f.Account.ID, Name: name, MaxRating: 18, Language: "de", AllLibraries: 1, Now: 1,
+		AccountID: f.Account.ID, Name: name, MaxRating: 18, Language: "de", AllLibraries: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1,
 		MaxBitrateKbps: col(limits.MaxBitrateKbps), MaxHeight: col(limits.MaxHeight), MaxStreams: col(limits.MaxStreams),
 		WatchLimitMinutes: col(limits.WatchLimitMinutes),
 	})

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 )
 
 // Mode is the kind of HLS session: remux copies the video, transcode encodes H.264.
@@ -46,9 +47,14 @@ type Target struct {
 	Mode      Mode
 	VideoCopy bool   // remux keeps video; transcode encodes H.264
 	AudioCopy bool   // keep the chosen audio track or encode it to AAC stereo
-	MaxHeight int    // output height limit of a transcode; 0 = 1080 (AN-17: never above 1080)
-	Tonemap   bool   // HDR10/HLG/Dolby Vision → SDR, always with MaxHeight <= 1080
+	MaxHeight int    // output height limit of a transcode; 0 = 1080 (auto never goes above 1080p)
+	Tonemap   bool   // HDR10/HLG/Dolby Vision → SDR, with MaxHeight <= 1080 unless HWTonemap
 	VideoTag  string // "hvc1" when remuxing HEVC for Safari
+	// Backend and HWTonemap describe the host of a transcode (ADR 0021, Capabilities.Backend and
+	// HWTonemap): the output goes above 1080 lines only on a hardware backend, and with Tonemap
+	// only when the GPU tonemaps. The zero value (no backend) keeps the 1080 limit of AN-17.
+	Backend   Backend
+	HWTonemap bool
 	// SubtitleBurnIn is the stream index of an embedded subtitle to burn into the video, or -1 for
 	// none; a sidecar file is named by BurnInPath instead (M4). An index that does not name a
 	// subtitle stream burns nothing.
@@ -94,6 +100,9 @@ type Plan struct {
 // Admission costs of plan 3.5 (start values, calibrated in docs/perf/M1b.md).
 const (
 	cost4KHDR = 4
+	// cost2160p is a transcode with an output above 1080 lines (ADR 0021): it decodes and encodes
+	// in 4K, so the QSV budget of 8 admits one such stream next to one 1080p transcode (5 + 2).
+	cost2160p = 5
 	// costHDRCPU replaces the HDR cost when the tonemapping runs on the CPU (software backend,
 	// QSV hybrid chain): on the reference NAS (2 cores) one 1080p stream uses 1.2 cores
 	// (docs/perf/M4.md), so the QSV budget of 8 admits one such stream plus one SDR transcode.
@@ -105,22 +114,94 @@ const (
 	costAudioOnly  = 0.25
 )
 
-// Encoding defaults: the largest output height (AN-17: no 4K output) and the AAC bit rate.
+// Encoding defaults: the output height of auto and the limit of the software backend and of CPU
+// tonemapping (AN-17), the limit of the hardware backends (ADR 0021) and the AAC bit rate.
 const (
-	defaultMaxHeight = 1080
-	audioBitrate     = 160_000
+	defaultMaxHeight  = 1080
+	hardwareMaxHeight = 2160
+	audioBitrate      = 160_000
 )
+
+// MaxOutputHeight is the highest output height of a transcode on backend b (ADR 0021): 2160 on
+// the hardware backends (NVENC, QSV, VAAPI), 1080 on the software backend (AN-17) and wherever
+// the tonemapping runs on the CPU (cpuTonemap). An unknown backend counts as software.
+func MaxOutputHeight(b Backend, cpuTonemap bool) int {
+	switch {
+	case cpuTonemap:
+		return defaultMaxHeight
+	case b == BackendNVENC || b == BackendQSV || b == BackendVAAPI:
+		return hardwareMaxHeight
+	default:
+		return defaultMaxHeight
+	}
+}
+
+// Rung2160Allowed reports whether a transcode of the video v to the 2160p rung may be offered
+// (ADR 0021, all conditions): v is a 4K source (Is4KSource: at least 2160 lines or at least 3840
+// pixels wide, so a 3840x1600 scope film counts), the backend of caps is a hardware one, the
+// profile allows 2160 lines (profileMaxHeight 0 = no limit), the device reports a short side of
+// at least 1440 pixels (deviceHeight, 0 = unknown: not allowed) and v is SDR or caps tonemaps on
+// the GPU. auto never picks the rung by itself.
+func Rung2160Allowed(caps Capabilities, v Stream, profileMaxHeight, deviceHeight int) bool {
+	return Is4KSource(v.Width, v.Height) &&
+		MaxOutputHeight(caps.Backend, isHDR(v) && !caps.HWTonemap) >= hardwareMaxHeight &&
+		(profileMaxHeight == 0 || profileMaxHeight >= hardwareMaxHeight) &&
+		deviceHeight >= min2160DeviceHeight
+}
+
+// Is4KSource reports whether a video of the given size is a 4K source for the 2160p rung (ADR
+// 0021, Marco's decision of 4 November 2026): at least 2160 lines or at least 3840 pixels wide. A
+// wide-screen 4K film (3840x1600) counts, 2560x1440 does not.
+func Is4KSource(width, height int) bool {
+	return height >= hardwareMaxHeight || width >= min4KWidth
+}
+
+// min4KWidth is the width from which a source counts as 4K whatever its height (UHD, 3840 pixels).
+const min4KWidth = 3840
+
+// min2160DeviceHeight is the smallest short side of a screen in device pixels that gets the 2160p
+// rung offered (ADR 0021).
+const min2160DeviceHeight = 1440
+
+// h264Level is the H.264 level_idc of an encode with the given output size and frame rate (the
+// source's, Stream.FrameRate; 0 = unknown), from the macroblocks of 16x16 pixels per frame and
+// per second (ITU-T H.264 table A-1, MaxFS and MaxMBPS): 4.1 up to 8192 per frame and 245760 per
+// second (1920x1080 at 30 fps), 4.2 up to 8704 and 522240 (1920x1080 at 50 or 60 fps), 5.1 up to
+// 36864 and 983040 (3840x1600, 3840x2160 and 4096x2160 at 30 fps), 5.2 above (3840x2160 at
+// 60 fps). An unknown size counts as 1920x1080. An unknown frame rate decides by the frame size
+// alone, but an output above 1080 lines then gets at least 5.2: it may run at 60 fps.
+func h264Level(width, height int, fps float64) int {
+	if width <= 0 || height <= 0 {
+		width, height = 1920, defaultMaxHeight
+	}
+	if fps <= 0 && height > defaultMaxHeight {
+		return 52
+	}
+	mbs := float64(((width + 15) / 16) * ((height + 15) / 16))
+	mbps := mbs * max(fps, 0)
+	switch {
+	case mbs <= 8192 && mbps <= 245760:
+		return 41
+	case mbs <= 8704 && mbps <= 522240:
+		return 42
+	case mbs <= 36864 && mbps <= 983040:
+		return 51
+	default:
+		return 52
+	}
+}
 
 // Rung is one step of the quality ladder (W-8, plan 3.5): the output height limit and the peak
 // video bit rate in bit/s.
 type Rung struct {
-	Quality string // model.Quality1080, Quality720, Quality480 or Quality360
+	Quality string // model.Quality2160, Quality1080, Quality720, Quality480 or Quality360
 	Height  int
 	Bitrate int
 }
 
 // ladder lists the rungs from the highest down.
 var ladder = []Rung{
+	{model.Quality2160, 2160, 25_000_000},
 	{model.Quality1080, 1080, 8_000_000},
 	{model.Quality720, 720, 4_000_000},
 	{model.Quality480, 480, 2_000_000},
@@ -129,12 +210,12 @@ var ladder = []Rung{
 
 // QualityFor returns the rung a video of the given height plays at without upscaling: the
 // smallest rung at least as high (a 1920x800 film is 1080p, 405 lines are 480p, 300 lines 360p).
-// Heights above 1080 and unknown heights (<= 0) give 1080p.
+// Heights above 1080 give 2160p, unknown heights (<= 0) 1080p.
 func QualityFor(height int) string { return rungFor(height).Quality }
 
 func rungFor(height int) Rung {
 	if height <= 0 {
-		return ladder[0]
+		height = defaultMaxHeight
 	}
 	for i := len(ladder) - 1; i >= 0; i-- {
 		if ladder[i].Height >= height {
@@ -145,7 +226,8 @@ func rungFor(height int) Rung {
 }
 
 // Rungs returns the rungs a source of the given height can be transcoded to, highest first: the
-// rung of the source (QualityFor) and every lower one. An unknown height (0) offers all rungs.
+// rung of the source (QualityFor) and every lower one. An unknown height (0) offers 1080p and
+// every lower rung. Whether a host offers 2160p is Rung2160Allowed.
 func Rungs(sourceHeight int) []Rung {
 	top := rungFor(sourceHeight)
 	i := slices.IndexFunc(ladder, func(r Rung) bool { return r.Quality == top.Quality })
@@ -161,13 +243,15 @@ func rungByName(q string) (Rung, bool) {
 	return ladder[i], true
 }
 
-// heightLimit is the output height limit of a transcode: MaxHeight (0 or above 1080 = 1080),
-// lowered to the rung of an explicit Quality. An unknown quality name is an error.
+// heightLimit is the output height limit of a transcode: MaxHeight (0 = 1080), at most
+// MaxOutputHeight of the target's backend (1080 on software and for tonemapping on the CPU, 2160
+// on hardware), lowered to the rung of an explicit Quality. An unknown quality name is an error.
 func heightLimit(t Target) (int, error) {
 	limit := t.MaxHeight
-	if limit <= 0 || limit > defaultMaxHeight {
+	if limit <= 0 {
 		limit = defaultMaxHeight
 	}
+	limit = min(limit, MaxOutputHeight(t.Backend, t.Tonemap && !t.HWTonemap))
 	if t.Quality == "" || t.Quality == model.QualityAuto {
 		return limit, nil
 	}
@@ -227,6 +311,9 @@ func NewPlan(src Source, t Target) (Plan, error) {
 	}
 	videoBitrate := 0
 	if t.Mode == ModeTranscode && hasVideo {
+		if !isHDR(v) {
+			t.Tonemap = false // before heightLimit: an SDR source never tonemaps on the CPU
+		}
 		limit, err := heightLimit(t)
 		if err != nil {
 			return Plan{}, err
@@ -242,9 +329,6 @@ func NewPlan(src Source, t Target) (Plan, error) {
 		videoBitrate = r.Bitrate
 		if t.MaxBitrate > 0 && t.MaxBitrate < videoBitrate {
 			videoBitrate = t.MaxBitrate
-		}
-		if !isHDR(v) {
-			t.Tonemap = false
 		}
 	} else if burn.kind != burnNone {
 		return Plan{}, errors.New("burning in subtitles needs a video transcode")
@@ -301,11 +385,14 @@ func keyframeStarts(kf []time.Duration, d time.Duration) []time.Duration {
 }
 
 // Cost is the admission cost of a session (plan 3.5): source and pipeline decide, not the output
-// quality. 4K HDR with tonemapping 4, other 4K 3, up to 1080p 2 (output <= 720p: 1.5, by MaxHeight,
-// Quality or a source of at most 720 lines), remux 0.5, audio only 0.25. Remux includes an AAC
-// encode of the audio.
+// quality, except for an output above 1080 lines (2160p, ADR 0021) at 5. 4K HDR with tonemapping
+// 4, other 4K 3, up to 1080p 2 (output <= 720p: 1.5, by MaxHeight, Quality or a source of at most
+// 720 lines), remux 0.5, audio only 0.25. Remux includes an AAC encode of the audio.
 func Cost(src Source, t Target) float64 {
 	v, ok := videoStream(src.Probe)
+	if !isHDR(v) {
+		t.Tonemap = false // as NewPlan: an SDR source keeps the limit of its backend
+	}
 	limit, err := heightLimit(t)
 	if err != nil {
 		limit = defaultMaxHeight
@@ -318,6 +405,8 @@ func Cost(src Source, t Target) float64 {
 		return costAudioOnly
 	case t.Mode == ModeRemux || t.VideoCopy:
 		return costRemux
+	case limit > defaultMaxHeight:
+		return cost2160p
 	case is4K(v) && t.Tonemap && isHDR(v):
 		return cost4KHDR
 	case is4K(v):
@@ -368,27 +457,43 @@ func streamByIndex(p Probe, i int) (Stream, bool) {
 	return p.Streams[j], true
 }
 
-// audioStream returns the default audio stream, else the first one.
+// audioStream returns the file's default audio stream, else the first one (trackpick.FileDefault,
+// the last step of the track choice).
 func audioStream(p Probe) (Stream, bool) {
-	i := slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "audio" && s.Default })
-	if i < 0 {
-		i = slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "audio" })
-	}
-	if i < 0 {
+	i := trackpick.FileDefault(p.AudioTracks())
+	j := slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "audio" && s.Index == i })
+	if i < 0 || j < 0 {
 		return Stream{}, false
 	}
-	return p.Streams[i], true
+	return p.Streams[j], true
 }
 
-// outputSize scales the video down to MaxHeight keeping the aspect ratio, with even sizes.
+// outputSize scales the video down into the 16:9 box of MaxHeight (FitSize), with even sizes.
 func outputSize(v Stream, t Target) (w, h int) {
 	w, h = v.Width, v.Height
 	if t.VideoCopy || w <= 0 || h <= 0 {
 		return w, h
 	}
-	if t.MaxHeight > 0 && h > t.MaxHeight {
-		w = int(math.Round(float64(w) * float64(t.MaxHeight) / float64(h)))
-		h = t.MaxHeight
+	if t.MaxHeight <= 0 {
+		return w &^ 1, h &^ 1
+	}
+	return FitSize(w, h, t.MaxHeight)
+}
+
+// FitSize is the size of an encode of a w×h video (both known) on maxHeight lines: the video
+// scaled into the 16:9 box of maxHeight lines and maxHeight × 16/9 pixels (rounded up: 854 for 480
+// lines), keeping its aspect ratio, never up, both even. A 3840x1600 film on 1080 lines becomes
+// 1920x800, not 2592x1080 (ADR 0021). Playback (quality options) and downloads use it as the plan
+// does.
+func FitSize(w, h, maxHeight int) (int, int) {
+	boxW := (maxHeight*16 + 8) / 9
+	switch {
+	case w*9 > h*16 && w > boxW: // wider than 16:9 and than the box: the box width limits
+		h = int(math.Round(float64(h) * float64(boxW) / float64(w)))
+		w = boxW
+	case h > maxHeight:
+		w = int(math.Round(float64(w) * float64(maxHeight) / float64(h)))
+		h = maxHeight
 	}
 	return w &^ 1, h &^ 1
 }
@@ -407,15 +512,16 @@ func bandwidth(p Probe, t Target, videoBitrate int) int {
 	if !hasVideo || t.VideoCopy {
 		br := int(p.Format.BitRate)
 		if br <= 0 {
-			br = ladder[0].Bitrate
+			br = rungFor(defaultMaxHeight).Bitrate
 		}
 		return br * 6 / 5
 	}
 	return videoBitrate + audioBitrate
 }
 
-// CodecsString returns the RFC 6381 CODECS attribute for the master playlist: H.264 High 4.1 and
-// AAC LC when encoding, the source codecs when copying (the audio of the chosen track).
+// CodecsString returns the RFC 6381 CODECS attribute for the master playlist: H.264 High at the
+// level of the output size and frame rate (h264Level: 4.1, 4.2, 5.1 or 5.2) and AAC LC when encoding, the
+// source codecs when copying (the audio of the chosen track).
 func CodecsString(plan Plan, src Source) string {
 	var codecs []string
 	if v, ok := videoStream(src.Probe); ok {
@@ -424,7 +530,7 @@ func CodecsString(plan Plan, src Source) string {
 				codecs = append(codecs, c)
 			}
 		} else {
-			codecs = append(codecs, "avc1.640029")
+			codecs = append(codecs, fmt.Sprintf("avc1.6400%02X", h264Level(plan.Width, plan.Height, v.FrameRate)))
 		}
 	}
 	if a, ok := selectedAudio(src.Probe, plan.Target); ok {

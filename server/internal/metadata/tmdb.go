@@ -107,21 +107,23 @@ type ReleaseDates struct {
 
 // Movie is the TMDB movie detail in one language.
 type Movie struct {
-	ID            int64        `json:"id"`
-	IMDBID        string       `json:"imdb_id"`
-	Title         string       `json:"title"`
-	OriginalTitle string       `json:"original_title"`
-	Overview      string       `json:"overview"`
-	Tagline       string       `json:"tagline"`
-	ReleaseDate   string       `json:"release_date"` // YYYY-MM-DD or empty
-	Runtime       int          `json:"runtime"`      // minutes, 0 when unknown
-	VoteAverage   float64      `json:"vote_average"` // 0 to 10, 0 when nobody voted
-	Genres        []Genre      `json:"genres"`
-	PosterPath    string       `json:"poster_path"`
-	BackdropPath  string       `json:"backdrop_path"`
-	ReleaseDates  ReleaseDates `json:"release_dates"`
-	Credits       Credits      `json:"credits"`
-	Images        Images       `json:"images"` // append_to_response=images (ADR 0018)
+	ID            int64  `json:"id"`
+	IMDBID        string `json:"imdb_id"`
+	Title         string `json:"title"`
+	OriginalTitle string `json:"original_title"`
+	// OriginalLanguage is TMDB's ISO 639-1 code of the original language (cn, xx included).
+	OriginalLanguage string       `json:"original_language"`
+	Overview         string       `json:"overview"`
+	Tagline          string       `json:"tagline"`
+	ReleaseDate      string       `json:"release_date"` // YYYY-MM-DD or empty
+	Runtime          int          `json:"runtime"`      // minutes, 0 when unknown
+	VoteAverage      float64      `json:"vote_average"` // 0 to 10, 0 when nobody voted
+	Genres           []Genre      `json:"genres"`
+	PosterPath       string       `json:"poster_path"`
+	BackdropPath     string       `json:"backdrop_path"`
+	ReleaseDates     ReleaseDates `json:"release_dates"`
+	Credits          Credits      `json:"credits"`
+	Images           Images       `json:"images"` // append_to_response=images (ADR 0018)
 	// BelongsToCollection is the TMDB collection of the film (E-6), nil when it has none.
 	BelongsToCollection *MovieCollection `json:"belongs_to_collection"`
 }
@@ -212,18 +214,20 @@ func (c *Client) AllImages(ctx context.Context, path string) (Images, error) {
 
 // TV is the TMDB series detail in one language with content ratings, external IDs and credits.
 type TV struct {
-	ID             int64   `json:"id"`
-	Name           string  `json:"name"`
-	OriginalName   string  `json:"original_name"`
-	Overview       string  `json:"overview"`
-	Tagline        string  `json:"tagline"`
-	FirstAirDate   string  `json:"first_air_date"`
-	EpisodeRunTime []int   `json:"episode_run_time"`
-	VoteAverage    float64 `json:"vote_average"` // 0 to 10, 0 when nobody voted
-	Genres         []Genre `json:"genres"`
-	PosterPath     string  `json:"poster_path"`
-	BackdropPath   string  `json:"backdrop_path"`
-	Seasons        []struct {
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`
+	OriginalName string `json:"original_name"`
+	// OriginalLanguage is TMDB's ISO 639-1 code of the original language (cn, xx included).
+	OriginalLanguage string  `json:"original_language"`
+	Overview         string  `json:"overview"`
+	Tagline          string  `json:"tagline"`
+	FirstAirDate     string  `json:"first_air_date"`
+	EpisodeRunTime   []int   `json:"episode_run_time"`
+	VoteAverage      float64 `json:"vote_average"` // 0 to 10, 0 when nobody voted
+	Genres           []Genre `json:"genres"`
+	PosterPath       string  `json:"poster_path"`
+	BackdropPath     string  `json:"backdrop_path"`
+	Seasons          []struct {
 		SeasonNumber int    `json:"season_number"`
 		EpisodeCount int    `json:"episode_count"`
 		PosterPath   string `json:"poster_path"`

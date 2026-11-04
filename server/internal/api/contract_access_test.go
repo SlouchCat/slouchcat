@@ -248,6 +248,9 @@ var adminRegistry = map[string]adminCall{
 	"setItemImage": {contract: "PUT /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster",
 		body: `{"provider":"tmdb","source":"/p.jpg"}`, ownerStatus: http.StatusOK},
 	"clearItemImage": {contract: "DELETE /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster", ownerStatus: http.StatusOK},
+	// Concept 13 11.7: the original language by hand (the contract fake accepts every value).
+	"setItemOriginalLanguage": {contract: "PUT /admin/items/{id}/original-language", path: "/admin/items/" + fixtureFilm6 + "/original-language",
+		body: `{"language":"ja"}`, ownerStatus: http.StatusOK},
 	"setItemsRating": {contract: "POST /admin/items/rating", path: "/admin/items/rating",
 		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
 	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",
@@ -513,7 +516,7 @@ func TestContractAccountOperations(t *testing.T) {
 				target := a.choose(f)
 				if call.fresh {
 					row, err := q.InsertProfile(context.Background(), appq.InsertProfileParams{
-						AccountID: account.ID, Name: "Target", MaxRating: 18, Language: "de", AllLibraries: 1, Now: 1,
+						AccountID: account.ID, Name: "Target", MaxRating: 18, Language: "de", AllLibraries: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1,
 					})
 					if err != nil {
 						t.Fatal(err)

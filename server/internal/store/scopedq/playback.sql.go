@@ -41,7 +41,7 @@ func (q *Queries) GetVisibleMediaFileProbe(ctx context.Context, arg GetVisibleMe
 }
 
 const listVisibleItemTracks = `-- name: ListVisibleItemTracks :many
-SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced FROM tracks AS t
+SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced, t.is_hearing_impaired FROM tracks AS t
 JOIN media_files AS m ON m.id = t.media_file_id
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 WHERE m.item_id = ?2 AND t.kind IN ('audio', 'subtitle')
@@ -75,6 +75,7 @@ func (q *Queries) ListVisibleItemTracks(ctx context.Context, arg ListVisibleItem
 			&i.RelPath,
 			&i.IsDefault,
 			&i.IsForced,
+			&i.IsHearingImpaired,
 		); err != nil {
 			return nil, err
 		}
@@ -132,7 +133,7 @@ func (q *Queries) ListVisibleMediaFileProbes(ctx context.Context, arg ListVisibl
 
 const listVisibleMediaFileTracks = `-- name: ListVisibleMediaFileTracks :many
 
-SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced FROM tracks AS t
+SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced, t.is_hearing_impaired FROM tracks AS t
 JOIN media_files AS m ON m.id = t.media_file_id
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 WHERE m.item_id = ?2 AND m.id = ?3 AND t.kind IN ('audio', 'subtitle')
@@ -169,6 +170,7 @@ func (q *Queries) ListVisibleMediaFileTracks(ctx context.Context, arg ListVisibl
 			&i.RelPath,
 			&i.IsDefault,
 			&i.IsForced,
+			&i.IsHearingImpaired,
 		); err != nil {
 			return nil, err
 		}

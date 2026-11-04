@@ -1,5 +1,58 @@
 # Aktueller Stand
 
+## Konzept 13 «Abspielseite», Stufe 2 «Sprache und Qualität»: gebaut, PR offen (4. November 2026)
+
+**Zweig `claude/abspielseite-stufe2` ab `main` `d74b665` (Release 1.10.0).** Marcos Wort «Stelle
+die CT190 bitte um und beginne danach Stufe2». Vertrag **1.11.0** (additiv, eine
+Bedeutungsänderung: fehlendes oder leeres `subtitleTrack` heisst «Server wählt»). Migration
+**00032**. Alle Entscheide des Baus in `docs/planning/13-abspielseite.md` 11.15.
+
+- **Schritt 7:** Migration 00032 (Profilfelder Ton/Untertitel, `profile_series_tracks`,
+  `items.original_language`, `tracks.is_hearing_impaired`, `playback_sessions` neu aufgebaut mit
+  `original` und `2160p`), eingefrorener Stand `testdata/db/abspielseite.sql`, Vertrag 1.11.0,
+  Operationen `getMyPlaybackPrefs`, `putMyPlaybackPrefs`, `resetMySeriesTracks`.
+- **Schritt 8:** Originalsprache aus TMDB, TVDB und AniList in `metadata.fill`, sperrbar,
+  `setItemOriginalLanguage` in der Verwaltung, Jobart `metadata.original_language_backfill`.
+- **Schritt 9:** Paket `internal/trackpick` (Ton- und Untertitelregel nach 11.3, F-11, Gründe),
+  Sprachtabelle (470 Einträge, Paritätstest mit dem Web-Client), Serienmerker (nur der geänderte
+  Teil), `visibility.TrackContext`, Downloads nach derselben Regel, SDH aus Titel und
+  Disposition; im Player «Aus» = `subtitleOff`, jeder Wechsel nennt beide Spuren, Schalter «Für
+  diese Serie merken».
+- **Schritt 10:** Vorbelegung neuer Profile an allen drei Stellen, Seite «Meine Wiedergabe»
+  (`/settings/playback`), Felder im Profilformular, «Als Standard für dieses Profil» im
+  Ton-Panel, leere Sprachlisten möglich («Originalton immer»).
+- **Schritt 11:** eine Leiter (`transcode.Rungs`), `original` nach 11.5 (a)–(d), 2160p
+  freigeschaltet (Backend und Tonemapping aus dem Manager), `QualityCap` (1080p–360p),
+  Qualitätsliste im Zahnrad mit Merker je Gerät.
+- **Schritt 12:** 2160p in `transcode` (Grenze je Backend, Kosten 5, 4K ab 2160 Zeilen oder 3840
+  Breite, H.264-Level 4.1/4.2/5.1/5.2 aus Bildgrösse und Bildrate, Ausgabe in einer 16:9-Box).
+  **Messung auf CT 190** in `docs/perf/13-abspielseite.md` 1: QSV, ein 2160p24-Strom 3,8-fache,
+  zwei je 1,9-fache, 2160p60 1,4-fache Echtzeit, Kosten 5 bleiben.
+- **Reviews:** je Welle ein `code-reviewer` (7; 8, 9, 12; Schluss-Review 9-Fixes, 10, 11); alle
+  M-Befunde behoben.
+- **Marcos Entscheide beim Bau:** 4K im Breitbild ab 3840 Breite; volle Bildspur vor SDH-Text bei
+  «Immer» und «Fremdsprache».
+
+**Belege (`task ci` auf `a29d5c7`, 12 min 44 s):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 35 Pakete `ok` |
+| `ci:web` | Lint, Vitest `1406 passed` |
+| `ci:storybook` | `357 passed` |
+| `ci:e2e:parallel` (3 Shards) | 477 von 479; rot `profiles.spec.ts:380` in Chromium und Firefox (der neue «×» als Tab-Halt), behoben in `2fad41c`, danach `profiles` und `playback-settings` 18/18 in beiden Browsern |
+
+**Offen:**
+- PR, Abnahme auf CT 190 (Migration 00032 läuft dort beim Start; der Server sichert vorher per
+  `VACUUM INTO`), Merge, Release 1.11.0 auf Marcos Wort.
+- Bekannte Grenzen und Hinweise für die Release-Notiz: ein gemerktes 1080p wandelt 4K-Titel um;
+  Breitbild-Ausgaben werden schmaler (16:9-Box), auch bei Downloads; Level 4.2/5.2 nicht auf
+  echten Geräten geprüft; Spulen in 2160p nicht gemessen (keine echte 4K-Datei auf CT 190).
+- `SetItemRating`/`SetItemsRating`: ein leerer Body hebt die Freigabe auf (bestehend, nicht aus
+  diesem Zweig).
+- Auf CT 190 liegen noch `/root/uhd-test` (Testclips, rund 3 GB), das Image `stufe2-8428d7f` und
+  `/root/build-8428d7f`.
+
 ## Konzept 13 «Abspielseite», Stufe 1 «Bedienung»: gemergt und auf CT 190 abgenommen (4. November 2026)
 
 **Zweig `claude/abspielseite-ae8b82` ab `main` `c023448`, `main` (`f7e2308`, PR #83) nachgezogen.**

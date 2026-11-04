@@ -158,6 +158,10 @@ type Metadata interface {
 	ImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error)
 	SetItemImage(ctx context.Context, itemID, kind, provider, source string) error
 	ClearItemImage(ctx context.Context, itemID, kind string) error
+	// SetItemOriginalLanguage stores and locks the original language of a title, or with nil
+	// lifts the lock and looks it up again (concept 13 11.7; model.ErrNotFound,
+	// *model.ValidationError).
+	SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) error
 	ItemImages(ctx context.Context, itemID string) ([]model.AdminItemImage, error)
 	LocalImagePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 }

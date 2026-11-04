@@ -197,6 +197,24 @@ type Profile struct {
 	// Limits are the profile's own W-8/K-5 limits (zero = none); Effective applies the account's caps.
 	Limits    PlaybackLimits
 	Effective PlaybackLimits
+	// Prefs are the language and subtitle preferences the server chooses tracks by (concept 13).
+	Prefs PlaybackPrefs
+}
+
+// Subtitle rules of a profile (concept 13 section 11.3, profiles.subtitle_mode).
+const (
+	SubtitleModeOff     = "off"
+	SubtitleModeForced  = "forced" // the default (F-3)
+	SubtitleModeForeign = "foreign"
+	SubtitleModeAlways  = "always"
+)
+
+// PlaybackPrefs are the language and subtitle preferences of a profile (concept 13 section 11.4):
+// audio and subtitle languages as ISO 639-1 codes in order of preference, and the subtitle rule.
+type PlaybackPrefs struct {
+	AudioLanguages    []string
+	SubtitleMode      string
+	SubtitleLanguages []string
 }
 
 // PlaybackLimits are the W-8 limits (bandwidth, output height, concurrent streams) and the K-5
@@ -265,6 +283,11 @@ type ProfileInput struct {
 	LibraryIDs       *[]int64
 	PIN              *string         // create only
 	Limits           *PlaybackLimits // replaces all limits at once; nil keeps them
+	// The playback preferences (concept 13); each nil field keeps its value (update) or takes the
+	// column default (create).
+	AudioLanguages    *[]string
+	SubtitleMode      *string
+	SubtitleLanguages *[]string
 }
 
 // AccountAccessUpdate changes what an account may see and how much it may stream; nil fields keep
@@ -381,6 +404,9 @@ type AdminItem struct {
 	Episodes        int
 	Extras          int
 	Images          []AdminItemImage // the decided image source per choosable kind (concept 10 7.3)
+	// OriginalLanguage is the ISO 639-1 code of the original language (concept 13 11.7); "" when it
+	// was looked up and is unknown, nil while it was not looked up.
+	OriginalLanguage *string
 }
 
 // MetadataCandidate is a search result of a metadata provider (manual match, B-6).
@@ -644,6 +670,9 @@ type Track struct {
 	RelPath  string // sidecar file relative to the library root (never sent to clients)
 	Text     bool   // text subtitle format deliverable as WebVTT
 	Channels int
+	// HearingImpaired marks a subtitle track for the deaf and hard of hearing (SDH; sidecar .sdh,
+	// .hi, .cc or such a title, tracks.is_hearing_impaired); it never leaves the server.
+	HearingImpaired bool
 }
 
 // TrackList are the tracks of one media file.
@@ -673,13 +702,17 @@ type Segments struct {
 	Outro *Segment
 }
 
-// Quality rungs of the ladder (W-8, plan 3.5). QualityAuto picks the highest allowed rung.
+// Quality rungs of the ladder (W-8, plan 3.5). QualityAuto picks the highest allowed rung up to
+// 1080p; Quality2160 is only an explicit choice on a hardware backend (ADR 0021). QualityOriginal
+// is no rung: the video is never re-encoded (direct play or remux, concept 13 11.5).
 const (
-	QualityAuto = "auto"
-	Quality1080 = "1080p"
-	Quality720  = "720p"
-	Quality480  = "480p"
-	Quality360  = "360p"
+	QualityAuto     = "auto"
+	QualityOriginal = "original"
+	Quality2160     = "2160p"
+	Quality1080     = "1080p"
+	Quality720      = "720p"
+	Quality480      = "480p"
+	Quality360      = "360p"
 )
 
 // QualityOption is one rung of the ladder as offered to the player.
@@ -687,7 +720,9 @@ type QualityOption struct {
 	Quality   string
 	Width     int
 	Height    int
-	Bitrate   int // peak video bit rate in bit/s
+	Bitrate   int    // peak video bit rate in bit/s
+	Codec     string // video codec of the output (ffprobe name), empty when unknown
+	Direct    bool   // the video is not re-encoded (direct play or remux)
 	Available bool
 	Current   bool
 }
@@ -1042,6 +1077,10 @@ type TrackSelection struct {
 	AudioTrack       int    // stream index, -1 when the file has no audio
 	SubtitleTrack    int64  // track id, 0 = none
 	SubtitleDelivery string // text, burn; empty = none
+	// AudioReason and SubtitleReason say why these tracks play (trackpick.Audio*, trackpick.Subtitle*
+	// values, concept 13 11.3); empty when the server reports none.
+	AudioReason    string
+	SubtitleReason string
 }
 
 // DeviceRef names the device of a playback.
@@ -1449,11 +1488,15 @@ type PlaybackRequest struct {
 	MediaFileID      string // empty = primary file
 	DeviceID         string
 	Capabilities     *PlaybackCapabilities // nil = H.264/AAC with MSE (a browser of the M1a client)
-	AudioTrack       *int                  // stream index; nil = the file's default track
-	SubtitleTrack    int64                 // track id; 0 = none
+	AudioTrack       *int                  // stream index; nil = the server chooses (the file's default track)
+	SubtitleTrack    int64                 // track id; 0 = the server chooses (none)
+	SubtitleOff      bool                  // no subtitles; refused together with SubtitleTrack
 	SubtitleDelivery string                // auto, text, burn; empty = auto
 	Quality          string                // auto, 1080p, …; empty = auto
-	PositionMs       *int64                // start position; nil = the stored resume position
+	QualityCap       string                // a remembered rung of the device (V-17); empty = none
+	// RememberForSeries keeps the languages of a choice by hand for the series of an episode.
+	RememberForSeries bool
+	PositionMs        *int64 // start position; nil = the stored resume position
 }
 
 // Transcoding describes an HLS playback: remux (copy video) or transcode, the encoder backend and

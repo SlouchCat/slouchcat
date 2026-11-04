@@ -148,6 +148,38 @@ func TestContractAdminItemAndProviderErrors(t *testing.T) {
 	}
 }
 
+// setItemOriginalLanguage tells a missing language from null (review step 8, S8-m-6): {} is 422
+// required instead of lifting the lock, null lifts it, a string sets the language, any other value
+// is invalid.
+func TestContractOriginalLanguageNeedsTheField(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	path := BasePath + "/admin/items/" + fixtureFilm6 + "/original-language"
+	for body, want := range map[string]string{
+		`{}`: "language:required", `{"language":5}`: "language:invalid_value", `{"language":["ja"]}`: "language:invalid_value",
+		`{"language":null}`: "", `{"language":"ja"}`: "", `{"language":""}`: "",
+	} {
+		rec := send(t, pf.h, http.MethodPut, path, "p18", body, nil)
+		if want == "" {
+			if rec.Code != http.StatusOK {
+				t.Errorf("%s: %d %s, want 200", body, rec.Code, rec.Body.String())
+			}
+			continue
+		}
+		var p struct {
+			Code   string `json:"code"`
+			Errors []struct {
+				Field string `json:"field"`
+				Code  string `json:"code"`
+			} `json:"errors"`
+		}
+		decode(t, rec, &p)
+		if rec.Code != http.StatusUnprocessableEntity || p.Code != "validation_failed" || len(p.Errors) != 1 || p.Errors[0].Field+":"+p.Errors[0].Code != want {
+			t.Errorf("%s: %d %s, want 422 %s", body, rec.Code, rec.Body.String(), want)
+		}
+	}
+}
+
 // A-3 (review I-5): DELETE /admin/jobs/{id} dismisses a failed job, which the dashboard lists with
 // "Abbrechen"; a cancelled one answers 404.
 func TestContractCancelFailedJob(t *testing.T) {
@@ -207,6 +239,9 @@ func (m contractMetadata) SetItemImage(context.Context, string, string, string, 
 	return nil
 }
 func (m contractMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m contractMetadata) SetItemOriginalLanguage(context.Context, string, *string) error {
+	return nil
+}
 func (m contractMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
 	return nil, nil
 }

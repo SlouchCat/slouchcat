@@ -411,8 +411,16 @@ func (p *fakePins) ListMyProfiles(ctx context.Context, accountID int64) ([]model
 	}
 	out := make([]model.Profile, 0, len(rows))
 	for _, r := range rows {
+		// The playback preferences like auth's profile mapping: they choose the audio of auto-downloads.
+		prefs := model.PlaybackPrefs{SubtitleMode: r.SubtitleMode}
+		if err := json.Unmarshal([]byte(r.AudioLanguages), &prefs.AudioLanguages); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(r.SubtitleLanguages), &prefs.SubtitleLanguages); err != nil {
+			return nil, err
+		}
 		out = append(out, model.Profile{ID: r.ID, AccountID: r.AccountID, Name: r.Name, MaxRating: int(r.MaxRating), Language: r.Language,
-			HasPin: r.PinHash.Valid, IsPrimary: r.IsDefault == 1, AllLibraries: r.AllLibraries == 1})
+			HasPin: r.PinHash.Valid, IsPrimary: r.IsDefault == 1, AllLibraries: r.AllLibraries == 1, Prefs: prefs})
 	}
 	return out, nil
 }

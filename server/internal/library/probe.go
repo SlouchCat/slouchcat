@@ -19,6 +19,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -142,6 +143,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			Title:     sql.NullString{String: st.Title, Valid: st.Title != ""},
 			Source:    "embedded",
 			IsDefault: boolInt(st.Default), IsForced: boolInt(st.Forced),
+			IsHearingImpaired: boolInt(hearingImpaired(st)),
 		}); err != nil {
 			return fmt.Errorf("insert track: %w", err)
 		}
@@ -157,7 +159,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			Language: sql.NullString{String: sc.lang, Valid: sc.lang != ""},
 			Title:    sql.NullString{String: title, Valid: title != ""},
 			Source:   "sidecar", RelPath: sql.NullString{String: sc.rel, Valid: true},
-			IsForced: boolInt(sc.forced),
+			IsForced: boolInt(sc.forced), IsHearingImpaired: boolInt(sc.hearingImpaired),
 		}); err != nil {
 			return fmt.Errorf("insert sidecar track: %w", err)
 		}
@@ -561,4 +563,10 @@ func parseTagDate(s string) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+// hearingImpaired reports whether an embedded stream is a subtitle for the deaf and hard of
+// hearing: ffprobe's disposition flag or its title (review step 9, m-7).
+func hearingImpaired(st transcode.Stream) bool {
+	return st.Type == "subtitle" && (st.HearingImpaired || trackpick.HearingImpairedTitle(st.Title))
 }

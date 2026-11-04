@@ -716,6 +716,33 @@ func edge(f *vistest.Fixture, pick func(vistest.Movie) bool) vistest.Movie {
 	panic("admin test: edge case missing from the fixture")
 }
 
+// Concept 13 (contract 1.11.0, 11.7): the administration view carries items.original_language as
+// it is stored: absent while not looked up (NULL), "" for looked up and unknown, else the code.
+func TestAdminItemOriginalLanguage(t *testing.T) {
+	m := newMaintFixture(t)
+	film := m.f.Rated(0)
+	for _, tc := range []struct {
+		column any
+		want   string
+		set    bool
+	}{
+		{column: nil},
+		{column: "", want: "", set: true},
+		{column: "ja", want: "ja", set: true},
+	} {
+		if _, err := m.f.DB.Write.ExecContext(m.ctx, `UPDATE items SET original_language = ? WHERE id = ?`, tc.column, film.ID); err != nil {
+			t.Fatal(err)
+		}
+		it, err := m.svc.GetAdminItem(m.ctx, film.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if (it.OriginalLanguage != nil) != tc.set || (tc.set && *it.OriginalLanguage != tc.want) {
+			t.Errorf("original_language %v: view %v, want %q (set %v)", tc.column, it.OriginalLanguage, tc.want, tc.set)
+		}
+	}
+}
+
 func (m *fakeMetadata) MetadataSettings(context.Context) (model.MetadataSettings, error) {
 	return model.MetadataSettings{}, nil
 }
@@ -744,6 +771,9 @@ func (m *fakeMetadata) SetItemImage(context.Context, string, string, string, str
 	return nil
 }
 func (m *fakeMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m *fakeMetadata) SetItemOriginalLanguage(context.Context, string, *string) error {
+	return nil
+}
 func (m *fakeMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
 	return nil, nil
 }
