@@ -36,6 +36,10 @@
   padding: var(--sc-space-3) var(--sc-space-3) var(--sc-space-2) var(--sc-space-5);
 }
 
+.header[data-back] {
+  padding-left: var(--sc-space-3);
+}
+
 .title {
   flex: 1;
   margin: 0;

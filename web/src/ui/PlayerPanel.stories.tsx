@@ -73,3 +73,19 @@ export const LongList: Story = {
     ),
   },
 };
+
+/** A page inside the gear panel: a back button in the head, Backspace goes up a level. */
+export const SubPage: Story = {
+  args: {
+    title: 'Qualität',
+    onBack: noop,
+    children: (
+      <OptionList label="Qualität" selectedId="1080" onSelect={noop}>
+        <OptionRow id="auto" label="Automatisch" detail="Zurzeit 1080p" />
+        <OptionRow id="original" label="Original" detail="HEVC · 24 Mbit/s" />
+        <OptionRow id="1080" label="1080p" detail="8 Mbit/s" />
+        <OptionRow id="720" label="720p" detail="4 Mbit/s" />
+      </OptionList>
+    ),
+  },
+};
