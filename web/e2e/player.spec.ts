@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
-import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus } from './keyboard';
+import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
 
 /** DoD M1a: direct play starts in under 2 s in Chrome and Firefox. */
 const START_BUDGET_MS = 2000;
@@ -36,41 +36,68 @@ test('Enter on play starts direct play in under 2 s and reports progress', async
   expect(event.seq).toBeGreaterThanOrEqual(1);
 });
 
-test('player keys: Space and arrows; controls are reachable by Tab; Escape returns', async ({
-  page,
-}) => {
+test('player keys: Space, the zones of the bar (11.2), Tab and Escape', async ({ page }) => {
+  // Enter on the detail page's play link opens the player with the focus on play/pause.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   const player = page.getByRole('main', { name: 'Videoplayer' });
   await expect(player).toHaveAttribute('data-start-ms', /\d+/);
   const time = () => page.locator('video').evaluate((video: HTMLVideoElement) => video.currentTime);
   const paused = () => page.locator('video').evaluate((video: HTMLVideoElement) => video.paused);
+  const row = page.getByRole('toolbar', { name: 'Wiedergabe' });
+  const play = page.getByRole('button', { name: 'Abspielen' });
+  const seek = page.getByRole('slider', { name: 'Wiedergabeposition' });
 
   // The play/pause button has focus; Space toggles.
   await expectFocusOn(page, page.getByRole('button', { name: 'Pause' }));
   await page.keyboard.press('Space');
   await expect.poll(paused).toBe(true);
-  await expectFocusOn(page, page.getByRole('button', { name: 'Abspielen' }));
+  await expectFocusOn(page, play);
 
+  // In the button row ←/→ go from button to button and leave the position alone.
   const duration = await page
     .locator('video')
     .evaluate((video: HTMLVideoElement) => video.duration);
   const before = await time();
   await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, page.getByRole('button', { name: '30 Sekunden vor' }));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, play);
+  expect(await time()).toBe(before);
+
+  // ↑ leads to the timeline, where ←/→ seek 10 s; ↓ leads back to the same button.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, seek);
+  await page.keyboard.press('ArrowRight');
   // +10 s, or the end of the short test clip.
   await expect.poll(time).toBeGreaterThanOrEqual(Math.min(before + 9, duration - 0.1));
   await page.keyboard.press('ArrowLeft');
   await expect.poll(time).toBeLessThan(before + 5);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, play);
 
-  // Controls stay visible while paused and every control is reachable by Tab.
+  // Controls stay visible while paused. The row is one Tab stop: Shift+Tab goes back to the
+  // timeline, the time display and the head (picture in picture only where the browser has it);
+  // Tab from the row leaves it, and the page has no focus trap.
   await expect(player).toHaveAttribute('data-controls', 'visible');
-  await page.keyboard.press('Tab');
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, seek);
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, page.getByRole('button', { name: /^\d+:\d+ \/ \d+:\d+$/ }));
+  await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Vollbild' }));
-  await page.keyboard.press('Shift+Tab');
-  await page.keyboard.press('Shift+Tab');
-  await expectFocusOn(page, page.getByRole('slider', { name: 'Wiedergabeposition' }));
-  await page.keyboard.press('Shift+Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
+  const back = page.getByRole('button', { name: 'Zurück' });
+  for (
+    let presses = 0;
+    presses < 2 && !(await back.evaluate((b) => b === document.activeElement));
+    presses += 1
+  ) {
+    await page.keyboard.press('Shift+Tab');
+  }
+  await expectFocusOn(page, back);
+  await tabTo(page, play, 5);
+  await page.keyboard.press('Tab');
+  await expect(row.locator(':focus')).toHaveCount(0);
   await expectNoFocusTrap(page);
 
   await page.locator('body').focus();
@@ -87,6 +114,19 @@ test('controls hide after 3 s of playback and come back on a key press', async (
   await page.keyboard.press('Shift');
   await expect(player).toHaveAttribute('data-controls', 'visible');
   await expectVisibleFocus(page);
+
+  // Faded out, the bar has no zone: → seeks although play/pause has the focus, which stays.
+  const time = () => page.locator('video').evaluate((video: HTMLVideoElement) => video.currentTime);
+  const duration = await page
+    .locator('video')
+    .evaluate((video: HTMLVideoElement) => video.duration);
+  await page.keyboard.press('0');
+  await expect(player).toHaveAttribute('data-controls', 'hidden', { timeout: 6000 });
+  const before = await time();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(time).toBeGreaterThanOrEqual(Math.min(before + 9, duration - 0.1));
+  await expectFocusOn(page, page.getByRole('button', { name: /^(Pause|Abspielen)$/ }));
+  await expect(player).toHaveAttribute('data-controls', 'visible');
 });
 
 test('Backspace and browser back return to the detail page', async ({ page }) => {

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectVisibleFocus, resetFocus, tabTo } from './keyboard';
+import { arrowTo } from './playback';
 
 // B-5: two files of one film ("… (2024).mp4" in 1080p and "… (2024) - 720p.mp4") are one title
 // with two versions; the chosen version is what the player streams (Stream-Info shows its id).
@@ -81,8 +82,10 @@ test('the version menu of the player switches to the other file', async ({ page 
   await expect(player(page)).toHaveAttribute('data-start-ms', /\d+/);
   await expect(player(page)).toHaveAttribute('data-media-file-id', first);
 
+  // The button row is one Tab stop (roving tab index, concept 13 11.2): → walks along it.
   const menuButton = page.getByRole('button', { name: /^Version: / });
-  await tabTo(page, menuButton, 10);
+  await arrowTo(page, menuButton, 'ArrowRight');
+  await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
   // react-aria names a menu after its button ("Version: 1080p").
   const menu = page.getByRole('menu', { name: /^Version/ });

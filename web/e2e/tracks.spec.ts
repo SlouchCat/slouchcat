@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
+import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus } from './keyboard';
 import {
   arrowTo,
   itemIdByTitle,
@@ -160,15 +160,17 @@ test('a PGS track is burned in: transcode with reason subtitle_burn, and it play
     .toBe(false);
 });
 
-test('track menu by keyboard: Tab to it, arrows, Escape closes with focus back; no trap', async ({
+test('track menu by keyboard: → along the row, arrows, Escape closes with focus back; no trap', async ({
   page,
   owner,
 }) => {
   const itemId = await itemIdByTitle(owner, MULTI_AUDIO_TITLE);
   await play(page, itemId);
   await page.keyboard.press('Space');
+  // The button row is one Tab stop (roving tab index, concept 13 11.2): → walks along it.
   const button = page.getByRole('button', { name: 'Spuren' });
-  await tabTo(page, button, 10);
+  await arrowTo(page, button, 'ArrowRight');
+  await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
   const menu = tracksMenu(page);
   await expect(menu).toBeVisible();

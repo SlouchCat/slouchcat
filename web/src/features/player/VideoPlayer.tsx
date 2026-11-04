@@ -15,15 +15,10 @@ import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { episodeCode } from '@/features/catalog/labels';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import {
-  AriaButton,
-  focusOnMount,
-  PlayerChrome,
-  VOLUME_STEP,
-  type PlayerChromeMenu,
-} from '@/ui/aria';
+import { AriaButton, focusOnMount, PlayerChrome, type PlayerChromeMenu } from '@/ui/aria';
 import { nextChapterStart, previousChapterStart } from './audio';
 import type { PlaybackEngine } from './capabilities';
+import { playerKeyAction, stepPlaybackRate } from './keymap';
 import {
   audioKey,
   chapterAt,
@@ -49,7 +44,6 @@ export const TRACKS_REFRESH_MS = 30_000;
 export const AUTO_NEXT_SECONDS = 10;
 /** The countdown is announced when it starts and once more this many seconds before its end. */
 const ANNOUNCE_LAST_SECONDS = 3;
-const SEEK_STEP_S = 10;
 /** Resume only when the position is not within the last seconds of the file. */
 const RESUME_TAIL_MS = 5000;
 /** The skip button hides this close to the end of the intro. */
@@ -104,6 +98,11 @@ interface VideoPlayerProps {
 
 const isActivatable = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
+
+/** Typing in a text field is not a shortcut (11.2: panels with text input keep the letters). */
+const isEditable = (target: EventTarget | null) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
 /** Keys inside a player menu belong to the menu (arrows, Enter, Escape). */
 const inMenu = (target: EventTarget | null) =>
@@ -367,6 +366,32 @@ export function VideoPlayer({
     },
     [stepVolume, t],
   );
+  const { toggleMute: toggleElementMute, volume: level } = volume;
+  const toggleMute = useCallback(() => {
+    const muted = toggleElementMute();
+    showOsd(
+      muted ? t('player.chrome.muted') : t('player.volume', { percent: Math.round(level * 100) }),
+    );
+  }, [level, t, toggleElementMute]);
+
+  // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×, for this session.
+  const [rate, setRate] = useState(1);
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    // A new source falls back to the default rate; both keep the speed.
+    element.defaultPlaybackRate = rate;
+    element.playbackRate = rate;
+  }, [rate]);
+  const changeRate = useCallback(
+    (delta: number) => {
+      const next = stepPlaybackRate(video.current?.playbackRate ?? 1, delta);
+      setRate(next);
+      const shown = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(next);
+      showOsd(t('player.chrome.rate', { rate: shown }));
+    },
+    [i18n.language, t],
+  );
 
   // The whole document goes full screen, not this player: a switch or auto-next replaces the
   // player, and removing the full-screen element would end full screen (W-2). The player covers
@@ -472,24 +497,66 @@ export function VideoPlayer({
   const hasChapters = info.chapters.length > 0;
   const hasVersions = versions.length > 1 && onSwitchVersion !== undefined;
 
-  // react-aria buttons keep Enter and Space to themselves, so the window never sees them: during
-  // the countdown a capture listener lets a press of any other focused button (play/pause on the
-  // remote's OK) cancel it as well; the button still does its job.
+  // Faded out: no input while playing, nothing open that needs the controls.
+  const hidden = idle && playing && openMenu === null && !countdownActive && !infoOpen;
+  // Read by the capture listener below, which is not bound again on every fade.
+  const hiddenNow = useRef(hidden);
   useEffect(() => {
-    if (!countdownActive) return;
+    hiddenNow.current = hidden;
+  });
+
+  // Capture phase, before any control sees the key:
+  // - Every key shows the controls, also one that a control keeps to itself (the button row, the
+  //   volume slider).
+  // - During the next-episode countdown (W-9) any key but Tab cancels it and does nothing else; N
+  //   plays the next episode. Enter and Space on a focused button (play/pause on the remote's OK)
+  //   still press it, on the countdown's own buttons without cancelling.
+  // - With the controls faded out there is no zone (11.2): the arrows seek and change the volume
+  //   whatever has the focus, and the bar comes back.
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      if (!isActivatable(event.target)) return;
-      if (event.target instanceof Node && nextPanel.current?.contains(event.target)) return;
-      cancelCountdown();
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      poke();
+      if (inMenu(event.target)) return;
+      const consume = () => {
+        event.preventDefault();
+        event.stopPropagation();
+      };
+      if (countdownActive) {
+        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+        if (key === 'n') {
+          consume();
+          playNext();
+          return;
+        }
+        // Tab moves between the controls; modifier keys alone do nothing.
+        if (key === 'Tab' || ['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return;
+        const activates = key === 'Enter' || key === ' ';
+        const inPanel = event.target instanceof Node && nextPanel.current?.contains(event.target);
+        if (activates && inPanel) return;
+        cancelCountdown();
+        if (activates && isActivatable(event.target)) return;
+        consume();
+        return;
+      }
+      if (!hiddenNow.current || event.shiftKey) return;
+      const action = playerKeyAction(event);
+      if (action?.kind === 'seek') {
+        consume();
+        seekBy(action.seconds);
+      } else if (action?.kind === 'volume') {
+        consume();
+        changeVolume(action.delta);
+      }
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [cancelCountdown, countdownActive]);
+  }, [cancelCountdown, changeVolume, countdownActive, playNext, poke, seekBy]);
 
-  // Key map (W-1, C-4, W-4, W-9): Space/Enter play-pause, ←/→ ±10 s, ↑/↓ volume, F full screen,
-  // I stream info, T tracks, Q quality, C chapters, S skip intro, N next episode, Escape/Backspace
-  // back to the detail page. During the next-episode countdown any other key cancels it.
+  // Key map (11.2; W-1, C-4, W-4, W-9): the keys no zone kept for itself. Space/Enter/K play and
+  // pause, left/right 10 s (with Shift a chapter), up/down volume, M mute, T tracks, U subtitles,
+  // C chapters, Q quality, [ ] speed, 0-9 jump to 0-90 %, F full screen, I stream info, S skip
+  // intro, N next episode, Escape/Backspace close the stream info, else back to the detail page.
   useEffect(() => {
     const open = (menu: MenuName, available: boolean, event: KeyboardEvent) => {
       if (!available) return;
@@ -498,7 +565,6 @@ export function VideoPlayer({
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return;
-      poke();
       if (inMenu(event.target)) {
         // Backspace is the remote's back key (C-4): in a menu it closes the menu, like Escape.
         if (event.key === 'Backspace') {
@@ -507,95 +573,81 @@ export function VideoPlayer({
         }
         return;
       }
-      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-      if (countdownActive) {
-        if (key === 'n') {
-          event.preventDefault();
-          playNext();
-          return;
-        }
-        // Tab moves between the controls; modifier keys alone do nothing.
-        if (key === 'Tab' || ['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return;
-        const activates = key === 'Enter' || key === ' ';
-        // The countdown's own buttons take Enter and Space.
-        if (
-          activates &&
-          event.target instanceof Node &&
-          nextPanel.current?.contains(event.target)
-        ) {
-          return;
-        }
-        cancelCountdown();
-        // Any other focused button (play/pause on the remote's OK) still does its job.
-        if (activates && isActivatable(event.target)) return;
-        event.preventDefault();
-        return;
-      }
-      switch (key) {
-        case ' ':
-        case 'Enter':
+      // The capture listener has handled the key.
+      if (countdownActive || isEditable(event.target)) return;
+      const action = playerKeyAction(event);
+      if (!action) return;
+      switch (action.kind) {
+        case 'playPause':
           // Focused buttons activate themselves; everywhere else the key toggles playback.
-          if (isActivatable(event.target)) return;
+          if (action.activates && isActivatable(event.target)) return;
           event.preventDefault();
           togglePlay();
           return;
-        case 'k':
-          togglePlay();
-          return;
-        case 'ArrowLeft':
+        case 'seek':
           event.preventDefault();
-          seekBy(-SEEK_STEP_S);
+          seekBy(action.seconds);
           return;
-        case 'ArrowRight':
+        case 'volume':
           event.preventDefault();
-          seekBy(SEEK_STEP_S);
+          changeVolume(action.delta);
           return;
-        case 'ArrowUp':
+        case 'chapter':
+          if (!hasChapters) return;
           event.preventDefault();
-          changeVolume(VOLUME_STEP);
+          if (action.step < 0) previousChapter();
+          else nextChapter();
           return;
-        case 'ArrowDown':
+        case 'jump': {
+          const element = video.current;
+          if (!element || !Number.isFinite(element.duration)) return;
           event.preventDefault();
-          changeVolume(-VOLUME_STEP);
+          seekTo(action.fraction * element.duration * 1000);
           return;
-        case 'f':
+        }
+        case 'rate':
+          event.preventDefault();
+          changeRate(action.delta);
+          return;
+        case 'mute':
+          event.preventDefault();
+          toggleMute();
+          return;
+        case 'fullscreen':
           event.preventDefault();
           toggleFullscreen();
           return;
-        case 'i':
+        case 'info':
           event.preventDefault();
           onToggleInfo?.();
           return;
-        case 't':
+        case 'tracks':
+        case 'subtitles':
+          // Sound and subtitles share today's menu «Spuren»; step 4 gives each a panel.
           open('tracks', hasTracks && !switching && ended === null, event);
           return;
-        case 'q':
+        case 'quality':
           open('quality', hasQualities && !switching && ended === null, event);
           return;
-        case 'c':
+        case 'chapters':
           open('chapters', hasChapters && ended === null, event);
           return;
-        case 's':
+        case 'skipIntro':
           if (!inIntro) return;
           event.preventDefault();
           skipIntro();
           return;
-        case 'n':
+        case 'nextEpisode':
           if (!next || !onNextEpisode || ended !== null) return;
           event.preventDefault();
           playNext();
           return;
-        case 'Escape':
-          if (infoOpen) {
+        case 'back':
+          if (infoOpen && event.key === 'Escape') {
             event.preventDefault();
             onToggleInfo?.();
             return;
           }
-          if (document.fullscreenElement) return;
-          event.preventDefault();
-          onBack();
-          return;
-        case 'Backspace':
           if (document.fullscreenElement) return;
           event.preventDefault();
           onBack();
@@ -606,7 +658,7 @@ export function VideoPlayer({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
-    cancelCountdown,
+    changeRate,
     changeVolume,
     countdownActive,
     ended,
@@ -616,15 +668,18 @@ export function VideoPlayer({
     inIntro,
     infoOpen,
     next,
+    nextChapter,
     onBack,
     onNextEpisode,
     onToggleInfo,
     playNext,
-    poke,
+    previousChapter,
     seekBy,
+    seekTo,
     skipIntro,
     switching,
     toggleFullscreen,
+    toggleMute,
     togglePlay,
   ]);
 
@@ -936,7 +991,6 @@ export function VideoPlayer({
     ? t('player.chrome.lineChapter', { title: lineBase, chapter: chapterName })
     : lineBase;
 
-  const hidden = idle && playing && openMenu === null && !countdownActive && !infoOpen;
   const limit = ended?.watchTime?.limitMinutes;
   const nextCode = next ? episodeCode(t, next) : undefined;
   const nextName = next
@@ -1057,6 +1111,7 @@ export function VideoPlayer({
         currentMs={currentMs}
         durationMs={durationMs}
         buffered={buffered}
+        rate={rate}
         timeDisplay={timeDisplay}
         onTimeDisplayChange={(display) => setPrefs({ timeDisplay: display })}
         chapters={chapters}

@@ -115,11 +115,14 @@ export async function startOf(
   };
 }
 
-/** Presses ArrowDown (or ArrowUp) until `target` has the focus; fails after `max` presses. */
+/**
+ * Presses ArrowDown (or another arrow: ArrowRight walks the player's button row) until `target`
+ * has the focus; fails after `max` presses.
+ */
 export async function arrowTo(
   page: Page,
   target: Locator,
-  key: 'ArrowDown' | 'ArrowUp' = 'ArrowDown',
+  key: 'ArrowDown' | 'ArrowUp' | 'ArrowLeft' | 'ArrowRight' = 'ArrowDown',
   max = 12,
 ): Promise<void> {
   for (let presses = 0; presses <= max; presses += 1) {
