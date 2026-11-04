@@ -259,10 +259,25 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 		{model.PlaybackRequest{SubtitleTrack: tracks[f.Rated(0).FileID].Text}, "subtitleTrack", "unknown_track"},
 		{model.PlaybackRequest{Quality: "4k"}, "quality", "invalid_value"},
 		{model.PlaybackRequest{SubtitleDelivery: "smoke"}, "subtitleDelivery", "invalid_value"},
+		// Contract 1.11.0: the ladder has no rung original or 2160p and the playback no cap of a
+		// remembered rung, so these are refused rather than played as something else.
+		{model.PlaybackRequest{Quality: "original"}, "quality", "invalid_value"},
+		{model.PlaybackRequest{Quality: "2160p"}, "quality", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "720p"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{SubtitleOff: true, SubtitleTrack: ft.Text}, "subtitleOff", "not_allowed"},
 	} {
 		if _, err := s.Start(ctx, session, m.ID, tc.req); !hasField(err, tc.field, tc.code) {
 			t.Errorf("%+v: %v, want %s %s", tc.req, err, tc.field, tc.code)
 		}
+	}
+
+	// subtitleOff plays without subtitles; rememberForSeries is accepted (a film has no series).
+	info, err = s.Start(ctx, session, m.ID, model.PlaybackRequest{Capabilities: &caps, SubtitleOff: true, RememberForSeries: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Selection.SubtitleTrack != 0 || info.Selection.SubtitleDelivery != "" || info.SubtitleURL != "" {
+		t.Errorf("subtitleOff = %+v, subtitle url %q", info.Selection, info.SubtitleURL)
 	}
 
 	// Without a converter text subtitles are not available.

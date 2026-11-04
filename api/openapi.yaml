@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.10.0
+  version: 1.11.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -640,7 +640,10 @@ paths:
           description: |
             Validation failed (`validation_failed`): `name` required or too long, `maxRating` above the
             account's limit (`above_account_limit`), unknown `accent` or `language`, `libraryIds` outside the
-            account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`).
+            account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`),
+            and since contract 1.11.0 `audioLanguages` or `subtitleLanguages` with a code outside ISO 639-1 or
+            a duplicate (`invalid_value`) or more than 10 entries (`too_long`), an unknown `subtitleMode`
+            (`invalid_value`).
           content:
             application/problem+json:
               schema:
@@ -6357,6 +6360,90 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /me/playback-prefs:
+    get:
+      operationId: getMyPlaybackPrefs
+      summary: Language and subtitle preferences of the active profile (contract 1.11.0)
+      description: |
+        Every profile reads and sets its own preferences (concept 13 11.4, F-13); the primary profile
+        sets them for every profile of the account with `updateProfile` as well. The server chooses the
+        audio and subtitle track of a start from them (rule 12).
+      tags: [profiles]
+      x-visibility: scoped
+      responses:
+        "200":
+          description: The preferences of the active profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaybackPrefs"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No profile chosen (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+    put:
+      operationId: putMyPlaybackPrefs
+      summary: Replace the language and subtitle preferences of the active profile (contract 1.11.0)
+      description: All three fields are replaced at once.
+      tags: [profiles]
+      x-visibility: scoped
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaybackPrefs"
+      responses:
+        "200":
+          description: The stored preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaybackPrefs"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No profile chosen (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`): a field missing (`required`), `audioLanguages` or
+            `subtitleLanguages` with a code outside ISO 639-1 or a duplicate (`invalid_value`) or more than 10
+            entries (`too_long`), an unknown `subtitleMode` (`invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /me/playback-prefs/series:
+    delete:
+      operationId: resetMySeriesTracks
+      summary: Forget the languages the active profile chose per series (contract 1.11.0)
+      description: |
+        The player remembers the audio and subtitle language a profile chose by hand for a series
+        (`PlaybackRequest.rememberForSeries`); this deletes every such entry of the active profile
+        ("Meine Wiedergabe", concept 13 11.3). Nothing to delete is no error.
+      tags: [profiles]
+      x-visibility: scoped
+      responses:
+        "204":
+          description: Forgotten.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          description: No profile chosen (`profile_required`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /me/channels:
     get:
       operationId: getMyChannels
@@ -7306,7 +7393,8 @@ components:
     Profile:
       type: object
       description: A viewing profile with its settings. Profiles carry no e-mail and no password (K-1); only `name` is required.
-      required: [id, name, maxRating, language, allLibraries, libraryIds, hasPin, hasOfflinePin, isPrimary, limits, effectiveLimits]
+      required: [id, name, maxRating, language, allLibraries, libraryIds, hasPin, hasOfflinePin, isPrimary, limits, effectiveLimits,
+                 audioLanguages, subtitleMode, subtitleLanguages]
       properties:
         id:
           type: integer
@@ -7355,6 +7443,17 @@ components:
             clears that limit (no limit); an omitted `limits` keeps the stored limits.
         effectiveLimits:
           $ref: "#/components/schemas/EffectiveLimits"
+        audioLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
+          description: |
+            The audio languages of the profile in order of preference (since contract 1.11.0, concept 13
+            11.4). The profile changes them itself with `putMyPlaybackPrefs`, the primary profile for every
+            profile with `updateProfile`.
+        subtitleMode:
+          $ref: "#/components/schemas/SubtitleMode"
+        subtitleLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
+          description: The subtitle languages of the profile in order of preference (since contract 1.11.0).
 
     ProfileSummary:
       type: object
@@ -7426,6 +7525,14 @@ components:
           description: |
             The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
             clears that limit (no limit); an omitted `limits` keeps the stored limits.
+        audioLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
+          description: The audio languages in order of preference (since contract 1.11.0).
+        subtitleMode:
+          $ref: "#/components/schemas/SubtitleMode"
+        subtitleLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
+          description: The subtitle languages in order of preference (since contract 1.11.0).
 
     ProfileUpdate:
       type: object
@@ -7461,6 +7568,51 @@ components:
           description: |
             The limits of W-8 and K-5. In a request the object replaces all limits at once: a field left out
             clears that limit (no limit); an omitted `limits` keeps the stored limits.
+        audioLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
+          description: The audio languages in order of preference (since contract 1.11.0).
+        subtitleMode:
+          $ref: "#/components/schemas/SubtitleMode"
+        subtitleLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
+          description: The subtitle languages in order of preference (since contract 1.11.0).
+
+    PlaybackLanguage:
+      type: string
+      pattern: "^[a-z]{2}$"
+      description: |
+        A language of the playback preferences as an ISO 639-1 code (`de`, `en`), like `Profile.language`
+        (since contract 1.11.0). A code that is not in ISO 639-1 is refused (422 `invalid_value`).
+    PlaybackLanguages:
+      type: array
+      maxItems: 10
+      uniqueItems: true
+      items:
+        $ref: "#/components/schemas/PlaybackLanguage"
+      description: |
+        Languages in order of preference, the first one first (since contract 1.11.0); empty = none. A
+        duplicate is refused (422 `invalid_value`), more than 10 entries too (`too_long`).
+    SubtitleMode:
+      type: string
+      enum: ["off", forced, foreign, always]
+      description: |
+        The subtitle rule of a profile (since contract 1.11.0, concept 13 11.3): `off` none; `forced`
+        (default) the forced text track in the language of the audio; `foreign` like `forced`, and the
+        full track in the first subtitle language when the audio is in none of the profile's
+        languages; `always` the full track in the first subtitle language, otherwise like `forced`.
+    PlaybackPrefs:
+      type: object
+      description: |
+        The language and subtitle preferences of the active profile (`getMyPlaybackPrefs`,
+        `putMyPlaybackPrefs`; since contract 1.11.0). A `PUT` replaces all three fields at once.
+      required: [audioLanguages, subtitleMode, subtitleLanguages]
+      properties:
+        audioLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
+        subtitleMode:
+          $ref: "#/components/schemas/SubtitleMode"
+        subtitleLanguages:
+          $ref: "#/components/schemas/PlaybackLanguages"
 
     BitrateKbps:
       type: integer
@@ -8234,12 +8386,29 @@ components:
         audioTrack:
           type: integer
           minimum: 0
-          description: Stream index of the audio track to play (`Track.index`); default the file's default track.
+          description: |
+            Stream index of the audio track to play (`Track.index`). Absent = the server chooses (since
+            contract 1.11.0 by the profile's languages, concept 13 11.3; before, the file's default track).
         subtitleTrack:
           oneOf:
             - $ref: "#/components/schemas/TrackID"
             - type: "null"
-          description: Id of the subtitle track to show (`Track.id`); absent or null = no subtitles.
+          description: |
+            Id of the subtitle track to show (`Track.id`). **Changed meaning since contract 1.11.0:** absent
+            or null = the server chooses by the profile's subtitle rule (before: no subtitles); no
+            subtitles is `subtitleOff: true`. Every switch in the player (audio, subtitles, quality,
+            version) sends audio and subtitles explicitly; only the first start lets the server choose.
+        subtitleOff:
+          type: boolean
+          description: |
+            No subtitles (since contract 1.11.0); absent = false. Together with `subtitleTrack` the request is refused (422
+            `subtitleOff` `not_allowed`).
+        rememberForSeries:
+          type: boolean
+          description: |
+            The audio or subtitle choice of this request was made by hand during an episode, and the
+            profile keeps its languages for the series (since contract 1.11.0, concept 13 11.3); absent =
+            false. Ignored for anything but an episode.
         subtitleDelivery:
           type: string
           enum: [auto, text, burn]
@@ -8249,6 +8418,12 @@ components:
             the video (always a transcode); `auto`: text for text tracks, burned for bitmap tracks (PGS, DVD).
         quality:
           $ref: "#/components/schemas/Quality"
+        qualityCap:
+          $ref: "#/components/schemas/Quality"
+          description: |
+            A quality the device remembered (V-17, since contract 1.11.0): it caps the output like a
+            device limit, and a file within the cap still plays directly (unlike `quality`, which always
+            transcodes to the rung). `auto` and `original` are no caps and go as `quality`.
         positionMs:
           type: integer
           format: int64
@@ -8265,11 +8440,15 @@ components:
 
     Quality:
       type: string
-      enum: [auto, 1080p, 720p, 480p, 360p]
+      enum: [auto, original, 2160p, 1080p, 720p, 480p, 360p]
       description: |
         Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
         a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
-        (video) plus 160 kbit/s AAC.
+        (video) plus 160 kbit/s AAC. Since contract 1.11.0 (concept 13 11.5, F-8, F-14): `original` never
+        re-encodes the video (direct play or remux; the audio may be converted) and is unavailable where
+        that is impossible; `2160p` (25 Mbit/s) only on a hardware backend, from a source of at least 2160
+        lines, a device of at least 1440 lines, a profile that allows 2160 and an SDR source or tone
+        mapping on the GPU. `auto` never chooses 2160p.
 
     PlaybackCapabilities:
       type: object
@@ -8393,6 +8572,21 @@ components:
         subtitleDelivery:
           type: string
           enum: [text, burn]
+        audioReason:
+          type: string
+          enum: [request, series, profile, original, file]
+          description: |
+            Why the server played this audio track (since contract 1.11.0, concept 13 11.3): asked for in
+            the request, remembered for the series, a language of the profile, the original language of the
+            title, or the file's default. Absent when the server reports no reason.
+        subtitleReason:
+          type: string
+          enum: [request, series, mode, "off", forced_bitmap_available]
+          description: |
+            Why the server shows these subtitles or none (since contract 1.11.0): asked for in the request,
+            remembered for the series, the profile's subtitle rule, none, or none although a forced bitmap
+            track exists that only a transcode could burn in (F-11). Absent when the server reports no
+            reason.
 
     QualityOption:
       type: object
@@ -8407,6 +8601,12 @@ components:
         bitrate:
           type: integer
           description: Peak video bit rate of the rung in bit/s (the source bit rate for `auto` without transcode).
+        codec:
+          type: string
+          description: Video codec of the output, ffprobe name (`h264`, `hevc`; since contract 1.11.0).
+        direct:
+          type: boolean
+          description: The rung plays the file without re-encoding the video (direct play or remux; since contract 1.11.0).
         available:
           type: boolean
           description: False when the source, the device or the profile's limits rule the rung out.
@@ -9192,6 +9392,11 @@ components:
           type: integer
           format: int64
           description: The AniList id the fill job found; `0` for "looked up, no entry".
+        originalLanguage:
+          type: string
+          description: |
+            The original language of the title as an ISO 639-1 code (since contract 1.11.0, concept 13 11.7);
+            `""` for "looked up, unknown", absent while it was not looked up.
         providers:
           type: array
           description: The ordered metadata sources of the title, copied from its folder (ADR 0015).

@@ -289,8 +289,18 @@ func validateRequest(req model.PlaybackRequest) error {
 	if len(req.DeviceID) > maxClientIDLength {
 		verr = verr.Add("deviceId", "too_long")
 	}
+	// original and 2160p are values of the contract the ladder has no rung for; like any unknown
+	// value they are refused, so a start never plays something else than the rung it asked for.
 	if !validQuality(req.Quality) {
 		verr = verr.Add("quality", "invalid_value")
+	}
+	// The playback knows no device cap of a remembered rung (V-17), so a cap is refused instead of
+	// being exceeded.
+	if req.QualityCap != "" {
+		verr = verr.Add("qualityCap", "invalid_value")
+	}
+	if req.SubtitleOff && req.SubtitleTrack != 0 {
+		verr = verr.Add("subtitleOff", "not_allowed")
 	}
 	switch req.SubtitleDelivery {
 	case "", model.SubtitleAuto, model.SubtitleText, model.SubtitleBurn:

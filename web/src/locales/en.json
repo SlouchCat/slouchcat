@@ -689,7 +689,8 @@
     },
     "quality": {
       "auto": "Automatic",
-      "autoWith": "Automatic ({{quality}})"
+      "autoWith": "Automatic ({{quality}})",
+      "original": "Original"
     },
     "chapters": {
       "button": "Chapters",

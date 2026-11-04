@@ -116,8 +116,12 @@ export function selectedSubtitle(info: PlaybackInfo): Track | undefined {
   return id === undefined ? undefined : info.tracks.subtitles.find((track) => track.id === id);
 }
 
-/** Label of a quality option; `auto` names the rung the server picked when it says so. */
+/**
+ * Label of a quality option; `auto` names the rung the server picked when it says so, `original`
+ * (contract 1.11.0) is a word, every other rung its name (`2160p`, `1080p`, …).
+ */
 export function qualityLabel(t: TFunction, option: QualityOption, info: PlaybackInfo): string {
+  if (option.quality === 'original') return t('player.quality.original');
   if (option.quality !== 'auto') return option.quality;
   const height = info.transcoding?.height;
   return height

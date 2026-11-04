@@ -689,7 +689,8 @@
     },
     "quality": {
       "auto": "Automatisch",
-      "autoWith": "Automatisch ({{quality}})"
+      "autoWith": "Automatisch ({{quality}})",
+      "original": "Original"
     },
     "chapters": {
       "button": "Kapitel",

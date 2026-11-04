@@ -255,6 +255,9 @@ export const profiles: Profile[] = [
     isPrimary: true,
     limits: {},
     effectiveLimits: {},
+    audioLanguages: ['de'],
+    subtitleMode: 'forced',
+    subtitleLanguages: ['de'],
   },
   {
     id: 2,
@@ -269,6 +272,9 @@ export const profiles: Profile[] = [
     isPrimary: false,
     limits: { maxHeight: 720, watchLimitMinutes: 60 },
     effectiveLimits: { maxHeight: 720, watchLimitMinutes: 60 },
+    audioLanguages: ['en'],
+    subtitleMode: 'forced',
+    subtitleLanguages: ['en'],
   },
 ];
 

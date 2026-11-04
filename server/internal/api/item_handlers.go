@@ -245,11 +245,16 @@ func (s *server) StartPlayback(ctx context.Context, req gen.StartPlaybackRequest
 		in.Capabilities = fromCapabilities(b.Capabilities)
 		in.AudioTrack = b.AudioTrack
 		in.SubtitleTrack = deref(b.SubtitleTrack)
+		in.SubtitleOff = deref(b.SubtitleOff)
+		in.RememberForSeries = deref(b.RememberForSeries)
 		if b.SubtitleDelivery != nil {
 			in.SubtitleDelivery = string(*b.SubtitleDelivery)
 		}
 		if b.Quality != nil {
 			in.Quality = string(*b.Quality)
+		}
+		if b.QualityCap != nil {
+			in.QualityCap = string(*b.QualityCap)
 		}
 		in.PositionMs = b.PositionMs
 	}

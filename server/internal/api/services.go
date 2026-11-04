@@ -55,6 +55,12 @@ type ProfileService interface {
 	// of another account.
 	SetOfflinePIN(ctx context.Context, session model.Session, id int64, pin string) error
 	RemoveOfflinePIN(ctx context.Context, session model.Session, id int64) error
+	// GetPlaybackPrefs and SetPlaybackPrefs read and replace the language and subtitle preferences
+	// of the session's active profile (concept 13, F-13; *model.ValidationError on a bad value);
+	// ResetSeriesTracks forgets the languages the profile chose per series.
+	GetPlaybackPrefs(ctx context.Context, session model.Session) (model.PlaybackPrefs, error)
+	SetPlaybackPrefs(ctx context.Context, session model.Session, prefs model.PlaybackPrefs) (model.PlaybackPrefs, error)
+	ResetSeriesTracks(ctx context.Context, session model.Session) error
 	// UpdateAccount changes the e-mail or the password of the session's account after checking the
 	// current password (M8, A-2) and returns the session with the changed account; a new password
 	// revokes every other session of the account. Errors: model.ErrInvalidCredentials,
