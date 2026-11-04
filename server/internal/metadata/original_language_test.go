@@ -379,6 +379,37 @@ func TestOriginalLanguageSuccessorKeepsThePriority(t *testing.T) {
 	}
 }
 
+// TestOriginalLanguageBackfillPassesOverAFailingTitle: a title whose provider fails (TMDB answers
+// 503 for film 503) is logged and stays NULL; the batch goes on with the next title (review step
+// 8, S8-m-3). A cancelled context still ends the batch.
+func TestOriginalLanguageBackfillPassesOverAFailingTitle(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	e := newEnv(t, goodToken)
+	e.setTMDBLanguage("550", "en")
+	const idAfter = "01JTESTMOVIE0000000000000Z" // after idBroken in id order
+	e.addItem(t, itemSeed{id: idBroken, title: "Down", tmdbID: 503})
+	e.addItem(t, itemSeed{id: idAfter, title: "After", tmdbID: 550})
+	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched'`)
+	if _, err := e.svc.originalLanguageBackfill(ctx, ""); err != nil {
+		t.Fatalf("backfill: %v, want the batch to go on", err)
+	}
+	if got := e.origLang(t, idAfter); got != "en" {
+		t.Errorf("title after the failing one: %q, want en", got)
+	}
+	if got := e.origLang(t, idBroken); got != "<null>" {
+		t.Errorf("failing title: %q, want NULL", got)
+	}
+	if !strings.Contains(e.logs.String(), "original language backfill: title passed over") {
+		t.Errorf("no log line for the failing title:\n%s", e.logs.String())
+	}
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := e.svc.originalLanguageBackfill(cancelled, ""); !errors.Is(err, context.Canceled) {
+		t.Errorf("backfill with a cancelled context: %v, want context.Canceled", err)
+	}
+}
+
 // TestSetItemOriginalLanguage: the administrator's code or "" is stored and locked without a
 // source, a match keeps it; invalid codes and other kinds are refused; nil lifts the lock,
 // clears the value and queues a manual match that looks it up again.

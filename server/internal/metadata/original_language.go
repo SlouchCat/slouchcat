@@ -254,7 +254,13 @@ func (s *Service) originalLanguageItem(ctx context.Context, item systemq.Item, c
 	if len(asked) > 0 {
 		recs, _, _, err := s.fetchTitleRecords(ctx, item, asked)
 		if err != nil {
-			return languagePassed, err
+			if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return languagePassed, err
+			}
+			// One title whose provider fails (unreachable, an error answer) stays NULL for a later
+			// run; the rest of the batch goes on.
+			s.log.Warn("original language backfill: title passed over", "item_id", item.ID, "err", err)
+			return languagePassed, nil
 		}
 		for _, r := range recs {
 			candidates = append(candidates, r.fields)
