@@ -222,7 +222,7 @@ func TestChapterImagesJob(t *testing.T) {
 }
 
 // While a playback of the file plays, the job waits without an attempt; it runs once the playback
-// ended.
+// had no request for two minutes.
 func TestChapterImagesJobWaitsForPlayback(t *testing.T) {
 	t.Parallel()
 	e, cache, _, _ := chapterEnv(t, "Film (2020)")
@@ -243,7 +243,13 @@ func TestChapterImagesJobWaitsForPlayback(t *testing.T) {
 	if names := chapterFolderNames(t, cache); len(names) != 0 {
 		t.Errorf("folders while playing = %v", names)
 	}
-	e.exec(`UPDATE playback_sessions SET revoked_at = ? WHERE id = '01JPLAYBACKSESSION00000001'`, now)
+	// A session the client never stopped counts as playing until two minutes after its last
+	// request (the rule of the stream limits).
+	e.exec(`UPDATE playback_sessions SET last_activity_at = ? WHERE id = '01JPLAYBACKSESSION00000001'`, now-int64(chapterPlayingWindow/time.Millisecond)+1000)
+	if err := e.svc.handleChapterImages(e.ctx, mediaJob(t, JobChapterImages, id)); !errors.As(err, &later) {
+		t.Fatalf("request 1:59 ago: %v, want RetryLater", err)
+	}
+	e.exec(`UPDATE playback_sessions SET last_activity_at = ? WHERE id = '01JPLAYBACKSESSION00000001'`, now-int64(chapterPlayingWindow/time.Millisecond)-1000)
 	if err := e.svc.handleChapterImages(e.ctx, mediaJob(t, JobChapterImages, id)); err != nil {
 		t.Fatal(err)
 	}
@@ -396,5 +402,32 @@ func TestChapterImagesJobReprobedWhileRunning(t *testing.T) {
 	}
 	if names := chapterFolderNames(t, cache); len(names) != 2 || !slices.Contains(names, id+"-"+e.chapterVersion(id)) {
 		t.Errorf("folders = %v, want the old and the new version", names)
+	}
+}
+
+// A chapters.images job that waits for its start after a playback is replaced by the backfill with
+// one that may run now (at the backfill's priority).
+func TestChapterImagesBackfillPullsDelayedJob(t *testing.T) {
+	t.Parallel()
+	e, _, _, _ := chapterEnv(t, "Film (2020)")
+	id := e.str(`SELECT id FROM media_files WHERE rel_path LIKE 'Film%'`)
+	if err := e.svc.handleProbe(e.ctx, e.probeJobOf(id)); err != nil {
+		t.Fatal(err)
+	}
+	if err := QueueChapterImagesAfterPlayback(e.ctx, e.db.Read, e.queue, e.svc.cacheDir, []string{id}); err != nil {
+		t.Fatal(err)
+	}
+	now := e.clock.Now().UnixMilli()
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND run_after > ?`, JobChapterImages, now); n != 1 {
+		t.Fatalf("delayed jobs after the playback = %d, want 1", n)
+	}
+	if err := e.svc.handleChapterImagesBackfill(e.ctx, &jobs.Job{Type: JobChapterImagesBackfill}); err != nil {
+		t.Fatal(err)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND run_after <= ? AND priority = 1`, JobChapterImages, now); n != 1 {
+		t.Errorf("runnable backfill jobs = %d, want 1", n)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND run_after > ?`, JobChapterImages, now); n != 0 {
+		t.Errorf("delayed jobs after the backfill = %d, want 0", n)
 	}
 }

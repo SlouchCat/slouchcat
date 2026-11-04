@@ -57,10 +57,12 @@ const (
 	// waits: a track, quality or version switch ends a playback session and starts the next one
 	// at once, and the title should have stopped playing for good.
 	ChapterImagesAfterPlayback = 10 * time.Minute
-	// chapterPlayingWindow: a playback session with a request in this window counts as playing
-	// (a direct play buffers ahead and asks seldom, a pause asks nothing); while one plays the file,
-	// the job waits chapterPlayingRetry.
-	chapterPlayingWindow = 30 * time.Minute
+	// chapterPlayingWindow: a playback session with a request (token or progress event) in this
+	// window counts as playing, the same rule as playback.ActiveWindow for the stream limits and
+	// the stream overview (an import of playback would be a cycle); a session the client never
+	// stopped stops counting two minutes after its last request. While one plays the file, the job
+	// waits chapterPlayingRetry.
+	chapterPlayingWindow = 2 * time.Minute
 	chapterPlayingRetry  = 10 * time.Minute
 	// chapterUnreadableRetry is the wait when the media file cannot be read (a share that is
 	// offline): no attempt is used and no «done» folder is written.
@@ -157,16 +159,6 @@ func QueueChapterImagesAfterPlayback(ctx context.Context, db *sql.DB, q *jobs.Qu
 		}
 	}
 	return nil
-}
-
-// enqueue adds j through the queue (outside a transaction); an active job with its key wins.
-func enqueue(ctx context.Context, q *jobs.Queue, j newJob) error {
-	payload, err := json.Marshal(j.payload)
-	if err != nil {
-		return fmt.Errorf("encode %s payload: %w", j.typ, err)
-	}
-	_, err = q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: j.priority, IdempotencyKey: j.key, Payload: payload})
-	return err
 }
 
 // handleChapterImages writes the chapter images of one media file at its current version.
@@ -427,6 +419,35 @@ func (s *Service) runChapterImagesBackfill(ctx context.Context, q *jobs.Queue, p
 	return []int64{id}, nil
 }
 
+// enqueueBackfillImages queues chapters.images of a file at the backfill's priority. A job of the
+// file that waits for a later start (queued ChapterImagesAfterPlayback after a playback) holds the
+// key; it is replaced by one that may run now, because the backfill was started by hand. The job
+// itself still waits while the file plays.
+func (s *Service) enqueueBackfillImages(ctx context.Context, mediaFileID string) error {
+	j := chapterImagesJob(mediaFileID)
+	payload, err := json.Marshal(j.payload)
+	if err != nil {
+		return fmt.Errorf("encode %s payload: %w", j.typ, err)
+	}
+	nj := jobs.NewJob{Type: j.typ, Priority: prioChapterImagesBackfill, IdempotencyKey: j.key, Payload: payload}
+	id, err := s.queue.Enqueue(ctx, nj)
+	if err != nil {
+		return err
+	}
+	cur, err := s.queue.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if cur.State != jobs.StateQueued || !cur.RunAfter.After(s.now()) {
+		return nil
+	}
+	if _, err := s.queue.Cancel(ctx, id); err != nil {
+		return err
+	}
+	_, err = s.queue.Enqueue(ctx, nj)
+	return err
+}
+
 // handleChapterImagesBackfill queues chapters.images (priority 1) for every probed film and episode
 // file that is not missing and has no folder at its current version (an empty one counts: «done,
 // no images»).
@@ -452,9 +473,7 @@ func (s *Service) handleChapterImagesBackfill(ctx context.Context, _ *jobs.Job) 
 		if !ok || hasChapterImages(cache, ChapterImagesRel(r.ID, version)) {
 			continue
 		}
-		j := chapterImagesJob(r.ID)
-		j.priority = prioChapterImagesBackfill
-		if err := enqueue(ctx, s.queue, j); err != nil {
+		if err := s.enqueueBackfillImages(ctx, r.ID); err != nil {
 			return err
 		}
 		queued++
