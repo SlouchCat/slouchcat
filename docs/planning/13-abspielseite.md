@@ -798,6 +798,13 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   - Welle D: Schritte 5 und 6.
   - Danach Changelog, `task ci` und PR.
   - Höchstens drei Executor gleichzeitig, je in einem eigenen Worktree und mit eigenem e2e-Port.
+- **Englisch als zweite Wahl** (Marcos Entscheid vom 4. November 2026, Review von Schritt 4, m-8):
+  Ton- und Untertitel-Panel sortieren zuerst die Profilsprache, dann Englisch, dann «Weitere
+  Sprachen (n)». Das ergänzt 11.10 «Profilsprachen zuerst».
+- **Bekannte Grenze: Bild-in-Bild in Firefox ohne Untertitel** (Review von Schritt 4, m-3). Das
+  eigene Bild-in-Bild von Firefox meldet kein `enterpictureinpicture`. Der `<track>` bleibt darum
+  `hidden`, und das Firefox-Fenster zeigt keine Untertitel. In Chromium schaltet der Player wie in
+  11.10 beschrieben auf `showing`. Ein verlässliches Signal für Firefox gibt es nicht.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
