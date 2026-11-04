@@ -18,6 +18,11 @@ WHERE type = @type AND state IN ('queued', 'running')
 ORDER BY id
 LIMIT 1;
 
+-- name: SetRunningJobPayload :execrows
+-- Replaces the payload of a job a worker runs: the handler keeps a note for its next run (the
+-- first time chapters.images found its file unreadable); a retry keeps the payload.
+UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'running';
+
 -- name: SetQueuedJobPayload :execrows
 -- Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'queued';

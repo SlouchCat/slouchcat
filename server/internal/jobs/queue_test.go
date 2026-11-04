@@ -160,6 +160,32 @@ func TestPullQueuedForward(t *testing.T) {
 	}
 }
 
+// SetRunningPayload changes the payload of a running job only, and the payload survives a
+// RetryLater (Defer).
+func TestSetRunningPayload(t *testing.T) {
+	ctx := context.Background()
+	q, _ := newTestQueue(t)
+	id := mustEnqueue(t, q, NewJob{Type: "a", Payload: []byte(`{"n":1}`)})
+	if ok, err := q.SetRunningPayload(ctx, id, []byte(`{"n":2}`)); err != nil || ok {
+		t.Fatalf("queued job: %v %v, want no change", ok, err)
+	}
+	if j := mustClaim(t, q, "w1"); j == nil || j.ID != id {
+		t.Fatalf("claimed %+v", j)
+	}
+	if _, err := q.SetRunningPayload(ctx, id, []byte(`{`)); err == nil {
+		t.Error("invalid JSON accepted")
+	}
+	if ok, err := q.SetRunningPayload(ctx, id, []byte(`{"n":3}`)); err != nil || !ok {
+		t.Fatalf("running job: %v %v", ok, err)
+	}
+	if err := q.Defer(ctx, "w1", id, 0); err != nil {
+		t.Fatal(err)
+	}
+	if j, err := q.Get(ctx, id); err != nil || string(j.Payload) != `{"n":3}` {
+		t.Errorf("payload after the defer = %s, %v", j.Payload, err)
+	}
+}
+
 func TestEnqueueValidates(t *testing.T) {
 	q, _ := newTestQueue(t)
 	for name, j := range map[string]NewJob{

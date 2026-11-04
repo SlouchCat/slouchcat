@@ -310,6 +310,20 @@ func (q *Queue) Cancel(ctx context.Context, id int64) (bool, error) {
 	return n == 1, nil
 }
 
+// SetRunningPayload replaces the payload of a running job, so its handler finds a note in its
+// next run (a retry or a RetryLater keeps the payload). It reports false when the job does not
+// run (any more).
+func (q *Queue) SetRunningPayload(ctx context.Context, id int64, payload json.RawMessage) (bool, error) {
+	if !json.Valid(payload) {
+		return false, errors.New("payload is not valid JSON")
+	}
+	n, err := q.q.SetRunningJobPayload(ctx, systemq.SetRunningJobPayloadParams{Payload: string(payload), Now: q.now().UnixMilli(), ID: id})
+	if err != nil {
+		return false, fmt.Errorf("set payload of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
 // SetQueuedPayload replaces the payload of a queued job, for handlers that coalesce work into
 // one pending job (scan.path merges directories). It reports false when the job is no longer
 // queued: a worker claimed it, or it ended.

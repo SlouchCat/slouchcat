@@ -76,6 +76,9 @@ type Service struct {
 	// onChapterImagesStored runs after chapters.images renamed its folder (a test hook; nil
 	// outside tests).
 	onChapterImagesStored func()
+	// hangingReads holds the library roots whose read test of chapters.images timed out and still
+	// hangs (root path → struct{}; Service.readable).
+	hangingReads sync.Map
 	// frameGrabber replaces transcode.Runner.GrabFrame of chapters.images (a test seam; nil
 	// outside tests).
 	frameGrabber func(ctx context.Context, in string, at time.Duration, width int, v transcode.Stream, out string) (bool, error)

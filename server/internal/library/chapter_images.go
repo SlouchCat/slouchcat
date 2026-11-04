@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -69,8 +70,9 @@ const (
 	// chapterUnreadableRetry is the wait when the media file cannot be read (a share that is
 	// offline): no attempt is used and no «done» folder is written.
 	chapterUnreadableRetry = time.Hour
-	// chapterUnreadableGiveUp: a job whose file stays unreadable this long ends without folder (the
-	// next probe, playback or backfill queues it again).
+	// chapterUnreadableGiveUp: a job whose file stays unreadable this long (from the first
+	// unreadable run, mediaFilePayload.UnreadableSince) ends without folder (the next probe,
+	// playback or backfill queues it again).
 	chapterUnreadableGiveUp = 7 * 24 * time.Hour
 	// chapterReadTimeout bounds the read test of the media file (a hanging share).
 	chapterReadTimeout = 10 * time.Second
@@ -117,30 +119,62 @@ func storedChapterImages(probe sql.NullString, kind string, durationMs, probedAt
 	return pr, chapters, ChapterImagesVersion(probedAt, chapters), true
 }
 
-// readable opens the file at path (resolved through package paths) and reads its first 64 KiB
-// within timeout: a stat alone succeeds on a share whose data cannot be read. A read that hangs
-// past timeout counts as unreadable; its goroutine ends with the read.
-func readable(path string, timeout time.Duration) error {
+// errReadHanging: an earlier read test of the same media root still hangs.
+var errReadHanging = errors.New("an earlier read of this folder still hangs")
+
+// readable opens the file at path (resolved through package paths below the library root root)
+// and reads its first 64 KiB within timeout: a stat alone succeeds on a share whose data cannot be
+// read. A read that hangs past timeout counts as unreadable; its goroutine stays in the kernel
+// (and holds an OS thread) until the read returns. While one hangs, every further file of the same
+// root counts as unreadable at once without a new goroutine, so a backfill over a hard-mounted
+// share that went away leaves one stuck thread per root, not one per file.
+func (s *Service) readable(root, path string, timeout time.Duration) error {
+	if _, hanging := s.hangingReads.Load(root); hanging {
+		return errReadHanging
+	}
+	var mu sync.Mutex // guards finished and timedOut
+	finished, timedOut := false, false
 	done := make(chan error, 1)
 	go func() {
-		f, err := os.Open(path) //nolint:gosec // G304: path resolved through package paths below a library root
-		if err != nil {
-			done <- err
-			return
+		err := readHead(path)
+		mu.Lock()
+		finished = true
+		if timedOut {
+			s.hangingReads.Delete(root) // the hanging read returned: the root may be tried again
 		}
-		defer f.Close()
-		_, err = f.Read(make([]byte, 64<<10))
-		if errors.Is(err, io.EOF) {
-			err = nil
-		}
+		mu.Unlock()
 		done <- err
 	}()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
 	case err := <-done:
 		return err
-	case <-time.After(timeout):
+	case <-timer.C:
+		mu.Lock()
+		if finished { // returned while the timer fired
+			mu.Unlock()
+			return <-done
+		}
+		timedOut = true
+		s.hangingReads.Store(root, struct{}{})
+		mu.Unlock()
 		return fmt.Errorf("read of %s timed out after %v", filepath.Base(path), timeout)
 	}
+}
+
+// readHead opens path and reads its first 64 KiB.
+func readHead(path string) error {
+	f, err := os.Open(path) //nolint:gosec // G304: path resolved through package paths below a library root
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.Read(make([]byte, 64<<10))
+	if errors.Is(err, io.EOF) {
+		err = nil
+	}
+	return err
 }
 
 // hasChapterImages reports whether the folder rel exists below the cache root.
@@ -297,13 +331,20 @@ func (s *Service) handleChapterImages(ctx context.Context, j *jobs.Job) error {
 		if in, err = paths.Resolve(media, row.RelPath); err != nil {
 			return err
 		}
-		if err := readable(in, chapterReadTimeout); err != nil {
-			if !j.CreatedAt.IsZero() && now.Sub(j.CreatedAt) > chapterUnreadableGiveUp {
+		if err := s.readable(row.RootPath, in, chapterReadTimeout); err != nil {
+			if p.UnreadableSince == 0 {
+				p.UnreadableSince = now.UnixMilli()
+				s.setRunningPayload(ctx, j, p)
+			} else if now.Sub(time.UnixMilli(p.UnreadableSince)) > chapterUnreadableGiveUp {
 				s.log.WarnContext(ctx, "media file unreadable for a week, chapter images given up", "media_file_id", row.ID, "err", err)
 				return nil
 			}
 			s.log.WarnContext(ctx, "media file unreadable, chapter images wait", "media_file_id", row.ID, "err", err)
 			return jobs.RetryLater(chapterUnreadableRetry, "the media file is unreadable")
+		}
+		if p.UnreadableSince != 0 {
+			p.UnreadableSince = 0
+			s.setRunningPayload(ctx, j, p)
 		}
 	}
 	if err := root.MkdirAll(ChapterImagesDir, 0o750); err != nil {
@@ -372,6 +413,18 @@ func (s *Service) handleChapterImages(ctx context.Context, j *jobs.Job) error {
 		}
 	}
 	return nil
+}
+
+// setRunningPayload stores the payload p in the running job j, for its next run; a failure only
+// loses the note (logged).
+func (s *Service) setRunningPayload(ctx context.Context, j *jobs.Job, p mediaFilePayload) {
+	raw, err := json.Marshal(p)
+	if err == nil {
+		_, err = s.queue.SetRunningPayload(ctx, j.ID, raw)
+	}
+	if err != nil {
+		s.log.WarnContext(ctx, "store chapter images job payload", "job_id", j.ID, "err", err)
+	}
 }
 
 // grabFrame runs transcode.Runner.GrabFrame, or the test seam frameGrabber.
@@ -488,12 +541,13 @@ func (s *Service) sweepChapterImages(ctx context.Context) error {
 	if removed > 0 {
 		s.log.InfoContext(ctx, "stale chapter images removed", "folders", removed, "rebuilt", len(rebuild))
 	}
+	var errs []error
 	for _, id := range rebuild {
 		if err := s.enqueueBackfillImages(ctx, id); err != nil {
-			return err
+			errs = append(errs, fmt.Errorf("rebuild chapter images of %s: %w", id, err))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // runChapterImagesBackfill is the Run of chapters.images_backfill: one backfill job at prio (a

@@ -523,7 +523,9 @@ func TestChapterImagesJobPartial(t *testing.T) {
 	}
 }
 
-// A file that stays unreadable for more than seven days ends the job without folder.
+// A file that stays unreadable for more than seven days after the job first found it unreadable
+// ends the job without folder. The clock starts with the first unreadable run (payload
+// unreadableSince), not with the age of the job, and stops when the file is readable again.
 func TestChapterImagesJobGivesUpOnUnreadable(t *testing.T) {
 	t.Parallel()
 	e, cache, dir, _ := chapterEnv(t, "Film (2020)")
@@ -531,18 +533,64 @@ func TestChapterImagesJobGivesUpOnUnreadable(t *testing.T) {
 	if err := e.svc.handleProbe(e.ctx, e.probeJobOf(id)); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Join(dir, "Film (2020)", "Film (2020).mkv")); err != nil {
+	file := filepath.Join(dir, "Film (2020)", "Film (2020).mkv")
+	if err := os.Remove(file); err != nil {
 		t.Fatal(err)
 	}
-	job := mediaJob(t, JobChapterImages, id)
-	job.CreatedAt = e.clock.Now().Add(-6 * 24 * time.Hour)
-	var later *jobs.RetryLaterError
-	if err := e.svc.handleChapterImages(e.ctx, job); !errors.As(err, &later) {
-		t.Fatalf("six days: %v, want RetryLater", err)
+	if _, err := e.queue.Enqueue(e.ctx, jobs.NewJob{Type: JobChapterImages, Priority: 1, IdempotencyKey: "chapters:" + id,
+		Payload: []byte(`{"mediaFileId":"` + id + `"}`)}); err != nil {
+		t.Fatal(err)
 	}
-	job.CreatedAt = e.clock.Now().Add(-8 * 24 * time.Hour)
-	if err := e.svc.handleChapterImages(e.ctx, job); err != nil {
-		t.Fatalf("eight days: %v, want nil", err)
+	job, err := e.queue.Claim(e.ctx, "w1", []string{JobChapterImages})
+	if err != nil || job == nil {
+		t.Fatalf("claim = %+v, %v", job, err)
+	}
+	// run runs the claimed job with the payload the queue holds now.
+	run := func() error {
+		job.Payload = []byte(e.str(`SELECT payload FROM jobs WHERE id = ?`, job.ID))
+		return e.svc.handleChapterImages(e.ctx, job)
+	}
+	since := func() int {
+		return e.count(`SELECT coalesce(json_extract(payload, '$.unreadableSince'), 0) FROM jobs WHERE id = ?`, job.ID)
+	}
+	var later *jobs.RetryLaterError
+	job.CreatedAt = e.clock.Now().Add(-30 * 24 * time.Hour) // an old job of the backfill: no matter
+	if err := run(); !errors.As(err, &later) {
+		t.Fatalf("first unreadable run of an old job: %v, want RetryLater", err)
+	}
+	if got, want := since(), int(e.clock.Now().UnixMilli()); got != want {
+		t.Fatalf("unreadableSince = %d, want %d", got, want)
+	}
+	e.clock.Advance(6 * 24 * time.Hour)
+	if err := run(); !errors.As(err, &later) {
+		t.Fatalf("six days unreadable: %v, want RetryLater", err)
+	}
+	// Readable again (the frames fail, the attempt fails): the clock stops.
+	copyTestFile(t, chaptersFilm(t), dir, "Film (2020)/Film (2020).mkv")
+	e.svc.frameGrabber = func(context.Context, string, time.Duration, int, transcode.Stream, string) (bool, error) {
+		return false, transcode.ErrNoFrame
+	}
+	if err := run(); err == nil || errors.As(err, &later) {
+		t.Fatalf("readable again: %v, want a failed attempt", err)
+	}
+	if got := since(); got != 0 {
+		t.Errorf("unreadableSince after a readable run = %d, want 0", got)
+	}
+	// Unreadable again: a new week starts; after it the job gives up without folder.
+	if err := os.Remove(file); err != nil {
+		t.Fatal(err)
+	}
+	e.clock.Advance(2 * 24 * time.Hour)
+	if err := run(); !errors.As(err, &later) {
+		t.Fatalf("unreadable again: %v, want RetryLater", err)
+	}
+	e.clock.Advance(6 * 24 * time.Hour)
+	if err := run(); !errors.As(err, &later) {
+		t.Fatalf("six days into the second outage: %v, want RetryLater", err)
+	}
+	e.clock.Advance(2 * 24 * time.Hour)
+	if err := run(); err != nil {
+		t.Fatalf("eight days unreadable: %v, want nil", err)
 	}
 	if names := chapterFolderNames(t, cache); len(names) != 0 {
 		t.Errorf("folders = %v, want none", names)

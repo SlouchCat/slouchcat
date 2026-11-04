@@ -1226,6 +1226,26 @@ func (q *Queries) SetQueuedJobPayload(ctx context.Context, arg SetQueuedJobPaylo
 	return result.RowsAffected()
 }
 
+const setRunningJobPayload = `-- name: SetRunningJobPayload :execrows
+UPDATE jobs SET payload = ?1, updated_at = ?2 WHERE id = ?3 AND state = 'running'
+`
+
+type SetRunningJobPayloadParams struct {
+	Payload string
+	Now     int64
+	ID      int64
+}
+
+// Replaces the payload of a job a worker runs: the handler keeps a note for its next run (the
+// first time chapters.images found its file unreadable); a retry keeps the payload.
+func (q *Queries) SetRunningJobPayload(ctx context.Context, arg SetRunningJobPayloadParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setRunningJobPayload, arg.Payload, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateJobProgress = `-- name: UpdateJobProgress :execrows
 UPDATE jobs
 SET progress_done = ?1, progress_total = ?2, progress_note = ?3, updated_at = ?4

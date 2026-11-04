@@ -69,6 +69,9 @@ type mediaFilePayload struct {
 	// ChapterImages asks probe.file to queue chapters.images after the probe (a film or an
 	// episode file that appeared or changed after its library finished a scan, concept 13 11.6).
 	ChapterImages bool `json:"chapterImages,omitempty"`
+	// UnreadableSince is when chapters.images first found its media file unreadable (Unix ms; 0
+	// while readable): the job gives up a week after it, not a week after it was queued.
+	UnreadableSince int64 `json:"unreadableSince,omitempty"`
 }
 
 type itemPayload struct {
