@@ -805,6 +805,11 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   eigene Bild-in-Bild von Firefox meldet kein `enterpictureinpicture`. Der `<track>` bleibt darum
   `hidden`, und das Firefox-Fenster zeigt keine Untertitel. In Chromium schaltet der Player wie in
   11.10 beschrieben auf `showing`. Ein verlässliches Signal für Firefox gibt es nicht.
+- **Karten in den Reitern** (Schritt 5): «Als Nächstes» und «Besetzung» nutzen das neue Bauteil
+  `ui/PlayerCard` (Knopf mit Roving-Tabindex) statt `EpisodeCard` und `CastCard` wie in 11.10.
+  Diese sind Links und brauchen die räumliche Navigation, die auf der Player-Route nicht geladen
+  ist.
+- **«Folge zurück»** (Schritt 5) springt nur innerhalb der Staffel, nicht über die Staffelgrenze.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
