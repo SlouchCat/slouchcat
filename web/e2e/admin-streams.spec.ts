@@ -1,4 +1,4 @@
-import type { Page, Response } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { loginOwner } from './accounts';
 import { CSRF, HEVC_LONG_TITLE } from './catalog';
 import { OWNER_PROFILE, STORAGE_STATE } from './env';
@@ -18,6 +18,7 @@ import {
   player,
   recordEndedAt,
   resetProgress,
+  watchStopAnswers,
   type PlaybackData,
 } from './playback';
 
@@ -41,12 +42,6 @@ const FULL_BUFFER_MS = 60_000;
  * partly buffered until the stop, so a segment request follows within the budget.
  */
 const SEGMENT_DELAY_MS = 1000;
-
-/** A stop watch answer of playback `id` with the given state. */
-const stateAnswer = (id: string, state: 'active' | 'stopped') => async (response: Response) =>
-  response.url().endsWith(`/playback/sessions/${id}/state`) &&
-  response.status() === 200 &&
-  ((await response.json()) as { state: string }).state === state;
 
 interface AdminStreamData {
   id: string;
@@ -223,10 +218,11 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     viewer.on('response', (response) => {
       if (response.status() === 401) unauthorized.push(response.url());
     });
-    const watched = viewer.waitForResponse(stateAnswer(second.playbackSessionId, 'stopped'));
+    const answers = await watchStopAnswers(viewer, second.playbackSessionId);
+    const watched = answers.next('stopped');
     const endedAt = await recordEndedAt(viewer);
     // The worst moment: right after an answer of the stop watch, the next comes 4 s later.
-    await viewer.waitForResponse(stateAnswer(second.playbackSessionId, 'active'));
+    await answers.next('active');
     const before = Date.now();
     await overview.keyboard.press('Enter');
     expect((await stopped).status()).toBe(204);
@@ -238,7 +234,7 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     const stopMs = (await endedAt())! - before;
     expect(stopMs).toBeLessThan(STOP_BUDGET_MS);
     // The stop watch told it (stopped_by admin), not a 401 of a media request.
-    expect(((await (await watched).json()) as { stoppedBy?: string }).stoppedBy).toBe('admin');
+    expect((await watched).stoppedBy).toBe('admin');
     expect(unauthorized).toEqual([]);
     await expect(viewer.getByRole('alert')).toContainText('Die Wiedergabe wurde beendet.');
     await expect

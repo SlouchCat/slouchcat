@@ -218,6 +218,39 @@ export async function recordEndedAt(page: Page): Promise<() => Promise<number | 
   return () => page.evaluate(() => (window as unknown as { endedAt: number | null }).endedAt);
 }
 
+/** An answer of the player's stop watch (getPlaybackSessionState, concept 13). */
+export interface StopWatchAnswer {
+  state: 'active' | 'stopped';
+  stoppedBy?: string;
+}
+
+/**
+ * Watches the stop watch of playback `id` from now on. The answers are read in the test process
+ * (route.fetch), not from the browser: Firefox's protocol at times cannot hand out the body of a
+ * response the page has read (NS_ERROR_INVALID_CONTENT_ENCODING). `next(state)` resolves with the
+ * first answer in that state after the call. The page must block service workers, or the route
+ * does not see the requests.
+ */
+export async function watchStopAnswers(
+  page: Page,
+  id: string,
+): Promise<{ next: (state: StopWatchAnswer['state']) => Promise<StopWatchAnswer> }> {
+  let waiting: { state: StopWatchAnswer['state']; resolve: (answer: StopWatchAnswer) => void }[] =
+    [];
+  await page.route(`**/api/v1/playback/sessions/${id}/state`, async (route) => {
+    const response = await route.fetch();
+    const answer = response.ok() ? ((await response.json()) as StopWatchAnswer) : null;
+    await route.fulfill({ response });
+    if (!answer) return;
+    const matched = waiting.filter((entry) => entry.state === answer.state);
+    waiting = waiting.filter((entry) => entry.state !== answer.state);
+    for (const entry of matched) entry.resolve(answer);
+  });
+  return {
+    next: (state) => new Promise((resolve) => waiting.push({ state, resolve })),
+  };
+}
+
 /** Opens the player of `itemId` and returns the started playback; waits until it plays. */
 export async function play(page: Page, itemId: string, search = ''): Promise<PlaybackData> {
   const { status, body } = await startOf(page, () => page.goto(`/play/${itemId}${search}`));
