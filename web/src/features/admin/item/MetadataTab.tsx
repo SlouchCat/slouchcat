@@ -49,6 +49,8 @@ export interface LanguageChoice {
   dirty: boolean;
   /** Every language code the server knows (metadata settings), for the select. */
   known: readonly string[];
+  /** The error of loading `known` (null without one): the select then offers no language. */
+  knownError: unknown;
   onChange: (value: string) => void;
   onSave: () => void;
   saving: boolean;
@@ -247,6 +249,11 @@ function OriginalLanguage({
             {choice.saving ? t('common.saving') : t('common.save')}
           </AriaButton>
         </div>
+        {choice.knownError !== null && (
+          <Notice tone="danger" title={t('admin.item.language.knownFailed')}>
+            {problemMessage(t, choice.knownError)}
+          </Notice>
+        )}
         <Text tone="secondary" variant="caption">
           {t('admin.item.language.hint')}
         </Text>

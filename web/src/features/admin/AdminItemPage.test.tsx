@@ -332,6 +332,26 @@ describe('admin item page', () => {
     expect(select).toHaveValue('metadata');
   });
 
+  it('says so when the list of languages does not load (review step 8, S8-m-7)', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () => json({ ...item, originalLanguage: 'en' }),
+      'GET /admin/settings/metadata': () => problem(500, 'internal'),
+    });
+    renderApp(base);
+    const panel = await openDisclosure(user, /^Originalsprache/);
+    expect(
+      await within(panel).findByText('Die Liste der Sprachen konnte nicht geladen werden.'),
+    ).toBeVisible();
+    // «Aus Metadaten» and «Unbekannt» stay; no language is offered.
+    const select = within(panel).getByRole('combobox', { name: 'Originalsprache setzen' });
+    const values = within(select)
+      .getAllByRole('option')
+      .map((option) => (option as HTMLOptionElement).value);
+    expect(values).toEqual(['metadata', '']);
+  });
+
   it('shows no original language for an episode', async () => {
     mockApi({
       ...signedIn,

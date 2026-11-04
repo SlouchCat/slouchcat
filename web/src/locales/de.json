@@ -1321,7 +1321,8 @@
         "saved": "Originalsprache gespeichert.",
         "unsaved": "ungespeichert",
         "summary": "{{language}} · Quelle {{source}}",
-        "hint": "Eine gewählte Sprache oder «Unbekannt» ist gesperrt. «Aus Metadaten» hebt die Sperre auf, und die nächste Zuordnung fragt die Quellen erneut ab."
+        "hint": "Eine gewählte Sprache oder «Unbekannt» ist gesperrt. «Aus Metadaten» hebt die Sperre auf, und die nächste Zuordnung fragt die Quellen erneut ab.",
+        "knownFailed": "Die Liste der Sprachen konnte nicht geladen werden."
       },
       "files": {
         "title": "Dateien",

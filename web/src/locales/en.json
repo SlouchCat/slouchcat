@@ -1321,7 +1321,8 @@
         "saved": "Original language saved.",
         "unsaved": "unsaved",
         "summary": "{{language}} · Source {{source}}",
-        "hint": "A chosen language or «Unknown» is locked. «From metadata» lifts the lock, and the next match asks the sources again."
+        "hint": "A chosen language or «Unknown» is locked. «From metadata» lifts the lock, and the next match asks the sources again.",
+        "knownFailed": "The list of languages could not be loaded."
       },
       "files": {
         "title": "Files",

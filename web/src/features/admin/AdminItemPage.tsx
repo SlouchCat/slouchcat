@@ -231,6 +231,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
                   value: drafts.valueOf(languageKey(current.id)) ?? languageChoiceOf(current),
                   dirty: drafts.isDirty(languageKey(current.id)),
                   known: languages.data?.knownLanguages ?? [],
+                  knownError: languages.error,
                   onChange: (value) => drafts.set(languageKey(current.id), value),
                   onSave: () => {
                     const key = languageKey(current.id);
