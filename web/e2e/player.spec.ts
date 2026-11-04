@@ -403,8 +403,37 @@ test('Backspace and browser back return to the detail page', async ({ page }) =>
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
 });
 
+test.describe('in a narrow window with a mouse', () => {
+  // Under 768 px the phone layout applies on a laptop as well (review step 5, M-1).
+  test.use({ viewport: { width: 600, height: 800 } });
+
+  test('a click on the picture pauses, a double click does not seek', async ({ page }) => {
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const player = page.getByRole('main', { name: 'Videoplayer' });
+    await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+    await expect(page.getByRole('toolbar', { name: 'Optionen' })).toBeVisible();
+    const paused = () => page.locator('video').evaluate((video: HTMLVideoElement) => video.paused);
+    await expect.poll(paused).toBe(false);
+    await page.mouse.click(150, 400);
+    await expect.poll(paused).toBe(true);
+    await page.mouse.click(150, 400);
+    await expect.poll(paused).toBe(false);
+    // A double click is two clicks and full screen, never 10 s back.
+    const time = () =>
+      page.locator('video').evaluate((video: HTMLVideoElement) => video.currentTime);
+    await page.locator('video').evaluate((video: HTMLVideoElement) => {
+      video.currentTime = Math.min(video.duration - 1, 15);
+    });
+    const before = await time();
+    await page.mouse.dblclick(150, 400);
+    expect(await time()).toBeGreaterThanOrEqual(before - 0.5);
+    await expect(player.getByText('−10 s')).toHaveCount(0);
+  });
+});
+
 test.describe('on a phone', () => {
-  test.use({ viewport: { width: 390, height: 844 } });
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
   test('the phone layout by keyboard: options at the top, transport in the middle; two taps seek', async ({
     page,
@@ -461,11 +490,13 @@ test.describe('on a phone', () => {
       video.currentTime = Math.max(0, video.duration - 1);
     });
     const before = await time();
-    await page.mouse.dblclick(40, 422);
+    await page.touchscreen.tap(40, 422);
+    await page.touchscreen.tap(40, 422);
     await expect.poll(time).toBeLessThan(before - 5);
     await expect(player.getByRole('status')).toHaveText('−10 s');
     const after = await time();
-    await page.mouse.dblclick(350, 422);
+    await page.touchscreen.tap(350, 422);
+    await page.touchscreen.tap(350, 422);
     await expect.poll(time).toBeGreaterThan(after + 5);
     // Two taps neither play nor go full screen.
     expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();

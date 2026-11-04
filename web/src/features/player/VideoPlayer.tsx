@@ -636,9 +636,13 @@ export function VideoPlayer({
 
   // Faded out: no input while playing, nothing open that needs the controls.
   const hidden = idle && playing && panel === null && tab === null && !countdownActive && !infoOpen;
-  // A phone (V-13): a tap shows or hides the controls, a double tap seeks 10 s.
-  const phoneTap = usePhoneTap({
+  // The pointer on the picture: a mouse plays, pauses and goes full screen; a finger in the phone
+  // layout shows or hides the controls, and a double tap seeks 10 s (V-13).
+  const pictureTaps = usePhoneTap({
+    phone,
     hidden,
+    togglePlay,
+    toggleFullscreen,
     seekBy,
     showOsd,
     wantsPlaying: () => wantPlaying.current,
@@ -1124,13 +1128,7 @@ export function VideoPlayer({
         playsInline
         data-subtitle-color={subtitleStyle.color}
         data-subtitle-background={subtitleStyle.background}
-        onPointerDown={phoneTap.onPointerDown}
-        onPointerUp={(event) => {
-          if (event.button !== 0) return;
-          if (phone) phoneTap.onTap(event);
-          else togglePlay();
-        }}
-        onDoubleClick={phone ? undefined : toggleFullscreen}
+        {...pictureTaps}
       >
         {info.subtitleUrl && (
           <track
