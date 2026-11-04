@@ -78,19 +78,23 @@ const meta = {
     settings: panel('Einstellungen'),
     onToggleHelp: noop,
   },
+  // The frame of the picture: 64rem × 36rem, a story sets another one in `parameters.frame`.
   decorators: [
-    (Story) => (
-      <div
-        style={{
-          position: 'relative',
-          width: '64rem',
-          height: '36rem',
-          backgroundColor: 'var(--sc-color-media-backdrop)',
-        }}
-      >
-        <Story />
-      </div>
-    ),
+    (Story, { parameters }) => {
+      const frame = (parameters.frame ?? {}) as { width?: string; height?: string };
+      return (
+        <div
+          style={{
+            position: 'relative',
+            width: frame.width ?? '64rem',
+            height: frame.height ?? '36rem',
+            backgroundColor: 'var(--sc-color-media-backdrop)',
+          }}
+        >
+          <Story />
+        </div>
+      );
+    },
   ],
 } satisfies Meta<typeof PlayerChrome>;
 
@@ -143,23 +147,12 @@ export const ChaptersTab: Story = { args: { playing: false, openTab: 'chapters' 
 export const InfoTab: Story = { args: { playing: false, openTab: 'info' } };
 
 /**
- * A phone (11.2): −10 s, play/pause and +10 s large in the middle; volume, subtitles, sound and
- * the gear at the top right; no tabs, no shortcut help. On an iPhone only the mute button.
+ * A phone (11.2): −10 s, play/pause and +10 s large in the middle; back on the left and volume,
+ * subtitles, sound and the gear on the right at the top, the title in a line under them; picture
+ * in picture and full screen beside the time above the timeline; no tabs, no shortcut help. On an
+ * iPhone only the mute button.
  */
 export const Phone: Story = {
   args: { layout: 'phone', muteOnly: true, playing: false },
-  decorators: [
-    (Story) => (
-      <div
-        style={{
-          position: 'relative',
-          width: '24rem',
-          height: '44rem',
-          backgroundColor: 'var(--sc-color-media-backdrop)',
-        }}
-      >
-        <Story />
-      </div>
-    ),
-  ],
+  parameters: { frame: { width: '24rem', height: '44rem' } },
 };
