@@ -206,15 +206,28 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		}
 	}
 	// Direct play without a probe and the fallback play the default audio track, the fallback drops a
-	// burn-in: the reasons follow what plays.
+	// burn-in: the reasons follow what plays. Subtitles the server chose follow the language of the
+	// audio that plays, as text only (review step 9, m-2).
 	if dreq.AudioStream >= 0 && d.AudioStream != dreq.AudioStream {
 		audioReason = trackpick.AudioFile
+		if d.Mode == ModeDirect && subtitleReason != trackpick.SubtitleRequest && !audioTitle {
+			dreq.Subtitle, subtitleReason = serverSubtitle(tracks, d.AudioStream, req, choice, false)
+			d.SubtitleTrack, d.SubtitleDelivery = 0, ""
+			if dreq.Subtitle != nil && dreq.Subtitle.Text && dreq.Delivery != model.SubtitleBurn {
+				d.SubtitleTrack, d.SubtitleDelivery = dreq.Subtitle.ID, model.SubtitleText
+			}
+		}
 	}
 	if dreq.Subtitle != nil && d.SubtitleTrack == 0 {
 		subtitleReason = trackpick.SubtitleOff
 		if dreq.Subtitle.Forced {
 			subtitleReason = trackpick.SubtitleForcedBitmap
 		}
+	}
+	// forced_bitmap_available says a transcode could burn the forced track in; without a transcoder
+	// or a probe none can (review step 9, m-10).
+	if subtitleReason == trackpick.SubtitleForcedBitmap && (s.tc == nil || probe == nil) {
+		subtitleReason = trackpick.SubtitleOff
 	}
 	var resume int64
 	switch p := item.Progress; {
@@ -375,17 +388,23 @@ func chooseTracks(dreq *Request, req model.PlaybackRequest, tracks model.TrackLi
 	case audioTitle:
 		return audioReason, trackpick.SubtitleOff
 	}
-	usable := slices.DeleteFunc(slices.Clone(tracks.Subtitles), func(t model.Track) bool { return !deliverable(t, req.SubtitleDelivery) })
-	var language string
-	if i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == dreq.AudioStream }); i >= 0 {
-		language = tracks.Audio[i].Language
-	}
-	sub, reason := trackpick.Subtitle(usable, language, c, false)
+	sub, reason := serverSubtitle(tracks, dreq.AudioStream, req, c, false)
 	if reason == trackpick.SubtitleForcedBitmap && Decide(file, probe, *dreq).Mode == ModeTranscode {
-		sub, reason = trackpick.Subtitle(usable, language, c, true)
+		sub, reason = serverSubtitle(tracks, dreq.AudioStream, req, c, true)
 	}
 	dreq.Subtitle = sub
 	return audioReason, reason
+}
+
+// serverSubtitle applies the subtitle rule (trackpick.Subtitle) to the subtitle tracks the
+// requested delivery can show, in the language of the audio track with the stream index.
+func serverSubtitle(tracks model.TrackList, audioStream int, req model.PlaybackRequest, c trackpick.Context, transcoding bool) (*model.Track, string) {
+	usable := slices.DeleteFunc(slices.Clone(tracks.Subtitles), func(t model.Track) bool { return !deliverable(t, req.SubtitleDelivery) })
+	var language string
+	if i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == audioStream }); i >= 0 {
+		language = tracks.Audio[i].Language
+	}
+	return trackpick.Subtitle(usable, language, c, transcoding)
 }
 
 // deliverable reports whether a subtitle track can be shown with the delivery the request asks

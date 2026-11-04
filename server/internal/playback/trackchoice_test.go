@@ -119,15 +119,58 @@ func TestStartTrackChoice(t *testing.T) {
 	if last := tc.starts()[len(tc.starts())-1]; last.Decision.BurnStream != 4 || info.Transcoding.Reason != ReasonBurnIn {
 		t.Errorf("burn = %+v, reason %s", last.Decision, info.Transcoding.Reason)
 	}
-	// Without a transcoder the burn-in is dropped again, and the reason says what is missing.
+	// Without a transcoder the burn-in is dropped again, and no transcode could show the forced
+	// bitmap: the reason is off, not forced_bitmap_available (review step 9, m-10).
 	check("forced bitmap without transcoder", start(plain, prefs("forced", []string{"de"}, nil), model.PlaybackRequest{Quality: model.Quality720}),
-		want{ModeDirect, 1, trackpick.AudioProfile, 0, "", trackpick.SubtitleForcedBitmap})
+		want{ModeDirect, 1, trackpick.AudioProfile, 0, "", trackpick.SubtitleOff})
+	check("forced bitmap on direct play without transcoder", start(plain, prefs("forced", []string{"de"}, nil), model.PlaybackRequest{}),
+		want{ModeDirect, 1, trackpick.AudioProfile, 0, "", trackpick.SubtitleOff})
 
 	// A film has no series: rememberForSeries writes nothing.
 	start(s, prefs("forced", nil, nil), model.PlaybackRequest{AudioTrack: &alt, RememberForSeries: true})
 	var n int
 	if err := f.DB.Read.QueryRow(`SELECT count(*) FROM profile_series_tracks`).Scan(&n); err != nil || n != 0 {
 		t.Errorf("series rows after a film = %d, %v", n, err)
+	}
+}
+
+// Review step 9, m-2: direct play without a probe and the fallback without a transcoder play the
+// file's default audio track, not the chosen one; the subtitles the server chose follow the
+// language of the audio that plays. The English text track and the German sidecar are forced.
+func TestStartSubtitlesFollowPlayedAudio(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	tracks := f.AddTracks(t)
+	probed, unprobed := f.Rated(6), f.Rated(12)
+	f.SetMediaFile(t, probed.FileID, "mp4", "h264", "aac", trackProbe(t, "h264", "bt709", 1920, 1080, 6_000_000), testKeyframes)
+	f.SetMediaFile(t, unprobed.FileID, "mp4", "h264", "aac", "", nil)
+	for _, m := range []vistest.Movie{probed, unprobed} {
+		f.SetTrackForced(t, tracks[m.FileID].Text)
+		f.SetTrackForced(t, tracks[m.FileID].Sidecar)
+	}
+	plain := New(f.DB, vistest.Logger(), WithTokenKey(testKey))
+	s := New(f.DB, vistest.Logger(), WithTranscoder(newFakeTranscoder()), WithTokenKey(testKey))
+	ctx := context.Background()
+	caps := capsChromeLinux
+	session := browserSession(t, f, f.P18)
+	session.Profile.Prefs = model.PlaybackPrefs{AudioLanguages: []string{"en"}, SubtitleMode: model.SubtitleModeForced}
+	for _, tc := range []struct {
+		name string
+		svc  *Service
+		m    vistest.Movie
+	}{
+		{"fallback without transcoder", plain, probed},
+		{"direct play without probe", s, unprobed},
+	} {
+		info, err := tc.svc.Start(ctx, session, tc.m.ID, model.PlaybackRequest{Capabilities: &caps})
+		if err != nil {
+			t.Fatal(err)
+		}
+		sel := info.Selection
+		if info.Transcoding != nil || sel.AudioTrack != 1 || sel.AudioReason != trackpick.AudioFile ||
+			sel.SubtitleTrack != tracks[tc.m.FileID].Sidecar || sel.SubtitleDelivery != model.SubtitleText || sel.SubtitleReason != trackpick.SubtitleMode {
+			t.Errorf("%s: %+v, want German audio with the forced German sidecar", tc.name, sel)
+		}
 	}
 }
 
