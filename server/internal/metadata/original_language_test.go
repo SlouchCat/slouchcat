@@ -321,6 +321,34 @@ func TestQueueOriginalLanguageBackfillOnce(t *testing.T) {
 	}
 }
 
+// TestRunOriginalLanguageBackfillJoinsAnActiveChain: a run by hand while a successor of the chain
+// waits raises that successor instead of starting a second chain (review step 8, S8-m-1); without
+// an active chain it starts one.
+func TestRunOriginalLanguageBackfillJoinsAnActiveChain(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	e := newEnv(t, goodToken)
+	successor, err := e.svc.enqueueOriginalLanguageBackfill(ctx, idByTMDB, fillPriority)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids, err := e.svc.runOriginalLanguageBackfill(ctx, e.queue, jobs.ManualPriority)
+	if err != nil || !slices.Equal(ids, []int64{successor}) {
+		t.Fatalf("run by hand: %v, %v; want the waiting successor %d", ids, err, successor)
+	}
+	if got := e.activeJobs(t, JobOriginalLanguageBackfill); !slices.Equal(got, []string{"original_language_backfill:" + idByTMDB + " p7"}) {
+		t.Fatalf("jobs after the run by hand %v, want only the raised successor", got)
+	}
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	ids, err = e.svc.runOriginalLanguageBackfill(ctx, e.queue, jobs.ManualPriority)
+	if err != nil || len(ids) != 1 {
+		t.Fatalf("run without a chain: %v, %v", ids, err)
+	}
+	if got := e.activeJobs(t, JobOriginalLanguageBackfill); !slices.Equal(got, []string{"original_language_backfill p7"}) {
+		t.Fatalf("jobs after a run without a chain %v", got)
+	}
+}
+
 // TestSetItemOriginalLanguage: the administrator's code or "" is stored and locked without a
 // source, a match keeps it; invalid codes and other kinds are refused; nil lifts the lock,
 // clears the value and queues a manual match that looks it up again.

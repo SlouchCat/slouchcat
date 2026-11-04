@@ -87,9 +87,27 @@ type originalLanguagePayload struct {
 	After string `json:"after,omitempty"`
 }
 
-// runOriginalLanguageBackfill is the Run of the job type: one chain from the start with prio, or
-// the waiting first batch raised to prio (RaiseQueuedPriority).
+// runOriginalLanguageBackfill is the Run of the job type: one chain from the start with prio. A
+// chain that is already active (its first batch or a successor original_language_backfill:<id>,
+// waiting or running) is not doubled: its waiting batch is raised to prio (RaiseQueuedPriority)
+// and its ids are returned.
 func (s *Service) runOriginalLanguageBackfill(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {
+	active, err := s.queue.ListActive(ctx, JobOriginalLanguageBackfill)
+	if err != nil {
+		return nil, err
+	}
+	if len(active) > 0 {
+		ids := make([]int64, 0, len(active))
+		for _, j := range active {
+			if j.State == jobs.StateQueued {
+				if _, err := s.queue.RaiseQueuedPriority(ctx, j.ID, prio); err != nil {
+					return nil, fmt.Errorf("raise %s: %w", JobOriginalLanguageBackfill, err)
+				}
+			}
+			ids = append(ids, j.ID)
+		}
+		return ids, nil
+	}
 	id, err := s.enqueueOriginalLanguageBackfill(ctx, "", prio)
 	if err != nil {
 		return nil, err
