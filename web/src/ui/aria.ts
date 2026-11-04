@@ -56,6 +56,7 @@ export { TrailerDialog } from './TrailerDialog';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
 // Building blocks of the player (concept 13, 11.10).
 export { ChapterCard } from './ChapterCard';
+export { PlayerCard } from './PlayerCard';
 export {
   OptionLinkRow,
   OptionList,
@@ -69,8 +70,9 @@ export {
   playerEndTime,
   playerRemainingMs,
   type PlayerChromePanelButton,
-  type PlayerChromeMenu,
+  type PlayerChromeLayout,
   type PlayerChromeStep,
+  type PlayerChromeTab,
 } from './PlayerChrome';
 export { PlayerPanel } from './PlayerPanel';
 export { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';

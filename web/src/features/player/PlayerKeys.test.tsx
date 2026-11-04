@@ -7,12 +7,15 @@ import {
   episodes,
   ids,
   playback,
+  season1Detail,
   seriesIds,
   showDetail,
 } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
 import { formatBitrate } from '@/lib/format';
 import { playerDriver } from '@/test/player';
+import { PAUSE_VIEW_MS } from './PauseView';
+import { STALL_MS } from './useSlowConnection';
 import { CONTROLS_HIDE_MS } from './VideoPlayer';
 import { PLAYER_PREFS_KEY } from './usePlayerPrefs';
 
@@ -600,5 +603,202 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(screen.queryByRole('region', { name: 'Nächste Folge' })).toBeNull();
     // The key did nothing else: the focus stayed.
     expect(button('Abspielen')).toHaveFocus();
+  });
+});
+
+describe('video player tabs, pause view, phone and slow connection (concept 13, step 5)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    localStorage.clear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  // S01E02 of the show with the chapters of the film: the season loads for «Als Nächstes».
+  const episode: PlaybackInfo = {
+    ...film,
+    item: episodes.e2,
+    nextEpisode: episodes.e34,
+  };
+  const episodeRoutes = (info: PlaybackInfo = episode) => ({
+    [`GET /items/${episodes.e2.id}`]: () => json(episode2Detail),
+    [`GET /items/${seriesIds.show}`]: () => json(showDetail),
+    [`GET /items/${season1Detail.id}`]: () => json(season1Detail),
+    [`POST /items/${episodes.e1.id}/play`]: () =>
+      json({ ...info, item: episodes.e1, playbackSessionId: 'ps-1-1' }),
+    [`POST /items/${episodes.e34.id}/play`]: () =>
+      json({ ...info, item: episodes.e34, playbackSessionId: 'ps-34' }),
+  });
+  const strip = () => screen.getByRole('toolbar', { name: 'Mehr zum Titel' });
+  const tabButton = (name: string) => within(strip()).getByRole('button', { name });
+
+  it('the pause view shows after 5 s of pause; a key hides it, an open panel keeps it away', async () => {
+    await start();
+    key(document.body, ' ');
+    expect(button('Abspielen')).toBeVisible();
+    await act(() => vi.advanceTimersByTimeAsync(PAUSE_VIEW_MS - 500));
+    expect(screen.queryByRole('region', { name: 'Pause' })).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(600));
+    const view = screen.getByRole('region', { name: 'Pause' });
+    expect(within(view).getByText(alienDetail.overview!)).toBeVisible();
+    expect(within(view).getByText('Kapitel: Anfang')).toBeVisible();
+    // It takes no focus; the controls keep it.
+    expect(button('Abspielen')).toHaveFocus();
+    key(document.body, 'Shift');
+    expect(screen.queryByRole('region', { name: 'Pause' })).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(PAUSE_VIEW_MS + 100));
+    expect(screen.getByRole('region', { name: 'Pause' })).toBeVisible();
+    // A panel is open: no pause view.
+    key(document.body, '?');
+    await act(() => vi.advanceTimersByTimeAsync(PAUSE_VIEW_MS + 100));
+    expect(screen.queryByRole('region', { name: 'Pause' })).toBeNull();
+    // Playing again hides it for good.
+    key(document.body, 'Escape');
+    key(document.body, 'k');
+    await act(() => vi.advanceTimersByTimeAsync(PAUSE_VIEW_MS + 100));
+    expect(screen.queryByRole('region', { name: 'Pause' })).toBeNull();
+  });
+
+  it('C opens the chapter tab on the chapter playing; Escape closes it, the focus on its tab', async () => {
+    await start();
+    expect(tabButton('Kapitel')).toHaveAttribute('aria-expanded', 'false');
+    // The chapter menu is gone from the row.
+    expect(
+      within(screen.getByRole('toolbar', { name: 'Wiedergabe' })).queryByRole('button', {
+        name: 'Kapitel',
+      }),
+    ).toBeNull();
+    key(document.body, 'c');
+    const cards = await screen.findByRole('list', { name: 'Kapitel' });
+    const current = within(cards).getByRole('button', { current: true });
+    expect(current).toHaveAccessibleName(/^Anfang 0:00 /);
+    await waitFor(() => expect(current).toHaveFocus());
+    // The controls stay while a tab is open.
+    await act(() => vi.advanceTimersByTimeAsync(CONTROLS_HIDE_MS + 100));
+    expect(region()).toHaveAttribute('data-controls', 'visible');
+    key(current, 'Escape');
+    expect(screen.queryByRole('list', { name: 'Kapitel' })).toBeNull();
+    expect(tabButton('Kapitel')).toHaveFocus();
+  });
+
+  it('«Als Nächstes» shows the season, starts on the next episode and plays a pick', async () => {
+    const { router } = await start(episode, episodeRoutes());
+    expect(tabButton('Besetzung')).toBeVisible();
+    expect(tabButton('Info')).toBeVisible();
+    const { user } = playerDriver();
+    await user.click(await within(strip()).findByRole('button', { name: 'Als Nächstes' }));
+    const cards = screen.getByRole('list', { name: 'Als Nächstes' });
+    const names = within(cards)
+      .getAllByRole('button')
+      .map((card) => card.textContent);
+    expect(names.map((name) => name?.slice(0, 6))).toEqual(['S01E01', 'S01E02', 'S01E03']);
+    expect(within(cards).getByRole('button', { current: true })).toHaveTextContent(/^S01E02/);
+    // The row's Tab stop is the episode after this one.
+    const following = within(cards).getAllByRole('button')[2]!;
+    expect(following).not.toHaveAttribute('tabindex', '-1');
+    await user.click(following);
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e34.id}`));
+  });
+
+  it('«Besetzung» opens the person; «Info» shows the description', async () => {
+    const { router } = await start(episode, episodeRoutes());
+    const { user } = playerDriver();
+    await user.click(await within(strip()).findByRole('button', { name: 'Info' }));
+    expect(screen.getByText(episode2Detail.overview!)).toBeVisible();
+    await user.click(tabButton('Besetzung'));
+    await user.click(screen.getByRole('button', { name: /^Lena Muster/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/people/7'));
+  });
+
+  it('back is «Vorherige Folge» without chapters, and in the first seconds of the first chapter', async () => {
+    const { router } = await start(
+      { ...episode, chapters: [], resumePositionMs: 0 },
+      episodeRoutes(),
+    );
+    const { user } = playerDriver();
+    await user.click(await screen.findByRole('button', { name: 'Vorherige Folge' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e1.id}`));
+  });
+
+  it('a slow connection suggests the rung below; the switch is not remembered (V-17, V-18)', async () => {
+    const { video } = await start();
+    const stall = async () => {
+      act(() => {
+        video.dispatchEvent(new Event('waiting'));
+      });
+      await act(() => vi.advanceTimersByTimeAsync(STALL_MS + 100));
+      act(() => {
+        video.dispatchEvent(new Event('playing'));
+      });
+    };
+    await stall();
+    expect(screen.queryByRole('region', { name: 'Langsame Verbindung' })).toBeNull();
+    await stall();
+    const hint = screen.getByRole('region', { name: 'Langsame Verbindung' });
+    expect(within(hint).getByRole('status')).toHaveTextContent(
+      'Verbindung langsam – auf 720p wechseln?',
+    );
+    const { user } = playerDriver();
+    await user.click(within(hint).getByRole('button', { name: 'Auf 720p wechseln' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Langsame Verbindung' })).toBeNull(),
+    );
+    expect(JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY) ?? '{}')).not.toHaveProperty(
+      'quality',
+    );
+  });
+
+  it('a choice in the quality panel is remembered on the device (V-17)', async () => {
+    await start();
+    const player = playerDriver();
+    await player.chooseQuality('480p');
+    expect(JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY) ?? '{}')).toMatchObject({
+      quality: '480p',
+    });
+  });
+
+  describe('on a phone', () => {
+    beforeEach(() => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('768px'),
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }));
+    });
+
+    it('no tabs; C opens the chapters in the gear; two taps on a half seek 10 s', async () => {
+      const { media, video } = await start();
+      expect(screen.queryByRole('toolbar', { name: 'Mehr zum Titel' })).toBeNull();
+      expect(screen.getByRole('toolbar', { name: 'Optionen' })).toBeVisible();
+      key(document.body, 'c');
+      const chapters = await screen.findByRole('dialog', { name: 'Kapitel' });
+      expect(within(chapters).getByRole('option', { selected: true })).toHaveAccessibleName(
+        /^Anfang/,
+      );
+      key(document.body, 'Escape');
+
+      vi.spyOn(video, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 400, 800));
+      media.currentTime = 100;
+      const tap = (x: number) => {
+        fireEvent.pointerDown(video, { button: 0, clientX: x });
+        fireEvent.pointerUp(video, { button: 0, clientX: x });
+      };
+      tap(50);
+      tap(50);
+      expect(media.currentTime).toBe(90);
+      expect(screen.getByRole('status')).toHaveTextContent('−10 s');
+      tap(350);
+      tap(350);
+      expect(media.currentTime).toBe(100);
+      // One tap does not play or pause.
+      const paused = media.paused;
+      tap(200);
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(media.paused).toBe(paused);
+    });
   });
 });

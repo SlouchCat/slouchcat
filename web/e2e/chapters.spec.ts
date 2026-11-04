@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectVisibleFocus } from './keyboard';
+import { expectFocusOn, expectVisibleFocus, tabTo } from './keyboard';
 import {
   arrowTo,
   CHAPTERS_TITLE,
@@ -20,7 +20,10 @@ import {
 
 const time = async (page: Page) => (await videoState(page)).time;
 
-test('the chapter menu jumps to the chapter start (±1 s)', async ({ page, owner }) => {
+test('the chapter tab by keyboard jumps to the chapter start (±1 s); Escape closes it', async ({
+  page,
+  owner,
+}) => {
   const itemId = await itemIdByTitle(owner, CHAPTERS_TITLE);
   await resetProgress(page.request, itemId, 10_000);
   const info = await play(page, itemId);
@@ -33,33 +36,49 @@ test('the chapter menu jumps to the chapter start (±1 s)', async ({ page, owner
   await page.keyboard.press('Space');
   await expect.poll(async () => (await videoState(page)).paused).toBe(true);
 
+  // C opens the tab «Kapitel» (11.2) with the focus on the chapter playing.
   await page.keyboard.press('c');
-  const menu = page.getByRole('menu', { name: 'Kapitel' });
-  await expect(menu).toBeVisible();
+  const cards = page.getByRole('list', { name: 'Kapitel' });
+  await expect(cards.getByRole('button')).toHaveCount(3);
+  const first = cards.getByRole('button', { name: /^Kapitel 1: Anfang/ });
+  await expect(first).toHaveAttribute('aria-current', 'true');
+  await expectFocusOn(page, first);
+  // → walks the cards (the position stays), Enter jumps.
+  await arrowTo(page, cards.getByRole('button', { name: /^Kapitel 3: Ende/ }), 'ArrowRight');
   await expectVisibleFocus(page);
-  await expect(menu.getByRole('menuitemradio')).toHaveCount(3);
-  await arrowTo(page, menu.getByRole('menuitemradio', { name: /^Kapitel 3: Ende/ }));
   await page.keyboard.press('Enter');
-  await expect(menu).toHaveCount(0);
   const third = info.chapters[2].startMs / 1000;
   await expect.poll(() => time(page)).toBeGreaterThanOrEqual(third - 1);
   expect(await time(page)).toBeLessThanOrEqual(third + 1);
-
-  // Back to the second chapter from the menu button, by keyboard as well.
-  await page.keyboard.press('c');
-  await expect(menu.getByRole('menuitemradio', { name: /^Kapitel 3: Ende/ })).toHaveAttribute(
-    'aria-checked',
+  await expect(cards.getByRole('button', { name: /^Kapitel 3: Ende/ })).toHaveAttribute(
+    'aria-current',
     'true',
   );
-  await arrowTo(page, menu.getByRole('menuitemradio', { name: /^Kapitel 2: Mitte/ }), 'ArrowUp');
+
+  // ← back to the second chapter, Enter.
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, cards.getByRole('button', { name: /^Kapitel 2: Mitte/ }));
   await page.keyboard.press('Enter');
   const second = info.chapters[1].startMs / 1000;
   await expect.poll(() => time(page)).toBeLessThanOrEqual(second + 1);
   expect(await time(page)).toBeGreaterThanOrEqual(second - 1);
-  // Escape closes the menu only; the player stays.
+
+  // ↑ goes to the tab strip, ↑ again to the button row.
+  const tab = page.getByRole('toolbar', { name: 'Mehr zum Titel' }).getByRole('button', {
+    name: 'Kapitel',
+  });
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, tab);
+  await expect(tab).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('toolbar', { name: 'Wiedergabe' }).locator(':focus')).toHaveCount(1);
+
+  // Escape closes the tab only, the focus on its tab; the player stays.
   await page.keyboard.press('c');
+  await expect(cards).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(menu).toHaveCount(0);
+  await expect(cards).toHaveCount(0);
+  await expectFocusOn(page, tab);
   await expect(page).toHaveURL(/\/play\//);
 });
 
@@ -154,5 +173,68 @@ test.describe('intro show', () => {
     const next = await startOf(page, () => page.keyboard.press('n'));
     expect(next.body.item.id).toBe(info.nextEpisode?.id);
     await expect(page).toHaveURL(new RegExp(`/play/${episodes[1]}$`));
+  });
+
+  test('the next-episode card by keyboard: Tab reaches its button, Enter plays', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await resetProgress(page.request, episodes[0]);
+    await resetProgress(page.request, episodes[1]);
+    await play(page, episodes[0]);
+    await page.locator('video').evaluate((video: HTMLVideoElement) => {
+      video.currentTime = Math.max(0, video.duration - 2);
+    });
+    const card = page.getByRole('region', { name: 'Nächste Folge' });
+    await expect(card).toBeVisible({ timeout: 10_000 });
+    await expect(card.getByText(/^S01E02 · /)).toBeVisible();
+    // Tab moves on without cancelling; the card's buttons come after the controls.
+    const playNow = card.getByRole('button', { name: 'Jetzt ansehen' });
+    await tabTo(page, playNow);
+    await expectVisibleFocus(page);
+    await expect(player(page)).toHaveAttribute('data-autonext', 'countdown');
+    const next = await startOf(page, () => page.keyboard.press('Enter'));
+    expect(next.body.item.id).toBe(episodes[1]);
+    await expect(page).toHaveURL(new RegExp(`/play/${episodes[1]}$`));
+  });
+
+  test('«Als Nächstes» by keyboard: ↓ to the tabs, → to the tab, ↓ to the next episode, Enter', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await resetProgress(page.request, episodes[1]);
+    await play(page, episodes[0]);
+    await page.keyboard.press('Space');
+    // From play/pause ↓ goes to the tab strip, → along it.
+    await page.keyboard.press('ArrowDown');
+    const strip = page.getByRole('toolbar', { name: 'Mehr zum Titel' });
+    await expect(strip.locator(':focus')).toHaveCount(1);
+    const tab = strip.getByRole('button', { name: 'Als Nächstes' });
+    await arrowTo(page, tab, 'ArrowRight');
+    await expectVisibleFocus(page);
+    await page.keyboard.press('Enter');
+    const cards = page.getByRole('list', { name: 'Als Nächstes' });
+    await expect(cards.getByRole('button', { name: /^S01E01/ })).toHaveAttribute(
+      'aria-current',
+      'true',
+    );
+    // ↓ into the row, on the episode after this one.
+    await page.keyboard.press('ArrowDown');
+    const second = cards.getByRole('button', { name: /^S01E02/ });
+    await expectFocusOn(page, second);
+    // ←/→ stay in the row; ↑ goes back to the strip; no trap.
+    await page.keyboard.press('ArrowLeft');
+    await expectFocusOn(page, cards.getByRole('button', { name: /^S01E01/ }));
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, second);
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, tab);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, second);
+    const next = await startOf(page, () => page.keyboard.press('Enter'));
+    expect(next.body.item.id).toBe(episodes[1]);
+    await expect(page).toHaveURL(new RegExp(`/play/${episodes[1]}$`));
+    // A chosen episode is no auto-next.
+    await expect(player(page)).not.toHaveAttribute('data-autonext', /.+/);
   });
 });

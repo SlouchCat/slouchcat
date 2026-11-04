@@ -313,8 +313,11 @@ describe('player M4', () => {
     const player = playerDriver();
     fireEvent.keyDown(document.body, { key: 'c' });
     const chapterList = await player.findList('chapter');
-    expect(player.chosen(chapterList)).toHaveAccessibleName('Kapitel 1: Anfang · 0:00:00');
-    await player.chooseChapter('Kapitel 3 · 0:00:06');
+    // The chapter tab's cards (step 5): the chapter playing is marked and has the focus.
+    const playing = player.chosen(chapterList);
+    expect(playing).toHaveAccessibleName('Kapitel 1: Anfang 0:00:00 0 % gesehen');
+    await waitFor(() => expect(playing).toHaveFocus());
+    await player.chooseChapter(/^Kapitel 3 0:00:06/);
     expect(media.currentTime).toBeCloseTo(6.5);
   });
 

@@ -47,7 +47,7 @@ export interface PlayerKeyActions {
   /** ?. */
   toggleHelp: () => void;
   /** Backspace inside a menu closes it, like Escape (the remote's back key, C-4). */
-  closeMenu: () => void;
+  closeMenu?: () => void;
   /**
    * Escape and Backspace: closes what is open (a panel, the stream info) and says whether there
    * was something; otherwise the key leaves the player (`back`), except in full screen.
@@ -148,7 +148,7 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
       if (inMenu(event.target)) {
         if (event.key === 'Backspace') {
           event.preventDefault();
-          actions.closeMenu();
+          actions.closeMenu?.();
         }
         return;
       }

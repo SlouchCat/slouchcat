@@ -10,7 +10,15 @@ import type {
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type WheelEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type WheelEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
@@ -19,17 +27,11 @@ import { formatBitrate } from '@/lib/format';
 import { supportsWebAudioBoost } from '@/lib/webAudio';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import {
-  AriaButton,
-  BOOST_MAX,
-  focusOnMount,
-  PlayerChrome,
-  VOLUME_STEP,
-  type PlayerChromeMenu,
-} from '@/ui/aria';
-import { nextChapterStart, previousChapterStart } from './audio';
+import { AriaButton, BOOST_MAX, focusOnMount, PlayerChrome, VOLUME_STEP } from '@/ui/aria';
+import { nextChapterStart, previousChapterStart, RESTART_CHAPTER_MS } from './audio';
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
-import { stepPlaybackRate } from './keymap';
+import { SEEK_STEP_S, stepPlaybackRate } from './keymap';
+import { usePlayerLayout, volumeIsReadOnly } from './layout';
 import {
   chapterAt,
   chapterLabel,
@@ -41,8 +43,10 @@ import {
 import { SettingsPanel, type SettingsPage } from './panels/SettingsPanel';
 import { PANEL_IDS } from './panels/panelIds';
 import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
+import { PAUSE_VIEW_MS, PauseView } from './PauseView';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
+import { usePlayerTabs, type PlayerTabId } from './tabs/playerTabs';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useAudioGraph } from './useAudioGraph';
 import { usePlayerKeys } from './usePlayerKeys';
@@ -50,6 +54,7 @@ import { usePlayerPrefs } from './usePlayerPrefs';
 import { useSubtitleStyle } from './useSubtitleStyle';
 import { SubtitleLayer, useSubtitleCues } from './SubtitleLayer';
 import { useProgressReporter } from './useProgressReporter';
+import { lowerQuality, useSlowConnection } from './useSlowConnection';
 import { useVolume } from './useVolume';
 import styles from './Player.module.css';
 
@@ -68,6 +73,8 @@ const WHEEL_NOTCH_PX = 100;
 const WHEEL_LINE_PX = 100 / 3;
 /** The skip button hides this close to the end of the intro. */
 const SKIP_TAIL_MS = 500;
+/** Two taps on the same half of the picture within this time seek (V-13, phone). */
+export const DOUBLE_TAP_MS = 300;
 
 /** A change of the playback the server has to make: a new session (W-4, W-8). */
 export interface PlaybackChange {
@@ -84,8 +91,6 @@ export interface PlaybackChange {
  * stream names no reason yet, so the player says neutrally that the playback ended.
  */
 export type EndedReason = 'limit' | 'admin';
-
-type MenuName = 'chapters';
 
 /**
  * The panel beside the video: sound (T), subtitles (U), the gear (Q opens its quality page) or the
@@ -113,6 +118,10 @@ interface VideoPlayerProps {
   switchStartedAt?: number;
   /** Plays the next episode (auto-next, W-9). */
   onNextEpisode?: (next: ItemRef) => void;
+  /** Plays an episode the viewer chose: «Folge zurück», a card of «Als Nächstes» (V-2, V-11). */
+  onPlayEpisode?: (episode: ItemRef) => void;
+  /** Opens a person of «Besetzung» (V-11); leaves the player. */
+  onOpenPerson?: (personId: number) => void;
   /** This player opened through auto-next (data-autonext="navigated"). */
   autoNext?: boolean;
   /** The "Stream-Info" overlay (key i). */
@@ -183,6 +192,8 @@ export function VideoPlayer({
   onSwitch,
   switchStartedAt,
   onNextEpisode,
+  onPlayEpisode,
+  onOpenPerson,
   autoNext = false,
   infoOpen = false,
   onToggleInfo,
@@ -196,7 +207,6 @@ export function VideoPlayer({
   const [start] = useState(() => carried);
   const [switchFrom] = useState(() => switchStartedAt);
   const video = useRef<HTMLVideoElement>(null);
-  const container = useRef<HTMLDivElement>(null);
   const playButton = useRef<HTMLButtonElement>(null);
   const nextPanel = useRef<HTMLElement>(null);
   const hideTimer = useRef<number | undefined>(undefined);
@@ -218,18 +228,12 @@ export function VideoPlayer({
   const [failed, setFailed] = useState(false);
   // The server ended this playback (K-5 limit, W-6 admin): the player stops for good.
   const [ended, setEnded] = useState<{ reason: EndedReason; watchTime?: WatchTime } | null>(null);
-  // The open menu keeps the controls on screen; shortcut keys open menus as well.
-  const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
   // The panel beside the video (sound, subtitles, the shortcut help); it keeps the controls on
-  // screen like a menu.
+  // screen.
   const [panel, setPanel] = useState<PanelName | null>(null);
   const helpOpen = panel === 'help';
-  const openPanel = useCallback((name: PanelName) => {
-    setOpenMenu(null);
-    setPanel(name);
-  }, []);
+  const openPanel = useCallback((name: PanelName) => setPanel(name), []);
   const togglePanel = useCallback((name: PanelName) => {
-    setOpenMenu(null);
     setPanel((current) => (current === name ? null : name));
   }, []);
   const closePanel = useCallback(() => setPanel(null), []);
@@ -239,7 +243,6 @@ export function VideoPlayer({
     direct: false,
   });
   const openSettings = useCallback((page: SettingsPage, direct: boolean) => {
-    setOpenMenu(null);
     setSettingsView({ page, direct });
     setPanel('settings');
   }, []);
@@ -247,12 +250,15 @@ export function VideoPlayer({
   const [countdownEnd, setCountdownEnd] = useState<number | null>(null);
   const [countdownCancelled, setCountdownCancelled] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  // The menus render into the player, so they stay visible in full screen.
-  const [portal, setPortal] = useState<HTMLElement | null>(null);
-  const containerRef = useCallback((node: HTMLDivElement | null) => {
-    container.current = node;
-    setPortal(node);
+  // The tab under the bar (11.2); C counts up `focusChapter`, so the chapter playing takes the focus,
+  // also when the tab is open already.
+  const [tab, setTab] = useState<{ id: PlayerTabId; focusChapter?: number } | null>(null);
+  const openTab = useCallback((id: string | null) => {
+    setTab(id === null ? null : { id: id as PlayerTabId });
   }, []);
+  // Desktop and tablet, or a phone (11.2): the layout changes the focus order as well.
+  const layout = usePlayerLayout();
+  const phone = layout === 'phone';
   // During a switch the old session is ended already: playing or seeking it would fail.
   const locked = useRef(switching);
   // The viewer switched away from this session (track, quality, version): the old session ends on
@@ -363,10 +369,24 @@ export function VideoPlayer({
     window.clearTimeout(hideTimer.current);
     hideTimer.current = window.setTimeout(() => setIdle(true), CONTROLS_HIDE_MS);
   }, []);
+  // The pause view (V-10): five seconds paused without input, nothing open; any input hides it
+  // and starts the five seconds again. `pauseAllowed` is set below from the player's state.
+  const [pauseView, setPauseView] = useState(false);
+  const pauseTimer = useRef<number | undefined>(undefined);
+  const pauseAllowed = useRef(false);
+  const armPauseView = useCallback(() => {
+    window.clearTimeout(pauseTimer.current);
+    if (!pauseAllowed.current) return;
+    pauseTimer.current = window.setTimeout(() => {
+      if (pauseAllowed.current) setPauseView(true);
+    }, PAUSE_VIEW_MS);
+  }, []);
   const poke = useCallback(() => {
     setIdle(false);
+    setPauseView(false);
     scheduleHide();
-  }, [scheduleHide]);
+    armPauseView();
+  }, [armPauseView, scheduleHide]);
 
   useEffect(() => {
     if (playing) scheduleHide();
@@ -377,6 +397,7 @@ export function VideoPlayer({
     () => () => {
       window.clearTimeout(hideTimer.current);
       window.clearTimeout(osdTimer.current);
+      window.clearTimeout(pauseTimer.current);
     },
     [],
   );
@@ -513,6 +534,43 @@ export function VideoPlayer({
     [i18n.language, t],
   );
 
+  // A phone (V-13): a tap on the picture shows the controls, or hides them while the video plays;
+  // two taps on the same half within DOUBLE_TAP_MS seek 10 s back (left) or on (right). The tap
+  // waits that long to tell one from two.
+  const hiddenAtTap = useRef(false);
+  const lastTap = useRef<{ at: number; side: 'left' | 'right' } | null>(null);
+  const tapTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(tapTimer.current), []);
+  const onPhoneTap = (event: PointerEvent<HTMLVideoElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    const side = event.clientX < box.left + box.width / 2 ? 'left' : 'right';
+    const previous = lastTap.current;
+    window.clearTimeout(tapTimer.current);
+    if (previous && previous.side === side && event.timeStamp - previous.at < DOUBLE_TAP_MS) {
+      lastTap.current = null;
+      const seconds = side === 'left' ? -SEEK_STEP_S : SEEK_STEP_S;
+      seekBy(seconds);
+      showOsd(
+        side === 'left'
+          ? t('player.chrome.tapBack', { seconds: SEEK_STEP_S })
+          : t('player.chrome.tapForward', { seconds: SEEK_STEP_S }),
+      );
+      return;
+    }
+    lastTap.current = { at: event.timeStamp, side };
+    const wasHidden = hiddenAtTap.current;
+    tapTimer.current = window.setTimeout(() => {
+      lastTap.current = null;
+      // The pointer showed the controls already (poke); a tap on visible ones hides them.
+      if (!wasHidden && wantPlaying.current) {
+        window.clearTimeout(hideTimer.current);
+        setIdle(true);
+      }
+    }, DOUBLE_TAP_MS);
+  };
+  // Safari on the iPhone keeps the volume read-only: only the mute button (11.2).
+  const [muteOnly] = useState(() => volumeIsReadOnly());
+
   // The whole document goes full screen, not this player: a switch or auto-next replaces the
   // player, and removing the full-screen element would end full screen (W-2). The player covers
   // the viewport and its menus render inside it, so nothing else shows.
@@ -620,8 +678,21 @@ export function VideoPlayer({
   const hasVersions = versions.length > 1 && onSwitchVersion !== undefined;
 
   // Faded out: no input while playing, nothing open that needs the controls.
-  const hidden =
-    idle && playing && openMenu === null && panel === null && !countdownActive && !infoOpen;
+  const hidden = idle && playing && panel === null && tab === null && !countdownActive && !infoOpen;
+  const canPauseView =
+    !playing &&
+    ended === null &&
+    !failed &&
+    !switching &&
+    panel === null &&
+    tab === null &&
+    !countdownActive &&
+    !infoOpen;
+  useEffect(() => {
+    pauseAllowed.current = canPauseView;
+    armPauseView();
+  }, [armPauseView, canPauseView]);
+  const showPauseView = pauseView && canPauseView;
   // The text subtitles of this session, drawn by the player (11.10).
   const cueTexts = useSubtitleCues({
     video,
@@ -653,14 +724,24 @@ export function VideoPlayer({
         canSwitchTracks && !switching && available ? (kind) => openPanel(kind) : undefined,
       openQuality:
         hasQualities && !switching && available ? () => openSettings('quality', true) : undefined,
-      openChapters: hasChapters && available ? () => setOpenMenu('chapters') : undefined,
+      // C: the chapter tab with the focus on the chapter playing; on a phone the gear's page.
+      openChapters:
+        hasChapters && available
+          ? phone
+            ? () => openSettings('chapters', true)
+            : () =>
+                setTab((current) => ({
+                  id: 'chapters',
+                  focusChapter: (current?.focusChapter ?? 0) + 1,
+                }))
+          : undefined,
       skipIntro: inIntro ? skipIntro : undefined,
       playNext: next && onNextEpisode && available ? playNext : undefined,
       toggleHelp: () => togglePanel('help'),
-      closeMenu: () => setOpenMenu(null),
       closeOpen: () => {
         if (panel !== null) closePanel();
         else if (infoOpen) onToggleInfo?.();
+        else if (tab !== null) setTab(null);
         else return false;
         return true;
       },
@@ -748,6 +829,7 @@ export function VideoPlayer({
     const onPlaying = () => {
       wantPlaying.current = true;
       setPlaying(true);
+      setPauseView(false);
       // The start of the route's first session (data-start-ms); a later session of a switch
       // measures from the menu choice instead (data-switch-ms).
       if (switchFrom === undefined) {
@@ -882,6 +964,8 @@ export function VideoPlayer({
     // the next session is a new player.
     onSelect: (id: string) => {
       closePanel();
+      // V-17: remembered on this device, sent from stage 2 on (usePlayerPrefs).
+      setPrefs({ quality: id as Quality });
       switchPlayback({ quality: id as Quality });
     },
   };
@@ -901,31 +985,46 @@ export function VideoPlayer({
   const gearQuality =
     hasQualities && currentQuality ? qualityLabel(t, currentQuality, info) : undefined;
   const chapterIndex = chapterAt(info.chapters, currentMs);
-  const menuProps = (menu: MenuName) => ({
-    // After the server ended the playback a pick would start a new session behind the notice.
-    isDisabled: ended !== null,
-    isOpen: openMenu === menu,
-    onOpenChange: (isOpen: boolean) => {
-      if (isOpen) setPanel(null);
-      setOpenMenu((current) => (isOpen ? menu : current === menu ? null : current));
-    },
-  });
-
-  const chapterMenu: PlayerChromeMenu = {
-    buttonLabel: t('player.chapters.button'),
-    label: t('player.chapters.button'),
+  // On a phone the chapters are a page of the gear (11.2).
+  const chapterChoice = {
     options: chapters.map((chapter, index) => ({
       id: String(index),
       label: chapterLabel(t, chapter, index, durationMs),
     })),
-    selectedKey: String(chapterIndex),
-    reselect: true,
-    onSelect: (id) => {
+    selectedId: String(Math.max(0, chapterIndex)),
+    onSelect: (id: string) => {
       const chapter = chapters[Number(id)];
       if (chapter) seekTo(chapter.startMs);
     },
-    ...menuProps('chapters'),
   };
+
+  // The episodes of the season for «Als Nächstes» and «Folge zurück»: the season's details, which
+  // the detail page loads as well (11.10); no new endpoint.
+  const seasonId = info.item.kind === 'episode' ? detail?.season?.id : undefined;
+  const season = useQuery({ ...itemQuery(seasonId ?? ''), enabled: seasonId !== undefined });
+  const seasonEpisodes = season.data?.episodes;
+  const episodeIndex = seasonEpisodes?.findIndex((entry) => entry.id === info.item.id) ?? -1;
+  const previousEpisode = episodeIndex > 0 ? seasonEpisodes?.[episodeIndex - 1] : undefined;
+  const playEpisode = (target: ItemRef) => {
+    if (!onPlayEpisode || ended !== null) return;
+    setCountdownEnd(null);
+    onPlayEpisode(target);
+  };
+
+  // Back: the previous chapter; in the first seconds of the first chapter, or without chapters,
+  // the previous episode of the season (V-2).
+  const atStart =
+    chapterIndex <= 0 && currentMs - (chapters[0]?.startMs ?? 0) <= RESTART_CHAPTER_MS;
+  const backStep =
+    previousEpisode && onPlayEpisode && (!hasChapters || atStart)
+      ? {
+          label: t('player.chrome.previousEpisode'),
+          onPress: () => playEpisode(previousEpisode),
+          isDisabled: ended !== null,
+        }
+      : hasChapters
+        ? { label: t('player.chrome.previousChapter'), onPress: previousChapter }
+        : undefined;
 
   // Forward: the next chapter, after the last one the next episode (V-2).
   const forwardStep =
@@ -969,6 +1068,33 @@ export function VideoPlayer({
     ? t('player.chrome.lineChapter', { title: lineBase, chapter: chapterName })
     : lineBase;
 
+  // The tabs under the bar (11.2; not on a phone): the cast of the title, for an episode the
+  // series' when the episode has none.
+  const castList = detail?.cast && detail.cast.length > 0 ? detail.cast : series.data?.cast;
+  const allTabs = usePlayerTabs({
+    t,
+    chapters,
+    positionMs: currentMs,
+    durationMs,
+    onChapter: seekTo,
+    focusChapter: tab?.id === 'chapters' ? tab.focusChapter : undefined,
+    episodes: onPlayEpisode ? seasonEpisodes : undefined,
+    currentId: info.item.id,
+    onEpisode: playEpisode,
+    onClose: () => setTab(null),
+    cast: onOpenPerson ? castList : undefined,
+    onPerson: (personId) => onOpenPerson?.(personId),
+    info: detail ? { overview: detail.overview, facts: heading.subtitle } : undefined,
+  });
+  const tabs = phone ? [] : allTabs;
+
+  // V-18: a slow connection suggests the rung below, without switching by itself.
+  const lower = lowerQuality(info);
+  const slow = useSlowConnection(
+    video,
+    hasQualities && lower !== undefined && !switching && ended === null,
+  );
+
   const limit = ended?.watchTime?.limitMinutes;
   const nextCode = next ? episodeCode(t, next) : undefined;
   const nextName = next
@@ -999,7 +1125,6 @@ export function VideoPlayer({
 
   return (
     <main
-      ref={containerRef}
       className={styles.player}
       aria-label={t('player.region')}
       data-start-ms={startMs ?? undefined}
@@ -1031,10 +1156,15 @@ export function VideoPlayer({
         playsInline
         data-subtitle-color={subtitleStyle.color}
         data-subtitle-background={subtitleStyle.background}
-        onPointerUp={(event) => {
-          if (event.button === 0) togglePlay();
+        onPointerDown={() => {
+          hiddenAtTap.current = hidden;
         }}
-        onDoubleClick={toggleFullscreen}
+        onPointerUp={(event) => {
+          if (event.button !== 0) return;
+          if (phone) onPhoneTap(event);
+          else togglePlay();
+        }}
+        onDoubleClick={phone ? undefined : toggleFullscreen}
       >
         {info.subtitleUrl && (
           <track
@@ -1052,6 +1182,16 @@ export function VideoPlayer({
       </video>
 
       <SubtitleLayer texts={cueTexts} style={subtitleStyle} raised={!hidden} />
+
+      {showPauseView && (
+        <PauseView
+          title={heading.title}
+          logoUrl={heading.logoUrl}
+          detail={heading.subtitle}
+          overview={detail?.overview}
+          chapter={chapterName}
+        />
+      )}
 
       {failed && ended === null && (
         <div className={styles.center} role="alert">
@@ -1089,6 +1229,7 @@ export function VideoPlayer({
       )}
 
       <PlayerChrome
+        layout={layout}
         title={heading.title}
         logoUrl={heading.logoUrl}
         headingDetail={heading.subtitle}
@@ -1110,11 +1251,7 @@ export function VideoPlayer({
         onTogglePlay={togglePlay}
         onSkip={seekBy}
         playButtonRef={playRef}
-        previous={
-          hasChapters
-            ? { label: t('player.chrome.previousChapter'), onPress: previousChapter }
-            : undefined
-        }
+        previous={backStep}
         next={forwardStep}
         transportDisabled={switching || ended !== null}
         volume={volume.volume}
@@ -1122,6 +1259,7 @@ export function VideoPlayer({
         onVolumeChange={volume.setVolume}
         onToggleMute={volume.toggleMute}
         volumeBoost={webAudio}
+        muteOnly={muteOnly}
         fullscreen={fullscreen}
         onToggleFullscreen={toggleFullscreen}
         pictureInPicture={
@@ -1148,7 +1286,6 @@ export function VideoPlayer({
             : undefined
         }
 
-        chapterMenu={hasChapters ? chapterMenu : undefined}
         settings={{
           label: gearQuality
             ? t('player.settings.buttonWithQuality', { quality: gearQuality })
@@ -1159,7 +1296,9 @@ export function VideoPlayer({
           onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
           isDisabled: ended !== null,
         }}
-        portalContainer={portal ?? undefined}
+        tabs={tabs}
+        openTab={tab?.id ?? null}
+        onOpenTab={openTab}
         helpOpen={helpOpen}
         onToggleHelp={() => togglePanel('help')}
       />
@@ -1172,6 +1311,7 @@ export function VideoPlayer({
           onClose={closePanel}
           quality={hasQualities && !switching ? qualityChoice : undefined}
           version={hasVersions && !switching ? versionChoice : undefined}
+          chapters={phone && hasChapters ? chapterChoice : undefined}
           rate={rate}
           onRate={setRate}
           streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
@@ -1217,8 +1357,37 @@ export function VideoPlayer({
       <div aria-live="polite" aria-atomic="true">
         <VisuallyHidden>{announcement}</VisuallyHidden>
       </div>
+      {slow.slow && lower && (
+        <section className={styles.slow} aria-label={t('player.slow.label')}>
+          <p role="status">{t('player.slow.text', { quality: lower.quality })}</p>
+          <AriaButton
+            variant="primary"
+            onPress={() => {
+              slow.dismiss();
+              // Not remembered on the device (V-17 keeps only a choice in the panel).
+              switchPlayback({ quality: lower.quality });
+            }}
+          >
+            {t('player.slow.switch', { quality: lower.quality })}
+          </AriaButton>
+          <AriaButton variant="ghost" onPress={slow.dismiss}>
+            {t('player.slow.dismiss')}
+          </AriaButton>
+        </section>
+      )}
       {countdownActive && next && (
         <section ref={nextPanel} className={styles.next} aria-labelledby="next-episode-title">
+          {(next.images.backdropSmall ?? next.images.backdrop) && (
+            <img
+              className={styles.nextStill}
+              src={imageUrl(next.images.backdropSmall ?? next.images.backdrop)}
+              alt=""
+              width={480}
+              height={270}
+              decoding="async"
+              draggable={false}
+            />
+          )}
           <h2 id="next-episode-title" className={styles.nextTitle}>
             {t('player.next.title')}
           </h2>

@@ -7,7 +7,8 @@ import { PANEL_IDS } from './panelIds';
 import { SubtitleStyleOptions } from './SubtitleStyleOptions';
 
 /** The pages of the gear panel (11.2). */
-export type SettingsPage = 'main' | 'quality' | 'version' | 'speed' | 'subtitleStyle' | 'sound';
+export type SettingsPage =
+  'main' | 'quality' | 'version' | 'speed' | 'subtitleStyle' | 'sound' | 'chapters';
 
 /** One row of a page that chooses: a quality rung, a version. */
 export interface SettingsOption {
@@ -44,6 +45,8 @@ interface SettingsPanelProps {
   quality?: SettingsChoice;
   /** The versions of the title, only with two or more files. */
   version?: SettingsChoice;
+  /** The chapters: on a phone they are a page of the gear, not a tab (11.2). */
+  chapters?: SettingsChoice;
   rate: number;
   onRate: (rate: number) => void;
   /** The stream info over the video (key I). */
@@ -67,6 +70,7 @@ export function SettingsPanel({
   onClose,
   quality,
   version,
+  chapters,
   rate,
   onRate,
   streamInfo,
@@ -107,6 +111,7 @@ export function SettingsPanel({
 
   if (page === 'quality' && quality) return choicePage(t('player.settings.quality'), quality);
   if (page === 'version' && version) return choicePage(t('player.settings.version'), version);
+  if (page === 'chapters' && chapters) return choicePage(t('player.settings.chapters'), chapters);
   if (page === 'speed') {
     return choicePage(t('player.settings.speed'), {
       options: RATES.map((value) => ({ id: String(value), label: rateText(value) })),
@@ -149,6 +154,7 @@ export function SettingsPanel({
   const rows = [
     ...(quality ? (['quality'] as const) : []),
     ...(version ? (['version'] as const) : []),
+    ...(chapters ? (['chapters'] as const) : []),
     'speed' as const,
     'subtitleStyle' as const,
     ...(nightMode ? (['sound'] as const) : []),
@@ -156,6 +162,7 @@ export function SettingsPanel({
   const values = {
     quality: labelOf(quality),
     version: labelOf(version),
+    chapters: labelOf(chapters),
     speed: rateText(rate),
     subtitleStyle: undefined,
     sound: nightMode?.on ? t('player.settings.nightModeOn') : undefined,

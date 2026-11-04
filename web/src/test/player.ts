@@ -17,19 +17,20 @@ export type PlayerChoice = 'audio' | 'subtitle' | 'quality' | 'chapter' | 'versi
  *   named like the panel); their buttons name the language chosen: «Ton: Deutsch».
  * - Quality and version are pages of the gear panel («Einstellungen»): its first page has a row
  *   per page that names the current pick («Qualität», described «480p»).
- * - The chapters are still a react-aria menu behind the button «Kapitel» (a tab in step 5).
+ * - The chapters are the tab «Kapitel» under the bar (step 5): a row of chapter cards (buttons,
+ *   the chapter playing marked aria-current) in a list named like the tab.
  */
 type Shape =
   | { kind: 'panel'; control: RegExp; title: string }
   | { kind: 'gear'; row: string }
-  | { kind: 'menu'; control: string };
+  | { kind: 'tab'; control: string };
 
 const shapes: Record<PlayerChoice, Shape> = {
   audio: { kind: 'panel', control: /^Ton: /, title: 'Ton' },
   subtitle: { kind: 'panel', control: /^Untertitel: /, title: 'Untertitel' },
   quality: { kind: 'gear', row: 'Qualität' },
   version: { kind: 'gear', row: 'Version' },
-  chapter: { kind: 'menu', control: 'Kapitel' },
+  chapter: { kind: 'tab', control: 'Kapitel' },
 };
 
 const GEAR = 'Einstellungen';
@@ -42,18 +43,18 @@ function panelList(title: string): HTMLElement | null {
   return panel && within(panel).queryByRole('listbox', { name: title });
 }
 
-/** The open list of a choice: a panel's listbox, a gear page's listbox, or the menu. */
+/** The open list of a choice: a panel's listbox, a gear page's listbox, or a tab's cards. */
 function queryOpenList(choice: PlayerChoice): HTMLElement | null {
   const shape = shapes[choice];
-  if (shape.kind === 'menu') return screen.queryByRole('menu', { name: shape.control });
+  if (shape.kind === 'tab') return screen.queryByRole('list', { name: shape.control });
   return panelList(shape.kind === 'panel' ? shape.title : shape.row);
 }
 
-/** Rows of a panel's list are options, those of a menu menu items with a radio tick. */
+/** Rows of a panel's list are options, those of a tab cards (buttons) marked aria-current. */
 const isPanelList = (from: HTMLElement) => from.getAttribute('role') === 'listbox';
-const rowRole = (from: HTMLElement) => (isPanelList(from) ? 'option' : 'menuitemradio');
+const rowRole = (from: HTMLElement) => (isPanelList(from) ? 'option' : 'button');
 const chosenState = (from: HTMLElement) =>
-  isPanelList(from) ? { selected: true } : { checked: true };
+  isPanelList(from) ? { selected: true } : { current: true };
 
 /** The text of the element an option is described by: the value of a gear row. */
 function descriptionOf(element: HTMLElement): string {
@@ -89,8 +90,7 @@ export function playerDriver() {
   /** The control that opens a choice (the gear for quality and version); throws without one. */
   const control = (choice: PlayerChoice) => {
     const shape = shapes[choice];
-    const name =
-      shape.kind === 'gear' ? GEAR_BUTTON : shape.kind === 'panel' ? shape.control : shape.control;
+    const name = shape.kind === 'gear' ? GEAR_BUTTON : shape.control;
     return screen.getByRole('button', { name });
   };
 
@@ -236,8 +236,8 @@ export function playerDriver() {
     fireEvent.keyDown(target, { key });
   };
 
-  /** The open choice of any kind (a menu or a panel), or null when none is open. */
-  const openChoice = () => screen.queryByRole('menu') ?? screen.queryByRole('dialog');
+  /** The open choice of any kind (a tab or a panel), or null when none is open. */
+  const openChoice = () => screen.queryByRole('region') ?? screen.queryByRole('dialog');
 
   return {
     user,

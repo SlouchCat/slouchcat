@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { ComponentProps } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PlayerChrome, playerEndTime, playerRemainingMs } from './PlayerChrome';
 
@@ -13,15 +13,24 @@ const panel = (label: string, text?: string) => ({
   onPress: vi.fn(),
 });
 
-const menu = (label: string) => ({
+/** A tab with a row of `count` cards named «<label> <n>», or with text. */
+const cardTab = (id: string, label: string, count: number, current?: number) => ({
+  id,
   label,
-  buttonLabel: label,
-  options: [
-    { id: 'a', label: `${label} A` },
-    { id: 'b', label: `${label} B` },
-  ],
-  selectedKey: 'a',
-  onSelect: vi.fn(),
+  cards: {
+    count,
+    current,
+    render: (index: number, excluded: boolean) => (
+      <button type="button" tabIndex={excluded ? -1 : 0}>
+        {`${label} ${index + 1}`}
+      </button>
+    ),
+  },
+});
+const textTab = (id: string, label: string, text: string) => ({
+  id,
+  label,
+  content: <p>{text}</p>,
 });
 
 function renderChrome(props: Partial<Props> = {}) {
@@ -53,7 +62,6 @@ function renderChrome(props: Partial<Props> = {}) {
       next={{ label: 'Nächstes Kapitel', onPress: vi.fn() }}
       subtitles={panel('Untertitel: Aus', 'Aus')}
       audio={panel('Ton: Deutsch', 'Deutsch')}
-      chapterMenu={menu('Kapitel')}
       settings={panel('Einstellungen')}
       {...handlers}
       {...props}
@@ -179,7 +187,7 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
       expect(button('Untertitel: Aus')).toHaveFocus();
       await userEvent.keyboard('{ArrowRight}');
       expect(button('Ton: Deutsch')).toHaveFocus();
-      await userEvent.keyboard('{ArrowRight}{ArrowRight}');
+      await userEvent.keyboard('{ArrowRight}');
       expect(button('Einstellungen')).toHaveFocus();
       await userEvent.keyboard('{ArrowRight}');
       expect(button('Tastenkürzel')).toHaveFocus();
@@ -213,14 +221,6 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
       expect(seek()).toHaveFocus();
       await userEvent.keyboard('{ArrowDown}');
       expect(button('30 Sekunden vor')).toHaveFocus();
-    });
-
-    it('↑ on a menu button goes to the timeline instead of opening the menu', async () => {
-      renderChrome();
-      button('Kapitel').focus();
-      await userEvent.keyboard('{ArrowUp}');
-      expect(seek()).toHaveFocus();
-      expect(screen.queryByRole('menu')).toBeNull();
     });
 
     it('keeps the row’s keys from the page; the timeline passes ←/→ and ↑ on', () => {
@@ -258,10 +258,10 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
     });
 
     it('↓ from the row goes to the tabs and ↑ comes back to the row', async () => {
-      renderChrome({ tabs: <button type="button">Kapitel-Reiter</button> });
+      renderChrome({ tabs: [cardTab('chapters', 'Kapitel', 3), textTab('info', 'Info', 'Text')] });
       button('Abspielen').focus();
       await userEvent.keyboard('{ArrowDown}');
-      expect(button('Kapitel-Reiter')).toHaveFocus();
+      expect(button('Kapitel')).toHaveFocus();
       await userEvent.keyboard('{ArrowUp}');
       expect(button('Abspielen')).toHaveFocus();
     });
@@ -272,6 +272,197 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
       expect(button('Ton aus')).not.toHaveAttribute('tabindex', '-1');
       expect(button('Einstellungen')).toHaveAttribute('tabindex', '-1');
     });
+  });
+});
+
+/** The chrome with the tabs of 11.2 and the open tab in state, like the video player. */
+function Tabbed({ initial = null }: { initial?: string | null }) {
+  const [open, setOpen] = useState<string | null>(initial);
+  // Escape closes the open tab, as the player's key map does.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  return (
+    <>
+      <PlayerChrome
+        title="Silo"
+        lineLabel="Silo"
+        currentMs={0}
+        durationMs={600_000}
+        buffered={[]}
+        timeDisplay="elapsed"
+        onTimeDisplayChange={vi.fn()}
+        onSeek={vi.fn()}
+        playing={false}
+        onTogglePlay={vi.fn()}
+        onSkip={vi.fn()}
+        volume={1}
+        muted={false}
+        onVolumeChange={vi.fn()}
+        onToggleMute={vi.fn()}
+        fullscreen={false}
+        onToggleFullscreen={vi.fn()}
+        onBack={vi.fn()}
+        settings={panel('Einstellungen')}
+        tabs={[
+          cardTab('chapters', 'Kapitel', 4, 1),
+          cardTab('next', 'Als Nächstes', 2),
+          textTab('info', 'Info', 'Eine Stadt unter der Erde.'),
+        ]}
+        openTab={open}
+        onOpenTab={setOpen}
+      />
+      <button type="button" onClick={() => setOpen(null)}>
+        Reiter schliessen
+      </button>
+    </>
+  );
+}
+
+describe('PlayerChrome tabs (11.2, step 5)', () => {
+  const strip = () => screen.getByRole('toolbar', { name: 'Mehr zum Titel' });
+  const tabButton = (name: string) => within(strip()).getByRole('button', { name });
+
+  it('opens a tab from the strip; Enter on it again closes it', async () => {
+    render(<Tabbed />);
+    expect(tabButton('Kapitel')).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('region', { name: 'Kapitel' })).toBeNull();
+    await userEvent.click(tabButton('Kapitel'));
+    const region = screen.getByRole('region', { name: 'Kapitel' });
+    expect(tabButton('Kapitel')).toHaveAttribute('aria-expanded', 'true');
+    expect(tabButton('Kapitel')).toHaveAttribute('aria-controls', region.id);
+    expect(within(region).getAllByRole('button')).toHaveLength(4);
+    tabButton('Kapitel').focus();
+    await userEvent.keyboard('{Enter}');
+    expect(screen.queryByRole('region', { name: 'Kapitel' })).toBeNull();
+  });
+
+  it('strip: one Tab stop, ←/→ from tab to tab; ↓ into the cards on the current one', async () => {
+    render(<Tabbed initial="chapters" />);
+    button('Abspielen').focus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(tabButton('Kapitel')).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(tabButton('Als Nächstes')).toHaveFocus();
+    expect(tabButton('Kapitel')).toHaveAttribute('tabindex', '-1');
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}');
+    expect(tabButton('Info')).toHaveFocus();
+    await userEvent.keyboard('{Home}');
+    expect(tabButton('Kapitel')).toHaveFocus();
+    // ↓: the open tab's row of cards, on the card it names as current (the chapter playing).
+    await userEvent.keyboard('{ArrowDown}');
+    expect(button('Kapitel 2')).toHaveFocus();
+    expect(button('Kapitel 1')).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('cards: ←/→ from card to card, stop at the ends; ↑ back to the strip, then to the row', async () => {
+    const pageKeys = vi.fn();
+    window.addEventListener('keydown', pageKeys);
+    try {
+      render(<Tabbed initial="chapters" />);
+      button('Kapitel 2').focus();
+      await userEvent.keyboard('{ArrowRight}{ArrowRight}');
+      expect(button('Kapitel 4')).toHaveFocus();
+      await userEvent.keyboard('{ArrowRight}');
+      expect(button('Kapitel 4')).toHaveFocus();
+      await userEvent.keyboard('{Home}');
+      expect(button('Kapitel 1')).toHaveFocus();
+      // The arrows never reach the player (they would seek or change the volume).
+      await userEvent.keyboard('{ArrowLeft}{ArrowDown}');
+      expect(button('Kapitel 1')).toHaveFocus();
+      expect(pageKeys).not.toHaveBeenCalled();
+      await userEvent.keyboard('{ArrowUp}');
+      expect(tabButton('Kapitel')).toHaveFocus();
+      await userEvent.keyboard('{ArrowUp}');
+      expect(button('Abspielen')).toHaveFocus();
+    } finally {
+      window.removeEventListener('keydown', pageKeys);
+    }
+  });
+
+  it('Tab walks row, strip and cards as one stop each; no trap', async () => {
+    render(<Tabbed initial="next" />);
+    button('Abspielen').focus();
+    await userEvent.tab();
+    expect(tabButton('Als Nächstes')).toHaveFocus();
+    await userEvent.tab();
+    expect(button('Als Nächstes 1')).toHaveFocus();
+    await userEvent.tab();
+    expect(button('Reiter schliessen')).toHaveFocus();
+  });
+
+  it('the text of «Info» takes the focus with ↓; the focus goes to its tab when it closes', async () => {
+    render(<Tabbed initial="info" />);
+    tabButton('Info').focus();
+    await userEvent.keyboard('{ArrowDown}');
+    const text = screen.getByText('Eine Stadt unter der Erde.').parentElement!;
+    expect(text).toHaveFocus();
+    // Closed by the page (Escape) with the focus in it: the focus goes to its tab.
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('region', { name: 'Info' })).toBeNull();
+    expect(tabButton('Info')).toHaveFocus();
+    expect(tabButton('Info')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('a phone: options at the top, the transport in the middle (−10, play, +10), no tabs', async () => {
+    const { onSkip } = renderChrome({
+      layout: 'phone',
+      muteOnly: true,
+      tabs: [cardTab('chapters', 'Kapitel', 2)],
+    });
+    expect(screen.queryByRole('toolbar', { name: 'Mehr zum Titel' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tastenkürzel' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Vorheriges Kapitel' })).toBeNull();
+    // iPhone: only the mute button.
+    expect(screen.queryByRole('slider', { name: 'Lautstärke' })).toBeNull();
+    const options = screen.getByRole('toolbar', { name: 'Optionen' });
+    expect(
+      within(options)
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Ton aus', 'Untertitel: Aus', 'Ton: Deutsch', 'Einstellungen']);
+    // Icons only at the top right.
+    expect(within(options).getByRole('button', { name: 'Ton: Deutsch' })).toHaveTextContent('');
+    const transport = screen.getByRole('toolbar', { name: 'Wiedergabe' });
+    expect(
+      within(transport)
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['10 Sekunden zurück', 'Abspielen', '10 Sekunden vor']);
+    await userEvent.click(button('10 Sekunden vor'));
+    expect(onSkip).toHaveBeenCalledWith(10);
+
+    // Focus order follows the layout: options ↓ transport ↓ timeline, ↑ back up.
+    button('Abspielen').focus();
+    await userEvent.keyboard('{ArrowUp}');
+    expect(button('Ton aus')).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(button('Untertitel: Aus')).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(button('Abspielen')).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(seek()).toHaveFocus();
+    await userEvent.keyboard('{ArrowUp}');
+    expect(button('Abspielen')).toHaveFocus();
+    // Tab: head (back, options, full screen), the transport, the time, the timeline.
+    const order: string[] = [];
+    (document.activeElement as HTMLElement).blur();
+    for (let presses = 0; presses < 6; presses += 1) {
+      await userEvent.tab();
+      order.push((document.activeElement as HTMLElement).getAttribute('aria-label') ?? '');
+    }
+    expect(order).toEqual([
+      'Zurück',
+      'Untertitel: Aus',
+      'Vollbild',
+      'Abspielen',
+      '',
+      'Wiedergabeposition',
+    ]);
   });
 });
 

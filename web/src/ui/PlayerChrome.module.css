@@ -126,6 +126,101 @@
   display: contents;
 }
 
+/* The tabs under the bar (11.2): a strip of tabs, and the open one's row of cards or its text
+   slides in from below over the picture; the video does not move aside. */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.tabStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1);
+}
+
+.tabStrip [aria-expanded='true'] {
+  background-color: var(--sc-color-surface-3);
+}
+
+.tabPanel {
+  animation: rise var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
+}
+
+.cards {
+  display: grid;
+  grid-auto-columns: minmax(10rem, 14rem);
+  grid-auto-flow: column;
+  gap: var(--sc-space-3);
+  margin: 0;
+  overflow-x: auto;
+
+  /* Room for the focus ring, which the scroll container would clip. */
+  padding: var(--sc-space-1);
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.card {
+  min-width: 0;
+}
+
+.tabContent {
+  max-width: 48rem;
+  max-height: 10rem;
+  overflow-y: auto;
+  padding: var(--sc-space-1);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  line-height: var(--sc-font-line-height-normal);
+}
+
+/* A phone (11.2): the options at the top right, the transport large in the middle. */
+.options {
+  display: flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+}
+
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--sc-motion-duration-chrome) var(--sc-motion-easing-standard);
+}
+
+.center .group {
+  flex-wrap: nowrap;
+  gap: var(--sc-space-6);
+}
+
+.chrome[data-hidden] .center {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chrome[data-layout='phone'] .top {
+  flex-wrap: wrap;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--sc-space-2));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabPanel {
+    animation: none;
+  }
+}
+
 /* The language beside the icon of the sound and subtitle buttons; a long name stays short. */
 .panelText {
   max-width: 8rem;

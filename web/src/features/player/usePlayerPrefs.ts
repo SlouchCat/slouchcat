@@ -1,3 +1,4 @@
+import type { Quality } from '@slouchcat/api-client';
 import { useCallback, useState } from 'react';
 
 /** localStorage key of the player's settings on this device. */
@@ -12,7 +13,15 @@ export interface PlayerPrefs {
   volume?: number;
   /** The time above the timeline: elapsed and total, or remaining and the end time (V-4). */
   timeDisplay?: 'elapsed' | 'remaining';
+  /**
+   * The rung last chosen in the quality panel on this device (V-17, 11.5), never one taken after
+   * the hint of a slow connection (V-18). Stage 1 only remembers it; stage 2 sends a rung below
+   * 2160p as `qualityCap` when the player starts, and the server keeps deciding (rule 12).
+   */
+  quality?: Quality;
 }
+
+const QUALITIES: readonly Quality[] = ['auto', '1080p', '720p', '480p', '360p'];
 
 /** The stored settings; empty without storage (private window, blocked site data) or for junk. */
 export function readPlayerPrefs(): PlayerPrefs {
@@ -20,8 +29,9 @@ export function readPlayerPrefs(): PlayerPrefs {
     const raw = localStorage.getItem(PLAYER_PREFS_KEY);
     const value: unknown = raw === null ? null : JSON.parse(raw);
     if (value === null || typeof value !== 'object') return {};
-    const { volume, timeDisplay } = value as Record<string, unknown>;
+    const { volume, timeDisplay, quality } = value as Record<string, unknown>;
     const prefs: PlayerPrefs = {};
+    if (QUALITIES.includes(quality as Quality)) prefs.quality = quality as Quality;
     if (typeof volume === 'number' && Number.isFinite(volume)) {
       prefs.volume = Math.min(1, Math.max(0, volume));
     }

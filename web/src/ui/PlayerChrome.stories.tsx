@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { PlayerChrome } from './PlayerChrome';
+import { ChapterCard } from './ChapterCard';
+import { PlayerChrome, type PlayerChromeTab } from './PlayerChrome';
 
 // A film of two hours, 54 minutes in: four chapters, the third without a title.
 const chapters = [
@@ -11,13 +12,37 @@ const chapters = [
 
 const noop = () => undefined;
 const panel = (label: string, text?: string) => ({ label, text, expanded: false, onPress: noop });
-const menu = (label: string, buttonLabel = label) => ({
-  label,
-  buttonLabel,
-  options: [{ id: 'a', label }],
-  selectedKey: 'a',
-  onSelect: noop,
-});
+const DURATION_MS = 7_200_000;
+// The tabs under the bar (11.2): chapters as cards, the third one playing.
+const tabs: PlayerChromeTab[] = [
+  {
+    id: 'chapters',
+    label: 'Kapitel',
+    cards: {
+      count: chapters.length,
+      current: 2,
+      render: (index, excluded) => (
+        <ChapterCard
+          index={index}
+          title={chapters[index]!.title}
+          startMs={chapters[index]!.startMs}
+          durationMs={DURATION_MS}
+          progress={index < 2 ? 100 : index === 2 ? 60 : undefined}
+          isCurrent={index === 2}
+          onPress={noop}
+          excludeFromTabOrder={excluded}
+        />
+      ),
+    },
+  },
+  {
+    id: 'info',
+    label: 'Info',
+    content: (
+      <p>Ein Blade Runner findet ein Geheimnis, das die Gesellschaft ins Chaos stürzen könnte.</p>
+    ),
+  },
+];
 
 const meta = {
   title: 'UI/PlayerChrome',
@@ -49,7 +74,7 @@ const meta = {
     pictureInPicture: { active: false, onToggle: noop },
     subtitles: panel('Untertitel: Aus', 'Aus'),
     audio: panel('Ton: Deutsch', 'Deutsch'),
-    chapterMenu: menu('Kapitel'),
+    tabs,
     settings: panel('Einstellungen'),
     onToggleHelp: noop,
   },
@@ -85,7 +110,7 @@ export const Episode: Story = {
     previous: undefined,
     next: { label: 'Nächste Folge', onPress: noop },
     pictureInPicture: undefined,
-    chapterMenu: undefined,
+    tabs: [],
   },
 };
 
@@ -109,4 +134,32 @@ export const PanelOpen: Story = {
 export const RowFocused: Story = {
   args: { playing: false },
   tags: ['press:Tab+Tab+Tab+Tab+Tab+Tab+ArrowRight'],
+};
+
+/** The tab «Kapitel» is open: a row of chapter cards under the bar, the chapter playing marked. */
+export const ChaptersTab: Story = { args: { playing: false, openTab: 'chapters' } };
+
+/** The tab «Info»: the description, one Tab stop that scrolls. */
+export const InfoTab: Story = { args: { playing: false, openTab: 'info' } };
+
+/**
+ * A phone (11.2): −10 s, play/pause and +10 s large in the middle; volume, subtitles, sound and
+ * the gear at the top right; no tabs, no shortcut help. On an iPhone only the mute button.
+ */
+export const Phone: Story = {
+  args: { layout: 'phone', muteOnly: true, playing: false },
+  decorators: [
+    (Story) => (
+      <div
+        style={{
+          position: 'relative',
+          width: '24rem',
+          height: '44rem',
+          backgroundColor: 'var(--sc-color-media-backdrop)',
+        }}
+      >
+        <Story />
+      </div>
+    ),
+  ],
 };

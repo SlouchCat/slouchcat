@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
-import { arrowTo } from './playback';
+import { arrowTo, startOf } from './playback';
 
 /** DoD M1a: direct play starts in under 2 s in Chrome and Firefox. */
 const START_BUDGET_MS = 2000;
@@ -278,6 +278,95 @@ test('a volume above 100 % and night mode keep the video playing (Web Audio)', a
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
+test('the tab «Info» and the pause view by keyboard: ↓ to the tabs, Enter, ↓ into the text', async ({
+  page,
+}) => {
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const player = page.getByRole('main', { name: 'Videoplayer' });
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+  await page.keyboard.press('Space');
+  const play = page.getByRole('button', { name: 'Abspielen' });
+  await expectFocusOn(page, play);
+
+  // Five seconds of pause without input: the pause view; it takes no focus, a key hides it.
+  const pauseView = page.getByRole('region', { name: 'Pause' });
+  await expect(pauseView).toBeVisible({ timeout: 8000 });
+  await expect(pauseView.getByRole('heading', { name: H264_TITLE })).toBeVisible();
+  await expectFocusOn(page, play);
+  await page.keyboard.press('Shift');
+  await expect(pauseView).toHaveCount(0);
+
+  // ↓ from the row to the tab strip, → to «Info», Enter opens it, ↓ into its text.
+  await page.keyboard.press('ArrowDown');
+  const strip = page.getByRole('toolbar', { name: 'Mehr zum Titel' });
+  const info = strip.getByRole('button', { name: 'Info' });
+  await arrowTo(page, info, 'ArrowRight');
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect(info).toHaveAttribute('aria-expanded', 'true');
+  const panel = page.getByRole('region', { name: 'Info' });
+  await expect(panel).toBeVisible();
+  await page.keyboard.press('ArrowDown');
+  await expect(panel.locator('[data-tab-content]')).toBeFocused();
+  await expectVisibleFocus(page);
+  // No pause view while a tab is open; the controls stay.
+  await page.waitForTimeout(5500);
+  await expect(pauseView).toHaveCount(0);
+  await expect(player).toHaveAttribute('data-controls', 'visible');
+  // ↑ to the strip, ↑ to the row; Tab from the row goes to the strip, then on: no trap.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, info);
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, play);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, info);
+  await expectNoFocusTrap(page);
+  // Escape closes the tab, the next one leaves the player.
+  await page.locator('body').focus();
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(page).toHaveURL(/\/play\//);
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(new RegExp(`${detail}$`));
+});
+
+test('a slow connection suggests the rung below by keyboard and switches only on Enter', async ({
+  page,
+}) => {
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const player = page.getByRole('main', { name: 'Videoplayer' });
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+  // Two stalls of over a second within a minute (V-18), as the element reports them.
+  const video = page.locator('video');
+  for (let stalls = 0; stalls < 2; stalls += 1) {
+    await video.evaluate((element: HTMLVideoElement) =>
+      element.dispatchEvent(new Event('waiting')),
+    );
+    await page.waitForTimeout(1300);
+    await video.evaluate((element: HTMLVideoElement) =>
+      element.dispatchEvent(new Event('playing')),
+    );
+  }
+  const hint = page.getByRole('region', { name: 'Langsame Verbindung' });
+  await expect(hint.getByRole('status')).toHaveText(/^Verbindung langsam – auf \d+p wechseln\?$/);
+  const session = await player.getAttribute('data-playback-session-id');
+  // It took no focus and switched nothing.
+  await expectFocusOn(page, page.getByRole('button', { name: /^(Pause|Abspielen)$/ }));
+  expect(await player.getAttribute('data-playback-session-id')).toBe(session);
+  const switchButton = hint.getByRole('button', { name: /^Auf \d+p wechseln$/ });
+  await tabTo(page, switchButton);
+  const rung = /^Auf (\d+p) wechseln$/.exec((await switchButton.textContent()) ?? '')?.[1];
+  const next = await startOf(page, () => page.keyboard.press('Enter'));
+  expect(next.request.quality).toBe(rung);
+  await expect(hint).toHaveCount(0);
+  await expect(player).toHaveAttribute('data-playback-session-id', next.body.playbackSessionId);
+  // V-17 remembers only a choice in the quality panel, never the hint's.
+  const stored = await page.evaluate(() => localStorage.getItem('slouchcat.player'));
+  expect(JSON.parse(stored ?? '{}')).not.toHaveProperty('quality');
+});
+
 test('controls hide after 3 s of playback and come back on a key press', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -312,4 +401,76 @@ test('Backspace and browser back return to the detail page', async ({ page }) =>
   await expect(page).toHaveURL(/\/play\//);
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
+});
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('the phone layout by keyboard: options at the top, transport in the middle; two taps seek', async ({
+    page,
+  }) => {
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const player = page.getByRole('main', { name: 'Videoplayer' });
+    await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+    await page.keyboard.press('Space');
+    const play = page.getByRole('button', { name: 'Abspielen' });
+    await expectFocusOn(page, play);
+    const time = () =>
+      page.locator('video').evaluate((video: HTMLVideoElement) => video.currentTime);
+
+    // No tabs and no shortcut help; −10 s, play and +10 s in the middle.
+    await expect(page.getByRole('toolbar', { name: 'Mehr zum Titel' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Tastenkürzel' })).toHaveCount(0);
+    const transport = page.getByRole('toolbar', { name: 'Wiedergabe' });
+    await expect(transport.getByRole('button')).toHaveCount(3);
+    const box = await transport.boundingBox();
+    expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - 195)).toBeLessThan(20);
+
+    // ↑ to the options at the top right, → along them, ↓ back to the transport and to the
+    // timeline, ↑ back up.
+    const options = page.getByRole('toolbar', { name: 'Optionen' });
+    await page.keyboard.press('ArrowUp');
+    await expect(options.locator(':focus')).toHaveCount(1);
+    await expectVisibleFocus(page);
+    await arrowTo(page, options.getByRole('button', { name: /^Einstellungen/ }), 'ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, play);
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, page.getByRole('button', { name: '10 Sekunden vor' }));
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, page.getByRole('slider', { name: 'Wiedergabeposition' }));
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, page.getByRole('button', { name: '10 Sekunden vor' }));
+
+    // The gear opens as a sheet from the bottom; Escape closes it, the focus back on the gear.
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('Enter');
+    const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+    await expect(settings).toBeVisible();
+    const sheet = await settings.boundingBox();
+    expect(Math.round((sheet?.y ?? 0) + (sheet?.height ?? 0))).toBe(844);
+    await page.keyboard.press('Escape');
+    await expect(settings).toHaveCount(0);
+    await expectFocusOn(page, options.getByRole('button', { name: /^Einstellungen/ }));
+    await expectNoFocusTrap(page);
+
+    // Two taps on the left half: 10 s back; on the right half: 10 s on (the test clip is short,
+    // so both start near an end).
+    await page.locator('video').evaluate((video: HTMLVideoElement) => {
+      video.currentTime = Math.max(0, video.duration - 1);
+    });
+    const before = await time();
+    await page.mouse.dblclick(40, 422);
+    await expect.poll(time).toBeLessThan(before - 5);
+    await expect(player.getByRole('status')).toHaveText('−10 s');
+    const after = await time();
+    await page.mouse.dblclick(350, 422);
+    await expect.poll(time).toBeGreaterThan(after + 5);
+    // Two taps neither play nor go full screen.
+    expect(await page.evaluate(() => document.fullscreenElement)).toBeNull();
+    expect(await page.locator('video').evaluate((video: HTMLVideoElement) => video.paused)).toBe(
+      true,
+    );
+  });
 });

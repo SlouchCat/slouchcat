@@ -227,6 +227,107 @@
   gap: var(--sc-space-2);
 }
 
+/* The still of the next episode on the countdown card (W-9). */
+.nextStill {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+  object-fit: cover;
+}
+
+/* The pause view (V-10): the picture darkens towards the left, where the title shows. Under the
+   controls, and the pointer passes through. */
+.pauseView {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: var(--sc-space-16) var(--page-gutter);
+  background-image: linear-gradient(
+    to right,
+    var(--sc-color-scrim-strong) 0%,
+    var(--sc-color-scrim-medium) 50%,
+    var(--sc-color-scrim-soft) 100%
+  );
+  pointer-events: none;
+  animation: fade var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
+}
+
+.pauseInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  max-width: min(36rem, 100%);
+}
+
+.pauseEyebrow {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.pauseTitle {
+  font-size: var(--sc-font-size-3xl);
+  font-weight: var(--sc-font-weight-bold);
+}
+
+.pauseLogo {
+  max-width: min(100%, 24rem);
+  max-height: calc(var(--sc-space-24) + var(--sc-space-8));
+}
+
+.pauseDetail {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.pauseOverview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+/* The tab «Info» (11.2): the facts line over the description. */
+.tabInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.tabFacts {
+  color: var(--sc-color-text-primary);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* V-18: a slow connection suggests a lower rung, at the top, under the head. */
+.slow {
+  position: absolute;
+  top: calc(var(--sc-space-16) + var(--sc-space-8));
+  left: 50%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: calc(100% - 2 * var(--page-gutter));
+  padding: var(--sc-space-3) var(--sc-space-4);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-overlay);
+  transform: translateX(-50%);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -235,7 +336,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .next {
+  .next,
+  .pauseView {
     animation: none;
   }
 }
