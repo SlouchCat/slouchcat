@@ -10,9 +10,12 @@ import styles from '../Player.module.css';
 /** The ids of the tabs under the bar (11.2); C opens `chapters`. */
 export type PlayerTabId = 'chapters' | 'next' | 'cast' | 'info';
 
-/** How much of a chapter has played: 100 behind the position, none ahead of it. */
+/**
+ * How much of a chapter has played: 100 behind the position, none ahead of it nor at its very
+ * start (no «0 % gesehen»).
+ */
 export function chapterProgress(chapter: Chapter, positionMs: number): number | undefined {
-  if (positionMs < chapter.startMs) return undefined;
+  if (positionMs <= chapter.startMs) return undefined;
   if (positionMs >= chapter.endMs || chapter.endMs <= chapter.startMs) return 100;
   return ((positionMs - chapter.startMs) / (chapter.endMs - chapter.startMs)) * 100;
 }
@@ -33,7 +36,10 @@ interface PlayerTabsInput {
   onClose: () => void;
   cast?: readonly CastMember[];
   onPerson: (personId: number) => void;
-  /** The description and its facts line («2017 · 2 Std. 44 Min.»), from the title's details. */
+  /**
+   * The description and its facts line («2017 · 2 Std. 44 Min. · Science-Fiction», an episode
+   * «S01E04 · Wahrheit · 52 Min.»), from the title's details.
+   */
   info?: { overview?: string; facts?: string };
 }
 

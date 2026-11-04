@@ -43,7 +43,8 @@ describe('useSlowConnection (V-18)', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  function setup(enabled = true) {
+  /** `started`: the element has played once already (its first `playing`). */
+  function setup(enabled = true, started = true) {
     const media = { current: document.createElement('video') };
     let seeking = false;
     Object.defineProperty(media.current, 'seeking', { get: () => seeking });
@@ -54,6 +55,7 @@ describe('useSlowConnection (V-18)', () => {
       act(() => {
         media.current.dispatchEvent(new Event(type));
       });
+    if (started) fire('playing');
     const stall = (ms: number) => {
       fire('waiting');
       act(() => {
@@ -72,6 +74,29 @@ describe('useSlowConnection (V-18)', () => {
     stall(STALL_MS + 100);
     expect(hook.result.current.slow).toBe(false);
     stall(STALL_MS + 100);
+    expect(hook.result.current.slow).toBe(true);
+  });
+
+  it('a wait before the first playing does not count (review step 5)', () => {
+    const { hook, fire } = setup(true, false);
+    // The start fills the buffer: a long `waiting` before the first `playing`.
+    fire('waiting');
+    act(() => {
+      vi.advanceTimersByTime(STALL_MS * 3);
+    });
+    fire('playing');
+    expect(hook.result.current.slow).toBe(false);
+    // From then on stalls count: one more makes it slow only together with a second.
+    fire('waiting');
+    act(() => {
+      vi.advanceTimersByTime(STALL_MS + 100);
+    });
+    fire('playing');
+    expect(hook.result.current.slow).toBe(false);
+    fire('waiting');
+    act(() => {
+      vi.advanceTimersByTime(STALL_MS + 100);
+    });
     expect(hook.result.current.slow).toBe(true);
   });
 
@@ -122,6 +147,8 @@ describe('step 5 helpers', () => {
   it('a chapter is full behind the position, partly played around it, empty ahead', () => {
     const chapter = { startMs: 10_000, endMs: 20_000 };
     expect(chapterProgress(chapter, 5000)).toBeUndefined();
+    // At its very start nothing of it has played: no «0 % gesehen» (review step 5).
+    expect(chapterProgress(chapter, 10_000)).toBeUndefined();
     expect(chapterProgress(chapter, 15_000)).toBe(50);
     expect(chapterProgress(chapter, 25_000)).toBe(100);
   });

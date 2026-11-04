@@ -26,8 +26,9 @@ export function lowerQuality(info: PlaybackInfo): QualityOption | undefined {
 }
 
 /**
- * Counts the stalls of the media element (V-18, 11.5): a `waiting` that lasts over a second and
- * that no seek caused. Two of them within a minute make it slow; the player then suggests a lower
+ * Counts the stalls of the media element (V-18, 11.5): a `waiting` after the first `playing` (the
+ * start fills the buffer; that is not the connection stalling) that lasts over a second and that
+ * no seek caused. Two of them within a minute make it slow; the player then suggests a lower
  * rung and never switches by itself. Dismissed, the hint stays away for this session.
  */
 export function useSlowConnection(
@@ -37,14 +38,17 @@ export function useSlowConnection(
   const [slow, setSlow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const stalls = useRef<number[]>([]);
+  // The element played once (`playing`); kept while the hook is switched off and on again.
+  const played = useRef(false);
 
   useEffect(() => {
     const element = media.current;
     if (!element || !enabled || dismissed) return;
     let timer: number | undefined;
     const onWaiting = () => {
-      // A seek waits for data as well; that is the viewer's doing, not the connection's.
-      if (element.seeking) return;
+      // A seek waits for data as well; that is the viewer's doing, not the connection's. Before
+      // the first `playing` the player is still starting.
+      if (element.seeking || !played.current) return;
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
         const now = Date.now();
@@ -53,14 +57,18 @@ export function useSlowConnection(
       }, STALL_MS);
     };
     const onResume = () => window.clearTimeout(timer);
+    const onPlaying = () => {
+      played.current = true;
+      onResume();
+    };
     element.addEventListener('waiting', onWaiting);
-    element.addEventListener('playing', onResume);
+    element.addEventListener('playing', onPlaying);
     element.addEventListener('seeking', onResume);
     element.addEventListener('pause', onResume);
     return () => {
       window.clearTimeout(timer);
       element.removeEventListener('waiting', onWaiting);
-      element.removeEventListener('playing', onResume);
+      element.removeEventListener('playing', onPlaying);
       element.removeEventListener('seeking', onResume);
       element.removeEventListener('pause', onResume);
     };

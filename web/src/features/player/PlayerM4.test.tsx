@@ -315,7 +315,7 @@ describe('player M4', () => {
     const chapterList = await player.findList('chapter');
     // The chapter tab's cards (step 5): the chapter playing is marked and has the focus.
     const playing = player.chosen(chapterList);
-    expect(playing).toHaveAccessibleName('Kapitel 1: Anfang 0:00:00 0 % gesehen');
+    expect(playing).toHaveAccessibleName('Kapitel 1: Anfang 0:00:00');
     await waitFor(() => expect(playing).toHaveFocus());
     await player.chooseChapter(/^Kapitel 3 0:00:06/);
     expect(media.currentTime).toBeCloseTo(6.5);
