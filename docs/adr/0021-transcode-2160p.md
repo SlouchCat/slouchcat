@@ -90,8 +90,9 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
 - Level und Codec-String folgen der Ausgabehöhe (`h264Level`): bis 1080 Zeilen 4.1
   (`avc1.640029`), darüber 5.1 (`avc1.640033`).
 - **Kosten:** `cost2160p = 5` in `transcode/plan.go` (Punkt 5), für jede Ausgabe über 1080 Zeilen.
-  Der Wert ist der Startwert dieses ADR. Die Messung auf CT 190 steht noch aus; sie folgt vor dem
-  Merge von Stufe 2 in `docs/perf/13-abspielseite.md`.
+  Der Wert ist der Startwert dieses ADR. Gemessen auf CT 190 am 4. November 2026
+  (`docs/perf/13-abspielseite.md` 1): ein 2160p24-Strom 3,8-fach, zwei je 1,9-fach, 2160p60 allein
+  1,4-fach Echtzeit, synthetische Quellen. Die Kosten 5 bleiben.
 
 ## Umsetzung in `playback` (Stufe 2, Schritt 11, 4. November 2026)
 
