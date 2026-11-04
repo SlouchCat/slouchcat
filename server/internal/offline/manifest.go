@@ -19,6 +19,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
@@ -371,14 +372,14 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 			out.Chapters = []model.Chapter{}
 		}
 	case !isAudio(item.Kind) && row.MediaFileID.Valid:
-		// A film or an episode: the chapter marks of the downloaded file, as playback reads them.
-		// The download keeps the source timeline (transcode.Runner.Download), so they fit a remux
-		// and a transcode alike.
+		// A film or an episode: the chapters of the downloaded file, as playback reads them
+		// (transcode.Chapters, concept 13 11.6). The download keeps the source timeline
+		// (transcode.Runner.Download), so they fit a remux and a transcode alike.
 		pf, err := s.vis.MediaFileProbe(ctx, scope, row.ItemID, row.MediaFileID.String)
 		if err != nil {
 			return model.DownloadManifest{}, err
 		}
-		out.Chapters = parseProbe(pf.Probe).ChapterMarks()
+		out.Chapters = transcode.Chapters(parseProbe(pf.Probe), item.Kind, row.DurationMs.Int64)
 	}
 	for _, e := range ix.entries {
 		out.Segments = append(out.Segments, model.DownloadSegment{StartMs: e.StartMs, DurationMs: e.DurationMs, Offset: e.Offset, Length: e.Length})

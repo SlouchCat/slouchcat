@@ -687,6 +687,11 @@ type Chapter struct {
 	StartMs int64
 	EndMs   int64
 	Title   string
+	// Auto marks a replacement chapter that the server set every 10 minutes (concept 13, F-6).
+	Auto bool
+	// ImageURL is the relative URL of the chapter image of a film or an episode, set only when the
+	// image exists (concept 13 stage 3); never in a download manifest.
+	ImageURL string
 }
 
 // Segment is a detected intro or outro of an episode (W-9).

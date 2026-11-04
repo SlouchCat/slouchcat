@@ -144,10 +144,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		out.SeriesIndex = &idx
 	}
 	if d.Kind == "audiobook" {
-		chapters := make([]gen.Chapter, 0, len(d.Chapters))
-		for _, c := range d.Chapters {
-			chapters = append(chapters, gen.Chapter{StartMs: c.StartMs, EndMs: c.EndMs, Title: optString(c.Title)})
-		}
+		chapters := toChapters(d.Chapters)
 		out.Chapters = &chapters
 	}
 	if day, err := time.Parse(time.DateOnly, d.ReleaseDate); err == nil {

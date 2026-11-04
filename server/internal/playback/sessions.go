@@ -306,7 +306,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		mediaKind = model.MediaKindAudio
 	}
 	if bookChapters == nil {
-		bookChapters = probe.ChapterMarks()
+		bookChapters = transcode.Chapters(probe, item.Kind, file.DurationMs)
 	}
 	info := model.PlaybackInfo{
 		MediaKind:         mediaKind,

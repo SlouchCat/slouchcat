@@ -4651,12 +4651,34 @@ export interface components {
              */
             current: boolean;
         };
+        /**
+         * @description A chapter on the source timeline. Since contract 1.12.0 (concept 13, 11.6) the chapters of a
+         *     film or an episode follow these rules; audiobooks and podcast episodes keep their marks as
+         *     before. A title that only numbers the chapter (a time such as `00:12:36.172`, «Chapter 12»,
+         *     «Kapitel 12») is left out, and the client numbers such chapters by their position in the list.
+         *     A file of at least 30 minutes with fewer than four chapters gets replacement chapters every
+         *     10 minutes instead (`auto`); a last section under 3 minutes merges into the one before it, and
+         *     a real credits chapter («Credits», «Abspann») stays with its title.
+         */
         Chapter: {
             /** Format: int64 */
             startMs: number;
             /** Format: int64 */
             endMs: number;
             title?: string;
+            /**
+             * @description Set (true) on a replacement chapter that the server placed every 10 minutes because the
+             *     file has too few chapters of its own (since contract 1.12.0, F-6); such a chapter has no
+             *     title. Absent on real chapters.
+             */
+            auto?: boolean;
+            /**
+             * @description Relative URL of `getChapterImage` for this chapter of a film or an episode, set only when
+             *     the image exists (since contract 1.12.0, concept 13 stage 3). Absent while the background
+             *     job `chapters.images` has not made the image yet, on audiobooks and podcast episodes, and
+             *     in `DownloadManifest.chapters`.
+             */
+            imageUrl?: string;
         };
         PlaybackPart: {
             mediaFileId: string;
@@ -4718,6 +4740,11 @@ export interface components {
             subtitleUrl?: string;
             /** @description The quality rungs of this playback, highest first (W-8 manual choice). */
             qualities: components["schemas"]["QualityOption"][];
+            /**
+             * @description Chapters on the timeline of the playback (empty without marks). Since contract 1.12.0 a film
+             *     or an episode carries cleaned titles, replacement chapters (`Chapter.auto`) and chapter
+             *     images (`Chapter.imageUrl`), see `Chapter`.
+             */
             chapters: components["schemas"]["Chapter"][];
             segments: components["schemas"]["Segments"];
             /** @description The next visible episode of the same series (auto-next, W-9). */
@@ -5601,7 +5628,9 @@ export interface components {
              * @description Chapters on the timeline of the playback (empty without marks): those of an audiobook
              *     on the book's timeline; since contract 1.10.0 also those of a film or an episode, the
              *     chapter marks of the downloaded file that `PlaybackInfo.chapters` offers online. Before
-             *     1.10.0 a video download carried none.
+             *     1.10.0 a video download carried none. Since contract 1.12.0 they follow the rules of
+             *     `Chapter` (cleaned titles, replacement chapters), without `imageUrl`: offline playback
+             *     fetches no chapter images.
              */
             chapters: components["schemas"]["Chapter"][];
         };
