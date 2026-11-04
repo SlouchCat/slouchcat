@@ -826,6 +826,10 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   - Bis Schritt 11 lehnt der Server `quality: original`, `quality: 2160p` und jede `qualityCap`
     mit 422 ab, statt etwas anderes zu spielen. Schritt 11 ersetzt das durch 11.5 (c).
   - Bis Schritt 9 heisst ein fehlendes oder leeres `subtitleTrack` weiter «keine Untertitel».
+- **4K im Breitbild** (Marcos Entscheid vom 4. November 2026, Schritt 12): Eine Quelle gilt für
+  2160p als 4K, wenn sie mindestens 2160 Zeilen **oder** mindestens 3840 Pixel Breite hat. Damit
+  bekommen auch Kinofilme im Breitbild (z. B. 3840×1600) die Stufe 2160p. Das ergänzt 11.5
+  «Quelle mindestens 2160 Zeilen». Das H.264-Level folgt der Bildgrösse, nicht nur der Höhe.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
