@@ -923,11 +923,11 @@ func (q *Queries) SetProfilePin(ctx context.Context, arg SetProfilePinParams) er
 	return err
 }
 
-const setProfilePlaybackPrefs = `-- name: SetProfilePlaybackPrefs :exec
+const setProfilePlaybackPrefs = `-- name: SetProfilePlaybackPrefs :execrows
 UPDATE profiles
 SET audio_languages = ?1, subtitle_mode = ?2, subtitle_languages = ?3,
     updated_at = ?4
-WHERE id = ?5
+WHERE id = ?5 AND account_id = ?6
 `
 
 type SetProfilePlaybackPrefsParams struct {
@@ -936,18 +936,24 @@ type SetProfilePlaybackPrefsParams struct {
 	SubtitleLanguages string
 	Now               int64
 	ID                int64
+	AccountID         int64
 }
 
-// The language and subtitle preferences of a profile (JSON arrays of ISO 639-1 codes).
-func (q *Queries) SetProfilePlaybackPrefs(ctx context.Context, arg SetProfilePlaybackPrefsParams) error {
-	_, err := q.db.ExecContext(ctx, setProfilePlaybackPrefs,
+// The language and subtitle preferences of a profile of the account (JSON arrays of ISO 639-1
+// codes); 0 rows = no such profile in the account.
+func (q *Queries) SetProfilePlaybackPrefs(ctx context.Context, arg SetProfilePlaybackPrefsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setProfilePlaybackPrefs,
 		arg.AudioLanguages,
 		arg.SubtitleMode,
 		arg.SubtitleLanguages,
 		arg.Now,
 		arg.ID,
+		arg.AccountID,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setSessionProfile = `-- name: SetSessionProfile :execrows

@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"slices"
 
-	"golang.org/x/text/language"
-
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 )
 
 // Language and subtitle preferences of a profile (concept 13 sections 11.3 and 11.4, F-13): every
@@ -48,23 +47,30 @@ func languageColumn(langs []string) string {
 	return string(b)
 }
 
-// iso6391 reports whether code is a two-letter ISO 639-1 code in its canonical lower-case form.
-func iso6391(code string) bool {
-	if len(code) != 2 {
-		return false
-	}
-	base, err := language.ParseBase(code)
-	return err == nil && base.String() == code
+// prefColumns encodes validated preferences for the three columns of profiles.
+func prefColumns(prefs model.PlaybackPrefs) (audio, mode, subs string) {
+	return languageColumn(prefs.AudioLanguages), prefs.SubtitleMode, languageColumn(prefs.SubtitleLanguages)
 }
 
-// validLanguages checks a language list for field: ISO 639-1 codes, no duplicate (invalid_value),
+// initialPrefs are the preferences of a new profile (F-12, like migration 00032 for the existing
+// ones): its interface language in both lists, [] without one, and the subtitle rule forced (F-3).
+func initialPrefs(lang string) model.PlaybackPrefs {
+	langs := []string{}
+	if lang != "" {
+		langs = []string{lang}
+	}
+	return model.PlaybackPrefs{AudioLanguages: langs, SubtitleMode: model.SubtitleModeForced, SubtitleLanguages: slices.Clone(langs)}
+}
+
+// validLanguages checks a language list for field: current ISO 639-1 codes as the track choice
+// compares them (trackpick.Valid), no duplicate (invalid_value),
 // at most maxPrefLanguages entries (too_long).
 func validLanguages(field string, langs []string, verr *model.ValidationError) *model.ValidationError {
 	if len(langs) > maxPrefLanguages {
 		return verr.Add(field, "too_long")
 	}
 	for i, code := range langs {
-		if !iso6391(code) || slices.Contains(langs[:i], code) {
+		if !trackpick.Valid(code) || slices.Contains(langs[:i], code) {
 			return verr.Add(field, "invalid_value")
 		}
 	}
@@ -91,11 +97,6 @@ func applyPrefs(prefs *model.PlaybackPrefs, in model.ProfileInput, verr *model.V
 		}
 	}
 	return verr
-}
-
-// hasPrefs reports whether in sends any of the preference fields.
-func hasPrefs(in model.ProfileInput) bool {
-	return in.AudioLanguages != nil || in.SubtitleMode != nil || in.SubtitleLanguages != nil
 }
 
 // GetPlaybackPrefs returns the preferences of the session's active profile (model.ErrNotFound when
@@ -138,15 +139,16 @@ func (s *Service) SetPlaybackPrefs(ctx context.Context, session model.Session, p
 	if verr = applyPrefs(&out, in, verr); verr != nil {
 		return model.PlaybackPrefs{}, verr
 	}
-	row, err := s.read.GetProfileOfAccount(ctx, appq.GetProfileOfAccountParams{ID: session.Profile.ID, AccountID: session.Account.ID})
+	audio, mode, subs := prefColumns(out)
+	n, err := s.write.SetProfilePlaybackPrefs(ctx, appq.SetProfilePlaybackPrefsParams{
+		ID: session.Profile.ID, AccountID: session.Account.ID, AudioLanguages: audio, SubtitleMode: mode,
+		SubtitleLanguages: subs, Now: s.now().UnixMilli(),
+	})
 	if err != nil {
-		return model.PlaybackPrefs{}, notFoundOr(err, "get profile")
-	}
-	if err := s.write.SetProfilePlaybackPrefs(ctx, appq.SetProfilePlaybackPrefsParams{
-		ID: row.ID, AudioLanguages: languageColumn(out.AudioLanguages), SubtitleMode: out.SubtitleMode,
-		SubtitleLanguages: languageColumn(out.SubtitleLanguages), Now: s.now().UnixMilli(),
-	}); err != nil {
 		return model.PlaybackPrefs{}, fmt.Errorf("set playback prefs: %w", err)
+	}
+	if n == 0 {
+		return model.PlaybackPrefs{}, model.ErrNotFound
 	}
 	return out, nil
 }

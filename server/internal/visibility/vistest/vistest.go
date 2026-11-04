@@ -337,7 +337,7 @@ func (f *Fixture) seedProfiles(t testing.TB, ctx context.Context) {
 	}
 	f.Account = model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, IsOwner: true, MaxRating: 18, AllLibraries: true, LibraryIDs: []int64{}}
 	add := func(name string, maxRating int, lang string, isDefault int64) model.Profile {
-		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, Now: 1})
+		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -388,7 +388,7 @@ func (f *Fixture) AddEdgeCases(t testing.TB) {
 	t.Helper()
 	ctx := context.Background()
 	q := appq.New(f.DB.Write)
-	p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: f.Account.ID, Name: "PX", MaxRating: 18, Language: "de", AllLibraries: 0, Now: 1})
+	p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: f.Account.ID, Name: "PX", MaxRating: 18, Language: "de", AllLibraries: 0, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -660,7 +660,7 @@ func (f *Fixture) AddSecondAdmin(t testing.TB) {
 	}
 	f.Admin2 = model.Account{ID: acc.ID, Email: acc.Email, Role: acc.Role, MaxRating: 18, AllLibraries: true, LibraryIDs: []int64{}}
 	add := func(name string, maxRating int, isDefault int64) model.Profile {
-		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: "de", AllLibraries: 1, IsDefault: isDefault, Now: 1})
+		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: "de", AllLibraries: 1, IsDefault: isDefault, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -685,7 +685,7 @@ func (f *Fixture) AddGuest(t testing.TB) {
 	}
 	f.Guest = model.Account{ID: acc.ID, Email: acc.Email, Role: model.RoleUser, MaxRating: 12, LibraryIDs: []int64{f.libraryID}}
 	add := func(name string, maxRating int, lang string, isDefault int64) model.Profile {
-		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, Now: 1})
+		p, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: acc.ID, Name: name, MaxRating: int64(maxRating), Language: lang, AllLibraries: 1, IsDefault: isDefault, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1})
 		if err != nil {
 			t.Fatal(err)
 		}

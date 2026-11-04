@@ -259,9 +259,11 @@ func (q *Queries) InsertAccount(ctx context.Context, arg InsertAccountParams) (A
 
 const insertProfile = `-- name: InsertProfile :one
 INSERT INTO profiles (account_id, name, max_rating, language, accent, all_libraries, is_default, pin_hash,
-                      max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, created_at, updated_at)
+                      max_bitrate_kbps, max_height, max_streams, watch_limit_minutes,
+                      audio_languages, subtitle_mode, subtitle_languages, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
-        ?9, ?10, ?11, ?12, ?13, ?13)
+        ?9, ?10, ?11, ?12,
+        ?13, ?14, ?15, ?16, ?16)
 RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages
 `
 
@@ -278,6 +280,9 @@ type InsertProfileParams struct {
 	MaxHeight         sql.NullInt64
 	MaxStreams        sql.NullInt64
 	WatchLimitMinutes sql.NullInt64
+	AudioLanguages    string
+	SubtitleMode      string
+	SubtitleLanguages string
 	Now               int64
 }
 
@@ -295,6 +300,9 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 		arg.MaxHeight,
 		arg.MaxStreams,
 		arg.WatchLimitMinutes,
+		arg.AudioLanguages,
+		arg.SubtitleMode,
+		arg.SubtitleLanguages,
 		arg.Now,
 	)
 	var i Profile

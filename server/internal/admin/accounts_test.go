@@ -33,7 +33,7 @@ func TestListAccounts(t *testing.T) {
 			t.Fatal(err)
 		}
 		if _, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: g.ID, Name: "Gast", MaxRating: 12, Language: "de",
-			AllLibraries: 1, IsDefault: 1, Now: 1}); err != nil {
+			AllLibraries: 1, IsDefault: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1}); err != nil {
 			t.Fatal(err)
 		}
 		if err := systemq.New(f.db.Write).ChannelEnsureDefaults(ctx, systemq.ChannelEnsureDefaultsParams{AccountID: g.ID, Now: 1}); err != nil {
@@ -45,7 +45,7 @@ func TestListAccounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := q.InsertProfile(ctx, appq.InsertProfileParams{AccountID: owner.ID, Name: "Kind", MaxRating: 6, Language: "de",
-		AllLibraries: 1, Now: 2}); err != nil {
+		AllLibraries: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 2}); err != nil {
 		t.Fatal(err)
 	}
 	if err := q.TouchAccount(ctx, appq.TouchAccountParams{ID: owner.ID, Now: sql.NullInt64{Int64: 1_760_000_000_000, Valid: true}}); err != nil {

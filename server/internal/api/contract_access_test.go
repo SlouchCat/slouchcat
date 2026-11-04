@@ -516,7 +516,7 @@ func TestContractAccountOperations(t *testing.T) {
 				target := a.choose(f)
 				if call.fresh {
 					row, err := q.InsertProfile(context.Background(), appq.InsertProfileParams{
-						AccountID: account.ID, Name: "Target", MaxRating: 18, Language: "de", AllLibraries: 1, Now: 1,
+						AccountID: account.ID, Name: "Target", MaxRating: 18, Language: "de", AllLibraries: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1,
 					})
 					if err != nil {
 						t.Fatal(err)

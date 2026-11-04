@@ -1,6 +1,10 @@
 package trackpick
 
-import "strings"
+import (
+	"strings"
+
+	"golang.org/x/text/language"
+)
 
 // languageCodes maps the language codes and names that files, sidecars and TMDB use to the ISO
 // 639-1 code profiles store (concept 13 section 11.3, "Sprachcodes"): ISO 639-2/B and /T ("ger",
@@ -222,4 +226,22 @@ func Normalize(code string) string {
 		return ""
 	}
 	return primary
+}
+
+// Valid reports whether code is a language as profiles store it and Normalize returns it: a
+// current two-letter ISO 639-1 code in lower case. It refuses the withdrawn codes iw, in, ji, jw
+// and mo (x/text maps them onto he, id, yi, jv and ro), sh (Serbo-Croatian, withdrawn in 2000;
+// x/text keeps it outside Deprecated) and the codes this table maps onto another one (nb, nn → no,
+// cn → zh): a profile with such a code would never match a track. The auth package checks the
+// language lists of the profiles with it, the metadata package the original language of a title.
+func Valid(code string) bool {
+	if len(code) != 2 || code == "sh" || Normalize(code) != code {
+		return false
+	}
+	t, err := language.Deprecated.Parse(code)
+	if err != nil {
+		return false
+	}
+	base, _ := t.Base()
+	return base.String() == code
 }

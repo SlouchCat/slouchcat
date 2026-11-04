@@ -113,7 +113,7 @@ func (f *Fixture) AddLimitedProfile(t testing.TB, name string, limits model.Play
 	t.Helper()
 	col := func(v int) sql.NullInt64 { return sql.NullInt64{Int64: int64(v), Valid: v > 0} }
 	p, err := appq.New(f.DB.Write).InsertProfile(context.Background(), appq.InsertProfileParams{
-		AccountID: f.Account.ID, Name: name, MaxRating: 18, Language: "de", AllLibraries: 1, Now: 1,
+		AccountID: f.Account.ID, Name: name, MaxRating: 18, Language: "de", AllLibraries: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1,
 		MaxBitrateKbps: col(limits.MaxBitrateKbps), MaxHeight: col(limits.MaxHeight), MaxStreams: col(limits.MaxStreams),
 		WatchLimitMinutes: col(limits.WatchLimitMinutes),
 	})

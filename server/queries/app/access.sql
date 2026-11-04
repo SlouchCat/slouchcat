@@ -39,12 +39,13 @@ SET name = @name, max_rating = @max_rating, language = @language, metadata_langu
     updated_at = @now
 WHERE id = @id;
 
--- name: SetProfilePlaybackPrefs :exec
--- The language and subtitle preferences of a profile (JSON arrays of ISO 639-1 codes).
+-- name: SetProfilePlaybackPrefs :execrows
+-- The language and subtitle preferences of a profile of the account (JSON arrays of ISO 639-1
+-- codes); 0 rows = no such profile in the account.
 UPDATE profiles
 SET audio_languages = @audio_languages, subtitle_mode = @subtitle_mode, subtitle_languages = @subtitle_languages,
     updated_at = @now
-WHERE id = @id;
+WHERE id = @id AND account_id = @account_id;
 
 -- name: SetProfilePin :exec
 UPDATE profiles SET pin_hash = @pin_hash, updated_at = @now WHERE id = @id;

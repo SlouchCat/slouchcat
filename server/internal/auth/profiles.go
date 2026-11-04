@@ -122,9 +122,10 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	if p.AllLibraries == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
 		verr = verr.Add("libraryIds", "required")
 	}
-	// Preferences that are not sent keep the column defaults of migration 00032.
-	prefs := model.PlaybackPrefs{AudioLanguages: []string{}, SubtitleMode: model.SubtitleModeForced, SubtitleLanguages: []string{}}
+	// Preferences that are not sent start from the profile's language (F-12).
+	prefs := initialPrefs(p.Language)
 	verr = applyPrefs(&prefs, in, verr)
+	p.AudioLanguages, p.SubtitleMode, p.SubtitleLanguages = prefColumns(prefs)
 	if verr != nil {
 		return model.Profile{}, verr
 	}
@@ -170,14 +171,6 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 			return model.Profile{}, fmt.Errorf("insert profile library: %w", err)
 		}
 	}
-	if hasPrefs(in) {
-		row.AudioLanguages, row.SubtitleMode, row.SubtitleLanguages = languageColumn(prefs.AudioLanguages), prefs.SubtitleMode, languageColumn(prefs.SubtitleLanguages)
-		if err := q.SetProfilePlaybackPrefs(ctx, appq.SetProfilePlaybackPrefsParams{
-			ID: row.ID, AudioLanguages: row.AudioLanguages, SubtitleMode: row.SubtitleMode, SubtitleLanguages: row.SubtitleLanguages, Now: p.Now,
-		}); err != nil {
-			return model.Profile{}, fmt.Errorf("set playback prefs: %w", err)
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
@@ -207,7 +200,7 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	verr := applyInput(acc, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
 	prefs := prefsOf(row)
 	verr = applyPrefs(&prefs, in, verr)
-	p.AudioLanguages, p.SubtitleMode, p.SubtitleLanguages = languageColumn(prefs.AudioLanguages), prefs.SubtitleMode, languageColumn(prefs.SubtitleLanguages)
+	p.AudioLanguages, p.SubtitleMode, p.SubtitleLanguages = prefColumns(prefs)
 	if in.MetadataLanguage != nil {
 		// "" reads the metadata in the interface language again; any other value must be one the
 		// server offers (the union of the effective lists, ADR 0018).

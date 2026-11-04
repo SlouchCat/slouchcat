@@ -29,6 +29,19 @@ func TestNormalize(t *testing.T) {
 	}
 }
 
+func TestValid(t *testing.T) {
+	for code, want := range map[string]bool{
+		"de": true, "en": true, "he": true, "id": true, "no": true, "tl": true, "zh": true, "ja": true,
+		"iw": false, "in": false, "ji": false, "jw": false, "mo": false, "sh": false,
+		"nb": false, "nn": false, "cn": false, "xx": false, "zz": false, "DE": false, "ger": false,
+		"gsw": false, "pt-br": false, "": false, "d": false,
+	} {
+		if got := Valid(code); got != want {
+			t.Errorf("Valid(%q) = %v, want %v", code, got, want)
+		}
+	}
+}
+
 // TestLanguageParity holds the language table of the web client (LANGUAGE_CODES and NO_LANGUAGE
 // in web/src/features/player/labels.ts) in step with this one: the client orders its panels by
 // the same languages the server chooses tracks by (concept 13 11.3).
