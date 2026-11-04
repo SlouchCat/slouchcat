@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alienDetail, alienTracks, episodes, hlsPlayback, ids, playback } from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
+import { playerDriver } from '@/test/player';
 
 // M4 player: tracks (W-4, I-5), quality (W-8), chapters, intro and auto-next (W-9), the limits
 // (K-5, W-8) and a stream the admin ended (W-6). The server decides; the player shows its answers.
@@ -126,7 +127,7 @@ describe('player M4', () => {
     vi.unstubAllGlobals();
   });
 
-  it('T opens the track menu, which asks for the tracks again; a pick starts a new session', async () => {
+  it('T opens the track choice, which asks for the tracks again; a pick starts a new session', async () => {
     const media = stubMedia();
     const english: PlaybackInfo = {
       ...playback,
@@ -158,28 +159,24 @@ describe('player M4', () => {
     await startPlayer(container);
     media.currentTime = 3000;
 
+    const player = playerDriver();
     fireEvent.keyDown(document.body, { key: 't' });
-    const menu = await screen.findByRole('menu', { name: 'Spuren' });
-    expect(within(menu).getByText('Ton')).toBeVisible();
-    expect(within(menu).getByText('Untertitel')).toBeVisible();
-    expect(
-      within(menu).getByRole('menuitemradio', { name: 'Deutsch · AAC · 2.0' }),
-    ).toHaveAttribute('aria-checked', 'true');
-    expect(within(menu).getByRole('menuitemradio', { name: 'Aus' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    // I-5: the sidecar the server now lists shows up in the open menu.
+    const audio = await player.findList('audio');
+    expect(audio).toBeVisible();
+    expect(audio).toHaveAccessibleName('Ton');
+    const subtitles = await player.open('subtitle');
+    expect(subtitles).toBeVisible();
+    expect(subtitles).toHaveAccessibleName('Untertitel');
+    expect(player.chosen(audio)).toHaveAccessibleName('Deutsch · AAC · 2.0');
+    expect(player.chosen(subtitles)).toHaveAccessibleName('Aus');
+    // I-5: the sidecar the server now lists shows up while the choice is open.
     await waitFor(() =>
-      expect(
-        within(menu).getByRole('menuitemradio', { name: 'Deutsch · SRT · extern' }),
-      ).toBeVisible(),
+      expect(player.option(player.list('subtitle'), 'Deutsch · SRT · extern')).toBeVisible(),
     );
     const trackCall = calls.find((call) => call.path === tracksPath);
     expect(trackCall?.method).toBe('GET');
 
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    await user.click(within(menu).getByRole('menuitemradio', { name: 'Englisch · AC3 · 5.1' }));
+    await player.chooseAudioTrack('Englisch · AC3 · 5.1');
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     expect(starts(calls)[1]?.body).toMatchObject({ audioTrack: 2, positionMs: 3_000_000 });
     // The old session ends before the next one starts.
@@ -198,7 +195,7 @@ describe('player M4', () => {
     expect(media.currentTime).toBeCloseTo(3000);
   });
 
-  it('asks for new tracks every 30 s while the track menu is open', async () => {
+  it('asks for new tracks every 30 s while the track choice is open', async () => {
     stubMedia();
     const { calls } = mockApi(
       routes(playback, undefined, { [`GET ${tracksPath}`]: () => json(alienTracks) }),
@@ -208,7 +205,7 @@ describe('player M4', () => {
     const trackCalls = () => calls.filter((call) => call.path === tracksPath);
     expect(trackCalls()).toHaveLength(0);
     fireEvent.keyDown(document.body, { key: 'T' });
-    await screen.findByRole('menu', { name: 'Spuren' });
+    await playerDriver().findList('audio');
     await waitFor(() => expect(trackCalls()).toHaveLength(1));
     await act(() => vi.advanceTimersByTimeAsync(30_000));
     await waitFor(() => expect(trackCalls()).toHaveLength(2));
@@ -225,9 +222,7 @@ describe('player M4', () => {
     const { calls } = mockApi(routes(playback, () => withText));
     const { container } = renderApp(`/play/${ids.alien}`);
     await startPlayer(container);
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    await user.click(screen.getByRole('button', { name: 'Spuren' }));
-    await user.click(await screen.findByRole('menuitemradio', { name: 'Deutsch (SRT)' }));
+    await playerDriver().chooseSubtitle('Deutsch (SRT)');
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     expect(starts(calls)[1]?.body).toMatchObject({ subtitleTrack: 21, subtitleDelivery: 'auto' });
 
@@ -249,7 +244,7 @@ describe('player M4', () => {
     );
   });
 
-  it('Q opens the quality menu: unavailable rungs are disabled, a pick asks for that rung', async () => {
+  it('Q opens the quality choice: unavailable rungs are disabled, a pick asks for that rung', async () => {
     stubMedia();
     const sd: PlaybackInfo = {
       ...hlsPlayback,
@@ -273,34 +268,24 @@ describe('player M4', () => {
     const { calls } = mockApi(routes(playback, () => sd));
     const { container } = renderApp(`/play/${ids.alien}`);
     await startPlayer(container);
-    expect(screen.getByRole('button', { name: 'Qualität: Automatisch' })).toBeVisible();
+    const player = playerDriver();
+    expect(player.control('quality')).toBeVisible();
+    expect(player.control('quality')).toHaveAccessibleName('Qualität: Automatisch');
 
     fireEvent.keyDown(document.body, { key: 'q' });
-    const menu = await screen.findByRole('menu', { name: /^Qualität/ });
-    expect(within(menu).getByRole('menuitemradio', { name: 'Automatisch' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    expect(within(menu).getByRole('menuitemradio', { name: '360p' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    );
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    await user.click(within(menu).getByRole('menuitemradio', { name: '480p' }));
+    const quality = await player.findList('quality');
+    expect(player.chosen(quality)).toHaveAccessibleName('Automatisch');
+    expect(player.isUnavailable(player.option(quality, '360p'))).toBe(true);
+    expect(player.isUnavailable(player.option(quality, '480p'))).toBe(false);
+    await player.chooseQuality('480p');
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     expect(starts(calls)[1]?.body).toMatchObject({ quality: '480p' });
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Qualität: 480p' })).toBeVisible(),
-    );
+    await waitFor(() => expect(player.control('quality')).toHaveAccessibleName('Qualität: 480p'));
+    expect(player.control('quality')).toBeVisible();
     fireEvent.keyDown(document.body, { key: 'q' });
-    const again = await screen.findByRole('menu', { name: /^Qualität/ });
-    expect(within(again).getByRole('menuitemradio', { name: '480p' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
-    fireEvent.keyDown(within(again).getByRole('menuitemradio', { name: '480p' }), {
-      key: 'Escape',
-    });
+    const again = await player.findList('quality');
+    expect(player.chosen(again)).toHaveAccessibleName('480p');
+    player.pressIn(again, 'Escape');
 
     fireEvent.keyDown(document.body, { key: 'i' });
     const info = screen.getByRole('region', { name: 'Stream-Info' });
@@ -327,13 +312,11 @@ describe('player M4', () => {
     mockApi(routes(chapters));
     const { container } = renderApp(`/play/${ids.alien}`);
     await startPlayer(container);
+    const player = playerDriver();
     fireEvent.keyDown(document.body, { key: 'c' });
-    const menu = await screen.findByRole('menu', { name: 'Kapitel' });
-    expect(
-      within(menu).getByRole('menuitemradio', { name: 'Kapitel 1: Anfang · 0:00:00' }),
-    ).toHaveAttribute('aria-checked', 'true');
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    await user.click(within(menu).getByRole('menuitemradio', { name: 'Kapitel 3 · 0:00:06' }));
+    const chapterList = await player.findList('chapter');
+    expect(player.chosen(chapterList)).toHaveAccessibleName('Kapitel 1: Anfang · 0:00:00');
+    await player.chooseChapter('Kapitel 3 · 0:00:06');
     expect(media.currentTime).toBeCloseTo(6.5);
   });
 
@@ -422,15 +405,15 @@ describe('player M4', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e2.id}`));
   });
 
-  it('Backspace closes an open player menu and stays in the player', async () => {
+  it('Backspace closes an open player choice and stays in the player', async () => {
     stubMedia();
     mockApi(routes(playback));
     const { router, container } = renderApp(`/play/${ids.alien}`);
     await startPlayer(container);
+    const player = playerDriver();
     fireEvent.keyDown(document.body, { key: 'q' });
-    const menu = await screen.findByRole('menu', { name: /^Qualität/ });
-    fireEvent.keyDown(within(menu).getAllByRole('menuitemradio')[0]!, { key: 'Backspace' });
-    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+    player.pressIn(await player.findList('quality'), 'Backspace');
+    await waitFor(() => expect(player.openChoice()).toBeNull());
     expect(router.state.location.pathname).toBe(`/play/${ids.alien}`);
   });
 
@@ -581,11 +564,13 @@ describe('player M4', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Wiedergabe beendet');
     expect(screen.getByRole('alert')).toHaveTextContent('Die Wiedergabe wurde beendet.');
     expect(hlsMock.instances[0]!.stopped).toBe(1);
-    // Nothing starts behind the notice: the menus are off and N does nothing.
-    expect(screen.getByRole('button', { name: /^Qualität/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Spuren' })).toBeDisabled();
+    // Nothing starts behind the notice: the choices are off and N does nothing.
+    const player = playerDriver();
+    expect(player.control('quality')).toBeDisabled();
+    expect(player.control('audio')).toBeDisabled();
+    expect(player.control('subtitle')).toBeDisabled();
     fireEvent.keyDown(document.body, { key: 'q' });
-    expect(screen.queryByRole('menu')).toBeNull();
+    expect(player.openChoice()).toBeNull();
   });
 
   it('asks the stream after a direct-play error: 401 means ended, anything else a failure', async () => {
@@ -626,10 +611,10 @@ describe('player M4', () => {
     });
     renderApp(`/play/${ids.alien}`);
     await waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+    const player = playerDriver();
     fireEvent.keyDown(document.body, { key: 'q' });
-    const menu = await screen.findByRole('menu', { name: /^Qualität/ });
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    await user.click(within(menu).getByRole('menuitemradio', { name: '480p' }));
+    await player.findList('quality');
+    await player.chooseQuality('480p');
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     // The old player stopped loading; the server's 401 for the ended session changes nothing.
     expect(hlsMock.instances[0]!.stopped).toBeGreaterThanOrEqual(1);
@@ -669,9 +654,7 @@ describe('player M4', () => {
     });
     const { container } = renderApp(`/play/${ids.alien}`);
     const video = await startPlayer(container);
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
-    await user.click(screen.getByRole('button', { name: 'Spuren' }));
-    await user.click(await screen.findByRole('menuitemradio', { name: 'Englisch · AC3 · 5.1' }));
+    await playerDriver().chooseAudioTrack('Englisch · AC3 · 5.1');
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     act(() => {
       video.dispatchEvent(new Event('error'));
@@ -716,10 +699,10 @@ describe('player M4', () => {
       expect(request.mock.contexts[0]).toBe(document.documentElement);
       expect(screen.getByRole('button', { name: 'Vollbild beenden' })).toBeVisible();
 
-      const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+      const player = playerDriver();
       fireEvent.keyDown(document.body, { key: 'q' });
-      const menu = await screen.findByRole('menu', { name: /^Qualität/ });
-      await user.click(within(menu).getByRole('menuitemradio', { name: '480p' }));
+      await player.findList('quality');
+      await player.chooseQuality('480p');
       await waitFor(() => expect(starts(calls)).toHaveLength(2));
       await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-2'));
       // A new player, still in full screen, and it knows.

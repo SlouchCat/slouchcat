@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alienVersions, hlsPlayback, ids, playback } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
+import { playerDriver } from '@/test/player';
 
 /** jsdom has no media pipeline: the element state the player reads (see PlayerPage.test.tsx). */
 function stubMedia() {
@@ -119,10 +120,10 @@ describe('player: versions and stream info (B-5)', () => {
     });
     expect(media.currentTime).toBeCloseTo(2533);
     media.currentTime = 3100;
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const player = playerDriver();
 
-    await user.click(await screen.findByRole('button', { name: 'Version: 1080p' }));
-    await user.click(await screen.findByRole('menuitemradio', { name: '720p' }));
+    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    await player.chooseVersion('720p');
 
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     expect(starts(calls)[1]?.body).toMatchObject({ mediaFileId: 'mf-2' });
@@ -168,10 +169,10 @@ describe('player: versions and stream info (B-5)', () => {
     act(() => {
       first.dispatchEvent(new Event('loadedmetadata'));
     });
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const player = playerDriver();
 
-    await user.click(await screen.findByRole('button', { name: 'Version: 1080p' }));
-    await user.click(await screen.findByRole('menuitemradio', { name: '720p' }));
+    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    await player.chooseVersion('720p');
     const seekedTo = media.currentTime;
 
     expect(await screen.findByRole('status')).toHaveTextContent('Wird umgestellt …');
@@ -193,19 +194,19 @@ describe('player: versions and stream info (B-5)', () => {
     );
   });
 
-  it('renders the version menu inside the player, so it shows in full screen', async () => {
+  it('renders the version choice inside the player, so it shows in full screen', async () => {
     stubMedia();
     mockApi(routes());
     const { container } = renderApp(`/play/${ids.alien}`);
     await videoOf(container);
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const player = playerDriver();
 
-    await user.click(await screen.findByRole('button', { name: 'Version: 1080p' }));
-    const menu = await screen.findByRole('menu');
-    expect(screen.getByRole('main', { name: 'Videoplayer' })).toContainElement(menu);
+    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    const versions = await player.open('version');
+    expect(screen.getByRole('main', { name: 'Videoplayer' })).toContainElement(versions);
   });
 
-  it('keeps the controls on screen while the version menu is open', async () => {
+  it('keeps the controls on screen while the version choice is open', async () => {
     stubMedia();
     mockApi(routes());
     const { container } = renderApp(`/play/${ids.alien}`);
@@ -214,20 +215,20 @@ describe('player: versions and stream info (B-5)', () => {
       first.dispatchEvent(new Event('loadedmetadata'));
     });
     const region = screen.getByRole('main', { name: 'Videoplayer' });
-    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const player = playerDriver();
 
-    await user.click(await screen.findByRole('button', { name: 'Version: 1080p' }));
-    await screen.findByRole('menu');
+    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    await player.open('version');
     await act(() => vi.advanceTimersByTimeAsync(4000));
     expect(region).toHaveAttribute('data-controls', 'visible');
 
-    await user.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    await player.user.keyboard('{Escape}');
+    await waitFor(() => expect(player.openChoice()).not.toBeInTheDocument());
     await act(() => vi.advanceTimersByTimeAsync(4000));
     expect(region).toHaveAttribute('data-controls', 'hidden');
   });
 
-  it('has no version menu for a title with one file', async () => {
+  it('has no version choice for a title with one file', async () => {
     stubMedia();
     mockApi({
       ...routes(),
@@ -237,6 +238,6 @@ describe('player: versions and stream info (B-5)', () => {
     const { container } = renderApp(`/play/${ids.alien}`);
     await videoOf(container);
     await act(() => vi.advanceTimersByTimeAsync(50));
-    expect(screen.queryByRole('button', { name: /^Version/ })).not.toBeInTheDocument();
+    expect(playerDriver().queryControl('version')).not.toBeInTheDocument();
   });
 });
