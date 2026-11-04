@@ -698,7 +698,8 @@
     "chapters": {
       "button": "Kapitel",
       "untitled": "Kapitel {{n}}",
-      "item": "{{title}} · {{time}}"
+      "item": "{{title}} · {{time}}",
+      "auto": "automatisch"
     },
     "skipIntro": "Intro überspringen",
     "skipOutro": "Abspann überspringen",

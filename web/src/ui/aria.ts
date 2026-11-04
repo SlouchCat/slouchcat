@@ -55,6 +55,7 @@ export { TextField } from './TextField';
 export { TrailerDialog } from './TrailerDialog';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
 // Building blocks of the player (concept 13, 11.10).
+export { ChapterCard } from './ChapterCard';
 export { OptionList, OptionRow, type OptionMark } from './OptionRow';
 export { PlayerPanel } from './PlayerPanel';
 export { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
