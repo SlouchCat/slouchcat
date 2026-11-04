@@ -103,9 +103,14 @@ func TestMigration00032PlaybackPrefs(t *testing.T) {
 	if !slices.Contains(langs, "de") || !slices.Contains(langs, "en") {
 		t.Errorf("profiles %v, want both interface languages", langs)
 	}
+	// Both lists are JSON arrays, not just any JSON value.
 	for _, bad := range []string{
 		`UPDATE profiles SET subtitle_mode = 'sometimes'`,
 		`UPDATE profiles SET audio_languages = 'de'`,
+		`UPDATE profiles SET audio_languages = '"de"'`,
+		`UPDATE profiles SET audio_languages = '{"de":1}'`,
+		`UPDATE profiles SET subtitle_languages = '1'`,
+		`UPDATE profiles SET subtitle_languages = 'null'`,
 		`UPDATE profiles SET subtitle_languages = NULL`,
 	} {
 		if _, err := db.Write.ExecContext(ctx, bad); err == nil {
@@ -117,10 +122,15 @@ func TestMigration00032PlaybackPrefs(t *testing.T) {
 	if after := playbackSessionRows(t, db.Read); !reflect.DeepEqual(after, before) {
 		t.Errorf("playback_sessions after the rebuild:\n%v\nwant\n%v", after, before)
 	}
-	for _, index := range []string{"playback_sessions_session", "playback_sessions_expires", "playback_sessions_profile_activity", "playback_sessions_device"} {
-		var n int
-		if err := db.Read.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = ? AND tbl_name = 'playback_sessions'`, index).Scan(&n); err != nil || n != 1 {
-			t.Errorf("index %s: n=%d err=%v", index, n, err)
+	for index, want := range map[string]string{
+		"playback_sessions_session":          "CREATE INDEX playback_sessions_session ON playback_sessions (session_id)",
+		"playback_sessions_expires":          "CREATE INDEX playback_sessions_expires ON playback_sessions (expires_at)",
+		"playback_sessions_profile_activity": "CREATE INDEX playback_sessions_profile_activity ON playback_sessions (profile_id, revoked_at, last_activity_at)",
+		"playback_sessions_device":           "CREATE INDEX playback_sessions_device ON playback_sessions (device_id)",
+	} {
+		var got string
+		if err := db.Read.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ? AND tbl_name = 'playback_sessions'`, index).Scan(&got); err != nil || got != want {
+			t.Errorf("index %s: %q, %v; want %q", index, got, err, want)
 		}
 	}
 	var leftover int
@@ -141,6 +151,20 @@ func TestMigration00032PlaybackPrefs(t *testing.T) {
 		}
 	}
 
+	// The references of the rebuilt table still cascade: a deleted sign-in session takes its
+	// playback sessions along.
+	var sessionID int64
+	if err := db.Read.QueryRowContext(ctx, `SELECT session_id FROM playback_sessions ORDER BY id LIMIT 1`).Scan(&sessionID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Write.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID); err != nil {
+		t.Fatal(err)
+	}
+	var orphans int
+	if err := db.Read.QueryRowContext(ctx, `SELECT count(*) FROM playback_sessions WHERE session_id = ?`, sessionID).Scan(&orphans); err != nil || orphans != 0 {
+		t.Errorf("playback sessions of a deleted sign-in session: %d, %v; want 0", orphans, err)
+	}
+
 	// The original language is not looked up yet (NULL), no track is marked as SDH.
 	var looked, sdh int
 	if err := db.Read.QueryRowContext(ctx, `SELECT count(*) FROM items WHERE original_language IS NOT NULL`).Scan(&looked); err != nil || looked != 0 {
@@ -151,6 +175,18 @@ func TestMigration00032PlaybackPrefs(t *testing.T) {
 	}
 	if _, err := db.Write.ExecContext(ctx, `UPDATE tracks SET is_hearing_impaired = 2`); err == nil {
 		t.Error("is_hearing_impaired 2: accepted, want a CHECK error")
+	}
+	// An original language is NULL, '' or two letters (11.7).
+	for value, ok := range map[any]bool{nil: true, "": true, "de": true, "deu": false, "d": false, "pt-BR": false} {
+		_, err := db.Write.ExecContext(ctx, `UPDATE items SET original_language = ?`, value)
+		if ok && err != nil {
+			t.Errorf("original_language %v: %v", value, err)
+		} else if !ok && (err == nil || !strings.Contains(err.Error(), "CHECK")) {
+			t.Errorf("original_language %v: %v, want a CHECK error", value, err)
+		}
+	}
+	if _, err := db.Write.ExecContext(ctx, `UPDATE items SET original_language = NULL`); err != nil {
+		t.Fatal(err)
 	}
 
 	// profile_series_tracks: one row per profile and series, gone with the profile or the title.

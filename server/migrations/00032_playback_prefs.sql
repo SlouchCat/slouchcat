@@ -31,9 +31,9 @@
 PRAGMA foreign_keys=OFF;
 BEGIN;
 
-ALTER TABLE profiles ADD COLUMN audio_languages TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(audio_languages));
+ALTER TABLE profiles ADD COLUMN audio_languages TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(audio_languages) AND json_type(audio_languages) = 'array');
 ALTER TABLE profiles ADD COLUMN subtitle_mode TEXT NOT NULL DEFAULT 'forced' CHECK (subtitle_mode IN ('off', 'forced', 'foreign', 'always'));
-ALTER TABLE profiles ADD COLUMN subtitle_languages TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(subtitle_languages));
+ALTER TABLE profiles ADD COLUMN subtitle_languages TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(subtitle_languages) AND json_type(subtitle_languages) = 'array');
 
 UPDATE profiles
 SET audio_languages    = CASE WHEN language IS NULL OR language = '' THEN '[]' ELSE json_array(language) END,
@@ -51,7 +51,7 @@ CREATE TABLE profile_series_tracks (
 
 CREATE INDEX profile_series_tracks_series ON profile_series_tracks (series_id);
 
-ALTER TABLE items ADD COLUMN original_language TEXT;
+ALTER TABLE items ADD COLUMN original_language TEXT CHECK (original_language IS NULL OR original_language = '' OR length(original_language) = 2);
 
 ALTER TABLE tracks ADD COLUMN is_hearing_impaired INTEGER NOT NULL DEFAULT 0 CHECK (is_hearing_impaired IN (0, 1));
 

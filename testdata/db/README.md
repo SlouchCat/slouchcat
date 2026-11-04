@@ -217,4 +217,8 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   «Slouchcat Test Broken», die englische SRT-Spur des Multi-Audio-Films als SDH (`is_hearing_impaired = 1`) und je
   eine beendete Wiedergabesitzung auf den Stufen `original` (Remux) und `2160p` (QSV, 3840 × 2160, 25 Mbit/s). Dann
   `store.Dump` (dieselbe Funktion wie `server/bin/slouchcat dump`). Die Pfade der Wurzeln bleiben die von
-  `verwaltung.sql`. `TestFrozenAbspielseiteStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.
+  `verwaltung.sql`. Nach dem Review von Schritt 7 prüft 00032 die zwei Listen zusätzlich auf `json_type(…) = 'array'`
+  und `items.original_language` auf `NULL`, `''` oder zwei Zeichen; im Stand wurde darum nur der Schematext von
+  `profiles` und `items` nachgezogen (die Daten erfüllen beide Prüfungen), und das Schema gleicht danach Zeile für Zeile
+  dem von `verwaltung.sql` nach der Migration. `TestFrozenAbspielseiteStateCoversTheConcept` prüft, dass jede dieser
+  Datenarten vorhanden ist.
