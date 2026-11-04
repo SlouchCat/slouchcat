@@ -41,6 +41,8 @@ interface OfflinePlayerProps {
   /** Server time minus device time of the last sync. */
   serverOffsetMs: number;
   onBack: () => void;
+  /** Where `onBack` leads: the downloads (opened there) or the offline library; the help says it. */
+  backTo: 'downloads' | 'library';
   /** The profile's language: its tracks come first in the panels (11.10). */
   profileLanguage?: string;
   /** Audio downloads: the stored cover, the author or podcast, the title's accent. */
@@ -98,6 +100,7 @@ export function OfflinePlayer({
   watch,
   serverOffsetMs,
   onBack,
+  backTo,
   profileLanguage,
   coverUrl,
   byline,
@@ -594,6 +597,7 @@ export function OfflinePlayer({
       seekTo={seekTo}
       seekBy={seekBy}
       onBack={onBack}
+      backTo={backTo}
       data={{
         'data-engine': engine ?? undefined,
         'data-download-id': playback.downloadId,

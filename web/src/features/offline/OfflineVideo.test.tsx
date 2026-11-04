@@ -67,6 +67,7 @@ function renderVideo(props: Partial<Props> = {}) {
       failed={false}
       limitReached={false}
       limitMinutes={undefined}
+      backTo="downloads"
       data={{ 'data-engine': 'mse' }}
       {...handlers}
       {...props}
@@ -193,6 +194,14 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     // Escape leads to the downloads, not to a detail page (review step 6).
     expect(within(help).getByText(/sonst zurück zu den Downloads$/)).toBeVisible();
     expect(within(help).queryByText(/Detailseite/)).toBeNull();
+  });
+
+  it('from the offline library the help says Escape leads back there (final review)', () => {
+    renderVideo({ backTo: 'library' });
+    fireEvent.keyDown(window, { key: '?' });
+    const help = screen.getByRole('dialog', { name: 'Tastenkürzel' });
+    expect(within(help).getByText(/sonst zurück zur Offline-Bibliothek$/)).toBeVisible();
+    expect(within(help).queryByText(/Downloads/)).toBeNull();
   });
 
   it('at the limit the hint’s back button takes the focus and nothing opens', async () => {

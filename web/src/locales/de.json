@@ -915,7 +915,8 @@
         "back": {
           "keys": "Escape, Backspace",
           "action": "Schliesst Panel, Hilfe und Stream-Info (im Zahnrad: eine Ebene zurück), sonst zurück zur Detailseite",
-          "actionOffline": "Schliesst Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zu den Downloads"
+          "actionOfflineDownloads": "Schliesst Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zu den Downloads",
+          "actionOfflineLibrary": "Schliesst Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zur Offline-Bibliothek"
         }
       }
     }

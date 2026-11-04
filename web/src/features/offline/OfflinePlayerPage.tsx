@@ -155,6 +155,7 @@ function OfflinePlayback({
         watch={state.watch}
         serverOffsetMs={state.serverOffsetMs}
         onBack={goBack}
+        backTo={fromSession ? 'downloads' : 'library'}
         // The profile's language sorts the panels; the UI language stands in, as online.
         profileLanguage={state.profileLanguage ?? i18n.language}
         coverUrl={cover}

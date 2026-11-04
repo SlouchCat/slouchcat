@@ -68,6 +68,8 @@ interface OfflineVideoProps {
   seekTo: (ms: number) => void;
   seekBy: (seconds: number) => void;
   onBack: () => void;
+  /** Where `onBack` leads: the downloads or the offline library (the help's line for Escape). */
+  backTo: 'downloads' | 'library';
   /** The `data-*` attributes of the player region (engine, download, start and seek times). */
   data: Record<`data-${string}`, string | number | undefined>;
 }
@@ -101,6 +103,7 @@ export function OfflineVideo({
   seekTo,
   seekBy,
   onBack,
+  backTo,
   data,
 }: OfflineVideoProps) {
   const { t, i18n } = useTranslation();
@@ -448,7 +451,11 @@ export function OfflineVideo({
         <ShortcutHelp
           onClose={closePanel}
           rows={helpRows}
-          backAction={t('player.help.rows.back.actionOffline')}
+          backAction={
+            backTo === 'downloads'
+              ? t('player.help.rows.back.actionOfflineDownloads')
+              : t('player.help.rows.back.actionOfflineLibrary')
+          }
         />
       )}
       {panel === 'settings' && (

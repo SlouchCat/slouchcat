@@ -389,6 +389,22 @@ describe('offline player', () => {
     expect(region).toHaveAttribute('data-profile-id', '1');
   });
 
+  it.each([
+    ['the offline library', '', /sonst zurück zur Offline-Bibliothek$/],
+    ['the downloads', '?as=session', /sonst zurück zu den Downloads$/],
+  ])(
+    'opened from %s, the help names it as the way back (final review)',
+    async (_from, search, back) => {
+      stubMedia();
+      mockApi(signedIn);
+      renderApp(`/offline/play/${downloadIds.alien}${search}`);
+      await player();
+      fireEvent.keyDown(window, { key: '?' });
+      const help = await screen.findByRole('dialog', { name: 'Tastenkürzel' });
+      expect(within(help).getByText(back)).toBeVisible();
+    },
+  );
+
   it('from /downloads a title the session’s profile may not see stays closed (W1)', async () => {
     stubMedia();
     chooseOfflineProfile({ accountId: 1, profileId: 2 });
