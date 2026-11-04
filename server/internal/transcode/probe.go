@@ -59,7 +59,9 @@ type Stream struct {
 	Title          string `json:"title,omitempty"`
 	Default        bool   `json:"default,omitempty"`
 	Forced         bool   `json:"forced,omitempty"`
-	AttachedPic    bool   `json:"attachedPic,omitempty"` // cover art stored as a video stream
+	// HearingImpaired is the disposition flag of subtitles for the deaf and hard of hearing.
+	HearingImpaired bool `json:"hearingImpaired,omitempty"`
+	AttachedPic     bool `json:"attachedPic,omitempty"` // cover art stored as a video stream
 	// Dolby Vision (M4): the profile of the DOVI configuration record (5, 7, 8; 0 = none) and the
 	// base-layer compatibility id (1 = HDR10 base layer, profile 8.1; 2 = SDR, 8.2/9.2; 4 = HLG,
 	// 8.4). Profile 8 plays its base layer like HDR10 (or SDR, HLG); profiles 5 and 7 are
@@ -181,9 +183,10 @@ type rawProbe struct {
 			Title    string `json:"title"`
 		} `json:"tags"`
 		Disposition struct {
-			Default     int `json:"default"`
-			Forced      int `json:"forced"`
-			AttachedPic int `json:"attached_pic"`
+			Default         int `json:"default"`
+			Forced          int `json:"forced"`
+			HearingImpaired int `json:"hearing_impaired"`
+			AttachedPic     int `json:"attached_pic"`
 		} `json:"disposition"`
 		SideData []struct {
 			Type       string `json:"side_data_type"`
@@ -325,6 +328,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Title:               s.Tags.Title,
 			Default:             s.Disposition.Default == 1,
 			Forced:              s.Disposition.Forced == 1,
+			HearingImpaired:     s.Disposition.HearingImpaired == 1,
 			AttachedPic:         s.Disposition.AttachedPic == 1,
 		})
 	}

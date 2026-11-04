@@ -143,7 +143,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			Title:     sql.NullString{String: st.Title, Valid: st.Title != ""},
 			Source:    "embedded",
 			IsDefault: boolInt(st.Default), IsForced: boolInt(st.Forced),
-			IsHearingImpaired: boolInt(st.Type == "subtitle" && trackpick.HearingImpairedTitle(st.Title)),
+			IsHearingImpaired: boolInt(hearingImpaired(st)),
 		}); err != nil {
 			return fmt.Errorf("insert track: %w", err)
 		}
@@ -563,4 +563,10 @@ func parseTagDate(s string) (time.Time, bool) {
 		}
 	}
 	return time.Time{}, false
+}
+
+// hearingImpaired reports whether an embedded stream is a subtitle for the deaf and hard of
+// hearing: ffprobe's disposition flag or its title (review step 9, m-7).
+func hearingImpaired(st transcode.Stream) bool {
+	return st.Type == "subtitle" && (st.HearingImpaired || trackpick.HearingImpairedTitle(st.Title))
 }
