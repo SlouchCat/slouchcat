@@ -86,7 +86,7 @@ test('player keys: Space, the zones of the bar (11.2), Tab and Escape', async ({
   await expectFocusOn(page, page.getByRole('button', { name: /^\d+:\d+ \/ \d+:\d+$/ }));
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, page.getByRole('button', { name: 'Vollbild' }));
-  const back = page.getByRole('button', { name: 'Zurück' });
+  const back = page.getByRole('button', { name: 'Zurück', exact: true });
   for (
     let presses = 0;
     presses < 2 && !(await back.evaluate((b) => b === document.activeElement));
