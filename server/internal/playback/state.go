@@ -12,22 +12,34 @@ import (
 // it. It asks getPlaybackSessionState every 4 s while it plays instead. The answer comes from
 // memory only, never from the database or the transcoder, so the polling costs a map lookup:
 //
-//   - Start (and startEnclosure) registers every playback session it recorded with the browser
-//     session that started it; that is where the owner check of State comes from.
+//   - Start (and startEnclosure) registers every playback session with the browser session that
+//     starts it, just before its row is written (and removes it when the insert fails); that is
+//     where the owner check of State comes from.
 //   - end, the one path every stop takes (Stop, EndSession, EndAccount, endProfile, endReplaced,
 //     recheckWatchLimit, StopStream, EndDevice), marks it stopped with its stopped_by value.
+//     StopStream and EndDevice register a playback the registry does not know first (one from
+//     before a restart): their rows name its browser session.
 //   - The sweep marks the playback sessions that ended elsewhere (expiry) and forgets stopped
-//     entries stateRetention after their stop, so the map holds at most the running playback and
-//     the stops of the last minutes.
+//     entries stateRetention after their stop, and running ones after activeRetention (rows the
+//     sweep never lists again, deleted with their browser session), so the map holds at most the
+//     running playback and the stops of the last minutes.
 //
-// After a restart the registry is empty: State answers model.ErrNotFound for every older playback,
-// which the client takes as "keep playing" (its next stream request answers 401 if it ended).
+// After a restart the registry is empty: State answers model.ErrNotFound for every older playback
+// until the administration stops it, which the client takes as "keep playing" (its next stream
+// request answers 401 if it ended). A stop that also ends the browser session or its profile
+// (a logout, a deleted account or profile) reaches the client as 401 or 403 profile_required of
+// the request itself, which the client takes as a stop.
 
 // stateRetention is how long State still reports a stopped playback session.
 const stateRetention = 10 * time.Minute
 
+// activeRetention bounds a running entry the sweep never marked: far longer than a playback that
+// still makes token requests (SessionLifetime after the last one it expires and is marked).
+const activeRetention = 7 * 24 * time.Hour
+
 type stateEntry struct {
 	sessionID int64 // browser session that started the playback
+	addedAt   time.Time
 	stopped   bool
 	stoppedBy string
 	stoppedAt time.Time
@@ -40,16 +52,23 @@ type stateRegistry struct {
 	entries map[string]*stateEntry
 }
 
-// add registers a recorded playback session of a browser session as running.
-func (r *stateRegistry) add(id string, sessionID int64) {
+// add registers a playback session of a browser session as running; a known id stays as it is.
+func (r *stateRegistry) add(id string, sessionID int64, now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.entries == nil {
 		r.entries = map[string]*stateEntry{}
 	}
 	if _, ok := r.entries[id]; !ok {
-		r.entries[id] = &stateEntry{sessionID: sessionID}
+		r.entries[id] = &stateEntry{sessionID: sessionID, addedAt: now}
 	}
+}
+
+// remove forgets a playback session whose row was never written.
+func (r *stateRegistry) remove(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.entries, id)
 }
 
 // stop marks a known playback session stopped; the first stop keeps its reason. Unknown ids (a
@@ -62,12 +81,13 @@ func (r *stateRegistry) stop(id, stoppedBy string, now time.Time) {
 	}
 }
 
-// prune forgets the playback sessions stopped more than stateRetention before now.
+// prune forgets the playback sessions stopped more than stateRetention before now and the running
+// ones registered more than activeRetention before now.
 func (r *stateRegistry) prune(now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for id, e := range r.entries {
-		if e.stopped && now.Sub(e.stoppedAt) > stateRetention {
+		if e.stopped && now.Sub(e.stoppedAt) > stateRetention || !e.stopped && now.Sub(e.addedAt) > activeRetention {
 			delete(r.entries, id)
 		}
 	}

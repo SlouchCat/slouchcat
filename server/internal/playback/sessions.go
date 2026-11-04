@@ -206,6 +206,8 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, fmt.Errorf("encode capabilities: %w", err)
 	}
+	// Registered before the row exists, so a stop right after the insert finds it (state.go).
+	s.states.add(id, session.ID, now)
 	err = slot.insert(ctx, func() error {
 		return s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
 			ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
@@ -219,10 +221,10 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		})
 	})
 	if err != nil {
+		s.states.remove(id)
 		s.stopOutput(id)
 		return model.PlaybackInfo{}, fmt.Errorf("insert playback session: %w", err)
 	}
-	s.states.add(id, session.ID)
 	if hls != nil {
 		// The browser session may have ended (logout) while the output waited for admission.
 		if _, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: s.now().UnixMilli()}); err != nil {

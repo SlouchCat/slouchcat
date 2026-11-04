@@ -130,9 +130,35 @@ func TestPlaybackStateFromMemory(t *testing.T) {
 	if st := state(before, r); st.Stopped {
 		t.Fatalf("running playback = %+v", st)
 	}
-	if _, err := New(f.DB, vistest.Logger()).State(before, r); !errors.Is(err, model.ErrNotFound) {
+	restarted := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return now }))
+	if _, err := restarted.State(before, r); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("after a restart: %v, want not found", err)
 	}
+	// The administration's stop names the browser session of the row: known again, stopped.
+	if err := restarted.StopStream(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	if st, err := restarted.State(before, r); err != nil || !st.Stopped || st.StoppedBy != model.StoppedByAdmin {
+		t.Errorf("stopped by the administration after a restart = %+v, %v", st, err)
+	}
+	if _, err := restarted.State(other, r); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("another browser session after a restart: %v, want not found", err)
+	}
+
+	// A row deleted with its browser session (CASCADE) is never listed by the sweep again: the
+	// running entry goes after activeRetention.
+	orphan := start(before, f.Rated(6).ID)
+	if _, err := f.DB.Write.ExecContext(ctx, `DELETE FROM playback_sessions WHERE id = ?`, orphan); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(activeRetention - time.Minute)
+	s.sweep(ctx)
+	if st := state(before, orphan); st.Stopped {
+		t.Errorf("orphan before activeRetention = %+v", st)
+	}
+	now = now.Add(2 * time.Minute)
+	s.sweep(ctx)
+	notFound(before, orphan, "a running entry older than activeRetention")
 
 	// No query on this path: with both database handles closed State still answers.
 	live := browserSession(t, f, f.P18)

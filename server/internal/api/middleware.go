@@ -64,9 +64,20 @@ func requestLog(log *slog.Logger) func(http.Handler) http.Handler {
 			if r.URL.RawQuery != "" {
 				attrs = append(attrs, slog.String("query", r.URL.Query().Encode()))
 			}
-			log.LogAttrs(r.Context(), slog.LevelInfo, "http request", attrs...)
+			level := slog.LevelInfo
+			if stopWatchPoll(r, status) {
+				level = slog.LevelDebug
+			}
+			log.LogAttrs(r.Context(), level, "http request", attrs...)
 		})
 	}
+}
+
+// stopWatchPoll reports a successful getPlaybackSessionState: every playing player asks it every
+// 4 s (concept 13), which at Info would bury the other lines. Its errors stay at Info.
+func stopWatchPoll(r *http.Request, status int) bool {
+	return r.Method == http.MethodGet && status == http.StatusOK &&
+		strings.HasPrefix(r.URL.Path, BasePath+"/playback/sessions/") && strings.HasSuffix(r.URL.Path, "/state")
 }
 
 // compressedTypes are the text media types that compressText gzips (P-10: the uncompressed

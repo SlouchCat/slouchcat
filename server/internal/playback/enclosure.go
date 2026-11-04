@@ -86,6 +86,7 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 		return model.PlaybackInfo{}, fmt.Errorf("encode capabilities: %w", err)
 	}
 	id := ulid.Make().String()
+	s.states.add(id, session.ID, now) // before the row, like Start
 	err = slot.insert(ctx, func() error {
 		return s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
 			ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
@@ -95,9 +96,9 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 		})
 	})
 	if err != nil {
+		s.states.remove(id)
 		return model.PlaybackInfo{}, fmt.Errorf("insert playback session: %w", err)
 	}
-	s.states.add(id, session.ID)
 	if limits.WatchLimitMinutes > 0 {
 		if err := s.recheckWatchLimit(context.WithoutCancel(ctx), session.Profile.ID, limits.WatchLimitMinutes, id); err != nil {
 			return model.PlaybackInfo{}, err
