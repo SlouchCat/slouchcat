@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -31,8 +32,10 @@ import (
 // list through fetchTitleRecords (their rate limiters apply, a provider without key is skipped)
 // and decides the field with decideFields; one transaction per title writes the value (or "")
 // and its provenance. A title whose identifier is not configured or whose match job is active is
-// passed over and stays NULL. Before a full batch ends, the job queues its successor at its own
-// priority with the cursor (key original_language_backfill:<last id>).
+// passed over and stays NULL; after originalLanguageMaxFailures provider errors in a row the batch
+// ends with an error (the job retries, the cursor stays). Before a full batch ends, the job queues
+// its successor with the cursor (key original_language_backfill:<last id>) at its own priority or
+// the one a run by hand asked for while it ran (SettingOriginalLanguagePriority).
 // QueueOriginalLanguageBackfillOnce queues the chain once at the first start after the migration
 // (the setting
 // metadata.original_language_backfill_queued remembers it); later runs start by hand on the page
@@ -42,8 +45,15 @@ const (
 	fieldOriginalLanguage       = "original_language"
 	originalLanguageKey         = "original_language_backfill"
 	originalLanguageBatch       = 200
+	// originalLanguageMaxFailures provider errors in a row end a batch with an error: the
+	// provider is down, asking it for the rest of the batch only costs time.
+	originalLanguageMaxFailures = 5
 	// SettingOriginalLanguageQueued marks that the backfill was queued once after migration 00032.
 	SettingOriginalLanguageQueued = "metadata.original_language_backfill_queued"
+	// SettingOriginalLanguagePriority is the priority the running chain was last asked for (a run by
+	// hand while a batch runs, or the start of the chain): the successor of the running batch
+	// takes at least it.
+	SettingOriginalLanguagePriority = "metadata.original_language_backfill_priority"
 )
 
 // languageProviders are the providers that deliver an original language (not the local files).
@@ -91,11 +101,21 @@ type originalLanguagePayload struct {
 // runOriginalLanguageBackfill is the Run of the job type: one chain from the start with prio. A
 // chain that is already active (its first batch or a successor original_language_backfill:<id>,
 // waiting or running) is not doubled: its waiting batch is raised to prio (RaiseQueuedPriority)
-// and its ids are returned.
+// and its ids are returned. A running batch cannot be raised; prio is remembered for its successor
+// (SettingOriginalLanguagePriority, at least the priority remembered before).
 func (s *Service) runOriginalLanguageBackfill(ctx context.Context, _ *jobs.Queue, prio int) ([]int64, error) {
 	active, err := s.queue.ListActive(ctx, JobOriginalLanguageBackfill)
 	if err != nil {
 		return nil, err
+	}
+	wanted := prio
+	if len(active) > 0 {
+		wanted = max(wanted, s.originalLanguagePriority(ctx))
+	}
+	if err := s.write.UpsertSystemSetting(ctx, systemq.UpsertSystemSettingParams{
+		Key: SettingOriginalLanguagePriority, Value: strconv.Itoa(wanted), Now: s.now().UnixMilli(),
+	}); err != nil {
+		return nil, fmt.Errorf("write %s: %w", SettingOriginalLanguagePriority, err)
 	}
 	if len(active) > 0 {
 		ids := make([]int64, 0, len(active))
@@ -146,6 +166,20 @@ func (s *Service) QueueOriginalLanguageBackfillOnce(ctx context.Context) (bool, 
 	return queued, nil
 }
 
+// originalLanguagePriority is the remembered priority of the chain (SettingOriginalLanguagePriority);
+// 0 when none is stored or the value is no priority.
+func (s *Service) originalLanguagePriority(ctx context.Context) int {
+	v, err := s.read.GetSystemSetting(ctx, SettingOriginalLanguagePriority)
+	if err != nil {
+		return 0
+	}
+	p, err := strconv.Atoi(v)
+	if err != nil || p < 0 || p > 9 {
+		return 0
+	}
+	return p
+}
+
 // enqueueOriginalLanguageBackfill queues one batch after the id after ("" starts the chain).
 func (s *Service) enqueueOriginalLanguageBackfill(ctx context.Context, after string, prio int) (int64, error) {
 	payload, err := json.Marshal(originalLanguagePayload{After: after})
@@ -180,13 +214,16 @@ func (s *Service) handleOriginalLanguageBackfill(ctx context.Context, j *jobs.Jo
 	if last == "" {
 		return nil
 	}
-	// The successor keeps the priority of the chain, so a chain started by hand stays manual.
-	_, err = s.enqueueOriginalLanguageBackfill(ctx, last, j.Priority)
+	// The successor keeps the priority of the chain, so a chain started by hand stays manual, and
+	// takes a higher one that a run by hand asked for while this batch ran.
+	_, err = s.enqueueOriginalLanguageBackfill(ctx, last, max(j.Priority, s.originalLanguagePriority(ctx)))
 	return err
 }
 
 // originalLanguageBackfill runs one batch after the id after. It returns the last id of a full
-// batch (the cursor of the successor), "" when the batch was the last one.
+// batch (the cursor of the successor), "" when the batch was the last one. Titles whose provider
+// fails stay NULL and are logged once per batch; originalLanguageMaxFailures of them in a row end
+// the batch with an error.
 func (s *Service) originalLanguageBackfill(ctx context.Context, after string) (string, error) {
 	rows, err := s.read.ListOriginalLanguageBackfillItems(ctx, systemq.ListOriginalLanguageBackfillItemsParams{
 		AfterID: after, LimitCount: originalLanguageBatch,
@@ -198,22 +235,46 @@ func (s *Service) originalLanguageBackfill(ctx context.Context, after string) (s
 		model.ProviderTMDB: s.tmdb.Configured(ctx), model.ProviderTVDB: s.tvdb.Configured(ctx),
 		model.ProviderAniList: s.anilist.Configured(ctx), model.ProviderLocal: true,
 	}
-	var found, unknown, passed int
+	var found, unknown, passed, failed, inRow int
+	var failedIDs []string
+	var lastErr error
+	warnFailed := func() {
+		if failed > 0 {
+			s.log.Warn("original language backfill: titles passed over after provider errors",
+				"count", failed, "item_ids", failedIDs, "last_err", lastErr)
+		}
+	}
 	for _, item := range rows {
 		out, err := s.originalLanguageItem(ctx, item, configured)
-		if err != nil {
+		var pe *providerError
+		switch {
+		case errors.As(err, &pe):
+			failed++
+			inRow++
+			failedIDs = append(failedIDs, item.ID)
+			lastErr = pe.err
+			if inRow >= originalLanguageMaxFailures {
+				warnFailed()
+				return "", fmt.Errorf("%s: %d provider errors in a row, last: %w", JobOriginalLanguageBackfill, inRow, pe.err)
+			}
+			continue
+		case err != nil:
 			return "", err
 		}
 		switch out {
 		case languageFound:
 			found++
+			inRow = 0
 		case languageUnknown:
 			unknown++
+			inRow = 0
 		default:
 			passed++
 		}
 	}
-	s.log.Info("original language backfill batch", "titles", len(rows), "found", found, "unknown", unknown, "passed", passed)
+	warnFailed()
+	s.log.Info("original language backfill batch", "titles", len(rows), "found", found, "unknown", unknown,
+		"passed", passed+failed)
 	if len(rows) < originalLanguageBatch {
 		s.log.Info("original language backfill finished")
 		return "", nil
@@ -230,7 +291,15 @@ const (
 	languageUnknown                        // asked, no provider knows it: ''
 )
 
-// originalLanguageItem asks the language providers of one title's list and writes the outcome.
+// providerError is a provider failure for one title (unreachable, an error answer): the title
+// stays NULL for a later run.
+type providerError struct{ err error }
+
+func (e *providerError) Error() string { return e.err.Error() }
+func (e *providerError) Unwrap() error { return e.err }
+
+// originalLanguageItem asks the language providers of one title's list and writes the outcome. A
+// failing provider is a *providerError (nothing written).
 func (s *Service) originalLanguageItem(ctx context.Context, item systemq.Item, configured map[string]bool) (languageOutcome, error) {
 	order := model.ParseProviders(item.Providers)
 	if len(order) == 0 {
@@ -258,9 +327,8 @@ func (s *Service) originalLanguageItem(ctx context.Context, item systemq.Item, c
 				return languagePassed, err
 			}
 			// One title whose provider fails (unreachable, an error answer) stays NULL for a later
-			// run; the rest of the batch goes on.
-			s.log.Warn("original language backfill: title passed over", "item_id", item.ID, "err", err)
-			return languagePassed, nil
+			// run; the batch decides whether it goes on.
+			return languagePassed, &providerError{err: err}
 		}
 		for _, r := range recs {
 			candidates = append(candidates, r.fields)

@@ -400,13 +400,101 @@ func TestOriginalLanguageBackfillPassesOverAFailingTitle(t *testing.T) {
 	if got := e.origLang(t, idBroken); got != "<null>" {
 		t.Errorf("failing title: %q, want NULL", got)
 	}
-	if !strings.Contains(e.logs.String(), "original language backfill: title passed over") {
+	if !strings.Contains(e.logs.String(), "original language backfill: titles passed over after provider errors") {
 		t.Errorf("no log line for the failing title:\n%s", e.logs.String())
 	}
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
 	if _, err := e.svc.originalLanguageBackfill(cancelled, ""); !errors.Is(err, context.Canceled) {
 		t.Errorf("backfill with a cancelled context: %v, want context.Canceled", err)
+	}
+}
+
+// TestOriginalLanguageBackfillEndsAfterProviderErrorsInARow: five titles whose provider fails in a
+// row end the batch with an error (the job retries, no successor, the cursor stays) and one
+// warning names them; fewer failures in a row let the batch go on (final review stage 2, G3-m2).
+func TestOriginalLanguageBackfillEndsAfterProviderErrorsInARow(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	e := newEnv(t, goodToken)
+	e.setTMDBLanguage("550", "en")
+	const idAfter = "01JTESTMOVIE0000000000000Z" // after the failing ones in id order
+	var broken []string
+	for i := range originalLanguageMaxFailures {
+		id := fmt.Sprintf("01JTESTDOWN%015d", i)
+		broken = append(broken, id)
+		e.addItem(t, itemSeed{id: id, title: fmt.Sprintf("Down %d", i), tmdbID: 503})
+	}
+	e.addItem(t, itemSeed{id: idAfter, title: "After", tmdbID: 550})
+	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched'`)
+	job := &jobs.Job{Type: JobOriginalLanguageBackfill, Priority: fillPriority, Payload: json.RawMessage(`{}`)}
+	err := e.svc.handleOriginalLanguageBackfill(ctx, job)
+	if err == nil || !strings.Contains(err.Error(), "5 provider errors in a row") {
+		t.Fatalf("batch with %d failing titles in a row: %v, want an error", originalLanguageMaxFailures, err)
+	}
+	if got := e.origLang(t, idAfter); got != "<null>" {
+		t.Errorf("title after the failures: %q, want NULL (the batch ended)", got)
+	}
+	if got := e.activeJobs(t, JobOriginalLanguageBackfill); len(got) != 0 {
+		t.Errorf("a failed batch queued %v", got)
+	}
+	logs := e.logs.String()
+	if n := strings.Count(logs, "titles passed over after provider errors"); n != 1 {
+		t.Errorf("%d warnings for the batch, want one:\n%s", n, logs)
+	}
+	if !strings.Contains(logs, broken[0]) || !strings.Contains(logs, broken[len(broken)-1]) {
+		t.Errorf("the warning does not name the failing titles:\n%s", logs)
+	}
+
+	// One title less in a row: a title that answers resets the count, the batch goes on.
+	mustExec(t, e.db.Write, `UPDATE items SET tmdb_id = 550 WHERE id = ?`, broken[2])
+	if _, err := e.svc.originalLanguageBackfill(ctx, ""); err != nil {
+		t.Fatalf("batch with failures broken by an answer: %v", err)
+	}
+	if got := e.origLang(t, idAfter); got != "en" {
+		t.Errorf("title after the failures: %q, want en", got)
+	}
+}
+
+// TestOriginalLanguageRunRaisesTheSuccessorOfARunningBatch: a run by hand while a batch runs (no
+// waiting batch to raise) is remembered, and the successor of the running batch takes its
+// priority (final review stage 2, G3-m1). A new chain starts with the priority of its own run.
+func TestOriginalLanguageRunRaisesTheSuccessorOfARunningBatch(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	e := newEnv(t, goodToken)
+	var last string
+	for i := range originalLanguageBatch {
+		last = fmt.Sprintf("01JTESTBATCH%014d", i)
+		e.addItem(t, itemSeed{id: last, title: fmt.Sprintf("Batch %d", i)})
+	}
+	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched', providers = '["tvdb"]'`)
+	running, err := e.svc.enqueueOriginalLanguageBackfill(ctx, "", fillPriority)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, e.db.Write, `UPDATE jobs SET state = 'running' WHERE id = ?`, running)
+	ids, err := e.svc.runOriginalLanguageBackfill(ctx, e.queue, jobs.ManualPriority)
+	if err != nil || !slices.Equal(ids, []int64{running}) {
+		t.Fatalf("run by hand: %v, %v; want the running batch %d", ids, err, running)
+	}
+	job := &jobs.Job{Type: JobOriginalLanguageBackfill, Priority: fillPriority, Payload: json.RawMessage(`{}`)}
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if err := e.svc.handleOriginalLanguageBackfill(ctx, job); err != nil {
+		t.Fatal(err)
+	}
+	want := fmt.Sprintf("original_language_backfill:%s p%d", last, jobs.ManualPriority)
+	if got := e.activeJobs(t, JobOriginalLanguageBackfill); !slices.Equal(got, []string{want}) {
+		t.Errorf("successor of the running batch: %v, want %s", got, want)
+	}
+
+	// A new chain by hand at a lower priority does not keep the old one.
+	mustExec(t, e.db.Write, `DELETE FROM jobs`)
+	if _, err := e.svc.runOriginalLanguageBackfill(ctx, e.queue, fillPriority); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.svc.originalLanguagePriority(ctx); got != fillPriority {
+		t.Errorf("remembered priority of a new chain: %d, want %d", got, fillPriority)
 	}
 }
 
