@@ -100,6 +100,17 @@ test('player keys: Space, the zones of the bar (11.2), Tab and Escape', async ({
   await expect(row.locator(':focus')).toHaveCount(0);
   await expectNoFocusTrap(page);
 
+  // ? opens the shortcut help with the focus on its list (the video plays on beside it); Escape
+  // closes it and stays in the player, the next Escape leaves.
+  await page.locator('body').focus();
+  await page.keyboard.press('?');
+  const help = page.getByRole('dialog', { name: 'Tastenkürzel' });
+  await expect(help).toBeVisible();
+  await expectFocusOn(page, help.locator('dl'));
+  await page.keyboard.press('Escape');
+  await expect(help).toHaveCount(0);
+  await expect(page).toHaveURL(/\/play\//);
+
   await page.locator('body').focus();
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(new RegExp(`${detail}$`));

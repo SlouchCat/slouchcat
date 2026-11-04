@@ -29,6 +29,7 @@ import {
   subtitleKey,
   trackLabel,
 } from './labels';
+import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { usePlayerPrefs } from './usePlayerPrefs';
@@ -187,6 +188,8 @@ export function VideoPlayer({
   const [ended, setEnded] = useState<{ reason: EndedReason; watchTime?: WatchTime } | null>(null);
   // The open menu keeps the controls on screen; shortcut keys open menus as well.
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
+  // The shortcut help (key ?), a panel beside the video.
+  const [helpOpen, setHelpOpen] = useState(false);
   // Auto-next (W-9): the end of the countdown, or null; cancelled stays for this session.
   const [countdownEnd, setCountdownEnd] = useState<number | null>(null);
   const [countdownCancelled, setCountdownCancelled] = useState(false);
@@ -498,7 +501,7 @@ export function VideoPlayer({
   const hasVersions = versions.length > 1 && onSwitchVersion !== undefined;
 
   // Faded out: no input while playing, nothing open that needs the controls.
-  const hidden = idle && playing && openMenu === null && !countdownActive && !infoOpen;
+  const hidden = idle && playing && openMenu === null && !countdownActive && !infoOpen && !helpOpen;
   // Read by the capture listener below, which is not bound again on every fade.
   const hiddenNow = useRef(hidden);
   useEffect(() => {
@@ -642,7 +645,18 @@ export function VideoPlayer({
           event.preventDefault();
           playNext();
           return;
+        case 'help':
+          event.preventDefault();
+          setHelpOpen((open) => !open);
+          return;
         case 'back':
+          // The help first (its own keys close it while the focus is in it), then the stream info,
+          // then back to the detail page.
+          if (helpOpen) {
+            event.preventDefault();
+            setHelpOpen(false);
+            return;
+          }
           if (infoOpen && event.key === 'Escape') {
             event.preventDefault();
             onToggleInfo?.();
@@ -666,6 +680,7 @@ export function VideoPlayer({
     hasQualities,
     hasTracks,
     inIntro,
+    helpOpen,
     infoOpen,
     next,
     nextChapter,
@@ -1148,7 +1163,10 @@ export function VideoPlayer({
         portalContainer={portal ?? undefined}
         infoOpen={infoOpen}
         onToggleInfo={onToggleInfo}
+        helpOpen={helpOpen}
+        onToggleHelp={() => setHelpOpen((open) => !open)}
       />
+      {helpOpen && <ShortcutHelp onClose={() => setHelpOpen(false)} />}
 
       {inIntro && ended === null && (
         <div className={styles.skip}>

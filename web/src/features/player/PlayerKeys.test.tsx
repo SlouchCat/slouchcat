@@ -271,6 +271,43 @@ describe('video player controls (concept 13, step 3)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e34.id}`));
   });
 
+  it('? opens the shortcut help beside the video; Escape closes it and stays in the player', async () => {
+    const { router } = await start();
+    key(document.body, '?');
+    const help = screen.getByRole('dialog', { name: 'Tastenkürzel' });
+    expect(within(help).getByText('Springt auf 0 bis 90 %')).toBeVisible();
+    expect(within(help).getByText('[ ]')).toBeVisible();
+    await waitFor(() => expect(help.querySelector('dl')).toHaveFocus());
+    expect(button('Tastenkürzel')).toHaveAttribute('aria-expanded', 'true');
+    // The controls stay while the help is open.
+    await act(() => vi.advanceTimersByTimeAsync(CONTROLS_HIDE_MS + 100));
+    expect(region()).toHaveAttribute('data-controls', 'visible');
+    // The letters still work inside it.
+    key(within(help).getByRole('button', { name: 'Schliessen' }), 'm');
+    expect(button('Ton aus')).toHaveAttribute('aria-pressed', 'true');
+    key(within(help).getByRole('button', { name: 'Schliessen' }), 'Escape');
+    expect(screen.queryByRole('dialog', { name: 'Tastenkürzel' })).toBeNull();
+    expect(router.state.location.pathname).toBe(`/play/${ids.alien}`);
+  });
+
+  it('the «?» button opens the help and gets the focus back; Escape outside it closes it first', async () => {
+    const { router } = await start();
+    const { user } = playerDriver();
+    await user.click(button('Tastenkürzel'));
+    const help = screen.getByRole('dialog', { name: 'Tastenkürzel' });
+    await waitFor(() => expect(help.querySelector('dl')).toHaveFocus());
+    await user.click(within(help).getByRole('button', { name: 'Schliessen' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(button('Tastenkürzel')).toHaveFocus();
+
+    key(document.body, '?');
+    expect(screen.getByRole('dialog', { name: 'Tastenkürzel' })).toBeVisible();
+    act(() => button('Pause').focus());
+    key(button('Pause'), 'Backspace');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(router.state.location.pathname).toBe(`/play/${ids.alien}`);
+  });
+
   it('during the next-episode countdown an arrow in the row cancels it', async () => {
     const { video } = await start({ ...film, resumePositionMs: 0, nextEpisode: episodes.e2 });
     act(() => {
