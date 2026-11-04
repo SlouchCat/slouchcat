@@ -592,6 +592,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/chapters/{idx}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image of a chapter of a film or an episode (binary, contract 1.12.0)
+         * @description Implemented as an `http.Handler` (concept 13 stage 3). `PlaybackInfo.chapters[].imageUrl` names
+         *     this route for every chapter whose image exists; the client does not build the URL itself. One
+         *     WebP frame of 480 px width per chapter, taken a tenth into the chapter (at most 30 s after its
+         *     start, a black frame is replaced by one 10 s later), HDR and Dolby Vision tonemapped to SDR. The
+         *     background job `chapters.images` makes the images after a playback ended or when a file appears
+         *     after the first complete scan of its library; `chapters.images_backfill` (Hintergrundjobs) makes
+         *     them for the whole collection. The handler resolves the media file of the title through the
+         *     scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId`
+         *     that is no ULID or no file of this title, an `idx` outside the chapter list and a missing image
+         *     answer 404, never 403. The URL carries `v`, the time of the file's probe: a new probe (other
+         *     chapters, other frames) gets new URLs. The answer carries the image of the file's current probe
+         *     with `ETag` (the probe time in quotes) and, when `v` names that probe,
+         *     `Cache-Control: private, max-age=31536000, immutable`; with another or no `v` it carries
+         *     `Cache-Control: private, no-cache`, so a frame cached under an older URL is never shown for a
+         *     new probe.
+         */
+        get: operations["getChapterImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/trailers": {
         parameters: {
             query?: never;
@@ -4674,7 +4708,8 @@ export interface components {
             auto?: boolean;
             /**
              * @description Relative URL of `getChapterImage` for this chapter of a film or an episode, set only when
-             *     the image exists (since contract 1.12.0, concept 13 stage 3). Absent while the background
+             *     the image exists (since contract 1.12.0, concept 13 stage 3). It carries `v`, the probe
+             *     time of the file, and changes with every new probe; clients use it as it is. Absent while the background
              *     job `chapters.images` has not made the image yet, on audiobooks and podcast episodes, and
              *     in `DownloadManifest.chapters`.
              */
@@ -8703,6 +8738,57 @@ export interface operations {
                 };
             };
             /** @description Unknown, not visible, or no image of this kind and size (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getChapterImage: {
+        parameters: {
+            query: {
+                /** @description The media file whose chapters `PlaybackInfo` described (a ULID). */
+                mediaFileId: string;
+                /** @description Probe time of the file as in `imageUrl`; decides the caching of the answer. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                /** @description Position of the chapter in `PlaybackInfo.chapters`, from 0. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chapter image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Unknown or not visible title, no file of this title with this `mediaFileId`, no chapter or no
+             *     image at `idx` (`not_found`).
+             */
             404: {
                 headers: {
                     [name: string]: unknown;

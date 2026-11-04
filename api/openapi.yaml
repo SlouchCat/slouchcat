@@ -1335,6 +1335,72 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /items/{id}/chapters/{idx}/image:
+    get:
+      operationId: getChapterImage
+      summary: Image of a chapter of a film or an episode (binary, contract 1.12.0)
+      description: |
+        Implemented as an `http.Handler` (concept 13 stage 3). `PlaybackInfo.chapters[].imageUrl` names
+        this route for every chapter whose image exists; the client does not build the URL itself. One
+        WebP frame of 480 px width per chapter, taken a tenth into the chapter (at most 30 s after its
+        start, a black frame is replaced by one 10 s later), HDR and Dolby Vision tonemapped to SDR. The
+        background job `chapters.images` makes the images after a playback ended or when a file appears
+        after the first complete scan of its library; `chapters.images_backfill` (Hintergrundjobs) makes
+        them for the whole collection. The handler resolves the media file of the title through the
+        scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId`
+        that is no ULID or no file of this title, an `idx` outside the chapter list and a missing image
+        answer 404, never 403. The URL carries `v`, the time of the file's probe: a new probe (other
+        chapters, other frames) gets new URLs. The answer carries the image of the file's current probe
+        with `ETag` (the probe time in quotes) and, when `v` names that probe,
+        `Cache-Control: private, max-age=31536000, immutable`; with another or no `v` it carries
+        `Cache-Control: private, no-cache`, so a frame cached under an older URL is never shown for a
+        new probe.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: idx
+          in: path
+          required: true
+          description: Position of the chapter in `PlaybackInfo.chapters`, from 0.
+          schema:
+            type: integer
+            minimum: 0
+        - name: mediaFileId
+          in: query
+          required: true
+          description: The media file whose chapters `PlaybackInfo` described (a ULID).
+          schema:
+            type: string
+        - name: v
+          in: query
+          required: false
+          description: Probe time of the file as in `imageUrl`; decides the caching of the answer.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The chapter image.
+          content:
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: No valid session (`unauthenticated`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            Unknown or not visible title, no file of this title with this `mediaFileId`, no chapter or no
+            image at `idx` (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /items/{id}/trailers:
     get:
       operationId: getItemTrailers
@@ -8727,7 +8793,8 @@ components:
           type: string
           description: |
             Relative URL of `getChapterImage` for this chapter of a film or an episode, set only when
-            the image exists (since contract 1.12.0, concept 13 stage 3). Absent while the background
+            the image exists (since contract 1.12.0, concept 13 stage 3). It carries `v`, the probe
+            time of the file, and changes with every new probe; clients use it as it is. Absent while the background
             job `chapters.images` has not made the image yet, on audiobooks and podcast episodes, and
             in `DownloadManifest.chapters`.
 

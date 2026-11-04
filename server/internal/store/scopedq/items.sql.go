@@ -534,7 +534,7 @@ func (q *Queries) ListItemTexts(ctx context.Context, arg ListItemTextsParams) ([
 
 const listMediaFilesForItem = `-- name: ListMediaFilesForItem :many
 SELECT m.id, m.item_id, m.rel_path, m.size, m.mtime, m.container, m.video_codec, m.audio_codec,
-       m.width, m.height, m.duration_ms, m.version_label, m.missing_since, m.created_at,
+       m.width, m.height, m.duration_ms, m.version_label, m.missing_since, m.created_at, m.probed_at,
        r.path AS root_path
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
@@ -563,6 +563,7 @@ type ListMediaFilesForItemRow struct {
 	VersionLabel sql.NullString
 	MissingSince sql.NullInt64
 	CreatedAt    int64
+	ProbedAt     sql.NullInt64
 	RootPath     string
 }
 
@@ -592,6 +593,7 @@ func (q *Queries) ListMediaFilesForItem(ctx context.Context, arg ListMediaFilesF
 			&i.VersionLabel,
 			&i.MissingSince,
 			&i.CreatedAt,
+			&i.ProbedAt,
 			&i.RootPath,
 		); err != nil {
 			return nil, err

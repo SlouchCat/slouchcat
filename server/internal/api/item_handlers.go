@@ -329,6 +329,40 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
+// getChapterImage serves the image of a chapter of a film or an episode (binary endpoint, CLAUDE.md
+// rule 6, concept 13 stage 3) for the active profile. idx must be a decimal number and the query
+// parameter mediaFileId a file of the title; anything else is 404. The image of the file's current
+// probe is cached for a year when v names that probe (the URL of PlaybackInfo); with another or no
+// v the same image goes out with no-cache and its ETag, so an image cached under an older URL is
+// never taken for the frame of a new probe.
+func (s *server) getChapterImage(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFrom(r.Context())
+	if !ok || s.opts.Playback == nil {
+		s.p.internal(w, r, errNoItemsServices)
+		return
+	}
+	raw := chi.URLParam(r, "idx")
+	idx, err := strconv.Atoi(raw)
+	if err != nil || idx < 0 || strconv.Itoa(idx) != raw {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	src, err := s.opts.Playback.ChapterImage(r.Context(), session.Profile, chi.URLParam(r, "id"), r.URL.Query().Get("mediaFileId"), idx)
+	if err != nil {
+		s.p.mapError(w, r, err)
+		return
+	}
+	defer src.File.Close()
+	w.Header().Set("Content-Type", src.MediaType)
+	w.Header().Set("ETag", src.ETag)
+	if v := r.URL.Query().Get("v"); v != "" && strconv.Quote(v) == src.ETag {
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "private, no-cache")
+	}
+	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
 // getAdminItemImage serves a poster or backdrop of a title for the administration tables (binary
 // endpoint, CLAUDE.md rule 6): system-wide, without a profile check (M11 step 5b); the session
 // middleware lets only the owner with the primary profile through (x-visibility admin). Like

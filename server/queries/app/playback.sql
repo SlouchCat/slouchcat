@@ -37,10 +37,12 @@ LIMIT 1;
 UPDATE playback_sessions SET last_activity_at = @now, expires_at = @expires_at
 WHERE id = @id AND revoked_at IS NULL;
 
--- name: RevokePlaybackSession :execrows
--- Revokes a playback session of one browser session (only the owner may stop it).
+-- name: RevokePlaybackSession :many
+-- Revokes a playback session of one browser session (only the owner may stop it); returns its
+-- media file (none when nothing was revoked) for the chapter images after playback (concept 13).
 UPDATE playback_sessions SET revoked_at = @now, stopped_by = 'client'
-WHERE id = @id AND session_id = @session_id AND revoked_at IS NULL;
+WHERE id = @id AND session_id = @session_id AND revoked_at IS NULL
+RETURNING media_file_id;
 
 -- name: RevokePlaybackSessionsBySession :many
 -- stopped_by is logout for a logout and a profile switch.

@@ -307,6 +307,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 	if bookChapters == nil {
 		bookChapters = transcode.Chapters(probe, item.Kind, file.DurationMs)
+		s.withChapterImages(ctx, item, loc, bookChapters)
 	}
 	info := model.PlaybackInfo{
 		MediaKind:         mediaKind,
@@ -1007,18 +1008,22 @@ func (s *Service) OpenGrant(ctx context.Context, g model.PlaybackGrant) (model.S
 
 // Stop revokes a playback session of the browser session, ends its open streams and stops its HLS
 // output. A playback session of another browser session, an unknown and an already ended one
-// return model.ErrNotFound.
+// return model.ErrNotFound. A film or an episode file without chapter images gets its
+// chapters.images job now that the playback ended (concept 13 11.6), not while it played.
 func (s *Service) Stop(ctx context.Context, session model.Session, id string) error {
-	n, err := s.write.RevokePlaybackSession(ctx, appq.RevokePlaybackSessionParams{
+	files, err := s.write.RevokePlaybackSession(ctx, appq.RevokePlaybackSessionParams{
 		ID: id, SessionID: session.ID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("revoke playback session: %w", err)
 	}
-	if n == 0 {
+	if len(files) == 0 {
 		return model.ErrNotFound
 	}
 	s.end(id, model.StoppedByClient)
+	if err := library.QueueChapterImagesAfterPlayback(context.WithoutCancel(ctx), s.db.Read, s.queue, s.cacheDir, files[0]); err != nil {
+		s.log.WarnContext(ctx, "queue chapter images after playback", "media_file_id", files[0], "err", err)
+	}
 	return nil
 }
 

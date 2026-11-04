@@ -26,7 +26,7 @@ func testMedia(t *testing.T) string {
 
 func mediaJob(t *testing.T, typ, mediaFileID string) *jobs.Job {
 	t.Helper()
-	payload, err := json.Marshal(mediaFilePayload{mediaFileID})
+	payload, err := json.Marshal(mediaFilePayload{MediaFileID: mediaFileID})
 	if err != nil {
 		t.Fatal(err)
 	}

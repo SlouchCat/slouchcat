@@ -47,10 +47,13 @@ const (
 	// candidatePreviewPath serves a local image file of a title as preview of the image choice
 	// (concept 10 9.2).
 	candidatePreviewPath = "/admin/items/{id}/image-candidates/preview"
+	// chapterImagePath serves the image of a chapter of a film or an episode (concept 13 stage 3).
+	chapterImagePath = "/items/{id}/chapters/{idx}/image"
 )
 
 var binaryRoutes = map[string]string{
 	"GET " + BasePath + binaryImagePath:  "scoped",
+	"GET " + BasePath + chapterImagePath: "scoped",
 	"GET " + BasePath + binaryStreamPath: "scoped",
 	"GET " + BasePath + hlsMasterPath:    "scoped",
 	"GET " + BasePath + hlsMediaPath:     "scoped",
@@ -132,6 +135,7 @@ func NewHandler(o Options) http.Handler {
 		// prepared downloads through the download token (M5).
 		streamAuth := p.streamAuth(o.Playback)
 		r.With(authorize).Get(binaryImagePath, s.getItemImage)
+		r.With(authorize).Get(chapterImagePath, s.getChapterImage)
 		r.With(streamAuth).Get(binaryStreamPath, s.getItemStream)
 		r.With(streamAuth).Get(hlsMasterPath, s.getPlaybackMaster)
 		r.With(streamAuth).Get(hlsMediaPath, s.getPlaybackMedia)

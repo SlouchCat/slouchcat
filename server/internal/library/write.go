@@ -306,6 +306,11 @@ type batchWriter struct {
 	adopted  []string        // podcasts a second folder brought the feed of (Service.noteAdoptedPodcasts)
 }
 
+// scannedBefore reports whether a scan of the library ended before this one started: a file that
+// appears or changes now is news, and its probe queues its chapter images (concept 13 11.6). The
+// files of the first scan wait for the backfill that an administrator starts by hand.
+func (w *batchWriter) scannedBefore() bool { return w.lib.LastScanFinishedAt.Valid }
+
 // ix is the item index of the titles the current root produces.
 func (w *batchWriter) ix() *itemIndex { return w.index.forContent(w.root.Content) }
 
@@ -342,7 +347,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		}); err != nil {
 			return fmt.Errorf("insert media file: %w", err)
 		}
-		if err := enqueueTx(ctx, q, w.now, probeJob(fileID)); err != nil {
+		if err := enqueueTx(ctx, q, w.now, probeJob(fileID, w.scannedBefore())); err != nil {
 			return err
 		}
 		w.stats.created++
@@ -365,7 +370,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 			}
 		}
 		if op.reprobe {
-			if err := enqueueTx(ctx, q, w.now, probeJob(op.known.ID)); err != nil {
+			if err := enqueueTx(ctx, q, w.now, probeJob(op.known.ID, w.scannedBefore())); err != nil {
 				return err
 			}
 		}

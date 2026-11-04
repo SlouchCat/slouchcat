@@ -399,6 +399,10 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("image body differs from the stored file")
 			}
 		}},
+	// The fixture has no chapter images, so a visible title answers 404 as well (no image);
+	// TestChapterImage covers the image itself, a foreign file and the age rule.
+	"getChapterImage": {contract: "GET /items/{id}/chapters/{idx}/image", path: "/items/{id}/chapters/0/image?mediaFileId={file}",
+		perItem: true, okStatus: http.StatusNotFound},
 	"startPlayback": {contract: "POST /items/{id}/play", path: "/items/{id}/play", perItem: true, okStatus: http.StatusOK,
 		body: `{"deviceId":"contract-test","capabilities":{"video":["h264"],"audio":["aac"],"hls":"mse"}}`,
 		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -1434,7 +1438,7 @@ func TestContractChildProfiles(t *testing.T) {
 					continue
 				}
 				for _, m := range playable {
-					path := strings.ReplaceAll(call.path, "{id}", m.ID)
+					path := strings.NewReplacer("{id}", m.ID, "{file}", m.FileID).Replace(call.path)
 					if call.mint != "" {
 						var sub int64
 						if call.subtitle {

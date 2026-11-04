@@ -158,3 +158,23 @@ DELETE FROM media_files WHERE root_id = @root_id;
 -- name: DeleteIgnoredFilesOfRoot :execrows
 -- The ignored files of a folder refer to its old reading; with another content they start over.
 DELETE FROM ignored_files WHERE root_id = @root_id;
+
+-- Chapter images (concept 13 stage 3, chapters.images).
+
+-- name: ListChapterImageFiles :many
+-- The probed media files of films and episodes: the backfill queues chapters.images for those
+-- without images, the sweep keeps the image folders of exactly these files at their probed_at.
+SELECT m.id, m.probed_at, m.missing_since IS NOT NULL AS missing
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+WHERE i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL AND m.probed_at IS NOT NULL AND m.probe IS NOT NULL
+ORDER BY m.id;
+
+-- name: GetChapterImageFile :one
+-- A media file for chapters.images: the stored probe at its probed_at, its duration, the kind of
+-- its title and the folder it lies in.
+SELECT m.id, m.rel_path, m.duration_ms, m.probe, m.probed_at, m.missing_since, i.kind, r.path AS root_path
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE m.id = @id;

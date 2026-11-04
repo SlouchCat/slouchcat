@@ -3034,6 +3034,14 @@
           "name": "Detect intro and outro",
           "trigger": "From the scan per season"
         },
+        "chapters_images": {
+          "name": "Create chapter images",
+          "trigger": "Per file after a playback ended and for new files after the first scan"
+        },
+        "chapters_images_backfill": {
+          "name": "Backfill chapter images",
+          "trigger": "Only by hand with «Run now», for every film and episode without chapter images"
+        },
         "library_relink": {
           "name": "Relink deleted title",
           "trigger": "After the match of a title with a deleted twin"
