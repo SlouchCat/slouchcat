@@ -830,6 +830,13 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   2160p als 4K, wenn sie mindestens 2160 Zeilen **oder** mindestens 3840 Pixel Breite hat. Damit
   bekommen auch Kinofilme im Breitbild (z. B. 3840×1600) die Stufe 2160p. Das ergänzt 11.5
   «Quelle mindestens 2160 Zeilen». Das H.264-Level folgt der Bildgrösse, nicht nur der Höhe.
+- **Stufe 2, Schritte 8 und 9:**
+  - Die Originalsprache kommt aus den Anbietern in der Reihenfolge der Anbieterliste der
+    Bibliothek (ADR 0015), nicht in der festen Reihenfolge TMDB, TVDB, AniList aus 11.7.
+  - Die Tests der Spurwahl nutzen nachgebaute Spurlisten in der Form der Probe, nicht die
+    bereinigten Probe-JSON echter Titel aus 11.11; diese lagen nicht im Repo.
+  - «Für diese Serie merken» merkt nur den Teil, der von Hand geändert wurde: ein Tonwechsel
+    ändert den Merker für die Untertitel nicht und umgekehrt.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
