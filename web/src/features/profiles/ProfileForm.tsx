@@ -22,6 +22,7 @@ import {
   type LimitValues,
 } from '../shared/LimitFields';
 import { libraryIdsOf, type LibraryOption } from '../shared/useLibraryOptions';
+import { myPlaybackPrefsQuery } from './playbackPrefs';
 import { PlaybackPrefsFields } from './PlaybackPrefsFields';
 import styles from './ProfileForm.module.css';
 
@@ -102,6 +103,10 @@ export function ProfileForm({
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['profiles'] }),
         queryClient.invalidateQueries({ queryKey: ['auth'] }),
+        // «Meine Wiedergabe» and the sound panel read the active profile's lists from there.
+        ...(saved.id === session.profile.id
+          ? [queryClient.invalidateQueries({ queryKey: myPlaybackPrefsQuery.queryKey })]
+          : []),
       ]);
       // Editing the profile in use is like switching to it: the catalog is read again, and name,
       // language and colour of the app follow.
