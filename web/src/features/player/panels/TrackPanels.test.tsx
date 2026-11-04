@@ -190,8 +190,31 @@ describe('AudioPanel (V-5)', () => {
       expect(screen.getByRole('status')).toHaveTextContent(
         'Deutsch ist Standard für dieses Profil.',
       );
-      await user.click(screen.getByRole('button', { name: 'Als Standard für dieses Profil' }));
+      const button = screen.getByRole('button', { name: 'Als Standard für dieses Profil' });
+      // Off while the status says it (final review stage 2, G3-m4).
+      expect(button).toBeDisabled();
+      await user.click(button);
       expect(calls).toHaveLength(0);
+    });
+
+    it('sends nothing when the server holds the language first already (another device)', async () => {
+      const user = userEvent.setup();
+      const { calls } = mockApi({
+        'GET /me/playback-prefs': () =>
+          json({ audioLanguages: ['en', 'de'], subtitleMode: 'forced', subtitleLanguages: ['de'] }),
+      });
+      const queryClient = renderWithSession(1);
+      const button = screen.getByRole('button', { name: 'Als Standard für dieses Profil' });
+      await user.click(button);
+      expect(await screen.findByText('Englisch ist Standard für dieses Profil.')).toBeVisible();
+      expect(calls.filter((call) => call.method === 'PUT')).toHaveLength(0);
+      // The session takes the server's lists; the button keeps the focus.
+      expect(queryClient.getQueryData(sessionQuery.queryKey)?.profile?.audioLanguages).toEqual([
+        'en',
+        'de',
+      ]);
+      expect(button).toBeEnabled();
+      expect(button).toHaveFocus();
     });
 
     it('is not offered without the flag (the offline player)', () => {
