@@ -265,6 +265,53 @@ func TestDecide2160(t *testing.T) {
 	if a := option(t, opts, model.QualityAuto); !a.Current || !a.Direct || a.Codec != "hevc" {
 		t.Errorf("auto option of a direct 4K file %+v", a)
 	}
+	// 2160p played directly on the QSV host is the source's rung and current.
+	req = pick(hostQSV, hevcCaps, model.PlaybackLimits{}, model.Quality2160)
+	d = Decide(mp4, uhd, req)
+	opts = QualityOptions(d, newSource(mp4, uhd, model.PlaybackLimits{}, hevcCaps, hostQSV), originalAvailable(d, mp4, uhd, req), model.Quality2160)
+	if o, a := option(t, opts, model.Quality2160), option(t, opts, model.QualityAuto); !o.Current || a.Current {
+		t.Errorf("direct 2160p on qsv: 2160p %+v, auto %+v", o, a)
+	}
+}
+
+// A remembered 2160p that the title cannot offer (final review stage 2, G2-M1): the file plays
+// directly, the 2160p row is not available, so auto is current and no rung is.
+func TestQualityOptionsUnavailable2160(t *testing.T) {
+	t.Parallel()
+	mp4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac"}
+	hd := sizedProbe("h264", "bt709", 1920, 1080, 6_000_000)
+	hevc := model.MediaFile{Container: "mp4", VideoCodec: "hevc", AudioCodec: "aac"}
+	uhd := sizedProbe("hevc", "bt709", 3840, 2160, 40_000_000)
+	hevcCaps := capsChromeHEVC
+	hevcCaps.MaxWidth, hevcCaps.MaxHeight = 3840, 2160
+	for _, c := range []struct {
+		name string
+		file model.MediaFile
+		p    *transcode.Probe
+		caps model.PlaybackCapabilities
+		host transcode.Capabilities
+	}{
+		{"1080p direct", mp4, hd, caps4K, hostQSV},
+		{"4K direct on a software host", hevc, uhd, hevcCaps, hostSoftware},
+	} {
+		req := Request{Caps: c.caps, AudioStream: -1, Quality: model.Quality2160, Host: c.host}
+		d := Decide(c.file, c.p, req)
+		if d.Mode != ModeDirect {
+			t.Fatalf("%s: decision %+v, want direct play", c.name, d)
+		}
+		opts := QualityOptions(d, newSource(c.file, c.p, model.PlaybackLimits{}, c.caps, c.host), originalAvailable(d, c.file, c.p, req), model.Quality2160)
+		if o := option(t, opts, model.Quality2160); o.Available || o.Current {
+			t.Errorf("%s: 2160p option %+v, want unavailable and not current", c.name, o)
+		}
+		if a := option(t, opts, model.QualityAuto); !a.Current {
+			t.Errorf("%s: auto option %+v, want current", c.name, a)
+		}
+		for _, o := range opts {
+			if o.Current && o.Quality != model.QualityAuto {
+				t.Errorf("%s: %s is current too", c.name, o.Quality)
+			}
+		}
+	}
 }
 
 // The budget (plan 3.5, ADR 0021) lowers 2160p to 1080p, also a source tonemapped on the GPU;

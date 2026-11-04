@@ -191,7 +191,10 @@ const transcodeCodec = "h264"
 //
 // current marks what the client asked for: auto (also for a remembered qualityCap and for an
 // original that could not play), original when it plays, or for a manual rung the rung that runs
-// (the requested one, or the next lower one that the limits or the budget allowed).
+// (the requested one, or the next lower one that the limits or the budget allowed). A manual rung
+// is current only when it is available and runs: a transcode on it, or the source's rung where the
+// file plays without re-encoding the video. Otherwise (a remembered 2160p on a title that plays
+// directly but does not offer 2160p) auto is current.
 //
 // An audio-only playback (Decision.Audio) offers one option: auto with the bit rate of the output
 // and no size (the contract's Quality enum has no audio rung).
@@ -215,18 +218,20 @@ func QualityOptions(d Decision, src source, originalOK bool, requested string) [
 	out = append(out,
 		model.QualityOption{
 			Quality: model.QualityAuto, Width: d.Width, Height: d.Height, Bitrate: d.Bitrate, Codec: autoCodec, Direct: autoDirect,
-			Available: true, Current: !manual && !original,
+			Available: true,
 		},
 		model.QualityOption{
 			Quality: model.QualityOriginal, Width: src.w, Height: src.h, Bitrate: src.bitrate, Codec: codec, Direct: true,
 			Available: originalOK, Current: original,
 		})
+	rungCurrent := false
 	for i, r := range ladder {
 		o := model.QualityOption{
 			Quality: r.Quality, Codec: transcodeCodec, Bitrate: rungBitrate(r, src.limits),
 			Available: i >= top && rungAllowed(i, src.limits, devCap),
-			Current:   manual && requested == r.Quality,
 		}
+		o.Current = manual && requested == r.Quality && o.Available && (d.Mode == ModeTranscode || i == top)
+		rungCurrent = rungCurrent || o.Current
 		o.Width, o.Height = outputSize(src.w, src.h, r)
 		if i == top && originalOK && o.Available {
 			o.Codec, o.Direct = codec, true
@@ -236,5 +241,6 @@ func QualityOptions(d Decision, src source, originalOK bool, requested string) [
 		}
 		out = append(out, o)
 	}
+	out[0].Current = !original && !rungCurrent
 	return out
 }
