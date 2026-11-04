@@ -14,11 +14,6 @@ const isEditable = (target: EventTarget | null) =>
 const inPanel = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.closest('[role="dialog"]') !== null;
 
-/** Keys inside a player menu belong to the menu (arrows, Enter, Escape). */
-const inMenu = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  target.closest('[role="menu"], [role="menuitemradio"], [role="menuitem"]') !== null;
-
 /**
  * What the keys do. A missing action means the player cannot do it now (no chapters, no quality
  * to switch, the server ended the playback): the key is left to the browser.
@@ -46,8 +41,6 @@ export interface PlayerKeyActions {
   playNext?: () => void;
   /** ?. */
   toggleHelp: () => void;
-  /** Backspace inside a menu closes it, like Escape (the remote's back key, C-4). */
-  closeMenu?: () => void;
   /**
    * Escape and Backspace: closes what is open (a panel, the stream info) and says whether there
    * was something; otherwise the key leaves the player (`back`), except in full screen.
@@ -104,7 +97,6 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
       if (hasShortcutModifier(event)) return;
       const { hidden, countdown, onKey, actions } = latest.current;
       onKey();
-      if (inMenu(event.target)) return;
       const consume = () => {
         event.preventDefault();
         event.stopPropagation();
@@ -145,13 +137,6 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
     const onKeyDown = (event: KeyboardEvent) => {
       if (hasShortcutModifier(event)) return;
       const { countdown, durationMs, actions } = latest.current;
-      if (inMenu(event.target)) {
-        if (event.key === 'Backspace') {
-          event.preventDefault();
-          actions.closeMenu?.();
-        }
-        return;
-      }
       // The capture listener has handled the key.
       if (countdown || isEditable(event.target)) return;
       const action = playerKeyAction(event);

@@ -77,7 +77,7 @@ const letters: Record<string, PlayerKeyAction> = {
  * The action of a key, or null for a key the player leaves alone (and every key with Alt, Ctrl or
  * Meta: those belong to the browser, but `[` and `]` typed with AltGr or Option count). Letters count in either case. Which zone has the focus
  * decides elsewhere whether a key reaches the key map at all: the button row keeps the arrows to
- * itself (PlayerChrome), a menu or a panel its own keys.
+ * itself (PlayerChrome), a panel its own keys.
  */
 export function playerKeyAction(event: KeyInput): PlayerKeyAction | null {
   if (hasShortcutModifier(event)) return null;

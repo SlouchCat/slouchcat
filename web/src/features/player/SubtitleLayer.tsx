@@ -24,9 +24,9 @@ const ENTITIES: Record<string, string> = {
   '&amp;': '&',
   '&lt;': '<',
   '&gt;': '>',
-  '&nbsp;': ' ',
-  '&lrm;': '‎',
-  '&rlm;': '‏',
+  '&nbsp;': '\u00a0',
+  '&lrm;': '\u200e',
+  '&rlm;': '\u200f',
 };
 const ENTITY = /&(?:amp|lt|gt|nbsp|lrm|rlm);/g;
 

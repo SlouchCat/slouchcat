@@ -12,7 +12,6 @@ function actions(extra: Partial<PlayerKeyActions> = {}): PlayerKeyActions {
     toggleMute: vi.fn(),
     toggleFullscreen: vi.fn(),
     toggleHelp: vi.fn(),
-    closeMenu: vi.fn(),
     closeOpen: vi.fn(() => false),
     back: vi.fn(),
     ...extra,

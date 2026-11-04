@@ -828,7 +828,7 @@
       "rate": "Speed {{rate}}×",
       "muted": "Muted",
       "previousEpisode": "Previous episode",
-      "forward10": "10 seconds forward",
+      "forward10": "Forward 10 seconds",
       "options": "Options",
       "tapBack": "−{{seconds}} s",
       "tapForward": "+{{seconds}} s"

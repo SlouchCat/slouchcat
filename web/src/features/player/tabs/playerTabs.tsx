@@ -47,9 +47,12 @@ interface PlayerTabsInput {
  * The tabs under the bar (11.2, V-8, V-11): «Kapitel» as chapter cards (number and time until
  * stage 3 brings the images), «Als Nächstes» with the episodes of the season, «Besetzung» and
  * «Info». A tab without content is left out. Everything comes from requests the detail page makes
- * as well (11.10); the server decided what the profile may see (rule 12). A hook by name only (it
- * calls none): the React compiler then knows that the callbacks it hands on run later, not while
- * the player renders.
+ * as well (11.10); the server decided what the profile may see (rule 12).
+ *
+ * A hook by name only (it calls none). As a plain function the React compiler takes it to run
+ * the callbacks it gets (seekTo, which reads the video ref) while the player renders, and refuses
+ * the player («Cannot access refs during render»). The cards' `render` runs while CardRow renders;
+ * the callbacks inside it run on a press.
  */
 export function usePlayerTabs({
   t,
