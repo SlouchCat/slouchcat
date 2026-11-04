@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NIGHT_MODE, useAudioGraph } from './useAudioGraph';
 
@@ -19,6 +20,8 @@ const param = () => ({ value: 0 });
 
 class FakeContext {
   static instances: FakeContext[] = [];
+  /** Like Chromium: an element feeds one source node for its whole life. */
+  static connected = new WeakSet<HTMLMediaElement>();
   state: AudioContextState = 'suspended';
   readonly destination = new FakeNode('destination');
   readonly sources: HTMLMediaElement[] = [];
@@ -40,6 +43,13 @@ class FakeContext {
     FakeContext.instances.push(this);
   }
   createMediaElementSource(element: HTMLMediaElement) {
+    if (FakeContext.connected.has(element)) {
+      throw new DOMException(
+        'HTMLMediaElement already connected previously to a different MediaElementSourceNode.',
+        'InvalidStateError',
+      );
+    }
+    FakeContext.connected.add(element);
     this.sources.push(element);
     return this.source;
   }
@@ -51,16 +61,25 @@ class FakeContext {
   }
 }
 
-function setup() {
+function setup({
+  strict = false,
+  initialProps = { nightMode: false, gain: 1, enabled: true },
+  element = document.createElement('video'),
+} = {}) {
   FakeContext.instances.length = 0;
   vi.stubGlobal('AudioContext', FakeContext);
-  const media = { current: document.createElement('video') };
+  const media = { current: element };
+  const onUnavailable = vi.fn();
   const hook = renderHook(
-    ({ nightMode, gain, enabled }) => useAudioGraph({ media, enabled, nightMode, gain }),
-    { initialProps: { nightMode: false, gain: 1, enabled: true } },
+    ({ nightMode, gain, enabled }) =>
+      useAudioGraph({ media, enabled, nightMode, gain, onUnavailable }),
+    { initialProps, wrapper: strict ? StrictMode : undefined },
   );
-  return { media, hook };
+  return { media, hook, onUnavailable };
 }
+
+/** The graph closes after the microtasks of the unmount (releaseGraph). */
+const microtasks = () => new Promise<void>((resolve) => queueMicrotask(resolve));
 
 describe('useAudioGraph (11.10: night mode and 150 %)', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -91,7 +110,8 @@ describe('useAudioGraph (11.10: night mode and 150 %)', () => {
     expect(context!.compressor.targets).toEqual([context!.gain]);
     expect(context!.compressor.ratio.value).toBe(NIGHT_MODE.ratio);
     expect(context!.compressor.threshold.value).toBe(NIGHT_MODE.threshold);
-    expect(context!.gain.gain.value).toBeCloseTo(NIGHT_MODE.makeUp);
+    // The compressor makes its own make-up gain: no second factor on top.
+    expect(context!.gain.gain.value).toBe(1);
 
     hook.rerender({ nightMode: false, gain: 1, enabled: true });
     expect(context!.source.targets).toEqual([context!.gain]);
@@ -99,14 +119,50 @@ describe('useAudioGraph (11.10: night mode and 150 %)', () => {
     // Off again, the graph is kept: one source per element, for the life of the player.
     hook.rerender({ nightMode: true, gain: 1.2, enabled: true });
     expect(FakeContext.instances).toHaveLength(1);
-    expect(context!.gain.gain.value).toBeCloseTo(1.2 * NIGHT_MODE.makeUp);
+    expect(context!.gain.gain.value).toBeCloseTo(1.2);
   });
 
-  it('closes the context when the player goes', () => {
+  it('closes the context when the player goes', async () => {
     const { hook } = setup();
     hook.rerender({ nightMode: true, gain: 1, enabled: true });
     hook.unmount();
+    await microtasks();
     expect(FakeContext.instances[0]!.close).toHaveBeenCalled();
+  });
+
+  it('keeps the graph of an element through a remount of StrictMode (one source node)', async () => {
+    const element = document.body.appendChild(document.createElement('video'));
+    try {
+      const { hook, onUnavailable } = setup({
+        strict: true,
+        element,
+        initialProps: { nightMode: true, gain: 1.3, enabled: true },
+      });
+      await microtasks();
+      expect(FakeContext.instances).toHaveLength(1);
+      const [context] = FakeContext.instances;
+      expect(context!.sources).toEqual([element]);
+      expect(context!.close).not.toHaveBeenCalled();
+      expect(onUnavailable).not.toHaveBeenCalled();
+      expect(context!.source.targets).toEqual([context!.compressor]);
+      hook.rerender({ nightMode: false, gain: 1.5, enabled: true });
+      expect(context!.gain.gain.value).toBeCloseTo(1.5);
+    } finally {
+      element.remove();
+    }
+  });
+
+  it('reports a graph the browser refuses, once, and builds nothing more', () => {
+    const element = document.createElement('video');
+    // Another graph took the element before (as after a remount that lost the map).
+    FakeContext.connected.add(element);
+    const { hook, onUnavailable } = setup({ element });
+    hook.rerender({ nightMode: true, gain: 1, enabled: true });
+    expect(onUnavailable).toHaveBeenCalledTimes(1);
+    expect(FakeContext.instances[0]!.close).toHaveBeenCalled();
+    hook.rerender({ nightMode: true, gain: 1.4, enabled: true });
+    expect(onUnavailable).toHaveBeenCalledTimes(1);
+    expect(FakeContext.instances).toHaveLength(1);
   });
 
   it('never builds a graph where Web Audio is not offered (Safari)', () => {

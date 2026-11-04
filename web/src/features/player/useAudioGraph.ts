@@ -2,8 +2,10 @@ import { useEffect, useRef, type RefObject } from 'react';
 
 /**
  * Night mode (V-16): a compressor that makes quiet passages louder and loud ones quieter. The
- * values follow the usual «dynamic range compression» presets of players; the make-up gain brings
- * the compressed signal back to about the loudness of the original.
+ * values follow the usual «dynamic range compression» presets of players. There is no make-up
+ * gain of our own: the Web Audio compressor applies one itself (spec «DynamicsCompressorNode»,
+ * makeup gain = (1 / curve(1))^0.6; at −30 dB and 6:1 a full-scale signal comes out at about
+ * −25 dB, so the node raises it by about 5.6×). A second factor on top would clip loud scenes.
  */
 export const NIGHT_MODE = {
   threshold: -30,
@@ -11,7 +13,6 @@ export const NIGHT_MODE = {
   ratio: 6,
   attack: 0.005,
   release: 0.3,
-  makeUp: 1.6,
 } as const;
 
 interface Graph {
@@ -22,12 +23,27 @@ interface Graph {
   night: boolean | null;
 }
 
+/**
+ * The graph of each media element. An element feeds one source node for its whole life
+ * (`createMediaElementSource` a second time throws InvalidStateError), so a hook that mounts again
+ * on the same element (StrictMode, Fast Refresh) takes the graph it built before.
+ */
+const graphs = new WeakMap<HTMLMediaElement, Graph>();
+
 // Module functions: the React compiler does not let a hook write to objects it received.
 
 /** media element → (compressor) → gain → speakers; the element plays through the graph from now. */
 function buildGraph(element: HTMLMediaElement): Graph {
+  const known = graphs.get(element);
+  if (known) return known;
   const context = new AudioContext();
-  const source = context.createMediaElementSource(element);
+  let source: MediaElementAudioSourceNode;
+  try {
+    source = context.createMediaElementSource(element);
+  } catch (error) {
+    void context.close().catch(() => undefined);
+    throw error;
+  }
   const compressor = context.createDynamicsCompressor();
   compressor.threshold.value = NIGHT_MODE.threshold;
   compressor.knee.value = NIGHT_MODE.knee;
@@ -37,7 +53,9 @@ function buildGraph(element: HTMLMediaElement): Graph {
   const gain = context.createGain();
   gain.connect(context.destination);
   compressor.connect(gain);
-  return { context, source, compressor, gain, night: null };
+  const graph = { context, source, compressor, gain, night: null };
+  graphs.set(element, graph);
+  return graph;
 }
 
 /** Routes the source through the compressor or past it and sets the gain. */
@@ -47,13 +65,23 @@ function applyGraph(graph: Graph, night: boolean, gain: number): void {
     graph.source.connect(night ? graph.compressor : graph.gain);
     graph.night = night;
   }
-  graph.gain.gain.value = gain * (night ? NIGHT_MODE.makeUp : 1);
+  graph.gain.gain.value = gain;
   // A context made without a fresh gesture starts suspended; the page has had one by now.
-  if (graph.context.state === 'suspended') void graph.context.resume();
+  if (graph.context.state === 'suspended') void graph.context.resume().catch(() => undefined);
 }
 
-function closeGraph(graph: Graph): void {
-  void graph.context.close();
+/**
+ * Closes the graph of an element that left the document. A cleanup of StrictMode or Fast Refresh
+ * runs while the element stays: it is checked after the current task's microtasks, when React has
+ * mounted again or removed the element.
+ */
+function releaseGraph(element: HTMLMediaElement): void {
+  queueMicrotask(() => {
+    const graph = graphs.get(element);
+    if (!graph || element.isConnected) return;
+    graphs.delete(element);
+    void graph.context.close().catch(() => undefined);
+  });
 }
 
 interface AudioGraphOptions {
@@ -63,32 +91,48 @@ interface AudioGraphOptions {
   nightMode: boolean;
   /** The part of the volume above 100 % (1 … 1.5); the element plays up to 100 % itself. */
   gain: number;
+  /** The browser refused the graph: the page hides night mode and the volume above 100 %. */
+  onUnavailable?: () => void;
 }
 
 /**
  * Night mode and the volume above 100 % through Web Audio (11.10 «Lautstärke und Ton-Optionen»):
  * `createMediaElementSource` → `DynamicsCompressorNode` → `GainNode`. The graph is built only when
  * one of them is first switched on, which only a viewer's action does, and then stays for the
- * life of the player (a media element can feed one source node only, and taking it out again
+ * life of the element (a media element can feed one source node only, and taking it out again
  * would cut the sound). Without night mode the source goes past the compressor.
  */
-export function useAudioGraph({ media, enabled, nightMode, gain }: AudioGraphOptions): void {
-  const graph = useRef<Graph | null>(null);
+export function useAudioGraph({
+  media,
+  enabled,
+  nightMode,
+  gain,
+  onUnavailable,
+}: AudioGraphOptions): void {
+  const element = useRef<HTMLMediaElement | null>(null);
+  const failed = useRef(false);
 
   useEffect(() => {
-    const element = media.current;
-    if (!enabled || !element) return;
-    if (!graph.current) {
+    const current = media.current;
+    if (!enabled || !current || failed.current) return;
+    element.current = current;
+    let graph = graphs.get(current);
+    if (!graph) {
       if (!nightMode && gain <= 1) return;
-      graph.current = buildGraph(element);
+      try {
+        graph = buildGraph(current);
+      } catch {
+        failed.current = true;
+        onUnavailable?.();
+        return;
+      }
     }
-    applyGraph(graph.current, nightMode, gain);
-  }, [enabled, gain, media, nightMode]);
+    applyGraph(graph, nightMode, gain);
+  }, [enabled, gain, media, nightMode, onUnavailable]);
 
   useEffect(
     () => () => {
-      if (graph.current) closeGraph(graph.current);
-      graph.current = null;
+      if (element.current) releaseGraph(element.current);
     },
     [],
   );

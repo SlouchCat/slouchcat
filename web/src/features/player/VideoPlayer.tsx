@@ -421,14 +421,31 @@ export function VideoPlayer({
   );
 
   // Up to 150 % and night mode through Web Audio, except in Safari (11.15).
-  const [webAudio] = useState(() => supportsWebAudioBoost());
+  const [webAudio, setWebAudio] = useState(() => supportsWebAudioBoost());
   const volume = useVolume(video, {
     initialMuted: start.muted,
     initialVolume: start.volume,
     max: webAudio ? BOOST_MAX : 1,
   });
   const [nightMode, setNightMode] = useState(start.nightMode);
-  useAudioGraph({ media: video, enabled: webAudio, nightMode, gain: volume.gain });
+  // The browser refused the graph: night mode and the volume above 100 % go away.
+  const { setVolume: setLevel, volume: levelBefore } = volume;
+  const levelAtFailure = useRef(levelBefore);
+  useEffect(() => {
+    levelAtFailure.current = levelBefore;
+  }, [levelBefore]);
+  const audioGraphUnavailable = useCallback(() => {
+    setWebAudio(false);
+    setNightMode(false);
+    if (levelAtFailure.current > 1) setLevel(1);
+  }, [setLevel]);
+  useAudioGraph({
+    media: video,
+    enabled: webAudio,
+    nightMode,
+    gain: volume.gain,
+    onUnavailable: audioGraphUnavailable,
+  });
   const { muted: mutedNow, volume: levelNow } = volume;
   useEffect(() => {
     onCarry?.({ muted: mutedNow, volume: levelNow, nightMode });
