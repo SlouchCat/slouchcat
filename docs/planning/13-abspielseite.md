@@ -837,6 +837,9 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
     bereinigten Probe-JSON echter Titel aus 11.11; diese lagen nicht im Repo.
   - «Für diese Serie merken» merkt nur den Teil, der von Hand geändert wurde: ein Tonwechsel
     ändert den Merker für die Untertitel nicht und umgekehrt.
+  - Bei «Immer» und «Fremdsprache» geht eine volle Bildspur einer SDH-Textspur derselben Sprache
+    vor, wie in 11.3 (Marcos Entscheid vom 4. November 2026), auch wenn das Einbrennen eine sonst
+    direkt spielbare Datei umwandelt.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
