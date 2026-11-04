@@ -15,7 +15,7 @@
 //     8 update.check, the daily release check (admin): seconds of work, before every bulk job
 //     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen")
 //     6 scan.path
-//     5 scan.library, download.prepare
+//     5 scan.library, download.prepare, chapters.images (library, concept 13)
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
 //     library.relink
 //     3 probe.file, metadata.match of episodes, notify.deliver

@@ -340,6 +340,45 @@ func (q *Queries) ListActivePlaybackSessions(ctx context.Context, arg ListActive
 	return items, nil
 }
 
+const listEndedPlaybackFiles = `-- name: ListEndedPlaybackFiles :many
+SELECT DISTINCT media_file_id FROM playback_sessions
+WHERE expires_at >= ?1 AND media_file_id <> ''
+  AND ((revoked_at >= ?1 AND revoked_at <= ?2) OR (revoked_at IS NULL AND expires_at <= ?2))
+`
+
+type ListEndedPlaybackFilesParams struct {
+	Since int64
+	Now   sql.NullInt64
+}
+
+// The media files of the playback sessions that ended in [@since, @now]: revoked (a stop of the
+// client, the administration, a logout, a replacement) or expired (a closed or killed app). The
+// sweep queues their chapter images (concept 13 11.6); a row on the bound of two sweeps comes
+// twice, which the job key absorbs. A row is revoked before it expires, so the index on expires_at
+// bounds the scan.
+func (q *Queries) ListEndedPlaybackFiles(ctx context.Context, arg ListEndedPlaybackFilesParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listEndedPlaybackFiles, arg.Since, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var media_file_id string
+		if err := rows.Scan(&media_file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, media_file_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEndedPlaybackSessions = `-- name: ListEndedPlaybackSessions :many
 SELECT ps.id FROM playback_sessions AS ps
 LEFT JOIN sessions AS s ON s.id = ps.session_id
@@ -481,10 +520,9 @@ func (q *Queries) RecordPlaybackPosition(ctx context.Context, arg RecordPlayback
 	return result.RowsAffected()
 }
 
-const revokePlaybackSession = `-- name: RevokePlaybackSession :many
+const revokePlaybackSession = `-- name: RevokePlaybackSession :execrows
 UPDATE playback_sessions SET revoked_at = ?1, stopped_by = 'client'
 WHERE id = ?2 AND session_id = ?3 AND revoked_at IS NULL
-RETURNING media_file_id
 `
 
 type RevokePlaybackSessionParams struct {
@@ -493,29 +531,13 @@ type RevokePlaybackSessionParams struct {
 	SessionID int64
 }
 
-// Revokes a playback session of one browser session (only the owner may stop it); returns its
-// media file (none when nothing was revoked) for the chapter images after playback (concept 13).
-func (q *Queries) RevokePlaybackSession(ctx context.Context, arg RevokePlaybackSessionParams) ([]string, error) {
-	rows, err := q.db.QueryContext(ctx, revokePlaybackSession, arg.Now, arg.ID, arg.SessionID)
+// Revokes a playback session of one browser session (only the owner may stop it).
+func (q *Queries) RevokePlaybackSession(ctx context.Context, arg RevokePlaybackSessionParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokePlaybackSession, arg.Now, arg.ID, arg.SessionID)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	defer rows.Close()
-	items := []string{}
-	for rows.Next() {
-		var media_file_id string
-		if err := rows.Scan(&media_file_id); err != nil {
-			return nil, err
-		}
-		items = append(items, media_file_id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return result.RowsAffected()
 }
 
 const revokePlaybackSessionsByDevice = `-- name: RevokePlaybackSessionsByDevice :many

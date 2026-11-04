@@ -162,19 +162,29 @@ DELETE FROM ignored_files WHERE root_id = @root_id;
 -- Chapter images (concept 13 stage 3, chapters.images).
 
 -- name: ListChapterImageFiles :many
--- The probed media files of films and episodes: the backfill queues chapters.images for those
--- without images, the sweep keeps the image folders of exactly these files at their probed_at.
-SELECT m.id, m.probed_at, m.missing_since IS NOT NULL AS missing
+-- The probed media files of films and episodes with their probe: the backfill queues
+-- chapters.images for those without images, the sweep keeps the image folders of exactly these
+-- files at their probe and chapter list.
+SELECT m.id, m.probed_at, m.probe, m.duration_ms, i.kind, m.missing_since IS NOT NULL AS missing
 FROM media_files AS m
 JOIN items AS i ON i.id = m.item_id
 WHERE i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL AND m.probed_at IS NOT NULL AND m.probe IS NOT NULL
+  AND m.probe_error IS NULL
 ORDER BY m.id;
 
 -- name: GetChapterImageFile :one
 -- A media file for chapters.images: the stored probe at its probed_at, its duration, the kind of
--- its title and the folder it lies in.
+-- its title and the folder it lies in. A file of a deleted title or whose last probe failed has
+-- none.
 SELECT m.id, m.rel_path, m.duration_ms, m.probe, m.probed_at, m.missing_since, i.kind, r.path AS root_path
 FROM media_files AS m
 JOIN items AS i ON i.id = m.item_id
 JOIN library_roots AS r ON r.id = m.root_id
-WHERE m.id = @id;
+WHERE m.id = @id AND i.deleted_at IS NULL AND m.probe_error IS NULL;
+
+-- name: CountActivePlaybacksOfFile :one
+-- Playback sessions of a media file that still play: neither revoked nor expired, with a request
+-- since @active_after. chapters.images waits while one exists (concept 13 11.6, not during
+-- playback).
+SELECT count(*) FROM playback_sessions
+WHERE media_file_id = @media_file_id AND revoked_at IS NULL AND expires_at > @now AND last_activity_at >= @active_after;

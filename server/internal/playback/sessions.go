@@ -1008,22 +1008,18 @@ func (s *Service) OpenGrant(ctx context.Context, g model.PlaybackGrant) (model.S
 
 // Stop revokes a playback session of the browser session, ends its open streams and stops its HLS
 // output. A playback session of another browser session, an unknown and an already ended one
-// return model.ErrNotFound. A film or an episode file without chapter images gets its
-// chapters.images job now that the playback ended (concept 13 11.6), not while it played.
+// return model.ErrNotFound.
 func (s *Service) Stop(ctx context.Context, session model.Session, id string) error {
-	files, err := s.write.RevokePlaybackSession(ctx, appq.RevokePlaybackSessionParams{
+	n, err := s.write.RevokePlaybackSession(ctx, appq.RevokePlaybackSessionParams{
 		ID: id, SessionID: session.ID, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true},
 	})
 	if err != nil {
 		return fmt.Errorf("revoke playback session: %w", err)
 	}
-	if len(files) == 0 {
+	if n == 0 {
 		return model.ErrNotFound
 	}
 	s.end(id, model.StoppedByClient)
-	if err := library.QueueChapterImagesAfterPlayback(context.WithoutCancel(ctx), s.db.Read, s.queue, s.cacheDir, files[0]); err != nil {
-		s.log.WarnContext(ctx, "queue chapter images after playback", "media_file_id", files[0], "err", err)
-	}
 	return nil
 }
 
@@ -1140,8 +1136,9 @@ func (s *Service) sweep(ctx context.Context) {
 	if _, err := s.write.DeleteExpiredPlaybackSessions(ctx, now.Add(-endedRetention).UnixMilli()); err != nil {
 		s.log.WarnContext(ctx, "delete ended playback sessions", "err", err)
 	}
-	s.sweepCondense(ctx, now)    // condense.go: raw progress events older than 90 days (M10)
-	s.sweepSubtitles(time.Now()) // file times are wall-clock times
+	s.sweepChapterImages(ctx, now) // chapters.go: images of the files whose playback ended
+	s.sweepCondense(ctx, now)      // condense.go: raw progress events older than 90 days (M10)
+	s.sweepSubtitles(time.Now())   // file times are wall-clock times
 }
 
 func unauthenticatedOr(err error, what string) error {

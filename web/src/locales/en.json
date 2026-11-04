@@ -3036,7 +3036,7 @@
         },
         "chapters_images": {
           "name": "Create chapter images",
-          "trigger": "Per file after a playback ended and for new files after the first scan"
+          "trigger": "Per file 10 minutes after a playback ended, for new files after a complete scan and after a new probe"
         },
         "chapters_images_backfill": {
           "name": "Backfill chapter images",

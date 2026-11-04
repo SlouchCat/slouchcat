@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -84,6 +85,10 @@ type Service struct {
 	activityMu   sync.Mutex
 	activityDone bool
 	activityWG   sync.WaitGroup
+
+	// chapterSince is the end (Unix ms) of the last time span whose ended playbacks the sweep
+	// handed to the chapter images (sweepChapterImages); 0 before the first sweep.
+	chapterSince atomic.Int64
 }
 
 // Option configures New.

@@ -7,10 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -34,12 +36,24 @@ func TestToChapters(t *testing.T) {
 	}
 }
 
-// writeChapterImage stores a chapter image of a media file at a probe below dir and sets the file's
-// probed_at, like the job chapters.images does.
-func writeChapterImage(t *testing.T, f *vistest.Fixture, dir, fileID string, probedAt int64, idx int, body []byte) {
+// chapterTestProbe is a stored probe of 45 minutes without chapter marks: five replacement
+// chapters.
+func chapterTestProbe(t *testing.T) (string, transcode.Probe) {
 	t.Helper()
-	f.SetProbedAt(t, fileID, probedAt)
-	folder := filepath.Join(dir, filepath.FromSlash(library.ChapterImagesRel(fileID, probedAt)))
+	p := transcode.Probe{Format: transcode.Format{Name: "mov,mp4", Duration: 45 * time.Minute},
+		Streams: []transcode.Stream{{Index: 0, Type: "video", Codec: "h264", Width: 1920, Height: 1080}}}
+	b, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b), p
+}
+
+// writeChapterImage stores a chapter image of a media file at a version below dir, like the job
+// chapters.images does.
+func writeChapterImage(t *testing.T, dir, fileID, version string, idx int, body []byte) {
+	t.Helper()
+	folder := filepath.Join(dir, filepath.FromSlash(library.ChapterImagesRel(fileID, version)))
 	if err := os.MkdirAll(folder, 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +64,7 @@ func writeChapterImage(t *testing.T, f *vistest.Fixture, dir, fileID string, pro
 
 // getChapterImage (concept 13 stage 3): the image of a visible title's file, 404 for everything
 // else: another profile's age rule, a file of another (invisible) title, an index without image,
-// malformed parameters and an older probe.
+// malformed parameters and a new probe. The version in v decides the caching.
 func TestChapterImage(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -59,11 +73,19 @@ func TestChapterImage(t *testing.T) {
 	pb := playback.New(f.DB, vistest.Logger(), playback.WithTokenKey(testTokenKey), playback.WithCacheDir(dir))
 	h := pf.handlerWithPlayback(pb)
 	m12, m18 := f.Rated(12), f.Rated(18)
+	raw, probe := chapterTestProbe(t)
+	for _, m := range []vistest.Movie{m12, m18} {
+		f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", raw, nil)
+	}
+	f.SetProbedAt(t, m12.FileID, 1234)
+	f.SetProbedAt(t, m18.FileID, 99)
+	version := library.ChapterImagesVersion(1234, transcode.Chapters(&probe, "movie", 0))
 	image := []byte("RIFF\x10\x00\x00\x00WEBPVP8 chapter")
-	writeChapterImage(t, f, dir, m12.FileID, 1234, 0, image)
-	writeChapterImage(t, f, dir, m18.FileID, 99, 0, []byte("RIFF\x10\x00\x00\x00WEBPVP8 other"))
+	writeChapterImage(t, dir, m12.FileID, version, 0, image)
+	writeChapterImage(t, dir, m18.FileID, library.ChapterImagesVersion(99, transcode.Chapters(&probe, "movie", 0)), 0,
+		[]byte("RIFF\x10\x00\x00\x00WEBPVP8 other"))
 	path := func(itemID, fileID, idx string) string {
-		return BasePath + "/items/" + itemID + "/chapters/" + idx + "/image?mediaFileId=" + fileID + "&v=1234"
+		return BasePath + "/items/" + itemID + "/chapters/" + idx + "/image?mediaFileId=" + fileID + "&v=" + version
 	}
 
 	for _, token := range []string{"p18", "p12"} {
@@ -74,20 +96,29 @@ func TestChapterImage(t *testing.T) {
 		if ct, cc := rec.Header().Get("Content-Type"), rec.Header().Get("Cache-Control"); ct != "image/webp" || cc != "private, max-age=31536000, immutable" {
 			t.Errorf("%s: content type %q, cache control %q", token, ct, cc)
 		}
-		if rec.Header().Get("Last-Modified") == "" || rec.Header().Get("ETag") != `"1234"` {
+		if rec.Header().Get("Last-Modified") == "" || rec.Header().Get("ETag") != `"`+version+`"` {
 			t.Errorf("%s: Last-Modified %q, ETag %q", token, rec.Header().Get("Last-Modified"), rec.Header().Get("ETag"))
 		}
 	}
-	// Another or no v: the image of the current probe, but revalidated (no-cache); a matching
-	// If-None-Match answers 304.
-	for _, q := range []string{"&v=1", ""} {
+	// No v, a malformed one or one of another probe: the image of the current version, but
+	// revalidated (no-cache); a matching If-None-Match answers 304.
+	for _, q := range []string{"", "&v=1", "&v=99-0123abcd"} {
 		rec := send(t, h, http.MethodGet, BasePath+"/items/"+m12.ID+"/chapters/0/image?mediaFileId="+m12.FileID+q, "p18", "", nil)
-		if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "private, no-cache" || !bytes.Equal(rec.Body.Bytes(), image) {
-			t.Errorf("v %q: status %d, cache control %q", q, rec.Code, rec.Header().Get("Cache-Control"))
+		if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "private, no-cache" || !bytes.Equal(rec.Body.Bytes(), image) ||
+			rec.Header().Get("ETag") != `"`+version+`"` {
+			t.Errorf("v %q: status %d, cache control %q, ETag %q", q, rec.Code, rec.Header().Get("Cache-Control"), rec.Header().Get("ETag"))
 		}
 	}
-	if rec := send(t, h, http.MethodGet, path(m12.ID, m12.FileID, "0"), "p18", "", map[string]string{"If-None-Match": `"1234"`}); rec.Code != http.StatusNotModified {
+	if rec := send(t, h, http.MethodGet, path(m12.ID, m12.FileID, "0"), "p18", "", map[string]string{"If-None-Match": `"` + version + `"`}); rec.Code != http.StatusNotModified {
 		t.Errorf("If-None-Match: status %d", rec.Code)
+	}
+	// Another chapter list of the same probe (older chapter rules) that the sweep has not removed
+	// yet: its own URL serves its own image, immutable.
+	older := []byte("RIFF\x10\x00\x00\x00WEBPVP8 older")
+	writeChapterImage(t, dir, m12.FileID, "1234-0123abcd", 0, older)
+	rec := send(t, h, http.MethodGet, BasePath+"/items/"+m12.ID+"/chapters/0/image?mediaFileId="+m12.FileID+"&v=1234-0123abcd", "p18", "", nil)
+	if rec.Code != http.StatusOK || !bytes.Equal(rec.Body.Bytes(), older) || rec.Header().Get("ETag") != `"1234-0123abcd"` {
+		t.Errorf("older chapter list: status %d, ETag %q", rec.Code, rec.Header().Get("ETag"))
 	}
 	for _, c := range []struct{ name, token, path string }{
 		{"age rule", "p6", path(m12.ID, m12.FileID, "0")},
@@ -109,9 +140,9 @@ func TestChapterImage(t *testing.T) {
 	if rec := send(t, h, http.MethodGet, path(m12.ID, m12.FileID, "0"), "", "", nil); rec.Code != http.StatusUnauthorized {
 		t.Errorf("without session: status %d", rec.Code)
 	}
-	// A new probe of the file: the folder of the old probe is no longer served.
+	// A new probe of the file: its version has no folder yet, the old URL finds nothing.
 	f.SetProbedAt(t, m12.FileID, 5678)
 	if rec := send(t, h, http.MethodGet, path(m12.ID, m12.FileID, "0"), "p18", "", nil); rec.Code != http.StatusNotFound {
-		t.Errorf("older probe: status %d", rec.Code)
+		t.Errorf("new probe: status %d", rec.Code)
 	}
 }

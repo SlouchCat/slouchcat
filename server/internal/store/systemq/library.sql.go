@@ -10,6 +10,27 @@ import (
 	"database/sql"
 )
 
+const countActivePlaybacksOfFile = `-- name: CountActivePlaybacksOfFile :one
+SELECT count(*) FROM playback_sessions
+WHERE media_file_id = ?1 AND revoked_at IS NULL AND expires_at > ?2 AND last_activity_at >= ?3
+`
+
+type CountActivePlaybacksOfFileParams struct {
+	MediaFileID string
+	Now         int64
+	ActiveAfter int64
+}
+
+// Playback sessions of a media file that still play: neither revoked nor expired, with a request
+// since @active_after. chapters.images waits while one exists (concept 13 11.6, not during
+// playback).
+func (q *Queries) CountActivePlaybacksOfFile(ctx context.Context, arg CountActivePlaybacksOfFileParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActivePlaybacksOfFile, arg.MediaFileID, arg.Now, arg.ActiveAfter)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countDuplicateJobKeys = `-- name: CountDuplicateJobKeys :one
 SELECT count(*) FROM (
     SELECT idempotency_key FROM jobs
@@ -170,7 +191,7 @@ SELECT m.id, m.rel_path, m.duration_ms, m.probe, m.probed_at, m.missing_since, i
 FROM media_files AS m
 JOIN items AS i ON i.id = m.item_id
 JOIN library_roots AS r ON r.id = m.root_id
-WHERE m.id = ?1
+WHERE m.id = ?1 AND i.deleted_at IS NULL AND m.probe_error IS NULL
 `
 
 type GetChapterImageFileRow struct {
@@ -185,7 +206,8 @@ type GetChapterImageFileRow struct {
 }
 
 // A media file for chapters.images: the stored probe at its probed_at, its duration, the kind of
-// its title and the folder it lies in.
+// its title and the folder it lies in. A file of a deleted title or whose last probe failed has
+// none.
 func (q *Queries) GetChapterImageFile(ctx context.Context, id string) (GetChapterImageFileRow, error) {
 	row := q.db.QueryRowContext(ctx, getChapterImageFile, id)
 	var i GetChapterImageFileRow
@@ -260,22 +282,27 @@ func (q *Queries) JobStatsSince(ctx context.Context, since int64) (JobStatsSince
 
 const listChapterImageFiles = `-- name: ListChapterImageFiles :many
 
-SELECT m.id, m.probed_at, m.missing_since IS NOT NULL AS missing
+SELECT m.id, m.probed_at, m.probe, m.duration_ms, i.kind, m.missing_since IS NOT NULL AS missing
 FROM media_files AS m
 JOIN items AS i ON i.id = m.item_id
 WHERE i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL AND m.probed_at IS NOT NULL AND m.probe IS NOT NULL
+  AND m.probe_error IS NULL
 ORDER BY m.id
 `
 
 type ListChapterImageFilesRow struct {
-	ID       string
-	ProbedAt sql.NullInt64
-	Missing  bool
+	ID         string
+	ProbedAt   sql.NullInt64
+	Probe      sql.NullString
+	DurationMs sql.NullInt64
+	Kind       string
+	Missing    bool
 }
 
 // Chapter images (concept 13 stage 3, chapters.images).
-// The probed media files of films and episodes: the backfill queues chapters.images for those
-// without images, the sweep keeps the image folders of exactly these files at their probed_at.
+// The probed media files of films and episodes with their probe: the backfill queues
+// chapters.images for those without images, the sweep keeps the image folders of exactly these
+// files at their probe and chapter list.
 func (q *Queries) ListChapterImageFiles(ctx context.Context) ([]ListChapterImageFilesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listChapterImageFiles)
 	if err != nil {
@@ -285,7 +312,14 @@ func (q *Queries) ListChapterImageFiles(ctx context.Context) ([]ListChapterImage
 	items := []ListChapterImageFilesRow{}
 	for rows.Next() {
 		var i ListChapterImageFilesRow
-		if err := rows.Scan(&i.ID, &i.ProbedAt, &i.Missing); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProbedAt,
+			&i.Probe,
+			&i.DurationMs,
+			&i.Kind,
+			&i.Missing,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -605,17 +605,19 @@ export interface paths {
          *     this route for every chapter whose image exists; the client does not build the URL itself. One
          *     WebP frame of 480 px width per chapter, taken a tenth into the chapter (at most 30 s after its
          *     start, a black frame is replaced by one 10 s later), HDR and Dolby Vision tonemapped to SDR. The
-         *     background job `chapters.images` makes the images after a playback ended or when a file appears
-         *     after the first complete scan of its library; `chapters.images_backfill` (Hintergrundjobs) makes
-         *     them for the whole collection. The handler resolves the media file of the title through the
+         *     background job `chapters.images` makes the images 10 minutes after a playback of the file ended
+         *     (never while it plays), when a file appears or changes after a complete scan of its library and
+         *     when a file with images is probed again; `chapters.images_backfill` (Hintergrundjobs) makes them
+         *     for the whole collection. The handler resolves the media file of the title through the
          *     scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId`
          *     that is no ULID or no file of this title, an `idx` outside the chapter list and a missing image
-         *     answer 404, never 403. The URL carries `v`, the time of the file's probe: a new probe (other
-         *     chapters, other frames) gets new URLs. The answer carries the image of the file's current probe
-         *     with `ETag` (the probe time in quotes) and, when `v` names that probe,
-         *     `Cache-Control: private, max-age=31536000, immutable`; with another or no `v` it carries
-         *     `Cache-Control: private, no-cache`, so a frame cached under an older URL is never shown for a
-         *     new probe.
+         *     answer 404, never 403. The URL carries `v`, the version of the images: the time of the file's
+         *     probe and a fingerprint of its chapter list (`<probedAt>-<8 hex digits>`), so a new probe or
+         *     other chapter marks give new URLs. A `v` of the file's current probe serves the images of that
+         *     version with `ETag` (the version in quotes) and `Cache-Control: private, max-age=31536000,
+         *     immutable`; with another, a malformed or no `v` the answer carries the image of the current
+         *     version with its `ETag` and `Cache-Control: private, no-cache`, so a frame cached under an
+         *     older URL is never shown for a new probe.
          */
         get: operations["getChapterImage"];
         put?: never;
@@ -4711,8 +4713,9 @@ export interface components {
             auto?: boolean;
             /**
              * @description Relative URL of `getChapterImage` for this chapter of a film or an episode, set only when
-             *     the image exists (since contract 1.12.0, concept 13 stage 3). It carries `v`, the probe
-             *     time of the file, and changes with every new probe; clients use it as it is. Absent while the background
+             *     the image exists (since contract 1.12.0, concept 13 stage 3). It carries `v`, the version of
+             *     the images (probe time and chapter fingerprint), and changes with every new probe and chapter
+             *     list; clients use it as it is. Absent while the background
              *     job `chapters.images` has not made the image yet, on audiobooks and podcast episodes, and
              *     in `DownloadManifest.chapters`.
              */
@@ -8756,7 +8759,7 @@ export interface operations {
             query: {
                 /** @description The media file whose chapters `PlaybackInfo` described (a ULID). */
                 mediaFileId: string;
-                /** @description Probe time of the file as in `imageUrl`; decides the caching of the answer. */
+                /** @description Version of the images as in `imageUrl` (`<probedAt>-<8 hex digits>`); decides the folder and the caching of the answer. */
                 v?: string;
             };
             header?: never;

@@ -347,7 +347,8 @@ func (s *server) getChapterImage(w http.ResponseWriter, r *http.Request) {
 		s.p.write(w, r, http.StatusNotFound, "not_found", "")
 		return
 	}
-	src, err := s.opts.Playback.ChapterImage(r.Context(), session.Profile, chi.URLParam(r, "id"), r.URL.Query().Get("mediaFileId"), idx)
+	v := r.URL.Query().Get("v")
+	src, err := s.opts.Playback.ChapterImage(r.Context(), session.Profile, chi.URLParam(r, "id"), r.URL.Query().Get("mediaFileId"), idx, v)
 	if err != nil {
 		s.p.mapError(w, r, err)
 		return
@@ -355,7 +356,7 @@ func (s *server) getChapterImage(w http.ResponseWriter, r *http.Request) {
 	defer src.File.Close()
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("ETag", src.ETag)
-	if v := r.URL.Query().Get("v"); v != "" && strconv.Quote(v) == src.ETag {
+	if v != "" && strconv.Quote(v) == src.ETag {
 		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	} else {
 		w.Header().Set("Cache-Control", "private, no-cache")

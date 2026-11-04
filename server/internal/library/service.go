@@ -73,6 +73,9 @@ type Service struct {
 	// cacheDir is the cache directory that holds the chapter images (WithCacheDir, concept 13
 	// stage 3); empty switches chapters.images off.
 	cacheDir string
+	// onChapterImagesStored runs after chapters.images renamed its folder (a test hook; nil
+	// outside tests).
+	onChapterImagesStored func()
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it

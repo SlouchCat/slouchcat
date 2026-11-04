@@ -306,10 +306,16 @@ type batchWriter struct {
 	adopted  []string        // podcasts a second folder brought the feed of (Service.noteAdoptedPodcasts)
 }
 
-// scannedBefore reports whether a scan of the library ended before this one started: a file that
-// appears or changes now is news, and its probe queues its chapter images (concept 13 11.6). The
-// files of the first scan wait for the backfill that an administrator starts by hand.
-func (w *batchWriter) scannedBefore() bool { return w.lib.LastScanFinishedAt.Valid }
+// scannedBefore reports whether the scan before this one completed (concept 13 11.6, «after the
+// first complete scan»): a file that appears or changes now is news, and its probe queues its
+// chapter images. The library row is read before this scan sets "running", and the queueing has
+// set "queued" over the previous state; a finished scan that left no error is a complete one
+// ("done": failed and aborted scans store their reason, a cancelled one too). Without a
+// migration this is conservative: the files of a scan after a failed or aborted one wait for the
+// backfill that an administrator starts by hand, like those of the first scan.
+func (w *batchWriter) scannedBefore() bool {
+	return w.lib.LastScanFinishedAt.Valid && !w.lib.LastScanError.Valid
+}
 
 // ix is the item index of the titles the current root produces.
 func (w *batchWriter) ix() *itemIndex { return w.index.forContent(w.root.Content) }

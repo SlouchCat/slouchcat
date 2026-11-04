@@ -180,7 +180,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	if err := decodePayload(j, &payload); err != nil {
 		return err
 	}
-	if payload.ChapterImages && s.cacheDir != "" && chapterKind(item.Kind) {
+	if s.cacheDir != "" && chapterKind(item.Kind) && (payload.ChapterImages || s.hadChapterImages(t.file, item.Kind)) {
 		if err := enqueueTx(ctx, q, now, chapterImagesJob(t.file.ID)); err != nil {
 			return err
 		}
@@ -195,6 +195,21 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		return s.finishPodcastEpisode(ctx, item, t.file, &pr)
 	}
 	return s.finishAudiobook(ctx, t.file.ItemID)
+}
+
+// hadChapterImages reports whether the file had chapter images (or «done, no images») for the
+// probe before this one: a re-probe (a refresh of the title, a changed file) then queues the
+// images of the new probe, which the sweep would otherwise leave the file without (concept 13).
+func (s *Service) hadChapterImages(f systemq.MediaFile, kind string) bool {
+	if !f.ProbedAt.Valid || f.ProbeError.Valid {
+		return false
+	}
+	_, _, version, ok := storedChapterImages(f.Probe, kind, f.DurationMs.Int64, f.ProbedAt.Int64)
+	if !ok {
+		return false
+	}
+	cache, err := paths.NewRoot(s.cacheDir)
+	return err == nil && hasChapterImages(cache, ChapterImagesRel(f.ID, version))
 }
 
 // maxProbeError bounds the stored ffprobe message.

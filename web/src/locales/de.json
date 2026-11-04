@@ -3036,7 +3036,7 @@
         },
         "chapters_images": {
           "name": "Kapitelbilder erzeugen",
-          "trigger": "je Datei nach dem Ende einer Wiedergabe und für neue Dateien nach dem ersten Scan"
+          "trigger": "je Datei 10 Minuten nach dem Ende einer Wiedergabe, für neue Dateien nach einem vollständigen Scan und nach einer neuen Prüfung"
         },
         "chapters_images_backfill": {
           "name": "Kapitelbilder nachholen",
