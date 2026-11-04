@@ -16,7 +16,7 @@ func TestNormalize(t *testing.T) {
 	for in, want := range map[string]string{
 		"de": "de", "ger": "de", "deu": "de", "German": "de", "deutsch": "de", "gsw": "de", "gsw-CH": "de",
 		"eng": "en", "en_US": "en", "pt-BR": "pt", "por": "pt", "cn": "zh", "zh-Hans": "zh", "chi": "zh",
-		"nob": "no", "nb": "no", "iw": "he", "fil": "tl", " FRE ": "fr", "yue": "yue",
+		"nob": "no", "nb": "no", "iw": "he", "in": "id", "ji": "yi", "jw": "jv", "mo": "ro", "fil": "tl", " FRE ": "fr", "yue": "yue",
 		"": "", "und": "", "zxx": "", "xx": "", "mul": "", "und-Latn": "",
 		"mal": "ml", "kan": "kn", "mar": "mr", "pan": "pa", "guj": "gu", "bel": "be", "aze": "az",
 		"kaz": "kk", "uzb": "uz", "mlt": "mt", "ltz": "lb", "epo": "eo", "khm": "km", "lao": "lo",

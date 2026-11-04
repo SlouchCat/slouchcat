@@ -14,7 +14,7 @@ import (
 // The table covers every ISO 639-1 code of the metadata languages (metadata/languages.go): the /T
 // code and the one-word English and native names come from golang.org/x/text (ISO3, display), the
 // twenty /B codes that differ from /T and the withdrawn "scc" and "scr" from ISO 639-2, plus
-// spellings without accents ("francais") and old codes ("iw", "cn"). Norwegian Bokmål and Nynorsk
+// spellings without accents ("francais") and old codes ("iw", "in", "ji", "jw", "mo", "cn"). Norwegian Bokmål and Nynorsk
 // count as Norwegian ("no"). TestLanguageCodesComplete checks the table against x/text. The web
 // client keeps the same table (LANGUAGE_CODES in web/src/features/player/labels.ts);
 // TestLanguageParity holds the two in step.
@@ -83,7 +83,7 @@ var languageCodes = map[string]string{
 	"arm": "hy", "hye": "hy", "armenian": "hy", "հայերեն": "hy",
 	"her": "hz", "herero": "hz",
 	"ina": "ia", "interlingua": "ia",
-	"ind": "id", "indonesia": "id", "indonesian": "id",
+	"in": "id", "ind": "id", "indonesia": "id", "indonesian": "id",
 	"ile": "ie", "interlingue": "ie",
 	"ibo": "ig", "igbo": "ig",
 	"iii": "ii", "ꆈꌠꉙ": "ii",
@@ -93,7 +93,7 @@ var languageCodes = map[string]string{
 	"ita": "it", "italian": "it", "italiano": "it",
 	"iku": "iu", "inuktitut": "iu",
 	"jpn": "ja", "japanese": "ja", "日本語": "ja",
-	"jav": "jv", "javanese": "jv",
+	"jw": "jv", "jav": "jv", "javanese": "jv",
 	"geo": "ka", "kat": "ka", "georgian": "ka", "ქართული": "ka",
 	"kon": "kg", "kongo": "kg",
 	"kik": "ki", "gikuyu": "ki", "kikuyu": "ki",
@@ -150,7 +150,7 @@ var languageCodes = map[string]string{
 	"que": "qu", "quechua": "qu", "runasimi": "qu",
 	"roh": "rm", "romansh": "rm", "rumantsch": "rm",
 	"run": "rn", "ikirundi": "rn", "rundi": "rn",
-	"ron": "ro", "rum": "ro", "romanian": "ro", "română": "ro",
+	"mo": "ro", "ron": "ro", "rum": "ro", "romanian": "ro", "română": "ro",
 	"rus": "ru", "russian": "ru", "русский": "ru",
 	"kin": "rw", "kinyarwanda": "rw",
 	"san": "sa", "sanskrit": "sa",
@@ -195,7 +195,7 @@ var languageCodes = map[string]string{
 	"wln": "wa", "walloon": "wa",
 	"wol": "wo", "wolof": "wo",
 	"xho": "xh", "xhosa": "xh",
-	"yid": "yi", "yiddish": "yi",
+	"ji": "yi", "yid": "yi", "yiddish": "yi",
 	"yor": "yo", "yoruba": "yo",
 	"zha": "za", "zhuang": "za",
 	"cn": "zh", "chi": "zh", "zho": "zh", "chinese": "zh", "中文": "zh",
