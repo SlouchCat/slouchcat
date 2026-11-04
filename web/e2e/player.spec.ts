@@ -258,9 +258,13 @@ test('a volume above 100 % and night mode keep the video playing (Web Audio)', a
   );
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(1);
 
-  // Night mode through the gear, by keyboard; the video plays on and nothing broke.
-  const gear = page.getByRole('button', { name: /^Einstellungen/ });
-  await gear.focus();
+  // Night mode through the gear, by keyboard: Tab to the row, → along it to the gear (review step
+  // 5); the video plays on and nothing broke.
+  const row = page.getByRole('toolbar', { name: 'Wiedergabe' });
+  await tabTo(page, row.getByRole('button', { name: /^(Pause|Abspielen)$/ }), 10);
+  const gear = row.getByRole('button', { name: /^Einstellungen/ });
+  await arrowTo(page, gear, 'ArrowRight');
+  await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
   const settings = page.getByRole('dialog', { name: 'Einstellungen' });
   await arrowTo(page, settings.getByRole('option', { name: 'Ton-Optionen' }));
@@ -415,6 +419,53 @@ test('Backspace and browser back return to the detail page', async ({ page }) =>
   await expect(page).toHaveURL(/\/play\//);
   await page.goBack();
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
+});
+
+test.describe('the tab «Besetzung»', () => {
+  // The route below must see the request; a service worker would make it on its own.
+  test.use({ serviceWorkers: 'block' });
+
+  test('↓ to the tabs, Enter, ↓, Enter opens the person; back returns to the player (review step 5)', async ({
+    page,
+  }) => {
+    // The e2e server has no TMDB key, so no title has a cast: the title's details get one here.
+    const itemId = detail.split('/').pop()!;
+    await page.route(`**/api/v1/items/${itemId}`, async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+      await route.fulfill({
+        response,
+        json: { ...body, cast: [{ personId: 1, name: 'Ellen Ripley', role: 'cast' }] },
+      });
+    });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const player = page.getByRole('main', { name: 'Videoplayer' });
+    await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+    await expectFocusOn(page, page.getByRole('button', { name: 'Pause' }));
+    await page.keyboard.press('Space');
+    const strip = page.getByRole('toolbar', { name: 'Mehr zum Titel' });
+    const castTab = strip.getByRole('button', { name: 'Besetzung' });
+    await expect(castTab).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await expect(strip.locator(':focus')).toHaveCount(1);
+    await arrowTo(page, castTab, 'ArrowRight');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    const person = page.getByRole('list', { name: 'Besetzung' }).getByRole('button', {
+      name: /Ellen Ripley/,
+    });
+    await expectFocusOn(page, person);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/people\/1$/);
+    // Without TMDB nobody has a credit: the person's page is the not-found notice (person.spec).
+    await expect(page.getByText('Person nicht gefunden')).toBeVisible();
+    // Back: the player opens again.
+    await page.keyboard.press('Escape');
+    await expect(page).toHaveURL(/\/play\//);
+    await expect(player).toBeVisible();
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
 });
 
 test.describe('in a narrow window with a mouse', () => {
