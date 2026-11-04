@@ -177,7 +177,9 @@ func TestStartRemembersSeries(t *testing.T) {
 		t.Error("remembered without rememberForSeries")
 	}
 
-	// English audio with English subtitles, remembered for the series.
+	// English audio with English subtitles, remembered for the series: both differ from the
+	// playback the switch replaces (German, no subtitles).
+	start(f.Show.E1, model.PlaybackRequest{})
 	start(f.Show.E1, model.PlaybackRequest{AudioTrack: &english, SubtitleTrack: tracks[f.Show.E1.FileID].Text, RememberForSeries: true})
 	if row, ok := remembered(); !ok || row.AudioLanguage != "en" || row.SubtitleLanguage != "en" || row.SubtitleOff != 0 {
 		t.Errorf("remembered = %+v, %v", row, ok)
@@ -188,8 +190,9 @@ func TestStartRemembersSeries(t *testing.T) {
 		t.Errorf("next episode = %+v", sel)
 	}
 
-	// Subtitles off by hand: the audio language stays remembered.
-	start(f.Show.E2, model.PlaybackRequest{SubtitleOff: true, RememberForSeries: true})
+	// Subtitles off by hand (the switch names the running English audio too): the audio language
+	// stays remembered.
+	start(f.Show.E2, model.PlaybackRequest{AudioTrack: &english, SubtitleOff: true, RememberForSeries: true})
 	if row, ok := remembered(); !ok || row.AudioLanguage != "en" || row.SubtitleLanguage != "" || row.SubtitleOff != 1 {
 		t.Errorf("remembered off = %+v, %v", row, ok)
 	}
@@ -206,5 +209,79 @@ func TestStartRemembersSeries(t *testing.T) {
 	}
 	if sel := start(f.Show.E1, model.PlaybackRequest{}); sel.AudioTrack != 1 || sel.AudioReason != trackpick.AudioProfile {
 		t.Errorf("after a track without language = %+v", sel)
+	}
+}
+
+// Review step 9, M-1: a switch names both tracks, so rememberForSeries keeps only the part that
+// differs from the playback the switch replaces. A sound switch to English must not remember
+// "off" for the subtitles (the forced English track would be missing in every later episode), a
+// subtitle switch must not remember the sound.
+func TestStartRemembersOnlyTheChange(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	tracks := f.AddTracks(t)
+	for _, e := range []vistest.Movie{f.Show.E1, f.Show.E2, f.Show.E3} {
+		f.SetMediaFile(t, e.FileID, "mp4", "h264", "aac", trackProbe(t, "h264", "bt709", 1920, 1080, 6_000_000), testKeyframes)
+		f.SetTrackForced(t, tracks[e.FileID].Text) // a forced English text track
+	}
+	s := New(f.DB, vistest.Logger(), WithTranscoder(newFakeTranscoder()), WithTokenKey(testKey))
+	ctx := context.Background()
+	caps := capsChromeLinux
+	session := browserSession(t, f, f.P18)
+	session.Profile.Prefs = model.PlaybackPrefs{AudioLanguages: []string{"de"}, SubtitleMode: model.SubtitleModeForced, SubtitleLanguages: []string{"de"}}
+	start := func(e vistest.Movie, req model.PlaybackRequest) model.TrackSelection {
+		t.Helper()
+		req.Capabilities = &caps
+		info, err := s.Start(ctx, session, e.ID, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return info.Selection
+	}
+	remembered := func() appq.ProfileSeriesTrack {
+		t.Helper()
+		row, err := appq.New(f.DB.Read).GetSeriesTracks(ctx, appq.GetSeriesTracksParams{ProfileID: f.P18.ID, SeriesID: f.Show.Series.ID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return row
+	}
+	german, english := 1, 2
+
+	// German without subtitles (there is no forced German track), then the sound by hand to
+	// English; the switch carries "off" over.
+	if sel := start(f.Show.E1, model.PlaybackRequest{}); sel.AudioTrack != german || sel.SubtitleTrack != 0 {
+		t.Fatalf("first start = %+v", sel)
+	}
+	start(f.Show.E1, model.PlaybackRequest{AudioTrack: &english, SubtitleOff: true, RememberForSeries: true})
+	if row := remembered(); row.AudioLanguage != "en" || row.SubtitleLanguage != "" || row.SubtitleOff != 0 {
+		t.Errorf("after a sound switch = %+v", row)
+	}
+	// The next episode: English, and the forced English track by the profile's rule.
+	sel := start(f.Show.E2, model.PlaybackRequest{})
+	if sel.AudioTrack != english || sel.AudioReason != trackpick.AudioSeries || sel.SubtitleTrack != tracks[f.Show.E2.FileID].Text ||
+		sel.SubtitleReason != trackpick.SubtitleMode {
+		t.Errorf("next episode = %+v", sel)
+	}
+
+	// A subtitle switch names the running sound too: the remembered sound stays as it was.
+	if err := appq.New(f.DB.Write).UpsertSeriesTracks(ctx, appq.UpsertSeriesTracksParams{
+		ProfileID: f.P18.ID, SeriesID: f.Show.Series.ID, AudioLanguage: "ja", Now: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if sel := start(f.Show.E3, model.PlaybackRequest{}); sel.AudioTrack != german || sel.AudioReason != trackpick.AudioProfile {
+		t.Fatalf("start without a Japanese track = %+v", sel)
+	}
+	start(f.Show.E3, model.PlaybackRequest{AudioTrack: &german, SubtitleTrack: tracks[f.Show.E3.FileID].Sidecar, RememberForSeries: true})
+	if row := remembered(); row.AudioLanguage != "ja" || row.SubtitleLanguage != "de" || row.SubtitleOff != 0 {
+		t.Errorf("after a subtitle switch = %+v", row)
+	}
+	// The same tracks again change nothing; subtitles off by hand are remembered.
+	start(f.Show.E3, model.PlaybackRequest{AudioTrack: &german, SubtitleTrack: tracks[f.Show.E3.FileID].Sidecar, RememberForSeries: true})
+	start(f.Show.E3, model.PlaybackRequest{AudioTrack: &german, SubtitleOff: true, RememberForSeries: true})
+	if row := remembered(); row.AudioLanguage != "ja" || row.SubtitleLanguage != "" || row.SubtitleOff != 1 {
+		t.Errorf("after subtitles off = %+v", row)
 	}
 }

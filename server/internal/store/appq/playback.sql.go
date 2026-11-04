@@ -92,6 +92,34 @@ func (q *Queries) GetDevice(ctx context.Context, id string) (Device, error) {
 	return i, err
 }
 
+const getLastPlaybackTracks = `-- name: GetLastPlaybackTracks :one
+SELECT media_file_id, audio_track, subtitle_track FROM playback_sessions
+WHERE session_id = ?1 AND item_id = ?2
+ORDER BY started_at DESC, id DESC
+LIMIT 1
+`
+
+type GetLastPlaybackTracksParams struct {
+	SessionID int64
+	ItemID    string
+}
+
+type GetLastPlaybackTracksRow struct {
+	MediaFileID   string
+	AudioTrack    sql.NullInt64
+	SubtitleTrack sql.NullInt64
+}
+
+// The tracks of the latest playback of a browser session and title, ended or not: the playback a
+// track switch replaces (the client stops it before the next start). A start with
+// rememberForSeries keeps only the part that differs from it (review step 9, M-1).
+func (q *Queries) GetLastPlaybackTracks(ctx context.Context, arg GetLastPlaybackTracksParams) (GetLastPlaybackTracksRow, error) {
+	row := q.db.QueryRowContext(ctx, getLastPlaybackTracks, arg.SessionID, arg.ItemID)
+	var i GetLastPlaybackTracksRow
+	err := row.Scan(&i.MediaFileID, &i.AudioTrack, &i.SubtitleTrack)
+	return i, err
+}
+
 const getPlaybackSession = `-- name: GetPlaybackSession :one
 SELECT ps.id, ps.session_id, ps.account_id, ps.profile_id, ps.item_id, ps.media_file_id, ps.device_id, ps.mode, ps.backend, ps.reason, ps.started_at, ps.last_activity_at, ps.expires_at, ps.revoked_at, ps.quality, ps.width, ps.height, ps.bitrate, ps.hardware, ps.audio_track, ps.subtitle_track, ps.subtitle_delivery, ps.capabilities, ps.position_ms, ps.stopped_by FROM playback_sessions AS ps
 JOIN sessions AS s ON s.id = ps.session_id

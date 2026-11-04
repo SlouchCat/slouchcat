@@ -144,6 +144,17 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 			return model.PlaybackInfo{}, err
 		}
 	}
+	// The playback a switch replaces, read before it ends: rememberForSeries keeps only what differs.
+	var replaced *appq.GetLastPlaybackTracksRow
+	if req.RememberForSeries && seriesID != "" {
+		row, err := s.read.GetLastPlaybackTracks(ctx, appq.GetLastPlaybackTracksParams{SessionID: session.ID, ItemID: item.ID})
+		switch {
+		case err == nil:
+			replaced = &row
+		case !errors.Is(err, sql.ErrNoRows):
+			return model.PlaybackInfo{}, fmt.Errorf("get last playback tracks: %w", err)
+		}
+	}
 	// Everything that can fail without side effects is read before the replaced playback ends and
 	// the output starts.
 	segments, err := s.vis.Segments(ctx, scope, item.ID)
@@ -269,7 +280,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 
 	s.recordStart(ctx, session, item)
 	if req.RememberForSeries && seriesID != "" {
-		s.rememberSeries(ctx, session.Profile.ID, seriesID, req, tracks, d, choice.Series)
+		s.rememberSeries(ctx, session.Profile.ID, seriesID, tracks, d, choice.Series, changedTracks(req, file.ID, replaced))
 	}
 
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
@@ -386,28 +397,55 @@ func deliverable(t model.Track, delivery string) bool {
 	return (delivery != model.SubtitleBurn && t.Text) || burnable(t)
 }
 
+// changed is what a start with rememberForSeries chose by hand: the parts of the request that
+// differ from the playback it replaces.
+type changed struct{ audio, subtitle bool }
+
+// changedTracks compares the tracks a request names with the playback it replaces (the latest of
+// the browser session and title, GetLastPlaybackTracks). A switch names both tracks (the client
+// carries the running one over), so only the part that differs from the replaced playback counts
+// as chosen by hand: a sound switch does not remember the subtitles, a subtitle switch not the
+// sound (review step 9, M-1). Without a replaced playback of the same file (the first start of
+// the title in this browser session, or another version, whose stream indexes and track ids
+// cannot be compared) every part the request names counts: nothing says it was carried over.
+func changedTracks(req model.PlaybackRequest, fileID string, replaced *appq.GetLastPlaybackTracksRow) changed {
+	c := changed{audio: req.AudioTrack != nil, subtitle: req.SubtitleTrack > 0 || req.SubtitleOff}
+	if replaced == nil || replaced.MediaFileID != fileID {
+		return c
+	}
+	if c.audio && replaced.AudioTrack.Valid && replaced.AudioTrack.Int64 == int64(*req.AudioTrack) {
+		c.audio = false
+	}
+	// No subtitle track in the row is "off", whether by hand or by the rule.
+	if req.SubtitleOff && !replaced.SubtitleTrack.Valid ||
+		req.SubtitleTrack > 0 && replaced.SubtitleTrack.Valid && replaced.SubtitleTrack.Int64 == req.SubtitleTrack {
+		c.subtitle = false
+	}
+	return c
+}
+
 // rememberSeries keeps the languages of a choice by hand during an episode for its series
 // (rememberForSeries, profile_series_tracks): the language of the audio track that plays when the
-// request named one, the subtitle language or "off" when it named a track or subtitleOff; the
-// other part keeps what was remembered before. A track without language stores an empty language,
-// which counts as none. A failed write does not fail the playback.
-func (s *Service) rememberSeries(ctx context.Context, profileID int64, seriesID string, req model.PlaybackRequest,
-	tracks model.TrackList, d Decision, before *trackpick.Remembered,
+// request chose the audio, the subtitle language or "off" when it chose the subtitles (changed);
+// the other part keeps what was remembered before. A track without language stores an empty
+// language, which counts as none. A failed write does not fail the playback.
+func (s *Service) rememberSeries(ctx context.Context, profileID int64, seriesID string, tracks model.TrackList, d Decision,
+	before *trackpick.Remembered, chosen changed,
 ) {
-	if req.AudioTrack == nil && req.SubtitleTrack == 0 && !req.SubtitleOff {
+	if !chosen.audio && !chosen.subtitle {
 		return
 	}
 	r := trackpick.Remembered{}
 	if before != nil {
 		r = *before
 	}
-	if req.AudioTrack != nil {
+	if chosen.audio {
 		r.AudioLanguage = ""
 		if i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == d.AudioStream }); i >= 0 {
 			r.AudioLanguage = trackpick.Normalize(tracks.Audio[i].Language)
 		}
 	}
-	if req.SubtitleTrack > 0 || req.SubtitleOff {
+	if chosen.subtitle {
 		r.SubtitleLanguage, r.SubtitleOff = "", d.SubtitleTrack == 0
 		if i := slices.IndexFunc(tracks.Subtitles, func(t model.Track) bool { return t.ID == d.SubtitleTrack }); i >= 0 {
 			r.SubtitleLanguage = trackpick.Normalize(tracks.Subtitles[i].Language)
