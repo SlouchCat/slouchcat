@@ -2,11 +2,15 @@ import { useEffect, useState, type RefObject } from 'react';
 import type { SubtitleStyle } from './useSubtitleStyle';
 import styles from './Player.module.css';
 
-/** The part of a cue the layer reads (a VTTCue has a text; a plain object in tests). */
+/**
+ * The part of a cue the layer reads: a VTTCue has its text and `getCueAsHTML`; a plain object in
+ * tests.
+ */
 export interface CueLike {
   startTime: number;
   endTime: number;
   text?: string;
+  getCueAsHTML?: () => DocumentFragment;
 }
 
 /** The cue list of a text track (TextTrackCueList; an array in tests). */
@@ -14,6 +18,27 @@ type CueList = ArrayLike<CueLike>;
 
 /** WebVTT markup in a cue's text (<i>, <b>, <c.yellow>, <v Anna>): the layer shows plain text. */
 const MARKUP = /<[^>]*>/g;
+
+/** The character references WebVTT knows (the cue text parser of the WebVTT spec). */
+const ENTITIES: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&nbsp;': ' ',
+  '&lrm;': '‎',
+  '&rlm;': '‏',
+};
+const ENTITY = /&(?:amp|lt|gt|nbsp|lrm|rlm);/g;
+
+/**
+ * The plain text of a cue. `VTTCue.text` is the raw cue text: the browser's own parser
+ * (`getCueAsHTML`) drops the tags and resolves `&amp;` and the like; an object without it (tests)
+ * falls back to removing the tags and resolving the references here.
+ */
+export function cueText(cue: CueLike): string {
+  if (typeof cue.getCueAsHTML === 'function') return cue.getCueAsHTML().textContent ?? '';
+  return (cue.text ?? '').replace(MARKUP, '').replace(ENTITY, (entity) => ENTITIES[entity] ?? '');
+}
 
 /**
  * The texts of the cues that show at `time` (seconds), in the order of the track. The layer asks
@@ -24,21 +49,42 @@ export function activeCueTexts(cues: CueList | null | undefined, time: number): 
   const texts: string[] = [];
   for (let index = 0; index < cues.length; index += 1) {
     const cue = cues[index]!;
-    if (cue.startTime <= time && time < cue.endTime && cue.text) {
-      texts.push(cue.text.replace(MARKUP, ''));
+    if (cue.startTime <= time && time < cue.endTime) {
+      const text = cueText(cue);
+      if (text) texts.push(text);
     }
   }
   return texts;
 }
 
-/** Moves every cue by `seconds` (picture in picture shows the browser's own cues, 11.10). */
-export function shiftCues(cues: CueList | null | undefined, seconds: number): void {
-  if (!cues || seconds === 0) return;
+/**
+ * Moves every cue of `cues` that `moved` does not hold yet by `seconds` and records it there
+ * (picture in picture shows the browser's own cues, 11.10). The cues of a track that is still
+ * loading arrive in parts: each one moves once.
+ */
+export function shiftCues(
+  cues: CueList | null | undefined,
+  seconds: number,
+  moved: Set<CueLike> = new Set(),
+): Set<CueLike> {
+  if (!cues || seconds === 0) return moved;
   for (let index = 0; index < cues.length; index += 1) {
     const cue = cues[index]!;
+    if (moved.has(cue)) continue;
     cue.startTime += seconds;
     cue.endTime += seconds;
+    moved.add(cue);
   }
+  return moved;
+}
+
+/** Puts the cues `shiftCues` moved back by `seconds`. */
+export function unshiftCues(moved: Set<CueLike>, seconds: number): void {
+  for (const cue of moved) {
+    cue.startTime -= seconds;
+    cue.endTime -= seconds;
+  }
+  moved.clear();
 }
 
 // A module function: the React compiler does not let a hook write to an object it received.
@@ -83,19 +129,17 @@ export function useSubtitleCues({
     if (!src || !element || !media || !textTrack) return;
     const offset = offsetMs / 1000;
     if (pictureInPicture) {
-      // The cues may load only now; they are moved once they are there.
-      let shifted: CueList | null = null;
+      // The cues may still be loading: the ones there now move, the rest once the track loaded.
+      const moved = new Set<CueLike>();
       const shift = () => {
-        if (shifted || !textTrack.cues || textTrack.cues.length === 0) return;
-        shifted = textTrack.cues;
-        shiftCues(shifted, offset);
+        shiftCues(textTrack.cues, offset, moved);
       };
       setMode(textTrack, 'showing');
       shift();
       element.addEventListener('load', shift);
       return () => {
         element.removeEventListener('load', shift);
-        shiftCues(shifted, -offset);
+        unshiftCues(moved, offset);
         setMode(textTrack, 'hidden');
       };
     }

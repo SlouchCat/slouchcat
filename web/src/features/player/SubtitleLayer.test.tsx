@@ -2,8 +2,10 @@ import { act, render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
   activeCueTexts,
+  cueText,
   shiftCues,
   SubtitleLayer,
+  unshiftCues,
   useSubtitleCues,
   type CueLike,
 } from './SubtitleLayer';
@@ -61,13 +63,33 @@ describe('activeCueTexts and shiftCues (V-6)', () => {
     expect(activeCueTexts(null, 2)).toEqual([]);
   });
 
-  it('moves every cue and back', () => {
-    const moved = [cue(1, 3, 'Eins')];
-    shiftCues(moved, 0.4);
-    expect(moved[0]).toMatchObject({ startTime: 1.4, endTime: 3.4 });
-    shiftCues(moved, -0.4);
-    expect(moved[0]!.startTime).toBeCloseTo(1);
-    expect(moved[0]!.endTime).toBeCloseTo(3);
+  it('resolves the character references of WebVTT and drops the tags (review step 4)', () => {
+    expect(cueText(cue(0, 1, 'Tom &amp; Jerry: <i>1 &lt; 2</i>&nbsp;!'))).toBe(
+      'Tom & Jerry: 1 < 2 !',
+    );
+    expect(cueText(cue(0, 1, '&lrm;Links &gt; rechts&rlm;'))).toBe('‎Links > rechts‏');
+    // A real cue: the browser's parser has the last word.
+    const parsed = document.createDocumentFragment();
+    parsed.append('Tom & Jerry');
+    expect(cueText({ ...cue(0, 1, 'Tom &amp; <i>Jerry</i>'), getCueAsHTML: () => parsed })).toBe(
+      'Tom & Jerry',
+    );
+    expect(activeCueTexts([cue(0, 2, '<i>A &amp; B</i>')], 1)).toEqual(['A & B']);
+  });
+
+  it('moves every cue once and back', () => {
+    const cues = [cue(1, 3, 'Eins')];
+    const moved = shiftCues(cues, 0.4);
+    expect(cues[0]).toMatchObject({ startTime: 1.4, endTime: 3.4 });
+    // A cue that arrives later moves once; the first one does not move again.
+    cues.push(cue(5, 6, 'Zwei'));
+    shiftCues(cues, 0.4, moved);
+    expect(cues[0]!.startTime).toBeCloseTo(1.4);
+    expect(cues[1]!.startTime).toBeCloseTo(5.4);
+    unshiftCues(moved, 0.4);
+    expect(cues[0]!.startTime).toBeCloseTo(1);
+    expect(cues[0]!.endTime).toBeCloseTo(3);
+    expect(cues[1]!.startTime).toBeCloseTo(5);
   });
 });
 
@@ -144,6 +166,25 @@ describe('useSubtitleCues (11.10)', () => {
     expect(cues[0]!.endTime).toBeCloseTo(12);
     at(9.9);
     expect(hook.result.current).toEqual(['Hallo']);
+  });
+
+  it('in picture in picture moves cues that load in parts once each and all of them back', () => {
+    const cues = [cue(10, 12, 'Hallo')];
+    const { refs, textTrack, element } = setup(cues);
+    const hook = renderHook(() =>
+      useSubtitleCues({ ...refs, src: '/s.vtt', offsetMs: 500, pictureInPicture: true }),
+    );
+    expect(cues[0]!.startTime).toBeCloseTo(10.5);
+    // The rest of the track arrives while the window is open.
+    textTrack.cues = [...cues, cue(20, 22, 'Später')];
+    act(() => {
+      element.dispatchEvent(new Event('load'));
+    });
+    expect(textTrack.cues[0]!.startTime).toBeCloseTo(10.5);
+    expect(textTrack.cues[1]!.startTime).toBeCloseTo(20.5);
+    hook.unmount();
+    expect(textTrack.cues[0]!.startTime).toBeCloseTo(10);
+    expect(textTrack.cues[1]!.startTime).toBeCloseTo(20);
   });
 
   it('draws nothing without a text subtitle', () => {
