@@ -357,7 +357,7 @@ func (s *Service) trackContext(ctx context.Context, scope visibility.Scope, prof
 	row, err := s.read.GetSeriesTracks(ctx, appq.GetSeriesTracksParams{ProfileID: profile.ID, SeriesID: tc.SeriesID})
 	switch {
 	case err == nil:
-		c.Series = &trackpick.Remembered{AudioLanguage: row.AudioLanguage, SubtitleLanguage: row.SubtitleLanguage, SubtitleOff: row.SubtitleOff == 1}
+		c.Series = trackpick.FromRow(row.AudioLanguage, row.SubtitleLanguage, row.SubtitleOff)
 	case !errors.Is(err, sql.ErrNoRows):
 		return trackpick.Context{}, "", fmt.Errorf("get series tracks: %w", err)
 	}

@@ -45,6 +45,13 @@ type Remembered struct {
 	SubtitleOff      bool
 }
 
+// FromRow is the choice a row of profile_series_tracks stores (audio_language, subtitle_language,
+// subtitle_off as 0 or 1). Playback and downloads read the row each with their own queries and
+// share this conversion.
+func FromRow(audioLanguage, subtitleLanguage string, subtitleOff int64) *Remembered {
+	return &Remembered{AudioLanguage: audioLanguage, SubtitleLanguage: subtitleLanguage, SubtitleOff: subtitleOff == 1}
+}
+
 // Context is what the rules need besides the tracks: the profile's preferences, the original
 // language of the title (of the series for an episode; "" unknown) and the choice remembered for
 // the series of an episode (nil for none and for every other title).

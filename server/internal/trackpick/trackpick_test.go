@@ -155,6 +155,15 @@ func TestSubtitle(t *testing.T) {
 	}
 }
 
+func TestFromRow(t *testing.T) {
+	if got := FromRow("en", "de", 0); *got != (Remembered{AudioLanguage: "en", SubtitleLanguage: "de"}) {
+		t.Errorf("FromRow = %+v", got)
+	}
+	if got := FromRow("", "", 1); *got != (Remembered{SubtitleOff: true}) {
+		t.Errorf("FromRow off = %+v", got)
+	}
+}
+
 func TestHearingImpairedTitle(t *testing.T) {
 	for title, want := range map[string]bool{
 		"SDH": true, "English SDH": true, "CC": true, "Hearing Impaired": true, "für Hörgeschädigte": true,

@@ -33,6 +33,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
@@ -116,6 +117,7 @@ type Service struct {
 	db    *store.DB
 	read  *systemq.Queries
 	write *systemq.Queries
+	app   *appq.Queries // the languages a profile remembered for a series (profile_series_tracks)
 	vis   *visibility.Reader
 	audio audioReader // parts and chapters of audiobooks (visibility.Reader; a fake in tests)
 	queue *jobs.Queue
@@ -175,7 +177,7 @@ func WithPins(p PinPort) Option { return func(s *Service) { s.pins = p } }
 // preparation jobs, which a worker of the pool download runs (RegisterTypes).
 func New(db *store.DB, vis *visibility.Reader, queue *jobs.Queue, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
-		db: db, read: systemq.New(db.Read), write: systemq.New(db.Write), vis: vis, queue: queue, enc: runner,
+		db: db, read: systemq.New(db.Read), write: systemq.New(db.Write), app: appq.New(db.Read), vis: vis, queue: queue, enc: runner,
 		caps: transcode.Capabilities{Backend: transcode.BackendSoftware}, log: log, now: time.Now,
 	}
 	if vis != nil {

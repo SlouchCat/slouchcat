@@ -116,10 +116,10 @@ func (s *Service) chosenAudio(ctx context.Context, scope visibility.Scope, profi
 	}
 	c := trackpick.Context{Prefs: profile.Prefs, OriginalLanguage: tc.OriginalLanguage}
 	if tc.SeriesID != "" {
-		row, err := appq.New(s.db.Read).GetSeriesTracks(ctx, appq.GetSeriesTracksParams{ProfileID: profile.ID, SeriesID: tc.SeriesID})
+		row, err := s.app.GetSeriesTracks(ctx, appq.GetSeriesTracksParams{ProfileID: profile.ID, SeriesID: tc.SeriesID})
 		switch {
 		case err == nil:
-			c.Series = &trackpick.Remembered{AudioLanguage: row.AudioLanguage, SubtitleLanguage: row.SubtitleLanguage, SubtitleOff: row.SubtitleOff == 1}
+			c.Series = trackpick.FromRow(row.AudioLanguage, row.SubtitleLanguage, row.SubtitleOff)
 		case !errors.Is(err, sql.ErrNoRows):
 			return 0, fmt.Errorf("get series tracks: %w", err)
 		}
