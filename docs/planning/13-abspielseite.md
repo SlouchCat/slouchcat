@@ -817,6 +817,15 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   abweichend von 6.1 «nur Web-App». Fertige Downloads behalten ihr gespeichertes Manifest und
   zeigen Kapitel erst nach einem neuen Download (Release-Notiz). Podcast-Folgen bekommen offline
   weiterhin keine Kapitel.
+- **Stufe 2, Schritt 7** (4. November 2026, Vertrag 1.11.0):
+  - `originalLanguage` steht an `AdminItem` (Verwaltung mit Sperren und Herkunft), nicht an
+    `ItemDetail` (Zuschauer) wie in 11.8.
+  - Die Operationen `getMyPlaybackPrefs`, `putMyPlaybackPrefs` und `resetMySeriesTracks` sind
+    schon in Schritt 7 echt umgesetzt, weil der strict server sie verlangt. Schritt 10 behält
+    Vorbelegung neuer Profile, Seite «Meine Wiedergabe» und `ProfileForm`.
+  - Bis Schritt 11 lehnt der Server `quality: original`, `quality: 2160p` und jede `qualityCap`
+    mit 422 ab, statt etwas anderes zu spielen. Schritt 11 ersetzt das durch 11.5 (c).
+  - Bis Schritt 9 heisst ein fehlendes oder leeres `subtitleTrack` weiter «keine Untertitel».
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
