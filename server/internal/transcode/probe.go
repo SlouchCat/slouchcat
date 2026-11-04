@@ -49,10 +49,7 @@ type Stream struct {
 	Level          int    `json:"level,omitempty"`
 	Width          int    `json:"width,omitempty"`
 	Height         int    `json:"height,omitempty"`
-	// FrameRate is the average frame rate of a video stream in frames per second (ffprobe
-	// avg_frame_rate); 0 when unknown and in probes stored before concept 13 step 11.
-	FrameRate float64 `json:"frameRate,omitempty"`
-	PixFmt    string  `json:"pixFmt,omitempty"`
+	PixFmt         string `json:"pixFmt,omitempty"`
 	ColorTransfer  string `json:"colorTransfer,omitempty"`
 	ColorPrimaries string `json:"colorPrimaries,omitempty"`
 	Channels       int    `json:"channels,omitempty"`
@@ -73,6 +70,10 @@ type Stream struct {
 	DolbyVisionBLCompat int `json:"dvBLCompat,omitempty"`
 	// HDR10Plus is set when the first frame carries SMPTE ST 2094-40 dynamic metadata (M4).
 	HDR10Plus bool `json:"hdr10plus,omitempty"`
+	// FrameRate is the average frame rate of a video stream in frames per second (ffprobe
+	// avg_frame_rate, for the H.264 level); 0 when unknown and in probes stored before concept 13
+	// step 11.
+	FrameRate float64 `json:"frameRate,omitempty"`
 }
 
 // HDR formats of HDRFormat.
