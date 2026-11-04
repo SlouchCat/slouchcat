@@ -147,17 +147,29 @@ func TestNo2160OnSoftwareOrCPUTonemap(t *testing.T) {
 	}
 }
 
+// The level follows the frame size in macroblocks (MaxFS of H.264 table A-1), not the height
+// alone: the 2592x1080 output of a scope film exceeds the 8192 macroblocks of level 4.1.
 func TestH264Level(t *testing.T) {
-	for h, want := range map[int]int{0: 41, 360: 41, 480: 41, 720: 41, 1080: 41, 1081: 51, 1440: 51, 1600: 51, 2160: 51} {
-		if got := h264Level(h); got != want {
-			t.Errorf("h264Level(%d) = %d, want %d", h, got, want)
+	for _, c := range []struct{ w, h, want int }{
+		{0, 0, 41}, {640, 360, 41}, {852, 480, 41}, {1280, 720, 41}, {1920, 1080, 41}, {1920, 800, 41},
+		{1728, 720, 41}, {2048, 1024, 41}, {2048, 1040, 50}, {2592, 1080, 50}, {2560, 1440, 50}, {3840, 1600, 51},
+		{3840, 2160, 51}, {4096, 2160, 51}, {5120, 2160, 60},
+	} {
+		if got := h264Level(c.w, c.h); got != c.want {
+			t.Errorf("h264Level(%d, %d) = %d, want %d", c.w, c.h, got, c.want)
 		}
 	}
 	src := videoSource("hevc", 3840, 2160, "bt709", sec(10))
-	for h, want := range map[int]string{0: "avc1.640029", 720: "avc1.640029", 1080: "avc1.640029", 1600: "avc1.640033", 2160: "avc1.640033"} {
-		p := Plan{Target: Target{Mode: ModeTranscode}, Height: h}
-		if got := CodecsString(p, src); got != want+",mp4a.40.2" {
-			t.Errorf("CodecsString at %d lines = %q, want %s,mp4a.40.2", h, got, want)
+	for _, c := range []struct {
+		w, h int
+		want string
+	}{
+		{0, 0, "avc1.640029"}, {1280, 720, "avc1.640029"}, {1920, 1080, "avc1.640029"},
+		{2592, 1080, "avc1.640032"}, {3840, 1600, "avc1.640033"}, {3840, 2160, "avc1.640033"},
+	} {
+		p := Plan{Target: Target{Mode: ModeTranscode}, Width: c.w, Height: c.h}
+		if got := CodecsString(p, src); got != c.want+",mp4a.40.2" {
+			t.Errorf("CodecsString at %dx%d = %q, want %s,mp4a.40.2", c.w, c.h, got, c.want)
 		}
 	}
 	// A copied video keeps the codec string of the source, also at 2160 lines.
@@ -209,8 +221,13 @@ func TestRung2160Allowed(t *testing.T) {
 		{"no profile limit", qsvCPU, sdr, 0, 1440, true},
 		{"nvenc", Capabilities{Backend: BackendNVENC}, sdr, 2160, 1440, true},
 		{"vaapi", Capabilities{Backend: BackendVAAPI}, sdr, 2160, 1440, true},
-		{"source below 2160 lines", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 3840, Height: 2159}, 2160, 2160, false},
-		{"scope 4K source (1600 lines)", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 3840, Height: 1600}, 2160, 2160, false},
+		// A 4K source has 2160 lines or 3840 pixels of width (Marco's decision of 4 November 2026).
+		{"scope 4K source 3840x1600", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 3840, Height: 1600}, 2160, 2160, true},
+		{"3840x2159", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 3840, Height: 2159}, 2160, 2160, true},
+		{"narrow 4K 2880x2160", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 2880, Height: 2160}, 2160, 2160, true},
+		{"2560x1440", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 2560, Height: 1440}, 2160, 2160, false},
+		{"3836x1600", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 3836, Height: 1600}, 2160, 2160, false},
+		{"scope 4K HDR with cpu tonemap", qsvCPU, Stream{Type: "video", Codec: "hevc", Width: 3840, Height: 1600, ColorTransfer: "smpte2084"}, 2160, 2160, false},
 		{"1080p source", qsvCPU, Stream{Type: "video", Codec: "h264", Width: 1920, Height: 1080}, 2160, 2160, false},
 		{"software backend", Capabilities{Backend: BackendSoftware}, sdr, 2160, 2160, false},
 		{"no backend", Capabilities{}, sdr, 2160, 2160, false},
@@ -229,6 +246,20 @@ func TestRung2160Allowed(t *testing.T) {
 	}
 }
 
+func TestIs4KSource(t *testing.T) {
+	for _, c := range []struct {
+		w, h int
+		want bool
+	}{
+		{3840, 1600, true}, {3840, 2160, true}, {4096, 1716, true}, {2880, 2160, true},
+		{2560, 1440, false}, {3836, 1600, false}, {1920, 1080, false}, {0, 0, false},
+	} {
+		if got := Is4KSource(c.w, c.h); got != c.want {
+			t.Errorf("Is4KSource(%d, %d) = %v, want %v", c.w, c.h, got, c.want)
+		}
+	}
+}
+
 // Golden argument lists of 2160p transcodes per hardware backend (up to the output seek, as in
 // TestFFmpegArgsGoldenM4): the output size, the 25 Mbit/s rung and level 5.1.
 func TestFFmpegArgsGolden2160(t *testing.T) {
@@ -238,6 +269,10 @@ func TestFFmpegArgsGolden2160(t *testing.T) {
 	}}}
 	hdr := Source{Path: "/media/UHD.mkv", Probe: Probe{Format: Format{Duration: 10 * time.Second}, Streams: []Stream{
 		{Index: 0, Type: "video", Codec: "hevc", Profile: "Main 10", Width: 3840, Height: 2160, PixFmt: "yuv420p10le", ColorTransfer: "smpte2084", ColorPrimaries: "bt2020"},
+		{Index: 1, Type: "audio", Codec: "aac", Channels: 2},
+	}}}
+	scope := Source{Path: "/media/UHD.mkv", Probe: Probe{Format: Format{Duration: 10 * time.Second}, Streams: []Stream{
+		{Index: 0, Type: "video", Codec: "hevc", Profile: "Main 10", Width: 3840, Height: 1600, PixFmt: "yuv420p10le", ColorTransfer: "bt709"},
 		{Index: 1, Type: "audio", Codec: "aac", Channels: 2},
 	}}}
 	sw := Capabilities{Backend: BackendSoftware, Tonemapper: TonemapCPU}
@@ -285,6 +320,18 @@ func TestFFmpegArgsGolden2160(t *testing.T) {
 			head + " " + qsvI + maps + "vpp_qsv=w=1920:h=1080:format=p010,hwdownload,format=p010le," + cpuTM + ",format=nv12,hwupload=extra_hw_frames=64 " + enc(qsEnc, 8_000_000, "41") + kf},
 		{"software 2160p stays 1080p", sw, sdr, uhd(sw, false),
 			head + maps + "scale=w=1920:h=1080:flags=bicubic,format=yuv420p " + enc(x264, 8_000_000, "4.1") + kf},
+		// A scope 4K film keeps its 3840x1600 on the 2160p rung (no upscaling) at level 5.1; its
+		// 1080p output (2592x1080, 11016 macroblocks) needs level 5.0, written "5" or "50".
+		{"qsv scope 2160p", qsvCPU, scope, uhd(qsvCPU, false),
+			head + " " + qsvI + maps + "vpp_qsv=w=3840:h=1600:format=nv12 " + enc(qsEnc, 25_000_000, "51") + kf},
+		{"qsv scope 1080p", qsvCPU, scope, Target{Mode: ModeTranscode, SubtitleBurnIn: -1, AudioStream: -1, Backend: BackendQSV, MaxHeight: 1080, Quality: "1080p"},
+			head + " " + qsvI + maps + "vpp_qsv=w=2592:h=1080:format=nv12 " + enc(qsEnc, 8_000_000, "50") + kf},
+		{"nvenc scope 1080p", nvenc, scope, Target{Mode: ModeTranscode, SubtitleBurnIn: -1, AudioStream: -1, Backend: BackendNVENC, MaxHeight: 1080, Quality: "1080p"},
+			head + " " + cudaI + maps + "scale_cuda=w=2592:h=1080:format=nv12 " + enc(nvEnc, 8_000_000, "5") + kf},
+		{"vaapi scope 1080p", vaapi, scope, Target{Mode: ModeTranscode, SubtitleBurnIn: -1, AudioStream: -1, Backend: BackendVAAPI, MaxHeight: 1080, Quality: "1080p"},
+			head + " " + vaI + maps + "scale_vaapi=w=2592:h=1080:format=nv12 " + enc(vaEnc, 8_000_000, "5") + kf},
+		{"software scope stays 1080p", sw, scope, uhd(sw, false),
+			head + maps + "scale=w=2592:h=1080:flags=bicubic,format=yuv420p " + enc(x264, 8_000_000, "5") + kf},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

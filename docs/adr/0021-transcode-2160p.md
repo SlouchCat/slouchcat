@@ -92,6 +92,25 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
   Der Wert ist der Startwert dieses ADR. Die Messung auf CT 190 steht noch aus; sie folgt vor dem
   Merge von Stufe 2 in `docs/perf/13-abspielseite.md`.
 
+## Nachtrag: Breitbild und Level (Marcos Entscheid vom 4. November 2026)
+
+- **Eine Quelle gilt für 2160p als 4K**, wenn sie mindestens 2160 Zeilen **oder** mindestens
+  3840 Pixel Breite hat (`transcode.Is4KSource`). Das ersetzt in Punkt 2 «Die Quelle hat
+  mindestens 2160 Zeilen». Ein Scope-Film in 3840×1600 bekommt 2160p angeboten, 2560×1440 und
+  3836×1600 nicht.
+- Die 2160p-Stufe skaliert nie hoch: 3840×1600 bleibt 3840×1600 (`heightLimit` ist eine
+  Obergrenze, die Ausgabe ist höchstens so hoch wie die Quelle).
+- **Level aus der Bildgrösse.** Das H.264-Level folgt der Zahl der Makroblöcke (16×16 Pixel,
+  MaxFS aus Tabelle A-1 der Norm), nicht nur der Höhe. Das ersetzt Punkt 6 und die Zeile zu
+  `h264Level` in der Umsetzung:
+  - bis 8192 Makroblöcke (1920×1080) Level 4.1, `avc1.640029`;
+  - bis 22080 (zum Beispiel 2592×1080, die 1080p-Ausgabe eines Scope-Films) Level 5.0,
+    `avc1.640032`;
+  - bis 36864 (3840×1600, 3840×2160, 4096×2160) Level 5.1, `avc1.640033`;
+  - darüber Level 6.0, `avc1.64003C`.
+- Die Bildrate bleibt aussen vor. Die Encoder bekommen «4.1», «5», «5.1» oder «6» (h264_vaapi
+  kennt kein «5.0»), h264_qsv den Wert `level_idc` («41», «50», «51», «60»).
+
 ## Verworfene Alternativen
 
 - **2160p auch auf dem Software-Backend.** libx264 schafft 4K nicht in Echtzeit auf den

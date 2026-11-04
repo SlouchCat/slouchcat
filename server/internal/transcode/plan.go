@@ -137,29 +137,51 @@ func MaxOutputHeight(b Backend, cpuTonemap bool) int {
 }
 
 // Rung2160Allowed reports whether a transcode of the video v to the 2160p rung may be offered
-// (ADR 0021, all conditions): v has at least 2160 lines, the backend of caps is a hardware one,
-// the profile allows 2160 lines (profileMaxHeight 0 = no limit), the device reports a short side
-// of at least 1440 pixels (deviceHeight, 0 = unknown: not allowed) and v is SDR or caps tonemaps
-// on the GPU. auto never picks the rung by itself.
+// (ADR 0021, all conditions): v is a 4K source (Is4KSource: at least 2160 lines or at least 3840
+// pixels wide, so a 3840x1600 scope film counts), the backend of caps is a hardware one, the
+// profile allows 2160 lines (profileMaxHeight 0 = no limit), the device reports a short side of
+// at least 1440 pixels (deviceHeight, 0 = unknown: not allowed) and v is SDR or caps tonemaps on
+// the GPU. auto never picks the rung by itself.
 func Rung2160Allowed(caps Capabilities, v Stream, profileMaxHeight, deviceHeight int) bool {
-	return v.Height >= hardwareMaxHeight &&
+	return Is4KSource(v.Width, v.Height) &&
 		MaxOutputHeight(caps.Backend, isHDR(v) && !caps.HWTonemap) >= hardwareMaxHeight &&
 		(profileMaxHeight == 0 || profileMaxHeight >= hardwareMaxHeight) &&
 		deviceHeight >= min2160DeviceHeight
 }
 
+// Is4KSource reports whether a video of the given size is a 4K source for the 2160p rung (ADR
+// 0021, Marco's decision of 4 November 2026): at least 2160 lines or at least 3840 pixels wide. A
+// wide-screen 4K film (3840x1600) counts, 2560x1440 does not.
+func Is4KSource(width, height int) bool {
+	return height >= hardwareMaxHeight || width >= min4KWidth
+}
+
+// min4KWidth is the width from which a source counts as 4K whatever its height (UHD, 3840 pixels).
+const min4KWidth = 3840
+
 // min2160DeviceHeight is the smallest short side of a screen in device pixels that gets the 2160p
 // rung offered (ADR 0021).
 const min2160DeviceHeight = 1440
 
-// h264Level is the H.264 level_idc of an encode with the given output height: 4.1 up to 1080
-// lines (1920x1080 at 30 fps, 8192 macroblocks per frame), 5.1 above (3840x2160 and 4096x2160 at
-// 30 fps, 36864 macroblocks per frame); an unknown height (0) counts as 1080.
-func h264Level(height int) int {
-	if height > defaultMaxHeight {
-		return 51
+// h264Level is the H.264 level_idc of an encode with the given output size, from the frame size
+// in macroblocks of 16x16 pixels (ITU-T H.264 table A-1, MaxFS; the frame rate is not taken into
+// account): 4.1 up to 8192 macroblocks (1920x1080), 5.0 up to 22080 (2592x1080 of a scope film),
+// 5.1 up to 36864 (3840x1600, 3840x2160, 4096x2160), 6.0 above. An unknown size (0) counts as
+// 1920x1080.
+func h264Level(width, height int) int {
+	if width <= 0 || height <= 0 {
+		width, height = 1920, defaultMaxHeight
 	}
-	return 41
+	switch mbs := ((width + 15) / 16) * ((height + 15) / 16); {
+	case mbs <= 8192:
+		return 41
+	case mbs <= 22080:
+		return 50
+	case mbs <= 36864:
+		return 51
+	default:
+		return 60
+	}
 }
 
 // Rung is one step of the quality ladder (W-8, plan 3.5): the output height limit and the peak
@@ -474,7 +496,7 @@ func bandwidth(p Probe, t Target, videoBitrate int) int {
 }
 
 // CodecsString returns the RFC 6381 CODECS attribute for the master playlist: H.264 High at the
-// level of the output height (h264Level: 4.1, above 1080 lines 5.1) and AAC LC when encoding, the
+// level of the output size (h264Level: 4.1 up to 1920x1080, else 5.0, 5.1 or 6.0) and AAC LC when encoding, the
 // source codecs when copying (the audio of the chosen track).
 func CodecsString(plan Plan, src Source) string {
 	var codecs []string
@@ -484,7 +506,7 @@ func CodecsString(plan Plan, src Source) string {
 				codecs = append(codecs, c)
 			}
 		} else {
-			codecs = append(codecs, fmt.Sprintf("avc1.6400%02X", h264Level(plan.Height)))
+			codecs = append(codecs, fmt.Sprintf("avc1.6400%02X", h264Level(plan.Width, plan.Height)))
 		}
 	}
 	if a, ok := selectedAudio(src.Probe, plan.Target); ok {
