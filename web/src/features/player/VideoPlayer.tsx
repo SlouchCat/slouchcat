@@ -643,13 +643,13 @@ export function VideoPlayer({
           if (action.step < 0) previousChapter();
           else nextChapter();
           return;
-        case 'jump': {
-          const element = video.current;
-          if (!element || !Number.isFinite(element.duration)) return;
+        case 'jump':
+          // The player's length: the file's until the element knows its own (HLS may report
+          // Infinity while it loads).
+          if (durationMs <= 0) return;
           event.preventDefault();
-          seekTo(action.fraction * element.duration * 1000);
+          seekTo(action.fraction * durationMs);
           return;
-        }
         case 'rate':
           event.preventDefault();
           changeRate(action.delta);
@@ -717,6 +717,7 @@ export function VideoPlayer({
     changeRate,
     changeVolume,
     countdownActive,
+    durationMs,
     ended,
     hasChapters,
     hasQualities,

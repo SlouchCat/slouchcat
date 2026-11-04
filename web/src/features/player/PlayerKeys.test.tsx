@@ -249,6 +249,13 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(media.currentTime).toBe(540);
   });
 
+  it('0–9 count with the file’s length while the element reports none', async () => {
+    const { media } = await start();
+    media.duration = Number.POSITIVE_INFINITY;
+    key(document.body, '5');
+    expect(media.currentTime).toBe(300);
+  });
+
   it('U opens the subtitles (today in the track choice)', async () => {
     await start();
     key(document.body, 'u');
