@@ -276,7 +276,7 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
 });
 
 /** The chrome with the tabs of 11.2 and the open tab in state, like the video player. */
-function Tabbed({ initial = null }: { initial?: string | null }) {
+function Tabbed({ initial = null, current = 1 }: { initial?: string | null; current?: number }) {
   const [open, setOpen] = useState<string | null>(initial);
   // Escape closes the open tab, as the player's key map does.
   useEffect(() => {
@@ -309,7 +309,7 @@ function Tabbed({ initial = null }: { initial?: string | null }) {
         onBack={vi.fn()}
         settings={panel('Einstellungen')}
         tabs={[
-          cardTab('chapters', 'Kapitel', 4, 1),
+          cardTab('chapters', 'Kapitel', 4, current),
           cardTab('next', 'Als Nächstes', 2),
           textTab('info', 'Info', 'Eine Stadt unter der Erde.'),
         ]}
@@ -384,6 +384,22 @@ describe('PlayerChrome tabs (11.2, step 5)', () => {
     }
   });
 
+  it('without the focus in it the row’s stop follows the current card (review step 5)', async () => {
+    const view = render(<Tabbed initial="chapters" current={1} />);
+    expect(button('Kapitel 2')).toHaveAttribute('tabindex', '0');
+    // The next chapter plays: the stop moves with it.
+    view.rerender(<Tabbed initial="chapters" current={2} />);
+    expect(button('Kapitel 3')).toHaveAttribute('tabindex', '0');
+    expect(button('Kapitel 2')).toHaveAttribute('tabindex', '-1');
+    // In the row the focused card stays the stop; once the focus left, the current one again.
+    button('Kapitel 1').focus();
+    view.rerender(<Tabbed initial="chapters" current={3} />);
+    expect(button('Kapitel 1')).toHaveAttribute('tabindex', '0');
+    await userEvent.keyboard('{ArrowUp}');
+    expect(tabButton('Kapitel')).toHaveFocus();
+    expect(button('Kapitel 4')).toHaveAttribute('tabindex', '0');
+  });
+
   it('Tab walks row, strip and cards as one stop each; no trap', async () => {
     render(<Tabbed initial="next" />);
     button('Abspielen').focus();
@@ -400,6 +416,16 @@ describe('PlayerChrome tabs (11.2, step 5)', () => {
     tabButton('Info').focus();
     await userEvent.keyboard('{ArrowDown}');
     const text = screen.getByText('Eine Stadt unter der Erde.').parentElement!;
+    expect(text).toHaveFocus();
+    // Scrolled down, ↑ scrolls the text back natively; at its top ↑ goes to the strip.
+    text.scrollTop = 40;
+    const up = fireEvent.keyDown(text, { key: 'ArrowUp' });
+    expect(up).toBe(true);
+    expect(text).toHaveFocus();
+    text.scrollTop = 0;
+    await userEvent.keyboard('{ArrowUp}');
+    expect(tabButton('Info')).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
     expect(text).toHaveFocus();
     // Closed by the page (Escape) with the focus in it: the focus goes to its tab.
     await userEvent.keyboard('{Escape}');

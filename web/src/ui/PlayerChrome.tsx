@@ -251,10 +251,11 @@ function CardRow({
   cards: NonNullable<PlayerChromeTab['cards']>;
 }) {
   const list = useRef<HTMLUListElement>(null);
-  const [active, setActive] = useState(() =>
-    Math.min(Math.max(0, cards.current ?? 0), Math.max(0, cards.count - 1)),
-  );
-  const stop = Math.min(active, Math.max(0, cards.count - 1));
+  // The card that had the focus last while the focus is in the row; without it the stop follows
+  // the current card (the chapter playing moves on).
+  const [active, setActive] = useState<number | null>(null);
+  const last = Math.max(0, cards.count - 1);
+  const stop = Math.min(active ?? Math.max(0, cards.current ?? 0), last);
   const items = () => [...(list.current?.querySelectorAll<HTMLElement>(':scope > li') ?? [])];
   const focusable = (item: HTMLElement | undefined) =>
     item?.querySelector<HTMLElement>('button, a[href]');
@@ -296,6 +297,10 @@ function CardRow({
       onFocus={(event) => {
         const index = items().findIndex((item) => item.contains(event.target));
         if (index >= 0) setActive(index);
+      }}
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (!(next instanceof Node && event.currentTarget.contains(next))) setActive(null);
       }}
     >
       {Array.from({ length: cards.count }, (_, index) => (
@@ -652,6 +657,11 @@ export function PlayerChrome({
     if (!(target instanceof HTMLElement)) return;
     const inStrip = target.closest('[data-tab-key]') !== null;
     if (event.key === 'ArrowUp') {
+      // Text that scrolled down scrolls back up natively first; at its top ↑ goes to the strip.
+      if (!inStrip && target.hasAttribute('data-tab-content') && target.scrollTop > 0) {
+        event.stopPropagation();
+        return;
+      }
       consume(event);
       if (inStrip) focusToolbar(row.current);
       else focusTabs();
