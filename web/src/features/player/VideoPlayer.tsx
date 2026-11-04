@@ -1236,6 +1236,7 @@ export function VideoPlayer({
           }
           onClose={closePanel}
           remember={rememberSeries}
+          profileDefault
         />
       )}
       {panel === 'subtitle' && (

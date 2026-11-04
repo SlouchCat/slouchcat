@@ -11,7 +11,8 @@ import {
   type OptionMark,
 } from '@/ui/aria';
 import { audioKey, subtitleKey, trackLabel } from '../labels';
-import { isSdh, orderTracks, type PlacedTrack } from '../trackOrder';
+import { baseLanguage, isSdh, orderTracks, type PlacedTrack } from '../trackOrder';
+import { AudioDefault } from './AudioDefault';
 import type { SubtitleStyle } from '../useSubtitleStyle';
 import { PANEL_IDS } from './panelIds';
 import { SubtitleStyleOptions } from './SubtitleStyleOptions';
@@ -117,6 +118,11 @@ interface AudioPanelProps {
   onClose: () => void;
   /** An episode: the switch «Für diese Serie merken». */
   remember?: RememberSeries;
+  /**
+   * «Als Standard für dieses Profil» below the list (online only: it saves the profile's audio
+   * languages on the server).
+   */
+  profileDefault?: boolean;
 }
 
 /** The sound panel (key T, V-5): «Deutsch · DTS · 5.1» with the marks «Standard», «Stream wird neu aufgebaut». */
@@ -128,8 +134,10 @@ export function AudioPanel({
   onSelect,
   onClose,
   remember,
+  profileDefault = false,
 }: AudioPanelProps) {
   const { t } = useTranslation();
+  const playing = tracks.find((track) => track.index === selectedIndex);
   return (
     <PlayerPanel id={PANEL_IDS.audio} title={t('player.tracks.audio')} onClose={onClose}>
       <TrackList
@@ -145,6 +153,7 @@ export function AudioPanel({
         onSelect={(key) => onSelect(Number(key.slice('audio:'.length)))}
       />
       {remember && <RememberSwitch remember={remember} />}
+      {profileDefault && <AudioDefault language={baseLanguage(playing?.language)} />}
     </PlayerPanel>
   );
 }

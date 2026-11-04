@@ -1,8 +1,11 @@
 import type { Track } from '@slouchcat/api-client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { sessionQuery } from '@/app/session';
+import { json, mockApi, session } from '@/test/api';
 import { DEFAULT_SUBTITLE_STYLE } from '../useSubtitleStyle';
 import { AudioPanel, SubtitlePanel } from './TrackPanels';
 
@@ -125,6 +128,76 @@ describe('AudioPanel (V-5)', () => {
       'aria-selected',
       'true',
     );
+  });
+
+  describe('«Als Standard für dieses Profil» (concept 13 11.4)', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    const renderWithSession = (selectedIndex: number, profileDefault = true) => {
+      const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      queryClient.setQueryData(sessionQuery.queryKey, session);
+      render(
+        <QueryClientProvider client={queryClient}>
+          <AudioPanel
+            tracks={tracks}
+            profileLanguage="de"
+            selectedIndex={selectedIndex}
+            converts={() => false}
+            onSelect={vi.fn()}
+            onClose={vi.fn()}
+            profileDefault={profileDefault}
+          />
+        </QueryClientProvider>,
+      );
+      return queryClient;
+    };
+
+    it('puts the language of the playing track first in the profile’s audio languages', async () => {
+      const user = userEvent.setup();
+      const { calls } = mockApi({
+        'GET /me/playback-prefs': () =>
+          json({
+            audioLanguages: ['de', 'fr'],
+            subtitleMode: 'foreign',
+            subtitleLanguages: ['de'],
+          }),
+        'PUT /me/playback-prefs': (call) => json(call.body),
+      });
+      const queryClient = renderWithSession(1);
+      const button = screen.getByRole('button', { name: 'Als Standard für dieses Profil' });
+      await user.click(button);
+      expect(
+        await screen.findByText('Englisch ist jetzt Standard für dieses Profil.'),
+      ).toBeVisible();
+      // The other preferences go back as the server holds them.
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        audioLanguages: ['en', 'de', 'fr'],
+        subtitleMode: 'foreign',
+        subtitleLanguages: ['de'],
+      });
+      expect(queryClient.getQueryData(sessionQuery.queryKey)?.profile?.audioLanguages).toEqual([
+        'en',
+        'de',
+        'fr',
+      ]);
+      expect(button).toHaveFocus();
+    });
+
+    it('says so when the playing language is the first already, and sends nothing', async () => {
+      const user = userEvent.setup();
+      const { calls } = mockApi({});
+      renderWithSession(3);
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Deutsch ist Standard für dieses Profil.',
+      );
+      await user.click(screen.getByRole('button', { name: 'Als Standard für dieses Profil' }));
+      expect(calls).toHaveLength(0);
+    });
+
+    it('is not offered without the flag (the offline player)', () => {
+      renderWithSession(1, false);
+      expect(screen.queryByRole('button', { name: 'Als Standard für dieses Profil' })).toBeNull();
+    });
   });
 });
 

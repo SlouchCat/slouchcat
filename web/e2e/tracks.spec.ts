@@ -377,3 +377,65 @@ test('«Für diese Serie merken» by keyboard: a subtitle chosen with it on come
   await expectNoFocusTrap(page);
   await resetSeries();
 });
+
+// Concept 13 11.4 «Als Standard für dieses Profil», rule 8: below the sound panel's list, Tab
+// reaches the button, Enter puts the playing language first in the profile's audio languages
+// (putMyPlaybackPrefs), the status line says so, the focus stays on the button; the next start
+// without tracks takes that language (audioReason profile). The owner's lists go back afterwards.
+test('«Als Standard für dieses Profil» by keyboard: the playing language becomes the profile’s first', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  const prefsUrl = '/api/v1/me/playback-prefs';
+  const before: unknown = await (await page.request.get(prefsUrl)).json();
+  try {
+    const itemId = await itemIdByTitle(owner, MULTI_AUDIO_TITLE);
+    await resetProgress(page.request, itemId);
+    const first = await play(page, itemId);
+    const ac3 = first.tracks.audio.find((track) => track.codec === 'ac3');
+    expect(ac3, 'the English AC3 track of the test film').toBeDefined();
+
+    // German plays and is the profile's first language already: the status line says so.
+    await page.keyboard.press('t');
+    const panel = page.getByRole('dialog', { name: 'Ton' });
+    const makeDefault = panel.getByRole('button', { name: 'Als Standard für dieses Profil' });
+    await expect(panel.getByRole('status')).toHaveText('Deutsch ist Standard für dieses Profil.');
+
+    // English by the arrows and Enter: a new session with the AC3 track.
+    await arrowTo(page, panelList(page, 'Ton').getByRole('option', { name: /AC3/ }));
+    const english = await startOf(page, () => page.keyboard.press('Enter'));
+    expect(english.body.selection.audioTrack).toBe(ac3!.index);
+    await expect(player(page)).toHaveAttribute(
+      'data-playback-session-id',
+      english.body.playbackSessionId,
+    );
+
+    await page.keyboard.press('t');
+    await expect(panelList(page, 'Ton').getByRole('option', { selected: true })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(makeDefault).toBeFocused();
+    await expectVisibleFocus(page);
+    const stored = page.waitForResponse(
+      (response) => response.request().method() === 'PUT' && response.url().endsWith(prefsUrl),
+    );
+    await page.keyboard.press('Enter');
+    const put = await stored;
+    expect(put.status()).toBe(200);
+    expect(((await put.json()) as { audioLanguages: string[] }).audioLanguages[0]).toBe('en');
+    await expect(panel.getByRole('status')).toHaveText(
+      'Englisch ist jetzt Standard für dieses Profil.',
+    );
+    await expect(makeDefault).toBeFocused();
+    await expectNoFocusTrap(page);
+
+    // The next start names no track: the server plays English for the profile.
+    await resetProgress(page.request, itemId);
+    const again = await play(page, itemId);
+    expect(again.selection.audioTrack).toBe(ac3!.index);
+    expect(again.selection.audioReason).toBe('profile');
+  } finally {
+    const response = await page.request.put(prefsUrl, { data: before, headers: CSRF });
+    expect(response.status(), await response.text()).toBe(200);
+  }
+});
