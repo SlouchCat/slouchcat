@@ -9,14 +9,7 @@ import type {
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type WheelEvent,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type WheelEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { episodeCode } from '@/features/catalog/labels';
@@ -111,6 +104,11 @@ interface VideoPlayerProps {
   onToggleInfo?: () => void;
   /** The title's details (logo, genres, series), once loaded; the head shows text until then. */
   detail?: ItemDetail;
+  /** Mute and speed of the previous session of this title (m-2): a switch keeps them. */
+  initialMuted?: boolean;
+  initialRate?: number;
+  onMutedChange?: (muted: boolean) => void;
+  onRateChange?: (rate: number) => void;
 }
 
 const isActivatable = (target: EventTarget | null) =>
@@ -174,6 +172,10 @@ export function VideoPlayer({
   infoOpen = false,
   onToggleInfo,
   detail,
+  initialMuted = false,
+  initialRate = 1,
+  onMutedChange,
+  onRateChange,
 }: VideoPlayerProps) {
   const { t, i18n } = useTranslation();
   // Fixed for the life of this player (one playback session).
@@ -376,7 +378,11 @@ export function VideoPlayer({
     [seekTo],
   );
 
-  const volume = useVolume(video);
+  const volume = useVolume(video, initialMuted);
+  const mutedNow = volume.muted;
+  useEffect(() => {
+    onMutedChange?.(mutedNow);
+  }, [mutedNow, onMutedChange]);
   const stepVolume = volume.step;
   const changeVolume = useCallback(
     (delta: number) => {
@@ -414,15 +420,16 @@ export function VideoPlayer({
     changeVolume(-notches * VOLUME_STEP);
   };
 
-  // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×, for this session.
-  const [rate, setRate] = useState(1);
+  // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×; a switch keeps it (initialRate).
+  const [rate, setRate] = useState(initialRate);
   useEffect(() => {
+    onRateChange?.(rate);
     const element = video.current;
     if (!element) return;
     // A new source falls back to the default rate; both keep the speed.
     element.defaultPlaybackRate = rate;
     element.playbackRate = rate;
-  }, [rate]);
+  }, [onRateChange, rate]);
   const changeRate = useCallback(
     (delta: number) => {
       const next = stepPlaybackRate(video.current?.playbackRate ?? 1, delta);

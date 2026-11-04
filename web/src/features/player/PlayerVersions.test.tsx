@@ -153,6 +153,32 @@ describe('player: versions and stream info (B-5)', () => {
     ).toHaveLength(1);
   });
 
+  it('keeps mute and speed across a switch of the version', async () => {
+    stubMedia();
+    const { calls } = mockApi(routes());
+    const { container } = renderApp(`/play/${ids.alien}`);
+    const first = await videoOf(container);
+    act(() => {
+      first.dispatchEvent(new Event('loadedmetadata'));
+    });
+    fireEvent.keyDown(document.body, { key: 'm' });
+    fireEvent.keyDown(document.body, { key: ']' });
+    expect(first.muted).toBe(true);
+    expect(first.playbackRate).toBe(1.25);
+
+    const player = playerDriver();
+    expect(await player.current('version')).toBe('1080p');
+    await player.chooseVersion('720p');
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    const region = screen.getByRole('main', { name: 'Videoplayer' });
+    await waitFor(() => expect(region).toHaveAttribute('data-media-file-id', 'mf-2'));
+    const second = await videoOf(container);
+    expect(second).not.toBe(first);
+    expect(second.muted).toBe(true);
+    expect(second.playbackRate).toBe(1.25);
+    expect(screen.getByRole('button', { name: 'Ton aus' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('locks the old player until its session has ended', async () => {
     const media = stubMedia();
     let endSession: (response: Response) => void = () => undefined;

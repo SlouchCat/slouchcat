@@ -22,12 +22,12 @@ function applyVolume(element: HTMLMediaElement, volume: number, muted: boolean):
 
 /**
  * The volume of the media element (V-3): the level is remembered per device (F-2), starts at the
- * stored level (100 % without one) and is applied to the element whenever it changes. Up to 100 %
+ * stored level (100 % without one), muted as `initialMuted` says (a switch keeps a mute), and is applied to the element whenever it changes. Up to 100 %
  * only; the boost above it comes with the Web Audio gain (concept 13, step 4).
  */
-export function useVolume(media: RefObject<HTMLMediaElement | null>): Volume {
+export function useVolume(media: RefObject<HTMLMediaElement | null>, initialMuted = false): Volume {
   const [volume, setLevel] = useState(() => readPlayerPrefs().volume ?? 1);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(initialMuted);
   // The latest values for key handlers that run before the next render.
   const level = useRef(volume);
   const mutedNow = useRef(muted);

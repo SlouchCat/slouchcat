@@ -1,7 +1,7 @@
 import type { ItemRef, PlaybackInfo, PlaybackRequest, Quality } from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemExtension, problemMessage } from '@/api/errors';
@@ -203,6 +203,19 @@ function PlayerView({ itemId }: { itemId: string }) {
   const versions = detail.data?.mediaFiles ?? [];
 
   const [infoOpen, setInfoOpen] = useState(false);
+  // Mute and speed carry over to the next session of this title (a switch of track, quality or
+  // version); a new title starts audible at normal speed.
+  const [carried, setCarried] = useState({ muted: false, rate: 1 });
+  const carryMuted = useCallback(
+    (muted: boolean) =>
+      setCarried((current) => (current.muted === muted ? current : { ...current, muted })),
+    [],
+  );
+  const carryRate = useCallback(
+    (rate: number) =>
+      setCarried((current) => (current.rate === rate ? current : { ...current, rate })),
+    [],
+  );
 
   // From the menu until the new session answered; the old player is paused and locked meanwhile.
   const switching =
@@ -299,6 +312,10 @@ function PlayerView({ itemId }: { itemId: string }) {
         detail={detail.data}
         infoOpen={infoOpen}
         onToggleInfo={() => setInfoOpen((open) => !open)}
+        initialMuted={carried.muted}
+        initialRate={carried.rate}
+        onMutedChange={carryMuted}
+        onRateChange={carryRate}
         switching={switching}
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
         onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}
