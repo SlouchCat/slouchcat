@@ -1561,6 +1561,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/original-language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set and lock the original language of a title (concept 13 11.7)
+         * @description Sets the original language of a movie or series (since contract 1.11.0) and locks the field
+         *     (`lockedFields` gets `original_language`), so `metadata.fill`, a match and
+         *     `metadata.original_language_backfill` keep it. `""` stores "unknown". `null` lifts the lock and
+         *     clears the value; a manual match of the title looks the language up again.
+         */
+        put: operations["setItemOriginalLanguage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/{id}": {
         parameters: {
             query?: never;
@@ -4129,6 +4152,10 @@ export interface components {
             /** @description New own rating, or null to drop the manual override. */
             rating: components["schemas"]["Rating"] | null;
         };
+        ItemOriginalLanguageRequest: {
+            /** @description An ISO 639-1 code, `""` for "unknown", or null to lift the lock and look it up again. */
+            language: string | null;
+        };
         /** @description Administration view of a title's ratings; not an `ItemRef` (unfiltered, admin only). */
         AdminItemRating: {
             id: components["schemas"]["ItemID"];
@@ -4969,7 +4996,8 @@ export interface components {
         FieldSource: {
             /**
              * @description `title`, `overview`, `tagline` (per language), `original_title`, `genres`,
-             *     `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`.
+             *     `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`, `original_language`
+             *     (since contract 1.11.0).
              */
             field: string;
             /** @description The text language, empty for fields without one. */
@@ -10618,6 +10646,53 @@ export interface operations {
                 };
             };
             /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemOriginalLanguage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemOriginalLanguageRequest"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`): field `language` (`invalid_value`) or `kind` (`invalid_value`, not a movie or series). */
             422: {
                 headers: {
                     [name: string]: unknown;

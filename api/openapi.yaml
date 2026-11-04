@@ -3168,6 +3168,49 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/items/{id}/original-language:
+    put:
+      operationId: setItemOriginalLanguage
+      summary: Set and lock the original language of a title (concept 13 11.7)
+      description: |
+        Sets the original language of a movie or series (since contract 1.11.0) and locks the field
+        (`lockedFields` gets `original_language`), so `metadata.fill`, a match and
+        `metadata.original_language_backfill` keep it. `""` stores "unknown". `null` lifts the lock and
+        clears the value; a manual match of the title looks the language up again.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemOriginalLanguageRequest"
+      responses:
+        "200":
+          description: The administration view after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: "Validation failed (`validation_failed`): field `language` (`invalid_value`) or `kind` (`invalid_value`, not a movie or series)."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
   /admin/items/{id}:
     get:
       operationId: getAdminItem
@@ -7883,6 +7926,17 @@ components:
             - type: "null"
           description: New own rating, or null to drop the manual override.
 
+    ItemOriginalLanguageRequest:
+      type: object
+      required: [language]
+      properties:
+        language:
+          oneOf:
+            - type: string
+              pattern: "^([a-z]{2})?$"
+            - type: "null"
+          description: An ISO 639-1 code, `""` for "unknown", or null to lift the lock and look it up again.
+
     AdminItemRating:
       type: object
       description: Administration view of a title's ratings; not an `ItemRef` (unfiltered, admin only).
@@ -9243,7 +9297,8 @@ components:
           type: string
           description: |
             `title`, `overview`, `tagline` (per language), `original_title`, `genres`,
-            `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`.
+            `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`, `original_language`
+            (since contract 1.11.0).
         lang:
           type: string
           description: The text language, empty for fields without one.

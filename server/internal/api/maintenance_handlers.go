@@ -25,6 +25,9 @@ func (e serviceProblem) VisitListItemImageCandidatesResponse(w http.ResponseWrit
 }
 func (e serviceProblem) VisitSetItemImageResponse(w http.ResponseWriter) error   { return e.visit(w) }
 func (e serviceProblem) VisitClearItemImageResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitSetItemOriginalLanguageResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 func (e serviceProblem) VisitCreateItemTrailerResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -132,6 +135,17 @@ func (s *server) ClearItemImage(ctx context.Context, req gen.ClearItemImageReque
 		return s.problem(ctx, err), nil
 	}
 	return gen.ClearItemImage200JSONResponse(toAdminItem(it)), nil
+}
+
+func (s *server) SetItemOriginalLanguage(ctx context.Context, req gen.SetItemOriginalLanguageRequestObject) (gen.SetItemOriginalLanguageResponseObject, error) {
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("language", "required")), nil
+	}
+	it, err := s.opts.Admin.SetItemOriginalLanguage(ctx, req.Id, req.Body.Language)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetItemOriginalLanguage200JSONResponse(toAdminItem(it)), nil
 }
 
 // candidatePreviewURL is the address of getItemImageCandidatePreview for a local candidate.

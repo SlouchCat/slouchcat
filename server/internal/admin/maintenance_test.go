@@ -771,6 +771,9 @@ func (m *fakeMetadata) SetItemImage(context.Context, string, string, string, str
 	return nil
 }
 func (m *fakeMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m *fakeMetadata) SetItemOriginalLanguage(context.Context, string, *string) error {
+	return nil
+}
 func (m *fakeMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
 	return nil, nil
 }

@@ -207,6 +207,9 @@ func (m contractMetadata) SetItemImage(context.Context, string, string, string, 
 	return nil
 }
 func (m contractMetadata) ClearItemImage(context.Context, string, string) error { return nil }
+func (m contractMetadata) SetItemOriginalLanguage(context.Context, string, *string) error {
+	return nil
+}
 func (m contractMetadata) ItemImages(context.Context, string) ([]model.AdminItemImage, error) {
 	return nil, nil
 }
