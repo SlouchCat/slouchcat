@@ -188,12 +188,6 @@
   align-items: center;
 }
 
-.volume {
-  width: 7rem;
-  accent-color: var(--sc-accent);
-  cursor: pointer;
-}
-
 /* Why the playback stopped: centred over the player. */
 .overlay {
   position: absolute;

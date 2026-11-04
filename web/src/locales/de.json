@@ -745,8 +745,6 @@
       "faster": "Schneller",
       "minus": "−0,1",
       "plus": "+0,1",
-      "mute": "Ton aus",
-      "volume": "Lautstärke",
       "sleep": {
         "button": "Sleep-Timer",
         "buttonActive": "Sleep-Timer: noch {{left}}",
@@ -760,6 +758,12 @@
         "cancelled": "Sleep-Timer aus",
         "done": "Sleep-Timer abgelaufen"
       }
+    },
+    "volumeControl": {
+      "mute": "Ton aus",
+      "slider": "Lautstärke",
+      "boosted": "Lautstärke {{percent}} %, verstärkt, kann verzerren",
+      "percent": "{{percent}} %"
     }
   },
   "admin": {

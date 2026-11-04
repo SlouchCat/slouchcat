@@ -745,8 +745,6 @@
       "faster": "Faster",
       "minus": "−0.1",
       "plus": "+0.1",
-      "mute": "Mute",
-      "volume": "Volume",
       "sleep": {
         "button": "Sleep timer",
         "buttonActive": "Sleep timer: {{left}} left",
@@ -760,6 +758,12 @@
         "cancelled": "Sleep timer off",
         "done": "Sleep timer ended"
       }
+    },
+    "volumeControl": {
+      "mute": "Mute",
+      "slider": "Volume",
+      "boosted": "Volume {{percent}} %, boosted, may distort",
+      "percent": "{{percent}} %"
     }
   },
   "admin": {

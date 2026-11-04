@@ -348,6 +348,42 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
   await expect(
     player.getByRole('button', { name: /^Sleep-Timer: noch 1[45]:\d\d$/ }),
   ).toBeVisible();
+  // The volume (VolumeControl, concept 13 V-3): the slider is closed until the focus reaches the
+  // mute button; it moves 5 % per arrow and keeps the arrows from the page's key map (no seek).
+  const volume = player.getByRole('slider', { name: 'Lautstärke' });
+  const drawerWidth = () =>
+    volume.evaluate((slider) => slider.parentElement!.getBoundingClientRect().width);
+  expect(await drawerWidth()).toBe(0);
+  const mute = player.getByRole('button', { name: 'Ton aus' });
+  // The closed menu hands the focus back a frame later; start from the sleep timer, next to it.
+  await player.getByRole('button', { name: /^Sleep-Timer: / }).focus();
+  await tabTo(page, mute, 2);
+  await expectVisibleFocus(page);
+  await expect.poll(drawerWidth).toBeGreaterThan(100);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, volume);
+  await expectVisibleFocus(page);
+  const level = Number(await volume.getAttribute('aria-valuenow'));
+  const position = await time(page);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowLeft');
+  await expect(volume).toHaveAttribute('aria-valuenow', String(level - 10));
+  const element = () =>
+    page.locator('audio').evaluate((audio: HTMLAudioElement) => ({
+      volume: audio.volume,
+      muted: audio.muted,
+    }));
+  expect((await element()).volume).toBeCloseTo((level - 10) / 100, 2);
+  expect(await time(page)).toBeCloseTo(position, 1);
+  // Back on the mute button, Enter mutes and unmutes.
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, mute);
+  await page.keyboard.press('Enter');
+  await expect(mute).toHaveAttribute('aria-pressed', 'true');
+  expect((await element()).muted).toBe(true);
+  await page.keyboard.press('Enter');
+  await expect(mute).toHaveAttribute('aria-pressed', 'false');
+  expect((await element()).muted).toBe(false);
   await expectNoFocusTrap(page);
   // Backspace (a remote's back key) leaves the player.
   await player.getByRole('button', { name: /^(Pause|Abspielen)$/ }).focus();

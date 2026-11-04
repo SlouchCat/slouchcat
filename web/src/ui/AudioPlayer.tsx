@@ -12,6 +12,7 @@ import { AriaButton } from './AriaButton';
 import styles from './AudioPlayer.module.css';
 import { MenuButton } from './Menu';
 import { PosterFallback } from './PosterFallback';
+import { VolumeControl } from './VolumeControl';
 
 /** The menus of the audio player; the page opens them by key as well (C, T). */
 export type AudioPlayerMenu = 'chapters' | 'speed' | 'sleep';
@@ -430,29 +431,12 @@ export function AudioPlayer({
               onSelect={onSleep}
               {...menuProps('sleep')}
             />
-            <span className={styles.group}>
-              <AriaButton
-                variant="ghost"
-                icon={muted || volume === 0 ? 'volumeMute' : 'volume'}
-                iconOnly
-                aria-label={t('player.audio.mute')}
-                aria-pressed={muted}
-                onPress={onToggleMute}
-              />
-              <input
-                className={styles.volume}
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={muted ? 0 : volume}
-                aria-label={t('player.audio.volume')}
-                aria-valuetext={t('player.volume', {
-                  percent: Math.round((muted ? 0 : volume) * 100),
-                })}
-                onChange={(event) => onVolume(Number(event.currentTarget.value))}
-              />
-            </span>
+            <VolumeControl
+              volume={volume}
+              muted={muted}
+              onVolumeChange={onVolume}
+              onToggleMute={onToggleMute}
+            />
           </div>
         </div>
       </div>
