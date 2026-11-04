@@ -93,17 +93,18 @@ test('chapter images: the row by keyboard and the field over the timeline (stage
   await resetProgress(page.request, itemId, 10_000);
   // The test file came with the first scan, so only the backfill (started by hand on the page
   // Hintergrundjobs, here through its API) makes its images (11.6). A run that already made them
-  // queues nothing.
+  // queues nothing; a run that the end of a playback queued 10 minutes ahead is brought forward.
+  // The fixture stopped every running stream, so no playback holds the job back.
   const run = await owner.post('/api/v1/admin/job-types/chapters.images_backfill/run', {
     headers: CSRF,
   });
   expect(run.status(), await run.text()).toBe(202);
-  // Wait until the backfill and the image runs it queued are through, so no run is left to
-  // disturb later specs (job pages, playback timing).
+  // Wait until no backfill or image run waits or runs, so no ffmpeg keeps running into later
+  // specs. Runs that a playback of this spec queues 10 minutes ahead (planned) only wait.
   const pending = async () => {
     let total = 0;
     for (const type of ['chapters.images_backfill', 'chapters.images']) {
-      for (const state of ['queued', 'planned', 'running']) {
+      for (const state of ['queued', 'running']) {
         const response = await owner.get(`/api/v1/admin/jobs?type=${type}&state=${state}&limit=1`);
         expect(response.status(), await response.text()).toBe(200);
         total += ((await response.json()) as { total: number }).total;
