@@ -316,6 +316,14 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 		d := gen.TrackSelectionSubtitleDelivery(sel.SubtitleDelivery)
 		out.Selection.SubtitleTrack, out.Selection.SubtitleDelivery = &id, &d
 	}
+	if sel.AudioReason != "" {
+		r := gen.TrackSelectionAudioReason(sel.AudioReason)
+		out.Selection.AudioReason = &r
+	}
+	if sel.SubtitleReason != "" {
+		r := gen.TrackSelectionSubtitleReason(sel.SubtitleReason)
+		out.Selection.SubtitleReason = &r
+	}
 	for _, q := range info.Qualities {
 		out.Qualities = append(out.Qualities, gen.QualityOption{Quality: gen.Quality(q.Quality), Width: optPositive(q.Width),
 			Height: optPositive(q.Height), Bitrate: optPositive(q.Bitrate), Available: q.Available, Current: q.Current})

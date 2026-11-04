@@ -82,6 +82,18 @@ func TestSidecarSyncOnScans(t *testing.T) {
 	if n := sidecars(id); n != 0 {
 		t.Errorf("sidecars after deleting all = %d, want 0", n)
 	}
+
+	// Concept 13 11.3: .sdh, .hi and .cc mark subtitles for the deaf and hard of hearing
+	// (tracks.is_hearing_impaired), the track choice shows them only under "always".
+	writeFile(t, dir, "Film (2020)/Film (2020).en.sdh.srt", "1\n")
+	writeFile(t, dir, "Film (2020)/Film (2020).de.hi.srt", "1\n")
+	writeFile(t, dir, "Film (2020)/Film (2020).de.srt", "1\n")
+	e.pathScan(lib, "Film (2020)")
+	if got := e.str(`SELECT group_concat(rel_path || '=' || is_hearing_impaired || '/' || coalesce(title, ''), ',') FROM
+	                 (SELECT rel_path, is_hearing_impaired, title FROM tracks WHERE media_file_id = ? AND source = 'sidecar' ORDER BY rel_path)`, id); got !=
+		"Film (2020)/Film (2020).de.hi.srt=1/SDH,Film (2020)/Film (2020).de.srt=0/,Film (2020)/Film (2020).en.sdh.srt=1/SDH" {
+		t.Errorf("hearing impaired sidecars = %q", got)
+	}
 }
 
 func TestSidecarsOf(t *testing.T) {

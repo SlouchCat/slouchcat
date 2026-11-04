@@ -122,6 +122,23 @@ type Chapter struct {
 	Title string        `json:"title,omitempty"`
 }
 
+// AudioTracks returns the audio streams of p as tracks for the track choice (package trackpick):
+// stream index, codec, language, title, default flag and channels, in stream order. Nil without a
+// probe.
+func (p *Probe) AudioTracks() []model.Track {
+	if p == nil {
+		return nil
+	}
+	var out []model.Track
+	for _, s := range p.Streams {
+		if s.Type == "audio" {
+			out = append(out, model.Track{Index: s.Index, Kind: "audio", Codec: s.Codec, Language: s.Language,
+				Title: s.Title, Default: s.Default, Forced: s.Forced, Channels: s.Channels})
+		}
+	}
+	return out
+}
+
 // ChapterMarks maps the chapter marks of p onto the API's chapters, on the source timeline that HLS
 // outputs and downloads keep (ADR 0003; the client maps both back to it). Empty, never nil, without
 // a probe. Playback and the download manifest of a film or an episode read their chapters here.

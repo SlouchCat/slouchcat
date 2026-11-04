@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -60,25 +61,10 @@ func mainVideo(p *transcode.Probe) *transcode.Stream {
 	return nil
 }
 
-// defaultAudio returns the stream index of the default audio track (the first flagged default,
-// else the first audio stream), or -1 without audio or probe.
+// defaultAudio returns the stream index of the file's default audio track (the first flagged
+// default, else the first audio stream; trackpick.FileDefault), or -1 without audio or probe.
 func defaultAudio(p *transcode.Probe) int {
-	if p == nil {
-		return -1
-	}
-	first := -1
-	for _, s := range p.Streams {
-		if s.Type != "audio" {
-			continue
-		}
-		if s.Default {
-			return s.Index
-		}
-		if first < 0 {
-			first = s.Index
-		}
-	}
-	return first
+	return trackpick.FileDefault(p.AudioTracks())
 }
 
 // selectedAudio returns the audio stream with the index, else the default one, or nil.

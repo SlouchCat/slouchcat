@@ -33,7 +33,7 @@ type GetSeriesTracksParams struct {
 
 // Languages a profile last chose by hand for a series (package store/appq; concept 13 section 11.3,
 // migration 00032). Owners: playback (reads and writes the choice of a start) and auth (resets it
-// on "Meine Wiedergabe"). The series id always comes from the visibility package; these queries
+// on "Meine Wiedergabe"); offline reads it for the audio of downloads. The series id always comes from the visibility package; these queries
 // never read title tables. Times are Unix milliseconds.
 func (q *Queries) GetSeriesTracks(ctx context.Context, arg GetSeriesTracksParams) (ProfileSeriesTrack, error) {
 	row := q.db.QueryRowContext(ctx, getSeriesTracks, arg.ProfileID, arg.SeriesID)

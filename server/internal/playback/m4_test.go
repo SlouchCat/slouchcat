@@ -15,6 +15,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -131,7 +132,8 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode != ModeDirect || info.Selection != (model.TrackSelection{AudioTrack: 1, SubtitleTrack: ft.Text, SubtitleDelivery: model.SubtitleText}) {
+	if info.Mode != ModeDirect || info.Selection != (model.TrackSelection{AudioTrack: 1, SubtitleTrack: ft.Text, SubtitleDelivery: model.SubtitleText,
+		AudioReason: trackpick.AudioFile, SubtitleReason: trackpick.SubtitleRequest}) {
 		t.Fatalf("text subtitle = %s %+v", info.Mode, info.Selection)
 	}
 	if want := "/api/v1/playback/sessions/" + info.PlaybackSessionID + "/subtitles/"; !strings.HasPrefix(info.SubtitleURL, want) ||

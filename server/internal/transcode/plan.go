@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 )
 
 // Mode is the kind of HLS session: remux copies the video, transcode encodes H.264.
@@ -427,16 +428,15 @@ func streamByIndex(p Probe, i int) (Stream, bool) {
 	return p.Streams[j], true
 }
 
-// audioStream returns the default audio stream, else the first one.
+// audioStream returns the file's default audio stream, else the first one (trackpick.FileDefault,
+// the last step of the track choice).
 func audioStream(p Probe) (Stream, bool) {
-	i := slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "audio" && s.Default })
-	if i < 0 {
-		i = slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "audio" })
-	}
-	if i < 0 {
+	i := trackpick.FileDefault(p.AudioTracks())
+	j := slices.IndexFunc(p.Streams, func(s Stream) bool { return s.Type == "audio" && s.Index == i })
+	if i < 0 || j < 0 {
 		return Stream{}, false
 	}
-	return p.Streams[i], true
+	return p.Streams[j], true
 }
 
 // outputSize scales the video down to MaxHeight keeping the aspect ratio, with even sizes.

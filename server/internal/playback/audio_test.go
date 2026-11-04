@@ -181,6 +181,10 @@ func TestStartAudiobookParts(t *testing.T) {
 		info.Item.Progress == nil || info.Item.Progress.PlaybackRate == nil || *info.Item.Progress.PlaybackRate != 1.5 {
 		t.Errorf("info %+v", info)
 	}
+	// Concept 13 11.3: an audiobook plays the file's track without subtitles, whatever the profile.
+	if info.Selection.AudioReason != "file" || info.Selection.SubtitleReason != "off" || info.Selection.SubtitleTrack != 0 {
+		t.Errorf("selection %+v", info.Selection)
+	}
 	if len(info.Qualities) != 1 || info.Qualities[0].Quality != model.QualityAuto || info.Transcoding == nil || info.Transcoding.Reason != ReasonContainer {
 		t.Errorf("qualities %+v transcoding %+v", info.Qualities, info.Transcoding)
 	}

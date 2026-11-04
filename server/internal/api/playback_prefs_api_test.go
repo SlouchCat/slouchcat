@@ -8,8 +8,10 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 )
 
@@ -138,5 +140,50 @@ func TestHTTPPlaybackRequestFields(t *testing.T) {
 	info, code, p := play(t, h, "p6", film, `{"subtitleOff":true,"rememberForSeries":true,"capabilities":`+chromeCaps+`}`)
 	if code != http.StatusOK || info.SubtitleURL != "" {
 		t.Errorf("play with subtitleOff: %d %+v %+v", code, info, p)
+	}
+}
+
+// Concept 13 11.3 over HTTP: a start without subtitleTrack, and with subtitleTrack null (the
+// changed meaning of contract 1.11.0), lets the server choose by the profile's rule; subtitleOff
+// switches subtitles off; the selection says why. The fixture film has German AAC (default,
+// stream 1) and English AC3 (stream 2), English SubRip, German PGS and a German SubRip sidecar.
+func TestHTTPPlaybackTrackChoice(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	film := f.Rated(6).ID
+	ft := pf.tracks[f.Rated(6).FileID]
+	f.SetMediaFile(t, f.Rated(6).FileID, "mp4", "h264", "aac", offlineProbe(t), library.EncodeKeyframes([]time.Duration{0, 4 * time.Second}))
+	rec := send(t, h, http.MethodPut, BasePath+"/me/playback-prefs", "p6",
+		`{"audioLanguages":["en"],"subtitleMode":"always","subtitleLanguages":["en"]}`, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("put prefs = %d %s", rec.Code, rec.Body.String())
+	}
+	caps := `"capabilities":` + chromeCaps
+	for _, tc := range []struct {
+		body                        string
+		audio                       int
+		audioReason                 string
+		subtitle                    int64
+		subtitleReason, subtitleURL string
+	}{
+		{`{` + caps + `}`, 2, "profile", ft.Text, "mode", "yes"},
+		{`{"subtitleTrack":null,` + caps + `}`, 2, "profile", ft.Text, "mode", "yes"},
+		{`{"subtitleOff":true,` + caps + `}`, 2, "profile", 0, "request", ""},
+		{`{"audioTrack":1,"subtitleTrack":` + strconv.FormatInt(ft.Sidecar, 10) + `,` + caps + `}`, 1, "request", ft.Sidecar, "request", "yes"},
+		{`{"audioTrack":1,"subtitleOff":true,` + caps + `}`, 1, "request", 0, "request", ""},
+	} {
+		info, code, p := play(t, h, "p6", film, tc.body)
+		if code != http.StatusOK {
+			t.Fatalf("play %s: %d %+v", tc.body, code, p)
+		}
+		sel := info.Selection
+		var sub int64
+		if sel.SubtitleTrack != nil {
+			sub = *sel.SubtitleTrack
+		}
+		if sel.AudioTrack == nil || *sel.AudioTrack != tc.audio || sel.AudioReason != tc.audioReason || sub != tc.subtitle ||
+			sel.SubtitleReason != tc.subtitleReason || (info.SubtitleURL != "") != (tc.subtitleURL != "") {
+			t.Errorf("play %s: selection %+v, subtitle url %q", tc.body, sel, info.SubtitleURL)
+		}
 	}
 }

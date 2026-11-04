@@ -19,6 +19,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
@@ -135,6 +136,14 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
+	audioTitle := item.Kind == "audiobook" || item.Kind == "podcast_episode"
+	var choice trackpick.Context
+	var seriesID string
+	if !audioTitle {
+		if choice, seriesID, err = s.trackContext(ctx, scope, session.Profile, item.ID); err != nil {
+			return model.PlaybackInfo{}, err
+		}
+	}
 	// Everything that can fail without side effects is read before the replaced playback ends and
 	// the output starts.
 	segments, err := s.vis.Segments(ctx, scope, item.ID)
@@ -158,7 +167,16 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	file.MimeType = MimeType(file.Container, file.VideoCodec, file.AudioCodec)
 	file.Bitrate, file.HDR = probeDetails(probe)
 	src := newSource(file, probe, limits, caps)
+	audioReason, subtitleReason := chooseTracks(&dreq, req, tracks, choice, audioTitle, file, probe)
 	d := Decide(file, probe, dreq)
+	// The file's default track: what direct play without a probe and the fallback below play.
+	played := defaultAudio(probe)
+	if played < 0 {
+		played = trackpick.FileDefault(tracks.Audio)
+	}
+	if d.Mode == ModeDirect && d.AudioStream < 0 {
+		d.AudioStream = played
+	}
 	var hls *HLSRequest
 	if d.Mode != ModeDirect && in.multiPart() && (s.tc == nil || probe == nil) {
 		// One file of a book alone is not the book: without HLS (or before every part is probed)
@@ -171,9 +189,20 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		if s.tc == nil || probe == nil {
 			s.log.InfoContext(ctx, "hls unavailable, falling back to direct play", "media_file_id", file.ID,
 				"transcoder", s.tc != nil, "probed", probe != nil)
-			d = directFallback(d)
+			d = directFallback(d, played)
 		} else if hls, d, err = s.prepare(ctx, in, src, kfBlob, d); err != nil {
 			return model.PlaybackInfo{}, err
+		}
+	}
+	// Direct play without a probe and the fallback play the default audio track, the fallback drops a
+	// burn-in: the reasons follow what plays.
+	if dreq.AudioStream >= 0 && d.AudioStream != dreq.AudioStream {
+		audioReason = trackpick.AudioFile
+	}
+	if dreq.Subtitle != nil && d.SubtitleTrack == 0 {
+		subtitleReason = trackpick.SubtitleOff
+		if dreq.Subtitle.Forced {
+			subtitleReason = trackpick.SubtitleForcedBitmap
 		}
 	}
 	var resume int64
@@ -239,6 +268,9 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 
 	s.recordStart(ctx, session, item)
+	if req.RememberForSeries && seriesID != "" {
+		s.rememberSeries(ctx, session.Profile.ID, seriesID, req, tracks, d, choice.Series)
+	}
 
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
 	mediaKind := model.MediaKindVideo
@@ -258,13 +290,14 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		PlaybackSessionID: id,
 		ResumePositionMs:  resume,
 		Tracks:            tracks,
-		Selection:         model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery},
-		Qualities:         QualityOptions(d, src.w, src.h, limits, caps, req.Quality),
-		Chapters:          bookChapters,
-		WatchTime:         watch,
-		Device:            device,
-		Segments:          segments,
-		NextEpisode:       next,
+		Selection: model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery,
+			AudioReason: audioReason, SubtitleReason: subtitleReason},
+		Qualities:   QualityOptions(d, src.w, src.h, limits, caps, req.Quality),
+		Chapters:    bookChapters,
+		WatchTime:   watch,
+		Device:      device,
+		Segments:    segments,
+		NextEpisode: next,
 	}
 	if d.SubtitleDelivery == model.SubtitleText {
 		info.SubtitleURL = fmt.Sprintf("/api/v1/playback/sessions/%s/subtitles/%d.vtt?st=%s", id, d.SubtitleTrack, st)
@@ -279,8 +312,114 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 	s.log.InfoContext(ctx, "playback started", "playback_id", id, "item_id", item.ID, "media_file_id", file.ID,
 		"mode", d.Mode, "backend", backend, "reason", d.Reason, "quality", d.Quality, "audio_track", d.AudioStream,
-		"subtitle_track", d.SubtitleTrack, "subtitle_delivery", d.SubtitleDelivery)
+		"subtitle_track", d.SubtitleTrack, "subtitle_delivery", d.SubtitleDelivery, "audio_reason", audioReason,
+		"subtitle_reason", subtitleReason)
 	return info, nil
+}
+
+// trackContext reads what the track choice needs besides the request (concept 13 11.3): the
+// profile's preferences, the original language and the series of the title through package
+// visibility, and the languages the profile remembered for that series (profile_series_tracks).
+// seriesID is empty for anything but an episode.
+func (s *Service) trackContext(ctx context.Context, scope visibility.Scope, profile model.Profile, itemID string) (trackpick.Context, string, error) {
+	tc, err := s.vis.TrackContext(ctx, scope, itemID)
+	if err != nil {
+		return trackpick.Context{}, "", err
+	}
+	c := trackpick.Context{Prefs: profile.Prefs, OriginalLanguage: tc.OriginalLanguage}
+	if tc.SeriesID == "" {
+		return c, "", nil
+	}
+	row, err := s.read.GetSeriesTracks(ctx, appq.GetSeriesTracksParams{ProfileID: profile.ID, SeriesID: tc.SeriesID})
+	switch {
+	case err == nil:
+		c.Series = &trackpick.Remembered{AudioLanguage: row.AudioLanguage, SubtitleLanguage: row.SubtitleLanguage, SubtitleOff: row.SubtitleOff == 1}
+	case !errors.Is(err, sql.ErrNoRows):
+		return trackpick.Context{}, "", fmt.Errorf("get series tracks: %w", err)
+	}
+	return c, tc.SeriesID, nil
+}
+
+// chooseTracks fills in the tracks the request leaves to the server (concept 13 11.3, package
+// trackpick) and returns why each plays: a missing audioTrack takes the audio rule, a missing
+// subtitleTrack without subtitleOff the subtitle rule. Audiobooks and podcast episodes play the
+// file's default track without subtitles. A forced bitmap track is chosen only when the playback
+// is transcoded without it anyway (F-11). Only subtitle tracks the requested delivery can show
+// take part.
+func chooseTracks(dreq *Request, req model.PlaybackRequest, tracks model.TrackList, c trackpick.Context, audioTitle bool,
+	file model.MediaFile, probe *transcode.Probe,
+) (audioReason, subtitleReason string) {
+	audioReason = trackpick.AudioRequest
+	switch {
+	case req.AudioTrack != nil:
+	case audioTitle:
+		audioReason = trackpick.AudioFile
+	default:
+		decodes := func(codec string) bool { return slices.Contains(dreq.Caps.Audio, codec) }
+		dreq.AudioStream, audioReason = trackpick.Audio(tracks.Audio, c, decodes)
+	}
+	switch {
+	case req.SubtitleTrack > 0 || req.SubtitleOff:
+		return audioReason, trackpick.SubtitleRequest
+	case audioTitle:
+		return audioReason, trackpick.SubtitleOff
+	}
+	usable := slices.DeleteFunc(slices.Clone(tracks.Subtitles), func(t model.Track) bool { return !deliverable(t, req.SubtitleDelivery) })
+	var language string
+	if i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == dreq.AudioStream }); i >= 0 {
+		language = tracks.Audio[i].Language
+	}
+	sub, reason := trackpick.Subtitle(usable, language, c, false)
+	if reason == trackpick.SubtitleForcedBitmap && Decide(file, probe, *dreq).Mode == ModeTranscode {
+		sub, reason = trackpick.Subtitle(usable, language, c, true)
+	}
+	dreq.Subtitle = sub
+	return audioReason, reason
+}
+
+// deliverable reports whether a subtitle track can be shown with the delivery the request asks
+// for: the checks trackRequest answers with not_text and not_burnable.
+func deliverable(t model.Track, delivery string) bool {
+	if delivery == model.SubtitleText && !t.Text {
+		return false
+	}
+	return (delivery != model.SubtitleBurn && t.Text) || burnable(t)
+}
+
+// rememberSeries keeps the languages of a choice by hand during an episode for its series
+// (rememberForSeries, profile_series_tracks): the language of the audio track that plays when the
+// request named one, the subtitle language or "off" when it named a track or subtitleOff; the
+// other part keeps what was remembered before. A track without language stores an empty language,
+// which counts as none. A failed write does not fail the playback.
+func (s *Service) rememberSeries(ctx context.Context, profileID int64, seriesID string, req model.PlaybackRequest,
+	tracks model.TrackList, d Decision, before *trackpick.Remembered,
+) {
+	if req.AudioTrack == nil && req.SubtitleTrack == 0 && !req.SubtitleOff {
+		return
+	}
+	r := trackpick.Remembered{}
+	if before != nil {
+		r = *before
+	}
+	if req.AudioTrack != nil {
+		r.AudioLanguage = ""
+		if i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == d.AudioStream }); i >= 0 {
+			r.AudioLanguage = trackpick.Normalize(tracks.Audio[i].Language)
+		}
+	}
+	if req.SubtitleTrack > 0 || req.SubtitleOff {
+		r.SubtitleLanguage, r.SubtitleOff = "", d.SubtitleTrack == 0
+		if i := slices.IndexFunc(tracks.Subtitles, func(t model.Track) bool { return t.ID == d.SubtitleTrack }); i >= 0 {
+			r.SubtitleLanguage = trackpick.Normalize(tracks.Subtitles[i].Language)
+		}
+	}
+	err := s.write.UpsertSeriesTracks(context.WithoutCancel(ctx), appq.UpsertSeriesTracksParams{
+		ProfileID: profileID, SeriesID: seriesID, AudioLanguage: r.AudioLanguage, SubtitleLanguage: r.SubtitleLanguage,
+		SubtitleOff: boolInt(r.SubtitleOff), Now: s.now().UnixMilli(),
+	})
+	if err != nil {
+		s.log.WarnContext(ctx, "remember series tracks", "series_id", seriesID, "err", err)
+	}
 }
 
 // validateRequest checks the fields of a start request that need no lookup.
@@ -364,9 +503,10 @@ func burnable(t model.Track) bool {
 }
 
 // directFallback is the decision when HLS is not possible (no transcoder, file not probed): direct
-// play of the default audio track; a text subtitle stays, a burn-in is dropped.
-func directFallback(d Decision) Decision {
-	out := Decision{Mode: ModeDirect, AudioStream: -1, BurnStream: -1, Width: d.Width, Height: d.Height}
+// play of the default audio track, whose stream index defAudio reports what plays (-1 without
+// audio); a text subtitle stays, a burn-in is dropped.
+func directFallback(d Decision, defAudio int) Decision {
+	out := Decision{Mode: ModeDirect, AudioStream: defAudio, BurnStream: -1, Width: d.Width, Height: d.Height}
 	if d.SubtitleDelivery == model.SubtitleText {
 		out.SubtitleTrack, out.SubtitleDelivery = d.SubtitleTrack, d.SubtitleDelivery
 	}

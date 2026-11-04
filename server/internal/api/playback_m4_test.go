@@ -71,6 +71,8 @@ type m4Info struct {
 		AudioTrack       *int   `json:"audioTrack"`
 		SubtitleTrack    *int64 `json:"subtitleTrack"`
 		SubtitleDelivery string `json:"subtitleDelivery"`
+		AudioReason      string `json:"audioReason"`
+		SubtitleReason   string `json:"subtitleReason"`
 	} `json:"selection"`
 	Qualities []struct {
 		Quality   string `json:"quality"`

@@ -670,6 +670,9 @@ type Track struct {
 	RelPath  string // sidecar file relative to the library root (never sent to clients)
 	Text     bool   // text subtitle format deliverable as WebVTT
 	Channels int
+	// HearingImpaired marks a subtitle track for the deaf and hard of hearing (SDH; sidecar .sdh,
+	// .hi, .cc or such a title, tracks.is_hearing_impaired); it never leaves the server.
+	HearingImpaired bool
 }
 
 // TrackList are the tracks of one media file.
@@ -1070,6 +1073,10 @@ type TrackSelection struct {
 	AudioTrack       int    // stream index, -1 when the file has no audio
 	SubtitleTrack    int64  // track id, 0 = none
 	SubtitleDelivery string // text, burn; empty = none
+	// AudioReason and SubtitleReason say why these tracks play (trackpick.Audio*, trackpick.Subtitle*
+	// values, concept 13 11.3); empty when the server reports none.
+	AudioReason    string
+	SubtitleReason string
 }
 
 // DeviceRef names the device of a playback.

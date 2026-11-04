@@ -373,18 +373,19 @@ func (q *Queries) InsertMediaFile(ctx context.Context, arg InsertMediaFileParams
 }
 
 const insertSidecarTrack = `-- name: InsertSidecarTrack :exec
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (?1, -1, 'subtitle', ?2, ?3, ?4, 'sidecar', ?5, 0, ?6)
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (?1, -1, 'subtitle', ?2, ?3, ?4, 'sidecar', ?5, 0, ?6, ?7)
 ON CONFLICT DO NOTHING
 `
 
 type InsertSidecarTrackParams struct {
-	MediaFileID string
-	Codec       sql.NullString
-	Language    sql.NullString
-	Title       sql.NullString
-	RelPath     sql.NullString
-	IsForced    int64
+	MediaFileID       string
+	Codec             sql.NullString
+	Language          sql.NullString
+	Title             sql.NullString
+	RelPath           sql.NullString
+	IsForced          int64
+	IsHearingImpaired int64
 }
 
 // A sidecar found by a scan; stream_index -1 like the API reports sidecars.
@@ -396,26 +397,28 @@ func (q *Queries) InsertSidecarTrack(ctx context.Context, arg InsertSidecarTrack
 		arg.Title,
 		arg.RelPath,
 		arg.IsForced,
+		arg.IsHearingImpaired,
 	)
 	return err
 }
 
 const insertTrack = `-- name: InsertTrack :exec
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
 `
 
 type InsertTrackParams struct {
-	MediaFileID string
-	StreamIndex int64
-	Kind        string
-	Codec       sql.NullString
-	Language    sql.NullString
-	Title       sql.NullString
-	Source      string
-	RelPath     sql.NullString
-	IsDefault   int64
-	IsForced    int64
+	MediaFileID       string
+	StreamIndex       int64
+	Kind              string
+	Codec             sql.NullString
+	Language          sql.NullString
+	Title             sql.NullString
+	Source            string
+	RelPath           sql.NullString
+	IsDefault         int64
+	IsForced          int64
+	IsHearingImpaired int64
 }
 
 func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error {
@@ -430,6 +433,7 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 		arg.RelPath,
 		arg.IsDefault,
 		arg.IsForced,
+		arg.IsHearingImpaired,
 	)
 	return err
 }
