@@ -321,8 +321,8 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 		br = rungFor(p.Height).Bitrate
 	}
 	maxrate, bufsize := strconv.Itoa(br), strconv.Itoa(2*br)
-	// The H.264 level of the output size and the source's frame rate (h264Level): "4.1", "5.1" or
-	// "5.2"; h264_qsv takes the level_idc ("41", "51", "52").
+	// The H.264 level of the output size and the source's frame rate (h264Level): "4.1", "4.2",
+	// "5.1" or "5.2"; h264_qsv takes the level_idc ("41", "42", "51", "52").
 	lvl := h264Level(p.Width, p.Height, v.FrameRate)
 	level, qsvLevel := strconv.Itoa(lvl/10)+"."+strconv.Itoa(lvl%10), strconv.Itoa(lvl)
 	tonemap, cbr := p.Target.Tonemap, p.Target.ConstantRate

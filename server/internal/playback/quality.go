@@ -1,6 +1,7 @@
 package playback
 
 import (
+	"math"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -134,18 +135,21 @@ func pickRung(from int, limits model.PlaybackLimits, devCap int) int {
 	return len(ladder) - 1
 }
 
-// outputSize is the size of a transcode on a rung: the source scaled to the rung height (never
-// up), the width by the source's aspect ratio and even; 16:9 when the source size is unknown.
+// outputSize is the size of a transcode on a rung: the source scaled into the rung's 16:9 box
+// (the rung height, rung height × 16/9 pixels wide; never up) by the source's aspect ratio and
+// even, as transcode's plan does, so a 3840x1600 film is 1920x800 on 1080p; the whole box when the
+// source size is unknown.
 func outputSize(srcW, srcH int, r transcode.Rung) (w, h int) {
-	h = r.Height
-	if srcH > 0 && srcH < h {
-		h = srcH
-	}
+	boxH := r.Height
 	switch {
-	case srcW > 0 && srcH > 0:
-		w = srcW * h / srcH
+	case srcW <= 0 || srcH <= 0:
+		w, h = boxH*16/9, boxH
+	case srcW*9 > srcH*16 && srcW*9 > boxH*16: // wider than 16:9 and than the box: the box width limits
+		w, h = boxH*16/9, int(math.Round(float64(srcH)*float64(boxH*16)/float64(srcW*9)))
+	case srcH > boxH:
+		w, h = int(math.Round(float64(srcW)*float64(boxH)/float64(srcH))), boxH
 	default:
-		w = h * 16 / 9
+		w, h = srcW, srcH
 	}
 	return w &^ 1, h &^ 1
 }

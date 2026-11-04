@@ -125,6 +125,23 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
   `Stream.FrameRate`). Probes, die vor diesem Schritt gespeichert wurden, haben sie nicht; dann
   entscheidet die Bildgrösse allein, bis die Datei neu geprüft wird.
 
+## Nachtrag: Schluss-Review Stufe 2 (4. November 2026)
+
+- **Level 4.2.** Zwischen 4.1 und 5.1 liegt Level 4.2: bis 8704 Makroblöcke je Bild und
+  522 240 je Sekunde, `avc1.64002A`, bei QSV `-level:v 42`. 1080p mit 50 oder 60 Bildern/s bekommt
+  damit 4.2 statt 5.1. Geräte, die höchstens 4.2 dekodieren, spielen es weiter ab. Das ersetzt im
+  Nachtrag «Breitbild und Level» den Teil «1080p mit 60 Bildern/s» bei Level 5.1.
+- **Unbekannte Bildrate über 1080 Zeilen.** Fehlt die Bildrate in der Probe und ist die Ausgabe
+  höher als 1080 Zeilen, gilt mindestens Level 5.2 (`avc1.640034`). Die Quelle kann 60 Bilder/s
+  haben, und 5.1 wäre dann zu tief. Bis 1080 Zeilen entscheidet bei unbekannter Bildrate weiter
+  die Bildgrösse allein.
+- **Stufe als 16:9-Box.** Eine Stufe ist eine Box aus Stufenhöhe und Stufenhöhe × 16/9 Breite.
+  Die Quelle wird mit ihrem Seitenverhältnis in diese Box eingepasst und nie hochskaliert
+  (`outputSize` in `transcode/plan.go` und `playback/quality.go`). Ein Scope-Film in 3840×1600 wird
+  auf 1080p zu 1920×800 statt 2592×1080 und bekommt damit Level 4.1. Auf 2160p bleibt er
+  3840×1600. Das ersetzt im Nachtrag «Breitbild und Level» das Beispiel 2592×1080 als
+  1080p-Ausgabe.
+
 ## Verworfene Alternativen
 
 - **2160p auch auf dem Software-Backend.** libx264 schafft 4K nicht in Echtzeit auf den

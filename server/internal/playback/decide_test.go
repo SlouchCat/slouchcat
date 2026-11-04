@@ -364,10 +364,11 @@ func TestQualityOptions(t *testing.T) {
 		if o.Quality == model.Quality1080 && (o.Available || o.Width != 1920 || o.Height != 800) {
 			t.Errorf("1080p = %+v (the source keeps 1920x800, the limit rules it out)", o)
 		}
-		if o.Quality == model.Quality720 && (!o.Available || o.Current || o.Width != 1728) {
+		// 720p fits 1920x800 into its 16:9 box of 1280x720: 1280x532 (G2-m1).
+		if o.Quality == model.Quality720 && (!o.Available || o.Current || o.Width != 1280 || o.Height != 532) {
 			t.Errorf("720p = %+v", o)
 		}
-		if o.Quality == model.QualityAuto && (!o.Current || o.Height != 720 || o.Bitrate != 4_000_000) {
+		if o.Quality == model.QualityAuto && (!o.Current || o.Height != 532 || o.Bitrate != 4_000_000) {
 			t.Errorf("auto = %+v", o)
 		}
 	}

@@ -248,7 +248,8 @@ func TestDecide2160(t *testing.T) {
 		if o.Available != c.avail || o.Current || o.Bitrate != 25_000_000 || o.Codec != "h264" || o.Direct {
 			t.Errorf("%s: 2160p option %+v, want available %v", c.name, o, c.avail)
 		}
-		if a := option(t, opts, model.QualityAuto); !a.Current || a.Height != 1080 {
+		// auto runs on 1080p: 1920x1080, a scope film in the 16:9 box 1920x800.
+		if a := option(t, opts, model.QualityAuto); !a.Current || a.Width != 1920 || (a.Height != 1080 && c.p != scope) || (a.Height != 800 && c.p == scope) {
 			t.Errorf("%s: auto option %+v", c.name, a)
 		}
 	}

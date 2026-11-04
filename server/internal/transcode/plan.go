@@ -166,18 +166,24 @@ const min2160DeviceHeight = 1440
 // h264Level is the H.264 level_idc of an encode with the given output size and frame rate (the
 // source's, Stream.FrameRate; 0 = unknown), from the macroblocks of 16x16 pixels per frame and
 // per second (ITU-T H.264 table A-1, MaxFS and MaxMBPS): 4.1 up to 8192 per frame and 245760 per
-// second (1920x1080 at 30 fps), 5.1 up to 36864 and 983040 (2592x1080 of a scope film, 3840x1600,
-// 3840x2160 and 4096x2160 at 30 fps), 5.2 above (3840x2160 at 60 fps). An unknown size counts as
-// 1920x1080, an unknown frame rate by the frame size alone.
+// second (1920x1080 at 30 fps), 4.2 up to 8704 and 522240 (1920x1080 at 50 or 60 fps), 5.1 up to
+// 36864 and 983040 (3840x1600, 3840x2160 and 4096x2160 at 30 fps), 5.2 above (3840x2160 at
+// 60 fps). An unknown size counts as 1920x1080. An unknown frame rate decides by the frame size
+// alone, but an output above 1080 lines then gets at least 5.2: it may run at 60 fps.
 func h264Level(width, height int, fps float64) int {
 	if width <= 0 || height <= 0 {
 		width, height = 1920, defaultMaxHeight
+	}
+	if fps <= 0 && height > defaultMaxHeight {
+		return 52
 	}
 	mbs := float64(((width + 15) / 16) * ((height + 15) / 16))
 	mbps := mbs * max(fps, 0)
 	switch {
 	case mbs <= 8192 && mbps <= 245760:
 		return 41
+	case mbs <= 8704 && mbps <= 522240:
+		return 42
 	case mbs <= 36864 && mbps <= 983040:
 		return 51
 	default:
@@ -462,15 +468,23 @@ func audioStream(p Probe) (Stream, bool) {
 	return p.Streams[j], true
 }
 
-// outputSize scales the video down to MaxHeight keeping the aspect ratio, with even sizes.
+// outputSize scales the video down into the 16:9 box of MaxHeight (MaxHeight lines, MaxHeight ×
+// 16/9 pixels wide) keeping the aspect ratio, with even sizes: a 3840x1600 film on 1080 lines
+// becomes 1920x800, not 2592x1080 (ADR 0021).
 func outputSize(v Stream, t Target) (w, h int) {
 	w, h = v.Width, v.Height
 	if t.VideoCopy || w <= 0 || h <= 0 {
 		return w, h
 	}
-	if t.MaxHeight > 0 && h > t.MaxHeight {
-		w = int(math.Round(float64(w) * float64(t.MaxHeight) / float64(h)))
-		h = t.MaxHeight
+	boxH := t.MaxHeight
+	switch {
+	case boxH <= 0:
+	case w*9 > h*16 && w*9 > boxH*16: // wider than 16:9 and than the box: the box width limits
+		h = int(math.Round(float64(h) * float64(boxH*16) / float64(w*9)))
+		w = boxH * 16 / 9
+	case h > boxH:
+		w = int(math.Round(float64(w) * float64(boxH) / float64(h)))
+		h = boxH
 	}
 	return w &^ 1, h &^ 1
 }
@@ -497,7 +511,7 @@ func bandwidth(p Probe, t Target, videoBitrate int) int {
 }
 
 // CodecsString returns the RFC 6381 CODECS attribute for the master playlist: H.264 High at the
-// level of the output size and frame rate (h264Level: 4.1, 5.1 or 5.2) and AAC LC when encoding, the
+// level of the output size and frame rate (h264Level: 4.1, 4.2, 5.1 or 5.2) and AAC LC when encoding, the
 // source codecs when copying (the audio of the chosen track).
 func CodecsString(plan Plan, src Source) string {
 	var codecs []string
