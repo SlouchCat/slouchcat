@@ -244,7 +244,7 @@ func TestNewPlanQuality(t *testing.T) {
 		{"auto 4K", uhd, Target{Mode: ModeTranscode}, 1920, 1080, 8_000_000, "1080p", 1080, 3},
 		{"auto keyword", uhd, Target{Mode: ModeTranscode, Quality: "auto"}, 1920, 1080, 8_000_000, "1080p", 1080, 3},
 		{"720p", uhd, Target{Mode: ModeTranscode, Quality: "720p"}, 1280, 720, 4_000_000, "720p", 720, 3},
-		{"480p", wide, Target{Mode: ModeTranscode, Quality: "480p"}, 852, 356, 2_000_000, "480p", 480, 1.5},
+		{"480p", wide, Target{Mode: ModeTranscode, Quality: "480p"}, 854, 356, 2_000_000, "480p", 480, 1.5},
 		{"360p", wide, Target{Mode: ModeTranscode, Quality: "360p"}, 640, 266, 1_000_000, "360p", 360, 1.5},
 		{"quality above the device limit", wide, Target{Mode: ModeTranscode, Quality: "1080p", MaxHeight: 720}, 1280, 532, 4_000_000, "720p", 720, 1.5},
 		{"bandwidth cap", wide, Target{Mode: ModeTranscode, MaxBitrate: 3_000_000}, 1920, 800, 3_000_000, "1080p", 1080, 2},
@@ -308,5 +308,22 @@ func TestSeekMargin(t *testing.T) {
 	}
 	if _, err := ffmpegArgs(Capabilities{}, videoSource("h264", 640, 360, "", sec(10)), Plan{Segments: []Segment{{0, sec(10)}}}, 1, "/x"); err == nil {
 		t.Error("want error for a segment out of range")
+	}
+}
+
+// FitSize puts a video into the 16:9 box of a rung (final review stage 2, G2-m1): a wide film is
+// limited by the box width, a 16:9 or narrower one by the height, nothing is scaled up, and the
+// 854x480 of a 16:9 480p file stays (the box is 854 pixels wide).
+func TestFitSize(t *testing.T) {
+	for _, c := range []struct{ w, h, maxHeight, wantW, wantH int }{
+		{3840, 1600, 1080, 1920, 800}, {3840, 1600, 2160, 3840, 1600}, {1920, 800, 720, 1280, 532},
+		{2560, 1080, 1080, 1920, 810}, {4096, 2160, 2160, 3840, 2024},
+		{1920, 1080, 1080, 1920, 1080}, {1920, 1080, 720, 1280, 720}, {1920, 1080, 480, 852, 480},
+		{3840, 2160, 1080, 1920, 1080}, {854, 480, 480, 854, 480}, {1440, 1080, 720, 960, 720},
+		{1280, 720, 1080, 1280, 720}, {721, 405, 1080, 720, 404},
+	} {
+		if w, h := FitSize(c.w, c.h, c.maxHeight); w != c.wantW || h != c.wantH {
+			t.Errorf("FitSize(%d, %d, %d) = %dx%d, want %dx%d", c.w, c.h, c.maxHeight, w, h, c.wantW, c.wantH)
+		}
 	}
 }

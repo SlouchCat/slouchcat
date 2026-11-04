@@ -2,7 +2,6 @@ package offline
 
 import (
 	"encoding/json"
-	"math"
 	"strings"
 	"time"
 
@@ -203,19 +202,18 @@ func decideWith(file model.MediaFile, p *transcode.Probe, prof model.DownloadPro
 	return c
 }
 
-// outputSize is the size of an encode capped at maxHeight lines: never scaled up, the width by the
-// source's aspect ratio (16:9 when unknown), both even, like transcode.NewPlan.
+// outputSize is the size of an encode capped at maxHeight lines, like transcode.NewPlan: the source
+// in the 16:9 box of maxHeight (transcode.FitSize, never scaled up); 16:9 when its size is unknown,
+// both even.
 func outputSize(srcW, srcH, maxHeight int) (w, h int) {
+	if srcW > 0 && srcH > 0 {
+		return transcode.FitSize(srcW, srcH, maxHeight)
+	}
 	h = maxHeight
 	if srcH > 0 {
 		h = min(h, srcH)
 	}
-	if srcW > 0 && srcH > 0 {
-		w = int(math.Round(float64(srcW) * float64(h) / float64(srcH)))
-	} else {
-		w = h * 16 / 9
-	}
-	return w &^ 1, h &^ 1
+	return (h * 16 / 9) &^ 1, h &^ 1
 }
 
 // transcodeKbps is the constant video bit rate of an encode of the given output height: the

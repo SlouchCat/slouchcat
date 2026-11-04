@@ -135,9 +135,12 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
   höher als 1080 Zeilen, gilt mindestens Level 5.2 (`avc1.640034`). Die Quelle kann 60 Bilder/s
   haben, und 5.1 wäre dann zu tief. Bis 1080 Zeilen entscheidet bei unbekannter Bildrate weiter
   die Bildgrösse allein.
-- **Stufe als 16:9-Box.** Eine Stufe ist eine Box aus Stufenhöhe und Stufenhöhe × 16/9 Breite.
-  Die Quelle wird mit ihrem Seitenverhältnis in diese Box eingepasst und nie hochskaliert
-  (`outputSize` in `transcode/plan.go` und `playback/quality.go`). Ein Scope-Film in 3840×1600 wird
+- **Stufe als 16:9-Box.** Eine Stufe ist eine Box aus Stufenhöhe und Stufenhöhe × 16/9 Breite
+  (aufgerundet, bei 480 Zeilen 854 Pixel, damit 854×480 bleibt). Die Quelle wird mit ihrem
+  Seitenverhältnis in diese Box eingepasst und nie hochskaliert (`transcode.FitSize`, genutzt vom
+  Plan, von den Qualitätsoptionen in `playback` und von der Schätzung der Downloads in `offline`).
+  Downloads von Breitbildfilmen werden damit ebenfalls schmaler, zum Beispiel 1920×800 im Profil
+  «Mittel» 1280×532 statt 1728×720. Ein Scope-Film in 3840×1600 wird
   auf 1080p zu 1920×800 statt 2592×1080 und bekommt damit Level 4.1. Auf 2160p bleibt er
   3840×1600. Das ersetzt im Nachtrag «Breitbild und Level» das Beispiel 2592×1080 als
   1080p-Ausgabe.

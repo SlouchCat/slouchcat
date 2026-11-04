@@ -468,23 +468,32 @@ func audioStream(p Probe) (Stream, bool) {
 	return p.Streams[j], true
 }
 
-// outputSize scales the video down into the 16:9 box of MaxHeight (MaxHeight lines, MaxHeight ×
-// 16/9 pixels wide) keeping the aspect ratio, with even sizes: a 3840x1600 film on 1080 lines
-// becomes 1920x800, not 2592x1080 (ADR 0021).
+// outputSize scales the video down into the 16:9 box of MaxHeight (FitSize), with even sizes.
 func outputSize(v Stream, t Target) (w, h int) {
 	w, h = v.Width, v.Height
 	if t.VideoCopy || w <= 0 || h <= 0 {
 		return w, h
 	}
-	boxH := t.MaxHeight
+	if t.MaxHeight <= 0 {
+		return w &^ 1, h &^ 1
+	}
+	return FitSize(w, h, t.MaxHeight)
+}
+
+// FitSize is the size of an encode of a w×h video (both known) on maxHeight lines: the video
+// scaled into the 16:9 box of maxHeight lines and maxHeight × 16/9 pixels (rounded up: 854 for 480
+// lines), keeping its aspect ratio, never up, both even. A 3840x1600 film on 1080 lines becomes
+// 1920x800, not 2592x1080 (ADR 0021). Playback (quality options) and downloads use it as the plan
+// does.
+func FitSize(w, h, maxHeight int) (int, int) {
+	boxW := (maxHeight*16 + 8) / 9
 	switch {
-	case boxH <= 0:
-	case w*9 > h*16 && w*9 > boxH*16: // wider than 16:9 and than the box: the box width limits
-		h = int(math.Round(float64(h) * float64(boxH*16) / float64(w*9)))
-		w = boxH * 16 / 9
-	case h > boxH:
-		w = int(math.Round(float64(w) * float64(boxH) / float64(h)))
-		h = boxH
+	case w*9 > h*16 && w > boxW: // wider than 16:9 and than the box: the box width limits
+		h = int(math.Round(float64(h) * float64(boxW) / float64(w)))
+		w = boxW
+	case h > maxHeight:
+		w = int(math.Round(float64(w) * float64(maxHeight) / float64(h)))
+		h = maxHeight
 	}
 	return w &^ 1, h &^ 1
 }

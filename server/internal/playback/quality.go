@@ -1,7 +1,6 @@
 package playback
 
 import (
-	"math"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -135,23 +134,14 @@ func pickRung(from int, limits model.PlaybackLimits, devCap int) int {
 	return len(ladder) - 1
 }
 
-// outputSize is the size of a transcode on a rung: the source scaled into the rung's 16:9 box
-// (the rung height, rung height × 16/9 pixels wide; never up) by the source's aspect ratio and
-// even, as transcode's plan does, so a 3840x1600 film is 1920x800 on 1080p; the whole box when the
-// source size is unknown.
+// outputSize is the size of a transcode on a rung: the source scaled into the rung's 16:9 box as
+// transcode's plan does (transcode.FitSize: never up, even), so a 3840x1600 film is 1920x800 on
+// 1080p; 16:9 at the rung height when the source size is unknown.
 func outputSize(srcW, srcH int, r transcode.Rung) (w, h int) {
-	boxH := r.Height
-	switch {
-	case srcW <= 0 || srcH <= 0:
-		w, h = boxH*16/9, boxH
-	case srcW*9 > srcH*16 && srcW*9 > boxH*16: // wider than 16:9 and than the box: the box width limits
-		w, h = boxH*16/9, int(math.Round(float64(srcH)*float64(boxH*16)/float64(srcW*9)))
-	case srcH > boxH:
-		w, h = int(math.Round(float64(srcW)*float64(boxH)/float64(srcH))), boxH
-	default:
-		w, h = srcW, srcH
+	if srcW <= 0 || srcH <= 0 {
+		return (r.Height * 16 / 9) &^ 1, r.Height &^ 1
 	}
-	return w &^ 1, h &^ 1
+	return transcode.FitSize(srcW, srcH, r.Height)
 }
 
 // rungBitrate is the peak video bit rate of a transcode on rung r under the bandwidth limit: the
