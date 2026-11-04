@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
-import { formatBitrate } from '@/lib/format';
+import { formatBitrate, formatRuntime } from '@/lib/format';
 import { supportsWebAudioBoost } from '@/lib/webAudio';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
@@ -363,6 +363,9 @@ export function VideoPlayer({
   // The pause view (V-10): five seconds paused without input, nothing open; any input hides it
   // and starts the five seconds again. `pauseAllowed` is set below from the player's state.
   const [pauseView, setPauseView] = useState(false);
+  // Not before the first `playing` (the start) nor at the end of the title (review step 5).
+  const [hasPlayed, setHasPlayed] = useState(false);
+  const [atEnd, setAtEnd] = useState(false);
   const pauseTimer = useRef<number | undefined>(undefined);
   const pauseAllowed = useRef(false);
   const armPauseView = useCallback(() => {
@@ -653,6 +656,8 @@ export function VideoPlayer({
   });
   const canPauseView =
     !playing &&
+    hasPlayed &&
+    !atEnd &&
     ended === null &&
     !failed &&
     !switching &&
@@ -802,6 +807,8 @@ export function VideoPlayer({
       wantPlaying.current = true;
       setPlaying(true);
       setPauseView(false);
+      setHasPlayed(true);
+      setAtEnd(false);
       // The start of the route's first session (data-start-ms); a later session of a switch
       // measures from the menu choice instead (data-switch-ms).
       if (switchFrom === undefined) {
@@ -814,6 +821,7 @@ export function VideoPlayer({
     const onSeeking = () => {
       seekStarted ??= performance.now();
       seeked = false;
+      setAtEnd(false);
     };
     const onSeeked = () => {
       seeked = true;
@@ -827,6 +835,7 @@ export function VideoPlayer({
     const onEnded = () => {
       wantPlaying.current = false;
       setPlaying(false);
+      setAtEnd(true);
       maybeCountdown.current(element.currentTime * 1000, true);
     };
     const onTime = () => {
@@ -1031,6 +1040,17 @@ export function VideoPlayer({
             ? t('player.chrome.filmLine', { year, genres })
             : (genres ?? (year !== undefined ? String(year) : undefined)),
       };
+  // The facts of the pause view and of the tab «Info» (V-10): the year (an episode: its line), the
+  // runtime and the genres of a film.
+  const runtime = detail?.runtimeMinutes ?? item.runtimeMinutes;
+  const facts =
+    [
+      episode ? heading.subtitle : year !== undefined ? String(year) : undefined,
+      runtime ? formatRuntime(t, runtime) : undefined,
+      episode ? undefined : genres,
+    ]
+      .filter((part): part is string => Boolean(part))
+      .join(t('format.separator')) || undefined;
   const chapter = chapters[chapterIndex];
   const chapterName = chapter
     ? (chapter.title ?? t('player.chapters.untitled', { n: chapterIndex + 1 }))
@@ -1056,7 +1076,7 @@ export function VideoPlayer({
     onClose: () => setTab(null),
     cast: onOpenPerson ? castList : undefined,
     onPerson: (personId) => onOpenPerson?.(personId),
-    info: detail ? { overview: detail.overview, facts: heading.subtitle } : undefined,
+    info: detail ? { overview: detail.overview, facts } : undefined,
   });
   const tabs = phone ? [] : allTabs;
 
@@ -1151,7 +1171,7 @@ export function VideoPlayer({
         <PauseView
           title={heading.title}
           logoUrl={heading.logoUrl}
-          detail={heading.subtitle}
+          detail={facts}
           overview={detail?.overview}
           chapter={chapterName}
         />

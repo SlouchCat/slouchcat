@@ -635,6 +635,36 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
   const strip = () => screen.getByRole('toolbar', { name: 'Mehr zum Titel' });
   const tabButton = (name: string) => within(strip()).getByRole('button', { name });
 
+  it('no pause view before the first playing nor at the end; its facts have the runtime (review step 5)', async () => {
+    stubMedia();
+    mockApi(routes(film));
+    const { container } = renderApp(`/play/${film.item.id}`);
+    const video = await waitFor(() => {
+      const element = container.querySelector('video');
+      if (!element) throw new Error('no video yet');
+      return element;
+    });
+    // The player is starting: nothing has played yet.
+    await act(() => vi.advanceTimersByTimeAsync(PAUSE_VIEW_MS + 100));
+    expect(screen.queryByRole('region', { name: 'Pause' })).toBeNull();
+    act(() => {
+      video.dispatchEvent(new Event('loadedmetadata'));
+    });
+    await waitFor(() => expect(button('Pause')).toHaveFocus());
+    key(document.body, ' ');
+    await act(() => vi.advanceTimersByTimeAsync(PAUSE_VIEW_MS + 100));
+    const view = screen.getByRole('region', { name: 'Pause' });
+    // V-10: the year, the runtime and the genres.
+    expect(within(view).getByText('1979 · 1 h 57 min · Horror, Science-Fiction')).toBeVisible();
+    // The title ended: no pause view over the end.
+    act(() => {
+      video.dispatchEvent(new Event('ended'));
+    });
+    expect(screen.queryByRole('region', { name: 'Pause' })).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(PAUSE_VIEW_MS + 100));
+    expect(screen.queryByRole('region', { name: 'Pause' })).toBeNull();
+  });
+
   it('the pause view shows after 5 s of pause; a key hides it, an open panel keeps it away', async () => {
     await start();
     key(document.body, ' ');

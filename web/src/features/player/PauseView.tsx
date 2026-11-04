@@ -8,7 +8,7 @@ export const PAUSE_VIEW_MS = 5000;
 interface PauseViewProps {
   title: string;
   logoUrl?: string;
-  /** «S01E04 · Wahrheit», or the year, runtime and genres of a film. */
+  /** «S01E04 · Wahrheit · 52 Min.», or «2017 · 2 Std. 44 Min. · Science-Fiction» of a film. */
   detail?: string;
   overview?: string;
   /** The chapter the player paused in. */
@@ -17,7 +17,8 @@ interface PauseViewProps {
 
 /**
  * The pause view (V-10): after five seconds of pause the picture darkens and the title shows on
- * the left with its logo, the year or episode, a short description and the chapter. Any key or
+ * the left with its logo, the year or episode with the runtime, a short description and the
+ * chapter. Any key or
  * movement hides it (VideoPlayer). It takes no focus and lets the pointer through: the controls
  * stay where they are, so a key acts on them as before.
  */
