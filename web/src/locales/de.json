@@ -1274,7 +1274,8 @@
           "release_date": "Erscheinungsdatum",
           "own_rating": "Freigabe",
           "poster": "Poster",
-          "backdrop": "Hintergrundbild"
+          "backdrop": "Hintergrundbild",
+          "original_language": "Originalsprache"
         },
         "fieldLang": "{{field}} ({{lang}})",
         "count_one": "{{count}} Feld",
@@ -1298,6 +1299,20 @@
         "saved": "Freigabe gespeichert.",
         "unsaved": "ungespeichert",
         "summary": "Wirksam {{effective}} · Eigene {{own}} · Quelle {{source}}"
+      },
+      "language": {
+        "title": "Originalsprache",
+        "current": "Originalsprache",
+        "source": "Quelle",
+        "label": "Originalsprache setzen",
+        "fromMetadata": "Aus Metadaten",
+        "unknown": "Unbekannt",
+        "notLooked": "Noch nicht abgefragt",
+        "manual": "Von Hand (gesperrt)",
+        "saved": "Originalsprache gespeichert.",
+        "unsaved": "ungespeichert",
+        "summary": "{{language}} · Quelle {{source}}",
+        "hint": "Eine gewählte Sprache oder «Unbekannt» ist gesperrt. «Aus Metadaten» hebt die Sperre auf, und die nächste Zuordnung fragt die Quellen erneut ab."
       },
       "files": {
         "title": "Dateien",
@@ -3019,6 +3034,10 @@
         "metadata_vote_backfill": {
           "name": "Wertungen nachholen",
           "trigger": "nach jedem vollständigen Scan, solange Titel ohne Wertung warten"
+        },
+        "metadata_original_language_backfill": {
+          "name": "Originalsprachen nachholen",
+          "trigger": "einmal beim ersten Start nach dem Update, danach «Jetzt ausführen»"
         },
         "image_fetch": {
           "name": "Bilder holen",

@@ -259,6 +259,88 @@ describe('admin item page', () => {
     expect(within(rating).getByRole('radio', { name: 'Aus Metadaten' })).toBeChecked();
   });
 
+  it('sets the original language (concept 13 11.7): the select, the draft, the lock and «Aus Metadaten»', async () => {
+    const user = userEvent.setup();
+    let stored: AdminItem = {
+      ...item,
+      originalLanguage: 'en',
+      fieldSources: [
+        ...item.fieldSources,
+        { field: 'original_language', lang: '', provider: 'tmdb' },
+      ],
+    };
+    const { calls } = mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () => json(stored),
+      'GET /admin/settings/metadata': () =>
+        json({ knownLanguages: ['de', 'en', 'ja', 'cn', 'xx', 'pt-BR'] }),
+      [`PUT ${base}/original-language`]: (call) => {
+        const language = (call.body as { language: string | null }).language;
+        stored =
+          language === null
+            ? { ...item, originalLanguage: undefined }
+            : {
+                ...item,
+                originalLanguage: language,
+                lockedFields: [...item.lockedFields, 'original_language'],
+              };
+        return json(stored);
+      },
+    });
+    renderApp(base);
+    // Closed, the header names the language and the provider that won it.
+    expect(await screen.findByText('Englisch · Quelle TMDB')).toBeVisible();
+    const panel = await openDisclosure(user, /^Originalsprache/);
+    const select = within(panel).getByRole('combobox', { name: 'Originalsprache setzen' });
+    expect(select).toHaveValue('metadata');
+    // TMDB's cn and xx and the regional codes are no choice; «Unbekannt» is.
+    await waitFor(() =>
+      expect(within(select).getByRole('option', { name: 'Japanisch' })).toBeInTheDocument(),
+    );
+    const values = within(select)
+      .getAllByRole('option')
+      .map((option) => (option as HTMLOptionElement).value);
+    expect(values).toEqual(['metadata', '', 'de', 'en', 'ja']);
+
+    await user.selectOptions(select, 'ja');
+    // The chip «ungespeichert» sits in the header of «Originalsprache».
+    expect(screen.getByText('ungespeichert', { selector: '[class*="chip"]' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Metadaten ungespeichert' })).toBeVisible();
+    await user.click(within(panel).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.path === `${base}/original-language`)?.body).toEqual({
+        language: 'ja',
+      }),
+    );
+    expect(await screen.findByText('Originalsprache gespeichert.')).toBeVisible();
+    expect(screen.getByText('Japanisch · Quelle Von Hand (gesperrt)')).toBeVisible();
+    expect(select).toHaveValue('ja');
+    expect(screen.getByRole('tab', { name: 'Metadaten' })).toBeVisible();
+
+    // «Aus Metadaten» lifts the lock: null, and the title is «noch nicht abgefragt» until the match.
+    await user.selectOptions(select, 'metadata');
+    await user.click(within(panel).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(
+        calls.filter((call) => call.path === `${base}/original-language`).at(-1)?.body,
+      ).toEqual({
+        language: null,
+      }),
+    );
+    expect(await screen.findByText('Noch nicht abgefragt · Quelle –')).toBeVisible();
+    expect(select).toHaveValue('metadata');
+  });
+
+  it('shows no original language for an episode', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET ${base}`]: () => json({ ...item, kind: 'episode', seasonNumber: 1, episodeNumber: 1 }),
+    });
+    renderApp(base);
+    expect(await screen.findByRole('button', { name: /^Freigabe/ })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^Originalsprache/ })).toBeNull();
+  });
+
   it('«Speichern» of an unchanged rating sends nothing and keeps the focus', async () => {
     const user = userEvent.setup();
     const { calls } = mockApi({ ...signedIn, [`GET ${base}`]: () => json(item) });

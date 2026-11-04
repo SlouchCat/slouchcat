@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { CSRF, H264_TITLE, idOf, itemPath } from './catalog';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
@@ -202,6 +202,71 @@ test('Tab: header, actions, tabs by arrow keys, disclosures by Enter; no focus t
   await expect(rating).toHaveAttribute('aria-expanded', 'false');
   await expect(page.getByRole('radiogroup', { name: 'Eigene Freigabe setzen' })).toBeHidden();
   await expectNoFocusTrap(page);
+});
+
+test('original language: chosen by keys, saved and locked; «Aus Metadaten» lifts the lock (concept 13 11.7) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const url = `/api/v1${admin}/original-language`;
+  const stored = async () =>
+    (await (await owner.get(`/api/v1${admin}`)).json()) as {
+      originalLanguage?: string;
+      lockedFields: string[];
+    };
+  /** Moves the closed select to `value` with ↑ or ↓ only. */
+  const pick = async (select: Locator, value: string) => {
+    await expect(select).toBeFocused();
+    const steps = await select.evaluate((element, wanted) => {
+      const field = element as HTMLSelectElement;
+      return (
+        [...field.options].findIndex((option) => option.value === wanted) - field.selectedIndex
+      );
+    }, value);
+    for (let step = 0; step < Math.abs(steps); step += 1)
+      await page.keyboard.press(steps > 0 ? 'ArrowDown' : 'ArrowUp');
+    await expect(select).toHaveValue(value);
+  };
+  try {
+    const language = page.getByRole('button', { name: /^Originalsprache/ });
+    await tabTo(page, language, TAB_MAX);
+    await expect(language).toHaveAttribute('aria-expanded', 'false');
+    await page.keyboard.press('Enter');
+    await expect(language).toHaveAttribute('aria-expanded', 'true');
+    const panel = page.getByRole('group', { name: /^Originalsprache/ });
+    const select = panel.getByRole('combobox', { name: 'Originalsprache setzen' });
+    const save = panel.getByRole('button', { name: 'Speichern' });
+    // The codes come from the metadata settings once the disclosure is open.
+    await expect(select.getByRole('option', { name: 'Japanisch' })).toHaveCount(1);
+    await tabTo(page, select, 4);
+    await expect(select).toHaveValue('metadata');
+    await pick(select, 'ja');
+    await expect(
+      page.getByRole('tabpanel').getByText('ungespeichert', { exact: true }),
+    ).toBeVisible();
+    await tabTo(page, save, 2);
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Originalsprache gespeichert.')).toBeVisible();
+    await expect(panel.getByText('Von Hand (gesperrt)')).toBeVisible();
+    await expect(select).toHaveValue('ja');
+    let item = await stored();
+    expect(item.originalLanguage).toBe('ja');
+    expect(item.lockedFields).toContain('original_language');
+
+    // Back to «Aus Metadaten»: the lock goes and the language waits for the next lookup.
+    await resetFocus(page);
+    await tabTo(page, select, TAB_MAX);
+    await pick(select, 'metadata');
+    await tabTo(page, save, 2);
+    await page.keyboard.press('Enter');
+    await expect(panel.getByText('Noch nicht abgefragt', { exact: true })).toBeVisible();
+    item = await stored();
+    expect(item.originalLanguage).toBeUndefined();
+    expect(item.lockedFields).not.toContain('original_language');
+    await expectNoFocusTrap(page);
+  } finally {
+    await owner.put(url, { headers: CSRF, data: { language: null } });
+  }
 });
 
 test('an unknown tab in the address shows «Metadaten» and leaves the address', async ({ page }) => {

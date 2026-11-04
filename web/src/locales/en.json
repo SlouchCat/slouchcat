@@ -1274,7 +1274,8 @@
           "release_date": "Release date",
           "own_rating": "Rating",
           "poster": "Poster",
-          "backdrop": "Backdrop"
+          "backdrop": "Backdrop",
+          "original_language": "Original language"
         },
         "fieldLang": "{{field}} ({{lang}})",
         "count_one": "{{count}} field",
@@ -1298,6 +1299,20 @@
         "saved": "Rating saved.",
         "unsaved": "unsaved",
         "summary": "Effective {{effective}} · Own {{own}} · Source {{source}}"
+      },
+      "language": {
+        "title": "Original language",
+        "current": "Original language",
+        "source": "Source",
+        "label": "Set original language",
+        "fromMetadata": "From metadata",
+        "unknown": "Unknown",
+        "notLooked": "Not looked up yet",
+        "manual": "By hand (locked)",
+        "saved": "Original language saved.",
+        "unsaved": "unsaved",
+        "summary": "{{language}} · Source {{source}}",
+        "hint": "A chosen language or «Unknown» is locked. «From metadata» lifts the lock, and the next match asks the sources again."
       },
       "files": {
         "title": "Files",
@@ -3019,6 +3034,10 @@
         "metadata_vote_backfill": {
           "name": "Backfill votes",
           "trigger": "After every full scan while titles wait for a vote"
+        },
+        "metadata_original_language_backfill": {
+          "name": "Backfill original languages",
+          "trigger": "Once at the first start after the update, then «Run now»"
         },
         "image_fetch": {
           "name": "Fetch images",
