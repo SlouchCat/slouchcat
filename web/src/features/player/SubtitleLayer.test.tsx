@@ -91,6 +91,32 @@ describe('activeCueTexts and shiftCues (V-6)', () => {
     expect(cues[0]!.endTime).toBeCloseTo(3);
     expect(cues[1]!.startTime).toBeCloseTo(5);
   });
+
+  it('moves each cue of a list that re-sorts while a cue moves exactly once (final review)', () => {
+    // A TextTrackCueList stays sorted by start time: a cue that moves changes its place at once.
+    const list: CueLike[] = [];
+    const starts = new Map<CueLike, number>();
+    for (const at of [1, 2, 3, 4]) {
+      let start = at;
+      const live: CueLike = {
+        endTime: at + 0.5,
+        get startTime() {
+          return start;
+        },
+        set startTime(value: number) {
+          start = value;
+          list.sort((a, b) => a.startTime - b.startTime);
+        },
+      };
+      list.push(live);
+      starts.set(live, at);
+    }
+    shiftCues(list, 10);
+    for (const [live, at] of starts) {
+      expect(live.startTime).toBe(at + 10);
+      expect(live.endTime).toBe(at + 10.5);
+    }
+  });
 });
 
 describe('useSubtitleCues (11.10)', () => {

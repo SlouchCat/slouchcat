@@ -59,8 +59,10 @@ export function activeCueTexts(cues: CueList | null | undefined, time: number): 
 
 /**
  * Moves every cue of `cues` that `moved` does not hold yet by `seconds` and records it there
- * (picture in picture shows the browser's own cues, 11.10). The cues of a track that is still
- * loading arrive in parts: each one moves once.
+ * (picture in picture shows the browser's own cues, 11.10; the offline blob fallback). The cues
+ * of a track that is still loading arrive in parts: each one moves once. A TextTrackCueList stays
+ * sorted by start time and re-sorts while a cue moves, so walking it by index would move some
+ * cues twice and others not at all: a copy keeps the order.
  */
 export function shiftCues(
   cues: CueList | null | undefined,
@@ -68,8 +70,7 @@ export function shiftCues(
   moved: Set<CueLike> = new Set(),
 ): Set<CueLike> {
   if (!cues || seconds === 0) return moved;
-  for (let index = 0; index < cues.length; index += 1) {
-    const cue = cues[index]!;
+  for (const cue of Array.from(cues)) {
     if (moved.has(cue)) continue;
     cue.startTime += seconds;
     cue.endTime += seconds;

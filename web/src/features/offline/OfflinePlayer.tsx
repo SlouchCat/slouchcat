@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { shiftCues } from '@/features/player/SubtitleLayer';
 import { useAudioControls } from '@/features/player/useAudioControls';
 import { AriaButton, AudioPlayer, focusOnMount } from '@/ui/aria';
 import { offlineLoader } from './loader';
@@ -379,7 +380,7 @@ export function OfflinePlayer({
     };
     // Blob fallback: the cues are on the source timeline, the file's timeline is ahead. A track
     // loads its cues when it is switched on, so every load shifts what is not shifted yet.
-    const shiftCues = () => {
+    const shiftTracks = () => {
       if (engine !== 'blob') return;
       const shift = offset.current;
       for (const node of element.querySelectorAll('track')) {
@@ -387,12 +388,8 @@ export function OfflinePlayer({
         const cues = (node.track as TextTrack | undefined)?.cues;
         const applied = Number(node.dataset.shift ?? 0);
         if (!cues || cues.length === 0 || applied === shift) continue;
-        // The list stays sorted by start time and re-sorts while a cue moves: walking it would
-        // shift some cues twice and others not at all (review step 6). A copy keeps the order.
-        for (const cue of Array.from(cues)) {
-          cue.startTime += shift - applied;
-          cue.endTime += shift - applied;
-        }
+        // Each cue once by what is still missing (the list re-sorts while a cue moves).
+        shiftCues(cues, shift - applied);
         node.dataset.shift = String(shift);
       }
     };
@@ -401,7 +398,7 @@ export function OfflinePlayer({
         offset.current = timelineOffset(element, durationMs);
         const resume = resumeMs > 0 && resumeMs < durationMs - RESUME_TAIL_MS ? resumeMs / 1000 : 0;
         element.currentTime = offset.current + resume;
-        shiftCues();
+        shiftTracks();
       }
       if (!locked.current && wantPlaying.current) element.play().catch(() => setPlaying(false));
     };
@@ -469,9 +466,9 @@ export function OfflinePlayer({
     element.addEventListener('progress', onProgress);
     element.addEventListener('error', onError);
     // `load` of a <track> does not bubble: listen in the capture phase.
-    element.addEventListener('load', shiftCues, true);
+    element.addEventListener('load', shiftTracks, true);
     return () => {
-      element.removeEventListener('load', shiftCues, true);
+      element.removeEventListener('load', shiftTracks, true);
       element.removeEventListener('loadedmetadata', onLoadedMetadata);
       element.removeEventListener('play', onPlay);
       element.removeEventListener('playing', onPlaying);
