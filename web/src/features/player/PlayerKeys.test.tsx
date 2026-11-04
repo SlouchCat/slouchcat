@@ -1026,6 +1026,47 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     expect(plays(calls)).toHaveLength(2);
   });
 
+  it('keeps the focus in the panel on reset when no listed row is chosen', async () => {
+    // A server that marks a hidden 2160p current (final review stage 2, G2-M1): no row is chosen.
+    localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify({ quality: '2160p' }));
+    const hidden: PlaybackInfo = {
+      ...film,
+      qualities: [
+        { ...uhd.qualities[0]!, width: 1920, height: 1080, current: false },
+        { ...uhd.qualities[1]!, width: 1920, height: 1080 },
+        { ...uhd.qualities[2]!, available: false, current: true },
+        { ...uhd.qualities[3]!, codec: 'h264', direct: true },
+      ],
+    };
+    await start(hidden);
+    const player = playerDriver();
+    key(document.body, 'q');
+    const panel = await screen.findByRole('dialog', { name: 'Qualität' });
+    expect(within(panel).queryByRole('option', { selected: true })).toBeNull();
+    await player.user.click(within(panel).getByRole('button', { name: 'Zurücksetzen' }));
+    expect(within(panel).queryByText('Gemerkt: 2160p')).toBeNull();
+    expect(panel).toContainElement(document.activeElement as HTMLElement);
+    expect(within(panel).getAllByRole('option')[0]).toHaveFocus();
+  });
+
+  it('says that higher titles convert when the remembered rung is below the source', async () => {
+    localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify({ quality: '1080p' }));
+    await start(uhd);
+    key(document.body, 'q');
+    const panel = await screen.findByRole('dialog', { name: 'Qualität' });
+    expect(within(panel).getByText('Gemerkt: 1080p')).toBeVisible();
+    expect(within(panel).getByText('Titel über 1080p werden dann umgewandelt.')).toBeVisible();
+  });
+
+  it('gives no conversion note when the source is not above the remembered rung', async () => {
+    localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify({ quality: '2160p' }));
+    await start(uhd);
+    key(document.body, 'q');
+    const panel = await screen.findByRole('dialog', { name: 'Qualität' });
+    expect(within(panel).getByText('Gemerkt: 2160p')).toBeVisible();
+    expect(within(panel).queryByText(/werden dann umgewandelt/)).toBeNull();
+  });
+
   it.each([
     ['720p', { qualityCap: '720p' }, 'quality'],
     ['1080p', { qualityCap: '1080p' }, 'quality'],

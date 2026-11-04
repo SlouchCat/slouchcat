@@ -703,6 +703,7 @@
       "unavailableIndex": "Index wird erstellt",
       "unavailableTranscode": "Nur umgewandelt abspielbar",
       "remembered": "Gemerkt: {{quality}}",
+      "rememberedNote": "Titel über {{quality}} werden dann umgewandelt.",
       "reset": "Zurücksetzen"
     },
     "chapters": {

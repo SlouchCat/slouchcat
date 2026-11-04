@@ -703,6 +703,7 @@
       "unavailableIndex": "Index is being built",
       "unavailableTranscode": "Plays only converted",
       "remembered": "Remembered: {{quality}}",
+      "rememberedNote": "Titles above {{quality}} are then converted.",
       "reset": "Reset"
     },
     "chapters": {

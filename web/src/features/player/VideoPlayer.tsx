@@ -837,6 +837,13 @@ export function VideoPlayer({
   // The gear (11.2, 11.5): the server's rungs and file (rule 12); a choice starts a new session.
   // 2160p shows only where the server offers it; original shows why it is not available.
   const remembered = prefs.quality && prefs.quality !== 'auto' ? prefs.quality : undefined;
+  // A remembered rung below this title's source: titles above it are converted (V-17 caps them).
+  const rememberedHeight = /^(\d+)p$/.exec(remembered ?? '')?.[1];
+  const sourceHeight = info.qualities.find((option) => option.quality === 'original')?.height;
+  const rememberedBelowSource =
+    rememberedHeight !== undefined &&
+    sourceHeight !== undefined &&
+    Number(rememberedHeight) < sourceHeight;
   const qualityChoice = {
     options: info.qualities
       .filter((option) => option.quality !== '2160p' || option.available)
@@ -859,6 +866,9 @@ export function VideoPlayer({
     // V-17: «Gemerkt: 720p» with a reset that forgets it (the running session stays).
     remembered: remembered && {
       label: t('player.quality.remembered', { quality: qualityName(t, remembered) }),
+      note: rememberedBelowSource
+        ? t('player.quality.rememberedNote', { quality: qualityName(t, remembered) })
+        : undefined,
       resetLabel: t('player.quality.reset'),
       onReset: () => setPrefs({ quality: undefined }),
     },
