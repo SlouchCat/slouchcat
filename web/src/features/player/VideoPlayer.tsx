@@ -42,6 +42,8 @@ import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { usePlayerPrefs } from './usePlayerPrefs';
+import { useSubtitleStyle } from './useSubtitleStyle';
+import { SubtitleLayer, useSubtitleCues } from './SubtitleLayer';
 import { useProgressReporter } from './useProgressReporter';
 import { useVolume } from './useVolume';
 import styles from './Player.module.css';
@@ -340,6 +342,8 @@ export function VideoPlayer({
   const seriesId = detail?.series?.id;
   const series = useQuery({ ...itemQuery(seriesId ?? ''), enabled: seriesId !== undefined });
   const [prefs, setPrefs] = usePlayerPrefs();
+  const [subtitleStyle, setSubtitleStyle] = useSubtitleStyle();
+  const subtitleTrackElement = useRef<HTMLTrackElement>(null);
   // The profile's language sorts the panels (stage 1: `profiles.language`, 11.10); the UI language
   // follows it, so it stands in until the session is there.
   const session = useQuery(sessionQuery);
@@ -589,6 +593,14 @@ export function VideoPlayer({
   // Faded out: no input while playing, nothing open that needs the controls.
   const hidden =
     idle && playing && openMenu === null && panel === null && !countdownActive && !infoOpen;
+  // The text subtitles of this session, drawn by the player (11.10).
+  const cueTexts = useSubtitleCues({
+    video,
+    track: subtitleTrackElement,
+    src: info.subtitleUrl,
+    offsetMs: subtitleStyle.offsetMs,
+    pictureInPicture,
+  });
   // Read by the capture listener below, which is not bound again on every fade.
   const hiddenNow = useRef(hidden);
   useEffect(() => {
@@ -1137,7 +1149,8 @@ export function VideoPlayer({
         onWheel(event);
       }}
     >
-      {/* Without a text subtitle track there is nothing to caption (W-4: bitmap tracks are burned in). */}
+      {/* Without a text subtitle track there is nothing to caption (W-4: bitmap tracks are burned in).
+          A text track stays hidden: the subtitle layer draws its cues (11.10). */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
         ref={video}
@@ -1145,6 +1158,8 @@ export function VideoPlayer({
         src={engine === 'hlsjs' ? undefined : apiUrl(info.streamUrl)}
         preload="auto"
         playsInline
+        data-subtitle-color={subtitleStyle.color}
+        data-subtitle-background={subtitleStyle.background}
         onPointerUp={(event) => {
           if (event.button === 0) togglePlay();
         }}
@@ -1152,6 +1167,7 @@ export function VideoPlayer({
       >
         {info.subtitleUrl && (
           <track
+            ref={subtitleTrackElement}
             kind="subtitles"
             src={apiUrl(info.subtitleUrl)}
             srcLang={subtitle?.language}
@@ -1160,10 +1176,11 @@ export function VideoPlayer({
                 ? (subtitle.title ?? languageName(subtitle.language, language) ?? '')
                 : undefined
             }
-            default
           />
         )}
       </video>
+
+      <SubtitleLayer texts={cueTexts} style={subtitleStyle} raised={!hidden} />
 
       {failed && ended === null && (
         <div className={styles.center} role="alert">
@@ -1282,6 +1299,7 @@ export function VideoPlayer({
           rate={rate}
           onRate={setRate}
           streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
+          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
         />
       )}
       {panel === 'audio' && (
@@ -1301,6 +1319,7 @@ export function VideoPlayer({
           selectedId={info.selection.subtitleTrack}
           onSelect={(id) => switchPlayback({ subtitleTrack: id })}
           onClose={closePanel}
+          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
         />
       )}
 

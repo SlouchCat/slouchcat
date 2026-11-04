@@ -1,9 +1,19 @@
 import type { Track } from '@slouchcat/api-client';
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { OptionList, OptionMoreRow, OptionRow, PlayerPanel, type OptionMark } from '@/ui/aria';
+import {
+  AriaButton,
+  OptionList,
+  OptionMoreRow,
+  OptionRow,
+  PlayerPanel,
+  type OptionMark,
+} from '@/ui/aria';
 import { audioKey, subtitleKey, trackLabel } from '../labels';
 import { isSdh, orderTracks, type PlacedTrack } from '../trackOrder';
+import type { SubtitleStyle } from '../useSubtitleStyle';
+import { SubtitleStyleOptions } from './SubtitleStyleOptions';
+import styles from './SubtitleStyleOptions.module.css';
 
 const MORE = 'more';
 
@@ -120,13 +130,14 @@ interface SubtitlePanelProps {
   /** A track id, or null for «Aus». */
   onSelect: (id: number | null) => void;
   onClose: () => void;
-  /** Below the list: the way to the subtitle style. */
-  footer?: ReactNode;
+  /** The subtitle style (V-6): a button below the list leads to its page. */
+  subtitleStyle?: { value: SubtitleStyle; onChange: (patch: Partial<SubtitleStyle>) => void };
 }
 
 /**
  * The subtitle panel (key U, V-5): «Aus» first, then the tracks with the marks «erzwungen», «SDH»
- * and «Bild-Untertitel, wird eingebrannt» (a picture subtitle starts a transcode).
+ * and «Bild-Untertitel, wird eingebrannt» (a picture subtitle starts a transcode). Below the list
+ * the way to the subtitle style, a page of the same panel (back button and Backspace go up).
  */
 export function SubtitlePanel({
   tracks,
@@ -134,9 +145,21 @@ export function SubtitlePanel({
   selectedId,
   onSelect,
   onClose,
-  footer,
+  subtitleStyle,
 }: SubtitlePanelProps) {
   const { t } = useTranslation();
+  const [styling, setStyling] = useState(false);
+  if (styling && subtitleStyle) {
+    return (
+      <PlayerPanel
+        title={t('player.subtitleStyle.title')}
+        onClose={onClose}
+        onBack={() => setStyling(false)}
+      >
+        <SubtitleStyleOptions value={subtitleStyle.value} onChange={subtitleStyle.onChange} />
+      </PlayerPanel>
+    );
+  }
   return (
     <PlayerPanel title={t('player.tracks.subtitles')} onClose={onClose}>
       <TrackList
@@ -156,7 +179,13 @@ export function SubtitlePanel({
         }}
         leading={<OptionRow id={subtitleKey(undefined)} label={t('player.tracks.off')} />}
       />
-      {footer}
+      {subtitleStyle && (
+        <div className={styles.footer}>
+          <AriaButton variant="ghost" icon="settings" block onPress={() => setStyling(true)}>
+            {t('player.subtitleStyle.title')}
+          </AriaButton>
+        </div>
+      )}
     </PlayerPanel>
   );
 }

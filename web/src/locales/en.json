@@ -770,11 +770,32 @@
       "burnIn": "picture subtitle, burnt in",
       "convert": "converted"
     },
+    "subtitleStyle": {
+      "title": "Subtitle style",
+      "size": { "title": "Size", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "background": {
+        "title": "Background",
+        "none": "None",
+        "shadow": "Shadow",
+        "translucent": "Translucent",
+        "box": "Box"
+      },
+      "color": { "title": "Colour", "white": "White", "yellow": "Yellow" },
+      "position": { "title": "Position", "bottom": "Bottom", "raised": "A little higher" },
+      "offset": {
+        "title": "Offset",
+        "earlier": "0.1 s earlier",
+        "later": "0.1 s later",
+        "value": "{{seconds}} s",
+        "reset": "Reset"
+      }
+    },
     "settings": {
       "title": "Settings",
       "quality": "Quality",
       "version": "Version",
       "speed": "Speed",
+      "subtitleStyle": "Subtitle style",
       "rateValue": "{{rate}}×",
       "streamInfo": "Stream info"
     },

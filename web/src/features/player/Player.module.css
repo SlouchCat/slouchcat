@@ -239,3 +239,99 @@
     animation: none;
   }
 }
+
+/* The player's own subtitle layer (concept 13, V-6): under the controls, above the video. The
+   pointer passes through to the video (click to pause, the mouse wheel). */
+.subtitles {
+  position: absolute;
+  right: var(--page-gutter);
+  bottom: var(--sc-space-8);
+  left: var(--page-gutter);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  align-items: center;
+  font-size: var(--sc-font-size-xl);
+  font-weight: var(--sc-font-weight-semibold);
+  text-align: center;
+  pointer-events: none;
+  transition: bottom var(--sc-motion-duration-chrome) var(--sc-motion-easing-standard);
+}
+
+.subtitles[data-position='raised'] {
+  bottom: var(--sc-space-16);
+}
+
+/* The bar is on screen: the lines move up above the timeline and the buttons. */
+.subtitles[data-raised] {
+  bottom: calc(var(--sc-space-16) * 2 + var(--sc-space-8));
+}
+
+.subtitles[data-raised][data-position='raised'] {
+  bottom: calc(var(--sc-space-16) * 3);
+}
+
+.subtitles[data-size='s'] {
+  font-size: var(--sc-font-size-lg);
+}
+
+.subtitles[data-size='l'] {
+  font-size: var(--sc-font-size-2xl);
+}
+
+.subtitles[data-size='xl'] {
+  font-size: var(--sc-font-size-3xl);
+}
+
+.cue {
+  max-width: 100%;
+  margin: 0;
+  white-space: pre-line;
+}
+
+.cueText {
+  padding: 0 var(--sc-space-2);
+  color: var(--sc-color-subtitle-white);
+  box-decoration-break: clone;
+}
+
+.subtitles[data-color='yellow'] .cueText {
+  color: var(--sc-color-subtitle-yellow);
+}
+
+.subtitles[data-background='shadow'] .cueText {
+  text-shadow:
+    0 0 var(--sc-space-1) var(--sc-color-subtitle-shadow),
+    0 0 var(--sc-space-2) var(--sc-color-subtitle-shadow);
+}
+
+.subtitles[data-background='translucent'] .cueText {
+  background-color: var(--sc-color-subtitle-translucent);
+}
+
+.subtitles[data-background='box'] .cueText {
+  background-color: var(--sc-color-subtitle-box);
+}
+
+/* Picture in picture shows the browser's own cues (11.10): the same colour and background. */
+.video::cue {
+  color: var(--sc-color-subtitle-white);
+  background-color: var(--sc-color-subtitle-translucent);
+}
+
+.video[data-subtitle-color='yellow']::cue {
+  color: var(--sc-color-subtitle-yellow);
+}
+
+.video[data-subtitle-background='none']::cue,
+.video[data-subtitle-background='shadow']::cue {
+  background-color: var(--sc-color-scrim-clear);
+}
+
+.video[data-subtitle-background='shadow']::cue {
+  text-shadow: 0 0 var(--sc-space-1) var(--sc-color-subtitle-shadow);
+}
+
+.video[data-subtitle-background='box']::cue {
+  background-color: var(--sc-color-subtitle-box);
+}

@@ -112,14 +112,18 @@ test('an SRT track arrives as WebVTT through <track>', async ({ page, owner }) =
   expect(vtt.status()).toBe(200);
   expect(vtt.headers()['content-type']).toMatch(/^text\/vtt/);
   expect(await vtt.text()).toMatch(/^WEBVTT/);
-  // The track shows (the `default` attribute turns it on).
+  // The track stays hidden: the player draws its cues in a layer of its own (11.10), and the
+  // captions of the file show there ("Deutsch 1" … every 4 s).
   await expect
     .poll(() =>
       page
         .locator('video')
         .evaluate((video: HTMLVideoElement) => [...video.textTracks].map((t) => t.mode)),
     )
-    .toContain('showing');
+    .toEqual(['hidden']);
+  await expect(player(page).locator('[data-subtitles]')).toContainText(/^Deutsch \d$/, {
+    timeout: 10_000,
+  });
 });
 
 test('a PGS track is burned in: transcode with reason subtitle_burn, and it plays', async ({

@@ -296,6 +296,24 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(button('Einstellungen')).toHaveFocus();
   });
 
+  it('the gear’s subtitle style colours the browser’s cues for picture in picture as well', async () => {
+    const { video } = await start();
+    const user = playerDriver().user;
+    expect(video).toHaveAttribute('data-subtitle-color', 'white');
+    await user.click(button('Einstellungen'));
+    const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
+    await user.click(within(gear).getByRole('option', { name: 'Untertitel-Stil' }));
+    const page = await screen.findByRole('dialog', { name: 'Untertitel-Stil' });
+    await user.click(within(page).getByRole('option', { name: 'Gelb' }));
+    await user.click(within(page).getByRole('option', { name: 'Box' }));
+    expect(video).toHaveAttribute('data-subtitle-color', 'yellow');
+    expect(video).toHaveAttribute('data-subtitle-background', 'box');
+    expect(JSON.parse(localStorage.getItem('slouchcat.subtitles') ?? '{}')).toMatchObject({
+      color: 'yellow',
+      background: 'box',
+    });
+  });
+
   it('Q opens the gear straight on the quality: no way up, Backspace closes', async () => {
     const { router } = await start();
     key(document.body, 'q');

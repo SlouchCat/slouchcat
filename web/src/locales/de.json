@@ -770,11 +770,32 @@
       "burnIn": "Bild-Untertitel, wird eingebrannt",
       "convert": "wird umgewandelt"
     },
+    "subtitleStyle": {
+      "title": "Untertitel-Stil",
+      "size": { "title": "Grösse", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "background": {
+        "title": "Hintergrund",
+        "none": "Keiner",
+        "shadow": "Schatten",
+        "translucent": "Halbtransparent",
+        "box": "Box"
+      },
+      "color": { "title": "Farbe", "white": "Weiss", "yellow": "Gelb" },
+      "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
+      "offset": {
+        "title": "Versatz",
+        "earlier": "0,1 s früher",
+        "later": "0,1 s später",
+        "value": "{{seconds}} s",
+        "reset": "Zurücksetzen"
+      }
+    },
     "settings": {
       "title": "Einstellungen",
       "quality": "Qualität",
       "version": "Version",
       "speed": "Geschwindigkeit",
+      "subtitleStyle": "Untertitel-Stil",
       "rateValue": "{{rate}}×",
       "streamInfo": "Stream-Info"
     },

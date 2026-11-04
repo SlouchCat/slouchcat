@@ -2,6 +2,7 @@ import type { Track } from '@slouchcat/api-client';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SUBTITLE_STYLE } from '../useSubtitleStyle';
 import { AudioPanel, SubtitlePanel } from './TrackPanels';
 
 const audio = (index: number, language: string, codec: string, extra: Partial<Track> = {}) =>
@@ -182,5 +183,31 @@ describe('SubtitlePanel (V-5)', () => {
     );
     await user.click(screen.getByRole('option', { name: 'Aus' }));
     expect(onSelect).toHaveBeenCalledWith(null);
+  });
+
+  it('leads below the list to the subtitle style, a page with a way back', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <SubtitlePanel
+        tracks={tracks}
+        profileLanguage="de"
+        selectedId={undefined}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+        subtitleStyle={{ value: DEFAULT_SUBTITLE_STYLE, onChange }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Untertitel-Stil' }));
+    const page = screen.getByRole('dialog', { name: 'Untertitel-Stil' });
+    expect(within(page).getByRole('listbox', { name: 'Grösse' })).toBeInTheDocument();
+    await waitFor(() => expect(within(page).getByRole('option', { name: 'M' })).toHaveFocus());
+    await user.click(within(page).getByRole('option', { name: 'Gelb' }));
+    expect(onChange).toHaveBeenLastCalledWith({ color: 'yellow' });
+    await user.click(within(page).getByRole('button', { name: '0,1 s später' }));
+    expect(onChange).toHaveBeenLastCalledWith({ offsetMs: 100 });
+    expect(within(page).getByText('0,0 s')).toBeVisible();
+    await user.keyboard('{Backspace}');
+    expect(screen.getByRole('dialog', { name: 'Untertitel' })).toBeInTheDocument();
   });
 });

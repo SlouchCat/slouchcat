@@ -1,9 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { OptionLinkRow, OptionList, OptionRow, PlayerPanel, Switch } from '@/ui/aria';
 import { RATE_MAX, RATE_MIN, RATE_STEP } from '../keymap';
+import type { SubtitleStyle } from '../useSubtitleStyle';
+import { SubtitleStyleOptions } from './SubtitleStyleOptions';
 
 /** The pages of the gear panel (11.2). */
-export type SettingsPage = 'main' | 'quality' | 'version' | 'speed';
+export type SettingsPage = 'main' | 'quality' | 'version' | 'speed' | 'subtitleStyle';
 
 /** One row of a page that chooses: a quality rung, a version. */
 export interface SettingsOption {
@@ -44,10 +46,13 @@ interface SettingsPanelProps {
   onRate: (rate: number) => void;
   /** The stream info over the video (key I). */
   streamInfo?: { open: boolean; onToggle: () => void };
+  /** The subtitle style of this device (V-6). */
+  subtitleStyle: { value: SubtitleStyle; onChange: (patch: Partial<SubtitleStyle>) => void };
 }
 
 /**
- * The gear panel (11.2): a first page with quality, version and speed, each a row that leads to a
+ * The gear panel (11.2): a first page with quality, version, speed and the subtitle style, each a
+ * row that leads to a
  * page of its own (PlayerPanel's back button and Backspace go up again), and the stream info as a
  * switch. The quality and the version are the server's: a choice starts a new session.
  */
@@ -61,6 +66,7 @@ export function SettingsPanel({
   rate,
   onRate,
   streamInfo,
+  subtitleStyle,
 }: SettingsPanelProps) {
   const { t, i18n } = useTranslation();
   const rateText = (value: number) =>
@@ -104,12 +110,26 @@ export function SettingsPanel({
     });
   }
 
+  if (page === 'subtitleStyle') {
+    return (
+      <PlayerPanel title={t('player.subtitleStyle.title')} onClose={onClose} onBack={back}>
+        <SubtitleStyleOptions value={subtitleStyle.value} onChange={subtitleStyle.onChange} />
+      </PlayerPanel>
+    );
+  }
+
   const rows = [
     ...(quality ? (['quality'] as const) : []),
     ...(version ? (['version'] as const) : []),
     'speed' as const,
+    'subtitleStyle' as const,
   ];
-  const values = { quality: labelOf(quality), version: labelOf(version), speed: rateText(rate) };
+  const values = {
+    quality: labelOf(quality),
+    version: labelOf(version),
+    speed: rateText(rate),
+    subtitleStyle: undefined,
+  };
   return (
     <PlayerPanel title={t('player.settings.title')} onClose={onClose}>
       <OptionList
