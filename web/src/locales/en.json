@@ -764,6 +764,11 @@
       "slider": "Volume",
       "boosted": "Volume {{percent}} %, boosted, may distort",
       "percent": "{{percent}} %"
+    },
+    "option": {
+      "default": "Default",
+      "forced": "forced",
+      "burnIn": "burnt in"
     }
   },
   "admin": {

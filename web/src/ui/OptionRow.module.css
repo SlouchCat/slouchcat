@@ -1,0 +1,71 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  outline: none;
+}
+
+.row {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+
+  /* A touch target of 44 px (concept 13, section 4). */
+  min-height: var(--sc-size-control-height);
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-primary);
+  cursor: pointer;
+}
+
+.row[data-hovered] {
+  background-color: var(--sc-color-surface-2);
+}
+
+/* The ring lies inside the row: the panel scrolls, and a ring outside would be cut off. */
+.row[data-focus-visible] {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
+}
+
+.row[data-disabled] {
+  color: var(--sc-color-text-muted);
+  cursor: default;
+}
+
+/* The tick of the chosen row, in the profile's accent; an empty box of the same width else, so
+   the text of every row starts at the same place. */
+.check {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: var(--sc-space-5);
+  color: var(--sc-accent);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.label {
+  overflow-wrap: anywhere;
+}
+
+.row[data-selected] .label {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

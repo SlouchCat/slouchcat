@@ -764,6 +764,11 @@
       "slider": "Lautstärke",
       "boosted": "Lautstärke {{percent}} %, verstärkt, kann verzerren",
       "percent": "{{percent}} %"
+    },
+    "option": {
+      "default": "Standard",
+      "forced": "erzwungen",
+      "burnIn": "wird eingebrannt"
     }
   },
   "admin": {

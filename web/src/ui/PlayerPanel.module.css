@@ -1,0 +1,52 @@
+/* On the right over the video, inside the player (its nearest positioned ancestor). */
+.panel {
+  position: absolute;
+  z-index: var(--sc-z-raised);
+  top: var(--sc-space-4);
+  right: var(--sc-space-4);
+  bottom: var(--sc-space-4);
+  display: flex;
+  flex-direction: column;
+  width: min(24rem, calc(100% - 2 * var(--sc-space-4)));
+  overflow: hidden;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
+  color: var(--sc-color-text-primary);
+}
+
+.panel:focus-visible {
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
+}
+
+/* A sheet from the bottom on a phone: narrow, or held sideways (concept 13, 11.2). */
+@media (width < 768px), (pointer: coarse) and (height <= 500px) {
+  .panel {
+    inset: auto 0 0;
+    width: auto;
+    max-height: 85%;
+    border-radius: var(--sc-radius-lg) var(--sc-radius-lg) 0 0;
+  }
+}
+
+.header {
+  display: flex;
+  flex: none;
+  gap: var(--sc-space-2);
+  align-items: center;
+  padding: var(--sc-space-3) var(--sc-space-3) var(--sc-space-2) var(--sc-space-5);
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  padding: 0 var(--sc-space-3) var(--sc-space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
