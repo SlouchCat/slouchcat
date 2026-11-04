@@ -76,6 +76,9 @@ type Service struct {
 	// onChapterImagesStored runs after chapters.images renamed its folder (a test hook; nil
 	// outside tests).
 	onChapterImagesStored func()
+	// frameGrabber replaces transcode.Runner.GrabFrame of chapters.images (a test seam; nil
+	// outside tests).
+	frameGrabber func(ctx context.Context, in string, at time.Duration, width int, v transcode.Stream, out string) (bool, error)
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it

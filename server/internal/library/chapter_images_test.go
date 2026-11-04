@@ -1,14 +1,19 @@
 package library
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
@@ -405,8 +410,8 @@ func TestChapterImagesJobReprobedWhileRunning(t *testing.T) {
 	}
 }
 
-// A chapters.images job that waits for its start after a playback is replaced by the backfill with
-// one that may run now (at the backfill's priority).
+// A chapters.images job that waits for its start after a playback may run now after the backfill,
+// with its own priority 5 (not the backfill's 1) and the same job row.
 func TestChapterImagesBackfillPullsDelayedJob(t *testing.T) {
 	t.Parallel()
 	e, _, _, _ := chapterEnv(t, "Film (2020)")
@@ -424,10 +429,207 @@ func TestChapterImagesBackfillPullsDelayedJob(t *testing.T) {
 	if err := e.svc.handleChapterImagesBackfill(e.ctx, &jobs.Job{Type: JobChapterImagesBackfill}); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND run_after <= ? AND priority = 1`, JobChapterImages, now); n != 1 {
-		t.Errorf("runnable backfill jobs = %d, want 1", n)
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND run_after <= ? AND priority = 5`, JobChapterImages, now); n != 1 {
+		t.Errorf("runnable jobs at priority 5 = %d, want 1", n)
 	}
-	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND run_after > ?`, JobChapterImages, now); n != 0 {
-		t.Errorf("delayed jobs after the backfill = %d, want 0", n)
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ?`, JobChapterImages); n != 1 {
+		t.Errorf("chapter image job rows = %d, want the one of the playback", n)
+	}
+}
+
+// An event (the end of a playback, a probe) that finds a waiting job of the backfill under its key
+// raises it to the event priority 5.
+func TestChapterImagesEventRaisesBackfillJob(t *testing.T) {
+	t.Parallel()
+	e, cache, _, _ := chapterEnv(t, "Film (2020)")
+	id := e.str(`SELECT id FROM media_files WHERE rel_path LIKE 'Film%'`)
+	if err := e.svc.handleProbe(e.ctx, e.probeJobOf(id)); err != nil {
+		t.Fatal(err)
+	}
+	priority := func() int {
+		return e.count(`SELECT priority FROM jobs WHERE type = ? AND idempotency_key = ? AND state = 'queued'`, JobChapterImages, "chapters:"+id)
+	}
+	if err := e.svc.handleChapterImagesBackfill(e.ctx, &jobs.Job{Type: JobChapterImagesBackfill}); err != nil {
+		t.Fatal(err)
+	}
+	if p := priority(); p != prioChapterImagesBackfill {
+		t.Fatalf("backfill job priority = %d", p)
+	}
+	if err := QueueChapterImagesAfterPlayback(e.ctx, e.db.Read, e.queue, cache, []string{id}); err != nil {
+		t.Fatal(err)
+	}
+	if p := priority(); p != prioChapterImages {
+		t.Errorf("after a playback the job has priority %d, want %d", p, prioChapterImages)
+	}
+	// The same through a probe of a file with images: lower the job again, write a folder.
+	e.exec(`UPDATE jobs SET priority = 1 WHERE idempotency_key = ?`, "chapters:"+id)
+	if err := os.MkdirAll(filepath.Join(cache, filepath.FromSlash(ChapterImagesRel(id, e.chapterVersion(id)))), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.handleProbe(e.ctx, mediaJob(t, JobProbeFile, id)); err != nil {
+		t.Fatal(err)
+	}
+	if p := priority(); p != prioChapterImages {
+		t.Errorf("after a probe the job has priority %d, want %d", p, prioChapterImages)
+	}
+}
+
+// writeFakeFrame is a frameGrabber result: it writes a tiny WebP-like file to out.
+func writeFakeFrame(out string) error {
+	return os.WriteFile(out, []byte("RIFF\x04\x00\x00\x00WEBP"), 0o600)
+}
+
+// With the frameGrabber seam: a chapter that fails makes the attempt fail while attempts remain,
+// and the last attempt keeps the chapters that worked. (The chapters of the test film are 3 s
+// long and have one time point each; TestGrabChapterSecondPoint covers the second one.)
+func TestChapterImagesJobPartial(t *testing.T) {
+	t.Parallel()
+	e, cache, _, _ := chapterEnv(t, "Film (2020)")
+	id := e.str(`SELECT id FROM media_files WHERE rel_path LIKE 'Film%'`)
+	if err := e.svc.handleProbe(e.ctx, e.probeJobOf(id)); err != nil {
+		t.Fatal(err)
+	}
+	row, err := systemq.New(e.db.Read).GetChapterImageFile(e.ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, chapters, version, _ := storedChapterImages(row.Probe, row.Kind, row.DurationMs.Int64, row.ProbedAt.Int64)
+	if len(chapters) != 3 {
+		t.Fatalf("chapters = %+v", chapters)
+	}
+	e.svc.frameGrabber = func(_ context.Context, _ string, at time.Duration, _ int, _ transcode.Stream, out string) (bool, error) {
+		if slices.Contains(transcode.ChapterFrameTimes(chapters[2]), at) { // chapter 2 fails
+			return false, transcode.ErrNoFrame
+		}
+		return false, writeFakeFrame(out)
+	}
+	job := mediaJob(t, JobChapterImages, id)
+	job.Attempts, job.MaxAttempts = 1, jobs.DefaultMaxAttempts
+	if err := e.svc.handleChapterImages(e.ctx, job); err == nil || !strings.Contains(err.Error(), "1 of 3 chapter images") {
+		t.Fatalf("partial attempt: %v, want 1 of 3 failed", err)
+	}
+	if names := chapterFolderNames(t, cache); len(names) != 0 {
+		t.Fatalf("folders after a partial attempt = %v", names)
+	}
+	job.Attempts = jobs.DefaultMaxAttempts
+	if err := e.svc.handleChapterImages(e.ctx, job); err != nil {
+		t.Fatalf("last attempt: %v", err)
+	}
+	folder := filepath.Join(cache, filepath.FromSlash(ChapterImagesRel(id, version)))
+	for i, want := range []bool{true, true, false} {
+		if _, err := os.Stat(filepath.Join(folder, ChapterImageName(i))); (err == nil) != want {
+			t.Errorf("chapter %d image exists = %v, want %v", i, err == nil, want)
+		}
+	}
+}
+
+// A file that stays unreadable for more than seven days ends the job without folder.
+func TestChapterImagesJobGivesUpOnUnreadable(t *testing.T) {
+	t.Parallel()
+	e, cache, dir, _ := chapterEnv(t, "Film (2020)")
+	id := e.str(`SELECT id FROM media_files WHERE rel_path LIKE 'Film%'`)
+	if err := e.svc.handleProbe(e.ctx, e.probeJobOf(id)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(dir, "Film (2020)", "Film (2020).mkv")); err != nil {
+		t.Fatal(err)
+	}
+	job := mediaJob(t, JobChapterImages, id)
+	job.CreatedAt = e.clock.Now().Add(-6 * 24 * time.Hour)
+	var later *jobs.RetryLaterError
+	if err := e.svc.handleChapterImages(e.ctx, job); !errors.As(err, &later) {
+		t.Fatalf("six days: %v, want RetryLater", err)
+	}
+	job.CreatedAt = e.clock.Now().Add(-8 * 24 * time.Hour)
+	if err := e.svc.handleChapterImages(e.ctx, job); err != nil {
+		t.Fatalf("eight days: %v, want nil", err)
+	}
+	if names := chapterFolderNames(t, cache); len(names) != 0 {
+		t.Errorf("folders = %v, want none", names)
+	}
+}
+
+// The sweep removes the folders of a deleted title and of a file whose last probe failed; a folder
+// of the current probe with another chapter list (other chapter rules) goes too, and the file gets
+// a job at priority 1 to make the images for its list again.
+func TestChapterImagesSweepCases(t *testing.T) {
+	t.Parallel()
+	e, cache, _, _ := chapterEnv(t, "Eins (2020)", "Zwei (2021)", "Drei (2022)")
+	ids := map[string]string{}
+	for _, name := range []string{"Eins", "Zwei", "Drei"} {
+		ids[name] = e.str(`SELECT id FROM media_files WHERE rel_path LIKE ?`, name+"%")
+		if err := e.svc.handleProbe(e.ctx, e.probeJobOf(ids[name])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, name := range []string{"Eins", "Zwei"} {
+		dir := filepath.Join(cache, filepath.FromSlash(ChapterImagesRel(ids[name], e.chapterVersion(ids[name]))))
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	probedAt := e.count(`SELECT probed_at FROM media_files WHERE id = ?`, ids["Drei"])
+	otherList := filepath.Join(cache, ChapterImagesDir, ids["Drei"]+"-"+strconv.Itoa(probedAt)+"-0123abcd")
+	if err := os.MkdirAll(otherList, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE items SET deleted_at = 1 WHERE id = (SELECT item_id FROM media_files WHERE id = ?)`, ids["Eins"])
+	e.exec(`UPDATE media_files SET probe_error = 'broken' WHERE id = ?`, ids["Zwei"])
+	if err := e.svc.sweepChapterImages(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if names := chapterFolderNames(t, cache); len(names) != 0 {
+		t.Errorf("folders after the sweep = %v, want none", names)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ? AND priority = 1`, JobChapterImages, "chapters:"+ids["Drei"]); n != 1 {
+		t.Errorf("rebuild jobs for the other chapter list = %d, want 1", n)
+	}
+	if n := e.jobCount(JobChapterImages); n != 1 {
+		t.Errorf("chapter image jobs = %d, want only the rebuild", n)
+	}
+}
+
+// grabChapter tries the second time point after an error at the first; a black first frame stays
+// when the second fails.
+func TestGrabChapterSecondPoint(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	cache := t.TempDir()
+	cr, err := paths.NewRoot(cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := paths.Open(cr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	c := model.Chapter{StartMs: 0, EndMs: 100_000} // points at 10 s and 20 s
+	var calls []time.Duration
+	e.svc.frameGrabber = func(_ context.Context, _ string, at time.Duration, _ int, _ transcode.Stream, out string) (bool, error) {
+		calls = append(calls, at)
+		if at == 10*time.Second {
+			return false, errors.New("transient")
+		}
+		return false, writeFakeFrame(out)
+	}
+	ok, black, err := e.svc.grabChapter(e.ctx, root, cr, "/in.mkv", transcode.Stream{}, c, "0.webp")
+	if !ok || black || err != nil || !slices.Equal(calls, []time.Duration{10 * time.Second, 20 * time.Second}) {
+		t.Errorf("error first: ok %v black %v err %v calls %v", ok, black, err, calls)
+	}
+	if _, err := os.Stat(filepath.Join(cache, "0.webp")); err != nil {
+		t.Errorf("image: %v", err)
+	}
+	calls = nil
+	e.svc.frameGrabber = func(_ context.Context, _ string, at time.Duration, _ int, _ transcode.Stream, out string) (bool, error) {
+		calls = append(calls, at)
+		if at == 20*time.Second {
+			return false, transcode.ErrNoFrame
+		}
+		return true, writeFakeFrame(out)
+	}
+	ok, black, err = e.svc.grabChapter(e.ctx, root, cr, "/in.mkv", transcode.Stream{}, c, "1.webp")
+	if !ok || !black || err != nil || len(calls) != 2 {
+		t.Errorf("black first, error second: ok %v black %v err %v calls %v", ok, black, err, calls)
 	}
 }

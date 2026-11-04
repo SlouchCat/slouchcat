@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -67,6 +69,11 @@ const (
 	// chapterUnreadableRetry is the wait when the media file cannot be read (a share that is
 	// offline): no attempt is used and no «done» folder is written.
 	chapterUnreadableRetry = time.Hour
+	// chapterUnreadableGiveUp: a job whose file stays unreadable this long ends without folder (the
+	// next probe, playback or backfill queues it again).
+	chapterUnreadableGiveUp = 7 * 24 * time.Hour
+	// chapterReadTimeout bounds the read test of the media file (a hanging share).
+	chapterReadTimeout = 10 * time.Second
 	// chapterChangedRetry is the wait after a new probe arrived while the job ran.
 	chapterChangedRetry = time.Minute
 	// chapterFrameTimeout bounds one GrabFrame run (one frame, a few MB read; a stuck read of a
@@ -110,6 +117,32 @@ func storedChapterImages(probe sql.NullString, kind string, durationMs, probedAt
 	return pr, chapters, ChapterImagesVersion(probedAt, chapters), true
 }
 
+// readable opens the file at path (resolved through package paths) and reads its first 64 KiB
+// within timeout: a stat alone succeeds on a share whose data cannot be read. A read that hangs
+// past timeout counts as unreadable; its goroutine ends with the read.
+func readable(path string, timeout time.Duration) error {
+	done := make(chan error, 1)
+	go func() {
+		f, err := os.Open(path) //nolint:gosec // G304: path resolved through package paths below a library root
+		if err != nil {
+			done <- err
+			return
+		}
+		defer f.Close()
+		_, err = f.Read(make([]byte, 64<<10))
+		if errors.Is(err, io.EOF) {
+			err = nil
+		}
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(timeout):
+		return fmt.Errorf("read of %s timed out after %v", filepath.Base(path), timeout)
+	}
+}
+
 // hasChapterImages reports whether the folder rel exists below the cache root.
 func hasChapterImages(cache paths.Root, rel string) bool {
 	abs, err := paths.Resolve(cache, rel)
@@ -123,7 +156,9 @@ func hasChapterImages(cache paths.Root, rel string) bool {
 // QueueChapterImagesAfterPlayback queues chapters.images, ChapterImagesAfterPlayback from now, for
 // the probed film and episode files among mediaFileIDs that have no images (11.6 (2)): the playback
 // sweep calls it with the files of the playbacks that ended. Anything else (no cache directory,
-// another kind, an unprobed, missing, deleted or unknown file, images present) queues nothing.
+// another kind, an unprobed, missing, deleted or unknown file, images present) queues nothing. A
+// waiting job of the backfill under the same key is raised to the event's priority 5. A file that
+// fails does not hold up the others: the errors come back joined.
 func QueueChapterImagesAfterPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, cacheDir string, mediaFileIDs []string) error {
 	if cacheDir == "" || len(mediaFileIDs) == 0 {
 		return nil
@@ -133,30 +168,56 @@ func QueueChapterImagesAfterPlayback(ctx context.Context, db *sql.DB, q *jobs.Qu
 		return err
 	}
 	read := systemq.New(db)
+	var errs []error
 	for _, id := range mediaFileIDs {
-		row, err := read.GetChapterImageFile(ctx, id)
-		if errors.Is(err, sql.ErrNoRows) {
-			continue
+		if err := queueAfterPlayback(ctx, read, q, cache, id); err != nil {
+			errs = append(errs, fmt.Errorf("media file %s: %w", id, err))
 		}
-		if err != nil {
-			return fmt.Errorf("load media file: %w", err)
-		}
-		if !chapterKind(row.Kind) || !row.ProbedAt.Valid || row.MissingSince.Valid {
-			continue
-		}
-		_, _, version, ok := storedChapterImages(row.Probe, row.Kind, row.DurationMs.Int64, row.ProbedAt.Int64)
-		if !ok || hasChapterImages(cache, ChapterImagesRel(id, version)) {
-			continue
-		}
-		j := chapterImagesJob(id)
-		payload, err := json.Marshal(j.payload)
-		if err != nil {
-			return fmt.Errorf("encode %s payload: %w", j.typ, err)
-		}
-		if _, err := q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: j.priority, IdempotencyKey: j.key, Payload: payload,
-			Delay: ChapterImagesAfterPlayback}); err != nil {
-			return err
-		}
+	}
+	return errors.Join(errs...)
+}
+
+// queueAfterPlayback is QueueChapterImagesAfterPlayback for one file.
+func queueAfterPlayback(ctx context.Context, read *systemq.Queries, q *jobs.Queue, cache paths.Root, id string) error {
+	row, err := read.GetChapterImageFile(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("load media file: %w", err)
+	}
+	if !chapterKind(row.Kind) || !row.ProbedAt.Valid || row.MissingSince.Valid {
+		return nil
+	}
+	_, _, version, ok := storedChapterImages(row.Probe, row.Kind, row.DurationMs.Int64, row.ProbedAt.Int64)
+	if !ok || hasChapterImages(cache, ChapterImagesRel(id, version)) {
+		return nil
+	}
+	j := chapterImagesJob(id)
+	payload, err := json.Marshal(j.payload)
+	if err != nil {
+		return fmt.Errorf("encode %s payload: %w", j.typ, err)
+	}
+	jobID, err := q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: j.priority, IdempotencyKey: j.key, Payload: payload,
+		Delay: ChapterImagesAfterPlayback})
+	if err != nil {
+		return err
+	}
+	_, err = q.RaiseQueuedPriority(ctx, jobID, j.priority)
+	return err
+}
+
+// enqueueChapterImagesTx queues chapters.images of a file in the caller's transaction (a probe) at
+// the event priority 5; a waiting job of the backfill under the same key is raised to it.
+func enqueueChapterImagesTx(ctx context.Context, q *systemq.Queries, now time.Time, mediaFileID string) error {
+	j := chapterImagesJob(mediaFileID)
+	if err := enqueueTx(ctx, q, now, j); err != nil {
+		return err
+	}
+	if _, err := q.RaiseQueuedJobPriorityByKey(ctx, systemq.RaiseQueuedJobPriorityByKeyParams{
+		Priority: int64(j.priority), Now: now.UnixMilli(), IdempotencyKey: sql.NullString{String: j.key, Valid: true},
+	}); err != nil {
+		return fmt.Errorf("raise %s: %w", j.typ, err)
 	}
 	return nil
 }
@@ -236,7 +297,11 @@ func (s *Service) handleChapterImages(ctx context.Context, j *jobs.Job) error {
 		if in, err = paths.Resolve(media, row.RelPath); err != nil {
 			return err
 		}
-		if _, err := os.Stat(in); err != nil {
+		if err := readable(in, chapterReadTimeout); err != nil {
+			if !j.CreatedAt.IsZero() && now.Sub(j.CreatedAt) > chapterUnreadableGiveUp {
+				s.log.WarnContext(ctx, "media file unreadable for a week, chapter images given up", "media_file_id", row.ID, "err", err)
+				return nil
+			}
 			s.log.WarnContext(ctx, "media file unreadable, chapter images wait", "media_file_id", row.ID, "err", err)
 			return jobs.RetryLater(chapterUnreadableRetry, "the media file is unreadable")
 		}
@@ -309,6 +374,14 @@ func (s *Service) handleChapterImages(ctx context.Context, j *jobs.Job) error {
 	return nil
 }
 
+// grabFrame runs transcode.Runner.GrabFrame, or the test seam frameGrabber.
+func (s *Service) grabFrame(ctx context.Context, in string, at time.Duration, width int, v transcode.Stream, out string) (bool, error) {
+	if s.frameGrabber != nil {
+		return s.frameGrabber(ctx, in, at, width, v, out)
+	}
+	return s.probe.GrabFrame(ctx, in, at, width, v, out)
+}
+
 // grabChapter writes the image of chapter c to rel (below the cache root). It tries the time points
 // of transcode.ChapterFrameTimes in order: the next one after a black frame or an error, so a black
 // first frame stays when the second fails. Each try runs at most chapterFrameTimeout, writes to a
@@ -322,7 +395,7 @@ func (s *Service) grabChapter(ctx context.Context, root *os.Root, cache paths.Ro
 			return ok, black, rerr
 		}
 		frameCtx, cancel := context.WithTimeout(ctx, chapterFrameTimeout)
-		isBlack, gerr := s.probe.GrabFrame(frameCtx, in, at, transcode.ChapterImageWidth, v, out)
+		isBlack, gerr := s.grabFrame(frameCtx, in, at, transcode.ChapterImageWidth, v, out)
 		cancel()
 		if gerr != nil {
 			_ = root.Remove(try)
@@ -372,11 +445,16 @@ func (s *Service) sweepChapterImages(ctx context.Context) error {
 		return fmt.Errorf("list chapter image files: %w", err)
 	}
 	keep := make(map[string]bool, len(rows))
+	probedAt := make(map[string]int64, len(rows)) // current probe of each file with a version
 	for _, r := range rows {
 		if _, _, version, ok := storedChapterImages(r.Probe, r.Kind, r.DurationMs.Int64, r.ProbedAt.Int64); ok {
 			keep[ChapterImagesRel(r.ID, version)] = true
+			if !r.Missing {
+				probedAt[r.ID] = r.ProbedAt.Int64
+			}
 		}
 	}
+	var rebuild []string
 	root, err := paths.Open(cache)
 	if err != nil {
 		return err
@@ -398,10 +476,22 @@ func (s *Service) sweepChapterImages(ctx context.Context) error {
 			s.log.WarnContext(ctx, "remove stale chapter images", "folder", name, "err", err)
 			continue
 		}
+		// The folder of the current probe with another chapter list (chapter rules changed with
+		// an update): the file had images, so it gets them again for the new list.
+		if id, rest, ok := strings.Cut(name, "-"); ok {
+			if at, known := probedAt[id]; known && strings.HasPrefix(rest, strconv.FormatInt(at, 10)+"-") {
+				rebuild = append(rebuild, id)
+			}
+		}
 		removed++
 	}
 	if removed > 0 {
-		s.log.InfoContext(ctx, "stale chapter images removed", "folders", removed)
+		s.log.InfoContext(ctx, "stale chapter images removed", "folders", removed, "rebuilt", len(rebuild))
+	}
+	for _, id := range rebuild {
+		if err := s.enqueueBackfillImages(ctx, id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -421,30 +511,19 @@ func (s *Service) runChapterImagesBackfill(ctx context.Context, q *jobs.Queue, p
 
 // enqueueBackfillImages queues chapters.images of a file at the backfill's priority. A job of the
 // file that waits for a later start (queued ChapterImagesAfterPlayback after a playback) holds the
-// key; it is replaced by one that may run now, because the backfill was started by hand. The job
-// itself still waits while the file plays.
+// key; it may run now (jobs.Queue.PullQueuedForward), because the backfill was started by hand,
+// and keeps its own priority and attempts. The job itself still waits while the file plays.
 func (s *Service) enqueueBackfillImages(ctx context.Context, mediaFileID string) error {
 	j := chapterImagesJob(mediaFileID)
 	payload, err := json.Marshal(j.payload)
 	if err != nil {
 		return fmt.Errorf("encode %s payload: %w", j.typ, err)
 	}
-	nj := jobs.NewJob{Type: j.typ, Priority: prioChapterImagesBackfill, IdempotencyKey: j.key, Payload: payload}
-	id, err := s.queue.Enqueue(ctx, nj)
+	id, err := s.queue.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: prioChapterImagesBackfill, IdempotencyKey: j.key, Payload: payload})
 	if err != nil {
 		return err
 	}
-	cur, err := s.queue.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	if cur.State != jobs.StateQueued || !cur.RunAfter.After(s.now()) {
-		return nil
-	}
-	if _, err := s.queue.Cancel(ctx, id); err != nil {
-		return err
-	}
-	_, err = s.queue.Enqueue(ctx, nj)
+	_, err = s.queue.PullQueuedForward(ctx, id)
 	return err
 }
 

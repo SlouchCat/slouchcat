@@ -181,7 +181,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		return err
 	}
 	if s.cacheDir != "" && chapterKind(item.Kind) && (payload.ChapterImages || s.hadChapterImages(t.file, item.Kind)) {
-		if err := enqueueTx(ctx, q, now, chapterImagesJob(t.file.ID)); err != nil {
+		if err := enqueueChapterImagesTx(ctx, q, now, t.file.ID); err != nil {
 			return err
 		}
 	}
