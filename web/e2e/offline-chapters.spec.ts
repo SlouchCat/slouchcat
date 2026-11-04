@@ -39,8 +39,13 @@ for (const quality of ['high', 'low'] as const) {
       data: { capabilities: { video: ['h264'], audio: ['aac'] } },
     });
     expect(started.status(), await started.text()).toBe(200);
-    const online = (await started.json()) as { chapters: unknown[] };
+    const online = (await started.json()) as { chapters: unknown[]; playbackSessionId: string };
     expect(chapters).toEqual(online.chapters);
+    // The session served only the comparison: it ends here, not by timeout.
+    const stop = await owner.delete(`/api/v1/playback/sessions/${online.playbackSessionId}`, {
+      headers: CSRF,
+    });
+    expect(stop.status()).toBe(204);
 
     // Flight mode, then play the download from the device.
     await page.goto('/downloads');
