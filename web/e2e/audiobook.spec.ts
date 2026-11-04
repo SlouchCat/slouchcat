@@ -349,7 +349,8 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
     player.getByRole('button', { name: /^Sleep-Timer: noch 1[45]:\d\d$/ }),
   ).toBeVisible();
   // The volume (VolumeControl, concept 13 V-3): the slider is closed until the focus reaches the
-  // mute button; it moves 5 % per arrow and keeps the arrows from the page's key map (no seek).
+  // mute button. ←/→ move it 5 % and stay with it (no seek); ↑/↓ go on to the page's key map,
+  // which changes the volume by 10 % (in the video player they will change the zone, 11.2).
   const volume = player.getByRole('slider', { name: 'Lautstärke' });
   const drawerWidth = () =>
     volume.evaluate((slider) => slider.parentElement!.getBoundingClientRect().width);
@@ -365,7 +366,7 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
   await expectVisibleFocus(page);
   const level = Number(await volume.getAttribute('aria-valuenow'));
   const position = await time(page);
-  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
   await expect(volume).toHaveAttribute('aria-valuenow', String(level - 10));
   const element = () =>
@@ -375,6 +376,9 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
     }));
   expect((await element()).volume).toBeCloseTo((level - 10) / 100, 2);
   expect(await time(page)).toBeCloseTo(position, 1);
+  await page.keyboard.press('ArrowDown');
+  await expect(volume).toHaveAttribute('aria-valuenow', String(level - 20));
+  await expectFocusOn(page, volume);
   // Back on the mute button, Enter mutes and unmutes.
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, mute);

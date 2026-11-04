@@ -323,8 +323,6 @@ export function useAudioControls({
         }
         return;
       }
-      // The volume slider moves with the arrows itself.
-      if (event.target instanceof HTMLInputElement && event.key.startsWith('Arrow')) return;
       const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
       if (!active && key !== 'Escape' && key !== 'Backspace') return;
       switch (key) {
