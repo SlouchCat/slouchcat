@@ -18,6 +18,8 @@ interface LanguageListProps {
   onChange: (value: string[]) => void;
   rankLabel: (index: number) => string;
   addLabel: string;
+  /** Says what an empty list does («es spielt die Originalsprache»). */
+  noneText: string;
   /** The server's message for the list (422 `invalid_value`, `too_long`). */
   error?: string;
 }
@@ -25,7 +27,8 @@ interface LanguageListProps {
 /**
  * One ordered language list (RankedChoiceList): places with a select each, «×» and the add
  * button. A full list (ten languages) offers only its own languages, so its places can still swap
- * but a new language needs a free place first.
+ * but a new language needs a free place first. The list may be empty (the contract allows `[]`):
+ * no audio language plays the original language («Originalton immer»).
  */
 function LanguageList({
   legend,
@@ -34,6 +37,7 @@ function LanguageList({
   onChange,
   rankLabel,
   addLabel,
+  noneText,
   error,
 }: LanguageListProps) {
   const { t, i18n } = useTranslation();
@@ -51,7 +55,7 @@ function LanguageList({
       <legend className={styles.legend}>{legend}</legend>
       <p id={hintId} className={styles.hint}>
         {hint}
-        {value.length === 0 && ` ${t('settings.playback.none')}`}
+        {value.length === 0 && ` ${noneText}`}
         {full && ` ${t('settings.playback.limit', { count: MAX_PLAYBACK_LANGUAGES })}`}
       </p>
       {error && (
@@ -65,6 +69,7 @@ function LanguageList({
         onChange={onChange}
         rankLabel={rankLabel}
         addLabel={addLabel}
+        allowEmpty
       />
     </fieldset>
   );
@@ -97,6 +102,7 @@ export function PlaybackPrefsFields({ value, onChange, errors }: PlaybackPrefsFi
         onChange={(audioLanguages) => onChange({ ...value, audioLanguages })}
         rankLabel={(index) => t('settings.playback.audio.rank', { position: index + 1 })}
         addLabel={t('settings.playback.audio.more')}
+        noneText={t('settings.playback.audio.none')}
         error={errors?.audioLanguages}
       />
       <RadioGroup
@@ -118,6 +124,7 @@ export function PlaybackPrefsFields({ value, onChange, errors }: PlaybackPrefsFi
         onChange={(subtitleLanguages) => onChange({ ...value, subtitleLanguages })}
         rankLabel={(index) => t('settings.playback.subtitles.rank', { position: index + 1 })}
         addLabel={t('settings.playback.subtitles.more')}
+        noneText={t('settings.playback.subtitles.none')}
         error={errors?.subtitleLanguages}
       />
     </div>

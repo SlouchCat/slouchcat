@@ -3731,7 +3731,8 @@
         "legend": "Tonsprachen",
         "hint": "Ein Titel spielt in der ersten Sprache dieser Liste, die er hat. Hat er keine davon, spielt die Originalsprache.",
         "rank": "{{position}}. Tonsprache",
-        "more": "Weitere Tonsprache"
+        "more": "Weitere Tonsprache",
+        "none": "Zurzeit keine Tonsprache: Es spielt die Originalsprache."
       },
       "subtitleMode": {
         "label": "Untertitel",
@@ -3748,9 +3749,9 @@
         "legend": "Untertitelsprachen",
         "hint": "Für volle Untertitel, die erste vorhandene zuerst.",
         "rank": "{{position}}. Untertitelsprache",
-        "more": "Weitere Untertitelsprache"
+        "more": "Weitere Untertitelsprache",
+        "none": "Zurzeit keine Untertitelsprache: Es kommen nur erzwungene Untertitel."
       },
-      "none": "Zurzeit keine Sprache.",
       "limit": "Höchstens {{count}} Sprachen; entferne eine, um eine andere aufzunehmen.",
       "saved": "Gespeichert.",
       "series": {

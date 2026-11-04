@@ -165,3 +165,38 @@ test('«Meine Wiedergabe» by keyboard: languages, subtitle rule, save, series r
     await restore(page.request, before);
   }
 });
+
+// The last audio language goes too (final review stage 2, G3-M1): «Originalton immer». The focus
+// moves to «Weitere Tonsprache», the hint says the original language plays, Enter on «Speichern»
+// stores the empty list.
+test('«Meine Wiedergabe» by keyboard: removing the last audio language @keyboard', async ({
+  page,
+}) => {
+  const before = await prefsOf(page.request);
+  try {
+    await restore(page.request, { ...before, audioLanguages: ['de'] });
+    await page.goto('/settings/playback');
+    const list = audioList(page);
+    await expect(place(list, 1)).toHaveValue('de');
+    const remove = list.getByRole('button', { name: '1. Tonsprache (Deutsch) entfernen' });
+    await tabToFromTop(page, remove);
+    await page.keyboard.press('Enter');
+    await expect(list.getByRole('combobox')).toHaveCount(0);
+    await expectFocusOn(page, list.getByRole('button', { name: 'Weitere Tonsprache' }));
+    await expectVisibleFocus(page);
+    await expect(list.getByText(/Es spielt die Originalsprache/)).toBeVisible();
+
+    const save = page.getByRole('button', { name: 'Speichern' });
+    await tabToFromTop(page, save);
+    const stored = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'PUT' && response.url().endsWith('/me/playback-prefs'),
+    );
+    await page.keyboard.press('Enter');
+    expect((await stored).status()).toBe(200);
+    expect((await prefsOf(page.request)).audioLanguages).toEqual([]);
+    await expectNoFocusTrap(page, 200);
+  } finally {
+    await restore(page.request, before);
+  }
+});

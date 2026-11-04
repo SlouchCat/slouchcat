@@ -3731,7 +3731,8 @@
         "legend": "Audio languages",
         "hint": "A title plays in the first language of this list it has. If it has none of them, the original language plays.",
         "rank": "{{position}}. audio language",
-        "more": "Another audio language"
+        "more": "Another audio language",
+        "none": "No audio language at the moment: the original language plays."
       },
       "subtitleMode": {
         "label": "Subtitles",
@@ -3748,9 +3749,9 @@
         "legend": "Subtitle languages",
         "hint": "For full subtitles, the first one available first.",
         "rank": "{{position}}. subtitle language",
-        "more": "Another subtitle language"
+        "more": "Another subtitle language",
+        "none": "No subtitle language at the moment: only forced subtitles show."
       },
-      "none": "No language at the moment.",
       "limit": "At most {{count}} languages; remove one to take another.",
       "saved": "Saved.",
       "series": {

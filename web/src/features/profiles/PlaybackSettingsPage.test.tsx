@@ -92,8 +92,34 @@ describe('«Meine Wiedergabe» (concept 13 11.4)', () => {
       within(list).getByRole('button', { name: '10. Tonsprache (Chinesisch) entfernen' }),
     );
     expect(within(list).getByRole('button', { name: 'Weitere Tonsprache' })).toBeEnabled();
-    expect(within(subtitleList()).getByText(/Zurzeit keine Sprache/)).toBeVisible();
+    expect(within(subtitleList()).getByText(/Es kommen nur erzwungene Untertitel/)).toBeVisible();
     expect(screen.getByRole('radio', { name: 'Aus' })).toBeChecked();
+  });
+
+  it('empties the audio languages: «Originalton immer» (final review stage 2, G3-M1)', async () => {
+    const user = userEvent.setup();
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /me/playback-prefs': () =>
+        json({ audioLanguages: ['de'], subtitleMode: 'forced', subtitleLanguages: ['de'] }),
+      'PUT /me/playback-prefs': (call) => json(call.body),
+    });
+    renderApp('/settings/playback');
+    const list = await screen.findByRole('group', { name: 'Tonsprachen' });
+    await user.click(
+      within(list).getByRole('button', { name: '1. Tonsprache (Deutsch) entfernen' }),
+    );
+    expect(within(list).queryByRole('combobox')).toBeNull();
+    expect(within(list).getByRole('button', { name: 'Weitere Tonsprache' })).toHaveFocus();
+    expect(within(list).getByText(/Es spielt die Originalsprache/)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === 'PUT')?.body).toEqual({
+        audioLanguages: [],
+        subtitleMode: 'forced',
+        subtitleLanguages: ['de'],
+      }),
+    );
   });
 
   it('shows what the server refuses', async () => {

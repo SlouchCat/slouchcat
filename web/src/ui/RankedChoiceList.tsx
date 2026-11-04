@@ -21,9 +21,14 @@ interface RankedChoiceListProps {
   /**
    * The page's rule for a whole list («Der Standard braucht Deutsch»): a choice that would break
    * it is disabled in the select (the arrow keys skip it), and «×» is off where removing would.
-   * The last place never goes.
+   * The last place goes only with `allowEmpty`.
    */
   isAllowed?: (list: readonly string[]) => boolean;
+  /**
+   * Lets «×» remove the last place too, for a list that may be empty («Originalton immer»). Off by
+   * default: the list keeps one place (concept 12).
+   */
+  allowEmpty?: boolean;
   /** Shows the places read-only, without «×», the add button and the hint. */
   isDisabled?: boolean;
 }
@@ -47,7 +52,8 @@ export function chooseAt(list: readonly string[], index: number, next: string): 
  * was when the select got the focus, so stepping through the choices ends where a direct pick of
  * the same choice would, and the hint names only that one swap. The places keep their elements,
  * so a select keeps the focus through a swap; after adding, the new place gets the focus, after
- * removing, the place that moved up into its spot (or the one before it).
+ * removing, the place that moved up into its spot (or the one before it, or the add button when
+ * the list is empty).
  */
 export function RankedChoiceList({
   choices,
@@ -57,6 +63,7 @@ export function RankedChoiceList({
   addLabel,
   isAllowed,
   isDisabled,
+  allowEmpty = false,
 }: RankedChoiceListProps) {
   const { t } = useTranslation();
   const id = useId();
@@ -88,7 +95,7 @@ export function RankedChoiceList({
           const selectId = `${id}-${index}`;
           const from = base?.index === index ? base.list : value;
           const rest = value.filter((_, at) => at !== index);
-          const removable = value.length > 1 && allowed(rest);
+          const removable = (allowEmpty || value.length > 1) && allowed(rest);
           return (
             // A place is its position: the elements stay when the values swap.
             <li key={index} className={styles.place}>
