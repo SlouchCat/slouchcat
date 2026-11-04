@@ -1,5 +1,27 @@
 # Aktueller Stand
 
+## Teststufen, Agentenregeln und Plätze für schwere Läufe (4. November 2026)
+
+**Performance-Audit von Claude Code, OMC und CI; Marcos Antwort «A bis D umsetzen».** In der Woche
+vom 28. Oktober bis 3. November lief `task ci` lokal 48-mal (je rund 50 min), derselbe Stand wurde
+bis zu sechsmal voll geprüft (Executor, Verifier, git-master, Koordinator, CI auf PR und main), bis
+zu fünf Agenten liefen gleichzeitig mit eigenen e2e-Servern. Die OMC-Hooks starten keine Prüfungen
+(je Aufruf ≤ 0,3 s) und sind kein Engpass.
+
+- **A:** PR #81 (Konzept 13 Schritt C, schnellere CI und Tests) gemergt, `d86720d`. CI auf
+  `3c56e5f` 9,0 min statt Median 16,0 min.
+- **B–D:** PR #82 auf `claude/teststufen`: drei Teststufen (`CLAUDE.md`, `docs/dev/SETUP.md`
+  «Teststufen»), Regeln für Agenten (`CLAUDE.md` «Agenten und Prüfungen»), zwei Plätze der Maschine
+  für die ganze Go-Suite unter `-race`, e2e und Storybook (`scripts/heavy-slot.sh`, Selbsttest
+  `task heavy-slot:check`). Entscheid in `docs/planning/04-entscheidungen.md`.
+- **Beleg:** `task ci E2E_PORT=8497` auf dem fertigen Zweig grün in 9 min 32 s (Vitest 1082,
+  Storybook 323, e2e 431 in drei Shards); Go-Tests dabei aus dem Testcache des Laufs davor, dort
+  34/34 Pakete ohne Cache unter `-race`, längstes 220 s.
+- **Konzept 13** wird auf Marcos Wort ganz neu ab `main` gestartet. `claude/abspielseite-stufe1`
+  (`7accff6`, Schritte 0 bis 4) und der Worktree `agent-af47cb4bbb853b37a` (Schritt 5) bleiben
+  unangetastet liegen. Offen für die neue Session: die nicht committete checkptr-Änderung aus
+  `claude/ci-schneller` (`-gcflags='modernc.org/...=-d=checkptr=0'` in `server:test`).
+
 ## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: gemergt und auf CT 190 abgenommen (3. November 2026)
 
 **PR #76 am 3. November 2026 in `main` gemergt (`34822aa`).** Marcos Wort «Jetzt mergen» kam,

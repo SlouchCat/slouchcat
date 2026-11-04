@@ -68,10 +68,9 @@ task web:e2e:shards:check                # Selbsttest: jeder Test in genau einem
 task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufen auffrischen
 ```
 
-- `task check:fast` ersetzt `task ci` nicht; vor einem Commit eines Planschritts gilt weiter
-  `task ci`. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`); er kommt mit
-  dem Commit zur Server-Testbeschleunigung. Bis dahin bricht `task check:fast` mit «task does not
-  exist» ab, und `task web:check:fast` läuft allein.
+- `task check:fast` ersetzt `task ci` nicht. Wann welcher Lauf fällig ist, steht im Abschnitt
+  «Teststufen» weiter unten. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`):
+  `go vet` und `go test` ohne `-race` für die geänderten Pakete und ihre direkten Abnehmer.
 - `task ci:e2e:parallel` (auch in `task ci`) startet je Shard einen eigenen Server auf
   `E2E_PORT`, `+10`, `+20` … (Standard 8097) samt den Mocks auf den acht Ports darunter, mit eigenem
   Artefaktordner (`web/node_modules/.playwright-parallel/shard-<i>/`, Protokoll `run.log`) und einer
@@ -84,6 +83,49 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
 - Port 8096 gehört dem eigenen Entwicklungsserver; keine der Aufgaben benutzt ihn.
 - `SLOUCHCAT_E2E_ARTEFACTS` und `SLOUCHCAT_E2E_MEDIA` verlegen Artefakte und Testmedien eines
   einzelnen Laufs (`web/e2e/env.ts`); `ci:e2e:parallel` setzt beide selbst.
+
+## Teststufen
+
+Entscheid vom 4. November 2026 (`docs/planning/04-entscheidungen.md`). Vorher war `task ci` vor
+jedem Planschritt fällig. In der Woche vom 28. Oktober bis 3. November lief es deshalb 48-mal lokal
+(rund 50 min je Lauf), oft von mehreren Agenten gleichzeitig, und derselbe Stand wurde bis zu
+sechsmal voll geprüft. Jede Stufe prüft jetzt das, was sie wissen muss. Keine Prüfung fällt weg: Die
+CI prüft weiterhin alles.
+
+| Stufe | Wann | Was |
+|---|---|---|
+| 1. Arbeiten | nach Änderungen, vor jedem Commit eines Planschritts | `task check:fast`, dazu die Tests, die der Schritt anfasst: `go test ./internal/<paket> -run <Test>`, `task e2e:quick -- <spec>`, `task storybook:test` bei geänderten Bauteilen in `web/src/ui`. Belege (Befehl und Ausgabe) je Schritt |
+| 2. Vor dem Pull Request | einmal, auf dem fertigen Zweig, durch den Koordinator | `task ci` grün, Belege in den PR, `docs/dev/CURRENT_STATUS.md` aktualisieren |
+| 3. GitHub CI | jeder PR, jeder Commit auf main | alles (`.github/workflows/ci.yml`), Merge nur mit grünem Gate `ci` |
+
+- Nach `task ci` folgende Korrekturen brauchen kein zweites `task ci`. `task check:fast` und die
+  gezielten Tests genügen, weil die CI den neuen Stand vollständig prüft.
+- Ein Verifier oder Reviewer wiederholt keinen Lauf auf derselben Commit-SHA. Er liest die Belege und
+  prüft gezielt nach, wo er eine Lücke sieht.
+- Nach drei erfolglosen Korrekturversuchen an derselben roten Prüfung wird angehalten und gemeldet.
+  Übersprungene Tests, mehr Wiederholungen oder gelockerte Grenzen machen eine Prüfung nicht grün.
+
+### Plätze für schwere Läufe
+
+Die ganze Go-Suite unter `-race` (`task server:test`), die e2e-Läufe (`task e2e`,
+`task ci:e2e:parallel`) und die Storybook-Screenshots (`task storybook:test`, `task
+storybook:update`) laufen lokal über `scripts/heavy-slot.sh`. Auf der Maschine gibt es zwei Plätze
+für alle Worktrees zusammen. Ein dritter Lauf wartet und meldet, wer die Plätze belegt:
+
+```text
+heavy-slot: all 2 slots are taken, waiting (SLOUCHCAT_HEAVY_SLOTS, docs/dev/SETUP.md):
+  slot 1: 00:41:12 pid 81234 in /…/worktrees/a/web: pnpm exec playwright test
+```
+
+- `SLOUCHCAT_HEAVY_SLOTS=3` erlaubt drei Plätze, `0` schaltet das Warten ab. In der CI (`CI`
+  gesetzt) wird nie gewartet.
+- `task ci` wartet für jeden schweren Teil neu. Was darin schon einen Platz hält, wartet nicht ein
+  zweites Mal.
+- `task check:fast`, `task e2e:quick` und einzelne `go test`-Pakete warten nicht. Sie sind die
+  schnellen Läufe beim Arbeiten.
+- Die Sperrdateien liegen in `$XDG_RUNTIME_DIR/slouchcat-heavy/`. Sie verschwinden mit dem Prozess,
+  der sie hält, auch wenn er abgebrochen wird. Nach einem Absturz bleibt also kein Platz belegt.
+- Selbsttest: `task heavy-slot:check` (Teil von `task ci:web`).
 
 ## Schnelle und verlässliche Tests
 

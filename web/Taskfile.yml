@@ -15,6 +15,9 @@ vars:
   CI_E2E_SHARDS: "6"
   REPO:
     sh: git rev-parse --show-toplevel
+  # Heavy local runs (e2e, Storybook screenshots) wait for one of a few machine-wide slots, so
+  # parallel agents do not slow each other's runs down; CI skips the wait (scripts/heavy-slot.sh).
+  HEAVY: "{{.REPO}}/scripts/heavy-slot.sh"
   # The repository is mounted at the same path inside the container: pnpm's bin shims and
   # symlinks keep working.
   PLAYWRIGHT_DOCKER: >-
@@ -81,9 +84,9 @@ tasks:
           list="node_modules/.playwright-shards/shard-$(echo '{{.SHARD}}' | tr / -).txt"
           mkdir -p node_modules/.playwright-shards
           node e2e/shard-plan.mjs --shard '{{.SHARD}}' --out "$list" -- {{.CLI_ARGS}}
-          pnpm exec playwright test --test-list "$list" {{.CLI_ARGS}}
+          '{{.HEAVY}}' pnpm exec playwright test --test-list "$list" {{.CLI_ARGS}}
         else
-          pnpm exec playwright test {{.CLI_ARGS}}
+          '{{.HEAVY}}' pnpm exec playwright test {{.CLI_ARGS}}
         fi
 
   # `task e2e:quick` in the root builds first; this half only runs Playwright.
@@ -100,7 +103,7 @@ tasks:
     deps: [tokens]
     cmds:
       - >-
-        node e2e/parallel.mjs --shards {{.E2E_SHARDS | default "3"}}
+        '{{.HEAVY}}' node e2e/parallel.mjs --shards {{.E2E_SHARDS | default "3"}}
         --base-port {{.E2E_PORT | default "8097"}} -- {{.CLI_ARGS}}
 
   # The web half of `task check:fast`: ESLint (with its cache), stylelint and Prettier on the files
@@ -173,13 +176,13 @@ tasks:
       (maxDiffPixelRatio 0.001, A-2); runs Chromium in the Playwright Docker image
     deps: [storybook:build]
     cmds:
-      - "{{.PLAYWRIGHT_DOCKER}} node_modules/.bin/playwright test -c storybook.config.ts {{.CLI_ARGS}}"
+      - "'{{.HEAVY}}' {{.PLAYWRIGHT_DOCKER}} node_modules/.bin/playwright test -c storybook.config.ts {{.CLI_ARGS}}"
 
   storybook:update:
     desc: Rewrite the screenshot baselines after an intended visual change (review the PNG diff)
     deps: [storybook:build]
     cmds:
-      - "{{.PLAYWRIGHT_DOCKER}} node_modules/.bin/playwright test -c storybook.config.ts --update-snapshots {{.CLI_ARGS}}"
+      - "'{{.HEAVY}}' {{.PLAYWRIGHT_DOCKER}} node_modules/.bin/playwright test -c storybook.config.ts --update-snapshots {{.CLI_ARGS}}"
 
   icons:
     desc: Regenerate the PWA PNG icons in public/icons from public/icon.svg (ffmpeg)
