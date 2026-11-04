@@ -184,8 +184,13 @@ func Subtitle(tracks []model.Track, audioLanguage string, c Context, transcoding
 		}
 		if lang := Normalize(r.SubtitleLanguage); lang != "" {
 			if lang == audio {
-				if t, _ := forcedIn(tracks, lang, transcoding); t != nil {
+				// A forced track that exists only as a bitmap stands for the language here too: no
+				// full track instead of it (F-11, review step 9 m-1).
+				switch t, bitmapOnly := forcedIn(tracks, lang, transcoding); {
+				case t != nil:
 					return t, SubtitleSeries
+				case bitmapOnly:
+					return nil, SubtitleForcedBitmap
 				}
 			}
 			if t := fullIn(tracks, lang, true); t != nil {

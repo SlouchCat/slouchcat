@@ -32,6 +32,10 @@ var (
 		{ID: 21, Index: 3, Codec: "hdmv_pgs_subtitle", Language: "ger", Forced: true},
 		{ID: 22, Index: 4, Codec: "hdmv_pgs_subtitle", Language: "eng", Forced: true},
 	}
+	forcedBitmapFullText = []model.Track{
+		{ID: 41, Index: 3, Codec: "hdmv_pgs_subtitle", Language: "ger", Forced: true},
+		{ID: 42, Index: 4, Codec: "subrip", Language: "ger", Text: true},
+	}
 )
 
 func prefs(mode string, audio, subs []string) model.PlaybackPrefs {
@@ -131,6 +135,11 @@ func TestSubtitle(t *testing.T) {
 		{"series language missing falls to mode", uhdSubs, "ger", Context{Prefs: prefs(model.SubtitleModeForced, de, de), Series: &Remembered{SubtitleLanguage: "ja"}}, false, 14, SubtitleMode},
 		{"series empty language falls to mode", uhdSubs, "ger", Context{Prefs: prefs(model.SubtitleModeOff, de, de), Series: &Remembered{AudioLanguage: "de"}}, false, 0, SubtitleOff},
 		{"series forced bitmap without transcode falls to mode", episodeSubs, "ger", Context{Prefs: prefs(model.SubtitleModeForced, de, de), Series: &Remembered{SubtitleLanguage: "de"}}, false, 0, SubtitleForcedBitmap},
+		// F-11 for a remembered language: a forced bitmap in the language of the audio is not
+		// replaced by the full text track (review step 9, m-1).
+		{"series forced bitmap without transcode no full track", forcedBitmapFullText, "ger", Context{Prefs: prefs(model.SubtitleModeOff, de, de), Series: &Remembered{SubtitleLanguage: "de"}}, false, 0, SubtitleForcedBitmap},
+		{"series forced bitmap with transcode", forcedBitmapFullText, "ger", Context{Prefs: prefs(model.SubtitleModeOff, de, de), Series: &Remembered{SubtitleLanguage: "de"}}, true, 41, SubtitleSeries},
+		{"series other language full track", forcedBitmapFullText, "eng", Context{Prefs: prefs(model.SubtitleModeOff, de, de), Series: &Remembered{SubtitleLanguage: "de"}}, false, 42, SubtitleSeries},
 		{"no tracks", nil, "ger", Context{Prefs: prefs(model.SubtitleModeAlways, de, de)}, true, 0, SubtitleOff},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
