@@ -181,6 +181,28 @@ describe('video player controls (concept 13, step 3)', () => {
     });
   });
 
+  it('the mouse wheel over the picture changes the volume a step per notch, not over the bar', async () => {
+    const { video } = await start();
+    fireEvent.wheel(video, { deltaY: -100 });
+    expect(video.volume).toBe(1);
+    fireEvent.wheel(video, { deltaY: 100 });
+    fireEvent.wheel(video, { deltaY: 100 });
+    expect(video.volume).toBe(0.9);
+    expect(screen.getByRole('status')).toHaveTextContent('Lautstärke 90 %');
+    // A trackpad's small deltas add up to a notch; Firefox counts lines.
+    fireEvent.wheel(video, { deltaY: 40 });
+    fireEvent.wheel(video, { deltaY: 40 });
+    expect(video.volume).toBe(0.9);
+    fireEvent.wheel(video, { deltaY: 40 });
+    expect(video.volume).toBe(0.85);
+    fireEvent.wheel(video, { deltaY: -3, deltaMode: 1 });
+    expect(video.volume).toBe(0.9);
+    // Over the bar the wheel is not the volume's.
+    fireEvent.wheel(button('Pause'), { deltaY: 100 });
+    fireEvent.wheel(seekBar(), { deltaY: 100 });
+    expect(video.volume).toBe(0.9);
+  });
+
   it('starts at the volume stored on this device', async () => {
     localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify({ volume: 0.4 }));
     const { video } = await start();

@@ -9,13 +9,26 @@ import type {
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type WheelEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { episodeCode } from '@/features/catalog/labels';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, focusOnMount, PlayerChrome, type PlayerChromeMenu } from '@/ui/aria';
+import {
+  AriaButton,
+  focusOnMount,
+  PlayerChrome,
+  VOLUME_STEP,
+  type PlayerChromeMenu,
+} from '@/ui/aria';
 import { nextChapterStart, previousChapterStart } from './audio';
 import type { PlaybackEngine } from './capabilities';
 import { hasShortcutModifier, playerKeyAction, stepPlaybackRate } from './keymap';
@@ -47,6 +60,9 @@ export const AUTO_NEXT_SECONDS = 10;
 const ANNOUNCE_LAST_SECONDS = 3;
 /** Resume only when the position is not within the last seconds of the file. */
 const RESUME_TAIL_MS = 5000;
+/** One notch of a mouse wheel in pixels (Chromium, Firefox in pixel mode), and one line. */
+const WHEEL_NOTCH_PX = 100;
+const WHEEL_LINE_PX = 100 / 3;
 /** The skip button hides this close to the end of the intro. */
 const SKIP_TAIL_MS = 500;
 
@@ -376,6 +392,27 @@ export function VideoPlayer({
       muted ? t('player.chrome.muted') : t('player.volume', { percent: Math.round(level * 100) }),
     );
   }, [level, t, toggleElementMute]);
+
+  // Mouse wheel over the picture (V-3): one notch is one volume step. Over the bar and over a panel
+  // the wheel stays theirs (the chrome lets the pointer through to the video only in between).
+  // Trackpads send many small deltas; they add up to notches.
+  const wheel = useRef(0);
+  const onWheel = (event: WheelEvent<HTMLElement>) => {
+    // Ctrl with the wheel zooms the page.
+    if (event.target !== video.current || event.deltaY === 0 || event.ctrlKey) return;
+    const pixels =
+      event.deltaMode === 1
+        ? event.deltaY * WHEEL_LINE_PX
+        : event.deltaMode === 2
+          ? event.deltaY * WHEEL_NOTCH_PX * 8
+          : event.deltaY;
+    if (Math.sign(pixels) !== Math.sign(wheel.current)) wheel.current = 0;
+    wheel.current += pixels;
+    const notches = Math.trunc(wheel.current / WHEEL_NOTCH_PX);
+    if (notches === 0) return;
+    wheel.current -= notches * WHEEL_NOTCH_PX;
+    changeVolume(-notches * VOLUME_STEP);
+  };
 
   // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×, for this session.
   const [rate, setRate] = useState(1);
@@ -1057,6 +1094,10 @@ export function VideoPlayer({
       onPointerMove={poke}
       onPointerDown={poke}
       onFocus={poke}
+      onWheel={(event) => {
+        poke();
+        onWheel(event);
+      }}
     >
       {/* Without a text subtitle track there is nothing to caption (W-4: bitmap tracks are burned in). */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
