@@ -22,6 +22,25 @@ describe('playbackRequest', () => {
     expect(body.subtitleDelivery).toBe('auto');
   });
 
+  it('a remembered rung below 2160p is a cap, original and 2160p a quality; a choice here wins (V-17)', () => {
+    expect(playbackRequest(undefined, {}, undefined, undefined, '480p')).toMatchObject({
+      qualityCap: '480p',
+    });
+    expect(playbackRequest(undefined, {}, undefined, undefined, '480p')).not.toHaveProperty(
+      'quality',
+    );
+    expect(playbackRequest(undefined, {}, undefined, undefined, 'original').quality).toBe(
+      'original',
+    );
+    expect(playbackRequest(undefined, {}, undefined, undefined, '2160p').quality).toBe('2160p');
+    const auto = playbackRequest(undefined, {}, undefined, undefined, 'auto');
+    expect(auto).not.toHaveProperty('quality');
+    expect(auto).not.toHaveProperty('qualityCap');
+    const chosen = playbackRequest(undefined, {}, '1080p', 0, '480p');
+    expect(chosen).toMatchObject({ quality: '1080p' });
+    expect(chosen).not.toHaveProperty('qualityCap');
+  });
+
   it('«Aus» is subtitleOff, never subtitleTrack null', () => {
     const body = playbackRequest(undefined, { audioTrack: 1, subtitle: 'off' }, undefined, 1000);
     expect(body).toMatchObject({ audioTrack: 1, subtitleOff: true, positionMs: 1000 });

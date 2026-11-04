@@ -18,6 +18,7 @@ export function lowerQuality(info: PlaybackInfo): QualityOption | undefined {
     .filter(
       (option) =>
         option.quality !== 'auto' &&
+        option.quality !== 'original' &&
         option.available &&
         option.height !== undefined &&
         option.height < height,

@@ -1,6 +1,6 @@
 import type { Chapter, PlaybackInfo, QualityOption, Track } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
-import { formatPlayerTime } from '@/lib/format';
+import { formatBitrate, formatBytes, formatPlayerTime } from '@/lib/format';
 
 /**
  * The one table of language codes (review step 4, m-7): ISO 639-2 codes and the names that files
@@ -563,16 +563,50 @@ export function selectedSubtitle(info: PlaybackInfo): Track | undefined {
 }
 
 /**
- * Label of a quality option; `auto` names the rung the server picked when it says so, `original`
- * (contract 1.11.0) is a word, every other rung its name (`2160p`, `1080p`, …).
+ * Label of a quality option; `auto` says «zurzeit Original» while the server plays the file
+ * without re-encoding the video (`direct`, 11.5) and else names the rung it picked when it says so,
+ * `original` (contract 1.11.0) is a word, every other rung its name (`2160p`, `1080p`, …).
  */
 export function qualityLabel(t: TFunction, option: QualityOption, info: PlaybackInfo): string {
-  if (option.quality === 'original') return t('player.quality.original');
-  if (option.quality !== 'auto') return option.quality;
+  if (option.quality !== 'auto') return qualityName(t, option.quality);
+  if (option.direct) return t('player.quality.autoOriginal');
   const height = info.transcoding?.height;
   return height
     ? t('player.quality.autoWith', { quality: t('format.height', { height }) })
     : t('player.quality.auto');
+}
+
+/** Name of a quality: «Automatisch», «Original» or the rung (`2160p`, `1080p`, …). */
+export function qualityName(t: TFunction, quality: QualityOption['quality']): string {
+  if (quality === 'auto') return t('player.quality.auto');
+  if (quality === 'original') return t('player.quality.original');
+  return quality;
+}
+
+/**
+ * Second line of a quality option (11.5): why `original` is not available, from what the server
+ * reports about the playback (burned-in subtitles, a keyframe index still being built, any other
+ * transcode); else the bit rate and the data per hour the client estimates from it (bit/s × 3600
+ * / 8, «ca. 3,6 GB pro Stunde» for 8 Mbit/s).
+ */
+export function qualityDetail(
+  t: TFunction,
+  option: QualityOption,
+  info: PlaybackInfo,
+  language: string,
+): string | undefined {
+  if (option.quality === 'original' && !option.available) {
+    if (info.selection.subtitleDelivery === 'burn') return t('player.quality.unavailableBurn');
+    if (info.transcoding?.reason === 'keyframes_pending') {
+      return t('player.quality.unavailableIndex');
+    }
+    return t('player.quality.unavailableTranscode');
+  }
+  if (option.bitrate === undefined) return undefined;
+  return t('player.quality.detail', {
+    bitrate: formatBitrate(option.bitrate, language),
+    size: formatBytes((option.bitrate * 3600) / 8, language),
+  });
 }
 
 /** Index of the chapter that contains `ms`, or -1 before the first one. */

@@ -30,6 +30,7 @@ import { AudioPlayerPage } from './AudioPlayerPage';
 import { selectedAudio, selectedSubtitle } from './labels';
 import { baseLanguage, isCommentary } from './trackOrder';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
+import { readPlayerPrefs, rememberedQuality } from './usePlayerPrefs';
 import { NO_CARRY, VideoPlayer, type PlaybackChange, type PlayerCarry } from './VideoPlayer';
 import styles from './Player.module.css';
 
@@ -106,13 +107,16 @@ export interface TrackChoice {
 
 /**
  * Body of startPlayback: the device profile, the version and the tracks. «Aus» is `subtitleOff`,
- * never `subtitleTrack: null`, which since contract 1.11.0 lets the server choose.
+ * never `subtitleTrack: null`, which since contract 1.11.0 lets the server choose. `quality` is a
+ * choice in this player (the panel, the hint of a slow connection); without one the quality
+ * remembered on this device goes along (`rememberedQuality`, V-17).
  */
 export function playbackRequest(
   file: string | undefined,
   tracks: Omit<TrackChoice, 'file'>,
   quality: Quality | undefined,
   positionMs: number | undefined,
+  remembered?: Quality,
 ): PlaybackRequest {
   const { audioTrack, subtitle, rememberForSeries } = tracks;
   return {
@@ -123,7 +127,7 @@ export function playbackRequest(
     ...(typeof subtitle === 'number' ? { subtitleTrack: subtitle } : {}),
     ...(rememberForSeries ? { rememberForSeries: true } : {}),
     subtitleDelivery: 'auto',
-    ...(quality ? { quality } : {}),
+    ...(quality ? { quality } : rememberedQuality(remembered)),
     ...(positionMs !== undefined ? { positionMs } : {}),
   };
 }
@@ -311,7 +315,7 @@ function PlayerView({
       request(
         api.POST('/items/{id}/play', {
           params: { path: { id: itemId } },
-          body: playbackRequest(file, tracks, quality, startMs),
+          body: playbackRequest(file, tracks, quality, startMs, readPlayerPrefs().quality),
           signal,
         }),
       ),

@@ -692,7 +692,14 @@
     "quality": {
       "auto": "Automatic",
       "autoWith": "Automatic ({{quality}})",
-      "original": "Original"
+      "autoOriginal": "Automatic · currently original",
+      "original": "Original",
+      "detail": "{{bitrate}} · about {{size}} per hour",
+      "unavailableBurn": "Subtitles are burned in",
+      "unavailableIndex": "Index is being built",
+      "unavailableTranscode": "Plays only converted",
+      "remembered": "Remembered: {{quality}}",
+      "reset": "Reset"
     },
     "chapters": {
       "button": "Chapters",

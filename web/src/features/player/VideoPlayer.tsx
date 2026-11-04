@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
-import { formatBitrate, formatRuntime } from '@/lib/format';
+import { formatRuntime } from '@/lib/format';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
 import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
@@ -23,7 +23,15 @@ import { nextChapterStart, previousChapterStart, RESTART_CHAPTER_MS } from './au
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
 import { stepPlaybackRate } from './keymap';
 import { usePlayerLayout, volumeIsReadOnly } from './layout';
-import { chapterAt, languageName, qualityLabel, selectedSubtitle, trackLabel } from './labels';
+import {
+  chapterAt,
+  languageName,
+  qualityDetail,
+  qualityLabel,
+  qualityName,
+  selectedSubtitle,
+  trackLabel,
+} from './labels';
 import { SettingsPanel } from './panels/SettingsPanel';
 import { PANEL_IDS } from './panels/panelIds';
 import { usePlayerPanels } from './panels/usePlayerPanels';
@@ -826,23 +834,33 @@ export function VideoPlayer({
     (!decodableAudio.includes(track.codec) || (info.mode === 'direct' && !track.default));
   // After the server ended the playback a pick would start a new session behind the notice.
   const tracksDisabled = switching || ended !== null;
-  // The gear (11.2): the server's rung and file (rule 12); a choice starts a new session.
+  // The gear (11.2, 11.5): the server's rungs and file (rule 12); a choice starts a new session.
+  // 2160p shows only where the server offers it; original shows why it is not available.
+  const remembered = prefs.quality && prefs.quality !== 'auto' ? prefs.quality : undefined;
   const qualityChoice = {
-    options: info.qualities.map((option) => ({
-      id: option.quality,
-      label: qualityLabel(t, option, info),
-      detail: option.bitrate !== undefined ? formatBitrate(option.bitrate, language) : undefined,
-      disabled: !option.available,
-    })),
+    options: info.qualities
+      .filter((option) => option.quality !== '2160p' || option.available)
+      .map((option) => ({
+        id: option.quality,
+        label: qualityLabel(t, option, info),
+        detail: qualityDetail(t, option, info, language),
+        disabled: !option.available,
+      })),
     // The rung the server says it delivers, not the viewer's wish.
     selectedId: info.qualities.find((option) => option.current)?.quality ?? 'auto',
     // The panel closes with the choice: during the switch it would have no rungs to show, and
     // the next session is a new player.
     onSelect: (id: string) => {
       closePanel();
-      // V-17: remembered on this device, sent from stage 2 on (usePlayerPrefs).
+      // V-17: remembered on this device; the next start sends it (rememberedQuality).
       setPrefs({ quality: id as Quality });
       switchPlayback({ quality: id as Quality });
+    },
+    // V-17: «Gemerkt: 720p» with a reset that forgets it (the running session stays).
+    remembered: remembered && {
+      label: t('player.quality.remembered', { quality: qualityName(t, remembered) }),
+      resetLabel: t('player.quality.reset'),
+      onReset: () => setPrefs({ quality: undefined }),
     },
   };
   const versionChoice = {

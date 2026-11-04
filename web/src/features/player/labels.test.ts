@@ -51,6 +51,10 @@ describe('player labels', () => {
     const rung = { available: true, current: false };
     expect(qualityLabel(t, { ...rung, quality: 'original' }, playback)).toBe('Original');
     expect(qualityLabel(t, { ...rung, quality: '2160p' }, playback)).toBe('2160p');
+    // auto without re-encoding the video (direct play or remux, 11.5).
+    expect(qualityLabel(t, { ...auto, direct: true }, transcoded)).toBe(
+      'Automatisch · zurzeit Original',
+    );
   });
 
   it('finds the chapter that contains a position', () => {

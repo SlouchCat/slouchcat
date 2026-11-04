@@ -692,7 +692,14 @@
     "quality": {
       "auto": "Automatisch",
       "autoWith": "Automatisch ({{quality}})",
-      "original": "Original"
+      "autoOriginal": "Automatisch · zurzeit Original",
+      "original": "Original",
+      "detail": "{{bitrate}} · ca. {{size}} pro Stunde",
+      "unavailableBurn": "Untertitel werden eingebrannt",
+      "unavailableIndex": "Index wird erstellt",
+      "unavailableTranscode": "Nur umgewandelt abspielbar",
+      "remembered": "Gemerkt: {{quality}}",
+      "reset": "Zurücksetzen"
     },
     "chapters": {
       "button": "Kapitel",

@@ -12,7 +12,7 @@ import {
   showDetail,
 } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
-import { formatBitrate } from '@/lib/format';
+import { formatBitrate, formatBytes } from '@/lib/format';
 import { playerDriver } from '@/test/player';
 import { PAUSE_VIEW_MS } from './PauseView';
 import { STOP_WATCH_INTERVAL_MS } from './usePlaybackStopWatch';
@@ -97,6 +97,63 @@ async function start(info: PlaybackInfo = film, extra = {}) {
   await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toHaveFocus());
   return { media, video, router, calls };
 }
+
+/** A transcode of the film for `reason`; original is not available (11.5). */
+function hlsFilm(reason: NonNullable<PlaybackInfo['transcoding']>['reason']): PlaybackInfo {
+  return {
+    ...film,
+    mode: 'hls',
+    streamUrl: '/playback/sessions/ps-1/master.m3u8?st=ps-1.token',
+    transcoding: {
+      mode: 'transcode',
+      backend: 'qsv',
+      hardware: true,
+      quality: '1080p',
+      height: 1080,
+      reason,
+    },
+    qualities: [
+      {
+        quality: 'auto',
+        height: 1080,
+        bitrate: 8_000_000,
+        codec: 'h264',
+        direct: false,
+        available: true,
+        current: true,
+      },
+      {
+        quality: 'original',
+        height: 1080,
+        bitrate: 6_000_000,
+        codec: 'h264',
+        direct: true,
+        available: false,
+        current: false,
+      },
+      {
+        quality: '2160p',
+        bitrate: 25_000_000,
+        codec: 'h264',
+        direct: false,
+        available: false,
+        current: false,
+      },
+      {
+        quality: '1080p',
+        height: 1080,
+        bitrate: 8_000_000,
+        codec: 'h264',
+        direct: false,
+        available: true,
+        current: false,
+      },
+    ],
+  };
+}
+
+const plays = (calls: Call[]) =>
+  calls.filter((call) => call.method === 'POST' && call.path === `/items/${ids.alien}/play`);
 
 const region = () => screen.getByRole('main', { name: 'Videoplayer' });
 const button = (name: string | RegExp) => screen.getByRole('button', { name });
@@ -467,8 +524,9 @@ describe('video player controls (concept 13, step 3)', () => {
     key(document.body, 'q');
     const quality = await screen.findByRole('dialog', { name: 'Qualität' });
     expect(within(quality).queryByRole('button', { name: 'Zurück' })).toBeNull();
+    // The bit rate and the data per hour the client estimates from it (11.5).
     expect(within(quality).getByRole('option', { name: '1080p' })).toHaveAccessibleDescription(
-      formatBitrate(8_000_000, 'de'),
+      `${formatBitrate(8_000_000, 'de')} · ca. ${formatBytes(3_600_000_000, 'de')} pro Stunde`,
     );
     await waitFor(() =>
       expect(within(quality).getByRole('option', { selected: true })).toHaveFocus(),
@@ -840,6 +898,144 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     expect(JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY) ?? '{}')).toMatchObject({
       quality: '480p',
     });
+  });
+
+  // 11.5: the quality list with original and 2160p as the server offers them (rule 12).
+  const uhd: PlaybackInfo = {
+    ...film,
+    qualities: [
+      {
+        quality: 'auto',
+        width: 3840,
+        height: 2160,
+        bitrate: 40_000_000,
+        codec: 'hevc',
+        direct: true,
+        available: true,
+        current: true,
+      },
+      {
+        quality: 'original',
+        width: 3840,
+        height: 2160,
+        bitrate: 40_000_000,
+        codec: 'hevc',
+        direct: true,
+        available: true,
+        current: false,
+      },
+      {
+        quality: '2160p',
+        width: 3840,
+        height: 2160,
+        bitrate: 40_000_000,
+        codec: 'hevc',
+        direct: true,
+        available: true,
+        current: false,
+      },
+      {
+        quality: '1080p',
+        width: 1920,
+        height: 1080,
+        bitrate: 8_000_000,
+        codec: 'h264',
+        direct: false,
+        available: true,
+        current: false,
+      },
+      {
+        quality: '720p',
+        width: 1280,
+        height: 720,
+        bitrate: 4_000_000,
+        codec: 'h264',
+        direct: false,
+        available: true,
+        current: false,
+      },
+    ],
+  };
+
+  it('lists original and an offered 2160p, says «zurzeit Original» and the data per hour', async () => {
+    await start(uhd);
+    const player = playerDriver();
+    expect(await player.current('quality')).toBe('Automatisch · zurzeit Original');
+    key(document.body, 'q');
+    const list = await player.findList('quality');
+    const rows = player.options(list);
+    expect(rows).toHaveLength(5);
+    ['Automatisch · zurzeit Original', 'Original', '2160p', '1080p', '720p'].forEach((name, i) =>
+      expect(rows[i]).toHaveAccessibleName(name),
+    );
+    player.expectAvailable(player.option(list, 'Original'));
+    expect(player.option(list, '2160p')).toHaveAccessibleDescription(
+      `${formatBitrate(40_000_000, 'de')} · ca. ${formatBytes(18_000_000_000, 'de')} pro Stunde`,
+    );
+    expect(player.option(list, '720p')).toHaveAccessibleDescription(
+      `${formatBitrate(4_000_000, 'de')} · ca. ${formatBytes(1_800_000_000, 'de')} pro Stunde`,
+    );
+  });
+
+  it('hides a 2160p the server does not offer and says why original is not available', async () => {
+    const burned: PlaybackInfo = {
+      ...hlsFilm('subtitle_burn'),
+      selection: { audioTrack: 1, subtitleTrack: 22, subtitleDelivery: 'burn' },
+    };
+    await start(burned);
+    const player = playerDriver();
+    key(document.body, 'q');
+    const list = await player.findList('quality');
+    expect(within(list).queryByRole('option', { name: '2160p' })).toBeNull();
+    const original = player.option(list, 'Original');
+    player.expectUnavailable(original);
+    expect(original).toHaveAccessibleDescription('Untertitel werden eingebrannt');
+  });
+
+  it.each([
+    ['keyframes_pending', 'Index wird erstellt'],
+    ['video_codec', 'Nur umgewandelt abspielbar'],
+  ] as const)('names why original is not available: %s', async (reason, text) => {
+    await start(hlsFilm(reason));
+    const player = playerDriver();
+    key(document.body, 'q');
+    const original = player.option(await player.findList('quality'), 'Original');
+    player.expectUnavailable(original);
+    expect(original).toHaveAccessibleDescription(text);
+  });
+
+  it('shows the remembered rung with a reset that forgets it, without a new session', async () => {
+    const { calls } = await start(uhd);
+    const player = playerDriver();
+    await player.chooseQuality('720p');
+    expect(JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY) ?? '{}')).toMatchObject({
+      quality: '720p',
+    });
+    await waitFor(() => expect(plays(calls)).toHaveLength(2));
+    expect(plays(calls)[1]?.body).toMatchObject({ quality: '720p' });
+    key(document.body, 'q');
+    const panel = await screen.findByRole('dialog', { name: 'Qualität' });
+    expect(within(panel).getByText('Gemerkt: 720p')).toBeVisible();
+    await player.user.click(within(panel).getByRole('button', { name: 'Zurücksetzen' }));
+    expect(JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY) ?? '{}')).not.toHaveProperty(
+      'quality',
+    );
+    expect(within(panel).queryByText('Gemerkt: 720p')).toBeNull();
+    // The focus stays in the panel, on the chosen row.
+    expect(within(panel).getByRole('option', { selected: true })).toHaveFocus();
+    expect(plays(calls)).toHaveLength(2);
+  });
+
+  it.each([
+    ['720p', { qualityCap: '720p' }, 'quality'],
+    ['1080p', { qualityCap: '1080p' }, 'quality'],
+    ['original', { quality: 'original' }, 'qualityCap'],
+    ['2160p', { quality: '2160p' }, 'qualityCap'],
+  ] as const)('a remembered %s starts as %o', async (remembered, sent, absent) => {
+    localStorage.setItem(PLAYER_PREFS_KEY, JSON.stringify({ quality: remembered }));
+    const { calls } = await start(uhd);
+    expect(plays(calls)[0]?.body).toMatchObject(sent);
+    expect(plays(calls)[0]?.body).not.toHaveProperty(absent);
   });
 
   describe('on a phone', () => {

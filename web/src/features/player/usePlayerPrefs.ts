@@ -1,4 +1,4 @@
-import type { Quality } from '@slouchcat/api-client';
+import type { PlaybackRequest, Quality } from '@slouchcat/api-client';
 import { useCallback, useState } from 'react';
 
 /** localStorage key of the player's settings on this device. */
@@ -14,14 +14,42 @@ export interface PlayerPrefs {
   /** The time above the timeline: elapsed and total, or remaining and the end time (V-4). */
   timeDisplay?: 'elapsed' | 'remaining';
   /**
-   * The rung last chosen in the quality panel on this device (V-17, 11.5), never one taken after
-   * the hint of a slow connection (V-18). Stage 1 only remembers it; stage 2 sends a rung below
-   * 2160p as `qualityCap` when the player starts, and the server keeps deciding (rule 12).
+   * The quality last chosen in the quality panel on this device (V-17, 11.5), never one taken
+   * after the hint of a slow connection (V-18). A start sends it with `rememberedQuality`, and the
+   * server keeps deciding (rule 12).
    */
   quality?: Quality;
 }
 
-const QUALITIES: readonly Quality[] = ['auto', '1080p', '720p', '480p', '360p'];
+const QUALITIES: readonly Quality[] = [
+  'auto',
+  'original',
+  '2160p',
+  '1080p',
+  '720p',
+  '480p',
+  '360p',
+];
+
+/**
+ * The fields of startPlayback for the quality remembered on this device (V-17, 11.5): a rung below
+ * 2160p caps the output (`qualityCap`: a file within it still plays directly), original and 2160p
+ * go as `quality`, auto as nothing.
+ */
+export function rememberedQuality(
+  quality: Quality | undefined,
+): Pick<PlaybackRequest, 'quality' | 'qualityCap'> {
+  switch (quality) {
+    case undefined:
+    case 'auto':
+      return {};
+    case 'original':
+    case '2160p':
+      return { quality };
+    default:
+      return { qualityCap: quality };
+  }
+}
 
 /** The stored settings; empty without storage (private window, blocked site data) or for junk. */
 export function readPlayerPrefs(): PlayerPrefs {

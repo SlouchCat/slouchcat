@@ -36,6 +36,7 @@ export type PlaybackInfo = components['schemas']['PlaybackInfo'];
 export type PlaybackSessionState = components['schemas']['PlaybackSessionState'];
 export type PlaybackRequest = components['schemas']['PlaybackRequest'];
 export type Quality = components['schemas']['Quality'];
+export type QualityCap = components['schemas']['QualityCap'];
 export type QualityOption = components['schemas']['QualityOption'];
 export type Track = components['schemas']['Track'];
 export type TrackList = components['schemas']['TrackList'];

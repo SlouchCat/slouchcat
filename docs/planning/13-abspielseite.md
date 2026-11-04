@@ -840,6 +840,21 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   - Bei «Immer» und «Fremdsprache» geht eine volle Bildspur einer SDH-Textspur derselben Sprache
     vor, wie in 11.3 (Marcos Entscheid vom 4. November 2026), auch wenn das Einbrennen eine sonst
     direkt spielbare Datei umwandelt.
+- **Stufe 2, Schritt 11** (4. November 2026, Vertrag 1.11.0, ADR 0021 mit Nachträgen):
+  - `qualityCap` hat ein eigenes Enum `QualityCap` (1080p bis 360p, Review 7 m-3). Zusammen mit
+    einer anderen `quality` als `auto` gilt `quality`.
+  - Ein gewähltes 2160p, das nicht geht, läuft auf 1080p; ein `original`, das nicht geht, als
+    `auto` (11.5 (c)). Beides ohne Fehler.
+  - Bei vollem Budget sinkt 2160p auf 1080p, auch bei Tonemapping auf der GPU.
+  - Neu verhält sich 1080p auf einer 4K-Quelle wie jede Stufe unter der Quelle: Transcode, auch
+    wo das Gerät die 4K-Datei direkt spielt. Bisher spielte sie direkt, weil die Leiter bei 1080p
+    endete.
+  - Eine 4K-Quelle hat mindestens 2160 Zeilen oder 3840 Pixel Breite (Marcos Entscheid zum
+    Breitbild); das H.264-Level folgt Bildgrösse und Bildrate.
+  - Der Grund für ein nicht verfügbares `original` steht nicht im Vertrag. Der Client leitet ihn
+    aus der laufenden Wiedergabe ab: eingebrannte Untertitel, Grund `keyframes_pending`, sonst
+    «Nur umgewandelt abspielbar».
+  - «Zurücksetzen» vergisst die gemerkte Stufe, ohne die laufende Wiedergabe neu zu starten.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 

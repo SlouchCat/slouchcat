@@ -84,6 +84,7 @@ export interface PlaybackRequestData {
   rememberForSeries?: boolean;
   subtitleDelivery?: string;
   quality?: string;
+  qualityCap?: string;
   positionMs?: number;
   capabilities: {
     containers?: string[];
