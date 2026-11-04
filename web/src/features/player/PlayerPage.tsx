@@ -4,6 +4,7 @@ import type {
   PlaybackInfo,
   PlaybackRequest,
   Quality,
+  Track,
 } from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi, useRouter } from '@tanstack/react-router';
@@ -27,7 +28,7 @@ import {
 } from './capabilities';
 import { AudioPlayerPage } from './AudioPlayerPage';
 import { selectedAudio, selectedSubtitle } from './labels';
-import { baseLanguage } from './trackOrder';
+import { baseLanguage, isCommentary } from './trackOrder';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { NO_CARRY, VideoPlayer, type PlaybackChange, type PlayerCarry } from './VideoPlayer';
 import styles from './Player.module.css';
@@ -147,6 +148,22 @@ export function switchTracks(
 }
 
 /**
+ * The first matching track in the order the server prefers within a language (review step 9, m-3,
+ * as trackpick's audioIn and pick): not a commentary, then text before bitmap, then the default
+ * one, then the file's order. Only an order: the server still decides what plays (rule 12).
+ */
+function best(tracks: readonly Track[] | undefined, match: (track: Track) => boolean) {
+  return tracks
+    ?.filter(match)
+    .sort(
+      (a, b) =>
+        Number(isCommentary(a)) - Number(isCommentary(b)) ||
+        Number(b.text) - Number(a.text) ||
+        Number(b.default) - Number(a.default),
+    )[0];
+}
+
+/**
  * The tracks of a version switch (B-5, 11.3): ids and stream indexes belong to one file, so the
  * running tracks are looked up in the other version by language (and forced); what it lacks the
  * server chooses. «Aus» stays off.
@@ -159,14 +176,16 @@ export function versionTracks(
   const subtitle = selectedSubtitle(info);
   const other = version?.tracks;
   const audioTrack = audio
-    ? other?.audio.find(
+    ? best(
+        other?.audio,
         (track) =>
           baseLanguage(track.language) !== undefined &&
           baseLanguage(track.language) === baseLanguage(audio.language),
       )?.index
     : undefined;
   const subtitleId = subtitle
-    ? other?.subtitles.find(
+    ? best(
+        other?.subtitles,
         (track) =>
           track.forced === subtitle.forced &&
           baseLanguage(track.language) !== undefined &&

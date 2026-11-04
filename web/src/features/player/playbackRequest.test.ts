@@ -114,6 +114,47 @@ describe('versionTracks', () => {
     expect(versionTracks(withoutSubtitle, other)).toEqual({ audioTrack: 3, subtitle: 'off' });
   });
 
+  it('within the language: no commentary, text before bitmap, the default one (review step 9, m-3)', () => {
+    const audio = alienTracks.audio[0]!;
+    const subtitle = alienTracks.subtitles[0]!;
+    const many: MediaFileInfo = {
+      ...other,
+      tracks: {
+        mediaFileId: 'mf-2',
+        audio: [
+          { ...audio, id: 51, index: 1, language: 'ger', title: 'Kommentar', default: true },
+          { ...audio, id: 52, index: 2, language: 'ger', default: false },
+          { ...audio, id: 53, index: 3, language: 'deu', default: true },
+        ],
+        subtitles: [
+          { ...subtitle, id: 61, language: 'de', text: false, default: false, forced: false },
+          { ...subtitle, id: 62, language: 'de', text: true, default: false, forced: false },
+          { ...subtitle, id: 63, language: 'de', text: false, default: true, forced: false },
+        ],
+      },
+    };
+    const german: PlaybackInfo = {
+      ...playback,
+      tracks: {
+        ...playback.tracks,
+        subtitles: [{ ...subtitle, id: 21, language: 'de', forced: false }],
+      },
+      selection: { audioTrack: 1, subtitleTrack: 21, subtitleDelivery: 'text' },
+    };
+    expect(versionTracks(german, many)).toEqual({ audioTrack: 3, subtitle: 62 });
+    const texts: MediaFileInfo = {
+      ...many,
+      tracks: {
+        ...many.tracks!,
+        subtitles: [
+          { ...subtitle, id: 64, language: 'de', text: true, default: false, forced: false },
+          { ...subtitle, id: 65, language: 'de', text: true, default: true, forced: false },
+        ],
+      },
+    };
+    expect(versionTracks(german, texts)).toMatchObject({ subtitle: 65 });
+  });
+
   it('leaves to the server what the other version lacks', () => {
     const bare: MediaFileInfo = {
       ...other,

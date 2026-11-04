@@ -60,6 +60,14 @@ export function orderTracks(
   return { mine, more };
 }
 
+/** Titles that name a commentary track; the server knows the same (commentaryRe in trackpick). */
+const COMMENTARY = /commentary|kommentar/i;
+
+/** Whether a track is a commentary, by its title. */
+export function isCommentary(track: Track): boolean {
+  return track.title !== undefined && COMMENTARY.test(track.title);
+}
+
 /** Titles that name a subtitle for the deaf and hard of hearing. */
 const SDH = /\b(sdh|cc)\b|hearing|hörgeschädigt|gehörlos/i;
 
