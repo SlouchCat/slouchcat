@@ -703,14 +703,16 @@ type Segments struct {
 }
 
 // Quality rungs of the ladder (W-8, plan 3.5). QualityAuto picks the highest allowed rung up to
-// 1080p; Quality2160 is only an explicit choice on a hardware backend (ADR 0021).
+// 1080p; Quality2160 is only an explicit choice on a hardware backend (ADR 0021). QualityOriginal
+// is no rung: the video is never re-encoded (direct play or remux, concept 13 11.5).
 const (
-	QualityAuto = "auto"
-	Quality2160 = "2160p"
-	Quality1080 = "1080p"
-	Quality720  = "720p"
-	Quality480  = "480p"
-	Quality360  = "360p"
+	QualityAuto     = "auto"
+	QualityOriginal = "original"
+	Quality2160     = "2160p"
+	Quality1080     = "1080p"
+	Quality720      = "720p"
+	Quality480      = "480p"
+	Quality360      = "360p"
 )
 
 // QualityOption is one rung of the ladder as offered to the player.
@@ -718,7 +720,9 @@ type QualityOption struct {
 	Quality   string
 	Width     int
 	Height    int
-	Bitrate   int // peak video bit rate in bit/s
+	Bitrate   int    // peak video bit rate in bit/s
+	Codec     string // video codec of the output (ffprobe name), empty when unknown
+	Direct    bool   // the video is not re-encoded (direct play or remux)
 	Available bool
 	Current   bool
 }

@@ -85,6 +85,9 @@ type HLSSession interface {
 type Transcoder interface {
 	// Backend names the encoder backend of transcodes: nvenc, qsv, vaapi or software.
 	Backend() string
+	// Capabilities describes the transcode host (backend, GPU tonemapping): Decide offers 2160p
+	// from it, and the targets of the Transcoder carry the same values.
+	Capabilities() transcode.Capabilities
 	// Start admits and starts the output; it returns model.ErrTranscodeBusy when the budget stays
 	// exhausted and ErrNoKeyframes for a remux without a keyframe index.
 	Start(ctx context.Context, req HLSRequest) (HLSSession, error)
@@ -173,11 +176,12 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	defer slot.release()
 	caps := normalizeCapabilities(req.Capabilities)
 	dreq.Caps, dreq.Limits, dreq.Quality, dreq.MultiPart = caps, limits, req.Quality, in.multiPart()
+	dreq.QualityCap, dreq.Host = req.QualityCap, s.host()
 
 	file := in.file()
 	file.MimeType = MimeType(file.Container, file.VideoCodec, file.AudioCodec)
 	file.Bitrate, file.HDR = probeDetails(probe)
-	src := newSource(file, probe, limits, caps)
+	src := newSource(file, probe, limits, caps, dreq.Host)
 	audioReason, subtitleReason := chooseTracks(&dreq, req, tracks, choice, audioTitle, file, probe)
 	d := Decide(file, probe, dreq)
 	// The file's default track: what direct play without a probe and the fallback below play.
@@ -316,7 +320,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		Tracks:            tracks,
 		Selection: model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery,
 			AudioReason: audioReason, SubtitleReason: subtitleReason},
-		Qualities:   QualityOptions(d, src.w, src.h, limits, caps, req.Quality),
+		Qualities:   QualityOptions(d, src, originalAvailable(d, file, probe, dreq), req.Quality),
 		Chapters:    bookChapters,
 		WatchTime:   watch,
 		Device:      device,
@@ -485,14 +489,13 @@ func validateRequest(req model.PlaybackRequest) error {
 	if len(req.DeviceID) > maxClientIDLength {
 		verr = verr.Add("deviceId", "too_long")
 	}
-	// original and 2160p are values of the contract the ladder has no rung for; like any unknown
-	// value they are refused, so a start never plays something else than the rung it asked for.
+	// auto, original and every rung of the ladder (2160p included); an original or 2160p that the
+	// file or the host cannot play runs as auto or 1080p (Decide), not as an error.
 	if !validQuality(req.Quality) {
 		verr = verr.Add("quality", "invalid_value")
 	}
-	// The playback knows no device cap of a remembered rung (V-17), so a cap is refused instead of
-	// being exceeded.
-	if req.QualityCap != "" {
+	// A remembered cap (V-17) is a rung below 2160p (contract QualityCap).
+	if !validQualityCap(req.QualityCap) {
 		verr = verr.Add("qualityCap", "invalid_value")
 	}
 	if req.SubtitleOff && req.SubtitleTrack != 0 {
@@ -573,41 +576,51 @@ func directFallback(d Decision, defAudio int) Decision {
 // source is what the fallbacks after Decide need about the file and the client: a remux whose
 // keyframe index is missing and a transcode the budget lowers are decided again from it.
 type source struct {
-	file   model.MediaFile
-	probe  *transcode.Probe
-	w, h   int
-	limits model.PlaybackLimits
-	caps   model.PlaybackCapabilities
+	file    model.MediaFile
+	probe   *transcode.Probe
+	w, h    int
+	bitrate int // bit rate of the file in bit/s (file, else probe), 0 unknown
+	limits  model.PlaybackLimits
+	caps    model.PlaybackCapabilities
+	uhd     bool // the 2160p rung is allowed (uhdAllowed on the transcode host)
 }
 
-func newSource(file model.MediaFile, probe *transcode.Probe, limits model.PlaybackLimits, caps model.PlaybackCapabilities) source {
-	src := source{file: file, probe: probe, w: file.Width, h: file.Height, limits: limits, caps: caps}
-	if v := mainVideo(probe); v != nil && v.Height > 0 {
+func newSource(file model.MediaFile, probe *transcode.Probe, limits model.PlaybackLimits, caps model.PlaybackCapabilities,
+	host transcode.Capabilities,
+) source {
+	src := source{file: file, probe: probe, w: file.Width, h: file.Height, bitrate: int(file.Bitrate), limits: limits, caps: caps}
+	v := mainVideo(probe)
+	if v != nil && v.Height > 0 {
 		src.w, src.h = v.Width, v.Height
 	}
+	if src.bitrate == 0 && probe != nil {
+		src.bitrate = int(probe.Format.BitRate)
+	}
+	src.uhd = uhdAllowed(host, v, limits, caps)
 	return src
 }
 
 // transcode turns d into a transcode on its rung (a transcode) or on the highest rung the source
-// and the limits allow (a remux), tonemapped for HDR sources; AAC audio stays copied.
+// and the limits allow up to 1080p (a remux, also of original: it then plays as auto, concept 13
+// 11.5 (a)), tonemapped for HDR sources; AAC audio stays copied.
 func (src source) transcode(d Decision, reason string) Decision {
 	audio := strings.ToLower(src.file.AudioCodec)
 	if a := audioStream(src.probe, d.AudioStream); a != nil {
 		audio = strings.ToLower(a.Codec)
 	}
-	from := sourceTop(src.h)
+	from := max(sourceTop(src.h), autoTop)
 	if i := rungIndex(d.Quality); i >= 0 {
 		from = i
 	}
 	audioCopy := audio == "aac" && slices.Contains(src.caps.Audio, audio)
-	return transcodeOn(d, pickRung(from, src.limits, deviceCap(src.caps)), reason, isHDR(mainVideo(src.probe)), audioCopy, src.w, src.h, src.limits)
+	return transcodeOn(d, pickRung(from, src.limits, heightCap(src.caps, src.uhd)), reason, isHDR(mainVideo(src.probe)), audioCopy, src.w, src.h, src.limits)
 }
 
 // startHLS starts the output of req. A remux the transcoder rejects for a missing keyframe index
 // (a safety net behind prepare) is transcoded instead and the index job is queued at top priority.
-// An exhausted budget lowers an SDR transcode above 720p once to the 720p rung when that costs
-// less budget (plan 3.5, budget_lowered); HDR and 4K sources and lower rungs answer
-// model.ErrTranscodeBusy at once. It returns the output
+// An exhausted budget lowers a transcode once (lowered: 2160p to 1080p, an SDR 1080p to 720p) when
+// that costs less budget (plan 3.5, budget_lowered, cost on the transcode host); other HDR and
+// 4K transcodes and lower rungs answer model.ErrTranscodeBusy at once. It returns the output
 // and the decision that runs.
 func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HLSSession, Decision, error) {
 	hs, err := s.tc.Start(ctx, *req)
@@ -618,7 +631,7 @@ func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HL
 		hs, err = s.tc.Start(ctx, *req)
 	}
 	if errors.Is(err, model.ErrTranscodeBusy) {
-		if low, ok := lowered(req.Decision, src.w, src.h, src.limits); ok && cheaper(*req, low) {
+		if low, ok := lowered(req.Decision, src.w, src.h, src.limits); ok && cheaper(*req, low, s.host()) {
 			s.log.InfoContext(ctx, "transcode budget exhausted, trying one rung lower", "playback_id", req.ID,
 				"from", req.Decision.Quality, "to", low.Quality)
 			req.Decision = low
@@ -629,11 +642,12 @@ func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HL
 }
 
 // cheaper reports whether the decision low costs less transcode budget than the decision of req
-// (transcode.Cost): a 4K source costs the same on every rung, so lowering it only waits again.
-func cheaper(req HLSRequest, low Decision) bool {
+// (transcode.Cost on the transcode host): a 4K source costs the same on every rung up to 1080p,
+// so lowering it only waits again; 2160p (5) to 1080p saves.
+func cheaper(req HLSRequest, low Decision, host transcode.Capabilities) bool {
 	lowReq := req
 	lowReq.Decision = low
-	return transcode.Cost(hlsSource(lowReq), hlsTarget(lowReq)) < transcode.Cost(hlsSource(req), hlsTarget(req))
+	return transcode.Cost(hlsSource(lowReq), hlsTarget(lowReq, host)) < transcode.Cost(hlsSource(req), hlsTarget(req, host))
 }
 
 // storedProbe reads the stored probe and keyframe blob of a media file; probe is nil when the file
@@ -927,9 +941,10 @@ func recordedLimits(row appq.PlaybackSession) model.PlaybackLimits {
 }
 
 // recordedDecision decides an HLS playback again from its row: the stored capabilities (the
-// defaults for a row without), quality rung, audio track and subtitle track with its delivery. A
-// recorded transcode stays one; a decision that turns out direct (it cannot, with the same input)
-// is transcoded, because the client fetches HLS.
+// defaults for a row without), quality (a rung, auto or original: a recorded original remux stays
+// an original remux, concept 13 11.5 (d)), audio track and subtitle track with its delivery on the
+// transcode host. A recorded transcode stays one; a decision that turns out direct (it cannot,
+// with the same input) is transcoded, because the client fetches HLS.
 func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, in input, probe *transcode.Probe,
 	row appq.PlaybackSession, limits model.PlaybackLimits,
 ) (source, Decision, error) {
@@ -943,7 +958,7 @@ func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, 
 	}
 	caps := normalizeCapabilities(reported)
 	req := Request{Caps: caps, Limits: limits, AudioStream: -1, Quality: row.Quality.String, Delivery: row.SubtitleDelivery.String,
-		ForceTranscode: row.Mode == ModeTranscode, MultiPart: in.multiPart()}
+		ForceTranscode: row.Mode == ModeTranscode, MultiPart: in.multiPart(), Host: s.host()}
 	if row.AudioTrack.Valid {
 		req.AudioStream = int(row.AudioTrack.Int64)
 	}
@@ -957,7 +972,7 @@ func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, 
 		}
 	}
 	file := in.file()
-	src := newSource(file, probe, limits, caps)
+	src := newSource(file, probe, limits, caps, req.Host)
 	d := Decide(file, probe, req)
 	if d.Mode == ModeDirect {
 		d = src.transcode(d, row.Reason.String)

@@ -117,24 +117,31 @@ func TestHTTPPlaybackPrefs(t *testing.T) {
 	}
 }
 
-// The new fields of PlaybackRequest (contract 1.11.0) over HTTP: original and 2160p have no rung
-// and a remembered cap has no effect in the playback yet, so all three are refused instead of
-// played as something else; subtitleOff together with a subtitle track is a contradiction;
-// subtitleOff and rememberForSeries alone start without subtitles.
+// The new fields of PlaybackRequest (contract 1.11.0) over HTTP: original, 2160p and a
+// remembered cap below 2160p start a playback (concept 13 11.5); a cap of auto, original or 2160p
+// and an unknown quality are refused; subtitleOff together with a subtitle track is a
+// contradiction; subtitleOff and rememberForSeries alone start without subtitles.
 func TestHTTPPlaybackRequestFields(t *testing.T) {
 	pf := newProfileFixture(t)
 	f, h := pf.f, pf.h
 	film := f.Rated(6).ID
 	text := pf.tracks[f.Rated(6).FileID].Text
 	for body, want := range map[string]string{
-		`{"quality":"original"}`: "quality invalid_value",
-		`{"quality":"2160p"}`:    "quality invalid_value",
-		`{"qualityCap":"720p"}`:  "qualityCap invalid_value",
+		`{"qualityCap":"2160p"}`:    "qualityCap invalid_value",
+		`{"qualityCap":"original"}`: "qualityCap invalid_value",
+		`{"qualityCap":"auto"}`:     "qualityCap invalid_value",
+		`{"quality":"4k"}`:          "quality invalid_value",
 		`{"subtitleOff":true,"subtitleTrack":` + strconv.FormatInt(text, 10) + `}`: "subtitleOff not_allowed",
 	} {
 		_, code, p := play(t, h, "p6", film, body)
 		if code != http.StatusUnprocessableEntity || len(p.Errors) != 1 || p.Errors[0].Field+" "+p.Errors[0].Code != want {
 			t.Errorf("play %s: %d %+v, want %s", body, code, p, want)
+		}
+	}
+	for _, body := range []string{`{"quality":"original"}`, `{"quality":"2160p"}`, `{"qualityCap":"720p"}`, `{"quality":"original","qualityCap":"480p"}`} {
+		info, code, p := play(t, h, "p6", film, body)
+		if code != http.StatusOK || len(info.Qualities) == 0 {
+			t.Errorf("play %s: %d %+v %+v", body, code, info, p)
 		}
 	}
 	info, code, p := play(t, h, "p6", film, `{"subtitleOff":true,"rememberForSeries":true,"capabilities":`+chromeCaps+`}`)

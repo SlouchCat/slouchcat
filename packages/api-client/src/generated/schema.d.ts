@@ -4496,11 +4496,14 @@ export interface components {
             subtitleDelivery: "auto" | "text" | "burn";
             quality?: components["schemas"]["Quality"];
             /**
-             * @description A quality the device remembered (V-17, since contract 1.11.0): it caps the output like a
-             *     device limit, and a file within the cap still plays directly (unlike `quality`, which always
-             *     transcodes to the rung). `auto` and `original` are no caps and go as `quality`.
+             * @description A rung below 2160p the device remembered from the quality panel (V-17, since contract
+             *     1.11.0): it caps the output like a device limit. A file within the cap still plays directly
+             *     or as a remux, a file above it is transcoded to the cap (reason `quality`); the playback
+             *     counts as `auto` (`QualityOption.current`). `auto`, `original` and `2160p` are no caps and
+             *     go as `quality`. Together with a `quality` other than `auto`, `quality` applies and the cap
+             *     is ignored.
              */
-            qualityCap?: components["schemas"]["Quality"];
+            qualityCap?: components["schemas"]["QualityCap"];
             /**
              * Format: int64
              * @description Start position instead of the stored resume position (a track or quality switch restarts the
@@ -4514,16 +4517,24 @@ export interface components {
          */
         TrackID: number;
         /**
-         * @description Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
-         *     a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
-         *     (video) plus 160 kbit/s AAC. Since contract 1.11.0 (concept 13 11.5, F-8, F-14): `original` never
-         *     re-encodes the video (direct play or remux; the audio may be converted) and is unavailable where
-         *     that is impossible; `2160p` (25 Mbit/s) only on a hardware backend, from a source of at least 2160
-         *     lines, a device of at least 1440 lines, a profile that allows 2160 and an SDR source or tone
-         *     mapping on the GPU. `auto` never chooses 2160p.
+         * @description Quality rung (W-8). `auto` = the highest rung up to 1080p the source, the device and the profile's
+         *     limits allow; a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2,
+         *     360p 1 (video) plus 160 kbit/s AAC. Since contract 1.11.0 (concept 13 11.5, F-8, F-14): `original`
+         *     never re-encodes the video (direct play or remux; the audio may be converted) and is unavailable
+         *     where that is impossible (burned-in subtitles, a remux whose keyframe index is still being built,
+         *     a video the device cannot play without a transcode); a requested `original` that is unavailable
+         *     plays as `auto` without an error. `2160p` (25 Mbit/s) only on a hardware backend, from a 4K source
+         *     (at least 2160 lines or at least 3840 pixels wide), a device of at least 1440 lines, a profile
+         *     that allows 2160 and an SDR source or tone mapping on the GPU; a requested `2160p` that is
+         *     unavailable plays on the next lower rung the limits allow. `auto` never chooses 2160p.
          * @enum {string}
          */
         Quality: "auto" | "original" | "2160p" | "1080p" | "720p" | "480p" | "360p";
+        /**
+         * @description A remembered rung below 2160p (`PlaybackRequest.qualityCap`, V-17, since contract 1.11.0).
+         * @enum {string}
+         */
+        QualityCap: "1080p" | "720p" | "480p" | "360p";
         /**
          * @description The device's capability profile (W-7): what it plays, from `canPlayType` /
          *     `MediaSource.isTypeSupported`, its screen and HDR support. The server stores it with the device
@@ -4614,14 +4625,29 @@ export interface components {
             quality: components["schemas"]["Quality"];
             width?: number;
             height?: number;
-            /** @description Peak video bit rate of the rung in bit/s (the source bit rate for `auto` without transcode). */
+            /**
+             * @description Peak video bit rate of the rung in bit/s; the source bit rate for `auto` without transcode, for
+             *     `original` and for a `direct` rung (since contract 1.11.0). The client estimates the data per
+             *     hour from it.
+             */
             bitrate?: number;
             /** @description Video codec of the output, ffprobe name (`h264`, `hevc`; since contract 1.11.0). */
             codec?: string;
-            /** @description The rung plays the file without re-encoding the video (direct play or remux; since contract 1.11.0). */
+            /**
+             * @description The rung plays the file without re-encoding the video (direct play or remux; since contract
+             *     1.11.0): `auto` when it runs so, `original` always, a rung when it is the source's rung and
+             *     `original` is available.
+             */
             direct?: boolean;
-            /** @description False when the source, the device or the profile's limits rule the rung out. */
+            /**
+             * @description False when the source, the device or the profile's limits rule the rung out; for `original`
+             *     when the video would be re-encoded (see `Quality`).
+             */
             available: boolean;
+            /**
+             * @description What the client asked for: `auto` (also with a `qualityCap` and for an unavailable `original`),
+             *     `original` when it plays, else the rung that runs.
+             */
             current: boolean;
         };
         Chapter: {

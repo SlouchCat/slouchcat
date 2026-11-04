@@ -18,26 +18,31 @@ import (
 // decision into a transcode target and plan, maps the manager's errors to model errors and renders
 // the master playlist with the codecs of the plan.
 type ManagerTranscoder struct {
-	m       *transcode.Manager
-	backend transcode.Backend
+	m    *transcode.Manager
+	caps transcode.Capabilities // m.Capabilities(): the backend and tonemapper of every target
 
 	mu       sync.Mutex
 	sessions map[string]*managerSession
 }
 
-// NewManagerTranscoder returns the Transcoder over m; backend is the one transcode.Detect chose.
-func NewManagerTranscoder(m *transcode.Manager, backend transcode.Backend) *ManagerTranscoder {
-	return &ManagerTranscoder{m: m, backend: backend, sessions: map[string]*managerSession{}}
+// NewManagerTranscoder returns the Transcoder over m. Its targets carry the backend and the GPU
+// tonemapping of the manager (transcode.Manager.Capabilities), so a plan never assumes another
+// host than the one that encodes it.
+func NewManagerTranscoder(m *transcode.Manager) *ManagerTranscoder {
+	return &ManagerTranscoder{m: m, caps: m.Capabilities(), sessions: map[string]*managerSession{}}
 }
 
 // Backend names the encoder backend of transcodes.
-func (t *ManagerTranscoder) Backend() string { return string(t.backend) }
+func (t *ManagerTranscoder) Backend() string { return string(t.caps.Backend) }
+
+// Capabilities returns the capabilities of the manager (the transcode host of Decide).
+func (t *ManagerTranscoder) Capabilities() transcode.Capabilities { return t.caps }
 
 // Start plans the HLS output of req (rung, bit-rate cap, audio track, burned-in subtitle of a
 // transcode) and starts the encoder at the segment of req.Resume (else req.StartSegment); an
 // exhausted budget returns model.ErrTranscodeBusy, a remux without keyframe index ErrNoKeyframes.
 func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSession, error) {
-	src, target := hlsSource(req), hlsTarget(req)
+	src, target := hlsSource(req), hlsTarget(req, t.caps)
 	plan, err := transcode.NewPlan(src, target)
 	if errors.Is(err, transcode.ErrNoKeyframes) {
 		return nil, errors.Join(ErrNoKeyframes, err)
@@ -64,14 +69,25 @@ func (t *ManagerTranscoder) Start(ctx context.Context, req HLSRequest) (HLSSessi
 	return ms, nil
 }
 
+// host is the transcode host of the service's Transcoder (Transcoder.Capabilities); the zero
+// value without one, which offers no 2160p.
+func (s *Service) host() transcode.Capabilities {
+	if s.tc == nil {
+		return transcode.Capabilities{}
+	}
+	return s.tc.Capabilities()
+}
+
 // hlsSource is the transcode source of an HLS request.
 func hlsSource(req HLSRequest) transcode.Source {
 	return transcode.Source{Path: req.Path, Parts: req.Parts, Probe: req.Probe, Keyframes: req.Keyframes}
 }
 
-// hlsTarget is the transcode target of an HLS request: rung, bit-rate cap, audio track and the
-// burned-in subtitle of a transcode.
-func hlsTarget(req HLSRequest) transcode.Target {
+// hlsTarget is the transcode target of an HLS request on the host: rung, bit-rate cap, audio
+// track and the burned-in subtitle of a transcode, with the host's backend and GPU tonemapping
+// (ADR 0021: without them transcode keeps every output at 1080 lines and a 2160p rung would cost
+// and play as 1080p).
+func hlsTarget(req HLSRequest, host transcode.Capabilities) transcode.Target {
 	d := req.Decision
 	target := transcode.Target{
 		Mode: transcode.Mode(d.Mode), VideoCopy: d.VideoCopy, AudioCopy: d.AudioCopy,
@@ -87,6 +103,7 @@ func hlsTarget(req HLSRequest) transcode.Target {
 	}
 	if d.Mode == ModeTranscode {
 		target.Quality, target.MaxBitrate = d.Quality, d.Bitrate
+		target.Backend, target.HWTonemap = host.Backend, host.HWTonemap
 		if d.SubtitleDelivery == model.SubtitleBurn {
 			if req.BurnInPath != "" {
 				target.BurnInPath = req.BurnInPath

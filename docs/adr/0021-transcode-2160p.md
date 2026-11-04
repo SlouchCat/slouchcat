@@ -77,7 +77,8 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
 
 - `transcode.MaxOutputHeight(backend, cpuTonemap)` ist die Grenze aus Punkt 1 und 3: 2160 auf
   NVENC, QSV und VAAPI, 1080 auf Software, bei unbekanntem Backend und bei Tonemapping auf der CPU.
-  `playback.MaxTranscodeHeight(backend)` liest sie.
+  (`playback.MaxTranscodeHeight` aus diesem Schritt entfiel in Schritt 11 ungenutzt; `playback`
+  prüft die Grenze über `Rung2160Allowed`.)
 - `transcode.Target` trägt dafür `Backend` und `HWTonemap` (aus `Capabilities`). Ohne Backend
   bleibt jeder Transcode bei 1080 Zeilen. `MaxHeight` 0 heisst weiterhin 1080 (Punkt 4): über
   1080 geht es nur mit `MaxHeight` 2160.
@@ -91,6 +92,18 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
 - **Kosten:** `cost2160p = 5` in `transcode/plan.go` (Punkt 5), für jede Ausgabe über 1080 Zeilen.
   Der Wert ist der Startwert dieses ADR. Die Messung auf CT 190 steht noch aus; sie folgt vor dem
   Merge von Stufe 2 in `docs/perf/13-abspielseite.md`.
+
+## Umsetzung in `playback` (Stufe 2, Schritt 11, 4. November 2026)
+
+- **Eine Leiter (Punkt 7):** `playback` liest `transcode.Rungs`; die eigene Tabelle entfällt.
+  `auto` beginnt höchstens bei 1080p (Punkt 4).
+- **Wirt im Ziel:** `ManagerTranscoder` nimmt Backend und GPU-Tonemapping aus
+  `transcode.Manager.Capabilities` und setzt beide in jedes Transcode-Ziel (`hlsTarget`), auch für
+  die Kosten beim Absenken (`cheaper`). `Target.Backend` und die Fähigkeiten des Managers laufen
+  so nicht auseinander. `Decide` bekommt dieselben Fähigkeiten und bietet 2160p nur, wo
+  `Rung2160Allowed` gilt; sonst läuft ein gewähltes 2160p auf 1080p.
+- **Absenken bei vollem Budget:** 2160p sinkt auf 1080p (auch bei GPU-Tonemapping, 4K mit
+  1080p-Ausgabe kostet weniger als 5), ein SDR-1080p wie bisher auf 720p.
 
 ## Nachtrag: Breitbild und Level (Marcos Entscheid vom 4. November 2026)
 

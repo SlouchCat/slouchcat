@@ -43,11 +43,6 @@ const (
 	ReasonBudgetLowered = "budget_lowered"
 )
 
-// MaxTranscodeHeight caps transcode output on backend b (ADR 0021, transcode.MaxOutputHeight):
-// 1080 on the software backend (AN-17, 4K sources are scaled), 2160 on the hardware backends.
-// Tonemapping on the CPU stays at 1080 lines (transcode.MaxOutputHeight with cpuTonemap).
-func MaxTranscodeHeight(b transcode.Backend) int { return transcode.MaxOutputHeight(b, false) }
-
 // Decision is how a media file is played on a client. It is comparable, so tests compare it as a
 // whole.
 type Decision struct {
@@ -87,8 +82,16 @@ type Request struct {
 	// or burn. Text for a bitmap track is rejected before (Start validates).
 	Subtitle *model.Track
 	Delivery string
-	// Quality is auto (or empty) or a rung; a rung below the source forces a transcode.
+	// Quality is auto (or empty), original or a rung; a rung below the source forces a transcode,
+	// original keeps the video (else it plays as auto, concept 13 11.5 (c)).
 	Quality string
+	// QualityCap is a rung the device remembered (V-17), empty = none: with Quality auto it caps
+	// the output like a rung below the source, a file within the cap plays as auto (directly where
+	// it can). Ignored together with another Quality.
+	QualityCap string
+	// Host is the transcode host (backend and GPU tonemapping): the 2160p rung needs a hardware
+	// backend (transcode.Rung2160Allowed). The zero value offers no 2160p.
+	Host transcode.Capabilities
 	// ForceTranscode rebuilds a recorded transcode (Service.rebuild): the decision stays a
 	// transcode on the recorded rung even where the client could remux now.
 	ForceTranscode bool
@@ -269,7 +272,21 @@ func directVideo(codec string, caps model.PlaybackCapabilities) bool {
 //     HDR10 base layer): reason container, video_codec (HEVC for Safari), audio_track (a
 //     non-default track) or audio_codec; the audio is copied when the client decodes it, else
 //     encoded to AAC.
+//
+// Quality (concept 13 11.5, ADR 0021): auto starts at the source's rung but never above 1080p. A
+// remembered QualityCap with auto acts as a manual rung that a file within the cap does not
+// reach. 2160p transcodes on the 2160p rung only where uhdAllowed holds, else on 1080p. original
+// decides as auto without the cap and is kept as Quality when the video is not re-encoded (direct
+// play or remux); a decision that needs a transcode plays auto (11.5 (b), (c)).
 func Decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision {
+	d := decide(file, probe, req)
+	if req.Quality == model.QualityOriginal && !d.Audio && d.Mode != ModeTranscode {
+		d.Quality = model.QualityOriginal
+	}
+	return d
+}
+
+func decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision {
 	caps, limits := req.Caps, req.Limits
 	video := strings.ToLower(file.VideoCodec)
 	v := mainVideo(probe)
@@ -334,6 +351,9 @@ func Decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 	bitrateOK := limits.MaxBitrateKbps == 0 || srcBitrate == 0 || srcBitrate <= limits.MaxBitrateKbps*1000
 	top := sourceTop(srcH)
 	wanted := rungIndex(req.Quality)
+	if req.Quality == "" || req.Quality == model.QualityAuto {
+		wanted = rungIndex(req.QualityCap)
+	}
 	manual := wanted > top
 
 	containerOK := containerPlayable(file.Container, caps)
@@ -382,11 +402,14 @@ func Decide(file model.MediaFile, probe *transcode.Probe, req Request) Decision 
 		}
 		return d
 	}
-	from := top
-	if wanted > top || (req.ForceTranscode && wanted >= 0) {
-		from = wanted
+	// auto starts at the source's rung, at most 1080p; a rung (or the cap) at the source's rung
+	// or below it.
+	from := max(top, autoTop)
+	if wanted >= 0 {
+		from = max(wanted, top)
 	}
-	return transcodeOn(d, pickRung(from, limits, deviceCap(caps)), reason, hdr, audio == "aac" && audioOK, srcW, srcH, limits)
+	devCap := heightCap(caps, uhdAllowed(req.Host, v, limits, caps))
+	return transcodeOn(d, pickRung(from, limits, devCap), reason, hdr, audio == "aac" && audioOK, srcW, srcH, limits)
 }
 
 // audioOnlyKbps is the AAC bit rate of an audio-only output that encodes (M6 design 3.3).
@@ -447,12 +470,20 @@ func transcodeOn(d Decision, i int, reason string, hdr, audioCopy bool, srcW, sr
 	return d
 }
 
-// lowered returns the decision one budget step lower (plan 3.5): an SDR transcode above 720p runs
-// on the 720p rung instead (reason budget_lowered); ok is false when that saves nothing (HDR
-// sources, remux, rungs at or below 720p).
+// lowered returns the decision one budget step lower (plan 3.5, reason budget_lowered): a 2160p
+// transcode runs on the 1080p rung (ADR 0021; also a source tonemapped on the GPU, 4K at 1080p
+// costs less than 5), an SDR transcode of 1080p on the 720p rung; ok is false when that saves
+// nothing (HDR sources below 2160p, remux, rungs at or below 720p). The caller still checks that
+// the lower rung costs less (cheaper).
 func lowered(d Decision, srcW, srcH int, limits model.PlaybackLimits) (Decision, bool) {
+	if d.Mode != ModeTranscode {
+		return d, false
+	}
+	if d.MaxHeight > ladder[autoTop].Height {
+		return transcodeOn(d, autoTop, ReasonBudgetLowered, d.Tonemap, d.AudioCopy, srcW, srcH, limits), true
+	}
 	i := rungIndex(model.Quality720)
-	if d.Mode != ModeTranscode || d.Tonemap || d.MaxHeight <= ladder[i].Height {
+	if d.Tonemap || d.MaxHeight <= ladder[i].Height {
 		return d, false
 	}
 	return transcodeOn(d, i, ReasonBudgetLowered, false, d.AudioCopy, srcW, srcH, limits), true

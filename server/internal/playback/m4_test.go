@@ -261,11 +261,13 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 		{model.PlaybackRequest{SubtitleTrack: tracks[f.Rated(0).FileID].Text}, "subtitleTrack", "unknown_track"},
 		{model.PlaybackRequest{Quality: "4k"}, "quality", "invalid_value"},
 		{model.PlaybackRequest{SubtitleDelivery: "smoke"}, "subtitleDelivery", "invalid_value"},
-		// Contract 1.11.0: the ladder has no rung original or 2160p and the playback no cap of a
-		// remembered rung, so these are refused rather than played as something else.
-		{model.PlaybackRequest{Quality: "original"}, "quality", "invalid_value"},
-		{model.PlaybackRequest{Quality: "2160p"}, "quality", "invalid_value"},
-		{model.PlaybackRequest{QualityCap: "720p"}, "qualityCap", "invalid_value"},
+		// Contract 1.11.0: a remembered cap (QualityCap) is a rung below 2160p; auto, original,
+		// 2160p and unknown names are no caps.
+		{model.PlaybackRequest{QualityCap: "2160p"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "auto"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "original"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "4k"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{Quality: "best"}, "quality", "invalid_value"},
 		{model.PlaybackRequest{SubtitleOff: true, SubtitleTrack: ft.Text}, "subtitleOff", "not_allowed"},
 	} {
 		if _, err := s.Start(ctx, session, m.ID, tc.req); !hasField(err, tc.field, tc.code) {

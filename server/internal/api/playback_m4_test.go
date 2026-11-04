@@ -236,8 +236,10 @@ func TestHTTPPlaybackLimits(t *testing.T) {
 	if code != http.StatusOK || info.Transcoding == nil || info.Transcoding.Quality != "480p" || info.Transcoding.Height != 480 || info.Transcoding.Reason != "quality" {
 		t.Errorf("manual 480p = %d %+v", code, info.Transcoding)
 	}
+	// Every quality is available but 2160p, which the software backend of the fake never offers
+	// (ADR 0021).
 	for _, q := range info.Qualities {
-		if q.Current != (q.Quality == "480p") || !q.Available {
+		if q.Current != (q.Quality == "480p") || q.Available != (q.Quality != "2160p") {
 			t.Errorf("quality option %+v", q)
 		}
 	}

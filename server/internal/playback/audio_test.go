@@ -89,15 +89,15 @@ func TestDecideAudio(t *testing.T) {
 		t.Errorf("video decision %+v", d)
 	}
 
-	opts := QualityOptions(hls(ReasonContainer, false, 128_000), 0, 0, model.PlaybackLimits{}, capsChrome, "720p")
+	opts := QualityOptions(hls(ReasonContainer, false, 128_000), source{caps: capsChrome}, false, "720p")
 	if len(opts) != 1 || opts[0] != (model.QualityOption{Quality: model.QualityAuto, Bitrate: 128_000, Available: true, Current: true}) {
 		t.Errorf("audio qualities %+v", opts)
 	}
-	target := hlsTarget(HLSRequest{Decision: hls(ReasonContainer, false, 128_000)})
+	target := hlsTarget(HLSRequest{Decision: hls(ReasonContainer, false, 128_000)}, transcode.Capabilities{})
 	if target.Mode != transcode.ModeTranscode || target.AudioBitrate != audioOnlyKbps || target.MaxBitrate != 0 || target.Quality != "" {
 		t.Errorf("audio target %+v", target)
 	}
-	if target := hlsTarget(HLSRequest{Decision: hls(ReasonBandwidth, false, 96_000)}); target.AudioBitrate != 96 {
+	if target := hlsTarget(HLSRequest{Decision: hls(ReasonBandwidth, false, 96_000)}, transcode.Capabilities{}); target.AudioBitrate != 96 {
 		t.Errorf("audio target under a bandwidth limit %+v", target)
 	}
 }
@@ -320,7 +320,7 @@ func TestAudioHLSWithFFmpeg(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	tc := NewManagerTranscoder(m, transcode.BackendSoftware)
+	tc := NewManagerTranscoder(m)
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
 	info, err := s.Start(ctx, browserSession(t, f, f.P6), "01J9000000000000000000BOOK", model.PlaybackRequest{Capabilities: &capsChrome})
 	if err != nil {
