@@ -139,4 +139,33 @@ describe('SeekBar (concept 13, V-8)', () => {
       window.removeEventListener('keydown', outside);
     }
   });
+
+  it('drops the field when a drag is let go outside the bar, keeps it inside', () => {
+    const { slider, container } = renderBar({ chapters });
+    const preview = () => container.querySelector('[aria-hidden="true"]');
+    fireEvent.pointerDown(slider, { clientX: 250, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(slider, { clientX: 500, clientY: 10, pointerId: 1 });
+    // The pointer leaves while the capture holds it: the field stays during the drag.
+    fireEvent.pointerLeave(slider, { clientX: 500, clientY: 200 });
+    expect(preview()).not.toBeNull();
+    fireEvent.lostPointerCapture(slider, { clientX: 500, clientY: 200, pointerId: 1 });
+    expect(preview()).toBeNull();
+    // Let go over the bar: the field stays where the pointer is.
+    fireEvent.pointerDown(slider, { clientX: 250, clientY: 10, pointerId: 2 });
+    fireEvent.lostPointerCapture(slider, { clientX: 250, clientY: 10, pointerId: 2 });
+    expect(preview()).toHaveTextContent('7:30');
+  });
+
+  it('keys the marks of two chapters at the same time apart', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const { container } = renderBar({
+        chapters: [{ startMs: 0 }, { startMs: 600_000 }, { startMs: 600_000 }],
+      });
+      expect(container.querySelectorAll('[data-chapter-mark]')).toHaveLength(2);
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
 });

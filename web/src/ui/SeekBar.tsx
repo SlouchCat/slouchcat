@@ -117,6 +117,7 @@ export function SeekBar({
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         setDragging(true);
+        setPointerMs(positionAt(event));
         seekTo(event);
       }}
       onPointerMove={(event) => {
@@ -133,6 +134,18 @@ export function SeekBar({
       }}
       onPointerLeave={() => {
         if (!dragging) setPointerMs(null);
+      }}
+      // A drag let go outside the bar ends here, without a pointerleave (that one came while the
+      // capture held the pointer): the field goes unless the pointer is over the bar.
+      onLostPointerCapture={(event) => {
+        setDragging(false);
+        const box = event.currentTarget.getBoundingClientRect();
+        const over =
+          event.clientX >= box.left &&
+          event.clientX <= box.right &&
+          event.clientY >= box.top &&
+          event.clientY <= box.bottom;
+        if (!over) setPointerMs(null);
       }}
     >
       <div className={styles.track}>
@@ -156,9 +169,9 @@ export function SeekBar({
         <span className={styles.played} style={{ width: percent(currentMs) }} />
         {chapters
           .filter((chapter) => chapter.startMs > 0 && chapter.startMs < durationMs)
-          .map((chapter) => (
+          .map((chapter, index) => (
             <span
-              key={chapter.startMs}
+              key={`${index}-${chapter.startMs}`}
               className={styles.mark}
               data-chapter-mark=""
               style={{ left: percent(chapter.startMs) }}
