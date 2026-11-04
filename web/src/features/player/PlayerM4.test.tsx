@@ -314,6 +314,35 @@ describe('player M4', () => {
     expect(starts(calls)[2]?.body).not.toHaveProperty('rememberForSeries');
   });
 
+  it('«Für diese Serie merken» switched off stays off for the next episode (review step 9, m-4)', async () => {
+    stubMedia();
+    const episode: PlaybackInfo = { ...playback, item: { ...playback.item, kind: 'episode' } };
+    const { calls } = mockApi({
+      ...routes(episode),
+      [`POST /items/${episodes.e2.id}/play`]: () =>
+        json({ ...playback, item: episodes.e2, playbackSessionId: 'ps-next' }),
+    });
+    const { container, router } = renderApp(`/play/${ids.alien}`);
+    await startPlayer(container);
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    fireEvent.keyDown(document.body, { key: 't' });
+    const audioPanel = (await playerDriver().findList('audio')).closest(
+      '[role="dialog"]',
+    ) as HTMLElement;
+    const remember = within(audioPanel).getByRole('switch', { name: 'Für diese Serie merken' });
+    await user.click(remember);
+    expect(remember).not.toBeChecked();
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+
+    await act(() => router.navigate({ to: '/play/$itemId', params: { itemId: episodes.e2.id } }));
+    await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-next'));
+    await startPlayer(container);
+    fireEvent.keyDown(document.body, { key: 't' });
+    const next = (await playerDriver().findList('audio')).closest('[role="dialog"]') as HTMLElement;
+    expect(within(next).getByRole('switch', { name: 'Für diese Serie merken' })).not.toBeChecked();
+    expect(calls.some((call) => call.path === `/items/${episodes.e2.id}/play`)).toBe(true);
+  });
+
   it('a film has no series switch; a forced bitmap track is announced (F-11)', async () => {
     stubMedia();
     const hint: PlaybackInfo = {

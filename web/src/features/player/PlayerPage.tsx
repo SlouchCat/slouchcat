@@ -209,11 +209,29 @@ export function PlayerPage() {
     },
     [],
   );
+  // «Für diese Serie merken» (11.3): on by default, kept while this player route is open, across
+  // auto-next and the other episodes it plays (review step 9, m-4).
+  const [rememberSeries, setRememberSeries] = useState(true);
   // Auto-next stays on this route with another id: a fresh player, session and measurement.
-  return <PlayerView key={itemId} itemId={itemId} />;
+  return (
+    <PlayerView
+      key={itemId}
+      itemId={itemId}
+      rememberSeries={rememberSeries}
+      onRememberSeries={setRememberSeries}
+    />
+  );
 }
 
-function PlayerView({ itemId }: { itemId: string }) {
+function PlayerView({
+  itemId,
+  rememberSeries,
+  onRememberSeries,
+}: {
+  itemId: string;
+  rememberSeries: boolean;
+  onRememberSeries: (on: boolean) => void;
+}) {
   const { t } = useTranslation();
   // The version to play (B-5): from the link of the detail page or the version menu, kept in
   // the URL so a reload plays the chosen one. The menu also hands over the position; `at` starts
@@ -254,9 +272,6 @@ function PlayerView({ itemId }: { itemId: string }) {
     const { status, location, resolvedLocation } = router.state;
     return status === 'pending' && location.pathname !== resolvedLocation?.pathname;
   }, [router]);
-
-  // «Für diese Serie merken» (11.3): on by default, kept while this player route is open.
-  const [rememberSeries, setRememberSeries] = useState(true);
 
   const tracks: Omit<TrackChoice, 'file'> =
     trackChoice.file === (file ?? null)
@@ -445,7 +460,7 @@ function PlayerView({ itemId }: { itemId: string }) {
         onCarry={carry}
         rememberSeries={
           playback.data.item.kind === 'episode'
-            ? { on: rememberSeries, onChange: setRememberSeries }
+            ? { on: rememberSeries, onChange: onRememberSeries }
             : undefined
         }
         switching={switching}
