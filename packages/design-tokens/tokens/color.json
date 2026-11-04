@@ -41,7 +41,15 @@
         "$value": "#ffffff33",
         "$description": "Unfilled part of progress and seek bars."
       },
-      "buffered": { "$value": "#ffffff66", "$description": "Buffered range on the seek bar." }
+      "buffered": { "$value": "#ffffff66", "$description": "Buffered range on the seek bar." },
+      "segment": {
+        "$value": "#ffffff59",
+        "$description": "Intro and outro on the seek bar: a lighter stretch of the unfilled track."
+      },
+      "chapter-mark": {
+        "$value": "#0b0c10b3",
+        "$description": "Chapter marks on the seek bar: a notch in the track and the fill."
+      }
     },
     "scrim": {
       "$description": "The base background at decreasing opacity, for gradients over artwork (no grey banding).",

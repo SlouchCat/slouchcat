@@ -54,6 +54,8 @@ export { Tabs } from './Tabs';
 export { TextField } from './TextField';
 export { TrailerDialog } from './TrailerDialog';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
+// Building blocks of the player (concept 13, 11.10).
+export { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
 // Building blocks of the administration pages (concept 12, 11.2).
 export { ActionMenu, type ActionMenuItem } from './ActionMenu';
 export { AdminDensityScope, useDensityPortalProps } from './adminDensity';

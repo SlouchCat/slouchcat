@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { languageName, trackLabel } from '@/features/player/labels';
-import { SeekBar } from '@/features/player/SeekBar';
 import { useAudioControls } from '@/features/player/useAudioControls';
 import { formatPlayerTime } from '@/lib/format';
-import { AriaButton, AudioPlayer, MenuButton } from '@/ui/aria';
+import { AriaButton, AudioPlayer, MenuButton, SeekBar } from '@/ui/aria';
 import { offlineLoader } from './loader';
 import { readFile, subtitleFile } from './opfs';
 import { recordPlayback, storeRate, type OfflinePlayback, type PlaybackSample } from './playback';

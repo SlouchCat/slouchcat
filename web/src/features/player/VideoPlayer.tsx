@@ -14,7 +14,7 @@ import { api, apiUrl, request } from '@/api/client';
 import { episodeCode } from '@/features/catalog/labels';
 import { formatPlayerTime } from '@/lib/format';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, MenuButton } from '@/ui/aria';
+import { AriaButton, MenuButton, SeekBar } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
 import {
   audioKey,
@@ -26,7 +26,6 @@ import {
   subtitleKey,
   trackLabel,
 } from './labels';
-import { SeekBar } from './SeekBar';
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useProgressReporter } from './useProgressReporter';
