@@ -356,7 +356,21 @@ test('a slow connection suggests the rung below by keyboard and switches only on
   await expectFocusOn(page, page.getByRole('button', { name: /^(Pause|Abspielen)$/ }));
   expect(await player.getAttribute('data-playback-session-id')).toBe(session);
   const switchButton = hint.getByRole('button', { name: /^Auf \d+p wechseln$/ });
-  await tabTo(page, switchButton);
+  // By the arrows alone (review step 5): ↑ to the timeline, ↑ to the hint, ←/→ between its
+  // buttons, ↓ back to the timeline. Paused, the controls stay and the arrows move between zones.
+  await video.evaluate((element: HTMLVideoElement) => element.pause());
+  await expect(player).toHaveAttribute('data-controls', 'visible');
+  const seek = page.getByRole('slider', { name: 'Wiedergabeposition' });
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, seek);
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, switchButton);
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, hint.getByRole('button', { name: 'Nicht jetzt' }));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, seek);
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, switchButton);
   const rung = /^Auf (\d+p) wechseln$/.exec((await switchButton.textContent()) ?? '')?.[1];
   const next = await startOf(page, () => page.keyboard.press('Enter'));
   expect(next.request.quality).toBe(rung);

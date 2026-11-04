@@ -200,6 +200,7 @@ export function VideoPlayer({
   const video = useRef<HTMLVideoElement>(null);
   const playButton = useRef<HTMLButtonElement>(null);
   const nextPanel = useRef<HTMLElement>(null);
+  const slowPanel = useRef<HTMLElement>(null);
   const hideTimer = useRef<number | undefined>(undefined);
   const osdTimer = useRef<number | undefined>(undefined);
 
@@ -1119,6 +1120,7 @@ export function VideoPlayer({
     inIntro && ended === null,
     inOutro && !next && ended === null,
     countdownActive,
+    slow.slow,
   ].join();
   useLayoutEffect(() => {
     const active = document.activeElement;
@@ -1241,6 +1243,11 @@ export function VideoPlayer({
         onSeek={seekTo}
         onPreviousChapter={hasChapters ? previousChapter : undefined}
         onNextChapter={hasChapters ? nextChapter : undefined}
+        onTimelineUp={() => {
+          const target = slowPanel.current?.querySelector('button');
+          target?.focus();
+          return target !== undefined && target !== null;
+        }}
         playing={playing}
         onTogglePlay={togglePlay}
         onSkip={seekBy}
@@ -1352,7 +1359,35 @@ export function VideoPlayer({
         <VisuallyHidden>{announcement}</VisuallyHidden>
       </div>
       {slow.slow && lower && (
-        <section className={styles.slow} aria-label={t('player.slow.label')}>
+        // Above the bar in the arrow model (review step 5): ↑ from the timeline leads here, ←/→ go
+        // between the two buttons, ↓ goes back to the timeline. It never takes the focus itself.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        <section
+          ref={slowPanel}
+          className={styles.slow}
+          aria-label={t('player.slow.label')}
+          onKeyDown={(event) => {
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+            const buttons = [...event.currentTarget.querySelectorAll('button')];
+            const index = buttons.indexOf(event.target as HTMLButtonElement);
+            const target =
+              event.key === 'ArrowDown'
+                ? event.currentTarget
+                    .closest('main')
+                    ?.querySelector<HTMLElement>('[data-player-seek] [role="slider"]')
+                : event.key === 'ArrowLeft'
+                  ? buttons[Math.max(0, index - 1)]
+                  : event.key === 'ArrowRight'
+                    ? buttons[Math.min(buttons.length - 1, index + 1)]
+                    : event.key === 'ArrowUp'
+                      ? buttons[index]
+                      : undefined;
+            if (!target) return;
+            event.preventDefault();
+            event.stopPropagation();
+            target.focus();
+          }}
+        >
           <p role="status">{t('player.slow.text', { quality: lower.quality })}</p>
           <AriaButton
             variant="primary"

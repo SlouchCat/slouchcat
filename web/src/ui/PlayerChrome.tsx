@@ -342,6 +342,11 @@ interface PlayerChromeProps {
   /** Shift+←/→ on the timeline. */
   onPreviousChapter?: () => void;
   onNextChapter?: () => void;
+  /**
+   * ↑ on the timeline (not on a phone): the page moves the focus to what it shows above the bar
+   * and says whether it did; otherwise ↑ goes on to the page (volume).
+   */
+  onTimelineUp?: () => boolean;
 
   playing: boolean;
   onTogglePlay: () => void;
@@ -425,6 +430,7 @@ export function PlayerChrome({
   onSeek,
   onPreviousChapter,
   onNextChapter,
+  onTimelineUp,
   playing,
   onTogglePlay,
   onSkip,
@@ -698,8 +704,14 @@ export function PlayerChrome({
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       ref={seekZone}
+      data-player-seek
       onKeyDown={(event) => {
         if (modified(event)) return;
+        // ↑ to what the page shows above the bar (the hint of a slow connection), if anything.
+        if (!phone && event.key === 'ArrowUp' && onTimelineUp?.()) {
+          consume(event);
+          return;
+        }
         if (phone ? event.key !== 'ArrowUp' : event.key !== 'ArrowDown') return;
         consume(event);
         focusToolbar(row.current);

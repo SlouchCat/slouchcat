@@ -223,6 +223,26 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
       expect(button('30 Sekunden vor')).toHaveFocus();
     });
 
+    it('↑ on the timeline goes to what the page shows above the bar, if anything (review step 5)', () => {
+      const pageKeys = vi.fn();
+      window.addEventListener('keydown', pageKeys);
+      try {
+        let above = false;
+        const onTimelineUp = vi.fn(() => above);
+        renderChrome({ onTimelineUp });
+        // Nothing above: ↑ goes on to the page (volume).
+        fireEvent.keyDown(seek(), { key: 'ArrowUp' });
+        expect(onTimelineUp).toHaveBeenCalledTimes(1);
+        expect(pageKeys).toHaveBeenCalledTimes(1);
+        above = true;
+        fireEvent.keyDown(seek(), { key: 'ArrowUp' });
+        expect(onTimelineUp).toHaveBeenCalledTimes(2);
+        expect(pageKeys).toHaveBeenCalledTimes(1);
+      } finally {
+        window.removeEventListener('keydown', pageKeys);
+      }
+    });
+
     it('keeps the row’s keys from the page; the timeline passes ←/→ and ↑ on', () => {
       const pageKeys = vi.fn();
       window.addEventListener('keydown', pageKeys);
