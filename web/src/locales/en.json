@@ -699,7 +699,8 @@
       "button": "Chapters",
       "untitled": "Chapter {{n}}",
       "item": "{{title}} · {{time}}",
-      "auto": "automatic"
+      "auto": "automatic",
+      "progress": "{{percent}}% watched"
     },
     "skipIntro": "Skip intro",
     "skipOutro": "Skip credits",
@@ -763,8 +764,8 @@
     "volumeControl": {
       "mute": "Mute",
       "slider": "Volume",
-      "boosted": "Volume {{percent}} %, boosted, may distort",
-      "percent": "{{percent}} %"
+      "boosted": "Volume {{percent}}%, boosted, may distort",
+      "percent": "{{percent}}%"
     },
     "option": {
       "default": "Default",

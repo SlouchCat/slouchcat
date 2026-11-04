@@ -699,7 +699,8 @@
       "button": "Kapitel",
       "untitled": "Kapitel {{n}}",
       "item": "{{title}} · {{time}}",
-      "auto": "automatisch"
+      "auto": "automatisch",
+      "progress": "{{percent}} % gesehen"
     },
     "skipIntro": "Intro überspringen",
     "skipOutro": "Abspann überspringen",

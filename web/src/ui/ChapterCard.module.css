@@ -1,4 +1,5 @@
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-1);
@@ -53,6 +54,8 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* After the title in the DOM, so it is read after it; drawn on the frame's top left corner (the
+   frame starts at the top of the card). */
 .badge {
   position: absolute;
   top: var(--sc-space-2);

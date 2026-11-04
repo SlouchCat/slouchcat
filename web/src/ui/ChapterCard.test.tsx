@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { ChapterCard } from './ChapterCard';
 
@@ -47,7 +48,7 @@ describe('ChapterCard (concept 13, V-8)', () => {
       />,
     );
     expect(container.querySelector('img')).toHaveAttribute('src', 'c.webp');
-    expect(screen.getByRole('button').textContent).toBe('Anfang0:00');
+    expect(screen.getByRole('button').textContent).toBe('Anfang 0:00');
   });
 
   it('marks the playing chapter, its progress and a replacement chapter', () => {
@@ -75,5 +76,53 @@ describe('ChapterCard (concept 13, V-8)', () => {
     );
     expect(container.querySelector('[style]')).toBeNull();
     expect(screen.getByRole('button')).not.toHaveTextContent('automatisch');
+  });
+
+  it('reads title, «automatisch», time and progress in that order', () => {
+    render(
+      <ChapterCard
+        index={1}
+        title="Die Farm"
+        startMs={600_000}
+        durationMs={7_200_000}
+        progress={40}
+        auto
+        onPress={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('button')).toHaveAccessibleName(
+      'Die Farm automatisch 0:10:00 40 % gesehen',
+    );
+  });
+
+  it('takes a ref and leaves the Tab order for a roving tab index', () => {
+    const ref = createRef<HTMLButtonElement>();
+    const { rerender } = render(
+      <ChapterCard index={0} startMs={0} durationMs={60_000} onPress={() => undefined} ref={ref} />,
+    );
+    expect(ref.current).toBe(screen.getByRole('button'));
+    expect(ref.current).not.toHaveAttribute('tabindex', '-1');
+    rerender(
+      <ChapterCard
+        index={0}
+        startMs={0}
+        durationMs={60_000}
+        onPress={() => undefined}
+        ref={ref}
+        tabIndex={-1}
+      />,
+    );
+    expect(ref.current).toHaveAttribute('tabindex', '-1');
+    rerender(
+      <ChapterCard
+        index={0}
+        startMs={0}
+        durationMs={60_000}
+        onPress={() => undefined}
+        ref={ref}
+        excludeFromTabOrder
+      />,
+    );
+    expect(ref.current).toHaveAttribute('tabindex', '-1');
   });
 });
