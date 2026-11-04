@@ -259,6 +259,12 @@ export function AppLayout() {
       current: pathname.startsWith(paths.profileSettings),
     });
   }
+  // Every profile sets its own languages and subtitles (concept 13 11.4, F-13).
+  footer.push({
+    href: paths.playbackSettings,
+    label: t('nav.playback'),
+    current: pathname.startsWith(paths.playbackSettings),
+  });
 
   const sideNav: SideNavProps = {
     label: t('nav.main'),

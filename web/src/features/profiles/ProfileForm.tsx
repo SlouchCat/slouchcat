@@ -1,4 +1,4 @@
-import type { Profile, ProfileRequest } from '@slouchcat/api-client';
+import type { PlaybackPrefs, Profile, ProfileRequest } from '@slouchcat/api-client';
 import { accentNames, type AccentName } from '@slouchcat/design-tokens';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
@@ -22,6 +22,7 @@ import {
   type LimitValues,
 } from '../shared/LimitFields';
 import { libraryIdsOf, type LibraryOption } from '../shared/useLibraryOptions';
+import { PlaybackPrefsFields } from './PlaybackPrefsFields';
 import styles from './ProfileForm.module.css';
 
 interface ProfileFormProps {
@@ -37,7 +38,10 @@ interface ProfileFormProps {
   onClose: () => void;
 }
 
-/** Create or edit a profile (K-2): name, rating, language, accent, libraries, a PIN on creation. */
+/**
+ * Create or edit a profile (K-2): name, rating, language, accent, libraries, the playback languages
+ * and subtitles (concept 13 11.4), a PIN on creation.
+ */
 export function ProfileForm({
   profile,
   profiles,
@@ -71,6 +75,23 @@ export function ProfileForm({
   });
   const [pin, setPin] = useState('');
   const [limits, setLimits] = useState<LimitValues>(() => limitValues(profile?.limits));
+  // The playback preferences as the profile holds them. A new profile leaves them to the server
+  // until they are changed: it starts them from the language chosen above (F-12), so the fields
+  // follow that language meanwhile.
+  const [prefs, setPrefs] = useState<PlaybackPrefs | null>(() =>
+    profile
+      ? {
+          audioLanguages: profile.audioLanguages,
+          subtitleMode: profile.subtitleMode,
+          subtitleLanguages: profile.subtitleLanguages,
+        }
+      : null,
+  );
+  const shownPrefs: PlaybackPrefs = prefs ?? {
+    audioLanguages: [language],
+    subtitleMode: 'forced',
+    subtitleLanguages: [language],
+  };
 
   const save = useTransientMutation(
     (body: ProfileRequest): Promise<Profile> =>
@@ -103,6 +124,7 @@ export function ProfileForm({
       allLibraries: selection.all,
       libraryIds: selection.all ? [] : libraryIdsOf(selection.ids),
       limits: limitsOf(limits),
+      ...(prefs ?? {}),
       ...(!profile && pin ? { pin } : {}),
     });
   };
@@ -170,6 +192,10 @@ export function ProfileForm({
         onChange={setSelection}
         options={libraries}
       />
+      <fieldset className={styles.group}>
+        <legend className={styles.legend}>{t('profiles.settings.form.playback')}</legend>
+        <PlaybackPrefsFields value={shownPrefs} onChange={setPrefs} errors={errors?.fields} />
+      </fieldset>
       <fieldset className={styles.group}>
         <legend className={styles.legend}>{t('limits.title')}</legend>
         <LimitFields value={limits} onChange={setLimits} />

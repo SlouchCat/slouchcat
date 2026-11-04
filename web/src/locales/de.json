@@ -18,6 +18,7 @@
     "logout": "Abmelden",
     "skip": "Zum Inhalt springen",
     "profiles": "Profile",
+    "playback": "Meine Wiedergabe",
     "switchProfile": "Profil wechseln, aktuell {{name}}",
     "downloads": "Downloads",
     "search": "Suche",
@@ -687,6 +688,9 @@
       "forced": "erzwungen",
       "external": "extern",
       "rememberSeries": "Für diese Serie merken",
+      "makeDefault": "Als Standard für dieses Profil",
+      "isDefault": "{{language}} ist Standard für dieses Profil.",
+      "madeDefault": "{{language}} ist jetzt Standard für dieses Profil.",
       "forcedBitmap": "Erzwungene Untertitel verfügbar (werden eingebrannt)"
     },
     "quality": {
@@ -3386,7 +3390,8 @@
         "saving": "Wird gespeichert …",
         "metadataLanguage": "Sprache der Beschreibungen",
         "metadataLanguageHint": "Titel, Beschreibungen und Genres; die Oberfläche folgt der Sprache oben.",
-        "likeUi": "Wie Oberfläche"
+        "likeUi": "Wie Oberfläche",
+        "playback": "Wiedergabe"
       },
       "ratingAboveAccount": "FSK {{age}} · Konto höchstens FSK {{max}}",
       "report": {
@@ -3717,6 +3722,46 @@
     }
   },
   "settings": {
+    "playback": {
+      "title": "Meine Wiedergabe",
+      "intro": "Ton und Untertitel für das Profil {{name}}, auf jedem Gerät. Was du im Player von Hand wählst, geht vor.",
+      "languages": "Sprachen und Untertitel",
+      "audio": {
+        "legend": "Tonsprachen",
+        "hint": "Ein Titel spielt in der ersten Sprache dieser Liste, die er hat. Hat er keine davon, spielt die Originalsprache.",
+        "rank": "{{position}}. Tonsprache",
+        "more": "Weitere Tonsprache"
+      },
+      "subtitleMode": {
+        "label": "Untertitel",
+        "off": "Aus",
+        "forced": "Nur erzwungene (Standard)",
+        "foreign": "Bei fremder Sprache",
+        "always": "Immer",
+        "offHint": "Keine Untertitel, bis du sie im Player einschaltest.",
+        "forcedHint": "Nur Stellen in einer anderen Sprache, etwa Schilder oder fremdsprachige Sätze, in der Sprache des Tons.",
+        "foreignHint": "Wie «Nur erzwungene». Ist der Ton in keiner deiner Tonsprachen, kommen volle Untertitel in der ersten Untertitelsprache.",
+        "alwaysHint": "Immer volle Untertitel in der ersten Untertitelsprache; ohne sie wie «Nur erzwungene»."
+      },
+      "subtitles": {
+        "legend": "Untertitelsprachen",
+        "hint": "Für volle Untertitel, die erste vorhandene zuerst.",
+        "rank": "{{position}}. Untertitelsprache",
+        "more": "Weitere Untertitelsprache"
+      },
+      "none": "Zurzeit keine Sprache.",
+      "limit": "Höchstens {{count}} Sprachen; entferne eine, um eine andere aufzunehmen.",
+      "saved": "Gespeichert.",
+      "series": {
+        "title": "Serienmerker",
+        "body": "Wählst du in einer Folge Ton oder Untertitel von Hand, merkt sich Slouchcat die Sprache für die ganze Serie.",
+        "reset": "Serienmerker zurücksetzen",
+        "confirmTitle": "Serienmerker zurücksetzen?",
+        "confirmBody": "Alle Serien spielen danach wieder nach deinen Sprachen und Untertiteln oben. Das lässt sich nicht rückgängig machen.",
+        "confirm": "Zurücksetzen",
+        "done": "Serienmerker zurückgesetzt."
+      }
+    },
     "notifications": {
       "title": "Benachrichtigungskanäle",
       "intro": "Neue Folgen deiner Favoriten, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.",
