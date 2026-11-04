@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -51,22 +52,26 @@ func ChapterFrameTimes(c model.Chapter) []time.Duration {
 }
 
 // GrabFrameArgs builds the ffmpeg argument list of GrabFrame: an input seek to at, the video
-// stream v of the file (its index; cover art never), scaled to width (the height follows the
-// aspect ratio, even), tonemapped to BT.709 on the CPU when v is HDR, one frame as WebP to
-// outPath and the same frame as a raw grey lumaWidth x lumaHeight image to standard output.
+// stream v of the file (its index; cover art never), scaled to width with the height of the
+// display aspect ratio (dar, so an anamorphic source with a sample aspect ratio other than 1 comes
+// out undistorted; even, square pixels), tonemapped to BT.709 on the CPU when v is HDR, one frame
+// as WebP to outPath and the same frame as a raw grey lumaWidth x lumaHeight image to standard
+// output.
 func GrabFrameArgs(inPath string, at time.Duration, width int, v Stream, outPath string) ([]string, error) {
 	if width <= 0 || width%2 != 0 || inPath == "" || outPath == "" || at < 0 {
 		return nil, fmt.Errorf("invalid frame request: %q at %v, width %d", inPath, at, width)
 	}
-	w, h := strconv.Itoa(width), strconv.Itoa(frameHeight(width, v))
+	w := strconv.Itoa(width)
+	h := "trunc(" + w + "/dar/2)*2" // the display aspect ratio, even
 	var body []string
 	if v.IsHDR() {
 		if v.DolbyVisionProfile > 0 && v.ColorTransfer == "" {
 			body = append(body, dvAsHDR10) // profile 5 carries no transfer tag (pipeline.go)
 		}
-		body = append(body, softwareChain(w, h, true)...)
+		body = append(body, "zscale=w="+w+":h="+h, "setsar=1")
+		body = append(body, cpuTonemap()...)
 	} else {
-		body = []string{"scale=w=" + w + ":h=" + h + ":flags=lanczos", "format=yuv420p"}
+		body = []string{"scale=w=" + w + ":h=" + h + ":flags=lanczos", "setsar=1", "format=yuv420p"}
 	}
 	graph := "[0:" + strconv.Itoa(v.Index) + "]" + strings.Join(body, ",") + ",split=2[img][probe];" +
 		"[probe]scale=w=" + strconv.Itoa(lumaWidth) + ":h=" + strconv.Itoa(lumaHeight) + ":flags=area,format=gray[luma]"
@@ -82,18 +87,20 @@ func GrabFrameArgs(inPath string, at time.Duration, width int, v Stream, outPath
 	return args, nil
 }
 
-// frameHeight is the even height of a frame of width px with the aspect ratio of v; 16:9 when v
-// names no size.
-func frameHeight(width int, v Stream) int {
-	h := width * 9 / 16
-	if v.Width > 0 && v.Height > 0 {
-		h = (width*v.Height + v.Width/2) / v.Width
-	}
-	return max(2, h&^1)
-}
+// ErrNoFrame is the result of a time point past the last frame of the file.
+var ErrNoFrame = errors.New("ffmpeg wrote no frame")
 
-// errNoFrame is the result of a time point past the last frame of the file.
-var errNoFrame = errors.New("ffmpeg wrote no frame")
+// FrameFailed reports whether err of GrabFrame says that ffmpeg ran on the input and gave no
+// usable frame: it wrote none (ErrNoFrame) or exited with an error (a broken stream). An ffmpeg
+// that did not run (not configured, not found) and a cancelled or timed-out context are no frame
+// failure: the frame may well exist.
+func FrameFailed(err error) bool {
+	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var exit *exec.ExitError
+	return errors.Is(err, ErrNoFrame) || errors.As(err, &exit)
+}
 
 // GrabFrame writes the frame of the video stream v of the file at inPath at the time point at as
 // WebP of the given width to outPath (an existing file is overwritten) and reports whether the
@@ -106,10 +113,13 @@ func (r Runner) GrabFrame(ctx context.Context, inPath string, at time.Duration, 
 	}
 	luma, err := r.runImageFFmpeg(ctx, args...)
 	if err != nil {
+		if cerr := ctx.Err(); cerr != nil {
+			return false, fmt.Errorf("%w: %w", cerr, err)
+		}
 		return false, err
 	}
 	if len(luma) != lumaWidth*lumaHeight {
-		return false, fmt.Errorf("%w at %v (%d bytes of luma)", errNoFrame, at, len(luma))
+		return false, fmt.Errorf("%w at %v (%d bytes of luma)", ErrNoFrame, at, len(luma))
 	}
 	return blackLuma(luma), nil
 }

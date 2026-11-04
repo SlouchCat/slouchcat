@@ -49,7 +49,7 @@ func TestGrabFrameArgs(t *testing.T) {
 		t.Errorf("seek args = %v", args)
 	}
 	for _, want := range []string{
-		"[0:0]scale=w=480:h=270:flags=lanczos,format=yuv420p,split=2[img][probe]",
+		"[0:0]scale=w=480:h=trunc(480/dar/2)*2:flags=lanczos,setsar=1,format=yuv420p,split=2[img][probe]",
 		"[probe]scale=w=64:h=36:flags=area,format=gray[luma]",
 		"-map [img] -frames:v 1 -c:v libwebp -quality 82 -compression_level 4 -f webp /c/0.tmp",
 		"-map [luma] -frames:v 1 -f rawvideo -pix_fmt gray pipe:1",
@@ -62,14 +62,14 @@ func TestGrabFrameArgs(t *testing.T) {
 		t.Errorf("SDR source tonemapped: %s", joined)
 	}
 
-	// HDR10 in a 2.39:1 frame: CPU tonemapping, height from the aspect ratio, the stream index.
+	// HDR10: CPU tonemapping, height from the display aspect ratio, the stream index.
 	hdr := Stream{Index: 1, Type: "video", Codec: "hevc", Width: 3840, Height: 1608, PixFmt: "yuv420p10le", ColorTransfer: "smpte2084"}
 	args, err = GrabFrameArgs("/m/b.mkv", 0, 480, hdr, "/c/1.tmp")
 	if err != nil {
 		t.Fatal(err)
 	}
 	joined = strings.Join(args, " ")
-	if !strings.Contains(joined, "[0:1]zscale=w=480:h=200,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"+
+	if !strings.Contains(joined, "[0:1]zscale=w=480:h=trunc(480/dar/2)*2,setsar=1,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,"+
 		"tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,split=2") {
 		t.Errorf("HDR args = %s", joined)
 	}
@@ -83,7 +83,7 @@ func TestGrabFrameArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if joined = strings.Join(args, " "); !strings.Contains(joined, "[0:0]"+dvAsHDR10+",zscale=w=480:h=270,") {
+	if joined = strings.Join(args, " "); !strings.Contains(joined, "[0:0]"+dvAsHDR10+",zscale=w=480:h=trunc(480/dar/2)*2,setsar=1,") {
 		t.Errorf("Dolby Vision args = %s", joined)
 	}
 
@@ -184,8 +184,45 @@ func TestGrabFrame(t *testing.T) {
 			t.Errorf("clip at %v: black %v, %v; want %v", c.at, black, err, c.black)
 		}
 	}
-	// Past the end of the clip ffmpeg writes no frame.
-	if _, err := r.GrabFrame(ctx, clip, time.Minute, ChapterImageWidth, v, filepath.Join(dir, "end.webp")); !errors.Is(err, errNoFrame) {
-		t.Errorf("past the end: %v, want errNoFrame", err)
+	// Past the end of the clip ffmpeg writes no frame: a frame failure.
+	_, err := r.GrabFrame(ctx, clip, time.Minute, ChapterImageWidth, v, filepath.Join(dir, "end.webp"))
+	if !errors.Is(err, ErrNoFrame) || !FrameFailed(err) {
+		t.Errorf("past the end: %v, want ErrNoFrame", err)
+	}
+	// A file that is no video: ffmpeg runs and fails, also a frame failure.
+	junk := filepath.Join(dir, "junk.mkv")
+	if err := os.WriteFile(junk, []byte("no video"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.GrabFrame(ctx, junk, 0, ChapterImageWidth, v, filepath.Join(dir, "junk.webp")); err == nil || !FrameFailed(err) {
+		t.Errorf("junk input: %v, want a frame failure", err)
+	}
+	// No ffmpeg, a cancelled context: no frame failure.
+	if _, err := (Runner{}).GrabFrame(ctx, clip, 0, ChapterImageWidth, v, filepath.Join(dir, "none.webp")); err == nil || FrameFailed(err) {
+		t.Errorf("without ffmpeg: %v", err)
+	}
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := r.GrabFrame(cancelled, clip, 0, ChapterImageWidth, v, filepath.Join(dir, "cancel.webp")); err == nil || FrameFailed(err) {
+		t.Errorf("cancelled: %v", err)
+	}
+
+	// Anamorphic 720x480 with a sample aspect ratio of 32:27 (16:9 DVD): 480x270, square pixels.
+	dvd := filepath.Join(dir, "dvd.mkv")
+	gen = exec.CommandContext(ctx, r.FFmpegPath, "-nostdin", "-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", "testsrc2=size=720x480:rate=24:duration=2,setsar=32/27", "-c:v", "libx264", "-preset", "ultrafast", dvd)
+	if out, err := gen.CombinedOutput(); err != nil {
+		t.Fatalf("generate anamorphic clip: %v: %s", err, out)
+	}
+	out := filepath.Join(dir, "dvd.webp")
+	if _, err := r.GrabFrame(ctx, dvd, time.Second, ChapterImageWidth, Stream{Index: 0, Type: "video", Codec: "h264", Width: 720, Height: 480}, out); err != nil {
+		t.Fatal(err)
+	}
+	p, err := r.Probe(ctx, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, ok := videoStream(p); !ok || v.Width != 480 || v.Height != 270 {
+		t.Errorf("anamorphic frame = %+v, want 480x270", v)
 	}
 }

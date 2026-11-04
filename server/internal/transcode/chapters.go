@@ -2,6 +2,9 @@ package transcode
 
 import (
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
@@ -66,6 +69,17 @@ func Chapters(p *Probe, kind string, durationMs int64) []model.Chapter {
 		return kept
 	}
 	return ReplacementChapters(kept, duration)
+}
+
+// ChapterFingerprint is a short hash (8 hex digits) of the start and the end of every chapter. The
+// chapter images of a file are stored and addressed per probe and per this list, so other chapter
+// marks, also from other chapter rules, give new images and new URLs.
+func ChapterFingerprint(chapters []model.Chapter) string {
+	h := sha256.New()
+	for _, c := range chapters {
+		fmt.Fprintf(h, "%d-%d;", c.StartMs, c.EndMs)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:8]
 }
 
 // CleanChapterTitle returns title without surrounding space, or "" when it only numbers the

@@ -250,3 +250,15 @@ func TestChapters(t *testing.T) {
 		})
 	}
 }
+
+// The fingerprint follows the start and end of every chapter, not the titles.
+func TestChapterFingerprint(t *testing.T) {
+	t.Parallel()
+	a := []model.Chapter{{StartMs: 0, EndMs: 600_000, Auto: true}, {StartMs: 600_000, EndMs: 900_000}}
+	b := []model.Chapter{{StartMs: 0, EndMs: 600_000, Title: "Anfang"}, {StartMs: 600_000, EndMs: 900_000, Title: "Ende"}}
+	c := []model.Chapter{{StartMs: 0, EndMs: 600_000}, {StartMs: 600_000, EndMs: 900_001}}
+	fa, fb, fc := ChapterFingerprint(a), ChapterFingerprint(b), ChapterFingerprint(c)
+	if len(fa) != 8 || fa != fb || fa == fc || ChapterFingerprint(nil) == fa {
+		t.Errorf("fingerprints %q %q %q", fa, fb, fc)
+	}
+}
