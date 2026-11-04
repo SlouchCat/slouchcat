@@ -12,7 +12,7 @@ import {
   videoTime,
   waitForComplete,
 } from './offline';
-import { itemIdByTitle, MULTI_AUDIO_TITLE, resetProgress } from './playback';
+import { arrowTo, itemIdByTitle, MULTI_AUDIO_TITLE, resetProgress } from './playback';
 
 // O-4 and O-5: a film downloaded with the English audio track plays in flight mode from the
 // device, with its subtitles; the progress of that offline playback reaches the server after the
@@ -90,31 +90,58 @@ test('flight mode: the download plays with subtitles and the chosen audio; progr
   await expect.poll(() => videoTime(page)).toBeGreaterThan(1);
   await expectFocusOn(page, player.getByRole('button', { name: 'Pause' }));
 
-  // Subtitles from the stored WebVTT files: T opens the local menu, the arrows pick German.
-  await page.keyboard.press('t');
-  const menu = page.getByRole('menu', { name: 'Untertitel' });
-  await expect(menu).toBeVisible();
-  await page.keyboard.press('ArrowDown');
-  const german = menu.getByRole('menuitemradio', { name: /Deutsch/ });
-  for (let presses = 0; presses < 3; presses += 1) {
-    if (await german.evaluate((item) => item === document.activeElement)) break;
-    await page.keyboard.press('ArrowDown');
-  }
+  // The controls of the video player (F-15): the row is one Tab stop, ←/→ go from button to
+  // button and leave the position alone.
+  const bar = player.getByRole('toolbar', { name: 'Wiedergabe' });
+  const pause = bar.getByRole('button', { name: 'Pause' });
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, bar.getByRole('button', { name: '30 Sekunden vor' }));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, pause);
+  // No quality, version or stream info offline: the gear names no rung.
+  await expect(bar.getByRole('button', { name: 'Einstellungen', exact: true })).toBeVisible();
+  await expect(bar.getByRole('button', { name: /^Ton: Englisch/ })).toBeVisible();
+
+  // Subtitles from the stored WebVTT files: U opens the local panel, the arrows pick German, Enter
+  // takes it and the focus goes back to play/pause. The track stays hidden: the player's subtitle
+  // layer draws its cues (11.10).
+  await page.keyboard.press('u');
+  const panel = player.getByRole('dialog', { name: 'Untertitel' });
+  await expect(panel).toBeVisible();
+  await arrowTo(page, panel.getByRole('option', { name: /Deutsch/ }));
+  await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
-  await expect(menu).toHaveCount(0);
+  await expect(panel).toHaveCount(0);
+  await expectFocusOn(page, pause);
+  await expect(bar.getByRole('button', { name: /^Untertitel: Deutsch/ })).toBeVisible();
   await expect
-    .poll(async () => (await textTracks(page)).filter((track) => track.mode === 'showing'))
+    .poll(() => textTracks(page))
     .toEqual([
-      { language: expect.stringMatching(/^(de|ger)/) as unknown as string, mode: 'showing' },
+      { language: expect.stringMatching(/^(de|ger)/) as unknown as string, mode: 'hidden' },
     ]);
 
-  // Seeking by keyboard works from the device (the fragment index, AN-20).
+  // ↑ leads to the timeline, where ←/→ seek from the device (the fragment index, AN-20); ↓ leads
+  // back to the row.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, player.getByRole('slider', { name: 'Wiedergabeposition' }));
   const before = await videoTime(page);
   await page.keyboard.press('ArrowRight');
   await expect(player).toHaveAttribute('data-seek-count', /\d+/);
   expect(await videoTime(page)).toBeGreaterThan(before + 5);
   await page.keyboard.press('ArrowLeft');
   await expectVisibleFocus(page);
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, pause);
+
+  // ? shows only the keys of this player; Escape closes the help, not the player.
+  await page.keyboard.press('?');
+  const help = player.getByRole('dialog', { name: 'Tastenkürzel' });
+  await expect(help).toBeVisible();
+  await expect(help.getByText('Untertitel', { exact: true })).toBeVisible();
+  await expect(help.getByText('Qualität', { exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(help).toHaveCount(0);
+  await expectFocusOn(page, pause);
 
   // Pause at a known position, then leave the player with Escape.
   await page.locator('video').evaluate((video: HTMLVideoElement) => {
@@ -263,4 +290,18 @@ test('O-5: from 30 s on the server, 15 s offline; a second browser has the new p
     await second.close();
   }
   await expect.poll(async () => (await queuedEvents(page)).length).toBe(0);
+
+  // The file is gone from the device: Enter on the row opens the notice with the focus on
+  // «Zurück» at once (focusOnMount, 11.13), and Escape goes back to /downloads.
+  await page.evaluate(async (id) => {
+    const root = await navigator.storage.getDirectory();
+    const dir = await (await root.getDirectoryHandle('downloads')).getDirectoryHandle(id);
+    await dir.removeEntry('media.mp4');
+  }, created.id);
+  await row.getByRole('link', { name: `${H264_MKV_LONG_TITLE} abspielen` }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Download nicht verfügbar')).toBeVisible();
+  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/downloads$/);
 });

@@ -10,15 +10,7 @@ import type {
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type PointerEvent,
-  type WheelEvent,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type WheelEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
@@ -30,7 +22,7 @@ import { VisuallyHidden } from '@/ui';
 import { AriaButton, BOOST_MAX, focusOnMount, PlayerChrome, VOLUME_STEP } from '@/ui/aria';
 import { nextChapterStart, previousChapterStart, RESTART_CHAPTER_MS } from './audio';
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
-import { SEEK_STEP_S, stepPlaybackRate } from './keymap';
+import { stepPlaybackRate } from './keymap';
 import { usePlayerLayout, volumeIsReadOnly } from './layout';
 import {
   chapterAt,
@@ -47,6 +39,7 @@ import { PAUSE_VIEW_MS, PauseView } from './PauseView';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
 import { usePlayerTabs, type PlayerTabId } from './tabs/playerTabs';
+import { usePhoneTap } from './usePhoneTap';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useAudioGraph } from './useAudioGraph';
 import { usePlayerKeys } from './usePlayerKeys';
@@ -73,8 +66,6 @@ const WHEEL_NOTCH_PX = 100;
 const WHEEL_LINE_PX = 100 / 3;
 /** The skip button hides this close to the end of the intro. */
 const SKIP_TAIL_MS = 500;
-/** Two taps on the same half of the picture within this time seek (V-13, phone). */
-export const DOUBLE_TAP_MS = 300;
 
 /** A change of the playback the server has to make: a new session (W-4, W-8). */
 export interface PlaybackChange {
@@ -534,40 +525,6 @@ export function VideoPlayer({
     [i18n.language, t],
   );
 
-  // A phone (V-13): a tap on the picture shows the controls, or hides them while the video plays;
-  // two taps on the same half within DOUBLE_TAP_MS seek 10 s back (left) or on (right). The tap
-  // waits that long to tell one from two.
-  const hiddenAtTap = useRef(false);
-  const lastTap = useRef<{ at: number; side: 'left' | 'right' } | null>(null);
-  const tapTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(tapTimer.current), []);
-  const onPhoneTap = (event: PointerEvent<HTMLVideoElement>) => {
-    const box = event.currentTarget.getBoundingClientRect();
-    const side = event.clientX < box.left + box.width / 2 ? 'left' : 'right';
-    const previous = lastTap.current;
-    window.clearTimeout(tapTimer.current);
-    if (previous && previous.side === side && event.timeStamp - previous.at < DOUBLE_TAP_MS) {
-      lastTap.current = null;
-      const seconds = side === 'left' ? -SEEK_STEP_S : SEEK_STEP_S;
-      seekBy(seconds);
-      showOsd(
-        side === 'left'
-          ? t('player.chrome.tapBack', { seconds: SEEK_STEP_S })
-          : t('player.chrome.tapForward', { seconds: SEEK_STEP_S }),
-      );
-      return;
-    }
-    lastTap.current = { at: event.timeStamp, side };
-    const wasHidden = hiddenAtTap.current;
-    tapTimer.current = window.setTimeout(() => {
-      lastTap.current = null;
-      // The pointer showed the controls already (poke); a tap on visible ones hides them.
-      if (!wasHidden && wantPlaying.current) {
-        window.clearTimeout(hideTimer.current);
-        setIdle(true);
-      }
-    }, DOUBLE_TAP_MS);
-  };
   // Safari on the iPhone keeps the volume read-only: only the mute button (11.2).
   const [muteOnly] = useState(() => volumeIsReadOnly());
 
@@ -679,6 +636,17 @@ export function VideoPlayer({
 
   // Faded out: no input while playing, nothing open that needs the controls.
   const hidden = idle && playing && panel === null && tab === null && !countdownActive && !infoOpen;
+  // A phone (V-13): a tap shows or hides the controls, a double tap seeks 10 s.
+  const phoneTap = usePhoneTap({
+    hidden,
+    seekBy,
+    showOsd,
+    wantsPlaying: () => wantPlaying.current,
+    hide: () => {
+      window.clearTimeout(hideTimer.current);
+      setIdle(true);
+    },
+  });
   const canPauseView =
     !playing &&
     ended === null &&
@@ -1156,12 +1124,10 @@ export function VideoPlayer({
         playsInline
         data-subtitle-color={subtitleStyle.color}
         data-subtitle-background={subtitleStyle.background}
-        onPointerDown={() => {
-          hiddenAtTap.current = hidden;
-        }}
+        onPointerDown={phoneTap.onPointerDown}
         onPointerUp={(event) => {
           if (event.button !== 0) return;
-          if (phone) onPhoneTap(event);
+          if (phone) phoneTap.onTap(event);
           else togglePlay();
         }}
         onDoubleClick={phone ? undefined : toggleFullscreen}

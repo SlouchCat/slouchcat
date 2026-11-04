@@ -7,7 +7,7 @@ import { useActiveSession } from '@/app/session';
 import { trackLabel } from '@/features/player/labels';
 import { formatBytes } from '@/lib/format';
 import { Notice, Skeleton, Text } from '@/ui';
-import { AriaButton, Form, FormDialog, RadioGroup } from '@/ui/aria';
+import { AriaButton, focusOnMount, Form, FormDialog, RadioGroup } from '@/ui/aria';
 import { createDownloads, persistAsked, persistOnFirstDownload } from './actions';
 import { qualityLabel } from './labels';
 import { downloadOptionsQuery } from './queries';
@@ -112,7 +112,9 @@ export function DownloadDialog({ target, mediaFileId, onClose, onCreated }: Down
         <div className={styles.form}>
           <Notice tone="danger">{problemMessage(t, options.error)}</Notice>
           <div className={styles.formActions}>
-            <AriaButton variant="ghost" onPress={onClose} autoFocus>
+            {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition
+                after Enter opened the dialog (11.13). */}
+            <AriaButton ref={focusOnMount} variant="ghost" onPress={onClose}>
               {t('common.close')}
             </AriaButton>
           </div>
