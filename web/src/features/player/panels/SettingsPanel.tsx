@@ -2,10 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { OptionLinkRow, OptionList, OptionRow, PlayerPanel, Switch } from '@/ui/aria';
 import { RATE_MAX, RATE_MIN, RATE_STEP } from '../keymap';
 import type { SubtitleStyle } from '../useSubtitleStyle';
+import styles from './SettingsPanel.module.css';
 import { SubtitleStyleOptions } from './SubtitleStyleOptions';
 
 /** The pages of the gear panel (11.2). */
-export type SettingsPage = 'main' | 'quality' | 'version' | 'speed' | 'subtitleStyle';
+export type SettingsPage = 'main' | 'quality' | 'version' | 'speed' | 'subtitleStyle' | 'sound';
 
 /** One row of a page that chooses: a quality rung, a version. */
 export interface SettingsOption {
@@ -48,11 +49,13 @@ interface SettingsPanelProps {
   streamInfo?: { open: boolean; onToggle: () => void };
   /** The subtitle style of this device (V-6). */
   subtitleStyle: { value: SubtitleStyle; onChange: (patch: Partial<SubtitleStyle>) => void };
+  /** Night mode (V-16); none where Web Audio is not offered (Safari, 11.15). */
+  nightMode?: { on: boolean; onChange: (on: boolean) => void };
 }
 
 /**
- * The gear panel (11.2): a first page with quality, version, speed and the subtitle style, each a
- * row that leads to a
+ * The gear panel (11.2): a first page with quality, version, speed, the subtitle style and the sound
+ * options (night mode), each a row that leads to a
  * page of its own (PlayerPanel's back button and Backspace go up again), and the stream info as a
  * switch. The quality and the version are the server's: a choice starts a new session.
  */
@@ -67,6 +70,7 @@ export function SettingsPanel({
   onRate,
   streamInfo,
   subtitleStyle,
+  nightMode,
 }: SettingsPanelProps) {
   const { t, i18n } = useTranslation();
   const rateText = (value: number) =>
@@ -118,17 +122,32 @@ export function SettingsPanel({
     );
   }
 
+  if (page === 'sound' && nightMode) {
+    return (
+      <PlayerPanel title={t('player.settings.sound')} onClose={onClose} onBack={back}>
+        <div className={styles.sound}>
+          <Switch isSelected={nightMode.on} onChange={nightMode.onChange}>
+            {t('player.settings.nightMode')}
+          </Switch>
+          <p className={styles.hint}>{t('player.settings.nightModeHint')}</p>
+        </div>
+      </PlayerPanel>
+    );
+  }
+
   const rows = [
     ...(quality ? (['quality'] as const) : []),
     ...(version ? (['version'] as const) : []),
     'speed' as const,
     'subtitleStyle' as const,
+    ...(nightMode ? (['sound'] as const) : []),
   ];
   const values = {
     quality: labelOf(quality),
     version: labelOf(version),
     speed: rateText(rate),
     subtitleStyle: undefined,
+    sound: nightMode?.on ? t('player.settings.nightModeOn') : undefined,
   };
   return (
     <PlayerPanel title={t('player.settings.title')} onClose={onClose}>

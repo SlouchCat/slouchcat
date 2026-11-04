@@ -171,6 +171,19 @@ test('panels and the gear by keyboard: open, arrows, a page and back, Escape; no
   await page.keyboard.press('Backspace');
   await expect(speedRow).toHaveAccessibleDescription('1,25×');
   await expectVisibleFocus(page);
+
+  // The sound options: Space switches night mode on (Web Audio, Chromium and Firefox).
+  const soundRow = settings.getByRole('option', { name: 'Ton-Optionen' });
+  await arrowTo(page, soundRow);
+  await page.keyboard.press('Enter');
+  const night = page.getByRole('dialog', { name: 'Ton-Optionen' }).getByRole('switch', {
+    name: 'Nachtmodus',
+  });
+  await expect(night).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(night).toBeChecked();
+  await page.keyboard.press('Backspace');
+  await expect(soundRow).toHaveAccessibleDescription('Nachtmodus an');
   await page.keyboard.press('Escape');
   await expect(settings).toHaveCount(0);
   await expectFocusOn(page, gear);

@@ -1,0 +1,13 @@
+/* The sound options: the night mode switch with a line on what it does. */
+.sound {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  padding: var(--sc-space-2) var(--sc-space-3);
+}
+
+.hint {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

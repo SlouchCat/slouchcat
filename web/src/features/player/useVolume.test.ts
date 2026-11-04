@@ -126,4 +126,41 @@ describe('useVolume (V-3, F-2)', () => {
     const second = mount();
     expect(second.result.current.muted).toBe(false);
   });
+
+  it('with a boost up to 150 %: the element plays at most 100 %, the rest is the gain', () => {
+    const element = document.createElement('video');
+    const media = { current: element };
+    const { result } = renderHook(() => useVolume(media, { max: 1.5 }));
+    act(() => {
+      result.current.setVolume(1.3);
+    });
+    expect(result.current.volume).toBe(1.3);
+    expect(element.volume).toBe(1);
+    expect(result.current.gain).toBeCloseTo(1.3);
+    act(() => {
+      result.current.step(0.5);
+    });
+    expect(result.current.volume).toBe(1.5);
+    // The device remembers at most 100 %: a boost needs a viewer's action each time.
+    expect(JSON.parse(localStorage.getItem(PLAYER_PREFS_KEY) ?? '{}')).toMatchObject({ volume: 1 });
+    act(() => {
+      result.current.setVolume(0.6);
+    });
+    expect(element.volume).toBe(0.6);
+    expect(result.current.gain).toBe(1);
+  });
+
+  it('without a boost stays at 100 % and starts from the level of the previous session', () => {
+    const media = { current: document.createElement('video') };
+    const { result } = renderHook(() =>
+      useVolume(media, { initialVolume: 1.2, initialMuted: true }),
+    );
+    expect(result.current.volume).toBe(1);
+    expect(result.current.muted).toBe(true);
+    act(() => {
+      result.current.setVolume(1.4);
+    });
+    expect(result.current.volume).toBe(1);
+    expect(result.current.gain).toBe(1);
+  });
 });

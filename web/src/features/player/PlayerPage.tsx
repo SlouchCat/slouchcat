@@ -21,7 +21,7 @@ import {
 } from './capabilities';
 import { AudioPlayerPage } from './AudioPlayerPage';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
-import { VideoPlayer, type PlaybackChange } from './VideoPlayer';
+import { NO_CARRY, VideoPlayer, type PlaybackChange, type PlayerCarry } from './VideoPlayer';
 import styles from './Player.module.css';
 
 const route = getRouteApi('/_authed/_active/play/$itemId');
@@ -203,17 +203,16 @@ function PlayerView({ itemId }: { itemId: string }) {
   const versions = detail.data?.mediaFiles ?? [];
 
   const [infoOpen, setInfoOpen] = useState(false);
-  // Mute and speed carry over to the next session of this title (a switch of track, quality or
-  // version); a new title starts audible at normal speed.
-  const [carried, setCarried] = useState({ muted: false, rate: 1 });
-  const carryMuted = useCallback(
-    (muted: boolean) =>
-      setCarried((current) => (current.muted === muted ? current : { ...current, muted })),
-    [],
-  );
-  const carryRate = useCallback(
-    (rate: number) =>
-      setCarried((current) => (current.rate === rate ? current : { ...current, rate })),
+  // Mute, speed, a volume above 100 % and night mode carry over to the next session of this title
+  // (a switch of track, quality or version); a new title starts audible at normal speed.
+  const [carried, setCarried] = useState<PlayerCarry>(NO_CARRY);
+  const carry = useCallback(
+    (patch: Partial<PlayerCarry>) =>
+      setCarried((current) =>
+        (Object.keys(patch) as (keyof PlayerCarry)[]).every((key) => current[key] === patch[key])
+          ? current
+          : { ...current, ...patch },
+      ),
     [],
   );
 
@@ -312,10 +311,8 @@ function PlayerView({ itemId }: { itemId: string }) {
         detail={detail.data}
         infoOpen={infoOpen}
         onToggleInfo={() => setInfoOpen((open) => !open)}
-        initialMuted={carried.muted}
-        initialRate={carried.rate}
-        onMutedChange={carryMuted}
-        onRateChange={carryRate}
+        carried={carried}
+        onCarry={carry}
         switching={switching}
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
         onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}

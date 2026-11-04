@@ -796,6 +796,10 @@
       "version": "Version",
       "speed": "Speed",
       "subtitleStyle": "Subtitle style",
+      "sound": "Sound options",
+      "nightMode": "Night mode",
+      "nightModeOn": "Night mode on",
+      "nightModeHint": "Quiet passages louder, loud ones quieter: for late evenings.",
       "rateValue": "{{rate}}×",
       "streamInfo": "Stream info"
     },

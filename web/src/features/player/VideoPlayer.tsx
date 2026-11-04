@@ -16,10 +16,12 @@ import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
 import { formatBitrate } from '@/lib/format';
+import { supportsWebAudioBoost } from '@/lib/webAudio';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
 import {
   AriaButton,
+  BOOST_MAX,
   focusOnMount,
   PlayerChrome,
   VOLUME_STEP,
@@ -41,6 +43,7 @@ import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
+import { useAudioGraph } from './useAudioGraph';
 import { usePlayerPrefs } from './usePlayerPrefs';
 import { useSubtitleStyle } from './useSubtitleStyle';
 import { SubtitleLayer, useSubtitleCues } from './SubtitleLayer';
@@ -115,12 +118,24 @@ interface VideoPlayerProps {
   onToggleInfo?: () => void;
   /** The title's details (logo, genres, series), once loaded; the head shows text until then. */
   detail?: ItemDetail;
-  /** Mute and speed of the previous session of this title (m-2): a switch keeps them. */
-  initialMuted?: boolean;
-  initialRate?: number;
-  onMutedChange?: (muted: boolean) => void;
-  onRateChange?: (rate: number) => void;
+  /** What the previous session of this title left (review m-2): a switch keeps it. */
+  carried?: PlayerCarry;
+  /** Reports what the next session should keep. */
+  onCarry?: (patch: Partial<PlayerCarry>) => void;
 }
+
+/**
+ * What a switch of track, quality or version keeps (PlayerPage mounts a new player per session):
+ * mute, speed, the volume (a boost above 100 % is not stored on the device) and night mode.
+ */
+export interface PlayerCarry {
+  muted: boolean;
+  rate: number;
+  volume?: number;
+  nightMode: boolean;
+}
+
+export const NO_CARRY: PlayerCarry = { muted: false, rate: 1, nightMode: false };
 
 const isActivatable = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
@@ -187,14 +202,13 @@ export function VideoPlayer({
   infoOpen = false,
   onToggleInfo,
   detail,
-  initialMuted = false,
-  initialRate = 1,
-  onMutedChange,
-  onRateChange,
+  carried = NO_CARRY,
+  onCarry,
 }: VideoPlayerProps) {
   const { t, i18n } = useTranslation();
   // Fixed for the life of this player (one playback session).
   const [resumeMs] = useState(() => startPositionMs ?? info.resumePositionMs);
+  const [start] = useState(() => carried);
   const [switchFrom] = useState(() => switchStartedAt);
   const video = useRef<HTMLVideoElement>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -422,26 +436,39 @@ export function VideoPlayer({
     [seekTo],
   );
 
-  const volume = useVolume(video, initialMuted);
-  const mutedNow = volume.muted;
+  // Up to 150 % and night mode through Web Audio, except in Safari (11.15).
+  const [webAudio] = useState(() => supportsWebAudioBoost());
+  const volume = useVolume(video, {
+    initialMuted: start.muted,
+    initialVolume: start.volume,
+    max: webAudio ? BOOST_MAX : 1,
+  });
+  const [nightMode, setNightMode] = useState(start.nightMode);
+  useAudioGraph({ media: video, enabled: webAudio, nightMode, gain: volume.gain });
+  const { muted: mutedNow, volume: levelNow } = volume;
   useEffect(() => {
-    onMutedChange?.(mutedNow);
-  }, [mutedNow, onMutedChange]);
+    onCarry?.({ muted: mutedNow, volume: levelNow, nightMode });
+  }, [levelNow, mutedNow, nightMode, onCarry]);
+  /** «Lautstärke 80 %»; above 100 % with the warning that it may distort. */
+  const volumeText = useCallback(
+    (level: number) => {
+      const percent = Math.round(level * 100);
+      return level > 1
+        ? t('player.volumeControl.boosted', { percent })
+        : t('player.volume', { percent });
+    },
+    [t],
+  );
   const stepVolume = volume.step;
   const changeVolume = useCallback(
-    (delta: number) => {
-      const next = stepVolume(delta);
-      showOsd(t('player.volume', { percent: Math.round(next * 100) }));
-    },
-    [stepVolume, t],
+    (delta: number) => showOsd(volumeText(stepVolume(delta))),
+    [stepVolume, volumeText],
   );
   const { toggleMute: toggleElementMute, volume: level } = volume;
   const toggleMute = useCallback(() => {
     const muted = toggleElementMute();
-    showOsd(
-      muted ? t('player.chrome.muted') : t('player.volume', { percent: Math.round(level * 100) }),
-    );
-  }, [level, t, toggleElementMute]);
+    showOsd(muted ? t('player.chrome.muted') : volumeText(level));
+  }, [level, t, toggleElementMute, volumeText]);
 
   // Mouse wheel over the picture (V-3): one notch is one volume step. Over the bar and over a panel
   // the wheel stays theirs (the chrome lets the pointer through to the video only in between).
@@ -464,16 +491,16 @@ export function VideoPlayer({
     changeVolume(-notches * VOLUME_STEP);
   };
 
-  // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×; a switch keeps it (initialRate).
-  const [rate, setRate] = useState(initialRate);
+  // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×; a switch keeps it.
+  const [rate, setRate] = useState(start.rate);
   useEffect(() => {
-    onRateChange?.(rate);
+    onCarry?.({ rate });
     const element = video.current;
     if (!element) return;
     // A new source falls back to the default rate; both keep the speed.
     element.defaultPlaybackRate = rate;
     element.playbackRate = rate;
-  }, [onRateChange, rate]);
+  }, [onCarry, rate]);
   const changeRate = useCallback(
     (delta: number) => {
       const next = stepPlaybackRate(video.current?.playbackRate ?? 1, delta);
@@ -1250,6 +1277,7 @@ export function VideoPlayer({
         muted={volume.muted}
         onVolumeChange={volume.setVolume}
         onToggleMute={volume.toggleMute}
+        volumeBoost={webAudio}
         fullscreen={fullscreen}
         onToggleFullscreen={toggleFullscreen}
         pictureInPicture={
@@ -1300,6 +1328,7 @@ export function VideoPlayer({
           onRate={setRate}
           streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
           subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+          nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
         />
       )}
       {panel === 'audio' && (

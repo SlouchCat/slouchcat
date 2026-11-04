@@ -314,6 +314,99 @@ describe('video player controls (concept 13, step 3)', () => {
     });
   });
 
+  describe('sound options and 150 % (Web Audio, 11.10)', () => {
+    const contexts: { sources: number; compressed: boolean; gain: { value: number } }[] = [];
+    class FakeAudioContext {
+      state = 'running';
+      destination = {};
+      record = { sources: 0, compressed: false, gain: { value: 1 } };
+      constructor() {
+        contexts.push(this.record);
+      }
+      createMediaElementSource() {
+        this.record.sources += 1;
+        const record = this.record;
+        return {
+          connect(target: { kind?: string }) {
+            record.compressed = target.kind === 'compressor';
+          },
+          disconnect() {},
+        };
+      }
+      createDynamicsCompressor() {
+        const value = () => ({ value: 0 });
+        return {
+          kind: 'compressor',
+          threshold: value(),
+          knee: value(),
+          ratio: value(),
+          attack: value(),
+          release: value(),
+          connect() {},
+        };
+      }
+      createGain() {
+        return { kind: 'gain', gain: this.record.gain, connect() {} };
+      }
+      resume() {
+        return Promise.resolve();
+      }
+      close() {
+        return Promise.resolve();
+      }
+    }
+    beforeEach(() => {
+      contexts.length = 0;
+      vi.stubGlobal('AudioContext', FakeAudioContext);
+    });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('offers 150 % and night mode; the graph comes with the first one switched on', async () => {
+      const { video } = await start();
+      const user = playerDriver().user;
+      const slider = screen.getByRole('slider', { name: 'Lautstärke' });
+      expect(slider).toHaveAttribute('aria-valuemax', '150');
+      expect(contexts).toHaveLength(0);
+      act(() => slider.focus());
+      for (let presses = 0; presses < 4; presses += 1) key(slider, 'ArrowRight');
+      expect(slider).toHaveAttribute('aria-valuenow', '120');
+      expect(slider).toHaveAttribute(
+        'aria-valuetext',
+        'Lautstärke 120 %, verstärkt, kann verzerren',
+      );
+      // The element plays 100 %, the graph adds the rest.
+      expect(video.volume).toBe(1);
+      expect(contexts).toHaveLength(1);
+      expect(contexts[0]!.gain.value).toBeCloseTo(1.2);
+
+      await user.click(button('Einstellungen'));
+      const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
+      await user.click(within(gear).getByRole('option', { name: 'Ton-Optionen' }));
+      const sound = await screen.findByRole('dialog', { name: 'Ton-Optionen' });
+      await user.click(within(sound).getByRole('switch', { name: 'Nachtmodus' }));
+      expect(contexts).toHaveLength(1);
+      expect(contexts[0]!.compressed).toBe(true);
+      expect(contexts[0]!.sources).toBe(1);
+    });
+
+    it('hides night mode and 150 % in Safari', async () => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/19.0 Safari/605.1.15',
+      );
+      await start();
+      const user = playerDriver().user;
+      expect(screen.getByRole('slider', { name: 'Lautstärke' })).toHaveAttribute(
+        'aria-valuemax',
+        '100',
+      );
+      await user.click(button('Einstellungen'));
+      const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
+      expect(within(gear).getByRole('option', { name: 'Geschwindigkeit' })).toBeVisible();
+      expect(within(gear).queryByRole('option', { name: 'Ton-Optionen' })).toBeNull();
+      expect(contexts).toHaveLength(0);
+    });
+  });
+
   it('Q opens the gear straight on the quality: no way up, Backspace closes', async () => {
     const { router } = await start();
     key(document.body, 'q');
