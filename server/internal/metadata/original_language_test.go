@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -346,6 +347,35 @@ func TestRunOriginalLanguageBackfillJoinsAnActiveChain(t *testing.T) {
 	}
 	if got := e.activeJobs(t, JobOriginalLanguageBackfill); !slices.Equal(got, []string{"original_language_backfill p7"}) {
 		t.Fatalf("jobs after a run without a chain %v", got)
+	}
+}
+
+// TestOriginalLanguageSuccessorKeepsThePriority: a full batch queues its successor at the
+// priority of the batch, so a chain started by hand stays manual (review step 8, S8-m-2). The
+// titles name TVDB, which has no key here, so the batch passes them over without a request.
+func TestOriginalLanguageSuccessorKeepsThePriority(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	e := newEnv(t, goodToken)
+	var last string
+	for i := range originalLanguageBatch {
+		last = fmt.Sprintf("01JTESTBATCH%014d", i)
+		e.addItem(t, itemSeed{id: last, title: fmt.Sprintf("Batch %d", i)})
+	}
+	mustExec(t, e.db.Write, `UPDATE items SET metadata_state = 'matched', providers = '["tvdb"]'`)
+	for _, prio := range []int{jobs.ManualPriority, fillPriority} {
+		mustExec(t, e.db.Write, `DELETE FROM jobs`)
+		job := &jobs.Job{Type: JobOriginalLanguageBackfill, Priority: prio, Payload: json.RawMessage(`{}`)}
+		if err := e.svc.handleOriginalLanguageBackfill(ctx, job); err != nil {
+			t.Fatal(err)
+		}
+		want := fmt.Sprintf("original_language_backfill:%s p%d", last, prio)
+		if got := e.activeJobs(t, JobOriginalLanguageBackfill); !slices.Equal(got, []string{want}) {
+			t.Errorf("successor of a batch at p%d: %v, want %s", prio, got, want)
+		}
+	}
+	if n := e.tmdb.total(); n != 0 {
+		t.Errorf("the batch made %d TMDB requests, want none", n)
 	}
 }
 

@@ -31,9 +31,10 @@ import (
 // list through fetchTitleRecords (their rate limiters apply, a provider without key is skipped)
 // and decides the field with decideFields; one transaction per title writes the value (or "")
 // and its provenance. A title whose identifier is not configured or whose match job is active is
-// passed over and stays NULL. Before a full batch ends, the job queues its successor with the
-// cursor (key original_language_backfill:<last id>). QueueOriginalLanguageBackfillOnce queues the
-// chain once at the first start after the migration (the setting
+// passed over and stays NULL. Before a full batch ends, the job queues its successor at its own
+// priority with the cursor (key original_language_backfill:<last id>).
+// QueueOriginalLanguageBackfillOnce queues the chain once at the first start after the migration
+// (the setting
 // metadata.original_language_backfill_queued remembers it); later runs start by hand on the page
 // Hintergrundjobs.
 const (
@@ -179,7 +180,8 @@ func (s *Service) handleOriginalLanguageBackfill(ctx context.Context, j *jobs.Jo
 	if last == "" {
 		return nil
 	}
-	_, err = s.enqueueOriginalLanguageBackfill(ctx, last, fillPriority)
+	// The successor keeps the priority of the chain, so a chain started by hand stays manual.
+	_, err = s.enqueueOriginalLanguageBackfill(ctx, last, j.Priority)
 	return err
 }
 
