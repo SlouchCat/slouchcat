@@ -1,4 +1,4 @@
-import type { Ref } from 'react';
+import { useState, type Ref } from 'react';
 import { Button } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formatPlayerTime } from '@/lib/format';
@@ -14,7 +14,10 @@ interface ChapterCardProps {
   startMs: number;
   /** Length of the title: from an hour on the time reads h:mm:ss. */
   durationMs: number;
-  /** The chapter image (stage 3); until there is one the card shows the number. */
+  /**
+   * The chapter image (stage 3, `Chapter.imageUrl` resolved); until there is one, or when it fails
+   * to load, the card shows the number.
+   */
   imageUrl?: string;
   /** How much of the chapter has played, 0 … 100; left out for a chapter not reached yet. */
   progress?: number;
@@ -52,6 +55,8 @@ export function ChapterCard({
   const { t } = useTranslation();
   const name = title ?? t('player.chapters.untitled', { n: index + 1 });
   const played = progress === undefined ? undefined : Math.min(100, Math.max(0, progress));
+  const [failed, setFailed] = useState<string | null>(null);
+  const showImage = Boolean(imageUrl) && failed !== imageUrl;
   return (
     <Button
       ref={ref}
@@ -62,7 +67,8 @@ export function ChapterCard({
       excludeFromTabOrder={excludeFromTabOrder || (tabIndex !== undefined && tabIndex < 0)}
     >
       <span className={styles.frame}>
-        {imageUrl ? (
+        {showImage ? (
+          // Decoration: the card is named by its title.
           <img
             className={styles.image}
             src={imageUrl}
@@ -72,6 +78,7 @@ export function ChapterCard({
             loading="lazy"
             decoding="async"
             draggable={false}
+            onError={() => setFailed(imageUrl ?? null)}
           />
         ) : (
           <span className={styles.number} aria-hidden="true">

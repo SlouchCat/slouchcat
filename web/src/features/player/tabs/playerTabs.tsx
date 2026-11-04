@@ -22,6 +22,10 @@ export function chapterProgress(chapter: Chapter, positionMs: number): number | 
 
 interface PlayerTabsInput {
   t: TFunction;
+  /**
+   * The chapters with their images resolved (`apiUrl`); a chapter without one, as every chapter
+   * of a download (`DownloadManifest.chapters`), shows its number.
+   */
   chapters: readonly Chapter[];
   positionMs: number;
   durationMs: number;
@@ -46,8 +50,8 @@ interface PlayerTabsInput {
 }
 
 /**
- * The tabs under the bar (11.2, V-8, V-11): «Kapitel» as chapter cards (number and time until
- * stage 3 brings the images), «Als Nächstes» with the episodes of the season, «Besetzung» and
+ * The tabs under the bar (11.2, V-8, V-11): «Kapitel» as chapter cards (the chapter image or its
+ * number, the time, «automatisch» on replacement chapters), «Als Nächstes» with the episodes of the season, «Besetzung» and
  * «Info». A tab without content is left out. Everything comes from requests the detail page makes
  * as well (11.10); the server decided what the profile may see (rule 12).
  *
@@ -87,6 +91,8 @@ export function usePlayerTabs({
             <ChapterCard
               index={index}
               title={chapter.title}
+              imageUrl={chapter.imageUrl}
+              auto={chapter.auto}
               startMs={chapter.startMs}
               durationMs={durationMs}
               progress={chapterProgress(chapter, positionMs)}

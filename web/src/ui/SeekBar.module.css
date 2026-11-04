@@ -80,8 +80,9 @@
   transform: translate(-50%, -50%) scale(1);
 }
 
-/* The field over the pointer: time and chapter. 10rem wide, the room for a chapter image later;
-   the inline `left` keeps its centre at least half that width from both ends. */
+/* The field over the pointer: chapter image, time and chapter. 10rem wide, the room of the image;
+   the inline `left` keeps its centre at least half that width from both ends. The field grows
+   upwards from the bar, so an image above the time moves nothing else. */
 .preview {
   position: absolute;
   bottom: calc(100% + var(--sc-space-2));
@@ -97,6 +98,16 @@
   text-align: center;
   transform: translateX(-50%);
   pointer-events: none;
+}
+
+.previewImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+  object-fit: cover;
 }
 
 .previewTime {

@@ -10,7 +10,7 @@ import type {
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
@@ -478,7 +478,15 @@ export function VideoPlayer({
   }, []);
 
   // Chapter back and forward (V-2, ⇧←/⇧→): back restarts the chapter after its first seconds.
-  const { chapters } = info;
+  // The chapter images (stage 3) are relative to the API base, like every image URL the server
+  // lists; resolved once for the tab «Kapitel» and the field over the timeline.
+  const chapters = useMemo(
+    () =>
+      info.chapters.map((chapter) =>
+        chapter.imageUrl ? { ...chapter, imageUrl: apiUrl(chapter.imageUrl) } : chapter,
+      ),
+    [info.chapters],
+  );
   const previousChapter = useCallback(() => {
     if (chapters.length === 0) return;
     seekTo(previousChapterStart(chapters, (video.current?.currentTime ?? 0) * 1000));
