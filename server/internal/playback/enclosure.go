@@ -97,6 +97,7 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 	if err != nil {
 		return model.PlaybackInfo{}, fmt.Errorf("insert playback session: %w", err)
 	}
+	s.states.add(id, session.ID)
 	if limits.WatchLimitMinutes > 0 {
 		if err := s.recheckWatchLimit(context.WithoutCancel(ctx), session.Profile.ID, limits.WatchLimitMinutes, id); err != nil {
 			return model.PlaybackInfo{}, err

@@ -831,6 +831,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/playback/sessions/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether a playback session still runs (contract 1.10.0)
+         * @description A player that has buffered its whole title makes no further stream request, so the 401 of
+         *     a revoked stream token never reaches it (concept 13, 11.13). It asks this operation every
+         *     4 s while it plays instead and stops within 5 s when the answer is `stopped`, with the
+         *     notice of `stoppedBy`.
+         *
+         *     The server answers from memory only: no database query, no transcoder. It knows the
+         *     playback sessions it started since its own start and keeps a stopped one for 10 minutes.
+         *     Only the browser session that started the playback gets an answer; any other, an unknown
+         *     id and a playback the server no longer knows (after a restart, more than 10 minutes after
+         *     its end) answer 404. A 404 does not mean stopped: the player plays on, and its next
+         *     stream request answers 401 if the playback ended.
+         */
+        get: operations["getPlaybackSessionState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/playback/sessions/{id}/master.m3u8": {
         parameters: {
             query?: never;
@@ -3886,6 +3916,20 @@ export interface components {
             limitMinutes: number;
             usedMinutes: number;
             remainingMinutes: number;
+        };
+        /**
+         * @description State of a playback session (`getPlaybackSessionState`, contract 1.10.0). `stoppedBy` names
+         *     who ended a stopped one: `client` (the browser session itself: a stop, or a new start of
+         *     the same title), `admin` (the administration: the streams page, a forgotten device),
+         *     `limit` (the daily watch time, K-5), `logout` (a logout or a profile switch) or `revoked`
+         *     (the account lost its access, the profile was deleted). It is absent for a running
+         *     playback and for one that expired.
+         */
+        PlaybackSessionState: {
+            /** @enum {string} */
+            state: "active" | "stopped";
+            /** @enum {string} */
+            stoppedBy?: "client" | "admin" | "limit" | "logout" | "revoked";
         };
         /** @description Minutes watched per day for one profile (K-5), oldest day first, today last. */
         WatchReport: {
@@ -8961,6 +9005,59 @@ export interface operations {
                 };
             };
             /** @description Not a running playback session of this browser session (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPlaybackSessionState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state of the playback session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackSessionState"];
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No profile chosen (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Not a playback session of this browser session that the server knows (`not_found`);
+             *     not a stop.
+             */
             404: {
                 headers: {
                     [name: string]: unknown;

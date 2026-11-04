@@ -222,6 +222,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		s.stopOutput(id)
 		return model.PlaybackInfo{}, fmt.Errorf("insert playback session: %w", err)
 	}
+	s.states.add(id, session.ID)
 	if hls != nil {
 		// The browser session may have ended (logout) while the output waited for admission.
 		if _, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: s.now().UnixMilli()}); err != nil {
@@ -798,7 +799,7 @@ func (s *Service) Stop(ctx context.Context, session model.Session, id string) er
 	if n == 0 {
 		return model.ErrNotFound
 	}
-	s.end(id)
+	s.end(id, model.StoppedByClient)
 	return nil
 }
 
@@ -812,7 +813,7 @@ func (s *Service) EndSession(ctx context.Context, sessionID int64) error {
 		return fmt.Errorf("revoke playback sessions: %w", err)
 	}
 	for _, id := range ids {
-		s.end(id)
+		s.end(id, model.StoppedByLogout)
 	}
 	return nil
 }
@@ -828,7 +829,7 @@ func (s *Service) EndAccount(ctx context.Context, accountID int64) error {
 		return fmt.Errorf("revoke playback sessions of account: %w", err)
 	}
 	for _, id := range ids {
-		s.end(id)
+		s.end(id, model.StoppedByRevoked)
 	}
 	s.cancelAccount(accountID) // streams whose row was revoked earlier or is not yet written
 	return nil
@@ -849,15 +850,17 @@ func (s *Service) endProfile(ctx context.Context, profileID int64, stoppedBy str
 		return fmt.Errorf("revoke playback sessions of profile: %w", err)
 	}
 	for _, id := range ids {
-		s.end(id)
+		s.end(id, stoppedBy)
 	}
 	s.cancelProfile(profileID)
 	return nil
 }
 
-// end closes the open streams of an ended playback session, stops its HLS output and removes its
-// cached subtitles.
-func (s *Service) end(id string) {
+// end closes the open streams of an ended playback session, stops its HLS output, removes its
+// cached subtitles and marks it stopped by stoppedBy (a model.StoppedBy value) for State. Every
+// stop of a running playback session goes through here.
+func (s *Service) end(id, stoppedBy string) {
+	s.states.stop(id, stoppedBy, s.now())
 	s.cancelStreams(id)
 	s.stopOutput(id)
 	s.removeSubtitles(id)
@@ -899,6 +902,7 @@ func (s *Service) sweep(ctx context.Context) {
 		s.log.WarnContext(ctx, "list ended playback sessions", "err", err)
 	}
 	for _, id := range ids {
+		s.states.stop(id, "", now) // expired; a revoked one keeps the reason end gave it
 		s.cancelStreams(id)
 		s.removeSubtitles(id)
 		if s.tc == nil {
@@ -908,6 +912,7 @@ func (s *Service) sweep(ctx context.Context) {
 			s.tc.Stop(id)
 		}
 	}
+	s.states.prune(now)
 	if _, err := s.write.DeleteExpiredPlaybackSessions(ctx, now.Add(-endedRetention).UnixMilli()); err != nil {
 		s.log.WarnContext(ctx, "delete ended playback sessions", "err", err)
 	}

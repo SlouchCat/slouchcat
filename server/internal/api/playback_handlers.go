@@ -34,6 +34,32 @@ func (s *server) StopPlayback(ctx context.Context, req gen.StopPlaybackRequestOb
 	return gen.StopPlayback204Response{}, nil
 }
 
+func (e serviceProblem) VisitGetPlaybackSessionStateResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+
+// GetPlaybackSessionState answers the player's stop watch from memory (no database query, no
+// transcoder, concept 13): running, or stopped with the stopped_by value when the server knows it.
+func (s *server) GetPlaybackSessionState(ctx context.Context, req gen.GetPlaybackSessionStateRequestObject) (gen.GetPlaybackSessionStateResponseObject, error) {
+	session, err := s.itemSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	st, err := s.opts.Playback.State(session, req.Id)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	out := gen.GetPlaybackSessionState200JSONResponse{State: gen.PlaybackStateActive}
+	if st.Stopped {
+		out.State = gen.PlaybackStateStopped
+		if st.StoppedBy != "" {
+			by := gen.PlaybackSessionStateStoppedBy(st.StoppedBy)
+			out.StoppedBy = &by
+		}
+	}
+	return out, nil
+}
+
 // hlsStream returns the HLS output of the token's playback session; the path id must be the
 // session the token names. segment is where a lost output restarts (playlists and init: 0).
 func (s *server) hlsStream(w http.ResponseWriter, r *http.Request, segment int) (model.HLSStream, bool) {

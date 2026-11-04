@@ -128,7 +128,7 @@ func (s *Service) StopStream(ctx context.Context, id string) error {
 	if len(rows) == 0 {
 		return model.ErrNotFound
 	}
-	s.end(id)
+	s.end(id, model.StoppedByAdmin)
 	s.log.InfoContext(ctx, "playback ended by the administration", "playback_id", id)
 	for _, r := range rows {
 		s.recordStopped(ctx, model.StoppedByAdmin, r.AccountID, r.ProfileID, r.ItemID)
@@ -146,7 +146,7 @@ func (s *Service) EndDevice(ctx context.Context, deviceID string) error {
 		return fmt.Errorf("revoke playback sessions of device: %w", err)
 	}
 	for _, r := range rows {
-		s.end(r.ID)
+		s.end(r.ID, model.StoppedByAdmin) // the row's stopped_by
 	}
 	// One event per ended session (the UPDATE ends several at once, RETURNING names each). The row
 	// keeps stopped_by admin (the administration acted); the log says revoked, because forgetting

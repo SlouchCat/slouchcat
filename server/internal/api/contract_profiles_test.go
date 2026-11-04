@@ -451,6 +451,11 @@ var profileRegistry = map[string]profileCall{
 		}},
 	"stopPlayback": {contract: "DELETE /playback/sessions/{id}", path: "/playback/sessions/{ps}", perItem: true,
 		okStatus: http.StatusNoContent, invisibleStatus: http.StatusNoContent, mint: "remux"},
+	// The state comes from memory: a playback minted in the store bypasses Start, so the server does
+	// not know it (404 not_found, as after a restart); TestHTTPPlaybackSessionState covers the
+	// known one.
+	"getPlaybackSessionState": {contract: "GET /playback/sessions/{id}/state", path: "/playback/sessions/{ps}/state", perItem: true,
+		okStatus: http.StatusNotFound, mint: "direct"},
 	"getPlaybackMaster": {contract: "GET /playback/sessions/{id}/master.m3u8", path: "/playback/sessions/{ps}/master.m3u8?st={st}",
 		perItem: true, okStatus: http.StatusOK, mint: "transcode", streamOnly: true,
 		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, _ vistest.Movie, rec *httptest.ResponseRecorder) {

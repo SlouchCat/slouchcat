@@ -424,6 +424,9 @@ type PlaybackService interface {
 	HLS(ctx context.Context, g model.PlaybackGrant, segment int) (model.HLSStream, error)
 	// Stop ends a playback session of the browser session (model.ErrNotFound for any other).
 	Stop(ctx context.Context, session model.Session, playbackID string) error
+	// State reports from memory whether a playback session of the browser session still runs
+	// (concept 13); model.ErrNotFound for any other and for one the server does not know.
+	State(session model.Session, playbackID string) (model.PlaybackState, error)
 	// EndSession ends every playback session of a browser session (logout, profile switch).
 	EndSession(ctx context.Context, sessionID int64) error
 	// EndAccount ends every playback session of an account (guest revocation).
