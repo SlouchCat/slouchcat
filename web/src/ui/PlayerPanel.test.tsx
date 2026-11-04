@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { OptionList, OptionRow } from './OptionRow';
 import { PlayerPanel } from './PlayerPanel';
@@ -29,6 +29,29 @@ function Player({ children }: { children?: ReactNode }) {
   );
 }
 
+/** A list whose rows come after the first render, like a react-aria collection in a browser. */
+function LateList() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 10);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div role="listbox" aria-label="Ton" tabIndex={0}>
+      {ready && (
+        <>
+          <div role="option" aria-selected="false" tabIndex={-1}>
+            Deutsch
+          </div>
+          <div role="option" aria-selected="true" tabIndex={-1}>
+            Englisch
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 async function openPanel(children?: ReactNode) {
   const user = userEvent.setup();
   render(<Player>{children}</Player>);
@@ -41,6 +64,12 @@ async function openPanel(children?: ReactNode) {
 describe('PlayerPanel (concept 13, 11.2)', () => {
   it('moves the focus to the chosen row when it opens', async () => {
     await openPanel();
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Englisch' })).toHaveFocus());
+  });
+
+  it('waits for rows that render after the panel and focuses the chosen one', async () => {
+    await openPanel(<LateList />);
+    expect(screen.getByRole('listbox', { name: 'Ton' })).not.toHaveFocus();
     await waitFor(() => expect(screen.getByRole('option', { name: 'Englisch' })).toHaveFocus());
   });
 

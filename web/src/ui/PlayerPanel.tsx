@@ -47,11 +47,31 @@ export function PlayerPanel({ title, onClose, children }: PlayerPanelProps) {
     const active = document.activeElement;
     opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
     const body = panel.querySelector<HTMLElement>('[data-panel-body]');
-    focusOnMount(
-      body?.querySelector<HTMLElement>(CHOSEN) ??
-        body?.querySelector<HTMLElement>(FOCUSABLE) ??
-        panel,
-    );
+    if (!body) return;
+    // The rows of a react-aria collection are not there yet when the panel mounts: it builds them
+    // in a hidden document first and renders them in a later pass (seen in Chromium; jsdom has
+    // them at once). An empty list is therefore no target; the body is watched until the rows
+    // come.
+    const target = () => {
+      const found =
+        body.querySelector<HTMLElement>(CHOSEN) ?? body.querySelector<HTMLElement>(FOCUSABLE);
+      const pending =
+        found?.getAttribute('role') === 'listbox' && !found.querySelector('[role="option"]');
+      return pending ? null : found;
+    };
+    const now = target();
+    if (now) {
+      focusOnMount(now);
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      const later = target();
+      if (!later) return;
+      observer.disconnect();
+      focusOnMount(later);
+    });
+    observer.observe(body, { childList: true, subtree: true });
+    return () => observer.disconnect();
   }, []);
 
   const close = () => {
