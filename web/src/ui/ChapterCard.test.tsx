@@ -69,7 +69,7 @@ describe('ChapterCard (concept 13, V-8)', () => {
     fireEvent.error(image);
     expect(container.querySelector('img')).toBeNull();
     expect(screen.getByRole('button')).toHaveTextContent('3');
-    // Another image (a new probe, another file) is tried again.
+    // Another image (a new probe, another file) is tried; the failed one is not loaded again.
     rerender(
       <ChapterCard
         index={2}
@@ -84,6 +84,17 @@ describe('ChapterCard (concept 13, V-8)', () => {
       'src',
       '/api/v1/items/a/chapters/2/image?mediaFileId=c',
     );
+    rerender(
+      <ChapterCard
+        index={2}
+        title="Der Damm"
+        startMs={0}
+        durationMs={60_000}
+        imageUrl="/api/v1/items/a/chapters/2/image?mediaFileId=b"
+        onPress={() => undefined}
+      />,
+    );
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it('keeps «automatisch» on a replacement chapter with an image', () => {

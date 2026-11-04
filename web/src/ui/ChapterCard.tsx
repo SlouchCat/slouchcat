@@ -55,8 +55,10 @@ export function ChapterCard({
   const { t } = useTranslation();
   const name = title ?? t('player.chapters.untitled', { n: index + 1 });
   const played = progress === undefined ? undefined : Math.min(100, Math.max(0, progress));
-  const [failed, setFailed] = useState<string | null>(null);
-  const showImage = Boolean(imageUrl) && failed !== imageUrl;
+  // The rule of SeekBar's field: a URL that failed is not loaded again while the card is
+  // mounted; another URL (a new probe, another file) is.
+  const [failedImages, setFailedImages] = useState<ReadonlySet<string>>(() => new Set());
+  const image = imageUrl && !failedImages.has(imageUrl) ? imageUrl : undefined;
   return (
     <Button
       ref={ref}
@@ -67,18 +69,20 @@ export function ChapterCard({
       excludeFromTabOrder={excludeFromTabOrder || (tabIndex !== undefined && tabIndex < 0)}
     >
       <span className={styles.frame}>
-        {showImage ? (
-          // Decoration: the card is named by its title.
+        {image ? (
+          // Decoration: the card is named by its title. The key gives a new URL a fresh element,
+          // so the frame never shows the old image while the new one loads.
           <img
+            key={image}
             className={styles.image}
-            src={imageUrl}
+            src={image}
             alt=""
             width={480}
             height={270}
             loading="lazy"
             decoding="async"
             draggable={false}
-            onError={() => setFailed(imageUrl ?? null)}
+            onError={() => setFailedImages((failed) => new Set(failed).add(image))}
           />
         ) : (
           <span className={styles.number} aria-hidden="true">

@@ -100,6 +100,7 @@
   pointer-events: none;
 }
 
+/* The chapter image, or its empty box for a chapter without one (in the surface colour). */
 .previewImage {
   display: block;
   width: 100%;
