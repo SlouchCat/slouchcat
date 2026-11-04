@@ -182,6 +182,10 @@ describe('PlayerPanel (concept 13, 11.2)', () => {
       expect(screen.getByRole('option', { name: 'Französisch' })).toHaveFocus();
       await user.keyboard('{ArrowLeft}{ArrowRight}{Home}{End}{PageUp}{PageDown}');
       expect(outside).not.toHaveBeenCalled();
+      // With Shift too: Shift+← would jump a chapter in the player. Shift alone may pass.
+      await user.keyboard('{Shift>}{ArrowLeft}{ArrowRight}{ArrowUp}{ArrowDown}{/Shift}');
+      const keys = outside.mock.calls.map(([event]) => (event as KeyboardEvent).key);
+      expect(keys.filter((name) => name !== 'Shift')).toEqual([]);
     } finally {
       window.removeEventListener('keydown', outside);
     }

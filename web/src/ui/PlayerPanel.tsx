@@ -120,7 +120,8 @@ export function PlayerPanel({ title, onClose, onBack, children }: PlayerPanelPro
 
   const onKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.altKey || event.ctrlKey || event.metaKey) return;
-    if (MOVES.has(event.key) && !event.shiftKey) {
+    // With Shift as well: Shift+←/→ would jump a chapter in the player.
+    if (MOVES.has(event.key)) {
       // The list or the field has used the key already; the player must not see it.
       event.stopPropagation();
       return;
