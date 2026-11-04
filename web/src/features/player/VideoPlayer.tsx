@@ -28,6 +28,7 @@ import {
 } from './labels';
 import { SeekBar } from './SeekBar';
 import { StreamInfo } from './StreamInfo';
+import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useProgressReporter } from './useProgressReporter';
 import styles from './Player.module.css';
 
@@ -211,12 +212,18 @@ export function VideoPlayer({
     setEnded((current) => current ?? { reason, watchTime: watchTime.current });
   }, []);
 
-  /** A 401 of the stream: the watch-time limit when the day's minutes were (nearly) used up. */
-  const onRevoked = useCallback(() => {
-    if (switchedAway.current) return;
-    const remaining = watchTime.current?.remainingMinutes;
-    endPlayback(remaining !== undefined && remaining <= 1 ? 'limit' : 'admin');
-  }, [endPlayback]);
+  /**
+   * A 401 of the stream, or the stop watch with the server's reason: without one, the watch-time
+   * limit when the day's minutes were (nearly) used up.
+   */
+  const onRevoked = useCallback(
+    (reason?: EndedReason) => {
+      if (switchedAway.current) return;
+      const remaining = watchTime.current?.remainingMinutes;
+      endPlayback(reason ?? (remaining !== undefined && remaining <= 1 ? 'limit' : 'admin'));
+    },
+    [endPlayback],
+  );
 
   const onProgress = useCallback(
     (progress: Progress) => {
@@ -235,6 +242,13 @@ export function VideoPlayer({
     video,
     enabled: true,
     onProgress,
+  });
+
+  // A fully buffered title makes no stream request that could answer 401 (concept 13, 11.13).
+  usePlaybackStopWatch({
+    playbackSessionId: info.playbackSessionId,
+    active: playing && !switching && ended === null,
+    onStopped: onRevoked,
   });
 
   // I-5: the track menu asks the server again when it opens and every 30 s while it is open, so a

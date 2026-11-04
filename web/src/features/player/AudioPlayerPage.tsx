@@ -5,6 +5,7 @@ import { apiUrl, imageUrl } from '@/api/client';
 import { AriaButton, AudioPlayer } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
 import { useAudioControls } from './useAudioControls';
+import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useProgressReporter } from './useProgressReporter';
 import { resumeSeconds, streamRevoked, type EndedReason } from './VideoPlayer';
 
@@ -74,11 +75,17 @@ export function AudioPlayerPage({
     setEnded((current) => current ?? { reason, watchTime: watchTime.current });
   }, []);
 
-  /** A 401 of the stream: the watch-time limit when the day's minutes were (nearly) used up. */
-  const onRevoked = useCallback(() => {
-    const remaining = watchTime.current?.remainingMinutes;
-    endPlayback(remaining !== undefined && remaining <= 1 ? 'limit' : 'admin');
-  }, [endPlayback]);
+  /**
+   * A 401 of the stream, or the stop watch with the server's reason: without one, the watch-time
+   * limit when the day's minutes were (nearly) used up.
+   */
+  const onRevoked = useCallback(
+    (reason?: EndedReason) => {
+      const remaining = watchTime.current?.remainingMinutes;
+      endPlayback(reason ?? (remaining !== undefined && remaining <= 1 ? 'limit' : 'admin'));
+    },
+    [endPlayback],
+  );
 
   const onProgress = useCallback(
     (progress: Progress) => {
@@ -98,6 +105,13 @@ export function AudioPlayerPage({
     enabled: true,
     reportRate: true,
     onProgress,
+  });
+
+  // A fully buffered title makes no stream request that could answer 401 (concept 13, 11.13).
+  usePlaybackStopWatch({
+    playbackSessionId: info.playbackSessionId,
+    active: playing && ended === null,
+    onStopped: onRevoked,
   });
 
   // What the listener wants, not what the element reports: re-attaching the element (hls.js after
