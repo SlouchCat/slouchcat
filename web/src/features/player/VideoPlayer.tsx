@@ -1101,7 +1101,7 @@ export function VideoPlayer({
                 : t('player.watchLimit.bodyUnknown')}
           </p>
           <div>
-            <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+            <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
               {t('common.back')}
             </AriaButton>
           </div>

@@ -163,6 +163,8 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await page.keyboard.press('Enter');
   await expect(audioPlayer(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 20_000 });
   await expect(audioPlayer(page).getByText(/^Kapitel 2 · /)).toBeVisible();
+  // Enter started it: the first focus is on play/pause at once (focusOnMount, concept 13 11.13).
+  await expectFocusOn(page, audioPlayer(page).getByRole('button', { name: 'Pause' }));
   await page.keyboard.press('Backspace');
   await expect(page).toHaveURL(new RegExp(`/items/${m4b}$`));
   await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
