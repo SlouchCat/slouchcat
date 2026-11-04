@@ -359,7 +359,8 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 	if isAudio(item.Kind) && out.Codecs == "" {
 		out.Codecs = "mp4a.40.2"
 	}
-	if item.Kind == "audiobook" && s.audio != nil {
+	switch {
+	case item.Kind == "audiobook" && s.audio != nil:
 		// Book-wide chapters on the file's timeline (the parts are concatenated in order).
 		if out.Chapters, err = s.audio.Chapters(ctx, scope, row.ItemID); err != nil {
 			return model.DownloadManifest{}, err
@@ -367,6 +368,15 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 		if out.Chapters == nil {
 			out.Chapters = []model.Chapter{}
 		}
+	case !isAudio(item.Kind) && row.MediaFileID.Valid:
+		// A film or an episode: the chapter marks of the downloaded file, as playback reads them.
+		// The download keeps the source timeline (transcode.Runner.Download), so they fit a remux
+		// and a transcode alike.
+		pf, err := s.vis.MediaFileProbe(ctx, scope, row.ItemID, row.MediaFileID.String)
+		if err != nil {
+			return model.DownloadManifest{}, err
+		}
+		out.Chapters = parseProbe(pf.Probe).ChapterMarks()
 	}
 	for _, e := range ix.entries {
 		out.Segments = append(out.Segments, model.DownloadSegment{StartMs: e.StartMs, DurationMs: e.DurationMs, Offset: e.Offset, Length: e.Length})

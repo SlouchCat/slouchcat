@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -80,7 +81,7 @@ func offlineProbe(t *testing.T) string {
 		{Index: 1, Type: "audio", Codec: "aac", Channels: 2, Default: true},
 		{Index: 2, Type: "audio", Codec: "ac3", Channels: 6},
 		{Index: 3, Type: "subtitle", Codec: "subrip"},
-	}})
+	}, Chapters: []transcode.Chapter{{Start: 0, End: 5 * time.Second, Title: "Vorspann"}, {Start: 5 * time.Second, End: 12 * time.Second}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,10 +247,15 @@ func TestOfflineDownloadFlow(t *testing.T) {
 		Subtitles []struct {
 			URL string `json:"url"`
 		} `json:"subtitles"`
+		Chapters []map[string]any `json:"chapters"`
 	}
 	decode(t, rec, &man)
 	if rec.Code != http.StatusOK || len(man.Segments) != 3 || len(man.Subtitles) != 2 {
 		t.Fatalf("manifest: %d %s", rec.Code, rec.Body.String())
+	}
+	// Contract 1.10.0: an episode carries the chapter marks of its file, as playback offers them.
+	if want := []map[string]any{{"startMs": 0.0, "endMs": 5000.0, "title": "Vorspann"}, {"startMs": 5000.0, "endMs": 12000.0}}; !reflect.DeepEqual(man.Chapters, want) {
+		t.Errorf("manifest chapters = %v, want %v", man.Chapters, want)
 	}
 	want := "ftyp-moovsegment-0|segment-1|segment-2|"
 	whole := send(t, h, http.MethodGet, man.FileURL, "", "", nil)

@@ -10063,7 +10063,11 @@ components:
             $ref: "#/components/schemas/DownloadSubtitle"
         chapters:
           type: array
-          description: Chapters of an audiobook on the file's timeline (empty for video and episodes without marks).
+          description: |
+            Chapters on the timeline of the playback (empty without marks): those of an audiobook
+            on the book's timeline; since contract 1.10.0 also those of a film or an episode, the
+            chapter marks of the downloaded file that `PlaybackInfo.chapters` offers online. Before
+            1.10.0 a video download carried none.
           items:
             $ref: "#/components/schemas/Chapter"
 

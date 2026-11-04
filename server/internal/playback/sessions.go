@@ -246,7 +246,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		mediaKind = model.MediaKindAudio
 	}
 	if bookChapters == nil {
-		bookChapters = chapters(probe)
+		bookChapters = probe.ChapterMarks()
 	}
 	info := model.PlaybackInfo{
 		MediaKind:         mediaKind,
@@ -457,18 +457,6 @@ func probeDetails(p *transcode.Probe) (int64, string) {
 		hdr = v.HDRFormat()
 	}
 	return p.Format.BitRate, hdr
-}
-
-// chapters maps the chapter marks of the probe.
-func chapters(p *transcode.Probe) []model.Chapter {
-	out := []model.Chapter{}
-	if p == nil {
-		return out
-	}
-	for _, c := range p.Chapters {
-		out = append(out, model.Chapter{StartMs: c.Start.Milliseconds(), EndMs: c.End.Milliseconds(), Title: c.Title})
-	}
-	return out
 }
 
 // sourcePath resolves the absolute path of a media file through package paths.
