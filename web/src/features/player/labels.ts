@@ -2,11 +2,19 @@ import type { Chapter, PlaybackInfo, QualityOption, Track } from '@slouchcat/api
 import type { TFunction } from 'i18next';
 import { formatPlayerTime } from '@/lib/format';
 
-/** ISO 639-2 codes of files ("ger", "eng") in the two-letter form Intl knows best. */
-const twoLetter: Record<string, string> = {
+/**
+ * The one table of language codes (review step 4, m-7): ISO 639-2 codes and the names that files
+ * and sidecars use ("ger", "eng", "german", "cn") in the two-letter form profiles store and Intl
+ * knows best. Swiss German keeps its own name on screen (languageName) and counts as German for
+ * the order of the panels (baseLanguage, 11.3).
+ */
+export const LANGUAGE_CODES: Readonly<Record<string, string>> = {
   ger: 'de',
   deu: 'de',
+  german: 'de',
+  deutsch: 'de',
   eng: 'en',
+  english: 'en',
   fre: 'fr',
   fra: 'fr',
   ita: 'it',
@@ -18,6 +26,7 @@ const twoLetter: Record<string, string> = {
   kor: 'ko',
   chi: 'zh',
   zho: 'zh',
+  cn: 'zh',
   rus: 'ru',
   pol: 'pl',
   swe: 'sv',
@@ -25,13 +34,15 @@ const twoLetter: Record<string, string> = {
   nor: 'no',
   fin: 'fi',
   tur: 'tr',
-  gsw: 'gsw',
 };
+
+/** Codes that name no language: undetermined, no linguistic content, a placeholder. */
+export const NO_LANGUAGE: ReadonlySet<string> = new Set(['und', 'zxx', 'xx']);
 
 /** Name of a language code in the UI language ("ger" → "Deutsch"); undefined when unknown. */
 export function languageName(code: string | undefined, uiLanguage: string): string | undefined {
-  if (!code || code === 'und' || code === 'zxx') return undefined;
-  const normalized = twoLetter[code.toLowerCase()] ?? code;
+  if (!code || NO_LANGUAGE.has(code.toLowerCase())) return undefined;
+  const normalized = LANGUAGE_CODES[code.toLowerCase()] ?? code;
   try {
     const name = new Intl.DisplayNames([uiLanguage], { type: 'language' }).of(normalized);
     return name && name !== normalized ? name : code;

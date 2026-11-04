@@ -13,6 +13,11 @@ describe('player labels', () => {
     expect(languageName('de', 'en')).toBe('German');
     expect(languageName('und', 'de')).toBeUndefined();
     expect(languageName(undefined, 'de')).toBeUndefined();
+    expect(languageName('xx', 'de')).toBeUndefined();
+    expect(languageName('cn', 'de')).toBe('Chinesisch');
+    expect(languageName('german', 'en')).toBe('German');
+    // Swiss German keeps its own name on screen.
+    expect(languageName('gsw', 'de')).toBe('Schweizerdeutsch');
   });
 
   it('labels tracks with language, codec, channels and source', () => {

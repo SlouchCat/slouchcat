@@ -1,45 +1,18 @@
 import type { Track } from '@slouchcat/api-client';
-
-/** ISO 639-2 codes and names that files and sidecars use, in the two-letter form of profiles. */
-const baseCodes: Record<string, string> = {
-  ger: 'de',
-  deu: 'de',
-  german: 'de',
-  deutsch: 'de',
-  // Swiss German counts as German (11.3).
-  gsw: 'de',
-  eng: 'en',
-  english: 'en',
-  fre: 'fr',
-  fra: 'fr',
-  ita: 'it',
-  spa: 'es',
-  por: 'pt',
-  dut: 'nl',
-  nld: 'nl',
-  jpn: 'ja',
-  kor: 'ko',
-  chi: 'zh',
-  zho: 'zh',
-  rus: 'ru',
-  pol: 'pl',
-  swe: 'sv',
-  dan: 'da',
-  nor: 'no',
-  fin: 'fi',
-  tur: 'tr',
-};
+import { LANGUAGE_CODES, NO_LANGUAGE } from './labels';
 
 /**
  * The language of a track as a profile stores it ("ger" → "de", "pt-BR" → "pt", "gsw" → "de");
- * undefined for none or "und".
+ * undefined for none, "und", "xx" or several languages ("mul").
  */
 export function baseLanguage(code: string | undefined): string | undefined {
   if (!code) return undefined;
   const lower = code.toLowerCase();
-  if (lower === 'und' || lower === 'zxx' || lower === 'mul') return undefined;
+  if (NO_LANGUAGE.has(lower) || lower === 'mul') return undefined;
   const primary = lower.split(/[-_]/)[0] ?? lower;
-  return baseCodes[primary] ?? primary;
+  // Swiss German counts as German (11.3); on screen it keeps its own name.
+  if (primary === 'gsw') return 'de';
+  return LANGUAGE_CODES[primary] ?? primary;
 }
 
 /** A track with its position in the file's list (for «Spur 3» when it has no language). */

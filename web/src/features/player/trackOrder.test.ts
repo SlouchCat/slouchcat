@@ -38,6 +38,9 @@ describe('baseLanguage (11.3 «Sprachcodes»)', () => {
     expect(baseLanguage('de')).toBe('de');
     expect(baseLanguage('und')).toBeUndefined();
     expect(baseLanguage(undefined)).toBeUndefined();
+    expect(baseLanguage('cn')).toBe('zh');
+    expect(baseLanguage('xx')).toBeUndefined();
+    expect(baseLanguage('mul')).toBeUndefined();
   });
 });
 
