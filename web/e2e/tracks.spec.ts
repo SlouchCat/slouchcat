@@ -126,6 +126,71 @@ test('an SRT track arrives as WebVTT through <track>', async ({ page, owner }) =
   });
 });
 
+test('the subtitle style by keyboard: size and colour on the layer, the offset shows a cue later', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(60_000);
+  const itemId = await itemIdByTitle(owner, MULTI_AUDIO_TITLE);
+  await resetProgress(page.request, itemId);
+  await play(page, itemId);
+  await page.keyboard.press('u');
+  const target = panelList(page, 'Untertitel').getByRole('option', { name: /SRT/ }).first();
+  await arrowTo(page, target);
+  const second = await startOf(page, () => page.keyboard.press('Enter'));
+  await expect(player(page)).toHaveAttribute(
+    'data-playback-session-id',
+    second.body.playbackSessionId,
+  );
+  const layer = player(page).locator('[data-subtitles]');
+  await expect(layer).toContainText(/^Deutsch \d+$/, { timeout: 10_000 });
+
+  // Paused half a second into a cue: the layer shows that cue.
+  const src = (await page.locator('video track').getAttribute('src')) ?? '';
+  const vtt = await (await page.request.get(src)).text();
+  const starts = [...vtt.matchAll(/(\d+):(\d+)\.(\d+) --> /g)].map(
+    ([, minutes, seconds, ms]) => Number(minutes) * 60 + Number(seconds) + Number(ms) / 1000,
+  );
+  const cueStart = starts.find((start) => start >= 4);
+  expect(cueStart, 'a cue from 4 s on').toBeDefined();
+  await page.locator('video').evaluate((video: HTMLVideoElement, at: number) => {
+    video.pause();
+    video.currentTime = at;
+  }, cueStart! + 0.5);
+  await expect.poll(async () => (await videoState(page)).paused).toBe(true);
+  const shown = (await layer.textContent()) ?? '';
+  expect(shown).toMatch(/^Deutsch \d+$/);
+
+  // U → ↓ to «Untertitel-Stil»: size XL and yellow by the arrows and Enter.
+  await page.keyboard.press('u');
+  const subtitles = page.getByRole('dialog', { name: 'Untertitel' });
+  await arrowTo(page, subtitles.getByRole('button', { name: 'Untertitel-Stil' }));
+  await page.keyboard.press('Enter');
+  const style = page.getByRole('dialog', { name: 'Untertitel-Stil' });
+  await expectFocusOn(page, style.getByRole('option', { name: 'M', exact: true }));
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, style.getByRole('option', { name: 'XL' }));
+  await page.keyboard.press('Enter');
+  await expect(layer).toHaveAttribute('data-size', 'xl');
+  await arrowTo(page, style.getByRole('option', { name: 'Gelb' }));
+  await page.keyboard.press('Enter');
+  await expect(layer).toHaveAttribute('data-color', 'yellow');
+
+  // The offset: ten times «später» moves every cue a second later, so the cue on screen at this
+  // position is no longer the one that started half a second ago.
+  await arrowTo(page, style.getByRole('button', { name: '0,1 s früher' }), 'ArrowDown', 16);
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, style.getByRole('button', { name: '0,1 s später' }));
+  for (let presses = 0; presses < 10; presses += 1) await page.keyboard.press('Enter');
+  await expect(style.getByText('+1,0 s')).toBeVisible();
+  await expect
+    .poll(async () => (await layer.count()) === 0 || (await layer.textContent()))
+    .not.toBe(shown);
+  await page.keyboard.press('Escape');
+  await expect(style).toHaveCount(0);
+});
+
 test('a PGS track is burned in: transcode with reason subtitle_burn, and it plays', async ({
   page,
   owner,

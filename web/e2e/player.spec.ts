@@ -194,6 +194,90 @@ test('panels and the gear by keyboard: open, arrows, a page and back, Escape; no
   await expectNoFocusTrap(page);
 });
 
+test('the subtitle panel and its style page by the arrows alone: a remote has no Tab', async ({
+  page,
+}) => {
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const player = page.getByRole('main', { name: 'Videoplayer' });
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+  await page.keyboard.press('Space');
+
+  // U → ↓ past the end of the list to «Untertitel-Stil» → Enter.
+  await page.keyboard.press('u');
+  const subtitles = page.getByRole('dialog', { name: 'Untertitel' });
+  await expectFocusOn(page, subtitles.getByRole('option', { name: 'Aus' }));
+  const styleButton = subtitles.getByRole('button', { name: 'Untertitel-Stil' });
+  await arrowTo(page, styleButton);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+
+  // ↓ through the four lists down to the offset; → to «später»; Enter moves the cues by 0.1 s.
+  const style = page.getByRole('dialog', { name: 'Untertitel-Stil' });
+  await expectFocusOn(page, style.getByRole('option', { name: 'M', exact: true }));
+  await arrowTo(page, style.getByRole('button', { name: '0,1 s früher' }), 'ArrowDown', 16);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('ArrowRight');
+  const later = style.getByRole('button', { name: '0,1 s später' });
+  await expectFocusOn(page, later);
+  await page.keyboard.press('Enter');
+  await expect(style.getByText('+0,1 s')).toBeVisible();
+  await expectFocusOn(page, later);
+  // ↑ goes back up into the lists; Backspace up to the subtitle panel, Escape closes it.
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, style.getByRole('option', { name: 'Unten' }));
+  await page.keyboard.press('Backspace');
+  await expect(subtitles).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/play\//);
+});
+
+test('a volume above 100 % and night mode keep the video playing (Web Audio)', async ({ page }) => {
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const player = page.getByRole('main', { name: 'Videoplayer' });
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+  const video = page.locator('video');
+  const paused = () => video.evaluate((element: HTMLVideoElement) => element.paused);
+  const time = () => video.evaluate((element: HTMLVideoElement) => element.currentTime);
+
+  // The slider goes up to 150 %; ↑ with the focus outside a zone raises the volume past 100 %
+  // and says that it is boosted.
+  const slider = page.getByRole('slider', { name: 'Lautstärke' });
+  await expect(slider).toHaveAttribute('aria-valuemax', '150');
+  await page.locator('body').focus();
+  // From the level this device starts at (100 % in a fresh browser) up past 100 %.
+  for (let presses = 0; presses < 30; presses += 1) {
+    if (Number(await slider.getAttribute('aria-valuenow')) > 100) break;
+    await page.keyboard.press('ArrowUp');
+  }
+  await expect(slider).toHaveAttribute('aria-valuenow', '105');
+  await expect(player.getByRole('status')).toHaveText(
+    'Lautstärke 105 %, verstärkt, kann verzerren',
+  );
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.volume)).toBe(1);
+
+  // Night mode through the gear, by keyboard; the video plays on and nothing broke.
+  const gear = page.getByRole('button', { name: /^Einstellungen/ });
+  await gear.focus();
+  await page.keyboard.press('Enter');
+  const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+  await arrowTo(page, settings.getByRole('option', { name: 'Ton-Optionen' }));
+  await page.keyboard.press('Enter');
+  const night = page.getByRole('dialog', { name: 'Ton-Optionen' }).getByRole('switch', {
+    name: 'Nachtmodus',
+  });
+  await expect(night).toBeFocused();
+  await page.keyboard.press('Space');
+  await expect(night).toBeChecked();
+  const before = await time();
+  await expect.poll(time, { timeout: 5000 }).toBeGreaterThan(before + 0.5);
+  expect(await paused()).toBe(false);
+  await expect(player).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
 test('controls hide after 3 s of playback and come back on a key press', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
