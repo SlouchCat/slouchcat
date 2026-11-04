@@ -192,6 +192,29 @@ export async function recordEndedReason(page: Page): Promise<() => Promise<strin
     page.evaluate(() => (window as unknown as { endedReasonSeen: string | null }).endedReasonSeen);
 }
 
+/**
+ * Records from now on the wall-clock time (Date.now()) at which a player first shows
+ * `data-ended-reason`, so a stop is measured exactly and not to the next poll of an assertion.
+ * Returns a reader of the time (null while nothing ended).
+ */
+export async function recordEndedAt(page: Page): Promise<() => Promise<number | null>> {
+  await page.evaluate(() => {
+    const record = window as unknown as { endedAt: number | null };
+    record.endedAt = null;
+    const check = () => {
+      if (document.querySelector('[data-ended-reason]')) record.endedAt ??= Date.now();
+    };
+    new MutationObserver(check).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-ended-reason'],
+    });
+    check();
+  });
+  return () => page.evaluate(() => (window as unknown as { endedAt: number | null }).endedAt);
+}
+
 /** Opens the player of `itemId` and returns the started playback; waits until it plays. */
 export async function play(page: Page, itemId: string, search = ''): Promise<PlaybackData> {
   const { status, body } = await startOf(page, () => page.goto(`/play/${itemId}${search}`));

@@ -12,6 +12,7 @@ import {
   playAudio,
   setAudioProgress,
 } from './audio';
+import { CSRF } from './catalog';
 import { STORAGE_STATE } from './env';
 import { expect, test } from './fixtures';
 import {
@@ -21,15 +22,19 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { arrowTo } from './playback';
+import { arrowTo, recordEndedAt } from './playback';
 
 // H-1: the M4B book has its 12 chapter marks ("Kapitel 1" … "Kapitel 12", every 5 s, ±1 s), the
 // MP3 folder is one book with a chapter per file; author, narrator and cover show on the detail
 // page; a chapter starts the player there. H-3: the speed is kept per profile and title: after a
 // reload and on a second device the player starts at 2.0, at the position ±2 s. The start page
-// lists a started book under "Weiterschauen" with a square cover.
+// lists a started book under "Weiterschauen" with a square cover. Concept 13: a stop by the
+// administration reaches a player that loaded the whole book within 5 s.
 
 const time = async (page: Page) => (await audioState(page)).time;
+
+/** A stop by the administration shows within this long (concept 13, 11.13). */
+const STOP_BUDGET_MS = 5000;
 
 let m4b = '';
 let mp3 = '';
@@ -375,4 +380,55 @@ test('the start page lists a started book under "Weiterschauen" with a square co
   });
   expect(Math.abs(frame.width - frame.height)).toBeLessThanOrEqual(1);
   await setAudioProgress(page.request, m4b, 0, 60_000);
+});
+
+test('concept 13: the administration ends a fully loaded book, the player stops within 5 s', async ({
+  page,
+  owner,
+}) => {
+  await audioDetail(owner, m4b, 12);
+  await setAudioProgress(page.request, m4b, 0, 60_000, 1);
+  await playAudio(page, m4b);
+  const player = audioPlayer(page);
+  const id = await player.getAttribute('data-playback-session-id');
+  expect(id).toBeTruthy();
+  // The whole 60 s file is in the element: no Range request follows that could answer 401.
+  const bufferOf = () =>
+    page.locator('audio').evaluate((audio: HTMLAudioElement) => ({
+      end: audio.buffered.length > 0 ? audio.buffered.end(audio.buffered.length - 1) : 0,
+      duration: audio.duration,
+      paused: audio.paused,
+    }));
+  await expect
+    .poll(async () => {
+      const { end, duration } = await bufferOf();
+      return duration > 0 && end >= duration - 0.5;
+    })
+    .toBe(true);
+  const buffered = await bufferOf();
+  expect(buffered.paused, JSON.stringify(buffered)).toBe(false);
+  const unauthorized: string[] = [];
+  page.on('response', (response) => {
+    if (response.status() === 401) unauthorized.push(response.url());
+  });
+  const watched = page.waitForResponse(
+    async (response) =>
+      response.url().endsWith(`/playback/sessions/${id}/state`) &&
+      response.status() === 200 &&
+      ((await response.json()) as { state: string }).state === 'stopped',
+  );
+
+  const endedAt = await recordEndedAt(page);
+  const before = Date.now();
+  const stop = await owner.delete(`/api/v1/admin/streams/${id}`, { headers: CSRF });
+  expect(stop.status()).toBe(204);
+  await expect(player).toHaveAttribute('data-ended-reason', 'admin', { timeout: STOP_BUDGET_MS });
+  const stopMs = (await endedAt())! - before;
+  expect(stopMs).toBeLessThan(STOP_BUDGET_MS);
+  expect(((await (await watched).json()) as { stoppedBy?: string }).stoppedBy).toBe('admin');
+  expect(unauthorized).toEqual([]);
+  await expect(player.getByRole('alert')).toContainText('Die Wiedergabe wurde beendet.');
+  expect((await audioState(page)).paused).toBe(true);
+  console.log(JSON.stringify({ measurement: 'admin-stop-audio', stopMs, buffered }));
+  await setAudioProgress(page.request, m4b, 0, 60_000, 1);
 });
