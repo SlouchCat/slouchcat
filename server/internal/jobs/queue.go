@@ -15,13 +15,15 @@
 //     8 update.check, the daily release check (admin): seconds of work, before every bulk job
 //     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen")
 //     6 scan.path
-//     5 scan.library, download.prepare, chapters.images (library, concept 13)
+//     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
+//     (library, concept 13)
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
 //     library.relink
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
 //     library.sweep, nightly trakt.refresh
-//     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find
+//     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find, chapters.images of
+//     the backfill (chapters.images_backfill)
 //     A job that runs once a day and finishes in seconds belongs above the bulk rungs (6 and
 //     below): a library import queues tens of thousands of jobs at 1 and 2, and a daily job at
 //     the same rung waits behind all of them.

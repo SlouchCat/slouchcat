@@ -152,8 +152,8 @@ func TestChapterImagesJob(t *testing.T) {
 	if err := e.svc.handleChapterImagesBackfill(e.ctx, &jobs.Job{Type: JobChapterImagesBackfill}); err != nil {
 		t.Fatal(err)
 	}
-	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ?`, JobChapterImages, "chapters:"+first); n != 1 {
-		t.Errorf("backfill queued %d jobs for the file without images", n)
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND idempotency_key = ? AND priority = 1`, JobChapterImages, "chapters:"+first); n != 1 {
+		t.Errorf("backfill queued %d jobs at priority 1 for the file without images", n)
 	}
 	if n := e.jobCount(JobChapterImages); n != 2 {
 		t.Errorf("chapter image jobs = %d, want 2 (one per file)", n)

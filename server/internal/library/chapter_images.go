@@ -36,13 +36,17 @@ import (
 //     probe, and by the playback sweep for the files of playbacks that ended
 //     (QueueChapterImagesAfterPlayback, 10 minutes later). It waits while the file plays.
 //   - chapters.images_backfill, key chapters_images_backfill: a manual type (Run), started only by
-//     hand on the page Hintergrundjobs; it queues chapters.images for every probed film and episode
-//     file without images.
+//     hand on the page Hintergrundjobs; it queues chapters.images at priority 1 for every probed
+//     film and episode file without images.
 const (
 	JobChapterImages         = "chapters.images"
 	JobChapterImagesBackfill = "chapters.images_backfill"
 	prioChapterImages        = 5
-	chapterImagesBackfillKey = "chapters_images_backfill"
+	// prioChapterImagesBackfill is the priority of the jobs the backfill queues: below every other
+	// job (Marco's decision of 4 November 2026, m-5), so a backfill of the whole collection never
+	// holds up probes, matches and images of new titles.
+	prioChapterImagesBackfill = 1
+	chapterImagesBackfillKey  = "chapters_images_backfill"
 	// ChapterImagesDir is the folder of the chapter images below the cache directory.
 	ChapterImagesDir = "chapters"
 	// chapterTempPrefix starts the name of a folder a job is writing; the sweep removes one that
@@ -423,7 +427,7 @@ func (s *Service) runChapterImagesBackfill(ctx context.Context, q *jobs.Queue, p
 	return []int64{id}, nil
 }
 
-// handleChapterImagesBackfill queues chapters.images (priority 5) for every probed film and episode
+// handleChapterImagesBackfill queues chapters.images (priority 1) for every probed film and episode
 // file that is not missing and has no folder at its current version (an empty one counts: «done,
 // no images»).
 func (s *Service) handleChapterImagesBackfill(ctx context.Context, _ *jobs.Job) error {
@@ -448,7 +452,9 @@ func (s *Service) handleChapterImagesBackfill(ctx context.Context, _ *jobs.Job) 
 		if !ok || hasChapterImages(cache, ChapterImagesRel(r.ID, version)) {
 			continue
 		}
-		if err := enqueue(ctx, s.queue, chapterImagesJob(r.ID)); err != nil {
+		j := chapterImagesJob(r.ID)
+		j.priority = prioChapterImagesBackfill
+		if err := enqueue(ctx, s.queue, j); err != nil {
 			return err
 		}
 		queued++
