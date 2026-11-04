@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, Response } from '@playwright/test';
 import { loginOwner } from './accounts';
 import { CSRF, HEVC_LONG_TITLE } from './catalog';
 import { OWNER_PROFILE, STORAGE_STATE } from './env';
@@ -27,12 +27,26 @@ import {
 //
 // Concept 13, 11.13: the viewer's 90 s title is fully buffered when the administration ends it, so
 // no media request can answer 401; the player learns of the stop from its stop watch
-// (getPlaybackSessionState every 4 s) within the same 5 s.
+// (getPlaybackSessionState every 4 s) within the same 5 s, also when the stop comes right after
+// an answer of the stop watch (the worst moment). With the title partly buffered and the stop
+// watch switched off, the 401 of the next segment request stops it within 5 s as well.
 
 const STOP_BUDGET_MS = 5000;
 
 /** The viewer's buffer reaches the end of the title (hls.js loads all 90 s within seconds). */
 const FULL_BUFFER_MS = 60_000;
+
+/**
+ * Segments of the 401 variant arrive this much later, like over a slow line: the title stays
+ * partly buffered until the stop, so a segment request follows within the budget.
+ */
+const SEGMENT_DELAY_MS = 1000;
+
+/** A stop watch answer of playback `id` with the given state. */
+const stateAnswer = (id: string, state: 'active' | 'stopped') => async (response: Response) =>
+  response.url().endsWith(`/playback/sessions/${id}/state`) &&
+  response.status() === 200 &&
+  ((await response.json()) as { state: string }).state === state;
 
 interface AdminStreamData {
   id: string;
@@ -196,19 +210,23 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
         { timeout: FULL_BUFFER_MS },
       )
       .toBe(true);
-    const buffered = await bufferOf();
+    const position = await viewer
+      .locator('video')
+      .evaluate((video: HTMLVideoElement) => video.currentTime);
+    const buffered = { ...(await bufferOf()), position };
     expect(buffered.paused, JSON.stringify(buffered)).toBe(false);
+    expect(
+      position,
+      `the stop must come at least 10 s before the end: ${JSON.stringify(buffered)}`,
+    ).toBeLessThan(buffered.duration - 10);
     const unauthorized: string[] = [];
     viewer.on('response', (response) => {
       if (response.status() === 401) unauthorized.push(response.url());
     });
-    const watched = viewer.waitForResponse(
-      async (response) =>
-        response.url().endsWith(`/playback/sessions/${second.playbackSessionId}/state`) &&
-        response.status() === 200 &&
-        ((await response.json()) as { state: string }).state === 'stopped',
-    );
+    const watched = viewer.waitForResponse(stateAnswer(second.playbackSessionId, 'stopped'));
     const endedAt = await recordEndedAt(viewer);
+    // The worst moment: right after an answer of the stop watch, the next comes 4 s later.
+    await viewer.waitForResponse(stateAnswer(second.playbackSessionId, 'active'));
     const before = Date.now();
     await overview.keyboard.press('Enter');
     expect((await stopped).status()).toBe(204);
@@ -260,5 +278,65 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
   } finally {
     await admin.close();
     await other.close();
+  }
+});
+
+test('partly buffered and without the stop watch: the 401 of a segment stops the player within 5 s', async ({
+  owner,
+  browser,
+  baseURL,
+  extraHTTPHeaders,
+}) => {
+  test.setTimeout(60_000);
+  // Without the service worker, so the segment and state requests pass page.route.
+  const context = await browser.newContext({
+    baseURL,
+    locale: 'de-CH',
+    extraHTTPHeaders,
+    storageState: STORAGE_STATE,
+    serviceWorkers: 'block',
+  });
+  try {
+    const page = await context.newPage();
+    await limitCapabilities(page, { video: ['h264'], containers: ['mp4'] });
+    await page.route(/\/api\/v1\/playback\/sessions\/[^/]+\/seg\/\d+/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, SEGMENT_DELAY_MS));
+      // The context may be closed meanwhile (end of the test).
+      await route.continue().catch(() => undefined);
+    });
+    // Only the 401 of a media request is left to tell the player.
+    const watches: string[] = [];
+    await page.route(/\/api\/v1\/playback\/sessions\/[^/]+\/state$/, async (route) => {
+      watches.push(route.request().url());
+      await route.abort();
+    });
+    const hevc = await itemIdByTitle(owner, HEVC_LONG_TITLE);
+    await resetProgress(page.request, hevc, 90_000);
+    const playback = await play(page, hevc);
+    const buffered = await page.locator('video').evaluate((video: HTMLVideoElement) => ({
+      end: video.buffered.length > 0 ? video.buffered.end(video.buffered.length - 1) : 0,
+      duration: video.duration,
+    }));
+    expect(buffered.end, JSON.stringify(buffered)).toBeLessThan(buffered.duration - 4);
+    const revoked = page.waitForResponse(
+      (response) => response.status() === 401 && /\/seg\/\d+/.test(response.url()),
+    );
+    const endedAt = await recordEndedAt(page);
+    const before = Date.now();
+    const stop = await owner.delete(`/api/v1/admin/streams/${playback.playbackSessionId}`, {
+      headers: CSRF,
+    });
+    expect(stop.status()).toBe(204);
+    await expect(player(page)).toHaveAttribute('data-ended-reason', 'admin', {
+      timeout: STOP_BUDGET_MS,
+    });
+    const stopMs = (await endedAt())! - before;
+    expect(stopMs).toBeLessThan(STOP_BUDGET_MS);
+    await revoked;
+    expect(watches.length, 'the stop watch asked (and was cut off)').toBeGreaterThan(0);
+    await expect(page.getByRole('alert')).toContainText('Die Wiedergabe wurde beendet.');
+    console.log(JSON.stringify({ measurement: 'admin-stop-401', stopMs, buffered }));
+  } finally {
+    await context.close();
   }
 });

@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, Response } from '@playwright/test';
 import {
   AUDIO_AUTHOR,
   AUDIO_NARRATOR,
@@ -447,14 +447,15 @@ test('concept 13: the administration ends a fully loaded book, the player stops 
   page.on('response', (response) => {
     if (response.status() === 401) unauthorized.push(response.url());
   });
-  const watched = page.waitForResponse(
-    async (response) =>
-      response.url().endsWith(`/playback/sessions/${id}/state`) &&
-      response.status() === 200 &&
-      ((await response.json()) as { state: string }).state === 'stopped',
-  );
+  const stateAnswer = (state: string) => async (response: Response) =>
+    response.url().endsWith(`/playback/sessions/${id}/state`) &&
+    response.status() === 200 &&
+    ((await response.json()) as { state: string }).state === state;
+  const watched = page.waitForResponse(stateAnswer('stopped'));
 
   const endedAt = await recordEndedAt(page);
+  // The worst moment: right after an answer of the stop watch, the next comes 4 s later.
+  await page.waitForResponse(stateAnswer('active'));
   const before = Date.now();
   const stop = await owner.delete(`/api/v1/admin/streams/${id}`, { headers: CSRF });
   expect(stop.status()).toBe(204);
