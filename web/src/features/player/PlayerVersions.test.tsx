@@ -122,7 +122,7 @@ describe('player: versions and stream info (B-5)', () => {
     media.currentTime = 3100;
     const player = playerDriver();
 
-    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    expect(await player.current('version')).toBe('1080p');
     await player.chooseVersion('720p');
 
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
@@ -171,7 +171,7 @@ describe('player: versions and stream info (B-5)', () => {
     });
     const player = playerDriver();
 
-    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    expect(await player.current('version')).toBe('1080p');
     await player.chooseVersion('720p');
     const seekedTo = media.currentTime;
 
@@ -201,7 +201,7 @@ describe('player: versions and stream info (B-5)', () => {
     await videoOf(container);
     const player = playerDriver();
 
-    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    expect(await player.current('version')).toBe('1080p');
     const versions = await player.open('version');
     expect(screen.getByRole('main', { name: 'Videoplayer' })).toContainElement(versions);
   });
@@ -217,13 +217,13 @@ describe('player: versions and stream info (B-5)', () => {
     const region = screen.getByRole('main', { name: 'Videoplayer' });
     const player = playerDriver();
 
-    expect(await player.findControl('version')).toHaveAccessibleName('Version: 1080p');
+    expect(await player.current('version')).toBe('1080p');
     await player.open('version');
     await act(() => vi.advanceTimersByTimeAsync(4000));
     expect(region).toHaveAttribute('data-controls', 'visible');
 
     await player.user.keyboard('{Escape}');
-    await waitFor(() => expect(player.openChoice()).not.toBeInTheDocument());
+    await waitFor(() => expect(player.openChoice()).toBeNull());
     await act(() => vi.advanceTimersByTimeAsync(4000));
     expect(region).toHaveAttribute('data-controls', 'hidden');
   });
@@ -238,6 +238,6 @@ describe('player: versions and stream info (B-5)', () => {
     const { container } = renderApp(`/play/${ids.alien}`);
     await videoOf(container);
     await act(() => vi.advanceTimersByTimeAsync(50));
-    expect(playerDriver().queryControl('version')).not.toBeInTheDocument();
+    expect(await playerDriver().hasChoice('version')).toBe(false);
   });
 });

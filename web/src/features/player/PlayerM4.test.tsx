@@ -164,10 +164,10 @@ describe('player M4', () => {
     const audio = await player.findList('audio');
     expect(audio).toBeVisible();
     expect(audio).toHaveAccessibleName('Ton');
+    expect(player.chosen(audio)).toHaveAccessibleName('Deutsch · AAC · 2.0');
     const subtitles = await player.open('subtitle');
     expect(subtitles).toBeVisible();
     expect(subtitles).toHaveAccessibleName('Untertitel');
-    expect(player.chosen(audio)).toHaveAccessibleName('Deutsch · AAC · 2.0');
     expect(player.chosen(subtitles)).toHaveAccessibleName('Aus');
     // I-5: the sidecar the server now lists shows up while the choice is open.
     await waitFor(() =>
@@ -269,19 +269,17 @@ describe('player M4', () => {
     const { container } = renderApp(`/play/${ids.alien}`);
     await startPlayer(container);
     const player = playerDriver();
-    expect(player.control('quality')).toBeVisible();
-    expect(player.control('quality')).toHaveAccessibleName('Qualität: Automatisch');
+    expect(await player.current('quality')).toBe('Automatisch');
 
     fireEvent.keyDown(document.body, { key: 'q' });
     const quality = await player.findList('quality');
     expect(player.chosen(quality)).toHaveAccessibleName('Automatisch');
-    expect(player.isUnavailable(player.option(quality, '360p'))).toBe(true);
-    expect(player.isUnavailable(player.option(quality, '480p'))).toBe(false);
+    player.expectUnavailable(player.option(quality, '360p'));
+    player.expectAvailable(player.option(quality, '480p'));
     await player.chooseQuality('480p');
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
     expect(starts(calls)[1]?.body).toMatchObject({ quality: '480p' });
-    await waitFor(() => expect(player.control('quality')).toHaveAccessibleName('Qualität: 480p'));
-    expect(player.control('quality')).toBeVisible();
+    await waitFor(async () => expect(await player.current('quality')).toBe('480p'));
     fireEvent.keyDown(document.body, { key: 'q' });
     const again = await player.findList('quality');
     expect(player.chosen(again)).toHaveAccessibleName('480p');
@@ -570,6 +568,7 @@ describe('player M4', () => {
     expect(player.control('audio')).toBeDisabled();
     expect(player.control('subtitle')).toBeDisabled();
     fireEvent.keyDown(document.body, { key: 'q' });
+    await act(() => vi.advanceTimersByTimeAsync(0));
     expect(player.openChoice()).toBeNull();
   });
 

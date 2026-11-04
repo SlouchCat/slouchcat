@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi } from 'vitest';
+import { expect, vi } from 'vitest';
 
 /**
  * The choices the video player offers: audio track, subtitles, quality, chapter and version (B-5).
@@ -14,7 +14,7 @@ export type PlayerChoice = 'audio' | 'subtitle' | 'quality' | 'chapter' | 'versi
 /**
  * Today every choice is a react-aria menu behind a button, and the menu is labelled by its button.
  * Sound and subtitles are two titled groups of the one menu «Spuren». The button names the current
- * pick where there is one (rule 12): «Qualität: 480p», «Version: 1080p».
+ * pick where there is one: «Qualität: 480p», «Version: 1080p».
  */
 const controlName: Record<PlayerChoice, string | RegExp> = {
   audio: 'Spuren',
@@ -50,20 +50,37 @@ export function playerDriver() {
   };
 
   /** Waits until the list of a choice is open (after a shortcut key, say). */
-  const findList = async (choice: PlayerChoice) =>
-    scope(choice, await screen.findByRole('menu', { name: controlName[choice] })) ?? list(choice);
+  const findList = async (choice: PlayerChoice) => {
+    const found = scope(choice, await screen.findByRole('menu', { name: controlName[choice] }));
+    if (!found) throw new Error(`the ${choice} group is missing in the open menu`);
+    return found;
+  };
 
   /** The control that opens a choice; throws when the player offers none. */
   const control = (choice: PlayerChoice) =>
     screen.getByRole('button', { name: controlName[choice] });
 
-  /** The control that opens a choice, or null when the player offers none. */
-  const queryControl = (choice: PlayerChoice) =>
-    screen.queryByRole('button', { name: controlName[choice] });
+  /** Waits until the player offers a choice (versions come with the title's details). */
+  const findChoice = async (choice: PlayerChoice) => {
+    await screen.findByRole('button', { name: controlName[choice] });
+  };
 
-  /** Waits for the control of a choice (versions come with the title's details). */
-  const findControl = (choice: PlayerChoice) =>
-    screen.findByRole('button', { name: controlName[choice] });
+  /** Whether the player offers a choice at all (the version only for two or more files). */
+  const hasChoice = (choice: PlayerChoice) =>
+    Promise.resolve(screen.queryByRole('button', { name: controlName[choice] }) !== null);
+
+  /**
+   * The current pick of a choice as the player shows it ("480p", "1080p"); waits until the player
+   * offers the choice. Today the visible button names it after a colon.
+   */
+  const current = async (choice: PlayerChoice) => {
+    const button = await screen.findByRole('button', { name: controlName[choice] });
+    expect(button).toBeVisible();
+    const name = button.getAttribute('aria-label') ?? '';
+    const colon = name.indexOf(': ');
+    if (colon < 0) throw new Error(`the ${choice} control shows no current pick: "${name}"`);
+    return name.slice(colon + 2);
+  };
 
   /** Opens a choice with its control, unless it is open already; resolves with its list. */
   const open = async (choice: PlayerChoice) => {
@@ -83,14 +100,25 @@ export function playerDriver() {
   /** The one option of an open list that is the current pick; throws for none or several. */
   const chosen = (from: HTMLElement) => within(from).getByRole('menuitemradio', { checked: true });
 
-  /** Whether an option is shown but cannot be picked (a rung the source or the limits rule out). */
-  const isUnavailable = (element: HTMLElement) =>
-    element.getAttribute('aria-disabled') === 'true' || element.hasAttribute('disabled');
+  /** Asserts that an option is shown but cannot be picked (a rung the source or limits rule out). */
+  const expectUnavailable = (element: HTMLElement) => {
+    if (element.hasAttribute('aria-disabled')) {
+      expect(element).toHaveAttribute('aria-disabled', 'true');
+    } else {
+      expect(element).toBeDisabled();
+    }
+  };
 
-  /** Opens a choice if needed and picks the option with that name. */
+  /** Asserts that an option can be picked. */
+  const expectAvailable = (element: HTMLElement) => {
+    expect(element).not.toHaveAttribute('aria-disabled', 'true');
+    expect(element).toBeEnabled();
+  };
+
+  /** Opens a choice if needed and picks the option with that name once it shows. */
   const choose = async (choice: PlayerChoice, name: string | RegExp) => {
     const from = await open(choice);
-    await user.click(option(from, name));
+    await user.click(await within(from).findByRole('menuitemradio', { name }));
   };
 
   /**
@@ -112,8 +140,9 @@ export function playerDriver() {
   return {
     user,
     control,
-    queryControl,
-    findControl,
+    findChoice,
+    hasChoice,
+    current,
     open,
     list,
     queryList,
@@ -121,7 +150,8 @@ export function playerDriver() {
     option,
     options,
     chosen,
-    isUnavailable,
+    expectUnavailable,
+    expectAvailable,
     pressIn,
     openChoice,
     choose,
