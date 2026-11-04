@@ -23,6 +23,7 @@ import {
   type SleepChoice,
   type SleepTimer,
 } from './audio';
+import { hasShortcutModifier } from './keymap';
 
 /** ←/→ jump this far; the −15 s button as well. */
 export const AUDIO_SEEK_S = 15;
@@ -99,17 +100,6 @@ const isActivatable = (target: EventTarget | null) =>
 const inMenu = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   target.closest('[role="menu"], [role="menuitemradio"], [role="menuitem"]') !== null;
-
-const isApple = () => /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
-
-/**
- * `[` and `]` typed through AltGr (Swiss and German layouts on Windows and Linux; Windows reports
- * Ctrl+Alt with it) or Option (macOS): the speed keys, not a shortcut.
- */
-const isTypedSpeedKey = (event: KeyboardEvent) =>
-  (event.key === '[' || event.key === ']') &&
-  !event.metaKey &&
-  (event.getModifierState('AltGraph') || (isApple() && event.altKey && !event.ctrlKey));
 
 /**
  * State and keys of the audio player (design 4), shared by the player and the offline player:
@@ -314,7 +304,7 @@ export function useAudioControls({
       setOpenMenu(menu);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.altKey || event.ctrlKey || event.metaKey) && !isTypedSpeedKey(event)) return;
+      if (hasShortcutModifier(event)) return;
       if (inMenu(event.target)) {
         // Backspace is the remote's back key (C-4): in a menu it closes the menu, like Escape.
         if (event.key === 'Backspace') {

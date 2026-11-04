@@ -185,6 +185,25 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(video.playbackRate).toBe(0.5);
   });
 
+  it('[ and ] typed with AltGr (Windows reports Ctrl+Alt) or Option (macOS) change the speed', async () => {
+    const { video } = await start();
+    // Swiss layout on Windows: AltGr reports Ctrl+Alt and the AltGraph modifier.
+    key(document.body, ']', { ctrlKey: true, altKey: true, modifierAltGraph: true });
+    expect(video.playbackRate).toBe(1.25);
+    // Alt without AltGraph outside macOS is a shortcut.
+    key(document.body, ']', { altKey: true });
+    expect(video.playbackRate).toBe(1.25);
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15',
+    );
+    key(document.body, '[', { altKey: true });
+    expect(video.playbackRate).toBe(1);
+    // Ctrl and Meta shortcuts stay with the browser.
+    key(document.body, ']', { ctrlKey: true });
+    key(document.body, ']', { metaKey: true, modifierAltGraph: true });
+    expect(video.playbackRate).toBe(1);
+  });
+
   it('0–9 jump to 0–90 % of the title', async () => {
     const { media } = await start();
     key(document.body, '5');

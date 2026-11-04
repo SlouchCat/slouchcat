@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { playerKeyAction, stepPlaybackRate } from './keymap';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { isTypedSpeedKey, playerKeyAction, stepPlaybackRate } from './keymap';
 
 const press = (key: string, extra: Partial<KeyboardEvent> = {}) =>
   playerKeyAction({
@@ -57,8 +57,45 @@ describe('playerKeyAction (concept 13, 11.2)', () => {
     expect(press('f', { ctrlKey: true })).toBeNull();
     expect(press('ArrowLeft', { altKey: true })).toBeNull();
     expect(press('r', { metaKey: true })).toBeNull();
+    expect(press('[', { ctrlKey: true })).toBeNull();
+    expect(press(']', { metaKey: true })).toBeNull();
     expect(press('x')).toBeNull();
     expect(press('Tab')).toBeNull();
+  });
+
+  describe('[ and ] typed with AltGr or Option (Swiss and German layouts)', () => {
+    const altGraph = (on: boolean) => (key: string) => on && key === 'AltGraph';
+    afterEach(() => vi.restoreAllMocks());
+
+    it('counts AltGr, which Windows reports as Ctrl+Alt', () => {
+      const typed = { ctrlKey: true, altKey: true, getModifierState: altGraph(true) };
+      expect(press('[', typed)).toEqual({ kind: 'rate', delta: -0.25 });
+      expect(press(']', typed)).toEqual({ kind: 'rate', delta: 0.25 });
+      // Ctrl+Alt without AltGr is a shortcut.
+      expect(press('[', { ...typed, getModifierState: altGraph(false) })).toBeNull();
+    });
+
+    it('counts Option on a Mac, but not Alt elsewhere', () => {
+      const userAgent = vi.spyOn(navigator, 'userAgent', 'get');
+      userAgent.mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
+      expect(press('[', { altKey: true })).toEqual({ kind: 'rate', delta: -0.25 });
+      expect(press(']', { altKey: true, ctrlKey: true })).toBeNull();
+      userAgent.mockReturnValue('Mozilla/5.0 (X11; Linux x86_64)');
+      expect(press('[', { altKey: true })).toBeNull();
+    });
+
+    it('is only about [ and ]', () => {
+      expect(
+        isTypedSpeedKey({
+          key: 'q',
+          shiftKey: false,
+          altKey: true,
+          ctrlKey: true,
+          metaKey: false,
+          getModifierState: altGraph(true),
+        }),
+      ).toBe(false);
+    });
   });
 });
 

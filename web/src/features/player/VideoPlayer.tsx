@@ -18,7 +18,7 @@ import { VisuallyHidden } from '@/ui';
 import { AriaButton, focusOnMount, PlayerChrome, type PlayerChromeMenu } from '@/ui/aria';
 import { nextChapterStart, previousChapterStart } from './audio';
 import type { PlaybackEngine } from './capabilities';
-import { playerKeyAction, stepPlaybackRate } from './keymap';
+import { hasShortcutModifier, playerKeyAction, stepPlaybackRate } from './keymap';
 import {
   audioKey,
   chapterAt,
@@ -518,7 +518,7 @@ export function VideoPlayer({
   //   whatever has the focus, and the bar comes back.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (hasShortcutModifier(event)) return;
       poke();
       if (inMenu(event.target)) return;
       const consume = () => {
@@ -567,7 +567,7 @@ export function VideoPlayer({
       setOpenMenu(menu);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (hasShortcutModifier(event)) return;
       if (inMenu(event.target)) {
         // Backspace is the remote's back key (C-4): in a menu it closes the menu, like Escape.
         if (event.key === 'Backspace') {

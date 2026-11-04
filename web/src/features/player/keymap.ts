@@ -32,7 +32,31 @@ export type PlayerKeyAction =
         | 'back';
     };
 
-type KeyInput = Pick<KeyboardEvent, 'key' | 'shiftKey' | 'altKey' | 'ctrlKey' | 'metaKey'>;
+type KeyInput = Pick<KeyboardEvent, 'key' | 'shiftKey' | 'altKey' | 'ctrlKey' | 'metaKey'> &
+  Partial<Pick<KeyboardEvent, 'getModifierState'>>;
+
+const isApple = () => /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+
+/**
+ * `[` and `]` typed through AltGr (Swiss and German layouts on Windows and Linux; Windows reports
+ * Ctrl+Alt with it) or Option (macOS): the speed keys, not a shortcut.
+ */
+export function isTypedSpeedKey(event: KeyInput): boolean {
+  return (
+    (event.key === '[' || event.key === ']') &&
+    !event.metaKey &&
+    (event.getModifierState?.('AltGraph') === true ||
+      (isApple() && event.altKey && !event.ctrlKey))
+  );
+}
+
+/**
+ * Alt, Ctrl or Meta make a key the browser's (a shortcut), except for the speed keys typed with
+ * AltGr or Option.
+ */
+export function hasShortcutModifier(event: KeyInput): boolean {
+  return (event.altKey || event.ctrlKey || event.metaKey) && !isTypedSpeedKey(event);
+}
 
 const letters: Record<string, PlayerKeyAction> = {
   k: { kind: 'playPause', activates: false },
@@ -52,12 +76,12 @@ const letters: Record<string, PlayerKeyAction> = {
 
 /**
  * The action of a key, or null for a key the player leaves alone (and every key with Alt, Ctrl or
- * Meta: those belong to the browser). Letters count in either case. Which zone has the focus
+ * Meta: those belong to the browser, but `[` and `]` typed with AltGr or Option count). Letters count in either case. Which zone has the focus
  * decides elsewhere whether a key reaches the key map at all: the button row keeps the arrows to
  * itself (PlayerChrome), a menu or a panel its own keys.
  */
 export function playerKeyAction(event: KeyInput): PlayerKeyAction | null {
-  if (event.altKey || event.ctrlKey || event.metaKey) return null;
+  if (hasShortcutModifier(event)) return null;
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
   switch (key) {
     case ' ':
