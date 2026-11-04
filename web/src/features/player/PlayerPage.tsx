@@ -308,6 +308,15 @@ function PlayerView({ itemId }: { itemId: string }) {
     },
     [itemId, queryClient],
   );
+  // The player keeps the season of an episode for 30 s (its episodes' progress); leaving it, the
+  // season's page asks again.
+  const seasonId = detail.data?.season?.id;
+  useEffect(
+    () => () => {
+      if (seasonId) void queryClient.invalidateQueries({ queryKey: ['item', seasonId] });
+    },
+    [queryClient, seasonId],
+  );
 
   if (playback.data && engine && engine !== 'unsupported' && playback.data.mediaKind === 'audio') {
     return (

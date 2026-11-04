@@ -809,13 +809,16 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
       expect(within(chapters).getByRole('option', { selected: true })).toHaveAccessibleName(
         /^Anfang/,
       );
-      key(document.body, 'Escape');
+      // A pick jumps and closes the page (review step 5).
+      fireEvent.click(within(chapters).getByRole('option', { name: /^Mitte/ }));
+      expect(media.currentTime).toBe(120);
+      expect(screen.queryByRole('dialog', { name: 'Kapitel' })).toBeNull();
 
       vi.spyOn(video, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 400, 800));
       media.currentTime = 100;
       const tap = (x: number) => {
-        fireEvent.pointerDown(video, { button: 0, clientX: x });
-        fireEvent.pointerUp(video, { button: 0, clientX: x });
+        fireEvent.pointerDown(video, { button: 0, clientX: x, pointerType: 'touch' });
+        fireEvent.pointerUp(video, { button: 0, clientX: x, pointerType: 'touch' });
       };
       tap(50);
       tap(50);
@@ -829,6 +832,31 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
       tap(200);
       await act(() => vi.advanceTimersByTimeAsync(400));
       expect(media.paused).toBe(paused);
+      // A mouse in the phone layout of a narrow window: a click pauses (review step 5).
+      fireEvent.pointerDown(video, { button: 0, clientX: 200, pointerType: 'mouse' });
+      fireEvent.pointerUp(video, { button: 0, clientX: 200, pointerType: 'mouse' });
+      expect(media.paused).toBe(!paused);
+    });
+
+    it('a tab open when the window narrows closes, so the bar fades again (review step 5)', async () => {
+      let narrow = false;
+      const listeners = new Set<() => void>();
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        get matches() {
+          return narrow && query.includes('768px');
+        },
+        media: query,
+        addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+        removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+      }));
+      await start();
+      key(document.body, 'c');
+      await screen.findByRole('list', { name: 'Kapitel' });
+      narrow = true;
+      act(() => listeners.forEach((listener) => listener()));
+      expect(screen.queryByRole('list', { name: 'Kapitel' })).toBeNull();
+      await act(() => vi.advanceTimersByTimeAsync(CONTROLS_HIDE_MS + 100));
+      expect(region()).toHaveAttribute('data-controls', 'hidden');
     });
   });
 });

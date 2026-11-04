@@ -250,6 +250,9 @@ export function VideoPlayer({
   // Desktop and tablet, or a phone (11.2): the layout changes the focus order as well.
   const layout = usePlayerLayout();
   const phone = layout === 'phone';
+  // A phone has no tabs: one open when the window narrows closes, or the bar would never fade
+  // (state adjusted while rendering, not in an effect).
+  if (phone && tab !== null) setTab(null);
   // During a switch the old session is ended already: playing or seeking it would fail.
   const locked = useRef(switching);
   // The viewer switched away from this session (track, quality, version): the old session ends on
@@ -973,16 +976,23 @@ export function VideoPlayer({
       label: chapterLabel(t, chapter, index, durationMs),
     })),
     selectedId: String(Math.max(0, chapterIndex)),
+    // The page closes with the choice, as a choice of the quality does.
     onSelect: (id: string) => {
       const chapter = chapters[Number(id)];
+      closePanel();
       if (chapter) seekTo(chapter.startMs);
     },
   };
 
   // The episodes of the season for «Als Nächstes» and «Folge zurück»: the season's details, which
-  // the detail page loads as well (11.10); no new endpoint.
+  // the detail page loads as well (11.10); no new endpoint. Every switch and episode is a new
+  // player: for 30 s it takes them from the cache (PlayerPage invalidates them when it closes).
   const seasonId = info.item.kind === 'episode' ? detail?.season?.id : undefined;
-  const season = useQuery({ ...itemQuery(seasonId ?? ''), enabled: seasonId !== undefined });
+  const season = useQuery({
+    ...itemQuery(seasonId ?? ''),
+    enabled: seasonId !== undefined,
+    staleTime: 30_000,
+  });
   const seasonEpisodes = season.data?.episodes;
   const episodeIndex = seasonEpisodes?.findIndex((entry) => entry.id === info.item.id) ?? -1;
   const previousEpisode = episodeIndex > 0 ? seasonEpisodes?.[episodeIndex - 1] : undefined;
