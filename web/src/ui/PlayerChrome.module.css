@@ -208,6 +208,38 @@
   flex-wrap: wrap;
 }
 
+/* Back on the left, the options on the right; the title and its detail in a line under them. */
+.chrome[data-layout='phone'] .options {
+  margin-left: auto;
+}
+
+.chrome[data-layout='phone'] .heading {
+  flex-basis: 100%;
+  padding-top: 0;
+}
+
+/* The time, picture in picture and full screen on the right of the line above the timeline. Where
+   the title and chapter would not stay readable beside them, they move onto a line of their own. */
+.chrome[data-layout='phone'] .line {
+  flex-wrap: wrap;
+}
+
+.chrome[data-layout='phone'] .lineLabel {
+  flex: 1 1 10rem;
+}
+
+.view {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-left: auto;
+}
+
+.view .group {
+  flex-wrap: nowrap;
+  gap: var(--sc-space-1);
+}
+
 @keyframes rise {
   from {
     opacity: 0;

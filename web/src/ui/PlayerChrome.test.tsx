@@ -455,10 +455,12 @@ describe('PlayerChrome tabs (11.2, step 5)', () => {
   });
 
   it('a phone: options at the top, the transport in the middle (−10, play, +10), no tabs', async () => {
-    const { onSkip } = renderChrome({
+    const onTogglePictureInPicture = vi.fn();
+    const { onSkip, onToggleFullscreen } = renderChrome({
       layout: 'phone',
       muteOnly: true,
       tabs: [cardTab('chapters', 'Kapitel', 2)],
+      pictureInPicture: { active: false, onToggle: onTogglePictureInPicture },
     });
     expect(screen.queryByRole('toolbar', { name: 'Mehr zum Titel' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tastenkürzel' })).toBeNull();
@@ -482,7 +484,29 @@ describe('PlayerChrome tabs (11.2, step 5)', () => {
     await userEvent.click(button('10 Sekunden vor'));
     expect(onSkip).toHaveBeenCalledWith(10);
 
-    // Focus order follows the layout: options ↓ transport ↓ timeline, ↑ back up.
+    // The head: back, then the options; the title in a line of its own under them, without
+    // picture in picture and full screen.
+    const head = screen.getByRole('heading', { level: 1, name: 'Blade Runner 2049' });
+    const top = head.closest('h1')?.parentElement?.parentElement as HTMLElement;
+    expect(
+      within(top)
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Zurück', 'Ton aus', 'Untertitel: Aus', 'Ton: Deutsch', 'Einstellungen']);
+    expect(within(top).getByText('2017 · Science-Fiction')).toBeInTheDocument();
+    expect(options.compareDocumentPosition(head) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Picture in picture and full screen on the right of the line with the time, above the
+    // timeline.
+    const view = screen.getByRole('toolbar', { name: 'Zeit und Ansicht' });
+    expect(
+      within(view)
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label') ?? b.textContent),
+    ).toEqual(['1:00 / 10:00', 'Bild-in-Bild', 'Vollbild']);
+    expect(view.parentElement).toHaveTextContent(/^Blade Runner 2049 · Kapitel 3/);
+    expect(view.compareDocumentPosition(seek()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    // Focus order follows the layout: options ↓ transport ↓ time line ↓ timeline, ↑ back up.
     button('Abspielen').focus();
     await userEvent.keyboard('{ArrowUp}');
     expect(button('Ton aus')).toHaveFocus();
@@ -491,24 +515,68 @@ describe('PlayerChrome tabs (11.2, step 5)', () => {
     await userEvent.keyboard('{ArrowDown}');
     expect(button('Abspielen')).toHaveFocus();
     await userEvent.keyboard('{ArrowDown}');
+    expect(button('1:00 / 10:00')).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(button('Bild-in-Bild')).toHaveFocus();
+    await userEvent.keyboard('{ArrowRight}');
+    expect(button('Vollbild')).toHaveFocus();
+    // At the end → stays.
+    await userEvent.keyboard('{ArrowRight}');
+    expect(button('Vollbild')).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
     expect(seek()).toHaveFocus();
     await userEvent.keyboard('{ArrowUp}');
+    expect(button('Vollbild')).toHaveFocus();
+    await userEvent.keyboard('{ArrowUp}');
     expect(button('Abspielen')).toHaveFocus();
-    // Tab: head (back, options, full screen), the transport, the time, the timeline.
+    // Tab: back, the options, the transport, the time line, the timeline; then out.
     const order: string[] = [];
     (document.activeElement as HTMLElement).blur();
-    for (let presses = 0; presses < 6; presses += 1) {
+    for (let presses = 0; presses < 5; presses += 1) {
       await userEvent.tab();
       order.push((document.activeElement as HTMLElement).getAttribute('aria-label') ?? '');
     }
     expect(order).toEqual([
       'Zurück',
       'Untertitel: Aus',
-      'Vollbild',
       'Abspielen',
-      '',
+      'Vollbild',
       'Wiedergabeposition',
     ]);
+    await userEvent.click(within(view).getByRole('button', { name: 'Bild-in-Bild' }));
+    expect(onTogglePictureInPicture).toHaveBeenCalledTimes(1);
+    await userEvent.click(within(view).getByRole('button', { name: 'Vollbild' }));
+    expect(onToggleFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it('a phone without picture in picture: the time and full screen in the line', () => {
+    renderChrome({ layout: 'phone' });
+    const view = screen.getByRole('toolbar', { name: 'Zeit und Ansicht' });
+    expect(
+      within(view)
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label') ?? b.textContent),
+    ).toEqual(['1:00 / 10:00', 'Vollbild']);
+    // The first button of the line is its Tab stop.
+    expect(within(view).getByRole('button', { name: '1:00 / 10:00' })).toHaveAttribute(
+      'tabindex',
+      '0',
+    );
+    expect(within(view).getByRole('button', { name: 'Vollbild' })).toHaveAttribute(
+      'tabindex',
+      '-1',
+    );
+  });
+
+  it('the desktop keeps picture in picture and full screen in the head', () => {
+    renderChrome({ pictureInPicture: { active: false, onToggle: vi.fn() } });
+    expect(screen.queryByRole('toolbar', { name: 'Zeit und Ansicht' })).toBeNull();
+    const head = screen.getByRole('heading', { level: 1 }).parentElement?.parentElement;
+    expect(
+      within(head as HTMLElement)
+        .getAllByRole('button')
+        .map((b) => b.getAttribute('aria-label')),
+    ).toEqual(['Zurück', 'Bild-in-Bild', 'Vollbild']);
   });
 });
 

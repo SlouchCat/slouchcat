@@ -272,6 +272,10 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     it('C opens the chapters in the gear and a pick closes them; no tabs', async () => {
       const { seekTo } = renderVideo({ chapters });
       expect(screen.queryByRole('toolbar', { name: 'Mehr zum Titel' })).toBeNull();
+      // Full screen beside the time above the timeline; offline there is no picture in picture.
+      const view = screen.getByRole('toolbar', { name: 'Zeit und Ansicht' });
+      expect(within(view).getAllByRole('button')).toHaveLength(2);
+      expect(within(view).getByRole('button', { name: 'Vollbild' })).toBeInTheDocument();
       fireEvent.keyDown(window, { key: 'c' });
       const page = await screen.findByRole('dialog', { name: 'Kapitel' });
       expect(within(page).getByRole('option', { selected: true })).toHaveAccessibleName(/^Mitte/);

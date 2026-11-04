@@ -830,6 +830,7 @@
       "previousEpisode": "Previous episode",
       "forward10": "Forward 10 seconds",
       "options": "Options",
+      "view": "Time and view",
       "tapBack": "−{{seconds}} s",
       "tapForward": "+{{seconds}} s"
     },

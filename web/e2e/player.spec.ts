@@ -576,9 +576,34 @@ test.describe('on a phone', () => {
     const box = await transport.boundingBox();
     expect(Math.abs((box?.x ?? 0) + (box?.width ?? 0) / 2 - 195)).toBeLessThan(20);
 
-    // ↑ to the options at the top right, → along them, ↓ back to the transport and to the
-    // timeline, ↑ back up.
+    // The head: back and the options in one line, the title readable in full in a line under
+    // them.
     const options = page.getByRole('toolbar', { name: 'Optionen' });
+    const title = player.getByRole('heading', { level: 1, name: H264_TITLE });
+    await expect(title).toBeVisible();
+    const titleBox = await title.boundingBox();
+    const optionsBox = await options.boundingBox();
+    expect(titleBox?.width ?? 0).toBeGreaterThan(200);
+    expect(titleBox?.y ?? 0).toBeGreaterThanOrEqual(
+      (optionsBox?.y ?? 0) + (optionsBox?.height ?? 0),
+    );
+    expect(await title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    // Picture in picture (where the browser offers it) and full screen on the right of the line
+    // with the time, above the timeline.
+    const view = player.getByRole('toolbar', { name: 'Zeit und Ansicht' });
+    const fullscreen = view.getByRole('button', { name: 'Vollbild' });
+    const slider = page.getByRole('slider', { name: 'Wiedergabeposition' });
+    const fullscreenBox = await fullscreen.boundingBox();
+    const sliderBox = await slider.boundingBox();
+    expect((fullscreenBox?.y ?? 0) + (fullscreenBox?.height ?? 0)).toBeLessThanOrEqual(
+      sliderBox?.y ?? 0,
+    );
+    expect((fullscreenBox?.x ?? 0) + (fullscreenBox?.width ?? 0)).toBeGreaterThan(390 - 40);
+
+    // ↑ to the options at the top right, → along them, ↓ back to the transport, to the time line
+    // and to the timeline, ↑ back up.
     await page.keyboard.press('ArrowUp');
     await expect(options.locator(':focus')).toHaveCount(1);
     await expectVisibleFocus(page);
@@ -586,11 +611,28 @@ test.describe('on a phone', () => {
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, play);
     await page.keyboard.press('ArrowRight');
-    await expectFocusOn(page, page.getByRole('button', { name: '10 Sekunden vor' }));
+    const forward = page.getByRole('button', { name: '10 Sekunden vor' });
+    await expectFocusOn(page, forward);
     await page.keyboard.press('ArrowDown');
-    await expectFocusOn(page, page.getByRole('slider', { name: 'Wiedergabeposition' }));
+    await expect(view.locator(':focus')).toHaveCount(1);
+    await expectVisibleFocus(page);
+    await arrowTo(page, fullscreen, 'ArrowRight');
+    await expectVisibleFocus(page);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, slider);
     await page.keyboard.press('ArrowUp');
-    await expectFocusOn(page, page.getByRole('button', { name: '10 Sekunden vor' }));
+    await expectFocusOn(page, fullscreen);
+    await page.keyboard.press('ArrowUp');
+    await expectFocusOn(page, forward);
+    // Tab goes the same way: the transport, the time line (on full screen), the timeline.
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, fullscreen);
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, slider);
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, fullscreen);
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, forward);
 
     // The gear opens as a sheet from the bottom; Escape closes it, the focus back on the gear.
     await page.keyboard.press('ArrowUp');

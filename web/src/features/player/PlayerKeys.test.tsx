@@ -856,6 +856,9 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
       const { media, video } = await start();
       expect(screen.queryByRole('toolbar', { name: 'Mehr zum Titel' })).toBeNull();
       expect(screen.getByRole('toolbar', { name: 'Optionen' })).toBeVisible();
+      // Full screen beside the time above the timeline (jsdom offers no picture in picture).
+      const view = screen.getByRole('toolbar', { name: 'Zeit und Ansicht' });
+      expect(within(view).getByRole('button', { name: 'Vollbild' })).toBeInTheDocument();
       key(document.body, 'c');
       const chapters = await screen.findByRole('dialog', { name: 'Kapitel' });
       expect(within(chapters).getByRole('option', { selected: true })).toHaveAccessibleName(

@@ -90,7 +90,9 @@ export interface PlayerChromeTab {
 /**
  * Desktop and tablet, or a phone (11.2: narrower than 768 px, or a touch screen held sideways):
  * on a phone −10 s, play/pause and +10 s sit large in the middle, volume, subtitles, sound and the
- * gear at the top right, and there are no tabs. The focus order follows the layout.
+ * gear at the top right with the title in a line of its own under them, picture in picture and
+ * full screen beside the time above the timeline, and there are no tabs. The focus order follows
+ * the layout.
  */
 export type PlayerChromeLayout = 'desktop' | 'phone';
 
@@ -104,7 +106,10 @@ type RowKey =
   | 'subtitles'
   | 'audio'
   | 'settings'
-  | 'help';
+  | 'help'
+  | 'time'
+  | 'pictureInPicture'
+  | 'fullscreen';
 
 interface RowEntry {
   key: RowKey;
@@ -408,8 +413,9 @@ interface PlayerChromeProps {
  * ←/→ go from card to card and ↑ goes back to the strip. When the open tab closes with the focus in
  * it (Escape), the focus goes to its tab.
  *
- * On a phone the options at the top right and the transport in the middle are a toolbar each:
- * ↓ goes from the options to the transport and on to the timeline, ↑ back up.
+ * On a phone the options at the top right, the transport in the middle and the time with picture
+ * in picture and full screen above the timeline are a toolbar each: ↓ goes from the options to the
+ * transport, on to the time and on to the timeline, ↑ back up.
  */
 export function PlayerChrome({
   layout = 'desktop',
@@ -460,6 +466,7 @@ export function PlayerChrome({
   const phone = layout === 'phone';
   const row = useRef<HTMLDivElement>(null);
   const options = useRef<HTMLDivElement>(null);
+  const view = useRef<HTMLDivElement>(null);
   const seekZone = useRef<HTMLDivElement>(null);
   const tabsZone = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -699,7 +706,7 @@ export function PlayerChrome({
   };
 
   const timeline = (
-    // ↓ on the timeline goes to the row (on a phone ↑ to the transport above it); the slider
+    // ↓ on the timeline goes to the row (on a phone ↑ to the time line above it); the slider
     // passes every other plain arrow on.
     // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
@@ -714,7 +721,7 @@ export function PlayerChrome({
         }
         if (phone ? event.key !== 'ArrowUp' : event.key !== 'ArrowDown') return;
         consume(event);
-        focusToolbar(row.current);
+        focusToolbar(phone ? view.current : row.current);
       }}
     >
       <SeekBar
@@ -732,18 +739,70 @@ export function PlayerChrome({
     </div>
   );
 
+  const timeButton = (excluded = false) => (
+    <AriaButton
+      variant="ghost"
+      onPress={() => {
+        setNow(Date.now());
+        onTimeDisplayChange(timeDisplay === 'elapsed' ? 'remaining' : 'elapsed');
+      }}
+      excludeFromTabOrder={excluded}
+    >
+      <span className={styles.time}>{timeText}</span>
+    </AriaButton>
+  );
+  const pictureInPictureButton = (excluded = false) =>
+    pictureInPicture && (
+      <AriaButton
+        variant="ghost"
+        icon="pictureInPicture"
+        iconOnly
+        aria-label={
+          pictureInPicture.active
+            ? t('player.chrome.exitPictureInPicture')
+            : t('player.chrome.pictureInPicture')
+        }
+        aria-pressed={pictureInPicture.active}
+        onPress={pictureInPicture.onToggle}
+        excludeFromTabOrder={excluded}
+      />
+    );
+  const fullscreenButton = (excluded = false) => (
+    <AriaButton
+      variant="ghost"
+      icon={fullscreen ? 'fullscreenExit' : 'fullscreen'}
+      iconOnly
+      aria-label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
+      onPress={onToggleFullscreen}
+      excludeFromTabOrder={excluded}
+    />
+  );
+  // On a phone picture in picture and full screen sit beside the time, a toolbar between the
+  // transport and the timeline.
+  const viewEntries: RowEntry[] = [
+    { key: 'time', disabled: false, render: timeButton },
+    ...(pictureInPicture
+      ? [{ key: 'pictureInPicture' as const, disabled: false, render: pictureInPictureButton }]
+      : []),
+    { key: 'fullscreen', disabled: false, render: fullscreenButton },
+  ];
+
   const line = (
     <div className={styles.line}>
       <span className={styles.lineLabel}>{lineLabel}</span>
-      <AriaButton
-        variant="ghost"
-        onPress={() => {
-          setNow(Date.now());
-          onTimeDisplayChange(timeDisplay === 'elapsed' ? 'remaining' : 'elapsed');
-        }}
-      >
-        <span className={styles.time}>{timeText}</span>
-      </AriaButton>
+      {phone ? (
+        <Toolbar
+          label={t('player.chrome.view')}
+          className={styles.view}
+          groupClassName={styles.group}
+          groups={[viewEntries]}
+          toolbarRef={view}
+          onUp={() => focusToolbar(row.current)}
+          onDown={focusSeek}
+        />
+      ) : (
+        timeButton()
+      )}
     </div>
   );
 
@@ -757,12 +816,7 @@ export function PlayerChrome({
           aria-label={t('player.back')}
           onPress={onBack}
         />
-        <div className={styles.heading}>
-          <h1 className={styles.title}>
-            <TitleOrLogo title={title} logoUrl={logoUrl} className={styles.logo} />
-          </h1>
-          {headingDetail && <p className={styles.headingDetail}>{headingDetail}</p>}
-        </div>
+        {/* On a phone the options stand at the right of back, the title in a line under them. */}
         {phone && (
           <Toolbar
             label={t('player.chrome.options')}
@@ -773,27 +827,14 @@ export function PlayerChrome({
             onDown={() => focusToolbar(row.current)}
           />
         )}
-        {pictureInPicture && (
-          <AriaButton
-            variant="ghost"
-            icon="pictureInPicture"
-            iconOnly
-            aria-label={
-              pictureInPicture.active
-                ? t('player.chrome.exitPictureInPicture')
-                : t('player.chrome.pictureInPicture')
-            }
-            aria-pressed={pictureInPicture.active}
-            onPress={pictureInPicture.onToggle}
-          />
-        )}
-        <AriaButton
-          variant="ghost"
-          icon={fullscreen ? 'fullscreenExit' : 'fullscreen'}
-          iconOnly
-          aria-label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
-          onPress={onToggleFullscreen}
-        />
+        <div className={styles.heading}>
+          <h1 className={styles.title}>
+            <TitleOrLogo title={title} logoUrl={logoUrl} className={styles.logo} />
+          </h1>
+          {headingDetail && <p className={styles.headingDetail}>{headingDetail}</p>}
+        </div>
+        {!phone && pictureInPictureButton()}
+        {!phone && fullscreenButton()}
       </div>
 
       {phone && (
@@ -804,7 +845,7 @@ export function PlayerChrome({
           groups={[transport]}
           toolbarRef={row}
           onUp={() => focusToolbar(options.current)}
-          onDown={focusSeek}
+          onDown={() => focusToolbar(view.current)}
         />
       )}
 
