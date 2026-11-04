@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
-import { arrowTo, startOf } from './playback';
+import { arrowTo, recordEndedReason, startOf, videoState } from './playback';
 
 /** DoD M1a: direct play starts in under 2 s in Chrome and Firefox. */
 const START_BUDGET_MS = 2000;
@@ -438,8 +438,10 @@ test.describe('the tab «Besetzung»', () => {
         json: { ...body, cast: [{ personId: 1, name: 'Ellen Ripley', role: 'cast' }] },
       });
     });
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('Enter');
+    const first = await startOf(page, async () => {
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Enter');
+    });
     const player = page.getByRole('main', { name: 'Videoplayer' });
     await expect(player).toHaveAttribute('data-start-ms', /\d+/);
     await expectFocusOn(page, page.getByRole('button', { name: 'Pause' }));
@@ -460,10 +462,20 @@ test.describe('the tab «Besetzung»', () => {
     await expect(page).toHaveURL(/\/people\/1$/);
     // Without TMDB nobody has a credit: the person's page is the not-found notice (person.spec).
     await expect(page.getByText('Person nicht gefunden')).toBeVisible();
-    // Back: the player opens again.
-    await page.keyboard.press('Escape');
+    // Back: the player opens again with a new session (leaving it ended the first) and plays.
+    const endedReason = await recordEndedReason(page);
+    const second = await startOf(page, () => page.keyboard.press('Escape'));
     await expect(page).toHaveURL(/\/play\//);
-    await expect(player).toBeVisible();
+    expect(second.status).toBe(200);
+    expect(second.body.playbackSessionId).not.toBe(first.body.playbackSessionId);
+    await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+    await expect.poll(async () => (await videoState(page)).paused).toBe(false);
+    const playing = (await videoState(page)).time;
+    await expect.poll(async () => (await videoState(page)).time).toBeGreaterThan(playing);
+    // Longer than one round of the stop watch (4 s): the new session is not stopped.
+    await page.waitForTimeout(5000);
+    expect(await endedReason()).toBeNull();
+    await expect(player).not.toHaveAttribute('data-ended-reason', /.*/);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
   });
 });

@@ -121,6 +121,9 @@ let autoNextTarget: string | null = null;
  */
 let nextTitleCarry: { itemId: string; carry: PlayerCarry } | null = null;
 
+/** Counts the players opened, so each one starts its own session (see the playback query). */
+let playerMounts = 0;
+
 /** Video player route (W-1 direct play, W-4 tracks, W-5 progress, W-8 quality, W-9 auto-next). */
 export function PlayerPage() {
   const { itemId } = route.useParams();
@@ -153,6 +156,9 @@ function PlayerView({ itemId }: { itemId: string }) {
   const [quality, setQuality] = useState<Quality | undefined>(undefined);
   // A new session with the same choices (a second switch back) must not reuse a cached answer.
   const [generation, setGeneration] = useState(0);
+  // Neither must a player opened again: the one left ends its session on a timer, and the way
+  // back can be quicker than that timer and the removal of the answer (gcTime 0).
+  const [mount] = useState(() => (playerMounts += 1));
   const [autoNext] = useState(() => {
     const arrived = autoNextTarget === itemId;
     if (arrived) autoNextTarget = null;
@@ -179,7 +185,7 @@ function PlayerView({ itemId }: { itemId: string }) {
   // session would rebuild the player mid-stream). Only a busy transcoder is retried, after the
   // server's delay.
   const playback = useQuery({
-    queryKey: ['playback', itemId, file ?? null, tracks, quality ?? null, generation],
+    queryKey: ['playback', itemId, file ?? null, tracks, quality ?? null, generation, mount],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
       request(
         api.POST('/items/{id}/play', {
