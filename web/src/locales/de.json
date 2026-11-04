@@ -631,7 +631,6 @@
       "title": "Wiedergabe nicht möglich",
       "body": "Die Datei konnte nicht geladen werden."
     },
-    "info": "Stream-Info",
     "switching": "Wird umgestellt …",
     "streamInfo": {
       "title": "Stream-Info",
@@ -680,9 +679,7 @@
       "deliveryText": "Text (WebVTT)",
       "deliveryBurn": "Eingebrannt"
     },
-    "versionButton": "Version: {{label}}",
     "tracks": {
-      "button": "Spuren",
       "audio": "Ton",
       "subtitles": "Untertitel",
       "off": "Aus",
@@ -691,7 +688,6 @@
       "external": "extern"
     },
     "quality": {
-      "button": "Qualität: {{label}}",
       "auto": "Automatisch",
       "autoWith": "Automatisch ({{quality}})"
     },
@@ -773,6 +769,14 @@
       "sdh": "SDH",
       "burnIn": "Bild-Untertitel, wird eingebrannt",
       "convert": "wird umgewandelt"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "quality": "Qualität",
+      "version": "Version",
+      "speed": "Geschwindigkeit",
+      "rateValue": "{{rate}}×",
+      "streamInfo": "Stream-Info"
     },
     "panel": {
       "audioButton": "Ton: {{language}}",

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
-import { OptionList, OptionMoreRow, OptionRow, OptionSection } from './OptionRow';
+import { OptionLinkRow, OptionList, OptionMoreRow, OptionRow, OptionSection } from './OptionRow';
 
 const noop = () => undefined;
 
@@ -44,6 +44,20 @@ const Grouped = ({ expanded = false }: { expanded?: boolean }) => {
   );
 };
 
+// The first page of the gear panel: each row leads to a page and names its value (11.2).
+const Settings = () => (
+  <OptionList
+    label="Einstellungen"
+    selectedId={null}
+    onSelect={noop}
+    actionIds={['quality', 'version', 'speed']}
+  >
+    <OptionLinkRow id="quality" label="Qualität" value="Automatisch (1080p)" onOpen={noop} />
+    <OptionLinkRow id="version" label="Version" value="4K HDR" onOpen={noop} />
+    <OptionLinkRow id="speed" label="Geschwindigkeit" value="1×" onOpen={noop} />
+  </OptionList>
+);
+
 const meta = {
   title: 'UI/OptionRow',
   component: OptionRow,
@@ -78,3 +92,6 @@ export const GroupsExpanded: Story = {
   render: () => <Grouped expanded />,
   tags: ['press:Tab+ArrowDown+ArrowDown+ArrowDown'],
 };
+
+/** Rows that lead to a page: the gear panel's first page, the focus on its first row. */
+export const LinkRows: Story = { render: () => <Settings />, tags: ['press:Tab'] };

@@ -74,10 +74,7 @@ type RowKey =
   | 'mute'
   | 'subtitles'
   | 'audio'
-  | 'quality'
   | 'chapters'
-  | 'version'
-  | 'info'
   | 'settings'
   | 'help';
 
@@ -157,12 +154,6 @@ interface PlayerChromeProps {
   settings?: PlayerChromePanelButton;
   /** The chapters, a menu until the chapter tab of step 5. */
   chapterMenu?: PlayerChromeMenu;
-  /** Quality and version, menus until the gear takes them. */
-  quality?: PlayerChromeMenu;
-  version?: PlayerChromeMenu;
-  /** The stream info, a button until the gear takes it. */
-  infoOpen?: boolean;
-  onToggleInfo?: () => void;
   /** The element the menus render into (the player, for full screen). */
   portalContainer?: Element;
   helpOpen?: boolean;
@@ -221,10 +212,6 @@ export function PlayerChrome({
   audio,
   settings,
   chapterMenu,
-  quality,
-  version,
-  infoOpen = false,
-  onToggleInfo,
   portalContainer,
   helpOpen = false,
   onToggleHelp,
@@ -403,28 +390,7 @@ export function PlayerChrome({
   const right: RowEntry[] = [
     ...panelButton('subtitles', subtitles, 'subtitles'),
     ...panelButton('audio', audio, 'audioTrack'),
-    ...menu('quality', quality),
     ...menu('chapters', chapterMenu),
-    ...menu('version', version),
-    ...(onToggleInfo
-      ? [
-          {
-            key: 'info' as const,
-            disabled: false,
-            render: (excluded: boolean) => (
-              <AriaButton
-                variant="ghost"
-                icon="info"
-                iconOnly
-                aria-label={t('player.info')}
-                aria-pressed={infoOpen}
-                onPress={onToggleInfo}
-                excludeFromTabOrder={excluded}
-              />
-            ),
-          },
-        ]
-      : []),
     ...panelButton('settings', settings, 'settings'),
     ...(onToggleHelp
       ? [

@@ -12,26 +12,39 @@ import { expect, vi } from 'vitest';
 export type PlayerChoice = 'audio' | 'subtitle' | 'quality' | 'chapter' | 'version';
 
 /**
- * Sound and subtitles are panels beside the video (PlayerPanel), each with one list of rows (a
- * listbox named like the panel); their buttons name the language chosen: «Ton: Deutsch»,
- * «Untertitel: Aus». Quality, chapter and version are still react-aria menus behind a button, and
- * the menu is labelled by its button, which names the current pick: «Qualität: 480p».
+ * How the player shows each choice (concept 13, step 4):
+ * - Sound and subtitles are panels beside the video (PlayerPanel) with one list of rows (a listbox
+ *   named like the panel); their buttons name the language chosen: «Ton: Deutsch».
+ * - Quality and version are pages of the gear panel («Einstellungen»): its first page has a row
+ *   per page that names the current pick («Qualität», described «480p»).
+ * - The chapters are still a react-aria menu behind the button «Kapitel» (a tab in step 5).
  */
-const controlName: Record<PlayerChoice, string | RegExp> = {
-  audio: /^Ton: /,
-  subtitle: /^Untertitel: /,
-  quality: /^Qualität/,
-  chapter: 'Kapitel',
-  version: /^Version/,
-};
-const panelName: Partial<Record<PlayerChoice, string>> = { audio: 'Ton', subtitle: 'Untertitel' };
+type Shape =
+  | { kind: 'panel'; control: RegExp; title: string }
+  | { kind: 'gear'; row: string }
+  | { kind: 'menu'; control: string };
 
-/** The open list of a choice: the panel's listbox, or the menu. */
+const shapes: Record<PlayerChoice, Shape> = {
+  audio: { kind: 'panel', control: /^Ton: /, title: 'Ton' },
+  subtitle: { kind: 'panel', control: /^Untertitel: /, title: 'Untertitel' },
+  quality: { kind: 'gear', row: 'Qualität' },
+  version: { kind: 'gear', row: 'Version' },
+  chapter: { kind: 'menu', control: 'Kapitel' },
+};
+
+const GEAR = 'Einstellungen';
+
+/** The list of an open panel: the listbox named like the panel. */
+function panelList(title: string): HTMLElement | null {
+  const panel = screen.queryByRole('dialog', { name: title });
+  return panel && within(panel).queryByRole('listbox', { name: title });
+}
+
+/** The open list of a choice: a panel's listbox, a gear page's listbox, or the menu. */
 function queryOpenList(choice: PlayerChoice): HTMLElement | null {
-  const name = panelName[choice];
-  if (name === undefined) return screen.queryByRole('menu', { name: controlName[choice] });
-  const panel = screen.queryByRole('dialog', { name });
-  return panel && within(panel).queryByRole('listbox', { name });
+  const shape = shapes[choice];
+  if (shape.kind === 'menu') return screen.queryByRole('menu', { name: shape.control });
+  return panelList(shape.kind === 'panel' ? shape.title : shape.row);
 }
 
 /** Rows of a panel's list are options, those of a menu menu items with a radio tick. */
@@ -39,6 +52,12 @@ const isPanelList = (from: HTMLElement) => from.getAttribute('role') === 'listbo
 const rowRole = (from: HTMLElement) => (isPanelList(from) ? 'option' : 'menuitemradio');
 const chosenState = (from: HTMLElement) =>
   isPanelList(from) ? { selected: true } : { checked: true };
+
+/** The text of the element an option is described by: the value of a gear row. */
+function descriptionOf(element: HTMLElement): string {
+  const ids = element.getAttribute('aria-describedby')?.split(/\s+/) ?? [];
+  return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ');
+}
 
 /**
  * Drives the video player's choices. `user` clicks through the fake timers of the player tests;
@@ -65,25 +84,84 @@ export function playerDriver() {
       return found;
     });
 
-  /** The control that opens a choice; throws when the player offers none. */
-  const control = (choice: PlayerChoice) =>
-    screen.getByRole('button', { name: controlName[choice] });
+  /** The control that opens a choice (the gear for quality and version); throws without one. */
+  const control = (choice: PlayerChoice) => {
+    const shape = shapes[choice];
+    const name =
+      shape.kind === 'gear' ? GEAR : shape.kind === 'panel' ? shape.control : shape.control;
+    return screen.getByRole('button', { name });
+  };
+
+  /** Opens the first page of the gear panel and resolves with its list. */
+  const openGear = async () => {
+    const open = panelList(GEAR);
+    if (open) return open;
+    // A page of the gear is open: back to its first page; else open the gear.
+    const page = screen.queryByRole('dialog', { name: /^(Qualität|Version|Geschwindigkeit)$/ });
+    const back = page && within(page).queryByRole('button', { name: 'Zurück' });
+    if (page && back) await user.click(back);
+    else {
+      if (page) fireEvent.keyDown(page, { key: 'Escape' });
+      await user.click(screen.getByRole('button', { name: GEAR }));
+    }
+    return waitFor(() => {
+      const found = panelList(GEAR);
+      if (!found) throw new Error('the gear panel is not open');
+      return found;
+    });
+  };
+
+  /** Closes the gear panel with Escape. */
+  const closeGear = async () => {
+    const panel = screen.queryByRole('dialog', { name: GEAR });
+    if (!panel) return;
+    fireEvent.keyDown(document.activeElement ?? panel, { key: 'Escape' });
+    if (screen.queryByRole('dialog', { name: GEAR })) fireEvent.keyDown(panel, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: GEAR })).toBeNull());
+  };
+
+  /** The row of the gear's first page that leads to a choice, or null. */
+  const gearRow = (gear: HTMLElement, row: string) =>
+    within(gear).queryByRole('option', { name: row });
 
   /** Waits until the player offers a choice (versions come with the title's details). */
   const findChoice = async (choice: PlayerChoice) => {
-    await screen.findByRole('button', { name: controlName[choice] });
+    const shape = shapes[choice];
+    if (shape.kind !== 'gear') {
+      await screen.findByRole('button', { name: shape.control });
+      return;
+    }
+    const gear = await openGear();
+    await within(gear).findByRole('option', { name: shape.row });
+    await closeGear();
   };
 
   /** Whether the player offers a choice at all (the version only for two or more files). */
-  const hasChoice = (choice: PlayerChoice) =>
-    Promise.resolve(screen.queryByRole('button', { name: controlName[choice] }) !== null);
+  const hasChoice = async (choice: PlayerChoice) => {
+    const shape = shapes[choice];
+    if (shape.kind !== 'gear') {
+      return screen.queryByRole('button', { name: shape.control }) !== null;
+    }
+    const gear = await openGear();
+    const offered = gearRow(gear, shape.row) !== null;
+    await closeGear();
+    return offered;
+  };
 
   /**
-   * The current pick of a choice as the player shows it ("480p", "1080p"); waits until the player
-   * offers the choice. Today the visible button names it after a colon.
+   * The current pick of a choice as the player shows it ("480p", "Deutsch"); waits until the
+   * player offers the choice. A panel's button names it after a colon, a gear row as its value.
    */
   const current = async (choice: PlayerChoice) => {
-    const button = await screen.findByRole('button', { name: controlName[choice] });
+    const shape = shapes[choice];
+    if (shape.kind === 'gear') {
+      const gear = await openGear();
+      const row = await within(gear).findByRole('option', { name: shape.row });
+      const value = descriptionOf(row);
+      await closeGear();
+      return value;
+    }
+    const button = await screen.findByRole('button', { name: shape.control });
     expect(button).toBeVisible();
     const name = button.getAttribute('aria-label') ?? '';
     const colon = name.indexOf(': ');
@@ -95,8 +173,21 @@ export function playerDriver() {
   const open = async (choice: PlayerChoice) => {
     const already = queryList(choice);
     if (already) return already;
-    await user.click(control(choice));
+    const shape = shapes[choice];
+    if (shape.kind === 'gear') {
+      const gear = await openGear();
+      await user.click(await within(gear).findByRole('option', { name: shape.row }));
+    } else {
+      await user.click(control(choice));
+    }
     return findList(choice);
+  };
+
+  /** Shows or hides the stream info through the switch on the gear's first page. */
+  const toggleStreamInfo = async () => {
+    const gear = await openGear();
+    const panel = gear.closest('[role="dialog"]') as HTMLElement;
+    await user.click(within(panel).getByRole('switch', { name: 'Stream-Info' }));
   };
 
   /** One option of an open list, by its spoken name. */
@@ -163,6 +254,7 @@ export function playerDriver() {
     expectAvailable,
     pressIn,
     openChoice,
+    toggleStreamInfo,
     choose,
     chooseAudioTrack: (name: string | RegExp) => choose('audio', name),
     chooseSubtitle: (name: string | RegExp) => choose('subtitle', name),

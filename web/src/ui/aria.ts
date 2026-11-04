@@ -56,7 +56,14 @@ export { TrailerDialog } from './TrailerDialog';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
 // Building blocks of the player (concept 13, 11.10).
 export { ChapterCard } from './ChapterCard';
-export { OptionList, OptionMoreRow, OptionRow, OptionSection, type OptionMark } from './OptionRow';
+export {
+  OptionLinkRow,
+  OptionList,
+  OptionMoreRow,
+  OptionRow,
+  OptionSection,
+  type OptionMark,
+} from './OptionRow';
 export {
   PlayerChrome,
   playerEndTime,

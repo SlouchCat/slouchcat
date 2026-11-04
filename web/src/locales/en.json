@@ -631,7 +631,6 @@
       "title": "Playback not possible",
       "body": "The file could not be loaded."
     },
-    "info": "Stream info",
     "switching": "Switching …",
     "streamInfo": {
       "title": "Stream info",
@@ -680,9 +679,7 @@
       "deliveryText": "Text (WebVTT)",
       "deliveryBurn": "Burned in"
     },
-    "versionButton": "Version: {{label}}",
     "tracks": {
-      "button": "Tracks",
       "audio": "Audio",
       "subtitles": "Subtitles",
       "off": "Off",
@@ -691,7 +688,6 @@
       "external": "external"
     },
     "quality": {
-      "button": "Quality: {{label}}",
       "auto": "Automatic",
       "autoWith": "Automatic ({{quality}})"
     },
@@ -773,6 +769,14 @@
       "sdh": "SDH",
       "burnIn": "picture subtitle, burnt in",
       "convert": "converted"
+    },
+    "settings": {
+      "title": "Settings",
+      "quality": "Quality",
+      "version": "Version",
+      "speed": "Speed",
+      "rateValue": "{{rate}}×",
+      "streamInfo": "Stream info"
     },
     "panel": {
       "audioButton": "Audio: {{language}}",

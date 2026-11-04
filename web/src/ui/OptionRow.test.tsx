@@ -2,7 +2,7 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { OptionList, OptionMoreRow, OptionRow, OptionSection } from './OptionRow';
+import { OptionLinkRow, OptionList, OptionMoreRow, OptionRow, OptionSection } from './OptionRow';
 
 function renderList(selectedId: string | null = 'de') {
   const onSelect = vi.fn();
@@ -65,6 +65,20 @@ describe('OptionRow and OptionList (concept 13, V-5)', () => {
     expect(onSelect).toHaveBeenLastCalledWith('en-pgs');
     await user.click(option('Deutsch', 'Standard'));
     expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks a disabled row as such and never chooses it', async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <OptionList label="Qualität" selectedId="auto" onSelect={onSelect}>
+        <OptionRow id="auto" label="Automatisch" />
+        <OptionRow id="360p" label="360p" isDisabled />
+      </OptionList>,
+    );
+    expect(option('360p')).toHaveAttribute('aria-disabled', 'true');
+    await user.click(option('360p'));
+    expect(onSelect).not.toHaveBeenCalled();
   });
 
   it('starts without a chosen row when none is given', () => {
@@ -143,5 +157,35 @@ describe('OptionSection and OptionMoreRow (concept 13, 11.10)', () => {
     await user.click(option('Weitere Sprachen (2)'));
     expect(screen.queryByRole('option', { name: 'Finnisch' })).toBeNull();
     expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('OptionLinkRow (concept 13, 11.2: the gear)', () => {
+  it('opens its page on Enter or a click, reads its value and is never chosen', async () => {
+    const onSelect = vi.fn();
+    const onOpen = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <OptionList
+        label="Einstellungen"
+        selectedId={null}
+        onSelect={onSelect}
+        actionIds={['quality', 'speed']}
+      >
+        <OptionLinkRow id="quality" label="Qualität" value="Automatisch" onOpen={onOpen} />
+        <OptionLinkRow id="speed" label="Geschwindigkeit" value="1×" onOpen={vi.fn()} />
+      </OptionList>,
+    );
+    const quality = option('Qualität');
+    expect(quality).toHaveAccessibleDescription('Automatisch');
+    act(() => quality.focus());
+    await user.keyboard('{Enter}');
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    await user.keyboard('{ArrowDown}');
+    expect(option('Geschwindigkeit')).toHaveFocus();
+    await user.click(quality);
+    expect(onOpen).toHaveBeenCalledTimes(2);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(quality).toHaveAttribute('aria-selected', 'false');
   });
 });

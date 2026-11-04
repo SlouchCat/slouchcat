@@ -11,6 +11,7 @@ import {
   showDetail,
 } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
+import { formatBitrate } from '@/lib/format';
 import { playerDriver } from '@/test/player';
 import { CONTROLS_HIDE_MS } from './VideoPlayer';
 import { PLAYER_PREFS_KEY } from './usePlayerPrefs';
@@ -254,6 +255,61 @@ describe('video player controls (concept 13, step 3)', () => {
     media.duration = Number.POSITIVE_INFINITY;
     key(document.body, '5');
     expect(media.currentTime).toBe(300);
+  });
+
+  it('the gear: pages with back and Backspace, the speed page sets the speed, Escape closes', async () => {
+    const { video } = await start();
+    const user = playerDriver().user;
+    await user.click(button('Einstellungen'));
+    const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
+    expect(button('Einstellungen')).toHaveAttribute('aria-expanded', 'true');
+    const speedRow = within(gear).getByRole('option', { name: 'Geschwindigkeit' });
+    expect(speedRow).toHaveAccessibleDescription('1×');
+    await waitFor(() =>
+      expect(within(gear).getByRole('option', { name: 'Qualität' })).toHaveFocus(),
+    );
+    await user.keyboard('{ArrowDown}{Enter}');
+    const speed = await screen.findByRole('dialog', { name: 'Geschwindigkeit' });
+    await waitFor(() => expect(within(speed).getByRole('option', { name: '1×' })).toHaveFocus());
+    await user.click(within(speed).getByRole('option', { name: '1,5×' }));
+    expect(video.playbackRate).toBe(1.5);
+    expect(within(speed).getByRole('option', { name: '1,5×' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    // Backspace goes up a level, the back button as well; Escape closes and gives the focus back.
+    await user.keyboard('{Backspace}');
+    const main = await screen.findByRole('dialog', { name: 'Einstellungen' });
+    expect(
+      within(main).getByRole('option', { name: 'Geschwindigkeit' }),
+    ).toHaveAccessibleDescription('1,5×');
+    await user.click(within(main).getByRole('option', { name: 'Geschwindigkeit' }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: 'Geschwindigkeit' })).getByRole('button', {
+        name: 'Zurück',
+      }),
+    );
+    await screen.findByRole('dialog', { name: 'Einstellungen' });
+    await waitFor(() => expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull());
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(button('Einstellungen')).toHaveFocus();
+  });
+
+  it('Q opens the gear straight on the quality: no way up, Backspace closes', async () => {
+    const { router } = await start();
+    key(document.body, 'q');
+    const quality = await screen.findByRole('dialog', { name: 'Qualität' });
+    expect(within(quality).queryByRole('button', { name: 'Zurück' })).toBeNull();
+    expect(within(quality).getByRole('option', { name: '1080p' })).toHaveAccessibleDescription(
+      formatBitrate(8_000_000, 'de'),
+    );
+    await waitFor(() =>
+      expect(within(quality).getByRole('option', { selected: true })).toHaveFocus(),
+    );
+    key(document.activeElement!, 'Backspace');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(router.state.location.pathname).toBe(`/play/${ids.alien}`);
   });
 
   it('U opens the subtitle panel', async () => {

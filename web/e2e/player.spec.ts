@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
+import { arrowTo } from './playback';
 
 /** DoD M1a: direct play starts in under 2 s in Chrome and Firefox. */
 const START_BUDGET_MS = 2000;
@@ -114,6 +115,70 @@ test('player keys: Space, the zones of the bar (11.2), Tab and Escape', async ({
   await page.locator('body').focus();
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(new RegExp(`${detail}$`));
+});
+
+test('panels and the gear by keyboard: open, arrows, a page and back, Escape; no trap', async ({
+  page,
+}) => {
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  const player = page.getByRole('main', { name: 'Videoplayer' });
+  await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+  await page.keyboard.press('Space');
+  const rate = () =>
+    page.locator('video').evaluate((video: HTMLVideoElement) => video.playbackRate);
+
+  // The sound panel from the row: → walks to its button, Enter opens it on the track chosen; the
+  // arrows stay in it, Escape gives the focus back to the button.
+  const sound = page.getByRole('button', { name: /^Ton: / });
+  await arrowTo(page, sound, 'ArrowRight');
+  await page.keyboard.press('Enter');
+  const soundPanel = page.getByRole('dialog', { name: 'Ton' });
+  await expect(sound).toHaveAttribute('aria-expanded', 'true');
+  await expectFocusOn(page, soundPanel.getByRole('option', { selected: true }));
+  await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, soundPanel.getByRole('option', { selected: true }));
+  await page.keyboard.press('Escape');
+  await expect(soundPanel).toHaveCount(0);
+  await expectFocusOn(page, sound);
+
+  // U opens the subtitle panel on «Aus».
+  await page.keyboard.press('u');
+  const subtitles = page.getByRole('dialog', { name: 'Untertitel' });
+  await expectFocusOn(page, subtitles.getByRole('option', { name: 'Aus' }));
+  await page.keyboard.press('Backspace');
+  await expect(subtitles).toHaveCount(0);
+  await expect(page).toHaveURL(/\/play\//);
+
+  // The gear: its first page leads to the speed page; Enter picks a speed; Backspace goes up,
+  // Escape closes with the focus back on the gear.
+  const gear = page.getByRole('button', { name: 'Einstellungen' });
+  await arrowTo(page, gear, 'ArrowRight');
+  await page.keyboard.press('Enter');
+  const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+  const speedRow = settings.getByRole('option', { name: 'Geschwindigkeit' });
+  await expect(speedRow).toHaveAccessibleDescription('1×');
+  await arrowTo(page, speedRow);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  const speed = page.getByRole('dialog', { name: 'Geschwindigkeit' });
+  await expect(speed.getByRole('button', { name: 'Zurück' })).toBeVisible();
+  await expectFocusOn(page, speed.getByRole('option', { name: '1×' }));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, speed.getByRole('option', { name: '1,25×' }));
+  await page.keyboard.press('Enter');
+  await expect.poll(rate).toBe(1.25);
+  await page.keyboard.press('Backspace');
+  await expect(speedRow).toHaveAccessibleDescription('1,25×');
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
+  await expectFocusOn(page, gear);
+
+  // A panel is no trap: Tab walks out of it and on to the end of the page.
+  await page.keyboard.press('Enter');
+  await expect(settings).toBeVisible();
+  await expectNoFocusTrap(page);
 });
 
 test('controls hide after 3 s of playback and come back on a key press', async ({ page }) => {

@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
+import { formatBitrate } from '@/lib/format';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
 import {
@@ -35,6 +36,7 @@ import {
   selectedSubtitle,
   trackLabel,
 } from './labels';
+import { SettingsPanel, type SettingsPage } from './panels/SettingsPanel';
 import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
@@ -76,10 +78,13 @@ export interface PlaybackChange {
  */
 export type EndedReason = 'limit' | 'admin';
 
-type MenuName = 'quality' | 'chapters' | 'version';
+type MenuName = 'chapters';
 
-/** The panel beside the video: sound (T), subtitles (U) or the shortcut help (?). One at a time. */
-type PanelName = 'audio' | 'subtitle' | 'help';
+/**
+ * The panel beside the video: sound (T), subtitles (U), the gear (Q opens its quality page) or the
+ * shortcut help (?). One at a time.
+ */
+type PanelName = 'audio' | 'subtitle' | 'settings' | 'help';
 
 interface VideoPlayerProps {
   info: PlaybackInfo;
@@ -227,6 +232,16 @@ export function VideoPlayer({
     setPanel((current) => (current === name ? null : name));
   }, []);
   const closePanel = useCallback(() => setPanel(null), []);
+  // The page of the gear panel; `direct` when a key opened it on that page (no way up).
+  const [settingsView, setSettingsView] = useState<{ page: SettingsPage; direct: boolean }>({
+    page: 'main',
+    direct: false,
+  });
+  const openSettings = useCallback((page: SettingsPage, direct: boolean) => {
+    setOpenMenu(null);
+    setSettingsView({ page, direct });
+    setPanel('settings');
+  }, []);
   // Auto-next (W-9): the end of the countdown, or null; cancelled stays for this session.
   const [countdownEnd, setCountdownEnd] = useState<number | null>(null);
   const [countdownCancelled, setCountdownCancelled] = useState(false);
@@ -709,7 +724,9 @@ export function VideoPlayer({
           openPanel(action.kind === 'tracks' ? 'audio' : 'subtitle');
           return;
         case 'quality':
-          open('quality', hasQualities && !switching && ended === null, event);
+          if (!hasQualities || switching || ended !== null) return;
+          event.preventDefault();
+          openSettings('quality', true);
           return;
         case 'chapters':
           open('chapters', hasChapters && ended === null, event);
@@ -736,7 +753,7 @@ export function VideoPlayer({
             closePanel();
             return;
           }
-          if (infoOpen && event.key === 'Escape') {
+          if (infoOpen) {
             event.preventDefault();
             onToggleInfo?.();
             return;
@@ -762,6 +779,7 @@ export function VideoPlayer({
     closePanel,
     inIntro,
     openPanel,
+    openSettings,
     panel,
     togglePanel,
     infoOpen,
@@ -951,7 +969,6 @@ export function VideoPlayer({
     onSwitch(change, leaveSession());
   };
 
-  const currentVersion = info.mediaFile.versionLabel ?? info.mediaFile.container.toUpperCase();
   const language = i18n.language;
   const subtitle = selectedSubtitle(info);
   const audioIndex =
@@ -980,15 +997,26 @@ export function VideoPlayer({
     // After the server ended the playback a pick would start a new session behind the notice.
     isDisabled: switching || ended !== null,
   });
-  const qualityOptions = info.qualities.map((option) => ({
-    id: option.quality,
-    label: qualityLabel(t, option, info),
-    disabled: !option.available,
-  }));
-  // The rung the server says it delivers (rule 12), not the viewer's wish.
-  const qualityKey = info.qualities.find((option) => option.current)?.quality ?? 'auto';
-  const currentQuality =
-    qualityOptions.find((option) => option.id === qualityKey)?.label ?? t('player.quality.auto');
+  // The gear (11.2): the server's rung and file (rule 12); a choice starts a new session.
+  const qualityChoice = {
+    options: info.qualities.map((option) => ({
+      id: option.quality,
+      label: qualityLabel(t, option, info),
+      detail: option.bitrate !== undefined ? formatBitrate(option.bitrate, language) : undefined,
+      disabled: !option.available,
+    })),
+    // The rung the server says it delivers, not the viewer's wish.
+    selectedId: info.qualities.find((option) => option.current)?.quality ?? 'auto',
+    onSelect: (id: string) => switchPlayback({ quality: id as Quality }),
+  };
+  const versionChoice = {
+    options: versions.map((version, index) => ({
+      id: version.id,
+      label: version.versionLabel ?? String(index + 1),
+    })),
+    selectedId: info.mediaFile.id,
+    onSelect: switchVersion,
+  };
   const chapterIndex = chapterAt(info.chapters, currentMs);
   const menuProps = (menu: MenuName) => ({
     // After the server ended the playback a pick would start a new session behind the notice.
@@ -1000,14 +1028,6 @@ export function VideoPlayer({
     },
   });
 
-  const qualityMenu: PlayerChromeMenu = {
-    buttonLabel: t('player.quality.button', { label: currentQuality }),
-    label: currentQuality,
-    options: qualityOptions,
-    selectedKey: qualityKey,
-    onSelect: (id) => switchPlayback({ quality: id as Quality }),
-    ...menuProps('quality'),
-  };
   const chapterMenu: PlayerChromeMenu = {
     buttonLabel: t('player.chapters.button'),
     label: t('player.chapters.button'),
@@ -1022,17 +1042,6 @@ export function VideoPlayer({
       if (chapter) seekTo(chapter.startMs);
     },
     ...menuProps('chapters'),
-  };
-  const versionMenu: PlayerChromeMenu = {
-    buttonLabel: t('player.versionButton', { label: currentVersion }),
-    label: currentVersion,
-    options: versions.map((version, index) => ({
-      id: version.id,
-      label: version.versionLabel ?? String(index + 1),
-    })),
-    selectedKey: info.mediaFile.id,
-    onSelect: switchVersion,
-    ...menuProps('version'),
   };
 
   // Forward: the next chapter, after the last one the next episode (V-2).
@@ -1249,16 +1258,32 @@ export function VideoPlayer({
               )
             : undefined
         }
-        quality={hasQualities ? qualityMenu : undefined}
+
         chapterMenu={hasChapters ? chapterMenu : undefined}
-        version={hasVersions ? versionMenu : undefined}
+        settings={{
+          label: t('player.settings.title'),
+          expanded: panel === 'settings',
+          onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
+          isDisabled: ended !== null,
+        }}
         portalContainer={portal ?? undefined}
-        infoOpen={infoOpen}
-        onToggleInfo={onToggleInfo}
         helpOpen={helpOpen}
         onToggleHelp={() => togglePanel('help')}
       />
       {helpOpen && <ShortcutHelp onClose={closePanel} />}
+      {panel === 'settings' && (
+        <SettingsPanel
+          page={settingsView.page}
+          direct={settingsView.direct}
+          onPage={(page) => setSettingsView({ page, direct: false })}
+          onClose={closePanel}
+          quality={hasQualities && !switching ? qualityChoice : undefined}
+          version={hasVersions && !switching ? versionChoice : undefined}
+          rate={rate}
+          onRate={setRate}
+          streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
+        />
+      )}
       {panel === 'audio' && (
         <AudioPanel
           tracks={tracks.audio}

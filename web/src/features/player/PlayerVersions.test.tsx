@@ -85,7 +85,7 @@ describe('player: versions and stream info (B-5)', () => {
     );
   });
 
-  it('toggles the stream info with "i" and the Info button', async () => {
+  it('toggles the stream info with "i" and the switch in the gear', async () => {
     stubMedia();
     mockApi(routes(hlsPlayback));
     const { container } = renderApp(`/play/${ids.alien}`);
@@ -106,8 +106,16 @@ describe('player: versions and stream info (B-5)', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(screen.queryByRole('region', { name: 'Stream-Info' })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Stream-Info' }));
+    await playerDriver().toggleStreamInfo();
     expect(screen.getByRole('region', { name: 'Stream-Info' })).toBeVisible();
+    // Backspace (the remote's back key) closes it like Escape, it does not leave the player.
+    await user.click(screen.getByRole('switch', { name: 'Stream-Info' }));
+    await user.click(screen.getByRole('switch', { name: 'Stream-Info' }));
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Einstellungen' }), { key: 'Escape' });
+    expect(screen.getByRole('region', { name: 'Stream-Info' })).toBeVisible();
+    fireEvent.keyDown(document.body, { key: 'Backspace' });
+    expect(screen.queryByRole('region', { name: 'Stream-Info' })).not.toBeInTheDocument();
+    expect(screen.getByRole('main', { name: 'Videoplayer' })).toBeInTheDocument();
   });
 
   it('switches the version: ends the session, starts the other file at the same position', async () => {

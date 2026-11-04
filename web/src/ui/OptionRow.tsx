@@ -103,6 +103,42 @@ export function OptionMoreRow({ id, label, isExpanded, onToggle }: OptionMoreRow
   );
 }
 
+interface OptionLinkRowProps {
+  id: string;
+  /** «Qualität», «Geschwindigkeit». */
+  label: string;
+  /** The current value on the second line: «Automatisch», «1,25×». */
+  value?: string;
+  /** Opens the page behind the row (a level down in the gear panel). */
+  onOpen: () => void;
+}
+
+/**
+ * A row that leads to a page of its own («Qualität › Automatisch» in the gear panel, 11.2) instead
+ * of being chosen. Like OptionMoreRow its id belongs in the list's `actionIds`; Enter or a click
+ * opens the page, the value is read as the row's description.
+ */
+export function OptionLinkRow({ id, label, value, onOpen }: OptionLinkRowProps) {
+  return (
+    <ListBoxItem id={id} textValue={label} className={styles.row} onAction={onOpen}>
+      <span className={styles.check} />
+      <span className={styles.text}>
+        <AriaText slot="label" className={styles.label}>
+          {label}
+        </AriaText>
+        {value && (
+          <AriaText slot="description" className={styles.detail}>
+            {value}
+          </AriaText>
+        )}
+      </span>
+      <span className={styles.chevron}>
+        <Icon name="chevronRight" size="sm" />
+      </span>
+    </ListBoxItem>
+  );
+}
+
 interface OptionSectionProps {
   /** Heading of the group: «Deine Sprachen», «Weitere Sprachen». */
   title: string;
@@ -129,9 +165,9 @@ interface OptionListProps {
   selectedId: string | null;
   /** Enter, Space or a click on a row that is not chosen yet. */
   onSelect: (id: string) => void;
-  /** Rows that act instead of being chosen (OptionMoreRow). */
+  /** Rows that act instead of being chosen (OptionMoreRow, OptionLinkRow). */
   actionIds?: readonly string[];
-  /** OptionRow, OptionMoreRow and OptionSection elements. */
+  /** OptionRow, OptionMoreRow, OptionLinkRow and OptionSection elements. */
   children: ReactNode;
 }
 
@@ -142,10 +178,15 @@ interface OptionListProps {
 //   keyboard delegate without getKeyForSearch would do the same, but it needs the collection,
 //   which only exists inside the ListBox.
 // - disabledBehavior "selection": the rows in disabledKeys (the action rows) cannot be chosen but
-//   stay focusable and act on Enter or a click.
-// OptionRow.test.tsx checks both (a letter reaches the page; the more row toggles and is never
-// chosen), so an update that drops the pass-through fails there.
-const passedThrough: object = { disallowTypeAhead: true, disabledBehavior: 'selection' };
+//   stay focusable and act on Enter or a click. It makes a disabled OptionRow look like an action
+//   row to assistive technology as well (no aria-disabled), so a list without action rows keeps
+//   the default "all": a disabled row (a quality rung ruled out) is announced as such.
+// OptionRow.test.tsx checks all three (a letter reaches the page; the more row toggles and is
+// never chosen; a disabled row), so an update that drops the pass-through fails there.
+const passedThrough = (withActions: boolean): object => ({
+  disallowTypeAhead: true,
+  disabledBehavior: withActions ? 'selection' : 'all',
+});
 
 /**
  * The rows of a player panel as one Tab stop (react-aria ListBox): ↑ and ↓ move between the rows
@@ -163,7 +204,7 @@ export function OptionList({
 }: OptionListProps) {
   return (
     <ListBox
-      {...passedThrough}
+      {...passedThrough(actionIds.length > 0)}
       aria-label={label}
       className={styles.list}
       selectionMode="single"
