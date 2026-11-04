@@ -535,6 +535,7 @@ export function VideoPlayer({
   const hidden = idle && playing && panel === null && tab === null && !countdownActive && !infoOpen;
   // The pointer on the picture: a mouse plays, pauses and goes full screen; a finger in the phone
   // layout shows or hides the controls, and a double tap seeks 10 s (V-13).
+  const available = ended === null;
   const pictureTaps = usePhoneTap({
     phone,
     hidden,
@@ -544,6 +545,8 @@ export function VideoPlayer({
     showOsd,
     wantsPlaying: () => wantPlaying.current,
     hide,
+    // Locked like seekBy and togglePlay: two taps would show «±10 s» and seek nothing.
+    disabled: switching || !available,
   });
   const canPauseView =
     !playing &&
@@ -569,7 +572,6 @@ export function VideoPlayer({
     offsetMs: subtitleStyle.offsetMs,
     pictureInPicture,
   });
-  const available = ended === null;
   usePlayerKeys({
     hidden,
     countdown: countdownActive

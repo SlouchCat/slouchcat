@@ -15,6 +15,7 @@ import { json, mockApi, renderApp, signedIn, type Call } from '@/test/api';
 import { formatBitrate } from '@/lib/format';
 import { playerDriver } from '@/test/player';
 import { PAUSE_VIEW_MS } from './PauseView';
+import { STOP_WATCH_INTERVAL_MS } from './usePlaybackStopWatch';
 import { STALL_MS } from './useSlowConnection';
 import { CONTROLS_HIDE_MS } from './VideoPlayer';
 import { PLAYER_PREFS_KEY } from './usePlayerPrefs';
@@ -887,6 +888,28 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
       fireEvent.pointerDown(video, { button: 0, clientX: 200, pointerType: 'mouse' });
       fireEvent.pointerUp(video, { button: 0, clientX: 200, pointerType: 'mouse' });
       expect(media.paused).toBe(!paused);
+    });
+
+    it('two taps after a stop by the server neither seek nor show «±10 s»', async () => {
+      const { media, video } = await start(film, {
+        'GET /playback/sessions/*/state': () => json({ state: 'stopped', stoppedBy: 'admin' }),
+      });
+      await act(() => vi.advanceTimersByTimeAsync(STOP_WATCH_INTERVAL_MS + 100));
+      await waitFor(() => expect(region()).toHaveAttribute('data-ended-reason', 'admin'));
+      vi.spyOn(video, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 400, 800));
+      const at = media.currentTime;
+      const tap = (x: number) => {
+        fireEvent.pointerDown(video, { button: 0, clientX: x, pointerType: 'touch' });
+        fireEvent.pointerUp(video, { button: 0, clientX: x, pointerType: 'touch' });
+      };
+      tap(350);
+      tap(350);
+      expect(media.currentTime).toBe(at);
+      expect(screen.queryByText('+10 s')).toBeNull();
+      tap(50);
+      tap(50);
+      expect(media.currentTime).toBe(at);
+      expect(screen.queryByText('−10 s')).toBeNull();
     });
 
     it('a tab open when the window narrows closes, so the bar fades again (review step 5)', async () => {
