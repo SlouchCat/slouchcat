@@ -59,7 +59,7 @@ export { ChapterCard } from './ChapterCard';
 export { OptionList, OptionMoreRow, OptionRow, OptionSection, type OptionMark } from './OptionRow';
 export { PlayerPanel } from './PlayerPanel';
 export { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
-export { VolumeControl } from './VolumeControl';
+export { BOOST_MAX, clampVolume, VOLUME_STEP, VolumeControl } from './VolumeControl';
 // Building blocks of the administration pages (concept 12, 11.2).
 export { ActionMenu, type ActionMenuItem } from './ActionMenu';
 export { AdminDensityScope, useDensityPortalProps } from './adminDensity';

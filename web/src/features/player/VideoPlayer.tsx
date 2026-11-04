@@ -14,7 +14,7 @@ import { api, apiUrl, request } from '@/api/client';
 import { episodeCode } from '@/features/catalog/labels';
 import { formatPlayerTime } from '@/lib/format';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, MenuButton, SeekBar } from '@/ui/aria';
+import { AriaButton, MenuButton, SeekBar, VOLUME_STEP } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
 import {
   audioKey,
@@ -29,6 +29,7 @@ import {
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useProgressReporter } from './useProgressReporter';
+import { useVolume } from './useVolume';
 import styles from './Player.module.css';
 
 /** Controls fade out after this long without input while the video plays. */
@@ -40,7 +41,6 @@ export const AUTO_NEXT_SECONDS = 10;
 /** The countdown is announced when it starts and once more this many seconds before its end. */
 const ANNOUNCE_LAST_SECONDS = 3;
 const SEEK_STEP_S = 10;
-const VOLUME_STEP = 0.1;
 /** Resume only when the position is not within the last seconds of the file. */
 const RESUME_TAIL_MS = 5000;
 /** The skip button hides this close to the end of the intro. */
@@ -332,16 +332,14 @@ export function VideoPlayer({
     [seekTo],
   );
 
+  const volume = useVolume(video);
+  const stepVolume = volume.step;
   const changeVolume = useCallback(
     (delta: number) => {
-      const element = video.current;
-      if (!element) return;
-      const next = Math.round(Math.min(1, Math.max(0, element.volume + delta)) * 10) / 10;
-      element.volume = next;
-      element.muted = next === 0;
+      const next = stepVolume(delta);
       showOsd(t('player.volume', { percent: Math.round(next * 100) }));
     },
-    [t],
+    [stepVolume, t],
   );
 
   // The whole document goes full screen, not this player: a switch or auto-next replaces the
