@@ -74,7 +74,8 @@ func TestOwnerLoginResolveLogout(t *testing.T) {
 	if acc.Email != "marco@example.ch" || acc.Role != model.RoleAdmin || !acc.IsOwner {
 		t.Fatalf("account = %+v", acc)
 	}
-	want := model.Profile{ID: prof.ID, AccountID: acc.ID, Name: "marco", MaxRating: 18, Language: "en", AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: true}
+	want := model.Profile{ID: prof.ID, AccountID: acc.ID, Name: "marco", MaxRating: 18, Language: "en", AllLibraries: true, LibraryIDs: []int64{}, IsPrimary: true,
+		Prefs: model.PlaybackPrefs{AudioLanguages: []string{}, SubtitleMode: model.SubtitleModeForced, SubtitleLanguages: []string{}}}
 	if !reflect.DeepEqual(prof, want) {
 		t.Fatalf("profile = %+v, want %+v", prof, want)
 	}

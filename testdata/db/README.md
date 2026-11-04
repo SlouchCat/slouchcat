@@ -206,3 +206,15 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   darum ohne Änderung der Daten neu geschrieben (Stand eingespielt, die zwei Trigger angelegt, erneut `dump`).
   `TestFrozenVerwaltungStateCoversTheConcept` prüft, dass jede bekannte Art und jede dieser Datenarten und die beiden
   Trigger vorhanden sind und keine Zeile einen Pfad trägt.
+- `abspielseite.sql`: Stand nach Schritt 7 des Konzepts «Abspielseite» (Konzept 13, Stufe 2; Migration 00032
+  `playback_prefs`). Erzeugt am 4. November 2026 aus `verwaltung.sql`: Stand eingespielt, mit `store.Open` migriert
+  (die Migration belegt das Hauptprofil mit `["de"]` in `audio_languages` und `subtitle_languages` und der Regel
+  `forced`, F-12, und baut `playback_sessions` mit dem erweiterten `CHECK` neu auf), dann per SQL die Daten des
+  Schritts, die ein kurzer Lauf ohne Spurwahl, Originalsprache und 2160p-Leiter noch nicht erzeugt: ein zweites Profil
+  «Original» (`en`) mit eigenen Listen (`["ja","en"]`, `foreign`, `["de","en"]`), je ein Serienmerker der beiden Profile
+  in `profile_series_tracks` für die «Slouchcat Test Download Show» (Hauptprofil: Ton `en`, Untertitel aus; «Original»:
+  Ton `ja`, Untertitel `de`), `items.original_language` `en` an dieser Serie und `''` (abgefragt, unbekannt) am Film
+  «Slouchcat Test Broken», die englische SRT-Spur des Multi-Audio-Films als SDH (`is_hearing_impaired = 1`) und je
+  eine beendete Wiedergabesitzung auf den Stufen `original` (Remux) und `2160p` (QSV, 3840 × 2160, 25 Mbit/s). Dann
+  `store.Dump` (dieselbe Funktion wie `server/bin/slouchcat dump`). Die Pfade der Wurzeln bleiben die von
+  `verwaltung.sql`. `TestFrozenAbspielseiteStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.

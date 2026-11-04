@@ -558,7 +558,7 @@ func toProfile(p appq.Profile, libs []int64, account model.PlaybackLimits) model
 		MetadataLanguage: p.MetadataLanguage.String,
 		AllLibraries:     p.AllLibraries == 1, LibraryIDs: libs, Accent: p.Accent.String,
 		HasPin: p.PinHash.Valid, HasOfflinePin: p.OfflinePin.Valid, IsPrimary: p.IsDefault == 1,
-		Limits: limits, Effective: limits.Cap(account),
+		Limits: limits, Effective: limits.Cap(account), Prefs: prefsOf(p),
 	}
 }
 

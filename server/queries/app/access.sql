@@ -34,7 +34,16 @@ SELECT count(*) FROM profiles WHERE account_id = @account_id;
 UPDATE profiles
 SET name = @name, max_rating = @max_rating, language = @language, metadata_language = sqlc.narg('metadata_language'), accent = @accent,
     all_libraries = @all_libraries, max_bitrate_kbps = sqlc.narg('max_bitrate_kbps'), max_height = sqlc.narg('max_height'),
-    max_streams = sqlc.narg('max_streams'), watch_limit_minutes = sqlc.narg('watch_limit_minutes'), updated_at = @now
+    max_streams = sqlc.narg('max_streams'), watch_limit_minutes = sqlc.narg('watch_limit_minutes'),
+    audio_languages = @audio_languages, subtitle_mode = @subtitle_mode, subtitle_languages = @subtitle_languages,
+    updated_at = @now
+WHERE id = @id;
+
+-- name: SetProfilePlaybackPrefs :exec
+-- The language and subtitle preferences of a profile (JSON arrays of ISO 639-1 codes).
+UPDATE profiles
+SET audio_languages = @audio_languages, subtitle_mode = @subtitle_mode, subtitle_languages = @subtitle_languages,
+    updated_at = @now
 WHERE id = @id;
 
 -- name: SetProfilePin :exec

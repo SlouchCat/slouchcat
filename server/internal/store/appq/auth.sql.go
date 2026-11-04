@@ -108,7 +108,7 @@ func (q *Queries) GetAccountByEmail(ctx context.Context, email string) (Account,
 }
 
 const getDefaultProfile = `-- name: GetDefaultProfile :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id LIMIT 1
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages FROM profiles WHERE account_id = ?1 ORDER BY is_default DESC, id LIMIT 1
 `
 
 func (q *Queries) GetDefaultProfile(ctx context.Context, accountID int64) (Profile, error) {
@@ -134,12 +134,15 @@ func (q *Queries) GetDefaultProfile(ctx context.Context, accountID int64) (Profi
 		&i.PinSalt,
 		&i.OfflinePin,
 		&i.MetadataLanguage,
+		&i.AudioLanguages,
+		&i.SubtitleMode,
+		&i.SubtitleLanguages,
 	)
 	return i, err
 }
 
 const getProfile = `-- name: GetProfile :one
-SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language FROM profiles WHERE id = ?1
+SELECT id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages FROM profiles WHERE id = ?1
 `
 
 func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
@@ -165,6 +168,9 @@ func (q *Queries) GetProfile(ctx context.Context, id int64) (Profile, error) {
 		&i.PinSalt,
 		&i.OfflinePin,
 		&i.MetadataLanguage,
+		&i.AudioLanguages,
+		&i.SubtitleMode,
+		&i.SubtitleLanguages,
 	)
 	return i, err
 }
@@ -256,7 +262,7 @@ INSERT INTO profiles (account_id, name, max_rating, language, accent, all_librar
                       max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8,
         ?9, ?10, ?11, ?12, ?13, ?13)
-RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language
+RETURNING id, account_id, name, image, max_rating, language, accent, all_libraries, is_default, created_at, updated_at, pin_hash, max_bitrate_kbps, max_height, max_streams, watch_limit_minutes, pin_salt, offline_pin, metadata_language, audio_languages, subtitle_mode, subtitle_languages
 `
 
 type InsertProfileParams struct {
@@ -312,6 +318,9 @@ func (q *Queries) InsertProfile(ctx context.Context, arg InsertProfileParams) (P
 		&i.PinSalt,
 		&i.OfflinePin,
 		&i.MetadataLanguage,
+		&i.AudioLanguages,
+		&i.SubtitleMode,
+		&i.SubtitleLanguages,
 	)
 	return i, err
 }

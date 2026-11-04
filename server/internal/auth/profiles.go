@@ -122,6 +122,9 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 	if p.AllLibraries == 0 && len(libs) == 0 && !hasField(verr, "libraryIds") {
 		verr = verr.Add("libraryIds", "required")
 	}
+	// Preferences that are not sent keep the column defaults of migration 00032.
+	prefs := model.PlaybackPrefs{AudioLanguages: []string{}, SubtitleMode: model.SubtitleModeForced, SubtitleLanguages: []string{}}
+	verr = applyPrefs(&prefs, in, verr)
 	if verr != nil {
 		return model.Profile{}, verr
 	}
@@ -167,6 +170,14 @@ func (s *Service) CreateProfile(ctx context.Context, session model.Session, in m
 			return model.Profile{}, fmt.Errorf("insert profile library: %w", err)
 		}
 	}
+	if hasPrefs(in) {
+		row.AudioLanguages, row.SubtitleMode, row.SubtitleLanguages = languageColumn(prefs.AudioLanguages), prefs.SubtitleMode, languageColumn(prefs.SubtitleLanguages)
+		if err := q.SetProfilePlaybackPrefs(ctx, appq.SetProfilePlaybackPrefsParams{
+			ID: row.ID, AudioLanguages: row.AudioLanguages, SubtitleMode: row.SubtitleMode, SubtitleLanguages: row.SubtitleLanguages, Now: p.Now,
+		}); err != nil {
+			return model.Profile{}, fmt.Errorf("set playback prefs: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return model.Profile{}, fmt.Errorf("commit: %w", err)
 	}
@@ -194,6 +205,9 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 		MaxBitrateKbps: row.MaxBitrateKbps, MaxHeight: row.MaxHeight, MaxStreams: row.MaxStreams, WatchLimitMinutes: row.WatchLimitMinutes,
 	}
 	verr := applyInput(acc, &p.Name, &p.MaxRating, &p.Language, &p.Accent, &p.AllLibraries, in)
+	prefs := prefsOf(row)
+	verr = applyPrefs(&prefs, in, verr)
+	p.AudioLanguages, p.SubtitleMode, p.SubtitleLanguages = languageColumn(prefs.AudioLanguages), prefs.SubtitleMode, languageColumn(prefs.SubtitleLanguages)
 	if in.MetadataLanguage != nil {
 		// "" reads the metadata in the interface language again; any other value must be one the
 		// server offers (the union of the effective lists, ADR 0018).
@@ -255,6 +269,7 @@ func (s *Service) UpdateProfile(ctx context.Context, session model.Session, id i
 	row.Name, row.MaxRating, row.Language, row.Accent, row.AllLibraries = p.Name, p.MaxRating, p.Language, p.Accent, p.AllLibraries
 	row.MetadataLanguage = p.MetadataLanguage
 	row.MaxBitrateKbps, row.MaxHeight, row.MaxStreams, row.WatchLimitMinutes = p.MaxBitrateKbps, p.MaxHeight, p.MaxStreams, p.WatchLimitMinutes
+	row.AudioLanguages, row.SubtitleMode, row.SubtitleLanguages = p.AudioLanguages, p.SubtitleMode, p.SubtitleLanguages
 	return toProfile(row, libs, acc.Limits), nil
 }
 

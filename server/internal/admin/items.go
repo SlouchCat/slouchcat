@@ -47,6 +47,9 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 		TrailerState: it.TrailerState, LockedFields: []string{},
 		Providers: model.ParseProviders(it.Providers), AniListID: nullInt64(it.AnilistID), FieldSources: []model.FieldSource{},
 	}
+	if it.OriginalLanguage.Valid {
+		out.OriginalLanguage = &it.OriginalLanguage.String
+	}
 	if err := json.Unmarshal([]byte(it.LockedFields), &out.LockedFields); err != nil || out.LockedFields == nil {
 		out.LockedFields = []string{}
 	}

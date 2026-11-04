@@ -599,7 +599,7 @@ func (q *Queries) ListDownloadParts(ctx context.Context, itemID string) ([]ListD
 }
 
 const listDownloadSubtitleTracks = `-- name: ListDownloadSubtitleTracks :many
-SELECT id, media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced FROM tracks WHERE media_file_id = ?1 AND kind = 'subtitle'
+SELECT id, media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired FROM tracks WHERE media_file_id = ?1 AND kind = 'subtitle'
 ORDER BY source, stream_index, rel_path
 `
 
@@ -625,6 +625,7 @@ func (q *Queries) ListDownloadSubtitleTracks(ctx context.Context, mediaFileID st
 			&i.RelPath,
 			&i.IsDefault,
 			&i.IsForced,
+			&i.IsHearingImpaired,
 		); err != nil {
 			return nil, err
 		}
