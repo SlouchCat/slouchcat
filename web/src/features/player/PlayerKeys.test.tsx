@@ -338,6 +338,8 @@ describe('video player controls (concept 13, step 3)', () => {
     const help = screen.getByRole('dialog', { name: 'Tastenkürzel' });
     expect(within(help).getByText('Springt auf 0 bis 90 %')).toBeVisible();
     expect(within(help).getByText('[ ]')).toBeVisible();
+    // ↑ before ↓: louder comes first, like the keys.
+    expect(within(help).getByText('↑ ↓').closest('div')).toHaveTextContent('Lauter oder leiser');
     await waitFor(() => expect(help.querySelector('dl')).toHaveFocus());
     expect(button('Tastenkürzel')).toHaveAttribute('aria-expanded', 'true');
     // The controls stay while the help is open.

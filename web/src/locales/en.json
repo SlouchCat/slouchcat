@@ -807,7 +807,7 @@
         },
         "volume": {
           "keys": "↑ ↓",
-          "action": "Quieter or louder"
+          "action": "Louder or quieter"
         },
         "zones": {
           "keys": "↑ ↓ in the bar",
