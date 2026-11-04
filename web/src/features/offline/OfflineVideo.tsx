@@ -16,6 +16,7 @@ import { useBoostedVolume } from '@/features/player/useBoostedVolume';
 import { useChapterChoice } from '@/features/player/useChapterChoice';
 import { useControlsVisibility } from '@/features/player/useControlsVisibility';
 import { useFullscreen } from '@/features/player/useFullscreen';
+import { useWheelVolume } from '@/features/player/useWheelVolume';
 import { usePhoneTap } from '@/features/player/usePhoneTap';
 import { usePlayerKeys } from '@/features/player/usePlayerKeys';
 import { usePlayerPrefs } from '@/features/player/usePlayerPrefs';
@@ -119,6 +120,9 @@ export function OfflineVideo({
   const [tab, setTab] = useState<{ focusChapter?: number } | null>(null);
   const layout = usePlayerLayout();
   const phone = layout === 'phone';
+  // A phone has no tabs: one open when the window narrows closes, or the bar would never fade
+  // (state adjusted while rendering, not in an effect; as online).
+  if (phone && tab !== null) setTab(null);
   const [prefs, setPrefs] = usePlayerPrefs();
   const [subtitleStyle, setSubtitleStyle] = useSubtitleStyle();
   const subtitleTrackElement = useRef<HTMLTrackElement>(null);
@@ -133,6 +137,8 @@ export function OfflineVideo({
     media,
     { showOsd },
   );
+  // The mouse wheel over the picture (V-3), as online.
+  const onWheel = useWheelVolume(media, changeVolume);
 
   const [rate, setRate] = useState(1);
   useEffect(() => {
@@ -301,6 +307,10 @@ export function OfflineVideo({
       onPointerMove={poke}
       onPointerDown={poke}
       onFocus={poke}
+      onWheel={(event) => {
+        poke();
+        onWheel(event);
+      }}
     >
       {/* The text tracks are the stored WebVTT files; a download without any has none. The track
           stays hidden: the subtitle layer draws its cues (11.10). */}

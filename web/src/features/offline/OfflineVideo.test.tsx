@@ -1,7 +1,8 @@
 import type { Chapter, Track } from '@slouchcat/api-client';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createRef, type ComponentProps } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONTROLS_HIDE_MS } from '@/features/player/useControlsVisibility';
 import { OfflineVideo } from './OfflineVideo';
 
 type Props = ComponentProps<typeof OfflineVideo>;
@@ -74,8 +75,26 @@ function renderVideo(props: Partial<Props> = {}) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
+
+/** The phone layout (11.2) while `narrow()` holds; `resize` tells the player the window changed. */
+function stubLayout(narrow: () => boolean) {
+  const listeners = new Set<() => void>();
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    get matches() {
+      return narrow() && query.includes('768px');
+    },
+    media: query,
+    addEventListener: (_type: string, listener: () => void) => listeners.add(listener),
+    removeEventListener: (_type: string, listener: () => void) => listeners.delete(listener),
+  }));
+  return { resize: () => act(() => listeners.forEach((listener) => listener())) };
+}
+
+const videoElement = (container: HTMLElement) => container.querySelector('video')!;
 
 describe('offline video player on PlayerChrome (F-15)', () => {
   it('gives the first focus to play/pause and offers only what the download has', async () => {
@@ -183,5 +202,84 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     });
     expect(screen.queryByRole('dialog', { name: 'Untertitel' })).toBeNull();
     expect(togglePlay).not.toHaveBeenCalled();
+  });
+
+  it('the mouse wheel over the picture changes the volume a step per notch, as online (V-3)', () => {
+    const { container } = renderVideo();
+    const video = videoElement(container);
+    fireEvent.wheel(video, { deltaY: 100 });
+    fireEvent.wheel(video, { deltaY: 100 });
+    expect(video.volume).toBe(0.9);
+    expect(screen.getByRole('status')).toHaveTextContent('Lautstärke 90 %');
+    fireEvent.wheel(video, { deltaY: -100 });
+    expect(video.volume).toBe(0.95);
+    // Over the bar the wheel is not the volume's.
+    fireEvent.wheel(screen.getByRole('button', { name: 'Abspielen' }), { deltaY: 100 });
+    expect(video.volume).toBe(0.95);
+  });
+
+  it('a tab open when the window narrows closes, so the bar fades again (review step 6)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let narrow = false;
+    const { resize } = stubLayout(() => narrow);
+    renderVideo({ chapters, playing: true, wantsPlaying: () => true });
+    fireEvent.keyDown(window, { key: 'c' });
+    await screen.findByRole('list', { name: 'Kapitel' });
+    narrow = true;
+    resize();
+    expect(screen.queryByRole('list', { name: 'Kapitel' })).toBeNull();
+    await act(() => vi.advanceTimersByTimeAsync(CONTROLS_HIDE_MS + 100));
+    expect(screen.getByRole('main', { name: 'Videoplayer' })).toHaveAttribute(
+      'data-controls',
+      'hidden',
+    );
+  });
+
+  describe('on a phone', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      stubLayout(() => true);
+    });
+
+    it('C opens the chapters in the gear and a pick closes them; no tabs', async () => {
+      const { seekTo } = renderVideo({ chapters });
+      expect(screen.queryByRole('toolbar', { name: 'Mehr zum Titel' })).toBeNull();
+      fireEvent.keyDown(window, { key: 'c' });
+      const page = await screen.findByRole('dialog', { name: 'Kapitel' });
+      expect(within(page).getByRole('option', { selected: true })).toHaveAccessibleName(/^Mitte/);
+      fireEvent.click(within(page).getByRole('option', { name: /^Ende/ }));
+      expect(seekTo).toHaveBeenLastCalledWith(40_000);
+      expect(screen.queryByRole('dialog', { name: 'Kapitel' })).toBeNull();
+    });
+
+    it('a finger shows the faded bar and two taps seek; a mouse click plays and pauses', async () => {
+      const { container, togglePlay, seekBy } = renderVideo({
+        playing: true,
+        wantsPlaying: () => true,
+      });
+      const region = screen.getByRole('main', { name: 'Videoplayer' });
+      const video = videoElement(container);
+      vi.spyOn(video, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 400, 800));
+      await act(() => vi.advanceTimersByTimeAsync(CONTROLS_HIDE_MS + 100));
+      expect(region).toHaveAttribute('data-controls', 'hidden');
+      const tap = (x: number, pointerType = 'touch') => {
+        fireEvent.pointerDown(video, { button: 0, clientX: x, pointerType });
+        fireEvent.pointerUp(video, { button: 0, clientX: x, pointerType });
+      };
+      // One tap shows the bar and does not play or pause.
+      tap(200);
+      expect(region).toHaveAttribute('data-controls', 'visible');
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      expect(region).toHaveAttribute('data-controls', 'visible');
+      expect(togglePlay).not.toHaveBeenCalled();
+      tap(350);
+      tap(350);
+      expect(seekBy).toHaveBeenLastCalledWith(10);
+      expect(screen.getByRole('status')).toHaveTextContent('+10 s');
+      // A mouse in the phone layout of a narrow window: a click pauses.
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      tap(200, 'mouse');
+      expect(togglePlay).toHaveBeenCalledTimes(1);
+    });
   });
 });
