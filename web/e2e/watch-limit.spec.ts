@@ -51,7 +51,15 @@ test('one minute played: the start answers 403 with the hint; the report shows t
   expect(answer.watchTime).toMatchObject({ limitMinutes: 1, remainingMinutes: 0 });
   expect(answer.watchTime?.usedMinutes).toBeGreaterThanOrEqual(1);
 
-  const start = await startOf(page, () => page.goto(`/play/${itemId}`));
+  // Enter on the detail page's play link opens the hint (concept 13, 11.13: the back button takes
+  // the focus through focusOnMount, react-aria's autoFocus waited for the cancelled transition).
+  await page.goto(`/items/${itemId}`);
+  await expect(page.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
+  const playLink = page.getByRole('link', {
+    name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/,
+  });
+  await playLink.focus();
+  const start = await startOf(page, () => page.keyboard.press('Enter'));
   expect(start.status).toBe(403);
   expect(start.body.code).toBe('watch_limit_reached');
   expect(start.body.extensions?.limitMinutes).toBe(1);

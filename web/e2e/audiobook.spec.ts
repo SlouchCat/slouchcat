@@ -471,6 +471,8 @@ test('concept 13: the administration ends a fully loaded book, the player stops 
   expect(((await (await watched).json()) as { stoppedBy?: string }).stoppedBy).toBe('admin');
   expect(unauthorized).toEqual([]);
   await expect(player.getByRole('alert')).toContainText('Die Wiedergabe wurde beendet.');
+  // The notice's back button takes the focus (focusOnMount, concept 13 11.13).
+  await expectFocusOn(page, player.getByRole('alert').getByRole('button', { name: 'Zurück' }));
   expect((await audioState(page)).paused).toBe(true);
   console.log(JSON.stringify({ measurement: 'admin-stop-audio', stopMs, buffered }));
   await setAudioProgress(page.request, m4b, 0, 60_000, 1);

@@ -108,6 +108,32 @@ describe('audio player (M6)', () => {
     expect(within(region).getByRole('button', { name: 'Pause' })).toHaveFocus();
   });
 
+  it('a stop by the server after Enter moves the focus to «Zurück» at once (focusOnMount)', async () => {
+    stubMedia();
+    let stopped = false;
+    mockApi({
+      ...routes(),
+      'GET /playback/sessions/*/state': () =>
+        json(stopped ? { state: 'stopped', stoppedBy: 'admin' } : { state: 'active' }),
+    });
+    const { region } = await start();
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const pause = within(region).getByRole('button', { name: 'Pause' });
+    await waitFor(() => expect(pause).toHaveFocus());
+    // Enter pauses, Space plays again; then the administration ends the playback.
+    await user.keyboard('{Enter}');
+    expect(within(region).getByRole('button', { name: 'Abspielen' })).toHaveFocus();
+    await user.keyboard(' ');
+    expect(within(region).getByRole('button', { name: 'Pause' })).toHaveFocus();
+    stopped = true;
+    await act(() => vi.advanceTimersByTimeAsync(4100));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Die Wiedergabe wurde beendet.');
+    // No wait for a transition: the button has the focus as soon as it is there.
+    await act(() => Promise.resolve());
+    expect(within(alert).getByRole('button', { name: 'Zurück' })).toHaveFocus();
+  });
+
   it('keys: speed by [ and ], chapters by Shift+arrows, ±15 s; the speed goes up with progress', async () => {
     const media = stubMedia();
     const { calls } = mockApi(routes());

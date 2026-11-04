@@ -2,7 +2,7 @@ import type { ItemDetail, PlaybackInfo, Progress, WatchTime } from '@slouchcat/a
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, imageUrl } from '@/api/client';
-import { AriaButton, AudioPlayer } from '@/ui/aria';
+import { AriaButton, AudioPlayer, focusOnMount } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
 import { useAudioControls } from './useAudioControls';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
@@ -262,7 +262,8 @@ export function AudioPlayerPage({
             : t('player.watchLimit.bodyUnknown')}
       </p>
       <div>
-        <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+        {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition (11.13). */}
+        <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
           {t('common.back')}
         </AriaButton>
       </div>

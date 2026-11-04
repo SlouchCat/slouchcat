@@ -11,7 +11,7 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { Notice } from '@/ui';
-import { AriaButton } from '@/ui/aria';
+import { AriaButton, focusOnMount } from '@/ui/aria';
 import {
   browserPlatform,
   deviceCapabilities,
@@ -410,7 +410,9 @@ function PlayerMessage({
       <div className={styles.messageBox}>
         {children}
         <div>
-          <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+          {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition after
+              Enter opened the page (11.13). */}
+          <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
             {t('common.back')}
           </AriaButton>
         </div>
