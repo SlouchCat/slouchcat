@@ -63,6 +63,13 @@ interface PlayerKeysOptions {
   durationMs: number;
   /** Every key shows the controls. */
   onKey: () => void;
+  /**
+   * A navigation away from the player runs (to a person, another episode, back) and the next
+   * page is still loading. The player is still on screen, but the keys are no longer its own:
+   * Escape and Backspace go back as on the next page, without closing what is open here, and
+   * the other keys do nothing.
+   */
+  leaving?: () => boolean;
   actions: PlayerKeyActions;
 }
 
@@ -84,6 +91,8 @@ interface PlayerKeysOptions {
  * 0–9 jump to 0–90 %, F full screen, I stream info, S skip the intro, N next episode, ? help,
  * Escape/Backspace close what is open, else back to the detail page.
  *
+ * While a navigation away is loading (`leaving`) only Escape and Backspace act, and they go back.
+ *
  * The latest options are read when a key arrives, so the listeners are bound once.
  */
 export function usePlayerKeys(options: PlayerKeysOptions): void {
@@ -94,7 +103,7 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
 
   useEffect(() => {
     const onCapture = (event: KeyboardEvent) => {
-      if (hasShortcutModifier(event)) return;
+      if (hasShortcutModifier(event) || latest.current.leaving?.()) return;
       const { hidden, countdown, onKey, actions } = latest.current;
       onKey();
       const consume = () => {
@@ -136,11 +145,12 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (hasShortcutModifier(event)) return;
-      const { countdown, durationMs, actions } = latest.current;
+      const { countdown, durationMs, actions, leaving } = latest.current;
+      const away = leaving?.() ?? false;
       // The capture listener has handled the key.
-      if (countdown || isEditable(event.target)) return;
+      if ((countdown && !away) || isEditable(event.target)) return;
       const action = playerKeyAction(event);
-      if (!action) return;
+      if (!action || (away && action.kind !== 'back')) return;
       /** Runs `run` if the player can do it now; the key is the player's then. */
       const act = (run: (() => void) | undefined) => {
         if (!run) return;
@@ -204,8 +214,9 @@ export function usePlayerKeys(options: PlayerKeysOptions): void {
           return;
         case 'back':
           // What is open first (a panel's own keys close it while the focus is in it), then back
-          // to the detail page; in full screen the browser leaves full screen first.
-          if (actions.closeOpen()) {
+          // to the detail page; in full screen the browser leaves full screen first. Leaving, the
+          // player is gone in a moment: the key is the next page's back.
+          if (!away && actions.closeOpen()) {
             event.preventDefault();
             return;
           }

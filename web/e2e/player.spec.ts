@@ -478,6 +478,49 @@ test.describe('the tab «Besetzung»', () => {
     await expect(player).not.toHaveAttribute('data-ended-reason', /.*/);
     await page.unrouteAll({ behavior: 'ignoreErrors' });
   });
+
+  test('Escape right after Enter on the person, while its page loads, stays with the player', async ({
+    page,
+  }) => {
+    const itemId = detail.split('/').pop()!;
+    await page.route(`**/api/v1/items/${itemId}`, async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as Record<string, unknown>;
+      await route.fulfill({
+        response,
+        json: { ...body, cast: [{ personId: 1, name: 'Ellen Ripley', role: 'cast' }] },
+      });
+    });
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    const player = page.getByRole('main', { name: 'Videoplayer' });
+    await expect(player).toHaveAttribute('data-start-ms', /\d+/);
+    await expectFocusOn(page, page.getByRole('button', { name: 'Pause' }));
+    await page.keyboard.press('Space');
+    const strip = page.getByRole('toolbar', { name: 'Mehr zum Titel' });
+    const castTab = strip.getByRole('button', { name: 'Besetzung' });
+    await expect(castTab).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await expect(strip.locator(':focus')).toHaveCount(1);
+    await arrowTo(page, castTab, 'ArrowRight');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(
+      page,
+      page.getByRole('list', { name: 'Besetzung' }).getByRole('button', { name: /Ellen Ripley/ }),
+    );
+    // Escape without waiting for the person's page: the player had the key until it loaded.
+    const personChunk = page.waitForResponse(/\/assets\/PersonPage-[^/]*\.js$/);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
+    // Once the page's code is there, the router has settled: back at the player, either still the
+    // same one or opened again.
+    await personChunk;
+    await expect(page).toHaveURL(/\/play\//);
+    await expect(player).toBeVisible();
+    await expect(page.getByText('Person nicht gefunden')).toHaveCount(0);
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
 });
 
 test.describe('in a narrow window with a mouse', () => {

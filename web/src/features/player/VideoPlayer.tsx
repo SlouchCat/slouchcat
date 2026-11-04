@@ -82,6 +82,8 @@ interface VideoPlayerProps {
   /** performance.now() when the player route opened. */
   openedAt: number;
   onBack: () => void;
+  /** A navigation away from the player is loading: the keys go to the next page (usePlayerKeys). */
+  leaving?: () => boolean;
   /** Position to start from instead of the server's resume position (after a switch). */
   startPositionMs?: number;
   /** Versions of the title (B-5); the version menu shows with two or more. */
@@ -162,6 +164,7 @@ export function VideoPlayer({
   engine,
   openedAt,
   onBack,
+  leaving,
   startPositionMs,
   versions = [],
   switching = false,
@@ -574,6 +577,7 @@ export function VideoPlayer({
       : undefined,
     durationMs,
     onKey: poke,
+    leaving,
     actions: {
       togglePlay,
       seekBy,

@@ -101,4 +101,31 @@ describe('usePlayerKeys (11.2, shared with the offline player)', () => {
     expect(cancel).toHaveBeenCalled();
     expect(map.seekBy).not.toHaveBeenCalled();
   });
+
+  it('while a navigation away loads, only Escape and Backspace act: back, not closing a tab', () => {
+    const map = actions({ closeOpen: vi.fn(() => true), playNext: vi.fn() });
+    const onKey = vi.fn();
+    const cancel = vi.fn();
+    renderHook(() =>
+      usePlayerKeys({
+        hidden: true,
+        countdown: { panel: { current: null }, cancel, playNext: vi.fn() },
+        durationMs: 600_000,
+        onKey,
+        leaving: () => true,
+        actions: map,
+      }),
+    );
+    expect(press('ArrowRight')).toBe(false);
+    expect(press('n')).toBe(false);
+    expect(press(' ')).toBe(false);
+    expect(map.seekBy).not.toHaveBeenCalled();
+    expect(map.togglePlay).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(onKey).not.toHaveBeenCalled();
+    expect(press('Escape')).toBe(true);
+    expect(press('Backspace')).toBe(true);
+    expect(map.closeOpen).not.toHaveBeenCalled();
+    expect(map.back).toHaveBeenCalledTimes(2);
+  });
 });

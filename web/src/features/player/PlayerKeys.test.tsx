@@ -743,6 +743,36 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     await waitFor(() => expect(router.state.location.pathname).toBe('/people/7'));
   });
 
+  it('Escape while the person’s page still loads goes back to the player', async () => {
+    const { router } = await start(episode, episodeRoutes());
+    // The person's page hangs in its loading, as its lazy chunk on a slow connection.
+    let release = () => {};
+    const loading = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    // The route's options are read at each load; beforeLoad is no updatable option in its types.
+    const personRoute = router.routesByPath['/people/$personId'].options as {
+      beforeLoad?: () => Promise<void>;
+    };
+    personRoute.beforeLoad = () => loading;
+    try {
+      const { user } = playerDriver();
+      await user.click(await within(strip()).findByRole('button', { name: 'Besetzung' }));
+      await user.click(screen.getByRole('button', { name: /^Lena Muster/ }));
+      expect(router.state.status).toBe('pending');
+      expect(router.state.location.pathname).toBe('/people/7');
+      // The player is still on screen with the tab open; the key goes back, not to the tab.
+      key(document.activeElement!, 'Escape');
+      release();
+      await waitFor(() => expect(router.state.status).toBe('idle'));
+      expect(router.state.location.pathname).toBe(`/play/${episodes.e2.id}`);
+      expect(region()).toBeVisible();
+    } finally {
+      release();
+      delete personRoute.beforeLoad;
+    }
+  });
+
   it('another episode asks for the season again: the one just seen shows its progress (review step 6)', async () => {
     const { router, calls } = await start(episode, {
       ...episodeRoutes(),

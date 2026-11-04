@@ -1,6 +1,6 @@
 import type { ItemRef, PlaybackInfo, PlaybackRequest, Quality } from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
+import { getRouteApi, useRouter } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
@@ -174,6 +174,13 @@ function PlayerView({ itemId }: { itemId: string }) {
   // Start of the measurement "navigation → first frame playing" (data-start-ms).
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
+  // A navigation to another page (a person, another episode, back) keeps this player on screen
+  // until the next page has loaded; meanwhile its keys belong to that page (usePlayerKeys).
+  const router = useRouter();
+  const leaving = useCallback(() => {
+    const { status, location, resolvedLocation } = router.state;
+    return status === 'pending' && location.pathname !== resolvedLocation?.pathname;
+  }, [router]);
 
   const tracks =
     trackChoice.file === (file ?? null)
@@ -347,6 +354,7 @@ function PlayerView({ itemId }: { itemId: string }) {
         engine={engine}
         openedAt={openedAt}
         onBack={goBack}
+        leaving={leaving}
         startPositionMs={startMs}
         versions={versions}
         detail={detail.data}
