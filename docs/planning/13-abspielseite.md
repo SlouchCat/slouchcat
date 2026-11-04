@@ -810,6 +810,11 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   Diese sind Links und brauchen die räumliche Navigation, die auf der Player-Route nicht geladen
   ist.
 - **«Folge zurück»** (Schritt 5) springt nur innerhalb der Staffel, nicht über die Staffelgrenze.
+- **Kapitel für Video-Downloads** (Marcos Entscheid vom 4. November 2026, Review von Schritt 6,
+  M-1): Das Download-Manifest liefert für Film und Folge die Kapitel aus derselben Quelle wie die
+  Online-Wiedergabe, nicht mehr nur für Hörbücher. Das ist eine additive Änderung im Vertrag
+  1.10.0 (Beschreibung von `DownloadManifest.chapters`) und eine kleine Serveränderung in Stufe 1,
+  abweichend von 6.1 «nur Web-App».
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
