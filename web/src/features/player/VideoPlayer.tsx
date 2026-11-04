@@ -1,4 +1,5 @@
 import type {
+  ItemDetail,
   ItemRef,
   MediaFileInfo,
   PlaybackInfo,
@@ -10,11 +11,18 @@ import type {
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, apiUrl, request } from '@/api/client';
+import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { episodeCode } from '@/features/catalog/labels';
-import { formatPlayerTime } from '@/lib/format';
+import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, MenuButton, SeekBar, VOLUME_STEP } from '@/ui/aria';
+import {
+  AriaButton,
+  focusOnMount,
+  PlayerChrome,
+  VOLUME_STEP,
+  type PlayerChromeMenu,
+} from '@/ui/aria';
+import { nextChapterStart, previousChapterStart } from './audio';
 import type { PlaybackEngine } from './capabilities';
 import {
   audioKey,
@@ -28,6 +36,7 @@ import {
 } from './labels';
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
+import { usePlayerPrefs } from './usePlayerPrefs';
 import { useProgressReporter } from './useProgressReporter';
 import { useVolume } from './useVolume';
 import styles from './Player.module.css';
@@ -89,6 +98,8 @@ interface VideoPlayerProps {
   /** The "Stream-Info" overlay (key i). */
   infoOpen?: boolean;
   onToggleInfo?: () => void;
+  /** The title's details (logo, genres, series), once loaded; the head shows text until then. */
+  detail?: ItemDetail;
 }
 
 const isActivatable = (target: EventTarget | null) =>
@@ -146,6 +157,7 @@ export function VideoPlayer({
   autoNext = false,
   infoOpen = false,
   onToggleInfo,
+  detail,
 }: VideoPlayerProps) {
   const { t, i18n } = useTranslation();
   // Fixed for the life of this player (one playback session).
@@ -269,6 +281,20 @@ export function VideoPlayer({
   });
   const tracks = trackList.data ?? info.tracks;
 
+  // The head (11.2): the title's logo, for an episode the series' (a second request, usually in
+  // the cache of the detail page). Until they arrive the title shows as text.
+  const seriesId = detail?.series?.id;
+  const series = useQuery({ ...itemQuery(seriesId ?? ''), enabled: seriesId !== undefined });
+  const [prefs, setPrefs] = usePlayerPrefs();
+  const timeDisplay = prefs.timeDisplay ?? 'elapsed';
+
+  // The first focus goes to play/pause (focusOnMount, not react-aria's autoFocus: 11.13); every
+  // session is a new player, so a switch focuses it again.
+  const playRef = useCallback((element: HTMLButtonElement | null) => {
+    playButton.current = element;
+    focusOnMount(element);
+  }, []);
+
   // Controls: visible on any input and while paused, hidden after 3 s without input while playing.
   const scheduleHide = useCallback(() => {
     window.clearTimeout(hideTimer.current);
@@ -356,6 +382,38 @@ export function VideoPlayer({
     document.addEventListener('fullscreenchange', onChange);
     return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
+
+  // Picture in picture (V-9): Chromium and Safari; Firefox has a button of its own on the video.
+  const [pictureInPicture, setPictureInPicture] = useState(false);
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    const onEnter = () => setPictureInPicture(true);
+    const onLeave = () => setPictureInPicture(false);
+    element.addEventListener('enterpictureinpicture', onEnter);
+    element.addEventListener('leavepictureinpicture', onLeave);
+    return () => {
+      element.removeEventListener('enterpictureinpicture', onEnter);
+      element.removeEventListener('leavepictureinpicture', onLeave);
+    };
+  }, []);
+  const togglePictureInPicture = useCallback(() => {
+    const element = video.current;
+    if (!element) return;
+    if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => {});
+    else void element.requestPictureInPicture().catch(() => {});
+  }, []);
+
+  // Chapter back and forward (V-2, ⇧←/⇧→): back restarts the chapter after its first seconds.
+  const { chapters } = info;
+  const previousChapter = useCallback(() => {
+    if (chapters.length === 0) return;
+    seekTo(previousChapterStart(chapters, (video.current?.currentTime ?? 0) * 1000));
+  }, [chapters, seekTo]);
+  const nextChapter = useCallback(() => {
+    const target = nextChapterStart(chapters, (video.current?.currentTime ?? 0) * 1000);
+    if (target !== null) seekTo(target);
+  }, [chapters, seekTo]);
 
   // Segments (W-9): skip the intro while inside it; the outro starts the next-episode countdown.
   const { intro, outro } = info.segments;
@@ -792,13 +850,93 @@ export function VideoPlayer({
     isOpen: openMenu === menu,
     onOpenChange: (isOpen: boolean) =>
       setOpenMenu((current) => (isOpen ? menu : current === menu ? null : current)),
-    portalContainer: portal ?? undefined,
   });
 
-  const elapsed = formatPlayerTime(currentMs, durationMs);
-  const total = formatPlayerTime(durationMs, durationMs);
-  const timeText = t('player.time', { elapsed, total });
-  const hidden = idle && playing && openMenu === null && !countdownActive;
+  const trackMenu: PlayerChromeMenu = {
+    buttonLabel: t('player.tracks.button'),
+    label: t('player.tracks.button'),
+    groups: trackGroups,
+    onSelect: onTrack,
+    ...menuProps('tracks'),
+  };
+  const qualityMenu: PlayerChromeMenu = {
+    buttonLabel: t('player.quality.button', { label: currentQuality }),
+    label: currentQuality,
+    options: qualityOptions,
+    selectedKey: qualityKey,
+    onSelect: (id) => switchPlayback({ quality: id as Quality }),
+    ...menuProps('quality'),
+  };
+  const chapterMenu: PlayerChromeMenu = {
+    buttonLabel: t('player.chapters.button'),
+    label: t('player.chapters.button'),
+    options: chapters.map((chapter, index) => ({
+      id: String(index),
+      label: chapterLabel(t, chapter, index, durationMs),
+    })),
+    selectedKey: String(chapterIndex),
+    reselect: true,
+    onSelect: (id) => {
+      const chapter = chapters[Number(id)];
+      if (chapter) seekTo(chapter.startMs);
+    },
+    ...menuProps('chapters'),
+  };
+  const versionMenu: PlayerChromeMenu = {
+    buttonLabel: t('player.versionButton', { label: currentVersion }),
+    label: currentVersion,
+    options: versions.map((version, index) => ({
+      id: version.id,
+      label: version.versionLabel ?? String(index + 1),
+    })),
+    selectedKey: info.mediaFile.id,
+    onSelect: switchVersion,
+    ...menuProps('version'),
+  };
+
+  // Forward: the next chapter, after the last one the next episode (V-2).
+  const forwardStep =
+    nextChapterStart(chapters, currentMs) !== null
+      ? { label: t('player.chrome.nextChapter'), onPress: nextChapter }
+      : next && onNextEpisode
+        ? { label: t('player.chrome.nextEpisode'), onPress: playNext, isDisabled: ended !== null }
+        : undefined;
+
+  // Head and the line above the timeline (V-1): an episode shows its series with the episode
+  // under it, a film its year and genres.
+  const item = info.item;
+  const code = episodeCode(t, item);
+  const episode = item.kind === 'episode';
+  const seriesTitle = detail?.series?.title ?? item.seriesTitle;
+  const year = detail?.year ?? item.year;
+  const genres =
+    detail && detail.genres.length > 0
+      ? new Intl.ListFormat(language, { type: 'unit', style: 'short' }).format(detail.genres)
+      : undefined;
+  const heading = episode
+    ? {
+        title: seriesTitle ?? item.title,
+        logoUrl: imageUrl(series.data?.images.logo),
+        subtitle: code ? t('player.chrome.episodeLine', { code, title: item.title }) : item.title,
+      }
+    : {
+        title: item.title,
+        logoUrl: imageUrl(detail?.images.logo),
+        subtitle:
+          year !== undefined && genres
+            ? t('player.chrome.filmLine', { year, genres })
+            : (genres ?? (year !== undefined ? String(year) : undefined)),
+      };
+  const chapter = chapters[chapterIndex];
+  const chapterName = chapter
+    ? (chapter.title ?? t('player.chapters.untitled', { n: chapterIndex + 1 }))
+    : undefined;
+  const lineBase = episode ? (seriesTitle ?? item.title) : item.title;
+  const lineLabel = chapterName
+    ? t('player.chrome.lineChapter', { title: lineBase, chapter: chapterName })
+    : lineBase;
+
+  const hidden = idle && playing && openMenu === null && !countdownActive && !infoOpen;
   const limit = ended?.watchTime?.limitMinutes;
   const nextCode = next ? episodeCode(t, next) : undefined;
   const nextName = next
@@ -841,7 +979,7 @@ export function VideoPlayer({
       data-playback-session-id={info.playbackSessionId}
       data-ended-reason={ended?.reason}
       data-autonext={countdownActive ? 'countdown' : autoNext ? 'navigated' : undefined}
-      data-controls={hidden && !infoOpen ? 'hidden' : 'visible'}
+      data-controls={hidden ? 'hidden' : 'visible'}
       onPointerMove={poke}
       onPointerDown={poke}
       onFocus={poke}
@@ -909,112 +1047,53 @@ export function VideoPlayer({
         </div>
       )}
 
-      <div className={styles.top}>
-        <AriaButton
-          variant="ghost"
-          icon="back"
-          iconOnly
-          aria-label={t('player.back')}
-          onPress={onBack}
-        />
-        <h1 className={styles.title}>{info.item.title}</h1>
-      </div>
-
-      <div className={styles.bottom}>
-        <SeekBar
-          label={t('player.seek')}
-          valueText={timeText}
-          currentMs={currentMs}
-          durationMs={durationMs}
-          buffered={buffered}
-          onSeek={seekTo}
-        />
-        <div className={styles.bar}>
-          <AriaButton
-            ref={playButton}
-            variant="ghost"
-            icon={playing ? 'pause' : 'play'}
-            iconOnly
-            aria-label={playing ? t('player.pause') : t('player.play')}
-            onPress={togglePlay}
-            isDisabled={switching || ended !== null}
-            autoFocus
-          />
-          <span className={styles.time}>
-            <span aria-hidden="true">{elapsed}</span>
-            <span aria-hidden="true" className={styles.timeTotal}>
-              {total}
-            </span>
-          </span>
-          <span className={styles.spacer} />
-          <AriaButton
-            variant="ghost"
-            icon={fullscreen ? 'fullscreenExit' : 'fullscreen'}
-            iconOnly
-            aria-label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
-            onPress={toggleFullscreen}
-          />
-          {onToggleInfo && (
-            <AriaButton
-              variant="ghost"
-              icon="info"
-              iconOnly
-              aria-label={t('player.info')}
-              aria-pressed={infoOpen}
-              onPress={onToggleInfo}
-            />
-          )}
-          {hasTracks && onSwitch && (
-            <MenuButton
-              buttonLabel={t('player.tracks.button')}
-              label={t('player.tracks.button')}
-              groups={trackGroups}
-              onSelect={onTrack}
-              {...menuProps('tracks')}
-            />
-          )}
-          {hasQualities && (
-            <MenuButton
-              buttonLabel={t('player.quality.button', { label: currentQuality })}
-              label={currentQuality}
-              options={qualityOptions}
-              selectedKey={qualityKey}
-              onSelect={(id) => switchPlayback({ quality: id as Quality })}
-              {...menuProps('quality')}
-            />
-          )}
-          {hasChapters && (
-            <MenuButton
-              buttonLabel={t('player.chapters.button')}
-              label={t('player.chapters.button')}
-              options={info.chapters.map((chapter, index) => ({
-                id: String(index),
-                label: chapterLabel(t, chapter, index, durationMs),
-              }))}
-              selectedKey={String(chapterIndex)}
-              reselect
-              onSelect={(id) => {
-                const chapter = info.chapters[Number(id)];
-                if (chapter) seekTo(chapter.startMs);
-              }}
-              {...menuProps('chapters')}
-            />
-          )}
-          {hasVersions && (
-            <MenuButton
-              buttonLabel={t('player.versionButton', { label: currentVersion })}
-              label={currentVersion}
-              options={versions.map((version, index) => ({
-                id: version.id,
-                label: version.versionLabel ?? String(index + 1),
-              }))}
-              selectedKey={info.mediaFile.id}
-              onSelect={switchVersion}
-              {...menuProps('version')}
-            />
-          )}
-        </div>
-      </div>
+      <PlayerChrome
+        title={heading.title}
+        logoUrl={heading.logoUrl}
+        subtitle={heading.subtitle}
+        lineLabel={lineLabel}
+        onBack={onBack}
+        hidden={hidden}
+        currentMs={currentMs}
+        durationMs={durationMs}
+        buffered={buffered}
+        timeDisplay={timeDisplay}
+        onTimeDisplayChange={(display) => setPrefs({ timeDisplay: display })}
+        chapters={chapters}
+        segments={info.segments}
+        onSeek={seekTo}
+        onPreviousChapter={hasChapters ? previousChapter : undefined}
+        onNextChapter={hasChapters ? nextChapter : undefined}
+        playing={playing}
+        onTogglePlay={togglePlay}
+        onSkip={seekBy}
+        playButtonRef={playRef}
+        previous={
+          hasChapters
+            ? { label: t('player.chrome.previousChapter'), onPress: previousChapter }
+            : undefined
+        }
+        next={forwardStep}
+        transportDisabled={switching || ended !== null}
+        volume={volume.volume}
+        muted={volume.muted}
+        onVolumeChange={volume.setVolume}
+        onToggleMute={volume.toggleMute}
+        fullscreen={fullscreen}
+        onToggleFullscreen={toggleFullscreen}
+        pictureInPicture={
+          document.pictureInPictureEnabled
+            ? { active: pictureInPicture, onToggle: togglePictureInPicture }
+            : undefined
+        }
+        tracks={hasTracks && onSwitch ? trackMenu : undefined}
+        quality={hasQualities ? qualityMenu : undefined}
+        chapterMenu={hasChapters ? chapterMenu : undefined}
+        version={hasVersions ? versionMenu : undefined}
+        portalContainer={portal ?? undefined}
+        infoOpen={infoOpen}
+        onToggleInfo={onToggleInfo}
+      />
 
       {inIntro && ended === null && (
         <div className={styles.skip}>

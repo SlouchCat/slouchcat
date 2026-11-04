@@ -1,4 +1,4 @@
-import type { Key } from 'react';
+import type { Key, Ref } from 'react';
 import {
   Header,
   Menu as AriaMenu,
@@ -56,6 +56,9 @@ interface MenuButtonProps {
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
   isDisabled?: boolean;
+  /** Out of the Tab order: a member of a row with a roving tab index (the player's buttons). */
+  excludeFromTabOrder?: boolean;
+  buttonRef?: Ref<HTMLButtonElement>;
 }
 
 function Item({ option }: { option: MenuOption }) {
@@ -97,6 +100,8 @@ export function MenuButton({
   isOpen,
   onOpenChange,
   isDisabled,
+  excludeFromTabOrder,
+  buttonRef,
 }: MenuButtonProps) {
   const density = useDensityPortalProps();
   const groupOf = (key: string) =>
@@ -109,7 +114,14 @@ export function MenuButton({
   };
   return (
     <MenuTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
-      <AriaButton variant={variant} icon={icon} aria-label={buttonLabel} isDisabled={isDisabled}>
+      <AriaButton
+        ref={buttonRef}
+        variant={variant}
+        icon={icon}
+        aria-label={buttonLabel}
+        isDisabled={isDisabled}
+        excludeFromTabOrder={excludeFromTabOrder}
+      >
         {label}
       </AriaButton>
       <Popover

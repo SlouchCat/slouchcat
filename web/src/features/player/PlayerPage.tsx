@@ -296,6 +296,7 @@ function PlayerView({ itemId }: { itemId: string }) {
         onBack={goBack}
         startPositionMs={startMs}
         versions={versions}
+        detail={detail.data}
         infoOpen={infoOpen}
         onToggleInfo={() => setInfoOpen((open) => !open)}
         switching={switching}

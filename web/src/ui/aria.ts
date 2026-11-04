@@ -57,6 +57,14 @@ export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
 // Building blocks of the player (concept 13, 11.10).
 export { ChapterCard } from './ChapterCard';
 export { OptionList, OptionMoreRow, OptionRow, OptionSection, type OptionMark } from './OptionRow';
+export {
+  PlayerChrome,
+  playerEndTime,
+  playerRemainingMs,
+  type PlayerChromeCapabilities,
+  type PlayerChromeMenu,
+  type PlayerChromeStep,
+} from './PlayerChrome';
 export { PlayerPanel } from './PlayerPanel';
 export { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
 export { BOOST_MAX, clampVolume, VOLUME_STEP, VolumeControl } from './VolumeControl';
@@ -83,4 +91,5 @@ export { useSearchSelection } from './useSearchSelection';
 export { useUnsavedChanges, type UnsavedChangesDialog } from './useUnsavedChanges';
 
 export { afterDialogsClosed, afterRender, focusLost, focusTitleIfLost } from './focusAfter';
+export { focusOnMount } from './focusOnMount';
 export { StatusRegion, useStatusMessage, type StatusMessage } from './StatusRegion';

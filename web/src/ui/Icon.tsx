@@ -89,6 +89,19 @@ const paths = {
       <path d="M18 5.5v13" fill="none" />
     </>
   ),
+  // Video player (concept 13): picture in picture, the shortcut help.
+  pictureInPicture: (
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" fill="none" />
+      <rect x="12" y="12" width="6" height="4.5" rx="1" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" fill="none" />
+      <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.6v.1" fill="none" />
+    </>
+  ),
   replay: <path d="M4 12a8 8 0 1 0 2.3-5.7M4 5v5h5" fill="none" />,
   forward: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 5v5h-5" fill="none" />,
   close: <path d="M6 6l12 12M18 6L6 18" fill="none" />,

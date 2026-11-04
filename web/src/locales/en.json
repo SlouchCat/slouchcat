@@ -771,6 +771,101 @@
       "default": "Default",
       "forced": "forced",
       "burnIn": "burnt in"
+    },
+    "chrome": {
+      "toolbar": "Playback",
+      "previousChapter": "Previous chapter",
+      "nextChapter": "Next chapter",
+      "nextEpisode": "Next episode",
+      "back10": "Back 10 seconds",
+      "forward30": "Forward 30 seconds",
+      "pictureInPicture": "Picture in picture",
+      "exitPictureInPicture": "Exit picture in picture",
+      "help": "Keyboard shortcuts",
+      "timeElapsed": "{{elapsed}} / {{total}}",
+      "timeRemaining": "−{{remaining}} · ends at {{end}}",
+      "lineChapter": "{{title}} · {{chapter}}",
+      "episodeLine": "{{code}} · {{title}}",
+      "filmLine": "{{year}} · {{genres}}",
+      "rate": "Speed {{rate}}×",
+      "muted": "Muted"
+    },
+    "help": {
+      "title": "Keyboard shortcuts",
+      "rows": {
+        "play": {
+          "keys": "Space, K, Enter",
+          "action": "Play or pause"
+        },
+        "seek": {
+          "keys": "← →",
+          "action": "Back or forward 10 seconds"
+        },
+        "chapter": {
+          "keys": "⇧← ⇧→",
+          "action": "Previous or next chapter"
+        },
+        "volume": {
+          "keys": "↑ ↓",
+          "action": "Quieter or louder"
+        },
+        "zones": {
+          "keys": "↑ ↓ in the bar",
+          "action": "Move between the timeline and the buttons; among the buttons ← → go from button to button"
+        },
+        "mute": {
+          "keys": "M",
+          "action": "Mute or unmute"
+        },
+        "jump": {
+          "keys": "0–9",
+          "action": "Jump to 0 to 90%"
+        },
+        "speed": {
+          "keys": "[ ]",
+          "action": "Slower or faster (0.5× to 2×)"
+        },
+        "tracks": {
+          "keys": "T",
+          "action": "Audio"
+        },
+        "subtitles": {
+          "keys": "U",
+          "action": "Subtitles"
+        },
+        "chapters": {
+          "keys": "C",
+          "action": "Chapters"
+        },
+        "quality": {
+          "keys": "Q",
+          "action": "Quality"
+        },
+        "fullscreen": {
+          "keys": "F",
+          "action": "Full screen"
+        },
+        "info": {
+          "keys": "I",
+          "action": "Stream info"
+        },
+        "skip": {
+          "keys": "S",
+          "action": "Skip intro"
+        },
+        "next": {
+          "keys": "N",
+          "action": "Next episode"
+        },
+        "help": {
+          "keys": "?",
+          "action": "This help"
+        },
+        "back": {
+          "keys": "Escape, Backspace",
+          "action": "Closes the help and the stream info, otherwise back to the detail page"
+        }
+      }
     }
   },
   "admin": {

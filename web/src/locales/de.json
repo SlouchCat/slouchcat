@@ -771,6 +771,101 @@
       "default": "Standard",
       "forced": "erzwungen",
       "burnIn": "wird eingebrannt"
+    },
+    "chrome": {
+      "toolbar": "Wiedergabe",
+      "previousChapter": "Vorheriges Kapitel",
+      "nextChapter": "Nächstes Kapitel",
+      "nextEpisode": "Nächste Folge",
+      "back10": "10 Sekunden zurück",
+      "forward30": "30 Sekunden vor",
+      "pictureInPicture": "Bild-in-Bild",
+      "exitPictureInPicture": "Bild-in-Bild beenden",
+      "help": "Tastenkürzel",
+      "timeElapsed": "{{elapsed}} / {{total}}",
+      "timeRemaining": "−{{remaining}} · endet um {{end}}",
+      "lineChapter": "{{title}} · {{chapter}}",
+      "episodeLine": "{{code}} · {{title}}",
+      "filmLine": "{{year}} · {{genres}}",
+      "rate": "Geschwindigkeit {{rate}}×",
+      "muted": "Ton aus"
+    },
+    "help": {
+      "title": "Tastenkürzel",
+      "rows": {
+        "play": {
+          "keys": "Leertaste, K, Enter",
+          "action": "Abspielen oder Pause"
+        },
+        "seek": {
+          "keys": "← →",
+          "action": "10 Sekunden zurück oder vor"
+        },
+        "chapter": {
+          "keys": "⇧← ⇧→",
+          "action": "Vorheriges oder nächstes Kapitel"
+        },
+        "volume": {
+          "keys": "↑ ↓",
+          "action": "Leiser oder lauter"
+        },
+        "zones": {
+          "keys": "↑ ↓ in der Leiste",
+          "action": "Zwischen Zeitleiste und Knopfreihe wechseln; in der Knopfreihe gehen ← → von Knopf zu Knopf"
+        },
+        "mute": {
+          "keys": "M",
+          "action": "Ton aus oder an"
+        },
+        "jump": {
+          "keys": "0–9",
+          "action": "Springt auf 0 bis 90 %"
+        },
+        "speed": {
+          "keys": "[ ]",
+          "action": "Langsamer oder schneller (0,5× bis 2×)"
+        },
+        "tracks": {
+          "keys": "T",
+          "action": "Ton"
+        },
+        "subtitles": {
+          "keys": "U",
+          "action": "Untertitel"
+        },
+        "chapters": {
+          "keys": "C",
+          "action": "Kapitel"
+        },
+        "quality": {
+          "keys": "Q",
+          "action": "Qualität"
+        },
+        "fullscreen": {
+          "keys": "F",
+          "action": "Vollbild"
+        },
+        "info": {
+          "keys": "I",
+          "action": "Stream-Info"
+        },
+        "skip": {
+          "keys": "S",
+          "action": "Intro überspringen"
+        },
+        "next": {
+          "keys": "N",
+          "action": "Nächste Folge"
+        },
+        "help": {
+          "keys": "?",
+          "action": "Diese Hilfe"
+        },
+        "back": {
+          "keys": "Escape, Backspace",
+          "action": "Schliesst Hilfe und Stream-Info, sonst zurück zur Detailseite"
+        }
+      }
     }
   },
   "admin": {
