@@ -12,7 +12,7 @@ import (
 
 const getVisibleMediaFileProbe = `-- name: GetVisibleMediaFileProbe :one
 
-SELECT m.id, m.probe, m.keyframes
+SELECT m.id, m.probe, m.keyframes, m.duration_ms
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 WHERE m.item_id = ?2 AND m.id = ?3
@@ -25,9 +25,10 @@ type GetVisibleMediaFileProbeParams struct {
 }
 
 type GetVisibleMediaFileProbeRow struct {
-	ID        string
-	Probe     sql.NullString
-	Keyframes []byte
+	ID         string
+	Probe      sql.NullString
+	Keyframes  []byte
+	DurationMs sql.NullInt64
 }
 
 // Playback data of a media file of a visible title (package store/scopedq, read by the visibility
@@ -36,7 +37,12 @@ type GetVisibleMediaFileProbeRow struct {
 func (q *Queries) GetVisibleMediaFileProbe(ctx context.Context, arg GetVisibleMediaFileProbeParams) (GetVisibleMediaFileProbeRow, error) {
 	row := q.db.QueryRowContext(ctx, getVisibleMediaFileProbe, arg.ProfileID, arg.ItemID, arg.MediaFileID)
 	var i GetVisibleMediaFileProbeRow
-	err := row.Scan(&i.ID, &i.Probe, &i.Keyframes)
+	err := row.Scan(
+		&i.ID,
+		&i.Probe,
+		&i.Keyframes,
+		&i.DurationMs,
+	)
 	return i, err
 }
 

@@ -8765,12 +8765,15 @@ components:
       type: object
       description: |
         A chapter on the source timeline. Since contract 1.12.0 (concept 13, 11.6) the chapters of a
-        film or an episode follow these rules; audiobooks and podcast episodes keep their marks as
-        before. A title that only numbers the chapter (a time such as `00:12:36.172`, «Chapter 12»,
-        «Kapitel 12») is left out, and the client numbers such chapters by their position in the list.
-        A file of at least 30 minutes with fewer than four chapters gets replacement chapters every
-        10 minutes instead (`auto`); a last section under 3 minutes merges into the one before it, and
-        a real credits chapter («Credits», «Abspann») stays with its title.
+        film or an episode follow these rules; audiobooks, podcast episodes and extras keep their marks
+        as before. Marks of zero length are dropped. A title that only numbers the chapter (a time such
+        as `00:12:36.172`, «Chapter 12», «Kapitel 12») is left out, and the client numbers such chapters
+        by their position in the list. A file of at least 30 minutes with fewer than four chapters gets
+        replacement chapters instead (`auto`, no title) at its start and at every full 10 minutes of the
+        file. A real credits chapter («Credits», «Abspann», «End Credits») that looks like end credits
+        (at most 15 minutes, starting in the second half) stays with its title; the 10-minute marks go
+        on after it. A section under 3 minutes merges with a neighbour (the last one of a stretch into
+        the one before it), and a stretch under 3 minutes after a credits chapter merges into it.
       required: [startMs, endMs]
       properties:
         startMs:

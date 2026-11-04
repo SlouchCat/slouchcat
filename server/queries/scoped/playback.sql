@@ -3,7 +3,7 @@
 -- plan need (M1b).
 
 -- name: GetVisibleMediaFileProbe :one
-SELECT m.id, m.probe, m.keyframes
+SELECT m.id, m.probe, m.keyframes, m.duration_ms
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = @profile_id
 WHERE m.item_id = @item_id AND m.id = @media_file_id;
