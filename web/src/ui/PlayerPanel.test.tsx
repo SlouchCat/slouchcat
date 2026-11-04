@@ -233,6 +233,73 @@ describe('PlayerPanel (concept 13, 11.2)', () => {
     await waitFor(() => expect(opener).toHaveFocus());
   });
 
+  it('hands its opener on to a panel that replaces it (T after U, review step 4)', async () => {
+    function TwoPanels() {
+      const [open, setOpen] = useState<'audio' | 'subtitle' | null>(null);
+      return (
+        <div>
+          <button type="button" onClick={() => setOpen('audio')}>
+            Ton öffnen
+          </button>
+          {/* A shortcut key of the player: the other panel takes this one's place. */}
+          {open && (
+            <PlayerPanel
+              key={open}
+              title={open === 'audio' ? 'Ton' : 'Untertitel'}
+              onClose={() => setOpen(null)}
+            >
+              <OptionList label={open} selectedId="a" onSelect={() => undefined}>
+                <OptionRow id="a" label={open === 'audio' ? 'Deutsch' : 'Aus'} />
+              </OptionList>
+              <button type="button" onClick={() => setOpen('subtitle')}>
+                Untertitel
+              </button>
+            </PlayerPanel>
+          )}
+        </div>
+      );
+    }
+    const user = userEvent.setup();
+    render(<TwoPanels />);
+    const opener = screen.getByRole('button', { name: 'Ton öffnen' });
+    await user.click(opener);
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Deutsch' })).toHaveFocus());
+    await user.keyboard('{ArrowDown}{Enter}');
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Aus' })).toHaveFocus());
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(opener).toHaveFocus();
+  });
+
+  it('↑/↓ go from a list to the controls below it and back (review step 4)', async () => {
+    const user = userEvent.setup();
+    render(
+      <Player>
+        <OptionList label="Ton" selectedId="en" onSelect={() => undefined}>
+          <OptionRow id="de" label="Deutsch" />
+          <OptionRow id="en" label="Englisch" />
+        </OptionList>
+        <button type="button">Untertitel-Stil</button>
+        <button type="button" disabled>
+          Aus
+        </button>
+        <button type="button">Stream-Info</button>
+      </Player>,
+    );
+    await user.click(screen.getByRole('button', { name: 'Ton öffnen' }));
+    await waitFor(() => expect(screen.getByRole('option', { name: 'Englisch' })).toHaveFocus());
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('button', { name: 'Untertitel-Stil' })).toHaveFocus();
+    // A control that is off is no stop.
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('button', { name: 'Stream-Info' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('button', { name: 'Stream-Info' })).toHaveFocus();
+    // Up into the list: on its chosen row.
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(screen.getByRole('option', { name: 'Englisch' })).toHaveFocus();
+  });
+
   it('a page inside the panel: back button and Backspace go up, Escape closes', async () => {
     const user = userEvent.setup();
     render(<GearPlayer />);

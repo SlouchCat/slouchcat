@@ -768,7 +768,7 @@
       "forced": "erzwungen",
       "sdh": "SDH",
       "burnIn": "Bild-Untertitel, wird eingebrannt",
-      "convert": "wird umgewandelt"
+      "convert": "Stream wird neu aufgebaut"
     },
     "subtitleStyle": {
       "title": "Untertitel-Stil",
@@ -801,7 +801,8 @@
       "nightModeOn": "Nachtmodus an",
       "nightModeHint": "Leise Stellen lauter, laute leiser: für spät abends.",
       "rateValue": "{{rate}}×",
-      "streamInfo": "Stream-Info"
+      "streamInfo": "Stream-Info",
+      "buttonWithQuality": "Einstellungen · {{quality}}"
     },
     "panel": {
       "audioButton": "Ton: {{language}}",
@@ -899,7 +900,7 @@
         },
         "back": {
           "keys": "Escape, Backspace",
-          "action": "Schliesst Hilfe und Stream-Info, sonst zurück zur Detailseite"
+          "action": "Schliesst Panel, Hilfe und Stream-Info (im Zahnrad: eine Ebene zurück), sonst zurück zur Detailseite"
         }
       }
     }

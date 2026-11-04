@@ -54,6 +54,8 @@ export interface PlayerChromePanelButton {
   text?: string;
   /** The panel is open (aria-expanded). */
   expanded: boolean;
+  /** The id of the panel (PlayerPanel `id`), for `aria-controls` while it is open. */
+  controls?: string;
   onPress: () => void;
   isDisabled?: boolean;
 }
@@ -257,6 +259,8 @@ export function PlayerChrome({
                 iconOnly={config.text === undefined}
                 aria-label={config.label}
                 aria-expanded={config.expanded}
+                aria-haspopup="dialog"
+                aria-controls={config.expanded ? config.controls : undefined}
                 onPress={config.onPress}
                 isDisabled={config.isDisabled}
                 excludeFromTabOrder={excluded}
@@ -404,6 +408,7 @@ export function PlayerChrome({
                 iconOnly
                 aria-label={t('player.chrome.help')}
                 aria-expanded={helpOpen}
+                aria-haspopup="dialog"
                 onPress={onToggleHelp}
                 excludeFromTabOrder={excluded}
               />

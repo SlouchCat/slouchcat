@@ -41,7 +41,9 @@ describe('OptionRow and OptionList (concept 13, V-5)', () => {
     expect(option('Deutsch', 'erzwungen')).toHaveAccessibleDescription('SRTerzwungen');
     expect(option('Englisch')).toHaveAccessibleDescription('PGSBild-Untertitel, wird eingebrannt');
     expect(option('Englisch SDH')).toHaveAccessibleDescription('SDH');
-    expect(option('Deutsch · DTS · 5.1')).toHaveAccessibleDescription('Standardwird umgewandelt');
+    expect(option('Deutsch · DTS · 5.1')).toHaveAccessibleDescription(
+      'StandardStream wird neu aufgebaut',
+    );
     expect(option('Aus')).not.toHaveAccessibleDescription();
   });
 

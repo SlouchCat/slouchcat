@@ -20,6 +20,69 @@ const MOVES = new Set([
   'PageDown',
 ]);
 
+/** A list of rows: one stop for ↑/↓ between the parts of the panel, its rows move by themselves. */
+const COMPOSITE = '[role="listbox"], [role="radiogroup"]';
+const ROW = '[role="option"], [role="radio"]';
+/** Controls that take no ↑/↓ themselves: ↑/↓ go on to the next part of the panel. */
+const PLAIN = 'button, a[href], input[type="checkbox"]';
+
+const usable = (element: HTMLElement) =>
+  !element.matches(':disabled') &&
+  element.getAttribute('aria-disabled') !== 'true' &&
+  element.closest('[hidden], [inert]') === null;
+
+/**
+ * The stops of the panel's body for ↑/↓ in DOM order: a list counts once, any other control that
+ * is in the Tab order on its own (a roving group shows only its stop).
+ */
+function stopsIn(body: HTMLElement): HTMLElement[] {
+  const stops: HTMLElement[] = [];
+  for (const element of body.querySelectorAll<HTMLElement>(`${COMPOSITE}, ${FOCUSABLE}`)) {
+    const list = element.matches(COMPOSITE) ? element : element.closest<HTMLElement>(COMPOSITE);
+    if (list) {
+      if (!stops.includes(list) && list.querySelector(ROW)) stops.push(list);
+    } else if (element.tabIndex >= 0 && usable(element)) {
+      stops.push(element);
+    }
+  }
+  return stops;
+}
+
+/** The rows of a list that can take the focus. */
+const rowsOf = (list: HTMLElement) =>
+  [...list.querySelectorAll<HTMLElement>(ROW)].filter(
+    (row) => usable(row) && row.closest(COMPOSITE) === list,
+  );
+
+/**
+ * ↑/↓ from the end of a list, or from a button or switch, to the next part of the panel (11.2:
+ * a remote has no Tab). Into a list the focus goes to its chosen row, else to its first row (↓)
+ * or its last (↑). Returns whether the focus moved.
+ */
+function moveBetweenParts(body: HTMLElement, from: HTMLElement, down: boolean): boolean {
+  const list = from.closest<HTMLElement>(COMPOSITE);
+  if (list && body.contains(list)) {
+    const rows = rowsOf(list);
+    const at = rows.findIndex((row) => row === from || row.contains(from));
+    // Inside the list the list moves the focus itself.
+    if (at >= 0 && (down ? at < rows.length - 1 : at > 0)) return false;
+  } else if (!from.matches(PLAIN)) {
+    return false;
+  }
+  const stops = stopsIn(body);
+  const index = stops.findIndex((stop) => stop === from || stop.contains(from));
+  const next = stops[index + (down ? 1 : -1)];
+  if (index < 0 || !next) return false;
+  if (next.matches(COMPOSITE)) {
+    const rows = rowsOf(next);
+    const chosen = next.querySelector<HTMLElement>(CHOSEN);
+    (chosen && usable(chosen) ? chosen : down ? rows[0] : rows.at(-1))?.focus();
+  } else {
+    next.focus();
+  }
+  return true;
+}
+
 /** Backspace in a text field deletes a character; everywhere else it is the remote's back key. */
 const editable = (target: EventTarget) =>
   target instanceof HTMLElement &&
@@ -42,9 +105,19 @@ function targetIn(body: HTMLElement): HTMLElement | null {
   return pending ? null : found;
 }
 
+/**
+ * The opener of a panel that closed with the focus in it, for a panel that opens in the same
+ * commit (T, U, Q or ? while another panel is open): the old panel's element had the focus and is
+ * gone, so the new one takes over the button the old one was to give the focus back to. Cleared
+ * after the commit's microtasks.
+ */
+let handedOver: HTMLElement | null = null;
+
 interface PlayerPanelProps {
   /** Heading of the panel and its spoken name: «Ton», «Untertitel», «Einstellungen». */
   title: string;
+  /** The id the button that opens it names in `aria-controls`. */
+  id?: string;
   /** Escape, Backspace or the close button. The page unmounts the panel. */
   onClose: () => void;
   /**
@@ -70,7 +143,7 @@ interface PlayerPanelProps {
  * player's key map. It is a non-modal dialog: Tab walks out of it like out of any other part of
  * the page, no focus trap.
  */
-export function PlayerPanel({ title, onClose, onBack, children }: PlayerPanelProps) {
+export function PlayerPanel({ id, title, onClose, onBack, children }: PlayerPanelProps) {
   const { t } = useTranslation();
   const headingId = useId();
   const opener = useRef<HTMLElement | null>(null);
@@ -82,7 +155,10 @@ export function PlayerPanel({ title, onClose, onBack, children }: PlayerPanelPro
   const enter = useCallback((panel: HTMLElement | null) => {
     if (!panel) return;
     const active = document.activeElement;
-    opener.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    opener.current =
+      active instanceof HTMLElement && active !== document.body && active.isConnected
+        ? active
+        : handedOver;
     const content = panel.querySelector<HTMLElement>('[data-panel-body]');
     if (!content) return;
     const focusTarget = () => {
@@ -105,7 +181,9 @@ export function PlayerPanel({ title, onClose, onBack, children }: PlayerPanelPro
       // body, so it goes back to the opener -- after the commit, and only if nothing took it.
       if (!panel.contains(document.activeElement)) return;
       const target = opener.current;
+      handedOver = target;
       queueMicrotask(() => {
+        handedOver = null;
         const lost = document.activeElement === null || document.activeElement === document.body;
         if (lost && target?.isConnected) target.focus();
       });
@@ -124,6 +202,21 @@ export function PlayerPanel({ title, onClose, onBack, children }: PlayerPanelPro
     if (MOVES.has(event.key)) {
       // The list or the field has used the key already; the player must not see it.
       event.stopPropagation();
+      const body = event.currentTarget.querySelector<HTMLElement>('[data-panel-body]');
+      const down = event.key === 'ArrowDown';
+      if (
+        (down || event.key === 'ArrowUp') &&
+        !event.shiftKey &&
+        event.target instanceof HTMLElement &&
+        // A control that used the key itself marks it; a list at its end may mark it as well,
+        // which moveBetweenParts checks by the rows.
+        (!event.defaultPrevented || event.target.closest(COMPOSITE) !== null) &&
+        body &&
+        body.contains(event.target) &&
+        moveBetweenParts(body, event.target, down)
+      ) {
+        event.preventDefault();
+      }
       return;
     }
     const backspace = event.key === 'Backspace' && !editable(event.target);
@@ -139,6 +232,7 @@ export function PlayerPanel({ title, onClose, onBack, children }: PlayerPanelPro
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section
       ref={enter}
+      id={id}
       className={styles.panel}
       role="dialog"
       aria-labelledby={headingId}

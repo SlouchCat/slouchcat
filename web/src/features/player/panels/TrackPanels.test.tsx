@@ -1,6 +1,7 @@
 import type { Track } from '@slouchcat/api-client';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SUBTITLE_STYLE } from '../useSubtitleStyle';
 import { AudioPanel, SubtitlePanel } from './TrackPanels';
@@ -100,7 +101,7 @@ describe('AudioPanel (V-5)', () => {
       screen.getByRole('option', { name: 'Englisch · E-AC3 · 5.1' }),
     ).toHaveAccessibleDescription('Standard');
     const dts = screen.getByRole('option', { name: 'Deutsch · DTS · 5.1' });
-    expect(dts).toHaveAccessibleDescription('wird umgewandelt');
+    expect(dts).toHaveAccessibleDescription('Stream wird neu aufgebaut');
     // The panel opens on the track the server delivers.
     await waitFor(() =>
       expect(screen.getByRole('option', { name: 'Englisch · E-AC3 · 5.1' })).toHaveFocus(),
@@ -209,5 +210,65 @@ describe('SubtitlePanel (V-5)', () => {
     expect(within(page).getByText('0,0 s')).toBeVisible();
     await user.keyboard('{Backspace}');
     expect(screen.getByRole('dialog', { name: 'Untertitel' })).toBeInTheDocument();
+  });
+
+  it('reaches every part of the panel and of the style page with ↑/↓ alone (review step 4)', async () => {
+    const user = userEvent.setup();
+    function Styled() {
+      const [style, setStyle] = useState(DEFAULT_SUBTITLE_STYLE);
+      return (
+        <SubtitlePanel
+          tracks={[subtitle(2, 'ger')]}
+          profileLanguage="de"
+          selectedId={undefined}
+          onSelect={vi.fn()}
+          onClose={vi.fn()}
+          subtitleStyle={{
+            value: style,
+            onChange: (patch) => setStyle((current) => ({ ...current, ...patch })),
+          }}
+        />
+      );
+    }
+    render(<Styled />);
+    const off = screen.getByRole('option', { name: 'Aus' });
+    await waitFor(() => expect(off).toHaveFocus());
+    // From the last row of the list on to the button below it, and back up into the list.
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('option', { name: 'Deutsch · SRT' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('button', { name: 'Untertitel-Stil' })).toHaveFocus();
+    await user.keyboard('{ArrowUp}');
+    expect(off).toHaveFocus();
+    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+
+    const page = screen.getByRole('dialog', { name: 'Untertitel-Stil' });
+    await waitFor(() => expect(within(page).getByRole('option', { name: 'M' })).toHaveFocus());
+    // ↓ walks the four lists, each entered on its chosen row, then the offset group.
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+    expect(within(page).getByRole('option', { name: 'Schatten' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+    expect(within(page).getByRole('option', { name: 'Weiss' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    expect(within(page).getByRole('option', { name: 'Unten' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}{ArrowDown}');
+    const earlier = within(page).getByRole('button', { name: '0,1 s früher' });
+    expect(earlier).toHaveFocus();
+    // The offset group is one stop: ←/→ between its buttons.
+    await user.keyboard('{ArrowRight}');
+    const later = within(page).getByRole('button', { name: '0,1 s später' });
+    expect(later).toHaveFocus();
+    expect(earlier).toHaveAttribute('tabindex', '-1');
+    await user.keyboard('{Enter}');
+    expect(within(page).getByText('+0,1 s')).toBeVisible();
+    // «Zurücksetzen» keeps the focus after it set the offset back to 0 (it never switches off).
+    await user.keyboard('{ArrowRight}');
+    const reset = within(page).getByRole('button', { name: 'Zurücksetzen' });
+    expect(reset).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(within(page).getByText('0,0 s')).toBeVisible();
+    expect(reset).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(reset).toHaveFocus();
   });
 });

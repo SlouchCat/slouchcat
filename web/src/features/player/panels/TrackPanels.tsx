@@ -12,6 +12,7 @@ import {
 import { audioKey, subtitleKey, trackLabel } from '../labels';
 import { isSdh, orderTracks, type PlacedTrack } from '../trackOrder';
 import type { SubtitleStyle } from '../useSubtitleStyle';
+import { PANEL_IDS } from './panelIds';
 import { SubtitleStyleOptions } from './SubtitleStyleOptions';
 import styles from './SubtitleStyleOptions.module.css';
 
@@ -94,7 +95,7 @@ interface AudioPanelProps {
   onClose: () => void;
 }
 
-/** The sound panel (key T, V-5): «Deutsch · DTS · 5.1» with the marks «Standard», «wird umgewandelt». */
+/** The sound panel (key T, V-5): «Deutsch · DTS · 5.1» with the marks «Standard», «Stream wird neu aufgebaut». */
 export function AudioPanel({
   tracks,
   profileLanguage,
@@ -105,7 +106,7 @@ export function AudioPanel({
 }: AudioPanelProps) {
   const { t } = useTranslation();
   return (
-    <PlayerPanel title={t('player.tracks.audio')} onClose={onClose}>
+    <PlayerPanel id={PANEL_IDS.audio} title={t('player.tracks.audio')} onClose={onClose}>
       <TrackList
         label={t('player.tracks.audio')}
         tracks={tracks}
@@ -152,6 +153,7 @@ export function SubtitlePanel({
   if (styling && subtitleStyle) {
     return (
       <PlayerPanel
+        id={PANEL_IDS.subtitle}
         title={t('player.subtitleStyle.title')}
         onClose={onClose}
         onBack={() => setStyling(false)}
@@ -161,7 +163,7 @@ export function SubtitlePanel({
     );
   }
   return (
-    <PlayerPanel title={t('player.tracks.subtitles')} onClose={onClose}>
+    <PlayerPanel id={PANEL_IDS.subtitle} title={t('player.tracks.subtitles')} onClose={onClose}>
       <TrackList
         label={t('player.tracks.subtitles')}
         tracks={tracks}

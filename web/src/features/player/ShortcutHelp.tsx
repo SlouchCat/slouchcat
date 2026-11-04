@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { PlayerPanel } from '@/ui/aria';
+import { PANEL_IDS } from './panels/panelIds';
 import styles from './ShortcutHelp.module.css';
 
 /** The rows of the help in the order of the key map (concept 13, 11.2). */
@@ -32,7 +33,7 @@ const ROWS = [
 export function ShortcutHelp({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   return (
-    <PlayerPanel title={t('player.help.title')} onClose={onClose}>
+    <PlayerPanel id={PANEL_IDS.help} title={t('player.help.title')} onClose={onClose}>
       {/* The list is the panel's focus target: text that scrolls must take the focus (axe
           «scrollable-region-focusable»), the arrows then scroll it (the panel keeps them from
           the player), and a remote reaches every row. */}

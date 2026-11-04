@@ -768,7 +768,7 @@
       "forced": "forced",
       "sdh": "SDH",
       "burnIn": "picture subtitle, burnt in",
-      "convert": "converted"
+      "convert": "stream is rebuilt"
     },
     "subtitleStyle": {
       "title": "Subtitle style",
@@ -801,7 +801,8 @@
       "nightModeOn": "Night mode on",
       "nightModeHint": "Quiet passages louder, loud ones quieter: for late evenings.",
       "rateValue": "{{rate}}×",
-      "streamInfo": "Stream info"
+      "streamInfo": "Stream info",
+      "buttonWithQuality": "Settings · {{quality}}"
     },
     "panel": {
       "audioButton": "Audio: {{language}}",
@@ -899,7 +900,7 @@
         },
         "back": {
           "keys": "Escape, Backspace",
-          "action": "Closes the help and the stream info, otherwise back to the detail page"
+          "action": "Closes a panel, the help and the stream info (in the gear: one level up), otherwise back to the detail page"
         }
       }
     }

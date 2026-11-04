@@ -3,6 +3,7 @@ import { OptionLinkRow, OptionList, OptionRow, PlayerPanel, Switch } from '@/ui/
 import { RATE_MAX, RATE_MIN, RATE_STEP } from '../keymap';
 import type { SubtitleStyle } from '../useSubtitleStyle';
 import styles from './SettingsPanel.module.css';
+import { PANEL_IDS } from './panelIds';
 import { SubtitleStyleOptions } from './SubtitleStyleOptions';
 
 /** The pages of the gear panel (11.2). */
@@ -82,7 +83,7 @@ export function SettingsPanel({
   const back = direct ? undefined : () => onPage('main');
 
   const choicePage = (title: string, choice: SettingsChoice) => (
-    <PlayerPanel title={title} onClose={onClose} onBack={back}>
+    <PlayerPanel id={PANEL_IDS.settings} title={title} onClose={onClose} onBack={back}>
       {/* A list of its own per page (key): the focused row of the page before goes with it, and
           the panel moves the focus to the chosen row of this one. */}
       <OptionList
@@ -116,7 +117,12 @@ export function SettingsPanel({
 
   if (page === 'subtitleStyle') {
     return (
-      <PlayerPanel title={t('player.subtitleStyle.title')} onClose={onClose} onBack={back}>
+      <PlayerPanel
+        id={PANEL_IDS.settings}
+        title={t('player.subtitleStyle.title')}
+        onClose={onClose}
+        onBack={back}
+      >
         <SubtitleStyleOptions value={subtitleStyle.value} onChange={subtitleStyle.onChange} />
       </PlayerPanel>
     );
@@ -124,7 +130,12 @@ export function SettingsPanel({
 
   if (page === 'sound' && nightMode) {
     return (
-      <PlayerPanel title={t('player.settings.sound')} onClose={onClose} onBack={back}>
+      <PlayerPanel
+        id={PANEL_IDS.settings}
+        title={t('player.settings.sound')}
+        onClose={onClose}
+        onBack={back}
+      >
         <div className={styles.sound}>
           <Switch isSelected={nightMode.on} onChange={nightMode.onChange}>
             {t('player.settings.nightMode')}
@@ -150,7 +161,7 @@ export function SettingsPanel({
     sound: nightMode?.on ? t('player.settings.nightModeOn') : undefined,
   };
   return (
-    <PlayerPanel title={t('player.settings.title')} onClose={onClose}>
+    <PlayerPanel id={PANEL_IDS.settings} title={t('player.settings.title')} onClose={onClose}>
       <OptionList
         key="main"
         label={t('player.settings.title')}

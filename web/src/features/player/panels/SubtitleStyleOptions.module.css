@@ -29,6 +29,11 @@
   padding: 0 var(--sc-space-3);
 }
 
+/* A member of the offset group; the wrapper only names it for the roving tab index. */
+.offsetItem {
+  display: contents;
+}
+
 .value {
   min-width: 4.5rem;
   font-variant-numeric: tabular-nums;
