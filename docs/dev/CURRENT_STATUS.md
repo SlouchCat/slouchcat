@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 13 «Abspielseite», Stufe 1 «Bedienung»: gebaut, PR offen (4. November 2026)
+## Konzept 13 «Abspielseite», Stufe 1 «Bedienung»: gemergt und auf CT 190 abgenommen (4. November 2026)
 
 **Zweig `claude/abspielseite-ae8b82` ab `main` `c023448`, `main` (`f7e2308`, PR #83) nachgezogen.**
 Neustart ab `main` auf Marcos Wort (11.15). Vertrag **1.10.0** (additiv). Release 1.10.0 nach der
@@ -50,13 +50,19 @@ mit allen Entscheiden des Baus in 11.15.
 Lauf davor auf `972381f`: e2e ebenfalls 461 von 463, andere zwei Tests (`admin-picks.spec.ts:98`
 in 8 Wiederholungen grün; Stopp-Test des Hörbuchs, behoben in `b42de23`, danach 24 von 24 grün).
 
-**Offen für die Abnahme auf CT 190:**
-- Image des Zweigs auf CT 190 bauen und starten (Marcos Wort), Abnahme der Stufe 1.
+**Abnahme und Merge:**
+- **CT 190** auf `abspielseite-9f6d42b` (`v1.9.0-116-g9f6d42b9`, auf dem CT gebaut nach
+  `/root/build-9f6d42b`), Sicherung `.env.bak-vor-abspielseite`, davor `wurzelwechsel-34822aa`.
+  Keine Migration, Start `healthy`. Abgenommen von Marco am 4. November 2026.
+- **PR #84** auf Marcos Wort gemergt (`14964c3`), GitHub-CI 19 von 19 grün.
 - Fertige Downloads zeigen Kapitel erst nach einem neuen Download (Release-Notiz).
 - Bekannte Grenzen: Bild-in-Bild endet bei jedem Wechsel von Ton, Untertitel, Qualität oder
   Version; das eigene Bild-in-Bild von Firefox zeigt keine Untertitel.
-- Nach Abnahme und Merge: Release 1.10.0 (Tag auf den Merge, Notiz-Entwurf
-  `release-notes-1.10.0.txt`).
+- **Release 1.10.0** (Marcos Wort «Ja, Release 1.10.0»): Versionsstellen auf 1.10.0 im Zweig
+  `claude/release-1.10.0` (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+  `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag `v1.10.0` setzt Marco auf den Merge-Commit.
+  Release-Notes: `release-notes-1.10.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.9.0).
+  Danach Stufe 2 (Schritte 7 bis 12, Vertrag 1.11.0) auf Marcos Wort.
 
 ## Teststufen, Agentenregeln und Plätze für schwere Läufe (4. November 2026)
 
