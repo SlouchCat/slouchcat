@@ -339,6 +339,17 @@ func (q *Queue) RaiseQueuedPriority(ctx context.Context, id int64, priority int)
 	return n == 1, nil
 }
 
+// PullQueuedForward lets a job that no worker has claimed yet and that waits for a later start
+// (Delay) run now, keeping its priority and attempts, and reports whether it did. A claimed,
+// finished or already due job stays as it is.
+func (q *Queue) PullQueuedForward(ctx context.Context, id int64) (bool, error) {
+	n, err := q.q.PullQueuedJobForward(ctx, systemq.PullQueuedJobForwardParams{Now: q.now().UnixMilli(), ID: id})
+	if err != nil {
+		return false, fmt.Errorf("pull job %d forward: %w", id, err)
+	}
+	return n == 1, nil
+}
+
 // ListActive returns the queued and running jobs of typ, oldest first.
 func (q *Queue) ListActive(ctx context.Context, typ string) ([]Job, error) {
 	rows, err := q.q.ListActiveJobsByType(ctx, typ)

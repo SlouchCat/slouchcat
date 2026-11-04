@@ -130,6 +130,36 @@ func TestRaiseQueuedPriority(t *testing.T) {
 	}
 }
 
+// PullQueuedForward lets a delayed job run now with its priority and attempts; a due, claimed or
+// unknown job stays as it is.
+func TestPullQueuedForward(t *testing.T) {
+	ctx := context.Background()
+	q, _ := newTestQueue(t)
+	delayed := mustEnqueue(t, q, NewJob{Type: "a", Priority: 5, IdempotencyKey: "chapters:x", Delay: 10 * time.Minute})
+	if j := mustClaim(t, q, "w1"); j != nil {
+		t.Fatalf("claimed the delayed job %+v", j)
+	}
+	if ok, err := q.PullQueuedForward(ctx, delayed); err != nil || !ok {
+		t.Fatalf("pull forward: %v %v", ok, err)
+	}
+	j, err := q.Get(ctx, delayed)
+	if err != nil || j.Priority != 5 || j.State != StateQueued || j.RunAfter.After(q.now()) || j.Attempts != 0 {
+		t.Fatalf("pulled job = %+v %v, want priority 5, due now, no attempt", j, err)
+	}
+	if ok, err := q.PullQueuedForward(ctx, delayed); err != nil || ok {
+		t.Errorf("pull of a due job: %v %v, want no change", ok, err)
+	}
+	if j := mustClaim(t, q, "w1"); j == nil || j.ID != delayed {
+		t.Fatalf("claimed %+v, want the pulled job %d", j, delayed)
+	}
+	if ok, err := q.PullQueuedForward(ctx, delayed); err != nil || ok {
+		t.Errorf("pull of a running job: %v %v, want no change", ok, err)
+	}
+	if ok, err := q.PullQueuedForward(ctx, 999_999); err != nil || ok {
+		t.Errorf("pull of an unknown job: %v %v", ok, err)
+	}
+}
+
 func TestEnqueueValidates(t *testing.T) {
 	q, _ := newTestQueue(t)
 	for name, j := range map[string]NewJob{
