@@ -42,6 +42,65 @@ describe('baseLanguage (11.3 «Sprachcodes»)', () => {
     expect(baseLanguage('xx')).toBeUndefined();
     expect(baseLanguage('mul')).toBeUndefined();
   });
+
+  // The cases of TestNormalize in server/internal/trackpick/languages_test.go (review step 9, m-5).
+  it.each([
+    ['de', 'de'],
+    ['ger', 'de'],
+    ['deu', 'de'],
+    ['German', 'de'],
+    ['deutsch', 'de'],
+    ['gsw', 'de'],
+    ['gsw-CH', 'de'],
+    ['eng', 'en'],
+    ['en_US', 'en'],
+    ['pt-BR', 'pt'],
+    ['por', 'pt'],
+    ['cn', 'zh'],
+    ['zh-Hans', 'zh'],
+    ['chi', 'zh'],
+    ['nob', 'no'],
+    ['nb', 'no'],
+    ['iw', 'he'],
+    ['fil', 'tl'],
+    [' FRE ', 'fr'],
+    ['yue', 'yue'],
+    ['', undefined],
+    ['und', undefined],
+    ['zxx', undefined],
+    ['xx', undefined],
+    ['mul', undefined],
+    ['und-Latn', undefined],
+    ['mal', 'ml'],
+    ['kan', 'kn'],
+    ['mar', 'mr'],
+    ['pan', 'pa'],
+    ['guj', 'gu'],
+    ['bel', 'be'],
+    ['aze', 'az'],
+    ['kaz', 'kk'],
+    ['uzb', 'uz'],
+    ['mlt', 'mt'],
+    ['ltz', 'lb'],
+    ['epo', 'eo'],
+    ['khm', 'km'],
+    ['lao', 'lo'],
+    ['mon', 'mn'],
+    ['nep', 'ne'],
+    ['sin', 'si'],
+    ['scc', 'sr'],
+    ['scr', 'hr'],
+    ['bur', 'my'],
+    ['mao', 'mi'],
+    ['tib', 'bo'],
+    ['Français', 'fr'],
+    ['español', 'es'],
+    ['Türkçe', 'tr'],
+    ['francais', 'fr'],
+    ['constructor', 'constructor'],
+  ])('baseLanguage(%j) is %j like the server', (code, want) => {
+    expect(baseLanguage(code)).toBe(want);
+  });
 });
 
 describe('orderTracks (V-5, 11.10)', () => {
