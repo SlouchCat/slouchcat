@@ -34,7 +34,7 @@ const (
 
 // anilistQuery asks for the fields the fill job maps onto a title.
 const anilistQuery = `query ($id: Int) { Media(id: $id, type: ANIME) { id title { romaji english native } ` +
-	`description(asHtml: false) genres coverImage { extraLarge } bannerImage isAdult averageScore } }`
+	`description(asHtml: false) genres coverImage { extraLarge } bannerImage isAdult averageScore countryOfOrigin } }`
 
 // aniListProvider talks to the AniList GraphQL API.
 type aniListProvider struct {
@@ -74,6 +74,8 @@ type AniListRecord struct {
 	IsAdult     bool
 	// AverageScore is the weighted average score of AniList's users, 0 to 100; 0 when unknown.
 	AverageScore int
+	// CountryOfOrigin is the ISO 3166-1 alpha-2 country the anime comes from ("JP").
+	CountryOfOrigin string
 }
 
 type anilistResponse struct {
@@ -90,9 +92,10 @@ type anilistResponse struct {
 			CoverImage  struct {
 				ExtraLarge string `json:"extraLarge"`
 			} `json:"coverImage"`
-			BannerImage  string `json:"bannerImage"`
-			IsAdult      bool   `json:"isAdult"`
-			AverageScore *int   `json:"averageScore"`
+			BannerImage     string `json:"bannerImage"`
+			IsAdult         bool   `json:"isAdult"`
+			AverageScore    *int   `json:"averageScore"`
+			CountryOfOrigin string `json:"countryOfOrigin"`
 		} `json:"Media"`
 	} `json:"data"`
 	Errors []struct {
@@ -162,6 +165,7 @@ func (p *aniListProvider) Media(ctx context.Context, id int64) (AniListRecord, e
 	rec := AniListRecord{
 		ID: m.ID, Romaji: m.Title.Romaji, English: m.Title.English, Native: m.Title.Native,
 		Description: stripHTML(m.Description), Genres: m.Genres, IsAdult: m.IsAdult,
+		CountryOfOrigin: m.CountryOfOrigin,
 	}
 	if m.AverageScore != nil && *m.AverageScore > 0 {
 		rec.AverageScore = *m.AverageScore
@@ -184,13 +188,15 @@ func (p *aniListProvider) imageURL(u string) bool {
 // fields maps the record onto the fields the fill job decides (fillFields): English texts
 // (title.english, else romaji; the description), the native title as original title, the
 // English genres, cover and banner as poster and backdrop, averageScore ÷ 10 as vote average
-// (concept 08 4.2), isAdult as FSK 18 (K-3: raised, never lowered). AniList has no German texts
+// (concept 08 4.2), countryOfOrigin as original language (JP ja, KR ko, CN zh; concept 13 11.7),
+// isAdult as FSK 18 (K-3: raised, never lowered). AniList has no German texts
 // (concept 4.4).
 func (r AniListRecord) fields() providerFields {
 	pf := providerFields{provider: model.ProviderAniList, values: fieldValues{}, genres: map[string][]string{}}
 	pf.set("title", "en", firstNonEmpty(r.English, r.Romaji))
 	pf.set("overview", "en", r.Description)
 	pf.set("original_title", "", r.Native)
+	pf.set(fieldOriginalLanguage, "", countryLanguage(r.CountryOfOrigin))
 	if r.CoverURL != "" {
 		pf.images = append(pf.images, ImageCandidate{Kind: "poster", Source: r.CoverURL, Default: true})
 	}

@@ -63,6 +63,8 @@ type fakeTMDB struct {
 	// tvNoImages drops its poster and backdrop.
 	tvNoGermanOverview bool
 	tvNoImages         bool
+	// tvOriginalLanguage is original_language of the series 900; "" leaves the field out.
+	tvOriginalLanguage string
 }
 
 // jpegBytes returns a w×h JPEG: a strong red block in the upper half (the poster's accent) over a

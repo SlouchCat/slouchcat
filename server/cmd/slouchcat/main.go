@@ -396,6 +396,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		if _, err := metaSvc.QueueVoteBackfill(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("vote backfill not queued", "err", err)
 		}
+		// Original languages of the titles matched before migration 00032 (concept 13, 11.7):
+		// queued once at the first start after it, later only by hand.
+		if _, err := metaSvc.QueueOriginalLanguageBackfillOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("original language backfill not queued", "err", err)
+		}
 	})
 	defer func() {
 		stop() // also on error paths, so the workers return before the database closes

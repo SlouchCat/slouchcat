@@ -1053,6 +1053,7 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, lang
 		TmdbPosterPath:   cur.TmdbPosterPath,
 		TmdbBackdropPath: cur.TmdbBackdropPath,
 		VoteAverage:      cur.VoteAverage,
+		OriginalLanguage: cur.OriginalLanguage,
 	}
 	if !locked["original_title"] && rec.OriginalTitle != "" {
 		p.OriginalTitle = nullString(rec.OriginalTitle)
@@ -1116,6 +1117,16 @@ func titleUpdate(cur systemq.Item, locked map[string]bool, rec TitleRecord, lang
 			p.VoteAverage = sql.NullFloat64{Float64: v, Valid: true}
 		} else if p.TmdbID != cur.TmdbID || p.TvdbID != cur.TvdbID {
 			p.VoteAverage = sql.NullFloat64{}
+		}
+	}
+	if !locked[fieldOriginalLanguage] {
+		// The identifier's original language (concept 13 11.7), carried by the match like the
+		// vote: without one a title never asked before, or another title at the provider, is
+		// "looked up, unknown" (''); otherwise the value a filler gave stays.
+		if rec.OriginalLanguage != "" {
+			p.OriginalLanguage = sql.NullString{String: rec.OriginalLanguage, Valid: true}
+		} else if !cur.OriginalLanguage.Valid || p.TmdbID != cur.TmdbID || p.TvdbID != cur.TvdbID {
+			p.OriginalLanguage = sql.NullString{String: "", Valid: true}
 		}
 	}
 	// tmdb_poster_path and tmdb_backdrop_path stay as stored: item_images carries the chosen
