@@ -384,9 +384,9 @@ export function OfflinePlayer({
         const cues = (node.track as TextTrack | undefined)?.cues;
         const applied = Number(node.dataset.shift ?? 0);
         if (!cues || cues.length === 0 || applied === shift) continue;
-        for (let index = 0; index < cues.length; index += 1) {
-          const cue = cues[index];
-          if (!cue) continue;
+        // The list stays sorted by start time and re-sorts while a cue moves: walking it would
+        // shift some cues twice and others not at all (review step 6). A copy keeps the order.
+        for (const cue of Array.from(cues)) {
           cue.startTime += shift - applied;
           cue.endTime += shift - applied;
         }
