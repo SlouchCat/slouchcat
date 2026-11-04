@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 13 «Abspielseite», Stufe 2 «Sprache und Qualität»: gebaut, PR offen (4. November 2026)
+## Konzept 13 «Abspielseite», Stufe 2 «Sprache und Qualität»: gemergt und auf CT 190 abgenommen (4. November 2026)
 
 **Zweig `claude/abspielseite-stufe2` ab `main` `d74b665` (Release 1.10.0).** Marcos Wort «Stelle
 die CT190 bitte um und beginne danach Stufe2». Vertrag **1.11.0** (additiv, eine
@@ -42,9 +42,21 @@ Bedeutungsänderung: fehlendes oder leeres `subtitleTrack` heisst «Server wähl
 | `ci:storybook` | `357 passed` |
 | `ci:e2e:parallel` (3 Shards) | 477 von 479; rot `profiles.spec.ts:380` in Chromium und Firefox (der neue «×» als Tab-Halt), behoben in `2fad41c`, danach `profiles` und `playback-settings` 18/18 in beiden Browsern |
 
+**Abnahme und Merge:**
+- **CT 190** auf `stufe2-8bcc359` (`v1.10.0-51-g8bcc359a`, auf dem CT gebaut nach
+  `/root/build-8bcc359`), Sicherung `.env.bak-vor-stufe2`, davor Release 1.10.0. Migration 00032
+  lief in 2,2 s, DB-Sicherung vorher
+  `/config/backups/pre-migration-v1.10.0-51-g8bcc359a-20261104T213007.599Z.db`; Start `healthy`,
+  Backend `qsv`, Jobart «Originalsprache nachholen» lief an (200 Titel je rund 100 s). Abgenommen
+  von Marco am 4. November 2026.
+- **PR #86** auf Marcos Wort gemergt (`632938b`), GitHub-CI 19 von 19 grün.
+- **Release 1.11.0:** Versionsstellen auf 1.11.0 im Zweig `claude/release-1.11.0`
+  (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`), Tag `v1.11.0` setzt Marco auf den Merge-Commit. Release-Notes:
+  `release-notes-1.11.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.10.0). Danach Stufe 3
+  (Schritte 13 bis 15, Kapitelbilder, Vertrag 1.12.0) in einer neuen Session (Marcos Wort).
+
 **Offen:**
-- PR, Abnahme auf CT 190 (Migration 00032 läuft dort beim Start; der Server sichert vorher per
-  `VACUUM INTO`), Merge, Release 1.11.0 auf Marcos Wort.
 - Bekannte Grenzen und Hinweise für die Release-Notiz: ein gemerktes 1080p wandelt 4K-Titel um;
   Breitbild-Ausgaben werden schmaler (16:9-Box), auch bei Downloads; Level 4.2/5.2 nicht auf
   echten Geräten geprüft; Spulen in 2160p nicht gemessen (keine echte 4K-Datei auf CT 190).
