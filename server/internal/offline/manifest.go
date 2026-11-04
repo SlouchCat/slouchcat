@@ -295,9 +295,11 @@ func (s *Service) open(rel, mediaType, name string, missing error) (model.Stream
 }
 
 // Manifest returns what the device needs to fetch and play a prepared download of its own: the
-// fragment index, codecs, size, the audio track, the WebVTT sidecars, the chapters of an audiobook
-// (M6) and the URLs with a download token of the active profile. Errors: model.ErrNotFound (unknown, another device or account, the
-// title not visible to the active profile), model.ErrDownloadNotReady, model.ErrDownloadEvicted.
+// fragment index, codecs, size, the audio track, the WebVTT sidecars, the chapters (of an
+// audiobook since M6, of a film or an episode from its file's chapter marks since contract
+// 1.10.0) and the URLs with a download token of the active profile. Errors: model.ErrNotFound
+// (unknown, another device or account, the title not visible to the active profile),
+// model.ErrDownloadNotReady, model.ErrDownloadEvicted.
 func (s *Service) Manifest(ctx context.Context, session model.Session, id string) (model.DownloadManifest, error) {
 	if !downloadID.MatchString(id) {
 		return model.DownloadManifest{}, model.ErrNotFound
@@ -359,7 +361,8 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 	if isAudio(item.Kind) && out.Codecs == "" {
 		out.Codecs = "mp4a.40.2"
 	}
-	if item.Kind == "audiobook" && s.audio != nil {
+	switch {
+	case item.Kind == "audiobook" && s.audio != nil:
 		// Book-wide chapters on the file's timeline (the parts are concatenated in order).
 		if out.Chapters, err = s.audio.Chapters(ctx, scope, row.ItemID); err != nil {
 			return model.DownloadManifest{}, err
@@ -367,6 +370,15 @@ func (s *Service) Manifest(ctx context.Context, session model.Session, id string
 		if out.Chapters == nil {
 			out.Chapters = []model.Chapter{}
 		}
+	case !isAudio(item.Kind) && row.MediaFileID.Valid:
+		// A film or an episode: the chapter marks of the downloaded file, as playback reads them.
+		// The download keeps the source timeline (transcode.Runner.Download), so they fit a remux
+		// and a transcode alike.
+		pf, err := s.vis.MediaFileProbe(ctx, scope, row.ItemID, row.MediaFileID.String)
+		if err != nil {
+			return model.DownloadManifest{}, err
+		}
+		out.Chapters = parseProbe(pf.Probe).ChapterMarks()
 	}
 	for _, e := range ix.entries {
 		out.Segments = append(out.Segments, model.DownloadSegment{StartMs: e.StartMs, DurationMs: e.DurationMs, Offset: e.Offset, Length: e.Length})

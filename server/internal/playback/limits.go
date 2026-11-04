@@ -210,7 +210,7 @@ func (s *Service) endReplaced(ctx context.Context, session model.Session, itemID
 		return fmt.Errorf("revoke replaced playback sessions: %w", err)
 	}
 	for _, id := range ids {
-		s.end(id)
+		s.end(id, model.StoppedByClient)
 	}
 	return nil
 }
@@ -228,7 +228,7 @@ func (s *Service) recheckWatchLimit(ctx context.Context, profileID int64, limitM
 	}); err != nil {
 		return fmt.Errorf("stop playback session: %w", err)
 	}
-	s.end(id)
+	s.end(id, model.StoppedByLimit)
 	return &model.WatchLimitError{LimitMinutes: wt.LimitMinutes, UsedMinutes: wt.UsedMinutes}
 }
 

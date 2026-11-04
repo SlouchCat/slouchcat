@@ -46,7 +46,7 @@ test('progress is saved per profile and resumes on another device (W-5)', async 
   const player = page.getByRole('main', { name: 'Videoplayer' });
   await expect(player).toHaveAttribute('data-start-ms', /\d+/);
   // Earlier specs may have left a resume position; go back to 0 so the clip never nears its end.
-  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('0');
   await expect.poll(() => videoTime(page)).toBeLessThan(PLAY_TO_S);
   await expect.poll(() => videoTime(page), { timeout: 15_000 }).toBeGreaterThanOrEqual(PLAY_TO_S);
 

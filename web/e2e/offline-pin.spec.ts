@@ -81,6 +81,8 @@ test('offline PIN: the verifier of the normal PIN, the separate offline PIN, the
     await page.keyboard.press('Enter');
     const locked = page.getByRole('dialog', { name: 'PIN für E2E Gesperrt' });
     await expect(locked.getByText('Offline gesperrt')).toBeVisible();
+    // Opened with Enter: «Schliessen» has the focus at once (focusOnMount, 11.13).
+    await expectFocusOn(page, locked.getByRole('button', { name: 'Schliessen' }));
     await page.keyboard.press('Escape');
     await expect(locked).toHaveCount(0);
 
@@ -117,6 +119,8 @@ test('offline PIN: the verifier of the normal PIN, the separate offline PIN, the
     // The separate offline PIN replaces the normal one offline.
     await page.getByRole('button', { name: 'Profil wechseln' }).focus();
     await page.keyboard.press('Enter');
+    // Back on the picker by Enter: the first tile has the focus at once (focusOnMount, 11.13).
+    await expectFocusOn(page, tiles.getByRole('button').first());
     await tiles.getByRole('button', { name: /E2E Offline-PIN/ }).focus();
     await page.keyboard.press('Enter');
     const separateDialog = page.getByRole('dialog', { name: 'PIN für E2E Offline-PIN' });

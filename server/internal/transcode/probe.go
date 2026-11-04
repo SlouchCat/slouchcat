@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // Probe is the parsed result of ffprobe for one media file (plan 3.4 step 3). It is stored as
@@ -118,6 +120,20 @@ type Chapter struct {
 	Start time.Duration `json:"start"`
 	End   time.Duration `json:"end"`
 	Title string        `json:"title,omitempty"`
+}
+
+// ChapterMarks maps the chapter marks of p onto the API's chapters, on the source timeline that HLS
+// outputs and downloads keep (ADR 0003; the client maps both back to it). Empty, never nil, without
+// a probe. Playback and the download manifest of a film or an episode read their chapters here.
+func (p *Probe) ChapterMarks() []model.Chapter {
+	out := []model.Chapter{}
+	if p == nil {
+		return out
+	}
+	for _, c := range p.Chapters {
+		out = append(out, model.Chapter{StartMs: c.Start.Milliseconds(), EndMs: c.End.Milliseconds(), Title: c.Title})
+	}
+	return out
 }
 
 // ffprobe JSON output; numbers that ffprobe prints as strings stay strings here.

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectVisibleFocus, resetFocus, tabTo } from './keyboard';
+import { arrowTo } from './playback';
 
 // B-5: two files of one film ("… (2024).mp4" in 1080p and "… (2024) - 720p.mp4") are one title
 // with two versions; the chosen version is what the player streams (Stream-Info shows its id).
@@ -75,21 +76,30 @@ test('choose 720p by keyboard → the player streams that file (Stream-Info)', a
   await expect(info).toHaveCount(0);
 });
 
-test('the version menu of the player switches to the other file', async ({ page }) => {
+test('the version page of the gear switches to the other file', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   const first = await startedFile(page, () => page.keyboard.press('Enter'));
   await expect(player(page)).toHaveAttribute('data-start-ms', /\d+/);
   await expect(player(page)).toHaveAttribute('data-media-file-id', first);
 
-  const menuButton = page.getByRole('button', { name: /^Version: / });
-  await tabTo(page, menuButton, 10);
+  // The button row is one Tab stop (roving tab index, concept 13 11.2): → walks along it to the
+  // gear; its first page leads to the version page.
+  const gear = page.getByRole('button', { name: 'Einstellungen' });
+  await arrowTo(page, gear, 'ArrowRight');
+  await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
-  // react-aria names a menu after its button ("Version: 1080p").
-  const menu = page.getByRole('menu', { name: /^Version/ });
+  const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+  const versionRow = settings.getByRole('option', { name: 'Version' });
+  await expect(versionRow).toHaveAccessibleDescription('1080p');
+  await arrowTo(page, versionRow);
+  await page.keyboard.press('Enter');
+  const menu = page
+    .getByRole('dialog', { name: 'Version' })
+    .getByRole('listbox', { name: 'Version' });
   await expect(menu).toBeVisible();
   await expectVisibleFocus(page);
-  // The menu opens on the current (primary, first) version; the other one is a step down.
-  await expect(menu.getByRole('menuitemradio', { checked: true })).toBeFocused();
+  // The page opens on the current (primary, first) version; the other one is a step down.
+  await expect(menu.getByRole('option', { selected: true })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   const second = await startedFile(page, () => page.keyboard.press('Enter'));
   expect(second).not.toBe(first);
@@ -99,5 +109,7 @@ test('the version menu of the player switches to the other file', async ({ page 
   // The player stays (same route) with the focus on play/pause, as after any start.
   await expect(page).toHaveURL(/\/play\//);
   await expectFocusOn(page, page.getByRole('button', { name: /^(Pause|Abspielen)$/ }));
-  await expect(page.getByRole('button', { name: /^Version: / })).toHaveText('720p');
+  await arrowTo(page, gear, 'ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect(versionRow).toHaveAccessibleDescription('720p');
 });

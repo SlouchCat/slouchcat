@@ -51,7 +51,15 @@ test('one minute played: the start answers 403 with the hint; the report shows t
   expect(answer.watchTime).toMatchObject({ limitMinutes: 1, remainingMinutes: 0 });
   expect(answer.watchTime?.usedMinutes).toBeGreaterThanOrEqual(1);
 
-  const start = await startOf(page, () => page.goto(`/play/${itemId}`));
+  // Enter on the detail page's play link opens the hint (concept 13, 11.13: the back button takes
+  // the focus through focusOnMount, react-aria's autoFocus waited for the cancelled transition).
+  await page.goto(`/items/${itemId}`);
+  await expect(page.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
+  const playLink = page.getByRole('link', {
+    name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/,
+  });
+  await playLink.focus();
+  const start = await startOf(page, () => page.keyboard.press('Enter'));
   expect(start.status).toBe(403);
   expect(start.body.code).toBe('watch_limit_reached');
   expect(start.body.extensions?.limitMinutes).toBe(1);
@@ -103,10 +111,15 @@ test('a running player stops with the hint once the limit is reached', async ({ 
   test.setTimeout(60_000);
   const itemId = await itemIdByTitle(owner, H264_TITLE);
   await useFreshProfile(page, owner, 'E2E Stopp', { watchLimitMinutes: 1 });
+  // This test covers the answer to the progress event. The 10 s title is fully loaded at once, so
+  // its stream asks nothing more and no 401 can come; the stop watch (concept 13) would tell the
+  // player within 4 s and is switched off here. The 401 of a media request is covered by
+  // admin-streams.spec.ts (partly buffered, without the stop watch).
+  await page.route(/\/api\/v1\/playback\/sessions\/[^/]+\/state$/, (route) => route.abort());
   await play(page, itemId);
 
   // Another device of the profile used up the minute; the player learns it from the answer to
-  // its next progress event (every 10 s, at the latest on pause) or from the revoked stream.
+  // its next progress event (every 10 s, at the latest on pause).
   const answer = await watchOneMinute(page.request, itemId);
   expect(answer.watchTime?.remainingMinutes).toBe(0);
   await page.locator('video').evaluate((video: HTMLVideoElement) => {

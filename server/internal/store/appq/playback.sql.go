@@ -476,7 +476,7 @@ UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
 WHERE revoked_at IS NULL
   AND (playback_sessions.device_id = ?3
        OR playback_sessions.session_id IN (SELECT s.id FROM sessions AS s WHERE s.device_id = ?3))
-RETURNING id, account_id, profile_id, item_id
+RETURNING id, session_id, account_id, profile_id, item_id
 `
 
 type RevokePlaybackSessionsByDeviceParams struct {
@@ -487,6 +487,7 @@ type RevokePlaybackSessionsByDeviceParams struct {
 
 type RevokePlaybackSessionsByDeviceRow struct {
 	ID        string
+	SessionID int64
 	AccountID int64
 	ProfileID int64
 	ItemID    string
@@ -504,6 +505,7 @@ func (q *Queries) RevokePlaybackSessionsByDevice(ctx context.Context, arg Revoke
 		var i RevokePlaybackSessionsByDeviceRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.SessionID,
 			&i.AccountID,
 			&i.ProfileID,
 			&i.ItemID,
@@ -597,7 +599,7 @@ func (q *Queries) RevokeReplacedPlaybackSessions(ctx context.Context, arg Revoke
 const stopPlaybackSession = `-- name: StopPlaybackSession :many
 UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
 WHERE id = ?3 AND revoked_at IS NULL AND expires_at > ?1
-RETURNING id, account_id, profile_id, item_id
+RETURNING id, session_id, account_id, profile_id, item_id
 `
 
 type StopPlaybackSessionParams struct {
@@ -608,6 +610,7 @@ type StopPlaybackSessionParams struct {
 
 type StopPlaybackSessionRow struct {
 	ID        string
+	SessionID int64
 	AccountID int64
 	ProfileID int64
 	ItemID    string
@@ -626,6 +629,7 @@ func (q *Queries) StopPlaybackSession(ctx context.Context, arg StopPlaybackSessi
 		var i StopPlaybackSessionRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.SessionID,
 			&i.AccountID,
 			&i.ProfileID,
 			&i.ItemID,

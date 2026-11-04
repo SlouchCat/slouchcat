@@ -71,11 +71,13 @@ test('a 1-min limit stops offline playback after a minute and is booked later', 
     await page.keyboard.press('Escape');
     await expect(page).toHaveURL(/\/offline$/);
 
-    // Opened again the same day: the hint right away, no playback.
+    // Opened again the same day with Enter: the hint right away, no playback, the focus on its
+    // back button at once (focusOnMount, not react-aria's autoFocus: 11.13).
     await card.focus();
     await page.keyboard.press('Enter');
     await expect(player).toHaveAttribute('data-ended-reason', 'limit');
     await expect(player.getByRole('button', { name: 'Abspielen' })).toBeDisabled();
+    await expectFocusOn(page, page.getByRole('alert').getByRole('button', { name: 'Zurück' }));
     await page.keyboard.press('Escape');
 
     // Back online: the server books the offline minute (the report shows the overrun, AN-18).

@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useRef,
   useState,
   type HTMLAttributes,
@@ -10,8 +11,10 @@ import { useTranslation } from 'react-i18next';
 import { itemAccentStyle } from './accent';
 import { AriaButton } from './AriaButton';
 import styles from './AudioPlayer.module.css';
+import { focusOnMount } from './focusOnMount';
 import { MenuButton } from './Menu';
 import { PosterFallback } from './PosterFallback';
+import { VolumeControl } from './VolumeControl';
 
 /** The menus of the audio player; the page opens them by key as well (C, T). */
 export type AudioPlayerMenu = 'chapters' | 'speed' | 'sleep';
@@ -75,6 +78,12 @@ interface AudioPlayerProps extends Omit<HTMLAttributes<HTMLElement>, 'title' | '
 }
 
 const pad = (value: number) => String(value).padStart(2, '0');
+
+/** Hands the element to the page's ref as well (a module function: props stay unchanged). */
+function passRef(ref: Ref<HTMLButtonElement> | undefined, element: HTMLButtonElement | null) {
+  if (typeof ref === 'function') ref(element);
+  else if (ref) ref.current = element;
+}
 
 /** `h:mm:ss` from an hour on (of the longer of both times), else `m:ss`. */
 function clock(ms: number, longest: number): string {
@@ -238,6 +247,15 @@ export function AudioPlayer({
       onOpenMenuChange(isOpen ? menu : openMenu === menu ? null : openMenu),
   });
   const presetKey = RATES.find((value) => Math.abs(value - rate) < 0.001);
+  // The first focus goes to play/pause: focusOnMount, not react-aria's autoFocus, which can wait
+  // 500 ms for a transition after Enter opened the player (concept 13, 11.13).
+  const playRef = useCallback(
+    (element: HTMLButtonElement | null) => {
+      passRef(playButtonRef, element);
+      focusOnMount(element);
+    },
+    [playButtonRef],
+  );
 
   return (
     <main className={styles.player} aria-label={t('player.audioRegion')} {...rest}>
@@ -326,7 +344,7 @@ export function AudioPlayer({
               isDisabled={isDisabled}
             />
             <AriaButton
-              ref={playButtonRef}
+              ref={playRef}
               variant="primary"
               size="lg"
               icon={playing ? 'pause' : 'play'}
@@ -334,7 +352,6 @@ export function AudioPlayer({
               aria-label={playing ? t('player.pause') : t('player.play')}
               onPress={onTogglePlay}
               isDisabled={isDisabled}
-              autoFocus
             />
             <AriaButton
               variant="ghost"
@@ -430,29 +447,12 @@ export function AudioPlayer({
               onSelect={onSleep}
               {...menuProps('sleep')}
             />
-            <span className={styles.group}>
-              <AriaButton
-                variant="ghost"
-                icon={muted || volume === 0 ? 'volumeMute' : 'volume'}
-                iconOnly
-                aria-label={t('player.audio.mute')}
-                aria-pressed={muted}
-                onPress={onToggleMute}
-              />
-              <input
-                className={styles.volume}
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={muted ? 0 : volume}
-                aria-label={t('player.audio.volume')}
-                aria-valuetext={t('player.volume', {
-                  percent: Math.round((muted ? 0 : volume) * 100),
-                })}
-                onChange={(event) => onVolume(Number(event.currentTarget.value))}
-              />
-            </span>
+            <VolumeControl
+              volume={volume}
+              muted={muted}
+              onVolumeChange={onVolume}
+              onToggleMute={onToggleMute}
+            />
           </div>
         </div>
       </div>

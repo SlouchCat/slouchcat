@@ -1479,6 +1479,14 @@ const (
 	StoppedByRevoked = "revoked"
 )
 
+// PlaybackState is what the server remembers of a playback session in memory
+// (getPlaybackSessionState, concept 13): whether it stopped and, when known, who stopped it (one
+// of the StoppedBy values; empty for a running or an expired playback).
+type PlaybackState struct {
+	Stopped   bool
+	StoppedBy string
+}
+
 // Errors of the W-8 and K-5 limits. ErrStreamLimit: the profile runs as many streams as allowed
 // (409 stream_limit_reached). ErrWatchLimit: the daily watch time is used up (403
 // watch_limit_reached).

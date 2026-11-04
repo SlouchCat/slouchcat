@@ -13,6 +13,11 @@ describe('player labels', () => {
     expect(languageName('de', 'en')).toBe('German');
     expect(languageName('und', 'de')).toBeUndefined();
     expect(languageName(undefined, 'de')).toBeUndefined();
+    expect(languageName('xx', 'de')).toBeUndefined();
+    expect(languageName('cn', 'de')).toBe('Chinesisch');
+    expect(languageName('german', 'en')).toBe('German');
+    // Swiss German keeps its own name on screen.
+    expect(languageName('gsw', 'de')).toBe('Schweizerdeutsch');
   });
 
   it('labels tracks with language, codec, channels and source', () => {
@@ -26,6 +31,10 @@ describe('player labels', () => {
     expect(trackLabel(t, { ...pgs!, language: undefined, forced: true }, 1, 'de')).toBe(
       'Spur 2 · PGS · erzwungen',
     );
+    // The panels show «erzwungen» as a mark instead.
+    expect(
+      trackLabel(t, { ...pgs!, language: undefined, forced: true }, 1, 'de', { forced: false }),
+    ).toBe('Spur 2 · PGS');
     expect(codecName('truehd')).toBe('TrueHD');
   });
 

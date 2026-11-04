@@ -16,7 +16,7 @@
   Frage 18 und ADR 0020. Dieses Konzept nimmt darum **Frage 19** und **ADR 0021** (2160p);
   Migration und Vertragsfassung sind die nächsten freien nach 11 und 12 (voraussichtlich additiv
   in **1.8.0**). **Nachtrag 2. November 2026:** Konzept 12 nimmt 1.8.0 als eigenes Release
-  (Frage 18); dieses Konzept rückt auf **1.9.0 oder später** und behält Frage 19 und ADR 0021.
+  (Frage 18); dieses Konzept rückt auf **1.9.0 oder später** und behält Frage 19 und ADR 0021. **Nachtrag 4. November 2026:** Bau neu ab `main` `c023448`, Verträge 1.10.0 bis 1.12.0 je Stufe, Stopp durch die Verwaltung in Stufe 1 (Abschnitt 11.15).
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
   und `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 
@@ -761,6 +761,64 @@ Jede Stufe ein eigener Zweig und Pull Request, jeder Schritt ein Commit, `task c
 | TMDB-Backfill dauert | gedrosselt; bis dahin Standardspur der Datei |
 | Schwarze Kapitelbilder | Zeitpunkt nach 11.6; sonst zweiter Versuch 10 s später |
 | Bedeutungsänderung bei `subtitleTrack: null` trifft Fremd-Clients | Changelog; heute nutzt nur der eigene Web-Client die API für Wiedergabe |
+
+### 11.15 Nachtrag zum Bau (4. November 2026)
+
+Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. November 2026
+(Frage 19). Wo dieser Nachtrag etwas anderes sagt als 11.1 bis 11.14, gilt der Nachtrag.
+
+- **Neustart ab `main`.** Der Bau beginnt neu ab `main` `c023448`. Der erste Bau auf
+  `claude/abspielseite-stufe1` wird nicht weiterverwendet. Je Zweig koordiniert genau eine
+  Session, die als einzige `docs/dev/CURRENT_STATUS.md` schreibt und `task ci` startet.
+- **Je Stufe ein PR und ein Release:** Stufe 1 → 1.10.0, Stufe 2 → 1.11.0, Stufe 3 → 1.12.0.
+  Jede Stufe wird auf CT 190 abgenommen. Merge, Tag und Release nur auf Marcos Wort.
+- **Teststufen statt `task ci` je Schritt** (Entscheid vom 4. November 2026,
+  `docs/dev/SETUP.md` «Teststufen»). Das ersetzt «`task ci` grün» je Schritt in 11.12:
+  - Je Schritt `task check:fast` und die betroffenen Tests.
+  - `task ci` einmal vor dem PR.
+  - Die GitHub-CI prüft alles.
+- **Stopp durch die Verwaltung (11.13), Option 1, neuer Schritt 5b in Stufe 1:**
+  - Der Player fragt beim Abspielen alle 4 s eine kleine Statusabfrage ab.
+  - Der Server hält gestoppte Sitzungen nur im Speicher (Haken an der Stelle, durch die jeder Stopp
+    läuft), ohne DB-Zugriff und ohne Transcoder.
+  - Das gilt für Video (`VideoPlayer`) und Audio (`AudioPlayerPage`).
+  - Anforderung: Ein Stopp wird in höchstens 5 s erkannt, auch bei ganz gepuffertem Titel.
+  - Weil das eine neue Operation ist, hat Stufe 1 den **additiven Vertrag 1.10.0**. Das weicht ab von
+    6.1 «kein Vertrag» und von 11.8 («1.9.0 oder später»: Stufe 2 bekommt 1.11.0, Stufe 3 1.12.0).
+- **Kein Safari-Spike.** Es gibt kein Apple-Gerät. Der Spike vor Schritt 4 (11.10, 11.13) entfällt.
+  Nachtmodus und Verstärkung bis 150 % sind in Safari vorsorglich ausgeblendet. Die Lautstärke bis
+  100 % bleibt.
+- **Schritt C «CI beschleunigen»** vor Stufe 1: PR #81 (Doku-PRs überspringen, Firefox reduziert,
+  Server-Tests in Gruppen), PR #82 (Teststufen, Plätze für schwere Läufe), PR #83 (checkptr aus in
+  `modernc.org` beim `-race`-Lauf).
+- **Reihenfolge in Stufe 1:**
+  - Welle A: Schritte 1, 2 und 5b parallel.
+  - Welle B: Schritt 3.
+  - Welle C: Schritt 4.
+  - Welle D: Schritte 5 und 6.
+  - Danach Changelog, `task ci` und PR.
+  - Höchstens drei Executor gleichzeitig, je in einem eigenen Worktree und mit eigenem e2e-Port.
+- **Englisch als zweite Wahl** (Marcos Entscheid vom 4. November 2026, Review von Schritt 4, m-8):
+  Ton- und Untertitel-Panel sortieren zuerst die Profilsprache, dann Englisch, dann «Weitere
+  Sprachen (n)». Das ergänzt 11.10 «Profilsprachen zuerst».
+- **Bekannte Grenze: Bild-in-Bild in Firefox ohne Untertitel** (Review von Schritt 4, m-3). Das
+  eigene Bild-in-Bild von Firefox meldet kein `enterpictureinpicture`. Der `<track>` bleibt darum
+  `hidden`, und das Firefox-Fenster zeigt keine Untertitel. In Chromium schaltet der Player wie in
+  11.10 beschrieben auf `showing`. Ein verlässliches Signal für Firefox gibt es nicht.
+- **Karten in den Reitern** (Schritt 5): «Als Nächstes» und «Besetzung» nutzen das neue Bauteil
+  `ui/PlayerCard` (Knopf mit Roving-Tabindex) statt `EpisodeCard` und `CastCard` wie in 11.10.
+  Diese sind Links und brauchen die räumliche Navigation, die auf der Player-Route nicht geladen
+  ist.
+- **«Folge zurück»** (Schritt 5) springt nur innerhalb der Staffel, nicht über die Staffelgrenze.
+- **Kapitel für Video-Downloads** (Marcos Entscheid vom 4. November 2026, Review von Schritt 6,
+  M-1): Das Download-Manifest liefert für Film und Folge die Kapitel aus derselben Quelle wie die
+  Online-Wiedergabe, nicht mehr nur für Hörbücher. Das ist eine additive Änderung im Vertrag
+  1.10.0 (Beschreibung von `DownloadManifest.chapters`) und eine kleine Serveränderung in Stufe 1,
+  abweichend von 6.1 «nur Web-App». Fertige Downloads behalten ihr gespeichertes Manifest und
+  zeigen Kapitel erst nach einem neuen Download (Release-Notiz). Podcast-Folgen bekommen offline
+  weiterhin keine Kapitel.
+- PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
+  Release.
 
 ## 12. Review-Protokoll
 

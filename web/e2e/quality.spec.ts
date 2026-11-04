@@ -14,6 +14,10 @@ import {
 } from './playback';
 import { CSRF } from './catalog';
 
+/** The quality page of the gear panel (Q opens it): a listbox named like the page. */
+const qualityList = (page: import('@playwright/test').Page) =>
+  page.getByRole('dialog', { name: 'Qualität' }).getByRole('listbox', { name: 'Qualität' });
+
 // W-8: manual quality switches the variant; a profile limit of 720p keeps the output at or below
 // 720p; a bandwidth limit of 4000 kbit/s keeps the bit rate at or below 4 Mbit/s; one stream per
 // profile turns the second start away with 409 and a hint. The server decides; the specs check
@@ -27,17 +31,21 @@ test('choosing 480p by keyboard starts a new session with a 480p transcode', asy
   const itemId = await itemIdByTitle(owner, H264_TITLE);
   await resetProgress(page.request, itemId, 10_000);
   const first = await play(page, itemId);
-  await expect(page.getByRole('button', { name: /^Qualität: Automatisch/ })).toBeVisible();
+  // The gear names the rung it plays (11.2).
+  const gear = page.getByRole('button', { name: /^Einstellungen · / });
+  await expect(gear).toHaveText(/^Automatisch/);
 
+  // Q opens the gear straight on its quality page, on the rung the server delivers.
   await page.keyboard.press('q');
-  const menu = page.getByRole('menu', { name: /^Qualität/ });
+  const menu = qualityList(page);
   await expect(menu).toBeVisible();
   await expectVisibleFocus(page);
-  await expect(menu.getByRole('menuitemradio', { name: /^Automatisch/ })).toHaveAttribute(
-    'aria-checked',
+  await expect(menu.getByRole('option', { name: /^Automatisch/ })).toHaveAttribute(
+    'aria-selected',
     'true',
   );
-  await arrowTo(page, menu.getByRole('menuitemradio', { name: '480p' }));
+  await expect(menu.getByRole('option', { name: /^Automatisch/ })).toBeFocused();
+  await arrowTo(page, menu.getByRole('option', { name: '480p' }));
   const second = await startOf(page, () => page.keyboard.press('Enter'));
   expect(second.status).toBe(200);
   expect(second.request.quality).toBe('480p');
@@ -46,7 +54,7 @@ test('choosing 480p by keyboard starts a new session with a 480p transcode', asy
   expect(second.body.transcoding?.mode).toBe('transcode');
   expect(second.body.transcoding?.height).toBe(480);
   expect(second.body.transcoding?.reason).toBe('quality');
-  // The player's button follows the rung the server marks as current (rule 12).
+  // The gear follows the rung the server marks as current (rule 12).
   expect(second.body.qualities.find((option) => option.current)?.quality).toBe('480p');
 
   await expect(player(page)).toHaveAttribute(
@@ -54,10 +62,24 @@ test('choosing 480p by keyboard starts a new session with a 480p transcode', asy
     second.body.playbackSessionId,
   );
   await expect(player(page)).toHaveAttribute('data-switch-ms', /\d+/, { timeout: 15_000 });
-  await expect(page.getByRole('button', { name: 'Qualität: 480p' })).toBeVisible();
-  // Escape closes a menu and leaves the focus on its button.
+  // The choice closed the panel; the gear shows the new rung.
+  await expect(menu).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Einstellungen · 480p' })).toHaveText('480p');
+  // The gear's first page names the rung; Escape closes it and gives the focus back to the gear.
+  await arrowTo(page, gear, 'ArrowRight');
+  await page.keyboard.press('Enter');
+  const settings = page.getByRole('dialog', { name: 'Einstellungen' });
+  await expect(settings.getByRole('option', { name: 'Qualität' })).toHaveAccessibleDescription(
+    '480p',
+  );
+  await page.keyboard.press('Escape');
+  await expect(settings).toHaveCount(0);
+  await expectFocusOn(page, gear);
   await page.keyboard.press('q');
-  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('option', { name: '480p', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
   await expect(page).toHaveURL(/\/play\//);
@@ -78,8 +100,7 @@ test('a profile limit of 720p: automatic quality plays at most 720p', async ({ p
   expect(rung1080!.available).toBe(false);
 
   await page.keyboard.press('q');
-  const menu = page.getByRole('menu', { name: /^Qualität/ });
-  await expect(menu.getByRole('menuitemradio', { name: '1080p' })).toHaveAttribute(
+  await expect(qualityList(page).getByRole('option', { name: '1080p' })).toHaveAttribute(
     'aria-disabled',
     'true',
   );

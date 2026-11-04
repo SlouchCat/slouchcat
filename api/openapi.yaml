@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.9.0
+  version: 1.10.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -1817,6 +1817,62 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "404":
           description: Not a running playback session of this browser session (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /playback/sessions/{id}/state:
+    get:
+      operationId: getPlaybackSessionState
+      summary: Whether a playback session still runs (contract 1.10.0)
+      description: |
+        A player that has buffered its whole title makes no further stream request, so the 401 of
+        a revoked stream token never reaches it (concept 13, 11.13). It asks this operation every
+        4 s while it plays instead and stops within 5 s when the answer is `stopped`, with the
+        notice of `stoppedBy`. A stop that ends the browser session or its profile first (a
+        logout, a deleted account or profile) answers 401 or 403 `profile_required` instead; the
+        player takes both as a stop, like the 401 of a stream.
+
+        The handler answers from memory, without a database query of its own and without the
+        transcoder; only the session check every operation passes reads the browser session. The
+        server knows the playback sessions it started since its own start (and one from before
+        that the administration stops) and keeps a stopped one for 10 minutes. Only the browser
+        session that started the playback gets an answer; any other, an unknown id and a playback
+        the server no longer knows (after a restart, more than 10 minutes after its end) answer
+        404. A 404 does not mean stopped: the player plays on, and its next stream request answers
+        401 if the playback ended.
+      tags: [items]
+      x-visibility: scoped
+      parameters:
+        - $ref: "#/components/parameters/PlaybackSessionID"
+      responses:
+        "200":
+          description: The state of the playback session.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlaybackSessionState"
+        "401":
+          description: |
+            No valid session (`unauthenticated`): the browser session ended (a logout, a revoked or
+            deleted account), and with it the playback.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "403":
+          description: |
+            No profile chosen (`profile_required`): the profile of the browser session was deleted,
+            and with it the playback.
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          description: |
+            Not a playback session of this browser session that the server knows (`not_found`);
+            not a stop.
           content:
             application/problem+json:
               schema:
@@ -4140,8 +4196,10 @@ paths:
       summary: End a running stream (W-6)
       description: |
         Revokes the playback session (`stopped_by` admin), closes an open Range response, stops the ffmpeg
-        process of its HLS output and removes its files. The client's next stream request answers 401, so it
-        stops within seconds and shows that the administrator ended the stream.
+        process of its HLS output and removes its files. The client's next stream request answers 401, and its
+        stop watch (`getPlaybackSessionState`, every 4 s while it plays) answers `stopped` with `stoppedBy`
+        admin, also when the client has buffered the whole title and requests nothing more (contract 1.10.0).
+        So it stops within 5 s and shows that the playback ended.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -7465,6 +7523,28 @@ components:
           type: integer
           minimum: 0
 
+    PlaybackSessionState:
+      type: object
+      description: |
+        State of a playback session (`getPlaybackSessionState`, contract 1.10.0). `stoppedBy` names
+        who ended a stopped one: `client` (the browser session itself: a stop, or a new start of
+        the same title), `admin` (the administration: the streams page, a forgotten device),
+        `limit` (the daily watch time, K-5), `logout` (a profile switch of the browser session) or
+        `revoked` (the account lost its access, the profile was deleted). A logout, a revoked
+        account and a deleted profile end the browser session or its profile before the playback,
+        so their player mostly gets 401 or 403 instead of `logout` or `revoked`. `stoppedBy` is
+        absent for a running playback and for one that expired.
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [active, stopped]
+          x-enum-varnames: [PlaybackStateActive, PlaybackStateStopped]
+        stoppedBy:
+          type: string
+          enum: [client, admin, limit, logout, revoked]
+          x-enum-varnames: [PlaybackStoppedByClient, PlaybackStoppedByAdmin, PlaybackStoppedByLimit, PlaybackStoppedByLogout, PlaybackStoppedByRevoked]
+
     WatchReport:
       type: object
       description: Minutes watched per day for one profile (K-5), oldest day first, today last.
@@ -9983,7 +10063,11 @@ components:
             $ref: "#/components/schemas/DownloadSubtitle"
         chapters:
           type: array
-          description: Chapters of an audiobook on the file's timeline (empty for video and episodes without marks).
+          description: |
+            Chapters on the timeline of the playback (empty without marks): those of an audiobook
+            on the book's timeline; since contract 1.10.0 also those of a film or an episode, the
+            chapter marks of the downloaded file that `PlaybackInfo.chapters` offers online. Before
+            1.10.0 a video download carried none.
           items:
             $ref: "#/components/schemas/Chapter"
 

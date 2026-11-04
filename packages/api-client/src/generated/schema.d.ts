@@ -831,6 +831,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/playback/sessions/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether a playback session still runs (contract 1.10.0)
+         * @description A player that has buffered its whole title makes no further stream request, so the 401 of
+         *     a revoked stream token never reaches it (concept 13, 11.13). It asks this operation every
+         *     4 s while it plays instead and stops within 5 s when the answer is `stopped`, with the
+         *     notice of `stoppedBy`. A stop that ends the browser session or its profile first (a
+         *     logout, a deleted account or profile) answers 401 or 403 `profile_required` instead; the
+         *     player takes both as a stop, like the 401 of a stream.
+         *
+         *     The handler answers from memory, without a database query of its own and without the
+         *     transcoder; only the session check every operation passes reads the browser session. The
+         *     server knows the playback sessions it started since its own start (and one from before
+         *     that the administration stops) and keeps a stopped one for 10 minutes. Only the browser
+         *     session that started the playback gets an answer; any other, an unknown id and a playback
+         *     the server no longer knows (after a restart, more than 10 minutes after its end) answer
+         *     404. A 404 does not mean stopped: the player plays on, and its next stream request answers
+         *     401 if the playback ended.
+         */
+        get: operations["getPlaybackSessionState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/playback/sessions/{id}/master.m3u8": {
         parameters: {
             query?: never;
@@ -2094,8 +2128,10 @@ export interface paths {
         /**
          * End a running stream (W-6)
          * @description Revokes the playback session (`stopped_by` admin), closes an open Range response, stops the ffmpeg
-         *     process of its HLS output and removes its files. The client's next stream request answers 401, so it
-         *     stops within seconds and shows that the administrator ended the stream.
+         *     process of its HLS output and removes its files. The client's next stream request answers 401, and its
+         *     stop watch (`getPlaybackSessionState`, every 4 s while it plays) answers `stopped` with `stoppedBy`
+         *     admin, also when the client has buffered the whole title and requests nothing more (contract 1.10.0).
+         *     So it stops within 5 s and shows that the playback ended.
          */
         delete: operations["stopStream"];
         options?: never;
@@ -3887,6 +3923,22 @@ export interface components {
             usedMinutes: number;
             remainingMinutes: number;
         };
+        /**
+         * @description State of a playback session (`getPlaybackSessionState`, contract 1.10.0). `stoppedBy` names
+         *     who ended a stopped one: `client` (the browser session itself: a stop, or a new start of
+         *     the same title), `admin` (the administration: the streams page, a forgotten device),
+         *     `limit` (the daily watch time, K-5), `logout` (a profile switch of the browser session) or
+         *     `revoked` (the account lost its access, the profile was deleted). A logout, a revoked
+         *     account and a deleted profile end the browser session or its profile before the playback,
+         *     so their player mostly gets 401 or 403 instead of `logout` or `revoked`. `stoppedBy` is
+         *     absent for a running playback and for one that expired.
+         */
+        PlaybackSessionState: {
+            /** @enum {string} */
+            state: "active" | "stopped";
+            /** @enum {string} */
+            stoppedBy?: "client" | "admin" | "limit" | "logout" | "revoked";
+        };
         /** @description Minutes watched per day for one profile (K-5), oldest day first, today last. */
         WatchReport: {
             /** Format: int64 */
@@ -5343,7 +5395,12 @@ export interface components {
             /** @description The audio track the file carries. */
             audio?: components["schemas"]["Track"];
             subtitles: components["schemas"]["DownloadSubtitle"][];
-            /** @description Chapters of an audiobook on the file's timeline (empty for video and episodes without marks). */
+            /**
+             * @description Chapters on the timeline of the playback (empty without marks): those of an audiobook
+             *     on the book's timeline; since contract 1.10.0 also those of a film or an episode, the
+             *     chapter marks of the downloaded file that `PlaybackInfo.chapters` offers online. Before
+             *     1.10.0 a video download carried none.
+             */
             chapters: components["schemas"]["Chapter"][];
         };
         OfflineSyncRequest: {
@@ -8961,6 +9018,65 @@ export interface operations {
                 };
             };
             /** @description Not a running playback session of this browser session (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getPlaybackSessionState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state of the playback session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackSessionState"];
+                };
+            };
+            /**
+             * @description No valid session (`unauthenticated`): the browser session ended (a logout, a revoked or
+             *     deleted account), and with it the playback.
+             */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description No profile chosen (`profile_required`): the profile of the browser session was deleted,
+             *     and with it the playback.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Not a playback session of this browser session that the server knows (`not_found`);
+             *     not a stop.
+             */
             404: {
                 headers: {
                     [name: string]: unknown;

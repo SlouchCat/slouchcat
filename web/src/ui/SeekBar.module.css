@@ -1,0 +1,117 @@
+/* Seek bar: a generous hit area around a thin track that thickens on hover and focus. */
+.seek {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--sc-space-6);
+  border-radius: var(--sc-radius-sm);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.track {
+  position: relative;
+  width: 100%;
+  height: var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-track);
+  transition: height var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.seek:hover .track,
+.seek:focus-visible .track,
+.seek[data-pointer] .track,
+.seek[data-dragging] .track {
+  height: var(--sc-space-2);
+}
+
+.buffered,
+.segment,
+.played {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+}
+
+.buffered {
+  background-color: var(--sc-color-state-buffered);
+}
+
+/* Intro and outro: lighter than the unfilled track around them, under the played fill. */
+.segment {
+  background-color: var(--sc-color-state-segment);
+}
+
+.played {
+  left: 0;
+  background-color: var(--sc-accent);
+}
+
+/* A chapter mark is a narrow notch through the track and the fill. */
+.mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--sc-space-1);
+  background-color: var(--sc-color-state-chapter-mark);
+  transform: translateX(-50%);
+}
+
+.thumb {
+  position: absolute;
+  top: 50%;
+  width: var(--sc-space-4);
+  height: var(--sc-space-4);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-text-primary);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.6);
+  transition:
+    opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.seek:hover .thumb,
+.seek:focus-visible .thumb,
+.seek[data-pointer] .thumb,
+.seek[data-dragging] .thumb {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* The field over the pointer: time and chapter. 10rem wide, the room for a chapter image later;
+   the inline `left` keeps its centre at least half that width from both ends. */
+.preview {
+  position: absolute;
+  bottom: calc(100% + var(--sc-space-2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  align-items: center;
+  width: 10rem;
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-bg-overlay);
+  color: var(--sc-color-text-primary);
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.previewTime {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.previewChapter {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--sc-font-size-xs);
+  line-height: var(--sc-font-line-height-snug);
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}

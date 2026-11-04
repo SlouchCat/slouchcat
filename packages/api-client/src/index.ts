@@ -33,6 +33,7 @@ export type ItemRef = components['schemas']['ItemRef'];
 export type ItemDetail = components['schemas']['ItemDetail'];
 export type MediaFileInfo = components['schemas']['MediaFileInfo'];
 export type PlaybackInfo = components['schemas']['PlaybackInfo'];
+export type PlaybackSessionState = components['schemas']['PlaybackSessionState'];
 export type PlaybackRequest = components['schemas']['PlaybackRequest'];
 export type Quality = components['schemas']['Quality'];
 export type QualityOption = components['schemas']['QualityOption'];

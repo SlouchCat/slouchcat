@@ -65,6 +65,8 @@ type Service struct {
 	rebuildMu  sync.Mutex
 	rebuilding map[string]chan struct{} // HLS outputs being rebuilt, closed when done
 
+	states stateRegistry // running and recently stopped playback sessions (state.go)
+
 	subs       SubtitleConverter // WebVTT conversion; zero = no text subtitles
 	cacheDir   string            // converted subtitles below <cacheDir>/subtitles; empty = uncached
 	subMu      sync.Mutex

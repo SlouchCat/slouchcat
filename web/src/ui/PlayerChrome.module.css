@@ -1,0 +1,262 @@
+/* The controls lie over the video; between head and bottom the pointer reaches the video. */
+.chrome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.top,
+.bottom {
+  display: flex;
+  padding: var(--sc-space-4) var(--page-gutter);
+  pointer-events: auto;
+  transition:
+    opacity var(--sc-motion-duration-chrome) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-chrome) var(--sc-motion-easing-standard);
+}
+
+.top {
+  gap: var(--sc-space-3);
+  align-items: flex-start;
+  padding-bottom: var(--sc-space-16);
+  background-image: linear-gradient(
+    to bottom,
+    var(--sc-color-scrim-strong) 0%,
+    var(--sc-color-scrim-clear) 100%
+  );
+}
+
+.bottom {
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  padding-top: var(--sc-space-16);
+  padding-bottom: var(--sc-space-6);
+  background-image: linear-gradient(
+    to top,
+    var(--sc-color-scrim-strong) 0%,
+    var(--sc-color-scrim-clear) 100%
+  );
+}
+
+.chrome[data-hidden] .top {
+  opacity: 0;
+  transform: translateY(calc(-1 * var(--sc-space-2)));
+  pointer-events: none;
+}
+
+.chrome[data-hidden] .bottom {
+  opacity: 0;
+  transform: translateY(var(--sc-space-2));
+  pointer-events: none;
+}
+
+.heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+  padding-top: var(--sc-space-2);
+}
+
+.title {
+  overflow: hidden;
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A logo in the head: small enough to leave the picture free. */
+.logo {
+  max-width: min(100%, 16rem);
+  max-height: var(--sc-space-12);
+}
+
+.headingDetail {
+  overflow: hidden;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Title and chapter on the left, the time on the right, just above the timeline. */
+.line {
+  display: flex;
+  gap: var(--sc-space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lineLabel {
+  overflow: hidden;
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.time {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
+/* A member of the row; the wrapper only names it for the roving tab index. */
+.item {
+  display: contents;
+}
+
+/* The tabs under the bar (11.2): a strip of tabs, and the open one's row of cards or its text
+   slides in from below over the picture; the video does not move aside. */
+.tabs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.tabStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1);
+}
+
+.tabStrip [aria-expanded='true'] {
+  background-color: var(--sc-color-surface-3);
+}
+
+.tabPanel {
+  animation: rise var(--sc-motion-duration-enter) var(--sc-motion-easing-enter);
+}
+
+.cards {
+  display: grid;
+  grid-auto-columns: minmax(10rem, 14rem);
+  grid-auto-flow: column;
+  gap: var(--sc-space-3);
+  margin: 0;
+  overflow-x: auto;
+
+  /* Room for the focus ring, which the scroll container would clip. */
+  padding: var(--sc-space-1);
+  list-style: none;
+  scrollbar-width: none;
+}
+
+.card {
+  min-width: 0;
+}
+
+.tabContent {
+  max-width: 48rem;
+  max-height: 10rem;
+  overflow-y: auto;
+  padding: var(--sc-space-1);
+  border-radius: var(--sc-radius-md);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  line-height: var(--sc-font-line-height-normal);
+}
+
+/* A phone (11.2): the options at the top right, the transport large in the middle. */
+.options {
+  display: flex;
+  gap: var(--sc-space-1);
+  align-items: center;
+}
+
+.center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--sc-motion-duration-chrome) var(--sc-motion-easing-standard);
+}
+
+.center .group {
+  flex-wrap: nowrap;
+  gap: var(--sc-space-6);
+}
+
+.chrome[data-hidden] .center {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chrome[data-layout='phone'] .top {
+  flex-wrap: wrap;
+}
+
+/* Back on the left, the options on the right; the title and its detail in a line under them. */
+.chrome[data-layout='phone'] .options {
+  margin-left: auto;
+}
+
+.chrome[data-layout='phone'] .heading {
+  flex-basis: 100%;
+  padding-top: 0;
+}
+
+/* The time, picture in picture and full screen on the right of the line above the timeline. Where
+   the title and chapter would not stay readable beside them, they move onto a line of their own. */
+.chrome[data-layout='phone'] .line {
+  flex-wrap: wrap;
+}
+
+.chrome[data-layout='phone'] .lineLabel {
+  flex: 1 1 10rem;
+}
+
+.view {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-left: auto;
+}
+
+.view .group {
+  flex-wrap: nowrap;
+  gap: var(--sc-space-1);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--sc-space-2));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tabPanel {
+    animation: none;
+  }
+}
+
+/* The language beside the icon of the sound and subtitle buttons; a long name stays short. */
+.panelText {
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

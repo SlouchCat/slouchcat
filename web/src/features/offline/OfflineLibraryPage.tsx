@@ -20,6 +20,7 @@ import {
   SpatialPage,
   Text,
 } from '@/ui';
+import { focusOnMount } from '@/ui/aria';
 import { kickOfflineEngine } from './engine';
 import { downloadStatus, downloadTitle } from './labels';
 import { OfflinePinDialog } from './OfflinePinDialog';
@@ -31,6 +32,14 @@ import type { StoredDownload, StoredProfile } from './types';
 import { useDeviceAccount, useStoredDownloads, useStoredProfiles } from './useOfflineData';
 import { usePosterUrl } from './usePosterUrl';
 import styles from './OfflinePages.module.css';
+
+/**
+ * The first tile takes the focus when the picker opens, so Enter and the arrows work at once
+ * (focusOnMount, not autoFocus, which can wait 500 ms for a transition after Enter: 11.13).
+ */
+function focusFirstTile(body: HTMLElement | null): void {
+  focusOnMount(body?.querySelector<HTMLElement>('ul button') ?? null);
+}
 
 const tileKey = (profile: StoredProfile) => `offline-profile-${profile.id}`;
 const cardKey = (download: StoredDownload) => `offline-download-${download.id}`;
@@ -154,7 +163,7 @@ function OfflinePicker({ profiles }: { profiles: StoredProfile[] }) {
 
   return (
     <SpatialPage defaultFocusKey={first ? tileKey(first) : 'offline-actions'}>
-      <div className={styles.libraryBody}>
+      <div ref={focusFirstTile} className={styles.libraryBody}>
         <div className={styles.libraryHead}>
           <Text as="h1" variant="display">
             {t('offline.library.title')}
@@ -182,7 +191,6 @@ function OfflinePicker({ profiles }: { profiles: StoredProfile[] }) {
                   accent={profile.snapshot.accent}
                   hasPin={pinRequirement(profile) !== 'none'}
                   isActive={false}
-                  autoFocus={profile.id === first?.id}
                   lockedLabel={t('profiles.picker.locked')}
                   caption={profile.snapshot.isPrimary ? t('profiles.picker.primary') : undefined}
                   onPress={() => pick(profile)}

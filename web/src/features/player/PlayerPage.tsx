@@ -1,7 +1,7 @@
 import type { ItemRef, PlaybackInfo, PlaybackRequest, Quality } from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { getRouteApi, useRouter } from '@tanstack/react-router';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemExtension, problemMessage } from '@/api/errors';
@@ -11,7 +11,7 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { Notice } from '@/ui';
-import { AriaButton } from '@/ui/aria';
+import { AriaButton, focusOnMount } from '@/ui/aria';
 import {
   browserPlatform,
   deviceCapabilities,
@@ -21,7 +21,7 @@ import {
 } from './capabilities';
 import { AudioPlayerPage } from './AudioPlayerPage';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
-import { VideoPlayer, type PlaybackChange } from './VideoPlayer';
+import { NO_CARRY, VideoPlayer, type PlaybackChange, type PlayerCarry } from './VideoPlayer';
 import styles from './Player.module.css';
 
 const route = getRouteApi('/_authed/_active/play/$itemId');
@@ -113,13 +113,25 @@ export function playbackRequest(
  */
 let autoNextTarget: string | null = null;
 
+/**
+ * What the player hands on to the next title it plays itself (auto-next, an episode of «Als
+ * Nächstes», «Folge zurück»): night mode and the volume, a boost above 100 % included. Web Audio
+ * stays on until the viewer leaves the player (11.10); mute and speed start afresh with a new
+ * title. Taken by the player of that title; reset when the player route closes.
+ */
+let nextTitleCarry: { itemId: string; carry: PlayerCarry } | null = null;
+
+/** Counts the players opened, so each one starts its own session (see the playback query). */
+let playerMounts = 0;
+
 /** Video player route (W-1 direct play, W-4 tracks, W-5 progress, W-8 quality, W-9 auto-next). */
 export function PlayerPage() {
   const { itemId } = route.useParams();
   // Full screen belongs to the document so that it survives switches and auto-next (W-2); it
-  // ends with the player route.
+  // ends with the player route, and so does what auto-next carries over.
   useEffect(
     () => () => {
+      nextTitleCarry = null;
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     },
     [],
@@ -144,6 +156,9 @@ function PlayerView({ itemId }: { itemId: string }) {
   const [quality, setQuality] = useState<Quality | undefined>(undefined);
   // A new session with the same choices (a second switch back) must not reuse a cached answer.
   const [generation, setGeneration] = useState(0);
+  // Neither must a player opened again: the one left ends its session on a timer, and the way
+  // back can be quicker than that timer and the removal of the answer (gcTime 0).
+  const [mount] = useState(() => (playerMounts += 1));
   const [autoNext] = useState(() => {
     const arrived = autoNextTarget === itemId;
     if (arrived) autoNextTarget = null;
@@ -159,6 +174,13 @@ function PlayerView({ itemId }: { itemId: string }) {
   // Start of the measurement "navigation → first frame playing" (data-start-ms).
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
+  // A navigation to another page (a person, another episode, back) keeps this player on screen
+  // until the next page has loaded; meanwhile its keys belong to that page (usePlayerKeys).
+  const router = useRouter();
+  const leaving = useCallback(() => {
+    const { status, location, resolvedLocation } = router.state;
+    return status === 'pending' && location.pathname !== resolvedLocation?.pathname;
+  }, [router]);
 
   const tracks =
     trackChoice.file === (file ?? null)
@@ -170,7 +192,7 @@ function PlayerView({ itemId }: { itemId: string }) {
   // session would rebuild the player mid-stream). Only a busy transcoder is retried, after the
   // server's delay.
   const playback = useQuery({
-    queryKey: ['playback', itemId, file ?? null, tracks, quality ?? null, generation],
+    queryKey: ['playback', itemId, file ?? null, tracks, quality ?? null, generation, mount],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
       request(
         api.POST('/items/{id}/play', {
@@ -203,6 +225,23 @@ function PlayerView({ itemId }: { itemId: string }) {
   const versions = detail.data?.mediaFiles ?? [];
 
   const [infoOpen, setInfoOpen] = useState(false);
+  // Mute, speed, a volume above 100 % and night mode carry over to the next session of this title
+  // (a switch of track, quality or version); a new title starts audible at normal speed, after
+  // auto-next with the night mode and volume of the episode before (m-5, review step 4).
+  const [carried, setCarried] = useState<PlayerCarry>(() => {
+    const handed = nextTitleCarry?.itemId === itemId ? nextTitleCarry.carry : undefined;
+    nextTitleCarry = null;
+    return handed ? { ...NO_CARRY, nightMode: handed.nightMode, volume: handed.volume } : NO_CARRY;
+  });
+  const carry = useCallback(
+    (patch: Partial<PlayerCarry>) =>
+      setCarried((current) =>
+        (Object.keys(patch) as (keyof PlayerCarry)[]).every((key) => current[key] === patch[key])
+          ? current
+          : { ...current, ...patch },
+      ),
+    [],
+  );
 
   // From the menu until the new session answered; the old player is paused and locked meanwhile.
   const switching =
@@ -251,10 +290,22 @@ function PlayerView({ itemId }: { itemId: string }) {
     setStopping(false);
   };
 
+  /** Another episode in this player: the history keeps one entry for the player (W-9). */
+  const playEpisode = (episode: ItemRef) => {
+    nextTitleCarry = { itemId: episode.id, carry: carried };
+    void navigate({
+      to: '/play/$itemId',
+      params: { itemId: episode.id },
+      search: {},
+      replace: true,
+    });
+  };
   const playNext = (next: ItemRef) => {
     autoNextTarget = next.id;
-    void navigate({ to: '/play/$itemId', params: { itemId: next.id }, search: {}, replace: true });
+    playEpisode(next);
   };
+  const openPerson = (personId: number) =>
+    void navigate({ to: '/people/$personId', params: { personId: String(personId) } });
 
   const engine = useMemo(
     () => (playback.data ? playbackEngine(playback.data, browserPlatform()) : null),
@@ -269,6 +320,15 @@ function PlayerView({ itemId }: { itemId: string }) {
       void queryClient.invalidateQueries({ queryKey: ['item', itemId] });
     },
     [itemId, queryClient],
+  );
+  // The player keeps the season of an episode for 30 s (its episodes' progress); leaving it, the
+  // season's page asks again.
+  const seasonId = detail.data?.season?.id;
+  useEffect(
+    () => () => {
+      if (seasonId) void queryClient.invalidateQueries({ queryKey: ['item', seasonId] });
+    },
+    [queryClient, seasonId],
   );
 
   if (playback.data && engine && engine !== 'unsupported' && playback.data.mediaKind === 'audio') {
@@ -294,15 +354,21 @@ function PlayerView({ itemId }: { itemId: string }) {
         engine={engine}
         openedAt={openedAt}
         onBack={goBack}
+        leaving={leaving}
         startPositionMs={startMs}
         versions={versions}
+        detail={detail.data}
         infoOpen={infoOpen}
         onToggleInfo={() => setInfoOpen((open) => !open)}
+        carried={carried}
+        onCarry={carry}
         switching={switching}
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
         onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}
         switchStartedAt={switchStartedAt}
         onNextEpisode={playNext}
+        onPlayEpisode={playEpisode}
+        onOpenPerson={openPerson}
         autoNext={autoNext}
       />
     );
@@ -395,7 +461,9 @@ function PlayerMessage({
       <div className={styles.messageBox}>
         {children}
         <div>
-          <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+          {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition after
+              Enter opened the page (11.13). */}
+          <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
             {t('common.back')}
           </AriaButton>
         </div>

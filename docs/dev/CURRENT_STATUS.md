@@ -1,5 +1,63 @@
 # Aktueller Stand
 
+## Konzept 13 «Abspielseite», Stufe 1 «Bedienung»: gebaut, PR offen (4. November 2026)
+
+**Zweig `claude/abspielseite-ae8b82` ab `main` `c023448`, `main` (`f7e2308`, PR #83) nachgezogen.**
+Neustart ab `main` auf Marcos Wort (11.15). Vertrag **1.10.0** (additiv). Release 1.10.0 nach der
+Abnahme auf CT 190, nur auf Marcos Wort. Bauplan `docs/planning/13-abspielseite.md` 11.12, Nachtrag
+mit allen Entscheiden des Baus in 11.15.
+
+- **Schritt 0** (`a7fb55b`): Frage 19, ADR 0021 (2160p), Idee 05 (Trickplay).
+- **Schritt 1:** Player-Tests über Aktionen statt Menürollen (`b1920d5`, `5bf481d`).
+- **Schritt 2:** Bauteile `VolumeControl`, `PlayerPanel`, `OptionRow`, `ChapterCard`, `SeekBar` in
+  `web/src/ui` (`a62a33f` bis `6b844ee`).
+- **Schritt 5b:** Stopp durch die Verwaltung. `GET /playback/sessions/{id}/state` antwortet aus dem
+  Speicher (`playback/state.go`), der Player fragt alle 4 s (`usePlaybackStopWatch`), Video und
+  Audio (`e74335d` bis `96694b4`).
+- **Schritt 3:** `PlayerChrome`, Fokusmodell, Tastenkarte, Hilfe mit `?`, `focusOnMount`
+  (`0c0287e` bis `7f7cf3e`).
+- **Schritt 4:** Panels Ton, Untertitel und Zahnrad; eigene Untertitel-Ebene mit Stil und Versatz;
+  Nachtmodus und 150 % über Web Audio, in Safari ausgeblendet (`b69f74d` bis `157cba2`).
+- **Schritt 5:** Reiter Kapitel, Als Nächstes, Besetzung, Info; Pause-Ansicht; Nächste-Folge-Karte;
+  Handy-Layout mit Doppeltipp; V-17 (nur auf dem Gerät), V-18 (`0a6fdd8`).
+- **Schritt 6:** Offline-Player auf `PlayerChrome`, `focusOnMount` in den Offline-Dialogen
+  (`486592e`).
+- **Nachträge:**
+  - Kapitel für Video-Downloads, Marcos Entscheid zu M-1 aus dem Review von Schritt 6
+    (`6b8bcee`, `4d49e54`).
+  - Jeder geöffnete Player startet eine eigene Sitzung (`d7ace21`).
+  - Zurück während einer Navigation aus dem Player geht nicht verloren (`e2a33e0`).
+  - Handy-Layout mit eigener Titelzeile, Bild-in-Bild und Vollbild neben der Zeit (`d90a1b6`).
+  - Antworten der Statusabfrage in den Stopp-Tests im Testprozess gelesen (`b42de23`).
+- **Reviews:** je Schritt ein `code-reviewer` (3, 4, 5, 6) und ein Schluss-Review der Nachträge;
+  alle M-Befunde behoben. Bewusst offen: m-6 des Schluss-Reviews (eine doppelte Probe-Abfrage je
+  Manifest, Umbau von `visibility` nötig).
+- **Marcos Entscheide beim Bau** (11.15): Englisch als zweite Wahl in Ton und Untertitel; Kapitel
+  für Video-Downloads vom Server; Handy-Layout richten.
+- **Storybook:** 34 neue Baselines auf CT 190 im Playwright-Image `v1.64.1-noble` geschossen
+  (Bündel `/root/storybook-ct-k13`, `--update-snapshots=missing`), alle bestehenden unverändert
+  (`efbb086`, `6853c56`).
+
+**Belege (`task ci` auf `6853c56`, 12 min 38 s):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 34 Pakete `ok` |
+| `ci:web` | Codegen, Lint, Vitest `1303 passed`, Shard-Plan und Platz-Selbsttest grün |
+| `ci:storybook` | `357 passed` |
+| `ci:e2e:parallel` (3 Shards) | 461 von 463; Firefox `audio-download.spec.ts:111` (O-1, Zeitgrenze 120 s beim Vorbereiten) und Chromium `admin-folder-browser.spec.ts:151` (Fokus nach Escape); beide Dateien und der Code dahinter sind auf diesem Zweig unverändert; danach je 4 Wiederholungen in Chromium und Firefox `20 passed` |
+
+Lauf davor auf `972381f`: e2e ebenfalls 461 von 463, andere zwei Tests (`admin-picks.spec.ts:98`
+in 8 Wiederholungen grün; Stopp-Test des Hörbuchs, behoben in `b42de23`, danach 24 von 24 grün).
+
+**Offen für die Abnahme auf CT 190:**
+- Image des Zweigs auf CT 190 bauen und starten (Marcos Wort), Abnahme der Stufe 1.
+- Fertige Downloads zeigen Kapitel erst nach einem neuen Download (Release-Notiz).
+- Bekannte Grenzen: Bild-in-Bild endet bei jedem Wechsel von Ton, Untertitel, Qualität oder
+  Version; das eigene Bild-in-Bild von Firefox zeigt keine Untertitel.
+- Nach Abnahme und Merge: Release 1.10.0 (Tag auf den Merge, Notiz-Entwurf
+  `release-notes-1.10.0.txt`).
+
 ## Teststufen, Agentenregeln und Plätze für schwere Läufe (4. November 2026)
 
 **Performance-Audit von Claude Code, OMC und CI; Marcos Antwort «A bis D umsetzen».** In der Woche
