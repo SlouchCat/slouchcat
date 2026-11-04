@@ -29,7 +29,7 @@ import {
 } from '@/ui/aria';
 import { nextChapterStart, previousChapterStart } from './audio';
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
-import { hasShortcutModifier, playerKeyAction, stepPlaybackRate } from './keymap';
+import { stepPlaybackRate } from './keymap';
 import {
   chapterAt,
   chapterLabel,
@@ -44,6 +44,7 @@ import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useAudioGraph } from './useAudioGraph';
+import { usePlayerKeys } from './usePlayerKeys';
 import { usePlayerPrefs } from './usePlayerPrefs';
 import { useSubtitleStyle } from './useSubtitleStyle';
 import { SubtitleLayer, useSubtitleCues } from './SubtitleLayer';
@@ -136,23 +137,6 @@ export interface PlayerCarry {
 }
 
 export const NO_CARRY: PlayerCarry = { muted: false, rate: 1, nightMode: false };
-
-const isActivatable = (target: EventTarget | null) =>
-  target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
-
-/** Typing in a text field is not a shortcut (11.2: panels with text input keep the letters). */
-const isEditable = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
-
-/** Enter and Space inside a panel belong to its rows; the letters still reach the key map. */
-const inPanel = (target: EventTarget | null) =>
-  target instanceof HTMLElement && target.closest('[role="dialog"]') !== null;
-
-/** Keys inside a player menu belong to the menu (arrows, Enter, Escape). */
-const inMenu = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  target.closest('[role="menu"], [role="menuitemradio"], [role="menuitem"]') !== null;
 
 function bufferedRanges(video: HTMLVideoElement): [number, number][] {
   const ranges: [number, number][] = [];
@@ -628,215 +612,43 @@ export function VideoPlayer({
     offsetMs: subtitleStyle.offsetMs,
     pictureInPicture,
   });
-  // Read by the capture listener below, which is not bound again on every fade.
-  const hiddenNow = useRef(hidden);
-  useEffect(() => {
-    hiddenNow.current = hidden;
-  });
-
-  // Capture phase, before any control sees the key:
-  // - Every key shows the controls, also one that a control keeps to itself (the button row, the
-  //   volume slider).
-  // - During the next-episode countdown (W-9) any key but Tab cancels it and does nothing else; N
-  //   plays the next episode. Enter and Space on a focused button (play/pause on the remote's OK)
-  //   still press it, on the countdown's own buttons without cancelling.
-  // - With the controls faded out there is no zone (11.2): the arrows seek and change the volume
-  //   and Enter, Space and K play and pause whatever has the focus (remote, C-4), and the bar
-  //   comes back.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (hasShortcutModifier(event)) return;
-      poke();
-      if (inMenu(event.target)) return;
-      const consume = () => {
-        event.preventDefault();
-        event.stopPropagation();
-      };
-      if (countdownActive) {
-        const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-        if (key === 'n') {
-          consume();
-          playNext();
-          return;
-        }
-        // Tab moves between the controls; modifier keys alone do nothing.
-        if (key === 'Tab' || ['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return;
-        const activates = key === 'Enter' || key === ' ';
-        const inPanel = event.target instanceof Node && nextPanel.current?.contains(event.target);
-        if (activates && inPanel) return;
-        cancelCountdown();
-        if (activates && isActivatable(event.target)) return;
-        consume();
-        return;
-      }
-      if (!hiddenNow.current || event.shiftKey) return;
-      const action = playerKeyAction(event);
-      if (action?.kind === 'playPause') {
-        // Enter and Space on the remote's OK play and pause; the focused button stays as it is.
-        consume();
-        togglePlay();
-      } else if (action?.kind === 'seek') {
-        consume();
-        seekBy(action.seconds);
-      } else if (action?.kind === 'volume') {
-        consume();
-        changeVolume(action.delta);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [cancelCountdown, changeVolume, countdownActive, playNext, poke, seekBy, togglePlay]);
-
-  // Key map (11.2; W-1, C-4, W-4, W-9): the keys no zone kept for itself. Space/Enter/K play and
-  // pause, left/right 10 s (with Shift a chapter), up/down volume, M mute, T tracks, U subtitles,
-  // C chapters, Q quality, [ ] speed, 0-9 jump to 0-90 %, F full screen, I stream info, S skip
-  // intro, N next episode, Escape/Backspace close the stream info, else back to the detail page.
-  useEffect(() => {
-    const open = (menu: MenuName, available: boolean, event: KeyboardEvent) => {
-      if (!available) return;
-      event.preventDefault();
-      setOpenMenu(menu);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (hasShortcutModifier(event)) return;
-      if (inMenu(event.target)) {
-        // Backspace is the remote's back key (C-4): in a menu it closes the menu, like Escape.
-        if (event.key === 'Backspace') {
-          event.preventDefault();
-          setOpenMenu(null);
-        }
-        return;
-      }
-      // The capture listener has handled the key.
-      if (countdownActive || isEditable(event.target)) return;
-      const action = playerKeyAction(event);
-      if (!action) return;
-      switch (action.kind) {
-        case 'playPause':
-          // Focused buttons and the rows of a panel activate themselves; everywhere else the key
-          // toggles playback.
-          if (action.activates && (isActivatable(event.target) || inPanel(event.target))) return;
-          event.preventDefault();
-          togglePlay();
-          return;
-        case 'seek':
-          event.preventDefault();
-          seekBy(action.seconds);
-          return;
-        case 'volume':
-          event.preventDefault();
-          changeVolume(action.delta);
-          return;
-        case 'chapter':
-          if (!hasChapters) return;
-          event.preventDefault();
-          if (action.step < 0) previousChapter();
-          else nextChapter();
-          return;
-        case 'jump':
-          // The player's length: the file's until the element knows its own (HLS may report
-          // Infinity while it loads).
-          if (durationMs <= 0) return;
-          event.preventDefault();
-          seekTo(action.fraction * durationMs);
-          return;
-        case 'rate':
-          event.preventDefault();
-          changeRate(action.delta);
-          return;
-        case 'mute':
-          event.preventDefault();
-          toggleMute();
-          return;
-        case 'fullscreen':
-          event.preventDefault();
-          toggleFullscreen();
-          return;
-        case 'info':
-          event.preventDefault();
-          onToggleInfo?.();
-          return;
-        case 'tracks':
-        case 'subtitles':
-          if (!canSwitchTracks || switching || ended !== null) return;
-          event.preventDefault();
-          openPanel(action.kind === 'tracks' ? 'audio' : 'subtitle');
-          return;
-        case 'quality':
-          if (!hasQualities || switching || ended !== null) return;
-          event.preventDefault();
-          openSettings('quality', true);
-          return;
-        case 'chapters':
-          open('chapters', hasChapters && ended === null, event);
-          return;
-        case 'skipIntro':
-          if (!inIntro) return;
-          event.preventDefault();
-          skipIntro();
-          return;
-        case 'nextEpisode':
-          if (!next || !onNextEpisode || ended !== null) return;
-          event.preventDefault();
-          playNext();
-          return;
-        case 'help':
-          event.preventDefault();
-          togglePanel('help');
-          return;
-        case 'back':
-          // A panel first (its own keys close it while the focus is in it), then the stream info,
-          // then back to the detail page.
-          if (panel !== null) {
-            event.preventDefault();
-            closePanel();
-            return;
-          }
-          if (infoOpen) {
-            event.preventDefault();
-            onToggleInfo?.();
-            return;
-          }
-          if (document.fullscreenElement) return;
-          event.preventDefault();
-          onBack();
-          return;
-        default:
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    changeRate,
-    changeVolume,
-    countdownActive,
+  const available = ended === null;
+  usePlayerKeys({
+    hidden,
+    countdown: countdownActive
+      ? { panel: nextPanel, cancel: cancelCountdown, playNext }
+      : undefined,
     durationMs,
-    ended,
-    hasChapters,
-    hasQualities,
-    canSwitchTracks,
-    closePanel,
-    inIntro,
-    openPanel,
-    openSettings,
-    panel,
-    togglePanel,
-    infoOpen,
-    next,
-    nextChapter,
-    onBack,
-    onNextEpisode,
-    onToggleInfo,
-    playNext,
-    previousChapter,
-    seekBy,
-    seekTo,
-    skipIntro,
-    switching,
-    toggleFullscreen,
-    toggleMute,
-    togglePlay,
-  ]);
+    onKey: poke,
+    actions: {
+      togglePlay,
+      seekBy,
+      seekTo,
+      changeVolume,
+      changeRate,
+      toggleMute,
+      toggleFullscreen,
+      previousChapter: hasChapters ? previousChapter : undefined,
+      nextChapter: hasChapters ? nextChapter : undefined,
+      toggleInfo: onToggleInfo,
+      openTracks:
+        canSwitchTracks && !switching && available ? (kind) => openPanel(kind) : undefined,
+      openQuality:
+        hasQualities && !switching && available ? () => openSettings('quality', true) : undefined,
+      openChapters: hasChapters && available ? () => setOpenMenu('chapters') : undefined,
+      skipIntro: inIntro ? skipIntro : undefined,
+      playNext: next && onNextEpisode && available ? playNext : undefined,
+      toggleHelp: () => togglePanel('help'),
+      closeMenu: () => setOpenMenu(null),
+      closeOpen: () => {
+        if (panel !== null) closePanel();
+        else if (infoOpen) onToggleInfo?.();
+        else return false;
+        return true;
+      },
+      back: onBack,
+    },
+  });
 
   // hls.js (Chromium, Firefox): loaded as its own chunk only for HLS playback (ADR 0004). It starts
   // loading at the resume position, so a transcode does not first encode the beginning.
