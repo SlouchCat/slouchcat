@@ -163,24 +163,25 @@ const min4KWidth = 3840
 // rung offered (ADR 0021).
 const min2160DeviceHeight = 1440
 
-// h264Level is the H.264 level_idc of an encode with the given output size, from the frame size
-// in macroblocks of 16x16 pixels (ITU-T H.264 table A-1, MaxFS; the frame rate is not taken into
-// account): 4.1 up to 8192 macroblocks (1920x1080), 5.0 up to 22080 (2592x1080 of a scope film),
-// 5.1 up to 36864 (3840x1600, 3840x2160, 4096x2160), 6.0 above. An unknown size (0) counts as
-// 1920x1080.
-func h264Level(width, height int) int {
+// h264Level is the H.264 level_idc of an encode with the given output size and frame rate (the
+// source's, Stream.FrameRate; 0 = unknown), from the macroblocks of 16x16 pixels per frame and
+// per second (ITU-T H.264 table A-1, MaxFS and MaxMBPS): 4.1 up to 8192 per frame and 245760 per
+// second (1920x1080 at 30 fps), 5.1 up to 36864 and 983040 (2592x1080 of a scope film, 3840x1600,
+// 3840x2160 and 4096x2160 at 30 fps), 5.2 above (3840x2160 at 60 fps). An unknown size counts as
+// 1920x1080, an unknown frame rate by the frame size alone.
+func h264Level(width, height int, fps float64) int {
 	if width <= 0 || height <= 0 {
 		width, height = 1920, defaultMaxHeight
 	}
-	switch mbs := ((width + 15) / 16) * ((height + 15) / 16); {
-	case mbs <= 8192:
+	mbs := float64(((width + 15) / 16) * ((height + 15) / 16))
+	mbps := mbs * max(fps, 0)
+	switch {
+	case mbs <= 8192 && mbps <= 245760:
 		return 41
-	case mbs <= 22080:
-		return 50
-	case mbs <= 36864:
+	case mbs <= 36864 && mbps <= 983040:
 		return 51
 	default:
-		return 60
+		return 52
 	}
 }
 
@@ -496,7 +497,7 @@ func bandwidth(p Probe, t Target, videoBitrate int) int {
 }
 
 // CodecsString returns the RFC 6381 CODECS attribute for the master playlist: H.264 High at the
-// level of the output size (h264Level: 4.1 up to 1920x1080, else 5.0, 5.1 or 6.0) and AAC LC when encoding, the
+// level of the output size and frame rate (h264Level: 4.1, 5.1 or 5.2) and AAC LC when encoding, the
 // source codecs when copying (the audio of the chosen track).
 func CodecsString(plan Plan, src Source) string {
 	var codecs []string
@@ -506,7 +507,7 @@ func CodecsString(plan Plan, src Source) string {
 				codecs = append(codecs, c)
 			}
 		} else {
-			codecs = append(codecs, fmt.Sprintf("avc1.6400%02X", h264Level(plan.Width, plan.Height)))
+			codecs = append(codecs, fmt.Sprintf("avc1.6400%02X", h264Level(plan.Width, plan.Height, v.FrameRate)))
 		}
 	}
 	if a, ok := selectedAudio(src.Probe, plan.Target); ok {

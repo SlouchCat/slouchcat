@@ -147,28 +147,41 @@ func TestNo2160OnSoftwareOrCPUTonemap(t *testing.T) {
 	}
 }
 
-// The level follows the frame size in macroblocks (MaxFS of H.264 table A-1), not the height
-// alone: the 2592x1080 output of a scope film exceeds the 8192 macroblocks of level 4.1.
+// The level follows the macroblocks per frame and per second (MaxFS and MaxMBPS of H.264 table
+// A-1), not the height alone: the 2592x1080 output of a scope film exceeds the 8192 macroblocks
+// of level 4.1, and so does 1080p at 50 or 60 fps per second. Without a frame rate the frame size
+// decides alone.
 func TestH264Level(t *testing.T) {
-	for _, c := range []struct{ w, h, want int }{
-		{0, 0, 41}, {640, 360, 41}, {852, 480, 41}, {1280, 720, 41}, {1920, 1080, 41}, {1920, 800, 41},
-		{1728, 720, 41}, {2048, 1024, 41}, {2048, 1040, 50}, {2592, 1080, 50}, {2560, 1440, 50}, {3840, 1600, 51},
-		{3840, 2160, 51}, {4096, 2160, 51}, {5120, 2160, 60},
+	for _, c := range []struct {
+		w, h int
+		fps  float64
+		want int
+	}{
+		{0, 0, 0, 41}, {640, 360, 0, 41}, {852, 480, 25, 41}, {1280, 720, 60, 41}, {1920, 800, 0, 41},
+		{1728, 720, 24, 41}, {2048, 1024, 0, 41}, {1920, 1080, 0, 41}, {1920, 1080, 23.976, 41},
+		{1920, 1080, 30, 41}, {1920, 1080, 50, 51}, {1920, 1080, 59.94, 51},
+		{2048, 1040, 0, 51}, {2592, 1080, 0, 51}, {2592, 1080, 24, 51}, {2560, 1440, 30, 51},
+		{3840, 1600, 24, 51}, {3840, 2160, 0, 51}, {3840, 2160, 30, 51}, {4096, 2160, 24, 51},
+		{3840, 2160, 50, 52}, {3840, 2160, 60, 52}, {5120, 2160, 0, 52},
 	} {
-		if got := h264Level(c.w, c.h); got != c.want {
-			t.Errorf("h264Level(%d, %d) = %d, want %d", c.w, c.h, got, c.want)
+		if got := h264Level(c.w, c.h, c.fps); got != c.want {
+			t.Errorf("h264Level(%d, %d, %v) = %d, want %d", c.w, c.h, c.fps, got, c.want)
 		}
 	}
 	src := videoSource("hevc", 3840, 2160, "bt709", sec(10))
+	fast := videoSource("hevc", 3840, 2160, "bt709", sec(10))
+	fast.Probe.Streams[0].FrameRate = 59.94
 	for _, c := range []struct {
+		src  Source
 		w, h int
 		want string
 	}{
-		{0, 0, "avc1.640029"}, {1280, 720, "avc1.640029"}, {1920, 1080, "avc1.640029"},
-		{2592, 1080, "avc1.640032"}, {3840, 1600, "avc1.640033"}, {3840, 2160, "avc1.640033"},
+		{src, 0, 0, "avc1.640029"}, {src, 1280, 720, "avc1.640029"}, {src, 1920, 1080, "avc1.640029"},
+		{src, 2592, 1080, "avc1.640033"}, {src, 3840, 1600, "avc1.640033"}, {src, 3840, 2160, "avc1.640033"},
+		{fast, 1920, 1080, "avc1.640033"}, {fast, 3840, 2160, "avc1.640034"},
 	} {
 		p := Plan{Target: Target{Mode: ModeTranscode}, Width: c.w, Height: c.h}
-		if got := CodecsString(p, src); got != c.want+",mp4a.40.2" {
+		if got := CodecsString(p, c.src); got != c.want+",mp4a.40.2" {
 			t.Errorf("CodecsString at %dx%d = %q, want %s,mp4a.40.2", c.w, c.h, got, c.want)
 		}
 	}
@@ -246,6 +259,25 @@ func TestRung2160Allowed(t *testing.T) {
 	}
 }
 
+// ffprobe's avg_frame_rate of a video stream becomes Stream.FrameRate for the H.264 level.
+func TestFrameRate(t *testing.T) {
+	for _, c := range []struct {
+		kind, in string
+		want     float64
+	}{
+		{"video", "24000/1001", 23.976}, {"video", "25/1", 25}, {"video", "60000/1001", 59.94}, {"video", "30", 30},
+		{"video", "0/0", 0}, {"video", "", 0}, {"video", "x/y", 0}, {"video", "25/0", 0}, {"audio", "0/0", 0}, {"audio", "25/1", 0},
+	} {
+		if got := frameRate(c.kind, c.in); got != c.want {
+			t.Errorf("frameRate(%q, %q) = %v, want %v", c.kind, c.in, got, c.want)
+		}
+	}
+	p, err := ParseProbe([]byte(`{"format":{"duration":"10"},"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":1920,"height":1080,"avg_frame_rate":"50/1"}]}`))
+	if err != nil || p.Streams[0].FrameRate != 50 {
+		t.Errorf("parsed probe = %+v, %v", p.Streams, err)
+	}
+}
+
 func TestIs4KSource(t *testing.T) {
 	for _, c := range []struct {
 		w, h int
@@ -273,6 +305,10 @@ func TestFFmpegArgsGolden2160(t *testing.T) {
 	}}}
 	scope := Source{Path: "/media/UHD.mkv", Probe: Probe{Format: Format{Duration: 10 * time.Second}, Streams: []Stream{
 		{Index: 0, Type: "video", Codec: "hevc", Profile: "Main 10", Width: 3840, Height: 1600, PixFmt: "yuv420p10le", ColorTransfer: "bt709"},
+		{Index: 1, Type: "audio", Codec: "aac", Channels: 2},
+	}}}
+	sdr60 := Source{Path: "/media/UHD.mkv", Probe: Probe{Format: Format{Duration: 10 * time.Second}, Streams: []Stream{
+		{Index: 0, Type: "video", Codec: "hevc", Profile: "Main 10", Width: 3840, Height: 2160, FrameRate: 59.94, PixFmt: "yuv420p10le", ColorTransfer: "bt709"},
 		{Index: 1, Type: "audio", Codec: "aac", Channels: 2},
 	}}}
 	sw := Capabilities{Backend: BackendSoftware, Tonemapper: TonemapCPU}
@@ -321,17 +357,22 @@ func TestFFmpegArgsGolden2160(t *testing.T) {
 		{"software 2160p stays 1080p", sw, sdr, uhd(sw, false),
 			head + maps + "scale=w=1920:h=1080:flags=bicubic,format=yuv420p " + enc(x264, 8_000_000, "4.1") + kf},
 		// A scope 4K film keeps its 3840x1600 on the 2160p rung (no upscaling) at level 5.1; its
-		// 1080p output (2592x1080, 11016 macroblocks) needs level 5.0, written "5" or "50".
+		// 1080p output (2592x1080, 11016 macroblocks) needs level 5.1 too.
 		{"qsv scope 2160p", qsvCPU, scope, uhd(qsvCPU, false),
 			head + " " + qsvI + maps + "vpp_qsv=w=3840:h=1600:format=nv12 " + enc(qsEnc, 25_000_000, "51") + kf},
 		{"qsv scope 1080p", qsvCPU, scope, Target{Mode: ModeTranscode, SubtitleBurnIn: -1, AudioStream: -1, Backend: BackendQSV, MaxHeight: 1080, Quality: "1080p"},
-			head + " " + qsvI + maps + "vpp_qsv=w=2592:h=1080:format=nv12 " + enc(qsEnc, 8_000_000, "50") + kf},
+			head + " " + qsvI + maps + "vpp_qsv=w=2592:h=1080:format=nv12 " + enc(qsEnc, 8_000_000, "51") + kf},
 		{"nvenc scope 1080p", nvenc, scope, Target{Mode: ModeTranscode, SubtitleBurnIn: -1, AudioStream: -1, Backend: BackendNVENC, MaxHeight: 1080, Quality: "1080p"},
-			head + " " + cudaI + maps + "scale_cuda=w=2592:h=1080:format=nv12 " + enc(nvEnc, 8_000_000, "5") + kf},
+			head + " " + cudaI + maps + "scale_cuda=w=2592:h=1080:format=nv12 " + enc(nvEnc, 8_000_000, "5.1") + kf},
 		{"vaapi scope 1080p", vaapi, scope, Target{Mode: ModeTranscode, SubtitleBurnIn: -1, AudioStream: -1, Backend: BackendVAAPI, MaxHeight: 1080, Quality: "1080p"},
-			head + " " + vaI + maps + "scale_vaapi=w=2592:h=1080:format=nv12 " + enc(vaEnc, 8_000_000, "5") + kf},
+			head + " " + vaI + maps + "scale_vaapi=w=2592:h=1080:format=nv12 " + enc(vaEnc, 8_000_000, "5.1") + kf},
 		{"software scope stays 1080p", sw, scope, uhd(sw, false),
-			head + maps + "scale=w=2592:h=1080:flags=bicubic,format=yuv420p " + enc(x264, 8_000_000, "5") + kf},
+			head + maps + "scale=w=2592:h=1080:flags=bicubic,format=yuv420p " + enc(x264, 8_000_000, "5.1") + kf},
+		// At 59.94 fps 2160p needs level 5.2 and 1080p level 5.1 (macroblocks per second).
+		{"qsv 2160p60", qsvCPU, sdr60, uhd(qsvCPU, false),
+			head + " " + qsvI + maps + "vpp_qsv=w=3840:h=2160:format=nv12 " + enc(qsEnc, 25_000_000, "52") + kf},
+		{"software 1080p60", sw, sdr60, uhd(sw, false),
+			head + maps + "scale=w=1920:h=1080:flags=bicubic,format=yuv420p " + enc(x264, 8_000_000, "5.1") + kf},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -100,16 +100,17 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
   3836×1600 nicht.
 - Die 2160p-Stufe skaliert nie hoch: 3840×1600 bleibt 3840×1600 (`heightLimit` ist eine
   Obergrenze, die Ausgabe ist höchstens so hoch wie die Quelle).
-- **Level aus der Bildgrösse.** Das H.264-Level folgt der Zahl der Makroblöcke (16×16 Pixel,
-  MaxFS aus Tabelle A-1 der Norm), nicht nur der Höhe. Das ersetzt Punkt 6 und die Zeile zu
-  `h264Level` in der Umsetzung:
-  - bis 8192 Makroblöcke (1920×1080) Level 4.1, `avc1.640029`;
-  - bis 22080 (zum Beispiel 2592×1080, die 1080p-Ausgabe eines Scope-Films) Level 5.0,
-    `avc1.640032`;
-  - bis 36864 (3840×1600, 3840×2160, 4096×2160) Level 5.1, `avc1.640033`;
-  - darüber Level 6.0, `avc1.64003C`.
-- Die Bildrate bleibt aussen vor. Die Encoder bekommen «4.1», «5», «5.1» oder «6» (h264_vaapi
-  kennt kein «5.0»), h264_qsv den Wert `level_idc` («41», «50», «51», «60»).
+- **Level aus Bildgrösse und Bildrate.** Das H.264-Level folgt der Zahl der Makroblöcke
+  (16×16 Pixel) je Bild und je Sekunde (MaxFS und MaxMBPS aus Tabelle A-1 der Norm), nicht nur
+  der Höhe. Das ersetzt Punkt 6 und die Zeile zu `h264Level` in der Umsetzung:
+  - bis 8192 Makroblöcke je Bild und 245 760 je Sekunde (1920×1080 mit 30 Bildern/s) Level 4.1,
+    `avc1.640029`;
+  - bis 36 864 und 983 040 (2592×1080 als 1080p-Ausgabe eines Scope-Films, 3840×1600, 3840×2160
+    und 4096×2160 mit 30 Bildern/s, 1080p mit 60 Bildern/s) Level 5.1, `avc1.640033`;
+  - sonst Level 5.2, `avc1.640034` (zum Beispiel 2160p mit 60 Bildern/s).
+- Die Bildrate ist die mittlere Bildrate der Quelle (`avg_frame_rate` von ffprobe, neu
+  `Stream.FrameRate`). Probes, die vor diesem Schritt gespeichert wurden, haben sie nicht; dann
+  entscheidet die Bildgrösse allein, bis die Datei neu geprüft wird.
 
 ## Verworfene Alternativen
 

@@ -49,7 +49,10 @@ type Stream struct {
 	Level          int    `json:"level,omitempty"`
 	Width          int    `json:"width,omitempty"`
 	Height         int    `json:"height,omitempty"`
-	PixFmt         string `json:"pixFmt,omitempty"`
+	// FrameRate is the average frame rate of a video stream in frames per second (ffprobe
+	// avg_frame_rate); 0 when unknown and in probes stored before concept 13 step 11.
+	FrameRate float64 `json:"frameRate,omitempty"`
+	PixFmt    string  `json:"pixFmt,omitempty"`
 	ColorTransfer  string `json:"colorTransfer,omitempty"`
 	ColorPrimaries string `json:"colorPrimaries,omitempty"`
 	Channels       int    `json:"channels,omitempty"`
@@ -172,6 +175,7 @@ type rawProbe struct {
 		Level          int    `json:"level"`
 		Width          int    `json:"width"`
 		Height         int    `json:"height"`
+		AvgFrameRate   string `json:"avg_frame_rate"`
 		PixFmt         string `json:"pix_fmt"`
 		ColorTransfer  string `json:"color_transfer"`
 		ColorPrimaries string `json:"color_primaries"`
@@ -318,6 +322,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Level:               s.Level,
 			Width:               s.Width,
 			Height:              s.Height,
+			FrameRate:           frameRate(s.CodecType, s.AvgFrameRate),
 			PixFmt:              s.PixFmt,
 			ColorTransfer:       s.ColorTransfer,
 			ColorPrimaries:      s.ColorPrimaries,
@@ -425,6 +430,24 @@ func seconds(s string) time.Duration {
 		return 0
 	}
 	return time.Duration(math.Round(f * float64(time.Second)))
+}
+
+// frameRate parses the ffprobe avg_frame_rate of a video stream ("24000/1001", "25/1") into
+// frames per second, rounded to three decimals; 0 for other streams and for "0/0" or garbage.
+func frameRate(codecType, s string) float64 {
+	if codecType != "video" {
+		return 0
+	}
+	num, den, ok := strings.Cut(strings.TrimSpace(s), "/")
+	if !ok {
+		den = "1"
+	}
+	n, errN := strconv.ParseFloat(num, 64)
+	d, errD := strconv.ParseFloat(den, 64)
+	if errN != nil || errD != nil || n <= 0 || d <= 0 || math.IsInf(n/d, 0) {
+		return 0
+	}
+	return math.Round(n/d*1000) / 1000
 }
 
 func integer(s string) int64 {
