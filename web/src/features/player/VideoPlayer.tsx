@@ -515,7 +515,8 @@ export function VideoPlayer({
   //   plays the next episode. Enter and Space on a focused button (play/pause on the remote's OK)
   //   still press it, on the countdown's own buttons without cancelling.
   // - With the controls faded out there is no zone (11.2): the arrows seek and change the volume
-  //   whatever has the focus, and the bar comes back.
+  //   and Enter, Space and K play and pause whatever has the focus (remote, C-4), and the bar
+  //   comes back.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (hasShortcutModifier(event)) return;
@@ -544,7 +545,11 @@ export function VideoPlayer({
       }
       if (!hiddenNow.current || event.shiftKey) return;
       const action = playerKeyAction(event);
-      if (action?.kind === 'seek') {
+      if (action?.kind === 'playPause') {
+        // Enter and Space on the remote's OK play and pause; the focused button stays as it is.
+        consume();
+        togglePlay();
+      } else if (action?.kind === 'seek') {
         consume();
         seekBy(action.seconds);
       } else if (action?.kind === 'volume') {
@@ -554,7 +559,7 @@ export function VideoPlayer({
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [cancelCountdown, changeVolume, countdownActive, playNext, poke, seekBy]);
+  }, [cancelCountdown, changeVolume, countdownActive, playNext, poke, seekBy, togglePlay]);
 
   // Key map (11.2; W-1, C-4, W-4, W-9): the keys no zone kept for itself. Space/Enter/K play and
   // pause, left/right 10 s (with Shift a chapter), up/down volume, M mute, T tracks, U subtitles,

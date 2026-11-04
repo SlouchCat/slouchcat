@@ -149,6 +149,19 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Lautstärke 95 %');
   });
 
+  it('with the controls faded out Enter plays and pauses instead of pressing the focused button', async () => {
+    const { media } = await start();
+    const user = playerDriver().user;
+    act(() => button('30 Sekunden vor').focus());
+    await act(() => vi.advanceTimersByTimeAsync(CONTROLS_HIDE_MS + 100));
+    expect(region()).toHaveAttribute('data-controls', 'hidden');
+    const before = media.currentTime;
+    await user.keyboard('{Enter}');
+    expect(media.paused).toBe(true);
+    expect(media.currentTime).toBe(before);
+    expect(button('30 Sekunden vor')).toHaveFocus();
+  });
+
   it('↑/↓ change the volume by 5 % without a zone; M mutes, ↑ after it counts from the old level', async () => {
     const { video } = await start();
     act(() => button('Pause').blur());
