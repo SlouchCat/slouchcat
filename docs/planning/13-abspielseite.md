@@ -870,19 +870,23 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
     schwarz, wenn mindestens 98 % der Pixel eine Helligkeit bis 32 haben; das prüft derselbe
     ffmpeg-Lauf an einem Graubild von 64×36. Anamorphe Quellen werden entzerrt.
   - **Ablage:** `cache/chapters/<mediaFileId>-<probedAt>-<hash8>/`, der Hash über die Kapitelliste.
-    So gibt auch eine geänderte Kapitelregel neue Bilder. `imageUrl` trägt dieselbe Version
-    (`&v=`); passt sie, ist die Antwort ein Jahr gültig (`immutable`), sonst `no-cache` mit ETag.
+    Ändert ein Update die Kapitelregel, reiht der Sweep die betroffenen Dateien mit Priorität 1
+    neu ein. `imageUrl` trägt dieselbe Version (`&v=`); passt sie, ist die Antwort ein Jahr gültig
+    (`immutable`), sonst `no-cache` mit ETag.
   - **Aufräumen** macht der stündliche `library.sweep`: Ordner gelöschter Dateien und Titel,
     älterer Versionen und liegen gebliebene temporäre Ordner (älter als 6 Stunden). Keine Migration.
   - **«Fertig, keine Bilder»** ist ein leerer Ordner: für eine Datei ohne Kapitel oder ohne Bild,
     oder wenn ffmpeg aus einer lesbaren Datei in allen Versuchen kein Bild bekam. Ist die Datei nicht
-    lesbar (NAS weg), wartet der Job eine Stunde und schreibt nichts.
+    lesbar (NAS weg; geprüft durch Lesen der ersten 64 KiB), wartet der Job eine Stunde und
+    schreibt nichts, längstens 7 Tage lang.
   - **Nach der Wiedergabe** reiht die minütliche Aufräumrunde der Wiedergabe jede beendete Sitzung
-    ein (Stopp, Stopp durch die Verwaltung, Abmelden, Ablauf), mit 10 Minuten Verzögerung. Läuft die
-    Datei dann noch, wartet der Job weitere 10 Minuten. «Läuft» heisst wie bei den Stream-Grenzen:
-    eine Anfrage in den letzten 2 Minuten. In einer längeren Pause darf der Job also laufen. Ein
-    Wechsel von Ton, Qualität oder Version reiht nichts ein. Ein Backfill von Hand holt einen so
-    verzögerten Job sofort nach vorn.
+    ein (Stopp, Stopp durch die Verwaltung, Abmelden, Wechsel, Ablauf), mit 10 Minuten Verzögerung.
+    Läuft die Datei dann noch, wartet der Job weitere 10 Minuten. «Läuft» heisst wie bei den
+    Stream-Grenzen: eine Anfrage in den letzten 2 Minuten. Ein Wechsel von Ton, Qualität oder
+    Version beendet die alte Sitzung und reiht den Job darum ein; er wartet aber, solange die Datei
+    in der neuen Sitzung läuft. Schliesst jemand die App ohne Stopp, merkt der Server das Ende erst
+    beim Ablauf der Sitzung (12 Stunden). Ein Backfill von Hand holt einen so verzögerten Job sofort
+    nach vorn, ohne seine Priorität zu ändern.
   - **Neue Dateien:** Eine Datei gilt als neu, wenn der vorige Scan ihrer Bibliothek ohne Fehler
     endete. Nach einem abgebrochenen oder fehlerhaften ersten Scan reiht der nächste Scan darum
     nicht die ganze Bibliothek ein; den Rest holt der Backfill von Hand.
@@ -890,7 +894,8 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
     Bilder neu ein.
   - **Priorität** (Marcos Entscheid vom 4. November 2026): Vom Backfill eingereihte Dateien laufen
     mit Priorität 1, unter allen anderen Jobs, damit ein grosser Import nicht auf den Backfill wartet.
-    Eingereiht durch Ereignisse (neue Datei, nach der Wiedergabe, neuer Probe) gilt 5 wie in 11.6.
+    Eingereiht durch Ereignisse (neue Datei, nach der Wiedergabe, neuer Probe) gilt 5 wie in 11.6;
+    ein solches Ereignis hebt einen wartenden Backfill-Job derselben Datei auf 5.
   - Download-Manifeste tragen kein `imageUrl`; der Offline-Player zeigt die Kapitelnummer.
   - Bekannte Grenze: Bei Dolby Vision Profil 5 können die Farben der Kapitelbilder verfälscht sein,
     wie beim Software-Transcode.
