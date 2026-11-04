@@ -1,4 +1,10 @@
-import type { ItemRef, PlaybackInfo, PlaybackRequest, Quality } from '@slouchcat/api-client';
+import type {
+  ItemRef,
+  MediaFileInfo,
+  PlaybackInfo,
+  PlaybackRequest,
+  Quality,
+} from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getRouteApi, useRouter } from '@tanstack/react-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -20,6 +26,8 @@ import {
   type PlaybackEngine,
 } from './capabilities';
 import { AudioPlayerPage } from './AudioPlayerPage';
+import { selectedAudio, selectedSubtitle } from './labels';
+import { baseLanguage } from './trackOrder';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
 import { NO_CARRY, VideoPlayer, type PlaybackChange, type PlayerCarry } from './VideoPlayer';
 import styles from './Player.module.css';
@@ -81,29 +89,94 @@ const STOP_WAIT_MS = 2000;
 const isTranscodeBusy = (error: unknown) =>
   isApiError(error, 503) && error.code === 'transcode_busy';
 
-/** The tracks the viewer picked, for the file that was playing then (W-4). */
-interface TrackChoice {
+/**
+ * The tracks a start names, for the file that was playing then (W-4). What it leaves out the
+ * server chooses (contract 1.11.0, 11.3): only the first start does so, every switch names both.
+ */
+export interface TrackChoice {
   /** `?file` of the URL at the time; a choice does not carry over to another version. */
   file: string | null;
   audioTrack?: number;
-  subtitleTrack?: number | null;
+  /** A subtitle track id, or `off` for none. */
+  subtitle?: number | 'off';
+  /** The viewer chose by hand during an episode and the server keeps it for the series. */
+  rememberForSeries?: boolean;
 }
 
-/** Body of startPlayback: the device profile, the version and the viewer's choices. */
+/**
+ * Body of startPlayback: the device profile, the version and the tracks. «Aus» is `subtitleOff`,
+ * never `subtitleTrack: null`, which since contract 1.11.0 lets the server choose.
+ */
 export function playbackRequest(
   file: string | undefined,
   tracks: Omit<TrackChoice, 'file'>,
   quality: Quality | undefined,
   positionMs: number | undefined,
 ): PlaybackRequest {
+  const { audioTrack, subtitle, rememberForSeries } = tracks;
   return {
     ...(file ? { mediaFileId: file } : {}),
     capabilities: deviceCapabilities(),
-    ...(tracks.audioTrack !== undefined ? { audioTrack: tracks.audioTrack } : {}),
-    ...(tracks.subtitleTrack !== undefined ? { subtitleTrack: tracks.subtitleTrack } : {}),
+    ...(audioTrack !== undefined ? { audioTrack } : {}),
+    ...(subtitle === 'off' ? { subtitleOff: true } : {}),
+    ...(typeof subtitle === 'number' ? { subtitleTrack: subtitle } : {}),
+    ...(rememberForSeries ? { rememberForSeries: true } : {}),
     subtitleDelivery: 'auto',
     ...(quality ? { quality } : {}),
     ...(positionMs !== undefined ? { positionMs } : {}),
+  };
+}
+
+/**
+ * The tracks of a switch (11.3): the change, and for what it leaves out the tracks the running
+ * session delivers, so a sound or quality switch keeps the subtitles (or «Aus») as they are.
+ */
+export function switchTracks(
+  info: PlaybackInfo,
+  change: PlaybackChange,
+): Omit<TrackChoice, 'file'> {
+  const audioTrack = change.audioTrack ?? info.selection.audioTrack;
+  return {
+    ...(audioTrack !== undefined ? { audioTrack } : {}),
+    subtitle: change.subtitleTrack ?? info.selection.subtitleTrack ?? 'off',
+    ...(change.rememberForSeries &&
+    (change.audioTrack !== undefined || change.subtitleTrack !== undefined)
+      ? { rememberForSeries: true }
+      : {}),
+  };
+}
+
+/**
+ * The tracks of a version switch (B-5, 11.3): ids and stream indexes belong to one file, so the
+ * running tracks are looked up in the other version by language (and forced); what it lacks the
+ * server chooses. «Aus» stays off.
+ */
+export function versionTracks(
+  info: PlaybackInfo,
+  version: MediaFileInfo | undefined,
+): Omit<TrackChoice, 'file'> {
+  const audio = selectedAudio(info);
+  const subtitle = selectedSubtitle(info);
+  const other = version?.tracks;
+  const audioTrack = audio
+    ? other?.audio.find(
+        (track) =>
+          baseLanguage(track.language) !== undefined &&
+          baseLanguage(track.language) === baseLanguage(audio.language),
+      )?.index
+    : undefined;
+  const subtitleId = subtitle
+    ? other?.subtitles.find(
+        (track) =>
+          track.forced === subtitle.forced &&
+          baseLanguage(track.language) !== undefined &&
+          baseLanguage(track.language) === baseLanguage(subtitle.language),
+      )?.id
+    : undefined;
+  return {
+    ...(audioTrack !== undefined ? { audioTrack } : {}),
+    ...(subtitle === undefined ? { subtitle: 'off' as const } : {}),
+    ...(subtitleId !== undefined ? { subtitle: subtitleId } : {}),
   };
 }
 
@@ -182,9 +255,16 @@ function PlayerView({ itemId }: { itemId: string }) {
     return status === 'pending' && location.pathname !== resolvedLocation?.pathname;
   }, [router]);
 
-  const tracks =
+  // «Für diese Serie merken» (11.3): on by default, kept while this player route is open.
+  const [rememberSeries, setRememberSeries] = useState(true);
+
+  const tracks: Omit<TrackChoice, 'file'> =
     trackChoice.file === (file ?? null)
-      ? { audioTrack: trackChoice.audioTrack, subtitleTrack: trackChoice.subtitleTrack }
+      ? {
+          audioTrack: trackChoice.audioTrack,
+          subtitle: trackChoice.subtitle,
+          rememberForSeries: trackChoice.rememberForSeries,
+        }
       : {};
 
   // Starting playback creates a session and may start a transcode on the server, so the request
@@ -268,24 +348,25 @@ function PlayerView({ itemId }: { itemId: string }) {
     setSwitchingTo(fileId);
     if (!(await endCurrent())) return;
     setStartMs(positionMs);
+    setTrackChoice({
+      file: fileId,
+      ...versionTracks(
+        current,
+        versions.find((version) => version.id === fileId),
+      ),
+    });
     setStopping(false);
     await navigate({ search: (previous) => ({ ...previous, file: fileId }), replace: true });
   };
 
   // Another track or quality (W-4, W-8): a new session of the same file at the same position.
   const switchPlayback = async (change: PlaybackChange, positionMs: number) => {
-    if (!playback.data || switching) return;
+    const current = playback.data;
+    if (!current || switching) return;
     if (!(await endCurrent())) return;
     setStartMs(positionMs);
     if (change.quality !== undefined) setQuality(change.quality);
-    if (change.audioTrack !== undefined || change.subtitleTrack !== undefined) {
-      setTrackChoice({
-        ...tracks,
-        file: file ?? null,
-        ...(change.audioTrack !== undefined ? { audioTrack: change.audioTrack } : {}),
-        ...(change.subtitleTrack !== undefined ? { subtitleTrack: change.subtitleTrack } : {}),
-      });
-    }
+    setTrackChoice({ file: file ?? null, ...switchTracks(current, change) });
     setGeneration((value) => value + 1);
     setStopping(false);
   };
@@ -362,6 +443,11 @@ function PlayerView({ itemId }: { itemId: string }) {
         onToggleInfo={() => setInfoOpen((open) => !open)}
         carried={carried}
         onCarry={carry}
+        rememberSeries={
+          playback.data.item.kind === 'episode'
+            ? { on: rememberSeries, onChange: setRememberSeries }
+            : undefined
+        }
         switching={switching}
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
         onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}

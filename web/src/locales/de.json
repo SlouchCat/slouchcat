@@ -685,7 +685,9 @@
       "off": "Aus",
       "unknown": "Spur {{n}}",
       "forced": "erzwungen",
-      "external": "extern"
+      "external": "extern",
+      "rememberSeries": "Für diese Serie merken",
+      "forcedBitmap": "Erzwungene Untertitel verfügbar (werden eingebrannt)"
     },
     "quality": {
       "auto": "Automatisch",

@@ -211,7 +211,7 @@ describe('player M4', () => {
     await waitFor(() => expect(trackCalls()).toHaveLength(2));
   });
 
-  it('switches subtitles off and on: null for off, the track id for a text track', async () => {
+  it('switches subtitles on: the track id for a text track, the running audio track along', async () => {
     stubMedia();
     const withText: PlaybackInfo = {
       ...playback,
@@ -224,7 +224,11 @@ describe('player M4', () => {
     await startPlayer(container);
     await playerDriver().chooseSubtitle('Deutsch (SRT)');
     await waitFor(() => expect(starts(calls)).toHaveLength(2));
-    expect(starts(calls)[1]?.body).toMatchObject({ subtitleTrack: 21, subtitleDelivery: 'auto' });
+    expect(starts(calls)[1]?.body).toMatchObject({
+      audioTrack: 1,
+      subtitleTrack: 21,
+      subtitleDelivery: 'auto',
+    });
 
     // The text track renders through <track>, for direct play as for hls.js.
     await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-sub'));
@@ -242,6 +246,91 @@ describe('player M4', () => {
     expect(within(info).getByText('Untertitel als').nextElementSibling).toHaveTextContent(
       'Text (WebVTT)',
     );
+  });
+
+  // Contract 1.11.0 (11.3, review m-1): a missing or null subtitleTrack lets the server choose, so
+  // «Aus» sends subtitleOff and a later audio switch keeps it.
+  it('«Aus» sends subtitleOff, and an audio switch after it stays without subtitles', async () => {
+    stubMedia();
+    const withText: PlaybackInfo = {
+      ...playback,
+      playbackSessionId: 'ps-sub',
+      selection: { audioTrack: 1, subtitleTrack: 21, subtitleDelivery: 'text' },
+      subtitleUrl: '/playback/sessions/ps-sub/subtitles/21.vtt?st=ps-sub.token',
+    };
+    const answers: PlaybackInfo[] = [
+      { ...playback, playbackSessionId: 'ps-off', selection: { audioTrack: 1 } },
+      { ...playback, playbackSessionId: 'ps-en', selection: { audioTrack: 2 } },
+    ];
+    const { calls } = mockApi(routes(withText, (_body, count) => answers[count - 2]!));
+    const { container } = renderApp(`/play/${ids.alien}`);
+    await startPlayer(container);
+    expect(starts(calls)[0]?.body).not.toHaveProperty('subtitleTrack');
+    expect(starts(calls)[0]?.body).not.toHaveProperty('subtitleOff');
+
+    await playerDriver().chooseSubtitle('Aus');
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    expect(starts(calls)[1]?.body).toMatchObject({ audioTrack: 1, subtitleOff: true });
+    expect(starts(calls)[1]?.body).not.toHaveProperty('subtitleTrack');
+
+    await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-off'));
+    await startPlayer(container);
+    await playerDriver().chooseAudioTrack(/AC3/);
+    await waitFor(() => expect(starts(calls)).toHaveLength(3));
+    expect(starts(calls)[2]?.body).toMatchObject({ audioTrack: 2, subtitleOff: true });
+    expect(starts(calls)[2]?.body).not.toHaveProperty('subtitleTrack');
+    expect(starts(calls)[2]?.body).not.toHaveProperty('rememberForSeries');
+  });
+
+  it('an episode: «Für diese Serie merken» is on and goes along; switched off it does not', async () => {
+    stubMedia();
+    const episode: PlaybackInfo = { ...playback, item: { ...playback.item, kind: 'episode' } };
+    const { calls } = mockApi(
+      routes(episode, (_body, count) => ({ ...episode, playbackSessionId: `ps-${count}` })),
+    );
+    const { container } = renderApp(`/play/${ids.alien}`);
+    await startPlayer(container);
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+
+    fireEvent.keyDown(document.body, { key: 'u' });
+    const subtitles = await playerDriver().findList('subtitle');
+    const panel = subtitles.closest('[role="dialog"]') as HTMLElement;
+    expect(within(panel).getByRole('switch', { name: 'Für diese Serie merken' })).toBeChecked();
+    await user.click(within(panel).getByRole('option', { name: 'Deutsch (SRT)' }));
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    expect(starts(calls)[1]?.body).toMatchObject({ subtitleTrack: 21, rememberForSeries: true });
+
+    await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-2'));
+    await startPlayer(container);
+    fireEvent.keyDown(document.body, { key: 't' });
+    const audio = await playerDriver().findList('audio');
+    const audioPanel = audio.closest('[role="dialog"]') as HTMLElement;
+    const remember = within(audioPanel).getByRole('switch', { name: 'Für diese Serie merken' });
+    await user.click(remember);
+    expect(remember).not.toBeChecked();
+    await user.click(within(audioPanel).getByRole('option', { name: /AC3/ }));
+    await waitFor(() => expect(starts(calls)).toHaveLength(3));
+    expect(starts(calls)[2]?.body).toMatchObject({ audioTrack: 2 });
+    expect(starts(calls)[2]?.body).not.toHaveProperty('rememberForSeries');
+  });
+
+  it('a film has no series switch; a forced bitmap track is announced (F-11)', async () => {
+    stubMedia();
+    const hint: PlaybackInfo = {
+      ...playback,
+      selection: { audioTrack: 1, subtitleReason: 'forced_bitmap_available' },
+    };
+    mockApi(routes(hint));
+    const { container } = renderApp(`/play/${ids.alien}`);
+    await startPlayer(container);
+    fireEvent.keyDown(document.body, { key: 'u' });
+    const panel = (await playerDriver().findList('subtitle')).closest(
+      '[role="dialog"]',
+    ) as HTMLElement;
+    expect(
+      within(panel).getByText('Erzwungene Untertitel verfügbar (werden eingebrannt)'),
+    ).toBeVisible();
+    expect(within(panel).queryByRole('switch')).toBeNull();
   });
 
   it('Q opens the quality choice: unavailable rungs are disabled, a pick asks for that rung', async () => {

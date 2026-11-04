@@ -685,7 +685,9 @@
       "off": "Off",
       "unknown": "Track {{n}}",
       "forced": "forced",
-      "external": "external"
+      "external": "external",
+      "rememberSeries": "Remember for this series",
+      "forcedBitmap": "Forced subtitles available (burned in)"
     },
     "quality": {
       "auto": "Automatic",

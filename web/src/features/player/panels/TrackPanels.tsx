@@ -7,6 +7,7 @@ import {
   OptionMoreRow,
   OptionRow,
   PlayerPanel,
+  Switch,
   type OptionMark,
 } from '@/ui/aria';
 import { audioKey, subtitleKey, trackLabel } from '../labels';
@@ -84,6 +85,27 @@ function TrackList({
   );
 }
 
+/** «Für diese Serie merken» (11.3): on by default; only during an episode. */
+export interface RememberSeries {
+  on: boolean;
+  onChange: (on: boolean) => void;
+}
+
+/**
+ * The switch below the list of an episode's sound and subtitle panel: a choice with it on keeps
+ * its language for the series (the server stores it, rule 12). Tab reaches it after the list.
+ */
+function RememberSwitch({ remember }: { remember: RememberSeries }) {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.remember}>
+      <Switch isSelected={remember.on} onChange={remember.onChange}>
+        {t('player.tracks.rememberSeries')}
+      </Switch>
+    </div>
+  );
+}
+
 interface AudioPanelProps {
   tracks: readonly Track[];
   profileLanguage: string | undefined;
@@ -93,6 +115,8 @@ interface AudioPanelProps {
   converts: (track: Track) => boolean;
   onSelect: (index: number) => void;
   onClose: () => void;
+  /** An episode: the switch «Für diese Serie merken». */
+  remember?: RememberSeries;
 }
 
 /** The sound panel (key T, V-5): «Deutsch · DTS · 5.1» with the marks «Standard», «Stream wird neu aufgebaut». */
@@ -103,6 +127,7 @@ export function AudioPanel({
   converts,
   onSelect,
   onClose,
+  remember,
 }: AudioPanelProps) {
   const { t } = useTranslation();
   return (
@@ -119,6 +144,7 @@ export function AudioPanel({
         selectedKey={selectedIndex === undefined ? null : audioKey(selectedIndex)}
         onSelect={(key) => onSelect(Number(key.slice('audio:'.length)))}
       />
+      {remember && <RememberSwitch remember={remember} />}
     </PlayerPanel>
   );
 }
@@ -133,6 +159,13 @@ interface SubtitlePanelProps {
   onClose: () => void;
   /** The subtitle style (V-6): a button below the list leads to its page. */
   subtitleStyle?: { value: SubtitleStyle; onChange: (patch: Partial<SubtitleStyle>) => void };
+  /** An episode: the switch «Für diese Serie merken». */
+  remember?: RememberSeries;
+  /**
+   * The server showed no subtitles although a forced track exists that only a transcode can burn
+   * in (subtitleReason forced_bitmap_available, F-11): the panel says so above the list.
+   */
+  forcedBitmap?: boolean;
 }
 
 /**
@@ -147,6 +180,8 @@ export function SubtitlePanel({
   onSelect,
   onClose,
   subtitleStyle,
+  remember,
+  forcedBitmap = false,
 }: SubtitlePanelProps) {
   const { t } = useTranslation();
   const [styling, setStyling] = useState(false);
@@ -164,6 +199,7 @@ export function SubtitlePanel({
   }
   return (
     <PlayerPanel id={PANEL_IDS.subtitle} title={t('player.tracks.subtitles')} onClose={onClose}>
+      {forcedBitmap && <p className={styles.hint}>{t('player.tracks.forcedBitmap')}</p>}
       <TrackList
         label={t('player.tracks.subtitles')}
         tracks={tracks}
@@ -181,6 +217,7 @@ export function SubtitlePanel({
         }}
         leading={<OptionRow id={subtitleKey(undefined)} label={t('player.tracks.off')} />}
       />
+      {remember && <RememberSwitch remember={remember} />}
       {subtitleStyle && (
         <div className={styles.footer}>
           <AriaButton variant="ghost" icon="settings" block onPress={() => setStyling(true)}>

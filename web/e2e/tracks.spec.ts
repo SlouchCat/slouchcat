@@ -1,7 +1,10 @@
+import { CSRF } from './catalog';
 import { expect, test } from './fixtures';
 import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus } from './keyboard';
+import { DOWNLOAD_SHOW_TITLE } from './offline';
 import {
   arrowTo,
+  episodeIds,
   itemIdByTitle,
   MULTI_AUDIO_TITLE,
   PGS_TITLE,
@@ -259,4 +262,118 @@ test('sound panel by keyboard: → along the row, arrows, Escape closes with foc
   // Escape in the panel did not leave the player.
   await expect(page).toHaveURL(/\/play\//);
   await expectNoFocusTrap(page);
+});
+
+// Contract 1.11.0 (concept 13 11.3, review m-1): a missing or null subtitleTrack lets the server
+// choose, so every switch names audio and subtitles; «Aus» is subtitleOff and survives a switch of
+// the audio track.
+test('every switch names both tracks: «Aus» is subtitleOff and stays off after an audio switch', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  const itemId = await itemIdByTitle(owner, MULTI_AUDIO_TITLE);
+  await resetProgress(page.request, itemId);
+  const first = await play(page, itemId);
+  const ac3 = first.tracks.audio.find((track) => track.codec === 'ac3');
+  expect(ac3, 'the AC3 track of the test film').toBeDefined();
+  expect(first.selection.subtitleTrack).toBeUndefined();
+
+  await page.keyboard.press('u');
+  await arrowTo(page, panelList(page, 'Untertitel').getByRole('option', { name: /SRT/ }).first());
+  const on = await startOf(page, () => page.keyboard.press('Enter'));
+  expect(on.status).toBe(200);
+  expect(on.request.audioTrack).toBe(first.selection.audioTrack);
+  expect(on.request.subtitleTrack).toBeGreaterThan(0);
+  expect(on.request).not.toHaveProperty('subtitleOff');
+  await expect(player(page)).toHaveAttribute('data-playback-session-id', on.body.playbackSessionId);
+
+  await page.keyboard.press('u');
+  await arrowTo(
+    page,
+    panelList(page, 'Untertitel').getByRole('option', { name: 'Aus' }),
+    'ArrowUp',
+  );
+  const off = await startOf(page, () => page.keyboard.press('Enter'));
+  expect(off.status).toBe(200);
+  expect(off.request).toMatchObject({ audioTrack: first.selection.audioTrack, subtitleOff: true });
+  expect(off.request).not.toHaveProperty('subtitleTrack');
+  expect(off.body.selection.subtitleTrack).toBeUndefined();
+  expect(off.body.selection.subtitleReason).toBe('request');
+  await expect(player(page)).toHaveAttribute(
+    'data-playback-session-id',
+    off.body.playbackSessionId,
+  );
+
+  await page.keyboard.press('t');
+  await arrowTo(page, panelList(page, 'Ton').getByRole('option', { name: /AC3/ }));
+  const sound = await startOf(page, () => page.keyboard.press('Enter'));
+  expect(sound.status).toBe(200);
+  expect(sound.request).toMatchObject({ audioTrack: ac3!.index, subtitleOff: true });
+  expect(sound.request).not.toHaveProperty('subtitleTrack');
+  expect(sound.body.selection.audioTrack).toBe(ac3!.index);
+  expect(sound.body.selection.subtitleTrack).toBeUndefined();
+  await expect(player(page)).toHaveAttribute(
+    'data-playback-session-id',
+    sound.body.playbackSessionId,
+  );
+  await expect(page.locator('video track')).toHaveCount(0);
+});
+
+// Concept 13 11.3 «Je Serie merken», rule 8: the switch below the list of an episode is reached
+// with Tab, Space toggles it, Shift+Tab goes back; a choice with it on keeps the language for the
+// series, and the next start without tracks takes it (subtitleReason series).
+test('«Für diese Serie merken» by keyboard: a subtitle chosen with it on comes back on the next start', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  const resetSeries = async () => {
+    const response = await page.request.delete('/api/v1/me/playback-prefs/series', {
+      headers: CSRF,
+    });
+    expect(response.status(), await response.text()).toBe(204);
+  };
+  const seriesId = await itemIdByTitle(owner, DOWNLOAD_SHOW_TITLE);
+  const [episodeId] = await episodeIds(owner, seriesId);
+  expect(episodeId, 'S01E01').toBeDefined();
+  await resetSeries();
+  await resetProgress(page.request, episodeId);
+  const first = await play(page, episodeId);
+  const sidecar = first.tracks.subtitles.find((track) => track.source === 'sidecar');
+  expect(sidecar, 'the German sidecar of S01E01').toBeDefined();
+  expect(first.selection.subtitleTrack).toBeUndefined();
+
+  await page.keyboard.press('u');
+  const panel = page.getByRole('dialog', { name: 'Untertitel' });
+  const menu = panelList(page, 'Untertitel');
+  await expect(menu.getByRole('option', { selected: true })).toBeFocused();
+  const remember = panel.getByRole('switch', { name: 'Für diese Serie merken' });
+  await expect(remember).toBeChecked();
+  await page.keyboard.press('Tab');
+  await expect(remember).toBeFocused();
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Space');
+  await expect(remember).not.toBeChecked();
+  await page.keyboard.press('Space');
+  await expect(remember).toBeChecked();
+  await page.keyboard.press('Shift+Tab');
+  await expect(menu.getByRole('option', { selected: true })).toBeFocused();
+  await arrowTo(page, menu.getByRole('option', { name: /extern/ }));
+  const chosen = await startOf(page, () => page.keyboard.press('Enter'));
+  expect(chosen.status).toBe(200);
+  expect(chosen.request).toMatchObject({ subtitleTrack: sidecar!.id, rememberForSeries: true });
+  expect(chosen.request.audioTrack).toBe(first.selection.audioTrack);
+  expect(chosen.body.selection.subtitleReason).toBe('request');
+  await expect(player(page)).toHaveAttribute(
+    'data-playback-session-id',
+    chosen.body.playbackSessionId,
+  );
+
+  // The next start names no track: the server takes the language remembered for the series.
+  const again = await play(page, episodeId);
+  expect(again.selection.subtitleTrack).toBe(sidecar!.id);
+  expect(again.selection.subtitleReason).toBe('series');
+  await expectNoFocusTrap(page);
+  await resetSeries();
 });

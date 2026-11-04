@@ -27,7 +27,7 @@ import { chapterAt, languageName, qualityLabel, selectedSubtitle, trackLabel } f
 import { SettingsPanel } from './panels/SettingsPanel';
 import { PANEL_IDS } from './panels/panelIds';
 import { usePlayerPanels } from './panels/usePlayerPanels';
-import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
+import { AudioPanel, SubtitlePanel, type RememberSeries } from './panels/TrackPanels';
 import { PAUSE_VIEW_MS, PauseView } from './PauseView';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
@@ -59,13 +59,18 @@ const RESUME_TAIL_MS = 5000;
 /** The skip button hides this close to the end of the intro. */
 const SKIP_TAIL_MS = 500;
 
-/** A change of the playback the server has to make: a new session (W-4, W-8). */
+/**
+ * A change of the playback the server has to make: a new session (W-4, W-8). PlayerPage names the
+ * other tracks of the running session too (11.3), so only the first start lets the server choose.
+ */
 export interface PlaybackChange {
   /** Stream index of the audio track. */
   audioTrack?: number;
-  /** Track id of the subtitle; null switches subtitles off. */
-  subtitleTrack?: number | null;
+  /** Track id of the subtitle, or `off` (sent as `subtitleOff`). */
+  subtitleTrack?: number | 'off';
   quality?: Quality;
+  /** A choice by hand during an episode that the server keeps for the series (11.3). */
+  rememberForSeries?: boolean;
 }
 
 /**
@@ -112,6 +117,8 @@ interface VideoPlayerProps {
   carried?: PlayerCarry;
   /** Reports what the next session should keep. */
   onCarry?: (patch: Partial<PlayerCarry>) => void;
+  /** An episode: «Für diese Serie merken» in the sound and subtitle panels (11.3). */
+  rememberSeries?: RememberSeries;
 }
 
 /**
@@ -180,6 +187,7 @@ export function VideoPlayer({
   detail,
   carried = NO_CARRY,
   onCarry,
+  rememberSeries,
 }: VideoPlayerProps) {
   const { t, i18n } = useTranslation();
   // Fixed for the life of this player (one playback session).
@@ -1205,8 +1213,11 @@ export function VideoPlayer({
           profileLanguage={profileLanguage}
           selectedIndex={audioIndex}
           converts={converts}
-          onSelect={(index) => switchPlayback({ audioTrack: index })}
+          onSelect={(index) =>
+            switchPlayback({ audioTrack: index, rememberForSeries: rememberSeries?.on })
+          }
           onClose={closePanel}
+          remember={rememberSeries}
         />
       )}
       {panel === 'subtitle' && (
@@ -1214,9 +1225,13 @@ export function VideoPlayer({
           tracks={tracks.subtitles}
           profileLanguage={profileLanguage}
           selectedId={info.selection.subtitleTrack}
-          onSelect={(id) => switchPlayback({ subtitleTrack: id })}
+          onSelect={(id) =>
+            switchPlayback({ subtitleTrack: id ?? 'off', rememberForSeries: rememberSeries?.on })
+          }
           onClose={closePanel}
           subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+          remember={rememberSeries}
+          forcedBitmap={info.selection.subtitleReason === 'forced_bitmap_available'}
         />
       )}
 
