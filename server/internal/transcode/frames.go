@@ -92,10 +92,14 @@ var ErrNoFrame = errors.New("ffmpeg wrote no frame")
 
 // FrameFailed reports whether err of GrabFrame says that ffmpeg ran on the input and gave no
 // usable frame: it wrote none (ErrNoFrame) or exited with an error (a broken stream). An ffmpeg
-// that did not run (not configured, not found) and a cancelled or timed-out context are no frame
-// failure: the frame may well exist.
+// that did not run (not configured, not found), a cancelled or timed-out context and an ffmpeg
+// that could not read its input («Input/output error», «Permission denied»: a share offline, a
+// right missing) are no frame failure: the frame may well exist.
 func FrameFailed(err error) bool {
 	if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	if msg := err.Error(); strings.Contains(msg, "Input/output error") || strings.Contains(msg, "Permission denied") {
 		return false
 	}
 	var exit *exec.ExitError

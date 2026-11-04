@@ -197,6 +197,14 @@ func TestGrabFrame(t *testing.T) {
 	if _, err := r.GrabFrame(ctx, junk, 0, ChapterImageWidth, v, filepath.Join(dir, "junk.webp")); err == nil || !FrameFailed(err) {
 		t.Errorf("junk input: %v, want a frame failure", err)
 	}
+	// An input ffmpeg cannot read (no right): no frame failure.
+	locked := filepath.Join(dir, "locked.mp4")
+	if err := os.WriteFile(locked, []byte("x"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.GrabFrame(ctx, locked, 0, ChapterImageWidth, v, filepath.Join(dir, "locked.webp")); err == nil || (FrameFailed(err) && os.Geteuid() != 0) {
+		t.Errorf("unreadable input: %v, want no frame failure", err)
+	}
 	// No ffmpeg, a cancelled context: no frame failure.
 	if _, err := (Runner{}).GrabFrame(ctx, clip, 0, ChapterImageWidth, v, filepath.Join(dir, "none.webp")); err == nil || FrameFailed(err) {
 		t.Errorf("without ffmpeg: %v", err)
