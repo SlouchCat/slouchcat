@@ -47,11 +47,6 @@ interface MenuButtonProps {
   reselect?: boolean;
   icon?: IconName;
   variant?: ButtonVariant;
-  /**
-   * Element the menu renders into instead of the document body: an element in full screen (the
-   * player) shows only its own subtree, a menu outside it would be invisible.
-   */
-  portalContainer?: Element;
   /** Open state when the page opens the menu itself (a shortcut key); uncontrolled without. */
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
@@ -95,7 +90,6 @@ export function MenuButton({
   reselect = false,
   icon,
   variant = 'ghost',
-  portalContainer,
   isOpen,
   onOpenChange,
   isDisabled,
@@ -121,13 +115,7 @@ export function MenuButton({
       >
         {label}
       </AriaButton>
-      <Popover
-        className={styles.popover}
-        placement="top end"
-        offset={8}
-        UNSTABLE_portalContainer={portalContainer}
-        {...density}
-      >
+      <Popover className={styles.popover} placement="top end" offset={8} {...density}>
         {groups ? (
           <AriaMenu
             className={styles.menu}

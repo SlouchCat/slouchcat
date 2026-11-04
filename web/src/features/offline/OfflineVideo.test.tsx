@@ -190,6 +190,9 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     expect(within(help).queryByText('Stream-Info')).toBeNull();
     expect(within(help).queryByText('Nächste Folge')).toBeNull();
     expect(within(help).queryByText('Reiter Kapitel')).toBeNull();
+    // Escape leads to the downloads, not to a detail page (review step 6).
+    expect(within(help).getByText(/sonst zurück zu den Downloads$/)).toBeVisible();
+    expect(within(help).queryByText(/Detailseite/)).toBeNull();
   });
 
   it('at the limit the hint’s back button takes the focus and nothing opens', async () => {

@@ -31,11 +31,13 @@ interface PlayerTabsInput {
   /** The episodes of the season of an episode (itemQuery of the season), none for a film. */
   episodes?: readonly ItemRef[];
   /** The title that plays: its card is marked and pressing it closes the tab. */
-  currentId: string;
-  onEpisode: (episode: ItemRef) => void;
+  currentId?: string;
+  /** Plays an episode of «Als Nächstes»; needed with `episodes`. */
+  onEpisode?: (episode: ItemRef) => void;
   onClose: () => void;
   cast?: readonly CastMember[];
-  onPerson: (personId: number) => void;
+  /** Opens a person of «Besetzung»; needed with `cast`. */
+  onPerson?: (personId: number) => void;
   /**
    * The description and its facts line («2017 · 2 Std. 44 Min. · Science-Fiction», an episode
    * «S01E04 · Wahrheit · 52 Min.»), from the title's details.
@@ -126,7 +128,7 @@ export function usePlayerTabs({
                   : undefined
               }
               isCurrent={episode.id === currentId}
-              onPress={() => (episode.id === currentId ? onClose() : onEpisode(episode))}
+              onPress={() => (episode.id === currentId ? onClose() : onEpisode?.(episode))}
               excludeFromTabOrder={excluded}
             />
           );
@@ -147,7 +149,7 @@ export function usePlayerTabs({
               shape="person"
               title={member.name}
               caption={creditCaption(t, member)}
-              onPress={() => onPerson(member.personId)}
+              onPress={() => onPerson?.(member.personId)}
               excludeFromTabOrder={excluded}
             />
           );

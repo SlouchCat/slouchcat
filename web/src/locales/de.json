@@ -914,7 +914,8 @@
         },
         "back": {
           "keys": "Escape, Backspace",
-          "action": "Schliesst Panel, Hilfe und Stream-Info (im Zahnrad: eine Ebene zurück), sonst zurück zur Detailseite"
+          "action": "Schliesst Panel, Hilfe und Stream-Info (im Zahnrad: eine Ebene zurück), sonst zurück zur Detailseite",
+          "actionOffline": "Schliesst Panel, Hilfe und Reiter (im Zahnrad: eine Ebene zurück), sonst zurück zu den Downloads"
         }
       }
     }
@@ -3597,7 +3598,6 @@
     },
     "player": {
       "failed": "Die gespeicherte Datei lässt sich nicht abspielen.",
-      "subtitles": "Untertitel",
       "missing": {
         "title": "Download nicht verfügbar",
         "body": "Diesen Download gibt es auf diesem Gerät nicht (mehr), er ist noch nicht vollständig oder für dieses Profil nicht freigegeben."

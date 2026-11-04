@@ -264,10 +264,7 @@ export function OfflineVideo({
     durationMs,
     onChapter: seekTo,
     focusChapter: tab?.focusChapter,
-    currentId: '',
-    onEpisode: () => undefined,
     onClose: () => setTab(null),
-    onPerson: () => undefined,
   });
   const tabs = phone || limitReached ? [] : allTabs;
 
@@ -446,7 +443,14 @@ export function OfflineVideo({
         helpOpen={panel === 'help'}
         onToggleHelp={() => togglePanel('help')}
       />
-      {panel === 'help' && <ShortcutHelp onClose={closePanel} rows={helpRows} />}
+      {panel === 'help' && (
+        // Escape leaves for the downloads or the offline library, not a detail page (review step 6).
+        <ShortcutHelp
+          onClose={closePanel}
+          rows={helpRows}
+          backAction={t('player.help.rows.back.actionOffline')}
+        />
+      )}
       {panel === 'settings' && (
         <SettingsPanel
           page={settingsView.page}

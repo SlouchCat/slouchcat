@@ -99,7 +99,7 @@ function OfflinePlayback({
   fromSession: boolean;
 }) {
   const who = usePlayer(fromSession);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const goBack = useGoBack(fromSession ? paths.downloads : paths.offline);
   // One playback per mount (OfflineEvent.playbackId).
   const [playbackId] = useState(() => ulid());
@@ -155,7 +155,8 @@ function OfflinePlayback({
         watch={state.watch}
         serverOffsetMs={state.serverOffsetMs}
         onBack={goBack}
-        profileLanguage={state.profileLanguage}
+        // The profile's language sorts the panels; the UI language stands in, as online.
+        profileLanguage={state.profileLanguage ?? i18n.language}
         coverUrl={cover}
         byline={download.item?.author}
         accent={download.item?.accent}

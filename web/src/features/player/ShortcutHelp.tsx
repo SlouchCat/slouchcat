@@ -31,14 +31,17 @@ export type ShortcutRow = (typeof SHORTCUT_ROWS)[number];
  * The shortcut help (V-12, key ?): every key of the video player in a panel beside the video,
  * which keeps playing. Escape, Backspace and the close button close it (PlayerPanel), which gives
  * the focus back to the «?» button when it opened the help. `rows` leaves out what a player cannot
- * do (the offline player has no quality, stream info or next episode).
+ * do (the offline player has no quality, stream info or next episode); `backAction` says where
+ * Escape leads when nothing is open, if not to the detail page (offline: the downloads).
  */
 export function ShortcutHelp({
   onClose,
   rows = SHORTCUT_ROWS,
+  backAction,
 }: {
   onClose: () => void;
   rows?: readonly ShortcutRow[];
+  backAction?: string;
 }) {
   const { t } = useTranslation();
   return (
@@ -53,7 +56,11 @@ export function ShortcutHelp({
             <dt className={styles.keys}>
               <kbd>{t(`player.help.rows.${row}.keys`)}</kbd>
             </dt>
-            <dd className={styles.action}>{t(`player.help.rows.${row}.action`)}</dd>
+            <dd className={styles.action}>
+              {row === 'back' && backAction !== undefined
+                ? backAction
+                : t(`player.help.rows.${row}.action`)}
+            </dd>
           </div>
         ))}
       </dl>
