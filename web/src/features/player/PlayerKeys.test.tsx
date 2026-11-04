@@ -83,7 +83,7 @@ function routes(info: PlaybackInfo, extra: Record<string, (call: Call) => Respon
 
 async function start(info: PlaybackInfo = film, extra = {}) {
   const media = stubMedia();
-  mockApi(routes(info, extra));
+  const { calls } = mockApi(routes(info, extra));
   const { container, router } = renderApp(`/play/${info.item.id}`);
   const video = await waitFor(() => {
     const element = container.querySelector('video');
@@ -94,7 +94,7 @@ async function start(info: PlaybackInfo = film, extra = {}) {
     video.dispatchEvent(new Event('loadedmetadata'));
   });
   await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toHaveFocus());
-  return { media, video, router };
+  return { media, video, router, calls };
 }
 
 const region = () => screen.getByRole('main', { name: 'Videoplayer' });
@@ -741,6 +741,27 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
     await user.click(tabButton('Besetzung'));
     await user.click(screen.getByRole('button', { name: /^Lena Muster/ }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/people/7'));
+  });
+
+  it('another episode asks for the season again: the one just seen shows its progress (review step 6)', async () => {
+    const { router, calls } = await start(episode, {
+      ...episodeRoutes(),
+      [`GET /items/${episodes.e34.id}`]: () =>
+        json({ ...episode2Detail, ...episodes.e34, nextEpisode: undefined }),
+    });
+    const seasonCalls = () =>
+      calls.filter((call) => call.method === 'GET' && call.path === `/items/${season1Detail.id}`)
+        .length;
+    const { user } = playerDriver();
+    await user.click(await within(strip()).findByRole('button', { name: 'Als Nächstes' }));
+    expect(seasonCalls()).toBe(1);
+    await user.click(
+      within(screen.getByRole('list', { name: 'Als Nächstes' })).getAllByRole('button')[2]!,
+    );
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e34.id}`));
+    // PlayerPage mounts a new view per episode, whose cleanup invalidated the season: the next
+    // player does not take it from the 30-s cache.
+    await waitFor(() => expect(seasonCalls()).toBeGreaterThan(1));
   });
 
   it('back is «Vorherige Folge» without chapters, and in the first seconds of the first chapter', async () => {
