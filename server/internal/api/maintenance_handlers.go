@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/url"
 
@@ -138,10 +139,15 @@ func (s *server) ClearItemImage(ctx context.Context, req gen.ClearItemImageReque
 }
 
 func (s *server) SetItemOriginalLanguage(ctx context.Context, req gen.SetItemOriginalLanguageRequestObject) (gen.SetItemOriginalLanguageResponseObject, error) {
-	if req.Body == nil {
+	// A missing language is required; null lifts the lock, a string sets the language.
+	if req.Body == nil || len(req.Body.Language) == 0 {
 		return s.problem(ctx, (&model.ValidationError{}).Add("language", "required")), nil
 	}
-	it, err := s.opts.Admin.SetItemOriginalLanguage(ctx, req.Id, req.Body.Language)
+	var lang *string
+	if err := json.Unmarshal(req.Body.Language, &lang); err != nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("language", "invalid_value")), nil
+	}
+	it, err := s.opts.Admin.SetItemOriginalLanguage(ctx, req.Id, lang)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

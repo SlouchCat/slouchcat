@@ -7931,6 +7931,10 @@ components:
       required: [language]
       properties:
         language:
+          # The Go server reads the raw value to tell a missing field (422 required) from null
+          # (lift the lock); the generated code imports encoding/json already.
+          x-go-type: json.RawMessage
+          x-go-type-skip-optional-pointer: true
           oneOf:
             - type: string
               pattern: "^([a-z]{2})?$"
