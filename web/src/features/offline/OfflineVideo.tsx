@@ -122,7 +122,10 @@ export function OfflineVideo({
   const phone = layout === 'phone';
   // A phone has no tabs: one open when the window narrows closes, or the bar would never fade
   // (state adjusted while rendering, not in an effect; as online).
-  if (phone && tab !== null) setTab(null);
+  // The day's watch time is up (AN-18): no tabs either, and what was open closes; the help may
+  // stay (state adjusted while rendering, review step 6).
+  if ((phone || limitReached) && tab !== null) setTab(null);
+  if (limitReached && panel !== null && panel !== 'help') closePanel();
   const [prefs, setPrefs] = usePlayerPrefs();
   const [subtitleStyle, setSubtitleStyle] = useSubtitleStyle();
   const subtitleTrackElement = useRef<HTMLTrackElement>(null);
@@ -250,6 +253,7 @@ export function OfflineVideo({
     showOsd,
     wantsPlaying,
     hide,
+    disabled: !available,
   });
 
   // Only the chapter tab: a download carries no season, cast or description.
@@ -265,7 +269,7 @@ export function OfflineVideo({
     onClose: () => setTab(null),
     onPerson: () => undefined,
   });
-  const tabs = phone ? [] : allTabs;
+  const tabs = phone || limitReached ? [] : allTabs;
 
   // The help lists only what this player does: no quality, stream info, intro or next episode.
   const helpRows = SHORTCUT_ROWS.filter((row) => {

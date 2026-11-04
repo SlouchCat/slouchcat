@@ -45,9 +45,10 @@ function renderVideo(props: Partial<Props> = {}) {
     seekBy: vi.fn(),
     onBack: vi.fn(),
   };
-  const view = render(
+  const media = createRef<HTMLMediaElement>();
+  const element = (extra: Partial<Props>) => (
     <OfflineVideo
-      media={createRef<HTMLMediaElement>()}
+      media={media}
       src={undefined}
       title="Alien"
       durationMs={60_000}
@@ -69,9 +70,11 @@ function renderVideo(props: Partial<Props> = {}) {
       data={{ 'data-engine': 'mse' }}
       {...handlers}
       {...props}
-    />,
+      {...extra}
+    />
   );
-  return { ...view, ...handlers };
+  const view = render(element({}));
+  return { ...view, ...handlers, update: (extra: Partial<Props>) => view.rerender(element(extra)) };
 }
 
 afterEach(() => {
@@ -235,6 +238,19 @@ describe('offline video player on PlayerChrome (F-15)', () => {
     );
   });
 
+  it('reaching the limit closes the open tab and panels and removes the tabs (review step 6)', async () => {
+    const { update } = renderVideo({ chapters });
+    fireEvent.keyDown(window, { key: 'c' });
+    await screen.findByRole('list', { name: 'Kapitel' });
+    fireEvent.keyDown(window, { key: 'u' });
+    expect(screen.getByRole('dialog', { name: 'Untertitel' })).toBeVisible();
+    update({ limitReached: true, limitMinutes: 1 });
+    expect(screen.queryByRole('list', { name: 'Kapitel' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Untertitel' })).toBeNull();
+    expect(screen.queryByRole('toolbar', { name: 'Mehr zum Titel' })).toBeNull();
+    expect(screen.getByRole('alert')).toHaveTextContent('Schauzeit für heute aufgebraucht');
+  });
+
   describe('on a phone', () => {
     beforeEach(() => {
       vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -280,6 +296,26 @@ describe('offline video player on PlayerChrome (F-15)', () => {
       await act(() => vi.advanceTimersByTimeAsync(400));
       tap(200, 'mouse');
       expect(togglePlay).toHaveBeenCalledTimes(1);
+    });
+
+    it('at the limit two taps do not seek nor say «+10 s», a click does not play', async () => {
+      const { container, togglePlay, seekBy } = renderVideo({
+        limitReached: true,
+        limitMinutes: 1,
+      });
+      const video = videoElement(container);
+      vi.spyOn(video, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 400, 800));
+      const tap = (pointerType: string) => {
+        fireEvent.pointerDown(video, { button: 0, clientX: 350, pointerType });
+        fireEvent.pointerUp(video, { button: 0, clientX: 350, pointerType });
+      };
+      tap('touch');
+      tap('touch');
+      expect(seekBy).not.toHaveBeenCalled();
+      expect(screen.queryByText('+10 s')).toBeNull();
+      await act(() => vi.advanceTimersByTimeAsync(400));
+      tap('mouse');
+      expect(togglePlay).not.toHaveBeenCalled();
     });
   });
 });

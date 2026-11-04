@@ -19,6 +19,11 @@ interface PictureTapOptions {
   wantsPlaying: () => boolean;
   /** Fades the controls out at once. */
   hide: () => void;
+  /**
+   * Nothing plays any more (the offline watch-time limit): a tap still shows and hides the
+   * controls, but taps do not seek and a click does not play.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -37,6 +42,7 @@ export function usePhoneTap({
   showOsd,
   wantsPlaying,
   hide,
+  disabled = false,
 }: PictureTapOptions) {
   const { t } = useTranslation();
   const hiddenAtTap = useRef(false);
@@ -50,7 +56,12 @@ export function usePhoneTap({
     const side = event.clientX < box.left + box.width / 2 ? 'left' : 'right';
     const previous = lastTap.current;
     window.clearTimeout(tapTimer.current);
-    if (previous && previous.side === side && event.timeStamp - previous.at < DOUBLE_TAP_MS) {
+    if (
+      !disabled &&
+      previous &&
+      previous.side === side &&
+      event.timeStamp - previous.at < DOUBLE_TAP_MS
+    ) {
       lastTap.current = null;
       seekBy(side === 'left' ? -SEEK_STEP_S : SEEK_STEP_S);
       showOsd(
@@ -80,7 +91,7 @@ export function usePhoneTap({
       if (event.button !== 0) return;
       lastPointer.current = event.pointerType;
       if (touch()) onTap(event);
-      else togglePlay();
+      else if (!disabled) togglePlay();
     },
     onDoubleClick: () => {
       // Two taps of a finger seek; a double click of the mouse goes full screen.
