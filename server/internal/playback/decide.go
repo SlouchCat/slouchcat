@@ -42,8 +42,10 @@ const (
 	ReasonBudgetLowered = "budget_lowered"
 )
 
-// MaxTranscodeHeight caps transcode output (AN-17: up to 1080p, 4K sources are scaled).
-const MaxTranscodeHeight = 1080
+// MaxTranscodeHeight caps transcode output on backend b (ADR 0021, transcode.MaxOutputHeight):
+// 1080 on the software backend (AN-17, 4K sources are scaled), 2160 on the hardware backends.
+// Tonemapping on the CPU stays at 1080 lines (transcode.MaxOutputHeight with cpuTonemap).
+func MaxTranscodeHeight(b transcode.Backend) int { return transcode.MaxOutputHeight(b, false) }
 
 // Decision is how a media file is played on a client. It is comparable, so tests compare it as a
 // whole.

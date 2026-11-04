@@ -141,7 +141,8 @@ func runHLSBench(ctx context.Context, o benchOptions) (benchReport, error) {
 		return benchReport{}, err
 	}
 	src := transcode.Source{Path: path, Probe: probe, Keyframes: kf}
-	target := transcode.Target{Mode: o.mode, MaxHeight: o.maxHeight, Tonemap: true, SubtitleBurnIn: -1}
+	target := transcode.Target{Mode: o.mode, MaxHeight: o.maxHeight, Tonemap: true, SubtitleBurnIn: -1,
+		Backend: backend, HWTonemap: caps.HWTonemap}
 	if o.mode == transcode.ModeRemux {
 		target = transcode.Target{Mode: o.mode, VideoCopy: true, SubtitleBurnIn: -1}
 		for _, s := range probe.Streams {

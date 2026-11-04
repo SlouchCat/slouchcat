@@ -197,7 +197,7 @@ func TestCodecsString(t *testing.T) {
 }
 
 func TestQualityLadder(t *testing.T) {
-	for h, want := range map[int]string{0: "1080p", 2160: "1080p", 1080: "1080p", 800: "1080p", 721: "1080p",
+	for h, want := range map[int]string{0: "1080p", 4320: "2160p", 2160: "2160p", 1600: "2160p", 1081: "2160p", 1080: "1080p", 800: "1080p", 721: "1080p",
 		720: "720p", 481: "720p", 480: "480p", 405: "480p", 360: "360p", 240: "360p"} {
 		if got := QualityFor(h); got != want {
 			t.Errorf("QualityFor(%d) = %s, want %s", h, got, want)
@@ -210,7 +210,8 @@ func TestQualityLadder(t *testing.T) {
 		}
 		return s
 	}
-	for h, want := range map[int][]string{2160: {"1080p", "720p", "480p", "360p"}, 800: {"1080p", "720p", "480p", "360p"},
+	for h, want := range map[int][]string{2160: {"2160p", "1080p", "720p", "480p", "360p"}, 1600: {"2160p", "1080p", "720p", "480p", "360p"},
+		1080: {"1080p", "720p", "480p", "360p"}, 800: {"1080p", "720p", "480p", "360p"},
 		720: {"720p", "480p", "360p"}, 405: {"480p", "360p"}, 200: {"360p"}, 0: {"1080p", "720p", "480p", "360p"}} {
 		if got := names(Rungs(h)); !slices.Equal(got, want) {
 			t.Errorf("Rungs(%d) = %v, want %v", h, got, want)
@@ -218,6 +219,9 @@ func TestQualityLadder(t *testing.T) {
 	}
 	if r := Rungs(1080); r[0] != (Rung{"1080p", 1080, 8_000_000}) || r[3] != (Rung{"360p", 360, 1_000_000}) {
 		t.Errorf("Rungs(1080) = %+v", r)
+	}
+	if r := Rungs(2160); r[0] != (Rung{"2160p", 2160, 25_000_000}) {
+		t.Errorf("Rungs(2160) = %+v", r)
 	}
 	Rungs(1080)[0].Bitrate = 1 // a copy: the ladder stays intact
 	if Rungs(1080)[0].Bitrate != 8_000_000 {

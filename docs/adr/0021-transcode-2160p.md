@@ -73,6 +73,25 @@ nur Ton 0,25. Ein Budget je Backend: NVENC 12, QSV/VAAPI 8, Software Kerne/2. Ei
 - Vor dem Merge von Stufe 2 misst Schritt 12 auf CT 190 für 2160p (SDR) Start, Spulen und
   gleichzeitige Ströme (`docs/perf/13-abspielseite.md`).
 
+## Umsetzung (Stufe 2, Schritt 12, Teil Code, 4. November 2026)
+
+- `transcode.MaxOutputHeight(backend, cpuTonemap)` ist die Grenze aus Punkt 1 und 3: 2160 auf
+  NVENC, QSV und VAAPI, 1080 auf Software, bei unbekanntem Backend und bei Tonemapping auf der CPU.
+  `playback.MaxTranscodeHeight(backend)` liest sie.
+- `transcode.Target` trägt dafür `Backend` und `HWTonemap` (aus `Capabilities`). Ohne Backend
+  bleibt jeder Transcode bei 1080 Zeilen. `MaxHeight` 0 heisst weiterhin 1080 (Punkt 4): über
+  1080 geht es nur mit `MaxHeight` 2160.
+- `transcode.Rung2160Allowed(caps, stream, profileMaxHeight, deviceHeight)` prüft die Bedingungen
+  aus Punkt 2. Die Gerätehöhe ist die kurze Bildschirmseite in Gerätepixeln wie bei der
+  Gerätegrenze (`deviceCap`); 0 (unbekannt) lässt 2160p nicht zu.
+- Die Leiter in `transcode` beginnt mit `2160p` (25 Mbit/s). `QualityFor` gibt über 1080 Zeilen
+  `2160p`, bei unbekannter Höhe weiter `1080p`.
+- Level und Codec-String folgen der Ausgabehöhe (`h264Level`): bis 1080 Zeilen 4.1
+  (`avc1.640029`), darüber 5.1 (`avc1.640033`).
+- **Kosten:** `cost2160p = 5` in `transcode/plan.go` (Punkt 5), für jede Ausgabe über 1080 Zeilen.
+  Der Wert ist der Startwert dieses ADR. Die Messung auf CT 190 steht noch aus; sie folgt vor dem
+  Merge von Stufe 2 in `docs/perf/13-abspielseite.md`.
+
 ## Verworfene Alternativen
 
 - **2160p auch auf dem Software-Backend.** libx264 schafft 4K nicht in Echtzeit auf den

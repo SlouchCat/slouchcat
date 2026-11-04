@@ -699,9 +699,11 @@ type Segments struct {
 	Outro *Segment
 }
 
-// Quality rungs of the ladder (W-8, plan 3.5). QualityAuto picks the highest allowed rung.
+// Quality rungs of the ladder (W-8, plan 3.5). QualityAuto picks the highest allowed rung up to
+// 1080p; Quality2160 is only an explicit choice on a hardware backend (ADR 0021).
 const (
 	QualityAuto = "auto"
+	Quality2160 = "2160p"
 	Quality1080 = "1080p"
 	Quality720  = "720p"
 	Quality480  = "480p"
