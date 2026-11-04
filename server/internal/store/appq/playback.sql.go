@@ -112,7 +112,9 @@ type GetLastPlaybackTracksRow struct {
 
 // The tracks of the latest playback of a browser session and title, ended or not: the playback a
 // track switch replaces (the client stops it before the next start). A start with
-// rememberForSeries keeps only the part that differs from it (review step 9, M-1).
+// rememberForSeries keeps only the part that differs from it (review step 9, M-1). Per browser
+// session, not per tab: two tabs of one session on the same title share the latest row, and a new
+// session has none (changedTracks names the limits, final review stage 2).
 func (q *Queries) GetLastPlaybackTracks(ctx context.Context, arg GetLastPlaybackTracksParams) (GetLastPlaybackTracksRow, error) {
 	row := q.db.QueryRowContext(ctx, getLastPlaybackTracks, arg.SessionID, arg.ItemID)
 	var i GetLastPlaybackTracksRow

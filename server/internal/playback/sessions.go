@@ -431,6 +431,13 @@ type changed struct{ audio, subtitle bool }
 // sound (review step 9, M-1). Without a replaced playback of the same file (the first start of
 // the title in this browser session, or another version, whose stream indexes and track ids
 // cannot be compared) every part the request names counts: nothing says it was carried over.
+//
+// Limits (final review stage 2, G1-m2; the contract stays as it is): the replaced playback is the
+// latest of the browser session, not of the tab. With two tabs of one browser session on the same
+// title, a switch in one tab compares with the other tab's playback when that started later, so a
+// carried-over part may count as chosen by hand (or a chosen one not). After a session change
+// (logout and login, another device) there is no replaced playback: every part the request names
+// counts, as on the first start.
 func changedTracks(req model.PlaybackRequest, fileID string, replaced *appq.GetLastPlaybackTracksRow) changed {
 	c := changed{audio: req.AudioTrack != nil, subtitle: req.SubtitleTrack > 0 || req.SubtitleOff}
 	if replaced == nil || replaced.MediaFileID != fileID {
