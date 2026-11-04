@@ -145,18 +145,25 @@ func (s *Service) currentChapterVersion(ctx context.Context, scope visibility.Sc
 	return library.ChapterImagesVersion(loc.ProbedAt, transcode.Chapters(probe, item.Kind, loc.File.DurationMs)), nil
 }
 
+// chapterSweepOverlap is how far each sweep looks back before the end of the previous one: a stop
+// whose write commits after the previous sweep read the rows still carries a time inside that
+// sweep's span. A row read twice is absorbed by the job key and the images check.
+const chapterSweepOverlap = 2 * time.Minute
+
 // sweepChapterImages hands the media files of the playbacks that ended since the last sweep to
 // library.QueueChapterImagesAfterPlayback (concept 13 11.6: after the playback, never during it).
 // A stop of the client, the administration, a logout, a replacement and an expiry (a closed or
-// killed app) all end a row; the job waits 10 minutes and longer while the file plays again. The
-// first sweep after a start looks back endedSweepWindow, so a restart loses nothing.
+// killed app) all end a row; the job waits 10 minutes and longer while the file plays again. Each
+// sweep looks back to chapterSweepOverlap before the end of the previous one, at most
+// endedSweepWindow (also the first sweep after a start, so a restart loses nothing). A file that
+// fails is logged and does not hold up the others or the next span.
 func (s *Service) sweepChapterImages(ctx context.Context, now time.Time) {
 	if s.cacheDir == "" || s.queue == nil {
 		return
 	}
-	since := s.chapterSince.Load()
-	if since == 0 {
-		since = now.Add(-endedSweepWindow).UnixMilli()
+	since := now.Add(-endedSweepWindow).UnixMilli()
+	if last := s.chapterSince.Load(); last != 0 {
+		since = max(since, last-chapterSweepOverlap.Milliseconds())
 	}
 	files, err := s.read.ListEndedPlaybackFiles(ctx, appq.ListEndedPlaybackFilesParams{Since: since, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}})
 	if err != nil {
@@ -165,7 +172,6 @@ func (s *Service) sweepChapterImages(ctx context.Context, now time.Time) {
 	}
 	if err := library.QueueChapterImagesAfterPlayback(ctx, s.db.Read, s.queue, s.cacheDir, files); err != nil {
 		s.log.WarnContext(ctx, "queue chapter images after playback", "files", len(files), "err", err)
-		return
 	}
 	s.chapterSince.Store(now.UnixMilli())
 }

@@ -122,3 +122,86 @@ func TestStartChapterImages(t *testing.T) {
 		t.Errorf("chapter image jobs = %d, want 1", n)
 	}
 }
+
+// Every way a playback ends reaches the sweep: an expiry (a closed or killed app), a stop of the
+// administration and a logout; and a stop that carries a time just before the end of the previous
+// sweep (its write committed late) is still found by the overlap.
+func TestSweepChapterImagesEndings(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddTracks(t)
+	raw := trackProbe(t, "h264", "bt709", 1920, 1080, 6_000_000)
+	films := []vistest.Movie{f.Rated(0), f.Rated(6), f.Rated(12), f.Rated(16)}
+	for _, m := range films {
+		f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", raw, testKeyframes)
+		f.SetProbedAt(t, m.FileID, 4242)
+	}
+	s := New(f.DB, vistest.Logger(), WithTranscoder(newFakeTranscoder()), WithTokenKey(testKey), WithCacheDir(t.TempDir()))
+	ctx := context.Background()
+	start := func(m vistest.Movie) (model.Session, string) {
+		session := browserSession(t, f, f.P18)
+		info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{Capabilities: &capsChromeLinux})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return session, info.PlaybackSessionID
+	}
+	expired, adminStopped, loggedOut, late := films[0], films[1], films[2], films[3]
+	_, expiredID := start(expired)
+	_, adminID := start(adminStopped)
+	logoutSession, _ := start(loggedOut)
+	_, lateID := start(late)
+	now := time.Now()
+	s.sweepChapterImages(ctx, now) // all play: nothing; the span ends at now
+	for _, m := range films {
+		if n := chapterImageJobs(t, f, m.FileID); n != 0 {
+			t.Fatalf("%s while playing: %d jobs", m.Label, n)
+		}
+	}
+	if _, err := f.DB.Write.Exec(`UPDATE playback_sessions SET expires_at = ? WHERE id = ?`, now.Add(30*time.Second).UnixMilli(), expiredID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.StopStream(ctx, adminID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EndSession(ctx, logoutSession.ID); err != nil {
+		t.Fatal(err)
+	}
+	// Revoked with a time 90 s before the end of the previous span, written after it.
+	if _, err := f.DB.Write.Exec(`UPDATE playback_sessions SET revoked_at = ?, stopped_by = 'client' WHERE id = ?`,
+		now.Add(-90*time.Second).UnixMilli(), lateID); err != nil {
+		t.Fatal(err)
+	}
+	s.sweepChapterImages(ctx, now.Add(time.Minute))
+	for _, m := range films {
+		if n := chapterImageJobs(t, f, m.FileID); n != 1 {
+			t.Errorf("%s: %d chapter image jobs, want 1", m.Label, n)
+		}
+	}
+}
+
+// A stop older than the overlap before the previous span is not read again.
+func TestSweepChapterImagesOverlapBound(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddTracks(t)
+	m := f.Rated(6)
+	f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", trackProbe(t, "h264", "bt709", 1920, 1080, 6_000_000), testKeyframes)
+	f.SetProbedAt(t, m.FileID, 4242)
+	s := New(f.DB, vistest.Logger(), WithTranscoder(newFakeTranscoder()), WithTokenKey(testKey), WithCacheDir(t.TempDir()))
+	ctx := context.Background()
+	info, err := s.Start(ctx, browserSession(t, f, f.P6), m.ID, model.PlaybackRequest{Capabilities: &capsChromeLinux})
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	s.chapterSince.Store(now.UnixMilli())
+	if _, err := f.DB.Write.Exec(`UPDATE playback_sessions SET revoked_at = ? WHERE id = ?`,
+		now.Add(-chapterSweepOverlap-time.Second).UnixMilli(), info.PlaybackSessionID); err != nil {
+		t.Fatal(err)
+	}
+	s.sweepChapterImages(ctx, now.Add(time.Minute))
+	if n := chapterImageJobs(t, f, m.FileID); n != 0 {
+		t.Errorf("a stop before the overlap: %d jobs, want 0", n)
+	}
+}
