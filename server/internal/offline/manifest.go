@@ -295,9 +295,11 @@ func (s *Service) open(rel, mediaType, name string, missing error) (model.Stream
 }
 
 // Manifest returns what the device needs to fetch and play a prepared download of its own: the
-// fragment index, codecs, size, the audio track, the WebVTT sidecars, the chapters of an audiobook
-// (M6) and the URLs with a download token of the active profile. Errors: model.ErrNotFound (unknown, another device or account, the
-// title not visible to the active profile), model.ErrDownloadNotReady, model.ErrDownloadEvicted.
+// fragment index, codecs, size, the audio track, the WebVTT sidecars, the chapters (of an
+// audiobook since M6, of a film or an episode from its file's chapter marks since contract
+// 1.10.0) and the URLs with a download token of the active profile. Errors: model.ErrNotFound
+// (unknown, another device or account, the title not visible to the active profile),
+// model.ErrDownloadNotReady, model.ErrDownloadEvicted.
 func (s *Service) Manifest(ctx context.Context, session model.Session, id string) (model.DownloadManifest, error) {
 	if !downloadID.MatchString(id) {
 		return model.DownloadManifest{}, model.ErrNotFound
