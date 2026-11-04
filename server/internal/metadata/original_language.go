@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 )
 
 // The original language of a title (concept 13 11.7, F-4): items.original_language is NULL while
@@ -48,22 +48,14 @@ const (
 // languageProviders are the providers that deliver an original language (not the local files).
 var languageProviders = []string{model.ProviderTMDB, model.ProviderTVDB, model.ProviderAniList}
 
-// isoLanguage is the shape of a stored original language: two lower-case letters.
-var isoLanguage = regexp.MustCompile(`^[a-z]{2}$`)
-
-// normalizeOriginalLanguage maps a provider's language code onto ISO 639-1: the primary subtag in
-// lower case; TMDB's cn (Cantonese) is Chinese, zh; TMDB's xx (no language) and any code outside
-// the ISO 639-1 list are "" (unknown). The shared language table of the track choice (concept 13
-// step 9) may replace this one later.
+// normalizeOriginalLanguage maps a provider's language code onto ISO 639-1 through the language
+// table of the track choice (trackpick.Normalize), so the original language compares with the
+// tracks and the profiles' lists: the primary subtag in lower case, ISO 639-2 codes onto their
+// ISO 639-1 code (eng → en), TMDB's cn (Cantonese) onto Chinese, zh; TMDB's xx (no language) and
+// any code trackpick.Valid refuses are "" (unknown).
 func normalizeOriginalLanguage(code string) string {
-	code = strings.ToLower(PrimaryLanguage(strings.TrimSpace(code)))
-	switch code {
-	case "cn":
-		return "zh"
-	case "xx":
-		return ""
-	}
-	if !isoLanguage.MatchString(code) || !iso6391[code] {
+	code = trackpick.Normalize(code)
+	if !trackpick.Valid(code) {
 		return ""
 	}
 	return code

@@ -66,7 +66,7 @@ func TestNormalizeOriginalLanguage(t *testing.T) {
 	t.Parallel()
 	for in, want := range map[string]string{
 		"en": "en", "EN": "en", " ja ": "ja", "pt-BR": "pt", "cn": "zh", "zh": "zh", "xx": "", "": "",
-		"zz": "", "eng": "", "deu": "", "e": "",
+		"zz": "", "eng": "en", "deu": "de", "jpn": "ja", "iw": "he", "nb": "no", "und": "", "e": "",
 	} {
 		if got := normalizeOriginalLanguage(in); got != want {
 			t.Errorf("normalizeOriginalLanguage(%q) = %q, want %q", in, got, want)
@@ -80,6 +80,26 @@ func TestNormalizeOriginalLanguage(t *testing.T) {
 	for in, want := range map[string]bool{"": true, "ja": true, "de": true, "cn": false, "xx": false, "EN": false, "jpn": false, "pt-BR": false} {
 		if got := ValidOriginalLanguage(in); got != want {
 			t.Errorf("ValidOriginalLanguage(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+// TestTVDBLanguageFollowsTheTrackTable: TVDB's ISO 639-3 id comes back through the shared language
+// table of the track choice (trackpick.Normalize), so Norwegian is no whether the table names it
+// nb or no (review step 8, S8-m-4), and the original language compares with the tracks.
+func TestTVDBLanguageFollowsTheTrackTable(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	for name, table := range map[string]map[string]string{
+		"static":  tvdbStaticLangs,
+		"only nb": {"nb": "nor", "de": "deu", "ja": "jpn"},
+		"only no": {"no": "nor", "de": "deu", "ja": "jpn"},
+	} {
+		p := &tvdbProvider{languages: table}
+		for id, want := range map[string]string{"nor": "no", "NOR": "no", "deu": "de", "jpn": "ja", "xyz": "", "": ""} {
+			if got := p.shortLanguage(ctx, id); got != want {
+				t.Errorf("%s: shortLanguage(%q) = %q, want %q", name, id, got, want)
+			}
 		}
 	}
 }

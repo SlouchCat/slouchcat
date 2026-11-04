@@ -2,6 +2,7 @@ import type { AdminItem } from '@slouchcat/api-client';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
+import { LANGUAGE_CODES, NO_LANGUAGE } from '@/features/player/labels';
 import { Chip, FactList, Notice, Panel, SelectField, Text } from '@/ui';
 import { AriaButton, DisclosureGroup, RadioGroup } from '@/ui/aria';
 import { ratingOptions } from '../../shared/choices';
@@ -29,9 +30,18 @@ export const languageChoiceOf = (item: AdminItem): string =>
 export const hasOriginalLanguage = (item: AdminItem): boolean =>
   item.kind === 'movie' || item.kind === 'series';
 
-/** A code the server takes as an original language: two letters, not TMDB's cn and xx. */
+/** Withdrawn ISO 639-1 codes the server refuses (trackpick.Valid); iw is in LANGUAGE_CODES. */
+const WITHDRAWN = new Set(['in', 'ji', 'jw', 'mo', 'sh']);
+
+/**
+ * A code the server takes as an original language: two letters, a language (not TMDB's xx), one
+ * the shared language table keeps as it is (not cn, nb, nn) and not withdrawn.
+ */
 const isLanguageChoice = (code: string) =>
-  /^[a-z]{2}$/.test(code) && code !== 'cn' && code !== 'xx';
+  /^[a-z]{2}$/.test(code) &&
+  !NO_LANGUAGE.has(code) &&
+  (LANGUAGE_CODES[code] ?? code) === code &&
+  !WITHDRAWN.has(code);
 
 /** The original language choice of the tab, held by the page like the rating. */
 export interface LanguageChoice {

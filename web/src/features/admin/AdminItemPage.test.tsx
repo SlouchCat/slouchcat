@@ -273,7 +273,7 @@ describe('admin item page', () => {
       ...signedIn,
       [`GET ${base}`]: () => json(stored),
       'GET /admin/settings/metadata': () =>
-        json({ knownLanguages: ['de', 'en', 'ja', 'cn', 'xx', 'pt-BR'] }),
+        json({ knownLanguages: ['de', 'en', 'ja', 'cn', 'xx', 'nb', 'mo', 'sh', 'pt-BR'] }),
       [`PUT ${base}/original-language`]: (call) => {
         const language = (call.body as { language: string | null }).language;
         stored =
@@ -293,7 +293,8 @@ describe('admin item page', () => {
     const panel = await openDisclosure(user, /^Originalsprache/);
     const select = within(panel).getByRole('combobox', { name: 'Originalsprache setzen' });
     expect(select).toHaveValue('metadata');
-    // TMDB's cn and xx and the regional codes are no choice; «Unbekannt» is.
+    // TMDB's cn and xx, nb (no), the withdrawn mo and sh and the regional codes are no choice;
+    // «Unbekannt» is.
     await waitFor(() =>
       expect(within(select).getByRole('option', { name: 'Japanisch' })).toBeInTheDocument(),
     );
