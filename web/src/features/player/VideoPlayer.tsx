@@ -10,30 +10,23 @@ import type {
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type WheelEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
 import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
 import { formatBitrate, formatRuntime } from '@/lib/format';
-import { supportsWebAudioBoost } from '@/lib/webAudio';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, BOOST_MAX, focusOnMount, PlayerChrome, VOLUME_STEP } from '@/ui/aria';
+import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
 import { nextChapterStart, previousChapterStart, RESTART_CHAPTER_MS } from './audio';
 import { playbackCapabilities, type PlaybackEngine } from './capabilities';
 import { stepPlaybackRate } from './keymap';
 import { usePlayerLayout, volumeIsReadOnly } from './layout';
-import {
-  chapterAt,
-  chapterLabel,
-  languageName,
-  qualityLabel,
-  selectedSubtitle,
-  trackLabel,
-} from './labels';
-import { SettingsPanel, type SettingsPage } from './panels/SettingsPanel';
+import { chapterAt, languageName, qualityLabel, selectedSubtitle, trackLabel } from './labels';
+import { SettingsPanel } from './panels/SettingsPanel';
 import { PANEL_IDS } from './panels/panelIds';
+import { usePlayerPanels } from './panels/usePlayerPanels';
 import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
 import { PAUSE_VIEW_MS, PauseView } from './PauseView';
 import { ShortcutHelp } from './ShortcutHelp';
@@ -41,18 +34,20 @@ import { StreamInfo } from './StreamInfo';
 import { usePlayerTabs, type PlayerTabId } from './tabs/playerTabs';
 import { usePhoneTap } from './usePhoneTap';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
-import { useAudioGraph } from './useAudioGraph';
+import { useBoostedVolume } from './useBoostedVolume';
+import { useChapterChoice } from './useChapterChoice';
+import { useControlsVisibility } from './useControlsVisibility';
+import { useFullscreen } from './useFullscreen';
 import { usePlayerKeys } from './usePlayerKeys';
 import { usePlayerPrefs } from './usePlayerPrefs';
 import { useSubtitleStyle } from './useSubtitleStyle';
 import { SubtitleLayer, useSubtitleCues } from './SubtitleLayer';
 import { useProgressReporter } from './useProgressReporter';
 import { lowerQuality, useSlowConnection } from './useSlowConnection';
-import { useVolume } from './useVolume';
+import { useWheelVolume } from './useWheelVolume';
 import styles from './Player.module.css';
 
-/** Controls fade out after this long without input while the video plays. */
-export const CONTROLS_HIDE_MS = 3000;
+export { CONTROLS_HIDE_MS } from './useControlsVisibility';
 /** The track menu asks for new tracks this often while it is open (I-5). */
 export const TRACKS_REFRESH_MS = 30_000;
 /** Seconds the next-episode countdown runs (W-9). */
@@ -61,9 +56,6 @@ export const AUTO_NEXT_SECONDS = 10;
 const ANNOUNCE_LAST_SECONDS = 3;
 /** Resume only when the position is not within the last seconds of the file. */
 const RESUME_TAIL_MS = 5000;
-/** One notch of a mouse wheel in pixels (Chromium, Firefox in pixel mode), and one line. */
-const WHEEL_NOTCH_PX = 100;
-const WHEEL_LINE_PX = 100 / 3;
 /** The skip button hides this close to the end of the intro. */
 const SKIP_TAIL_MS = 500;
 
@@ -82,12 +74,6 @@ export interface PlaybackChange {
  * stream names no reason yet, so the player says neutrally that the playback ended.
  */
 export type EndedReason = 'limit' | 'admin';
-
-/**
- * The panel beside the video: sound (T), subtitles (U), the gear (Q opens its quality page) or the
- * shortcut help (?). One at a time.
- */
-type PanelName = 'audio' | 'subtitle' | 'settings' | 'help';
 
 interface VideoPlayerProps {
   info: PlaybackInfo;
@@ -201,17 +187,11 @@ export function VideoPlayer({
   const playButton = useRef<HTMLButtonElement>(null);
   const nextPanel = useRef<HTMLElement>(null);
   const slowPanel = useRef<HTMLElement>(null);
-  const hideTimer = useRef<number | undefined>(undefined);
-  const osdTimer = useRef<number | undefined>(undefined);
 
   const [playing, setPlaying] = useState(false);
   const [currentMs, setCurrentMs] = useState(resumeMs);
   const [durationMs, setDurationMs] = useState(info.mediaFile.durationMs ?? 0);
   const [buffered, setBuffered] = useState<[number, number][]>([]);
-  // Full screen belongs to the document, so it survives a new session or episode (W-2).
-  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
-  const [idle, setIdle] = useState(false);
-  const [osd, setOsd] = useState<string | null>(null);
   const [startMs, setStartMs] = useState<number | null>(null);
   // From the menu choice of the previous session until this one plays (W-4).
   const [switchMs, setSwitchMs] = useState<number | null>(null);
@@ -222,22 +202,17 @@ export function VideoPlayer({
   const [ended, setEnded] = useState<{ reason: EndedReason; watchTime?: WatchTime } | null>(null);
   // The panel beside the video (sound, subtitles, the shortcut help); it keeps the controls on
   // screen.
-  const [panel, setPanel] = useState<PanelName | null>(null);
+  const {
+    panel,
+    openPanel,
+    togglePanel,
+    closePanel,
+    settingsView,
+    setSettingsView,
+    openSettings,
+    panelButton,
+  } = usePlayerPanels();
   const helpOpen = panel === 'help';
-  const openPanel = useCallback((name: PanelName) => setPanel(name), []);
-  const togglePanel = useCallback((name: PanelName) => {
-    setPanel((current) => (current === name ? null : name));
-  }, []);
-  const closePanel = useCallback(() => setPanel(null), []);
-  // The page of the gear panel; `direct` when a key opened it on that page (no way up).
-  const [settingsView, setSettingsView] = useState<{ page: SettingsPage; direct: boolean }>({
-    page: 'main',
-    direct: false,
-  });
-  const openSettings = useCallback((page: SettingsPage, direct: boolean) => {
-    setSettingsView({ page, direct });
-    setPanel('settings');
-  }, []);
   // Auto-next (W-9): the end of the countdown, or null; cancelled stays for this session.
   const [countdownEnd, setCountdownEnd] = useState<number | null>(null);
   const [countdownCancelled, setCountdownCancelled] = useState(false);
@@ -360,10 +335,7 @@ export function VideoPlayer({
   }, []);
 
   // Controls: visible on any input and while paused, hidden after 3 s without input while playing.
-  const scheduleHide = useCallback(() => {
-    window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setIdle(true), CONTROLS_HIDE_MS);
-  }, []);
+  const { idle, wake, hide, osd, showOsd } = useControlsVisibility(playing);
   // The pause view (V-10): five seconds paused without input, nothing open; any input hides it
   // and starts the five seconds again. `pauseAllowed` is set below from the player's state.
   const [pauseView, setPauseView] = useState(false);
@@ -380,31 +352,12 @@ export function VideoPlayer({
     }, PAUSE_VIEW_MS);
   }, []);
   const poke = useCallback(() => {
-    setIdle(false);
+    wake();
     setPauseView(false);
-    scheduleHide();
     armPauseView();
-  }, [armPauseView, scheduleHide]);
+  }, [armPauseView, wake]);
 
-  useEffect(() => {
-    if (playing) scheduleHide();
-    else window.clearTimeout(hideTimer.current);
-  }, [playing, scheduleHide]);
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(hideTimer.current);
-      window.clearTimeout(osdTimer.current);
-      window.clearTimeout(pauseTimer.current);
-    },
-    [],
-  );
-
-  const showOsd = (text: string) => {
-    setOsd(text);
-    window.clearTimeout(osdTimer.current);
-    osdTimer.current = window.setTimeout(() => setOsd(null), 1200);
-  };
+  useEffect(() => () => window.clearTimeout(pauseTimer.current), []);
 
   // What the viewer wants, not what the element reports: re-attaching the element (hls.js after a
   // media error) runs the load algorithm, which clears `paused` without a `pause` event. The
@@ -441,76 +394,22 @@ export function VideoPlayer({
   );
 
   // Up to 150 % and night mode through Web Audio, except in Safari (11.15).
-  const [webAudio, setWebAudio] = useState(() => supportsWebAudioBoost());
-  const volume = useVolume(video, {
-    initialMuted: start.muted,
-    initialVolume: start.volume,
-    max: webAudio ? BOOST_MAX : 1,
-  });
-  const [nightMode, setNightMode] = useState(start.nightMode);
-  // The browser refused the graph: night mode and the volume above 100 % go away.
-  const { setVolume: setLevel, volume: levelBefore } = volume;
-  const levelAtFailure = useRef(levelBefore);
-  useEffect(() => {
-    levelAtFailure.current = levelBefore;
-  }, [levelBefore]);
-  const audioGraphUnavailable = useCallback(() => {
-    setWebAudio(false);
-    setNightMode(false);
-    if (levelAtFailure.current > 1) setLevel(1);
-  }, [setLevel]);
-  useAudioGraph({
-    media: video,
-    enabled: webAudio,
-    nightMode,
-    gain: volume.gain,
-    onUnavailable: audioGraphUnavailable,
-  });
+  const { volume, webAudio, nightMode, setNightMode, changeVolume, toggleMute } = useBoostedVolume(
+    video,
+    {
+      showOsd,
+      initialMuted: start.muted,
+      initialVolume: start.volume,
+      initialNightMode: start.nightMode,
+    },
+  );
   const { muted: mutedNow, volume: levelNow } = volume;
   useEffect(() => {
     onCarry?.({ muted: mutedNow, volume: levelNow, nightMode });
   }, [levelNow, mutedNow, nightMode, onCarry]);
-  /** «Lautstärke 80 %»; above 100 % with the warning that it may distort. */
-  const volumeText = useCallback(
-    (level: number) => {
-      const percent = Math.round(level * 100);
-      return level > 1
-        ? t('player.volumeControl.boosted', { percent })
-        : t('player.volume', { percent });
-    },
-    [t],
-  );
-  const stepVolume = volume.step;
-  const changeVolume = useCallback(
-    (delta: number) => showOsd(volumeText(stepVolume(delta))),
-    [stepVolume, volumeText],
-  );
-  const { toggleMute: toggleElementMute, volume: level } = volume;
-  const toggleMute = useCallback(() => {
-    const muted = toggleElementMute();
-    showOsd(muted ? t('player.chrome.muted') : volumeText(level));
-  }, [level, t, toggleElementMute, volumeText]);
 
-  // Mouse wheel over the picture (V-3): one notch is one volume step. Over the bar and over a panel
-  // the wheel stays theirs (the chrome lets the pointer through to the video only in between).
-  // Trackpads send many small deltas; they add up to notches.
-  const wheel = useRef(0);
-  const onWheel = (event: WheelEvent<HTMLElement>) => {
-    // Ctrl with the wheel zooms the page.
-    if (event.target !== video.current || event.deltaY === 0 || event.ctrlKey) return;
-    const pixels =
-      event.deltaMode === 1
-        ? event.deltaY * WHEEL_LINE_PX
-        : event.deltaMode === 2
-          ? event.deltaY * WHEEL_NOTCH_PX * 8
-          : event.deltaY;
-    if (Math.sign(pixels) !== Math.sign(wheel.current)) wheel.current = 0;
-    wheel.current += pixels;
-    const notches = Math.trunc(wheel.current / WHEEL_NOTCH_PX);
-    if (notches === 0) return;
-    wheel.current -= notches * WHEEL_NOTCH_PX;
-    changeVolume(-notches * VOLUME_STEP);
-  };
+  // Mouse wheel over the picture (V-3): one notch is one volume step.
+  const onWheel = useWheelVolume(video, changeVolume);
 
   // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×; a switch keeps it.
   const [rate, setRate] = useState(start.rate);
@@ -529,26 +428,14 @@ export function VideoPlayer({
       const shown = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(next);
       showOsd(t('player.chrome.rate', { rate: shown }));
     },
-    [i18n.language, t],
+    [i18n.language, showOsd, t],
   );
 
   // Safari on the iPhone keeps the volume read-only: only the mute button (11.2).
   const [muteOnly] = useState(() => volumeIsReadOnly());
 
-  // The whole document goes full screen, not this player: a switch or auto-next replaces the
-  // player, and removing the full-screen element would end full screen (W-2). The player covers
-  // the viewport and its menus render inside it, so nothing else shows.
-  const toggleFullscreen = useCallback(() => {
-    const root = document.documentElement;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else if (typeof root.requestFullscreen === 'function') void root.requestFullscreen();
-  }, []);
-
-  useEffect(() => {
-    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  // Full screen belongs to the document, so it survives a new session or episode (W-2).
+  const { fullscreen, toggleFullscreen } = useFullscreen();
 
   // Picture in picture (V-9): Chromium and Safari; Firefox has a button of its own on the video.
   const [pictureInPicture, setPictureInPicture] = useState(false);
@@ -653,10 +540,7 @@ export function VideoPlayer({
     seekBy,
     showOsd,
     wantsPlaying: () => wantPlaying.current,
-    hide: () => {
-      window.clearTimeout(hideTimer.current);
-      setIdle(true);
-    },
+    hide,
   });
   const canPauseView =
     !playing &&
@@ -926,15 +810,8 @@ export function VideoPlayer({
   const converts = (track: Track) =>
     track.index !== audioIndex &&
     (!decodableAudio.includes(track.codec) || (info.mode === 'direct' && !track.default));
-  const panelButton = (name: 'audio' | 'subtitle', label: string, text: string) => ({
-    label,
-    text,
-    expanded: panel === name,
-    controls: PANEL_IDS[name],
-    onPress: () => togglePanel(name),
-    // After the server ended the playback a pick would start a new session behind the notice.
-    isDisabled: switching || ended !== null,
-  });
+  // After the server ended the playback a pick would start a new session behind the notice.
+  const tracksDisabled = switching || ended !== null;
   // The gear (11.2): the server's rung and file (rule 12); a choice starts a new session.
   const qualityChoice = {
     options: info.qualities.map((option) => ({
@@ -971,19 +848,13 @@ export function VideoPlayer({
     hasQualities && currentQuality ? qualityLabel(t, currentQuality, info) : undefined;
   const chapterIndex = chapterAt(info.chapters, currentMs);
   // On a phone the chapters are a page of the gear (11.2).
-  const chapterChoice = {
-    options: chapters.map((chapter, index) => ({
-      id: String(index),
-      label: chapterLabel(t, chapter, index, durationMs),
-    })),
-    selectedId: String(Math.max(0, chapterIndex)),
-    // The page closes with the choice, as a choice of the quality does.
-    onSelect: (id: string) => {
-      const chapter = chapters[Number(id)];
-      closePanel();
-      if (chapter) seekTo(chapter.startMs);
-    },
-  };
+  const chapterChoice = useChapterChoice({
+    chapters,
+    chapterIndex,
+    durationMs,
+    seekTo,
+    closePanel,
+  });
 
   // The episodes of the season for «Als Nächstes» and «Folge zurück»: the season's details, which
   // the detail page loads as well (11.10); no new endpoint. Every switch and episode is a new
@@ -1274,6 +1145,7 @@ export function VideoPlayer({
                 'subtitle',
                 t('player.panel.subtitleButton', { language: subtitleWord }),
                 subtitleWord,
+                tracksDisabled,
               )
             : undefined
         }
@@ -1283,6 +1155,7 @@ export function VideoPlayer({
                 'audio',
                 t('player.panel.audioButton', { language: audioWord }),
                 audioWord,
+                tracksDisabled,
               )
             : undefined
         }

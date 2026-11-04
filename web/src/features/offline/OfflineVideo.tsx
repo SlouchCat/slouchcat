@@ -3,35 +3,31 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { useTranslation } from 'react-i18next';
 import { nextChapterStart, previousChapterStart } from '@/features/player/audio';
 import { stepPlaybackRate } from '@/features/player/keymap';
-import { chapterAt, chapterLabel, languageName, trackLabel } from '@/features/player/labels';
+import { chapterAt, languageName, trackLabel } from '@/features/player/labels';
 import { usePlayerLayout, volumeIsReadOnly } from '@/features/player/layout';
-import { SettingsPanel, type SettingsPage } from '@/features/player/panels/SettingsPanel';
+import { SettingsPanel } from '@/features/player/panels/SettingsPanel';
 import { PANEL_IDS } from '@/features/player/panels/panelIds';
+import { usePlayerPanels } from '@/features/player/panels/usePlayerPanels';
 import { AudioPanel, SubtitlePanel } from '@/features/player/panels/TrackPanels';
 import { SHORTCUT_ROWS, ShortcutHelp } from '@/features/player/ShortcutHelp';
 import { SubtitleLayer, useSubtitleCues } from '@/features/player/SubtitleLayer';
 import { usePlayerTabs } from '@/features/player/tabs/playerTabs';
-import { useAudioGraph } from '@/features/player/useAudioGraph';
+import { useBoostedVolume } from '@/features/player/useBoostedVolume';
+import { useChapterChoice } from '@/features/player/useChapterChoice';
+import { useControlsVisibility } from '@/features/player/useControlsVisibility';
+import { useFullscreen } from '@/features/player/useFullscreen';
 import { usePhoneTap } from '@/features/player/usePhoneTap';
 import { usePlayerKeys } from '@/features/player/usePlayerKeys';
 import { usePlayerPrefs } from '@/features/player/usePlayerPrefs';
 import { useSubtitleStyle } from '@/features/player/useSubtitleStyle';
-import { useVolume } from '@/features/player/useVolume';
-import { supportsWebAudioBoost } from '@/lib/webAudio';
-import { AriaButton, BOOST_MAX, focusOnMount, PlayerChrome } from '@/ui/aria';
+import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
 import styles from '@/features/player/Player.module.css';
-
-/** Controls fade out after this long without input while the video plays (as online). */
-const CONTROLS_HIDE_MS = 3000;
 
 /** A subtitle of the download, stored as WebVTT in OPFS and offered through a blob URL. */
 export interface StoredSubtitle {
   track: Track;
   url: string;
 }
-
-/** The panel beside the video: sound, subtitles, the gear or the shortcut help; one at a time. */
-type PanelName = 'audio' | 'subtitle' | 'settings' | 'help';
 
 // Module functions: the React compiler does not let a component write to an object it received.
 function applyRate(element: HTMLMediaElement, rate: number): void {
@@ -109,16 +105,16 @@ export function OfflineVideo({
   const { t, i18n } = useTranslation();
   const language = i18n.language;
   const video = media as RefObject<HTMLVideoElement | null>;
-  const hideTimer = useRef<number | undefined>(undefined);
-  const osdTimer = useRef<number | undefined>(undefined);
-  const [idle, setIdle] = useState(false);
-  const [osd, setOsd] = useState<string | null>(null);
-  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
-  const [panel, setPanel] = useState<PanelName | null>(null);
-  const [settingsView, setSettingsView] = useState<{ page: SettingsPage; direct: boolean }>({
-    page: 'main',
-    direct: false,
-  });
+  const {
+    panel,
+    openPanel,
+    togglePanel,
+    closePanel,
+    settingsView,
+    setSettingsView,
+    openSettings,
+    panelButton,
+  } = usePlayerPanels();
   // The chapter tab is open; C counts `focusChapter` up, so the chapter playing takes the focus.
   const [tab, setTab] = useState<{ focusChapter?: number } | null>(null);
   const layout = usePlayerLayout();
@@ -129,105 +125,14 @@ export function OfflineVideo({
   const [muteOnly] = useState(() => volumeIsReadOnly());
   const available = !limitReached;
 
-  const openPanel = useCallback((name: PanelName) => setPanel(name), []);
-  const togglePanel = useCallback((name: PanelName) => {
-    setPanel((current) => (current === name ? null : name));
-  }, []);
-  const closePanel = useCallback(() => setPanel(null), []);
-  const openSettings = useCallback((page: SettingsPage, direct: boolean) => {
-    setSettingsView({ page, direct });
-    setPanel('settings');
-  }, []);
+  // ---------- controls, full screen, volume and night mode: as online ----------
 
-  // ---------- controls: visible on any input and while paused ----------
-
-  const scheduleHide = useCallback(() => {
-    window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setIdle(true), CONTROLS_HIDE_MS);
-  }, []);
-  const poke = useCallback(() => {
-    setIdle(false);
-    scheduleHide();
-  }, [scheduleHide]);
-  useEffect(() => {
-    if (playing) scheduleHide();
-    else window.clearTimeout(hideTimer.current);
-  }, [playing, scheduleHide]);
-  useEffect(
-    () => () => {
-      window.clearTimeout(hideTimer.current);
-      window.clearTimeout(osdTimer.current);
-    },
-    [],
-  );
-  const showOsd = useCallback((text: string) => {
-    setOsd(text);
-    window.clearTimeout(osdTimer.current);
-    osdTimer.current = window.setTimeout(() => setOsd(null), 1200);
-  }, []);
-
-  // ---------- full screen: the whole document, as online ----------
-
-  const toggleFullscreen = useCallback(() => {
-    const root = document.documentElement;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else if (typeof root.requestFullscreen === 'function') void root.requestFullscreen();
-  }, []);
-  useEffect(() => {
-    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-  useEffect(
-    () => () => {
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-    },
-    [],
-  );
-
-  // ---------- volume, night mode and speed, as online ----------
-
-  // Up to 150 % and night mode through Web Audio, except in Safari (11.15).
-  const [webAudio, setWebAudio] = useState(() => supportsWebAudioBoost());
-  const volume = useVolume(media, { max: webAudio ? BOOST_MAX : 1 });
-  const [nightMode, setNightMode] = useState(false);
-  // The browser refused the graph: night mode and the volume above 100 % go away.
-  const { setVolume: setLevel, volume: levelBefore } = volume;
-  const levelAtFailure = useRef(levelBefore);
-  useEffect(() => {
-    levelAtFailure.current = levelBefore;
-  }, [levelBefore]);
-  const audioGraphUnavailable = useCallback(() => {
-    setWebAudio(false);
-    setNightMode(false);
-    if (levelAtFailure.current > 1) setLevel(1);
-  }, [setLevel, setNightMode, setWebAudio]);
-  useAudioGraph({
+  const { idle, wake: poke, hide, osd, showOsd } = useControlsVisibility(playing);
+  const { fullscreen, toggleFullscreen } = useFullscreen({ exitOnUnmount: true });
+  const { volume, webAudio, nightMode, setNightMode, changeVolume, toggleMute } = useBoostedVolume(
     media,
-    enabled: webAudio,
-    nightMode,
-    gain: volume.gain,
-    onUnavailable: audioGraphUnavailable,
-  });
-  /** «Lautstärke 80 %»; above 100 % with the warning that it may distort. */
-  const volumeText = useCallback(
-    (level: number) => {
-      const percent = Math.round(level * 100);
-      return level > 1
-        ? t('player.volumeControl.boosted', { percent })
-        : t('player.volume', { percent });
-    },
-    [t],
+    { showOsd },
   );
-  const { step: stepVolume, toggleMute: toggleElementMute, volume: level } = volume;
-  const changeVolume = useCallback(
-    (delta: number) => showOsd(volumeText(stepVolume(delta))),
-    [showOsd, stepVolume, volumeText],
-  );
-  const toggleMute = useCallback(() => {
-    const muted = toggleElementMute();
-    showOsd(muted ? t('player.chrome.muted') : volumeText(level));
-  }, [level, showOsd, t, toggleElementMute, volumeText]);
 
   const [rate, setRate] = useState(1);
   useEffect(() => {
@@ -259,17 +164,13 @@ export function OfflineVideo({
     ? (chapter.title ?? t('player.chapters.untitled', { n: chapterIndex + 1 }))
     : undefined;
   // On a phone the chapters are a page of the gear (11.2).
-  const chapterChoice = {
-    options: chapters.map((entry, index) => ({
-      id: String(index),
-      label: chapterLabel(t, entry, index, durationMs),
-    })),
-    selectedId: String(Math.max(0, chapterIndex)),
-    onSelect: (id: string) => {
-      const target = chapters[Number(id)];
-      if (target) seekTo(target.startMs);
-    },
-  };
+  const chapterChoice = useChapterChoice({
+    chapters,
+    chapterIndex,
+    durationMs,
+    seekTo,
+    closePanel,
+  });
 
   // ---------- subtitles: the stored WebVTT files, drawn by the subtitle layer ----------
 
@@ -342,10 +243,7 @@ export function OfflineVideo({
     seekBy,
     showOsd,
     wantsPlaying,
-    hide: () => {
-      window.clearTimeout(hideTimer.current);
-      setIdle(true);
-    },
+    hide,
   });
 
   // Only the chapter tab: a download carries no season, cast or description.
@@ -390,14 +288,6 @@ export function OfflineVideo({
     ? (languageName(subtitle.track.language, language) ??
       trackLabel(t, subtitle.track, subtitles.indexOf(subtitle), language))
     : t('player.tracks.off');
-  const panelButton = (name: 'audio' | 'subtitle', label: string, text: string) => ({
-    label,
-    text,
-    expanded: panel === name,
-    controls: PANEL_IDS[name],
-    onPress: () => togglePanel(name),
-    isDisabled: limitReached,
-  });
   const lineLabel = chapterName
     ? t('player.chrome.lineChapter', { title, chapter: chapterName })
     : title;
@@ -515,6 +405,7 @@ export function OfflineVideo({
                 'subtitle',
                 t('player.panel.subtitleButton', { language: subtitleWord }),
                 subtitleWord,
+                limitReached,
               )
             : undefined
         }
@@ -524,6 +415,7 @@ export function OfflineVideo({
                 'audio',
                 t('player.panel.audioButton', { language: audioWord }),
                 audioWord,
+                limitReached,
               )
             : undefined
         }
