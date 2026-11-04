@@ -69,3 +69,36 @@
   color: var(--sc-color-text-muted);
   font-size: var(--sc-font-size-sm);
 }
+
+/* A group inside the list, with its heading. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+}
+
+.section + .section,
+.row + .section {
+  margin-top: var(--sc-space-3);
+}
+
+.header {
+  padding: 0 var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+/* The chevron of a row that shows more rows: down while they are hidden, up once they show. */
+.chevron {
+  display: inline-flex;
+  flex: none;
+  color: var(--sc-color-text-muted);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.chevron[data-expanded] {
+  transform: rotate(180deg);
+}

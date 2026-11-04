@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { OptionList, OptionRow } from './OptionRow';
+import { useState } from 'react';
+import { OptionList, OptionMoreRow, OptionRow, OptionSection } from './OptionRow';
 
 const noop = () => undefined;
 
@@ -14,6 +15,34 @@ const Subtitles = ({ selectedId }: { selectedId: string | null }) => (
     <OptionRow id="fr" label="Französisch" isDisabled />
   </OptionList>
 );
+
+// The profile's languages first, the others behind «Weitere Sprachen (n)» in the same list (11.10):
+// ↑/↓ run across both groups, the more row is never chosen.
+const others = ['Finnisch', 'Italienisch', 'Japanisch'];
+const Grouped = ({ expanded = false }: { expanded?: boolean }) => {
+  const [more, setMore] = useState(expanded);
+  return (
+    <OptionList label="Untertitel" selectedId="de" onSelect={noop} actionIds={['more']}>
+      <OptionSection title="Deine Sprachen">
+        <OptionRow id="off" label="Aus" />
+        <OptionRow id="de" label="Deutsch" detail="SRT" marks={['default']} />
+        <OptionRow id="en" label="Englisch" detail="SDH" />
+      </OptionSection>
+      <OptionSection title="Weitere Sprachen">
+        <OptionMoreRow
+          id="more"
+          label={`Weitere Sprachen (${others.length})`}
+          isExpanded={more}
+          onToggle={() => setMore((shown) => !shown)}
+        />
+        {more &&
+          others.map((language) => (
+            <OptionRow key={language} id={language} label={language} detail="SRT" />
+          ))}
+      </OptionSection>
+    </OptionList>
+  );
+};
 
 const meta = {
   title: 'UI/OptionRow',
@@ -40,3 +69,12 @@ export const Focused: Story = { tags: ['press:Tab+ArrowDown'] };
 
 /** Nothing chosen yet: no tick anywhere. */
 export const NoneChosen: Story = { render: () => <Subtitles selectedId={null} /> };
+
+/** Two groups in one list; the other languages are folded behind the more row. */
+export const Groups: Story = { render: () => <Grouped /> };
+
+/** Unfolded, with the focus walked from the chosen row down across the group heading. */
+export const GroupsExpanded: Story = {
+  render: () => <Grouped expanded />,
+  tags: ['press:Tab+ArrowDown+ArrowDown+ArrowDown'],
+};
