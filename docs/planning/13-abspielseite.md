@@ -814,7 +814,9 @@ Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. Nove
   M-1): Das Download-Manifest liefert für Film und Folge die Kapitel aus derselben Quelle wie die
   Online-Wiedergabe, nicht mehr nur für Hörbücher. Das ist eine additive Änderung im Vertrag
   1.10.0 (Beschreibung von `DownloadManifest.chapters`) und eine kleine Serveränderung in Stufe 1,
-  abweichend von 6.1 «nur Web-App».
+  abweichend von 6.1 «nur Web-App». Fertige Downloads behalten ihr gespeichertes Manifest und
+  zeigen Kapitel erst nach einem neuen Download (Release-Notiz). Podcast-Folgen bekommen offline
+  weiterhin keine Kapitel.
 - PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
   Release.
 
