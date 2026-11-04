@@ -113,13 +113,21 @@ export function playbackRequest(
  */
 let autoNextTarget: string | null = null;
 
+/**
+ * What the player hands on to the next title it plays itself (auto-next): night mode and the
+ * volume, a boost above 100 % included. Web Audio stays on until the viewer leaves the player
+ * (11.10); mute and speed start afresh with a new title. Reset when the player route closes.
+ */
+let nextTitleCarry: PlayerCarry = NO_CARRY;
+
 /** Video player route (W-1 direct play, W-4 tracks, W-5 progress, W-8 quality, W-9 auto-next). */
 export function PlayerPage() {
   const { itemId } = route.useParams();
   // Full screen belongs to the document so that it survives switches and auto-next (W-2); it
-  // ends with the player route.
+  // ends with the player route, and so does what auto-next carries over.
   useEffect(
     () => () => {
+      nextTitleCarry = NO_CARRY;
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     },
     [],
@@ -204,8 +212,13 @@ function PlayerView({ itemId }: { itemId: string }) {
 
   const [infoOpen, setInfoOpen] = useState(false);
   // Mute, speed, a volume above 100 % and night mode carry over to the next session of this title
-  // (a switch of track, quality or version); a new title starts audible at normal speed.
-  const [carried, setCarried] = useState<PlayerCarry>(NO_CARRY);
+  // (a switch of track, quality or version); a new title starts audible at normal speed, after
+  // auto-next with the night mode and volume of the episode before (m-5, review step 4).
+  const [carried, setCarried] = useState<PlayerCarry>(() =>
+    autoNext
+      ? { ...NO_CARRY, nightMode: nextTitleCarry.nightMode, volume: nextTitleCarry.volume }
+      : NO_CARRY,
+  );
   const carry = useCallback(
     (patch: Partial<PlayerCarry>) =>
       setCarried((current) =>
@@ -265,6 +278,7 @@ function PlayerView({ itemId }: { itemId: string }) {
 
   const playNext = (next: ItemRef) => {
     autoNextTarget = next.id;
+    nextTitleCarry = carried;
     void navigate({ to: '/play/$itemId', params: { itemId: next.id }, search: {}, replace: true });
   };
 

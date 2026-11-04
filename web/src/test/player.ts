@@ -33,6 +33,8 @@ const shapes: Record<PlayerChoice, Shape> = {
 };
 
 const GEAR = 'Einstellungen';
+/** The gear button names the rung after its name where there is a choice: «Einstellungen · 480p». */
+const GEAR_BUTTON = /^Einstellungen( · .+)?$/;
 
 /** The list of an open panel: the listbox named like the panel. */
 function panelList(title: string): HTMLElement | null {
@@ -88,7 +90,7 @@ export function playerDriver() {
   const control = (choice: PlayerChoice) => {
     const shape = shapes[choice];
     const name =
-      shape.kind === 'gear' ? GEAR : shape.kind === 'panel' ? shape.control : shape.control;
+      shape.kind === 'gear' ? GEAR_BUTTON : shape.kind === 'panel' ? shape.control : shape.control;
     return screen.getByRole('button', { name });
   };
 
@@ -102,7 +104,7 @@ export function playerDriver() {
     if (page && back) await user.click(back);
     else {
       if (page) fireEvent.keyDown(page, { key: 'Escape' });
-      await user.click(screen.getByRole('button', { name: GEAR }));
+      await user.click(screen.getByRole('button', { name: GEAR_BUTTON }));
     }
     return waitFor(() => {
       const found = panelList(GEAR);

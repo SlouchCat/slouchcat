@@ -39,6 +39,7 @@ import {
   trackLabel,
 } from './labels';
 import { SettingsPanel, type SettingsPage } from './panels/SettingsPanel';
+import { PANEL_IDS } from './panels/panelIds';
 import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
@@ -346,7 +347,7 @@ export function VideoPlayer({
   // follows it, so it stands in until the session is there.
   const session = useQuery(sessionQuery);
   const profileLanguage = session.data?.profile?.language ?? i18n.language;
-  // The audio codecs this browser plays, for the mark «wird umgewandelt».
+  // The audio codecs this browser plays, for the mark «Stream wird neu aufgebaut».
   const [decodableAudio] = useState(() => playbackCapabilities().audio);
   const timeDisplay = prefs.timeDisplay ?? 'elapsed';
 
@@ -852,8 +853,9 @@ export function VideoPlayer({
     ? (languageName(subtitleTrack.language, language) ??
       trackLabel(t, subtitleTrack, tracks.subtitles.indexOf(subtitleTrack), language))
     : t('player.tracks.off');
-  // A mark only (11.3 «Kosten»): a codec the browser cannot play is converted, and while the file
-  // plays directly another track than the file's default makes the server remux it.
+  // A mark only, and an estimate (11.3 «Kosten»): a codec the browser cannot play is converted, and
+  // while the file plays directly another track than the file's default makes the server remux
+  // it. Either way the stream is built anew; the server decides how (rule 12).
   const converts = (track: Track) =>
     track.index !== audioIndex &&
     (!decodableAudio.includes(track.codec) || (info.mode === 'direct' && !track.default));
@@ -861,6 +863,7 @@ export function VideoPlayer({
     label,
     text,
     expanded: panel === name,
+    controls: PANEL_IDS[name],
     onPress: () => togglePanel(name),
     // After the server ended the playback a pick would start a new session behind the notice.
     isDisabled: switching || ended !== null,
@@ -875,7 +878,12 @@ export function VideoPlayer({
     })),
     // The rung the server says it delivers, not the viewer's wish.
     selectedId: info.qualities.find((option) => option.current)?.quality ?? 'auto',
-    onSelect: (id: string) => switchPlayback({ quality: id as Quality }),
+    // The panel closes with the choice: during the switch it would have no rungs to show, and
+    // the next session is a new player.
+    onSelect: (id: string) => {
+      closePanel();
+      switchPlayback({ quality: id as Quality });
+    },
   };
   const versionChoice = {
     options: versions.map((version, index) => ({
@@ -883,8 +891,15 @@ export function VideoPlayer({
       label: version.versionLabel ?? String(index + 1),
     })),
     selectedId: info.mediaFile.id,
-    onSelect: switchVersion,
+    onSelect: (id: string) => {
+      closePanel();
+      switchVersion(id);
+    },
   };
+  // The gear names the rung the server delivers (11.2), where there is a choice of rungs.
+  const currentQuality = info.qualities.find((option) => option.current);
+  const gearQuality =
+    hasQualities && currentQuality ? qualityLabel(t, currentQuality, info) : undefined;
   const chapterIndex = chapterAt(info.chapters, currentMs);
   const menuProps = (menu: MenuName) => ({
     // After the server ended the playback a pick would start a new session behind the notice.
@@ -1135,8 +1150,12 @@ export function VideoPlayer({
 
         chapterMenu={hasChapters ? chapterMenu : undefined}
         settings={{
-          label: t('player.settings.title'),
+          label: gearQuality
+            ? t('player.settings.buttonWithQuality', { quality: gearQuality })
+            : t('player.settings.title'),
+          text: gearQuality,
           expanded: panel === 'settings',
+          controls: PANEL_IDS.settings,
           onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
           isDisabled: ended !== null,
         }}

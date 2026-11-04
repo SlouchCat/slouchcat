@@ -31,6 +31,9 @@ test('choosing 480p by keyboard starts a new session with a 480p transcode', asy
   const itemId = await itemIdByTitle(owner, H264_TITLE);
   await resetProgress(page.request, itemId, 10_000);
   const first = await play(page, itemId);
+  // The gear names the rung it plays (11.2).
+  const gear = page.getByRole('button', { name: /^Einstellungen · / });
+  await expect(gear).toHaveText(/^Automatisch/);
 
   // Q opens the gear straight on its quality page, on the rung the server delivers.
   await page.keyboard.press('q');
@@ -59,8 +62,10 @@ test('choosing 480p by keyboard starts a new session with a 480p transcode', asy
     second.body.playbackSessionId,
   );
   await expect(player(page)).toHaveAttribute('data-switch-ms', /\d+/, { timeout: 15_000 });
+  // The choice closed the panel; the gear shows the new rung.
+  await expect(menu).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Einstellungen · 480p' })).toHaveText('480p');
   // The gear's first page names the rung; Escape closes it and gives the focus back to the gear.
-  const gear = page.getByRole('button', { name: 'Einstellungen' });
   await arrowTo(page, gear, 'ArrowRight');
   await page.keyboard.press('Enter');
   const settings = page.getByRole('dialog', { name: 'Einstellungen' });

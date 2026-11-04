@@ -96,6 +96,8 @@ async function start(info: PlaybackInfo = film, extra = {}) {
 
 const region = () => screen.getByRole('main', { name: 'Videoplayer' });
 const button = (name: string | RegExp) => screen.getByRole('button', { name });
+/** The gear names the rung the server delivers (11.2): «Einstellungen · Automatisch (480p)». */
+const gearButton = () => button(/^Einstellungen · /);
 const seekBar = () => screen.getByRole('slider', { name: 'Wiedergabeposition' });
 const key = (target: Element, name: string, extra: object = {}) =>
   fireEvent.keyDown(target, { key: name, ...extra });
@@ -260,9 +262,15 @@ describe('video player controls (concept 13, step 3)', () => {
   it('the gear: pages with back and Backspace, the speed page sets the speed, Escape closes', async () => {
     const { video } = await start();
     const user = playerDriver().user;
-    await user.click(button('Einstellungen'));
+    // The gear shows the rung it plays and says so in its name (review step 4, m-9).
+    const rung = gearButton().textContent ?? '';
+    expect(rung).not.toBe('');
+    expect(gearButton()).toHaveAccessibleName(`Einstellungen · ${rung}`);
+    expect(gearButton()).toHaveAttribute('aria-haspopup', 'dialog');
+    await user.click(gearButton());
     const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
-    expect(button('Einstellungen')).toHaveAttribute('aria-expanded', 'true');
+    expect(gearButton()).toHaveAttribute('aria-expanded', 'true');
+    expect(gearButton()).toHaveAttribute('aria-controls', gear.id);
     const speedRow = within(gear).getByRole('option', { name: 'Geschwindigkeit' });
     expect(speedRow).toHaveAccessibleDescription('1×');
     await waitFor(() =>
@@ -293,14 +301,14 @@ describe('video player controls (concept 13, step 3)', () => {
     await waitFor(() => expect(document.activeElement?.closest('[role="dialog"]')).not.toBeNull());
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(button('Einstellungen')).toHaveFocus();
+    expect(gearButton()).toHaveFocus();
   });
 
   it('the gear’s subtitle style colours the browser’s cues for picture in picture as well', async () => {
     const { video } = await start();
     const user = playerDriver().user;
     expect(video).toHaveAttribute('data-subtitle-color', 'white');
-    await user.click(button('Einstellungen'));
+    await user.click(gearButton());
     const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
     await user.click(within(gear).getByRole('option', { name: 'Untertitel-Stil' }));
     const page = await screen.findByRole('dialog', { name: 'Untertitel-Stil' });
@@ -379,7 +387,7 @@ describe('video player controls (concept 13, step 3)', () => {
       expect(contexts).toHaveLength(1);
       expect(contexts[0]!.gain.value).toBeCloseTo(1.2);
 
-      await user.click(button('Einstellungen'));
+      await user.click(gearButton());
       const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
       await user.click(within(gear).getByRole('option', { name: 'Ton-Optionen' }));
       const sound = await screen.findByRole('dialog', { name: 'Ton-Optionen' });
@@ -387,6 +395,49 @@ describe('video player controls (concept 13, step 3)', () => {
       expect(contexts).toHaveLength(1);
       expect(contexts[0]!.compressed).toBe(true);
       expect(contexts[0]!.sources).toBe(1);
+    });
+
+    it('keeps night mode and 150 % into the next episode (review step 4, m-5)', async () => {
+      const episode: PlaybackInfo = {
+        ...playback,
+        item: episodes.e2,
+        resumePositionMs: 0,
+        nextEpisode: episodes.e34,
+      };
+      const { router } = await start(episode, {
+        [`GET /items/${episodes.e2.id}`]: () => json(episode2Detail),
+        [`GET /items/${seriesIds.show}`]: () => json(showDetail),
+        [`POST /items/${episodes.e34.id}/play`]: () =>
+          json({ ...playback, item: episodes.e34, playbackSessionId: 'ps-34' }),
+      });
+      const user = playerDriver().user;
+      const slider = screen.getByRole('slider', { name: 'Lautstärke' });
+      act(() => slider.focus());
+      for (let presses = 0; presses < 6; presses += 1) key(slider, 'ArrowRight');
+      expect(slider).toHaveAttribute('aria-valuenow', '130');
+      await user.click(gearButton());
+      await user.click(
+        within(await screen.findByRole('dialog', { name: 'Einstellungen' })).getByRole('option', {
+          name: 'Ton-Optionen',
+        }),
+      );
+      await user.click(
+        within(await screen.findByRole('dialog', { name: 'Ton-Optionen' })).getByRole('switch', {
+          name: 'Nachtmodus',
+        }),
+      );
+      key(document.body, 'Escape');
+      key(document.body, 'n');
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/play/${episodes.e34.id}`));
+      await waitFor(() =>
+        expect(screen.getByRole('slider', { name: 'Lautstärke' })).toHaveAttribute(
+          'aria-valuenow',
+          '130',
+        ),
+      );
+      // The next episode's player builds its graph with night mode at once.
+      await waitFor(() => expect(contexts.at(-1)?.compressed).toBe(true));
+      expect(contexts.at(-1)!.gain.value).toBeCloseTo(1.3);
     });
 
     it('hides night mode and 150 % in Safari', async () => {
@@ -399,7 +450,7 @@ describe('video player controls (concept 13, step 3)', () => {
         'aria-valuemax',
         '100',
       );
-      await user.click(button('Einstellungen'));
+      await user.click(gearButton());
       const gear = await screen.findByRole('dialog', { name: 'Einstellungen' });
       expect(within(gear).getByRole('option', { name: 'Geschwindigkeit' })).toBeVisible();
       expect(within(gear).queryByRole('option', { name: 'Ton-Optionen' })).toBeNull();
