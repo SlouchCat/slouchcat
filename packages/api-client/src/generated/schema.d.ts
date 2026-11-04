@@ -4526,7 +4526,8 @@ export interface components {
          *     plays as `auto` without an error. `2160p` (25 Mbit/s) only on a hardware backend, from a 4K source
          *     (at least 2160 lines or at least 3840 pixels wide), a device of at least 1440 lines, a profile
          *     that allows 2160 and an SDR source or tone mapping on the GPU; a requested `2160p` that is
-         *     unavailable plays on the next lower rung the limits allow. `auto` never chooses 2160p.
+         *     unavailable plays as `auto`, at most on the 1080p rung (`current` is the rung of a transcode
+         *     that runs, else `auto`). `auto` never chooses 2160p.
          * @enum {string}
          */
         Quality: "auto" | "original" | "2160p" | "1080p" | "720p" | "480p" | "360p";
