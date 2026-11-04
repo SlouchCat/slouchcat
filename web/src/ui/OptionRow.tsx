@@ -11,14 +11,22 @@ import { Chip } from './Chip';
 import { Icon } from './Icon';
 import styles from './OptionRow.module.css';
 
-/** Marks of an option (V-5): the file's default, a forced track, a subtitle that is burnt in. */
-export type OptionMark = 'default' | 'forced' | 'burnIn';
+/**
+ * Marks of an option (V-5): the file's default, a forced track, a subtitle for the hard of hearing
+ * (SDH), a picture subtitle that is burnt in, a track that makes the server convert the stream.
+ */
+export type OptionMark = 'default' | 'forced' | 'sdh' | 'burnIn' | 'convert';
 
 const MARK_KEYS = {
   default: 'player.option.default',
   forced: 'player.option.forced',
+  sdh: 'player.option.sdh',
   burnIn: 'player.option.burnIn',
+  convert: 'player.option.convert',
 } as const;
+
+/** Marks that start a conversion: in the warning colour. */
+const WARNING_MARKS: readonly OptionMark[] = ['burnIn', 'convert'];
 
 interface OptionRowProps {
   /** Key of the row, the one `onSelect` reports. */
@@ -33,7 +41,8 @@ interface OptionRowProps {
 
 /**
  * One choice in a player panel: a tick when it is chosen, two lines of text and marks. A burnt-in
- * subtitle is marked in the warning colour, because choosing it starts a conversion. The marks
+ * subtitle and a converted track are marked in the warning colour: choosing them starts a
+ * conversion. The marks
  * belong to the second line, so a screen reader reads them with it.
  */
 export function OptionRow({ id, label, detail, marks = [], isDisabled }: OptionRowProps) {
@@ -51,7 +60,7 @@ export function OptionRow({ id, label, detail, marks = [], isDisabled }: OptionR
               <AriaText slot="description" className={styles.detail}>
                 {detail && <span>{detail}</span>}
                 {marks.map((mark) => (
-                  <Chip key={mark} tone={mark === 'burnIn' ? 'warning' : 'info'}>
+                  <Chip key={mark} tone={WARNING_MARKS.includes(mark) ? 'warning' : 'info'}>
                     {t(MARK_KEYS[mark])}
                   </Chip>
                 ))}

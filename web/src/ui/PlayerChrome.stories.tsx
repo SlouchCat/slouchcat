@@ -10,6 +10,7 @@ const chapters = [
 ];
 
 const noop = () => undefined;
+const panel = (label: string, text?: string) => ({ label, text, expanded: false, onPress: noop });
 const menu = (label: string, buttonLabel = label) => ({
   label,
   buttonLabel,
@@ -23,7 +24,7 @@ const meta = {
   component: PlayerChrome,
   args: {
     title: 'Blade Runner 2049',
-    subtitle: '2017 · Science-Fiction, Drama',
+    headingDetail: '2017 · Science-Fiction, Drama',
     lineLabel: 'Blade Runner 2049 · Kapitel 3',
     onBack: noop,
     currentMs: 3_240_000,
@@ -46,10 +47,10 @@ const meta = {
     fullscreen: false,
     onToggleFullscreen: noop,
     pictureInPicture: { active: false, onToggle: noop },
-    tracks: menu('Spuren'),
-    quality: menu('1080p', 'Qualität: 1080p'),
+    subtitles: panel('Untertitel: Aus', 'Aus'),
+    audio: panel('Ton: Deutsch', 'Deutsch'),
     chapterMenu: menu('Kapitel'),
-    onToggleInfo: noop,
+    settings: panel('Einstellungen'),
     onToggleHelp: noop,
   },
   decorators: [
@@ -78,7 +79,7 @@ export const Default: Story = {};
 export const Episode: Story = {
   args: {
     title: 'Silo',
-    subtitle: 'S01E04 · Wahrheit',
+    headingDetail: 'S01E04 · Wahrheit',
     lineLabel: 'Silo',
     chapters: [],
     previous: undefined,
@@ -91,9 +92,14 @@ export const Episode: Story = {
 /** The time switched to the remaining time and the end time (V-4). */
 export const RemainingTime: Story = { args: { timeDisplay: 'remaining' } };
 
-/** Offline: no quality, no version, no track switch (F-15). */
+/** Offline: the page leaves out the panels it cannot offer (F-15). */
 export const Offline: Story = {
-  args: { capabilities: { quality: false, version: false, trackSwitch: false } },
+  args: { subtitles: undefined, audio: undefined },
+};
+
+/** The sound panel is open: its button says so (aria-expanded) and keeps its look. */
+export const PanelOpen: Story = {
+  args: { audio: { ...panel('Ton: Englisch', 'Englisch'), expanded: true } },
 };
 
 /**

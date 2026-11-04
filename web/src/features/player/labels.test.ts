@@ -26,6 +26,10 @@ describe('player labels', () => {
     expect(trackLabel(t, { ...pgs!, language: undefined, forced: true }, 1, 'de')).toBe(
       'Spur 2 · PGS · erzwungen',
     );
+    // The panels show «erzwungen» as a mark instead.
+    expect(
+      trackLabel(t, { ...pgs!, language: undefined, forced: true }, 1, 'de', { forced: false }),
+    ).toBe('Spur 2 · PGS');
     expect(codecName('truehd')).toBe('TrueHD');
   });
 

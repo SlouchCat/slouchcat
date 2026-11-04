@@ -10,8 +10,8 @@ const Subtitles = ({ selectedId }: { selectedId: string | null }) => (
     <OptionRow id="off" label="Aus" />
     <OptionRow id="de-forced" label="Deutsch" detail="SRT" marks={['forced']} />
     <OptionRow id="de" label="Deutsch" detail="SRT" marks={['default']} />
-    <OptionRow id="en-sdh" label="Englisch" detail="SDH" />
-    <OptionRow id="en-pgs" label="Englisch" detail="Bild-Untertitel (PGS)" marks={['burnIn']} />
+    <OptionRow id="en-sdh" label="Englisch" detail="SRT" marks={['sdh']} />
+    <OptionRow id="en-pgs" label="Englisch" detail="PGS" marks={['burnIn']} />
     <OptionRow id="fr" label="Französisch" isDisabled />
   </OptionList>
 );

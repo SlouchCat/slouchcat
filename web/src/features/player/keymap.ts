@@ -45,8 +45,7 @@ export function isTypedSpeedKey(event: KeyInput): boolean {
   return (
     (event.key === '[' || event.key === ']') &&
     !event.metaKey &&
-    (event.getModifierState?.('AltGraph') === true ||
-      (isApple() && event.altKey && !event.ctrlKey))
+    (event.getModifierState?.('AltGraph') === true || (isApple() && event.altKey && !event.ctrlKey))
   );
 }
 

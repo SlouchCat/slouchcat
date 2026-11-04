@@ -12,6 +12,8 @@ function renderList(selectedId: string | null = 'de') {
       <OptionRow id="de" label="Deutsch" detail="SRT" marks={['default']} />
       <OptionRow id="de-forced" label="Deutsch" detail="SRT" marks={['forced']} />
       <OptionRow id="en-pgs" label="Englisch" detail="PGS" marks={['burnIn']} />
+      <OptionRow id="en-sdh" label="Englisch SDH" marks={['sdh']} />
+      <OptionRow id="dts" label="Deutsch · DTS · 5.1" marks={['default', 'convert']} />
     </OptionList>,
   );
   return { onSelect, user: userEvent.setup() };
@@ -37,7 +39,9 @@ describe('OptionRow and OptionList (concept 13, V-5)', () => {
     renderList();
     expect(option('Deutsch', 'Standard')).toHaveAccessibleDescription('SRTStandard');
     expect(option('Deutsch', 'erzwungen')).toHaveAccessibleDescription('SRTerzwungen');
-    expect(option('Englisch')).toHaveAccessibleDescription('PGSwird eingebrannt');
+    expect(option('Englisch')).toHaveAccessibleDescription('PGSBild-Untertitel, wird eingebrannt');
+    expect(option('Englisch SDH')).toHaveAccessibleDescription('SDH');
+    expect(option('Deutsch · DTS · 5.1')).toHaveAccessibleDescription('Standardwird umgewandelt');
     expect(option('Aus')).not.toHaveAccessibleDescription();
   });
 

@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, vi } from 'vitest';
 
@@ -12,24 +12,33 @@ import { expect, vi } from 'vitest';
 export type PlayerChoice = 'audio' | 'subtitle' | 'quality' | 'chapter' | 'version';
 
 /**
- * Today every choice is a react-aria menu behind a button, and the menu is labelled by its button.
- * Sound and subtitles are two titled groups of the one menu «Spuren». The button names the current
- * pick where there is one: «Qualität: 480p», «Version: 1080p».
+ * Sound and subtitles are panels beside the video (PlayerPanel), each with one list of rows (a
+ * listbox named like the panel); their buttons name the language chosen: «Ton: Deutsch»,
+ * «Untertitel: Aus». Quality, chapter and version are still react-aria menus behind a button, and
+ * the menu is labelled by its button, which names the current pick: «Qualität: 480p».
  */
 const controlName: Record<PlayerChoice, string | RegExp> = {
-  audio: 'Spuren',
-  subtitle: 'Spuren',
+  audio: /^Ton: /,
+  subtitle: /^Untertitel: /,
   quality: /^Qualität/,
   chapter: 'Kapitel',
   version: /^Version/,
 };
-const groupName: Partial<Record<PlayerChoice, string>> = { audio: 'Ton', subtitle: 'Untertitel' };
+const panelName: Partial<Record<PlayerChoice, string>> = { audio: 'Ton', subtitle: 'Untertitel' };
 
-function scope(choice: PlayerChoice, menu: HTMLElement | null) {
-  const group = groupName[choice];
-  if (!menu || group === undefined) return menu;
-  return within(menu).queryByRole('group', { name: group });
+/** The open list of a choice: the panel's listbox, or the menu. */
+function queryOpenList(choice: PlayerChoice): HTMLElement | null {
+  const name = panelName[choice];
+  if (name === undefined) return screen.queryByRole('menu', { name: controlName[choice] });
+  const panel = screen.queryByRole('dialog', { name });
+  return panel && within(panel).queryByRole('listbox', { name });
 }
+
+/** Rows of a panel's list are options, those of a menu menu items with a radio tick. */
+const isPanelList = (from: HTMLElement) => from.getAttribute('role') === 'listbox';
+const rowRole = (from: HTMLElement) => (isPanelList(from) ? 'option' : 'menuitemradio');
+const chosenState = (from: HTMLElement) =>
+  isPanelList(from) ? { selected: true } : { checked: true };
 
 /**
  * Drives the video player's choices. `user` clicks through the fake timers of the player tests;
@@ -39,8 +48,7 @@ export function playerDriver() {
   const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
 
   /** The open list of a choice, or null. */
-  const queryList = (choice: PlayerChoice) =>
-    scope(choice, screen.queryByRole('menu', { name: controlName[choice] }));
+  const queryList = (choice: PlayerChoice) => queryOpenList(choice);
 
   /** The open list of a choice; throws while it is closed. */
   const list = (choice: PlayerChoice) => {
@@ -50,11 +58,12 @@ export function playerDriver() {
   };
 
   /** Waits until the list of a choice is open (after a shortcut key, say). */
-  const findList = async (choice: PlayerChoice) => {
-    const found = scope(choice, await screen.findByRole('menu', { name: controlName[choice] }));
-    if (!found) throw new Error(`the ${choice} group is missing in the open menu`);
-    return found;
-  };
+  const findList = (choice: PlayerChoice) =>
+    waitFor(() => {
+      const found = queryOpenList(choice);
+      if (!found) throw new Error(`the ${choice} choice is not open`);
+      return found;
+    });
 
   /** The control that opens a choice; throws when the player offers none. */
   const control = (choice: PlayerChoice) =>
@@ -92,13 +101,13 @@ export function playerDriver() {
 
   /** One option of an open list, by its spoken name. */
   const option = (from: HTMLElement, name: string | RegExp) =>
-    within(from).getByRole('menuitemradio', { name });
+    within(from).getByRole(rowRole(from), { name });
 
   /** All options of an open list. */
-  const options = (from: HTMLElement) => within(from).getAllByRole('menuitemradio');
+  const options = (from: HTMLElement) => within(from).getAllByRole(rowRole(from));
 
   /** The one option of an open list that is the current pick; throws for none or several. */
-  const chosen = (from: HTMLElement) => within(from).getByRole('menuitemradio', { checked: true });
+  const chosen = (from: HTMLElement) => within(from).getByRole(rowRole(from), chosenState(from));
 
   /** Asserts that an option is shown but cannot be picked (a rung the source or limits rule out). */
   const expectUnavailable = (element: HTMLElement) => {
@@ -118,7 +127,7 @@ export function playerDriver() {
   /** Opens a choice if needed and picks the option with that name once it shows. */
   const choose = async (choice: PlayerChoice, name: string | RegExp) => {
     const from = await open(choice);
-    await user.click(await within(from).findByRole('menuitemradio', { name }));
+    await user.click(await within(from).findByRole(rowRole(from), { name }));
   };
 
   /**
@@ -130,12 +139,12 @@ export function playerDriver() {
     const target =
       active instanceof HTMLElement && from.contains(active)
         ? active
-        : (within(from).queryByRole('menuitemradio', { checked: true }) ?? options(from)[0]!);
+        : (within(from).queryByRole(rowRole(from), chosenState(from)) ?? options(from)[0]!);
     fireEvent.keyDown(target, { key });
   };
 
-  /** The open choice of any kind, or null when none is open. */
-  const openChoice = () => screen.queryByRole('menu');
+  /** The open choice of any kind (a menu or a panel), or null when none is open. */
+  const openChoice = () => screen.queryByRole('menu') ?? screen.queryByRole('dialog');
 
   return {
     user,

@@ -64,9 +64,16 @@ function channelLayout(channels: number): string {
 
 /**
  * Menu label of a track: its title or language, the codec (unless the title names it already),
- * the channel layout of an audio track, and whether it is forced or a sidecar file.
+ * the channel layout of an audio track, and whether it is forced or a sidecar file. The player's
+ * panels show «erzwungen» as a mark instead (`forced: false`).
  */
-export function trackLabel(t: TFunction, track: Track, position: number, uiLanguage: string) {
+export function trackLabel(
+  t: TFunction,
+  track: Track,
+  position: number,
+  uiLanguage: string,
+  { forced = true }: { forced?: boolean } = {},
+) {
   const name =
     track.title ??
     languageName(track.language, uiLanguage) ??
@@ -75,7 +82,7 @@ export function trackLabel(t: TFunction, track: Track, position: number, uiLangu
   const parts = [name];
   if (!name.toLowerCase().includes(codec.toLowerCase())) parts.push(codec);
   if (track.kind === 'audio' && track.channels) parts.push(channelLayout(track.channels));
-  if (track.forced) parts.push(t('player.tracks.forced'));
+  if (forced && track.forced) parts.push(t('player.tracks.forced'));
   if (track.source === 'sidecar') parts.push(t('player.tracks.external'));
   return parts.join(t('format.separator'));
 }

@@ -61,7 +61,7 @@ export {
   PlayerChrome,
   playerEndTime,
   playerRemainingMs,
-  type PlayerChromeCapabilities,
+  type PlayerChromePanelButton,
   type PlayerChromeMenu,
   type PlayerChromeStep,
 } from './PlayerChrome';

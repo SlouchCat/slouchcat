@@ -51,12 +51,14 @@ test('a .de.srt placed during playback appears in the track menu within 60 s', a
     writeFileSync(SIDECAR, SRT, 'utf8');
     const placed = Date.now();
 
-    await page.keyboard.press('t');
-    const menu = page.getByRole('menu', { name: 'Spuren' });
+    await page.keyboard.press('u');
+    const menu = page
+      .getByRole('dialog', { name: 'Untertitel' })
+      .getByRole('listbox', { name: 'Untertitel' });
     await expect(menu).toBeVisible();
     await expectVisibleFocus(page);
-    // The menu stays open; it asks the server again every 30 s.
-    const sidecar = menu.getByRole('menuitemradio', { name: /extern/ });
+    // The panel stays open; it asks the server again every 30 s.
+    const sidecar = menu.getByRole('option', { name: /extern/ });
     await expect(sidecar).toBeVisible({ timeout: BUDGET_MS });
     const elapsedMs = Date.now() - placed;
     expect(elapsedMs).toBeLessThan(BUDGET_MS);

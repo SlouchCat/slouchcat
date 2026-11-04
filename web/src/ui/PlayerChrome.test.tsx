@@ -1,10 +1,17 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ComponentProps } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PlayerChrome, playerEndTime, playerRemainingMs } from './PlayerChrome';
 
 type Props = ComponentProps<typeof PlayerChrome>;
+
+const panel = (label: string, text?: string) => ({
+  label,
+  text,
+  expanded: false,
+  onPress: vi.fn(),
+});
 
 const menu = (label: string) => ({
   label,
@@ -32,7 +39,7 @@ function renderChrome(props: Partial<Props> = {}) {
   render(
     <PlayerChrome
       title="Blade Runner 2049"
-      subtitle="2017 · Science-Fiction"
+      headingDetail="2017 · Science-Fiction"
       lineLabel="Blade Runner 2049 · Kapitel 3"
       currentMs={60_000}
       durationMs={600_000}
@@ -44,7 +51,10 @@ function renderChrome(props: Partial<Props> = {}) {
       fullscreen={false}
       previous={{ label: 'Vorheriges Kapitel', onPress: vi.fn() }}
       next={{ label: 'Nächstes Kapitel', onPress: vi.fn() }}
-      tracks={menu('Spuren')}
+      subtitles={panel('Untertitel: Aus', 'Aus')}
+      audio={panel('Ton: Deutsch', 'Deutsch')}
+      chapterMenu={menu('Kapitel')}
+      settings={panel('Einstellungen')}
       {...handlers}
       {...props}
     />,
@@ -111,15 +121,38 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
     expect(screen.queryByRole('button', { name: 'Bild-in-Bild' })).toBeNull();
   });
 
-  it('hides the choices the player cannot make (offline, F-15)', () => {
-    renderChrome({
-      quality: menu('Qualität'),
-      version: menu('Version'),
-      capabilities: { quality: false, version: false, trackSwitch: false },
-    });
-    expect(screen.queryByRole('button', { name: 'Spuren' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Qualität' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Version' })).toBeNull();
+  it('shows the panels with the language as a word; leaves out what the page does not pass', () => {
+    renderChrome();
+    expect(button('Ton: Deutsch')).toHaveTextContent('Deutsch');
+    expect(button('Ton: Deutsch')).toHaveAttribute('aria-expanded', 'false');
+    expect(button('Untertitel: Aus')).toHaveTextContent('Aus');
+    expect(button('Einstellungen')).toHaveTextContent('');
+    cleanup();
+    // Offline (F-15): no server to switch the tracks through.
+    renderChrome({ subtitles: undefined, audio: undefined });
+    expect(screen.queryByRole('button', { name: /^Ton: / })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Untertitel: / })).toBeNull();
+    expect(button('Einstellungen')).toBeVisible();
+  });
+
+  it('reports a press on a panel button and marks it open', async () => {
+    const audio = { ...panel('Ton: Deutsch', 'Deutsch'), expanded: true };
+    renderChrome({ audio });
+    expect(button('Ton: Deutsch')).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(button('Ton: Deutsch'));
+    expect(audio.onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the boost and the mute-only mode to the volume control', () => {
+    renderChrome({ volumeBoost: true, volume: 1.2 });
+    expect(screen.getByRole('slider', { name: 'Lautstärke' })).toHaveAttribute(
+      'aria-valuemax',
+      '150',
+    );
+    cleanup();
+    renderChrome({ muteOnly: true });
+    expect(screen.queryByRole('slider', { name: 'Lautstärke' })).toBeNull();
+    expect(button('Ton aus')).toBeVisible();
   });
 
   describe('focus model', () => {
@@ -143,7 +176,11 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
       await userEvent.keyboard('{ArrowRight}{ArrowRight}');
       expect(button('Ton aus')).toHaveFocus();
       await userEvent.keyboard('{ArrowRight}');
-      expect(button('Spuren')).toHaveFocus();
+      expect(button('Untertitel: Aus')).toHaveFocus();
+      await userEvent.keyboard('{ArrowRight}');
+      expect(button('Ton: Deutsch')).toHaveFocus();
+      await userEvent.keyboard('{ArrowRight}{ArrowRight}');
+      expect(button('Einstellungen')).toHaveFocus();
       await userEvent.keyboard('{ArrowRight}');
       expect(button('Tastenkürzel')).toHaveFocus();
       await userEvent.keyboard('{ArrowRight}');
@@ -180,7 +217,7 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
 
     it('↑ on a menu button goes to the timeline instead of opening the menu', async () => {
       renderChrome();
-      button('Spuren').focus();
+      button('Kapitel').focus();
       await userEvent.keyboard('{ArrowUp}');
       expect(seek()).toHaveFocus();
       expect(screen.queryByRole('menu')).toBeNull();
@@ -233,7 +270,7 @@ describe('PlayerChrome (concept 13, 11.2)', () => {
       renderChrome({ transportDisabled: true });
       expect(button('Abspielen')).toBeDisabled();
       expect(button('Ton aus')).not.toHaveAttribute('tabindex', '-1');
-      expect(button('Spuren')).toHaveAttribute('tabindex', '-1');
+      expect(button('Einstellungen')).toHaveAttribute('tabindex', '-1');
     });
   });
 });

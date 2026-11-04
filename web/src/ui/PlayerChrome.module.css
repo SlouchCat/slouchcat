@@ -76,7 +76,7 @@
   max-height: var(--sc-space-12);
 }
 
-.subtitle {
+.headingDetail {
   overflow: hidden;
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
@@ -124,4 +124,12 @@
 /* A member of the row; the wrapper only names it for the roving tab index. */
 .item {
   display: contents;
+}
+
+/* The language beside the icon of the sound and subtitle buttons; a long name stays short. */
+.panelText {
+  max-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

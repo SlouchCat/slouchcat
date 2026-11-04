@@ -770,7 +770,14 @@
     "option": {
       "default": "Standard",
       "forced": "erzwungen",
-      "burnIn": "wird eingebrannt"
+      "sdh": "SDH",
+      "burnIn": "Bild-Untertitel, wird eingebrannt",
+      "convert": "wird umgewandelt"
+    },
+    "panel": {
+      "audioButton": "Ton: {{language}}",
+      "subtitleButton": "Untertitel: {{language}}",
+      "moreLanguages": "Weitere Sprachen ({{count}})"
     },
     "chrome": {
       "toolbar": "Wiedergabe",

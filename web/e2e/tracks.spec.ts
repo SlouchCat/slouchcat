@@ -19,8 +19,9 @@ import {
 
 const SWITCH_BUDGET_MS = 3000;
 
-const tracksMenu = (page: import('@playwright/test').Page) =>
-  page.getByRole('menu', { name: 'Spuren' });
+/** The rows of the sound panel (T) or the subtitle panel (U): a listbox named like the panel. */
+const panelList = (page: import('@playwright/test').Page, name: 'Ton' | 'Untertitel') =>
+  page.getByRole('dialog', { name }).getByRole('listbox', { name });
 
 test('switching the audio track to AC3 English: new session within 3 s, Stream-Info shows it', async ({
   page,
@@ -34,14 +35,15 @@ test('switching the audio track to AC3 English: new session within 3 s, Stream-I
   const ac3 = first.tracks.audio.find((track) => track.codec === 'ac3');
   expect(ac3, 'the AC3 track of the test film').toBeDefined();
 
-  // T opens the track menu; the current audio track has the tick.
+  // T opens the sound panel on the current audio track; the bar names its language.
+  await expect(page.getByRole('button', { name: 'Ton: Deutsch' })).toHaveText('Deutsch');
   await page.keyboard.press('t');
-  const menu = tracksMenu(page);
+  const menu = panelList(page, 'Ton');
   await expect(menu).toBeVisible();
+  await expect(menu.getByRole('option', { selected: true })).toBeFocused();
   await expectVisibleFocus(page);
-  await expect(menu.getByText('Ton', { exact: true })).toBeVisible();
-  await expect(menu.getByText('Untertitel', { exact: true })).toBeVisible();
-  const target = menu.getByRole('menuitemradio', { name: /AC3/ });
+  await expect(page.getByRole('heading', { name: 'Ton', exact: true })).toBeVisible();
+  const target = menu.getByRole('option', { name: /AC3/ });
   await arrowTo(page, target);
   await expectVisibleFocus(page);
 
@@ -86,13 +88,10 @@ test('an SRT track arrives as WebVTT through <track>', async ({ page, owner }) =
   expect(srt, 'an SRT track of the test film').toBeDefined();
   await expect(page.locator('video track')).toHaveCount(0);
 
-  await page.keyboard.press('t');
-  const menu = tracksMenu(page);
-  await expect(menu.getByRole('menuitemradio', { name: 'Aus' })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  );
-  const target = menu.getByRole('menuitemradio', { name: /SRT/ }).first();
+  await page.keyboard.press('u');
+  const menu = panelList(page, 'Untertitel');
+  await expect(menu.getByRole('option', { name: 'Aus' })).toHaveAttribute('aria-selected', 'true');
+  const target = menu.getByRole('option', { name: /SRT/ }).first();
   await arrowTo(page, target);
   const second = await startOf(page, () => page.keyboard.press('Enter'));
   expect(second.status).toBe(200);
@@ -135,8 +134,10 @@ test('a PGS track is burned in: transcode with reason subtitle_burn, and it play
   expect(pgs, 'the PGS track of the test film').toBeDefined();
   expect(pgs!.text).toBe(false);
 
-  await page.keyboard.press('t');
-  const target = tracksMenu(page).getByRole('menuitemradio', { name: /PGS/ });
+  await page.keyboard.press('u');
+  const target = panelList(page, 'Untertitel').getByRole('option', { name: /PGS/ });
+  // The panel says what the choice costs.
+  await expect(target).toHaveAccessibleDescription(/Bild-Untertitel, wird eingebrannt/);
   await arrowTo(page, target);
   const endedReason = await recordEndedReason(page);
   const second = await startOf(page, () => page.keyboard.press('Enter'));
@@ -160,7 +161,7 @@ test('a PGS track is burned in: transcode with reason subtitle_burn, and it play
     .toBe(false);
 });
 
-test('track menu by keyboard: → along the row, arrows, Escape closes with focus back; no trap', async ({
+test('sound panel by keyboard: → along the row, arrows, Escape closes with focus back; no trap', async ({
   page,
   owner,
 }) => {
@@ -168,20 +169,25 @@ test('track menu by keyboard: → along the row, arrows, Escape closes with focu
   await play(page, itemId);
   await page.keyboard.press('Space');
   // The button row is one Tab stop (roving tab index, concept 13 11.2): → walks along it.
-  const button = page.getByRole('button', { name: 'Spuren' });
+  const button = page.getByRole('button', { name: /^Ton: / });
   await arrowTo(page, button, 'ArrowRight');
   await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
-  const menu = tracksMenu(page);
+  const menu = panelList(page, 'Ton');
   await expect(menu).toBeVisible();
-  // The menu opens on the current audio track.
-  await expect(menu.getByRole('menuitemradio', { checked: true }).first()).toBeFocused();
+  await expect(button).toHaveAttribute('aria-expanded', 'true');
+  // The panel opens on the current audio track; the arrows stay in it and choose nothing.
+  const time = await videoState(page);
+  await expect(menu.getByRole('option', { selected: true })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expectVisibleFocus(page);
+  await expect(menu.getByRole('option', { selected: true })).not.toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  expect(Math.abs((await videoState(page)).time - time.time)).toBeLessThan(5);
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
   await expectFocusOn(page, button);
-  // Escape in the menu did not leave the player.
+  // Escape in the panel did not leave the player.
   await expect(page).toHaveURL(/\/play\//);
   await expectNoFocusTrap(page);
 });

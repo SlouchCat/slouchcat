@@ -5,6 +5,7 @@ import type {
   PlaybackInfo,
   Progress,
   Quality,
+  Track,
   TrackList,
   WatchTime,
 } from '@slouchcat/api-client';
@@ -12,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type WheelEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, apiUrl, imageUrl, request } from '@/api/client';
+import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
 import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
@@ -23,18 +25,17 @@ import {
   type PlayerChromeMenu,
 } from '@/ui/aria';
 import { nextChapterStart, previousChapterStart } from './audio';
-import type { PlaybackEngine } from './capabilities';
+import { playbackCapabilities, type PlaybackEngine } from './capabilities';
 import { hasShortcutModifier, playerKeyAction, stepPlaybackRate } from './keymap';
 import {
-  audioKey,
   chapterAt,
   chapterLabel,
   languageName,
   qualityLabel,
   selectedSubtitle,
-  subtitleKey,
   trackLabel,
 } from './labels';
+import { AudioPanel, SubtitlePanel } from './panels/TrackPanels';
 import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
 import { usePlaybackStopWatch } from './usePlaybackStopWatch';
@@ -75,7 +76,10 @@ export interface PlaybackChange {
  */
 export type EndedReason = 'limit' | 'admin';
 
-type MenuName = 'tracks' | 'quality' | 'chapters' | 'version';
+type MenuName = 'quality' | 'chapters' | 'version';
+
+/** The panel beside the video: sound (T), subtitles (U) or the shortcut help (?). One at a time. */
+type PanelName = 'audio' | 'subtitle' | 'help';
 
 interface VideoPlayerProps {
   info: PlaybackInfo;
@@ -118,6 +122,10 @@ const isActivatable = (target: EventTarget | null) =>
 const isEditable = (target: EventTarget | null) =>
   target instanceof HTMLElement &&
   (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+/** Enter and Space inside a panel belong to its rows; the letters still reach the key map. */
+const inPanel = (target: EventTarget | null) =>
+  target instanceof HTMLElement && target.closest('[role="dialog"]') !== null;
 
 /** Keys inside a player menu belong to the menu (arrows, Enter, Escape). */
 const inMenu = (target: EventTarget | null) =>
@@ -206,8 +214,19 @@ export function VideoPlayer({
   const [ended, setEnded] = useState<{ reason: EndedReason; watchTime?: WatchTime } | null>(null);
   // The open menu keeps the controls on screen; shortcut keys open menus as well.
   const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
-  // The shortcut help (key ?), a panel beside the video.
-  const [helpOpen, setHelpOpen] = useState(false);
+  // The panel beside the video (sound, subtitles, the shortcut help); it keeps the controls on
+  // screen like a menu.
+  const [panel, setPanel] = useState<PanelName | null>(null);
+  const helpOpen = panel === 'help';
+  const openPanel = useCallback((name: PanelName) => {
+    setOpenMenu(null);
+    setPanel(name);
+  }, []);
+  const togglePanel = useCallback((name: PanelName) => {
+    setOpenMenu(null);
+    setPanel((current) => (current === name ? null : name));
+  }, []);
+  const closePanel = useCallback(() => setPanel(null), []);
   // Auto-next (W-9): the end of the countdown, or null; cancelled stays for this session.
   const [countdownEnd, setCountdownEnd] = useState<number | null>(null);
   const [countdownCancelled, setCountdownCancelled] = useState(false);
@@ -282,9 +301,9 @@ export function VideoPlayer({
     onStopped: onRevoked,
   });
 
-  // I-5: the track menu asks the server again when it opens and every 30 s while it is open, so a
-  // subtitle placed next to the file shows up without restarting the playback.
-  const tracksOpen = openMenu === 'tracks';
+  // I-5: the sound and subtitle panels ask the server again when they open and every 30 s while
+  // one is open, so a subtitle placed next to the file shows up without restarting the playback.
+  const tracksOpen = panel === 'audio' || panel === 'subtitle';
   const trackList = useQuery({
     queryKey: ['tracks', info.item.id, info.mediaFile.id],
     queryFn: ({ signal }): Promise<TrackList> =>
@@ -306,6 +325,12 @@ export function VideoPlayer({
   const seriesId = detail?.series?.id;
   const series = useQuery({ ...itemQuery(seriesId ?? ''), enabled: seriesId !== undefined });
   const [prefs, setPrefs] = usePlayerPrefs();
+  // The profile's language sorts the panels (stage 1: `profiles.language`, 11.10); the UI language
+  // follows it, so it stands in until the session is there.
+  const session = useQuery(sessionQuery);
+  const profileLanguage = session.data?.profile?.language ?? i18n.language;
+  // The audio codecs this browser plays, for the mark «wird umgewandelt».
+  const [decodableAudio] = useState(() => playbackCapabilities().audio);
   const timeDisplay = prefs.timeDisplay ?? 'elapsed';
 
   // The first focus goes to play/pause (focusOnMount, not react-aria's autoFocus: 11.13); every
@@ -540,12 +565,15 @@ export function VideoPlayer({
   }, [countdownEnd]);
 
   const hasTracks = tracks.audio.length > 0 || tracks.subtitles.length > 0;
+  // Sound and subtitles change through the server: a new session (rule 12).
+  const canSwitchTracks = hasTracks && onSwitch !== undefined;
   const hasQualities = info.qualities.length > 0 && onSwitch !== undefined;
   const hasChapters = info.chapters.length > 0;
   const hasVersions = versions.length > 1 && onSwitchVersion !== undefined;
 
   // Faded out: no input while playing, nothing open that needs the controls.
-  const hidden = idle && playing && openMenu === null && !countdownActive && !infoOpen && !helpOpen;
+  const hidden =
+    idle && playing && openMenu === null && panel === null && !countdownActive && !infoOpen;
   // Read by the capture listener below, which is not bound again on every fade.
   const hiddenNow = useRef(hidden);
   useEffect(() => {
@@ -631,8 +659,9 @@ export function VideoPlayer({
       if (!action) return;
       switch (action.kind) {
         case 'playPause':
-          // Focused buttons activate themselves; everywhere else the key toggles playback.
-          if (action.activates && isActivatable(event.target)) return;
+          // Focused buttons and the rows of a panel activate themselves; everywhere else the key
+          // toggles playback.
+          if (action.activates && (isActivatable(event.target) || inPanel(event.target))) return;
           event.preventDefault();
           togglePlay();
           return;
@@ -675,8 +704,9 @@ export function VideoPlayer({
           return;
         case 'tracks':
         case 'subtitles':
-          // Sound and subtitles share today's menu «Spuren»; step 4 gives each a panel.
-          open('tracks', hasTracks && !switching && ended === null, event);
+          if (!canSwitchTracks || switching || ended !== null) return;
+          event.preventDefault();
+          openPanel(action.kind === 'tracks' ? 'audio' : 'subtitle');
           return;
         case 'quality':
           open('quality', hasQualities && !switching && ended === null, event);
@@ -696,14 +726,14 @@ export function VideoPlayer({
           return;
         case 'help':
           event.preventDefault();
-          setHelpOpen((open) => !open);
+          togglePanel('help');
           return;
         case 'back':
-          // The help first (its own keys close it while the focus is in it), then the stream info,
+          // A panel first (its own keys close it while the focus is in it), then the stream info,
           // then back to the detail page.
-          if (helpOpen) {
+          if (panel !== null) {
             event.preventDefault();
-            setHelpOpen(false);
+            closePanel();
             return;
           }
           if (infoOpen && event.key === 'Escape') {
@@ -728,9 +758,12 @@ export function VideoPlayer({
     ended,
     hasChapters,
     hasQualities,
-    hasTracks,
+    canSwitchTracks,
+    closePanel,
     inIntro,
-    helpOpen,
+    openPanel,
+    panel,
+    togglePanel,
     infoOpen,
     next,
     nextChapter,
@@ -923,37 +956,30 @@ export function VideoPlayer({
   const subtitle = selectedSubtitle(info);
   const audioIndex =
     info.selection.audioTrack ?? tracks.audio.find((track) => track.default)?.index;
-  const trackGroups = [
-    {
-      id: 'audio',
-      label: t('player.tracks.audio'),
-      selectedKey: audioIndex === undefined ? '' : audioKey(audioIndex),
-      options: tracks.audio.map((track, index) => ({
-        id: audioKey(track.index),
-        label: trackLabel(t, track, index, language),
-      })),
-    },
-    {
-      id: 'subtitle',
-      label: t('player.tracks.subtitles'),
-      selectedKey: subtitleKey(info.selection.subtitleTrack),
-      options: [
-        { id: subtitleKey(undefined), label: t('player.tracks.off') },
-        ...tracks.subtitles.map((track, index) => ({
-          id: subtitleKey(track.id),
-          label: trackLabel(t, track, index, language),
-        })),
-      ],
-    },
-  ];
-  const onTrack = (id: string, group?: string) => {
-    if (group === 'audio') {
-      switchPlayback({ audioTrack: Number(id.slice('audio:'.length)) });
-    } else {
-      const value = id.slice('subtitle:'.length);
-      switchPlayback({ subtitleTrack: value === 'off' ? null : Number(value) });
-    }
-  };
+  // Sound and subtitles (V-5): the server's pick, the panels sort only what they show.
+  const audioTrack = tracks.audio.find((track) => track.index === audioIndex);
+  const audioWord = audioTrack
+    ? (languageName(audioTrack.language, language) ??
+      trackLabel(t, audioTrack, tracks.audio.indexOf(audioTrack), language))
+    : t('player.tracks.unknown', { n: 1 });
+  const subtitleTrack = tracks.subtitles.find((track) => track.id === info.selection.subtitleTrack);
+  const subtitleWord = subtitleTrack
+    ? (languageName(subtitleTrack.language, language) ??
+      trackLabel(t, subtitleTrack, tracks.subtitles.indexOf(subtitleTrack), language))
+    : t('player.tracks.off');
+  // A mark only (11.3 «Kosten»): a codec the browser cannot play is converted, and while the file
+  // plays directly another track than the file's default makes the server remux it.
+  const converts = (track: Track) =>
+    track.index !== audioIndex &&
+    (!decodableAudio.includes(track.codec) || (info.mode === 'direct' && !track.default));
+  const panelButton = (name: 'audio' | 'subtitle', label: string, text: string) => ({
+    label,
+    text,
+    expanded: panel === name,
+    onPress: () => togglePanel(name),
+    // After the server ended the playback a pick would start a new session behind the notice.
+    isDisabled: switching || ended !== null,
+  });
   const qualityOptions = info.qualities.map((option) => ({
     id: option.quality,
     label: qualityLabel(t, option, info),
@@ -968,17 +994,12 @@ export function VideoPlayer({
     // After the server ended the playback a pick would start a new session behind the notice.
     isDisabled: ended !== null,
     isOpen: openMenu === menu,
-    onOpenChange: (isOpen: boolean) =>
-      setOpenMenu((current) => (isOpen ? menu : current === menu ? null : current)),
+    onOpenChange: (isOpen: boolean) => {
+      if (isOpen) setPanel(null);
+      setOpenMenu((current) => (isOpen ? menu : current === menu ? null : current));
+    },
   });
 
-  const trackMenu: PlayerChromeMenu = {
-    buttonLabel: t('player.tracks.button'),
-    label: t('player.tracks.button'),
-    groups: trackGroups,
-    onSelect: onTrack,
-    ...menuProps('tracks'),
-  };
   const qualityMenu: PlayerChromeMenu = {
     buttonLabel: t('player.quality.button', { label: currentQuality }),
     label: currentQuality,
@@ -1173,7 +1194,7 @@ export function VideoPlayer({
       <PlayerChrome
         title={heading.title}
         logoUrl={heading.logoUrl}
-        subtitle={heading.subtitle}
+        headingDetail={heading.subtitle}
         lineLabel={lineLabel}
         onBack={onBack}
         hidden={hidden}
@@ -1210,7 +1231,24 @@ export function VideoPlayer({
             ? { active: pictureInPicture, onToggle: togglePictureInPicture }
             : undefined
         }
-        tracks={hasTracks && onSwitch ? trackMenu : undefined}
+        subtitles={
+          canSwitchTracks
+            ? panelButton(
+                'subtitle',
+                t('player.panel.subtitleButton', { language: subtitleWord }),
+                subtitleWord,
+              )
+            : undefined
+        }
+        audio={
+          canSwitchTracks
+            ? panelButton(
+                'audio',
+                t('player.panel.audioButton', { language: audioWord }),
+                audioWord,
+              )
+            : undefined
+        }
         quality={hasQualities ? qualityMenu : undefined}
         chapterMenu={hasChapters ? chapterMenu : undefined}
         version={hasVersions ? versionMenu : undefined}
@@ -1218,9 +1256,28 @@ export function VideoPlayer({
         infoOpen={infoOpen}
         onToggleInfo={onToggleInfo}
         helpOpen={helpOpen}
-        onToggleHelp={() => setHelpOpen((open) => !open)}
+        onToggleHelp={() => togglePanel('help')}
       />
-      {helpOpen && <ShortcutHelp onClose={() => setHelpOpen(false)} />}
+      {helpOpen && <ShortcutHelp onClose={closePanel} />}
+      {panel === 'audio' && (
+        <AudioPanel
+          tracks={tracks.audio}
+          profileLanguage={profileLanguage}
+          selectedIndex={audioIndex}
+          converts={converts}
+          onSelect={(index) => switchPlayback({ audioTrack: index })}
+          onClose={closePanel}
+        />
+      )}
+      {panel === 'subtitle' && (
+        <SubtitlePanel
+          tracks={tracks.subtitles}
+          profileLanguage={profileLanguage}
+          selectedId={info.selection.subtitleTrack}
+          onSelect={(id) => switchPlayback({ subtitleTrack: id })}
+          onClose={closePanel}
+        />
+      )}
 
       {inIntro && ended === null && (
         <div className={styles.skip}>

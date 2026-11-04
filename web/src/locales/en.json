@@ -770,7 +770,14 @@
     "option": {
       "default": "Default",
       "forced": "forced",
-      "burnIn": "burnt in"
+      "sdh": "SDH",
+      "burnIn": "picture subtitle, burnt in",
+      "convert": "converted"
+    },
+    "panel": {
+      "audioButton": "Audio: {{language}}",
+      "subtitleButton": "Subtitles: {{language}}",
+      "moreLanguages": "More languages ({{count}})"
     },
     "chrome": {
       "toolbar": "Playback",

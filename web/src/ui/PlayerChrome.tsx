@@ -11,6 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { formatPlayerTime } from '@/lib/format';
 import { AriaButton } from './AriaButton';
+import type { IconName } from './Icon';
 import { MenuButton } from './Menu';
 import styles from './PlayerChrome.module.css';
 import { SeekBar, type SeekBarChapter, type SeekBarSegment } from './SeekBar';
@@ -36,27 +37,32 @@ export function playerEndTime(
   return new Date(nowMs + playerRemainingMs(currentMs, durationMs, rate));
 }
 
-/** A choice of today's bar (a react-aria menu); the chrome adds the roving tab index. */
+/** A choice of the bar that is still a react-aria menu (the chapters until step 5). */
 export type PlayerChromeMenu = Omit<
   ComponentProps<typeof MenuButton>,
-  'excludeFromTabOrder' | 'buttonRef' | 'portalContainer'
+  'excludeFromTabOrder' | 'portalContainer'
 >;
+
+/**
+ * A button of the row that opens a panel (sound, subtitles, the gear). The page renders the panel;
+ * PlayerPanel gives the focus back to this button when it closes.
+ */
+export interface PlayerChromePanelButton {
+  /** Spoken name: «Ton: Deutsch», «Einstellungen». */
+  label: string;
+  /** The word beside the icon: the language chosen («Deutsch», «Aus»); none for the gear. */
+  text?: string;
+  /** The panel is open (aria-expanded). */
+  expanded: boolean;
+  onPress: () => void;
+  isDisabled?: boolean;
+}
 
 /** A step of the transport: chapter or episode back or forward. */
 export interface PlayerChromeStep {
   label: string;
   onPress: () => void;
   isDisabled?: boolean;
-}
-
-/**
- * What the player can change. The offline player plays one stored file: no quality, no version,
- * no track switch through the server (F-15).
- */
-export interface PlayerChromeCapabilities {
-  quality?: boolean;
-  version?: boolean;
-  trackSwitch?: boolean;
 }
 
 type RowKey =
@@ -66,11 +72,13 @@ type RowKey =
   | 'forward'
   | 'next'
   | 'mute'
-  | 'tracks'
+  | 'subtitles'
+  | 'audio'
   | 'quality'
   | 'chapters'
   | 'version'
   | 'info'
+  | 'settings'
   | 'help';
 
 interface RowEntry {
@@ -88,7 +96,7 @@ interface PlayerChromeProps {
   /** Logo of the title or the series (ADR 0018); the text title shows until it loads. */
   logoUrl?: string;
   /** Under the title: «S01E04 · Wahrheit», the year and genres of a film. */
-  subtitle?: string;
+  headingDetail?: string;
   /** Above the timeline on the left: the title and the chapter playing. */
   lineLabel: string;
   onBack: () => void;
@@ -129,22 +137,34 @@ interface PlayerChromeProps {
   muted: boolean;
   onVolumeChange: (volume: number) => void;
   onToggleMute: () => void;
+  /** The slider goes up to 150 % (Web Audio gain; not in Safari, 11.15). */
+  volumeBoost?: boolean;
+  /** Only the mute button: Safari on the iPhone does not let a page set the volume (11.2). */
+  muteOnly?: boolean;
 
   fullscreen: boolean;
   onToggleFullscreen: () => void;
   /** Only where the browser offers it (`document.pictureInPictureEnabled`). */
   pictureInPicture?: { active: boolean; onToggle: () => void };
 
-  capabilities?: PlayerChromeCapabilities;
-  /** Today's choices on the right (concept 13, step 3); the panels replace them in step 4. */
-  tracks?: PlayerChromeMenu;
-  quality?: PlayerChromeMenu;
+  /**
+   * The panels on the right (11.2): subtitles and sound with the language chosen, the gear with
+   * quality, version, speed and the rest. A page leaves out what it cannot offer (the offline
+   * player has no server to switch tracks, F-15).
+   */
+  subtitles?: PlayerChromePanelButton;
+  audio?: PlayerChromePanelButton;
+  settings?: PlayerChromePanelButton;
+  /** The chapters, a menu until the chapter tab of step 5. */
   chapterMenu?: PlayerChromeMenu;
+  /** Quality and version, menus until the gear takes them. */
+  quality?: PlayerChromeMenu;
   version?: PlayerChromeMenu;
-  /** The element the menus render into (the player, for full screen). */
-  portalContainer?: Element;
+  /** The stream info, a button until the gear takes it. */
   infoOpen?: boolean;
   onToggleInfo?: () => void;
+  /** The element the menus render into (the player, for full screen). */
+  portalContainer?: Element;
   helpOpen?: boolean;
   onToggleHelp?: () => void;
   /** The tabs under the bar (step 5): ↓ from the buttons goes there, ↑ comes back. */
@@ -155,7 +175,7 @@ interface PlayerChromeProps {
  * The controls of the video player (concept 13, 11.2): a head with back, the title or its logo and
  * the episode, picture in picture and full screen; a line with the title and chapter and the time
  * (a click switches to the remaining time and the end time); the timeline; and a row of buttons:
- * transport and volume on the left, the choices, stream info and «?» on the right. It shows state
+ * transport and volume on the left, subtitles, sound, the gear and «?» on the right. It shows state
  * and reports actions; the page owns the media element and the key map.
  *
  * Focus model: the row is one Tab stop with a roving tab index. ←/→ go from button to button,
@@ -166,7 +186,7 @@ interface PlayerChromeProps {
 export function PlayerChrome({
   title,
   logoUrl,
-  subtitle,
+  headingDetail,
   lineLabel,
   onBack,
   hidden = false,
@@ -192,17 +212,20 @@ export function PlayerChrome({
   muted,
   onVolumeChange,
   onToggleMute,
+  volumeBoost = false,
+  muteOnly = false,
   fullscreen,
   onToggleFullscreen,
   pictureInPicture,
-  capabilities = {},
-  tracks,
-  quality,
+  subtitles,
+  audio,
+  settings,
   chapterMenu,
+  quality,
   version,
-  portalContainer,
   infoOpen = false,
   onToggleInfo,
+  portalContainer,
   helpOpen = false,
   onToggleHelp,
   tabs,
@@ -234,8 +257,33 @@ export function PlayerChrome({
         })
       : t('player.chrome.timeElapsed', { elapsed, total });
 
-  const menu = (key: RowKey, config: PlayerChromeMenu | undefined, allowed = true) =>
-    config && allowed
+  const panelButton = (key: RowKey, config: PlayerChromePanelButton | undefined, icon: IconName) =>
+    config
+      ? [
+          {
+            key,
+            disabled: config.isDisabled ?? false,
+            render: (excluded: boolean) => (
+              <AriaButton
+                variant="ghost"
+                icon={icon}
+                iconOnly={config.text === undefined}
+                aria-label={config.label}
+                aria-expanded={config.expanded}
+                onPress={config.onPress}
+                isDisabled={config.isDisabled}
+                excludeFromTabOrder={excluded}
+              >
+                {config.text !== undefined && (
+                  <span className={styles.panelText}>{config.text}</span>
+                )}
+              </AriaButton>
+            ),
+          },
+        ]
+      : [];
+  const menu = (key: RowKey, config: PlayerChromeMenu | undefined) =>
+    config
       ? [
           {
             key,
@@ -345,16 +393,19 @@ export function PlayerChrome({
           muted={muted}
           onVolumeChange={onVolumeChange}
           onToggleMute={onToggleMute}
+          boost={volumeBoost}
+          muteOnly={muteOnly}
           tabIndex={excluded ? -1 : 0}
         />
       ),
     },
   ];
   const right: RowEntry[] = [
-    ...menu('tracks', tracks, capabilities.trackSwitch !== false),
-    ...menu('quality', quality, capabilities.quality !== false),
+    ...panelButton('subtitles', subtitles, 'subtitles'),
+    ...panelButton('audio', audio, 'audioTrack'),
+    ...menu('quality', quality),
     ...menu('chapters', chapterMenu),
-    ...menu('version', version, capabilities.version !== false),
+    ...menu('version', version),
     ...(onToggleInfo
       ? [
           {
@@ -374,6 +425,7 @@ export function PlayerChrome({
           },
         ]
       : []),
+    ...panelButton('settings', settings, 'settings'),
     ...(onToggleHelp
       ? [
           {
@@ -487,7 +539,7 @@ export function PlayerChrome({
           <h1 className={styles.title}>
             <TitleOrLogo title={title} logoUrl={logoUrl} className={styles.logo} />
           </h1>
-          {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+          {headingDetail && <p className={styles.headingDetail}>{headingDetail}</p>}
         </div>
         {pictureInPicture && (
           <AriaButton

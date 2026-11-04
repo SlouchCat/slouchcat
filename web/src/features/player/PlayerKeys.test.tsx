@@ -256,7 +256,7 @@ describe('video player controls (concept 13, step 3)', () => {
     expect(media.currentTime).toBe(300);
   });
 
-  it('U opens the subtitles (today in the track choice)', async () => {
+  it('U opens the subtitle panel', async () => {
     await start();
     key(document.body, 'u');
     expect(await playerDriver().findList('subtitle')).toBeVisible();
