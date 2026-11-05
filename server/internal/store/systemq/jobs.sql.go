@@ -43,7 +43,7 @@ WHERE id = (
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )
-RETURNING id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped
+RETURNING id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause
 `
 
 type ClaimJobParams struct {
@@ -93,6 +93,7 @@ func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error)
 		&i.ProgressTotal,
 		&i.ProgressNote,
 		&i.Skipped,
+		&i.OverridePause,
 	)
 	return i, err
 }
@@ -316,7 +317,7 @@ func (q *Queries) GetActiveJobIDByType(ctx context.Context, type_ string) (int64
 }
 
 const getJob = `-- name: GetJob :one
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs WHERE id = ?1
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause FROM jobs WHERE id = ?1
 `
 
 func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
@@ -343,12 +344,13 @@ func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
 		&i.ProgressTotal,
 		&i.ProgressNote,
 		&i.Skipped,
+		&i.OverridePause,
 	)
 	return i, err
 }
 
 const getJobSchedule = `-- name: GetJobSchedule :one
-SELECT type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, last_fired_at, updated_at FROM job_schedules WHERE type = ?1
+SELECT type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, last_fired_at, updated_at, once_at FROM job_schedules WHERE type = ?1
 `
 
 func (q *Queries) GetJobSchedule(ctx context.Context, type_ string) (JobSchedule, error) {
@@ -364,6 +366,7 @@ func (q *Queries) GetJobSchedule(ctx context.Context, type_ string) (JobSchedule
 		&i.NextRunAt,
 		&i.LastFiredAt,
 		&i.UpdatedAt,
+		&i.OnceAt,
 	)
 	return i, err
 }
@@ -380,7 +383,7 @@ func (q *Queries) GetJobType(ctx context.Context, type_ string) (JobType, error)
 }
 
 const getLastFinishedJobByType = `-- name: GetLastFinishedJobByType :one
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause FROM jobs
 WHERE type = ?1 AND state IN ('done', 'failed', 'cancelled')
 ORDER BY COALESCE(finished_at, updated_at) DESC, id DESC
 LIMIT 1
@@ -411,6 +414,7 @@ func (q *Queries) GetLastFinishedJobByType(ctx context.Context, type_ string) (J
 		&i.ProgressTotal,
 		&i.ProgressNote,
 		&i.Skipped,
+		&i.OverridePause,
 	)
 	return i, err
 }
@@ -544,7 +548,7 @@ func (q *Queries) JobCountsByType(ctx context.Context, now int64) ([]JobCountsBy
 }
 
 const listActiveJobsByType = `-- name: ListActiveJobsByType :many
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs WHERE type = ?1 AND state IN ('queued', 'running') ORDER BY id
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause FROM jobs WHERE type = ?1 AND state IN ('queued', 'running') ORDER BY id
 `
 
 // The queued and running jobs of a type, oldest first (cancelJobRuns, concept 09 6.3).
@@ -578,6 +582,7 @@ func (q *Queries) ListActiveJobsByType(ctx context.Context, type_ string) ([]Job
 			&i.ProgressTotal,
 			&i.ProgressNote,
 			&i.Skipped,
+			&i.OverridePause,
 		); err != nil {
 			return nil, err
 		}
@@ -593,7 +598,7 @@ func (q *Queries) ListActiveJobsByType(ctx context.Context, type_ string) ([]Job
 }
 
 const listDueJobSchedules = `-- name: ListDueJobSchedules :many
-SELECT s.type, s.every_ms, s.start_delay_ms, s.enabled, s.window_start, s.window_end, s.next_run_at, s.last_fired_at, s.updated_at, t.paused_at
+SELECT s.type, s.every_ms, s.start_delay_ms, s.enabled, s.window_start, s.window_end, s.next_run_at, s.last_fired_at, s.updated_at, s.once_at, t.paused_at
 FROM job_schedules AS s
 JOIN job_types AS t ON t.type = s.type
 WHERE s.enabled = 1 AND s.next_run_at <= ?1
@@ -610,6 +615,7 @@ type ListDueJobSchedulesRow struct {
 	NextRunAt    int64
 	LastFiredAt  sql.NullInt64
 	UpdatedAt    int64
+	OnceAt       sql.NullInt64
 	PausedAt     sql.NullInt64
 }
 
@@ -634,6 +640,7 @@ func (q *Queries) ListDueJobSchedules(ctx context.Context, now int64) ([]ListDue
 			&i.NextRunAt,
 			&i.LastFiredAt,
 			&i.UpdatedAt,
+			&i.OnceAt,
 			&i.PausedAt,
 		); err != nil {
 			return nil, err
@@ -716,7 +723,7 @@ func (q *Queries) ListJobDurations(ctx context.Context, arg ListJobDurationsPara
 }
 
 const listJobRunsByState = `-- name: ListJobRunsByState :many
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause FROM jobs
 WHERE type = ?1 AND state = ?2
 ORDER BY COALESCE(finished_at, started_at, updated_at) DESC, id DESC
 LIMIT ?3
@@ -759,6 +766,7 @@ func (q *Queries) ListJobRunsByState(ctx context.Context, arg ListJobRunsByState
 			&i.ProgressTotal,
 			&i.ProgressNote,
 			&i.Skipped,
+			&i.OverridePause,
 		); err != nil {
 			return nil, err
 		}
@@ -774,7 +782,7 @@ func (q *Queries) ListJobRunsByState(ctx context.Context, arg ListJobRunsByState
 }
 
 const listJobSchedules = `-- name: ListJobSchedules :many
-SELECT type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, last_fired_at, updated_at FROM job_schedules ORDER BY type
+SELECT type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, last_fired_at, updated_at, once_at FROM job_schedules ORDER BY type
 `
 
 func (q *Queries) ListJobSchedules(ctx context.Context) ([]JobSchedule, error) {
@@ -796,6 +804,7 @@ func (q *Queries) ListJobSchedules(ctx context.Context) ([]JobSchedule, error) {
 			&i.NextRunAt,
 			&i.LastFiredAt,
 			&i.UpdatedAt,
+			&i.OnceAt,
 		); err != nil {
 			return nil, err
 		}
@@ -865,7 +874,7 @@ func (q *Queries) ListPausedJobTypes(ctx context.Context) ([]string, error) {
 }
 
 const listQueuedJobRuns = `-- name: ListQueuedJobRuns :many
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause FROM jobs
 WHERE type = ?1 AND state = 'queued' AND (run_after > ?2) = ?3
 ORDER BY priority DESC, created_at, id
 LIMIT ?4
@@ -915,6 +924,7 @@ func (q *Queries) ListQueuedJobRuns(ctx context.Context, arg ListQueuedJobRunsPa
 			&i.ProgressTotal,
 			&i.ProgressNote,
 			&i.Skipped,
+			&i.OverridePause,
 		); err != nil {
 			return nil, err
 		}
@@ -930,7 +940,7 @@ func (q *Queries) ListQueuedJobRuns(ctx context.Context, arg ListQueuedJobRunsPa
 }
 
 const listRunningJobsByType = `-- name: ListRunningJobsByType :many
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped FROM jobs WHERE type = ?1 AND state = 'running' ORDER BY started_at, id LIMIT ?2
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause FROM jobs WHERE type = ?1 AND state = 'running' ORDER BY started_at, id LIMIT ?2
 `
 
 type ListRunningJobsByTypeParams struct {
@@ -968,6 +978,7 @@ func (q *Queries) ListRunningJobsByType(ctx context.Context, arg ListRunningJobs
 			&i.ProgressTotal,
 			&i.ProgressNote,
 			&i.Skipped,
+			&i.OverridePause,
 		); err != nil {
 			return nil, err
 		}

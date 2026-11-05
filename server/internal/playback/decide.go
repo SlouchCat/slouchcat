@@ -239,15 +239,10 @@ func containerPlayable(container string, caps model.PlaybackCapabilities) bool {
 // other codecs it lists (HEVC, AV1, VP9), except HEVC on a native-HLS client (Safari), which needs
 // the hvc1 tag of a remux.
 func directVideo(codec string, caps model.PlaybackCapabilities) bool {
-	switch codec {
-	case "h264":
-		return true
-	case "hevc":
-		return caps.HLS != "native"
-	case "av1", "vp9":
-		return true
+	if !transcode.CopyableVideo(codec) {
+		return false
 	}
-	return false
+	return codec != "hevc" || caps.HLS != "native"
 }
 
 // Decide picks the playback mode for a media file on a client (M4 design section 3, plan 10.3).

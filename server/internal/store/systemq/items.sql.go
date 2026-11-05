@@ -139,7 +139,7 @@ func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
 }
 
 const getMediaFileSystem = `-- name: GetMediaFileSystem :one
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files WHERE id = ?1
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source FROM media_files WHERE id = ?1
 `
 
 func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile, error) {
@@ -171,6 +171,7 @@ func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile,
 		&i.UpdatedAt,
 		&i.ProbeError,
 		&i.PartIndex,
+		&i.KeyframesSource,
 	)
 	return i, err
 }
@@ -308,7 +309,7 @@ INSERT INTO media_files (id, item_id, root_id, rel_path, dev, inode, size, mtime
                          container, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
         ?11, ?12, ?12)
-RETURNING id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index
+RETURNING id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source
 `
 
 type InsertMediaFileParams struct {
@@ -368,6 +369,7 @@ func (q *Queries) InsertMediaFile(ctx context.Context, arg InsertMediaFileParams
 		&i.UpdatedAt,
 		&i.ProbeError,
 		&i.PartIndex,
+		&i.KeyframesSource,
 	)
 	return i, err
 }
@@ -707,7 +709,7 @@ func (q *Queries) ListMediaFileTracks(ctx context.Context, mediaFileID string) (
 }
 
 const listMediaFilesByRoot = `-- name: ListMediaFilesByRoot :many
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files WHERE root_id = ?1 ORDER BY rel_path
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source FROM media_files WHERE root_id = ?1 ORDER BY rel_path
 `
 
 func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]MediaFile, error) {
@@ -745,6 +747,7 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 			&i.UpdatedAt,
 			&i.ProbeError,
 			&i.PartIndex,
+			&i.KeyframesSource,
 		); err != nil {
 			return nil, err
 		}

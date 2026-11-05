@@ -347,6 +347,18 @@ func ParseProbe(data []byte) (Probe, error) {
 	return p, nil
 }
 
+// CopyableVideo reports whether a video codec (the ffprobe codec_name, lower case) can be copied
+// into an HLS remux: H.264, HEVC, AV1 and VP9. Playback decisions and the keyframe index both
+// ask it, so a file the server never remuxes is not indexed either. Whether a given client plays
+// the copied stream (HEVC on Safari) is the playback decision, not this one.
+func CopyableVideo(codec string) bool {
+	switch codec {
+	case "h264", "hevc", "av1", "vp9":
+		return true
+	}
+	return false
+}
+
 // Keyframes returns the presentation times of the key frames of the first video stream, sorted.
 // It only demuxes (`-show_entries packet=pts_time,flags`), so it reads the file once without
 // decoding; packets whose flags contain K are key frames. A remux plan needs this index
