@@ -295,14 +295,25 @@ func tonemapperOf(caps Capabilities) string {
 	}
 }
 
+// vbrTarget is the -b:v of the capped VBR encodes of QSV and VAAPI for the cap maxrate (bit/s):
+// 0.75 * maxrate, but at low rates closer to the cap, min(maxrate - 1 kbit/s, 1 Mbit/s), because
+// h264_qsv refuses targets under 1000k (Jellyfin's lower bound). It is always below maxrate: a
+// target equal to the cap makes ffmpeg pick CBR.
+func vbrTarget(maxrate int) int {
+	return max(maxrate*3/4, min(maxrate-1000, 1_000_000), 1)
+}
+
 // videoPipeline returns the input options (hardware decoding), the filter chain and the encoder
 // options of the transcode backend. It always scales before tonemapping (plan 3.5).
 //
-// Rate control: HLS encodes at constant quality capped at the plan's VideoBitrate (maxrate,
-// bufsize 2 s). Target.ConstantRate (downloads, O-1) encodes at a constant bit rate of
-// VideoBitrate instead, so the size is predictable: libx264 with b = minrate = maxrate and
-// nal-hrd=cbr (filler data), NVENC -rc cbr, QSV b = maxrate (the encoder then picks CBR), VAAPI
-// -rc_mode CBR.
+// Rate control of HLS encodes, with maxrate the plan's VideoBitrate and bufsize 2 s: libx264 and
+// NVENC encode at constant quality capped at maxrate (-crf / -cq 23). QSV and VAAPI encode VBR
+// with the target vbrTarget(maxrate) below maxrate: h264_qsv has no usable constant-quality mode
+// under a cap (-global_quality with -maxrate and no -b:v becomes CQP at QP 26 and ignores the
+// cap's intent), and Mesa's VAAPI has no ICQ. Target.ConstantRate (downloads, O-1) encodes at a
+// constant bit rate of VideoBitrate instead, so the size is predictable: libx264 with b = minrate
+// = maxrate and nal-hrd=cbr (filler data), NVENC -rc cbr, QSV b = maxrate (the encoder then picks
+// CBR), VAAPI -rc_mode CBR.
 //
 // HDR per backend: NVENC uses tonemap_cuda when the build has it (jellyfin-ffmpeg), else
 // libplacebo over Vulkan (bt.2390; the Vulkan device is derived from the CUDA device, frames go
@@ -320,7 +331,7 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 	if br <= 0 {
 		br = rungFor(p.Height).Bitrate
 	}
-	maxrate, bufsize := strconv.Itoa(br), strconv.Itoa(2*br)
+	maxrate, bufsize, target := strconv.Itoa(br), strconv.Itoa(2*br), strconv.Itoa(vbrTarget(br))
 	// The H.264 level of the output size and the source's frame rate (h264Level): "4.1", "4.2",
 	// "5.1" or "5.2"; h264_qsv takes the level_idc ("41", "42", "51", "52").
 	lvl := h264Level(p.Width, p.Height, v.FrameRate)
@@ -390,13 +401,13 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 			c.body = append(c.body, cpuTonemap()...)
 			c.hwOut = false
 		}
-		rc := []string{"-global_quality", "23"}
+		// HLS: capped VBR. Never -global_quality with -maxrate and no -b:v (ffmpeg makes that CQP).
+		rc := []string{"-preset", "faster", "-b:v", target, "-maxrate", maxrate, "-bufsize", bufsize, "-look_ahead", "0"}
 		if cbr {
-			rc = []string{"-b:v", maxrate}
+			rc = []string{"-preset", "veryfast", "-b:v", maxrate, "-look_ahead", "0", "-maxrate", maxrate, "-bufsize", bufsize}
 		}
-		c.enc = slices.Concat([]string{"-c:v", "h264_qsv", "-preset", "veryfast"}, rc, []string{"-look_ahead", "0",
-			"-maxrate", maxrate, "-bufsize", bufsize, "-profile:v", "high", "-level:v", qsvLevel,
-			"-g", noAutoKeyframes, "-forced_idr", "1"})
+		c.enc = slices.Concat([]string{"-c:v", "h264_qsv"}, rc, []string{
+			"-profile:v", "high", "-level:v", qsvLevel, "-g", noAutoKeyframes, "-forced_idr", "1"})
 	case BackendVAAPI:
 		c.in = []string{"-init_hw_device", "vaapi=va:" + vaapiDevice, "-filter_hw_device", "va"}
 		c.upload = []string{"format=nv12", "hwupload"}
@@ -417,11 +428,11 @@ func videoPipeline(caps Capabilities, v Stream, p Plan) chain {
 		default:
 			c.body = append(c.body, softwareChain(w, h, tonemap)...)
 		}
-		mode := "VBR"
+		mode, vaTarget := "VBR", target
 		if cbr {
-			mode = "CBR"
+			mode, vaTarget = "CBR", maxrate
 		}
-		c.enc = []string{"-c:v", "h264_vaapi", "-rc_mode", mode, "-b:v", maxrate, "-maxrate", maxrate,
+		c.enc = []string{"-c:v", "h264_vaapi", "-rc_mode", mode, "-b:v", vaTarget, "-maxrate", maxrate,
 			"-bufsize", bufsize, "-profile:v", "high", "-level:v", level, "-g", noAutoKeyframes}
 	default:
 		c.body = append(c.body, softwareChain(w, h, tonemap)...)

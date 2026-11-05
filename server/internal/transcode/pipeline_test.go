@@ -54,9 +54,9 @@ func TestFFmpegArgsGolden(t *testing.T) {
 		{"nvenc-hdr-cuda", Capabilities{Backend: BackendNVENC, HWTonemap: true}, hdr, Target{Mode: ModeTranscode, Tonemap: true}, 0,
 			`-nostdin -hide_banner -loglevel warning -copyts -hwaccel cuda -hwaccel_output_format cuda -i /media/HDR.mkv -map 0:0 -map 0:1 -map_metadata -1 -map_chapters -1 -vf scale_cuda=w=1920:h=1080,tonemap_cuda=format=nv12:p=bt709:t=bt709:m=bt709:tonemap=bt2390:peak=100:desat=0 -c:v h264_nvenc -preset p4 -tune hq -rc vbr -cq 23 -b:v 0 -maxrate 8000000 -bufsize 16000000 -profile:v high -level:v 4.1 -g 9999 -no-scenecut 1 -forced-idr 1 -force_key_frames 4.000000,8.000000 -c:a aac -b:a 160k -ac 2 -output_ts_offset 10.000000 {mux} -segment_times 4.000000,8.000000,3610.000000 -segment_time_delta 0.250000 -segment_start_number 0 {list}`},
 		{"qsv-hdr", Capabilities{Backend: BackendQSV, HWTonemap: true}, hdr, Target{Mode: ModeTranscode, Tonemap: true}, 0,
-			`-nostdin -hide_banner -loglevel warning -copyts -init_hw_device vaapi=va:/dev/dri/renderD128 -init_hw_device qsv=qs@va -filter_hw_device qs -hwaccel qsv -hwaccel_output_format qsv -c:v hevc_qsv -i /media/HDR.mkv -map 0:0 -map 0:1 -map_metadata -1 -map_chapters -1 -vf vpp_qsv=w=1920:h=1080:format=nv12:tonemap=1 -c:v h264_qsv -preset veryfast -global_quality 23 -look_ahead 0 -maxrate 8000000 -bufsize 16000000 -profile:v high -level:v 41 -g 9999 -forced_idr 1 -force_key_frames 4.000000,8.000000 -c:a aac -b:a 160k -ac 2 -output_ts_offset 10.000000 {mux} -segment_times 4.000000,8.000000,3610.000000 -segment_time_delta 0.250000 -segment_start_number 0 {list}`},
+			`-nostdin -hide_banner -loglevel warning -copyts -init_hw_device vaapi=va:/dev/dri/renderD128 -init_hw_device qsv=qs@va -filter_hw_device qs -hwaccel qsv -hwaccel_output_format qsv -c:v hevc_qsv -i /media/HDR.mkv -map 0:0 -map 0:1 -map_metadata -1 -map_chapters -1 -vf vpp_qsv=w=1920:h=1080:format=nv12:tonemap=1 -c:v h264_qsv -preset faster -b:v 6000000 -maxrate 8000000 -bufsize 16000000 -look_ahead 0 -profile:v high -level:v 41 -g 9999 -forced_idr 1 -force_key_frames 4.000000,8.000000 -c:a aac -b:a 160k -ac 2 -output_ts_offset 10.000000 {mux} -segment_times 4.000000,8.000000,3610.000000 -segment_time_delta 0.250000 -segment_start_number 0 {list}`},
 		{"vaapi", Capabilities{Backend: BackendVAAPI}, hevc, Target{Mode: ModeTranscode}, 0,
-			`-nostdin -hide_banner -loglevel warning -copyts -init_hw_device vaapi=va:/dev/dri/renderD128 -filter_hw_device va -hwaccel vaapi -hwaccel_output_format vaapi -hwaccel_device va -i /media/Film (2024)/Film.mkv -map 0:0 -map 0:2 -map_metadata -1 -map_chapters -1 -vf scale_vaapi=w=1920:h=1080:format=nv12 -c:v h264_vaapi -rc_mode VBR -b:v 8000000 -maxrate 8000000 -bufsize 16000000 -profile:v high -level:v 4.1 -g 9999 -force_key_frames 4.000000,8.000000,12.000000 -c:a aac -b:a 160k -ac 2 -output_ts_offset 10.000000 {mux} -segment_times 4.000000,8.000000,12.000000,3613.000000 -segment_time_delta 0.250000 -segment_start_number 0 {list}`},
+			`-nostdin -hide_banner -loglevel warning -copyts -init_hw_device vaapi=va:/dev/dri/renderD128 -filter_hw_device va -hwaccel vaapi -hwaccel_output_format vaapi -hwaccel_device va -i /media/Film (2024)/Film.mkv -map 0:0 -map 0:2 -map_metadata -1 -map_chapters -1 -vf scale_vaapi=w=1920:h=1080:format=nv12 -c:v h264_vaapi -rc_mode VBR -b:v 6000000 -maxrate 8000000 -bufsize 16000000 -profile:v high -level:v 4.1 -g 9999 -force_key_frames 4.000000,8.000000,12.000000 -c:a aac -b:a 160k -ac 2 -output_ts_offset 10.000000 {mux} -segment_times 4.000000,8.000000,12.000000,3613.000000 -segment_time_delta 0.250000 -segment_start_number 0 {list}`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -121,8 +121,8 @@ func TestFFmpegArgsGoldenM4(t *testing.T) {
 	const (
 		x264  = "-c:v libx264 -preset veryfast -crf 23 -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v 4.1 -g 9999 -sc_threshold 0"
 		nvEnc = "-c:v h264_nvenc -preset p4 -tune hq -rc vbr -cq 23 -b:v 0 -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v 4.1 -g 9999 -no-scenecut 1 -forced-idr 1"
-		qsEnc = "-c:v h264_qsv -preset veryfast -global_quality 23 -look_ahead 0 -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v 41 -g 9999 -forced_idr 1"
-		vaEnc = "-c:v h264_vaapi -rc_mode VBR -b:v %[1]d -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v 4.1 -g 9999"
+		qsEnc = "-c:v h264_qsv -preset faster -b:v %[3]d -maxrate %[1]d -bufsize %[2]d -look_ahead 0 -profile:v high -level:v 41 -g 9999 -forced_idr 1"
+		vaEnc = "-c:v h264_vaapi -rc_mode VBR -b:v %[3]d -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v 4.1 -g 9999"
 		aac   = "-c:a aac -b:a 160k -ac 2"
 		head  = "-nostdin -hide_banner -loglevel warning -copyts"
 		cudaI = "-hwaccel cuda -hwaccel_output_format cuda"
@@ -134,7 +134,7 @@ func TestFFmpegArgsGoldenM4(t *testing.T) {
 		pl    = "libplacebo=w=1920:h=1080:tonemapping=bt.2390:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:format=yuv420p"
 		dvTag = "setparams=color_primaries=bt2020:color_trc=smpte2084:colorspace=bt2020nc"
 	)
-	enc := func(f string, rate int) string { return fmt.Sprintf(f, rate, 2*rate) }
+	enc := func(f string, rate int) string { return fmt.Sprintf(f, rate, 2*rate, rate*3/4) }
 	in := "-i " + sdr.Path
 	cases := []struct {
 		name  string
