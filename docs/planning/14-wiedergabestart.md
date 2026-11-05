@@ -1219,9 +1219,10 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist (Schritt 0).
   gesetzter Termin bleibt stehen, `last_fired_at` wird trotzdem gesetzt; `clearOnce` geht vor
   `onceLocal`; ein verpasster Termin einer Jobart mit `StartDelay` feuert nach dieser Verzögerung.
 - **Schritt 5 (Wiedergabe, Offline):** Offline-Downloads warten nur, solange wirklich eine Volllesung
-  eingereiht ist oder läuft; nach einem Fehlschlag in den letzten 24 h kodieren sie sofort (Review D,
-  M). «Original» wird für `keyframes_unavailable` nicht angeboten. Nach einem Dateiwechsel antworten
-  alle HLS-Endpunkte und die Untertitel-Route der Sitzung 10 Minuten lang mit 409 (Marke nur im
+  eingereiht ist oder läuft; nach einem Fehlschlag in den letzten 24 h kodieren sie sofort, ausser
+  der Nachhol-Lauf hat inzwischen eine neue Volllesung eingereiht (Review D, M; Schluss-Review m1). «Original» wird für `keyframes_unavailable` nicht angeboten. Nach einem Dateiwechsel antworten
+  alle HLS-Endpunkte und die Untertitel-Route der Sitzung 10 Minuten lang mit 409 (Direct Play
+  `getItemStream` bleibt bei 401) (Marke nur im
   Speicher, gefälschtes Token weiter 401), die Statusabfrage mit 404; so startet auch der eingebaute
   Player von Safari neu, statt «von der Verwaltung beendet» zu melden. Kein Aktivitätseintrag für
   diesen Fall (bräuchte einen neuen Wert für `ActivityDetail.by`).

@@ -1,5 +1,59 @@
 # Aktueller Stand
 
+## Konzept 14 «Schneller Wiedergabestart»: gebaut, PR offen (5. November 2026)
+
+**Zweig `claude/wiedergabestart-89645e` ab `main` `c514ab1` (Release 1.12.0).** Marcos Freigabe des
+Baus vom 5. November 2026. Vertrag **1.13.0** (additiv), Migration **00033**, Frage 20, ADR 0022.
+Alle Entscheide des Baus in `docs/planning/14-wiedergabestart.md` 11.3.
+
+- **Schritt 0:** Frage 20, ADR 0022 (Teilnachfolger von ADR 0003, Nachtrag zu ADR 0017); O-9 auf
+  CT 190 nur lesend ausgelesen: alle 263 fehlgeschlagenen `probe.keyframes` sind `No such file or
+  directory` aus einem NFS-Aussetzer am 31. Oktober 2026.
+- **Schritt 1:** QSV und VAAPI im HLS-Zweig mit VBR `-b:v 0,75×R -maxrate R -bufsize 2×R`, QSV
+  `-preset faster`, kein `-global_quality` mehr; Regel für kleine Raten; CBR der Downloads unverändert.
+- **Schritt 2:** Paket `internal/mediaindex` (Matroska-Cues, MP4-Tabellen, Plausibilität), gehärtet
+  gegen fremde Bytes, Fuzz-Ziele, Kreuztest gegen ffprobe in `transcode`.
+- **Schritt 3:** Migration 00033 (`keyframes_source`, `override_pause`, `once_at`, Teilindizes),
+  eingefrorener Stand `testdata/db/wiedergabestart.sql`; `probe.file` liest den Index vor der
+  Schreibtransaktion aus dem Container und prüft ihn mit `Runner.VerifyKeyframes`; jedes Schreiben
+  an die Dateiversion gebunden, Index je Version endgültig.
+- **Schritt 4:** Pool `index` mit einem Arbeiter; Pause-Ausnahme für Wiedergabe-Aufträge (höchstens
+  3, 24 h Ruhe nach Fehlschlag); einmaliger Termin für alle Zeitplan-Jobs; Volllese-Job mit
+  Fehlerklassen; Jobart `keyframes.backfill` («Keyframe-Index nachholen»).
+- **Schritt 5:** `Start` wartet nie auf einen Index (`KeyframeTimeout`, `WithKeyframeIndex`
+  entfernt), Grund `keyframes_unavailable`; Rebuild nach Dateiwechsel antwortet 409
+  `playback_source_changed`; Offline-Downloads lesen nie selbst und warten höchstens 24 h.
+- **Schritt 6:** Vertrag 1.13.0 (`Library.keyframeIndex`, `JobSchedule.once`, `onceLocal`/`clearOnce`,
+  Pool `index`, `JobRun.overridesPause`, `JobTypeInfo.overridesPauseForPlayback`, 409 an HLS und
+  Untertiteln).
+- **Schritt 7:** Grund auf der Stream-Kachel, Index-Abdeckung je Bibliothek, Karte «Keyframe-Index
+  nachholen», «Einmalig am», Pausentexte; Player (hls.js und Safari) startet bei 409 einmal neu.
+- **Reviews:** Welle A (1 M), B (1 M), C (0 M), D (1 M), Schluss-Review (APPROVE, 0 M); alle M- und
+  m-Befunde behoben bis auf m-10 aus C (nur Kommentar) und den optionalen Aktivitätseintrag aus D.
+
+**Belege (`task ci` auf `ea74b979`, 14 min):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 36 Pakete `ok` |
+| `ci:web` | Lint, Vitest `1427 passed` |
+| `ci:storybook` | `359 passed`, keine fehlende Baseline (kein Bauteil in `web/src/ui` geändert) |
+| `build`, `ci:e2e:parallel` (3 Shards) | 484 von 484 (179, 154, 151) |
+| Schluss-Fixes `1c03f7d5`, `18ade097` | `task check:fast` grün, gezielte Tests unter `-race` `ok`, Lint 0, `gen:check` sauber, e2e `hls` 2 passed |
+
+Weitere Messwerte aus dem Bau: `probe.file` auf den lokalen Testmedien im Mittel 72 ms je Datei
+(29–117 ms) inklusive Stichprobe; e2e-Remux von «H264 MKV Long» beim ersten Abspielen in 224 ms;
+Prüfung der Obergrenze beim Einreihen 9,1 ms → 38 µs (50 000 wartende Jobs); Claim 5–10 % langsamer.
+
+**Offen:**
+- Push und Pull Request auf Marcos Wort; danach Abnahme auf CT 190 (Papier Schritt 8: Image auf dem
+  CT bauen, Migration 00033, Silo S01E03 in Firefox mit pausiertem `probe.keyframes`, Nachhol-Lauf,
+  Termin, Bild auf dem Handy) mit den Messungen nach `docs/perf/wiedergabestart.md` (QSV inkl. 480p
+  und 360p, VAAPI, Dauer von `probe.file`, Startzeit, Abdeckung «ausstehend = 0»).
+- Release 1.13.0 nach der Abnahme; Entwurf `release-notes-1.13.0.txt` im Wurzelordner (unversioniert).
+- Bekannte Grenzen: 4K-HDR auf QSV startet weiter in 2–3 s (CPU-Tonemapping); NVENC hält die Leiter
+  nur im Mittel (O-19); Safari mangels Apple-Gerät nur mit Vitest geprüft.
+
 ## Konzept 13 «Abspielseite», Stufe 3 «Bilder»: gemergt und auf CT 190 abgenommen (5. November 2026)
 
 **Zweig `claude/abspielseite-stufe3-992847` ab `main` `4022ba8` (Release 1.11.0).** Marcos Wort
