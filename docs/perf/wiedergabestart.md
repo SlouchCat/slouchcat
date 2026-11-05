@@ -56,9 +56,32 @@ unverändert (Takt 6 h). Zwei Speicherversuche davor antworteten 422 (vermutlich
 höchstes 4-s-Segment **5,39 Mbit/s** mit Ton. Das liegt über R, aber unter 1,5 × R, was der Puffer
 von 2 × R über 4 s rechnerisch erlaubt (I-5: Ziel, keine Garantie). Marco: «Bild wirkt scharf».
 
-## Teil 2: noch offen
+## Teil 2: Ratensteuerung QSV und VAAPI (5. November 2026)
 
-- QSV bei 480p (R = 2 Mbit/s) und 360p (R = 1 Mbit/s, Ziel 999 kbit/s) mit `-loglevel verbose`
-  (`RateControlMethod: VBR`), SSIM gegen Anhang A.3 (O-13).
-- VAAPI (`h264_vaapi`, iHD) mit derselben Regel (O-2); AMD bleibt ungemessen.
+Skript `docs/perf/14-wiedergabestart-qsv.sh` im laufenden Container auf CT 190: je 30 s von «Silo»
+S01E03 ab 10:00, ohne Ton, Dekodierung auf der CPU, Skalierung auf der CPU, dann Hochladen zur
+GPU. «alt» sind die Argumente bis 1.12.0, «neu» die von Schritt 1.
+
+| Variante | Ratensteuerung | Ziel / Deckel | Mittel | höchste 4 s | SSIM | Tempo |
+|---|---|---|---|---|---|---|
+| QSV 480p alt | CQP | – / 2 Mbit/s | 0,19 Mbit/s | 0,24 Mbit/s | 0,9613 | 8,8 × |
+| QSV 480p neu | VBR | 1,5 / 2 Mbit/s | 1,46 Mbit/s | 1,64 Mbit/s | 0,9663 | 9,1 × |
+| QSV 360p alt | CQP | – / 1 Mbit/s | 0,13 Mbit/s | 0,16 Mbit/s | 0,9606 | 9,0 × |
+| QSV 360p neu | VBR | 0,999 / 1 Mbit/s | 0,97 Mbit/s | 1,03 Mbit/s | 0,9679 | 8,9 × |
+| QSV 1080p neu | VBR | 6 / 8 Mbit/s | 5,83 Mbit/s | 6,26 Mbit/s | 0,9666 | 6,7 × |
+| VAAPI 480p neu | VBR | 1,5 / 2 Mbit/s | 1,47 Mbit/s | 1,56 Mbit/s | 0,9661 | 9,1 × |
+| VAAPI 1080p neu | VBR | 6 / 8 Mbit/s | 5,83 Mbit/s | 6,31 Mbit/s | 0,9663 | 7,2 × |
+
+- **QSV wählt jetzt VBR** (`RateControlMethod: VBR`, `TargetKbps`/`MaxKbps` wie geplant), vorher
+  CQP mit einem Bruchteil der erlaubten Rate. Die Regel für kleine Raten (O-13) läuft auf der UHD 630
+  auch bei 360p mit 999 kbit/s als VBR; ob 0,75 · R = 750 kbit/s ebenfalls ginge, ist nicht gemessen,
+  die Regel bleibt.
+- **Die Deckel halten** bei 480p und 1080p auch als 4-s-Spitze; bei 360p liegt die Spitze 3 % über
+  1 Mbit/s (Ziel fast gleich Deckel).
+- **VAAPI** (iHD auf der UHD 630) verhält sich wie QSV (O-2); AMD bleibt ungemessen.
+- **SSIM ist nicht mit Anhang A.3 vergleichbar:** die Referenz hier ist die auf der CPU skalierte
+  Quelle, nicht eine verlustfreie Kodierung derselben Kette; die Werte vergleichen nur die Varianten
+  untereinander. Der Sichtbefund (Handy, 720p) steht in Teil 1.
+- Rest im Container: `/tmp/k14-qsv.sh` liess sich als Benutzer des Containers nicht löschen
+  (`Operation not permitted`); die Datei verschwindet beim nächsten Neuerstellen des Containers.
 - NVENC hält die Leiter nur im Mittel (O-19), nicht Gegenstand dieses Konzepts.
