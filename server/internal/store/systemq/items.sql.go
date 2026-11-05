@@ -23,6 +23,22 @@ func (q *Queries) CountAllLibraryItems(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countKeyframesBackfillFiles = `-- name: CountKeyframesBackfillFiles :one
+SELECT count(*)
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode')
+`
+
+// The count of ListKeyframesBackfillFiles without a cursor: the total of the backfill's progress.
+func (q *Queries) CountKeyframesBackfillFiles(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countKeyframesBackfillFiles)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countLibraryItems = `-- name: CountLibraryItems :one
 SELECT count(*) FROM items WHERE library_id = ?1 AND deleted_at IS NULL
 `
@@ -649,6 +665,73 @@ func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]It
 			&i.FilledProviders,
 			&i.VoteAverage,
 			&i.OriginalLanguage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listKeyframesBackfillFiles = `-- name: ListKeyframesBackfillFiles :many
+SELECT mf.id, mf.root_id, mf.rel_path, mf.container, mf.duration_ms, mf.video_codec, mf.size, mf.mtime, i.kind
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode') AND mf.id > ?1
+ORDER BY mf.id
+LIMIT ?2
+`
+
+type ListKeyframesBackfillFilesParams struct {
+	AfterID    string
+	LimitCount int64
+}
+
+type ListKeyframesBackfillFilesRow struct {
+	ID         string
+	RootID     int64
+	RelPath    string
+	Container  string
+	DurationMs sql.NullInt64
+	VideoCodec sql.NullString
+	Size       int64
+	Mtime      int64
+	Kind       string
+}
+
+// The files keyframes.backfill reads (concept 14, 6.6): worth an index and without one, by id
+// after the cursor @after_id, @limit_count at a time. "Worth an index" is the condition of
+// library.indexWorthy (4.1): present, a video codec that can be remuxed
+// (transcode.CopyableVideo), neither an audiobook nor a podcast episode. It implies the WHERE of
+// the partial index media_files_keyframes, which carries the search (INDEXED BY: without
+// statistics the planner takes media_files_missing, which lists nearly every file).
+// CountKeyframesBackfillFiles states the same condition.
+func (q *Queries) ListKeyframesBackfillFiles(ctx context.Context, arg ListKeyframesBackfillFilesParams) ([]ListKeyframesBackfillFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listKeyframesBackfillFiles, arg.AfterID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListKeyframesBackfillFilesRow{}
+	for rows.Next() {
+		var i ListKeyframesBackfillFilesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RootID,
+			&i.RelPath,
+			&i.Container,
+			&i.DurationMs,
+			&i.VideoCodec,
+			&i.Size,
+			&i.Mtime,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}

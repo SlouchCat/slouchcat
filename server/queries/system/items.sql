@@ -122,6 +122,30 @@ WHERE id = @id AND keyframes_source IS NULL AND size = @size AND mtime = @mtime;
 -- index (cues, mp4, scan) stays (concept 14, 4.2, O-16).
 UPDATE media_files SET keyframes_source = NULL, updated_at = @now WHERE id = @id AND keyframes_source = 'none';
 
+-- name: ListKeyframesBackfillFiles :many
+-- The files keyframes.backfill reads (concept 14, 6.6): worth an index and without one, by id
+-- after the cursor @after_id, @limit_count at a time. "Worth an index" is the condition of
+-- library.indexWorthy (4.1): present, a video codec that can be remuxed
+-- (transcode.CopyableVideo), neither an audiobook nor a podcast episode. It implies the WHERE of
+-- the partial index media_files_keyframes, which carries the search (INDEXED BY: without
+-- statistics the planner takes media_files_missing, which lists nearly every file).
+-- CountKeyframesBackfillFiles states the same condition.
+SELECT mf.id, mf.root_id, mf.rel_path, mf.container, mf.duration_ms, mf.video_codec, mf.size, mf.mtime, i.kind
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode') AND mf.id > @after_id
+ORDER BY mf.id
+LIMIT @limit_count;
+
+-- name: CountKeyframesBackfillFiles :one
+-- The count of ListKeyframesBackfillFiles without a cursor: the total of the backfill's progress.
+SELECT count(*)
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode');
+
 -- name: LastJobFailedSince :one
 -- Whether the newest run of a type under an idempotency key failed at or after @since, with no
 -- later run done or cancelled (concept 14, 6.4, O-17: a playback queues no new full keyframe read
