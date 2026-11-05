@@ -5488,7 +5488,7 @@ export interface components {
             defaultRating?: components["schemas"]["Rating"];
             roots: components["schemas"]["LibraryRoot"][];
             scan: components["schemas"]["LibraryScan"];
-            /** @description Keyframe index coverage of a video library; absent for audio libraries. */
+            /** @description Keyframe index coverage of a video library; absent for audio libraries (since contract 1.13.0). */
             keyframeIndex?: components["schemas"]["LibraryKeyframeIndex"];
             /** Format: date-time */
             createdAt: string;
@@ -6616,7 +6616,7 @@ export interface components {
             estimatedSecondsLeft?: number;
             /** @enum {string} */
             estimate: "measured" | "median" | "none";
-            /** @description The run starts and keeps running while its type is paused (a playback request, concept 14); only sent when true. */
+            /** @description The run starts and keeps running while its type is paused (a playback request, concept 14); only sent when true (since contract 1.13.0). */
             overridesPause?: boolean;
         };
         JobProgress: {
@@ -6639,6 +6639,7 @@ export interface components {
             lastFiredAt?: string;
             enabled: boolean;
             window?: components["schemas"]["JobWindow"];
+            /** @description The one-off date; absent without one (since contract 1.13.0). */
             once?: components["schemas"]["JobScheduleOnce"];
             /**
              * @description The server's time zone of the window and the one-off date, for example `Europe/Zurich`.
@@ -6669,10 +6670,11 @@ export interface components {
             window?: components["schemas"]["JobWindow"];
             clearWindow?: boolean;
             /**
-             * @description One-off date as wall time in `JobSchedule.timeZone`; ignored with `clearOnce`.
+             * @description One-off date as wall time in `JobSchedule.timeZone`; ignored with `clearOnce` (since contract 1.13.0).
              * @example 2026-11-08T03:00
              */
             onceLocal?: string;
+            /** @description Removes the one-off date (since contract 1.13.0). */
             clearOnce?: boolean;
             enabled?: boolean;
         };
@@ -6710,7 +6712,7 @@ export interface components {
         };
         JobPool: {
             /**
-             * @description `index` has one worker: the full keyframe reads (concept 14).
+             * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0).
              * @enum {string}
              */
             pool: "general" | "download" | "notify" | "index";
