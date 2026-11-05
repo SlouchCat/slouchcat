@@ -1756,3 +1756,4 @@ CREATE INDEX playback_sessions_profile_activity ON playback_sessions (profile_id
 CREATE INDEX playback_sessions_device ON playback_sessions (device_id);
 CREATE INDEX media_files_keyframes ON media_files (keyframes_source)
     WHERE missing_since IS NULL AND video_codec IN ('h264', 'hevc', 'av1', 'vp9');
+CREATE INDEX jobs_override_pause ON jobs (state) WHERE override_pause = 1;

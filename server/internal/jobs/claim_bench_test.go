@@ -35,7 +35,7 @@ func BenchmarkClaimWithQueuedBacklog(b *testing.B) {
 
 // BenchmarkEnqueueOverridingPauseWithQueuedBacklog measures the insert of a playback request
 // while tens of thousands of jobs wait: the cap of MaxPauseOverrides counts the queued and running
-// rows with override_pause over the index jobs_claim (concept 14, 6.4).
+// rows with override_pause over the partial index jobs_override_pause (concept 14, 6.4).
 func BenchmarkEnqueueOverridingPauseWithQueuedBacklog(b *testing.B) {
 	q, _ := newBenchQueue(b)
 	ctx := context.Background()

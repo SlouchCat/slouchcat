@@ -11,6 +11,9 @@
 --                                 through the join.
 --   jobs.override_pause           1 = the run may start while background work is paused (set only
 --                                 for playback requests, never by default).
+--   jobs_override_pause           partial index that carries the cap count of the playback
+--                                 requests (at most three queued or running, O-7): it lists only the
+--                                 few rows with override_pause, not the queued backlog.
 --   job_schedules.once_at         one-off date in ms UTC, NULL = none.
 --
 -- The backfill marks every blob with at least one entry as 'scan': until now only the full read
@@ -31,6 +34,8 @@ CREATE INDEX media_files_keyframes ON media_files (keyframes_source)
     WHERE missing_since IS NULL AND video_codec IN ('h264', 'hevc', 'av1', 'vp9');
 
 ALTER TABLE jobs ADD COLUMN override_pause INTEGER NOT NULL DEFAULT 0 CHECK (override_pause IN (0, 1));
+
+CREATE INDEX jobs_override_pause ON jobs (state) WHERE override_pause = 1;
 
 ALTER TABLE job_schedules ADD COLUMN once_at INTEGER;
 
