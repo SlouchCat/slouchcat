@@ -79,6 +79,11 @@ export interface PlaybackChange {
   quality?: Quality;
   /** A choice by hand during an episode that the server keeps for the series (11.3). */
   rememberForSeries?: boolean;
+  /**
+   * No choice at all: the server ended the session because the file changed (409
+   * `playback_source_changed`, concept 14, 7.4); the same choice starts again at the position.
+   */
+  sourceChanged?: boolean;
 }
 
 /**
@@ -108,6 +113,11 @@ interface VideoPlayerProps {
   onSwitch?: (change: PlaybackChange, positionMs: number) => void;
   /** performance.now() of the menu choice that led to this session (data-switch-ms, W-4). */
   switchStartedAt?: number;
+  /**
+   * This session restarted the playback after a `playback_source_changed` (concept 14, 7.4): a
+   * second one shows the usual error instead of restarting again.
+   */
+  sourceRestarted?: boolean;
   /** Plays the next episode (auto-next, W-9). */
   onNextEpisode?: (next: ItemRef) => void;
   /** Plays an episode the viewer chose: «Folge zurück», a card of «Als Nächstes» (V-2, V-11). */
@@ -186,6 +196,7 @@ export function VideoPlayer({
   onSwitchVersion,
   onSwitch,
   switchStartedAt,
+  sourceRestarted = false,
   onNextEpisode,
   onPlayEpisode,
   onOpenPerson,
@@ -202,6 +213,8 @@ export function VideoPlayer({
   const [resumeMs] = useState(() => startPositionMs ?? info.resumePositionMs);
   const [start] = useState(() => carried);
   const [switchFrom] = useState(() => switchStartedAt);
+  // The page sets it for the next session while this one is still on screen.
+  const [restartedSession] = useState(() => sourceRestarted);
   const video = useRef<HTMLVideoElement>(null);
   const playButton = useRef<HTMLButtonElement>(null);
   const nextPanel = useRef<HTMLElement>(null);
@@ -259,6 +272,8 @@ export function VideoPlayer({
   }, [switching, ended]);
   const watchTime = useRef<WatchTime | undefined>(info.watchTime);
   const stopHls = useRef<() => void>(() => undefined);
+  // A new session with the same choice at the position (set below, once switchPlayback exists).
+  const restartForSource = useRef<() => void>(() => undefined);
 
   /** The server ended the playback: pause, stop loading, show why. */
   const endedOnce = useRef(false);
@@ -666,6 +681,11 @@ export function VideoPlayer({
             },
           },
         });
+        // A 409 is `playback_source_changed` (concept 14, 7.4): the file of this remux changed
+        // and the server ended the session. hls.js hands over the status of the master and
+        // media playlist, init and segment requests but not the problem body, and these
+        // endpoints answer 409 for nothing else, so the status decides. The player starts one
+        // new session with the same choice at the position; a 409 in that one is a failure.
         // A 401 never heals: the server revoked the stream token (W-6 admin, K-5 limit). Any
         // other fatal error gets one recovery attempt per kind before the player gives up: a
         // media error (decode, buffer append) re-creates the media source, a network error
@@ -674,6 +694,15 @@ export function VideoPlayer({
         let networkRecovered = false;
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (switchedAway.current) return;
+          if (data.response?.code === 409) {
+            if (restartedSession) {
+              hls.stopLoad();
+              setFailed(true);
+            } else {
+              restartForSource.current();
+            }
+            return;
+          }
           if (data.response?.code === 401) {
             onRevoked();
             return;
@@ -700,7 +729,7 @@ export function VideoPlayer({
       stopHls.current = () => undefined;
       destroy();
     };
-  }, [engine, info, onRevoked, resumeMs]);
+  }, [engine, info, onRevoked, resumeMs, restartedSession]);
 
   // Media element events.
   useEffect(() => {
@@ -818,6 +847,12 @@ export function VideoPlayer({
     if (!onSwitch || switching) return;
     onSwitch(change, leaveSession());
   };
+  useEffect(() => {
+    restartForSource.current = () => {
+      if (!onSwitch) setFailed(true);
+      else switchPlayback({ sourceChanged: true });
+    };
+  });
 
   const language = i18n.language;
   const subtitle = selectedSubtitle(info);

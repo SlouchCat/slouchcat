@@ -693,6 +693,66 @@ describe('player M4', () => {
     expect(player.openChoice()).toBeNull();
   });
 
+  it('starts once anew at the position when the source changed (409); a second 409 fails (concept 14, 7.4)', async () => {
+    const media = stubMedia();
+    vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation((type) =>
+      type === 'application/vnd.apple.mpegurl' ? '' : 'probably',
+    );
+    vi.stubGlobal('MediaSource', { isTypeSupported: () => true });
+    const choice: PlaybackInfo = {
+      ...hlsPlayback,
+      selection: { audioTrack: 2, subtitleTrack: 21, subtitleDelivery: 'text' },
+    };
+    const { calls } = mockApi(
+      routes(choice, (_body, count) => ({
+        ...choice,
+        playbackSessionId: `ps-restart-${count}`,
+        streamUrl: `/api/v1/playback/sessions/ps-restart-${count}/master.m3u8?st=ps-restart-${count}.token`,
+      })),
+    );
+    renderApp(`/play/${ids.alien}`);
+    await waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+    media.currentTime = 754.2;
+    // hls.js reports a segment's status without the problem body; a 409 is the source change.
+    act(() =>
+      hlsMock.instances[0]!.emitError({
+        type: 'networkError',
+        details: 'fragLoadError',
+        fatal: true,
+        response: { code: 409 },
+      }),
+    );
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    // The same choice at the position, and no stop by the server.
+    expect(starts(calls)[1]!.body).toMatchObject({
+      positionMs: 754_200,
+      audioTrack: 2,
+      subtitleTrack: 21,
+    });
+    expect(hlsMock.instances[0]!.stopped).toBeGreaterThanOrEqual(1);
+    await waitFor(() =>
+      expect(region()).toHaveAttribute('data-playback-session-id', 'ps-restart-2'),
+    );
+    await waitFor(() => expect(hlsMock.instances).toHaveLength(2));
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // A 409 in the new session restarts nothing: the usual error shows.
+    act(() =>
+      hlsMock.instances[1]!.emitError({
+        type: 'networkError',
+        details: 'manifestLoadError',
+        fatal: true,
+        response: { code: 409 },
+      }),
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Wiedergabe nicht möglich');
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(starts(calls)).toHaveLength(2);
+    expect(hlsMock.instances).toHaveLength(2);
+  });
+
   it('asks the stream after a direct-play error: 401 means ended, anything else a failure', async () => {
     stubMedia();
     const { calls } = mockApi(
