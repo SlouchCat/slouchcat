@@ -25,12 +25,15 @@ func (r *Reader) Visible(ctx context.Context, s Scope, itemID string) error {
 }
 
 // MediaFileProbe is the stored ffprobe result (JSON of transcode.Probe, empty when not probed yet),
-// the encoded keyframe index (nil when not indexed yet) and the duration (0 unknown) of a media
-// file.
+// the encoded keyframe index (nil when not indexed yet) with its source (media_files.
+// keyframes_source: empty when not indexed yet, none when impossible) and time (Unix ms, 0 when
+// not indexed yet), and the duration (0 unknown) of a media file.
 type MediaFileProbe struct {
-	Probe      string
-	Keyframes  []byte
-	DurationMs int64
+	Probe           string
+	Keyframes       []byte
+	KeyframesSource string
+	KeyframesAt     int64
+	DurationMs      int64
 }
 
 // MediaFileProbe returns the probe data of a media file of a visible title, or model.ErrNotFound.
@@ -43,7 +46,8 @@ func (r *Reader) MediaFileProbe(ctx context.Context, s Scope, itemID, fileID str
 	if err != nil {
 		return MediaFileProbe{}, notFound(err)
 	}
-	return MediaFileProbe{Probe: row.Probe.String, Keyframes: row.Keyframes, DurationMs: row.DurationMs.Int64}, nil
+	return MediaFileProbe{Probe: row.Probe.String, Keyframes: row.Keyframes, KeyframesSource: row.KeyframesSource.String,
+		KeyframesAt: row.KeyframesAt.Int64, DurationMs: row.DurationMs.Int64}, nil
 }
 
 // TrackContext is what the track choice of a playback or a download needs about a visible title

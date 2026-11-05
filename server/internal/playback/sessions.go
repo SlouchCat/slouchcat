@@ -35,9 +35,6 @@ import (
 const (
 	// SessionLifetime is the sliding expiry of a playback session after its last token request.
 	SessionLifetime = 12 * time.Hour
-	// KeyframeTimeout bounds the on-demand keyframe index of Start (about 19 s for a 6.5 GB file
-	// over NFS); a longer scan falls back to transcoding while the index job runs.
-	KeyframeTimeout = 20 * time.Second
 	// touchInterval limits how often token requests write last_activity_at/expires_at.
 	touchInterval = time.Minute
 	// sweepInterval is the period of the background sweep (Run).
@@ -126,7 +123,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
-	loc, probe, kfBlob := in.loc, in.probe, in.kf
+	loc, probe := in.loc, in.probe
 	tracks, err := s.vis.Tracks(ctx, scope, item.ID, loc.File.ID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
@@ -205,7 +202,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 			s.log.InfoContext(ctx, "hls unavailable, falling back to direct play", "media_file_id", file.ID,
 				"transcoder", s.tc != nil, "probed", probe != nil)
 			d = directFallback(d, played)
-		} else if hls, d, err = s.prepare(ctx, in, src, kfBlob, d); err != nil {
+		} else if hls, d, err = s.prepare(ctx, in, src, d); err != nil {
 			return model.PlaybackInfo{}, err
 		}
 	}
@@ -658,22 +655,32 @@ func cheaper(req HLSRequest, low Decision, host transcode.Capabilities) bool {
 	return transcode.Cost(hlsSource(lowReq), hlsTarget(lowReq, host)) < transcode.Cost(hlsSource(req), hlsTarget(req, host))
 }
 
-// storedProbe reads the stored probe and keyframe blob of a media file; probe is nil when the file
-// is not probed yet or the JSON is unreadable.
-func (s *Service) storedProbe(ctx context.Context, scope visibility.Scope, loc visibility.MediaFileLocation) (*transcode.Probe, []byte, error) {
+// keyframeIndex is the stored keyframe index of a media file: the encoded blob, its source
+// (media_files.keyframes_source: empty while there is none yet, library.KeyframesNone when it is
+// impossible) and when it was stored (Unix ms, 0 without).
+type keyframeIndex struct {
+	blob   []byte
+	source string
+	at     int64
+}
+
+// storedProbe reads the stored probe and keyframe index of a media file; probe is nil when the
+// file is not probed yet or the JSON is unreadable.
+func (s *Service) storedProbe(ctx context.Context, scope visibility.Scope, loc visibility.MediaFileLocation) (*transcode.Probe, keyframeIndex, error) {
 	pf, err := s.vis.MediaFileProbe(ctx, scope, loc.ItemID, loc.File.ID)
 	if err != nil {
-		return nil, nil, err
+		return nil, keyframeIndex{}, err
 	}
+	kf := keyframeIndex{blob: pf.Keyframes, source: pf.KeyframesSource, at: pf.KeyframesAt}
 	if pf.Probe == "" {
-		return nil, pf.Keyframes, nil
+		return nil, kf, nil
 	}
 	var p transcode.Probe
 	if err := json.Unmarshal([]byte(pf.Probe), &p); err != nil {
 		s.log.WarnContext(ctx, "stored probe unreadable", "media_file_id", loc.File.ID, "err", err)
-		return nil, pf.Keyframes, nil
+		return nil, kf, nil
 	}
-	return &p, pf.Keyframes, nil
+	return &p, kf, nil
 }
 
 // probeDetails returns the container bit rate and the HDR format of the main video stream.
@@ -708,7 +715,7 @@ func rootPath(rootDir, rel, what string) (string, error) {
 
 // prepare resolves the source (and a sidecar subtitle to burn in) and, for a remux, the keyframe
 // index of an HLS request. A remux without index is transcoded (ensureKeyframes).
-func (s *Service) prepare(ctx context.Context, in input, src source, kfBlob []byte, d Decision) (*HLSRequest, Decision, error) {
+func (s *Service) prepare(ctx context.Context, in input, src source, d Decision) (*HLSRequest, Decision, error) {
 	loc := in.loc
 	abs, err := sourcePath(loc)
 	if err != nil {
@@ -730,45 +737,35 @@ func (s *Service) prepare(ctx context.Context, in input, src source, kfBlob []by
 		}
 	}
 	if d.Mode == ModeRemux {
-		if req.Keyframes = s.ensureKeyframes(ctx, loc, abs, kfBlob); req.Keyframes == nil {
-			req.Decision = src.transcode(d, ReasonKeyframesPending)
+		var reason string
+		if req.Keyframes, reason = s.ensureKeyframes(ctx, loc.File.ID, in.kf); req.Keyframes == nil {
+			req.Decision = src.transcode(d, reason)
 		}
 	}
 	return req, req.Decision, nil
 }
 
-// ensureKeyframes returns the keyframe index of a media file for a remux. A missing index is
-// computed on demand (bounded by keyframeTimeout) and stored for the next start; when that is not
-// possible in time it returns nil and queues the index job at top priority, so the caller
-// transcodes this playback and the next start remuxes.
-func (s *Service) ensureKeyframes(ctx context.Context, loc visibility.MediaFileLocation, abs string, blob []byte) []time.Duration {
-	fileID := loc.File.ID
-	if len(blob) > 0 {
-		kf, err := library.DecodeKeyframes(blob)
-		if err == nil && len(kf) > 0 {
-			return kf
-		}
-		s.log.WarnContext(ctx, "keyframe index unusable", "media_file_id", fileID, "err", err)
+// ensureKeyframes looks up the keyframe index of a media file for a remux; it never reads the file,
+// so a start never waits for an index (concept 14, 2.3, I-4). A stored index is returned. Without
+// one it returns nil with the reason of the transcode that plays instead: keyframes_pending, and
+// the index job is queued at top priority (the next start remuxes), while there is none yet;
+// keyframes_unavailable, and nothing is queued, when it is impossible for this file version or
+// the stored one is unreadable.
+func (s *Service) ensureKeyframes(ctx context.Context, fileID string, ix keyframeIndex) ([]time.Duration, string) {
+	switch ix.source {
+	case "":
+		s.log.InfoContext(ctx, "keyframe index not ready, transcoding instead of remuxing", "media_file_id", fileID)
+		s.queueKeyframes(ctx, fileID)
+		return nil, ReasonKeyframesPending
+	case library.KeyframesNone:
+		return nil, ReasonKeyframesUnavailable
 	}
-	if s.keyframes != nil {
-		kctx, cancel := context.WithTimeout(ctx, s.keyframeTimeout)
-		started := time.Now()
-		kf, err := s.keyframes(kctx, abs)
-		cancel()
-		if err == nil && len(kf) > 0 {
-			v := library.FileVersion{Size: loc.File.SizeBytes, Mtime: loc.Mtime}
-			if _, err := library.StoreKeyframes(ctx, s.db.Write, fileID, kf, library.KeyframesScan, v, s.now()); err != nil {
-				s.log.WarnContext(ctx, "store keyframe index", "media_file_id", fileID, "err", err)
-			}
-			s.log.InfoContext(ctx, "keyframe index computed for playback", "media_file_id", fileID,
-				"keyframes", len(kf), "ms", time.Since(started).Milliseconds())
-			return kf
-		}
-		s.log.InfoContext(ctx, "keyframe index not ready, transcoding instead of remuxing", "media_file_id", fileID,
-			"ms", time.Since(started).Milliseconds(), "err", err)
+	kf, err := library.DecodeKeyframes(ix.blob)
+	if err != nil || len(kf) == 0 {
+		s.log.WarnContext(ctx, "keyframe index unusable", "media_file_id", fileID, "source", ix.source, "err", err)
+		return nil, ReasonKeyframesUnavailable
 	}
-	s.queueKeyframes(ctx, fileID)
-	return nil
+	return kf, ""
 }
 
 // queueKeyframes queues the keyframe index job of a media file at top priority.
@@ -864,7 +861,9 @@ func (s *Service) HLS(ctx context.Context, g model.PlaybackGrant, segment int) (
 // rebuild starts the output of a valid HLS grant again, one rebuild per playback at a time. The
 // decision is made again from the recorded columns (M4 design 3.7): the reported capabilities,
 // the quality rung, the audio track and the subtitle track with its delivery, under the limits of
-// the recorded decision (recordedLimits); a recorded transcode stays a transcode on its rung.
+// the recorded decision (recordedLimits); a recorded transcode stays a transcode on its rung. A
+// recorded remux whose file changed since the start (sourceChanged) is not rebuilt: the playback
+// session ends and the request answers model.ErrPlaybackSourceChanged (concept 14, 6.4).
 func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment int) (HLSSession, error) {
 	for {
 		s.rebuildMu.Lock()
@@ -903,7 +902,7 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	if err != nil {
 		return nil, err
 	}
-	probe, kfBlob := in.probe, in.kf
+	probe := in.probe
 	if probe == nil {
 		return nil, model.ErrNotFound
 	}
@@ -911,11 +910,14 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	if err != nil {
 		return nil, unauthenticatedOr(err, "get playback session")
 	}
+	if row.Mode == ModeRemux && sourceChanged(in.kf, row.StartedAt) {
+		return nil, s.endSourceChanged(ctx, row, in.kf)
+	}
 	src, d, err := s.recordedDecision(ctx, scope, in, probe, row, recordedLimits(row))
 	if err != nil {
 		return nil, err
 	}
-	req, _, err := s.prepare(ctx, in, src, kfBlob, d)
+	req, _, err := s.prepare(ctx, in, src, d)
 	if err != nil {
 		return nil, err
 	}
@@ -932,6 +934,35 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	}
 	s.log.InfoContext(ctx, "hls output rebuilt", "playback_id", g.ID, "mode", req.Decision.Mode, "segment", segment)
 	return hs, nil
+}
+
+// sourceChanged reports whether the file of a remux that started at startedAt (Unix ms) changed
+// since: its keyframe index is gone or impossible, or newer than the start. A stored index never
+// changes per file version (concept 14, I-1), so either means another file than the segments of
+// the client's playlist were cut from.
+func sourceChanged(ix keyframeIndex, startedAt int64) bool {
+	if ix.source == "" || ix.source == library.KeyframesNone || ix.at > startedAt {
+		return true
+	}
+	kf, err := library.DecodeKeyframes(ix.blob)
+	return err != nil || len(kf) == 0
+}
+
+// endSourceChanged ends a remux playback whose file changed since its start (sourceChanged): the
+// row is revoked without a stopped_by (the server, not a person, ended it), its streams, output
+// and subtitles go, and the result is model.ErrPlaybackSourceChanged, so the client starts a new
+// playback at its position.
+func (s *Service) endSourceChanged(ctx context.Context, row appq.PlaybackSession, ix keyframeIndex) error {
+	now := s.now()
+	if _, err := s.write.StopPlaybackSession(ctx, appq.StopPlaybackSessionParams{
+		ID: row.ID, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true},
+	}); err != nil {
+		return fmt.Errorf("end playback session: %w", err)
+	}
+	s.end(row.ID, "")
+	s.log.InfoContext(ctx, "remux source changed since the start, playback ended", "playback_id", row.ID,
+		"media_file_id", row.MediaFileID, "keyframes_source", ix.source, "keyframes_at", ix.at, "started_at", row.StartedAt)
+	return model.ErrPlaybackSourceChanged
 }
 
 // recordedLimits are the limits a rebuild decides with. The recorded decision already obeyed the

@@ -1478,10 +1478,14 @@ type PodcastCreate struct {
 // ErrTranscodeBusy: the transcode budget stayed exhausted (503 transcode_busy).
 // ErrSegmentRestarted: a newer seek restarted the encoder while a segment request waited (503
 // segment_restarted, retry after a second).
+// ErrPlaybackSourceChanged: the file of a remux playback changed since it started, so its lost
+// HLS output cannot be rebuilt; the playback session ended (409 playback_source_changed, concept
+// 14, 6.4).
 var (
-	ErrUnauthenticated  = errors.New("unauthenticated")
-	ErrTranscodeBusy    = errors.New("transcode budget exhausted")
-	ErrSegmentRestarted = errors.New("segment request superseded by a newer seek")
+	ErrUnauthenticated       = errors.New("unauthenticated")
+	ErrTranscodeBusy         = errors.New("transcode budget exhausted")
+	ErrSegmentRestarted      = errors.New("segment request superseded by a newer seek")
+	ErrPlaybackSourceChanged = errors.New("playback source changed since the start")
 )
 
 // PlaybackCapabilities are the codecs and the HLS support the client reports with startPlayback

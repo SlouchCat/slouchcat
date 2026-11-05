@@ -53,10 +53,6 @@ type Service struct {
 	tc    Transcoder // nil: no HLS, every title plays directly
 	queue *jobs.Queue
 
-	// keyframes computes a missing keyframe index before a remux (nil: never on demand; the
-	// file is transcoded until the index job ran), bounded by keyframeTimeout.
-	keyframes       func(ctx context.Context, path string) ([]time.Duration, error)
-	keyframeTimeout time.Duration
 	// grantRecheck is how often an open direct-play stream re-reads its playback session.
 	grantRecheck time.Duration
 
@@ -110,19 +106,12 @@ func WithTranscoder(t Transcoder) Option {
 	return func(s *Service) { s.tc = t }
 }
 
-// WithKeyframeIndex lets Start compute a missing keyframe index before a remux
-// (transcode.Runner.Keyframes); the index is stored for the next start.
-func WithKeyframeIndex(f func(ctx context.Context, path string) ([]time.Duration, error)) Option {
-	return func(s *Service) { s.keyframes = f }
-}
-
 // New returns the playback service; log is the redacting logger. Run sweeps ended playback
 // sessions in the background.
 func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		db: db, read: appq.New(db.Read), write: appq.New(db.Write), vis: visibility.New(db, log), log: log, now: time.Now,
-		keyframeTimeout: KeyframeTimeout, grantRecheck: grantRecheckInterval,
-		streams: map[string]map[*grantFile]struct{}{}, rebuilding: map[string]chan struct{}{},
+		grantRecheck: grantRecheckInterval, streams: map[string]map[*grantFile]struct{}{}, rebuilding: map[string]chan struct{}{},
 		subFlights: map[string]*subtitleFlight{}, subSlots: make(chan struct{}, maxSubtitleConversions),
 	}
 	for _, o := range opts {

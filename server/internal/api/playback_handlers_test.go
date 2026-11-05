@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -26,6 +27,7 @@ type fakeTranscoder struct {
 	mu      sync.Mutex
 	stopped []string
 	busy    bool
+	lost    map[string]bool // outputs gone without a stop (server restart) until started again
 }
 
 type fakeHLS struct{ id string }
@@ -44,10 +46,25 @@ func (f *fakeTranscoder) Start(_ context.Context, req playback.HLSRequest) (play
 	if f.busy {
 		return nil, model.ErrTranscodeBusy
 	}
+	delete(f.lost, req.ID)
 	return fakeHLS{id: req.ID}, nil
 }
 
-func (*fakeTranscoder) Get(id string) (playback.HLSSession, bool) { return fakeHLS{id: id}, true }
+func (f *fakeTranscoder) Get(id string) (playback.HLSSession, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return fakeHLS{id: id}, !f.lost[id]
+}
+
+// lose drops the output of a playback session without a stop, like a server restart.
+func (f *fakeTranscoder) lose(id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.lost == nil {
+		f.lost = map[string]bool{}
+	}
+	f.lost[id] = true
+}
 
 func (f *fakeTranscoder) Stop(id string) {
 	f.mu.Lock()
@@ -215,6 +232,40 @@ func TestStreamTokenEndpoints(t *testing.T) {
 	// The web app and problem responses carry the header too.
 	if got := send(t, h, http.MethodGet, "/", "", "", nil); got.Header().Get("Referrer-Policy") != "no-referrer" {
 		t.Errorf("web app response without Referrer-Policy")
+	}
+}
+
+// Concept 14, 6.4 over HTTP: the lost output of a remux whose file changed since the start (its
+// keyframe index is newer than the playback) answers 409 playback_source_changed on every HLS
+// endpoint that rebuilds; the playback session ended with it, so the token is refused afterwards.
+func TestHLSSourceChangedAnswers409(t *testing.T) {
+	t.Parallel()
+	for _, rel := range []string{"master.m3u8", "media.m3u8", "init.mp4", "seg/3"} {
+		t.Run(rel, func(t *testing.T) {
+			t.Parallel()
+			pf := newProfileFixture(t)
+			m := pf.f.Rated(12)
+			pf.f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", `{"format":{"name":"matroska,webm","duration":90000000000},"streams":[{"index":0,"type":"video","codec":"h264","width":1280,"height":720,"pix_fmt":"yuv420p"},{"index":1,"type":"audio","codec":"aac","channels":2}]}`,
+				library.EncodeKeyframes([]time.Duration{0, 4 * time.Second}))
+			id, st := pf.mint(t, "p12", m, "remux")
+			base := BasePath + "/playback/sessions/" + id + "/"
+			if got := send(t, pf.h, http.MethodGet, base+rel+"?st="+url.QueryEscape(st), "", "", nil); got.Code != http.StatusOK {
+				t.Fatalf("running output: %d %s", got.Code, got.Body.String())
+			}
+			pf.f.SetKeyframes(t, m.FileID, library.EncodeKeyframes([]time.Duration{0, 5 * time.Second}), library.KeyframesCues, time.Now().Add(time.Hour).UnixMilli())
+			pf.tc.lose(id)
+			got := send(t, pf.h, http.MethodGet, base+rel+"?st="+url.QueryEscape(st), "", "", nil)
+			if got.Code != http.StatusConflict || problemCode(t, got) != "playback_source_changed" ||
+				!strings.HasPrefix(got.Header().Get("Content-Type"), "application/problem+json") {
+				t.Fatalf("changed source: %d %v %s", got.Code, got.Header(), got.Body.String())
+			}
+			if stops := pf.tc.stops(); len(stops) != 1 || stops[0] != id {
+				t.Errorf("transcoder stops = %v", stops)
+			}
+			if again := send(t, pf.h, http.MethodGet, base+rel+"?st="+url.QueryEscape(st), "", "", nil); again.Code != http.StatusUnauthorized {
+				t.Errorf("after the end: %d %s", again.Code, again.Body.String())
+			}
+		})
 	}
 }
 

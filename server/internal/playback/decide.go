@@ -30,6 +30,9 @@ const (
 	// ReasonKeyframesPending: a remux candidate whose keyframe index is not computed yet; it is
 	// transcoded on the 4-s grid while the index job runs (see Service.ensureKeyframes).
 	ReasonKeyframesPending = "keyframes_pending"
+	// ReasonKeyframesUnavailable: a remux candidate whose keyframe index is impossible for this
+	// file version (keyframes_source none, concept 14, 2.3); it is transcoded and no job is queued.
+	ReasonKeyframesUnavailable = "keyframes_unavailable"
 	// ReasonDolbyVision: Dolby Vision profile 5 or 7 has no base layer a browser can show; it is
 	// transcoded with tonemapping (profile 8 remuxes its HDR10 base layer).
 	ReasonDolbyVision = "dolby_vision"
