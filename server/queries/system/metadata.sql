@@ -18,6 +18,7 @@ SET original_title     = @original_title,
     tmdb_poster_path   = @tmdb_poster_path,
     tmdb_backdrop_path = @tmdb_backdrop_path,
     vote_average       = @vote_average,
+    original_language  = @original_language,
     metadata_state     = 'matched',
     metadata_error     = NULL,
     matched_at         = @now,
@@ -276,6 +277,7 @@ SET original_title     = @original_title,
     tmdb_poster_path   = @tmdb_poster_path,
     tmdb_backdrop_path = @tmdb_backdrop_path,
     vote_average       = @vote_average,
+    original_language  = @original_language,
     anilist_id         = @anilist_id,
     filled_providers   = @filled_providers,
     updated_at         = @now
@@ -330,6 +332,30 @@ LIMIT @limit_count;
 -- name: SetItemVoteAverage :exec
 -- Writes the vote average metadata.vote_backfill decided (NULL keeps it unknown).
 UPDATE items SET vote_average = @vote_average, updated_at = @now WHERE id = @id AND deleted_at IS NULL;
+
+-- name: ListOriginalLanguageBackfillItems :many
+-- One batch of metadata.original_language_backfill (concept 13 11.7): matched movies and series
+-- whose original language was never looked up (NULL; '' is "looked up, unknown") and is not
+-- locked, in id order after @after_id.
+SELECT * FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND original_language IS NULL AND id > @after_id
+  AND instr(locked_fields, '"original_language"') = 0
+ORDER BY id
+LIMIT @limit_count;
+
+-- name: SetItemOriginalLanguage :exec
+-- Writes the original language the backfill decided ('' = looked up, unknown).
+UPDATE items SET original_language = @original_language, updated_at = @now WHERE id = @id AND deleted_at IS NULL;
+
+-- name: SetItemOriginalLanguageOverride :exec
+-- The administrator's original language (setItemOriginalLanguage): the value (NULL = look it up
+-- again) and the lock together.
+UPDATE items SET original_language = @original_language, locked_fields = @locked_fields, updated_at = @now
+WHERE id = @id AND deleted_at IS NULL;
+
+-- name: DeleteItemFieldSource :exec
+DELETE FROM item_field_sources WHERE item_id = @item_id AND field = @field;
 
 -- Metadata settings (concept 10, ADR 0018): the server's keys live in settings (metadata.*), the
 -- deviation of a library in library_metadata (NULL = like the server).

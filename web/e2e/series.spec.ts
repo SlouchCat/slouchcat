@@ -109,7 +109,7 @@ test('Enter opens an episode, play starts it; Backspace and Escape walk back', a
   await expect(page).toHaveURL(new RegExp(`${series}$`));
 });
 
-test('Tab: header, back, seasons, episodes; no focus trap', async ({ page }) => {
+test('Tab: header, back, seasons, episodes; no focus trap @keyboard', async ({ page }) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 3);
   // "Verwalten", then "Merken", "Favorit" and "Zu Cat's Empfehlungen" (M7).

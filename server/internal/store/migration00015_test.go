@@ -15,6 +15,7 @@ import (
 // prefix, its genres split per language, the eight rows in the E-1 order and the picks kept; the
 // triggers must keep the index and the genres in step afterwards.
 func TestMigration00015IndexesFrozenData(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M6.sql"))
 	if err != nil {
 		t.Fatal(err)

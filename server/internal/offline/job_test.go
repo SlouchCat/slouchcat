@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -116,6 +117,217 @@ func TestPrepareRemuxesCopyableSource(t *testing.T) {
 	}
 	if h, _ := readEntries(t, e, st.ID); h.Codecs != "avc1.640029,mp4a.40.2" || h.Width != 1920 || h.Height != 1080 {
 		t.Errorf("remux header = %+v", h)
+	}
+}
+
+// keyframeJob reads the full keyframe read of a media file that waits or runs: priority and
+// pause override.
+func keyframeJob(t *testing.T, e *env, fileID string) (priority int, override bool) {
+	t.Helper()
+	err := e.f.DB.Read.QueryRow(`SELECT priority, override_pause FROM jobs WHERE type = ? AND idempotency_key = ? AND state IN ('queued', 'running')`,
+		library.JobProbeKeyframes, "keyframes:"+fileID).Scan(&priority, &override)
+	if err != nil {
+		t.Fatalf("keyframe job of %s: %v", fileID, err)
+	}
+	return priority, override
+}
+
+// Concept 14, 6.8: a remux without keyframe index never reads the file itself. The download stays
+// queued without an error, the full read is queued at priority 5 without the pause override (a
+// waiting job of the scan is raised), and the preparation tries again in 10 minutes.
+func TestPrepareWithoutKeyframesWaitsAndQueuesTheIndex(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	if _, err := e.queue.Enqueue(context.Background(), jobs.NewJob{Type: library.JobProbeKeyframes, Priority: 1,
+		IdempotencyKey: "keyframes:" + m.FileID, Payload: []byte(`{"mediaFileId":"` + m.FileID + `"}`)}); err != nil {
+		t.Fatal(err)
+	}
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	if n := e.runJobs(); n != 1 {
+		t.Fatalf("%d jobs ran", n)
+	}
+	if r := e.row(st.ID); r.state != model.DownloadQueued || r.err != "" || r.done != 0 {
+		t.Errorf("row = %+v, want queued without error", r)
+	}
+	if calls := e.enc.calls(); len(calls) != 0 {
+		t.Errorf("encoder calls = %v, want none", calls)
+	}
+	if prio, override := keyframeJob(t, e, m.FileID); prio != 5 || override {
+		t.Errorf("keyframe job priority %d override %t, want 5 without the pause override", prio, override)
+	}
+	if p := e.pendingJobs(); len(p) != 1 || !p[alternateKey(st.ID)].Equal(e.clock.Now().Add(10*time.Minute)) {
+		t.Errorf("pending preparations = %v, want one in 10 min", p)
+	}
+	// The full read stored the index: the next attempt remuxes.
+	e.f.SetKeyframes(t, m.FileID, keyframeBlob(), library.KeyframesCues, e.clock.Now().UnixMilli())
+	e.clock.Advance(10 * time.Minute)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady || !slices.Equal(e.enc.modes, []string{"remux"}) {
+		t.Errorf("after the index: row %+v, modes %v", r, e.enc.modes)
+	}
+}
+
+// Concept 14, O-8: the attempts of a download waiting for its keyframe index move apart, 10 min,
+// 30 min, then hourly, by the time since the download was created.
+func TestPrepareKeyframesWaitGrows(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	for i, want := range []time.Duration{10 * time.Minute, 30 * time.Minute, time.Hour, time.Hour} {
+		if n := e.runJobs(); n != 1 {
+			t.Fatalf("wait %d: %d jobs ran", i, n)
+		}
+		p := e.pendingJobs()
+		if len(p) != 1 {
+			t.Fatalf("wait %d: pending %v", i, p)
+		}
+		for _, at := range p {
+			if got := at.Sub(e.clock.Now()); got != want {
+				t.Errorf("wait %d = %v, want %v", i, got, want)
+			}
+			e.clock.Advance(at.Sub(e.clock.Now()))
+		}
+	}
+	if r := e.row(st.ID); r.state != model.DownloadQueued || r.err != "" || len(e.enc.calls()) != 0 {
+		t.Errorf("row = %+v, encoder calls %v", r, e.enc.calls())
+	}
+	for _, c := range []struct{ waited, want time.Duration }{
+		{0, 10 * time.Minute}, {9 * time.Minute, 10 * time.Minute}, {10 * time.Minute, 30 * time.Minute},
+		{39 * time.Minute, 30 * time.Minute}, {40 * time.Minute, time.Hour}, {23 * time.Hour, time.Hour},
+		{23*time.Hour + 30*time.Minute, 30 * time.Minute},
+	} {
+		if got := keyframesWait(c.waited); got != c.want {
+			t.Errorf("keyframesWait(%v) = %v, want %v", c.waited, got, c.want)
+		}
+	}
+}
+
+// Concept 14, O-8: 24 h after the download was created it is encoded without the index.
+func TestPrepareEncodesADayAfterCreationWithoutKeyframes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	e.runJobs()
+	e.clock.Advance(keyframesPatience - time.Minute)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadQueued || len(e.enc.calls()) != 0 {
+		t.Fatalf("before the day is over: %+v, encoder calls %v", r, e.enc.calls())
+	}
+	for _, at := range e.pendingJobs() {
+		if !at.Equal(e.clock.Now().Add(time.Minute)) {
+			t.Errorf("last wait until %v, want the end of the day %v", at, e.clock.Now().Add(time.Minute))
+		}
+	}
+	e.clock.Advance(time.Minute)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady || !slices.Equal(e.enc.modes, []string{"transcode"}) {
+		t.Errorf("after a day: row %+v, modes %v", r, e.enc.modes)
+	}
+}
+
+// Concept 14, 6.8: a file whose index is impossible (none) is encoded at once, nothing is queued.
+func TestPrepareEncodesAtOnceWithoutPossibleKeyframes(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	e.f.SetKeyframes(t, m.FileID, nil, library.KeyframesNone, e.clock.Now().UnixMilli())
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady || !slices.Equal(e.enc.modes, []string{"transcode"}) {
+		t.Errorf("row %+v, modes %v", r, e.enc.modes)
+	}
+	var n int
+	if err := e.f.DB.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ?`, library.JobProbeKeyframes).Scan(&n); err != nil || n != 0 {
+		t.Errorf("%d keyframe jobs (%v), want none", n, err)
+	}
+}
+
+// failKeyframeRead ends the full read of a media file as failed now (the state the job of
+// package library leaves after its last attempt).
+func failKeyframeRead(t *testing.T, e *env, fileID string) {
+	t.Helper()
+	id, err := e.queue.Enqueue(context.Background(), jobs.NewJob{Type: library.JobProbeKeyframes, Priority: 1,
+		IdempotencyKey: "keyframes:" + fileID, Payload: []byte(`{"mediaFileId":"` + fileID + `"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE jobs SET state = 'failed', finished_at = ? WHERE id = ?`, e.clock.Now().UnixMilli(), id)
+}
+
+// Concept 14, 6.8 with O-17 (review of wave D): the last full read of the file failed within
+// 24 h, so nothing is queued and nothing would end the wait; the first attempt encodes.
+func TestPrepareEncodesAtOnceAfterAFailedKeyframeRead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	failKeyframeRead(t, e, m.FileID)
+	e.clock.Advance(time.Hour)
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	if n := e.runJobs(); n != 1 {
+		t.Fatalf("%d jobs ran, want the one attempt", n)
+	}
+	if r := e.row(st.ID); r.state != model.DownloadReady || !slices.Equal(e.enc.modes, []string{"transcode"}) {
+		t.Errorf("row %+v, modes %v; want encoded in the first attempt", r, e.enc.modes)
+	}
+	var n int
+	if err := e.f.DB.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND state IN ('queued', 'running')`,
+		library.JobProbeKeyframes).Scan(&n); err != nil || n != 0 {
+		t.Errorf("%d pending keyframe jobs (%v), want none", n, err)
+	}
+}
+
+// Final review, m1: the last full read failed within 24 h, but the backfill (which does not look at
+// O-17) has queued a new one meanwhile; the download waits for it instead of encoding, and the
+// waiting read rises to priority 5.
+func TestPrepareWaitsForAQueuedKeyframeReadAfterAFailedOne(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	failKeyframeRead(t, e, m.FileID)
+	e.clock.Advance(time.Hour)
+	queued, err := e.queue.Enqueue(context.Background(), jobs.NewJob{Type: library.JobProbeKeyframes, Priority: 1,
+		IdempotencyKey: "keyframes:" + m.FileID, Payload: []byte(`{"mediaFileId":"` + m.FileID + `"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadQueued || len(e.enc.calls()) != 0 {
+		t.Fatalf("row %+v, encoder calls %v; want waiting for the queued read", r, e.enc.calls())
+	}
+	var prio int
+	if err := e.f.DB.Read.QueryRow(`SELECT priority FROM jobs WHERE id = ?`, queued).Scan(&prio); err != nil || prio != 5 {
+		t.Errorf("priority of the queued read = %d (%v), want 5", prio, err)
+	}
+}
+
+// Concept 14, 6.8 (review of wave D): the full read the download waits for fails; the next attempt
+// encodes instead of waiting for the rest of the day.
+func TestPrepareEncodesWhenTheKeyframeReadFailsDuringTheWait(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadQueued || len(e.enc.calls()) != 0 {
+		t.Fatalf("first attempt: %+v, encoder calls %v; want waiting", r, e.enc.calls())
+	}
+	e.exec(`UPDATE jobs SET state = 'failed', finished_at = ? WHERE type = ? AND idempotency_key = ?`,
+		e.clock.Now().UnixMilli(), library.JobProbeKeyframes, "keyframes:"+m.FileID)
+	e.clock.Advance(10 * time.Minute)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady || !slices.Equal(e.enc.modes, []string{"transcode"}) {
+		t.Errorf("after the failed read: row %+v, modes %v; want encoded", r, e.enc.modes)
 	}
 }
 

@@ -28,6 +28,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -62,6 +63,8 @@ type fakeTMDB struct {
 	// tvNoImages drops its poster and backdrop.
 	tvNoGermanOverview bool
 	tvNoImages         bool
+	// tvOriginalLanguage is original_language of the series 900; "" leaves the field out.
+	tvOriginalLanguage string
 }
 
 // jpegBytes returns a w×h JPEG: a strong red block in the upper half (the poster's accent) over a
@@ -394,7 +397,7 @@ func newEnvWith(t *testing.T, keys KeySource) *env {
 	t.Helper()
 	logs := &bytes.Buffer{}
 	log := slog.New(logging.NewRedactingHandler(slog.NewTextHandler(&lockedWriter{w: logs}, nil)))
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
 	if err != nil {
 		t.Fatal(err)
 	}

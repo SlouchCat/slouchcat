@@ -5,6 +5,8 @@ export const paths = {
   setup: '/setup',
   profiles: '/profiles',
   profileSettings: '/settings/profiles',
+  /** «Meine Wiedergabe»: languages and subtitles of the active profile (concept 13 11.4). */
+  playbackSettings: '/settings/playback',
   adminLibraries: '/admin/libraries',
   adminMaintenance: '/admin/maintenance',
   adminDevices: '/admin/devices',

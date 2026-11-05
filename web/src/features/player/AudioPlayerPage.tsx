@@ -2,9 +2,10 @@ import type { ItemDetail, PlaybackInfo, Progress, WatchTime } from '@slouchcat/a
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { apiUrl, imageUrl } from '@/api/client';
-import { AriaButton, AudioPlayer } from '@/ui/aria';
+import { AriaButton, AudioPlayer, focusOnMount } from '@/ui/aria';
 import type { PlaybackEngine } from './capabilities';
 import { useAudioControls } from './useAudioControls';
+import { usePlaybackStopWatch } from './usePlaybackStopWatch';
 import { useProgressReporter } from './useProgressReporter';
 import { resumeSeconds, streamRevoked, type EndedReason } from './VideoPlayer';
 
@@ -74,11 +75,17 @@ export function AudioPlayerPage({
     setEnded((current) => current ?? { reason, watchTime: watchTime.current });
   }, []);
 
-  /** A 401 of the stream: the watch-time limit when the day's minutes were (nearly) used up. */
-  const onRevoked = useCallback(() => {
-    const remaining = watchTime.current?.remainingMinutes;
-    endPlayback(remaining !== undefined && remaining <= 1 ? 'limit' : 'admin');
-  }, [endPlayback]);
+  /**
+   * A 401 of the stream, or the stop watch with the server's reason: without one, the watch-time
+   * limit when the day's minutes were (nearly) used up.
+   */
+  const onRevoked = useCallback(
+    (reason?: EndedReason) => {
+      const remaining = watchTime.current?.remainingMinutes;
+      endPlayback(reason ?? (remaining !== undefined && remaining <= 1 ? 'limit' : 'admin'));
+    },
+    [endPlayback],
+  );
 
   const onProgress = useCallback(
     (progress: Progress) => {
@@ -98,6 +105,13 @@ export function AudioPlayerPage({
     enabled: true,
     reportRate: true,
     onProgress,
+  });
+
+  // A fully buffered title makes no stream request that could answer 401 (concept 13, 11.13).
+  usePlaybackStopWatch({
+    playbackSessionId: info.playbackSessionId,
+    active: playing && ended === null,
+    onStopped: onRevoked,
   });
 
   // What the listener wants, not what the element reports: re-attaching the element (hls.js after
@@ -248,7 +262,8 @@ export function AudioPlayerPage({
             : t('player.watchLimit.bodyUnknown')}
       </p>
       <div>
-        <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+        {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition (11.13). */}
+        <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
           {t('common.back')}
         </AriaButton>
       </div>

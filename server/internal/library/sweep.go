@@ -18,6 +18,11 @@ func (s *Service) handleSweep(ctx context.Context, _ *jobs.Job) error {
 		return err
 	}
 	s.log.InfoContext(ctx, "library sweep done", "items_soft_deleted", n)
+	// The chapter images of deleted files and older probes (chapter_images.go); a failure is
+	// logged, the sweep of the titles stands.
+	if err := s.sweepChapterImages(ctx); err != nil {
+		s.log.WarnContext(ctx, "chapter image sweep failed", "err", err)
+	}
 	return nil
 }
 

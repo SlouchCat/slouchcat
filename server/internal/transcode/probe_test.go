@@ -191,6 +191,20 @@ func TestProbeHDR(t *testing.T) {
 	}
 }
 
+// Review step 9, m-7: ffprobe's disposition hearing_impaired reaches the stream.
+func TestParseProbeHearingImpaired(t *testing.T) {
+	p, err := ParseProbe([]byte(`{"format":{"format_name":"matroska,webm","duration":"10.0"},"streams":[
+		{"index":0,"codec_type":"video","codec_name":"h264","width":64,"height":48},
+		{"index":1,"codec_type":"subtitle","codec_name":"subrip","tags":{"language":"eng"},"disposition":{"hearing_impaired":1}},
+		{"index":2,"codec_type":"subtitle","codec_name":"subrip","tags":{"language":"eng"},"disposition":{"hearing_impaired":0}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Streams) != 3 || p.Streams[0].HearingImpaired || !p.Streams[1].HearingImpaired || p.Streams[2].HearingImpaired {
+		t.Errorf("streams = %+v", p.Streams)
+	}
+}
+
 func TestParseProbeRejectsEmpty(t *testing.T) {
 	if _, err := ParseProbe([]byte(`{}`)); err == nil {
 		t.Error("want error for an empty probe")

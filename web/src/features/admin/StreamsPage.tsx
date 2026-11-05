@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
+import { reasonText } from '@/features/player/labels';
 import { formatBitrate, formatDateTime } from '@/lib/format';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { Notice, Skeleton, Text, VisuallyHidden } from '@/ui';
@@ -254,6 +255,18 @@ function StreamsContent() {
                           value: streamQuality(t, stream, i18n.language),
                           icon: 'film',
                         },
+                        // Why it is not played directly, in the words of the player's stream
+                        // info; none for direct play.
+                        ...(stream.mode !== 'direct' && stream.reason
+                          ? [
+                              {
+                                key: 'reason',
+                                label: t('admin.streams.facts.reason'),
+                                value: reasonText(t, stream.reason),
+                                icon: 'info' as const,
+                              },
+                            ]
+                          : []),
                       ]}
                       progress={position.percent}
                       progressLabel={t('admin.streams.progress', { title: stream.itemTitle })}

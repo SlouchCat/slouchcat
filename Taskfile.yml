@@ -54,6 +54,59 @@ tasks:
     cmds:
       - task: web:e2e
 
+  # The quick loop while working on a spec: one browser, no retry, stop at the first failure, and a
+  # build only of what changed since the last one (sources/generates below, state in .task/).
+  e2e:quick:
+    desc: >-
+      A few e2e specs fast: Chromium, no retries, stops at the first failure; rebuilds web and
+      server only when they changed. `task e2e:quick -- e2e/login.spec.ts`, port E2E_PORT (8097)
+    cmds:
+      - task: build:changed
+      - task: web:e2e:quick
+
+  # `task build`, but each half only when its inputs changed: the web build when web/ or the
+  # packages changed, the binary when the Go code or the embedded web build changed.
+  build:changed:
+    internal: true
+    cmds:
+      - task: build:changed:web
+      - task: build:changed:server
+
+  build:changed:web:
+    internal: true
+    sources:
+      - web/src/**/*
+      - web/public/**/*
+      - web/index.html
+      - web/vite.config.ts
+      - web/package.json
+      - packages/*/src/**/*
+      - packages/design-tokens/tokens/**/*
+      - pnpm-lock.yaml
+    generates:
+      - server/internal/webassets/dist/index.html
+    cmds:
+      - task: web:build
+
+  build:changed:server:
+    internal: true
+    sources:
+      - server/**/*.go
+      - server/go.mod
+      - server/go.sum
+      - server/migrations/**/*
+      - server/internal/webassets/dist/**/*
+    generates:
+      - server/bin/slouchcat
+    cmds:
+      - task: server:build
+
+  # The fast checks of a change before a commit: the web half here, the server half in
+  # server/Taskfile.yml (`server:check:fast`). Not a replacement for `task ci`.
+  check:fast:
+    desc: Fast checks of what changed, web and server side by side (web:check:fast, server:check:fast)
+    deps: [web:check:fast, server:check:fast]
+
   apicheck:
     desc: >-
       Third-party client test P-16 (the evidence for C-5): the contract-only client in
@@ -62,19 +115,20 @@ tasks:
       - task: server:apicheck
 
   # The one local command that builds and checks everything (plan section 4). It runs the same
-  # checks as CI, in an order that makes sense on one machine; CI runs the three ci:* tasks below
-  # in parallel jobs instead. Whatever is added to one of them is therefore in `task ci` too --
-  # that is the point of the split (ADR 0013).
+  # checks as CI, in an order that makes sense on one machine; CI runs the ci:* tasks below in
+  # parallel jobs instead. Whatever is added to one of them is therefore in `task ci` too -- that
+  # is the point of the split (ADR 0013).
   ci:
     desc: Everything CI runs, in order; fails on codegen drift
     cmds:
       - task: ci:server
       - task: ci:web
+      - task: ci:storybook
       - task: build
-      - task: ci:e2e
+      - task: ci:e2e:parallel
 
-  # The three halves `task ci` is made of, each one a CI job. Not to be confused with `server:ci`
-  # and `web:ci`, which are the older per-area shortcuts and also run `server:vuln` (network).
+  # The parts `task ci` is made of, each one a CI job. Not to be confused with `server:ci` and
+  # `web:ci`, which are the older per-area shortcuts and also run `server:vuln` (network).
   ci:server:
     desc: The server half of `task ci` (CI job "server"); needs ffmpeg and the test media
     cmds:
@@ -84,20 +138,50 @@ tasks:
       - task: server:test
 
   ci:web:
-    desc: The web half of `task ci` (CI job "web"); the Storybook screenshots need Docker
+    desc: The web linters and unit tests of `task ci` (CI job "web")
     cmds:
       - task: web:gen
       - task: web:gen:check
       - task: web:lint
       - task: web:test
+      # The e2e shard plan's self-test (3 s): every test in exactly one CI shard. Here and not in
+      # the e2e job, so a broken plan is red before the shards start; each shard counts its own
+      # list again (web:e2e with SHARD).
+      - task: web:e2e:shards:check
+      # The self-test of the slot lock for heavy local runs (7 s). CI never waits for a slot, so
+      # this is the only place a broken lock would show up before agents slow each other down.
+      - task: heavy-slot:check
+
+  # A job of its own in CI since 3 November 2026: the screenshots took 3.6 of the web job's 8 to 10
+  # minutes and need nothing the linters and Vitest produce (ADR 0013, addendum).
+  ci:storybook:
+    desc: The Storybook screenshot checks of `task ci` (CI job "storybook"); need Docker
+    cmds:
       - task: storybook:test
 
   ci:e2e:
     desc: >-
       The Playwright suite of `task ci` (CI job "e2e"); expects `task build` and `task
-      testdata:media`. Arguments after `--` go to Playwright, for example `-- --shard=1/6`.
+      testdata:media`. SHARD=i/n runs one shard planned by duration (CI); arguments after `--`
+      go to Playwright.
     cmds:
       - task: e2e
+
+  # What CI's e2e shards do, on one machine: E2E_SHARDS runs side by side (each its own server,
+  # port, artefact folder and media copy, web/e2e/parallel.mjs), then one merged HTML report. Three
+  # by default: each shard is a server, a browser and its transcodes, and three keep a desktop
+  # usable. E2E_PORT is the first shard's port (8097), the next ones +10 and +20.
+  ci:e2e:parallel:
+    desc: >-
+      The e2e suite of `task ci` as E2E_SHARDS shards side by side (default 3) on E2E_PORT, +10,
+      +20 …, with a merged report; E2E_SHARDS=1 is one run. Expects `task build`, `task testdata:media`
+    cmds:
+      - task: web:e2e:parallel
+
+  heavy-slot:check:
+    desc: Self-test of scripts/heavy-slot.sh, the slot lock heavy local runs wait for
+    cmds:
+      - scripts/heavy-slot.test.sh
 
   storybook:test:
     desc: Storybook screenshot checks of web/src/ui against the committed baselines (needs Docker)

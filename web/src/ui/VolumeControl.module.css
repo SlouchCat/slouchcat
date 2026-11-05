@@ -1,0 +1,119 @@
+.control {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The slider and the percentage: closed beside the button until the pointer is over the control
+   or the focus is in it. Closed, the slider keeps its place in the Tab order (no display: none),
+   so the focus can reach it and open the drawer. */
+.drawer {
+  display: inline-flex;
+  gap: var(--sc-space-2);
+  align-items: center;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-width var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.control:hover .drawer,
+.control:focus-within .drawer {
+  max-width: 12rem;
+  opacity: 1;
+}
+
+/* Without hover (touch screens) there is nothing to open it: it stays open. */
+@media (hover: none) {
+  .drawer {
+    max-width: 12rem;
+    opacity: 1;
+  }
+}
+
+.slider {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  width: 7rem;
+  height: var(--sc-space-6);
+  margin-inline-start: var(--sc-space-1);
+  border-radius: var(--sc-radius-sm);
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* The drawer clips what lies outside it, so the ring lies inside the slider's hit area. */
+.slider:focus-visible {
+  outline-offset: calc(-1 * var(--sc-focus-ring-width));
+}
+
+.slider[aria-disabled] {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.track {
+  position: relative;
+  width: 100%;
+  height: var(--sc-space-1);
+  margin-inline: var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-track);
+}
+
+.fill,
+.boost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+}
+
+.fill {
+  left: 0;
+  background-color: var(--sc-accent);
+}
+
+/* Above 100 %: the boosted part of the fill in the warning colour. */
+.boost {
+  background-color: var(--sc-color-state-warning);
+}
+
+/* The 100 % mark on a slider that goes up to 150 %. */
+.full {
+  position: absolute;
+  top: calc(-1 * var(--sc-space-1));
+  bottom: calc(-1 * var(--sc-space-1));
+  width: 2px;
+  background-color: var(--sc-color-text-secondary);
+  transform: translateX(-50%);
+}
+
+.thumb {
+  position: absolute;
+  top: 50%;
+  width: var(--sc-space-3);
+  height: var(--sc-space-3);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-text-primary);
+  transform: translate(-50%, -50%);
+}
+
+.percent {
+  display: inline-flex;
+  flex: none;
+  gap: var(--sc-space-1);
+  align-items: center;
+  min-width: 3.5rem;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.percent[data-boosted] {
+  color: var(--sc-color-state-warning);
+  font-weight: var(--sc-font-weight-semibold);
+}

@@ -8,9 +8,11 @@ import type {
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { useSearch } from '@tanstack/react-router';
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -18,6 +20,7 @@ import {
   type FormEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { isApiError } from '@/api/client';
 import { formErrors, problemMessage } from '@/api/errors';
 import { useActiveSession } from '@/app/session';
 import { formatDateTime } from '@/lib/format';
@@ -59,6 +62,7 @@ import {
   elapsedSeconds,
   formatInterval,
   formatMinute,
+  formatOnce,
   formatSeconds,
   typeName,
   typeKey,
@@ -130,6 +134,11 @@ interface ScheduleDraft {
   /** "03:00", the value of a time field. */
   start: string;
   end: string;
+  /**
+   * The one-off date as the server's wall time ("2026-11-08T03:30", the value of a
+   * `datetime-local` field), or "" for none. It goes to the server as typed (concept 14, 5.2).
+   */
+  once: string;
 }
 
 function scheduleDraftOf(schedule: NonNullable<JobTypeInfo['schedule']>): ScheduleDraft {
@@ -139,6 +148,7 @@ function scheduleDraftOf(schedule: NonNullable<JobTypeInfo['schedule']>): Schedu
     windowed: schedule.window !== undefined,
     start: schedule.window ? formatMinute(schedule.window.startMinute) : '03:00',
     end: schedule.window ? formatMinute(schedule.window.endMinute) : '05:00',
+    once: schedule.once?.local ?? '',
   };
 }
 
@@ -258,28 +268,39 @@ function lastText(t: TFunction, info: JobTypeInfo, now: number): string {
   return parts.join(t('admin.jobs.separator'));
 }
 
-/** The next run: "in X · alle Y · window", or why there is none. */
-function nextText(t: TFunction, info: JobTypeInfo, now: number): string {
+/**
+ * The next run: "in X · alle Y · window", or why there is none; then the one-off date
+ * ("Termin: So., 8. Nov., 03:30"), which fires with the schedule switched off as well. A paused
+ * type lets its date lapse (concept 14, 6.7).
+ */
+function nextText(t: TFunction, info: JobTypeInfo, now: number, language: string): string {
   if (info.paused) return t('admin.jobs.card.pausedNext');
   const schedule = info.schedule;
   if (!schedule)
     return info.trigger === 'manual'
       ? t('admin.jobs.card.triggerManual')
       : t('admin.jobs.card.onDemand');
-  if (!schedule.enabled) return t('admin.jobs.card.off');
-  const parts = [
-    t('admin.jobs.card.in', {
-      duration: formatSeconds(t, (Date.parse(schedule.nextRunAt) - now) / 1000),
-    }),
-    t('admin.jobs.card.every', { duration: formatInterval(t, schedule.everySeconds) }),
-  ];
-  if (schedule.window) {
+  const parts: string[] = [];
+  if (!schedule.enabled) {
+    parts.push(t('admin.jobs.card.off'));
+  } else {
     parts.push(
-      t('admin.jobs.card.window', {
-        start: formatMinute(schedule.window.startMinute),
-        end: formatMinute(schedule.window.endMinute),
+      t('admin.jobs.card.in', {
+        duration: formatSeconds(t, (Date.parse(schedule.nextRunAt) - now) / 1000),
       }),
+      t('admin.jobs.card.every', { duration: formatInterval(t, schedule.everySeconds) }),
     );
+    if (schedule.window) {
+      parts.push(
+        t('admin.jobs.card.window', {
+          start: formatMinute(schedule.window.startMinute),
+          end: formatMinute(schedule.window.endMinute),
+        }),
+      );
+    }
+  }
+  if (schedule.once) {
+    parts.push(t('admin.jobs.card.once', { date: formatOnce(schedule.once.local, language) }));
   }
   return parts.join(t('admin.jobs.separator'));
 }
@@ -297,8 +318,8 @@ function LastRun({ info, oneLine = false }: { info: JobTypeInfo; oneLine?: boole
 }
 
 function NextRun({ info }: { info: JobTypeInfo }) {
-  const { t } = useTranslation();
-  return <>{nextText(t, info, useNow())}</>;
+  const { t, i18n } = useTranslation();
+  return <>{nextText(t, info, useNow(), i18n.language)}</>;
 }
 
 /** The duration of a run, counting up while it runs. */
@@ -427,6 +448,25 @@ function JobsContent() {
   const [message, setMessage] = useStatusMessage();
   const [failure, setFailure] = useState<unknown>(null);
   const data = overview.data;
+
+  // `?item=` opens that type's row once, when the list knows it (the link of the libraries page
+  // to «Keyframe-Index nachholen»), and shows its group; folding it away is the reader's choice.
+  const search: Record<string, unknown> = useSearch({ strict: false });
+  const askedItem = typeof search.item === 'string' ? search.item : undefined;
+  const askedInfo =
+    askedItem === undefined ? undefined : data?.types.find((info) => info.type === askedItem);
+  const [openedItem, setOpenedItem] = useState<string | undefined>(undefined);
+  // Adjusted while rendering (no effect): the row is open in the same render that shows it.
+  if (askedInfo && openedItem !== askedInfo.type) {
+    setOpenedItem(askedInfo.type);
+    setExpanded((current) => new Set(current).add(askedInfo.type));
+  } else if (askedItem === undefined && openedItem !== undefined) {
+    setOpenedItem(undefined);
+  }
+  const askedGroup = askedInfo?.group;
+  useEffect(() => {
+    if (openedItem !== undefined && askedGroup !== undefined) selectTab(askedGroup);
+  }, [openedItem, askedGroup, selectTab]);
 
   /**
    * Shows the outcome and fetches again. Once React has rendered the answer, the focus moves to
@@ -621,6 +661,13 @@ function JobsContent() {
           {t('admin.jobs.pausedBanner.body', {
             types: paused.map((info) => typeName(t, info.type)).join(', '),
           })}
+          {paused
+            // Runs a playback requests start and keep running while the type is paused (concept 14).
+            .filter((info) => info.overridesPauseForPlayback === true)
+            .map(
+              (info) =>
+                ` ${t('admin.jobs.pausedBanner.playbackOverride', { name: typeName(t, info.type) })}`,
+            )}
         </Notice>
       )}
       <StatusStrip
@@ -881,6 +928,7 @@ function RunningTable({
         <span className={styles.runName}>
           {typeName(t, job.type)}
           {stopping.has(job.type) && <Chip tone="warning">{t('admin.jobs.state.stopping')}</Chip>}
+          {job.overridesPause && <Chip tone="info">{t('admin.jobs.running.overridesPause')}</Chip>}
         </span>
       ),
     },
@@ -901,7 +949,13 @@ function RunningTable({
             {job.progress?.note && <span className={styles.note}>{job.progress.note}</span>}
             {percent !== null && (
               <>
-                <span>{t('admin.jobs.running.progress', { done, total })}</span>
+                <span>
+                  {t(`admin.jobs.types.${typeKey(job.type)}.progress`, {
+                    done,
+                    total,
+                    defaultValue: t('admin.jobs.running.progress', { done, total }),
+                  })}
+                </span>
                 <ProgressBar
                   value={percent}
                   label={t('admin.jobs.running.progressLabel', {
@@ -1139,12 +1193,27 @@ function ScheduleBlock({
   const { t } = useTranslation();
   const name = typeName(t, info.type);
   const saveButton = useRef<HTMLButtonElement>(null);
+  const onceInput = useRef<HTMLInputElement>(null);
   const save = useMutation({
     mutationFn: ({ body }: { body: JobScheduleUpdate; sent: ScheduleDraft }) =>
       updateJobSchedule(info.type, body),
     onSuccess: (_data, { sent }) => onSaved(info.type, sent),
   });
   const errors = save.error ? formErrors(t, save.error) : null;
+  // The one-off date has texts of its own: outside now to a year, or no wall time at all.
+  const onceCode = isApiError(save.error)
+    ? save.error.problem?.errors?.find((fieldError) => fieldError.field === 'onceLocal')?.code
+    : undefined;
+  const fieldErrors =
+    errors && onceCode
+      ? {
+          ...errors.fields,
+          onceLocal:
+            onceCode === 'out_of_range'
+              ? t('admin.jobs.schedule.onceRange')
+              : t('admin.jobs.schedule.onceInvalid'),
+        }
+      : errors?.fields;
   const schedule = info.schedule;
   if (!schedule) return null;
   const set = (patch: Partial<ScheduleDraft>) => {
@@ -1177,13 +1246,18 @@ function ScheduleBlock({
     } else if (schedule.window) {
       body.clearWindow = true;
     }
+    // The date only when it changed: the wall time as typed, the server converts it.
+    if (value.once !== (schedule.once?.local ?? '')) {
+      if (value.once === '') body.clearOnce = true;
+      else body.onceLocal = value.once;
+    }
     save.mutate({ body, sent: value });
   };
 
   return (
     <section className={styles.block} aria-label={t('admin.jobs.schedule.title', { name })}>
       <h3 className={styles.blockTitle}>{t('admin.jobs.schedule.heading')}</h3>
-      <Form className={styles.fields} onSubmit={onSubmit} validationErrors={errors?.fields}>
+      <Form className={styles.fields} onSubmit={onSubmit} validationErrors={fieldErrors}>
         {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
         <Switch isSelected={value.enabled} onChange={(enabled) => set({ enabled })}>
           {t('admin.jobs.schedule.enabled')}
@@ -1228,6 +1302,31 @@ function ScheduleBlock({
             {errors.fields.window}
           </Text>
         )}
+        {/* Native date and time: the value is the server's wall time and is sent unchanged. */}
+        <div className={styles.onceField}>
+          <TextField
+            name="onceLocal"
+            type="datetime-local"
+            label={t('admin.jobs.schedule.once')}
+            description={t('admin.jobs.schedule.onceHint', { zone: schedule.timeZone })}
+            value={value.once}
+            onChange={(once) => set({ once })}
+            inputRef={onceInput}
+          />
+          {value.once !== '' && (
+            <AriaButton
+              variant="ghost"
+              icon="close"
+              onPress={() => {
+                set({ once: '' });
+                // The button goes with the date; the focus stays in the form.
+                onceInput.current?.focus();
+              }}
+            >
+              {t('admin.jobs.schedule.clearOnce')}
+            </AriaButton>
+          )}
+        </div>
         <Text tone="secondary" variant="caption">
           {t('admin.jobs.schedule.description')}
         </Text>
@@ -1372,6 +1471,12 @@ const RunsTab = memo(function RunsTab({
       cell: (job) => (
         <>
           {job.subject ?? t('admin.jobs.runs.noSubject', { id: job.id })}
+          {job.overridesPause && (
+            <>
+              {' '}
+              <Chip tone="info">{t('admin.jobs.running.overridesPause')}</Chip>
+            </>
+          )}
           {job.runAfter && state === 'planned' && (
             <>
               {' '}

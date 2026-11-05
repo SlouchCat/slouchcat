@@ -30,7 +30,7 @@ async function stats(api: APIRequestContext, days: number): Promise<StatsData> {
   return (await response.json()) as StatsData;
 }
 
-test('A-8: a playback shows up in the statistics; period, tables, grid and Back by keyboard', async ({
+test('A-8: a playback shows up in the statistics; period, tables, grid and Back by keyboard @keyboard', async ({
   page,
   owner,
 }) => {

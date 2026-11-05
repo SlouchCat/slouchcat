@@ -57,6 +57,7 @@ func backups(t *testing.T, dir string) []string {
 }
 
 func TestFreshDatabaseHasNoBackup(t *testing.T) {
+	t.Parallel()
 	dir := filepath.Join(t.TempDir(), "odd name #1 %20 ?")
 	if err := os.Mkdir(dir, 0o750); err != nil {
 		t.Fatal(err)
@@ -87,6 +88,7 @@ func TestFreshDatabaseHasNoBackup(t *testing.T) {
 }
 
 func TestBackupBeforePendingMigration(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 
@@ -157,6 +159,7 @@ func TestBackupBeforePendingMigration(t *testing.T) {
 // Pre-migration backups of releases before M8 (slouchcat-*.db) and of now (pre-migration-*.db)
 // are pruned together; manual archives and pre-restore backups are not touched.
 func TestPruneBackupsKeepsNewestFive(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	names := []string{
 		"slouchcat-0.1.0-20261001T100000.000Z.db",
@@ -191,6 +194,7 @@ func TestPruneBackupsKeepsNewestFive(t *testing.T) {
 }
 
 func TestMigrationFailsOnForeignKeyViolation(t *testing.T) {
+	t.Parallel()
 	files := fstest.MapFS{"00001_broken.sql": &fstest.MapFile{Data: []byte(`-- +goose Up
 -- +goose NO TRANSACTION
 PRAGMA foreign_keys=OFF;

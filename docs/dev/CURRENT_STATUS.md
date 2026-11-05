@@ -2,8 +2,8 @@
 
 ## Scanner: wiederverwendete Inode ist keine Verschiebung (3. November 2026)
 
-Zweig `claude/scanner-inode-reuse` ab `main` `cbf17fb`, `main` `ae0502b` (mit Idee 04) eingemergt;
-PR #79. Der Scanner ordnete eine neue Datei einer bekannten zu, sobald (`dev`, `inode`, `size`)
+Zweig `claude/scanner-inode-reuse` ab `main` `cbf17fb`, `main` `ae0502b` (mit Idee 04) und
+`58245ed` (Release 1.13.0) eingemergt; PR #79 offen, Merge auf Marcos Wort. Der Scanner ordnete eine neue Datei einer bekannten zu, sobald (`dev`, `inode`, `size`)
 übereinstimmten. ext4 vergibt die Inode einer eben gelöschten Datei neu; bei gleicher Grösse hielt
 der Scanner die neue Datei für die verschobene alte und holte deren Titel zurück, statt einen neuen
 anzulegen. Aufgefallen als wackliger
@@ -29,6 +29,270 @@ anzulegen. Aufgefallen als wackliger
   ergibt eine neue Datei mit neuem Titel (ohne Fix rot); verschoben und nur berührt bleibt
   dieselbe Datei; ohne alten `partial_hash` entscheidet die Inode. Paketbeschreibung in
   `server/internal/library/doc.go` angepasst.
+
+## Konzept 14 «Schneller Wiedergabestart»: gemergt und auf CT 190 abgenommen (5. November 2026)
+
+**Zweig `claude/wiedergabestart-89645e` ab `main` `c514ab1` (Release 1.12.0).** Marcos Freigabe des
+Baus vom 5. November 2026. Vertrag **1.13.0** (additiv), Migration **00033**, Frage 20, ADR 0022.
+Alle Entscheide des Baus in `docs/planning/14-wiedergabestart.md` 11.3.
+
+- **Schritt 0:** Frage 20, ADR 0022 (Teilnachfolger von ADR 0003, Nachtrag zu ADR 0017); O-9 auf
+  CT 190 nur lesend ausgelesen: alle 263 fehlgeschlagenen `probe.keyframes` sind `No such file or
+  directory` aus einem NFS-Aussetzer am 31. Oktober 2026.
+- **Schritt 1:** QSV und VAAPI im HLS-Zweig mit VBR `-b:v 0,75×R -maxrate R -bufsize 2×R`, QSV
+  `-preset faster`, kein `-global_quality` mehr; Regel für kleine Raten; CBR der Downloads unverändert.
+- **Schritt 2:** Paket `internal/mediaindex` (Matroska-Cues, MP4-Tabellen, Plausibilität), gehärtet
+  gegen fremde Bytes, Fuzz-Ziele, Kreuztest gegen ffprobe in `transcode`.
+- **Schritt 3:** Migration 00033 (`keyframes_source`, `override_pause`, `once_at`, Teilindizes),
+  eingefrorener Stand `testdata/db/wiedergabestart.sql`; `probe.file` liest den Index vor der
+  Schreibtransaktion aus dem Container und prüft ihn mit `Runner.VerifyKeyframes`; jedes Schreiben
+  an die Dateiversion gebunden, Index je Version endgültig.
+- **Schritt 4:** Pool `index` mit einem Arbeiter; Pause-Ausnahme für Wiedergabe-Aufträge (höchstens
+  3, 24 h Ruhe nach Fehlschlag); einmaliger Termin für alle Zeitplan-Jobs; Volllese-Job mit
+  Fehlerklassen; Jobart `keyframes.backfill` («Keyframe-Index nachholen»).
+- **Schritt 5:** `Start` wartet nie auf einen Index (`KeyframeTimeout`, `WithKeyframeIndex`
+  entfernt), Grund `keyframes_unavailable`; Rebuild nach Dateiwechsel antwortet 409
+  `playback_source_changed`; Offline-Downloads lesen nie selbst und warten höchstens 24 h.
+- **Schritt 6:** Vertrag 1.13.0 (`Library.keyframeIndex`, `JobSchedule.once`, `onceLocal`/`clearOnce`,
+  Pool `index`, `JobRun.overridesPause`, `JobTypeInfo.overridesPauseForPlayback`, 409 an HLS und
+  Untertiteln).
+- **Schritt 7:** Grund auf der Stream-Kachel, Index-Abdeckung je Bibliothek, Karte «Keyframe-Index
+  nachholen», «Einmalig am», Pausentexte; Player (hls.js und Safari) startet bei 409 einmal neu.
+- **Reviews:** Welle A (1 M), B (1 M), C (0 M), D (1 M), Schluss-Review (APPROVE, 0 M); alle M- und
+  m-Befunde behoben bis auf m-10 aus C (nur Kommentar) und den optionalen Aktivitätseintrag aus D.
+
+**Belege (`task ci` auf `ea74b979`, 14 min):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 36 Pakete `ok` |
+| `ci:web` | Lint, Vitest `1427 passed` |
+| `ci:storybook` | `359 passed`, keine fehlende Baseline (kein Bauteil in `web/src/ui` geändert) |
+| `build`, `ci:e2e:parallel` (3 Shards) | 484 von 484 (179, 154, 151) |
+| Schluss-Fixes `1c03f7d5`, `18ade097` | `task check:fast` grün, gezielte Tests unter `-race` `ok`, Lint 0, `gen:check` sauber, e2e `hls` 2 passed |
+
+Weitere Messwerte aus dem Bau: `probe.file` auf den lokalen Testmedien im Mittel 72 ms je Datei
+(29–117 ms) inklusive Stichprobe; e2e-Remux von «H264 MKV Long» beim ersten Abspielen in 224 ms;
+Prüfung der Obergrenze beim Einreihen 9,1 ms → 38 µs (50 000 wartende Jobs); Claim 5–10 % langsamer.
+
+**Offen:**
+- **Abnahme auf CT 190 am 5. November 2026 bestanden** (Image `wiedergabestart-68cefaf`, Migration
+  00033 in 1,8 s; Sicherung `.env.bak-vor-wiedergabestart`): Silo S01E03 ohne Index startet mit
+  `POST /play` in 16,6 ms statt 20 016 ms, der Index kommt trotz Pause in 193 ms aus den Cues, der
+  zweite Start remuxt; Nachhol-Lauf 257 Dateien in 88 s, «ausstehend = 0» in allen Bibliotheken;
+  Termin feuert pünktlich; QSV-Bild auf dem Handy scharf; QSV und VAAPI mit VBR statt CQP. Werte in
+  `docs/perf/wiedergabestart.md`.
+- **PR #90** auf Marcos Wort gemergt (`619d53cb`), GitHub-CI 19 von 19 grün.
+- **Release 1.13.0:** Versionsstellen auf 1.13.0 im Zweig `claude/release-1.13.0`
+  (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`), Tag `v1.13.0` setzt Marco auf den Merge-Commit. Release-Notes:
+  `release-notes-1.13.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.12.0). Danach CT 190
+  vom Zweig-Image `wiedergabestart-68cefaf` auf das Release-Image 1.13.0 (keine Migration mehr).
+- Bekannte Grenzen: 4K-HDR auf QSV startet weiter in 2–3 s (CPU-Tonemapping); NVENC hält die Leiter
+  nur im Mittel (O-19); Safari mangels Apple-Gerät nur mit Vitest geprüft.
+
+## Konzept 13 «Abspielseite», Stufe 3 «Bilder»: gemergt und auf CT 190 abgenommen (5. November 2026)
+
+**Zweig `claude/abspielseite-stufe3-992847` ab `main` `4022ba8` (Release 1.11.0).** Marcos Wort
+«Wenn Stufe 2 abgeschlossen ist …, starte direkt Stufe 3». Vertrag **1.12.0** (additiv). Keine
+Migration. Alle Entscheide des Baus in `docs/planning/13-abspielseite.md` 11.15 «Stufe 3».
+
+- **Schritt 13:** `transcode.Chapters` für Film und Folge (Hörbücher, Podcasts, Extras
+  unverändert): Titel, die nur eine Zeit oder «Chapter 12» sind, fallen weg (der Client zeigt
+  «Kapitel 3»); unter vier Kapiteln und ab 30 Minuten Ersatzkapitel auf jeder vollen 10. Minute
+  (`Chapter.auto`); ein echter Abspann (höchstens 15 Minuten, zweite Hälfte) bleibt. Wiedergabe und
+  Download-Manifest nutzen dieselbe Funktion, ein gemeinsamer Mapper `toChapters`.
+- **Schritt 14:** `Runner.GrabFrame` (Eingabe-Sprung, ein Bild, WebP 480 px, HDR/DV auf der CPU
+  tonemappt, anamorph entzerrt, Schwarztest im selben Lauf, zweiter Versuch 10 s später); Jobarten
+  `chapters.images` (Ereignis, Priorität 5) und `chapters.images_backfill` (nur von Hand, reiht mit
+  Priorität 1 ein); Ablage `cache/chapters/<mediaFileId>-<probedAt>-<hash8>/`, Aufräumen im
+  stündlichen `library.sweep`; Auslöser neue Datei nach fehlerfreiem Scan, Ende einer Wiedergabe
+  (minütliche Aufräumrunde, 10 Minuten verzögert, wartet solange die Datei läuft) und neuer Probe;
+  `getChapterImage` als `http.Handler` (`scoped`, 404 für alles Unsichtbare, versionierte URL mit
+  `immutable`, sonst `no-cache` mit ETag), `Chapter.imageUrl` in `PlaybackInfo`.
+- **Schritt 15:** Bildreihe im Reiter «Kapitel» (`ChapterCard` mit Bild, Nummer als Rückfall,
+  «automatisch»), Kapitelbild im Feld über der Zeitleiste (`SeekBar`, feste 16:9-Box);
+  Tastaturtest in `chapters.spec.ts`; Stories `UI/ChapterCard` «Images» und `UI/SeekBar`
+  «PreviewImage», Baselines auf CT 190 geschossen (Marcos Wort).
+- **Reviews:** Schritt 13 (0 M), Schritt 15 (2 M), Schritt 14 (4 M), Schluss-Review der Fixes
+  (1 M), Kurz-Review (APPROVE); alle M- und die meisten m-Befunde behoben.
+- **Marcos Entscheid beim Bau:** Backfill-Jobs mit Priorität 1, Ereignis-Jobs 5.
+
+**Belege (`task ci` auf `01a5f04`, Storybook auf `8371246`):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 35 Pakete `ok` |
+| `ci:web` | Lint, Vitest `1414 passed` |
+| `ci:storybook` | erst `357 passed`, 2 fehlende Baselines; nach den Baselines (`8371246`) `359 passed` |
+| `build`, `ci:e2e:parallel` (3 Shards) | 481 von 481 (157, 162, 162) |
+| Nachzug `ed50794` (nur `library`, `jobs`) | `task check:fast` und gezielte Tests `ok`, golangci-lint 0, `gen:check` sauber |
+
+**Abnahme und Merge:**
+- **CT 190** auf `stufe3-b846c5a` (`v1.11.0-22-gb846c5a2`, auf dem CT gebaut nach
+  `/root/build-b846c5a`), Sicherung `.env.bak-vor-stufe3`, davor Release 1.11.0. Keine Migration,
+  Start `healthy`. Kapitelbilder für den Bestand entstehen erst nach dem Abspielen oder mit
+  «Kapitelbilder nachholen» von Hand. Abgenommen von Marco am 5. November 2026.
+- **PR #88** auf Marcos Wort gemergt (`d70ac4b`), GitHub-CI 19 von 19 grün.
+- **Release 1.12.0:** Versionsstellen auf 1.12.0 im Zweig `claude/release-1.12.0`
+  (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`), Tag `v1.12.0` setzt Marco auf den Merge-Commit. Release-Notes:
+  `release-notes-1.12.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.11.0).
+
+**Offen:**
+- Bekannte Grenzen: keine Kapitelbilder offline und im Kapitelblatt des Handy-Layouts; Farben bei
+  Dolby Vision Profil 5 können abweichen.
+
+## Konzept 13 «Abspielseite», Stufe 2 «Sprache und Qualität»: gemergt und auf CT 190 abgenommen (4. November 2026)
+
+**Zweig `claude/abspielseite-stufe2` ab `main` `d74b665` (Release 1.10.0).** Marcos Wort «Stelle
+die CT190 bitte um und beginne danach Stufe2». Vertrag **1.11.0** (additiv, eine
+Bedeutungsänderung: fehlendes oder leeres `subtitleTrack` heisst «Server wählt»). Migration
+**00032**. Alle Entscheide des Baus in `docs/planning/13-abspielseite.md` 11.15.
+
+- **Schritt 7:** Migration 00032 (Profilfelder Ton/Untertitel, `profile_series_tracks`,
+  `items.original_language`, `tracks.is_hearing_impaired`, `playback_sessions` neu aufgebaut mit
+  `original` und `2160p`), eingefrorener Stand `testdata/db/abspielseite.sql`, Vertrag 1.11.0,
+  Operationen `getMyPlaybackPrefs`, `putMyPlaybackPrefs`, `resetMySeriesTracks`.
+- **Schritt 8:** Originalsprache aus TMDB, TVDB und AniList in `metadata.fill`, sperrbar,
+  `setItemOriginalLanguage` in der Verwaltung, Jobart `metadata.original_language_backfill`.
+- **Schritt 9:** Paket `internal/trackpick` (Ton- und Untertitelregel nach 11.3, F-11, Gründe),
+  Sprachtabelle (470 Einträge, Paritätstest mit dem Web-Client), Serienmerker (nur der geänderte
+  Teil), `visibility.TrackContext`, Downloads nach derselben Regel, SDH aus Titel und
+  Disposition; im Player «Aus» = `subtitleOff`, jeder Wechsel nennt beide Spuren, Schalter «Für
+  diese Serie merken».
+- **Schritt 10:** Vorbelegung neuer Profile an allen drei Stellen, Seite «Meine Wiedergabe»
+  (`/settings/playback`), Felder im Profilformular, «Als Standard für dieses Profil» im
+  Ton-Panel, leere Sprachlisten möglich («Originalton immer»).
+- **Schritt 11:** eine Leiter (`transcode.Rungs`), `original` nach 11.5 (a)–(d), 2160p
+  freigeschaltet (Backend und Tonemapping aus dem Manager), `QualityCap` (1080p–360p),
+  Qualitätsliste im Zahnrad mit Merker je Gerät.
+- **Schritt 12:** 2160p in `transcode` (Grenze je Backend, Kosten 5, 4K ab 2160 Zeilen oder 3840
+  Breite, H.264-Level 4.1/4.2/5.1/5.2 aus Bildgrösse und Bildrate, Ausgabe in einer 16:9-Box).
+  **Messung auf CT 190** in `docs/perf/13-abspielseite.md` 1: QSV, ein 2160p24-Strom 3,8-fache,
+  zwei je 1,9-fache, 2160p60 1,4-fache Echtzeit, Kosten 5 bleiben.
+- **Reviews:** je Welle ein `code-reviewer` (7; 8, 9, 12; Schluss-Review 9-Fixes, 10, 11); alle
+  M-Befunde behoben.
+- **Marcos Entscheide beim Bau:** 4K im Breitbild ab 3840 Breite; volle Bildspur vor SDH-Text bei
+  «Immer» und «Fremdsprache».
+
+**Belege (`task ci` auf `a29d5c7`, 12 min 44 s):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 35 Pakete `ok` |
+| `ci:web` | Lint, Vitest `1406 passed` |
+| `ci:storybook` | `357 passed` |
+| `ci:e2e:parallel` (3 Shards) | 477 von 479; rot `profiles.spec.ts:380` in Chromium und Firefox (der neue «×» als Tab-Halt), behoben in `2fad41c`, danach `profiles` und `playback-settings` 18/18 in beiden Browsern |
+
+**Abnahme und Merge:**
+- **CT 190** auf `stufe2-8bcc359` (`v1.10.0-51-g8bcc359a`, auf dem CT gebaut nach
+  `/root/build-8bcc359`), Sicherung `.env.bak-vor-stufe2`, davor Release 1.10.0. Migration 00032
+  lief in 2,2 s, DB-Sicherung vorher
+  `/config/backups/pre-migration-v1.10.0-51-g8bcc359a-20261104T213007.599Z.db`; Start `healthy`,
+  Backend `qsv`, Jobart «Originalsprache nachholen» lief an (200 Titel je rund 100 s). Abgenommen
+  von Marco am 4. November 2026.
+- **PR #86** auf Marcos Wort gemergt (`632938b`), GitHub-CI 19 von 19 grün.
+- **Release 1.11.0:** Versionsstellen auf 1.11.0 im Zweig `claude/release-1.11.0`
+  (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`), Tag `v1.11.0` auf `4022ba8` (PR #87), gesetzt am 4. November 2026. Release-Notes:
+  `release-notes-1.11.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.10.0). Danach Stufe 3
+  (Schritte 13 bis 15, Kapitelbilder, Vertrag 1.12.0) in einer neuen Session (Marcos Wort).
+
+**Offen:**
+- Bekannte Grenzen und Hinweise für die Release-Notiz: ein gemerktes 1080p wandelt 4K-Titel um;
+  Breitbild-Ausgaben werden schmaler (16:9-Box), auch bei Downloads; Level 4.2/5.2 nicht auf
+  echten Geräten geprüft; Spulen in 2160p nicht gemessen (keine echte 4K-Datei auf CT 190).
+- `SetItemRating`/`SetItemsRating`: ein leerer Body hebt die Freigabe auf (bestehend, nicht aus
+  diesem Zweig).
+- Auf CT 190 liegen noch `/root/uhd-test` (Testclips, rund 3 GB), das Image `stufe2-8428d7f` und
+  `/root/build-8428d7f`.
+
+## Konzept 13 «Abspielseite», Stufe 1 «Bedienung»: gemergt und auf CT 190 abgenommen (4. November 2026)
+
+**Zweig `claude/abspielseite-ae8b82` ab `main` `c023448`, `main` (`f7e2308`, PR #83) nachgezogen.**
+Neustart ab `main` auf Marcos Wort (11.15). Vertrag **1.10.0** (additiv). Release 1.10.0 nach der
+Abnahme auf CT 190, nur auf Marcos Wort. Bauplan `docs/planning/13-abspielseite.md` 11.12, Nachtrag
+mit allen Entscheiden des Baus in 11.15.
+
+- **Schritt 0** (`a7fb55b`): Frage 19, ADR 0021 (2160p), Idee 05 (Trickplay).
+- **Schritt 1:** Player-Tests über Aktionen statt Menürollen (`b1920d5`, `5bf481d`).
+- **Schritt 2:** Bauteile `VolumeControl`, `PlayerPanel`, `OptionRow`, `ChapterCard`, `SeekBar` in
+  `web/src/ui` (`a62a33f` bis `6b844ee`).
+- **Schritt 5b:** Stopp durch die Verwaltung. `GET /playback/sessions/{id}/state` antwortet aus dem
+  Speicher (`playback/state.go`), der Player fragt alle 4 s (`usePlaybackStopWatch`), Video und
+  Audio (`e74335d` bis `96694b4`).
+- **Schritt 3:** `PlayerChrome`, Fokusmodell, Tastenkarte, Hilfe mit `?`, `focusOnMount`
+  (`0c0287e` bis `7f7cf3e`).
+- **Schritt 4:** Panels Ton, Untertitel und Zahnrad; eigene Untertitel-Ebene mit Stil und Versatz;
+  Nachtmodus und 150 % über Web Audio, in Safari ausgeblendet (`b69f74d` bis `157cba2`).
+- **Schritt 5:** Reiter Kapitel, Als Nächstes, Besetzung, Info; Pause-Ansicht; Nächste-Folge-Karte;
+  Handy-Layout mit Doppeltipp; V-17 (nur auf dem Gerät), V-18 (`0a6fdd8`).
+- **Schritt 6:** Offline-Player auf `PlayerChrome`, `focusOnMount` in den Offline-Dialogen
+  (`486592e`).
+- **Nachträge:**
+  - Kapitel für Video-Downloads, Marcos Entscheid zu M-1 aus dem Review von Schritt 6
+    (`6b8bcee`, `4d49e54`).
+  - Jeder geöffnete Player startet eine eigene Sitzung (`d7ace21`).
+  - Zurück während einer Navigation aus dem Player geht nicht verloren (`e2a33e0`).
+  - Handy-Layout mit eigener Titelzeile, Bild-in-Bild und Vollbild neben der Zeit (`d90a1b6`).
+  - Antworten der Statusabfrage in den Stopp-Tests im Testprozess gelesen (`b42de23`).
+- **Reviews:** je Schritt ein `code-reviewer` (3, 4, 5, 6) und ein Schluss-Review der Nachträge;
+  alle M-Befunde behoben. Bewusst offen: m-6 des Schluss-Reviews (eine doppelte Probe-Abfrage je
+  Manifest, Umbau von `visibility` nötig).
+- **Marcos Entscheide beim Bau** (11.15): Englisch als zweite Wahl in Ton und Untertitel; Kapitel
+  für Video-Downloads vom Server; Handy-Layout richten.
+- **Storybook:** 34 neue Baselines auf CT 190 im Playwright-Image `v1.64.1-noble` geschossen
+  (Bündel `/root/storybook-ct-k13`, `--update-snapshots=missing`), alle bestehenden unverändert
+  (`efbb086`, `6853c56`).
+
+**Belege (`task ci` auf `6853c56`, 12 min 38 s):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 34 Pakete `ok` |
+| `ci:web` | Codegen, Lint, Vitest `1303 passed`, Shard-Plan und Platz-Selbsttest grün |
+| `ci:storybook` | `357 passed` |
+| `ci:e2e:parallel` (3 Shards) | 461 von 463; Firefox `audio-download.spec.ts:111` (O-1, Zeitgrenze 120 s beim Vorbereiten) und Chromium `admin-folder-browser.spec.ts:151` (Fokus nach Escape); beide Dateien und der Code dahinter sind auf diesem Zweig unverändert; danach je 4 Wiederholungen in Chromium und Firefox `20 passed` |
+
+Lauf davor auf `972381f`: e2e ebenfalls 461 von 463, andere zwei Tests (`admin-picks.spec.ts:98`
+in 8 Wiederholungen grün; Stopp-Test des Hörbuchs, behoben in `b42de23`, danach 24 von 24 grün).
+
+**Abnahme und Merge:**
+- **CT 190** auf `abspielseite-9f6d42b` (`v1.9.0-116-g9f6d42b9`, auf dem CT gebaut nach
+  `/root/build-9f6d42b`), Sicherung `.env.bak-vor-abspielseite`, davor `wurzelwechsel-34822aa`.
+  Keine Migration, Start `healthy`. Abgenommen von Marco am 4. November 2026.
+- **PR #84** auf Marcos Wort gemergt (`14964c3`), GitHub-CI 19 von 19 grün.
+- Fertige Downloads zeigen Kapitel erst nach einem neuen Download (Release-Notiz).
+- Bekannte Grenzen: Bild-in-Bild endet bei jedem Wechsel von Ton, Untertitel, Qualität oder
+  Version; das eigene Bild-in-Bild von Firefox zeigt keine Untertitel.
+- **Release 1.10.0** (Marcos Wort «Ja, Release 1.10.0»): Versionsstellen auf 1.10.0 im Zweig
+  `claude/release-1.10.0` (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`,
+  `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag `v1.10.0` setzt Marco auf den Merge-Commit.
+  Release-Notes: `release-notes-1.10.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.9.0).
+  Danach Stufe 2 (Schritte 7 bis 12, Vertrag 1.11.0) auf Marcos Wort.
+
+## Teststufen, Agentenregeln und Plätze für schwere Läufe (4. November 2026)
+
+**Performance-Audit von Claude Code, OMC und CI; Marcos Antwort «A bis D umsetzen».** In der Woche
+vom 28. Oktober bis 3. November lief `task ci` lokal 48-mal (je rund 50 min), derselbe Stand wurde
+bis zu sechsmal voll geprüft (Executor, Verifier, git-master, Koordinator, CI auf PR und main), bis
+zu fünf Agenten liefen gleichzeitig mit eigenen e2e-Servern. Die OMC-Hooks starten keine Prüfungen
+(je Aufruf ≤ 0,3 s) und sind kein Engpass.
+
+- **A:** PR #81 (Konzept 13 Schritt C, schnellere CI und Tests) gemergt, `d86720d`. CI auf
+  `3c56e5f` 9,0 min statt Median 16,0 min.
+- **B–D:** PR #82 auf `claude/teststufen`: drei Teststufen (`CLAUDE.md`, `docs/dev/SETUP.md`
+  «Teststufen»), Regeln für Agenten (`CLAUDE.md` «Agenten und Prüfungen»), zwei Plätze der Maschine
+  für die ganze Go-Suite unter `-race`, e2e und Storybook (`scripts/heavy-slot.sh`, Selbsttest
+  `task heavy-slot:check`). Entscheid in `docs/planning/04-entscheidungen.md`.
+- **Beleg:** `task ci E2E_PORT=8497` auf dem fertigen Zweig grün in 9 min 32 s (Vitest 1082,
+  Storybook 323, e2e 431 in drei Shards); Go-Tests dabei aus dem Testcache des Laufs davor, dort
+  34/34 Pakete ohne Cache unter `-race`, längstes 220 s.
+- **Konzept 13** wird auf Marcos Wort ganz neu ab `main` gestartet. `claude/abspielseite-stufe1`
+  (`7accff6`, Schritte 0 bis 4) und der Worktree `agent-af47cb4bbb853b37a` (Schritt 5) bleiben
+  unangetastet liegen. Offen für die neue Session: die nicht committete checkptr-Änderung aus
+  `claude/ci-schneller` (`-gcflags='modernc.org/...=-d=checkptr=0'` in `server:test`).
 
 ## Idee 04 «Benutzerdaten beim Wechsel eines Bibliotheksordners»: gemergt und auf CT 190 abgenommen (3. November 2026)
 
@@ -60,7 +324,12 @@ während der neu gestartete e2e-Shard 2 noch lief. Zuvor war er nur wegen des Ze
 - **Nachgezogen:** Der Hinweis im Dialog «Ordner entfernen» sprach noch von «binnen 30 Tagen». Er
   sagt jetzt, dass Titel über ihre Anbieter-ID zurückfinden, und verweist für einen Umzug auf
   «Pfad ändern».
-- **Offen:** Release 1.9.0 (Tag setzt Marco).
+- **Release 1.9.0 wird veröffentlicht** (Marcos Wort «Erst 1.9.0 taggen», 3. November 2026):
+  Versionsstellen auf 1.9.0 im Zweig `claude/release-1.9.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
+  `v1.9.0` setzt Marco auf den Merge-Commit. PR #79 (Scanner, wiederverwendete Inode) kommt nicht
+  mit (Marco), sondern in ein späteres Release. Release-Notes: `release-notes-1.9.0.txt` im
+  Wurzelordner (unversioniert wie 1.5.0 bis 1.8.0). Danach beginnt Konzept 13 als Vertrag 1.10.0.
 
 
 Marcos Auftrag vom 3. November 2026: «Mergen und bauen» (Idee 04, PR #74 gemergt `cbf17fb`). Zweig

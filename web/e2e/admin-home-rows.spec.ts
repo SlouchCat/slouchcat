@@ -39,7 +39,7 @@ const saveBar = (page: Page) => page.getByRole('region', { name: 'Speichern' });
 /** The status region of the save area (the column around the save bar). */
 const saveStatus = (page: Page) => saveBar(page).locator('xpath=..').getByRole('status');
 
-test('start page rows by keyboard: placing and hiding change the start page', async ({
+test('start page rows by keyboard: placing and hiding change the start page @keyboard', async ({
   page,
   owner,
 }) => {

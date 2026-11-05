@@ -135,8 +135,9 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
   page,
   owner,
 }) => {
-  // Two refreshes, each of which may wait for the server's one-a-minute limit (discover.ts).
-  test.setTimeout(240_000);
+  // Up to three polls of 60 s for the spotlight job; the refreshes wait at most the suite's 2 s
+  // limit (discover.ts refreshSpotlight).
+  test.setTimeout(120_000);
   // The spotlight row is the stage: the carousel named after it.
   const spotlight = hero(page).and(page.getByRole('region', { name: ROW_TITLES.spotlight }));
   const only = ['spotlight'];
@@ -861,7 +862,7 @@ test('arrow keys move hero → rows → header, Enter opens, back returns', asyn
 
 // Concept 08: the side navigation stands between the header and the page (DOM order), so Tab goes
 // skip link, header, the navigation's column (Start first, "Seitenleiste ausblenden" last), page.
-test('Tab: skip link, header, side navigation, hero, then the cards; no focus trap', async ({
+test('Tab: skip link, header, side navigation, hero, then the cards; no focus trap @keyboard', async ({
   page,
 }) => {
   await page.keyboard.press('Tab');

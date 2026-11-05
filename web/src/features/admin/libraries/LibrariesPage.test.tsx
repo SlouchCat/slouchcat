@@ -133,6 +133,58 @@ describe('admin libraries page (concept 12, Bib-C)', () => {
     expect(within(seriesDetail).getByText('Letzter Fehler: permission denied')).toBeVisible();
   });
 
+  it('shows the keyframe index coverage of a video library and links the backfill (concept 14, 7.2)', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /admin/libraries': () =>
+        json([
+          library(),
+          library({
+            id: 2,
+            name: 'Serien',
+            keyframeIndex: { videoFiles: 2419, indexed: 2112, pending: 307, unavailable: 0 },
+          }),
+          library({
+            id: 5,
+            name: 'Konzerte',
+            keyframeIndex: { videoFiles: 10, indexed: 7, pending: 0, unavailable: 3 },
+          }),
+          books,
+        ]),
+    });
+    renderApp('/admin/libraries');
+    const user = userEvent.setup();
+
+    const movies = await openRow(user, 'Filme');
+    expect(within(movies).getByText('Keyframe-Index vollständig')).toBeVisible();
+    expect(within(movies).queryByRole('link', { name: /Nachholen/ })).toBeNull();
+
+    // The numbers as the page formats them (Intl of the language), every part named.
+    const series = await openRow(user, 'Serien');
+    const formatted = new Intl.NumberFormat('de');
+    expect(
+      within(series).getByText(
+        `Keyframe-Index: ${formatted.format(2112)} von ${formatted.format(2419)} Videodateien · 307 ausstehend · 0 nicht möglich`,
+      ),
+    ).toBeVisible();
+    expect(
+      within(series).getByRole('link', { name: 'Nachholen auf der Seite Hintergrundjobs' }),
+    ).toHaveAttribute('href', '/admin/jobs?item=keyframes.backfill');
+
+    // Nothing waits: no link, though some files can never be indexed.
+    const concerts = await openRow(user, 'Konzerte');
+    expect(
+      within(concerts).getByText(
+        'Keyframe-Index: 7 von 10 Videodateien · 0 ausstehend · 3 nicht möglich',
+      ),
+    ).toBeVisible();
+    expect(within(concerts).queryByRole('link', { name: /Nachholen/ })).toBeNull();
+
+    // An audio library has no coverage.
+    const audio = await openRow(user, 'Hörbücher');
+    expect(within(audio).queryByText(/Keyframe-Index/)).toBeNull();
+  });
+
   it('filters by kind with counts in the tabs and keeps the tab in the address', async () => {
     mockApi({ ...signedIn, 'GET /admin/libraries': () => json([library(), books, podcasts]) });
     const { router } = renderApp('/admin/libraries?tab=nonsense');

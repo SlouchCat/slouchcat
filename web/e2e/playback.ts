@@ -42,10 +42,16 @@ export interface PlaybackData {
     tonemap?: boolean;
   };
   tracks: { audio: TrackData[]; subtitles: TrackData[] };
-  selection: { audioTrack?: number; subtitleTrack?: number; subtitleDelivery?: 'text' | 'burn' };
+  selection: {
+    audioTrack?: number;
+    subtitleTrack?: number;
+    subtitleDelivery?: 'text' | 'burn';
+    audioReason?: string;
+    subtitleReason?: string;
+  };
   subtitleUrl?: string;
   qualities: { quality: string; available: boolean; current: boolean; height?: number }[];
-  chapters: { startMs: number; endMs: number; title?: string }[];
+  chapters: { startMs: number; endMs: number; title?: string; imageUrl?: string }[];
   segments: {
     intro?: { startMs: number; endMs: number };
     outro?: { startMs: number; endMs: number };
@@ -74,8 +80,11 @@ export interface PlaybackRequestData {
   mediaFileId?: string;
   audioTrack?: number;
   subtitleTrack?: number | null;
+  subtitleOff?: boolean;
+  rememberForSeries?: boolean;
   subtitleDelivery?: string;
   quality?: string;
+  qualityCap?: string;
   positionMs?: number;
   capabilities: {
     containers?: string[];
@@ -115,11 +124,14 @@ export async function startOf(
   };
 }
 
-/** Presses ArrowDown (or ArrowUp) until `target` has the focus; fails after `max` presses. */
+/**
+ * Presses ArrowDown (or another arrow: ArrowRight walks the player's button row) until `target`
+ * has the focus; fails after `max` presses.
+ */
 export async function arrowTo(
   page: Page,
   target: Locator,
-  key: 'ArrowDown' | 'ArrowUp' = 'ArrowDown',
+  key: 'ArrowDown' | 'ArrowUp' | 'ArrowLeft' | 'ArrowRight' = 'ArrowDown',
   max = 12,
 ): Promise<void> {
   for (let presses = 0; presses <= max; presses += 1) {
@@ -190,6 +202,62 @@ export async function recordEndedReason(page: Page): Promise<() => Promise<strin
   });
   return () =>
     page.evaluate(() => (window as unknown as { endedReasonSeen: string | null }).endedReasonSeen);
+}
+
+/**
+ * Records from now on the wall-clock time (Date.now()) at which a player first shows
+ * `data-ended-reason`, so a stop is measured exactly and not to the next poll of an assertion.
+ * Returns a reader of the time (null while nothing ended).
+ */
+export async function recordEndedAt(page: Page): Promise<() => Promise<number | null>> {
+  await page.evaluate(() => {
+    const record = window as unknown as { endedAt: number | null };
+    record.endedAt = null;
+    const check = () => {
+      if (document.querySelector('[data-ended-reason]')) record.endedAt ??= Date.now();
+    };
+    new MutationObserver(check).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-ended-reason'],
+    });
+    check();
+  });
+  return () => page.evaluate(() => (window as unknown as { endedAt: number | null }).endedAt);
+}
+
+/** An answer of the player's stop watch (getPlaybackSessionState, concept 13). */
+export interface StopWatchAnswer {
+  state: 'active' | 'stopped';
+  stoppedBy?: string;
+}
+
+/**
+ * Watches the stop watch of playback `id` from now on. The answers are read in the test process
+ * (route.fetch), not from the browser: Firefox's protocol at times cannot hand out the body of a
+ * response the page has read (NS_ERROR_INVALID_CONTENT_ENCODING). `next(state)` resolves with the
+ * first answer in that state after the call. The page must block service workers, or the route
+ * does not see the requests.
+ */
+export async function watchStopAnswers(
+  page: Page,
+  id: string,
+): Promise<{ next: (state: StopWatchAnswer['state']) => Promise<StopWatchAnswer> }> {
+  let waiting: { state: StopWatchAnswer['state']; resolve: (answer: StopWatchAnswer) => void }[] =
+    [];
+  await page.route(`**/api/v1/playback/sessions/${id}/state`, async (route) => {
+    const response = await route.fetch();
+    const answer = response.ok() ? ((await response.json()) as StopWatchAnswer) : null;
+    await route.fulfill({ response });
+    if (!answer) return;
+    const matched = waiting.filter((entry) => entry.state === answer.state);
+    waiting = waiting.filter((entry) => entry.state !== answer.state);
+    for (const entry of matched) entry.resolve(answer);
+  });
+  return {
+    next: (state) => new Promise((resolve) => waiting.push({ state, resolve })),
+  };
 }
 
 /** Opens the player of `itemId` and returns the started playback; waits until it plays. */

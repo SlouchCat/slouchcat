@@ -15,7 +15,7 @@ test('a person without visible credits shows the not-found notice', async ({ pag
   await expect(page.getByText('Zu dieser Person gibt es hier keine Titel.')).toBeVisible();
 });
 
-test('Tab reaches "Zur Startseite"; Enter goes home; no focus trap', async ({ page }) => {
+test('Tab reaches "Zur Startseite"; Enter goes home; no focus trap @keyboard', async ({ page }) => {
   await page.goto('/people/abc');
   await expect(page.getByText('Person nicht gefunden')).toBeVisible();
   const home = page.getByRole('link', { name: 'Zur Startseite' });

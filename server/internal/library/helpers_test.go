@@ -16,6 +16,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
 
@@ -53,7 +54,7 @@ type env struct {
 func newEnv(t *testing.T) *env {
 	t.Helper()
 	ctx := context.Background()
-	db, err := store.Open(ctx, store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: discard})
+	db, err := storetest.Open(ctx, store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: discard})
 	if err != nil {
 		t.Fatal(err)
 	}

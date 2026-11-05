@@ -102,7 +102,7 @@ func (s *Service) UpdateLibrary(ctx context.Context, id int64, upd model.Library
 		return model.Library{}, fmt.Errorf("commit: %w", err)
 	}
 	s.log.InfoContext(ctx, "library updated", "library_id", id, "default_rating_changed", rating != lib.DefaultRating, "titles_rerated", titles)
-	return s.libraries.Get(ctx, id)
+	return s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
 }
 
 // checkRatingFloor rejects a manual rating below the default rating of the title's audio library

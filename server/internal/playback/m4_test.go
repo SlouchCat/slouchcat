@@ -15,6 +15,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
@@ -113,6 +114,7 @@ func (c *fakeConverter) count() int {
 // W-4: audio and subtitle tracks, text subtitles as WebVTT (cached per playback), bitmap and
 // requested burn-in as transcode, validation of the wanted tracks.
 func TestStartTracksAndSubtitles(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tracks := f.AddTracks(t)
 	m := f.Rated(6)
@@ -130,7 +132,8 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode != ModeDirect || info.Selection != (model.TrackSelection{AudioTrack: 1, SubtitleTrack: ft.Text, SubtitleDelivery: model.SubtitleText}) {
+	if info.Mode != ModeDirect || info.Selection != (model.TrackSelection{AudioTrack: 1, SubtitleTrack: ft.Text, SubtitleDelivery: model.SubtitleText,
+		AudioReason: trackpick.AudioFile, SubtitleReason: trackpick.SubtitleRequest}) {
 		t.Fatalf("text subtitle = %s %+v", info.Mode, info.Selection)
 	}
 	if want := "/api/v1/playback/sessions/" + info.PlaybackSessionID + "/subtitles/"; !strings.HasPrefix(info.SubtitleURL, want) ||
@@ -157,7 +160,8 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 			}
 		}
 	}
-	if len(info.Chapters) != 2 || info.Chapters[1] != (model.Chapter{StartMs: 3_600_000, EndMs: 7_200_000, Title: "Teil 2"}) {
+	// Two chapters in two hours: replacement chapters every 10 minutes (transcode.Chapters, F-6).
+	if len(info.Chapters) != 12 || info.Chapters[11] != (model.Chapter{StartMs: 6_600_000, EndMs: 7_200_000, Auto: true}) {
 		t.Errorf("chapters = %+v", info.Chapters)
 	}
 	if info.MediaFile.Bitrate != 6_000_000 || info.MediaFile.HDR != "" {
@@ -258,10 +262,27 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 		{model.PlaybackRequest{SubtitleTrack: tracks[f.Rated(0).FileID].Text}, "subtitleTrack", "unknown_track"},
 		{model.PlaybackRequest{Quality: "4k"}, "quality", "invalid_value"},
 		{model.PlaybackRequest{SubtitleDelivery: "smoke"}, "subtitleDelivery", "invalid_value"},
+		// Contract 1.11.0: a remembered cap (QualityCap) is a rung below 2160p; auto, original,
+		// 2160p and unknown names are no caps.
+		{model.PlaybackRequest{QualityCap: "2160p"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "auto"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "original"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{QualityCap: "4k"}, "qualityCap", "invalid_value"},
+		{model.PlaybackRequest{Quality: "best"}, "quality", "invalid_value"},
+		{model.PlaybackRequest{SubtitleOff: true, SubtitleTrack: ft.Text}, "subtitleOff", "not_allowed"},
 	} {
 		if _, err := s.Start(ctx, session, m.ID, tc.req); !hasField(err, tc.field, tc.code) {
 			t.Errorf("%+v: %v, want %s %s", tc.req, err, tc.field, tc.code)
 		}
+	}
+
+	// subtitleOff plays without subtitles; rememberForSeries is accepted (a film has no series).
+	info, err = s.Start(ctx, session, m.ID, model.PlaybackRequest{Capabilities: &caps, SubtitleOff: true, RememberForSeries: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Selection.SubtitleTrack != 0 || info.Selection.SubtitleDelivery != "" || info.SubtitleURL != "" {
+		t.Errorf("subtitleOff = %+v, subtitle url %q", info.Selection, info.SubtitleURL)
 	}
 
 	// Without a converter text subtitles are not available.
@@ -317,6 +338,7 @@ var zurich = time.FixedZone("CET", 3600)
 // start after the limit answers the watch-limit error; the next day starts fresh; the report
 // shows the minutes per day.
 func TestWatchLimit(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddGuest(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)}
@@ -410,6 +432,7 @@ func TestWatchLimit(t *testing.T) {
 // W-8: the profile's limits shape the output (height, bit rate), the manual rung is honoured, and
 // a profile with one stream gets the stream-limit error for a second one.
 func TestStartLimits(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)}
 	tc := newFakeTranscoder()
@@ -520,6 +543,7 @@ func TestStartLimits(t *testing.T) {
 // Plan 3.5: an exhausted budget runs an SDR source one rung lower (budget_lowered); an HDR source
 // answers transcode_busy.
 func TestStartBudgetLowered(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	tc.busyAbove = 720
@@ -554,6 +578,7 @@ func TestStartBudgetLowered(t *testing.T) {
 // are listed with profile, device, quality and mode; the administration ends one (401 for its
 // token, ffmpeg stopped, stopped_by admin) or every stream of a device.
 func TestDevicesAndStreamOverview(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	clock := &manualClock{now: time.Date(2026, 10, 20, 18, 0, 0, 0, time.UTC)}
 	tc := newFakeTranscoder()
@@ -676,6 +701,7 @@ func TestDevicesAndStreamOverview(t *testing.T) {
 
 // Every end of a playback records why (stopped_by).
 func TestStoppedBy(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddGuest(t)
 	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey))
@@ -715,6 +741,7 @@ func TestStoppedBy(t *testing.T) {
 
 // W-9: chapters, intro and outro and the next episode come with the playback.
 func TestStartSegmentsAndNextEpisode(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddSeries(t)
 	segs := f.AddSegments(t, f.Show.E1.ID)

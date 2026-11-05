@@ -52,7 +52,9 @@ test('extras are no titles of their own on the start page', async ({ page }) => 
   }
 });
 
-test('arrows reach the extras row; Enter plays an extra; back returns', async ({ page }) => {
+test('arrows reach the extras row; Enter plays an extra; back returns @keyboard', async ({
+  page,
+}) => {
   await page.keyboard.press('ArrowDown');
   for (let presses = 0; presses < 8; presses += 1) {
     if ((await focusedExtra(page)) >= 0) break;

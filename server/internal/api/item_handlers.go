@@ -144,10 +144,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		out.SeriesIndex = &idx
 	}
 	if d.Kind == "audiobook" {
-		chapters := make([]gen.Chapter, 0, len(d.Chapters))
-		for _, c := range d.Chapters {
-			chapters = append(chapters, gen.Chapter{StartMs: c.StartMs, EndMs: c.EndMs, Title: optString(c.Title)})
-		}
+		chapters := toChapters(d.Chapters)
 		out.Chapters = &chapters
 	}
 	if day, err := time.Parse(time.DateOnly, d.ReleaseDate); err == nil {
@@ -245,11 +242,16 @@ func (s *server) StartPlayback(ctx context.Context, req gen.StartPlaybackRequest
 		in.Capabilities = fromCapabilities(b.Capabilities)
 		in.AudioTrack = b.AudioTrack
 		in.SubtitleTrack = deref(b.SubtitleTrack)
+		in.SubtitleOff = deref(b.SubtitleOff)
+		in.RememberForSeries = deref(b.RememberForSeries)
 		if b.SubtitleDelivery != nil {
 			in.SubtitleDelivery = string(*b.SubtitleDelivery)
 		}
 		if b.Quality != nil {
 			in.Quality = string(*b.Quality)
+		}
+		if b.QualityCap != nil {
+			in.QualityCap = string(*b.QualityCap)
 		}
 		in.PositionMs = b.PositionMs
 	}
@@ -324,6 +326,41 @@ func (s *server) getItemImage(w http.ResponseWriter, r *http.Request) {
 	defer src.File.Close()
 	w.Header().Set("Content-Type", src.MediaType)
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
+// getChapterImage serves the image of a chapter of a film or an episode (binary endpoint, CLAUDE.md
+// rule 6, concept 13 stage 3) for the active profile. idx must be a decimal number and the query
+// parameter mediaFileId a file of the title; anything else is 404. The image of the file's current
+// probe is cached for a year when v names that probe (the URL of PlaybackInfo); with another or no
+// v the same image goes out with no-cache and its ETag, so an image cached under an older URL is
+// never taken for the frame of a new probe.
+func (s *server) getChapterImage(w http.ResponseWriter, r *http.Request) {
+	session, ok := sessionFrom(r.Context())
+	if !ok || s.opts.Playback == nil {
+		s.p.internal(w, r, errNoItemsServices)
+		return
+	}
+	raw := chi.URLParam(r, "idx")
+	idx, err := strconv.Atoi(raw)
+	if err != nil || idx < 0 || strconv.Itoa(idx) != raw {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	v := r.URL.Query().Get("v")
+	src, err := s.opts.Playback.ChapterImage(r.Context(), session.Profile, chi.URLParam(r, "id"), r.URL.Query().Get("mediaFileId"), idx, v)
+	if err != nil {
+		s.p.mapError(w, r, err)
+		return
+	}
+	defer src.File.Close()
+	w.Header().Set("Content-Type", src.MediaType)
+	w.Header().Set("ETag", src.ETag)
+	if v != "" && strconv.Quote(v) == src.ETag {
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "private, no-cache")
+	}
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 

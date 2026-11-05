@@ -18,6 +18,7 @@
     "logout": "Sign out",
     "skip": "Skip to content",
     "profiles": "Profiles",
+    "playback": "My playback",
     "switchProfile": "Switch profile, now {{name}}",
     "downloads": "Downloads",
     "search": "Search",
@@ -631,7 +632,6 @@
       "title": "Playback not possible",
       "body": "The file could not be loaded."
     },
-    "info": "Stream info",
     "switching": "Switching …",
     "streamInfo": {
       "title": "Stream info",
@@ -648,7 +648,8 @@
         "audio_codec": "Audio codec",
         "hdr": "HDR video",
         "pixel_format": "Pixel format (10-bit, 4:2:2 or 4:4:4)",
-        "keyframes_pending": "Keyframe index pending",
+        "keyframes_pending": "Keyframe index not built yet",
+        "keyframes_unavailable": "No keyframe index possible",
         "dolby_vision": "Dolby Vision (profile 5 or 7)",
         "bandwidth": "Bandwidth limit",
         "max_height": "Quality limit",
@@ -680,25 +681,39 @@
       "deliveryText": "Text (WebVTT)",
       "deliveryBurn": "Burned in"
     },
-    "versionButton": "Version: {{label}}",
     "tracks": {
-      "button": "Tracks",
       "audio": "Audio",
       "subtitles": "Subtitles",
       "off": "Off",
       "unknown": "Track {{n}}",
       "forced": "forced",
-      "external": "external"
+      "external": "external",
+      "rememberSeries": "Remember for this series",
+      "makeDefault": "Make default for this profile",
+      "isDefault": "{{language}} is the default for this profile.",
+      "madeDefault": "{{language}} is now the default for this profile.",
+      "forcedBitmap": "Forced subtitles available (burned in)"
     },
     "quality": {
-      "button": "Quality: {{label}}",
       "auto": "Automatic",
-      "autoWith": "Automatic ({{quality}})"
+      "autoWith": "Automatic ({{quality}})",
+      "autoOriginal": "Automatic · currently original",
+      "original": "Original",
+      "detail": "{{bitrate}} · about {{size}} per hour",
+      "unavailableBurn": "Subtitles are burned in",
+      "unavailableIndex": "Index not built yet",
+      "unavailableNoIndex": "No index possible",
+      "unavailableTranscode": "Plays only converted",
+      "remembered": "Remembered: {{quality}}",
+      "rememberedNote": "Titles above {{quality}} are then converted.",
+      "reset": "Reset"
     },
     "chapters": {
       "button": "Chapters",
       "untitled": "Chapter {{n}}",
-      "item": "{{title}} · {{time}}"
+      "item": "{{title}} · {{time}}",
+      "auto": "automatic",
+      "progress": "{{percent}}% watched"
     },
     "skipIntro": "Skip intro",
     "skipOutro": "Skip credits",
@@ -745,8 +760,6 @@
       "faster": "Faster",
       "minus": "−0.1",
       "plus": "+0.1",
-      "mute": "Mute",
-      "volume": "Volume",
       "sleep": {
         "button": "Sleep timer",
         "buttonActive": "Sleep timer: {{left}} left",
@@ -759,6 +772,170 @@
         "set": "Sleep timer: {{label}}",
         "cancelled": "Sleep timer off",
         "done": "Sleep timer ended"
+      }
+    },
+    "volumeControl": {
+      "mute": "Mute",
+      "slider": "Volume",
+      "boosted": "Volume {{percent}}%, boosted, may distort",
+      "percent": "{{percent}}%"
+    },
+    "option": {
+      "default": "Default",
+      "forced": "forced",
+      "sdh": "SDH",
+      "burnIn": "picture subtitle, burnt in",
+      "convert": "stream is rebuilt"
+    },
+    "subtitleStyle": {
+      "title": "Subtitle style",
+      "size": { "title": "Size", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "background": {
+        "title": "Background",
+        "none": "None",
+        "shadow": "Shadow",
+        "translucent": "Translucent",
+        "box": "Box"
+      },
+      "color": { "title": "Colour", "white": "White", "yellow": "Yellow" },
+      "position": { "title": "Position", "bottom": "Bottom", "raised": "A little higher" },
+      "offset": {
+        "title": "Offset",
+        "earlier": "0.1 s earlier",
+        "later": "0.1 s later",
+        "value": "{{seconds}} s",
+        "reset": "Reset"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "quality": "Quality",
+      "version": "Version",
+      "speed": "Speed",
+      "subtitleStyle": "Subtitle style",
+      "sound": "Sound options",
+      "nightMode": "Night mode",
+      "nightModeOn": "Night mode on",
+      "nightModeHint": "Quiet passages louder, loud ones quieter: for late evenings.",
+      "rateValue": "{{rate}}×",
+      "streamInfo": "Stream info",
+      "chapters": "Chapters",
+      "buttonWithQuality": "Settings · {{quality}}"
+    },
+    "panel": {
+      "audioButton": "Audio: {{language}}",
+      "subtitleButton": "Subtitles: {{language}}",
+      "moreLanguages": "More languages ({{count}})"
+    },
+    "chrome": {
+      "toolbar": "Playback",
+      "previousChapter": "Previous chapter",
+      "nextChapter": "Next chapter",
+      "nextEpisode": "Next episode",
+      "back10": "Back 10 seconds",
+      "forward30": "Forward 30 seconds",
+      "pictureInPicture": "Picture in picture",
+      "exitPictureInPicture": "Exit picture in picture",
+      "help": "Keyboard shortcuts",
+      "timeElapsed": "{{elapsed}} / {{total}}",
+      "timeRemaining": "−{{remaining}} · ends at {{end}}",
+      "lineChapter": "{{title}} · {{chapter}}",
+      "episodeLine": "{{code}} · {{title}}",
+      "filmLine": "{{year}} · {{genres}}",
+      "rate": "Speed {{rate}}×",
+      "muted": "Muted",
+      "previousEpisode": "Previous episode",
+      "forward10": "Forward 10 seconds",
+      "options": "Options",
+      "view": "Time and view",
+      "tapBack": "−{{seconds}} s",
+      "tapForward": "+{{seconds}} s"
+    },
+    "tabs": { "label": "More about the title", "next": "Up next", "info": "Info" },
+    "pauseView": { "label": "Paused", "paused": "Paused", "chapter": "Chapter: {{chapter}}" },
+    "slow": {
+      "label": "Slow connection",
+      "text": "Slow connection – switch to {{quality}}?",
+      "switch": "Switch to {{quality}}",
+      "dismiss": "Not now"
+    },
+    "help": {
+      "title": "Keyboard shortcuts",
+      "rows": {
+        "play": {
+          "keys": "Space, K, Enter",
+          "action": "Play or pause"
+        },
+        "seek": {
+          "keys": "← →",
+          "action": "Back or forward 10 seconds"
+        },
+        "chapter": {
+          "keys": "⇧← ⇧→",
+          "action": "Previous or next chapter"
+        },
+        "volume": {
+          "keys": "↑ ↓",
+          "action": "Louder or quieter"
+        },
+        "zones": {
+          "keys": "↑ ↓ in the bar",
+          "action": "Move between the timeline, the buttons and the tabs; ← → go from button to button, tab to tab and card to card"
+        },
+        "mute": {
+          "keys": "M",
+          "action": "Mute or unmute"
+        },
+        "jump": {
+          "keys": "0–9",
+          "action": "Jump to 0 to 90%"
+        },
+        "speed": {
+          "keys": "[ ]",
+          "action": "Slower or faster (0.5× to 2×)"
+        },
+        "tracks": {
+          "keys": "T",
+          "action": "Audio"
+        },
+        "subtitles": {
+          "keys": "U",
+          "action": "Subtitles"
+        },
+        "chapters": {
+          "keys": "C",
+          "action": "Chapters tab"
+        },
+        "quality": {
+          "keys": "Q",
+          "action": "Quality"
+        },
+        "fullscreen": {
+          "keys": "F",
+          "action": "Full screen"
+        },
+        "info": {
+          "keys": "I",
+          "action": "Stream info"
+        },
+        "skip": {
+          "keys": "S",
+          "action": "Skip intro"
+        },
+        "next": {
+          "keys": "N",
+          "action": "Next episode"
+        },
+        "help": {
+          "keys": "?",
+          "action": "This help"
+        },
+        "back": {
+          "keys": "Escape, Backspace",
+          "action": "Closes a panel, the help and the stream info (in the gear: one level up), otherwise back to the detail page",
+          "actionOfflineDownloads": "Closes a panel, the help and the tab (in the gear: one level up), otherwise back to the downloads",
+          "actionOfflineLibrary": "Closes a panel, the help and the tab (in the gear: one level up), otherwise back to the offline library"
+        }
       }
     }
   },
@@ -806,6 +983,11 @@
       "counts": "Titles: {{items}} · Files: {{files}}",
       "progress": "{{seen}} of {{total}} files",
       "finishedAt": "Last scan: {{date}}",
+      "keyframes": {
+        "summary": "Keyframe index: {{indexed}} of {{videoFiles}} video files · {{pending}} pending · {{unavailable}} not possible",
+        "complete": "Keyframe index complete",
+        "backfill": "Backfill on the background jobs page"
+      },
       "error": {
         "root_missing": "The folder is missing. Is the drive mounted? Nothing was deleted.",
         "root_empty": "The folder is empty. Nothing was deleted.",
@@ -1113,7 +1295,8 @@
           "release_date": "Release date",
           "own_rating": "Rating",
           "poster": "Poster",
-          "backdrop": "Backdrop"
+          "backdrop": "Backdrop",
+          "original_language": "Original language"
         },
         "fieldLang": "{{field}} ({{lang}})",
         "count_one": "{{count}} field",
@@ -1137,6 +1320,21 @@
         "saved": "Rating saved.",
         "unsaved": "unsaved",
         "summary": "Effective {{effective}} · Own {{own}} · Source {{source}}"
+      },
+      "language": {
+        "title": "Original language",
+        "current": "Original language",
+        "source": "Source",
+        "label": "Set original language",
+        "fromMetadata": "From metadata",
+        "unknown": "Unknown",
+        "notLooked": "Not looked up yet",
+        "manual": "By hand (locked)",
+        "saved": "Original language saved.",
+        "unsaved": "unsaved",
+        "summary": "{{language}} · Source {{source}}",
+        "hint": "A chosen language or «Unknown» is locked. «From metadata» lifts the lock, and the next match asks the sources again.",
+        "knownFailed": "The list of languages could not be loaded."
       },
       "files": {
         "title": "Files",
@@ -1320,7 +1518,8 @@
       "empty": "Nothing is playing right now.",
       "facts": {
         "device": "Device",
-        "quality": "Quality"
+        "quality": "Quality",
+        "reason": "Reason"
       },
       "unknownDevice": "Unknown device",
       "original": "Original",
@@ -2639,6 +2838,7 @@
         "general": "General",
         "download": "Downloads",
         "notify": "Notifications",
+        "index": "Keyframe index",
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
@@ -2648,12 +2848,14 @@
       "pausedBanner": {
         "title_one": "{{count}} job paused",
         "title_other": "{{count}} jobs paused",
-        "body": "Paused jobs start no runs until you resume them: {{types}}."
+        "body": "Paused jobs start no runs until you resume them: {{types}}.",
+        "playbackOverride": "Playback requests of {{name}} run anyway."
       },
       "running": {
         "title": "Running now",
         "empty": "Nothing is running right now.",
         "since": "for {{duration}}",
+        "overridesPause": "for playback, despite the pause",
         "progress": "{{done}} of {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
         "pause": "Pause run",
@@ -2705,6 +2907,7 @@
         "in": "in {{duration}}",
         "every": "every {{duration}}",
         "window": "{{start}}–{{end}}",
+        "once": "One-off: {{date}}",
         "off": "off",
         "onDemand": "on demand",
         "pausedNext": "paused",
@@ -2808,7 +3011,12 @@
         "updateHint": "On/off is the same setting as the update check in the settings.",
         "save": "Save",
         "heading": "Schedule",
-        "discard": "Discard"
+        "discard": "Discard",
+        "once": "Once on",
+        "onceHint": "Server time zone: {{zone}}. The date runs once besides the interval, also outside the time window.",
+        "clearOnce": "Remove date",
+        "onceRange": "The date must lie between now and one year from now.",
+        "onceInvalid": "Not a valid date."
       },
       "duration": {
         "seconds": "{{count}} s",
@@ -2832,8 +3040,13 @@
           "trigger": "From the scan per new file, “Probe file” in maintenance"
         },
         "probe_keyframes": {
-          "name": "Keyframe index",
-          "trigger": "From the scan per file, before a playback with priority"
+          "name": "Keyframe index (read the whole file)",
+          "trigger": "On import only without an index from the container, from the backfill, before a playback (also while paused) and for offline downloads"
+        },
+        "keyframes_backfill": {
+          "name": "Backfill keyframe index",
+          "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: reads the index from the container of every video file that has none yet",
+          "progress": "Files checked: {{done}} of {{total}}"
         },
         "library_sweep": {
           "name": "Sweep missing titles",
@@ -2842,6 +3055,14 @@
         "segments_detect": {
           "name": "Detect intro and outro",
           "trigger": "From the scan per season"
+        },
+        "chapters_images": {
+          "name": "Create chapter images",
+          "trigger": "Per file 10 minutes after a playback ended, for new files after a complete scan and after a new probe"
+        },
+        "chapters_images_backfill": {
+          "name": "Backfill chapter images",
+          "trigger": "Only by hand with «Run now», for every film and episode without chapter images"
         },
         "library_relink": {
           "name": "Relink deleted title",
@@ -2858,6 +3079,10 @@
         "metadata_vote_backfill": {
           "name": "Backfill votes",
           "trigger": "After every full scan while titles wait for a vote"
+        },
+        "metadata_original_language_backfill": {
+          "name": "Backfill original languages",
+          "trigger": "Once at the first start after the update, then «Run now»"
         },
         "image_fetch": {
           "name": "Fetch images",
@@ -3196,7 +3421,8 @@
         "saving": "Saving …",
         "metadataLanguage": "Language of descriptions",
         "metadataLanguageHint": "Titles, descriptions and genres; the interface follows the language above.",
-        "likeUi": "Like the interface"
+        "likeUi": "Like the interface",
+        "playback": "Playback"
       },
       "ratingAboveAccount": "FSK {{age}} · Account at most FSK {{max}}",
       "report": {
@@ -3440,7 +3666,6 @@
     },
     "player": {
       "failed": "The saved file cannot be played.",
-      "subtitles": "Subtitles",
       "missing": {
         "title": "Download not available",
         "body": "This download is not (or no longer) on this device, is not complete yet or is not released for this profile."
@@ -3528,6 +3753,47 @@
     }
   },
   "settings": {
+    "playback": {
+      "title": "My playback",
+      "intro": "Sound and subtitles for the profile {{name}}, on every device. What you pick by hand in the player comes first.",
+      "languages": "Languages and subtitles",
+      "audio": {
+        "legend": "Audio languages",
+        "hint": "A title plays in the first language of this list it has. If it has none of them, the original language plays.",
+        "rank": "{{position}}. audio language",
+        "more": "Another audio language",
+        "none": "No audio language at the moment: the original language plays."
+      },
+      "subtitleMode": {
+        "label": "Subtitles",
+        "off": "Off",
+        "forced": "Forced only (default)",
+        "foreign": "For a foreign language",
+        "always": "Always",
+        "offHint": "No subtitles until you switch them on in the player.",
+        "forcedHint": "Only the parts in another language, such as signs or foreign lines, in the language of the sound.",
+        "foreignHint": "Like «Forced only». When the sound is in none of your audio languages, full subtitles in the first subtitle language.",
+        "alwaysHint": "Always full subtitles in the first subtitle language; without them like «Forced only»."
+      },
+      "subtitles": {
+        "legend": "Subtitle languages",
+        "hint": "For full subtitles, the first one available first.",
+        "rank": "{{position}}. subtitle language",
+        "more": "Another subtitle language",
+        "none": "No subtitle language at the moment: only forced subtitles show."
+      },
+      "limit": "At most {{count}} languages; remove one to take another.",
+      "saved": "Saved.",
+      "series": {
+        "title": "Series memory",
+        "body": "When you pick the sound or subtitles of an episode by hand, Slouchcat remembers the language for the whole series.",
+        "reset": "Reset series memory",
+        "confirmTitle": "Reset series memory?",
+        "confirmBody": "Every series then plays by your languages and subtitles above again. This cannot be undone.",
+        "confirm": "Reset",
+        "done": "Series memory reset."
+      }
+    },
     "notifications": {
       "title": "Notification channels",
       "intro": "New episodes of your favourites, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",

@@ -95,6 +95,7 @@ func newOfflineService(t *testing.T, at time.Time) (*vistest.Fixture, *Service, 
 // caps a time after its own clock at now and stores the events as offline events of the session's
 // device, with the playback id, the download and the device's own clock time.
 func TestReportOfflineCorrectsDeviceClock(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)
 	f, s, _ := newOfflineService(t, now)
 	ctx := context.Background()
@@ -139,6 +140,7 @@ func TestReportOfflineCorrectsDeviceClock(t *testing.T) {
 // request; the played time counts at most 11 s for the first event of a playback and 110 % of the
 // time since the previous one; an event uploaded again (also within one batch) is a duplicate.
 func TestReportOfflineOrderDuplicatesAndPlayedBound(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)
 	f, s, clock := newOfflineService(t, now)
 	ctx := context.Background()
@@ -191,6 +193,7 @@ func TestReportOfflineOrderDuplicatesAndPlayedBound(t *testing.T) {
 // invalid fields are rejected and not stored; a guest uploads only for its own profiles. An empty
 // or oversized batch and a missing sentAt are validation errors.
 func TestReportOfflineRejects(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)
 	f, s, _ := newOfflineService(t, now)
 	f.AddGuest(t)
@@ -289,6 +292,7 @@ func TestReportOfflineRejects(t *testing.T) {
 // download deleted since counts like none, and a corrected time older than 30 days is booked
 // 30 days ago.
 func TestReportOfflineBindsTheDownload(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)
 	f, s, _ := newOfflineService(t, now)
 	ctx := context.Background()
@@ -348,6 +352,7 @@ func TestReportOfflineBindsTheDownload(t *testing.T) {
 // progress, online or offline; an older offline event only books watch time; "completed" stays
 // until a newer event below 90 % comes.
 func TestReportOfflineMergesByTime(t *testing.T) {
+	t.Parallel()
 	t18 := time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)
 	f, s, clock := newOfflineService(t, t18)
 	ctx := context.Background()
@@ -405,6 +410,7 @@ func TestReportOfflineMergesByTime(t *testing.T) {
 // yesterday leave today's limit alone, and 31 minutes of today end the running stream of the
 // profile (stopped_by limit). The watch-time report shows both days, including the overrun.
 func TestReportOfflineBooksWatchTime(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 20, 18, 0, 0, 0, zurich)
 	f, s, _ := newOfflineService(t, now)
 	ctx := context.Background()
@@ -453,6 +459,7 @@ func TestReportOfflineBooksWatchTime(t *testing.T) {
 // AN-18: the device takes the remaining minutes of today and the next midnight of the server's
 // time zone along; after midnight the full limit applies again. A profile without limit gets nil.
 func TestOfflineWatchTime(t *testing.T) {
+	t.Parallel()
 	now := time.Date(2026, 10, 20, 23, 59, 30, 0, zurich)
 	f, s, clock := newOfflineService(t, now)
 	ctx := context.Background()

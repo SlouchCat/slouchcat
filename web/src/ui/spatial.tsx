@@ -1,5 +1,6 @@
 import type { Direction } from '@noriginmedia/norigin-spatial-navigation';
 import { useCallback, useEffect, type ReactNode, type Ref } from 'react';
+import { focusLost } from './focusAfter';
 
 // Spatial (remote-control style) navigation for the browsing pages, built on norigin.
 //
@@ -16,6 +17,47 @@ import { useCallback, useEffect, type ReactNode, type Ref } from 'react';
 
 type Norigin = typeof import('./spatialRuntime');
 
+/** norigin's delay before it restores the focus of a group whose focused child went away. */
+const AUTO_RESTORE_DELAY_MS = 300;
+
+/** The private member of norigin's service that schedules that restore (lodash debounce). */
+interface RestoreScheduler {
+  setFocusDebounced?: { (focusKey: string): void; cancel(): void };
+  setFocus(focusKey: string): Promise<void>;
+}
+
+/**
+ * Restores a group's focus only when the focus is really lost. norigin still counts an element as
+ * focused after the DOM focus moved on to something it does not manage (a react-aria button, a
+ * tab), and when that element unmounts it focuses the group again 300 ms later -- taking the focus
+ * from wherever the reader went in between: the tab switch of «Hintergrundjobs» unmounted the
+ * schedule's select, and 300 ms later the select took the focus from «Speichern»
+ * (JobsPage.test.tsx, run 41705097285). The restore is there for a focused card that disappears
+ * and leaves the focus on the body; it now waits as before and then acts only if the focus is
+ * still nowhere (focusLost). norigin calls setFocusDebounced and its cancel (on every setFocus);
+ * should an update rename them, the app keeps norigin's own restore and spatial.test.ts fails
+ * (it checks that the loaded service carries the guard). Returns whether the guard is in place.
+ */
+export function guardAutoRestore(service: unknown): boolean {
+  const navigation = service as RestoreScheduler;
+  if (typeof navigation.setFocusDebounced?.cancel !== 'function') return false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const restore = (focusKey: string) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (focusLost()) void navigation.setFocus(focusKey);
+    }, AUTO_RESTORE_DELAY_MS);
+  };
+  restore.cancel = () => {
+    clearTimeout(timer);
+    timer = undefined;
+  };
+  restore.guarded = true;
+  navigation.setFocusDebounced = restore;
+  return true;
+}
+
 let norigin: Norigin | undefined;
 let loading: Promise<void> | undefined;
 
@@ -30,6 +72,7 @@ export function loadSpatialNavigation(): Promise<void> {
         distanceCalculationMethod: 'center',
       });
       module.pause();
+      guardAutoRestore(module.SpatialNavigation);
       norigin = module;
     },
     (error: unknown) => {

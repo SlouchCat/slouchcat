@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatCountdown, useCountdown } from '@/lib/useCountdown';
 import { Notice, VisuallyHidden } from '@/ui';
-import { AriaButton, Form, FormDialog, PinField } from '@/ui/aria';
+import { AriaButton, focusOnMount, Form, FormDialog, PinField } from '@/ui/aria';
 import { openOfflineProfile } from './offlineProfiles';
 import { lockRemainingMs, pinRequirement } from './pin';
 import type { StoredProfile } from './types';
@@ -95,7 +95,9 @@ export function OfflinePinDialog({ profile, onClose, onOpened }: OfflinePinDialo
             {t('offline.pin.unavailable.body')}
           </Notice>
           <div className={styles.formActions}>
-            <AriaButton variant="primary" onPress={onClose} autoFocus>
+            {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition
+                after Enter opened the dialog (11.13). */}
+            <AriaButton ref={focusOnMount} variant="primary" onPress={onClose}>
               {t('common.close')}
             </AriaButton>
           </div>
@@ -113,7 +115,6 @@ export function OfflinePinDialog({ profile, onClose, onOpened }: OfflinePinDialo
             digits={offlinePin ? OFFLINE_DIGITS : undefined}
             value={pin}
             onChange={setPin}
-            autoFocus
           />
           <div className={styles.formActions}>
             <AriaButton variant="ghost" onPress={onClose}>

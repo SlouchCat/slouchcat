@@ -1,0 +1,36 @@
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  min-width: 0;
+}
+
+/* A language list: its name, the hint, the places. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+.hint {
+  margin: 0;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.error {
+  margin: 0;
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
+}

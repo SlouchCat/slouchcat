@@ -11,6 +11,7 @@ import (
 // library from the server's metadata settings: NULL columns mean "like the server", JSON is
 // checked, a row goes with its library.
 func TestMigration00030CreatesLibraryMetadata(t *testing.T) {
+	t.Parallel()
 	cfg := t.TempDir()
 	replay(t, cfg+"/"+FileName, frozenState(t, "startseite.sql"))
 	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})

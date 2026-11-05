@@ -1,0 +1,24 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(6rem, 2fr) 3fr;
+  gap: var(--sc-space-3);
+  align-items: baseline;
+}
+
+.keys {
+  color: var(--sc-color-text-primary);
+  font-family: var(--sc-font-family-mono);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.action {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

@@ -1,9 +1,10 @@
 import type { JobOverview, JobRun, JobSummary, JobTypeInfo } from '@slouchcat/api-client';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { dashboardFixture } from '@/test/admin';
 import { json, mockApi, problem, renderApp, session, signedIn, type Routes } from '@/test/api';
+import { afterDialogsClosed } from '@/ui/aria';
 
 // The page "Hintergrundjobs" (concept 09; concept 12 variant C): counters, «Läuft gerade» with
 // progress and remaining time, one tab per group with a row per type that folds out into its
@@ -286,6 +287,8 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     });
     // The banner names the paused job with "Fortsetzen"; the row offers it instead of "Pausieren".
     expect(screen.getByText('1 Job pausiert')).toBeVisible();
+    // A type without overridesPauseForPlayback gets no playback note.
+    expect(screen.queryByText(/laufen trotzdem/)).toBeNull();
     const scanRow = within(groupPanel()).getByRole('row', { name: /^Bibliotheksscan/ });
     expect(within(scanRow).getByText('wird angehalten')).toBeVisible();
     const scan = await openRow(user, 'Bibliotheksscan');
@@ -380,7 +383,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows.map((row) => row.querySelector('th')?.textContent)).toEqual([
       'Titel zuordnen',
-      'Keyframe-Index',
+      'Keyframe-Index (ganze Datei lesen)',
     ]);
     expect(within(rows[0]!).getByText('5 von 5')).toBeVisible();
     // The whole error, wrapped: readable without a pointer (S-5).
@@ -399,10 +402,12 @@ describe('admin jobs page (concept 09, concept 12)', () => {
 
     // «Abbrechen» asks first.
     await user.click(
-      within(rows[1]!).getByRole('button', { name: 'Lauf 71 von Keyframe-Index abbrechen' }),
+      within(rows[1]!).getByRole('button', {
+        name: 'Lauf 71 von Keyframe-Index (ganze Datei lesen) abbrechen',
+      }),
     );
     const dialog = await screen.findByRole('alertdialog', {
-      name: 'Lauf von Keyframe-Index abbrechen?',
+      name: 'Lauf von Keyframe-Index (ganze Datei lesen) abbrechen?',
     });
     expect(within(dialog).getByText('Slouchcat versucht diesen Lauf nicht mehr.')).toBeVisible();
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
@@ -763,6 +768,208 @@ describe('admin jobs page (concept 09, concept 12)', () => {
       .map(([request]) => new URL(request.url))
       .filter((url) => url.pathname.endsWith('/admin/jobs'));
     expect(asked.map((url) => url.searchParams.get('limit'))).toEqual(['200']);
+  });
+
+  it('shows the keyframe types, the index pool and the pause override (concept 14, 7.3)', async () => {
+    const keyframes = (): JobOverview => ({
+      ...overview(),
+      pools: [...overview().pools, { pool: 'index', workers: 1 }],
+      paused: 1,
+      types: [
+        ...overview().types,
+        type({
+          type: 'probe.keyframes',
+          trigger: 'event',
+          pool: 'index',
+          runnable: false,
+          paused: true,
+          overridesPauseForPlayback: true,
+          counts: { queued: 0, planned: 0, running: 1, failed: 0 },
+          running: [
+            run({ id: 90, type: 'probe.keyframes', subject: 'Alien', overridesPause: true }),
+          ],
+        }),
+        type({
+          type: 'keyframes.backfill',
+          counts: { queued: 0, planned: 0, running: 1, failed: 0 },
+          running: [
+            run({
+              id: 91,
+              type: 'keyframes.backfill',
+              progress: { done: 120, total: 307, note: 'Movies/Alien (1979).mkv' },
+            }),
+          ],
+          schedule: {
+            everySeconds: 604_800,
+            nextRunAt: '2026-11-12T03:00:00Z',
+            enabled: false,
+            once: { local: '2026-11-07T03:30', at: '2026-11-07T02:30:00Z' },
+            timeZone: 'Europe/Zurich',
+            limits: { minEverySeconds: 300, maxEverySeconds: 604_800 },
+          },
+        }),
+      ],
+    });
+    mockApi(routes({ 'GET /admin/job-types': () => json(keyframes()) }));
+    renderApp('/admin/jobs');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+
+    const pools = screen.getByRole('list', { name: 'Arbeiter' });
+    expect(within(pools).getByText('Keyframe-Index: 1 Arbeiter · frei')).toBeVisible();
+    // The banner names the paused type and that playback requests still run.
+    expect(
+      screen.getByText(
+        /Wiedergabe-Aufträge von Keyframe-Index \(ganze Datei lesen\) laufen trotzdem\./,
+      ),
+    ).toBeVisible();
+
+    const running = screen.getByRole('table', { name: 'Läuft gerade' });
+    const probe = within(running).getByRole('row', {
+      name: /^Keyframe-Index \(ganze Datei lesen\)/,
+    });
+    expect(within(probe).getByText('für Wiedergabe, trotz Pause')).toBeVisible();
+    const backfill = within(running).getByRole('row', { name: /^Keyframe-Index nachholen/ });
+    expect(within(backfill).getByText('Dateien geprüft: 120 von 307')).toBeVisible();
+    expect(within(backfill).getByText('Movies/Alien (1979).mkv')).toBeVisible();
+    // Other types keep the plain progress.
+    expect(within(running).getByText('1240 von 3980')).toBeVisible();
+
+    // The one-off date beside the next run, from the wall time as the server names it; it fires
+    // with the schedule switched off as well.
+    const row = within(groupPanel()).getByRole('row', { name: /^Keyframe-Index nachholen/ });
+    expect(within(row).getByText(/^aus · Termin: Sa\.?, 7\. Nov\.?, 03:30$/)).toBeVisible();
+  });
+
+  it('sends a one-off date as the wall time typed, removes it with clearOnce and names a refusal', async () => {
+    let once: { local: string; at: string } | undefined;
+    let refuse = false;
+    const data = () => {
+      const result = overview();
+      result.types[0]!.schedule!.once = once;
+      return result;
+    };
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/job-types': () => json(data()),
+        'PATCH /admin/job-types/scan.library/schedule': ({ body }) => {
+          if (refuse) {
+            return problem(422, 'validation_failed', {
+              errors: [{ field: 'onceLocal', code: 'out_of_range' }],
+            });
+          }
+          const update = body as { onceLocal?: string; clearOnce?: boolean };
+          once = update.clearOnce
+            ? undefined
+            : update.onceLocal
+              ? { local: update.onceLocal, at: '2026-11-08T02:30:00Z' }
+              : once;
+          return json(data().types[0]);
+        },
+      }),
+    );
+    renderApp('/admin/jobs');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    const user = userEvent.setup();
+    await openRow(user, 'Bibliotheksscan');
+    const schedule = () =>
+      within(groupPanel()).getByRole('region', { name: 'Zeitplan von Bibliotheksscan' });
+    const field = () => within(schedule()).getByLabelText('Einmalig am');
+    expect(field()).toHaveAttribute('type', 'datetime-local');
+    expect(field()).toHaveValue('');
+    expect(field()).toHaveAccessibleDescription(/Zeitzone des Servers: Europe\/Zurich/);
+    expect(within(schedule()).queryByRole('button', { name: 'Termin entfernen' })).toBeNull();
+
+    // The native field holds the wall time; it goes out as it is, without a zone.
+    fireEvent.change(field(), { target: { value: '2026-11-08T03:30' } });
+    await user.click(within(schedule()).getByRole('button', { name: 'Speichern' }));
+    expect(await screen.findByText('Zeitplan von Bibliotheksscan gespeichert.')).toBeVisible();
+    const patches = () => calls.filter((call) => call.method === 'PATCH');
+    expect(patches()[0]?.body).toEqual({
+      enabled: true,
+      everySeconds: 21_600,
+      onceLocal: '2026-11-08T03:30',
+    });
+    const row = within(groupPanel()).getByRole('row', { name: /^Bibliotheksscan/ });
+    await waitFor(() =>
+      expect(within(row).getByText(/Termin: So\.?, 8\. Nov\.?, 03:30$/)).toBeVisible(),
+    );
+    // The save's round ends once its focus check ran (it spends the draft that was sent).
+    await act(() => afterDialogsClosed());
+
+    // «Termin entfernen» empties the field and keeps the focus there; saving sends clearOnce.
+    await user.click(within(schedule()).getByRole('button', { name: 'Termin entfernen' }));
+    expect(field()).toHaveValue('');
+    expect(field()).toHaveFocus();
+    await user.click(within(schedule()).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(patches()).toHaveLength(2));
+    expect(patches()[1]?.body).toEqual({ enabled: true, everySeconds: 21_600, clearOnce: true });
+    await waitFor(() => expect(within(row).queryByText(/Termin:/)).toBeNull());
+    await act(() => afterDialogsClosed());
+
+    // A date the server refuses names the range at the field.
+    refuse = true;
+    fireEvent.change(field(), { target: { value: '2030-01-01T03:00' } });
+    await user.click(within(schedule()).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(patches()).toHaveLength(3));
+    await waitFor(() =>
+      expect(field()).toHaveAccessibleDescription(
+        /Termin muss zwischen jetzt und einem Jahr liegen\./,
+      ),
+    );
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('opens the row the address names and shows its group (the link of the libraries page)', async () => {
+    mockApi(routes());
+    renderApp('/admin/jobs?tab=system&item=scan.library');
+    const tabs = await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    await waitFor(() =>
+      expect(within(tabs).getByRole('tab', { selected: true })).toHaveAccessibleName(
+        'Bibliothek 1 Jobart',
+      ),
+    );
+    expect(within(groupPanel()).getByRole('button', { name: 'Bibliotheksscan' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+  });
+
+  it('opens keyframes.backfill from the link of the libraries page (concept 14, 7.3)', async () => {
+    mockApi(
+      routes({
+        'GET /admin/job-types': () =>
+          json({
+            ...overview(),
+            types: [
+              ...overview().types,
+              type({
+                type: 'keyframes.backfill',
+                schedule: {
+                  everySeconds: 604_800,
+                  nextRunAt: '2026-11-12T03:00:00Z',
+                  enabled: false,
+                  timeZone: 'Europe/Zurich',
+                  limits: { minEverySeconds: 300, maxEverySeconds: 604_800 },
+                },
+              }),
+            ],
+          }),
+      }),
+    );
+    renderApp('/admin/jobs?item=keyframes.backfill');
+    const tabs = await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    await waitFor(() =>
+      expect(within(tabs).getByRole('tab', { selected: true })).toHaveAccessibleName(/^Bibliothek/),
+    );
+    await waitFor(() =>
+      expect(
+        within(groupPanel()).getByRole('button', { name: 'Keyframe-Index nachholen' }),
+      ).toHaveAttribute('aria-expanded', 'true'),
+    );
+    expect(within(groupPanel()).getByRole('button', { name: 'Bibliotheksscan' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   });
 
   it('refuses anyone but an administrator in the primary profile', async () => {

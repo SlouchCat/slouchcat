@@ -119,6 +119,7 @@ func (s *Service) applySidecars(ctx context.Context, changes []sidecarChange) (a
 				MediaFileID: c.fileID, Codec: sql.NullString{String: sc.codec, Valid: true},
 				Language: sql.NullString{String: sc.lang, Valid: sc.lang != ""}, Title: sql.NullString{String: title, Valid: title != ""},
 				RelPath: sql.NullString{String: sc.rel, Valid: true}, IsForced: boolInt(sc.forced),
+				IsHearingImpaired: boolInt(sc.hearingImpaired),
 			}); err != nil {
 				return 0, 0, fmt.Errorf("insert sidecar track: %w", err)
 			}

@@ -204,7 +204,8 @@ func (p *tmdbProvider) Movie(ctx context.Context, id string, langs []string) (Mo
 	rec := MovieRecord{TitleRecord: TitleRecord{
 		Provider: ProviderTMDB, ID: strconv.FormatInt(m.ID, 10), TMDBID: m.ID, IMDBID: m.IMDBID,
 		OriginalTitle: m.OriginalTitle, Date: m.ReleaseDate, Runtime: m.Runtime, VoteAverage: m.VoteAverage,
-		Texts: map[string]Text{}, Genres: map[string][]string{},
+		OriginalLanguage: normalizeOriginalLanguage(m.OriginalLanguage),
+		Texts:            map[string]Text{}, Genres: map[string][]string{},
 		Certifications: releaseCertifications(m.ReleaseDates),
 		Credits:        tmdbCredits(m.Credits, nil),
 		PosterPath:     m.PosterPath, BackdropPath: m.BackdropPath,
@@ -269,7 +270,8 @@ func (p *tmdbProvider) Series(ctx context.Context, id string, langs []string) (S
 	rec := SeriesRecord{TitleRecord: TitleRecord{
 		Provider: ProviderTMDB, ID: strconv.FormatInt(tv.ID, 10), TMDBID: tv.ID, TVDBID: tv.ExternalIDs.TVDBID,
 		IMDBID: tv.ExternalIDs.IMDBID, OriginalTitle: tv.OriginalName, Date: tv.FirstAirDate, Runtime: runtime,
-		VoteAverage: tv.VoteAverage, Texts: map[string]Text{}, Genres: map[string][]string{}, Certifications: certs,
+		VoteAverage: tv.VoteAverage, OriginalLanguage: normalizeOriginalLanguage(tv.OriginalLanguage),
+		Texts: map[string]Text{}, Genres: map[string][]string{}, Certifications: certs,
 		Credits:    tmdbCredits(tv.Credits, creators),
 		PosterPath: tv.PosterPath, BackdropPath: tv.BackdropPath,
 		Images: tmdbImageCandidates(tv.Images, map[string]string{"poster": tv.PosterPath, "backdrop": tv.BackdropPath}),

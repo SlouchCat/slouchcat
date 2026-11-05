@@ -16,6 +16,7 @@ import (
 // is the empty string (a WITHOUT ROWID primary key cannot hold NULL), deleting a profile takes its
 // days with it, and the index the statistics read is there.
 func TestMigration00019AddsTheCondensedDays(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M8.sql"))
 	if err != nil {
 		t.Fatal(err)

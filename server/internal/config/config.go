@@ -18,6 +18,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/notify/email"
@@ -90,6 +91,12 @@ type Config struct {
 	// HeroStart is the fixed start index of the spotlight stage for tests (concept 08, F-2; the e2e
 	// suite sets 0); -1 = a random start per page view.
 	HeroStart int
+	// TestSpotlightRefreshGap shortens the least time between two manual spotlight fetches (one a
+	// minute, refreshSpotlight 429) for the e2e suite, which would otherwise wait that minute out
+	// several times per run. The raw value of SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP, validated and
+	// honoured in development mode only (SpotlightRefreshGap); without --dev it is not even read
+	// as a duration, main only warns that it is ignored. Empty = the administration's default.
+	TestSpotlightRefreshGap string
 }
 
 // DefaultUpdateManifestURL is the release manifest the update check reads (M8, A-5).
@@ -111,6 +118,18 @@ func (c Config) ManifestURL() string {
 		return DefaultUpdateManifestURL
 	}
 	return c.UpdateManifestURL
+}
+
+// SpotlightRefreshGap returns the least time between two manual spotlight fetches that the e2e
+// suite asks for (TestSpotlightRefreshGap) in development mode, else 0, which means the
+// administration's default of one minute. A production server never runs with a shortened limit,
+// whatever its environment says.
+func (c Config) SpotlightRefreshGap() time.Duration {
+	if !c.Dev || c.TestSpotlightRefreshGap == "" {
+		return 0
+	}
+	d, _ := time.ParseDuration(c.TestSpotlightRefreshGap) // validated by Load in development mode
+	return d
 }
 
 // TranscodeDir is the work directory of HLS output: <cache>/transcode, wiped at every start.
@@ -209,7 +228,16 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 
 	cfg := Config{Listen: *listen, LogFormat: logging.Format(*logFormat), Dev: *dev,
-		FFmpeg: *ffmpeg, FFprobe: *ffprobe, Workers: *workers, HeroStart: *heroStart}
+		FFmpeg: *ffmpeg, FFprobe: *ffprobe, Workers: *workers, HeroStart: *heroStart,
+		TestSpotlightRefreshGap: strings.TrimSpace(env("TEST_SPOTLIGHT_REFRESH_GAP", ""))}
+	// A test setting: checked only where it counts. A production server with a stray value in its
+	// environment starts and ignores it (main warns), instead of refusing to start over it.
+	if cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
+		if d, err := time.ParseDuration(cfg.TestSpotlightRefreshGap); err != nil || d <= 0 {
+			return Config{}, fmt.Errorf("%sTEST_SPOTLIGHT_REFRESH_GAP: want a positive duration such as 1s, got %q",
+				EnvPrefix, cfg.TestSpotlightRefreshGap)
+		}
+	}
 	if cfg.FFmpeg == "" || cfg.FFprobe == "" {
 		return Config{}, errors.New("ffmpeg and ffprobe must not be empty")
 	}
@@ -311,6 +339,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("public_url", c.PublicURL),
 		slog.Bool("update_manifest_default", c.ManifestURL() == DefaultUpdateManifestURL),
 		slog.Int("hero_start", c.HeroStart),
+		slog.Duration("spotlight_refresh_gap", c.SpotlightRefreshGap()),
 	)
 }
 

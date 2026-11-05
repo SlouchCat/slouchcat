@@ -26,10 +26,16 @@ import {
 import { titleRatingOf } from '../shared/choices';
 import { FilesTab } from './item/FilesTab';
 import { ImagesTab, imageKindsOf } from './item/ImagesTab';
-import { FROM_METADATA, MetadataTab, ratingChoiceOf } from './item/MetadataTab';
+import {
+  FROM_METADATA,
+  MetadataTab,
+  hasOriginalLanguage,
+  languageChoiceOf,
+  ratingChoiceOf,
+} from './item/MetadataTab';
 import { TrailersTab } from './item/TrailersTab';
 import { MatchDialog } from './MatchDialog';
-import { adminItemQuery, maintenanceKey } from './queries';
+import { adminItemQuery, maintenanceKey, metadataSettingsQuery } from './queries';
 import styles from './item/AdminItem.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/admin/items/$itemId');
@@ -37,13 +43,16 @@ const route = getRouteApi('/_authed/_active/_chrome/admin/items/$itemId');
 /** The first tab; every other tab is in `?tab=` (S-14). */
 const FIRST_TAB = 'metadata';
 
+/** The draft key of the original language next to the rating's (the title id). */
+const languageKey = (id: string) => `${id}:language`;
+
 type ItemTrailer = AdminItem['trailers'][number];
 
 /**
  * Administration view of one title (TIT-1 to TIT-7, concept 12 variant C): the header with
  * «Zuordnen», «Aktualisieren» and the link to the detail page; tabs Metadaten, Bilder, Dateien
- * and Trailer bound to `?tab=`. The rating choice is a draft of the page (S-17): it survives the
- * tabs, pauses the refetch and asks before the page is left (S-13).
+ * and Trailer bound to `?tab=`. The rating and the original language choice are drafts of the
+ * page (S-17): they survive the tabs, pause the refetch and ask before the page is left (S-13).
  */
 function AdminItemView({ itemId }: { itemId: string }) {
   const { t, i18n } = useTranslation();
@@ -55,7 +64,11 @@ function AdminItemView({ itemId }: { itemId: string }) {
   // passive observer reads the same cache entry without fetching.
   const cached = useQuery({ ...adminItemQuery(itemId), enabled: false }).data;
   const originalOf = useCallback(
-    (id: string) => (cached && id === cached.id ? ratingChoiceOf(cached) : undefined),
+    (id: string) => {
+      if (!cached) return undefined;
+      if (id === cached.id) return ratingChoiceOf(cached);
+      return id === languageKey(cached.id) ? languageChoiceOf(cached) : undefined;
+    },
     [cached],
   );
   const drafts = useDrafts<string>(originalOf);
@@ -88,6 +101,9 @@ function AdminItemView({ itemId }: { itemId: string }) {
       }),
     [],
   );
+
+  // The language codes of the select, read once «Originalsprache» is open.
+  const languages = useQuery({ ...metadataSettingsQuery, enabled: expanded.has('language') });
 
   const [matching, setMatching] = useState(false);
   const [message, setMessage] = useStatusMessage();
@@ -126,6 +142,16 @@ function AdminItemView({ itemId }: { itemId: string }) {
       ),
     // The draft is spent once the reread title holds the saved choice (useDrafts).
     onSuccess: () => settle(t('admin.item.rating.saved')),
+  });
+  const saveLanguage = useMutation({
+    mutationFn: (value: string): Promise<AdminItem> =>
+      request(
+        api.PUT('/admin/items/{id}/original-language', {
+          params: { path: { id: itemId } },
+          body: { language: value === FROM_METADATA ? null : value },
+        }),
+      ),
+    onSuccess: (next) => adopt(next, t('admin.item.language.saved')),
   });
   const removeTrailer = useMutation({
     mutationFn: (trailer: ItemTrailer) =>
@@ -176,7 +202,7 @@ function AdminItemView({ itemId }: { itemId: string }) {
     {
       id: FIRST_TAB,
       label: t('admin.item.facts.metadata'),
-      // A dot while the rating has unsaved changes, so they show from every tab.
+      // A dot while the rating or the language has unsaved changes, so they show from every tab.
       ...(drafts.dirty
         ? {
             count: t('admin.item.tabs.unsavedMark'),
@@ -199,6 +225,25 @@ function AdminItemView({ itemId }: { itemId: string }) {
           }}
           ratingSaving={saveRating.isPending}
           ratingError={saveRating.error}
+          language={
+            hasOriginalLanguage(current)
+              ? {
+                  value: drafts.valueOf(languageKey(current.id)) ?? languageChoiceOf(current),
+                  dirty: drafts.isDirty(languageKey(current.id)),
+                  known: languages.data?.knownLanguages ?? [],
+                  knownError: languages.error,
+                  onChange: (value) => drafts.set(languageKey(current.id), value),
+                  onSave: () => {
+                    const key = languageKey(current.id);
+                    // Nothing changed: nothing to send (decision 18), as with the rating.
+                    if (!drafts.isDirty(key)) return;
+                    saveLanguage.mutate(drafts.valueOf(key) ?? languageChoiceOf(current));
+                  },
+                  saving: saveLanguage.isPending,
+                  error: saveLanguage.error,
+                }
+              : undefined
+          }
         />
       ),
     },

@@ -15,6 +15,7 @@ const SOURCE_FIELDS = [
   'runtime_minutes',
   'release_date',
   'own_rating',
+  'original_language',
   'poster',
   'backdrop',
 ] as const;
@@ -28,7 +29,7 @@ const isProvider = (provider: string): provider is MetadataProvider =>
 const anilistUrl = (id: number) => `https://anilist.co/anime/${id}`;
 
 /** A provider's name; `union` stands for the genres merged from every provider. */
-function providerName(t: TFunction, provider: string): string {
+export function providerName(t: TFunction, provider: string): string {
   if (provider === 'union') return t('admin.item.sources.union');
   return isProvider(provider) ? t(`library.provider.${provider}`) : provider;
 }

@@ -299,7 +299,6 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 		Tracks:            toTrackList(info.Tracks),
 		SubtitleUrl:       optString(info.SubtitleURL),
 		Qualities:         make([]gen.QualityOption, 0, len(info.Qualities)),
-		Chapters:          make([]gen.Chapter, 0, len(info.Chapters)),
 		NextEpisode:       optItemRef(profileID, info.NextEpisode),
 		WatchTime:         toWatchTime(info.WatchTime),
 	}
@@ -316,13 +315,20 @@ func toPlaybackInfo(profileID int64, info model.PlaybackInfo) gen.PlaybackInfo {
 		d := gen.TrackSelectionSubtitleDelivery(sel.SubtitleDelivery)
 		out.Selection.SubtitleTrack, out.Selection.SubtitleDelivery = &id, &d
 	}
+	if sel.AudioReason != "" {
+		r := gen.TrackSelectionAudioReason(sel.AudioReason)
+		out.Selection.AudioReason = &r
+	}
+	if sel.SubtitleReason != "" {
+		r := gen.TrackSelectionSubtitleReason(sel.SubtitleReason)
+		out.Selection.SubtitleReason = &r
+	}
 	for _, q := range info.Qualities {
 		out.Qualities = append(out.Qualities, gen.QualityOption{Quality: gen.Quality(q.Quality), Width: optPositive(q.Width),
-			Height: optPositive(q.Height), Bitrate: optPositive(q.Bitrate), Available: q.Available, Current: q.Current})
+			Height: optPositive(q.Height), Bitrate: optPositive(q.Bitrate), Codec: optString(q.Codec), Direct: &q.Direct,
+			Available: q.Available, Current: q.Current})
 	}
-	for _, c := range info.Chapters {
-		out.Chapters = append(out.Chapters, gen.Chapter{StartMs: c.StartMs, EndMs: c.EndMs, Title: optString(c.Title)})
-	}
+	out.Chapters = toChapters(info.Chapters)
 	if len(info.Parts) > 0 {
 		parts := make([]gen.PlaybackPart, 0, len(info.Parts))
 		for _, p := range info.Parts {

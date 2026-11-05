@@ -89,6 +89,36 @@ const paths = {
       <path d="M18 5.5v13" fill="none" />
     </>
   ),
+  // Video player (concept 13): picture in picture, the shortcut help.
+  pictureInPicture: (
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="2" fill="none" />
+      <rect x="12" y="12" width="6" height="4.5" rx="1" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" fill="none" />
+      <path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.6v.1" fill="none" />
+    </>
+  ),
+  // The panels of the bar: subtitles, sound and the gear (concept 13, 11.2).
+  subtitles: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" fill="none" />
+      <path d="M7 12h3M12.5 12H17M7 15.5h6.5M16 15.5h1" fill="none" />
+    </>
+  ),
+  audioTrack: <path d="M4 10.5v3M8 7.5v9M12 4.5v15M16 8v8M20 10.5v3" fill="none" />,
+  settings: (
+    <>
+      <path
+        d="M10.4 3.5h3.2l.5 2.4 1.7 1 2.3-.8 1.6 2.8-1.8 1.6v2l1.8 1.6-1.6 2.8-2.3-.8-1.7 1-.5 2.4h-3.2l-.5-2.4-1.7-1-2.3.8-1.6-2.8 1.8-1.6v-2L4.3 8.9l1.6-2.8 2.3.8 1.7-1Z"
+        fill="none"
+      />
+      <circle cx="12" cy="12" r="2.75" fill="none" />
+    </>
+  ),
   replay: <path d="M4 12a8 8 0 1 0 2.3-5.7M4 5v5h5" fill="none" />,
   forward: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 5v5h-5" fill="none" />,
   close: <path d="M6 6l12 12M18 6L6 18" fill="none" />,

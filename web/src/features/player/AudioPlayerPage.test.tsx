@@ -108,6 +108,66 @@ describe('audio player (M6)', () => {
     expect(within(region).getByRole('button', { name: 'Pause' })).toHaveFocus();
   });
 
+  it('starts a new session when the player is left and opened again before its stop went out', async () => {
+    stubMedia();
+    let started = 0;
+    const { calls } = mockApi({
+      ...routes(),
+      [`POST /items/${audioIds.book}/play`]: () => {
+        started += 1;
+        const id = `ps-a-again-${started}`;
+        return json({
+          ...audioPlayback,
+          playbackSessionId: id,
+          streamUrl: `/items/${audioIds.book}/stream?st=${id}.token`,
+        });
+      },
+    });
+    const { router, container } = await start();
+    // The way back can be quicker than the timers of the player left: they fire only after.
+    vi.useFakeTimers();
+    await act(() => router.navigate({ to: '/items/$itemId', params: { itemId: audioIds.book } }));
+    expect(container.querySelector('audio')).toBeNull();
+    await act(() => router.navigate({ to: '/play/$itemId', params: { itemId: audioIds.book } }));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    const starts = calls.filter((call) => call.method === 'POST' && call.path.endsWith('/play'));
+    expect(starts).toHaveLength(2);
+    expect(container.querySelector('audio')?.getAttribute('src')).toContain(
+      'st=ps-a-again-2.token',
+    );
+    // Ids of their own: stops of earlier tests' players may still arrive.
+    const stops = calls
+      .filter((call) => call.method === 'DELETE' && call.path.includes('ps-a-again'))
+      .map((call) => call.path);
+    expect(stops).toEqual(['/playback/sessions/ps-a-again-1']);
+  });
+
+  it('a stop by the server after Enter moves the focus to «Zurück» at once (focusOnMount)', async () => {
+    stubMedia();
+    let stopped = false;
+    mockApi({
+      ...routes(),
+      'GET /playback/sessions/*/state': () =>
+        json(stopped ? { state: 'stopped', stoppedBy: 'admin' } : { state: 'active' }),
+    });
+    const { region } = await start();
+    const user = userEvent.setup({ advanceTimers: (ms) => vi.advanceTimersByTime(ms) });
+    const pause = within(region).getByRole('button', { name: 'Pause' });
+    await waitFor(() => expect(pause).toHaveFocus());
+    // Enter pauses, Space plays again; then the administration ends the playback.
+    await user.keyboard('{Enter}');
+    expect(within(region).getByRole('button', { name: 'Abspielen' })).toHaveFocus();
+    await user.keyboard(' ');
+    expect(within(region).getByRole('button', { name: 'Pause' })).toHaveFocus();
+    stopped = true;
+    await act(() => vi.advanceTimersByTimeAsync(4100));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Die Wiedergabe wurde beendet.');
+    // No wait for a transition: the button has the focus as soon as it is there.
+    await act(() => Promise.resolve());
+    expect(within(alert).getByRole('button', { name: 'Zurück' })).toHaveFocus();
+  });
+
   it('keys: speed by [ and ], chapters by Shift+arrows, ±15 s; the speed goes up with progress', async () => {
     const media = stubMedia();
     const { calls } = mockApi(routes());

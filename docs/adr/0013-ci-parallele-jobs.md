@@ -128,3 +128,115 @@ wird.
   Runner-Minuten steigt. Für ein öffentliches Repository ist das kostenlos, für ein privates wäre
   es eine Rechnung. Und ein Shard, der flattert, flattert jetzt in einem von sechs Berichten;
   dagegen hilft der zusammengeführte Bericht des Gate-Jobs, nicht die Aufteilung selbst.
+
+## Nachtrag vom 3. November 2026: schnellere CI ohne weniger Prüfungen
+
+Gemessen in den Läufen 41705191279 und 41707865418: Das Gate brauchte rund 18 Minuten, auch für
+einen Pull Request, der nur Dokumentation ändert. Marcos Entscheide vom 3. November 2026 und ihre
+Umsetzung:
+
+### Pull Requests mit reiner Dokumentation
+
+- Ein Job **`changes`** liest die Dateien des Pull Requests (`git diff --name-only HEAD^1 HEAD`;
+  der Merge-Commit eines Pull Requests hat die Basis als ersten Elternteil, ein Checkout mit
+  `fetch-depth: 2` genügt) und fragt `.github/scripts/docs-only.sh`, ob es **nur Dokumentation**
+  ist: `docs/**`, Markdown-Dateien und Release-Notes. **Keine fremde Action**: Ein
+  `git diff`-Schritt ist kürzer als die Prüfung einer weiteren gepinnten Abhängigkeit.
+- **Ausnahmen, weil eine Prüfung sie liest:** Markdown unter `web/` und `packages/` prüft
+  `prettier --check web packages` mit, und `deploy/licenses/FFMPEG-NOTICE.md` kopiert das Image.
+  Eine Änderung dort zählt als Code. Ein leerer Diff zählt ebenfalls als Code: Was sich nicht
+  beurteilen lässt, läuft ganz.
+- Alle schweren Jobs hängen an `changes` und laufen nur, wenn es **nicht** «nur Dokumentation» ist.
+- **Das Gate wertet «skipped» nur in genau diesem Fall als grün:** `changes` war erfolgreich und
+  hat «nur Dokumentation» gemeldet. Jedes andere «skipped» bleibt rot wie bisher, und ein
+  fehlgeschlagener `changes`-Job ist selbst rot. Damit gilt die Regel «`skipped` ist rot» weiter
+  für jeden Fall, in dem ein Job übersprungen wurde, weil etwas vor ihm brach.
+- **Push auf `main` und Läufe von Hand prüfen immer alles** (`changes` antwortet dort ohne Diff
+  «nein»): `main` bleibt der Nachweis dessen, was gemergt ist. Tags lösen diesen Workflow nicht aus
+  (`release.yml`); auch dort läuft also nie ein verkürzter Lauf.
+- Restrisiko: Eine Prüfung, die künftig eine Datei unter `docs/` oder eine Markdown-Datei liest,
+  muss in `docs-only.sh` als Ausnahme eingetragen werden, sonst sähe ein Pull Request, der nur
+  diese Datei ändert, die Prüfung nicht. Der Lauf auf `main` nach dem Merge fände den Fehler
+  trotzdem.
+
+### Ein Lauf je Commit auf `main`
+
+- Die `concurrency`-Gruppe enthält auf `main` die Commit-ID (`github.sha`). Bisher teilten sich alle
+  Läufe auf `main` eine Gruppe: Ein Merge wartete auf den Lauf davor (3,75 Minuten gemessen), und
+  ein zweiter wartender Lauf **verdrängte** den ersten, der dann nie lief — der Merge von #77
+  (Run 41704343177) bekam keinen Lauf auf `main`. GitHub hält je Gruppe nur einen wartenden Lauf.
+- Pull Requests bleiben bei einer Gruppe je Branch mit `cancel-in-progress`: Ein neuer Push ersetzt
+  den Lauf des überholten Commits.
+
+### Build-Cache der Go-Tests mit `-race`
+
+- `setup-go` cacht Modul- und Build-Cache unter einem Schlüssel aus `go.sum`. Weil dieser
+  Schlüssel bei jedem Lauf trifft, speichert es nie neu («Cache hit occurred on the primary key»
+  im Post-Schritt): Der Build-Cache ist der des ersten Jobs nach einer `go.sum`-Änderung, oft einer
+  ohne `-race`, und jede Testgruppe übersetzt die mit `-race` instrumentierten Pakete neu.
+- Jede Testgruppe hat deshalb einen eigenen Cache auf `~/.cache/go-build`, Schlüssel mit Gruppe,
+  `go.sum`-Hash und `run_id`, dazu `restore-keys` als Präfix. **Gespeichert wird nur bei einem Push
+  auf `main`** (`actions/cache/save`), gelesen in jedem Lauf (`actions/cache/restore`): Jeder Branch
+  darf die Caches von `main` lesen, einen eigenen Cache aber nur er selbst; fünf Gruppen je Push
+  eines Pull Requests würden die Caches von `main` und die Playwright-Browser aus den 10 GB des
+  Repositorys verdrängen.
+- **`GOFLAGS=-count=1`** im Testschritt: Der Cache enthält auch Testergebnisse, und `go test`
+  meldete schon vorher vier Pakete als «(cached)», statt sie auszuführen (Run 41707865418). Der
+  Cache soll das Übersetzen sparen, nie einen Test.
+
+### Firefox nur, wo sich die Engines unterscheiden
+
+- Bisher lief jede Spec in beiden Browsern; Firefox brauchte 1320 der 2428 Sekunden Testzeit
+  (Run 41707865418). **Marcos Entscheid:** Firefox läuft nur noch für Wiedergabe (Video, HLS, MSE,
+  Spuren, Qualität, Kapitel, Versionen, HDR), Audio (Hörbücher, Podcasts), Offline,
+  Anmeldung/Einrichtung und für **je einen Tastaturtest je Seite** (harte Regel 8), im Titel mit
+  `@keyboard` markiert. Chromium läuft weiter alles.
+- Die Liste steht ausdrücklich in `web/playwright.config.ts` (`FIREFOX_WHOLE_SPECS`, als `grep` des
+  Projekts), mit der Zuordnung aller 73 Specs im Kommentar: 31 Dateien ganz, 43 `@keyboard`-Tests in
+  39 Dateien, zwei Dateien nur in Chromium (`admin-density`, `admin-phone`), dazu wie bisher
+  `offline-cold-start`. Firefox hat damit 122 statt 307 Tests.
+- Die bekannten Firefox-Fokusfehler bleiben abgedeckt, auch wo das einen zweiten Test einer Seite
+  heisst (Review vom 3. November 2026): `admin-jobs` (Abbruchmenü und Fokus auf das h1;
+  Fehlschläge mit der Bestätigung, die Firefox für ihre Ausblend-Animation stehen lässt),
+  `admin-library-folders` (Tab-Budget bis zum Ordnerdialog), `admin-announcements` (sofort
+  veröffentlichen: das h1 nimmt den Fokus einige Frames später, Firefox springt mit Tab nicht
+  zurück an den Anfang), `library` (Filterbereich: `:focus-visible` nach Zeigerklick) und
+  `announcements` (Fokus im Dialog der Ankündigung).
+- Restrisiko: Ein Fehler, der nur in Firefox und nur in einem Test ohne `@keyboard` auftritt,
+  fällt erst bei Marco auf. Für eine neue Seite gilt: Ihr Tastaturtest bekommt `@keyboard`, sonst
+  läuft sie nur in Chromium.
+
+### e2e-Shards nach gemessener Dauer
+
+- Playwright 1.64 teilt mit `--shard=i/n` nach **Anzahl** Tests, nicht nach Zeit; die einzige
+  Gewichtung (`PWTEST_SHARD_WEIGHTS`, nicht dokumentiert) verschiebt nur die Anteile, weiter in
+  Tests gezählt. Eine Spec mit einem 67-Sekunden-Test wiegt dort so viel wie eine mit 21 kurzen;
+  gemessen lief der längste Shard 507 s, der kürzeste 353 s, und die Shards 1–3 waren nur
+  Chromium, 4–6 nur Firefox.
+- **`web/e2e/shard-plan.mjs`** plant deshalb selbst: Es fragt `playwright test --list` nach allen
+  Tests, die die Config laufen liesse (samt Firefox-Auswahl), fasst sie wie Playwright zu Gruppen
+  zusammen (eine Spec-Datei je Projekt, nie zerschnitten), gewichtet jede mit den gemessenen
+  Sekunden aus **`web/e2e/durations.json`** und verteilt die längste Gruppe zuerst auf den Shard mit
+  der wenigsten Zeit. Jeder Shard rechnet denselben Plan und führt seinen Teil mit
+  `--test-list` aus (`task ci:e2e SHARD=i/n`). Ein Test ohne Messwert (neu, umbenannt) zählt mit
+  dem Median seines Projekts: Er wird verplant, nie vergessen.
+- **Selbsttest** `task web:e2e:shards:check`: Die Vereinigung aller Shards ist genau die Menge
+  aller Tests, geprüft am Plan und an dem, was Playwright selbst aus den geschriebenen Listen
+  macht (`--list --test-list` je Shard). Ein Listenformat, das Playwright nicht erkennt, fällt so
+  auf, statt still Tests auszulassen.
+- **Auffrischen:** `task web:e2e:durations RUNS="<id> <id>"` lädt die Blob-Berichte der Läufe, mittelt
+  je Test (`web/e2e/durations.mjs`) und zeigt den neuen Plan. Die eingecheckte Tabelle stammt aus
+  den Läufen 41705191279 und 41707865418, also von **vor** den kürzeren Wartezeiten und der
+  Firefox-Auswahl; sie überschätzt die drei Specs mit der Spotlight-Sperre. Nach den ersten
+  grünen Läufen auf `main` auffrischen.
+- **Sechs Shards** bleiben: Nach Firefox-Auswahl und kürzeren Wartezeiten sind es rund 1600 s
+  Testzeit (die alte Tabelle sagt 1830 s), also etwa 270 bis 305 s je Shard, dazu rund 90 s fester
+  Anteil (Einrichtung 70 s, Server und `globalSetup` 20 s): rund 6 Minuten je Shard statt bis zu
+  10. Sieben Shards brächten 40 s, kosten aber einen Runner mehr, und der kritische Pfad ist
+  ohnehin `server-test`.
+
+### Web-Job geteilt
+
+- Der Web-Job (8 bis 10 Minuten: Lint 1,7, Vitest 3,5, Storybook 3,6) ist zwei Jobs: **`web`**
+  (`task ci:web`: Generatoren, Drift, Linter, Vitest) und **`storybook`** (`task ci:storybook`:
+  Bildvergleich im Playwright-Image). `task ci` ruft beide auf; der Gate-Job nennt beide.

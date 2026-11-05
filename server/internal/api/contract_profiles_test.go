@@ -399,6 +399,10 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("image body differs from the stored file")
 			}
 		}},
+	// The fixture has no chapter images, so a visible title answers 404 as well (no image);
+	// TestChapterImage covers the image itself, a foreign file and the age rule.
+	"getChapterImage": {contract: "GET /items/{id}/chapters/{idx}/image", path: "/items/{id}/chapters/0/image?mediaFileId={file}",
+		perItem: true, okStatus: http.StatusNotFound},
 	"startPlayback": {contract: "POST /items/{id}/play", path: "/items/{id}/play", perItem: true, okStatus: http.StatusOK,
 		body: `{"deviceId":"contract-test","capabilities":{"video":["h264"],"audio":["aac"],"hls":"mse"}}`,
 		check: func(t *testing.T, _ *vistest.Fixture, h http.Handler, _ string, m vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -451,6 +455,11 @@ var profileRegistry = map[string]profileCall{
 		}},
 	"stopPlayback": {contract: "DELETE /playback/sessions/{id}", path: "/playback/sessions/{ps}", perItem: true,
 		okStatus: http.StatusNoContent, invisibleStatus: http.StatusNoContent, mint: "remux"},
+	// The state comes from memory: a playback minted in the store bypasses Start, so the server does
+	// not know it (404 not_found, as after a restart); TestHTTPPlaybackSessionState covers the
+	// known one.
+	"getPlaybackSessionState": {contract: "GET /playback/sessions/{id}/state", path: "/playback/sessions/{ps}/state", perItem: true,
+		okStatus: http.StatusNotFound, mint: "direct"},
 	"getPlaybackMaster": {contract: "GET /playback/sessions/{id}/master.m3u8", path: "/playback/sessions/{ps}/master.m3u8?st={st}",
 		perItem: true, okStatus: http.StatusOK, mint: "transcode", streamOnly: true,
 		check: func(t *testing.T, _ *vistest.Fixture, _ http.Handler, _ string, _ vistest.Movie, rec *httptest.ResponseRecorder) {
@@ -819,6 +828,15 @@ var profileRegistry = map[string]profileCall{
 	"setDownloadRules": {contract: "PUT /offline/rules", path: "/offline/rules",
 		body: `{"enabled":true,"nextEpisodes":true,"newPodcastEpisodes":false,"wifiOnly":true,"maxCount":2,"quality":"low"}`,
 		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	// Concept 13 (contract 1.11.0): the preferences of the active profile, every profile its own;
+	// the answers carry no title. The positive checks are in playback_prefs_api_test.go.
+	"getMyPlaybackPrefs": {contract: "GET /me/playback-prefs", path: "/me/playback-prefs",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"putMyPlaybackPrefs": {contract: "PUT /me/playback-prefs", path: "/me/playback-prefs",
+		body: `{"audioLanguages":["en","de"],"subtitleMode":"foreign","subtitleLanguages":["de"]}`,
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusOK }},
+	"resetMySeriesTracks": {contract: "DELETE /me/playback-prefs/series", path: "/me/playback-prefs/series",
+		want: func(*vistest.Fixture, model.Profile) int { return http.StatusNoContent }},
 	"reportProgress": {contract: "POST /items/{id}/progress", path: "/items/{id}/progress", perItem: true, okStatus: http.StatusOK,
 		body: fmt.Sprintf(`{"positionMs":%d,"durationMs":%d,"playedMs":10000,"seq":1,"state":"playing","clientTime":"2026-10-18T20:00:00Z"}`,
 			vistest.DurationMs/10, vistest.DurationMs),
@@ -1024,7 +1042,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	if err := scheduler.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	adm.WithJobControl(registry, scheduler, map[jobs.Pool]int{jobs.PoolGeneral: 2, jobs.PoolDownload: 1, jobs.PoolNotify: 1})
+	adm.WithJobControl(registry, scheduler, map[jobs.Pool]int{jobs.PoolGeneral: 2, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1})
 	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
 	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
 	adm.WithIntegrations(pf.integrations)
@@ -1420,7 +1438,7 @@ func TestContractChildProfiles(t *testing.T) {
 					continue
 				}
 				for _, m := range playable {
-					path := strings.ReplaceAll(call.path, "{id}", m.ID)
+					path := strings.NewReplacer("{id}", m.ID, "{file}", m.FileID).Replace(call.path)
 					if call.mint != "" {
 						var sub int64
 						if call.subtitle {

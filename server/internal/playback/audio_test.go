@@ -33,6 +33,7 @@ func audioProbe(codec string, channels int, bitrate int64, cover bool) *transcod
 }
 
 func TestDecideAudio(t *testing.T) {
+	t.Parallel()
 	mixedAAC := transcode.ConcatProbe([]transcode.Probe{*audioProbe("aac", 2, 96_000, true), *audioProbe("aac", 2, 96_000, false)})
 	file := func(container, codec string) model.MediaFile {
 		return model.MediaFile{Container: container, AudioCodec: codec}
@@ -88,20 +89,21 @@ func TestDecideAudio(t *testing.T) {
 		t.Errorf("video decision %+v", d)
 	}
 
-	opts := QualityOptions(hls(ReasonContainer, false, 128_000), 0, 0, model.PlaybackLimits{}, capsChrome, "720p")
+	opts := QualityOptions(hls(ReasonContainer, false, 128_000), source{caps: capsChrome}, false, "720p")
 	if len(opts) != 1 || opts[0] != (model.QualityOption{Quality: model.QualityAuto, Bitrate: 128_000, Available: true, Current: true}) {
 		t.Errorf("audio qualities %+v", opts)
 	}
-	target := hlsTarget(HLSRequest{Decision: hls(ReasonContainer, false, 128_000)})
+	target := hlsTarget(HLSRequest{Decision: hls(ReasonContainer, false, 128_000)}, transcode.Capabilities{})
 	if target.Mode != transcode.ModeTranscode || target.AudioBitrate != audioOnlyKbps || target.MaxBitrate != 0 || target.Quality != "" {
 		t.Errorf("audio target %+v", target)
 	}
-	if target := hlsTarget(HLSRequest{Decision: hls(ReasonBandwidth, false, 96_000)}); target.AudioBitrate != 96 {
+	if target := hlsTarget(HLSRequest{Decision: hls(ReasonBandwidth, false, 96_000)}, transcode.Capabilities{}); target.AudioBitrate != 96 {
 		t.Errorf("audio target under a bandwidth limit %+v", target)
 	}
 }
 
 func TestAudioMimeTypes(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct{ container, video, audio, want string }{
 		{"mp3", "", "mp3", "audio/mpeg"},
 		{"m4b", "", "aac", `audio/mp4; codecs="mp4a.40.2"`},
@@ -153,6 +155,7 @@ func mp3Parts(n int) []testPart {
 }
 
 func TestStartAudiobookParts(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
@@ -177,6 +180,10 @@ func TestStartAudiobookParts(t *testing.T) {
 		!slices.Equal(info.Chapters, chapters) || info.ResumePositionMs != 14500 || info.MediaFile.DurationMs != 21000 ||
 		info.Item.Progress == nil || info.Item.Progress.PlaybackRate == nil || *info.Item.Progress.PlaybackRate != 1.5 {
 		t.Errorf("info %+v", info)
+	}
+	// Concept 13 11.3: an audiobook plays the file's track without subtitles, whatever the profile.
+	if info.Selection.AudioReason != "file" || info.Selection.SubtitleReason != "off" || info.Selection.SubtitleTrack != 0 {
+		t.Errorf("selection %+v", info.Selection)
 	}
 	if len(info.Qualities) != 1 || info.Qualities[0].Quality != model.QualityAuto || info.Transcoding == nil || info.Transcoding.Reason != ReasonContainer {
 		t.Errorf("qualities %+v transcoding %+v", info.Qualities, info.Transcoding)
@@ -231,6 +238,7 @@ func TestStartAudiobookParts(t *testing.T) {
 }
 
 func TestStartSingleFileAudiobookDirect(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger(), WithTranscoder(newFakeTranscoder()))
 	ctx := context.Background()
@@ -278,6 +286,7 @@ func TestStartSingleFileAudiobookDirect(t *testing.T) {
 // TestAudioHLSWithFFmpeg starts the HLS output of a book of three MP3 parts (copies of the
 // generated fixture) with the real transcoder and reads its segments.
 func TestAudioHLSWithFFmpeg(t *testing.T) {
+	t.Parallel()
 	ffmpeg, ffprobe := lookPath("ffmpeg"), lookPath("ffprobe")
 	if ffmpeg == "" || ffprobe == "" {
 		t.Skip("ffmpeg not installed")
@@ -311,7 +320,7 @@ func TestAudioHLSWithFFmpeg(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer m.Close()
-	tc := NewManagerTranscoder(m, transcode.BackendSoftware)
+	tc := NewManagerTranscoder(m)
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
 	info, err := s.Start(ctx, browserSession(t, f, f.P6), "01J9000000000000000000BOOK", model.PlaybackRequest{Capabilities: &capsChrome})
 	if err != nil {
@@ -382,6 +391,7 @@ func copyFile(src, dst string) error {
 }
 
 func TestReportPlaybackRate(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	now := time.Date(2026, 10, 18, 20, 0, 0, 0, time.UTC)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { now = now.Add(time.Second); return now }))

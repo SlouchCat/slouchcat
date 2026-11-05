@@ -162,11 +162,19 @@ describe('offline player', () => {
     );
     expect(typeof instance.config.loader).toBe('function');
     expect(screen.getByRole('heading', { name: 'Alien' })).toBeVisible();
-    // The stored subtitle is a <track> of a blob URL, with a local menu.
+    // The stored subtitle is chosen in a local panel and plays as a <track> of a blob URL.
+    const subtitles = await screen.findByRole('button', { name: 'Untertitel: Aus' });
+    expect(container.querySelector('track')).toBeNull();
+    fireEvent.click(subtitles);
+    const panel = screen.getByRole('dialog', { name: 'Untertitel' });
+    fireEvent.click(within(panel).getByRole('option', { name: /Deutsch/ }));
     await waitFor(() =>
       expect(container.querySelector('track')).toHaveAttribute('src', 'blob:offline-test'),
     );
-    expect(screen.getByRole('button', { name: 'Untertitel' })).toBeVisible();
+    expect(screen.queryByRole('dialog', { name: 'Untertitel' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Untertitel: Deutsch' })).toBeVisible();
+    // The download's one audio track; no quality, version or stream info offline.
+    expect(screen.getByRole('button', { name: 'Ton: Deutsch' })).toBeVisible();
 
     const video = container.querySelector('video')!;
     await startPlaying(container, region);
@@ -380,6 +388,22 @@ describe('offline player', () => {
     const region = await player();
     expect(region).toHaveAttribute('data-profile-id', '1');
   });
+
+  it.each([
+    ['the offline library', '', /sonst zurück zur Offline-Bibliothek$/],
+    ['the downloads', '?as=session', /sonst zurück zu den Downloads$/],
+  ])(
+    'opened from %s, the help names it as the way back (final review)',
+    async (_from, search, back) => {
+      stubMedia();
+      mockApi(signedIn);
+      renderApp(`/offline/play/${downloadIds.alien}${search}`);
+      await player();
+      fireEvent.keyDown(window, { key: '?' });
+      const help = await screen.findByRole('dialog', { name: 'Tastenkürzel' });
+      expect(within(help).getByText(back)).toBeVisible();
+    },
+  );
 
   it('from /downloads a title the session’s profile may not see stays closed (W1)', async () => {
     stubMedia();

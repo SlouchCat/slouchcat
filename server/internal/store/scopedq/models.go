@@ -304,6 +304,7 @@ type Item struct {
 	FeedOrigin        sql.NullString
 	FilledProviders   sql.NullString
 	VoteAverage       sql.NullFloat64
+	OriginalLanguage  sql.NullString
 }
 
 type ItemFieldSource struct {
@@ -371,6 +372,7 @@ type Job struct {
 	ProgressTotal  sql.NullInt64
 	ProgressNote   sql.NullString
 	Skipped        int64
+	OverridePause  int64
 }
 
 type JobSchedule struct {
@@ -383,6 +385,7 @@ type JobSchedule struct {
 	NextRunAt    int64
 	LastFiredAt  sql.NullInt64
 	UpdatedAt    int64
+	OnceAt       sql.NullInt64
 }
 
 type JobType struct {
@@ -426,31 +429,32 @@ type LibraryRoot struct {
 }
 
 type MediaFile struct {
-	ID           string
-	ItemID       string
-	RootID       int64
-	RelPath      string
-	Dev          int64
-	Inode        int64
-	Size         int64
-	Mtime        int64
-	PartialHash  sql.NullString
-	VersionLabel sql.NullString
-	Container    string
-	VideoCodec   sql.NullString
-	AudioCodec   sql.NullString
-	Width        sql.NullInt64
-	Height       sql.NullInt64
-	DurationMs   sql.NullInt64
-	Probe        sql.NullString
-	Keyframes    []byte
-	ProbedAt     sql.NullInt64
-	KeyframesAt  sql.NullInt64
-	MissingSince sql.NullInt64
-	CreatedAt    int64
-	UpdatedAt    int64
-	ProbeError   sql.NullString
-	PartIndex    sql.NullInt64
+	ID              string
+	ItemID          string
+	RootID          int64
+	RelPath         string
+	Dev             int64
+	Inode           int64
+	Size            int64
+	Mtime           int64
+	PartialHash     sql.NullString
+	VersionLabel    sql.NullString
+	Container       string
+	VideoCodec      sql.NullString
+	AudioCodec      sql.NullString
+	Width           sql.NullInt64
+	Height          sql.NullInt64
+	DurationMs      sql.NullInt64
+	Probe           sql.NullString
+	Keyframes       []byte
+	ProbedAt        sql.NullInt64
+	KeyframesAt     sql.NullInt64
+	MissingSince    sql.NullInt64
+	CreatedAt       int64
+	UpdatedAt       int64
+	ProbeError      sql.NullString
+	PartIndex       sql.NullInt64
+	KeyframesSource sql.NullString
 }
 
 type MediaSegment struct {
@@ -537,11 +541,23 @@ type Profile struct {
 	PinSalt           sql.NullString
 	OfflinePin        sql.NullString
 	MetadataLanguage  sql.NullString
+	AudioLanguages    string
+	SubtitleMode      string
+	SubtitleLanguages string
 }
 
 type ProfileLibrary struct {
 	ProfileID int64
 	LibraryID int64
+}
+
+type ProfileSeriesTrack struct {
+	ProfileID        int64
+	SeriesID         string
+	AudioLanguage    string
+	SubtitleLanguage string
+	SubtitleOff      int64
+	UpdatedAt        int64
 }
 
 type Progress struct {
@@ -683,17 +699,18 @@ type TopPick struct {
 }
 
 type Track struct {
-	ID          int64
-	MediaFileID string
-	StreamIndex int64
-	Kind        string
-	Codec       sql.NullString
-	Language    sql.NullString
-	Title       sql.NullString
-	Source      string
-	RelPath     sql.NullString
-	IsDefault   int64
-	IsForced    int64
+	ID                int64
+	MediaFileID       string
+	StreamIndex       int64
+	Kind              string
+	Codec             sql.NullString
+	Language          sql.NullString
+	Title             sql.NullString
+	Source            string
+	RelPath           sql.NullString
+	IsDefault         int64
+	IsForced          int64
+	IsHearingImpaired int64
 }
 
 type Trailer struct {

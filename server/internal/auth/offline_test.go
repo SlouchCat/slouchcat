@@ -181,7 +181,7 @@ func TestOfflinePIN(t *testing.T) {
 		t.Errorf("remove as a non-primary profile: %v", err)
 	}
 	other := addGuestAccount(t, s, "other@example.ch", 18, true, nil)
-	foreign, err := s.write.InsertProfile(context.Background(), appq.InsertProfileParams{AccountID: other.ID, Name: "Fremd", MaxRating: 18, Language: "de", AllLibraries: 1, IsDefault: 1, Now: 1})
+	foreign, err := s.write.InsertProfile(context.Background(), appq.InsertProfileParams{AccountID: other.ID, Name: "Fremd", MaxRating: 18, Language: "de", AllLibraries: 1, IsDefault: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestOfflinePinsScoping(t *testing.T) {
 	}
 	other := addGuestAccount(t, s, "other@example.ch", 18, true, nil)
 	foreign, err := s.write.InsertProfile(context.Background(), appq.InsertProfileParams{
-		AccountID: other.ID, Name: "Fremd", MaxRating: 18, Language: "de", AllLibraries: 1, IsDefault: 1, Now: 1,
+		AccountID: other.ID, Name: "Fremd", MaxRating: 18, Language: "de", AllLibraries: 1, IsDefault: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1,
 		PinHash: sql.NullString{String: "x", Valid: true},
 	})
 	if err != nil {

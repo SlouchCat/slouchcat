@@ -18,6 +18,7 @@ import (
 // indexes and the two delete triggers. TestFrozenStatesMigrate replays it like every state; this test checks that each of
 // those is really in it and that no row carries a path.
 func TestFrozenVerwaltungStateCoversTheConcept(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "verwaltung.sql"))
 	if err != nil {
 		t.Fatal(err)

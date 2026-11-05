@@ -320,6 +320,40 @@ describe('player', () => {
     );
   });
 
+  it('starts a new session when the player is left and opened again before its stop went out', async () => {
+    stubMedia();
+    let started = 0;
+    const { calls } = mockApi({
+      ...routes(),
+      [`POST /items/${ids.alien}/play`]: () => {
+        started += 1;
+        const id = `ps-again-${started}`;
+        return json({
+          ...playback,
+          playbackSessionId: id,
+          streamUrl: `/items/${ids.alien}/stream?st=${id}.token`,
+        });
+      },
+    });
+    const { router, container } = renderApp(`/play/${ids.alien}`);
+    await waitFor(() => expect(container.querySelector('video')).not.toBeNull());
+    // The way back can be quicker than the timers of the player left (a busy device, back
+    // pressed right away): they fire only once the player is open again.
+    vi.useFakeTimers();
+    await act(() => router.navigate({ to: '/items/$itemId', params: { itemId: ids.alien } }));
+    expect(container.querySelector('video')).toBeNull();
+    await act(() => router.navigate({ to: '/play/$itemId', params: { itemId: ids.alien } }));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    const starts = calls.filter((call) => call.method === 'POST' && call.path.endsWith('/play'));
+    expect(starts).toHaveLength(2);
+    expect(container.querySelector('video')?.getAttribute('src')).toContain('st=ps-again-2.token');
+    // Ids of their own: stops of earlier tests' players may still arrive.
+    const stops = calls
+      .filter((call) => call.method === 'DELETE' && call.path.includes('ps-again'))
+      .map((call) => call.path);
+    expect(stops).toEqual(['/playback/sessions/ps-again-1']);
+  });
+
   it('starts playback once: no new session on reconnect or refocus', async () => {
     stubMedia();
     const { calls } = mockApi(routes());

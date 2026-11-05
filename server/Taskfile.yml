@@ -43,7 +43,49 @@ tasks:
       - |
         set -eu
         packages=$(scripts/testgroups.sh "{{.GROUP}}")
-        go test -race -timeout 30m $packages
+        # The whole suite under -race is a heavy run: it waits for a machine-wide slot locally
+        # (scripts/heavy-slot.sh, docs/dev/SETUP.md); CI runs it straight away.
+        #
+        # -gcflags turns checkptr off inside modernc.org only; the race detector stays on everywhere.
+        # -race enables checkptr for every package, and modernc.org/sqlite and modernc.org/libc are
+        # pure-Go C translations made of unsafe pointer arithmetic: 35 % of TestContractChildProfiles
+        # went to runtime.checkptr in a profile, and the test takes 58 s instead of 121 s without it
+        # (measured 4 November 2026). This module's own code does not import unsafe, so checkptr has
+        # nothing of ours to check. Marco's decision of 4 November 2026. CI runs this task as well
+        # (`task server:test GROUP=...`), so local and CI builds stay the same.
+        ../scripts/heavy-slot.sh go test -race -gcflags='modernc.org/...=-d=checkptr=0' -timeout 30m $packages
+
+  check:fast:
+    desc: >-
+      Quick Go check while working (`task server:check:fast`, BASE=<ref> to compare with something
+      other than origin/main): go vet and go test without the race detector, only for the packages
+      changed since the merge base with BASE (committed, staged, unstaged, new) and the packages
+      that import them directly (scripts/changedpkgs.sh). Files outside a package that tests read
+      count for the reading package (testdata/db, testdata/podcasts, testdata/webhooks,
+      api/openapi.yaml); not seen are the generated media in testdata/media (library, transcode,
+      playback, offline, metadata, cmd/slouchcat) and the web build embedded by webassets. Does
+      nothing when no Go package changed. Not a replacement for `task ci`, which still runs every
+      package with -race.
+    vars:
+      BASE: '{{.BASE | default "origin/main"}}'
+    cmds:
+      # Two steps for the same reason as in `test`: a failing script must not turn into an empty
+      # package list.
+      - |
+        set -eu
+        packages=$(scripts/changedpkgs.sh "{{.BASE}}")
+        if [ -z "$packages" ]; then
+          echo "no changed Go package since {{.BASE}}"
+          exit 0
+        fi
+        echo "$packages"
+        go vet $packages
+        go test -count=1 $packages
+
+  check:fast:selftest:
+    desc: Check scripts/changedpkgs.sh, which `check:fast` relies on, against a throwaway repository
+    cmds:
+      - scripts/changedpkgs_selftest.sh
 
   build:
     desc: Build the static server binary into bin/slouchcat

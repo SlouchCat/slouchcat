@@ -57,7 +57,9 @@ async function openIntegrations(page: Page) {
   await expect(region(page, 'Schlüssel der Anbieter')).toBeVisible();
 }
 
-test('the six blocks start open and fold by keyboard from their band', async ({ page }) => {
+test('the six blocks start open and fold by keyboard from their band @keyboard', async ({
+  page,
+}) => {
   await openIntegrations(page);
   for (const name of BLOCKS) {
     await expect(

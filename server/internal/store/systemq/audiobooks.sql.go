@@ -44,7 +44,7 @@ INSERT INTO items (id, kind, library_id, title, sort_title, year, genres, author
 VALUES (?1, 'audiobook', ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, '["local"]', 'matched', ?15,
         ?15, ?15, ?15)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language
 `
 
 type InsertAudiobookParams struct {
@@ -151,6 +151,7 @@ func (q *Queries) InsertAudiobook(ctx context.Context, arg InsertAudiobookParams
 		&i.FeedOrigin,
 		&i.FilledProviders,
 		&i.VoteAverage,
+		&i.OriginalLanguage,
 	)
 	return i, err
 }
@@ -184,7 +185,7 @@ func (q *Queries) InsertChapter(ctx context.Context, arg InsertChapterParams) er
 }
 
 const listAudiobookParts = `-- name: ListAudiobookParts :many
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source FROM media_files
 WHERE item_id = ?1 AND missing_since IS NULL
 ORDER BY COALESCE(part_index, 0), rel_path, id
 `
@@ -225,6 +226,7 @@ func (q *Queries) ListAudiobookParts(ctx context.Context, itemID string) ([]Medi
 			&i.UpdatedAt,
 			&i.ProbeError,
 			&i.PartIndex,
+			&i.KeyframesSource,
 		); err != nil {
 			return nil, err
 		}

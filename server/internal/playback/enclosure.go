@@ -19,6 +19,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
 
@@ -86,6 +87,7 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 		return model.PlaybackInfo{}, fmt.Errorf("encode capabilities: %w", err)
 	}
 	id := ulid.Make().String()
+	s.states.add(id, session.ID, now) // before the row, like Start
 	err = slot.insert(ctx, func() error {
 		return s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
 			ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
@@ -95,6 +97,7 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 		})
 	})
 	if err != nil {
+		s.states.remove(id)
 		return model.PlaybackInfo{}, fmt.Errorf("insert playback session: %w", err)
 	}
 	if limits.WatchLimitMinutes > 0 {
@@ -117,7 +120,7 @@ func (s *Service) startEnclosure(ctx context.Context, session model.Session, ite
 		PlaybackSessionID: id,
 		ResumePositionMs:  resume,
 		Tracks:            model.TrackList{Audio: []model.Track{}, Subtitles: []model.Track{}},
-		Selection:         model.TrackSelection{AudioTrack: -1},
+		Selection:         model.TrackSelection{AudioTrack: -1, AudioReason: trackpick.AudioFile, SubtitleReason: trackpick.SubtitleOff},
 		Qualities:         []model.QualityOption{},
 		Chapters:          []model.Chapter{},
 		WatchTime:         watch,

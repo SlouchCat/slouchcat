@@ -28,8 +28,11 @@ import { startUpdateServer } from './update-server.mjs';
 
 const binary = fileURLToPath(new URL('../../server/bin/slouchcat', import.meta.url));
 // The folder browser and the rule that a new library folder lies below a browsable root (idea 02,
-// E14) default to /media, which no test machine has: the suite's libraries live in testdata/media.
-const browseRoots = fileURLToPath(new URL('../../testdata/media', import.meta.url));
+// E14) default to /media, which no test machine has: the suite's libraries live in testdata/media,
+// or in the copy of it that SLOUCHCAT_E2E_MEDIA names (env.ts MEDIA_DIR, e2e/parallel.mjs).
+const browseRoots =
+  process.env.SLOUCHCAT_E2E_MEDIA?.replace(/\/+$/, '') ??
+  fileURLToPath(new URL('../../testdata/media', import.meta.url));
 const port = process.env.SLOUCHCAT_E2E_PORT ?? '8097';
 
 if (!existsSync(binary)) {
@@ -57,7 +60,10 @@ const push = await startPushServer({ port: below('PUSH', 5) });
 const telegram = await startTelegramServer({ port: below('TELEGRAM', 6) });
 const update = await startUpdateServer({ port: below('UPDATE', 7) });
 
-const logFile = fileURLToPath(new URL('../node_modules/.playwright/server.log', import.meta.url));
+// The artefact folder of env.ts ARTEFACTS (SLOUCHCAT_E2E_ARTEFACTS moves it, e2e/parallel.mjs).
+const logFile = process.env.SLOUCHCAT_E2E_ARTEFACTS
+  ? join(process.env.SLOUCHCAT_E2E_ARTEFACTS, 'server.log')
+  : fileURLToPath(new URL('../node_modules/.playwright/server.log', import.meta.url));
 mkdirSync(dirname(logFile), { recursive: true });
 // Emptied, then appended to: every write lands at the end, also next to other writers.
 writeFileSync(logFile, '');
@@ -114,6 +120,10 @@ const server = spawn(
       SLOUCHCAT_UPDATE_MANIFEST_URL: `http://127.0.0.1:${update.port}/manifest.json`,
       // The spotlight stage starts at slide 0 in the suite instead of a random one (concept 08).
       SLOUCHCAT_HERO_START: '0',
+      // One manual spotlight fetch every 2 s instead of every minute (discover.ts refreshSpotlight):
+      // the specs that refresh twice waited the minute out, up to 60 s per test and browser. The
+      // server honours it with --dev only; the full minute is checked by TestSpotlightRefresh.
+      SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP: '2s',
     },
   },
 );

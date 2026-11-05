@@ -129,21 +129,21 @@ export async function resetTraktMock(): Promise<void> {
 
 /**
  * "Jetzt abrufen" of the spotlight page (admin API): queues the spotlight fetch, the job runs in
- * the background. The server allows one manual fetch a minute (429 `too_many_requests`, the stamp
- * lives in the database); the suite shares one server across its workers, so a second refresh
- * within that minute, from this test or another, is answered 429. The helper then waits and tries
- * again until the minute is over, instead of relaxing the rule for the test.
+ * the background. The server allows one manual fetch per gap (429 `too_many_requests`, the stamp
+ * lives in the database). In production the gap is a minute; the suite's server runs with 2 s
+ * (SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP in start-server.mjs, honoured with --dev only), so the
+ * rule itself still holds here and a second refresh right after the first is answered 429. The
+ * helper then tries again until the gap is over. The full minute is the Go test
+ * TestSpotlightRefresh (server/internal/admin/spotlight_test.go).
  */
 export async function refreshSpotlight(api: APIRequestContext): Promise<void> {
-  const deadline = Date.now() + 90_000;
-  for (;;) {
-    const response = await api.post('/api/v1/admin/spotlight/refresh', { headers: CSRF });
-    if (response.status() !== 429 || Date.now() > deadline) {
-      await expectStatus(response, [202]);
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, 5_000));
-  }
+  await expect
+    .poll(
+      async () => (await api.post('/api/v1/admin/spotlight/refresh', { headers: CSRF })).status(),
+      // Against a server of your own (SLOUCHCAT_E2E_BASE_URL) the gap may be the full minute.
+      { timeout: EXTERNAL_BASE_URL ? 90_000 : 15_000, intervals: [250, 500] },
+    )
+    .toBe(202);
 }
 
 /** Row keys of the start page for the request context's profile. */

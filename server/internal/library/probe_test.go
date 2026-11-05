@@ -26,7 +26,7 @@ func testMedia(t *testing.T) string {
 
 func mediaJob(t *testing.T, typ, mediaFileID string) *jobs.Job {
 	t.Helper()
-	payload, err := json.Marshal(mediaFilePayload{mediaFileID})
+	payload, err := json.Marshal(mediaFilePayload{MediaFileID: mediaFileID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,9 +65,14 @@ func TestProbeJobsOnTestMedia(t *testing.T) {
 	               WHERE media_file_id = ? AND source = 'sidecar' ORDER BY rel_path)`, id); v != "de:ass,de:subrip,en:ass,en:subrip" {
 		t.Errorf("sidecar tracks = %q", v)
 	}
-	if n := e.jobCount(JobProbeKeyframes); n != 1 {
-		t.Errorf("keyframe jobs = %d, want 1", n)
+	// The keyframe index comes from the cues (concept 14, 2.2): no full read is queued.
+	if v := e.str(`SELECT keyframes_source FROM media_files WHERE id = ? AND keyframes IS NOT NULL AND keyframes_at IS NOT NULL`, id); v != KeyframesCues {
+		t.Errorf("keyframes_source = %q, want cues", v)
 	}
+	if n := e.jobCount(JobProbeKeyframes); n != 0 {
+		t.Errorf("keyframe jobs = %d, want 0", n)
+	}
+	cues := e.str(`SELECT hex(keyframes) FROM media_files WHERE id = ?`, id)
 	// Probing again replaces the tracks instead of adding them.
 	if err := e.svc.handleProbe(e.ctx, mediaJob(t, JobProbeFile, id)); err != nil {
 		t.Fatal(err)
@@ -76,8 +81,18 @@ func TestProbeJobsOnTestMedia(t *testing.T) {
 		t.Errorf("sidecar tracks after the second probe = %d, want 4", n)
 	}
 
+	// The full read finds the same index once the stored one is gone (probe.keyframes tries the
+	// cues first; without them it reads the whole file).
+	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE media_files SET keyframes = NULL, keyframes_at = NULL, keyframes_source = NULL WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.indexReader = noContainerIndex
 	if err := e.svc.handleKeyframes(e.ctx, mediaJob(t, JobProbeKeyframes, id)); err != nil {
 		t.Fatal(err)
+	}
+	e.svc.indexReader = nil
+	if v := e.str(`SELECT keyframes_source || '/' || (hex(keyframes) = ?) FROM media_files WHERE id = ?`, cues, id); v != "scan/1" {
+		t.Errorf("full read source/equal to the cues = %q, want scan/1", v)
 	}
 	var blob []byte
 	if err := e.db.Read.QueryRowContext(e.ctx, `SELECT keyframes FROM media_files WHERE id = ? AND keyframes_at IS NOT NULL`, id).Scan(&blob); err != nil {
@@ -185,6 +200,24 @@ func TestKeyframeEncoding(t *testing.T) {
 	}
 	if kf, err := DecodeKeyframes(nil); err != nil || kf != nil {
 		t.Errorf("empty blob = %v, %v", kf, err)
+	}
+}
+
+// Review step 9, m-7: an embedded subtitle is SDH by ffprobe's disposition or by its title.
+func TestHearingImpairedStream(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		st   transcode.Stream
+		want bool
+	}{
+		{transcode.Stream{Type: "subtitle", HearingImpaired: true}, true},
+		{transcode.Stream{Type: "subtitle", Title: "English SDH"}, true},
+		{transcode.Stream{Type: "subtitle", Title: "Forced"}, false},
+		{transcode.Stream{Type: "audio", HearingImpaired: true}, false},
+	} {
+		if got := hearingImpaired(tc.st); got != tc.want {
+			t.Errorf("hearingImpaired(%+v) = %v, want %v", tc.st, got, tc.want)
+		}
 	}
 }
 

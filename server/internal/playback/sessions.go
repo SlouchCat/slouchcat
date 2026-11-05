@@ -19,6 +19,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/trackpick"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 )
@@ -34,9 +35,6 @@ import (
 const (
 	// SessionLifetime is the sliding expiry of a playback session after its last token request.
 	SessionLifetime = 12 * time.Hour
-	// KeyframeTimeout bounds the on-demand keyframe index of Start (about 19 s for a 6.5 GB file
-	// over NFS); a longer scan falls back to transcoding while the index job runs.
-	KeyframeTimeout = 20 * time.Second
 	// touchInterval limits how often token requests write last_activity_at/expires_at.
 	touchInterval = time.Minute
 	// sweepInterval is the period of the background sweep (Run).
@@ -84,6 +82,9 @@ type HLSSession interface {
 type Transcoder interface {
 	// Backend names the encoder backend of transcodes: nvenc, qsv, vaapi or software.
 	Backend() string
+	// Capabilities describes the transcode host (backend, GPU tonemapping): Decide offers 2160p
+	// from it, and the targets of the Transcoder carry the same values.
+	Capabilities() transcode.Capabilities
 	// Start admits and starts the output; it returns model.ErrTranscodeBusy when the budget stays
 	// exhausted and ErrNoKeyframes for a remux without a keyframe index.
 	Start(ctx context.Context, req HLSRequest) (HLSSession, error)
@@ -122,7 +123,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, err
 	}
-	loc, probe, kfBlob := in.loc, in.probe, in.kf
+	loc, probe := in.loc, in.probe
 	tracks, err := s.vis.Tracks(ctx, scope, item.ID, loc.File.ID)
 	if err != nil {
 		return model.PlaybackInfo{}, err
@@ -134,6 +135,25 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	dreq, err := trackRequest(req, tracks)
 	if err != nil {
 		return model.PlaybackInfo{}, err
+	}
+	audioTitle := item.Kind == "audiobook" || item.Kind == "podcast_episode"
+	var choice trackpick.Context
+	var seriesID string
+	if !audioTitle {
+		if choice, seriesID, err = s.trackContext(ctx, scope, session.Profile, item.ID); err != nil {
+			return model.PlaybackInfo{}, err
+		}
+	}
+	// The playback a switch replaces, read before it ends: rememberForSeries keeps only what differs.
+	var replaced *appq.GetLastPlaybackTracksRow
+	if req.RememberForSeries && seriesID != "" {
+		row, err := s.read.GetLastPlaybackTracks(ctx, appq.GetLastPlaybackTracksParams{SessionID: session.ID, ItemID: item.ID})
+		switch {
+		case err == nil:
+			replaced = &row
+		case !errors.Is(err, sql.ErrNoRows):
+			return model.PlaybackInfo{}, fmt.Errorf("get last playback tracks: %w", err)
+		}
 	}
 	// Everything that can fail without side effects is read before the replaced playback ends and
 	// the output starts.
@@ -153,12 +173,22 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	defer slot.release()
 	caps := normalizeCapabilities(req.Capabilities)
 	dreq.Caps, dreq.Limits, dreq.Quality, dreq.MultiPart = caps, limits, req.Quality, in.multiPart()
+	dreq.QualityCap, dreq.Host = req.QualityCap, s.host()
 
 	file := in.file()
 	file.MimeType = MimeType(file.Container, file.VideoCodec, file.AudioCodec)
 	file.Bitrate, file.HDR = probeDetails(probe)
-	src := newSource(file, probe, limits, caps)
+	src := newSource(file, probe, limits, caps, dreq.Host)
+	audioReason, subtitleReason := chooseTracks(&dreq, req, tracks, choice, audioTitle, file, probe)
 	d := Decide(file, probe, dreq)
+	// The file's default track: what direct play without a probe and the fallback below play.
+	played := defaultAudio(probe)
+	if played < 0 {
+		played = trackpick.FileDefault(tracks.Audio)
+	}
+	if d.Mode == ModeDirect && d.AudioStream < 0 {
+		d.AudioStream = played
+	}
 	var hls *HLSRequest
 	if d.Mode != ModeDirect && in.multiPart() && (s.tc == nil || probe == nil) {
 		// One file of a book alone is not the book: without HLS (or before every part is probed)
@@ -171,10 +201,34 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		if s.tc == nil || probe == nil {
 			s.log.InfoContext(ctx, "hls unavailable, falling back to direct play", "media_file_id", file.ID,
 				"transcoder", s.tc != nil, "probed", probe != nil)
-			d = directFallback(d)
-		} else if hls, d, err = s.prepare(ctx, in, src, kfBlob, d); err != nil {
+			d = directFallback(d, played)
+		} else if hls, d, err = s.prepare(ctx, in, src, d); err != nil {
 			return model.PlaybackInfo{}, err
 		}
+	}
+	// Direct play without a probe and the fallback play the default audio track, the fallback drops a
+	// burn-in: the reasons follow what plays. Subtitles the server chose follow the language of the
+	// audio that plays, as text only (review step 9, m-2).
+	if dreq.AudioStream >= 0 && d.AudioStream != dreq.AudioStream {
+		audioReason = trackpick.AudioFile
+		if d.Mode == ModeDirect && subtitleReason != trackpick.SubtitleRequest && !audioTitle {
+			dreq.Subtitle, subtitleReason = serverSubtitle(tracks, d.AudioStream, req, choice, false)
+			d.SubtitleTrack, d.SubtitleDelivery = 0, ""
+			if dreq.Subtitle != nil && dreq.Subtitle.Text && dreq.Delivery != model.SubtitleBurn {
+				d.SubtitleTrack, d.SubtitleDelivery = dreq.Subtitle.ID, model.SubtitleText
+			}
+		}
+	}
+	if dreq.Subtitle != nil && d.SubtitleTrack == 0 {
+		subtitleReason = trackpick.SubtitleOff
+		if dreq.Subtitle.Forced {
+			subtitleReason = trackpick.SubtitleForcedBitmap
+		}
+	}
+	// forced_bitmap_available says a transcode could burn the forced track in; without a transcoder
+	// or a probe none can (review step 9, m-10).
+	if subtitleReason == trackpick.SubtitleForcedBitmap && (s.tc == nil || probe == nil) {
+		subtitleReason = trackpick.SubtitleOff
 	}
 	var resume int64
 	switch p := item.Progress; {
@@ -206,6 +260,8 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	if err != nil {
 		return model.PlaybackInfo{}, fmt.Errorf("encode capabilities: %w", err)
 	}
+	// Registered before the row exists, so a stop right after the insert finds it (state.go).
+	s.states.add(id, session.ID, now)
 	err = slot.insert(ctx, func() error {
 		return s.write.InsertPlaybackSession(ctx, appq.InsertPlaybackSessionParams{
 			ID: id, SessionID: session.ID, AccountID: session.Account.ID, ProfileID: session.Profile.ID,
@@ -219,6 +275,7 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		})
 	})
 	if err != nil {
+		s.states.remove(id)
 		s.stopOutput(id)
 		return model.PlaybackInfo{}, fmt.Errorf("insert playback session: %w", err)
 	}
@@ -236,6 +293,9 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 
 	s.recordStart(ctx, session, item)
+	if req.RememberForSeries && seriesID != "" {
+		s.rememberSeries(ctx, session.Profile.ID, seriesID, tracks, d, choice.Series, changedTracks(req, file.ID, replaced))
+	}
 
 	st := url.QueryEscape(SignToken(s.key, id, item.ID))
 	mediaKind := model.MediaKindVideo
@@ -243,7 +303,8 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		mediaKind = model.MediaKindAudio
 	}
 	if bookChapters == nil {
-		bookChapters = chapters(probe)
+		bookChapters = transcode.Chapters(probe, item.Kind, file.DurationMs)
+		s.withChapterImages(ctx, item, loc, bookChapters)
 	}
 	info := model.PlaybackInfo{
 		MediaKind:         mediaKind,
@@ -255,13 +316,14 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		PlaybackSessionID: id,
 		ResumePositionMs:  resume,
 		Tracks:            tracks,
-		Selection:         model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery},
-		Qualities:         QualityOptions(d, src.w, src.h, limits, caps, req.Quality),
-		Chapters:          bookChapters,
-		WatchTime:         watch,
-		Device:            device,
-		Segments:          segments,
-		NextEpisode:       next,
+		Selection: model.TrackSelection{AudioTrack: d.AudioStream, SubtitleTrack: d.SubtitleTrack, SubtitleDelivery: d.SubtitleDelivery,
+			AudioReason: audioReason, SubtitleReason: subtitleReason},
+		Qualities:   QualityOptions(d, src, originalAvailable(d, file, probe, dreq), req.Quality),
+		Chapters:    bookChapters,
+		WatchTime:   watch,
+		Device:      device,
+		Segments:    segments,
+		NextEpisode: next,
 	}
 	if d.SubtitleDelivery == model.SubtitleText {
 		info.SubtitleURL = fmt.Sprintf("/api/v1/playback/sessions/%s/subtitles/%d.vtt?st=%s", id, d.SubtitleTrack, st)
@@ -276,8 +338,154 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 	}
 	s.log.InfoContext(ctx, "playback started", "playback_id", id, "item_id", item.ID, "media_file_id", file.ID,
 		"mode", d.Mode, "backend", backend, "reason", d.Reason, "quality", d.Quality, "audio_track", d.AudioStream,
-		"subtitle_track", d.SubtitleTrack, "subtitle_delivery", d.SubtitleDelivery)
+		"subtitle_track", d.SubtitleTrack, "subtitle_delivery", d.SubtitleDelivery, "audio_reason", audioReason,
+		"subtitle_reason", subtitleReason)
 	return info, nil
+}
+
+// trackContext reads what the track choice needs besides the request (concept 13 11.3): the
+// profile's preferences, the original language and the series of the title through package
+// visibility, and the languages the profile remembered for that series (profile_series_tracks).
+// seriesID is empty for anything but an episode.
+func (s *Service) trackContext(ctx context.Context, scope visibility.Scope, profile model.Profile, itemID string) (trackpick.Context, string, error) {
+	tc, err := s.vis.TrackContext(ctx, scope, itemID)
+	if err != nil {
+		return trackpick.Context{}, "", err
+	}
+	c := trackpick.Context{Prefs: profile.Prefs, OriginalLanguage: tc.OriginalLanguage}
+	if tc.SeriesID == "" {
+		return c, "", nil
+	}
+	row, err := s.read.GetSeriesTracks(ctx, appq.GetSeriesTracksParams{ProfileID: profile.ID, SeriesID: tc.SeriesID})
+	switch {
+	case err == nil:
+		c.Series = trackpick.FromRow(row.AudioLanguage, row.SubtitleLanguage, row.SubtitleOff)
+	case !errors.Is(err, sql.ErrNoRows):
+		return trackpick.Context{}, "", fmt.Errorf("get series tracks: %w", err)
+	}
+	return c, tc.SeriesID, nil
+}
+
+// chooseTracks fills in the tracks the request leaves to the server (concept 13 11.3, package
+// trackpick) and returns why each plays: a missing audioTrack takes the audio rule, a missing
+// subtitleTrack without subtitleOff the subtitle rule. Audiobooks and podcast episodes play the
+// file's default track without subtitles. A forced bitmap track is chosen only when the playback
+// is transcoded without it anyway (F-11). Only subtitle tracks the requested delivery can show
+// take part.
+func chooseTracks(dreq *Request, req model.PlaybackRequest, tracks model.TrackList, c trackpick.Context, audioTitle bool,
+	file model.MediaFile, probe *transcode.Probe,
+) (audioReason, subtitleReason string) {
+	audioReason = trackpick.AudioRequest
+	switch {
+	case req.AudioTrack != nil:
+	case audioTitle:
+		audioReason = trackpick.AudioFile
+	default:
+		decodes := func(codec string) bool { return slices.Contains(dreq.Caps.Audio, codec) }
+		dreq.AudioStream, audioReason = trackpick.Audio(tracks.Audio, c, decodes)
+	}
+	switch {
+	case req.SubtitleTrack > 0 || req.SubtitleOff:
+		return audioReason, trackpick.SubtitleRequest
+	case audioTitle:
+		return audioReason, trackpick.SubtitleOff
+	}
+	sub, reason := serverSubtitle(tracks, dreq.AudioStream, req, c, false)
+	if reason == trackpick.SubtitleForcedBitmap && Decide(file, probe, *dreq).Mode == ModeTranscode {
+		sub, reason = serverSubtitle(tracks, dreq.AudioStream, req, c, true)
+	}
+	dreq.Subtitle = sub
+	return audioReason, reason
+}
+
+// serverSubtitle applies the subtitle rule (trackpick.Subtitle) to the subtitle tracks the
+// requested delivery can show, in the language of the audio track with the stream index.
+func serverSubtitle(tracks model.TrackList, audioStream int, req model.PlaybackRequest, c trackpick.Context, transcoding bool) (*model.Track, string) {
+	usable := slices.DeleteFunc(slices.Clone(tracks.Subtitles), func(t model.Track) bool { return !deliverable(t, req.SubtitleDelivery) })
+	var language string
+	if i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == audioStream }); i >= 0 {
+		language = tracks.Audio[i].Language
+	}
+	return trackpick.Subtitle(usable, language, c, transcoding)
+}
+
+// deliverable reports whether a subtitle track can be shown with the delivery the request asks
+// for: the checks trackRequest answers with not_text and not_burnable.
+func deliverable(t model.Track, delivery string) bool {
+	if delivery == model.SubtitleText && !t.Text {
+		return false
+	}
+	return (delivery != model.SubtitleBurn && t.Text) || burnable(t)
+}
+
+// changed is what a start with rememberForSeries chose by hand: the parts of the request that
+// differ from the playback it replaces.
+type changed struct{ audio, subtitle bool }
+
+// changedTracks compares the tracks a request names with the playback it replaces (the latest of
+// the browser session and title, GetLastPlaybackTracks). A switch names both tracks (the client
+// carries the running one over), so only the part that differs from the replaced playback counts
+// as chosen by hand: a sound switch does not remember the subtitles, a subtitle switch not the
+// sound (review step 9, M-1). Without a replaced playback of the same file (the first start of
+// the title in this browser session, or another version, whose stream indexes and track ids
+// cannot be compared) every part the request names counts: nothing says it was carried over.
+//
+// Limits (final review stage 2, G1-m2; the contract stays as it is): the replaced playback is the
+// latest of the browser session, not of the tab. With two tabs of one browser session on the same
+// title, a switch in one tab compares with the other tab's playback when that started later, so a
+// carried-over part may count as chosen by hand (or a chosen one not). After a session change
+// (logout and login, another device) there is no replaced playback: every part the request names
+// counts, as on the first start.
+func changedTracks(req model.PlaybackRequest, fileID string, replaced *appq.GetLastPlaybackTracksRow) changed {
+	c := changed{audio: req.AudioTrack != nil, subtitle: req.SubtitleTrack > 0 || req.SubtitleOff}
+	if replaced == nil || replaced.MediaFileID != fileID {
+		return c
+	}
+	if c.audio && replaced.AudioTrack.Valid && replaced.AudioTrack.Int64 == int64(*req.AudioTrack) {
+		c.audio = false
+	}
+	// No subtitle track in the row is "off", whether by hand or by the rule.
+	if req.SubtitleOff && !replaced.SubtitleTrack.Valid ||
+		req.SubtitleTrack > 0 && replaced.SubtitleTrack.Valid && replaced.SubtitleTrack.Int64 == req.SubtitleTrack {
+		c.subtitle = false
+	}
+	return c
+}
+
+// rememberSeries keeps the languages of a choice by hand during an episode for its series
+// (rememberForSeries, profile_series_tracks): the language of the audio track that plays when the
+// request chose the audio, the subtitle language or "off" when it chose the subtitles (changed);
+// the other part keeps what was remembered before. A track without language stores an empty
+// language, which counts as none. A failed write does not fail the playback.
+func (s *Service) rememberSeries(ctx context.Context, profileID int64, seriesID string, tracks model.TrackList, d Decision,
+	before *trackpick.Remembered, chosen changed,
+) {
+	if !chosen.audio && !chosen.subtitle {
+		return
+	}
+	r := trackpick.Remembered{}
+	if before != nil {
+		r = *before
+	}
+	if chosen.audio {
+		r.AudioLanguage = ""
+		if i := slices.IndexFunc(tracks.Audio, func(t model.Track) bool { return t.Index == d.AudioStream }); i >= 0 {
+			r.AudioLanguage = trackpick.Normalize(tracks.Audio[i].Language)
+		}
+	}
+	if chosen.subtitle {
+		r.SubtitleLanguage, r.SubtitleOff = "", d.SubtitleTrack == 0
+		if i := slices.IndexFunc(tracks.Subtitles, func(t model.Track) bool { return t.ID == d.SubtitleTrack }); i >= 0 {
+			r.SubtitleLanguage = trackpick.Normalize(tracks.Subtitles[i].Language)
+		}
+	}
+	err := s.write.UpsertSeriesTracks(context.WithoutCancel(ctx), appq.UpsertSeriesTracksParams{
+		ProfileID: profileID, SeriesID: seriesID, AudioLanguage: r.AudioLanguage, SubtitleLanguage: r.SubtitleLanguage,
+		SubtitleOff: boolInt(r.SubtitleOff), Now: s.now().UnixMilli(),
+	})
+	if err != nil {
+		s.log.WarnContext(ctx, "remember series tracks", "series_id", seriesID, "err", err)
+	}
 }
 
 // validateRequest checks the fields of a start request that need no lookup.
@@ -286,8 +494,17 @@ func validateRequest(req model.PlaybackRequest) error {
 	if len(req.DeviceID) > maxClientIDLength {
 		verr = verr.Add("deviceId", "too_long")
 	}
+	// auto, original and every rung of the ladder (2160p included); an original or 2160p that the
+	// file or the host cannot play runs as auto or 1080p (Decide), not as an error.
 	if !validQuality(req.Quality) {
 		verr = verr.Add("quality", "invalid_value")
+	}
+	// A remembered cap (V-17) is a rung below 2160p (contract QualityCap).
+	if !validQualityCap(req.QualityCap) {
+		verr = verr.Add("qualityCap", "invalid_value")
+	}
+	if req.SubtitleOff && req.SubtitleTrack != 0 {
+		verr = verr.Add("subtitleOff", "not_allowed")
 	}
 	switch req.SubtitleDelivery {
 	case "", model.SubtitleAuto, model.SubtitleText, model.SubtitleBurn:
@@ -351,9 +568,10 @@ func burnable(t model.Track) bool {
 }
 
 // directFallback is the decision when HLS is not possible (no transcoder, file not probed): direct
-// play of the default audio track; a text subtitle stays, a burn-in is dropped.
-func directFallback(d Decision) Decision {
-	out := Decision{Mode: ModeDirect, AudioStream: -1, BurnStream: -1, Width: d.Width, Height: d.Height}
+// play of the default audio track, whose stream index defAudio reports what plays (-1 without
+// audio); a text subtitle stays, a burn-in is dropped.
+func directFallback(d Decision, defAudio int) Decision {
+	out := Decision{Mode: ModeDirect, AudioStream: defAudio, BurnStream: -1, Width: d.Width, Height: d.Height}
 	if d.SubtitleDelivery == model.SubtitleText {
 		out.SubtitleTrack, out.SubtitleDelivery = d.SubtitleTrack, d.SubtitleDelivery
 	}
@@ -363,41 +581,51 @@ func directFallback(d Decision) Decision {
 // source is what the fallbacks after Decide need about the file and the client: a remux whose
 // keyframe index is missing and a transcode the budget lowers are decided again from it.
 type source struct {
-	file   model.MediaFile
-	probe  *transcode.Probe
-	w, h   int
-	limits model.PlaybackLimits
-	caps   model.PlaybackCapabilities
+	file    model.MediaFile
+	probe   *transcode.Probe
+	w, h    int
+	bitrate int // bit rate of the file in bit/s (file, else probe), 0 unknown
+	limits  model.PlaybackLimits
+	caps    model.PlaybackCapabilities
+	uhd     bool // the 2160p rung is allowed (uhdAllowed on the transcode host)
 }
 
-func newSource(file model.MediaFile, probe *transcode.Probe, limits model.PlaybackLimits, caps model.PlaybackCapabilities) source {
-	src := source{file: file, probe: probe, w: file.Width, h: file.Height, limits: limits, caps: caps}
-	if v := mainVideo(probe); v != nil && v.Height > 0 {
+func newSource(file model.MediaFile, probe *transcode.Probe, limits model.PlaybackLimits, caps model.PlaybackCapabilities,
+	host transcode.Capabilities,
+) source {
+	src := source{file: file, probe: probe, w: file.Width, h: file.Height, bitrate: int(file.Bitrate), limits: limits, caps: caps}
+	v := mainVideo(probe)
+	if v != nil && v.Height > 0 {
 		src.w, src.h = v.Width, v.Height
 	}
+	if src.bitrate == 0 && probe != nil {
+		src.bitrate = int(probe.Format.BitRate)
+	}
+	src.uhd = uhdAllowed(host, v, limits, caps)
 	return src
 }
 
 // transcode turns d into a transcode on its rung (a transcode) or on the highest rung the source
-// and the limits allow (a remux), tonemapped for HDR sources; AAC audio stays copied.
+// and the limits allow up to 1080p (a remux, also of original: it then plays as auto, concept 13
+// 11.5 (a)), tonemapped for HDR sources; AAC audio stays copied.
 func (src source) transcode(d Decision, reason string) Decision {
 	audio := strings.ToLower(src.file.AudioCodec)
 	if a := audioStream(src.probe, d.AudioStream); a != nil {
 		audio = strings.ToLower(a.Codec)
 	}
-	from := sourceTop(src.h)
+	from := max(sourceTop(src.h), autoTop)
 	if i := rungIndex(d.Quality); i >= 0 {
 		from = i
 	}
 	audioCopy := audio == "aac" && slices.Contains(src.caps.Audio, audio)
-	return transcodeOn(d, pickRung(from, src.limits, deviceCap(src.caps)), reason, isHDR(mainVideo(src.probe)), audioCopy, src.w, src.h, src.limits)
+	return transcodeOn(d, pickRung(from, src.limits, heightCap(src.caps, src.uhd)), reason, isHDR(mainVideo(src.probe)), audioCopy, src.w, src.h, src.limits)
 }
 
 // startHLS starts the output of req. A remux the transcoder rejects for a missing keyframe index
 // (a safety net behind prepare) is transcoded instead and the index job is queued at top priority.
-// An exhausted budget lowers an SDR transcode above 720p once to the 720p rung when that costs
-// less budget (plan 3.5, budget_lowered); HDR and 4K sources and lower rungs answer
-// model.ErrTranscodeBusy at once. It returns the output
+// An exhausted budget lowers a transcode once (lowered: 2160p to 1080p, an SDR 1080p to 720p) when
+// that costs less budget (plan 3.5, budget_lowered, cost on the transcode host); other HDR and
+// 4K transcodes and lower rungs answer model.ErrTranscodeBusy at once. It returns the output
 // and the decision that runs.
 func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HLSSession, Decision, error) {
 	hs, err := s.tc.Start(ctx, *req)
@@ -408,7 +636,7 @@ func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HL
 		hs, err = s.tc.Start(ctx, *req)
 	}
 	if errors.Is(err, model.ErrTranscodeBusy) {
-		if low, ok := lowered(req.Decision, src.w, src.h, src.limits); ok && cheaper(*req, low) {
+		if low, ok := lowered(req.Decision, src.w, src.h, src.limits); ok && cheaper(*req, low, s.host()) {
 			s.log.InfoContext(ctx, "transcode budget exhausted, trying one rung lower", "playback_id", req.ID,
 				"from", req.Decision.Quality, "to", low.Quality)
 			req.Decision = low
@@ -419,29 +647,40 @@ func (s *Service) startHLS(ctx context.Context, req *HLSRequest, src source) (HL
 }
 
 // cheaper reports whether the decision low costs less transcode budget than the decision of req
-// (transcode.Cost): a 4K source costs the same on every rung, so lowering it only waits again.
-func cheaper(req HLSRequest, low Decision) bool {
+// (transcode.Cost on the transcode host): a 4K source costs the same on every rung up to 1080p,
+// so lowering it only waits again; 2160p (5) to 1080p saves.
+func cheaper(req HLSRequest, low Decision, host transcode.Capabilities) bool {
 	lowReq := req
 	lowReq.Decision = low
-	return transcode.Cost(hlsSource(lowReq), hlsTarget(lowReq)) < transcode.Cost(hlsSource(req), hlsTarget(req))
+	return transcode.Cost(hlsSource(lowReq), hlsTarget(lowReq, host)) < transcode.Cost(hlsSource(req), hlsTarget(req, host))
 }
 
-// storedProbe reads the stored probe and keyframe blob of a media file; probe is nil when the file
-// is not probed yet or the JSON is unreadable.
-func (s *Service) storedProbe(ctx context.Context, scope visibility.Scope, loc visibility.MediaFileLocation) (*transcode.Probe, []byte, error) {
+// keyframeIndex is the stored keyframe index of a media file: the encoded blob, its source
+// (media_files.keyframes_source: empty while there is none yet, library.KeyframesNone when it is
+// impossible) and when it was stored (Unix ms, 0 without).
+type keyframeIndex struct {
+	blob   []byte
+	source string
+	at     int64
+}
+
+// storedProbe reads the stored probe and keyframe index of a media file; probe is nil when the
+// file is not probed yet or the JSON is unreadable.
+func (s *Service) storedProbe(ctx context.Context, scope visibility.Scope, loc visibility.MediaFileLocation) (*transcode.Probe, keyframeIndex, error) {
 	pf, err := s.vis.MediaFileProbe(ctx, scope, loc.ItemID, loc.File.ID)
 	if err != nil {
-		return nil, nil, err
+		return nil, keyframeIndex{}, err
 	}
+	kf := keyframeIndex{blob: pf.Keyframes, source: pf.KeyframesSource, at: pf.KeyframesAt}
 	if pf.Probe == "" {
-		return nil, pf.Keyframes, nil
+		return nil, kf, nil
 	}
 	var p transcode.Probe
 	if err := json.Unmarshal([]byte(pf.Probe), &p); err != nil {
 		s.log.WarnContext(ctx, "stored probe unreadable", "media_file_id", loc.File.ID, "err", err)
-		return nil, pf.Keyframes, nil
+		return nil, kf, nil
 	}
-	return &p, pf.Keyframes, nil
+	return &p, kf, nil
 }
 
 // probeDetails returns the container bit rate and the HDR format of the main video stream.
@@ -454,18 +693,6 @@ func probeDetails(p *transcode.Probe) (int64, string) {
 		hdr = v.HDRFormat()
 	}
 	return p.Format.BitRate, hdr
-}
-
-// chapters maps the chapter marks of the probe.
-func chapters(p *transcode.Probe) []model.Chapter {
-	out := []model.Chapter{}
-	if p == nil {
-		return out
-	}
-	for _, c := range p.Chapters {
-		out = append(out, model.Chapter{StartMs: c.Start.Milliseconds(), EndMs: c.End.Milliseconds(), Title: c.Title})
-	}
-	return out
 }
 
 // sourcePath resolves the absolute path of a media file through package paths.
@@ -488,7 +715,7 @@ func rootPath(rootDir, rel, what string) (string, error) {
 
 // prepare resolves the source (and a sidecar subtitle to burn in) and, for a remux, the keyframe
 // index of an HLS request. A remux without index is transcoded (ensureKeyframes).
-func (s *Service) prepare(ctx context.Context, in input, src source, kfBlob []byte, d Decision) (*HLSRequest, Decision, error) {
+func (s *Service) prepare(ctx context.Context, in input, src source, d Decision) (*HLSRequest, Decision, error) {
 	loc := in.loc
 	abs, err := sourcePath(loc)
 	if err != nil {
@@ -510,48 +737,40 @@ func (s *Service) prepare(ctx context.Context, in input, src source, kfBlob []by
 		}
 	}
 	if d.Mode == ModeRemux {
-		if req.Keyframes = s.ensureKeyframes(ctx, loc.File.ID, abs, kfBlob); req.Keyframes == nil {
-			req.Decision = src.transcode(d, ReasonKeyframesPending)
+		var reason string
+		if req.Keyframes, reason = s.ensureKeyframes(ctx, loc.File.ID, in.kf); req.Keyframes == nil {
+			req.Decision = src.transcode(d, reason)
 		}
 	}
 	return req, req.Decision, nil
 }
 
-// ensureKeyframes returns the keyframe index of a media file for a remux. A missing index is
-// computed on demand (bounded by keyframeTimeout) and stored for the next start; when that is not
-// possible in time it returns nil and queues the index job at top priority, so the caller
-// transcodes this playback and the next start remuxes.
-func (s *Service) ensureKeyframes(ctx context.Context, fileID, abs string, blob []byte) []time.Duration {
-	if len(blob) > 0 {
-		kf, err := library.DecodeKeyframes(blob)
-		if err == nil && len(kf) > 0 {
-			return kf
-		}
-		s.log.WarnContext(ctx, "keyframe index unusable", "media_file_id", fileID, "err", err)
+// ensureKeyframes looks up the keyframe index of a media file for a remux; it never reads the file,
+// so a start never waits for an index (concept 14, 2.3, I-4). A stored index is returned. Without
+// one it returns nil with the reason of the transcode that plays instead: keyframes_pending, and
+// the index job is queued at top priority (the next start remuxes), while there is none yet;
+// keyframes_unavailable, and nothing is queued, when it is impossible for this file version or
+// the stored one is unreadable.
+func (s *Service) ensureKeyframes(ctx context.Context, fileID string, ix keyframeIndex) ([]time.Duration, string) {
+	switch ix.source {
+	case "":
+		s.log.InfoContext(ctx, "keyframe index not ready, transcoding instead of remuxing", "media_file_id", fileID)
+		s.queueKeyframes(ctx, fileID)
+		return nil, ReasonKeyframesPending
+	case library.KeyframesNone:
+		return nil, ReasonKeyframesUnavailable
 	}
-	if s.keyframes != nil {
-		kctx, cancel := context.WithTimeout(ctx, s.keyframeTimeout)
-		started := time.Now()
-		kf, err := s.keyframes(kctx, abs)
-		cancel()
-		if err == nil && len(kf) > 0 {
-			if err := library.StoreKeyframes(ctx, s.db.Write, fileID, kf, s.now()); err != nil {
-				s.log.WarnContext(ctx, "store keyframe index", "media_file_id", fileID, "err", err)
-			}
-			s.log.InfoContext(ctx, "keyframe index computed for playback", "media_file_id", fileID,
-				"keyframes", len(kf), "ms", time.Since(started).Milliseconds())
-			return kf
-		}
-		s.log.InfoContext(ctx, "keyframe index not ready, transcoding instead of remuxing", "media_file_id", fileID,
-			"ms", time.Since(started).Milliseconds(), "err", err)
+	kf, err := library.DecodeKeyframes(ix.blob)
+	if err != nil || len(kf) == 0 {
+		s.log.WarnContext(ctx, "keyframe index unusable", "media_file_id", fileID, "source", ix.source, "err", err)
+		return nil, ReasonKeyframesUnavailable
 	}
-	s.queueKeyframes(ctx, fileID)
-	return nil
+	return kf, ""
 }
 
 // queueKeyframes queues the keyframe index job of a media file at top priority.
 func (s *Service) queueKeyframes(ctx context.Context, fileID string) {
-	if err := library.QueueKeyframesForPlayback(context.WithoutCancel(ctx), s.queue, fileID); err != nil {
+	if _, err := library.QueueKeyframesForPlayback(context.WithoutCancel(ctx), s.db.Read, s.queue, fileID, s.now()); err != nil {
 		s.log.WarnContext(ctx, "queue keyframe index", "media_file_id", fileID, "err", err)
 	}
 }
@@ -567,6 +786,11 @@ func (s *Service) Authorize(ctx context.Context, token string) (model.PlaybackGr
 	now := s.now()
 	row, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: now.UnixMilli()})
 	if errors.Is(err, sql.ErrNoRows) {
+		// A remux ended for a changed source keeps answering 409, so the player restarts it
+		// (concept 14, 6.4); the token must still be the one of that playback.
+		if item, ok := s.states.sourceChanged(id); ok && hmac.Equal(mac, tokenMAC(s.key, id, item)) {
+			return model.PlaybackGrant{}, model.ErrPlaybackSourceChanged
+		}
 		return model.PlaybackGrant{}, model.ErrUnauthenticated
 	}
 	if err != nil {
@@ -642,7 +866,9 @@ func (s *Service) HLS(ctx context.Context, g model.PlaybackGrant, segment int) (
 // rebuild starts the output of a valid HLS grant again, one rebuild per playback at a time. The
 // decision is made again from the recorded columns (M4 design 3.7): the reported capabilities,
 // the quality rung, the audio track and the subtitle track with its delivery, under the limits of
-// the recorded decision (recordedLimits); a recorded transcode stays a transcode on its rung.
+// the recorded decision (recordedLimits); a recorded transcode stays a transcode on its rung. A
+// recorded remux whose file changed since the start (sourceChanged) is not rebuilt: the playback
+// session ends and the request answers model.ErrPlaybackSourceChanged (concept 14, 6.4).
 func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment int) (HLSSession, error) {
 	for {
 		s.rebuildMu.Lock()
@@ -681,19 +907,22 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	if err != nil {
 		return nil, err
 	}
-	probe, kfBlob := in.probe, in.kf
+	probe := in.probe
 	if probe == nil {
 		return nil, model.ErrNotFound
 	}
 	row, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: g.ID, Now: s.now().UnixMilli()})
 	if err != nil {
-		return nil, unauthenticatedOr(err, "get playback session")
+		return nil, s.endedOr(g.ID, err, "get playback session")
+	}
+	if row.Mode == ModeRemux && sourceChanged(in.kf, row.StartedAt) {
+		return nil, s.endSourceChanged(ctx, row, in.kf)
 	}
 	src, d, err := s.recordedDecision(ctx, scope, in, probe, row, recordedLimits(row))
 	if err != nil {
 		return nil, err
 	}
-	req, _, err := s.prepare(ctx, in, src, kfBlob, d)
+	req, _, err := s.prepare(ctx, in, src, d)
 	if err != nil {
 		return nil, err
 	}
@@ -710,6 +939,52 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	}
 	s.log.InfoContext(ctx, "hls output rebuilt", "playback_id", g.ID, "mode", req.Decision.Mode, "segment", segment)
 	return hs, nil
+}
+
+// sourceChanged reports whether the file of a remux that started at startedAt (Unix ms) changed
+// since: its keyframe index is gone or impossible, or newer than the start. A stored index never
+// changes per file version (concept 14, I-1), so either means another file than the segments of
+// the client's playlist were cut from.
+func sourceChanged(ix keyframeIndex, startedAt int64) bool {
+	if ix.source == "" || ix.source == library.KeyframesNone || ix.at > startedAt {
+		return true
+	}
+	kf, err := library.DecodeKeyframes(ix.blob)
+	return err != nil || len(kf) == 0
+}
+
+// endedOr is the error of a rebuild whose playback session row is gone (err from
+// GetPlaybackSession): model.ErrPlaybackSourceChanged when a request before ended it for a changed
+// source (a request that waited for that rebuild), else as unauthenticatedOr.
+func (s *Service) endedOr(id string, err error, what string) error {
+	if _, ok := s.states.sourceChanged(id); ok && errors.Is(err, sql.ErrNoRows) {
+		return model.ErrPlaybackSourceChanged
+	}
+	return unauthenticatedOr(err, what)
+}
+
+// endSourceChanged ends a remux playback whose file changed since its start (sourceChanged): the
+// row is revoked without a stopped_by (the server, not a person, ended it), its streams, output
+// and subtitles go, and the result is model.ErrPlaybackSourceChanged, so the client starts a new
+// playback at its position. The cause is kept in memory only (stateRegistry.stopSourceChanged), so
+// later requests of the playback answer the same instead of 401. A row another stop ended
+// meanwhile keeps that stop.
+func (s *Service) endSourceChanged(ctx context.Context, row appq.PlaybackSession, ix keyframeIndex) error {
+	now := s.now()
+	rows, err := s.write.StopPlaybackSession(ctx, appq.StopPlaybackSessionParams{
+		ID: row.ID, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true},
+	})
+	if err != nil {
+		return fmt.Errorf("end playback session: %w", err)
+	}
+	if len(rows) == 0 {
+		return model.ErrUnauthenticated
+	}
+	s.states.stopSourceChanged(row.ID, row.SessionID, row.ItemID, now)
+	s.end(row.ID, "")
+	s.log.InfoContext(ctx, "remux source changed since the start, playback ended", "playback_id", row.ID,
+		"media_file_id", row.MediaFileID, "keyframes_source", ix.source, "keyframes_at", ix.at, "started_at", row.StartedAt)
+	return model.ErrPlaybackSourceChanged
 }
 
 // recordedLimits are the limits a rebuild decides with. The recorded decision already obeyed the
@@ -729,9 +1004,10 @@ func recordedLimits(row appq.PlaybackSession) model.PlaybackLimits {
 }
 
 // recordedDecision decides an HLS playback again from its row: the stored capabilities (the
-// defaults for a row without), quality rung, audio track and subtitle track with its delivery. A
-// recorded transcode stays one; a decision that turns out direct (it cannot, with the same input)
-// is transcoded, because the client fetches HLS.
+// defaults for a row without), quality (a rung, auto or original: a recorded original remux stays
+// an original remux, concept 13 11.5 (d)), audio track and subtitle track with its delivery on the
+// transcode host. A recorded transcode stays one; a decision that turns out direct (it cannot,
+// with the same input) is transcoded, because the client fetches HLS.
 func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, in input, probe *transcode.Probe,
 	row appq.PlaybackSession, limits model.PlaybackLimits,
 ) (source, Decision, error) {
@@ -745,7 +1021,7 @@ func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, 
 	}
 	caps := normalizeCapabilities(reported)
 	req := Request{Caps: caps, Limits: limits, AudioStream: -1, Quality: row.Quality.String, Delivery: row.SubtitleDelivery.String,
-		ForceTranscode: row.Mode == ModeTranscode, MultiPart: in.multiPart()}
+		ForceTranscode: row.Mode == ModeTranscode, MultiPart: in.multiPart(), Host: s.host()}
 	if row.AudioTrack.Valid {
 		req.AudioStream = int(row.AudioTrack.Int64)
 	}
@@ -759,7 +1035,7 @@ func (s *Service) recordedDecision(ctx context.Context, scope visibility.Scope, 
 		}
 	}
 	file := in.file()
-	src := newSource(file, probe, limits, caps)
+	src := newSource(file, probe, limits, caps, req.Host)
 	d := Decide(file, probe, req)
 	if d.Mode == ModeDirect {
 		d = src.transcode(d, row.Reason.String)
@@ -798,7 +1074,7 @@ func (s *Service) Stop(ctx context.Context, session model.Session, id string) er
 	if n == 0 {
 		return model.ErrNotFound
 	}
-	s.end(id)
+	s.end(id, model.StoppedByClient)
 	return nil
 }
 
@@ -812,7 +1088,7 @@ func (s *Service) EndSession(ctx context.Context, sessionID int64) error {
 		return fmt.Errorf("revoke playback sessions: %w", err)
 	}
 	for _, id := range ids {
-		s.end(id)
+		s.end(id, model.StoppedByLogout)
 	}
 	return nil
 }
@@ -828,7 +1104,7 @@ func (s *Service) EndAccount(ctx context.Context, accountID int64) error {
 		return fmt.Errorf("revoke playback sessions of account: %w", err)
 	}
 	for _, id := range ids {
-		s.end(id)
+		s.end(id, model.StoppedByRevoked)
 	}
 	s.cancelAccount(accountID) // streams whose row was revoked earlier or is not yet written
 	return nil
@@ -849,15 +1125,17 @@ func (s *Service) endProfile(ctx context.Context, profileID int64, stoppedBy str
 		return fmt.Errorf("revoke playback sessions of profile: %w", err)
 	}
 	for _, id := range ids {
-		s.end(id)
+		s.end(id, stoppedBy)
 	}
 	s.cancelProfile(profileID)
 	return nil
 }
 
-// end closes the open streams of an ended playback session, stops its HLS output and removes its
-// cached subtitles.
-func (s *Service) end(id string) {
+// end closes the open streams of an ended playback session, stops its HLS output, removes its
+// cached subtitles and marks it stopped by stoppedBy (a model.StoppedBy value) for State. Every
+// stop of a running playback session goes through here.
+func (s *Service) end(id, stoppedBy string) {
+	s.states.stop(id, stoppedBy, s.now())
 	s.cancelStreams(id)
 	s.stopOutput(id)
 	s.removeSubtitles(id)
@@ -899,6 +1177,7 @@ func (s *Service) sweep(ctx context.Context) {
 		s.log.WarnContext(ctx, "list ended playback sessions", "err", err)
 	}
 	for _, id := range ids {
+		s.states.stop(id, "", now) // expired; a revoked one keeps the reason end gave it
 		s.cancelStreams(id)
 		s.removeSubtitles(id)
 		if s.tc == nil {
@@ -908,11 +1187,13 @@ func (s *Service) sweep(ctx context.Context) {
 			s.tc.Stop(id)
 		}
 	}
+	s.states.prune(now)
 	if _, err := s.write.DeleteExpiredPlaybackSessions(ctx, now.Add(-endedRetention).UnixMilli()); err != nil {
 		s.log.WarnContext(ctx, "delete ended playback sessions", "err", err)
 	}
-	s.sweepCondense(ctx, now)    // condense.go: raw progress events older than 90 days (M10)
-	s.sweepSubtitles(time.Now()) // file times are wall-clock times
+	s.sweepChapterImages(ctx, now) // chapters.go: images of the files whose playback ended
+	s.sweepCondense(ctx, now)      // condense.go: raw progress events older than 90 days (M10)
+	s.sweepSubtitles(time.Now())   // file times are wall-clock times
 }
 
 func unauthenticatedOr(err error, what string) error {

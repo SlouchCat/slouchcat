@@ -28,10 +28,12 @@ function Places({
   initial,
   isAllowed,
   isDisabled,
+  allowEmpty,
 }: {
   initial: string[];
   isAllowed?: (list: readonly string[]) => boolean;
   isDisabled?: boolean;
+  allowEmpty?: boolean;
 }) {
   const [value, setValue] = useState(initial);
   return (
@@ -45,6 +47,7 @@ function Places({
         addLabel="Weitere Sprache"
         isAllowed={isAllowed}
         isDisabled={isDisabled}
+        allowEmpty={allowEmpty}
       />
     </>
   );
@@ -155,6 +158,17 @@ describe('RankedChoiceList', () => {
   it('never removes the only place', () => {
     render(<Places initial={['de']} />);
     expect(screen.getByRole('button', { name: '1. Sprache (Deutsch) entfernen' })).toBeDisabled();
+  });
+
+  it('removes the only place with allowEmpty and moves the focus to the add button', async () => {
+    const user = userEvent.setup();
+    render(<Places initial={['de']} allowEmpty />);
+    await user.click(screen.getByRole('button', { name: '1. Sprache (Deutsch) entfernen' }));
+    expect(screen.queryByRole('combobox')).toBeNull();
+    const more = screen.getByRole('button', { name: 'Weitere Sprache' });
+    expect(more).toHaveFocus();
+    await user.click(more);
+    expect(screen.getByRole('combobox', { name: '1. Sprache' })).toHaveFocus();
   });
 
   it('is read-only when disabled: no «×», no add button, no hint', () => {

@@ -285,6 +285,8 @@ func toProfile(p model.Profile) gen.Profile {
 		Id: p.ID, Name: p.Name, MaxRating: gen.Rating(p.MaxRating), Language: gen.Language(p.Language),
 		AllLibraries: p.AllLibraries, LibraryIds: nonNil(p.LibraryIDs), HasPin: p.HasPin, HasOfflinePin: p.HasOfflinePin,
 		IsPrimary: p.IsPrimary, Limits: toPlaybackLimits(p.Limits), EffectiveLimits: toEffectiveLimits(p.Effective),
+		AudioLanguages: nonNilStrings(p.Prefs.AudioLanguages), SubtitleMode: gen.SubtitleMode(p.Prefs.SubtitleMode),
+		SubtitleLanguages: nonNilStrings(p.Prefs.SubtitleLanguages),
 	}
 	if p.Accent != "" {
 		a := gen.Accent(p.Accent)
@@ -405,6 +407,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrSegmentRestarted):
 		w.Header().Set("Retry-After", "1")
 		p.write(w, r, http.StatusServiceUnavailable, "segment_restarted", "A newer seek restarted the encoder; retry the segment.")
+	case errors.Is(err, model.ErrPlaybackSourceChanged):
+		p.write(w, r, http.StatusConflict, "playback_source_changed", "The file changed since the playback started; start it again.")
 	case errors.Is(err, model.ErrProviderNotConfigured):
 		p.write(w, r, http.StatusUnprocessableEntity, "provider_not_configured", "The metadata provider has no key configured.")
 	case errors.Is(err, model.ErrDeviceRequired):

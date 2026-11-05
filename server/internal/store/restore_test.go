@@ -67,6 +67,7 @@ func missing(path string) bool {
 // pre-restore backup (older ones beyond five are pruned with their keys), the restore directory
 // is removed.
 func TestApplyRestoreSwapsDatabaseAndKey(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	live := newDatabaseFile(t, "live")
@@ -148,6 +149,7 @@ func TestApplyRestoreSwapsDatabaseAndKey(t *testing.T) {
 
 // Without a staged key the current key stays and no key is kept with the pre-restore backup.
 func TestApplyRestoreWithoutKeyKeepsKey(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	if err := os.Rename(newDatabaseFile(t, "live"), filepath.Join(dir, FileName)); err != nil {
@@ -179,6 +181,7 @@ func TestApplyRestoreWithoutKeyKeepsKey(t *testing.T) {
 // A staged key without a staged database is left over from an interrupted staging: it is removed
 // and nothing else changes.
 func TestApplyRestoreRemovesStaleKey(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	if err := os.Rename(newDatabaseFile(t, "live"), filepath.Join(dir, FileName)); err != nil {
 		t.Fatal(err)
@@ -201,6 +204,7 @@ func TestApplyRestoreRemovesStaleKey(t *testing.T) {
 
 // A start interrupted after the key was swapped and the live database removed finishes the swap.
 func TestApplyRestoreResumesInterruptedSwap(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	key := bytes.Repeat([]byte{6}, 32)
 	writeFile(t, filepath.Join(dir, "secret.key"), key) // already the restored key
@@ -227,6 +231,7 @@ func TestApplyRestoreResumesInterruptedSwap(t *testing.T) {
 // goes next to them as usual. (SQLite itself removes a WAL it cannot use while the copy is tried;
 // TestMoveDatabase covers the WAL.)
 func TestApplyRestoreMovesLiveFilesWhenTheCopyFails(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	at := time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC)
 	keptName := "pre-restore-0.1.0_test_1-20261021T120000.000Z.sqlite"
@@ -245,6 +250,7 @@ func TestApplyRestoreMovesLiveFilesWhenTheCopyFails(t *testing.T) {
 		}, blocked: true},
 	} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			dir := t.TempDir()
 			tc.live(t, dir)
 			oldKey, newKey := bytes.Repeat([]byte{7}, 32), bytes.Repeat([]byte{8}, 32)
@@ -299,6 +305,7 @@ func TestApplyRestoreMovesLiveFilesWhenTheCopyFails(t *testing.T) {
 
 // moveDatabase takes the WAL and the index along when they exist; the database file must exist.
 func TestMoveDatabase(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	src, dst := filepath.Join(dir, "live.db"), filepath.Join(dir, "kept.sqlite")
 	writeFile(t, src, []byte("db"))
@@ -318,6 +325,7 @@ func TestMoveDatabase(t *testing.T) {
 }
 
 func TestCheckRestorable(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	good := newDatabaseFile(t, "x")
 	if err := CheckRestorable(ctx, good); err != nil {
@@ -379,6 +387,7 @@ func TestCheckRestorable(t *testing.T) {
 // Snapshot reads through its own read-only connection: it neither waits for an open write
 // transaction nor sees its rows.
 func TestSnapshotDoesNotWaitForWriters(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	dir := t.TempDir()
 	db, err := Open(ctx, testOptions(t, dir))

@@ -1,7 +1,7 @@
 # Runs the same checks as `task ci` locally -- the same tasks, split over parallel jobs instead of
 # one after the other. `task ci` remains the one local command that builds and checks everything
-# (plan section 4); what the jobs below run are its parts, `task ci:server`, `task ci:web` and
-# `task ci:e2e`, and `task ci` still runs all of them. Why the split, and what it costs in exchange:
+# (plan section 4); what the jobs below run are its parts, `task ci:server`, `task ci:web`,
+# `task ci:storybook` and `task ci:e2e`, and `task ci` still runs all of them. Why the split, and what it costs in exchange:
 # ADR docs/adr/0013-ci-parallele-jobs.md. Measured times: docs/perf/ci.md.
 #
 # The serial job this replaced took 56 minutes, which is longer than most pull requests deserve to
@@ -20,16 +20,58 @@ on:
   pull_request:
   workflow_dispatch:
 
-# One run per branch: a new push replaces the run of the commit it supersedes. Runs on main are
-# never cancelled -- they record whether what was merged is sound.
+# One run per pull request branch: a new push replaces the run of the commit it supersedes. On main
+# every commit gets a run of its own: the runs record whether what was merged is sound, so none of
+# them may be cancelled -- and none may wait either. With one group for all of main a merge waited
+# for the run before it (3.75 min), and a second waiting run replaced the first, which then never
+# ran at all: the merge of #77 (run 41704343177) got no main run. The commit id in the group
+# gives each one its own.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.ref == 'refs/heads/main' && format('-{0}', github.sha) || '' }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
   contents: read
 
 jobs:
+  # ---------------------------------------------------------------------------------------------
+  # Does the pull request touch anything but documentation? A change to docs/, a Markdown file or
+  # release notes cannot turn any check of this workflow red, yet it used to wait for the whole
+  # run (about 18 minutes). The heavy jobs below therefore skip when this job answers "docs only",
+  # and the gate counts a skipped job as green only then. What counts as documentation, and the
+  # Markdown files that do not (prettier and the image read them), is .github/scripts/docs-only.sh.
+  # A push to main and a run by hand always check everything: main is the record of what is merged.
+  # No third-party action: the merge commit of a pull request has the base as its first parent,
+  # so `git diff HEAD^1 HEAD` is the pull request's change and a checkout two commits deep is enough.
+  # ---------------------------------------------------------------------------------------------
+  changes:
+    name: changes (docs only?)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.diff.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = pull_request ]; then
+            # --no-renames: a file moved from code into docs/ (server/x.go -> docs/x.go) is then
+            # listed under both paths, the deleted code path included. With rename detection it
+            # would show only the new path under docs/ and the code change would count as docs.
+            git diff --name-only --no-renames HEAD^1 HEAD | tee changed.txt
+            docs_only=$(.github/scripts/docs-only.sh < changed.txt)
+          else
+            docs_only=false
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "Documentation only: $docs_only"
+
   # ---------------------------------------------------------------------------------------------
   # Server: the generators with their drift check and the linters, then the tests in parallel
   # groups. Split in two because the linters take about 90 seconds and the tests about 19 minutes:
@@ -38,6 +80,8 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   server-lint:
     name: server (generators, linters)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -60,6 +104,8 @@ jobs:
   # nothing but the checkout: `--matrix` answers from that one text file, without Go.
   server-groups:
     name: server test groups
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -76,7 +122,8 @@ jobs:
 
   server-test:
     name: server tests (${{ matrix.group }})
-    needs: server-groups
+    needs: [changes, server-groups]
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     strategy:
@@ -103,17 +150,54 @@ jobs:
         with:
           group: server
 
+      # setup-go caches the module and build cache under a key of go.sum alone. Its primary key hits
+      # on every run, so it never saves again: the build cache it restores is whatever the first job
+      # after a go.sum change compiled -- often a job without -race -- and every group then compiles
+      # the race-instrumented packages from scratch ("Cache hit occurred on the primary key ...,
+      # not saving cache" in the post step). This cache holds the -race build cache of one group.
+      # The run id in the key gives every save a key of its own; restore-keys hand the newest one to
+      # the next run. Only pushes to main save (step "Save the -race build cache" below): a pull
+      # request restores main's cache, which every branch may read, but a cache it saved would be
+      # readable by that branch alone, and five groups of them per push would crowd main's caches
+      # (and the Playwright browsers) out of the 10-GB budget of the repository.
+      - name: Restore the -race build cache of this group
+        id: race-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/go-build
+          key: go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-${{ github.run_id }}
+          restore-keys: |
+            go-race-${{ runner.os }}-${{ matrix.group }}-${{ hashFiles('server/go.sum') }}-
+            go-race-${{ runner.os }}-${{ matrix.group }}-
+
       - uses: ./.github/actions/test-media
 
+      # -count=1: the restored cache also holds test results, and `go test` would report a package
+      # whose inputs it thinks unchanged as "(cached)" instead of running it. The cache is there to
+      # skip compiling, never to skip a test (run 41707865418 already showed four such packages).
       - run: task server:test GROUP=${{ matrix.group }}
+        env:
+          GOFLAGS: -count=1
+
+      # Also after red tests: what was compiled is valid either way.
+      - name: Save the -race build cache
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.race-cache.outputs.cache-primary-key }}
 
   # ---------------------------------------------------------------------------------------------
-  # Web: generators with their drift check, linters, Vitest and the Storybook screenshot checks.
-  # No Go, no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official
-  # Playwright Docker image, which brings its own Chromium and its own libraries.
+  # Web: generators with their drift check, linters and Vitest in one job, the Storybook screenshot
+  # checks in another. The two need nothing from each other, and together they were the longest
+  # job of the run after the e2e path (8 to 10 min: lint 1.7, Vitest 3.5, Storybook 3.6). No Go,
+  # no ffmpeg, no browsers from apt -- the Storybook screenshots run in the official Playwright
+  # Docker image, which brings its own Chromium and its own libraries.
   # ---------------------------------------------------------------------------------------------
   web:
-    name: web (linters, unit tests, Storybook)
+    name: web (generators, linters, unit tests)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -124,6 +208,21 @@ jobs:
       - uses: ./.github/actions/task
 
       - run: task ci:web
+
+  storybook:
+    name: web (Storybook screenshots)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/task
+
+      - run: task ci:storybook
 
       # Screenshot diffs of the Storybook run (storybook.config.ts). The folder starts with a dot,
       # and the action skips hidden files unless told otherwise: without the flag every red run
@@ -143,6 +242,8 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   build:
     name: build (server binary with the web assets)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -181,14 +282,17 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   e2e:
     name: e2e (shard ${{ matrix.shard }})
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         # The length of this list is the shard count: `strategy.job-total` below reads it, so the
-        # two can never drift apart.
+        # two can never drift apart. The shards are cut by measured duration, not by test count
+        # (web/e2e/shard-plan.mjs from web/e2e/durations.json); `task web:e2e:shards:check` and
+        # web:e2e:durations take the same count from CI_E2E_SHARDS in web/Taskfile.yml.
         shard: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -240,7 +344,8 @@ jobs:
       - name: Make the binary executable again (artefacts lose the bit)
         run: chmod +x server/bin/slouchcat
 
-      - run: task ci:e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
+      # Every shard plans the same split (deterministic) and runs its part with --test-list.
+      - run: task ci:e2e SHARD=${{ matrix.shard }}/${{ strategy.job-total }}
 
       # The blob report is the machine-readable form of the run, traces and screenshots included.
       # The gate job merges the six of them into one HTML report; a single report per shard would
@@ -262,6 +367,8 @@ jobs:
   # ---------------------------------------------------------------------------------------------
   image:
     name: image (amd64, arm64)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -347,7 +454,7 @@ jobs:
     # Must run even when something before it failed, otherwise the gate would be "skipped" instead
     # of red and a broken run could look mergeable.
     if: always()
-    needs: [server-lint, server-groups, server-test, web, build, e2e, image]
+    needs: [changes, server-lint, server-groups, server-test, web, storybook, build, e2e, image]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -393,18 +500,35 @@ jobs:
       #
       # A job added to this workflow has to be added here and to `needs:` above, or the gate does
       # not watch it. That is the price of naming them; ADR 0013 carries it as a standing rule.
+      #
+      # "skipped" is green in exactly one case: the job "changes" itself succeeded and found
+      # nothing but documentation in the pull request. Any other skip -- a job that never ran
+      # because something before it broke, or a skip on main, where `changes` always answers
+      # false -- stays red, as before.
       - name: Every job of this workflow must be green
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          DOCS_ONLY: ${{ needs.changes.outputs.docs_only }}
         run: |
           set -eu
           status=0
+          skip_ok=false
+          if [ "$CHANGES" = success ] && [ "$DOCS_ONLY" = true ]; then skip_ok=true; fi
           check() {
+            if [ "$2" = skipped ] && [ "$skip_ok" = true ]; then
+              printf '%-14s %s\n' "$1" "skipped (documentation only)"
+              return
+            fi
             printf '%-14s %s\n' "$1" "$2"
             [ "$2" = success ] || status=1
           }
+          printf '%-14s %s (documentation only: %s)\n' changes "$CHANGES" "${DOCS_ONLY:-?}"
+          [ "$CHANGES" = success ] || status=1
           check server-lint   '${{ needs.server-lint.result }}'
           check server-groups '${{ needs.server-groups.result }}'
           check server-test   '${{ needs.server-test.result }}'
           check web           '${{ needs.web.result }}'
+          check storybook     '${{ needs.storybook.result }}'
           check build         '${{ needs.build.result }}'
           check e2e           '${{ needs.e2e.result }}'
           check image         '${{ needs.image.result }}'

@@ -12,6 +12,7 @@ import (
 // Plan 3.5: lowering a 4K SDR source saves no budget (cost 3 on every rung), so an exhausted
 // budget answers transcode_busy after one attempt instead of waiting again on 720p.
 func TestStartBudgetNotLoweredFor4K(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	tc.busyAbove = 360
@@ -30,6 +31,7 @@ func TestStartBudgetNotLoweredFor4K(t *testing.T) {
 
 // A VobSub sidecar (.sub) is neither text nor a bitmap a transcode can burn in: 422.
 func TestTrackRequestNotBurnable(t *testing.T) {
+	t.Parallel()
 	tracks := model.TrackList{Subtitles: []model.Track{
 		{ID: 5, Index: -1, Kind: "subtitle", Codec: "sub", Source: "sidecar", RelPath: "Film/Film.de.sub"},
 		{ID: 6, Index: 4, Kind: "subtitle", Codec: "hdmv_pgs_subtitle", Source: "embedded"},
@@ -62,6 +64,7 @@ func TestTrackRequestNotBurnable(t *testing.T) {
 // form of the device cookie, never the reserved device, and only a device that is new or owned by
 // the account: a device of another account keeps its owner and does not get the playback.
 func TestStartDeviceIDClaim(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	f.AddGuest(t)
 	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey))
@@ -110,6 +113,7 @@ func TestStartDeviceIDClaim(t *testing.T) {
 // A rebuild repeats the recorded decision, not the profile's current limits: the client holds
 // the master playlist of the start. A bandwidth limit that capped the bit rate stays applied.
 func TestRebuildKeepsRecordedLimits(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
 	s := New(f.DB, vistest.Logger(), WithTranscoder(tc), WithTokenKey(testKey))

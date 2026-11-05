@@ -16,7 +16,7 @@
   Frage 18 und ADR 0020. Dieses Konzept nimmt darum **Frage 19** und **ADR 0021** (2160p);
   Migration und Vertragsfassung sind die nächsten freien nach 11 und 12 (voraussichtlich additiv
   in **1.8.0**). **Nachtrag 2. November 2026:** Konzept 12 nimmt 1.8.0 als eigenes Release
-  (Frage 18); dieses Konzept rückt auf **1.9.0 oder später** und behält Frage 19 und ADR 0021.
+  (Frage 18); dieses Konzept rückt auf **1.9.0 oder später** und behält Frage 19 und ADR 0021. **Nachtrag 4. November 2026:** Bau neu ab `main` `c023448`, Verträge 1.10.0 bis 1.12.0 je Stufe, Stopp durch die Verwaltung in Stufe 1 (Abschnitt 11.15).
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md`
   und `docs/adr/`. Bei Widerspruch gilt: **Entscheidungsprotokoll > Plan > Spec** (`CLAUDE.md`).
 
@@ -761,6 +761,149 @@ Jede Stufe ein eigener Zweig und Pull Request, jeder Schritt ein Commit, `task c
 | TMDB-Backfill dauert | gedrosselt; bis dahin Standardspur der Datei |
 | Schwarze Kapitelbilder | Zeitpunkt nach 11.6; sonst zweiter Versuch 10 s später |
 | Bedeutungsänderung bei `subtitleTrack: null` trifft Fremd-Clients | Changelog; heute nutzt nur der eigene Web-Client die API für Wiedergabe |
+
+### 11.15 Nachtrag zum Bau (4. November 2026)
+
+Entscheide aus Marcos Interview vom 3. November 2026 und vom Neustart am 4. November 2026
+(Frage 19). Wo dieser Nachtrag etwas anderes sagt als 11.1 bis 11.14, gilt der Nachtrag.
+
+- **Neustart ab `main`.** Der Bau beginnt neu ab `main` `c023448`. Der erste Bau auf
+  `claude/abspielseite-stufe1` wird nicht weiterverwendet. Je Zweig koordiniert genau eine
+  Session, die als einzige `docs/dev/CURRENT_STATUS.md` schreibt und `task ci` startet.
+- **Je Stufe ein PR und ein Release:** Stufe 1 → 1.10.0, Stufe 2 → 1.11.0, Stufe 3 → 1.12.0.
+  Jede Stufe wird auf CT 190 abgenommen. Merge, Tag und Release nur auf Marcos Wort.
+- **Teststufen statt `task ci` je Schritt** (Entscheid vom 4. November 2026,
+  `docs/dev/SETUP.md` «Teststufen»). Das ersetzt «`task ci` grün» je Schritt in 11.12:
+  - Je Schritt `task check:fast` und die betroffenen Tests.
+  - `task ci` einmal vor dem PR.
+  - Die GitHub-CI prüft alles.
+- **Stopp durch die Verwaltung (11.13), Option 1, neuer Schritt 5b in Stufe 1:**
+  - Der Player fragt beim Abspielen alle 4 s eine kleine Statusabfrage ab.
+  - Der Server hält gestoppte Sitzungen nur im Speicher (Haken an der Stelle, durch die jeder Stopp
+    läuft), ohne DB-Zugriff und ohne Transcoder.
+  - Das gilt für Video (`VideoPlayer`) und Audio (`AudioPlayerPage`).
+  - Anforderung: Ein Stopp wird in höchstens 5 s erkannt, auch bei ganz gepuffertem Titel.
+  - Weil das eine neue Operation ist, hat Stufe 1 den **additiven Vertrag 1.10.0**. Das weicht ab von
+    6.1 «kein Vertrag» und von 11.8 («1.9.0 oder später»: Stufe 2 bekommt 1.11.0, Stufe 3 1.12.0).
+- **Kein Safari-Spike.** Es gibt kein Apple-Gerät. Der Spike vor Schritt 4 (11.10, 11.13) entfällt.
+  Nachtmodus und Verstärkung bis 150 % sind in Safari vorsorglich ausgeblendet. Die Lautstärke bis
+  100 % bleibt.
+- **Schritt C «CI beschleunigen»** vor Stufe 1: PR #81 (Doku-PRs überspringen, Firefox reduziert,
+  Server-Tests in Gruppen), PR #82 (Teststufen, Plätze für schwere Läufe), PR #83 (checkptr aus in
+  `modernc.org` beim `-race`-Lauf).
+- **Reihenfolge in Stufe 1:**
+  - Welle A: Schritte 1, 2 und 5b parallel.
+  - Welle B: Schritt 3.
+  - Welle C: Schritt 4.
+  - Welle D: Schritte 5 und 6.
+  - Danach Changelog, `task ci` und PR.
+  - Höchstens drei Executor gleichzeitig, je in einem eigenen Worktree und mit eigenem e2e-Port.
+- **Englisch als zweite Wahl** (Marcos Entscheid vom 4. November 2026, Review von Schritt 4, m-8):
+  Ton- und Untertitel-Panel sortieren zuerst die Profilsprache, dann Englisch, dann «Weitere
+  Sprachen (n)». Das ergänzt 11.10 «Profilsprachen zuerst».
+- **Bekannte Grenze: Bild-in-Bild in Firefox ohne Untertitel** (Review von Schritt 4, m-3). Das
+  eigene Bild-in-Bild von Firefox meldet kein `enterpictureinpicture`. Der `<track>` bleibt darum
+  `hidden`, und das Firefox-Fenster zeigt keine Untertitel. In Chromium schaltet der Player wie in
+  11.10 beschrieben auf `showing`. Ein verlässliches Signal für Firefox gibt es nicht.
+- **Karten in den Reitern** (Schritt 5): «Als Nächstes» und «Besetzung» nutzen das neue Bauteil
+  `ui/PlayerCard` (Knopf mit Roving-Tabindex) statt `EpisodeCard` und `CastCard` wie in 11.10.
+  Diese sind Links und brauchen die räumliche Navigation, die auf der Player-Route nicht geladen
+  ist.
+- **«Folge zurück»** (Schritt 5) springt nur innerhalb der Staffel, nicht über die Staffelgrenze.
+- **Kapitel für Video-Downloads** (Marcos Entscheid vom 4. November 2026, Review von Schritt 6,
+  M-1): Das Download-Manifest liefert für Film und Folge die Kapitel aus derselben Quelle wie die
+  Online-Wiedergabe, nicht mehr nur für Hörbücher. Das ist eine additive Änderung im Vertrag
+  1.10.0 (Beschreibung von `DownloadManifest.chapters`) und eine kleine Serveränderung in Stufe 1,
+  abweichend von 6.1 «nur Web-App». Fertige Downloads behalten ihr gespeichertes Manifest und
+  zeigen Kapitel erst nach einem neuen Download (Release-Notiz). Podcast-Folgen bekommen offline
+  weiterhin keine Kapitel.
+- **Stufe 2, Schritt 7** (4. November 2026, Vertrag 1.11.0):
+  - `originalLanguage` steht an `AdminItem` (Verwaltung mit Sperren und Herkunft), nicht an
+    `ItemDetail` (Zuschauer) wie in 11.8.
+  - Die Operationen `getMyPlaybackPrefs`, `putMyPlaybackPrefs` und `resetMySeriesTracks` sind
+    schon in Schritt 7 echt umgesetzt, weil der strict server sie verlangt. Schritt 10 behält
+    Vorbelegung neuer Profile, Seite «Meine Wiedergabe» und `ProfileForm`.
+  - Bis Schritt 11 lehnt der Server `quality: original`, `quality: 2160p` und jede `qualityCap`
+    mit 422 ab, statt etwas anderes zu spielen. Schritt 11 ersetzt das durch 11.5 (c).
+  - Bis Schritt 9 heisst ein fehlendes oder leeres `subtitleTrack` weiter «keine Untertitel».
+- **4K im Breitbild** (Marcos Entscheid vom 4. November 2026, Schritt 12): Eine Quelle gilt für
+  2160p als 4K, wenn sie mindestens 2160 Zeilen **oder** mindestens 3840 Pixel Breite hat. Damit
+  bekommen auch Kinofilme im Breitbild (z. B. 3840×1600) die Stufe 2160p. Das ergänzt 11.5
+  «Quelle mindestens 2160 Zeilen». Das H.264-Level folgt der Bildgrösse, nicht nur der Höhe.
+- **Stufe 2, Schritte 8 und 9:**
+  - Die Originalsprache kommt aus den Anbietern in der Reihenfolge der Anbieterliste der
+    Bibliothek (ADR 0015), nicht in der festen Reihenfolge TMDB, TVDB, AniList aus 11.7.
+  - Die Tests der Spurwahl nutzen nachgebaute Spurlisten in der Form der Probe, nicht die
+    bereinigten Probe-JSON echter Titel aus 11.11; diese lagen nicht im Repo.
+  - «Für diese Serie merken» merkt nur den Teil, der von Hand geändert wurde: ein Tonwechsel
+    ändert den Merker für die Untertitel nicht und umgekehrt.
+  - Bei «Immer» und «Fremdsprache» geht eine volle Bildspur einer SDH-Textspur derselben Sprache
+    vor, wie in 11.3 (Marcos Entscheid vom 4. November 2026), auch wenn das Einbrennen eine sonst
+    direkt spielbare Datei umwandelt.
+- **Stufe 2, Schritt 11** (4. November 2026, Vertrag 1.11.0, ADR 0021 mit Nachträgen):
+  - `qualityCap` hat ein eigenes Enum `QualityCap` (1080p bis 360p, Review 7 m-3). Zusammen mit
+    einer anderen `quality` als `auto` gilt `quality`.
+  - Ein gewähltes 2160p, das nicht geht, läuft auf 1080p; ein `original`, das nicht geht, als
+    `auto` (11.5 (c)). Beides ohne Fehler.
+  - Bei vollem Budget sinkt 2160p auf 1080p, auch bei Tonemapping auf der GPU.
+  - Neu verhält sich 1080p auf einer 4K-Quelle wie jede Stufe unter der Quelle: Transcode, auch
+    wo das Gerät die 4K-Datei direkt spielt. Bisher spielte sie direkt, weil die Leiter bei 1080p
+    endete.
+  - Eine 4K-Quelle hat mindestens 2160 Zeilen oder 3840 Pixel Breite (Marcos Entscheid zum
+    Breitbild); das H.264-Level folgt Bildgrösse und Bildrate.
+  - Der Grund für ein nicht verfügbares `original` steht nicht im Vertrag. Der Client leitet ihn
+    aus der laufenden Wiedergabe ab: eingebrannte Untertitel, Grund `keyframes_pending`, sonst
+    «Nur umgewandelt abspielbar».
+  - «Zurücksetzen» vergisst die gemerkte Stufe, ohne die laufende Wiedergabe neu zu starten.
+- **Stufe 3, Schritt 13** (4. November 2026, Vertrag 1.12.0):
+  - `transcode.Chapters` gilt auch für Extras nicht: Hörbücher, Podcast-Folgen und Extras behalten
+    ihre Marken. Ohne Probe bleibt die Liste leer. Die Länge kommt aus dem Probe, nicht aus der
+    Datei, damit Wiedergabe und Download dieselben Kapitel liefern.
+  - Ein Abspann-Kapitel bleibt nur als Marke, wenn es wie ein Abspann aussieht: höchstens 15 Minuten
+    lang und in der zweiten Hälfte. Sonst gilt es als gewöhnliches Kapitel. Das Raster liegt auf den
+    vollen 10 Minuten (0:10, 0:20, …), auch nach einem behaltenen Abspann. Ein kurzer Rest nach dem
+    Abspann geht im Abspann auf.
+  - Marken ohne Länge zählen nicht zu den vier Kapiteln und fallen weg.
+- **Stufe 3, Schritt 14** (4. November 2026):
+  - `Runner.GrabFrame` bekommt zusätzlich die Bildspur (HDR, Dolby Vision, Spurnummer ohne
+    zweiten Probe) und den Zielpfad (Schreiben über eine temporäre Datei). Ein Bild gilt als
+    schwarz, wenn mindestens 98 % der Pixel eine Helligkeit bis 32 haben; das prüft derselbe
+    ffmpeg-Lauf an einem Graubild von 64×36. Anamorphe Quellen werden entzerrt.
+  - **Ablage:** `cache/chapters/<mediaFileId>-<probedAt>-<hash8>/`, der Hash über die Kapitelliste.
+    Ändert ein Update die Kapitelregel, reiht der Sweep die betroffenen Dateien mit Priorität 1
+    neu ein. `imageUrl` trägt dieselbe Version (`&v=`); passt sie, ist die Antwort ein Jahr gültig
+    (`immutable`), sonst `no-cache` mit ETag.
+  - **Aufräumen** macht der stündliche `library.sweep`: Ordner gelöschter Dateien und Titel,
+    älterer Versionen und liegen gebliebene temporäre Ordner (älter als 6 Stunden). Keine Migration.
+  - **«Fertig, keine Bilder»** ist ein leerer Ordner: für eine Datei ohne Kapitel oder ohne Bild,
+    oder wenn ffmpeg aus einer lesbaren Datei in allen Versuchen kein Bild bekam. Ist die Datei nicht
+    lesbar (NAS weg; geprüft durch Lesen der ersten 64 KiB), wartet der Job eine Stunde und
+    schreibt nichts, längstens 7 Tage lang.
+  - **Nach der Wiedergabe** reiht die minütliche Aufräumrunde der Wiedergabe jede beendete Sitzung
+    ein (Stopp, Stopp durch die Verwaltung, Abmelden, Wechsel, Ablauf), mit 10 Minuten Verzögerung.
+    Läuft die Datei dann noch, wartet der Job weitere 10 Minuten. «Läuft» heisst wie bei den
+    Stream-Grenzen: eine Anfrage in den letzten 2 Minuten. Ein Wechsel von Ton, Qualität oder
+    Version beendet die alte Sitzung und reiht den Job darum ein; er wartet aber, solange die Datei
+    in der neuen Sitzung läuft. Schliesst jemand die App ohne Stopp, merkt der Server das Ende erst
+    beim Ablauf der Sitzung (12 Stunden). Ein Backfill von Hand holt einen so verzögerten Job sofort
+    nach vorn, ohne seine Priorität zu ändern.
+  - **Neue Dateien:** Eine Datei gilt als neu, wenn der vorige Scan ihrer Bibliothek ohne Fehler
+    endete. Nach einem abgebrochenen oder fehlerhaften ersten Scan reiht der nächste Scan darum
+    nicht die ganze Bibliothek ein; den Rest holt der Backfill von Hand.
+  - Ein neuer Probe einer Datei, die schon Bilder hatte («Metadaten aktualisieren»), reiht ihre
+    Bilder neu ein.
+  - **Priorität** (Marcos Entscheid vom 4. November 2026): Vom Backfill eingereihte Dateien laufen
+    mit Priorität 1, unter allen anderen Jobs, damit ein grosser Import nicht auf den Backfill wartet.
+    Eingereiht durch Ereignisse (neue Datei, nach der Wiedergabe, neuer Probe) gilt 5 wie in 11.6;
+    ein solches Ereignis hebt einen wartenden Backfill-Job derselben Datei auf 5.
+  - Download-Manifeste tragen kein `imageUrl`; der Offline-Player zeigt die Kapitelnummer.
+  - Bekannte Grenze: Bei Dolby Vision Profil 5 können die Farben der Kapitelbilder verfälscht sein,
+    wie beim Software-Transcode.
+- **Stufe 3, Schritt 15:** Das Kapitelblatt im Zahnrad des Handy-Layouts bleibt eine Textliste ohne
+  Bilder. Bilder zeigen der Reiter «Kapitel» und das Feld über der Zeitleiste. Eine Bild-URL, die
+  nicht lädt, versucht der Player nicht erneut, solange er offen ist.
+- PR #79 (Scanner, wiederverwendete Inode) gehört nicht zu Konzept 13 und kommt in ein späteres
+  Release.
 
 ## 12. Review-Protokoll
 

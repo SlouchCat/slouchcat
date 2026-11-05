@@ -14,6 +14,7 @@ import (
 // (M2 design section 1): a guest profile that allows more than the account still sees only what the
 // account allows.
 func TestVisibleItemsAppliesAccountLimits(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	seedTree(t, db.Write)
 	addFile(t, db.Write, "01FILE0000000000000000000A", idEp1, "Show/Season 01/E1.mkv")
@@ -80,6 +81,7 @@ func TestVisibleItemsAppliesAccountLimits(t *testing.T) {
 
 // Deleting a profile leaves the sessions that had it active without a profile (the picker shows).
 func TestDeletedProfileLeavesSessionsWithoutProfile(t *testing.T) {
+	t.Parallel()
 	db := openTestDB(t)
 	seedTree(t, db.Write)
 	mustExec(t, db.Write, `INSERT INTO sessions (id, token_hash, account_id, profile_id, created_at, last_seen_at, expires_at)
@@ -97,8 +99,10 @@ func TestDeletedProfileLeavesSessionsWithoutProfile(t *testing.T) {
 // ceiling and every library, keeps its sessions (profile still set, device unset) and its one
 // primary profile.
 func TestMigration00007KeepsFrozenData(t *testing.T) {
+	t.Parallel()
 	for _, name := range []string{"M1a.sql", "M1b.sql"} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", name))
 			if err != nil {
 				t.Fatal(err)

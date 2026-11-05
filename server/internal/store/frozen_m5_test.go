@@ -12,6 +12,7 @@ import (
 // The frozen M5 state carries every kind of M5 data (testdata/db/README.md), so later migrations
 // are tested against downloads, tombstones, rules, offline PIN material and offline events.
 func TestFrozenM5StateCoversM5Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M5.sql"))
 	if err != nil {
 		t.Fatal(err)

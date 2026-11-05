@@ -10,7 +10,7 @@ import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { ulid } from '@/lib/ulid';
 import { Notice } from '@/ui';
-import { AriaButton } from '@/ui/aria';
+import { AriaButton, focusOnMount } from '@/ui/aria';
 import { downloadTitle } from './labels';
 import { useOfflineChoice, type OfflineChoice } from './offlineSession';
 import { MEDIA_FILE, readFile } from './opfs';
@@ -27,6 +27,8 @@ interface Loaded {
   download: StoredDownload & { manifest: NonNullable<StoredDownload['manifest']> };
   media: File;
   watch: StoredWatchTime | undefined;
+  /** The profile's language (its last sync), for the order of the panels. */
+  profileLanguage: string | undefined;
   serverOffsetMs: number;
 }
 
@@ -74,6 +76,7 @@ async function load(id: string, who: OfflineChoice, fromSession: boolean): Promi
     download: { ...download, manifest: download.manifest },
     media,
     watch: profile?.accountId === who.accountId ? profile.watch : undefined,
+    profileLanguage: profile?.accountId === who.accountId ? profile.snapshot.language : undefined,
     serverOffsetMs: offset ?? 0,
   };
 }
@@ -96,7 +99,7 @@ function OfflinePlayback({
   fromSession: boolean;
 }) {
   const who = usePlayer(fromSession);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const goBack = useGoBack(fromSession ? paths.downloads : paths.offline);
   // One playback per mount (OfflineEvent.playbackId).
   const [playbackId] = useState(() => ulid());
@@ -152,6 +155,9 @@ function OfflinePlayback({
         watch={state.watch}
         serverOffsetMs={state.serverOffsetMs}
         onBack={goBack}
+        backTo={fromSession ? 'downloads' : 'library'}
+        // The profile's language sorts the panels; the UI language stands in, as online.
+        profileLanguage={state.profileLanguage ?? i18n.language}
         coverUrl={cover}
         byline={download.item?.author}
         accent={download.item?.accent}
@@ -176,7 +182,9 @@ function Message({ loading, onBack }: { loading: boolean; onBack: () => void }) 
           </Notice>
         )}
         <div>
-          <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+          {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition
+              after Enter opened the page (11.13). */}
+          <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
             {t('common.back')}
           </AriaButton>
         </div>

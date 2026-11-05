@@ -108,7 +108,7 @@ test('every filter narrows the result and lives in the URL', async ({ page }) =>
   await expect(page.getByText('Nichts gefunden')).toBeVisible();
 });
 
-test('search by keyboard: "/", arrows, Enter, back; no focus trap', async ({ page }) => {
+test('search by keyboard: "/", arrows, Enter, back; no focus trap @keyboard', async ({ page }) => {
   // "/" opens the search from the start page.
   await page.goto('/');
   await expect(page.getByRole('region', { name: 'Neu hinzugefügt' })).toBeVisible();

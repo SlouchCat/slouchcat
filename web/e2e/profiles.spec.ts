@@ -27,7 +27,7 @@ async function startAtPicker(page: Page) {
 }
 
 test.describe('picker', () => {
-  test('arrow keys move between tiles, Enter picks, back returns; no focus trap', async ({
+  test('arrow keys move between tiles, Enter picks, back returns; no focus trap @keyboard', async ({
     page,
     owner,
   }) => {
@@ -377,7 +377,7 @@ test.describe('profile management', () => {
     await expect(form.getByLabel('Name', { exact: true })).toHaveAttribute('aria-invalid', 'true');
   });
 
-  test('Tab order, radios with arrows, Enter submits, Escape closes; no focus trap', async ({
+  test('Tab order, radios with arrows, Enter submits, Escape closes; no focus trap @keyboard', async ({
     page,
   }) => {
     await tabTo(page, page.getByRole('link', { name: 'Verwaltung' }));
@@ -436,6 +436,31 @@ test.describe('profile management', () => {
     await expect(form.getByRole('radiogroup', { name: 'Farbe' }).locator(':focus')).toHaveCount(1);
     await page.keyboard.press('Tab');
     await expectFocusOn(page, form.getByRole('radio', { name: 'Alle', exact: true }));
+    // The playback languages (concept 13 11.4): each list's place, its «×» (a list may become
+    // empty, final review of stage 2), its add button, and the subtitle rule between them. They
+    // follow the language: English.
+    await page.keyboard.press('Tab');
+    const audioPlace = form.getByRole('combobox', { name: '1. Tonsprache' });
+    await expectFocusOn(page, audioPlace);
+    await expect(audioPlace).toHaveValue('en');
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
+      form.getByRole('button', { name: '1. Tonsprache (Englisch) entfernen' }),
+    );
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByRole('button', { name: 'Weitere Tonsprache' }));
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByRole('radio', { name: 'Nur erzwungene (Standard)' }));
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByRole('combobox', { name: '1. Untertitelsprache' }));
+    await page.keyboard.press('Tab');
+    await expectFocusOn(
+      page,
+      form.getByRole('button', { name: '1. Untertitelsprache (Englisch) entfernen' }),
+    );
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, form.getByRole('button', { name: 'Weitere Untertitelsprache' }));
     // The playback limits (W-8, K-5): the quality radios, then the three number fields.
     await page.keyboard.press('Tab');
     await expectFocusOn(page, form.getByRole('radio', { name: 'Ohne Limit' }));

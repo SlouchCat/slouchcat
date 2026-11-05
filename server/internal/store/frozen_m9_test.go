@@ -14,6 +14,7 @@ import (
 // integrations, one of them with a path mapping and a last contact, and an event log that holds
 // every result a webhook can have. Later migrations are tested against it.
 func TestFrozenM9StateCoversM9Data(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "M9.sql"))
 	if err != nil {
 		t.Fatal(err)

@@ -82,7 +82,7 @@ async function openSpotlight(page: Page) {
   await expect(region(page, 'Quelle').getByRole('switch')).toBeVisible();
 }
 
-test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry', async ({
+test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry @keyboard', async ({
   page,
   owner,
 }) => {
@@ -190,8 +190,8 @@ test('spotlight by keyboard: bands, source, fetch, hide, pin and note an entry',
       )
       .toBe(7);
 
-    // "Jetzt abrufen": 202 queues the fetch; 429 means another spec fetched within the last minute
-    // (one manual fetch a minute, discover.ts refreshSpotlight). Either answer shows its notice.
+    // "Jetzt abrufen": 202 queues the fetch; 429 means a fetch within the server's gap (a minute,
+    // 2 s in the suite, discover.ts refreshSpotlight). Either answer shows its notice.
     const refresh = source.getByRole('button', { name: 'Jetzt abrufen' });
     await tabToFromTop(page, refresh);
     const queued = answer(page, 'POST', '/admin/spotlight/refresh');

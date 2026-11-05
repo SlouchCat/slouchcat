@@ -282,6 +282,10 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	} else if cfg.TraktBaseURL != "" {
 		log.Warn("SLOUCHCAT_TRAKT_BASE_URL is ignored without --dev")
 	}
+	// The e2e suite's shortened spotlight limit (wireAdmin); without --dev the minute holds.
+	if !cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
+		log.Warn("SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP is ignored without --dev")
+	}
 	// The match hands a matched title to the library, which is created after the metadata service
 	// because it takes the metadata checks; the closure reads libSvc when a match runs.
 	var libSvc *library.Service
@@ -297,7 +301,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		library.WithMetadataCheck(metaSvc.QueuePendingMetadata),
 		library.WithNewEpisodes(notifySvc.NewEpisodes), library.WithScanAborted(notifySvc.ScanAborted),
 		library.WithRootRemoved(notifySvc.RootRemoved), library.WithRootContentChanged(notifySvc.RootContentChanged),
-		library.WithBrowseRoots(cfg.BrowseRoots), library.WithVisibilityRecheck(playbackSvc.RecheckVisibility))
+		library.WithBrowseRoots(cfg.BrowseRoots), library.WithVisibilityRecheck(playbackSvc.RecheckVisibility),
+		library.WithCacheDir(cfg.CacheDir))
 	authSvc.WithMetadataLanguages(metaSvc.AvailableMetadataLanguages)
 	adminSvc := admin.New(db, authSvc, libSvc, keyring, metaSvc, os.Getenv, log)
 	// The zone of the watch-time grid, resolved once by name (concept 12).
@@ -356,28 +361,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	if err := scheduler.Start(ctx); err != nil {
 		return fmt.Errorf("start job scheduler: %w", err)
 	}
-	adminSvc.WithJobControl(registry, scheduler, map[jobs.Pool]int{jobs.PoolGeneral: cfg.Workers, jobs.PoolDownload: 1, jobs.PoolNotify: 1})
+	poolCounts := poolWorkers(cfg.Workers)
+	adminSvc.WithJobControl(registry, scheduler, poolCounts)
 
 	var workers sync.WaitGroup
-	for i := range cfg.Workers {
-		worker := jobs.NewWorker(queue, fmt.Sprintf("worker-%d", i+1), log)
-		registry.Attach(worker, jobs.PoolGeneral)
-		worker.OnFinalFailure(notifySvc.JobFailed)
-		worker.OnFinalFailure(adminSvc.RecordJobFailure)
-		workers.Go(func() { worker.Run(ctx) })
-	}
-	// A worker of its own for download preparations: workers claim only the job types attached
-	// to them, so long encodes never hold up scans and probes.
-	downloadWorker := jobs.NewWorker(queue, "download-1", log)
-	registry.Attach(downloadWorker, jobs.PoolDownload)
-	downloadWorker.OnFinalFailure(notifySvc.JobFailed)
-	downloadWorker.OnFinalFailure(adminSvc.RecordJobFailure)
-	workers.Go(func() { downloadWorker.Run(ctx) })
-	// Notification deliveries (M8) on a worker of their own: a slow mail server never holds up
-	// scans. Run polls Telegram while link codes are open and prunes old deliveries.
-	notifyWorker := jobs.NewWorker(queue, "notify-1", log)
-	registry.Attach(notifyWorker, jobs.PoolNotify)
-	workers.Go(func() { notifyWorker.Run(ctx) })
+	startWorkers(ctx, &workers, queue, registry, poolCounts, log, notifySvc.JobFailed, adminSvc.RecordJobFailure)
+	// Run polls Telegram while link codes are open and prunes old deliveries.
 	workers.Go(func() { notifySvc.Run(ctx) })
 	workers.Go(func() { scheduler.Run(ctx) })
 	// The library watchers; the full scan at the start and every 6 h is the schedule scan.library.
@@ -391,6 +380,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	workers.Go(func() {
 		if _, err := metaSvc.QueueVoteBackfill(ctx); err != nil && ctx.Err() == nil {
 			log.Warn("vote backfill not queued", "err", err)
+		}
+		// Original languages of the titles matched before migration 00032 (concept 13, 11.7):
+		// queued once at the first start after it, later only by hand.
+		if _, err := metaSvc.QueueOriginalLanguageBackfillOnce(ctx); err != nil && ctx.Err() == nil {
+			log.Warn("original language backfill not queued", "err", err)
 		}
 	})
 	defer func() {
@@ -442,6 +436,39 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	return shutdown(srv, shutdownTimeout, restart.Load(), log)
 }
 
+// poolWorkers returns the workers per pool: general workers from SLOUCHCAT_WORKERS, one each for
+// downloads, notifications and the keyframe index (concept 09 F-9, concept 14 F-2; not adjustable).
+func poolWorkers(general int) map[jobs.Pool]int {
+	return map[jobs.Pool]int{jobs.PoolGeneral: general, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1}
+}
+
+// startWorkers starts the workers of counts (poolWorkers) on wg, each claiming only the job types
+// of its pool: worker-1 … for the general pool, download-1, notify-1 and index-1 for the others.
+// onFinalFailure hears of a job that failed its last attempt on every pool but notify.
+func startWorkers(ctx context.Context, wg *sync.WaitGroup, queue *jobs.Queue, registry *jobs.Registry, counts map[jobs.Pool]int,
+	log *slog.Logger, onFinalFailure ...func(context.Context, jobs.Job, error)) {
+	// The general workers, then a worker of its own for download preparations (long encodes never
+	// hold up scans and probes), for notification deliveries (M8: a slow mail server never holds
+	// up scans) and for the full keyframe reads (concept 14, 6.3: a read of minutes never holds
+	// up a general worker, and two never run at once).
+	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex} {
+		prefix := string(pool)
+		if pool == jobs.PoolGeneral {
+			prefix = "worker"
+		}
+		for i := range counts[pool] {
+			w := jobs.NewWorker(queue, fmt.Sprintf("%s-%d", prefix, i+1), log)
+			registry.Attach(w, pool)
+			if pool != jobs.PoolNotify {
+				for _, fn := range onFinalFailure {
+					w.OnFinalFailure(fn)
+				}
+			}
+			wg.Go(func() { w.Run(ctx) })
+		}
+	}
+}
+
 // shutdown stops srv and waits up to timeout for the running requests. On the way to a restart a
 // request still running then (a direct-play stream or an offline download keeps its connection for
 // minutes) is cut off: its client resumes against the restarted server, so this is a normal
@@ -467,6 +494,7 @@ func wireAdmin(a *admin.Service, cfg config.Config, queue *jobs.Queue, errRing *
 	caps transcode.Capabilities, started time.Time,
 ) {
 	a.WithJobs(queue).WithErrors(errRing).WithUpdateCheck(cfg.ManifestURL(), nil).
+		WithSpotlightRefreshGap(cfg.SpotlightRefreshGap()). // 0 outside --dev: the minute holds
 		WithSystem(admin.SystemSource{
 			Version: version, StartedAt: started, ConfigDir: cfg.ConfigDir, CacheDir: cfg.CacheDir, Caps: caps,
 			WatchedDirs: lib.WatchedDirs,
@@ -548,7 +576,7 @@ func newPlayback(ctx context.Context, cfg config.Config, db *store.DB, runner tr
 	stats := mgr.Stats()
 	log.Info("transcode ready", "backend", string(backend), "budget", stats.Budget, "hw_tonemap", caps.HWTonemap,
 		"tonemapper", caps.Tonemapper, "ffmpeg", caps.Version)
-	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr, backend)), playback.WithKeyframeIndex(runner.Keyframes))
+	opts = append(opts, playback.WithTranscoder(playback.NewManagerTranscoder(mgr)))
 	return playback.New(db, log, opts...), mgr, caps, mgr.Close
 }
 

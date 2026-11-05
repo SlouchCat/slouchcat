@@ -92,6 +92,36 @@ func (q *Queries) GetDevice(ctx context.Context, id string) (Device, error) {
 	return i, err
 }
 
+const getLastPlaybackTracks = `-- name: GetLastPlaybackTracks :one
+SELECT media_file_id, audio_track, subtitle_track FROM playback_sessions
+WHERE session_id = ?1 AND item_id = ?2
+ORDER BY started_at DESC, id DESC
+LIMIT 1
+`
+
+type GetLastPlaybackTracksParams struct {
+	SessionID int64
+	ItemID    string
+}
+
+type GetLastPlaybackTracksRow struct {
+	MediaFileID   string
+	AudioTrack    sql.NullInt64
+	SubtitleTrack sql.NullInt64
+}
+
+// The tracks of the latest playback of a browser session and title, ended or not: the playback a
+// track switch replaces (the client stops it before the next start). A start with
+// rememberForSeries keeps only the part that differs from it (review step 9, M-1). Per browser
+// session, not per tab: two tabs of one session on the same title share the latest row, and a new
+// session has none (changedTracks names the limits, final review stage 2).
+func (q *Queries) GetLastPlaybackTracks(ctx context.Context, arg GetLastPlaybackTracksParams) (GetLastPlaybackTracksRow, error) {
+	row := q.db.QueryRowContext(ctx, getLastPlaybackTracks, arg.SessionID, arg.ItemID)
+	var i GetLastPlaybackTracksRow
+	err := row.Scan(&i.MediaFileID, &i.AudioTrack, &i.SubtitleTrack)
+	return i, err
+}
+
 const getPlaybackSession = `-- name: GetPlaybackSession :one
 SELECT ps.id, ps.session_id, ps.account_id, ps.profile_id, ps.item_id, ps.media_file_id, ps.device_id, ps.mode, ps.backend, ps.reason, ps.started_at, ps.last_activity_at, ps.expires_at, ps.revoked_at, ps.quality, ps.width, ps.height, ps.bitrate, ps.hardware, ps.audio_track, ps.subtitle_track, ps.subtitle_delivery, ps.capabilities, ps.position_ms, ps.stopped_by FROM playback_sessions AS ps
 JOIN sessions AS s ON s.id = ps.session_id
@@ -310,6 +340,45 @@ func (q *Queries) ListActivePlaybackSessions(ctx context.Context, arg ListActive
 	return items, nil
 }
 
+const listEndedPlaybackFiles = `-- name: ListEndedPlaybackFiles :many
+SELECT DISTINCT media_file_id FROM playback_sessions
+WHERE expires_at >= ?1 AND media_file_id <> ''
+  AND ((revoked_at >= ?1 AND revoked_at <= ?2) OR (revoked_at IS NULL AND expires_at <= ?2))
+`
+
+type ListEndedPlaybackFilesParams struct {
+	Since int64
+	Now   sql.NullInt64
+}
+
+// The media files of the playback sessions that ended in [@since, @now]: revoked (a stop of the
+// client, the administration, a logout, a replacement) or expired (a closed or killed app). The
+// sweep queues their chapter images (concept 13 11.6); a row on the bound of two sweeps comes
+// twice, which the job key absorbs. A row is revoked before it expires, so the index on expires_at
+// bounds the scan.
+func (q *Queries) ListEndedPlaybackFiles(ctx context.Context, arg ListEndedPlaybackFilesParams) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listEndedPlaybackFiles, arg.Since, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var media_file_id string
+		if err := rows.Scan(&media_file_id); err != nil {
+			return nil, err
+		}
+		items = append(items, media_file_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEndedPlaybackSessions = `-- name: ListEndedPlaybackSessions :many
 SELECT ps.id FROM playback_sessions AS ps
 LEFT JOIN sessions AS s ON s.id = ps.session_id
@@ -476,7 +545,7 @@ UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
 WHERE revoked_at IS NULL
   AND (playback_sessions.device_id = ?3
        OR playback_sessions.session_id IN (SELECT s.id FROM sessions AS s WHERE s.device_id = ?3))
-RETURNING id, account_id, profile_id, item_id
+RETURNING id, session_id, account_id, profile_id, item_id
 `
 
 type RevokePlaybackSessionsByDeviceParams struct {
@@ -487,6 +556,7 @@ type RevokePlaybackSessionsByDeviceParams struct {
 
 type RevokePlaybackSessionsByDeviceRow struct {
 	ID        string
+	SessionID int64
 	AccountID int64
 	ProfileID int64
 	ItemID    string
@@ -504,6 +574,7 @@ func (q *Queries) RevokePlaybackSessionsByDevice(ctx context.Context, arg Revoke
 		var i RevokePlaybackSessionsByDeviceRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.SessionID,
 			&i.AccountID,
 			&i.ProfileID,
 			&i.ItemID,
@@ -597,7 +668,7 @@ func (q *Queries) RevokeReplacedPlaybackSessions(ctx context.Context, arg Revoke
 const stopPlaybackSession = `-- name: StopPlaybackSession :many
 UPDATE playback_sessions SET revoked_at = ?1, stopped_by = ?2
 WHERE id = ?3 AND revoked_at IS NULL AND expires_at > ?1
-RETURNING id, account_id, profile_id, item_id
+RETURNING id, session_id, account_id, profile_id, item_id
 `
 
 type StopPlaybackSessionParams struct {
@@ -608,6 +679,7 @@ type StopPlaybackSessionParams struct {
 
 type StopPlaybackSessionRow struct {
 	ID        string
+	SessionID int64
 	AccountID int64
 	ProfileID int64
 	ItemID    string
@@ -626,6 +698,7 @@ func (q *Queries) StopPlaybackSession(ctx context.Context, arg StopPlaybackSessi
 		var i StopPlaybackSessionRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.SessionID,
 			&i.AccountID,
 			&i.ProfileID,
 			&i.ItemID,

@@ -55,6 +55,12 @@ type ProfileService interface {
 	// of another account.
 	SetOfflinePIN(ctx context.Context, session model.Session, id int64, pin string) error
 	RemoveOfflinePIN(ctx context.Context, session model.Session, id int64) error
+	// GetPlaybackPrefs and SetPlaybackPrefs read and replace the language and subtitle preferences
+	// of the session's active profile (concept 13, F-13; *model.ValidationError on a bad value);
+	// ResetSeriesTracks forgets the languages the profile chose per series.
+	GetPlaybackPrefs(ctx context.Context, session model.Session) (model.PlaybackPrefs, error)
+	SetPlaybackPrefs(ctx context.Context, session model.Session, prefs model.PlaybackPrefs) (model.PlaybackPrefs, error)
+	ResetSeriesTracks(ctx context.Context, session model.Session) error
 	// UpdateAccount changes the e-mail or the password of the session's account after checking the
 	// current password (M8, A-2) and returns the session with the changed account; a new password
 	// revokes every other session of the account. Errors: model.ErrInvalidCredentials,
@@ -142,6 +148,7 @@ type AdminService interface {
 	ItemImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error)
 	SetItemImage(ctx context.Context, itemID, kind, provider, source string) (model.AdminItem, error)
 	ClearItemImage(ctx context.Context, itemID, kind string) (model.AdminItem, error)
+	SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) (model.AdminItem, error)
 	ItemImageCandidatePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 	// SetItemsRating applies SetItemRating to many titles; unknown ids are skipped and not counted.
 	SetItemsRating(ctx context.Context, itemIDs []string, rating *int) (int, error)
@@ -424,6 +431,15 @@ type PlaybackService interface {
 	HLS(ctx context.Context, g model.PlaybackGrant, segment int) (model.HLSStream, error)
 	// Stop ends a playback session of the browser session (model.ErrNotFound for any other).
 	Stop(ctx context.Context, session model.Session, playbackID string) error
+	// ChapterImage opens the image of chapter idx of a media file of a visible title (concept 13
+	// stage 3); model.ErrNotFound for anything that is not visible, not a ULID of a file of the
+	// title, or has no image.
+	// version is the v of the image URL (library.ChapterImagesVersion); the ETag of the result
+	// names the version the image belongs to.
+	ChapterImage(ctx context.Context, profile model.Profile, itemID, mediaFileID string, idx int, version string) (model.StreamSource, error)
+	// State reports from memory whether a playback session of the browser session still runs
+	// (concept 13); model.ErrNotFound for any other and for one the server does not know.
+	State(session model.Session, playbackID string) (model.PlaybackState, error)
 	// EndSession ends every playback session of a browser session (logout, profile switch).
 	EndSession(ctx context.Context, sessionID int64) error
 	// EndAccount ends every playback session of an account (guest revocation).

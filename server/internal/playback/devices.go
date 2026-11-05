@@ -128,7 +128,10 @@ func (s *Service) StopStream(ctx context.Context, id string) error {
 	if len(rows) == 0 {
 		return model.ErrNotFound
 	}
-	s.end(id)
+	// A playback from before a restart is unknown to the registry: the row names its browser
+	// session, so the stop watch of that player still learns of the stop.
+	s.states.add(id, rows[0].SessionID, s.now())
+	s.end(id, model.StoppedByAdmin)
 	s.log.InfoContext(ctx, "playback ended by the administration", "playback_id", id)
 	for _, r := range rows {
 		s.recordStopped(ctx, model.StoppedByAdmin, r.AccountID, r.ProfileID, r.ItemID)
@@ -146,7 +149,8 @@ func (s *Service) EndDevice(ctx context.Context, deviceID string) error {
 		return fmt.Errorf("revoke playback sessions of device: %w", err)
 	}
 	for _, r := range rows {
-		s.end(r.ID)
+		s.states.add(r.ID, r.SessionID, s.now()) // known after a restart too, as in StopStream
+		s.end(r.ID, model.StoppedByAdmin)        // the row's stopped_by
 	}
 	// One event per ended session (the UPDATE ends several at once, RETURNING names each). The row
 	// keeps stopped_by admin (the administration acted); the log says revoked, because forgetting

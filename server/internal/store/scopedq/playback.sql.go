@@ -12,7 +12,7 @@ import (
 
 const getVisibleMediaFileProbe = `-- name: GetVisibleMediaFileProbe :one
 
-SELECT m.id, m.probe, m.keyframes
+SELECT m.id, m.probe, m.keyframes, m.keyframes_source, m.keyframes_at, m.duration_ms
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 WHERE m.item_id = ?2 AND m.id = ?3
@@ -25,23 +25,34 @@ type GetVisibleMediaFileProbeParams struct {
 }
 
 type GetVisibleMediaFileProbeRow struct {
-	ID        string
-	Probe     sql.NullString
-	Keyframes []byte
+	ID              string
+	Probe           sql.NullString
+	Keyframes       []byte
+	KeyframesSource sql.NullString
+	KeyframesAt     sql.NullInt64
+	DurationMs      sql.NullInt64
 }
 
 // Playback data of a media file of a visible title (package store/scopedq, read by the visibility
 // package only): the stored ffprobe result and keyframe index the playback decision and the HLS
-// plan need (M1b).
+// plan need (M1b), with the source and time of the index (concept 14, 6.4: the playback only
+// looks the index up, a rebuild compares its time with the start of the playback).
 func (q *Queries) GetVisibleMediaFileProbe(ctx context.Context, arg GetVisibleMediaFileProbeParams) (GetVisibleMediaFileProbeRow, error) {
 	row := q.db.QueryRowContext(ctx, getVisibleMediaFileProbe, arg.ProfileID, arg.ItemID, arg.MediaFileID)
 	var i GetVisibleMediaFileProbeRow
-	err := row.Scan(&i.ID, &i.Probe, &i.Keyframes)
+	err := row.Scan(
+		&i.ID,
+		&i.Probe,
+		&i.Keyframes,
+		&i.KeyframesSource,
+		&i.KeyframesAt,
+		&i.DurationMs,
+	)
 	return i, err
 }
 
 const listVisibleItemTracks = `-- name: ListVisibleItemTracks :many
-SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced FROM tracks AS t
+SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced, t.is_hearing_impaired FROM tracks AS t
 JOIN media_files AS m ON m.id = t.media_file_id
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 WHERE m.item_id = ?2 AND t.kind IN ('audio', 'subtitle')
@@ -75,6 +86,7 @@ func (q *Queries) ListVisibleItemTracks(ctx context.Context, arg ListVisibleItem
 			&i.RelPath,
 			&i.IsDefault,
 			&i.IsForced,
+			&i.IsHearingImpaired,
 		); err != nil {
 			return nil, err
 		}
@@ -132,7 +144,7 @@ func (q *Queries) ListVisibleMediaFileProbes(ctx context.Context, arg ListVisibl
 
 const listVisibleMediaFileTracks = `-- name: ListVisibleMediaFileTracks :many
 
-SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced FROM tracks AS t
+SELECT t.id, t.media_file_id, t.stream_index, t.kind, t.codec, t.language, t.title, t.source, t.rel_path, t.is_default, t.is_forced, t.is_hearing_impaired FROM tracks AS t
 JOIN media_files AS m ON m.id = t.media_file_id
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 WHERE m.item_id = ?2 AND m.id = ?3 AND t.kind IN ('audio', 'subtitle')
@@ -169,6 +181,7 @@ func (q *Queries) ListVisibleMediaFileTracks(ctx context.Context, arg ListVisibl
 			&i.RelPath,
 			&i.IsDefault,
 			&i.IsForced,
+			&i.IsHearingImpaired,
 		); err != nil {
 			return nil, err
 		}

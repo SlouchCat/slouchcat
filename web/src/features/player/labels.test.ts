@@ -13,6 +13,11 @@ describe('player labels', () => {
     expect(languageName('de', 'en')).toBe('German');
     expect(languageName('und', 'de')).toBeUndefined();
     expect(languageName(undefined, 'de')).toBeUndefined();
+    expect(languageName('xx', 'de')).toBeUndefined();
+    expect(languageName('cn', 'de')).toBe('Chinesisch');
+    expect(languageName('german', 'en')).toBe('German');
+    // Swiss German keeps its own name on screen.
+    expect(languageName('gsw', 'de')).toBe('Schweizerdeutsch');
   });
 
   it('labels tracks with language, codec, channels and source', () => {
@@ -26,6 +31,10 @@ describe('player labels', () => {
     expect(trackLabel(t, { ...pgs!, language: undefined, forced: true }, 1, 'de')).toBe(
       'Spur 2 · PGS · erzwungen',
     );
+    // The panels show «erzwungen» as a mark instead.
+    expect(
+      trackLabel(t, { ...pgs!, language: undefined, forced: true }, 1, 'de', { forced: false }),
+    ).toBe('Spur 2 · PGS');
     expect(codecName('truehd')).toBe('TrueHD');
   });
 
@@ -38,6 +47,14 @@ describe('player labels', () => {
     };
     expect(qualityLabel(t, auto, transcoded)).toBe('Automatisch (720p)');
     expect(qualityLabel(t, playback.qualities[2]!, playback)).toBe('720p');
+    // Contract 1.11.0: original is a word, 2160p a rung name like the others.
+    const rung = { available: true, current: false };
+    expect(qualityLabel(t, { ...rung, quality: 'original' }, playback)).toBe('Original');
+    expect(qualityLabel(t, { ...rung, quality: '2160p' }, playback)).toBe('2160p');
+    // auto without re-encoding the video (direct play or remux, 11.5).
+    expect(qualityLabel(t, { ...auto, direct: true }, transcoded)).toBe(
+      'Automatisch · zurzeit Original',
+    );
   });
 
   it('finds the chapter that contains a position', () => {

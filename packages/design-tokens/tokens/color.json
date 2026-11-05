@@ -41,7 +41,15 @@
         "$value": "#ffffff33",
         "$description": "Unfilled part of progress and seek bars."
       },
-      "buffered": { "$value": "#ffffff66", "$description": "Buffered range on the seek bar." }
+      "buffered": { "$value": "#ffffff66", "$description": "Buffered range on the seek bar." },
+      "segment": {
+        "$value": "#ffffff59",
+        "$description": "Intro and outro on the seek bar: a lighter stretch of the unfilled track."
+      },
+      "chapter-mark": {
+        "$value": "#0b0c10b3",
+        "$description": "Chapter marks on the seek bar: a notch in the track and the fill."
+      }
     },
     "scrim": {
       "$description": "The base background at decreasing opacity, for gradients over artwork (no grey banding).",
@@ -57,6 +65,23 @@
     "media": {
       "$description": "Letterbox behind the video element.",
       "backdrop": { "$value": "#000000" }
+    },
+    "subtitle": {
+      "$description": "Subtitles over the video (concept 13, V-6): the viewer picks colour and background.",
+      "white": { "$value": "#ffffff", "$description": "Subtitle text, white." },
+      "yellow": { "$value": "#ffe14d", "$description": "Subtitle text, yellow." },
+      "shadow": {
+        "$value": "#000000e6",
+        "$description": "Shadow around the letters (background «Schatten»)."
+      },
+      "translucent": {
+        "$value": "#000000a6",
+        "$description": "Box behind the lines that lets the picture through (background «halbtransparent»)."
+      },
+      "box": {
+        "$value": "#000000",
+        "$description": "Solid box behind the lines (background «Box»)."
+      }
     },
     "accent": {
       "$description": "Profile accent colours; each profile picks exactly one.",

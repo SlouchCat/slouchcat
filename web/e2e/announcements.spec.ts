@@ -50,7 +50,7 @@ async function restart(page: Page): Promise<void> {
   expect((await answered).status()).toBe(200);
 }
 
-test('another profile sees it at its next start; after "Verstanden" not again', async ({
+test('another profile sees it at its next start; after "Verstanden" not again @keyboard', async ({
   page,
   owner,
 }) => {

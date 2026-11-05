@@ -14,6 +14,7 @@ import (
 // whose episodes were all raised to 16 under the old triggers (series min_child_rating stayed at
 // the seasons' inherited 12) is above 12 afterwards, and its extra is hidden for the 12 profile.
 func TestMigration00010RecomputesContainers(t *testing.T) {
+	t.Parallel()
 	const (
 		series = "01M5C0000000000000000SER01"
 		season = "01M5C0000000000000000SEA01"

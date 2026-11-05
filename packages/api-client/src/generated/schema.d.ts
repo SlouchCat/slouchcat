@@ -592,6 +592,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/chapters/{idx}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image of a chapter of a film or an episode (binary, contract 1.12.0)
+         * @description Implemented as an `http.Handler` (concept 13 stage 3). `PlaybackInfo.chapters[].imageUrl` names
+         *     this route for every chapter whose image exists; the client does not build the URL itself. One
+         *     WebP frame of 480 px width per chapter, taken a tenth into the chapter (at most 30 s after its
+         *     start, a black frame is replaced by one 10 s later), HDR and Dolby Vision tonemapped to SDR. The
+         *     background job `chapters.images` makes the images 10 minutes after a playback of the file ended
+         *     (never while it plays), when a file appears or changes after a complete scan of its library and
+         *     when a file with images is probed again; `chapters.images_backfill` (Hintergrundjobs) makes them
+         *     for the whole collection. The handler resolves the media file of the title through the
+         *     scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId`
+         *     that is no ULID or no file of this title, an `idx` outside the chapter list and a missing image
+         *     answer 404, never 403. The URL carries `v`, the version of the images: the time of the file's
+         *     probe and a fingerprint of its chapter list (`<probedAt>-<8 hex digits>`), so a new probe or
+         *     other chapter marks give new URLs. A `v` of the file's current probe serves the images of that
+         *     version with `ETag` (the version in quotes) and `Cache-Control: private, max-age=31536000,
+         *     immutable`; with another, a malformed or no `v` the answer carries the image of the current
+         *     version with its `ETag` and `Cache-Control: private, no-cache`, so a frame cached under an
+         *     older URL is never shown for a new probe.
+         */
+        get: operations["getChapterImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/trailers": {
         parameters: {
             query?: never;
@@ -831,6 +867,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/playback/sessions/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether a playback session still runs (contract 1.10.0)
+         * @description A player that has buffered its whole title makes no further stream request, so the 401 of
+         *     a revoked stream token never reaches it (concept 13, 11.13). It asks this operation every
+         *     4 s while it plays instead and stops within 5 s when the answer is `stopped`, with the
+         *     notice of `stoppedBy`. A stop that ends the browser session or its profile first (a
+         *     logout, a deleted account or profile) answers 401 or 403 `profile_required` instead; the
+         *     player takes both as a stop, like the 401 of a stream.
+         *
+         *     The handler answers from memory, without a database query of its own and without the
+         *     transcoder; only the session check every operation passes reads the browser session. The
+         *     server knows the playback sessions it started since its own start (and one from before
+         *     that the administration stops) and keeps a stopped one for 10 minutes. Only the browser
+         *     session that started the playback gets an answer; any other, an unknown id and a playback
+         *     the server no longer knows (after a restart, more than 10 minutes after its end) answer
+         *     404. A 404 does not mean stopped: the player plays on, and its next stream request answers
+         *     401 if the playback ended.
+         */
+        get: operations["getPlaybackSessionState"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/playback/sessions/{id}/master.m3u8": {
         parameters: {
             query?: never;
@@ -936,6 +1006,9 @@ export interface paths {
          *     styling is dropped. Works for direct and HLS playbacks alike: the client attaches the URL as a
          *     `<track>` element. `track` is the `id` of a `Track` with `kind` `subtitle` and `text` true; a bitmap
          *     track (PGS, DVD) or a track of another file answers 404. `Cache-Control: private, no-store`.
+         *     After a source change of the session the stream token answers 409 `playback_source_changed`
+         *     here as on the HLS endpoints (since contract 1.13.0); the client restarts from the HLS
+         *     answer and leaves the subtitle request alone.
          */
         get: operations["getPlaybackSubtitle"];
         put?: never;
@@ -1527,6 +1600,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/original-language": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set and lock the original language of a title (concept 13 11.7)
+         * @description Sets the original language of a movie or series (since contract 1.11.0) and locks the field
+         *     (`lockedFields` gets `original_language`), so `metadata.fill`, a match and
+         *     `metadata.original_language_backfill` keep it. `""` stores "unknown". `null` lifts the lock and
+         *     clears the value; a manual match of the title looks the language up again.
+         */
+        put: operations["setItemOriginalLanguage"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/{id}": {
         parameters: {
             query?: never;
@@ -2094,8 +2190,10 @@ export interface paths {
         /**
          * End a running stream (W-6)
          * @description Revokes the playback session (`stopped_by` admin), closes an open Range response, stops the ffmpeg
-         *     process of its HLS output and removes its files. The client's next stream request answers 401, so it
-         *     stops within seconds and shows that the administrator ended the stream.
+         *     process of its HLS output and removes its files. The client's next stream request answers 401, and its
+         *     stop watch (`getPlaybackSessionState`, every 4 s while it plays) answers `stopped` with `stoppedBy`
+         *     admin, also when the client has buffered the whole title and requests nothing more (contract 1.10.0).
+         *     So it stops within 5 s and shows that the playback ended.
          */
         delete: operations["stopStream"];
         options?: never;
@@ -2844,7 +2942,9 @@ export interface paths {
          * @description Only the fields sent change. The interval must lie within `schedule.limits` of the type (the
          *     spotlight list 6 to 48 whole hours, every other type 5 minutes to 7 days); a window names minutes of the server's
          *     day (`schedule.timeZone`), may span midnight and must not be empty; `clearWindow` removes it. The next
-         *     run is realigned: last firing plus interval, at least now, then moved into the window. One value,
+         *     run is realigned: last firing plus interval, at least now, then moved into the window. `onceLocal`
+         *     sets a one-off date as wall time of the server's time zone, from now plus one minute to now plus 366
+         *     days; `clearOnce` removes it. One value,
          *     two doors: the interval of the spotlight list's schedule is `SpotlightConfig.intervalHours`, the
          *     switch of `update.check` is `AdminSettings.updateCheckEnabled`; this operation writes those
          *     settings as well.
@@ -3330,6 +3430,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/playback-prefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Language and subtitle preferences of the active profile (contract 1.11.0)
+         * @description Every profile reads and sets its own preferences (concept 13 11.4, F-13); the primary profile
+         *     sets them for every profile of the account with `updateProfile` as well. The server chooses the
+         *     audio and subtitle track of a start from them (rule 12).
+         */
+        get: operations["getMyPlaybackPrefs"];
+        /**
+         * Replace the language and subtitle preferences of the active profile (contract 1.11.0)
+         * @description All three fields are replaced at once.
+         */
+        put: operations["putMyPlaybackPrefs"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/playback-prefs/series": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Forget the languages the active profile chose per series (contract 1.11.0)
+         * @description The player remembers the audio and subtitle language a profile chose by hand for a series
+         *     (`PlaybackRequest.rememberForSeries`); this deletes every such entry of the active profile
+         *     ("Meine Wiedergabe", concept 13 11.3). Nothing to delete is no error.
+         */
+        delete: operations["resetMySeriesTracks"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/channels": {
         parameters: {
             query?: never;
@@ -3796,6 +3944,15 @@ export interface components {
              */
             limits: components["schemas"]["PlaybackLimits"];
             effectiveLimits: components["schemas"]["EffectiveLimits"];
+            /**
+             * @description The audio languages of the profile in order of preference (since contract 1.11.0, concept 13
+             *     11.4). The profile changes them itself with `putMyPlaybackPrefs`, the primary profile for every
+             *     profile with `updateProfile`.
+             */
+            audioLanguages: components["schemas"]["PlaybackLanguages"];
+            subtitleMode: components["schemas"]["SubtitleMode"];
+            /** @description The subtitle languages of the profile in order of preference (since contract 1.11.0). */
+            subtitleLanguages: components["schemas"]["PlaybackLanguages"];
         };
         /** @description A profile as the picker shows it; carries no settings beyond the look and whether a PIN is set. */
         ProfileSummary: {
@@ -3835,6 +3992,11 @@ export interface components {
              *     clears that limit (no limit); an omitted `limits` keeps the stored limits.
              */
             limits?: components["schemas"]["PlaybackLimits"];
+            /** @description The audio languages in order of preference (since contract 1.11.0). */
+            audioLanguages?: components["schemas"]["PlaybackLanguages"];
+            subtitleMode?: components["schemas"]["SubtitleMode"];
+            /** @description The subtitle languages in order of preference (since contract 1.11.0). */
+            subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
         };
         /** @description Partial update; every field is optional and only sent fields change. */
         ProfileUpdate: {
@@ -3855,6 +4017,38 @@ export interface components {
              *     clears that limit (no limit); an omitted `limits` keeps the stored limits.
              */
             limits?: components["schemas"]["PlaybackLimits"];
+            /** @description The audio languages in order of preference (since contract 1.11.0). */
+            audioLanguages?: components["schemas"]["PlaybackLanguages"];
+            subtitleMode?: components["schemas"]["SubtitleMode"];
+            /** @description The subtitle languages in order of preference (since contract 1.11.0). */
+            subtitleLanguages?: components["schemas"]["PlaybackLanguages"];
+        };
+        /**
+         * @description A language of the playback preferences as an ISO 639-1 code (`de`, `en`), like `Profile.language`
+         *     (since contract 1.11.0). A code that is not in ISO 639-1 is refused (422 `invalid_value`).
+         */
+        PlaybackLanguage: string;
+        /**
+         * @description Languages in order of preference, the first one first (since contract 1.11.0); empty = none. A
+         *     duplicate is refused (422 `invalid_value`), more than 10 entries too (`too_long`).
+         */
+        PlaybackLanguages: components["schemas"]["PlaybackLanguage"][];
+        /**
+         * @description The subtitle rule of a profile (since contract 1.11.0, concept 13 11.3): `off` none; `forced`
+         *     (default) the forced text track in the language of the audio; `foreign` like `forced`, and the
+         *     full track in the first subtitle language when the audio is in none of the profile's
+         *     languages; `always` the full track in the first subtitle language, otherwise like `forced`.
+         * @enum {string}
+         */
+        SubtitleMode: "off" | "forced" | "foreign" | "always";
+        /**
+         * @description The language and subtitle preferences of the active profile (`getMyPlaybackPrefs`,
+         *     `putMyPlaybackPrefs`; since contract 1.11.0). A `PUT` replaces all three fields at once.
+         */
+        PlaybackPrefs: {
+            audioLanguages: components["schemas"]["PlaybackLanguages"];
+            subtitleMode: components["schemas"]["SubtitleMode"];
+            subtitleLanguages: components["schemas"]["PlaybackLanguages"];
         };
         /** @description Bandwidth limit in kbit/s (W-8). A source above the limit is transcoded to a rung that fits. */
         BitrateKbps: number;
@@ -3886,6 +4080,22 @@ export interface components {
             limitMinutes: number;
             usedMinutes: number;
             remainingMinutes: number;
+        };
+        /**
+         * @description State of a playback session (`getPlaybackSessionState`, contract 1.10.0). `stoppedBy` names
+         *     who ended a stopped one: `client` (the browser session itself: a stop, or a new start of
+         *     the same title), `admin` (the administration: the streams page, a forgotten device),
+         *     `limit` (the daily watch time, K-5), `logout` (a profile switch of the browser session) or
+         *     `revoked` (the account lost its access, the profile was deleted). A logout, a revoked
+         *     account and a deleted profile end the browser session or its profile before the playback,
+         *     so their player mostly gets 401 or 403 instead of `logout` or `revoked`. `stoppedBy` is
+         *     absent for a running playback and for one that expired.
+         */
+        PlaybackSessionState: {
+            /** @enum {string} */
+            state: "active" | "stopped";
+            /** @enum {string} */
+            stoppedBy?: "client" | "admin" | "limit" | "logout" | "revoked";
         };
         /** @description Minutes watched per day for one profile (K-5), oldest day first, today last. */
         WatchReport: {
@@ -3982,6 +4192,10 @@ export interface components {
         ItemRatingRequest: {
             /** @description New own rating, or null to drop the manual override. */
             rating: components["schemas"]["Rating"] | null;
+        };
+        ItemOriginalLanguageRequest: {
+            /** @description An ISO 639-1 code, `""` for "unknown", or null to lift the lock and look it up again. */
+            language: string | null;
         };
         /** @description Administration view of a title's ratings; not an `ItemRef` (unfiltered, admin only). */
         AdminItemRating: {
@@ -4291,10 +4505,29 @@ export interface components {
              */
             deviceId?: string;
             capabilities?: components["schemas"]["PlaybackCapabilities"];
-            /** @description Stream index of the audio track to play (`Track.index`); default the file's default track. */
+            /**
+             * @description Stream index of the audio track to play (`Track.index`). Absent = the server chooses (since
+             *     contract 1.11.0 by the profile's languages, concept 13 11.3; before, the file's default track).
+             */
             audioTrack?: number;
-            /** @description Id of the subtitle track to show (`Track.id`); absent or null = no subtitles. */
+            /**
+             * @description Id of the subtitle track to show (`Track.id`). **Changed meaning since contract 1.11.0:** absent
+             *     or null = the server chooses by the profile's subtitle rule (before: no subtitles); no
+             *     subtitles is `subtitleOff: true`. Every switch in the player (audio, subtitles, quality,
+             *     version) sends audio and subtitles explicitly; only the first start lets the server choose.
+             */
             subtitleTrack?: components["schemas"]["TrackID"] | null;
+            /**
+             * @description No subtitles (since contract 1.11.0); absent = false. Together with `subtitleTrack` the request is refused (422
+             *     `subtitleOff` `not_allowed`).
+             */
+            subtitleOff?: boolean;
+            /**
+             * @description The audio or subtitle choice of this request was made by hand during an episode, and the
+             *     profile keeps its languages for the series (since contract 1.11.0, concept 13 11.3); absent =
+             *     false. Ignored for anything but an episode.
+             */
+            rememberForSeries?: boolean;
             /**
              * @description `text`: the client renders the track from `subtitleUrl` (text tracks only); `burn`: burned into
              *     the video (always a transcode); `auto`: text for text tracks, burned for bitmap tracks (PGS, DVD).
@@ -4303,6 +4536,15 @@ export interface components {
              */
             subtitleDelivery: "auto" | "text" | "burn";
             quality?: components["schemas"]["Quality"];
+            /**
+             * @description A rung below 2160p the device remembered from the quality panel (V-17, since contract
+             *     1.11.0): it caps the output like a device limit. A file within the cap still plays directly
+             *     or as a remux, a file above it is transcoded to the cap (reason `quality`); the playback
+             *     counts as `auto` (`QualityOption.current`). `auto`, `original` and `2160p` are no caps and
+             *     go as `quality`. Together with a `quality` other than `auto`, `quality` applies and the cap
+             *     is ignored.
+             */
+            qualityCap?: components["schemas"]["QualityCap"];
             /**
              * Format: int64
              * @description Start position instead of the stored resume position (a track or quality switch restarts the
@@ -4316,12 +4558,25 @@ export interface components {
          */
         TrackID: number;
         /**
-         * @description Quality rung (W-8). `auto` = the highest rung the source, the device and the profile's limits allow;
-         *     a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2, 360p 1
-         *     (video) plus 160 kbit/s AAC.
+         * @description Quality rung (W-8). `auto` = the highest rung up to 1080p the source, the device and the profile's
+         *     limits allow; a rung below the source is always a transcode. Rungs: 1080p 8 Mbit/s, 720p 4, 480p 2,
+         *     360p 1 (video) plus 160 kbit/s AAC. Since contract 1.11.0 (concept 13 11.5, F-8, F-14): `original`
+         *     never re-encodes the video (direct play or remux; the audio may be converted) and is unavailable
+         *     where that is impossible (burned-in subtitles, a remux whose keyframe index is still being built,
+         *     a video the device cannot play without a transcode); a requested `original` that is unavailable
+         *     plays as `auto` without an error. `2160p` (25 Mbit/s) only on a hardware backend, from a 4K source
+         *     (at least 2160 lines or at least 3840 pixels wide), a device of at least 1440 lines, a profile
+         *     that allows 2160 and an SDR source or tone mapping on the GPU; a requested `2160p` that is
+         *     unavailable plays as `auto`, at most on the 1080p rung (`current` is the rung of a transcode
+         *     that runs, else `auto`). `auto` never chooses 2160p.
          * @enum {string}
          */
-        Quality: "auto" | "1080p" | "720p" | "480p" | "360p";
+        Quality: "auto" | "original" | "2160p" | "1080p" | "720p" | "480p" | "360p";
+        /**
+         * @description A remembered rung below 2160p (`PlaybackRequest.qualityCap`, V-17, since contract 1.11.0).
+         * @enum {string}
+         */
+        QualityCap: "1080p" | "720p" | "480p" | "360p";
         /**
          * @description The device's capability profile (W-7): what it plays, from `canPlayType` /
          *     `MediaSource.isTypeSupported`, its screen and HDR support. The server stores it with the device
@@ -4392,23 +4647,84 @@ export interface components {
             subtitleTrack?: number;
             /** @enum {string} */
             subtitleDelivery?: "text" | "burn";
+            /**
+             * @description Why the server played this audio track (since contract 1.11.0, concept 13 11.3): asked for in
+             *     the request, remembered for the series, a language of the profile, the original language of the
+             *     title, or the file's default. Absent when the server reports no reason.
+             * @enum {string}
+             */
+            audioReason?: "request" | "series" | "profile" | "original" | "file";
+            /**
+             * @description Why the server shows these subtitles or none (since contract 1.11.0): asked for in the request,
+             *     remembered for the series, the profile's subtitle rule, none, or none although a forced bitmap
+             *     track exists that only a transcode could burn in (F-11). Absent when the server reports no
+             *     reason.
+             * @enum {string}
+             */
+            subtitleReason?: "request" | "series" | "mode" | "off" | "forced_bitmap_available";
         };
         QualityOption: {
             quality: components["schemas"]["Quality"];
             width?: number;
             height?: number;
-            /** @description Peak video bit rate of the rung in bit/s (the source bit rate for `auto` without transcode). */
+            /**
+             * @description Peak video bit rate of the rung in bit/s; the source bit rate for `auto` without transcode, for
+             *     `original` and for a `direct` rung (since contract 1.11.0). The client estimates the data per
+             *     hour from it.
+             */
             bitrate?: number;
-            /** @description False when the source, the device or the profile's limits rule the rung out. */
+            /** @description Video codec of the output, ffprobe name (`h264`, `hevc`; since contract 1.11.0). */
+            codec?: string;
+            /**
+             * @description The rung plays the file without re-encoding the video (direct play or remux; since contract
+             *     1.11.0): `auto` when it runs so, `original` always, a rung when it is the source's rung and
+             *     `original` is available.
+             */
+            direct?: boolean;
+            /**
+             * @description False when the source, the device or the profile's limits rule the rung out; for `original`
+             *     when the video would be re-encoded (see `Quality`).
+             */
             available: boolean;
+            /**
+             * @description What the client asked for: `auto` (also with a `qualityCap` and for an unavailable `original`),
+             *     `original` when it plays, else the rung that runs.
+             */
             current: boolean;
         };
+        /**
+         * @description A chapter on the source timeline. Since contract 1.12.0 (concept 13, 11.6) the chapters of a
+         *     film or an episode follow these rules; audiobooks, podcast episodes and extras keep their marks
+         *     as before. Marks of zero length are dropped. A title that only numbers the chapter (a time such
+         *     as `00:12:36.172`, «Chapter 12», «Kapitel 12») is left out, and the client numbers such chapters
+         *     by their position in the list. A file of at least 30 minutes with fewer than four chapters gets
+         *     replacement chapters instead (`auto`, no title) at its start and at every full 10 minutes of the
+         *     file. A real credits chapter («Credits», «Abspann», «End Credits») that looks like end credits
+         *     (at most 15 minutes, starting in the second half) stays with its title; the 10-minute marks go
+         *     on after it. A section under 3 minutes merges with a neighbour (the last one of a stretch into
+         *     the one before it), and a stretch under 3 minutes after a credits chapter merges into it.
+         */
         Chapter: {
             /** Format: int64 */
             startMs: number;
             /** Format: int64 */
             endMs: number;
             title?: string;
+            /**
+             * @description Set (true) on a replacement chapter that the server placed every 10 minutes because the
+             *     file has too few chapters of its own (since contract 1.12.0, F-6); such a chapter has no
+             *     title. Absent on real chapters.
+             */
+            auto?: boolean;
+            /**
+             * @description Relative URL of `getChapterImage` for this chapter of a film or an episode, set only when
+             *     the image exists (since contract 1.12.0, concept 13 stage 3). It carries `v`, the version of
+             *     the images (probe time and chapter fingerprint), and changes with every new probe and chapter
+             *     list; clients use it as it is. Absent while the background
+             *     job `chapters.images` has not made the image yet, on audiobooks and podcast episodes, and
+             *     in `DownloadManifest.chapters`.
+             */
+            imageUrl?: string;
         };
         PlaybackPart: {
             mediaFileId: string;
@@ -4470,6 +4786,11 @@ export interface components {
             subtitleUrl?: string;
             /** @description The quality rungs of this playback, highest first (W-8 manual choice). */
             qualities: components["schemas"]["QualityOption"][];
+            /**
+             * @description Chapters on the timeline of the playback (empty without marks). Since contract 1.12.0 a film
+             *     or an episode carries cleaned titles, replacement chapters (`Chapter.auto`) and chapter
+             *     images (`Chapter.imageUrl`), see `Chapter`.
+             */
             chapters: components["schemas"]["Chapter"][];
             segments: components["schemas"]["Segments"];
             /** @description The next visible episode of the same series (auto-next, W-9). */
@@ -4502,7 +4823,8 @@ export interface components {
             /**
              * @description Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`,
              *     `pixel_format` for H.264 High 10 and 4:2:2/4:4:4 sources, `keyframes_pending` for a remux
-             *     candidate that is transcoded until its keyframe index exists, `dolby_vision` for profiles 5 and
+             *     candidate that is transcoded until its keyframe index exists, `keyframes_unavailable` for a remux
+             *     candidate whose keyframe index cannot be built, `dolby_vision` for profiles 5 and
              *     7, `bandwidth` and `max_height` for the profile's limits, `quality` for a manual rung below the
              *     source, `audio_track` for a non-default audio track in a container that cannot be played
              *     directly with it, `subtitle_burn` for burned-in subtitles, `budget_lowered` when the transcode
@@ -4613,6 +4935,7 @@ export interface components {
             width?: number;
             height?: number;
             bitrate?: number;
+            /** @description Why the file is not played directly, the codes of `Transcoding.reason` (among them `keyframes_pending` and `keyframes_unavailable`). */
             reason?: string;
             /** Format: date-time */
             startedAt: string;
@@ -4775,7 +5098,8 @@ export interface components {
         FieldSource: {
             /**
              * @description `title`, `overview`, `tagline` (per language), `original_title`, `genres`,
-             *     `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`.
+             *     `runtime_minutes`, `release_date`, `own_rating`, `poster`, `backdrop`, `original_language`
+             *     (since contract 1.11.0).
              */
             field: string;
             /** @description The text language, empty for fields without one. */
@@ -4860,6 +5184,11 @@ export interface components {
              * @description The AniList id the fill job found; `0` for "looked up, no entry".
              */
             anilistId?: number;
+            /**
+             * @description The original language of the title as an ISO 639-1 code (since contract 1.11.0, concept 13 11.7);
+             *     `""` for "looked up, unknown", absent while it was not looked up.
+             */
+            originalLanguage?: string;
             /** @description The ordered metadata sources of the title, copied from its folder (ADR 0015). */
             providers: components["schemas"]["MetadataProvider"][];
             /** @description Which provider won which field; empty until the first fill job ran. */
@@ -5162,8 +5491,25 @@ export interface components {
             defaultRating?: components["schemas"]["Rating"];
             roots: components["schemas"]["LibraryRoot"][];
             scan: components["schemas"]["LibraryScan"];
+            /** @description Keyframe index coverage of a video library; absent for audio libraries (since contract 1.13.0). */
+            keyframeIndex?: components["schemas"]["LibraryKeyframeIndex"];
             /** Format: date-time */
             createdAt: string;
+        };
+        /**
+         * @description Keyframe index of the files of the library that can be remuxed (concept 14, F-7). Counted are
+         *     present files with H.264, HEVC, AV1 or VP9 video outside audiobooks and podcasts;
+         *     `indexed + pending + unavailable = videoFiles`.
+         */
+        LibraryKeyframeIndex: {
+            /** @description Present files with H.264, HEVC, AV1 or VP9 video outside audiobooks and podcasts. */
+            videoFiles: number;
+            /** @description Files with an index (Matroska cues, MP4 tables or full read). */
+            indexed: number;
+            /** @description Files without an index yet; the next playback transcodes. */
+            pending: number;
+            /** @description Files whose index cannot be built; they are always transcoded. */
+            unavailable: number;
         };
         LibraryRoot: {
             /** Format: int64 */
@@ -5343,7 +5689,14 @@ export interface components {
             /** @description The audio track the file carries. */
             audio?: components["schemas"]["Track"];
             subtitles: components["schemas"]["DownloadSubtitle"][];
-            /** @description Chapters of an audiobook on the file's timeline (empty for video and episodes without marks). */
+            /**
+             * @description Chapters on the timeline of the playback (empty without marks): those of an audiobook
+             *     on the book's timeline; since contract 1.10.0 also those of a film or an episode, the
+             *     chapter marks of the downloaded file that `PlaybackInfo.chapters` offers online. Before
+             *     1.10.0 a video download carried none. Since contract 1.12.0 they follow the rules of
+             *     `Chapter` (cleaned titles, replacement chapters), without `imageUrl`: offline playback
+             *     fetches no chapter images.
+             */
             chapters: components["schemas"]["Chapter"][];
         };
         OfflineSyncRequest: {
@@ -6266,6 +6619,8 @@ export interface components {
             estimatedSecondsLeft?: number;
             /** @enum {string} */
             estimate: "measured" | "median" | "none";
+            /** @description The run starts and keeps running while its type is paused (a playback request, concept 14); only sent when true (since contract 1.13.0). */
+            overridesPause?: boolean;
         };
         JobProgress: {
             done: number;
@@ -6287,8 +6642,10 @@ export interface components {
             lastFiredAt?: string;
             enabled: boolean;
             window?: components["schemas"]["JobWindow"];
+            /** @description The one-off date; absent without one (since contract 1.13.0). */
+            once?: components["schemas"]["JobScheduleOnce"];
             /**
-             * @description The server's time zone of the window, for example `Europe/Zurich`.
+             * @description The server's time zone of the window and the one-off date, for example `Europe/Zurich`.
              * @example Europe/Zurich
              */
             timeZone: string;
@@ -6297,11 +6654,31 @@ export interface components {
                 maxEverySeconds: number;
             };
         };
-        /** @description Only the fields sent change; `clearWindow` removes the window (a JSON null would be indistinguishable from an absent field for the generated clients). */
+        /** @description A one-off run of a scheduled type besides its interval; absent without a date. It fires once and is gone then. */
+        JobScheduleOnce: {
+            /**
+             * @description The date as wall time in `JobSchedule.timeZone`.
+             * @example 2026-11-08T03:00
+             */
+            local: string;
+            /**
+             * Format: date-time
+             * @description The same date as an instant.
+             */
+            at: string;
+        };
+        /** @description Only the fields sent change; `clearWindow` removes the window and `clearOnce` the one-off date (a JSON null would be indistinguishable from an absent field for the generated clients). */
         JobScheduleUpdate: {
             everySeconds?: number;
             window?: components["schemas"]["JobWindow"];
             clearWindow?: boolean;
+            /**
+             * @description One-off date as wall time in `JobSchedule.timeZone`; ignored with `clearOnce` (since contract 1.13.0).
+             * @example 2026-11-08T03:00
+             */
+            onceLocal?: string;
+            /** @description Removes the one-off date (since contract 1.13.0). */
+            clearOnce?: boolean;
             enabled?: boolean;
         };
         JobTypeInfo: {
@@ -6311,7 +6688,7 @@ export interface components {
             /** @enum {string} */
             trigger: "schedule" | "event" | "manual";
             /** @enum {string} */
-            pool: "general" | "download" | "notify";
+            pool: "general" | "download" | "notify" | "index";
             paused: boolean;
             /** Format: date-time */
             pausedAt?: string;
@@ -6335,10 +6712,15 @@ export interface components {
             queuedEstimateSeconds?: number;
             /** @description False for a type in the database that no worker of this server knows (after a downgrade). */
             known: boolean;
+            /** @description Runs of the type that a playback requests start and keep running while the type is paused (concept 14, 6.4); only sent when true (since contract 1.13.0). */
+            overridesPauseForPlayback?: boolean;
         };
         JobPool: {
-            /** @enum {string} */
-            pool: "general" | "download" | "notify";
+            /**
+             * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0).
+             * @enum {string}
+             */
+            pool: "general" | "download" | "notify" | "index";
             workers: number;
             /** @description Estimated work waiting in the pool, divided by its workers; absent without any median. */
             backlogSeconds?: number;
@@ -7059,6 +7441,20 @@ export interface components {
             };
         };
         /**
+         * @description `playback_source_changed`: the file of a remux playback changed since it started (its keyframe
+         *     index is gone or newer than the playback), so the lost HLS output cannot be rebuilt with the
+         *     segments of the client's playlist. The server ends the playback session; the client starts a
+         *     new one at the current position (concept 14, 6.4).
+         */
+        StreamSourceChanged: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
          * @description `transcode_busy`: the HLS output was lost (server restart) and restarting it found no transcode
          *     budget within 10 s. `segment_restarted`: a newer seek restarted the encoder while this request
          *     waited (`Retry-After: 1`). `Retry-After` names the pause in seconds.
@@ -7761,7 +8157,10 @@ export interface operations {
             /**
              * @description Validation failed (`validation_failed`): `name` required or too long, `maxRating` above the
              *     account's limit (`above_account_limit`), unknown `accent` or `language`, `libraryIds` outside the
-             *     account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`).
+             *     account's libraries (`unknown_library`), more than 10 profiles (`too_many_profiles` on `name`),
+             *     and since contract 1.11.0 `audioLanguages` or `subtitleLanguages` with a code outside ISO 639-1 or
+             *     a duplicate (`invalid_value`) or more than 10 entries (`too_long`), an unknown `subtitleMode`
+             *     (`invalid_value`).
              */
             422: {
                 headers: {
@@ -8422,6 +8821,57 @@ export interface operations {
             };
         };
     };
+    getChapterImage: {
+        parameters: {
+            query: {
+                /** @description The media file whose chapters `PlaybackInfo` described (a ULID). */
+                mediaFileId: string;
+                /** @description Version of the images as in `imageUrl` (`<probedAt>-<8 hex digits>`); decides the folder and the caching of the answer. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                /** @description Position of the chapter in `PlaybackInfo.chapters`, from 0. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chapter image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Unknown or not visible title, no file of this title with this `mediaFileId`, no chapter or no
+             *     image at `idx` (`not_found`).
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getItemTrailers: {
         parameters: {
             query?: never;
@@ -8971,6 +9421,65 @@ export interface operations {
             };
         };
     };
+    getPlaybackSessionState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Playback session ID (ULID) from `PlaybackInfo.playbackSessionId`. */
+                id: components["parameters"]["PlaybackSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The state of the playback session. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackSessionState"];
+                };
+            };
+            /**
+             * @description No valid session (`unauthenticated`): the browser session ended (a logout, a revoked or
+             *     deleted account), and with it the playback.
+             */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description No profile chosen (`profile_required`): the profile of the browser session was deleted,
+             *     and with it the playback.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Not a playback session of this browser session that the server knows (`not_found`);
+             *     not a stop.
+             */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getPlaybackMaster: {
         parameters: {
             query: {
@@ -8997,6 +9506,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9026,6 +9536,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9055,6 +9566,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9086,6 +9598,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9117,6 +9630,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
         };
     };
     deleteDownload: {
@@ -10352,6 +10866,53 @@ export interface operations {
                 };
             };
             /** @description Validation failed (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    setItemOriginalLanguage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemOriginalLanguageRequest"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Validation failed (`validation_failed`): field `language` (`invalid_value`) or `kind` (`invalid_value`, not a movie or series). */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -12767,7 +13328,11 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description A value is outside its range (`validation_failed`, fields `everySeconds`, `window`). */
+            /**
+             * @description A value is outside its range (`validation_failed`, fields `everySeconds`, `window`, `onceLocal`;
+             *     `onceLocal` answers `invalid_value` for a value that is no wall time and `out_of_range` outside
+             *     now plus one minute to now plus 366 days).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -13684,6 +14249,111 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             /** @description Unknown or unpublished announcement (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getMyPlaybackPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preferences of the active profile. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackPrefs"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No profile chosen (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    putMyPlaybackPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlaybackPrefs"];
+            };
+        };
+        responses: {
+            /** @description The stored preferences. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybackPrefs"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No profile chosen (`profile_required`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): a field missing (`required`), `audioLanguages` or
+             *     `subtitleLanguages` with a code outside ISO 639-1 or a duplicate (`invalid_value`) or more than 10
+             *     entries (`too_long`), an unknown `subtitleMode` (`invalid_value`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    resetMySeriesTracks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Forgotten. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description No profile chosen (`profile_required`). */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

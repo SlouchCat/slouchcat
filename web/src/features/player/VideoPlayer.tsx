@@ -1,58 +1,89 @@
 import type {
+  ItemDetail,
   ItemRef,
   MediaFileInfo,
   PlaybackInfo,
   Progress,
   Quality,
+  Track,
   TrackList,
   WatchTime,
 } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api, apiUrl, request } from '@/api/client';
+import { api, apiUrl, imageUrl, request } from '@/api/client';
+import { sessionQuery } from '@/app/session';
 import { episodeCode } from '@/features/catalog/labels';
-import { formatPlayerTime } from '@/lib/format';
+import { formatRuntime } from '@/lib/format';
+import { itemQuery } from '@/features/catalog/queries';
 import { VisuallyHidden } from '@/ui';
-import { AriaButton, MenuButton } from '@/ui/aria';
-import type { PlaybackEngine } from './capabilities';
+import { AriaButton, focusOnMount, PlayerChrome } from '@/ui/aria';
+import { nextChapterStart, previousChapterStart, RESTART_CHAPTER_MS } from './audio';
+import { playbackCapabilities, type PlaybackEngine } from './capabilities';
+import { stepPlaybackRate } from './keymap';
+import { usePlayerLayout, volumeIsReadOnly } from './layout';
 import {
-  audioKey,
   chapterAt,
-  chapterLabel,
   languageName,
+  qualityDetail,
   qualityLabel,
+  qualityName,
   selectedSubtitle,
-  subtitleKey,
   trackLabel,
 } from './labels';
-import { SeekBar } from './SeekBar';
+import { SettingsPanel } from './panels/SettingsPanel';
+import { PANEL_IDS } from './panels/panelIds';
+import { usePlayerPanels } from './panels/usePlayerPanels';
+import { AudioPanel, SubtitlePanel, type RememberSeries } from './panels/TrackPanels';
+import { PAUSE_VIEW_MS, PauseView } from './PauseView';
+import { ShortcutHelp } from './ShortcutHelp';
 import { StreamInfo } from './StreamInfo';
+import { usePlayerTabs, type PlayerTabId } from './tabs/playerTabs';
+import { usePhoneTap } from './usePhoneTap';
+import { usePlaybackStopWatch } from './usePlaybackStopWatch';
+import { useBoostedVolume } from './useBoostedVolume';
+import { useChapterChoice } from './useChapterChoice';
+import { useControlsVisibility } from './useControlsVisibility';
+import { useFullscreen } from './useFullscreen';
+import { usePlayerKeys } from './usePlayerKeys';
+import { usePlayerPrefs } from './usePlayerPrefs';
+import { useSubtitleStyle } from './useSubtitleStyle';
+import { SubtitleLayer, useSubtitleCues } from './SubtitleLayer';
 import { useProgressReporter } from './useProgressReporter';
+import { lowerQuality, useSlowConnection } from './useSlowConnection';
+import { useWheelVolume } from './useWheelVolume';
 import styles from './Player.module.css';
 
-/** Controls fade out after this long without input while the video plays. */
-export const CONTROLS_HIDE_MS = 3000;
+export { CONTROLS_HIDE_MS } from './useControlsVisibility';
 /** The track menu asks for new tracks this often while it is open (I-5). */
 export const TRACKS_REFRESH_MS = 30_000;
 /** Seconds the next-episode countdown runs (W-9). */
 export const AUTO_NEXT_SECONDS = 10;
 /** The countdown is announced when it starts and once more this many seconds before its end. */
 const ANNOUNCE_LAST_SECONDS = 3;
-const SEEK_STEP_S = 10;
-const VOLUME_STEP = 0.1;
 /** Resume only when the position is not within the last seconds of the file. */
 const RESUME_TAIL_MS = 5000;
 /** The skip button hides this close to the end of the intro. */
 const SKIP_TAIL_MS = 500;
 
-/** A change of the playback the server has to make: a new session (W-4, W-8). */
+/**
+ * A change of the playback the server has to make: a new session (W-4, W-8). PlayerPage names the
+ * other tracks of the running session too (11.3), so only the first start lets the server choose.
+ */
 export interface PlaybackChange {
   /** Stream index of the audio track. */
   audioTrack?: number;
-  /** Track id of the subtitle; null switches subtitles off. */
-  subtitleTrack?: number | null;
+  /** Track id of the subtitle, or `off` (sent as `subtitleOff`). */
+  subtitleTrack?: number | 'off';
   quality?: Quality;
+  /** A choice by hand during an episode that the server keeps for the series (11.3). */
+  rememberForSeries?: boolean;
+  /**
+   * No choice at all: the server ended the session because the file changed (409
+   * `playback_source_changed`, concept 14, 7.4); the same choice starts again at the position.
+   */
+  sourceChanged?: boolean;
 }
 
 /**
@@ -62,8 +93,6 @@ export interface PlaybackChange {
  */
 export type EndedReason = 'limit' | 'admin';
 
-type MenuName = 'tracks' | 'quality' | 'chapters' | 'version';
-
 interface VideoPlayerProps {
   info: PlaybackInfo;
   /** Range stream or native HLS (the element loads streamUrl itself) or hls.js (MSE). */
@@ -71,6 +100,8 @@ interface VideoPlayerProps {
   /** performance.now() when the player route opened. */
   openedAt: number;
   onBack: () => void;
+  /** A navigation away from the player is loading: the keys go to the next page (usePlayerKeys). */
+  leaving?: () => boolean;
   /** Position to start from instead of the server's resume position (after a switch). */
   startPositionMs?: number;
   /** Versions of the title (B-5); the version menu shows with two or more. */
@@ -82,22 +113,44 @@ interface VideoPlayerProps {
   onSwitch?: (change: PlaybackChange, positionMs: number) => void;
   /** performance.now() of the menu choice that led to this session (data-switch-ms, W-4). */
   switchStartedAt?: number;
+  /**
+   * This session restarted the playback after a `playback_source_changed` (concept 14, 7.4): a
+   * second one shows the usual error instead of restarting again.
+   */
+  sourceRestarted?: boolean;
   /** Plays the next episode (auto-next, W-9). */
   onNextEpisode?: (next: ItemRef) => void;
+  /** Plays an episode the viewer chose: «Folge zurück», a card of «Als Nächstes» (V-2, V-11). */
+  onPlayEpisode?: (episode: ItemRef) => void;
+  /** Opens a person of «Besetzung» (V-11); leaves the player. */
+  onOpenPerson?: (personId: number) => void;
   /** This player opened through auto-next (data-autonext="navigated"). */
   autoNext?: boolean;
   /** The "Stream-Info" overlay (key i). */
   infoOpen?: boolean;
   onToggleInfo?: () => void;
+  /** The title's details (logo, genres, series), once loaded; the head shows text until then. */
+  detail?: ItemDetail;
+  /** What the previous session of this title left (review m-2): a switch keeps it. */
+  carried?: PlayerCarry;
+  /** Reports what the next session should keep. */
+  onCarry?: (patch: Partial<PlayerCarry>) => void;
+  /** An episode: «Für diese Serie merken» in the sound and subtitle panels (11.3). */
+  rememberSeries?: RememberSeries;
 }
 
-const isActivatable = (target: EventTarget | null) =>
-  target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
+/**
+ * What a switch of track, quality or version keeps (PlayerPage mounts a new player per session):
+ * mute, speed, the volume (a boost above 100 % is not stored on the device) and night mode.
+ */
+export interface PlayerCarry {
+  muted: boolean;
+  rate: number;
+  volume?: number;
+  nightMode: boolean;
+}
 
-/** Keys inside a player menu belong to the menu (arrows, Enter, Escape). */
-const inMenu = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  target.closest('[role="menu"], [role="menuitemradio"], [role="menuitem"]') !== null;
+export const NO_CARRY: PlayerCarry = { muted: false, rate: 1, nightMode: false };
 
 function bufferedRanges(video: HTMLVideoElement): [number, number][] {
   const ranges: [number, number][] = [];
@@ -114,21 +167,28 @@ export function resumeSeconds(resume: number, durationMs: number): number {
 }
 
 /**
- * Whether the stream token of this playback was revoked: the server answers 401 for a stopped
- * session (admin, watch-time limit, logout). The media element reports a failed request without
- * its status, so a one-byte request asks again.
+ * The status the stream answers now; undefined when the request fails. The media element reports a
+ * failed request without its status, so a one-byte request asks again.
  */
-export async function streamRevoked(streamUrl: string): Promise<boolean> {
+async function streamStatus(streamUrl: string): Promise<number | undefined> {
   try {
     const url = new URL(apiUrl(streamUrl), window.location.href);
     const response = await fetch(
       new Request(url, { headers: { Range: 'bytes=0-0' }, cache: 'no-store' }),
     );
     void response.body?.cancel();
-    return response.status === 401;
+    return response.status;
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+/**
+ * Whether the stream token of this playback was revoked: the server answers 401 for a stopped
+ * session (admin, watch-time limit, logout).
+ */
+export async function streamRevoked(streamUrl: string): Promise<boolean> {
+  return (await streamStatus(streamUrl)) === 401;
 }
 
 export function VideoPlayer({
@@ -136,36 +196,41 @@ export function VideoPlayer({
   engine,
   openedAt,
   onBack,
+  leaving,
   startPositionMs,
   versions = [],
   switching = false,
   onSwitchVersion,
   onSwitch,
   switchStartedAt,
+  sourceRestarted = false,
   onNextEpisode,
+  onPlayEpisode,
+  onOpenPerson,
   autoNext = false,
   infoOpen = false,
   onToggleInfo,
+  detail,
+  carried = NO_CARRY,
+  onCarry,
+  rememberSeries,
 }: VideoPlayerProps) {
   const { t, i18n } = useTranslation();
   // Fixed for the life of this player (one playback session).
   const [resumeMs] = useState(() => startPositionMs ?? info.resumePositionMs);
+  const [start] = useState(() => carried);
   const [switchFrom] = useState(() => switchStartedAt);
+  // The page sets it for the next session while this one is still on screen.
+  const [restartedSession] = useState(() => sourceRestarted);
   const video = useRef<HTMLVideoElement>(null);
-  const container = useRef<HTMLDivElement>(null);
   const playButton = useRef<HTMLButtonElement>(null);
   const nextPanel = useRef<HTMLElement>(null);
-  const hideTimer = useRef<number | undefined>(undefined);
-  const osdTimer = useRef<number | undefined>(undefined);
+  const slowPanel = useRef<HTMLElement>(null);
 
   const [playing, setPlaying] = useState(false);
   const [currentMs, setCurrentMs] = useState(resumeMs);
   const [durationMs, setDurationMs] = useState(info.mediaFile.durationMs ?? 0);
   const [buffered, setBuffered] = useState<[number, number][]>([]);
-  // Full screen belongs to the document, so it survives a new session or episode (W-2).
-  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
-  const [idle, setIdle] = useState(false);
-  const [osd, setOsd] = useState<string | null>(null);
   const [startMs, setStartMs] = useState<number | null>(null);
   // From the menu choice of the previous session until this one plays (W-4).
   const [switchMs, setSwitchMs] = useState<number | null>(null);
@@ -174,18 +239,35 @@ export function VideoPlayer({
   const [failed, setFailed] = useState(false);
   // The server ended this playback (K-5 limit, W-6 admin): the player stops for good.
   const [ended, setEnded] = useState<{ reason: EndedReason; watchTime?: WatchTime } | null>(null);
-  // The open menu keeps the controls on screen; shortcut keys open menus as well.
-  const [openMenu, setOpenMenu] = useState<MenuName | null>(null);
+  // The panel beside the video (sound, subtitles, the shortcut help); it keeps the controls on
+  // screen.
+  const {
+    panel,
+    openPanel,
+    togglePanel,
+    closePanel,
+    settingsView,
+    setSettingsView,
+    openSettings,
+    panelButton,
+  } = usePlayerPanels();
+  const helpOpen = panel === 'help';
   // Auto-next (W-9): the end of the countdown, or null; cancelled stays for this session.
   const [countdownEnd, setCountdownEnd] = useState<number | null>(null);
   const [countdownCancelled, setCountdownCancelled] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  // The menus render into the player, so they stay visible in full screen.
-  const [portal, setPortal] = useState<HTMLElement | null>(null);
-  const containerRef = useCallback((node: HTMLDivElement | null) => {
-    container.current = node;
-    setPortal(node);
+  // The tab under the bar (11.2); C counts up `focusChapter`, so the chapter playing takes the focus,
+  // also when the tab is open already.
+  const [tab, setTab] = useState<{ id: PlayerTabId; focusChapter?: number } | null>(null);
+  const openTab = useCallback((id: string | null) => {
+    setTab(id === null ? null : { id: id as PlayerTabId });
   }, []);
+  // Desktop and tablet, or a phone (11.2): the layout changes the focus order as well.
+  const layout = usePlayerLayout();
+  const phone = layout === 'phone';
+  // A phone has no tabs: one open when the window narrows closes, or the bar would never fade
+  // (state adjusted while rendering, not in an effect).
+  if (phone && tab !== null) setTab(null);
   // During a switch the old session is ended already: playing or seeking it would fail.
   const locked = useRef(switching);
   // The viewer switched away from this session (track, quality, version): the old session ends on
@@ -197,6 +279,14 @@ export function VideoPlayer({
   }, [switching, ended]);
   const watchTime = useRef<WatchTime | undefined>(info.watchTime);
   const stopHls = useRef<() => void>(() => undefined);
+  // A new session with the same choice at the position (set below, once switchPlayback exists).
+  const restartForSource = useRef<() => void>(() => undefined);
+  // The stream answered 409 `playback_source_changed` (concept 14, 7.4): the server ended this
+  // session for the new file, and a stop without a cause is that end, not one to show.
+  const sourceChanged = useRef(false);
+  // The native player's question to the stream after an error, while it is open: the stop watch
+  // waits for it, so a source change restarts instead of ending the playback.
+  const streamProbe = useRef<Promise<void> | null>(null);
 
   /** The server ended the playback: pause, stop loading, show why. */
   const endedOnce = useRef(false);
@@ -211,12 +301,43 @@ export function VideoPlayer({
     setEnded((current) => current ?? { reason, watchTime: watchTime.current });
   }, []);
 
-  /** A 401 of the stream: the watch-time limit when the day's minutes were (nearly) used up. */
-  const onRevoked = useCallback(() => {
-    if (switchedAway.current) return;
-    const remaining = watchTime.current?.remainingMinutes;
-    endPlayback(remaining !== undefined && remaining <= 1 ? 'limit' : 'admin');
-  }, [endPlayback]);
+  /**
+   * A 401 of the stream, or the stop watch with the server's reason: without one, the watch-time
+   * limit when the day's minutes were (nearly) used up.
+   */
+  const onRevoked = useCallback(
+    (reason?: EndedReason) => {
+      if (switchedAway.current || (reason === undefined && sourceChanged.current)) return;
+      const remaining = watchTime.current?.remainingMinutes;
+      endPlayback(reason ?? (remaining !== undefined && remaining <= 1 ? 'limit' : 'admin'));
+    },
+    [endPlayback],
+  );
+
+  /**
+   * The server ended the session because its file changed: once a new session with the same
+   * choice at the position; in that new session the usual error (never an end by the server).
+   */
+  const onSourceChanged = useCallback(() => {
+    if (switchedAway.current || sourceChanged.current) return;
+    sourceChanged.current = true;
+    if (restartedSession) {
+      stopHls.current();
+      setFailed(true);
+    } else {
+      restartForSource.current();
+    }
+  }, [restartedSession]);
+
+  /** The stop watch's answer; one without a cause waits for an open question to the stream. */
+  const onServerStop = useCallback(
+    (reason?: EndedReason) => {
+      const probe = reason === undefined ? streamProbe.current : null;
+      if (probe) void probe.then(() => onRevoked(reason));
+      else onRevoked(reason);
+    },
+    [onRevoked],
+  );
 
   const onProgress = useCallback(
     (progress: Progress) => {
@@ -237,9 +358,16 @@ export function VideoPlayer({
     onProgress,
   });
 
-  // I-5: the track menu asks the server again when it opens and every 30 s while it is open, so a
-  // subtitle placed next to the file shows up without restarting the playback.
-  const tracksOpen = openMenu === 'tracks';
+  // A fully buffered title makes no stream request that could answer 401 (concept 13, 11.13).
+  usePlaybackStopWatch({
+    playbackSessionId: info.playbackSessionId,
+    active: playing && !switching && ended === null,
+    onStopped: onServerStop,
+  });
+
+  // I-5: the sound and subtitle panels ask the server again when they open and every 30 s while
+  // one is open, so a subtitle placed next to the file shows up without restarting the playback.
+  const tracksOpen = panel === 'audio' || panel === 'subtitle';
   const trackList = useQuery({
     queryKey: ['tracks', info.item.id, info.mediaFile.id],
     queryFn: ({ signal }): Promise<TrackList> =>
@@ -256,34 +384,52 @@ export function VideoPlayer({
   });
   const tracks = trackList.data ?? info.tracks;
 
+  // The head (11.2): the title's logo, for an episode the series' (a second request, usually in
+  // the cache of the detail page). Until they arrive the title shows as text.
+  const seriesId = detail?.series?.id;
+  const series = useQuery({ ...itemQuery(seriesId ?? ''), enabled: seriesId !== undefined });
+  const [prefs, setPrefs] = usePlayerPrefs();
+  const [subtitleStyle, setSubtitleStyle] = useSubtitleStyle();
+  const subtitleTrackElement = useRef<HTMLTrackElement>(null);
+  // The profile's language sorts the panels (stage 1: `profiles.language`, 11.10); the UI language
+  // follows it, so it stands in until the session is there.
+  const session = useQuery(sessionQuery);
+  const profileLanguage = session.data?.profile?.language ?? i18n.language;
+  // The audio codecs this browser plays, for the mark «Stream wird neu aufgebaut».
+  const [decodableAudio] = useState(() => playbackCapabilities().audio);
+  const timeDisplay = prefs.timeDisplay ?? 'elapsed';
+
+  // The first focus goes to play/pause (focusOnMount, not react-aria's autoFocus: 11.13); every
+  // session is a new player, so a switch focuses it again.
+  const playRef = useCallback((element: HTMLButtonElement | null) => {
+    playButton.current = element;
+    focusOnMount(element);
+  }, []);
+
   // Controls: visible on any input and while paused, hidden after 3 s without input while playing.
-  const scheduleHide = useCallback(() => {
-    window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setIdle(true), CONTROLS_HIDE_MS);
+  const { idle, wake, hide, osd, showOsd } = useControlsVisibility(playing);
+  // The pause view (V-10): five seconds paused without input, nothing open; any input hides it
+  // and starts the five seconds again. `pauseAllowed` is set below from the player's state.
+  const [pauseView, setPauseView] = useState(false);
+  // Not before the first `playing` (the start) nor at the end of the title (review step 5).
+  const [hasPlayed, setHasPlayed] = useState(false);
+  const [atEnd, setAtEnd] = useState(false);
+  const pauseTimer = useRef<number | undefined>(undefined);
+  const pauseAllowed = useRef(false);
+  const armPauseView = useCallback(() => {
+    window.clearTimeout(pauseTimer.current);
+    if (!pauseAllowed.current) return;
+    pauseTimer.current = window.setTimeout(() => {
+      if (pauseAllowed.current) setPauseView(true);
+    }, PAUSE_VIEW_MS);
   }, []);
   const poke = useCallback(() => {
-    setIdle(false);
-    scheduleHide();
-  }, [scheduleHide]);
+    wake();
+    setPauseView(false);
+    armPauseView();
+  }, [armPauseView, wake]);
 
-  useEffect(() => {
-    if (playing) scheduleHide();
-    else window.clearTimeout(hideTimer.current);
-  }, [playing, scheduleHide]);
-
-  useEffect(
-    () => () => {
-      window.clearTimeout(hideTimer.current);
-      window.clearTimeout(osdTimer.current);
-    },
-    [],
-  );
-
-  const showOsd = (text: string) => {
-    setOsd(text);
-    window.clearTimeout(osdTimer.current);
-    osdTimer.current = window.setTimeout(() => setOsd(null), 1200);
-  };
+  useEffect(() => () => window.clearTimeout(pauseTimer.current), []);
 
   // What the viewer wants, not what the element reports: re-attaching the element (hls.js after a
   // media error) runs the load algorithm, which clears `paused` without a `pause` event. The
@@ -319,32 +465,89 @@ export function VideoPlayer({
     [seekTo],
   );
 
-  const changeVolume = useCallback(
-    (delta: number) => {
-      const element = video.current;
-      if (!element) return;
-      const next = Math.round(Math.min(1, Math.max(0, element.volume + delta)) * 10) / 10;
-      element.volume = next;
-      element.muted = next === 0;
-      showOsd(t('player.volume', { percent: Math.round(next * 100) }));
+  // Up to 150 % and night mode through Web Audio, except in Safari (11.15).
+  const { volume, webAudio, nightMode, setNightMode, changeVolume, toggleMute } = useBoostedVolume(
+    video,
+    {
+      showOsd,
+      initialMuted: start.muted,
+      initialVolume: start.volume,
+      initialNightMode: start.nightMode,
     },
-    [t],
+  );
+  const { muted: mutedNow, volume: levelNow } = volume;
+  useEffect(() => {
+    onCarry?.({ muted: mutedNow, volume: levelNow, nightMode });
+  }, [levelNow, mutedNow, nightMode, onCarry]);
+
+  // Mouse wheel over the picture (V-3): one notch is one volume step.
+  const onWheel = useWheelVolume(video, changeVolume);
+
+  // Speed (V-7): [ and ] in steps of 0.25 from 0.5× to 2×; a switch keeps it.
+  const [rate, setRate] = useState(start.rate);
+  useEffect(() => {
+    onCarry?.({ rate });
+    const element = video.current;
+    if (!element) return;
+    // A new source falls back to the default rate; both keep the speed.
+    element.defaultPlaybackRate = rate;
+    element.playbackRate = rate;
+  }, [onCarry, rate]);
+  const changeRate = useCallback(
+    (delta: number) => {
+      const next = stepPlaybackRate(video.current?.playbackRate ?? 1, delta);
+      setRate(next);
+      const shown = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(next);
+      showOsd(t('player.chrome.rate', { rate: shown }));
+    },
+    [i18n.language, showOsd, t],
   );
 
-  // The whole document goes full screen, not this player: a switch or auto-next replaces the
-  // player, and removing the full-screen element would end full screen (W-2). The player covers
-  // the viewport and its menus render inside it, so nothing else shows.
-  const toggleFullscreen = useCallback(() => {
-    const root = document.documentElement;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else if (typeof root.requestFullscreen === 'function') void root.requestFullscreen();
+  // Safari on the iPhone keeps the volume read-only: only the mute button (11.2).
+  const [muteOnly] = useState(() => volumeIsReadOnly());
+
+  // Full screen belongs to the document, so it survives a new session or episode (W-2).
+  const { fullscreen, toggleFullscreen } = useFullscreen();
+
+  // Picture in picture (V-9): Chromium and Safari; Firefox has a button of its own on the video.
+  const [pictureInPicture, setPictureInPicture] = useState(false);
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    const onEnter = () => setPictureInPicture(true);
+    const onLeave = () => setPictureInPicture(false);
+    element.addEventListener('enterpictureinpicture', onEnter);
+    element.addEventListener('leavepictureinpicture', onLeave);
+    return () => {
+      element.removeEventListener('enterpictureinpicture', onEnter);
+      element.removeEventListener('leavepictureinpicture', onLeave);
+    };
+  }, []);
+  const togglePictureInPicture = useCallback(() => {
+    const element = video.current;
+    if (!element) return;
+    if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => {});
+    else void element.requestPictureInPicture().catch(() => {});
   }, []);
 
-  useEffect(() => {
-    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  // Chapter back and forward (V-2, ⇧←/⇧→): back restarts the chapter after its first seconds.
+  // The chapter images (stage 3) are relative to the API base, like every image URL the server
+  // lists; resolved once for the tab «Kapitel» and the field over the timeline.
+  const chapters = useMemo(
+    () =>
+      info.chapters.map((chapter) =>
+        chapter.imageUrl ? { ...chapter, imageUrl: apiUrl(chapter.imageUrl) } : chapter,
+      ),
+    [info.chapters],
+  );
+  const previousChapter = useCallback(() => {
+    if (chapters.length === 0) return;
+    seekTo(previousChapterStart(chapters, (video.current?.currentTime ?? 0) * 1000));
+  }, [chapters, seekTo]);
+  const nextChapter = useCallback(() => {
+    const target = nextChapterStart(chapters, (video.current?.currentTime ?? 0) * 1000);
+    if (target !== null) seekTo(target);
+  }, [chapters, seekTo]);
 
   // Segments (W-9): skip the intro while inside it; the outro starts the next-episode countdown.
   const { intro, outro } = info.segments;
@@ -399,165 +602,100 @@ export function VideoPlayer({
   }, [countdownEnd]);
 
   const hasTracks = tracks.audio.length > 0 || tracks.subtitles.length > 0;
+  // Sound and subtitles change through the server: a new session (rule 12).
+  const canSwitchTracks = hasTracks && onSwitch !== undefined;
   const hasQualities = info.qualities.length > 0 && onSwitch !== undefined;
   const hasChapters = info.chapters.length > 0;
   const hasVersions = versions.length > 1 && onSwitchVersion !== undefined;
 
-  // react-aria buttons keep Enter and Space to themselves, so the window never sees them: during
-  // the countdown a capture listener lets a press of any other focused button (play/pause on the
-  // remote's OK) cancel it as well; the button still does its job.
-  useEffect(() => {
-    if (!countdownActive) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      if (!isActivatable(event.target)) return;
-      if (event.target instanceof Node && nextPanel.current?.contains(event.target)) return;
-      cancelCountdown();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [cancelCountdown, countdownActive]);
-
-  // Key map (W-1, C-4, W-4, W-9): Space/Enter play-pause, ←/→ ±10 s, ↑/↓ volume, F full screen,
-  // I stream info, T tracks, Q quality, C chapters, S skip intro, N next episode, Escape/Backspace
-  // back to the detail page. During the next-episode countdown any other key cancels it.
-  useEffect(() => {
-    const open = (menu: MenuName, available: boolean, event: KeyboardEvent) => {
-      if (!available) return;
-      event.preventDefault();
-      setOpenMenu(menu);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      poke();
-      if (inMenu(event.target)) {
-        // Backspace is the remote's back key (C-4): in a menu it closes the menu, like Escape.
-        if (event.key === 'Backspace') {
-          event.preventDefault();
-          setOpenMenu(null);
-        }
-        return;
-      }
-      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-      if (countdownActive) {
-        if (key === 'n') {
-          event.preventDefault();
-          playNext();
-          return;
-        }
-        // Tab moves between the controls; modifier keys alone do nothing.
-        if (key === 'Tab' || ['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return;
-        const activates = key === 'Enter' || key === ' ';
-        // The countdown's own buttons take Enter and Space.
-        if (
-          activates &&
-          event.target instanceof Node &&
-          nextPanel.current?.contains(event.target)
-        ) {
-          return;
-        }
-        cancelCountdown();
-        // Any other focused button (play/pause on the remote's OK) still does its job.
-        if (activates && isActivatable(event.target)) return;
-        event.preventDefault();
-        return;
-      }
-      switch (key) {
-        case ' ':
-        case 'Enter':
-          // Focused buttons activate themselves; everywhere else the key toggles playback.
-          if (isActivatable(event.target)) return;
-          event.preventDefault();
-          togglePlay();
-          return;
-        case 'k':
-          togglePlay();
-          return;
-        case 'ArrowLeft':
-          event.preventDefault();
-          seekBy(-SEEK_STEP_S);
-          return;
-        case 'ArrowRight':
-          event.preventDefault();
-          seekBy(SEEK_STEP_S);
-          return;
-        case 'ArrowUp':
-          event.preventDefault();
-          changeVolume(VOLUME_STEP);
-          return;
-        case 'ArrowDown':
-          event.preventDefault();
-          changeVolume(-VOLUME_STEP);
-          return;
-        case 'f':
-          event.preventDefault();
-          toggleFullscreen();
-          return;
-        case 'i':
-          event.preventDefault();
-          onToggleInfo?.();
-          return;
-        case 't':
-          open('tracks', hasTracks && !switching && ended === null, event);
-          return;
-        case 'q':
-          open('quality', hasQualities && !switching && ended === null, event);
-          return;
-        case 'c':
-          open('chapters', hasChapters && ended === null, event);
-          return;
-        case 's':
-          if (!inIntro) return;
-          event.preventDefault();
-          skipIntro();
-          return;
-        case 'n':
-          if (!next || !onNextEpisode || ended !== null) return;
-          event.preventDefault();
-          playNext();
-          return;
-        case 'Escape':
-          if (infoOpen) {
-            event.preventDefault();
-            onToggleInfo?.();
-            return;
-          }
-          if (document.fullscreenElement) return;
-          event.preventDefault();
-          onBack();
-          return;
-        case 'Backspace':
-          if (document.fullscreenElement) return;
-          event.preventDefault();
-          onBack();
-          return;
-        default:
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    cancelCountdown,
-    changeVolume,
-    countdownActive,
-    ended,
-    hasChapters,
-    hasQualities,
-    hasTracks,
-    inIntro,
-    infoOpen,
-    next,
-    onBack,
-    onNextEpisode,
-    onToggleInfo,
-    playNext,
-    poke,
-    seekBy,
-    skipIntro,
-    switching,
-    toggleFullscreen,
+  // Faded out: no input while playing, nothing open that needs the controls.
+  const hidden = idle && playing && panel === null && tab === null && !countdownActive && !infoOpen;
+  // The pointer on the picture: a mouse plays, pauses and goes full screen; a finger in the phone
+  // layout shows or hides the controls, and a double tap seeks 10 s (V-13).
+  const available = ended === null;
+  const pictureTaps = usePhoneTap({
+    phone,
+    hidden,
     togglePlay,
-  ]);
+    toggleFullscreen,
+    seekBy,
+    showOsd,
+    wantsPlaying: () => wantPlaying.current,
+    hide,
+    // Locked like seekBy and togglePlay: two taps would show «±10 s» and seek nothing.
+    disabled: switching || !available,
+  });
+  const canPauseView =
+    !playing &&
+    hasPlayed &&
+    !atEnd &&
+    ended === null &&
+    !failed &&
+    !switching &&
+    panel === null &&
+    tab === null &&
+    !countdownActive &&
+    !infoOpen;
+  useEffect(() => {
+    pauseAllowed.current = canPauseView;
+    armPauseView();
+  }, [armPauseView, canPauseView]);
+  const showPauseView = pauseView && canPauseView;
+  // The text subtitles of this session, drawn by the player (11.10).
+  const cueTexts = useSubtitleCues({
+    video,
+    track: subtitleTrackElement,
+    src: info.subtitleUrl,
+    offsetMs: subtitleStyle.offsetMs,
+    pictureInPicture,
+  });
+  usePlayerKeys({
+    hidden,
+    countdown: countdownActive
+      ? { panel: nextPanel, cancel: cancelCountdown, playNext }
+      : undefined,
+    durationMs,
+    onKey: poke,
+    leaving,
+    actions: {
+      togglePlay,
+      seekBy,
+      seekTo,
+      changeVolume,
+      changeRate,
+      toggleMute,
+      toggleFullscreen,
+      previousChapter: hasChapters ? previousChapter : undefined,
+      nextChapter: hasChapters ? nextChapter : undefined,
+      toggleInfo: onToggleInfo,
+      openTracks:
+        canSwitchTracks && !switching && available ? (kind) => openPanel(kind) : undefined,
+      openQuality:
+        hasQualities && !switching && available ? () => openSettings('quality', true) : undefined,
+      // C: the chapter tab with the focus on the chapter playing; on a phone the gear's page.
+      openChapters:
+        hasChapters && available
+          ? phone
+            ? () => openSettings('chapters', true)
+            : () =>
+                setTab((current) => ({
+                  id: 'chapters',
+                  focusChapter: (current?.focusChapter ?? 0) + 1,
+                }))
+          : undefined,
+      skipIntro: inIntro ? skipIntro : undefined,
+      playNext: next && onNextEpisode && available ? playNext : undefined,
+      toggleHelp: () => togglePanel('help'),
+      closeOpen: () => {
+        if (panel !== null) closePanel();
+        else if (infoOpen) onToggleInfo?.();
+        else if (tab !== null) setTab(null);
+        else return false;
+        return true;
+      },
+      back: onBack,
+    },
+  });
 
   // hls.js (Chromium, Firefox): loaded as its own chunk only for HLS playback (ADR 0004). It starts
   // loading at the resume position, so a transcode does not first encode the beginning.
@@ -581,6 +719,11 @@ export function VideoPlayer({
             },
           },
         });
+        // A 409 is `playback_source_changed` (concept 14, 7.4): the file of this remux changed
+        // and the server ended the session. hls.js hands over the status of the master and
+        // media playlist, init and segment requests but not the problem body, and these
+        // endpoints answer 409 for nothing else, so the status decides. The player starts one
+        // new session with the same choice at the position; a 409 in that one is a failure.
         // A 401 never heals: the server revoked the stream token (W-6 admin, K-5 limit). Any
         // other fatal error gets one recovery attempt per kind before the player gives up: a
         // media error (decode, buffer append) re-creates the media source, a network error
@@ -589,6 +732,10 @@ export function VideoPlayer({
         let networkRecovered = false;
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (switchedAway.current) return;
+          if (data.response?.code === 409) {
+            onSourceChanged();
+            return;
+          }
           if (data.response?.code === 401) {
             onRevoked();
             return;
@@ -615,7 +762,7 @@ export function VideoPlayer({
       stopHls.current = () => undefined;
       destroy();
     };
-  }, [engine, info, onRevoked, resumeMs]);
+  }, [engine, info, onRevoked, onSourceChanged, resumeMs]);
 
   // Media element events.
   useEffect(() => {
@@ -639,6 +786,9 @@ export function VideoPlayer({
     const onPlaying = () => {
       wantPlaying.current = true;
       setPlaying(true);
+      setPauseView(false);
+      setHasPlayed(true);
+      setAtEnd(false);
       // The start of the route's first session (data-start-ms); a later session of a switch
       // measures from the menu choice instead (data-switch-ms).
       if (switchFrom === undefined) {
@@ -651,6 +801,7 @@ export function VideoPlayer({
     const onSeeking = () => {
       seekStarted ??= performance.now();
       seeked = false;
+      setAtEnd(false);
     };
     const onSeeked = () => {
       seeked = true;
@@ -664,6 +815,7 @@ export function VideoPlayer({
     const onEnded = () => {
       wantPlaying.current = false;
       setPlaying(false);
+      setAtEnd(true);
       maybeCountdown.current(element.currentTime * 1000, true);
     };
     const onTime = () => {
@@ -677,12 +829,18 @@ export function VideoPlayer({
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);
     };
     // With hls.js the element's errors reach hls.js as well, which reports them (and recovers).
-    // A direct stream that the server closed answers 401 to the element's next range request.
+    // A direct stream that the server closed answers 401 to the element's next range request;
+    // the native HLS player's master playlist answers 409 after a source change, as with hls.js.
     const onError = () => {
       if (engine === 'hlsjs' || switchedAway.current) return;
-      void streamRevoked(info.streamUrl).then((revoked) => {
-        if (revoked) onRevoked();
+      const probe = streamStatus(info.streamUrl).then((status) => {
+        if (status === 409) onSourceChanged();
+        else if (status === 401) onRevoked();
         else setFailed(true);
+      });
+      streamProbe.current = probe;
+      void probe.finally(() => {
+        if (streamProbe.current === probe) streamProbe.current = null;
       });
     };
 
@@ -708,7 +866,7 @@ export function VideoPlayer({
       element.removeEventListener('durationchange', onDuration);
       element.removeEventListener('error', onError);
     };
-  }, [engine, info, onRevoked, openedAt, resumeMs, switchFrom]);
+  }, [engine, info, onRevoked, onSourceChanged, openedAt, resumeMs, switchFrom]);
 
   // Another version, track or quality: pause and stop loading here (the session is about to end)
   // and hand the position over to the next session.
@@ -728,66 +886,213 @@ export function VideoPlayer({
     if (!onSwitch || switching) return;
     onSwitch(change, leaveSession());
   };
+  useEffect(() => {
+    restartForSource.current = () => {
+      if (!onSwitch) setFailed(true);
+      else switchPlayback({ sourceChanged: true });
+    };
+  });
 
-  const currentVersion = info.mediaFile.versionLabel ?? info.mediaFile.container.toUpperCase();
   const language = i18n.language;
   const subtitle = selectedSubtitle(info);
   const audioIndex =
     info.selection.audioTrack ?? tracks.audio.find((track) => track.default)?.index;
-  const trackGroups = [
-    {
-      id: 'audio',
-      label: t('player.tracks.audio'),
-      selectedKey: audioIndex === undefined ? '' : audioKey(audioIndex),
-      options: tracks.audio.map((track, index) => ({
-        id: audioKey(track.index),
-        label: trackLabel(t, track, index, language),
+  // Sound and subtitles (V-5): the server's pick, the panels sort only what they show.
+  const audioTrack = tracks.audio.find((track) => track.index === audioIndex);
+  const audioWord = audioTrack
+    ? (languageName(audioTrack.language, language) ??
+      trackLabel(t, audioTrack, tracks.audio.indexOf(audioTrack), language))
+    : t('player.tracks.unknown', { n: 1 });
+  const subtitleTrack = tracks.subtitles.find((track) => track.id === info.selection.subtitleTrack);
+  const subtitleWord = subtitleTrack
+    ? (languageName(subtitleTrack.language, language) ??
+      trackLabel(t, subtitleTrack, tracks.subtitles.indexOf(subtitleTrack), language))
+    : t('player.tracks.off');
+  // A mark only, and an estimate (11.3 «Kosten»): a codec the browser cannot play is converted, and
+  // while the file plays directly another track than the file's default makes the server remux
+  // it. Either way the stream is built anew; the server decides how (rule 12).
+  const converts = (track: Track) =>
+    track.index !== audioIndex &&
+    (!decodableAudio.includes(track.codec) || (info.mode === 'direct' && !track.default));
+  // After the server ended the playback a pick would start a new session behind the notice.
+  const tracksDisabled = switching || ended !== null;
+  // The gear (11.2, 11.5): the server's rungs and file (rule 12); a choice starts a new session.
+  // 2160p shows only where the server offers it; original shows why it is not available.
+  const remembered = prefs.quality && prefs.quality !== 'auto' ? prefs.quality : undefined;
+  // A remembered rung below this title's source: titles above it are converted (V-17 caps them).
+  const rememberedHeight = /^(\d+)p$/.exec(remembered ?? '')?.[1];
+  const sourceHeight = info.qualities.find((option) => option.quality === 'original')?.height;
+  const rememberedBelowSource =
+    rememberedHeight !== undefined &&
+    sourceHeight !== undefined &&
+    Number(rememberedHeight) < sourceHeight;
+  const qualityChoice = {
+    options: info.qualities
+      .filter((option) => option.quality !== '2160p' || option.available)
+      .map((option) => ({
+        id: option.quality,
+        label: qualityLabel(t, option, info),
+        detail: qualityDetail(t, option, info, language),
+        disabled: !option.available,
       })),
+    // The rung the server says it delivers, not the viewer's wish.
+    selectedId: info.qualities.find((option) => option.current)?.quality ?? 'auto',
+    // The panel closes with the choice: during the switch it would have no rungs to show, and
+    // the next session is a new player.
+    onSelect: (id: string) => {
+      closePanel();
+      // V-17: remembered on this device; the next start sends it (rememberedQuality).
+      setPrefs({ quality: id as Quality });
+      switchPlayback({ quality: id as Quality });
     },
-    {
-      id: 'subtitle',
-      label: t('player.tracks.subtitles'),
-      selectedKey: subtitleKey(info.selection.subtitleTrack),
-      options: [
-        { id: subtitleKey(undefined), label: t('player.tracks.off') },
-        ...tracks.subtitles.map((track, index) => ({
-          id: subtitleKey(track.id),
-          label: trackLabel(t, track, index, language),
-        })),
-      ],
+    // V-17: «Gemerkt: 720p» with a reset that forgets it (the running session stays).
+    remembered: remembered && {
+      label: t('player.quality.remembered', { quality: qualityName(t, remembered) }),
+      note: rememberedBelowSource
+        ? t('player.quality.rememberedNote', { quality: qualityName(t, remembered) })
+        : undefined,
+      resetLabel: t('player.quality.reset'),
+      onReset: () => setPrefs({ quality: undefined }),
     },
-  ];
-  const onTrack = (id: string, group?: string) => {
-    if (group === 'audio') {
-      switchPlayback({ audioTrack: Number(id.slice('audio:'.length)) });
-    } else {
-      const value = id.slice('subtitle:'.length);
-      switchPlayback({ subtitleTrack: value === 'off' ? null : Number(value) });
-    }
   };
-  const qualityOptions = info.qualities.map((option) => ({
-    id: option.quality,
-    label: qualityLabel(t, option, info),
-    disabled: !option.available,
-  }));
-  // The rung the server says it delivers (rule 12), not the viewer's wish.
-  const qualityKey = info.qualities.find((option) => option.current)?.quality ?? 'auto';
-  const currentQuality =
-    qualityOptions.find((option) => option.id === qualityKey)?.label ?? t('player.quality.auto');
+  const versionChoice = {
+    options: versions.map((version, index) => ({
+      id: version.id,
+      label: version.versionLabel ?? String(index + 1),
+    })),
+    selectedId: info.mediaFile.id,
+    onSelect: (id: string) => {
+      closePanel();
+      switchVersion(id);
+    },
+  };
+  // The gear names the rung the server delivers (11.2), where there is a choice of rungs.
+  const currentQuality = info.qualities.find((option) => option.current);
+  const gearQuality =
+    hasQualities && currentQuality ? qualityLabel(t, currentQuality, info) : undefined;
   const chapterIndex = chapterAt(info.chapters, currentMs);
-  const menuProps = (menu: MenuName) => ({
-    // After the server ended the playback a pick would start a new session behind the notice.
-    isDisabled: ended !== null,
-    isOpen: openMenu === menu,
-    onOpenChange: (isOpen: boolean) =>
-      setOpenMenu((current) => (isOpen ? menu : current === menu ? null : current)),
-    portalContainer: portal ?? undefined,
+  // On a phone the chapters are a page of the gear (11.2).
+  const chapterChoice = useChapterChoice({
+    chapters,
+    chapterIndex,
+    durationMs,
+    seekTo,
+    closePanel,
   });
 
-  const elapsed = formatPlayerTime(currentMs, durationMs);
-  const total = formatPlayerTime(durationMs, durationMs);
-  const timeText = t('player.time', { elapsed, total });
-  const hidden = idle && playing && openMenu === null && !countdownActive;
+  // The episodes of the season for «Als Nächstes» and «Folge zurück»: the season's details, which
+  // the detail page loads as well (11.10); no new endpoint. Every switch and episode is a new
+  // player: for 30 s it takes them from the cache (PlayerPage invalidates them when it closes).
+  const seasonId = info.item.kind === 'episode' ? detail?.season?.id : undefined;
+  const season = useQuery({
+    ...itemQuery(seasonId ?? ''),
+    enabled: seasonId !== undefined,
+    staleTime: 30_000,
+  });
+  const seasonEpisodes = season.data?.episodes;
+  const episodeIndex = seasonEpisodes?.findIndex((entry) => entry.id === info.item.id) ?? -1;
+  const previousEpisode = episodeIndex > 0 ? seasonEpisodes?.[episodeIndex - 1] : undefined;
+  const playEpisode = (target: ItemRef) => {
+    if (!onPlayEpisode || ended !== null) return;
+    setCountdownEnd(null);
+    onPlayEpisode(target);
+  };
+
+  // Back: the previous chapter; in the first seconds of the first chapter, or without chapters,
+  // the previous episode of the season (V-2).
+  const atStart =
+    chapterIndex <= 0 && currentMs - (chapters[0]?.startMs ?? 0) <= RESTART_CHAPTER_MS;
+  const backStep =
+    previousEpisode && onPlayEpisode && (!hasChapters || atStart)
+      ? {
+          label: t('player.chrome.previousEpisode'),
+          onPress: () => playEpisode(previousEpisode),
+          isDisabled: ended !== null,
+        }
+      : hasChapters
+        ? { label: t('player.chrome.previousChapter'), onPress: previousChapter }
+        : undefined;
+
+  // Forward: the next chapter, after the last one the next episode (V-2).
+  const forwardStep =
+    nextChapterStart(chapters, currentMs) !== null
+      ? { label: t('player.chrome.nextChapter'), onPress: nextChapter }
+      : next && onNextEpisode
+        ? { label: t('player.chrome.nextEpisode'), onPress: playNext, isDisabled: ended !== null }
+        : undefined;
+
+  // Head and the line above the timeline (V-1): an episode shows its series with the episode
+  // under it, a film its year and genres.
+  const item = info.item;
+  const code = episodeCode(t, item);
+  const episode = item.kind === 'episode';
+  const seriesTitle = detail?.series?.title ?? item.seriesTitle;
+  const year = detail?.year ?? item.year;
+  const genres =
+    detail && detail.genres.length > 0
+      ? new Intl.ListFormat(language, { type: 'unit', style: 'short' }).format(detail.genres)
+      : undefined;
+  const heading = episode
+    ? {
+        title: seriesTitle ?? item.title,
+        logoUrl: imageUrl(series.data?.images.logo),
+        subtitle: code ? t('player.chrome.episodeLine', { code, title: item.title }) : item.title,
+      }
+    : {
+        title: item.title,
+        logoUrl: imageUrl(detail?.images.logo),
+        subtitle:
+          year !== undefined && genres
+            ? t('player.chrome.filmLine', { year, genres })
+            : (genres ?? (year !== undefined ? String(year) : undefined)),
+      };
+  // The facts of the pause view and of the tab «Info» (V-10): the year (an episode: its line), the
+  // runtime and the genres of a film.
+  const runtime = detail?.runtimeMinutes ?? item.runtimeMinutes;
+  const facts =
+    [
+      episode ? heading.subtitle : year !== undefined ? String(year) : undefined,
+      runtime ? formatRuntime(t, runtime) : undefined,
+      episode ? undefined : genres,
+    ]
+      .filter((part): part is string => Boolean(part))
+      .join(t('format.separator')) || undefined;
+  const chapter = chapters[chapterIndex];
+  const chapterName = chapter
+    ? (chapter.title ?? t('player.chapters.untitled', { n: chapterIndex + 1 }))
+    : undefined;
+  const lineBase = episode ? (seriesTitle ?? item.title) : item.title;
+  const lineLabel = chapterName
+    ? t('player.chrome.lineChapter', { title: lineBase, chapter: chapterName })
+    : lineBase;
+
+  // The tabs under the bar (11.2; not on a phone): the cast of the title, for an episode the
+  // series' when the episode has none.
+  const castList = detail?.cast && detail.cast.length > 0 ? detail.cast : series.data?.cast;
+  const allTabs = usePlayerTabs({
+    t,
+    chapters,
+    positionMs: currentMs,
+    durationMs,
+    onChapter: seekTo,
+    focusChapter: tab?.id === 'chapters' ? tab.focusChapter : undefined,
+    episodes: onPlayEpisode ? seasonEpisodes : undefined,
+    currentId: info.item.id,
+    onEpisode: playEpisode,
+    onClose: () => setTab(null),
+    cast: onOpenPerson ? castList : undefined,
+    onPerson: (personId) => onOpenPerson?.(personId),
+    info: detail ? { overview: detail.overview, facts } : undefined,
+  });
+  const tabs = phone ? [] : allTabs;
+
+  // V-18: a slow connection suggests the rung below, without switching by itself.
+  const lower = lowerQuality(info);
+  const slow = useSlowConnection(
+    video,
+    hasQualities && lower !== undefined && !switching && ended === null,
+  );
+
   const limit = ended?.watchTime?.limitMinutes;
   const nextCode = next ? episodeCode(t, next) : undefined;
   const nextName = next
@@ -810,6 +1115,7 @@ export function VideoPlayer({
     inIntro && ended === null,
     inOutro && !next && ended === null,
     countdownActive,
+    slow.slow,
   ].join();
   useLayoutEffect(() => {
     const active = document.activeElement;
@@ -818,7 +1124,6 @@ export function VideoPlayer({
 
   return (
     <main
-      ref={containerRef}
       className={styles.player}
       aria-label={t('player.region')}
       data-start-ms={startMs ?? undefined}
@@ -830,12 +1135,17 @@ export function VideoPlayer({
       data-playback-session-id={info.playbackSessionId}
       data-ended-reason={ended?.reason}
       data-autonext={countdownActive ? 'countdown' : autoNext ? 'navigated' : undefined}
-      data-controls={hidden && !infoOpen ? 'hidden' : 'visible'}
+      data-controls={hidden ? 'hidden' : 'visible'}
       onPointerMove={poke}
       onPointerDown={poke}
       onFocus={poke}
+      onWheel={(event) => {
+        poke();
+        onWheel(event);
+      }}
     >
-      {/* Without a text subtitle track there is nothing to caption (W-4: bitmap tracks are burned in). */}
+      {/* Without a text subtitle track there is nothing to caption (W-4: bitmap tracks are burned in).
+          A text track stays hidden: the subtitle layer draws its cues (11.10). */}
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <video
         ref={video}
@@ -843,13 +1153,13 @@ export function VideoPlayer({
         src={engine === 'hlsjs' ? undefined : apiUrl(info.streamUrl)}
         preload="auto"
         playsInline
-        onPointerUp={(event) => {
-          if (event.button === 0) togglePlay();
-        }}
-        onDoubleClick={toggleFullscreen}
+        data-subtitle-color={subtitleStyle.color}
+        data-subtitle-background={subtitleStyle.background}
+        {...pictureTaps}
       >
         {info.subtitleUrl && (
           <track
+            ref={subtitleTrackElement}
             kind="subtitles"
             src={apiUrl(info.subtitleUrl)}
             srcLang={subtitle?.language}
@@ -858,10 +1168,21 @@ export function VideoPlayer({
                 ? (subtitle.title ?? languageName(subtitle.language, language) ?? '')
                 : undefined
             }
-            default
           />
         )}
       </video>
+
+      <SubtitleLayer texts={cueTexts} style={subtitleStyle} raised={!hidden} />
+
+      {showPauseView && (
+        <PauseView
+          title={heading.title}
+          logoUrl={heading.logoUrl}
+          detail={facts}
+          overview={detail?.overview}
+          chapter={chapterName}
+        />
+      )}
 
       {failed && ended === null && (
         <div className={styles.center} role="alert">
@@ -883,7 +1204,7 @@ export function VideoPlayer({
                 : t('player.watchLimit.bodyUnknown')}
           </p>
           <div>
-            <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+            <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
               {t('common.back')}
             </AriaButton>
           </div>
@@ -898,112 +1219,132 @@ export function VideoPlayer({
         </div>
       )}
 
-      <div className={styles.top}>
-        <AriaButton
-          variant="ghost"
-          icon="back"
-          iconOnly
-          aria-label={t('player.back')}
-          onPress={onBack}
-        />
-        <h1 className={styles.title}>{info.item.title}</h1>
-      </div>
+      <PlayerChrome
+        layout={layout}
+        title={heading.title}
+        logoUrl={heading.logoUrl}
+        headingDetail={heading.subtitle}
+        lineLabel={lineLabel}
+        onBack={onBack}
+        hidden={hidden}
+        currentMs={currentMs}
+        durationMs={durationMs}
+        buffered={buffered}
+        rate={rate}
+        timeDisplay={timeDisplay}
+        onTimeDisplayChange={(display) => setPrefs({ timeDisplay: display })}
+        chapters={chapters}
+        segments={info.segments}
+        onSeek={seekTo}
+        onPreviousChapter={hasChapters ? previousChapter : undefined}
+        onNextChapter={hasChapters ? nextChapter : undefined}
+        onTimelineUp={() => {
+          const target = slowPanel.current?.querySelector('button');
+          target?.focus();
+          return target !== undefined && target !== null;
+        }}
+        playing={playing}
+        onTogglePlay={togglePlay}
+        onSkip={seekBy}
+        playButtonRef={playRef}
+        previous={backStep}
+        next={forwardStep}
+        transportDisabled={switching || ended !== null}
+        volume={volume.volume}
+        muted={volume.muted}
+        onVolumeChange={volume.setVolume}
+        onToggleMute={volume.toggleMute}
+        volumeBoost={webAudio}
+        muteOnly={muteOnly}
+        fullscreen={fullscreen}
+        onToggleFullscreen={toggleFullscreen}
+        pictureInPicture={
+          document.pictureInPictureEnabled
+            ? { active: pictureInPicture, onToggle: togglePictureInPicture }
+            : undefined
+        }
+        subtitles={
+          canSwitchTracks
+            ? panelButton(
+                'subtitle',
+                t('player.panel.subtitleButton', { language: subtitleWord }),
+                subtitleWord,
+                tracksDisabled,
+              )
+            : undefined
+        }
+        audio={
+          canSwitchTracks
+            ? panelButton(
+                'audio',
+                t('player.panel.audioButton', { language: audioWord }),
+                audioWord,
+                tracksDisabled,
+              )
+            : undefined
+        }
 
-      <div className={styles.bottom}>
-        <SeekBar
-          label={t('player.seek')}
-          valueText={timeText}
-          currentMs={currentMs}
-          durationMs={durationMs}
-          buffered={buffered}
-          onSeek={seekTo}
+        settings={{
+          label: gearQuality
+            ? t('player.settings.buttonWithQuality', { quality: gearQuality })
+            : t('player.settings.title'),
+          text: gearQuality,
+          expanded: panel === 'settings',
+          controls: PANEL_IDS.settings,
+          onPress: () => (panel === 'settings' ? closePanel() : openSettings('main', false)),
+          isDisabled: ended !== null,
+        }}
+        tabs={tabs}
+        openTab={tab?.id ?? null}
+        onOpenTab={openTab}
+        helpOpen={helpOpen}
+        onToggleHelp={() => togglePanel('help')}
+      />
+      {helpOpen && <ShortcutHelp onClose={closePanel} />}
+      {panel === 'settings' && (
+        <SettingsPanel
+          page={settingsView.page}
+          direct={settingsView.direct}
+          onPage={(page) => setSettingsView({ page, direct: false })}
+          onClose={closePanel}
+          quality={hasQualities && !switching ? qualityChoice : undefined}
+          version={hasVersions && !switching ? versionChoice : undefined}
+          chapters={phone && hasChapters ? chapterChoice : undefined}
+          rate={rate}
+          onRate={setRate}
+          streamInfo={onToggleInfo ? { open: infoOpen, onToggle: onToggleInfo } : undefined}
+          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+          nightMode={webAudio ? { on: nightMode, onChange: setNightMode } : undefined}
         />
-        <div className={styles.bar}>
-          <AriaButton
-            ref={playButton}
-            variant="ghost"
-            icon={playing ? 'pause' : 'play'}
-            iconOnly
-            aria-label={playing ? t('player.pause') : t('player.play')}
-            onPress={togglePlay}
-            isDisabled={switching || ended !== null}
-            autoFocus
-          />
-          <span className={styles.time}>
-            <span aria-hidden="true">{elapsed}</span>
-            <span aria-hidden="true" className={styles.timeTotal}>
-              {total}
-            </span>
-          </span>
-          <span className={styles.spacer} />
-          <AriaButton
-            variant="ghost"
-            icon={fullscreen ? 'fullscreenExit' : 'fullscreen'}
-            iconOnly
-            aria-label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
-            onPress={toggleFullscreen}
-          />
-          {onToggleInfo && (
-            <AriaButton
-              variant="ghost"
-              icon="info"
-              iconOnly
-              aria-label={t('player.info')}
-              aria-pressed={infoOpen}
-              onPress={onToggleInfo}
-            />
-          )}
-          {hasTracks && onSwitch && (
-            <MenuButton
-              buttonLabel={t('player.tracks.button')}
-              label={t('player.tracks.button')}
-              groups={trackGroups}
-              onSelect={onTrack}
-              {...menuProps('tracks')}
-            />
-          )}
-          {hasQualities && (
-            <MenuButton
-              buttonLabel={t('player.quality.button', { label: currentQuality })}
-              label={currentQuality}
-              options={qualityOptions}
-              selectedKey={qualityKey}
-              onSelect={(id) => switchPlayback({ quality: id as Quality })}
-              {...menuProps('quality')}
-            />
-          )}
-          {hasChapters && (
-            <MenuButton
-              buttonLabel={t('player.chapters.button')}
-              label={t('player.chapters.button')}
-              options={info.chapters.map((chapter, index) => ({
-                id: String(index),
-                label: chapterLabel(t, chapter, index, durationMs),
-              }))}
-              selectedKey={String(chapterIndex)}
-              reselect
-              onSelect={(id) => {
-                const chapter = info.chapters[Number(id)];
-                if (chapter) seekTo(chapter.startMs);
-              }}
-              {...menuProps('chapters')}
-            />
-          )}
-          {hasVersions && (
-            <MenuButton
-              buttonLabel={t('player.versionButton', { label: currentVersion })}
-              label={currentVersion}
-              options={versions.map((version, index) => ({
-                id: version.id,
-                label: version.versionLabel ?? String(index + 1),
-              }))}
-              selectedKey={info.mediaFile.id}
-              onSelect={switchVersion}
-              {...menuProps('version')}
-            />
-          )}
-        </div>
-      </div>
+      )}
+      {panel === 'audio' && (
+        <AudioPanel
+          tracks={tracks.audio}
+          profileLanguage={profileLanguage}
+          selectedIndex={audioIndex}
+          converts={converts}
+          onSelect={(index) =>
+            switchPlayback({ audioTrack: index, rememberForSeries: rememberSeries?.on })
+          }
+          onClose={closePanel}
+          remember={rememberSeries}
+          profileDefault
+        />
+      )}
+      {panel === 'subtitle' && (
+        <SubtitlePanel
+          tracks={tracks.subtitles}
+          profileLanguage={profileLanguage}
+          selectedId={info.selection.subtitleTrack}
+          onSelect={(id) =>
+            switchPlayback({ subtitleTrack: id ?? 'off', rememberForSeries: rememberSeries?.on })
+          }
+          onClose={closePanel}
+          subtitleStyle={{ value: subtitleStyle, onChange: setSubtitleStyle }}
+          remember={rememberSeries}
+          forcedBitmap={info.selection.subtitleReason === 'forced_bitmap_available'}
+        />
+      )}
 
       {inIntro && ended === null && (
         <div className={styles.skip}>
@@ -1022,8 +1363,65 @@ export function VideoPlayer({
       <div aria-live="polite" aria-atomic="true">
         <VisuallyHidden>{announcement}</VisuallyHidden>
       </div>
+      {slow.slow && lower && (
+        // Above the bar in the arrow model (review step 5): ↑ from the timeline leads here, ←/→ go
+        // between the two buttons, ↓ goes back to the timeline. It never takes the focus itself.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        <section
+          ref={slowPanel}
+          className={styles.slow}
+          aria-label={t('player.slow.label')}
+          onKeyDown={(event) => {
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+            const buttons = [...event.currentTarget.querySelectorAll('button')];
+            const index = buttons.indexOf(event.target as HTMLButtonElement);
+            const target =
+              event.key === 'ArrowDown'
+                ? event.currentTarget
+                    .closest('main')
+                    ?.querySelector<HTMLElement>('[data-player-seek] [role="slider"]')
+                : event.key === 'ArrowLeft'
+                  ? buttons[Math.max(0, index - 1)]
+                  : event.key === 'ArrowRight'
+                    ? buttons[Math.min(buttons.length - 1, index + 1)]
+                    : event.key === 'ArrowUp'
+                      ? buttons[index]
+                      : undefined;
+            if (!target) return;
+            event.preventDefault();
+            event.stopPropagation();
+            target.focus();
+          }}
+        >
+          <p role="status">{t('player.slow.text', { quality: lower.quality })}</p>
+          <AriaButton
+            variant="primary"
+            onPress={() => {
+              slow.dismiss();
+              // Not remembered on the device (V-17 keeps only a choice in the panel).
+              switchPlayback({ quality: lower.quality });
+            }}
+          >
+            {t('player.slow.switch', { quality: lower.quality })}
+          </AriaButton>
+          <AriaButton variant="ghost" onPress={slow.dismiss}>
+            {t('player.slow.dismiss')}
+          </AriaButton>
+        </section>
+      )}
       {countdownActive && next && (
         <section ref={nextPanel} className={styles.next} aria-labelledby="next-episode-title">
+          {(next.images.backdropSmall ?? next.images.backdrop) && (
+            <img
+              className={styles.nextStill}
+              src={imageUrl(next.images.backdropSmall ?? next.images.backdrop)}
+              alt=""
+              width={480}
+              height={270}
+              decoding="async"
+              draggable={false}
+            />
+          )}
           <h2 id="next-episode-title" className={styles.nextTitle}>
             {t('player.next.title')}
           </h2>

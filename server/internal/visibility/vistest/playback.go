@@ -19,8 +19,26 @@ import (
 // a fixture media file, so a test can present any source format to the playback decision.
 func (f *Fixture) SetMediaFile(t testing.TB, fileID, container, videoCodec, audioCodec, probe string, keyframes []byte) {
 	t.Helper()
-	exec(t, f.DB, `UPDATE media_files SET container = ?, video_codec = ?, audio_codec = ?, probe = ?, keyframes = ? WHERE id = ?`,
-		container, videoCodec, audioCodec, sql.NullString{String: probe, Valid: probe != ""}, keyframes, fileID)
+	// An index with at least one entry is a full read's (scan), as migration 00033 marks the old
+	// ones; without one the file has no index yet.
+	exec(t, f.DB, `UPDATE media_files SET container = ?, video_codec = ?, audio_codec = ?, probe = ?, keyframes = ?,
+		keyframes_source = CASE WHEN length(?) > 1 THEN 'scan' END, keyframes_at = CASE WHEN length(?) > 1 THEN 1 END WHERE id = ?`,
+		container, videoCodec, audioCodec, sql.NullString{String: probe, Valid: probe != ""}, keyframes, keyframes, keyframes, fileID)
+}
+
+// SetKeyframes sets the keyframe index of a media file as a writer of package library would:
+// blob, source (empty = none yet, NULL) and time (Unix ms, 0 = NULL).
+func (f *Fixture) SetKeyframes(t testing.TB, fileID string, blob []byte, source string, at int64) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE media_files SET keyframes = ?, keyframes_source = ?, keyframes_at = ? WHERE id = ?`,
+		blob, sql.NullString{String: source, Valid: source != ""}, sql.NullInt64{Int64: at, Valid: at != 0}, fileID)
+}
+
+// SetProbedAt sets the probe time of a media file (Unix milliseconds); the chapter images of a
+// file are stored per probe (concept 13 stage 3).
+func (f *Fixture) SetProbedAt(t testing.TB, fileID string, probedAt int64) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE media_files SET probed_at = ? WHERE id = ?`, probedAt, fileID)
 }
 
 // SetRating changes the own rating of a title (nil = unrated); the triggers update the effective

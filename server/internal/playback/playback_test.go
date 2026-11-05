@@ -15,6 +15,7 @@ import (
 )
 
 func TestMimeType(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ container, video, audio, want string }{
 		{"mp4", "h264", "aac", `video/mp4; codecs="avc1.64001F, mp4a.40.2"`},
 		{"M4V", "H264", "AAC", `video/mp4; codecs="avc1.64001F, mp4a.40.2"`},
@@ -33,6 +34,7 @@ func TestMimeType(t *testing.T) {
 }
 
 func TestCompleted(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		pos, dur int64
 		want     bool
@@ -53,6 +55,7 @@ func TestCompleted(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
+	t.Parallel()
 	ok := model.ProgressEvent{PositionMs: 1, DurationMs: 2, State: "paused"}
 	if err := validate(ok); err != nil {
 		t.Fatalf("valid event: %v", err)
@@ -84,6 +87,7 @@ func countEvents(t *testing.T, f *vistest.Fixture, profileID int64, itemID strin
 }
 
 func TestReportCompletesAndReopens(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	now := time.Date(2026, 10, 18, 20, 0, 0, 0, time.UTC)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return now }))
@@ -144,6 +148,7 @@ func TestReportCompletesAndReopens(t *testing.T) {
 }
 
 func TestStartDescribesDirectPlay(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger())
 	m := f.Rated(6)
@@ -172,6 +177,7 @@ func TestStartDescribesDirectPlay(t *testing.T) {
 }
 
 func TestOpenReadsThroughRoot(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	s := New(f.DB, vistest.Logger())
 	ctx := context.Background()
@@ -204,6 +210,7 @@ func TestOpenReadsThroughRoot(t *testing.T) {
 // is stored but does not move the position; a new playback (seq restarts, later client time) and
 // another device do.
 func TestReportIgnoresLateEventOfSamePlayback(t *testing.T) {
+	t.Parallel()
 	f := vistest.New(t)
 	now := time.Date(2026, 10, 18, 20, 0, 0, 0, time.UTC)
 	s := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return now }))

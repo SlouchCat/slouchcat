@@ -130,7 +130,7 @@ func TestSetAccountRoleLiftsAndKeepsTheLimits(t *testing.T) {
 	lib := addLibrary(t, s, "Filme")
 	target := addGuestAccount(t, s, "kandidat@example.ch", 12, false, []int64{lib})
 	child, err := s.write.InsertProfile(ctx, appq.InsertProfileParams{
-		AccountID: target.ID, Name: "Kind", MaxRating: 6, Language: "de", AllLibraries: 1, IsDefault: 1, Now: 1,
+		AccountID: target.ID, Name: "Kind", MaxRating: 6, Language: "de", AllLibraries: 1, IsDefault: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -169,7 +169,7 @@ func TestSetAccountRoleRevokesSessionsOnDemotionOnly(t *testing.T) {
 	ctx := context.Background()
 	target := addGuestAccount(t, s, "sitzung@example.ch", 18, true, nil)
 	prof, err := s.write.InsertProfile(ctx, appq.InsertProfileParams{
-		AccountID: target.ID, Name: "Haupt", MaxRating: 18, Language: "de", AllLibraries: 1, IsDefault: 1, Now: 1,
+		AccountID: target.ID, Name: "Haupt", MaxRating: 18, Language: "de", AllLibraries: 1, IsDefault: 1, AudioLanguages: "[]", SubtitleMode: "forced", SubtitleLanguages: "[]", Now: 1,
 	})
 	if err != nil {
 		t.Fatal(err)

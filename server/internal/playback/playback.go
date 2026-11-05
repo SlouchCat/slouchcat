@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -52,10 +53,6 @@ type Service struct {
 	tc    Transcoder // nil: no HLS, every title plays directly
 	queue *jobs.Queue
 
-	// keyframes computes a missing keyframe index before a remux (nil: never on demand; the
-	// file is transcoded until the index job ran), bounded by keyframeTimeout.
-	keyframes       func(ctx context.Context, path string) ([]time.Duration, error)
-	keyframeTimeout time.Duration
 	// grantRecheck is how often an open direct-play stream re-reads its playback session.
 	grantRecheck time.Duration
 
@@ -65,12 +62,17 @@ type Service struct {
 	rebuildMu  sync.Mutex
 	rebuilding map[string]chan struct{} // HLS outputs being rebuilt, closed when done
 
+	states stateRegistry // running and recently stopped playback sessions (state.go)
+
 	subs       SubtitleConverter // WebVTT conversion; zero = no text subtitles
 	cacheDir   string            // converted subtitles below <cacheDir>/subtitles; empty = uncached
 	subMu      sync.Mutex
 	subFlights map[string]*subtitleFlight // running conversions per playback id and track
 	subSlots   chan struct{}              // maxSubtitleConversions slots
 	starts     startLocks                 // stream counts of starts under a stream limit
+	// Test hooks, nil outside tests: a request joins a running conversion (onSubtitleJoin); a
+	// conversion finds every slot taken and starts to wait (onSubtitleSlotWait).
+	onSubtitleJoin, onSubtitleSlotWait func()
 
 	// activity is the writer of the activity log (WithActivity, concept 11); nil = none.
 	activity func(ctx context.Context, e model.ActivityEvent)
@@ -79,6 +81,10 @@ type Service struct {
 	activityMu   sync.Mutex
 	activityDone bool
 	activityWG   sync.WaitGroup
+
+	// chapterSince is the end (Unix ms) of the last time span whose ended playbacks the sweep
+	// handed to the chapter images (sweepChapterImages); 0 before the first sweep.
+	chapterSince atomic.Int64
 }
 
 // Option configures New.
@@ -100,19 +106,12 @@ func WithTranscoder(t Transcoder) Option {
 	return func(s *Service) { s.tc = t }
 }
 
-// WithKeyframeIndex lets Start compute a missing keyframe index before a remux
-// (transcode.Runner.Keyframes); the index is stored for the next start.
-func WithKeyframeIndex(f func(ctx context.Context, path string) ([]time.Duration, error)) Option {
-	return func(s *Service) { s.keyframes = f }
-}
-
 // New returns the playback service; log is the redacting logger. Run sweeps ended playback
 // sessions in the background.
 func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
 		db: db, read: appq.New(db.Read), write: appq.New(db.Write), vis: visibility.New(db, log), log: log, now: time.Now,
-		keyframeTimeout: KeyframeTimeout, grantRecheck: grantRecheckInterval,
-		streams: map[string]map[*grantFile]struct{}{}, rebuilding: map[string]chan struct{}{},
+		grantRecheck: grantRecheckInterval, streams: map[string]map[*grantFile]struct{}{}, rebuilding: map[string]chan struct{}{},
 		subFlights: map[string]*subtitleFlight{}, subSlots: make(chan struct{}, maxSubtitleConversions),
 	}
 	for _, o := range opts {

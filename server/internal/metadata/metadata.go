@@ -38,6 +38,11 @@
 //     the titles matched before migration 00026 in batches of 200, asking TMDB and AniList through
 //     their rate limiters; each batch queues the next. QueuePendingMetadata starts it when no job
 //     of the type is active and a title waits.
+//   - metadata.original_language_backfill, payload {"after": "<ULID>"}, key
+//     original_language_backfill (original_language_backfill:<after> for a successor), priority 2
+//     (original_language.go, concept 13 11.7): fills items.original_language of the titles
+//     matched before migration 00032 in batches of 200 through the providers' rate limiters; a
+//     manual type, queued once at the first start after the migration.
 //   - image.fetch, payload {"itemId": "<ULID>"}, key image:<itemId>, priority 2 (episode stills 1):
 //     downloads the original of the stored image paths (items.tmdb_poster_path for movies, series
 //     and seasons; items.tmdb_backdrop_path for movies, series and episode stills) once, scales it
@@ -63,7 +68,8 @@
 //
 // Locked fields: items.locked_fields is a JSON array of field names that enrichment never
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
-// runtime_minutes, genres, tmdb_id, tvdb_id, imdb_id, own_rating, vote_average, the text fields
+// runtime_minutes, genres, tmdb_id, tvdb_id, imdb_id, own_rating, vote_average, original_language,
+// the text fields
 // title, overview and tagline (item_texts, both languages), the image kinds poster and backdrop,
 // cast (the credits of the title) and trailer (the automatic trailers). A rating whose
 // rating_source is nfo or manual is never replaced either.
@@ -347,11 +353,17 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // the due subscriptions, no handler of its own) and trakt.refresh are schedule types.
 // metadata.vote_backfill is an event type: concept 08 queues it after every full scan and at the
 // start of the server while titles wait for a vote (QueuePendingMetadata), so it has no Run.
+// metadata.original_language_backfill is a manual type (concept 13 11.7): queued once at the
+// first start after migration 00032, later by hand, so it has a Run.
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
 	r.Register(jobs.Type{Name: JobFill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleFill})
 	r.Register(jobs.Type{Name: JobVoteBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleVoteBackfill})
+	r.Register(jobs.Type{
+		Name: JobOriginalLanguageBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerManual,
+		Priority: fillPriority, Handler: s.handleOriginalLanguageBackfill, Run: s.runOriginalLanguageBackfill,
+	})
 	r.Register(jobs.Type{Name: JobImageFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: imageFetchPriority, Handler: s.handleImageFetch})
 	r.Register(jobs.Type{Name: JobApply, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: applyPriority, Handler: s.handleApply})
 	r.Register(jobs.Type{Name: JobTrailerFind, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: trailerPriority, Handler: s.handleTrailerFind})

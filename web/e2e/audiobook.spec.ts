@@ -12,6 +12,7 @@ import {
   playAudio,
   setAudioProgress,
 } from './audio';
+import { CSRF } from './catalog';
 import { STORAGE_STATE } from './env';
 import { expect, test } from './fixtures';
 import {
@@ -21,15 +22,19 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { arrowTo } from './playback';
+import { arrowTo, recordEndedAt, watchStopAnswers } from './playback';
 
 // H-1: the M4B book has its 12 chapter marks ("Kapitel 1" … "Kapitel 12", every 5 s, ±1 s), the
 // MP3 folder is one book with a chapter per file; author, narrator and cover show on the detail
 // page; a chapter starts the player there. H-3: the speed is kept per profile and title: after a
 // reload and on a second device the player starts at 2.0, at the position ±2 s. The start page
-// lists a started book under "Weiterschauen" with a square cover.
+// lists a started book under "Weiterschauen" with a square cover. Concept 13: a stop by the
+// administration reaches a player that loaded the whole book within 5 s.
 
 const time = async (page: Page) => (await audioState(page)).time;
+
+/** A stop by the administration shows within this long (concept 13, 11.13). */
+const STOP_BUDGET_MS = 5000;
 
 let m4b = '';
 let mp3 = '';
@@ -158,6 +163,8 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await page.keyboard.press('Enter');
   await expect(audioPlayer(page)).toHaveAttribute('data-start-ms', /\d+/, { timeout: 20_000 });
   await expect(audioPlayer(page).getByText(/^Kapitel 2 · /)).toBeVisible();
+  // Enter started it: the first focus is on play/pause at once (focusOnMount, concept 13 11.13).
+  await expectFocusOn(page, audioPlayer(page).getByRole('button', { name: 'Pause' }));
   await page.keyboard.press('Backspace');
   await expect(page).toHaveURL(new RegExp(`/items/${m4b}$`));
   await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
@@ -343,6 +350,46 @@ test('audio player by keyboard: controls with a visible ring, menus, no focus tr
   await expect(
     player.getByRole('button', { name: /^Sleep-Timer: noch 1[45]:\d\d$/ }),
   ).toBeVisible();
+  // The volume (VolumeControl, concept 13 V-3): the slider is closed until the focus reaches the
+  // mute button. ←/→ move it 5 % and stay with it (no seek); ↑/↓ go on to the page's key map,
+  // which changes the volume by 10 % (in the video player they will change the zone, 11.2).
+  const volume = player.getByRole('slider', { name: 'Lautstärke' });
+  const drawerWidth = () =>
+    volume.evaluate((slider) => slider.parentElement!.getBoundingClientRect().width);
+  expect(await drawerWidth()).toBe(0);
+  const mute = player.getByRole('button', { name: 'Ton aus' });
+  // The closed menu hands the focus back a frame later; start from the sleep timer, next to it.
+  await player.getByRole('button', { name: /^Sleep-Timer: / }).focus();
+  await tabTo(page, mute, 2);
+  await expectVisibleFocus(page);
+  await expect.poll(drawerWidth).toBeGreaterThan(100);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, volume);
+  await expectVisibleFocus(page);
+  const level = Number(await volume.getAttribute('aria-valuenow'));
+  const position = await time(page);
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect(volume).toHaveAttribute('aria-valuenow', String(level - 10));
+  const element = () =>
+    page.locator('audio').evaluate((audio: HTMLAudioElement) => ({
+      volume: audio.volume,
+      muted: audio.muted,
+    }));
+  expect((await element()).volume).toBeCloseTo((level - 10) / 100, 2);
+  expect(await time(page)).toBeCloseTo(position, 1);
+  await page.keyboard.press('ArrowDown');
+  await expect(volume).toHaveAttribute('aria-valuenow', String(level - 20));
+  await expectFocusOn(page, volume);
+  // Back on the mute button, Enter mutes and unmutes.
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, mute);
+  await page.keyboard.press('Enter');
+  await expect(mute).toHaveAttribute('aria-pressed', 'true');
+  expect((await element()).muted).toBe(true);
+  await page.keyboard.press('Enter');
+  await expect(mute).toHaveAttribute('aria-pressed', 'false');
+  expect((await element()).muted).toBe(false);
   await expectNoFocusTrap(page);
   // Backspace (a remote's back key) leaves the player.
   await player.getByRole('button', { name: /^(Pause|Abspielen)$/ }).focus();
@@ -375,4 +422,60 @@ test('the start page lists a started book under "Weiterschauen" with a square co
   });
   expect(Math.abs(frame.width - frame.height)).toBeLessThanOrEqual(1);
   await setAudioProgress(page.request, m4b, 0, 60_000);
+});
+
+test.describe('the stop watch', () => {
+  // The answers of the stop watch are read through a route, which a service worker would bypass.
+  test.use({ serviceWorkers: 'block' });
+
+  test('concept 13: the administration ends a fully loaded book, the player stops within 5 s', async ({
+    page,
+    owner,
+  }) => {
+    await audioDetail(owner, m4b, 12);
+    await setAudioProgress(page.request, m4b, 0, 60_000, 1);
+    await playAudio(page, m4b);
+    const player = audioPlayer(page);
+    const id = await player.getAttribute('data-playback-session-id');
+    expect(id).toBeTruthy();
+    // The whole 60 s file is in the element: no Range request follows that could answer 401.
+    const bufferOf = () =>
+      page.locator('audio').evaluate((audio: HTMLAudioElement) => ({
+        end: audio.buffered.length > 0 ? audio.buffered.end(audio.buffered.length - 1) : 0,
+        duration: audio.duration,
+        paused: audio.paused,
+      }));
+    await expect
+      .poll(async () => {
+        const { end, duration } = await bufferOf();
+        return duration > 0 && end >= duration - 0.5;
+      })
+      .toBe(true);
+    const buffered = await bufferOf();
+    expect(buffered.paused, JSON.stringify(buffered)).toBe(false);
+    const unauthorized: string[] = [];
+    page.on('response', (response) => {
+      if (response.status() === 401) unauthorized.push(response.url());
+    });
+    const answers = await watchStopAnswers(page, id!);
+    const watched = answers.next('stopped');
+
+    const endedAt = await recordEndedAt(page);
+    // The worst moment: right after an answer of the stop watch, the next comes 4 s later.
+    await answers.next('active');
+    const before = Date.now();
+    const stop = await owner.delete(`/api/v1/admin/streams/${id}`, { headers: CSRF });
+    expect(stop.status()).toBe(204);
+    await expect(player).toHaveAttribute('data-ended-reason', 'admin', { timeout: STOP_BUDGET_MS });
+    const stopMs = (await endedAt())! - before;
+    expect(stopMs).toBeLessThan(STOP_BUDGET_MS);
+    expect((await watched).stoppedBy).toBe('admin');
+    expect(unauthorized).toEqual([]);
+    await expect(player.getByRole('alert')).toContainText('Die Wiedergabe wurde beendet.');
+    // The notice's back button takes the focus (focusOnMount, concept 13 11.13).
+    await expectFocusOn(page, player.getByRole('alert').getByRole('button', { name: 'Zurück' }));
+    expect((await audioState(page)).paused).toBe(true);
+    console.log(JSON.stringify({ measurement: 'admin-stop-audio', stopMs, buffered }));
+    await setAudioProgress(page.request, m4b, 0, 60_000, 1);
+  });
 });

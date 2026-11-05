@@ -208,8 +208,11 @@ func (f *fakeTMDB) addTV(t *testing.T, mux *http.ServeMux, auth func(http.Handle
 			}},
 		}
 		f.mu.Lock()
-		noGerman, noImages := f.tvNoGermanOverview, f.tvNoImages
+		noGerman, noImages, origLang := f.tvNoGermanOverview, f.tvNoImages, f.tvOriginalLanguage
 		f.mu.Unlock()
+		if origLang != "" {
+			tv["original_language"] = origLang
+		}
 		if noImages {
 			tv["poster_path"], tv["backdrop_path"] = "", ""
 		}

@@ -8,11 +8,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"os/exec"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/model"
 )
 
 // Probe is the parsed result of ffprobe for one media file (plan 3.4 step 3). It is stored as
@@ -57,7 +60,9 @@ type Stream struct {
 	Title          string `json:"title,omitempty"`
 	Default        bool   `json:"default,omitempty"`
 	Forced         bool   `json:"forced,omitempty"`
-	AttachedPic    bool   `json:"attachedPic,omitempty"` // cover art stored as a video stream
+	// HearingImpaired is the disposition flag of subtitles for the deaf and hard of hearing.
+	HearingImpaired bool `json:"hearingImpaired,omitempty"`
+	AttachedPic     bool `json:"attachedPic,omitempty"` // cover art stored as a video stream
 	// Dolby Vision (M4): the profile of the DOVI configuration record (5, 7, 8; 0 = none) and the
 	// base-layer compatibility id (1 = HDR10 base layer, profile 8.1; 2 = SDR, 8.2/9.2; 4 = HLG,
 	// 8.4). Profile 8 plays its base layer like HDR10 (or SDR, HLG); profiles 5 and 7 are
@@ -66,6 +71,10 @@ type Stream struct {
 	DolbyVisionBLCompat int `json:"dvBLCompat,omitempty"`
 	// HDR10Plus is set when the first frame carries SMPTE ST 2094-40 dynamic metadata (M4).
 	HDR10Plus bool `json:"hdr10plus,omitempty"`
+	// FrameRate is the average frame rate of a video stream in frames per second (ffprobe
+	// avg_frame_rate, for the H.264 level); 0 when unknown and in probes stored before concept 13
+	// step 11.
+	FrameRate float64 `json:"frameRate,omitempty"`
 }
 
 // HDR formats of HDRFormat.
@@ -120,6 +129,37 @@ type Chapter struct {
 	Title string        `json:"title,omitempty"`
 }
 
+// AudioTracks returns the audio streams of p as tracks for the track choice (package trackpick):
+// stream index, codec, language, title, default flag and channels, in stream order. Nil without a
+// probe.
+func (p *Probe) AudioTracks() []model.Track {
+	if p == nil {
+		return nil
+	}
+	var out []model.Track
+	for _, s := range p.Streams {
+		if s.Type == "audio" {
+			out = append(out, model.Track{Index: s.Index, Kind: "audio", Codec: s.Codec, Language: s.Language,
+				Title: s.Title, Default: s.Default, Forced: s.Forced, Channels: s.Channels})
+		}
+	}
+	return out
+}
+
+// ChapterMarks maps the chapter marks of p onto the API's chapters, on the source timeline that HLS
+// outputs and downloads keep (ADR 0003; the client maps both back to it). Empty, never nil, without
+// a probe. Playback and the download manifest of a film or an episode read their chapters here.
+func (p *Probe) ChapterMarks() []model.Chapter {
+	out := []model.Chapter{}
+	if p == nil {
+		return out
+	}
+	for _, c := range p.Chapters {
+		out = append(out, model.Chapter{StartMs: c.Start.Milliseconds(), EndMs: c.End.Milliseconds(), Title: c.Title})
+	}
+	return out
+}
+
 // ffprobe JSON output; numbers that ffprobe prints as strings stay strings here.
 type rawProbe struct {
 	Format struct {
@@ -137,6 +177,7 @@ type rawProbe struct {
 		Level          int    `json:"level"`
 		Width          int    `json:"width"`
 		Height         int    `json:"height"`
+		AvgFrameRate   string `json:"avg_frame_rate"`
 		PixFmt         string `json:"pix_fmt"`
 		ColorTransfer  string `json:"color_transfer"`
 		ColorPrimaries string `json:"color_primaries"`
@@ -148,9 +189,10 @@ type rawProbe struct {
 			Title    string `json:"title"`
 		} `json:"tags"`
 		Disposition struct {
-			Default     int `json:"default"`
-			Forced      int `json:"forced"`
-			AttachedPic int `json:"attached_pic"`
+			Default         int `json:"default"`
+			Forced          int `json:"forced"`
+			HearingImpaired int `json:"hearing_impaired"`
+			AttachedPic     int `json:"attached_pic"`
 		} `json:"disposition"`
 		SideData []struct {
 			Type       string `json:"side_data_type"`
@@ -282,6 +324,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Level:               s.Level,
 			Width:               s.Width,
 			Height:              s.Height,
+			FrameRate:           frameRate(s.CodecType, s.AvgFrameRate),
 			PixFmt:              s.PixFmt,
 			ColorTransfer:       s.ColorTransfer,
 			ColorPrimaries:      s.ColorPrimaries,
@@ -292,6 +335,7 @@ func ParseProbe(data []byte) (Probe, error) {
 			Title:               s.Tags.Title,
 			Default:             s.Disposition.Default == 1,
 			Forced:              s.Disposition.Forced == 1,
+			HearingImpaired:     s.Disposition.HearingImpaired == 1,
 			AttachedPic:         s.Disposition.AttachedPic == 1,
 		})
 	}
@@ -304,6 +348,18 @@ func ParseProbe(data []byte) (Probe, error) {
 	return p, nil
 }
 
+// CopyableVideo reports whether a video codec (the ffprobe codec_name, lower case) can be copied
+// into an HLS remux: H.264, HEVC, AV1 and VP9. Playback decisions and the keyframe index both
+// ask it, so a file the server never remuxes is not indexed either. Whether a given client plays
+// the copied stream (HEVC on Safari) is the playback decision, not this one.
+func CopyableVideo(codec string) bool {
+	switch codec {
+	case "h264", "hevc", "av1", "vp9":
+		return true
+	}
+	return false
+}
+
 // Keyframes returns the presentation times of the key frames of the first video stream, sorted.
 // It only demuxes (`-show_entries packet=pts_time,flags`), so it reads the file once without
 // decoding; packets whose flags contain K are key frames. A remux plan needs this index
@@ -314,6 +370,114 @@ func (r Runner) Keyframes(ctx context.Context, path string) ([]time.Duration, er
 		return nil, err
 	}
 	return ParseKeyframes(out), nil
+}
+
+// ErrKeyframeMismatch: VerifyKeyframes found an entry of the index that is not a keyframe of the
+// file (or not at its time); the caller discards the index and falls back to the full read.
+var ErrKeyframeMismatch = errors.New("keyframe index does not match the file")
+
+// Sample of VerifyKeyframes (concept 14, 6.2).
+const (
+	verifyHeadPackets = 30 // video packets read from the start of the file
+	verifySamples     = 2  // random entries checked behind entry 0
+	// verifySeekSlack is added to each sampled entry for the seek: ffprobe seeks to the keyframe
+	// at or before the target, and an entry is rounded to milliseconds, so the real keyframe may
+	// lie up to half a millisecond behind it.
+	verifySeekSlack = time.Millisecond
+)
+
+// VerifyKeyframes checks a keyframe index from the container (package mediaindex) against the
+// packets ffmpeg demuxes from the file at abs (concept 14, 6.2, I-2), in one ffprobe call with
+// three read intervals: the first keyframe among the first video packets must be entry 0, and
+// the first video packet at two random entries (chosen by seed, so a file is always checked at
+// the same entries) must be a keyframe within remuxCutDelta of the entry. A mismatch is
+// ErrKeyframeMismatch; a failure of ffprobe is returned as Probe returns it.
+func (r Runner) VerifyKeyframes(ctx context.Context, abs string, at []time.Duration, seed uint64) error {
+	if len(at) == 0 {
+		return fmt.Errorf("%w: empty index", ErrKeyframeMismatch)
+	}
+	picks := verifyPicks(at, seed)
+	out, err := r.ffprobe(ctx, verifyKeyframesArgs(abs, picks)...)
+	if err != nil {
+		return err
+	}
+	return checkVerifyPackets(out, at[0], picks)
+}
+
+// verifyPicks returns up to verifySamples distinct entries of at behind entry 0, sorted, chosen
+// by a generator seeded with seed.
+func verifyPicks(at []time.Duration, seed uint64) []time.Duration {
+	rest := at[1:]
+	n := min(verifySamples, len(rest))
+	rng := rand.New(rand.NewPCG(seed, seed)) //nolint:gosec // G404: a repeatable sample, not a secret
+	idx := rng.Perm(len(rest))[:n]
+	slices.Sort(idx)
+	picks := make([]time.Duration, n)
+	for i, j := range idx {
+		picks[i] = rest[j]
+	}
+	return picks
+}
+
+// verifyKeyframesArgs is the ffprobe argument list of VerifyKeyframes: the head interval, then one
+// packet at each pick; the times are formatted from time.Duration, the path is its own argument.
+func verifyKeyframesArgs(abs string, picks []time.Duration) []string {
+	intervals := []string{"%+#" + strconv.Itoa(verifyHeadPackets)}
+	for _, p := range picks {
+		intervals = append(intervals, intervalSeconds(p+verifySeekSlack)+"%+#1")
+	}
+	return []string{"-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags",
+		"-read_intervals", strings.Join(intervals, ","), "-of", "csv=p=0", abs}
+}
+
+// intervalSeconds formats a non-negative time as seconds with millisecond precision ("75.001").
+func intervalSeconds(d time.Duration) string {
+	ms := max(d.Milliseconds(), 0)
+	return fmt.Sprintf("%d.%03d", ms/1000, ms%1000)
+}
+
+// verifyPacket is one `pts_time,flags` line of VerifyKeyframes.
+type verifyPacket struct {
+	pts time.Duration
+	key bool
+	ok  bool // false when the line has no time
+}
+
+// checkVerifyPackets checks the output of verifyKeyframesArgs: the last len(picks) packets belong
+// to the picks (one each), the ones before them to the head.
+func checkVerifyPackets(out []byte, first time.Duration, picks []time.Duration) error {
+	var packets []verifyPacket
+	sc := bufio.NewScanner(bytes.NewReader(out))
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if line == "" {
+			continue
+		}
+		pts, flags, _ := strings.Cut(line, ",")
+		f, err := strconv.ParseFloat(pts, 64)
+		ok := err == nil && !math.IsNaN(f) && !math.IsInf(f, 0)
+		packets = append(packets, verifyPacket{pts: time.Duration(math.Round(f * float64(time.Second))), key: strings.Contains(flags, "K"), ok: ok})
+	}
+	if len(packets) < len(picks)+1 {
+		return fmt.Errorf("%w: %d packets for %d intervals", ErrKeyframeMismatch, len(packets), len(picks)+1)
+	}
+	head, tail := packets[:len(packets)-len(picks)], packets[len(packets)-len(picks):]
+	near := func(p verifyPacket, want time.Duration) bool {
+		return p.ok && p.key && p.pts-want <= remuxCutDelta && want-p.pts <= remuxCutDelta
+	}
+	i := slices.IndexFunc(head, func(p verifyPacket) bool { return p.ok && p.key })
+	switch {
+	case i < 0:
+		return fmt.Errorf("%w: no keyframe among the first %d packets", ErrKeyframeMismatch, len(head))
+	case !near(head[i], first):
+		return fmt.Errorf("%w: first keyframe at %v, entry 0 at %v", ErrKeyframeMismatch, head[i].pts, first)
+	}
+	for j, p := range tail {
+		if !near(p, picks[j]) {
+			return fmt.Errorf("%w: packet at entry %v is at %v, keyframe %v", ErrKeyframeMismatch, picks[j], p.pts, p.key)
+		}
+	}
+	return nil
 }
 
 // ParseKeyframes parses `pts_time,flags` CSV lines and keeps the key frames, sorted and without
@@ -388,6 +552,24 @@ func seconds(s string) time.Duration {
 		return 0
 	}
 	return time.Duration(math.Round(f * float64(time.Second)))
+}
+
+// frameRate parses the ffprobe avg_frame_rate of a video stream ("24000/1001", "25/1") into
+// frames per second, rounded to three decimals; 0 for other streams and for "0/0" or garbage.
+func frameRate(codecType, s string) float64 {
+	if codecType != "video" {
+		return 0
+	}
+	num, den, ok := strings.Cut(strings.TrimSpace(s), "/")
+	if !ok {
+		den = "1"
+	}
+	n, errN := strconv.ParseFloat(num, 64)
+	d, errD := strconv.ParseFloat(den, 64)
+	if errN != nil || errD != nil || n <= 0 || d <= 0 || math.IsInf(n/d, 0) {
+		return 0
+	}
+	return math.Round(n/d*1000) / 1000
 }
 
 func integer(s string) int64 {

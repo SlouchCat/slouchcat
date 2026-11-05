@@ -1,0 +1,17 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.status {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}

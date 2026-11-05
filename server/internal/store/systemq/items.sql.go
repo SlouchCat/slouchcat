@@ -23,6 +23,22 @@ func (q *Queries) CountAllLibraryItems(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countKeyframesBackfillFiles = `-- name: CountKeyframesBackfillFiles :one
+SELECT count(*)
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode')
+`
+
+// The count of ListKeyframesBackfillFiles without a cursor: the total of the backfill's progress.
+func (q *Queries) CountKeyframesBackfillFiles(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countKeyframesBackfillFiles)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countLibraryItems = `-- name: CountLibraryItems :one
 SELECT count(*) FROM items WHERE library_id = ?1 AND deleted_at IS NULL
 `
@@ -66,7 +82,7 @@ func (q *Queries) DeleteTrack(ctx context.Context, id int64) error {
 }
 
 const getItemSystem = `-- name: GetItemSystem :one
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items WHERE id = ?1
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language FROM items WHERE id = ?1
 `
 
 func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
@@ -133,12 +149,13 @@ func (q *Queries) GetItemSystem(ctx context.Context, id string) (Item, error) {
 		&i.FeedOrigin,
 		&i.FilledProviders,
 		&i.VoteAverage,
+		&i.OriginalLanguage,
 	)
 	return i, err
 }
 
 const getMediaFileSystem = `-- name: GetMediaFileSystem :one
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files WHERE id = ?1
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source FROM media_files WHERE id = ?1
 `
 
 func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile, error) {
@@ -170,6 +187,7 @@ func (q *Queries) GetMediaFileSystem(ctx context.Context, id string) (MediaFile,
 		&i.UpdatedAt,
 		&i.ProbeError,
 		&i.PartIndex,
+		&i.KeyframesSource,
 	)
 	return i, err
 }
@@ -182,7 +200,7 @@ INSERT INTO items (id, kind, parent_id, library_id, title, sort_title, original_
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
         ?10, ?11, ?12, ?13, ?14, ?15, ?16,
         ?17, ?18, ?19, ?20, ?20, ?20)
-RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average
+RETURNING id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language
 `
 
 type InsertItemParams struct {
@@ -297,6 +315,7 @@ func (q *Queries) InsertItem(ctx context.Context, arg InsertItemParams) (Item, e
 		&i.FeedOrigin,
 		&i.FilledProviders,
 		&i.VoteAverage,
+		&i.OriginalLanguage,
 	)
 	return i, err
 }
@@ -306,7 +325,7 @@ INSERT INTO media_files (id, item_id, root_id, rel_path, dev, inode, size, mtime
                          container, created_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
         ?11, ?12, ?12)
-RETURNING id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index
+RETURNING id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source
 `
 
 type InsertMediaFileParams struct {
@@ -366,23 +385,25 @@ func (q *Queries) InsertMediaFile(ctx context.Context, arg InsertMediaFileParams
 		&i.UpdatedAt,
 		&i.ProbeError,
 		&i.PartIndex,
+		&i.KeyframesSource,
 	)
 	return i, err
 }
 
 const insertSidecarTrack = `-- name: InsertSidecarTrack :exec
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (?1, -1, 'subtitle', ?2, ?3, ?4, 'sidecar', ?5, 0, ?6)
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (?1, -1, 'subtitle', ?2, ?3, ?4, 'sidecar', ?5, 0, ?6, ?7)
 ON CONFLICT DO NOTHING
 `
 
 type InsertSidecarTrackParams struct {
-	MediaFileID string
-	Codec       sql.NullString
-	Language    sql.NullString
-	Title       sql.NullString
-	RelPath     sql.NullString
-	IsForced    int64
+	MediaFileID       string
+	Codec             sql.NullString
+	Language          sql.NullString
+	Title             sql.NullString
+	RelPath           sql.NullString
+	IsForced          int64
+	IsHearingImpaired int64
 }
 
 // A sidecar found by a scan; stream_index -1 like the API reports sidecars.
@@ -394,26 +415,28 @@ func (q *Queries) InsertSidecarTrack(ctx context.Context, arg InsertSidecarTrack
 		arg.Title,
 		arg.RelPath,
 		arg.IsForced,
+		arg.IsHearingImpaired,
 	)
 	return err
 }
 
 const insertTrack = `-- name: InsertTrack :exec
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
 `
 
 type InsertTrackParams struct {
-	MediaFileID string
-	StreamIndex int64
-	Kind        string
-	Codec       sql.NullString
-	Language    sql.NullString
-	Title       sql.NullString
-	Source      string
-	RelPath     sql.NullString
-	IsDefault   int64
-	IsForced    int64
+	MediaFileID       string
+	StreamIndex       int64
+	Kind              string
+	Codec             sql.NullString
+	Language          sql.NullString
+	Title             sql.NullString
+	Source            string
+	RelPath           sql.NullString
+	IsDefault         int64
+	IsForced          int64
+	IsHearingImpaired int64
 }
 
 func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error {
@@ -428,8 +451,40 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 		arg.RelPath,
 		arg.IsDefault,
 		arg.IsForced,
+		arg.IsHearingImpaired,
 	)
 	return err
+}
+
+const lastJobFailedSince = `-- name: LastJobFailedSince :one
+SELECT EXISTS (
+    SELECT 1 FROM (
+        SELECT l.state FROM jobs AS l
+        WHERE l.type = ?1 AND l.state IN ('done', 'failed', 'cancelled') AND l.finished_at >= ?2
+          AND l.idempotency_key = ?3
+        ORDER BY l.finished_at DESC, l.id DESC
+        LIMIT 1
+    ) AS newest
+    WHERE newest.state = 'failed'
+) AS failed
+`
+
+type LastJobFailedSinceParams struct {
+	Type           string
+	Since          sql.NullInt64
+	IdempotencyKey sql.NullString
+}
+
+// Whether the newest finished run of a type under an idempotency key failed at or after @since
+// (concept 14, 6.4, O-17: a playback queues no new full keyframe read for a file whose last read
+// failed within 24 h). A run newer than one at @since finished at @since or later too, so only
+// the runs since @since are looked at: a range of the index jobs_history, the newest of them by
+// finished_at decides.
+func (q *Queries) LastJobFailedSince(ctx context.Context, arg LastJobFailedSinceParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, lastJobFailedSince, arg.Type, arg.Since, arg.IdempotencyKey)
+	var failed bool
+	err := row.Scan(&failed)
+	return failed, err
 }
 
 const listDeletedItemsByLibrary = `-- name: ListDeletedItemsByLibrary :many
@@ -540,7 +595,7 @@ func (q *Queries) ListItemParents(ctx context.Context, ids []string) ([]ListItem
 }
 
 const listItemsByLibrary = `-- name: ListItemsByLibrary :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language FROM items WHERE library_id = ?1 AND deleted_at IS NULL ORDER BY id
 `
 
 func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]Item, error) {
@@ -613,6 +668,75 @@ func (q *Queries) ListItemsByLibrary(ctx context.Context, libraryID int64) ([]It
 			&i.FeedOrigin,
 			&i.FilledProviders,
 			&i.VoteAverage,
+			&i.OriginalLanguage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listKeyframesBackfillFiles = `-- name: ListKeyframesBackfillFiles :many
+SELECT mf.id, mf.root_id, mf.rel_path, mf.container, mf.duration_ms, mf.video_codec, mf.size, mf.mtime, i.kind
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode') AND mf.id > ?1
+ORDER BY mf.id
+LIMIT ?2
+`
+
+type ListKeyframesBackfillFilesParams struct {
+	AfterID    string
+	LimitCount int64
+}
+
+type ListKeyframesBackfillFilesRow struct {
+	ID         string
+	RootID     int64
+	RelPath    string
+	Container  string
+	DurationMs sql.NullInt64
+	VideoCodec sql.NullString
+	Size       int64
+	Mtime      int64
+	Kind       string
+}
+
+// The files keyframes.backfill reads (concept 14, 6.6): worth an index and without one, by id
+// after the cursor @after_id, @limit_count at a time. "Worth an index" is the condition of
+// library.indexWorthy (4.1): present, a video codec that can be remuxed
+// (transcode.CopyableVideo), neither an audiobook nor a podcast episode. It implies the WHERE of
+// the partial index media_files_keyframes, which carries the search (INDEXED BY: without
+// statistics the planner takes media_files_missing, which lists nearly every file); the id in
+// the index gives the order of the cursor without a sort. CountKeyframesBackfillFiles states the
+// same condition.
+func (q *Queries) ListKeyframesBackfillFiles(ctx context.Context, arg ListKeyframesBackfillFilesParams) ([]ListKeyframesBackfillFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listKeyframesBackfillFiles, arg.AfterID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListKeyframesBackfillFilesRow{}
+	for rows.Next() {
+		var i ListKeyframesBackfillFilesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.RootID,
+			&i.RelPath,
+			&i.Container,
+			&i.DurationMs,
+			&i.VideoCodec,
+			&i.Size,
+			&i.Mtime,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}
@@ -660,7 +784,7 @@ func (q *Queries) ListMediaFileSidecarTracks(ctx context.Context, mediaFileID st
 }
 
 const listMediaFileTracks = `-- name: ListMediaFileTracks :many
-SELECT id, media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced FROM tracks WHERE media_file_id = ?1 ORDER BY source, stream_index
+SELECT id, media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired FROM tracks WHERE media_file_id = ?1 ORDER BY source, stream_index
 `
 
 func (q *Queries) ListMediaFileTracks(ctx context.Context, mediaFileID string) ([]Track, error) {
@@ -684,6 +808,7 @@ func (q *Queries) ListMediaFileTracks(ctx context.Context, mediaFileID string) (
 			&i.RelPath,
 			&i.IsDefault,
 			&i.IsForced,
+			&i.IsHearingImpaired,
 		); err != nil {
 			return nil, err
 		}
@@ -699,7 +824,7 @@ func (q *Queries) ListMediaFileTracks(ctx context.Context, mediaFileID string) (
 }
 
 const listMediaFilesByRoot = `-- name: ListMediaFilesByRoot :many
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files WHERE root_id = ?1 ORDER BY rel_path
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source FROM media_files WHERE root_id = ?1 ORDER BY rel_path
 `
 
 func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]MediaFile, error) {
@@ -737,6 +862,7 @@ func (q *Queries) ListMediaFilesByRoot(ctx context.Context, rootID int64) ([]Med
 			&i.UpdatedAt,
 			&i.ProbeError,
 			&i.PartIndex,
+			&i.KeyframesSource,
 		); err != nil {
 			return nil, err
 		}
@@ -835,6 +961,22 @@ func (q *Queries) ListSidecarTracksByRoot(ctx context.Context, rootID int64) ([]
 	return items, nil
 }
 
+const resetUnavailableKeyframes = `-- name: ResetUnavailableKeyframes :exec
+UPDATE media_files SET keyframes_source = NULL, updated_at = ?1 WHERE id = ?2 AND keyframes_source = 'none'
+`
+
+type ResetUnavailableKeyframesParams struct {
+	Now int64
+	ID  string
+}
+
+// The refresh of a title in the maintenance retries a file marked "index impossible"; a stored
+// index (cues, mp4, scan) stays (concept 14, 4.2, O-16).
+func (q *Queries) ResetUnavailableKeyframes(ctx context.Context, arg ResetUnavailableKeyframesParams) error {
+	_, err := q.db.ExecContext(ctx, resetUnavailableKeyframes, arg.Now, arg.ID)
+	return err
+}
+
 const restoreItem = `-- name: RestoreItem :exec
 UPDATE items SET deleted_at = NULL, updated_at = ?1
 WHERE items.deleted_at IS NOT NULL
@@ -857,6 +999,39 @@ type RestoreItemParams struct {
 func (q *Queries) RestoreItem(ctx context.Context, arg RestoreItemParams) error {
 	_, err := q.db.ExecContext(ctx, restoreItem, arg.Now, arg.ID)
 	return err
+}
+
+const setMediaFileKeyframes = `-- name: SetMediaFileKeyframes :execrows
+UPDATE media_files SET keyframes = ?1, keyframes_at = ?2, keyframes_source = ?3, updated_at = ?2
+WHERE id = ?4 AND keyframes_source IS NULL AND size = ?5 AND mtime = ?6
+`
+
+type SetMediaFileKeyframesParams struct {
+	Keyframes []byte
+	Now       sql.NullInt64
+	Source    sql.NullString
+	ID        string
+	Size      int64
+	Mtime     int64
+}
+
+// The keyframe index is final per file version (concept 14, I-1): written only while there is
+// none and the row still has the size and mtime the writer remembered before it read the file.
+// 0 rows (an index is there, or the file changed) is not an error. keyframes_source is cues,
+// mp4, scan (with a blob) or none (blob NULL).
+func (q *Queries) SetMediaFileKeyframes(ctx context.Context, arg SetMediaFileKeyframesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setMediaFileKeyframes,
+		arg.Keyframes,
+		arg.Now,
+		arg.Source,
+		arg.ID,
+		arg.Size,
+		arg.Mtime,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setMediaFileMissing = `-- name: SetMediaFileMissing :exec
@@ -946,26 +1121,15 @@ func (q *Queries) UpdateItemRatingOverride(ctx context.Context, arg UpdateItemRa
 	return err
 }
 
-const updateMediaFileKeyframes = `-- name: UpdateMediaFileKeyframes :exec
-UPDATE media_files SET keyframes = ?1, keyframes_at = ?2, updated_at = ?2 WHERE id = ?3
-`
-
-type UpdateMediaFileKeyframesParams struct {
-	Keyframes []byte
-	Now       sql.NullInt64
-	ID        string
-}
-
-func (q *Queries) UpdateMediaFileKeyframes(ctx context.Context, arg UpdateMediaFileKeyframesParams) error {
-	_, err := q.db.ExecContext(ctx, updateMediaFileKeyframes, arg.Keyframes, arg.Now, arg.ID)
-	return err
-}
-
 const updateMediaFileLocation = `-- name: UpdateMediaFileLocation :exec
 UPDATE media_files
 SET rel_path = ?1, dev = ?2, inode = ?3, size = ?4, mtime = ?5,
-    partial_hash = ?6, version_label = ?7, missing_since = NULL, updated_at = ?8
-WHERE id = ?9
+    partial_hash = ?6, version_label = ?7, missing_since = NULL,
+    keyframes = CASE WHEN CAST(?8 AS INTEGER) = 1 THEN NULL ELSE keyframes END,
+    keyframes_at = CASE WHEN CAST(?8 AS INTEGER) = 1 THEN NULL ELSE keyframes_at END,
+    keyframes_source = CASE WHEN CAST(?8 AS INTEGER) = 1 THEN NULL ELSE keyframes_source END,
+    updated_at = ?9
+WHERE id = ?10
 `
 
 type UpdateMediaFileLocationParams struct {
@@ -976,11 +1140,15 @@ type UpdateMediaFileLocationParams struct {
 	Mtime        int64
 	PartialHash  sql.NullString
 	VersionLabel sql.NullString
+	ResetIndex   int64
 	Now          int64
 	ID           string
 }
 
 // Same file at a new path (rename, move), changed in place, or back after missing_since.
+// reset_index (1 when size or mtime changed, decided by the writer whichever way the scanner
+// matched the file) clears the keyframe index of the old version; a rename or move without a
+// change keeps it (concept 14, 4.2, Z-1).
 func (q *Queries) UpdateMediaFileLocation(ctx context.Context, arg UpdateMediaFileLocationParams) error {
 	_, err := q.db.ExecContext(ctx, updateMediaFileLocation,
 		arg.RelPath,
@@ -990,18 +1158,19 @@ func (q *Queries) UpdateMediaFileLocation(ctx context.Context, arg UpdateMediaFi
 		arg.Mtime,
 		arg.PartialHash,
 		arg.VersionLabel,
+		arg.ResetIndex,
 		arg.Now,
 		arg.ID,
 	)
 	return err
 }
 
-const updateMediaFileProbe = `-- name: UpdateMediaFileProbe :exec
+const updateMediaFileProbe = `-- name: UpdateMediaFileProbe :execrows
 UPDATE media_files
 SET container = ?1, video_codec = ?2, audio_codec = ?3, width = ?4,
     height = ?5, duration_ms = ?6, probe = ?7, probe_error = NULL, probed_at = ?8,
     updated_at = ?8
-WHERE id = ?9
+WHERE id = ?9 AND size = ?10 AND mtime = ?11
 `
 
 type UpdateMediaFileProbeParams struct {
@@ -1014,10 +1183,14 @@ type UpdateMediaFileProbeParams struct {
 	Probe      sql.NullString
 	Now        sql.NullInt64
 	ID         string
+	Size       int64
+	Mtime      int64
 }
 
-func (q *Queries) UpdateMediaFileProbe(ctx context.Context, arg UpdateMediaFileProbeParams) error {
-	_, err := q.db.ExecContext(ctx, updateMediaFileProbe,
+// Only for the version (size, mtime) the probe read: 0 rows means the file changed meanwhile, and
+// probe.file retries with the new version (concept 14, 4.2, Z-9).
+func (q *Queries) UpdateMediaFileProbe(ctx context.Context, arg UpdateMediaFileProbeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMediaFileProbe,
 		arg.Container,
 		arg.VideoCodec,
 		arg.AudioCodec,
@@ -1027,6 +1200,11 @@ func (q *Queries) UpdateMediaFileProbe(ctx context.Context, arg UpdateMediaFileP
 		arg.Probe,
 		arg.Now,
 		arg.ID,
+		arg.Size,
+		arg.Mtime,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

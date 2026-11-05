@@ -19,6 +19,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/mediaindex"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -70,6 +71,24 @@ type Service struct {
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
+	// cacheDir is the cache directory that holds the chapter images (WithCacheDir, concept 13
+	// stage 3); empty switches chapters.images off.
+	cacheDir string
+	// onChapterImagesStored runs after chapters.images renamed its folder (a test hook; nil
+	// outside tests).
+	onChapterImagesStored func()
+	// hangingReads holds the library roots whose read test of chapters.images timed out and still
+	// hangs (root path → struct{}; Service.readable).
+	hangingReads sync.Map
+	// frameGrabber replaces transcode.Runner.GrabFrame of chapters.images (a test seam; nil
+	// outside tests).
+	frameGrabber func(ctx context.Context, in string, at time.Duration, width int, v transcode.Stream, out string) (bool, error)
+	// indexReader replaces mediaindex.Read and keyframeVerifier transcode.Runner.VerifyKeyframes
+	// when probe.file reads the keyframe index of the container (test seams; nil outside tests).
+	indexReader      func(r io.ReaderAt, size int64, container string) (mediaindex.Index, error)
+	keyframeVerifier func(ctx context.Context, abs string, at []time.Duration, seed uint64) error
+	// indexTimeout bounds the read of the container index (indexReadTimeout; shorter in tests).
+	indexTimeout time.Duration
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it
@@ -97,6 +116,12 @@ type Service struct {
 
 // Option configures New.
 type Option func(*Service)
+
+// WithCacheDir sets the cache directory below which chapters.images stores the chapter images
+// (chapter_images.go); without it the chapter image jobs do nothing.
+func WithCacheDir(dir string) Option {
+	return func(s *Service) { s.cacheDir = dir }
+}
 
 // WithClock replaces time.Now, for tests.
 func WithClock(now func() time.Time) Option {
@@ -172,7 +197,7 @@ func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
-		db: db, queue: queue, probe: probe, log: log, now: time.Now,
+		db: db, queue: queue, probe: probe, log: log, now: time.Now, indexTimeout: indexReadTimeout,
 		watchers: map[int64]*Watcher{}, watcherStop: map[int64]context.CancelFunc{},
 		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},

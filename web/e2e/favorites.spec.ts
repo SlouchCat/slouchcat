@@ -58,7 +58,7 @@ test('a series and a podcast become favourites; a film cannot (E-8)', async ({
   expect(((await refused.json()) as { code: string }).code).toBe('not_favoritable');
 });
 
-test('favourite by keyboard: arrows to the button, Enter toggles; no focus trap', async ({
+test('favourite by keyboard: arrows to the button, Enter toggles; no focus trap @keyboard', async ({
   page,
   owner,
 }) => {

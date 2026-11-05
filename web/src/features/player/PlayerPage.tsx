@@ -1,7 +1,14 @@
-import type { ItemRef, PlaybackInfo, PlaybackRequest, Quality } from '@slouchcat/api-client';
+import type {
+  ItemRef,
+  MediaFileInfo,
+  PlaybackInfo,
+  PlaybackRequest,
+  Quality,
+  Track,
+} from '@slouchcat/api-client';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getRouteApi } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { getRouteApi, useRouter } from '@tanstack/react-router';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemExtension, problemMessage } from '@/api/errors';
@@ -11,7 +18,7 @@ import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { Notice } from '@/ui';
-import { AriaButton } from '@/ui/aria';
+import { AriaButton, focusOnMount } from '@/ui/aria';
 import {
   browserPlatform,
   deviceCapabilities,
@@ -20,8 +27,12 @@ import {
   type PlaybackEngine,
 } from './capabilities';
 import { AudioPlayerPage } from './AudioPlayerPage';
+import { playbackCapabilities } from './capabilities';
+import { selectedAudio, selectedSubtitle } from './labels';
+import { baseLanguage, isCommentary, isSdh } from './trackOrder';
 import { useStopPlaybackOnLeave } from './usePlaybackSession';
-import { VideoPlayer, type PlaybackChange } from './VideoPlayer';
+import { readPlayerPrefs, rememberedQuality } from './usePlayerPrefs';
+import { NO_CARRY, VideoPlayer, type PlaybackChange, type PlayerCarry } from './VideoPlayer';
 import styles from './Player.module.css';
 
 const route = getRouteApi('/_authed/_active/play/$itemId');
@@ -81,29 +92,126 @@ const STOP_WAIT_MS = 2000;
 const isTranscodeBusy = (error: unknown) =>
   isApiError(error, 503) && error.code === 'transcode_busy';
 
-/** The tracks the viewer picked, for the file that was playing then (W-4). */
-interface TrackChoice {
+/**
+ * The tracks a start names, for the file that was playing then (W-4). What it leaves out the
+ * server chooses (contract 1.11.0, 11.3): only the first start does so, every switch names both.
+ */
+export interface TrackChoice {
   /** `?file` of the URL at the time; a choice does not carry over to another version. */
   file: string | null;
   audioTrack?: number;
-  subtitleTrack?: number | null;
+  /** A subtitle track id, or `off` for none. */
+  subtitle?: number | 'off';
+  /** The viewer chose by hand during an episode and the server keeps it for the series. */
+  rememberForSeries?: boolean;
 }
 
-/** Body of startPlayback: the device profile, the version and the viewer's choices. */
+/**
+ * Body of startPlayback: the device profile, the version and the tracks. «Aus» is `subtitleOff`,
+ * never `subtitleTrack: null`, which since contract 1.11.0 lets the server choose. `quality` is a
+ * choice in this player (the panel, the hint of a slow connection); without one the quality
+ * remembered on this device goes along (`rememberedQuality`, V-17).
+ */
 export function playbackRequest(
   file: string | undefined,
   tracks: Omit<TrackChoice, 'file'>,
   quality: Quality | undefined,
   positionMs: number | undefined,
+  remembered?: Quality,
 ): PlaybackRequest {
+  const { audioTrack, subtitle, rememberForSeries } = tracks;
   return {
     ...(file ? { mediaFileId: file } : {}),
     capabilities: deviceCapabilities(),
-    ...(tracks.audioTrack !== undefined ? { audioTrack: tracks.audioTrack } : {}),
-    ...(tracks.subtitleTrack !== undefined ? { subtitleTrack: tracks.subtitleTrack } : {}),
+    ...(audioTrack !== undefined ? { audioTrack } : {}),
+    ...(subtitle === 'off' ? { subtitleOff: true } : {}),
+    ...(typeof subtitle === 'number' ? { subtitleTrack: subtitle } : {}),
+    ...(rememberForSeries ? { rememberForSeries: true } : {}),
     subtitleDelivery: 'auto',
-    ...(quality ? { quality } : {}),
+    ...(quality ? { quality } : rememberedQuality(remembered)),
     ...(positionMs !== undefined ? { positionMs } : {}),
+  };
+}
+
+/**
+ * The tracks of a switch (11.3): the change, and for what it leaves out the tracks the running
+ * session delivers, so a sound or quality switch keeps the subtitles (or «Aus») as they are.
+ */
+export function switchTracks(
+  info: PlaybackInfo,
+  change: PlaybackChange,
+): Omit<TrackChoice, 'file'> {
+  const audioTrack = change.audioTrack ?? info.selection.audioTrack;
+  return {
+    ...(audioTrack !== undefined ? { audioTrack } : {}),
+    subtitle: change.subtitleTrack ?? info.selection.subtitleTrack ?? 'off',
+    ...(change.rememberForSeries &&
+    (change.audioTrack !== undefined || change.subtitleTrack !== undefined)
+      ? { rememberForSeries: true }
+      : {}),
+  };
+}
+
+/**
+ * The first matching track in the order the server prefers within a language (review step 9, m-3,
+ * as trackpick's audioIn and pick): not a commentary, then one that `prefer` holds for (a sound the
+ * device decodes; a subtitle as SDH as the running one), then text before bitmap, then the default
+ * one, then the file's order. Only an order: the server still decides what plays (rule 12).
+ */
+function best(
+  tracks: readonly Track[] | undefined,
+  match: (track: Track) => boolean,
+  prefer: (track: Track) => boolean,
+) {
+  return tracks
+    ?.filter(match)
+    .sort(
+      (a, b) =>
+        Number(isCommentary(a)) - Number(isCommentary(b)) ||
+        Number(prefer(b)) - Number(prefer(a)) ||
+        Number(b.text) - Number(a.text) ||
+        Number(b.default) - Number(a.default),
+    )[0];
+}
+
+/**
+ * The tracks of a version switch (B-5, 11.3): ids and stream indexes belong to one file, so the
+ * running tracks are looked up in the other version by language (and forced); within it a sound in
+ * a codec of `decodableAudio` (the device's, playbackCapabilities) and a subtitle that is SDH
+ * exactly when the running one is come first (final review stage 2, G1-m1). What it lacks the
+ * server chooses. «Aus» stays off.
+ */
+export function versionTracks(
+  info: PlaybackInfo,
+  version: MediaFileInfo | undefined,
+  decodableAudio: readonly string[] = playbackCapabilities().audio,
+): Omit<TrackChoice, 'file'> {
+  const audio = selectedAudio(info);
+  const subtitle = selectedSubtitle(info);
+  const other = version?.tracks;
+  const audioTrack = audio
+    ? best(
+        other?.audio,
+        (track) =>
+          baseLanguage(track.language) !== undefined &&
+          baseLanguage(track.language) === baseLanguage(audio.language),
+        (track) => decodableAudio.includes(track.codec.toLowerCase()),
+      )?.index
+    : undefined;
+  const subtitleId = subtitle
+    ? best(
+        other?.subtitles,
+        (track) =>
+          track.forced === subtitle.forced &&
+          baseLanguage(track.language) !== undefined &&
+          baseLanguage(track.language) === baseLanguage(subtitle.language),
+        (track) => isSdh(track) === isSdh(subtitle),
+      )?.id
+    : undefined;
+  return {
+    ...(audioTrack !== undefined ? { audioTrack } : {}),
+    ...(subtitle === undefined ? { subtitle: 'off' as const } : {}),
+    ...(subtitleId !== undefined ? { subtitle: subtitleId } : {}),
   };
 }
 
@@ -113,22 +221,52 @@ export function playbackRequest(
  */
 let autoNextTarget: string | null = null;
 
+/**
+ * What the player hands on to the next title it plays itself (auto-next, an episode of «Als
+ * Nächstes», «Folge zurück»): night mode and the volume, a boost above 100 % included. Web Audio
+ * stays on until the viewer leaves the player (11.10); mute and speed start afresh with a new
+ * title. Taken by the player of that title; reset when the player route closes.
+ */
+let nextTitleCarry: { itemId: string; carry: PlayerCarry } | null = null;
+
+/** Counts the players opened, so each one starts its own session (see the playback query). */
+let playerMounts = 0;
+
 /** Video player route (W-1 direct play, W-4 tracks, W-5 progress, W-8 quality, W-9 auto-next). */
 export function PlayerPage() {
   const { itemId } = route.useParams();
   // Full screen belongs to the document so that it survives switches and auto-next (W-2); it
-  // ends with the player route.
+  // ends with the player route, and so does what auto-next carries over.
   useEffect(
     () => () => {
+      nextTitleCarry = null;
       if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
     },
     [],
   );
+  // «Für diese Serie merken» (11.3): on by default, kept while this player route is open, across
+  // auto-next and the other episodes it plays (review step 9, m-4).
+  const [rememberSeries, setRememberSeries] = useState(true);
   // Auto-next stays on this route with another id: a fresh player, session and measurement.
-  return <PlayerView key={itemId} itemId={itemId} />;
+  return (
+    <PlayerView
+      key={itemId}
+      itemId={itemId}
+      rememberSeries={rememberSeries}
+      onRememberSeries={setRememberSeries}
+    />
+  );
 }
 
-function PlayerView({ itemId }: { itemId: string }) {
+function PlayerView({
+  itemId,
+  rememberSeries,
+  onRememberSeries,
+}: {
+  itemId: string;
+  rememberSeries: boolean;
+  onRememberSeries: (on: boolean) => void;
+}) {
   const { t } = useTranslation();
   // The version to play (B-5): from the link of the detail page or the version menu, kept in
   // the URL so a reload plays the chosen one. The menu also hands over the position; `at` starts
@@ -140,10 +278,15 @@ function PlayerView({ itemId }: { itemId: string }) {
   const [switchingTo, setSwitchingTo] = useState<string | undefined>(undefined);
   const [stopping, setStopping] = useState(false);
   const [switchStartedAt, setSwitchStartedAt] = useState<number | undefined>(undefined);
+  // The running session is the restart after `playback_source_changed` (concept 14, 7.4).
+  const [sourceRestarted, setSourceRestarted] = useState(false);
   const [trackChoice, setTrackChoice] = useState<TrackChoice>({ file: null });
   const [quality, setQuality] = useState<Quality | undefined>(undefined);
   // A new session with the same choices (a second switch back) must not reuse a cached answer.
   const [generation, setGeneration] = useState(0);
+  // Neither must a player opened again: the one left ends its session on a timer, and the way
+  // back can be quicker than that timer and the removal of the answer (gcTime 0).
+  const [mount] = useState(() => (playerMounts += 1));
   const [autoNext] = useState(() => {
     const arrived = autoNextTarget === itemId;
     if (arrived) autoNextTarget = null;
@@ -159,10 +302,21 @@ function PlayerView({ itemId }: { itemId: string }) {
   // Start of the measurement "navigation → first frame playing" (data-start-ms).
   const [openedAt] = useState(() => performance.now());
   const goBack = useGoBack(paths.item(itemId));
+  // A navigation to another page (a person, another episode, back) keeps this player on screen
+  // until the next page has loaded; meanwhile its keys belong to that page (usePlayerKeys).
+  const router = useRouter();
+  const leaving = useCallback(() => {
+    const { status, location, resolvedLocation } = router.state;
+    return status === 'pending' && location.pathname !== resolvedLocation?.pathname;
+  }, [router]);
 
-  const tracks =
+  const tracks: Omit<TrackChoice, 'file'> =
     trackChoice.file === (file ?? null)
-      ? { audioTrack: trackChoice.audioTrack, subtitleTrack: trackChoice.subtitleTrack }
+      ? {
+          audioTrack: trackChoice.audioTrack,
+          subtitle: trackChoice.subtitle,
+          rememberForSeries: trackChoice.rememberForSeries,
+        }
       : {};
 
   // Starting playback creates a session and may start a transcode on the server, so the request
@@ -170,12 +324,12 @@ function PlayerView({ itemId }: { itemId: string }) {
   // session would rebuild the player mid-stream). Only a busy transcoder is retried, after the
   // server's delay.
   const playback = useQuery({
-    queryKey: ['playback', itemId, file ?? null, tracks, quality ?? null, generation],
+    queryKey: ['playback', itemId, file ?? null, tracks, quality ?? null, generation, mount],
     queryFn: ({ signal }): Promise<PlaybackInfo> =>
       request(
         api.POST('/items/{id}/play', {
           params: { path: { id: itemId } },
-          body: playbackRequest(file, tracks, quality, startMs),
+          body: playbackRequest(file, tracks, quality, startMs, readPlayerPrefs().quality),
           signal,
         }),
       ),
@@ -203,6 +357,23 @@ function PlayerView({ itemId }: { itemId: string }) {
   const versions = detail.data?.mediaFiles ?? [];
 
   const [infoOpen, setInfoOpen] = useState(false);
+  // Mute, speed, a volume above 100 % and night mode carry over to the next session of this title
+  // (a switch of track, quality or version); a new title starts audible at normal speed, after
+  // auto-next with the night mode and volume of the episode before (m-5, review step 4).
+  const [carried, setCarried] = useState<PlayerCarry>(() => {
+    const handed = nextTitleCarry?.itemId === itemId ? nextTitleCarry.carry : undefined;
+    nextTitleCarry = null;
+    return handed ? { ...NO_CARRY, nightMode: handed.nightMode, volume: handed.volume } : NO_CARRY;
+  });
+  const carry = useCallback(
+    (patch: Partial<PlayerCarry>) =>
+      setCarried((current) =>
+        (Object.keys(patch) as (keyof PlayerCarry)[]).every((key) => current[key] === patch[key])
+          ? current
+          : { ...current, ...patch },
+      ),
+    [],
+  );
 
   // From the menu until the new session answered; the old player is paused and locked meanwhile.
   const switching =
@@ -229,32 +400,47 @@ function PlayerView({ itemId }: { itemId: string }) {
     setSwitchingTo(fileId);
     if (!(await endCurrent())) return;
     setStartMs(positionMs);
+    setSourceRestarted(false);
+    setTrackChoice({
+      file: fileId,
+      ...versionTracks(
+        current,
+        versions.find((version) => version.id === fileId),
+      ),
+    });
     setStopping(false);
     await navigate({ search: (previous) => ({ ...previous, file: fileId }), replace: true });
   };
 
   // Another track or quality (W-4, W-8): a new session of the same file at the same position.
   const switchPlayback = async (change: PlaybackChange, positionMs: number) => {
-    if (!playback.data || switching) return;
+    const current = playback.data;
+    if (!current || switching) return;
     if (!(await endCurrent())) return;
     setStartMs(positionMs);
+    setSourceRestarted(change.sourceChanged === true);
     if (change.quality !== undefined) setQuality(change.quality);
-    if (change.audioTrack !== undefined || change.subtitleTrack !== undefined) {
-      setTrackChoice({
-        ...tracks,
-        file: file ?? null,
-        ...(change.audioTrack !== undefined ? { audioTrack: change.audioTrack } : {}),
-        ...(change.subtitleTrack !== undefined ? { subtitleTrack: change.subtitleTrack } : {}),
-      });
-    }
+    setTrackChoice({ file: file ?? null, ...switchTracks(current, change) });
     setGeneration((value) => value + 1);
     setStopping(false);
   };
 
+  /** Another episode in this player: the history keeps one entry for the player (W-9). */
+  const playEpisode = (episode: ItemRef) => {
+    nextTitleCarry = { itemId: episode.id, carry: carried };
+    void navigate({
+      to: '/play/$itemId',
+      params: { itemId: episode.id },
+      search: {},
+      replace: true,
+    });
+  };
   const playNext = (next: ItemRef) => {
     autoNextTarget = next.id;
-    void navigate({ to: '/play/$itemId', params: { itemId: next.id }, search: {}, replace: true });
+    playEpisode(next);
   };
+  const openPerson = (personId: number) =>
+    void navigate({ to: '/people/$personId', params: { personId: String(personId) } });
 
   const engine = useMemo(
     () => (playback.data ? playbackEngine(playback.data, browserPlatform()) : null),
@@ -269,6 +455,15 @@ function PlayerView({ itemId }: { itemId: string }) {
       void queryClient.invalidateQueries({ queryKey: ['item', itemId] });
     },
     [itemId, queryClient],
+  );
+  // The player keeps the season of an episode for 30 s (its episodes' progress); leaving it, the
+  // season's page asks again.
+  const seasonId = detail.data?.season?.id;
+  useEffect(
+    () => () => {
+      if (seasonId) void queryClient.invalidateQueries({ queryKey: ['item', seasonId] });
+    },
+    [queryClient, seasonId],
   );
 
   if (playback.data && engine && engine !== 'unsupported' && playback.data.mediaKind === 'audio') {
@@ -294,15 +489,27 @@ function PlayerView({ itemId }: { itemId: string }) {
         engine={engine}
         openedAt={openedAt}
         onBack={goBack}
+        leaving={leaving}
         startPositionMs={startMs}
         versions={versions}
+        detail={detail.data}
         infoOpen={infoOpen}
         onToggleInfo={() => setInfoOpen((open) => !open)}
+        carried={carried}
+        onCarry={carry}
+        rememberSeries={
+          playback.data.item.kind === 'episode'
+            ? { on: rememberSeries, onChange: onRememberSeries }
+            : undefined
+        }
         switching={switching}
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
         onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}
         switchStartedAt={switchStartedAt}
+        sourceRestarted={sourceRestarted}
         onNextEpisode={playNext}
+        onPlayEpisode={playEpisode}
+        onOpenPerson={openPerson}
         autoNext={autoNext}
       />
     );
@@ -395,7 +602,9 @@ function PlayerMessage({
       <div className={styles.messageBox}>
         {children}
         <div>
-          <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+          {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a transition after
+              Enter opened the page (11.13). */}
+          <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
             {t('common.back')}
           </AriaButton>
         </div>

@@ -10,6 +10,27 @@ import (
 	"database/sql"
 )
 
+const countActivePlaybacksOfFile = `-- name: CountActivePlaybacksOfFile :one
+SELECT count(*) FROM playback_sessions
+WHERE media_file_id = ?1 AND revoked_at IS NULL AND expires_at > ?2 AND last_activity_at >= ?3
+`
+
+type CountActivePlaybacksOfFileParams struct {
+	MediaFileID string
+	Now         int64
+	ActiveAfter int64
+}
+
+// Playback sessions of a media file that still play: neither revoked nor expired, with a request
+// since @active_after. chapters.images waits while one exists (concept 13 11.6, not during
+// playback).
+func (q *Queries) CountActivePlaybacksOfFile(ctx context.Context, arg CountActivePlaybacksOfFileParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActivePlaybacksOfFile, arg.MediaFileID, arg.Now, arg.ActiveAfter)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countDuplicateJobKeys = `-- name: CountDuplicateJobKeys :one
 SELECT count(*) FROM (
     SELECT idempotency_key FROM jobs
@@ -165,6 +186,44 @@ func (q *Queries) DeleteMediaFilesOfRoot(ctx context.Context, rootID int64) (int
 	return result.RowsAffected()
 }
 
+const getChapterImageFile = `-- name: GetChapterImageFile :one
+SELECT m.id, m.rel_path, m.duration_ms, m.probe, m.probed_at, m.missing_since, i.kind, r.path AS root_path
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+JOIN library_roots AS r ON r.id = m.root_id
+WHERE m.id = ?1 AND i.deleted_at IS NULL AND m.probe_error IS NULL
+`
+
+type GetChapterImageFileRow struct {
+	ID           string
+	RelPath      string
+	DurationMs   sql.NullInt64
+	Probe        sql.NullString
+	ProbedAt     sql.NullInt64
+	MissingSince sql.NullInt64
+	Kind         string
+	RootPath     string
+}
+
+// A media file for chapters.images: the stored probe at its probed_at, its duration, the kind of
+// its title and the folder it lies in. A file of a deleted title or whose last probe failed has
+// none.
+func (q *Queries) GetChapterImageFile(ctx context.Context, id string) (GetChapterImageFileRow, error) {
+	row := q.db.QueryRowContext(ctx, getChapterImageFile, id)
+	var i GetChapterImageFileRow
+	err := row.Scan(
+		&i.ID,
+		&i.RelPath,
+		&i.DurationMs,
+		&i.Probe,
+		&i.ProbedAt,
+		&i.MissingSince,
+		&i.Kind,
+		&i.RootPath,
+	)
+	return i, err
+}
+
 const insertIgnoredFile = `-- name: InsertIgnoredFile :exec
 INSERT INTO ignored_files (root_id, rel_path, reason, created_at)
 VALUES (?1, ?2, ?3, ?4)
@@ -219,6 +278,59 @@ func (q *Queries) JobStatsSince(ctx context.Context, since int64) (JobStatsSince
 		&i.LeaseExpired,
 	)
 	return i, err
+}
+
+const listChapterImageFiles = `-- name: ListChapterImageFiles :many
+
+SELECT m.id, m.probed_at, m.probe, m.duration_ms, i.kind, m.missing_since IS NOT NULL AS missing
+FROM media_files AS m
+JOIN items AS i ON i.id = m.item_id
+WHERE i.kind IN ('movie', 'episode') AND i.deleted_at IS NULL AND m.probed_at IS NOT NULL AND m.probe IS NOT NULL
+  AND m.probe_error IS NULL
+ORDER BY m.id
+`
+
+type ListChapterImageFilesRow struct {
+	ID         string
+	ProbedAt   sql.NullInt64
+	Probe      sql.NullString
+	DurationMs sql.NullInt64
+	Kind       string
+	Missing    bool
+}
+
+// Chapter images (concept 13 stage 3, chapters.images).
+// The probed media files of films and episodes with their probe: the backfill queues
+// chapters.images for those without images, the sweep keeps the image folders of exactly these
+// files at their probe and chapter list.
+func (q *Queries) ListChapterImageFiles(ctx context.Context) ([]ListChapterImageFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listChapterImageFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListChapterImageFilesRow{}
+	for rows.Next() {
+		var i ListChapterImageFilesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProbedAt,
+			&i.Probe,
+			&i.DurationMs,
+			&i.Kind,
+			&i.Missing,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listIgnoredFilesByRoot = `-- name: ListIgnoredFilesByRoot :many
@@ -463,18 +575,32 @@ func (q *Queries) UpdateItemsProvidersByRoot(ctx context.Context, arg UpdateItem
 	return result.RowsAffected()
 }
 
-const updateMediaFileProbeError = `-- name: UpdateMediaFileProbeError :exec
-UPDATE media_files SET probe_error = ?1, probed_at = ?2, updated_at = ?2 WHERE id = ?3
+const updateMediaFileProbeError = `-- name: UpdateMediaFileProbeError :execrows
+UPDATE media_files SET probe_error = ?1, probed_at = ?2, updated_at = ?2
+WHERE id = ?3 AND size = ?4 AND mtime = ?5
 `
 
 type UpdateMediaFileProbeErrorParams struct {
 	ProbeError sql.NullString
 	Now        sql.NullInt64
 	ID         string
+	Size       int64
+	Mtime      int64
 }
 
 // ffprobe failed on the file (B-9 "unplayable"): the attempt is recorded, the stream columns stay.
-func (q *Queries) UpdateMediaFileProbeError(ctx context.Context, arg UpdateMediaFileProbeErrorParams) error {
-	_, err := q.db.ExecContext(ctx, updateMediaFileProbeError, arg.ProbeError, arg.Now, arg.ID)
-	return err
+// Only for the version (size, mtime) the probe read, like UpdateMediaFileProbe: 0 rows means the
+// file changed meanwhile, and probe.file runs again on the new version (concept 14, Z-9).
+func (q *Queries) UpdateMediaFileProbeError(ctx context.Context, arg UpdateMediaFileProbeErrorParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMediaFileProbeError,
+		arg.ProbeError,
+		arg.Now,
+		arg.ID,
+		arg.Size,
+		arg.Mtime,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

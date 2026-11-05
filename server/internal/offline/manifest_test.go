@@ -7,11 +7,16 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
 func TestManifest(t *testing.T) {
@@ -74,6 +79,48 @@ func TestManifest(t *testing.T) {
 	}
 	if _, err := e.svc.Manifest(ctx, e.session(f.P12, e.devA), st.ID); !errors.Is(err, model.ErrDownloadEvicted) {
 		t.Errorf("evicted: %v, want ErrDownloadEvicted", err)
+	}
+}
+
+// A film and an episode carry the chapter marks of the downloaded file, the same that playback
+// offers online; a file without marks gives an empty list (concept 13, 11.10).
+func TestManifestVideoChapters(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	ctx := context.Background()
+	f := e.f
+	marked := testProbe()
+	marked.Chapters = []transcode.Chapter{
+		{Start: 0, End: 7500 * time.Millisecond, Title: "Anfang"},
+		{Start: 7500 * time.Millisecond, End: clipDuration},
+	}
+	film, episode, plain := f.Rated(12), f.Show.E1, f.Rated(0)
+	for _, m := range []vistest.Movie{film, episode} {
+		f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, marked), keyframeBlob())
+	}
+	want := []model.Chapter{{StartMs: 0, EndMs: 7500, Title: "Anfang"}, {StartMs: 7500, EndMs: clipDuration.Milliseconds()}}
+	pb := playback.New(f.DB, vistest.Logger())
+	for _, tc := range []struct {
+		name string
+		m    vistest.Movie
+		want []model.Chapter
+	}{{"film", film, want}, {"episode", episode, want}, {"without marks", plain, []model.Chapter{}}} {
+		st := e.create(f.P12, e.devA, tc.m.ID, model.DownloadLow)
+		e.runJobs()
+		man, err := e.svc.Manifest(ctx, e.session(f.P12, e.devA), st.ID)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if man.Chapters == nil || !slices.Equal(man.Chapters, tc.want) {
+			t.Errorf("%s: chapters = %+v, want %+v", tc.name, man.Chapters, tc.want)
+		}
+		info, err := pb.Start(ctx, f.Session(t, f.P12), tc.m.ID, model.PlaybackRequest{})
+		if err != nil {
+			t.Fatalf("%s: playback: %v", tc.name, err)
+		}
+		if !slices.Equal(man.Chapters, info.Chapters) {
+			t.Errorf("%s: manifest chapters %+v, playback chapters %+v", tc.name, man.Chapters, info.Chapters)
+		}
 	}
 }
 

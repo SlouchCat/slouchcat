@@ -58,7 +58,7 @@ WHERE p.profile_id = @profile_id AND p.item_id IN (sqlc.slice('item_ids'));
 -- files first, then the largest height, then the oldest, so the first row is the primary file.
 -- name: ListMediaFilesForItem :many
 SELECT m.id, m.item_id, m.rel_path, m.size, m.mtime, m.container, m.video_codec, m.audio_codec,
-       m.width, m.height, m.duration_ms, m.version_label, m.missing_since, m.created_at,
+       m.width, m.height, m.duration_ms, m.version_label, m.missing_since, m.created_at, m.probed_at,
        r.path AS root_path
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = @profile_id

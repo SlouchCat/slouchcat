@@ -1,0 +1,247 @@
+package trackpick
+
+import (
+	"strings"
+
+	"golang.org/x/text/language"
+)
+
+// languageCodes maps the language codes and names that files, sidecars and TMDB use to the ISO
+// 639-1 code profiles store (concept 13 section 11.3, "Sprachcodes"): ISO 639-2/B and /T ("ger",
+// "deu"), English and native names of external subtitles ("german", "deutsch", "français") and the
+// TMDB code "cn". Two-letter codes and codes without an entry stand for themselves.
+//
+// The table covers every ISO 639-1 code of the metadata languages (metadata/languages.go): the /T
+// code and the one-word English and native names come from golang.org/x/text (ISO3, display), the
+// twenty /B codes that differ from /T and the withdrawn "scc" and "scr" from ISO 639-2, plus
+// spellings without accents ("francais") and old codes ("iw", "in", "ji", "jw", "mo", "cn"). Norwegian Bokmål and Nynorsk
+// count as Norwegian ("no"). TestLanguageCodesComplete checks the table against x/text. The web
+// client keeps the same table (LANGUAGE_CODES in web/src/features/player/labels.ts);
+// TestLanguageParity holds the two in step.
+var languageCodes = map[string]string{
+	"aar": "aa", "afar": "aa",
+	"abk": "ab", "abkhazian": "ab",
+	"ave": "ae", "avestan": "ae",
+	"afr": "af", "afrikaans": "af",
+	"aka": "ak", "akan": "ak",
+	"amh": "am", "amharic": "am", "አማርኛ": "am",
+	"arg": "an", "aragonese": "an",
+	"ara": "ar", "arabic": "ar", "العربية": "ar",
+	"asm": "as", "assamese": "as",
+	"ava": "av", "avaric": "av",
+	"aym": "ay", "aymara": "ay",
+	"aze": "az", "azerbaijani": "az", "azərbaycan": "az",
+	"bak": "ba", "bashkir": "ba",
+	"bel": "be", "belarusian": "be", "беларуская": "be",
+	"bul": "bg", "bulgarian": "bg", "български": "bg",
+	"bis": "bi", "bislama": "bi",
+	"bam": "bm", "bamanakan": "bm", "bambara": "bm",
+	"ben": "bn", "bangla": "bn", "bengali": "bn",
+	"bod": "bo", "tib": "bo", "tibetan": "bo",
+	"bre": "br", "breton": "br", "brezhoneg": "br",
+	"bos": "bs", "bosanski": "bs", "bosnian": "bs",
+	"cat": "ca", "catalan": "ca", "català": "ca",
+	"che": "ce", "chechen": "ce", "нохчийн": "ce",
+	"cha": "ch", "chamorro": "ch",
+	"cos": "co", "corsican": "co",
+	"cre": "cr", "cree": "cr",
+	"ces": "cs", "cze": "cs", "czech": "cs", "čeština": "cs",
+	"chu": "cu",
+	"chv": "cv", "chuvash": "cv",
+	"cym": "cy", "wel": "cy", "cymraeg": "cy", "welsh": "cy",
+	"dan": "da", "danish": "da", "dansk": "da",
+	"deu": "de", "ger": "de", "deutsch": "de", "german": "de",
+	"div": "dv", "divehi": "dv",
+	"dzo": "dz", "dzongkha": "dz",
+	"ewe": "ee", "eʋegbe": "ee",
+	"ell": "el", "gre": "el", "greek": "el", "ελληνικά": "el",
+	"eng": "en", "english": "en",
+	"epo": "eo", "esperanto": "eo",
+	"spa": "es", "espanol": "es", "español": "es", "spanish": "es",
+	"est": "et", "eesti": "et", "estonian": "et",
+	"baq": "eu", "eus": "eu", "basque": "eu", "euskara": "eu",
+	"fas": "fa", "per": "fa", "persian": "fa", "فارسی": "fa",
+	"ful": "ff", "fulah": "ff", "pulaar": "ff",
+	"fin": "fi", "finnish": "fi", "suomi": "fi",
+	"fij": "fj", "fijian": "fj",
+	"fao": "fo", "faroese": "fo", "føroyskt": "fo",
+	"fra": "fr", "fre": "fr", "francais": "fr", "français": "fr", "french": "fr",
+	"fry": "fy", "frysk": "fy",
+	"gle": "ga", "gaeilge": "ga", "irish": "ga",
+	"gla": "gd", "gàidhlig": "gd",
+	"glg": "gl", "galego": "gl", "galician": "gl",
+	"grn": "gn", "guarani": "gn",
+	"guj": "gu", "gujarati": "gu",
+	"glv": "gv", "gaelg": "gv", "manx": "gv",
+	"hau": "ha", "hausa": "ha",
+	"iw": "he", "heb": "he", "hebrew": "he", "עברית": "he",
+	"hin": "hi", "hindi": "hi",
+	"hmo": "ho",
+	"hrv": "hr", "scr": "hr", "croatian": "hr", "hrvatski": "hr",
+	"hat": "ht",
+	"hun": "hu", "hungarian": "hu", "magyar": "hu",
+	"arm": "hy", "hye": "hy", "armenian": "hy", "հայերեն": "hy",
+	"her": "hz", "herero": "hz",
+	"ina": "ia", "interlingua": "ia",
+	"in": "id", "ind": "id", "indonesia": "id", "indonesian": "id",
+	"ile": "ie", "interlingue": "ie",
+	"ibo": "ig", "igbo": "ig",
+	"iii": "ii", "ꆈꌠꉙ": "ii",
+	"ipk": "ik", "inupiaq": "ik",
+	"ido": "io",
+	"ice": "is", "isl": "is", "icelandic": "is", "íslenska": "is",
+	"ita": "it", "italian": "it", "italiano": "it",
+	"iku": "iu", "inuktitut": "iu",
+	"jpn": "ja", "japanese": "ja", "日本語": "ja",
+	"jw": "jv", "jav": "jv", "javanese": "jv",
+	"geo": "ka", "kat": "ka", "georgian": "ka", "ქართული": "ka",
+	"kon": "kg", "kongo": "kg",
+	"kik": "ki", "gikuyu": "ki", "kikuyu": "ki",
+	"kua": "kj", "kuanyama": "kj",
+	"kaz": "kk", "kazakh": "kk",
+	"kal": "kl", "kalaallisut": "kl",
+	"khm": "km", "khmer": "km",
+	"kan": "kn", "kannada": "kn",
+	"kor": "ko", "korean": "ko", "한국어": "ko",
+	"kau": "kr", "kanuri": "kr",
+	"kas": "ks", "kashmiri": "ks",
+	"kur": "ku", "kurdish": "ku",
+	"kom": "kv", "komi": "kv",
+	"cor": "kw", "cornish": "kw", "kernewek": "kw",
+	"kir": "ky", "kyrgyz": "ky", "кыргызча": "ky",
+	"lat": "la", "latin": "la",
+	"ltz": "lb", "luxembourgish": "lb", "lëtzebuergesch": "lb",
+	"lug": "lg", "ganda": "lg", "luganda": "lg",
+	"lim": "li", "limburgish": "li",
+	"lin": "ln", "lingala": "ln", "lingála": "ln",
+	"lao": "lo", "ລາວ": "lo",
+	"lit": "lt", "lietuvių": "lt", "lithuanian": "lt",
+	"lub": "lu", "tshiluba": "lu",
+	"lav": "lv", "latvian": "lv", "latviešu": "lv",
+	"mlg": "mg", "malagasy": "mg",
+	"mah": "mh", "marshallese": "mh",
+	"mao": "mi", "mri": "mi", "maori": "mi",
+	"mac": "mk", "mkd": "mk", "macedonian": "mk", "македонски": "mk",
+	"mal": "ml", "malayalam": "ml",
+	"mon": "mn", "mongolian": "mn", "монгол": "mn",
+	"mar": "mr", "marathi": "mr",
+	"may": "ms", "msa": "ms", "malay": "ms", "melayu": "ms",
+	"mlt": "mt", "maltese": "mt", "malti": "mt",
+	"bur": "my", "mya": "my", "burmese": "my",
+	"nau": "na", "nauru": "na",
+	"nde": "nd", "isindebele": "nd",
+	"nep": "ne", "nepali": "ne",
+	"ndo": "ng", "ndonga": "ng",
+	"dut": "nl", "nld": "nl", "dutch": "nl", "nederlands": "nl",
+	"nb": "no", "nn": "no", "nno": "no", "nob": "no", "nor": "no", "norsk": "no", "norwegian": "no", "nynorsk": "no",
+	"nbl": "nr",
+	"nav": "nv", "navajo": "nv",
+	"nya": "ny", "nyanja": "ny",
+	"oci": "oc", "occitan": "oc",
+	"oji": "oj", "ojibwa": "oj",
+	"orm": "om", "oromo": "om", "oromoo": "om",
+	"ori": "or", "odia": "or",
+	"oss": "os", "ossetic": "os", "ирон": "os",
+	"pan": "pa", "punjabi": "pa",
+	"pli": "pi", "pali": "pi",
+	"pol": "pl", "polish": "pl", "polski": "pl",
+	"pus": "ps", "pashto": "ps", "پښتو": "ps",
+	"por": "pt", "portuguese": "pt", "português": "pt",
+	"que": "qu", "quechua": "qu", "runasimi": "qu",
+	"roh": "rm", "romansh": "rm", "rumantsch": "rm",
+	"run": "rn", "ikirundi": "rn", "rundi": "rn",
+	"mo": "ro", "ron": "ro", "rum": "ro", "romanian": "ro", "română": "ro",
+	"rus": "ru", "russian": "ru", "русский": "ru",
+	"kin": "rw", "kinyarwanda": "rw",
+	"san": "sa", "sanskrit": "sa",
+	"srd": "sc", "sardinian": "sc",
+	"snd": "sd", "sindhi": "sd", "سنڌي": "sd",
+	"sme": "se", "davvisámegiella": "se",
+	"sag": "sg", "sango": "sg", "sängö": "sg",
+	"sin": "si", "sinhala": "si",
+	"slk": "sk", "slo": "sk", "slovak": "sk", "slovenčina": "sk",
+	"slv": "sl", "slovenian": "sl", "slovenščina": "sl",
+	"smo": "sm", "samoan": "sm",
+	"sna": "sn", "chishona": "sn", "shona": "sn",
+	"som": "so", "somali": "so", "soomaali": "so",
+	"alb": "sq", "sqi": "sq", "albanian": "sq", "shqip": "sq",
+	"scc": "sr", "srp": "sr", "serbian": "sr", "српски": "sr",
+	"ssw": "ss", "swati": "ss",
+	"sot": "st",
+	"sun": "su", "sundanese": "su",
+	"swe": "sv", "svenska": "sv", "swedish": "sv",
+	"swa": "sw", "kiswahili": "sw", "swahili": "sw",
+	"tam": "ta", "tamil": "ta",
+	"tel": "te", "telugu": "te",
+	"tgk": "tg", "tajik": "tg", "тоҷикӣ": "tg",
+	"tha": "th", "thai": "th", "ไทย": "th",
+	"tir": "ti", "tigrinya": "ti", "ትግርኛ": "ti",
+	"tuk": "tk", "turkmen": "tk",
+	"fil": "tl", "tgl": "tl", "filipino": "tl", "tagalog": "tl",
+	"tsn": "tn", "tswana": "tn",
+	"ton": "to", "tongan": "to",
+	"tur": "tr", "turkce": "tr", "turkish": "tr", "türkçe": "tr",
+	"tso": "ts", "tsonga": "ts",
+	"tat": "tt", "tatar": "tt", "татар": "tt",
+	"twi": "tw",
+	"tah": "ty", "tahitian": "ty",
+	"uig": "ug", "uyghur": "ug", "ئۇيغۇرچە": "ug",
+	"ukr": "uk", "ukrainian": "uk", "українська": "uk",
+	"urd": "ur", "urdu": "ur", "اردو": "ur",
+	"uzb": "uz", "uzbek": "uz",
+	"ven": "ve", "venda": "ve",
+	"vie": "vi", "vietnamese": "vi",
+	"vol": "vo", "volapük": "vo",
+	"wln": "wa", "walloon": "wa",
+	"wol": "wo", "wolof": "wo",
+	"xho": "xh", "xhosa": "xh",
+	"ji": "yi", "yid": "yi", "yiddish": "yi",
+	"yor": "yo", "yoruba": "yo",
+	"zha": "za", "zhuang": "za",
+	"cn": "zh", "chi": "zh", "zho": "zh", "chinese": "zh", "中文": "zh",
+	"zul": "zu", "isizulu": "zu", "zulu": "zu",
+}
+
+// noLanguage are the codes that name no language: undetermined, no linguistic content and the
+// TMDB placeholder (NO_LANGUAGE of the web client).
+var noLanguage = map[string]bool{"und": true, "zxx": true, "xx": true}
+
+// Normalize returns the ISO 639-1 code of a language code or name as files, sidecars and TMDB
+// write it ("ger" → "de", "pt-BR" → "pt", "German" → "de"); Swiss German ("gsw") counts as
+// German. It returns "" for no language, "und", "zxx", "xx" and several languages ("mul"). The web
+// client's baseLanguage follows the same rule.
+func Normalize(code string) string {
+	lower := strings.ToLower(strings.TrimSpace(code))
+	if lower == "" || noLanguage[lower] || lower == "mul" {
+		return ""
+	}
+	primary, _, _ := strings.Cut(strings.ReplaceAll(lower, "_", "-"), "-")
+	if primary == "gsw" {
+		return "de"
+	}
+	if c, ok := languageCodes[primary]; ok {
+		return c
+	}
+	if noLanguage[primary] {
+		return ""
+	}
+	return primary
+}
+
+// Valid reports whether code is a language as profiles store it and Normalize returns it: a
+// current two-letter ISO 639-1 code in lower case. It refuses the withdrawn codes iw, in, ji, jw
+// and mo (x/text maps them onto he, id, yi, jv and ro), sh (Serbo-Croatian, withdrawn in 2000;
+// x/text keeps it outside Deprecated) and the codes this table maps onto another one (nb, nn → no,
+// cn → zh): a profile with such a code would never match a track. The auth package checks the
+// language lists of the profiles with it, the metadata package the original language of a title.
+func Valid(code string) bool {
+	if len(code) != 2 || code == "sh" || Normalize(code) != code {
+		return false
+	}
+	t, err := language.Deprecated.Parse(code)
+	if err != nil {
+		return false
+	}
+	base, _ := t.Base()
+	return base.String() == code
+}

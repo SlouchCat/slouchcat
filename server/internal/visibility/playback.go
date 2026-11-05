@@ -2,6 +2,9 @@ package visibility
 
 import (
 	"context"
+	"database/sql"
+	"errors"
+	"fmt"
 
 	"github.com/slouchcat/slouchcat/server/internal/store/scopedq"
 )
@@ -21,11 +24,16 @@ func (r *Reader) Visible(ctx context.Context, s Scope, itemID string) error {
 	return notFound(err)
 }
 
-// MediaFileProbe is the stored ffprobe result (JSON of transcode.Probe, empty when not probed yet)
-// and the encoded keyframe index (nil when not indexed yet) of a media file.
+// MediaFileProbe is the stored ffprobe result (JSON of transcode.Probe, empty when not probed yet),
+// the encoded keyframe index (nil when not indexed yet) with its source (media_files.
+// keyframes_source: empty when not indexed yet, none when impossible) and time (Unix ms, 0 when
+// not indexed yet), and the duration (0 unknown) of a media file.
 type MediaFileProbe struct {
-	Probe     string
-	Keyframes []byte
+	Probe           string
+	Keyframes       []byte
+	KeyframesSource string
+	KeyframesAt     int64
+	DurationMs      int64
 }
 
 // MediaFileProbe returns the probe data of a media file of a visible title, or model.ErrNotFound.
@@ -38,5 +46,55 @@ func (r *Reader) MediaFileProbe(ctx context.Context, s Scope, itemID, fileID str
 	if err != nil {
 		return MediaFileProbe{}, notFound(err)
 	}
-	return MediaFileProbe{Probe: row.Probe.String, Keyframes: row.Keyframes}, nil
+	return MediaFileProbe{Probe: row.Probe.String, Keyframes: row.Keyframes, KeyframesSource: row.KeyframesSource.String,
+		KeyframesAt: row.KeyframesAt.Int64, DurationMs: row.DurationMs.Int64}, nil
+}
+
+// TrackContext is what the track choice of a playback or a download needs about a visible title
+// (concept 13 section 11.3, package trackpick): the series of an episode, reached through its
+// season, and the original language of the title, for an episode the series' (ISO 639-1; "" when
+// unknown or not looked up yet).
+type TrackContext struct {
+	SeriesID         string // empty for every title but an episode of a series
+	OriginalLanguage string
+}
+
+// TrackContext returns the track context of a visible title; an invisible or unknown title is
+// model.ErrNotFound. An episode whose season or series the profile cannot see has no series.
+func (r *Reader) TrackContext(ctx context.Context, s Scope, itemID string) (TrackContext, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return TrackContext{}, err
+	}
+	it, err := r.q.GetVisibleItem(ctx, scopedq.GetVisibleItemParams{ProfileID: pid, ItemID: itemID})
+	if err != nil {
+		return TrackContext{}, notFound(err)
+	}
+	out := TrackContext{OriginalLanguage: it.OriginalLanguage.String}
+	if it.Kind != "episode" || !it.ParentID.Valid {
+		return out, nil
+	}
+	parent := func(id, kind string) (scopedq.Item, bool, error) {
+		p, err := r.q.GetVisibleItem(ctx, scopedq.GetVisibleItemParams{ProfileID: pid, ItemID: id})
+		if errors.Is(err, sql.ErrNoRows) {
+			return scopedq.Item{}, false, nil
+		}
+		if err != nil {
+			return scopedq.Item{}, false, fmt.Errorf("get %s: %w", kind, err)
+		}
+		return p, p.Kind == kind, nil
+	}
+	season, ok, err := parent(it.ParentID.String, "season")
+	if err != nil || !ok || !season.ParentID.Valid {
+		return out, err
+	}
+	series, ok, err := parent(season.ParentID.String, "series")
+	if err != nil || !ok {
+		return out, err
+	}
+	out.SeriesID = series.ID
+	if series.OriginalLanguage.Valid {
+		out.OriginalLanguage = series.OriginalLanguage.String
+	}
+	return out, nil
 }

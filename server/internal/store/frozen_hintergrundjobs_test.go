@@ -17,6 +17,7 @@ import (
 // each of those is really in it, so a later migration is measured against the data the concept
 // produced.
 func TestFrozenHintergrundjobsStateCoversTheConcept(t *testing.T) {
+	t.Parallel()
 	script, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", "db", "hintergrundjobs.sql"))
 	if err != nil {
 		t.Fatal(err)

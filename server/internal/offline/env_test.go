@@ -316,10 +316,6 @@ func audioProbe(codec string, bitRate int64) transcode.Probe {
 		Streams: []transcode.Stream{{Index: 0, Type: "audio", Codec: codec, Channels: 2, Default: true}}}
 }
 
-func (e *fakeEncoder) Keyframes(context.Context, string) ([]time.Duration, error) {
-	return []time.Duration{0, 4 * time.Second, 8 * time.Second}, nil
-}
-
 func (e *fakeEncoder) Subtitles(_ context.Context, path string, index int) ([]byte, error) {
 	e.mu.Lock()
 	e.single = append(e.single, index)
@@ -411,8 +407,16 @@ func (p *fakePins) ListMyProfiles(ctx context.Context, accountID int64) ([]model
 	}
 	out := make([]model.Profile, 0, len(rows))
 	for _, r := range rows {
+		// The playback preferences like auth's profile mapping: they choose the audio of auto-downloads.
+		prefs := model.PlaybackPrefs{SubtitleMode: r.SubtitleMode}
+		if err := json.Unmarshal([]byte(r.AudioLanguages), &prefs.AudioLanguages); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(r.SubtitleLanguages), &prefs.SubtitleLanguages); err != nil {
+			return nil, err
+		}
 		out = append(out, model.Profile{ID: r.ID, AccountID: r.AccountID, Name: r.Name, MaxRating: int(r.MaxRating), Language: r.Language,
-			HasPin: r.PinHash.Valid, IsPrimary: r.IsDefault == 1, AllLibraries: r.AllLibraries == 1})
+			HasPin: r.PinHash.Valid, IsPrimary: r.IsDefault == 1, AllLibraries: r.AllLibraries == 1, Prefs: prefs})
 	}
 	return out, nil
 }

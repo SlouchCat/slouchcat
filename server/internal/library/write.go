@@ -306,6 +306,17 @@ type batchWriter struct {
 	adopted  []string        // podcasts a second folder brought the feed of (Service.noteAdoptedPodcasts)
 }
 
+// scannedBefore reports whether the scan before this one completed (concept 13 11.6, «after the
+// first complete scan»): a file that appears or changes now is news, and its probe queues its
+// chapter images. The library row is read before this scan sets "running", and the queueing has
+// set "queued" over the previous state; a finished scan that left no error is a complete one
+// ("done": failed and aborted scans store their reason, a cancelled one too). Without a
+// migration this is conservative: the files of a scan after a failed or aborted one wait for the
+// backfill that an administrator starts by hand, like those of the first scan.
+func (w *batchWriter) scannedBefore() bool {
+	return w.lib.LastScanFinishedAt.Valid && !w.lib.LastScanError.Valid
+}
+
 // ix is the item index of the titles the current root produces.
 func (w *batchWriter) ix() *itemIndex { return w.index.forContent(w.root.Content) }
 
@@ -342,16 +353,20 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		}); err != nil {
 			return fmt.Errorf("insert media file: %w", err)
 		}
-		if err := enqueueTx(ctx, q, w.now, probeJob(fileID)); err != nil {
+		if err := enqueueTx(ctx, q, w.now, probeJob(fileID, w.scannedBefore())); err != nil {
 			return err
 		}
 		w.stats.created++
 	case opUpdate:
+		// A changed file loses the keyframe index of its old version, whichever way the scanner
+		// matched it (path, identity, hash); a rename or move keeps it (concept 14, 4.2, Z-1).
+		changed := op.disk.size != op.known.Size || op.disk.mtime != op.known.Mtime
 		if err := q.UpdateMediaFileLocation(ctx, systemq.UpdateMediaFileLocationParams{
 			RelPath: op.disk.rel, Dev: toInt64(op.disk.id.dev), Inode: toInt64(op.disk.id.inode),
 			Size: op.disk.size, Mtime: op.disk.mtime,
 			PartialHash:  nullString(op.hash),
 			VersionLabel: nullString(op.disk.parsed.VersionLabel),
+			ResetIndex:   boolInt(changed),
 			Now:          w.ms, ID: op.known.ID,
 		}); err != nil {
 			return fmt.Errorf("update media file: %w", err)
@@ -365,7 +380,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 			}
 		}
 		if op.reprobe {
-			if err := enqueueTx(ctx, q, w.now, probeJob(op.known.ID)); err != nil {
+			if err := enqueueTx(ctx, q, w.now, probeJob(op.known.ID, w.scannedBefore())); err != nil {
 				return err
 			}
 		}

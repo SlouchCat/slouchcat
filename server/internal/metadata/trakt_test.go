@@ -23,6 +23,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/storetest"
 	"github.com/slouchcat/slouchcat/server/internal/trakt"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
@@ -146,7 +147,7 @@ func newTraktEnv(t *testing.T, fixedID string, keys KeySource, opts ...TraktOpti
 	logs := &bytes.Buffer{}
 	ring := logging.NewErrorRing(logging.ErrorRingSize)
 	log := slog.New(logging.NewRedactingHandler(ring.Wrap(slog.NewTextHandler(&lockedWriter{w: logs}, nil))))
-	db, err := store.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
+	db, err := storetest.Open(context.Background(), store.Options{ConfigDir: t.TempDir(), Version: "test", Logger: log})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,10 +396,14 @@ func TestRegisterTypesSchedules(t *testing.T) {
 	if vote, ok := r.Lookup(JobVoteBackfill); !ok || vote.Trigger != jobs.TriggerEvent || vote.Run != nil {
 		t.Errorf("metadata.vote_backfill = %+v, want an event type without Run (concept 08 queues it)", vote)
 	}
+	if lang, ok := r.Lookup(JobOriginalLanguageBackfill); !ok || lang.Trigger != jobs.TriggerManual || lang.Run == nil ||
+		lang.Handler == nil || lang.Priority != fillPriority {
+		t.Errorf("metadata.original_language_backfill = %+v, want a manual type with Run and handler (concept 13 11.7)", lang)
+	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)
-	if len(w.Handlers()) != 9 {
-		t.Errorf("handlers attached = %v, want the eight metadata types with a handler plus jobs.prune", w.Handlers())
+	if len(w.Handlers()) != 10 {
+		t.Errorf("handlers attached = %v, want the nine metadata types with a handler plus jobs.prune", w.Handlers())
 	}
 }
 

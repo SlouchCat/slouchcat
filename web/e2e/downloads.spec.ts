@@ -172,6 +172,32 @@ test('an episode in each of the three download profiles, within ±10 % of its es
   }
 });
 
+test.describe('the download dialog without its options', () => {
+  // The route below must see the request; a service worker would make it on its own.
+  test.use({ serviceWorkers: 'block' });
+
+  test('opened with Enter, «Schliessen» has the focus at once (11.13)', async ({ page }) => {
+    // A 404 is an answer, not a hiccup: the client does not retry it.
+    await page.route('**/api/v1/items/*/download-options*', (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ title: 'Not Found', status: 404, code: 'not_found' }),
+      }),
+    );
+    await page.goto(detail);
+    await downloadButton(page).focus();
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: `${H264_TITLE} herunterladen` });
+    const close = dialog.getByRole('button', { name: 'Schliessen' });
+    await expectFocusOn(page, close);
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, downloadButton(page));
+    await page.unrouteAll({ behavior: 'ignoreErrors' });
+  });
+});
+
 test('downloads page by keyboard: rows, play, back; no focus trap', async ({ page, owner }) => {
   test.setTimeout(180_000);
   await downloadButton(page).focus();

@@ -72,9 +72,16 @@ WHERE deleted_at IS NULL
 
 -- name: UpdateMediaFileLocation :exec
 -- Same file at a new path (rename, move), changed in place, or back after missing_since.
+-- reset_index (1 when size or mtime changed, decided by the writer whichever way the scanner
+-- matched the file) clears the keyframe index of the old version; a rename or move without a
+-- change keeps it (concept 14, 4.2, Z-1).
 UPDATE media_files
 SET rel_path = @rel_path, dev = @dev, inode = @inode, size = @size, mtime = @mtime,
-    partial_hash = @partial_hash, version_label = @version_label, missing_since = NULL, updated_at = @now
+    partial_hash = @partial_hash, version_label = @version_label, missing_since = NULL,
+    keyframes = CASE WHEN CAST(@reset_index AS INTEGER) = 1 THEN NULL ELSE keyframes END,
+    keyframes_at = CASE WHEN CAST(@reset_index AS INTEGER) = 1 THEN NULL ELSE keyframes_at END,
+    keyframes_source = CASE WHEN CAST(@reset_index AS INTEGER) = 1 THEN NULL ELSE keyframes_source END,
+    updated_at = @now
 WHERE id = @id;
 
 -- name: RestoreItem :exec
@@ -93,22 +100,76 @@ WHERE items.deleted_at IS NOT NULL
 -- name: GetMediaFileSystem :one
 SELECT * FROM media_files WHERE id = @id;
 
--- name: UpdateMediaFileProbe :exec
+-- name: UpdateMediaFileProbe :execrows
+-- Only for the version (size, mtime) the probe read: 0 rows means the file changed meanwhile, and
+-- probe.file retries with the new version (concept 14, 4.2, Z-9).
 UPDATE media_files
 SET container = @container, video_codec = @video_codec, audio_codec = @audio_codec, width = @width,
     height = @height, duration_ms = @duration_ms, probe = @probe, probe_error = NULL, probed_at = @now,
     updated_at = @now
-WHERE id = @id;
+WHERE id = @id AND size = @size AND mtime = @mtime;
 
--- name: UpdateMediaFileKeyframes :exec
-UPDATE media_files SET keyframes = @keyframes, keyframes_at = @now, updated_at = @now WHERE id = @id;
+-- name: SetMediaFileKeyframes :execrows
+-- The keyframe index is final per file version (concept 14, I-1): written only while there is
+-- none and the row still has the size and mtime the writer remembered before it read the file.
+-- 0 rows (an index is there, or the file changed) is not an error. keyframes_source is cues,
+-- mp4, scan (with a blob) or none (blob NULL).
+UPDATE media_files SET keyframes = @keyframes, keyframes_at = @now, keyframes_source = @source, updated_at = @now
+WHERE id = @id AND keyframes_source IS NULL AND size = @size AND mtime = @mtime;
+
+-- name: ResetUnavailableKeyframes :exec
+-- The refresh of a title in the maintenance retries a file marked "index impossible"; a stored
+-- index (cues, mp4, scan) stays (concept 14, 4.2, O-16).
+UPDATE media_files SET keyframes_source = NULL, updated_at = @now WHERE id = @id AND keyframes_source = 'none';
+
+-- name: ListKeyframesBackfillFiles :many
+-- The files keyframes.backfill reads (concept 14, 6.6): worth an index and without one, by id
+-- after the cursor @after_id, @limit_count at a time. "Worth an index" is the condition of
+-- library.indexWorthy (4.1): present, a video codec that can be remuxed
+-- (transcode.CopyableVideo), neither an audiobook nor a podcast episode. It implies the WHERE of
+-- the partial index media_files_keyframes, which carries the search (INDEXED BY: without
+-- statistics the planner takes media_files_missing, which lists nearly every file); the id in
+-- the index gives the order of the cursor without a sort. CountKeyframesBackfillFiles states the
+-- same condition.
+SELECT mf.id, mf.root_id, mf.rel_path, mf.container, mf.duration_ms, mf.video_codec, mf.size, mf.mtime, i.kind
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode') AND mf.id > @after_id
+ORDER BY mf.id
+LIMIT @limit_count;
+
+-- name: CountKeyframesBackfillFiles :one
+-- The count of ListKeyframesBackfillFiles without a cursor: the total of the backfill's progress.
+SELECT count(*)
+FROM media_files AS mf INDEXED BY media_files_keyframes
+JOIN items AS i ON i.id = mf.item_id
+WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode');
+
+-- name: LastJobFailedSince :one
+-- Whether the newest finished run of a type under an idempotency key failed at or after @since
+-- (concept 14, 6.4, O-17: a playback queues no new full keyframe read for a file whose last read
+-- failed within 24 h). A run newer than one at @since finished at @since or later too, so only
+-- the runs since @since are looked at: a range of the index jobs_history, the newest of them by
+-- finished_at decides.
+SELECT EXISTS (
+    SELECT 1 FROM (
+        SELECT l.state FROM jobs AS l
+        WHERE l.type = @type AND l.state IN ('done', 'failed', 'cancelled') AND l.finished_at >= @since
+          AND l.idempotency_key = @idempotency_key
+        ORDER BY l.finished_at DESC, l.id DESC
+        LIMIT 1
+    ) AS newest
+    WHERE newest.state = 'failed'
+) AS failed;
 
 -- name: DeleteMediaFileTracks :exec
 DELETE FROM tracks WHERE media_file_id = @media_file_id;
 
 -- name: InsertTrack :exec
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (@media_file_id, @stream_index, @kind, @codec, @language, @title, @source, @rel_path, @is_default, @is_forced);
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (@media_file_id, @stream_index, @kind, @codec, @language, @title, @source, @rel_path, @is_default, @is_forced, @is_hearing_impaired);
 
 -- name: ListMediaFileTracks :many
 SELECT * FROM tracks WHERE media_file_id = @media_file_id ORDER BY source, stream_index;
@@ -127,8 +188,8 @@ SELECT id, rel_path FROM tracks WHERE media_file_id = @media_file_id AND source 
 
 -- name: InsertSidecarTrack :exec
 -- A sidecar found by a scan; stream_index -1 like the API reports sidecars.
-INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced)
-VALUES (@media_file_id, -1, 'subtitle', @codec, @language, @title, 'sidecar', @rel_path, 0, @is_forced)
+INSERT INTO tracks (media_file_id, stream_index, kind, codec, language, title, source, rel_path, is_default, is_forced, is_hearing_impaired)
+VALUES (@media_file_id, -1, 'subtitle', @codec, @language, @title, 'sidecar', @rel_path, 0, @is_forced, @is_hearing_impaired)
 ON CONFLICT DO NOTHING;
 
 -- name: DeleteTrack :exec

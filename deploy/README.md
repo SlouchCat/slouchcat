@@ -117,7 +117,7 @@ docker compose ps             # Status "healthy" nach wenigen Sekunden
 ```
 
 Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist auf
-`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.8.0`); das Image entsteht bei jedem
+`ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION}` (Standard `1.13.0`); das Image entsteht bei jedem
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
@@ -181,6 +181,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_PUBLIC_URL` | leer | Öffentliche Adresse des Servers für Links in E-Mails und Nachrichten (optional, M8); übersteuert die Einstellung in der Verwaltung |
 | `SLOUCHCAT_UPDATE_MANIFEST_URL` | Release-Manifest auf GitHub | Quelle der Update-Prüfung (M8); ein anderer Wert gilt nur mit `--dev` (Tests mit Mock) |
 | `SLOUCHCAT_TELEGRAM_BASE_URL` | leer | Basis-URL eines Telegram-Mocks; gilt nur mit `--dev` (Tests) |
+| `SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP` | leer (eine Minute) | Kürzere Sperre zwischen zwei manuellen Spotlight-Abrufen, z. B. `2s`; gilt nur mit `--dev` (e2e-Suite), sonst Warnung im Log und die Minute bleibt |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
 | `NVIDIA_VISIBLE_DEVICES`, `NVIDIA_DRIVER_CAPABILITIES` | `all`, `compute,video,utility` | für das NVIDIA Container Toolkit |
 

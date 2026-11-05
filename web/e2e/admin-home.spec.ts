@@ -268,8 +268,9 @@ test('a provoked error shows in the card and the opened server log within 10 s (
   page,
   owner,
 }) => {
-  // Two refreshes, each of which may wait for the server's one-a-minute limit (discover.ts).
-  test.setTimeout(240_000);
+  // The refreshes wait at most the suite's 2 s limit (discover.ts refreshSpotlight); the poll for
+  // the repaired Trakt state takes up to 60 s.
+  test.setTimeout(120_000);
   await openOverview(page);
   const integrations = card(page, 'Integrationen');
   await expect(integrations.getByText(/^Trakt: /)).toBeVisible();
@@ -305,7 +306,7 @@ test('a provoked error shows in the card and the opened server log within 10 s (
   }
 });
 
-test('Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap', async ({
+test('Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap @keyboard', async ({
   page,
 }) => {
   // Never a real restart: the suite's server must stay up. Should the confirmation be pressed by

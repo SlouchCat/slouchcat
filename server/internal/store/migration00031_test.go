@@ -12,6 +12,7 @@ import (
 // outlives its title and its library), the indexes on the time and the account, and the triggers
 // that delete the rows of a deleted account or profile in the same statement.
 func TestMigration00031CreatesActivityEvents(t *testing.T) {
+	t.Parallel()
 	cfg := t.TempDir()
 	replay(t, cfg+"/"+FileName, frozenState(t, "metadaten.sql"))
 	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})

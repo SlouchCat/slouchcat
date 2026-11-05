@@ -31,14 +31,19 @@ export function streamMode(t: TFunction, stream: AdminStream): string {
   });
 }
 
-/** The output of the stream: rung or height plus bit rate; the source as it is for direct play. */
+/**
+ * The output of the stream: rung or height plus bit rate, «Original» for the quality original
+ * (contract 1.11.0, a word from the locales); the source as it is for direct play.
+ */
 export function streamQuality(t: TFunction, stream: AdminStream, language: string): string {
   const rung =
-    stream.quality && stream.quality !== 'auto'
-      ? stream.quality
-      : stream.height
-        ? t('format.height', { height: stream.height })
-        : undefined;
+    stream.quality === 'original'
+      ? t('admin.streams.original')
+      : stream.quality && stream.quality !== 'auto'
+        ? stream.quality
+        : stream.height
+          ? t('format.height', { height: stream.height })
+          : undefined;
   if (!rung) return t('admin.streams.original');
   return stream.bitrate
     ? t('admin.streams.qualityValue', {

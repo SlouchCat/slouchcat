@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 )
@@ -216,6 +217,50 @@ func TestNotifyConfig(t *testing.T) {
 	}
 	if logged := cfg.LogValue().String(); !strings.Contains(logged, "update_manifest_default=true") || !strings.Contains(logged, "smtp_configured=false") {
 		t.Errorf("LogValue: %s", logged)
+	}
+}
+
+// The shortened spotlight limit of the e2e suite takes effect in development mode only: a
+// production server keeps one manual fetch a minute even with the variable in its environment.
+func TestSpotlightRefreshGapNeedsDevMode(t *testing.T) {
+	env := map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": "1s"}
+	cfg, err := Load(nil, envMap(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.SpotlightRefreshGap(); got != 0 {
+		t.Errorf("without --dev: gap %v, want 0 (the administration's minute)", got)
+	}
+	if logged := cfg.LogValue().String(); !strings.Contains(logged, "spotlight_refresh_gap=0s") {
+		t.Errorf("LogValue without --dev: %s", logged)
+	}
+	cfg, err = Load([]string{"--dev"}, envMap(env))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.SpotlightRefreshGap(); got != time.Second {
+		t.Errorf("with --dev: gap %v, want 1s", got)
+	}
+	cfg, err = Load([]string{"--dev"}, envMap(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.SpotlightRefreshGap(); got != 0 {
+		t.Errorf("--dev without the variable: gap %v, want 0", got)
+	}
+	// A broken value stops a development server, not a production one: there it is ignored
+	// (main warns) and the minute holds.
+	for _, bad := range []string{"soon", "0s", "-1s"} {
+		env := envMap(map[string]string{"SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP": bad})
+		if _, err := Load([]string{"--dev"}, env); err == nil {
+			t.Errorf("--dev with gap %q: expected an error", bad)
+		}
+		cfg, err := Load(nil, env)
+		if err != nil {
+			t.Errorf("without --dev, gap %q: %v; want it ignored", bad, err)
+		} else if got := cfg.SpotlightRefreshGap(); got != 0 {
+			t.Errorf("without --dev, gap %q: %v, want 0", bad, got)
+		}
 	}
 }
 

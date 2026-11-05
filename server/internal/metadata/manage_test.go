@@ -258,3 +258,48 @@ func TestManualTrailers(t *testing.T) {
 		t.Fatalf("state %s after deleting every trailer", state)
 	}
 }
+
+// M-5, O-16: the refresh of a title retries a file marked "no index possible" and keeps a stored
+// index (cues, scan), so a refresh of many titles queues no full read.
+func TestRefreshResetsOnlyUnavailableIndex(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	blob := []byte{1, 0, 0xd0, 0x0f}
+	for i, src := range []string{"cues", "scan", "none"} {
+		f := tid("FIL", i+1)
+		e.addFile(t, f, idByTMDB)
+		var kf []byte
+		if src != "none" {
+			kf = blob
+		}
+		mustExec(t, e.db.Write, `UPDATE media_files SET keyframes = ?, keyframes_at = 1, keyframes_source = ? WHERE id = ?`, kf, src, f)
+	}
+	if err := e.svc.Refresh(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := e.db.Read.Query(`SELECT coalesce(keyframes_source, '-') || CASE WHEN keyframes IS NULL THEN '' ELSE '/blob' END
+	                              FROM media_files WHERE item_id = ? ORDER BY id`, idByTMDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, s)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"cues/blob", "scan/blob", "-"}; !slices.Equal(got, want) {
+		t.Errorf("index after the refresh = %q, want %q", got, want)
+	}
+	if got := e.jobList(t, JobProbeFile); len(got) != 3 {
+		t.Errorf("probe jobs %q, want one per file", got)
+	}
+}

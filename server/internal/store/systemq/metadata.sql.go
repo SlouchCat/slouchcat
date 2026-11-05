@@ -112,6 +112,20 @@ func (q *Queries) DeleteImage(ctx context.Context, id int64) error {
 	return err
 }
 
+const deleteItemFieldSource = `-- name: DeleteItemFieldSource :exec
+DELETE FROM item_field_sources WHERE item_id = ?1 AND field = ?2
+`
+
+type DeleteItemFieldSourceParams struct {
+	ItemID string
+	Field  string
+}
+
+func (q *Queries) DeleteItemFieldSource(ctx context.Context, arg DeleteItemFieldSourceParams) error {
+	_, err := q.db.ExecContext(ctx, deleteItemFieldSource, arg.ItemID, arg.Field)
+	return err
+}
+
 const deleteItemFieldSources = `-- name: DeleteItemFieldSources :exec
 DELETE FROM item_field_sources WHERE item_id = ?1
 `
@@ -247,7 +261,7 @@ func (q *Queries) ListApplyItems(ctx context.Context, libraryID int64) ([]ListAp
 }
 
 const listChildItems = `-- name: ListChildItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language FROM items
 WHERE parent_id = ?1 AND deleted_at IS NULL
 ORDER BY season_number, episode_number, id
 `
@@ -323,6 +337,7 @@ func (q *Queries) ListChildItems(ctx context.Context, parentID sql.NullString) (
 			&i.FeedOrigin,
 			&i.FilledProviders,
 			&i.VoteAverage,
+			&i.OriginalLanguage,
 		); err != nil {
 			return nil, err
 		}
@@ -855,6 +870,108 @@ func (q *Queries) ListMediaFileIDsByItem(ctx context.Context, itemID string) ([]
 	return items, nil
 }
 
+const listOriginalLanguageBackfillItems = `-- name: ListOriginalLanguageBackfillItems :many
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language FROM items
+WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
+  AND original_language IS NULL AND id > ?1
+  AND instr(locked_fields, '"original_language"') = 0
+ORDER BY id
+LIMIT ?2
+`
+
+type ListOriginalLanguageBackfillItemsParams struct {
+	AfterID    string
+	LimitCount int64
+}
+
+// One batch of metadata.original_language_backfill (concept 13 11.7): matched movies and series
+// whose original language was never looked up (NULL; ” is "looked up, unknown") and is not
+// locked, in id order after @after_id.
+func (q *Queries) ListOriginalLanguageBackfillItems(ctx context.Context, arg ListOriginalLanguageBackfillItemsParams) ([]Item, error) {
+	rows, err := q.db.QueryContext(ctx, listOriginalLanguageBackfillItems, arg.AfterID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Item{}
+	for rows.Next() {
+		var i Item
+		if err := rows.Scan(
+			&i.ID,
+			&i.Kind,
+			&i.ParentID,
+			&i.LibraryID,
+			&i.Title,
+			&i.SortTitle,
+			&i.OriginalTitle,
+			&i.Year,
+			&i.ReleaseDate,
+			&i.RuntimeMinutes,
+			&i.Genres,
+			&i.TmdbID,
+			&i.ImdbID,
+			&i.OwnRating,
+			&i.EffectiveRating,
+			&i.MinChildRating,
+			&i.Available,
+			&i.RatingSource,
+			&i.EnclosureUrl,
+			&i.LockedFields,
+			&i.MetadataState,
+			&i.MetadataError,
+			&i.MatchedAt,
+			&i.AddedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.TvdbID,
+			&i.ExtraKind,
+			&i.TmdbPosterPath,
+			&i.TmdbBackdropPath,
+			&i.TrailerState,
+			&i.TrailerCheckedAt,
+			&i.SegmentsState,
+			&i.SegmentsCheckedAt,
+			&i.Author,
+			&i.Narrator,
+			&i.SeriesName,
+			&i.SeriesIndex,
+			&i.Explicit,
+			&i.DurationMs,
+			&i.CoverUrl,
+			&i.CoverPath,
+			&i.FeedUrl,
+			&i.FeedEtag,
+			&i.FeedModified,
+			&i.FeedCheckedAt,
+			&i.FeedError,
+			&i.Guid,
+			&i.PublishedAt,
+			&i.EnclosureType,
+			&i.EnclosureLength,
+			&i.Providers,
+			&i.AnilistID,
+			&i.FeedOrigin,
+			&i.FilledProviders,
+			&i.VoteAverage,
+			&i.OriginalLanguage,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingMatchItems = `-- name: ListPendingMatchItems :many
 SELECT i.id, i.kind FROM items AS i
 LEFT JOIN items AS p ON p.id = i.parent_id
@@ -977,7 +1094,7 @@ func (q *Queries) ListUpgradeMatchItems(ctx context.Context, arg ListUpgradeMatc
 }
 
 const listVoteBackfillItems = `-- name: ListVoteBackfillItems :many
-SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average FROM items
+SELECT id, kind, parent_id, library_id, title, sort_title, original_title, year, release_date, runtime_minutes, genres, tmdb_id, imdb_id, own_rating, effective_rating, min_child_rating, available, rating_source, enclosure_url, locked_fields, metadata_state, metadata_error, matched_at, added_at, created_at, updated_at, deleted_at, season_number, episode_number, episode_end, tvdb_id, extra_kind, tmdb_poster_path, tmdb_backdrop_path, trailer_state, trailer_checked_at, segments_state, segments_checked_at, author, narrator, series_name, series_index, explicit, duration_ms, cover_url, cover_path, feed_url, feed_etag, feed_modified, feed_checked_at, feed_error, guid, published_at, enclosure_type, enclosure_length, providers, anilist_id, feed_origin, filled_providers, vote_average, original_language FROM items
 WHERE deleted_at IS NULL AND kind IN ('movie', 'series') AND metadata_state = 'matched'
   AND vote_average IS NULL AND id > ?1
   AND (instr(providers, '"tmdb"') > 0 OR instr(providers, '"anilist"') > 0)
@@ -1068,6 +1185,7 @@ func (q *Queries) ListVoteBackfillItems(ctx context.Context, arg ListVoteBackfil
 			&i.FeedOrigin,
 			&i.FilledProviders,
 			&i.VoteAverage,
+			&i.OriginalLanguage,
 		); err != nil {
 			return nil, err
 		}
@@ -1136,6 +1254,46 @@ func (q *Queries) SetItemMetadataState(ctx context.Context, arg SetItemMetadataS
 		arg.MetadataState,
 		arg.MetadataError,
 		arg.MatchedAt,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const setItemOriginalLanguage = `-- name: SetItemOriginalLanguage :exec
+UPDATE items SET original_language = ?1, updated_at = ?2 WHERE id = ?3 AND deleted_at IS NULL
+`
+
+type SetItemOriginalLanguageParams struct {
+	OriginalLanguage sql.NullString
+	Now              int64
+	ID               string
+}
+
+// Writes the original language the backfill decided (” = looked up, unknown).
+func (q *Queries) SetItemOriginalLanguage(ctx context.Context, arg SetItemOriginalLanguageParams) error {
+	_, err := q.db.ExecContext(ctx, setItemOriginalLanguage, arg.OriginalLanguage, arg.Now, arg.ID)
+	return err
+}
+
+const setItemOriginalLanguageOverride = `-- name: SetItemOriginalLanguageOverride :exec
+UPDATE items SET original_language = ?1, locked_fields = ?2, updated_at = ?3
+WHERE id = ?4 AND deleted_at IS NULL
+`
+
+type SetItemOriginalLanguageOverrideParams struct {
+	OriginalLanguage sql.NullString
+	LockedFields     string
+	Now              int64
+	ID               string
+}
+
+// The administrator's original language (setItemOriginalLanguage): the value (NULL = look it up
+// again) and the lock together.
+func (q *Queries) SetItemOriginalLanguageOverride(ctx context.Context, arg SetItemOriginalLanguageOverrideParams) error {
+	_, err := q.db.ExecContext(ctx, setItemOriginalLanguageOverride,
+		arg.OriginalLanguage,
+		arg.LockedFields,
 		arg.Now,
 		arg.ID,
 	)
@@ -1253,10 +1411,11 @@ SET original_title     = ?1,
     tmdb_poster_path   = ?8,
     tmdb_backdrop_path = ?9,
     vote_average       = ?10,
-    anilist_id         = ?11,
-    filled_providers   = ?12,
-    updated_at         = ?13
-WHERE id = ?14 AND deleted_at IS NULL
+    original_language  = ?11,
+    anilist_id         = ?12,
+    filled_providers   = ?13,
+    updated_at         = ?14
+WHERE id = ?15 AND deleted_at IS NULL
 `
 
 type UpdateItemFillParams struct {
@@ -1270,6 +1429,7 @@ type UpdateItemFillParams struct {
 	TmdbPosterPath   sql.NullString
 	TmdbBackdropPath sql.NullString
 	VoteAverage      sql.NullFloat64
+	OriginalLanguage sql.NullString
 	AnilistID        sql.NullInt64
 	FilledProviders  sql.NullString
 	Now              int64
@@ -1290,6 +1450,7 @@ func (q *Queries) UpdateItemFill(ctx context.Context, arg UpdateItemFillParams) 
 		arg.TmdbPosterPath,
 		arg.TmdbBackdropPath,
 		arg.VoteAverage,
+		arg.OriginalLanguage,
 		arg.AnilistID,
 		arg.FilledProviders,
 		arg.Now,
@@ -1314,11 +1475,12 @@ SET original_title     = ?1,
     tmdb_poster_path   = ?11,
     tmdb_backdrop_path = ?12,
     vote_average       = ?13,
+    original_language  = ?14,
     metadata_state     = 'matched',
     metadata_error     = NULL,
-    matched_at         = ?14,
-    updated_at         = ?14
-WHERE id = ?15 AND deleted_at IS NULL
+    matched_at         = ?15,
+    updated_at         = ?15
+WHERE id = ?16 AND deleted_at IS NULL
 `
 
 type UpdateItemMatchParams struct {
@@ -1335,6 +1497,7 @@ type UpdateItemMatchParams struct {
 	TmdbPosterPath   sql.NullString
 	TmdbBackdropPath sql.NullString
 	VoteAverage      sql.NullFloat64
+	OriginalLanguage sql.NullString
 	Now              sql.NullInt64
 	ID               string
 }
@@ -1358,6 +1521,7 @@ func (q *Queries) UpdateItemMatch(ctx context.Context, arg UpdateItemMatchParams
 		arg.TmdbPosterPath,
 		arg.TmdbBackdropPath,
 		arg.VoteAverage,
+		arg.OriginalLanguage,
 		arg.Now,
 		arg.ID,
 	)

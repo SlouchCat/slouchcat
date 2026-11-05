@@ -47,10 +47,13 @@ const (
 	// candidatePreviewPath serves a local image file of a title as preview of the image choice
 	// (concept 10 9.2).
 	candidatePreviewPath = "/admin/items/{id}/image-candidates/preview"
+	// chapterImagePath serves the image of a chapter of a film or an episode (concept 13 stage 3).
+	chapterImagePath = "/items/{id}/chapters/{idx}/image"
 )
 
 var binaryRoutes = map[string]string{
 	"GET " + BasePath + binaryImagePath:  "scoped",
+	"GET " + BasePath + chapterImagePath: "scoped",
 	"GET " + BasePath + binaryStreamPath: "scoped",
 	"GET " + BasePath + hlsMasterPath:    "scoped",
 	"GET " + BasePath + hlsMediaPath:     "scoped",
@@ -129,15 +132,18 @@ func NewHandler(o Options) http.Handler {
 		})
 		// Binary endpoints (CLAUDE.md rule 6) share the session middleware; the media stream and the
 		// HLS endpoints are scoped through the stream token instead of the cookie (plan 5.4), the
-		// prepared downloads through the download token (M5).
-		streamAuth := p.streamAuth(o.Playback)
+		// prepared downloads through the download token (M5). Only the HLS and subtitle routes
+		// answer a remux ended for a changed source with 409 (concept 14, 6.4).
+		streamAuth := p.streamAuth(o.Playback, false)
+		hlsAuth := p.streamAuth(o.Playback, true)
 		r.With(authorize).Get(binaryImagePath, s.getItemImage)
+		r.With(authorize).Get(chapterImagePath, s.getChapterImage)
 		r.With(streamAuth).Get(binaryStreamPath, s.getItemStream)
-		r.With(streamAuth).Get(hlsMasterPath, s.getPlaybackMaster)
-		r.With(streamAuth).Get(hlsMediaPath, s.getPlaybackMedia)
-		r.With(streamAuth).Get(hlsInitPath, s.getPlaybackInit)
-		r.With(streamAuth).Get(hlsSegmentPath, s.getPlaybackSegment)
-		r.With(streamAuth).Get(subtitleRoute, s.getPlaybackSubtitle)
+		r.With(hlsAuth).Get(hlsMasterPath, s.getPlaybackMaster)
+		r.With(hlsAuth).Get(hlsMediaPath, s.getPlaybackMedia)
+		r.With(hlsAuth).Get(hlsInitPath, s.getPlaybackInit)
+		r.With(hlsAuth).Get(hlsSegmentPath, s.getPlaybackSegment)
+		r.With(hlsAuth).Get(subtitleRoute, s.getPlaybackSubtitle)
 		downloadAuth := p.downloadAuth(o.Offline)
 		r.With(downloadAuth).Get(downloadFilePath, s.getDownloadFile)
 		r.With(downloadAuth).Get(downloadSubtitleRoute, s.getDownloadSubtitle)

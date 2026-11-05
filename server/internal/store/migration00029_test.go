@@ -13,6 +13,7 @@ import (
 // image row names a provider, every title with a stored path has its item_images row with the
 // provider of the host and lang ”, and the new tables take the new values.
 func TestMigration00029CarriesTheImagePathsIntoItemImages(t *testing.T) {
+	t.Parallel()
 	cfg := t.TempDir()
 	replay(t, cfg+"/"+FileName, frozenState(t, "startseite.sql"))
 	db, err := Open(context.Background(), Options{ConfigDir: cfg, Version: "migration-test", Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})

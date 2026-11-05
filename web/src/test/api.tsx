@@ -2,9 +2,27 @@ import type { components, SessionInfo } from '@slouchcat/api-client';
 import { QueryClient } from '@tanstack/react-query';
 import { createMemoryHistory } from '@tanstack/react-router';
 import { render } from '@testing-library/react';
-import { vi } from 'vitest';
+import { beforeAll, vi } from 'vitest';
 import { App } from '@/app/App';
 import { createAppRouter } from '@/app/router';
+
+// Every page of the app is reached through lazyRouteComponent(() => import(...)) in the router, so
+// the first render in a worker waits for Vite to transform that module graph. That wait falls
+// inside findBy's one-second window and has nothing to do with what a test asserts: AdminHomePage
+// went red that way on a documentation-only commit (run 39767863551) and ProfileLimits on the
+// commit after it (run 39837140392), both with a body that had not been drawn yet. Resolving the
+// page modules before the first test of a file moves the transform out of every assertion window.
+// It lives here and not in setup.ts because only the tests of the whole app (renderApp, and
+// renderAdminPage in admin.ts) go through the router: in setup.ts every one of the ~120 test files
+// loaded every page, 22 % of the setup time, also the files that render a single component.
+const lazyPages = {
+  ...import.meta.glob('../features/*/*Page.tsx'),
+  ...import.meta.glob('../features/admin/AdminLayout.tsx'),
+};
+
+beforeAll(async () => {
+  await Promise.all(Object.values(lazyPages).map((load) => load()));
+});
 
 type Problem = components['schemas']['Problem'];
 
@@ -56,6 +74,9 @@ export const session: SessionInfo = {
     isPrimary: true,
     limits: {},
     effectiveLimits: {},
+    audioLanguages: ['de'],
+    subtitleMode: 'forced',
+    subtitleLanguages: ['de'],
   },
 };
 

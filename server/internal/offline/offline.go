@@ -33,6 +33,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
@@ -52,14 +53,13 @@ type PinPort interface {
 }
 
 // Encoder is the part of transcode.Runner the preparation uses: the segment-wise download encode
-// (M5 stream A), the keyframe index of a remux, the WebVTT conversion of text subtitles and the
-// probe of a fetched enclosure (M6).
+// (M5 stream A), the WebVTT conversion of text subtitles and the probe of a fetched enclosure (M6).
+// The keyframe index of a remux comes from the library (concept 14, 6.8), never from the encoder.
 type Encoder interface {
 	Probe(ctx context.Context, path string) (transcode.Probe, error)
 	Download(ctx context.Context, caps transcode.Capabilities, src transcode.Source, plan transcode.Plan, workDir string,
 		startSegment int, onInit func(init []byte) error,
 		onSegment func(n int, data []byte, start, dur time.Duration) error) error
-	Keyframes(ctx context.Context, path string) ([]time.Duration, error)
 	Subtitles(ctx context.Context, path string, streamIndex int) ([]byte, error)
 	SubtitleStreams(ctx context.Context, path string, streamIndexes []int) (map[int][]byte, error)
 	SubtitlesFile(ctx context.Context, path string) ([]byte, error)
@@ -98,6 +98,10 @@ const (
 	autoRetryWait   = 6 * time.Hour       // a failed auto-download is tried again after this wait
 )
 
+// keyframesPatience is how long after its creation a download of a remux waits for the keyframe
+// index before it encodes instead (concept 14, O-8; keyframesWait spaces the attempts).
+const keyframesPatience = 24 * time.Hour
+
 // admissionPatience is how long admission may take before the download shows paused (live
 // playback holds the transcode budget).
 const admissionPatience = 500 * time.Millisecond
@@ -116,6 +120,7 @@ type Service struct {
 	db    *store.DB
 	read  *systemq.Queries
 	write *systemq.Queries
+	app   *appq.Queries // the languages a profile remembered for a series (profile_series_tracks)
 	vis   *visibility.Reader
 	audio audioReader // parts and chapters of audiobooks (visibility.Reader; a fake in tests)
 	queue *jobs.Queue
@@ -175,7 +180,7 @@ func WithPins(p PinPort) Option { return func(s *Service) { s.pins = p } }
 // preparation jobs, which a worker of the pool download runs (RegisterTypes).
 func New(db *store.DB, vis *visibility.Reader, queue *jobs.Queue, runner transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
-		db: db, read: systemq.New(db.Read), write: systemq.New(db.Write), vis: vis, queue: queue, enc: runner,
+		db: db, read: systemq.New(db.Read), write: systemq.New(db.Write), app: appq.New(db.Read), vis: vis, queue: queue, enc: runner,
 		caps: transcode.Capabilities{Backend: transcode.BackendSoftware}, log: log, now: time.Now,
 	}
 	if vis != nil {

@@ -1,22 +1,21 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { languageName, trackLabel } from '@/features/player/labels';
-import { SeekBar } from '@/features/player/SeekBar';
+import { shiftCues } from '@/features/player/SubtitleLayer';
 import { useAudioControls } from '@/features/player/useAudioControls';
-import { formatPlayerTime } from '@/lib/format';
-import { AriaButton, AudioPlayer, MenuButton } from '@/ui/aria';
+import { AriaButton, AudioPlayer, focusOnMount } from '@/ui/aria';
 import { offlineLoader } from './loader';
+import { OfflineVideo, type StoredSubtitle } from './OfflineVideo';
 import { readFile, subtitleFile } from './opfs';
 import { recordPlayback, storeRate, type OfflinePlayback, type PlaybackSample } from './playback';
 import { buildPlaylist } from './playlist';
 import type { DownloadManifest, StoredWatchTime } from './types';
 import { remainingMs } from './watchTime';
-import styles from '@/features/player/Player.module.css';
 
 // The player of a download (design 4): hls.js plays a VOD playlist built from the manifest
 // through a loader that reads the byte ranges from OPFS (spike decision AN-20), so seeking needs
 // no network and no search through the fragments. Without MediaSource the whole file plays from a
-// blob URL. Subtitles are <track> elements of the stored WebVTT files with a local menu. Progress
+// blob URL. A video download has the controls of the video player (OfflineVideo, F-15); its
+// subtitles are the stored WebVTT files, chosen in a local panel. Progress
 // goes into the event queue (O-5); the offline watch time stops playback at 0 (AN-18), also
 // when the device is online: this player knows no server stop (decision of 2026-10-20, K12).
 // An audio download (manifest `audio/*`, M6) plays in an <audio> element behind the AudioPlayer,
@@ -24,18 +23,10 @@ import styles from '@/features/player/Player.module.css';
 
 /** Interval of `playing` events, as online (useProgressReporter). */
 export const OFFLINE_PROGRESS_MS = 10_000;
-const CONTROLS_HIDE_MS = 3000;
-const SEEK_STEP_S = 10;
-const VOLUME_STEP = 0.1;
 const RESUME_TAIL_MS = 5000;
 const WATCH_CHECK_MS = 1000;
 
 export type OfflineEngine = 'mse' | 'blob';
-
-interface StoredSubtitle {
-  track: DownloadManifest['subtitles'][number]['track'];
-  url: string;
-}
 
 interface OfflinePlayerProps {
   title: string;
@@ -51,6 +42,10 @@ interface OfflinePlayerProps {
   /** Server time minus device time of the last sync. */
   serverOffsetMs: number;
   onBack: () => void;
+  /** Where `onBack` leads: the downloads (opened there) or the offline library; the help says it. */
+  backTo: 'downloads' | 'library';
+  /** The profile's language: its tracks come first in the panels (11.10). */
+  profileLanguage?: string;
   /** Audio downloads: the stored cover, the author or podcast, the title's accent. */
   coverUrl?: string;
   byline?: string;
@@ -58,13 +53,6 @@ interface OfflinePlayerProps {
   /** Audio downloads: the profile's speed to start with (resumeRate). */
   initialRate?: number;
 }
-
-const isActivatable = (target: EventTarget | null) =>
-  target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
-
-const inMenu = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  target.closest('[role="menu"], [role="menuitemradio"], [role="menuitem"]') !== null;
 
 /**
  * Seconds the file's timeline is ahead of the source timeline in the blob fallback: download
@@ -113,17 +101,17 @@ export function OfflinePlayer({
   watch,
   serverOffsetMs,
   onBack,
+  backTo,
+  profileLanguage,
   coverUrl,
   byline,
   accent,
   initialRate = 1,
 }: OfflinePlayerProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const audio = manifest.mimeType.startsWith('audio/');
   // The <video> element, or the <audio> element of an audio download.
   const video = useRef<HTMLMediaElement>(null);
-  const hideTimer = useRef<number | undefined>(undefined);
-  const osdTimer = useRef<number | undefined>(undefined);
   const [openedAt] = useState(() => performance.now());
   const [engine, setEngine] = useState<OfflineEngine | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -131,8 +119,6 @@ export function OfflinePlayer({
   const [currentMs, setCurrentMs] = useState(resumeMs);
   const durationMs = manifest.durationMs;
   const [buffered, setBuffered] = useState<[number, number][]>([]);
-  const [idle, setIdle] = useState(false);
-  const [osd, setOsd] = useState<string | null>(null);
   const [startMs, setStartMs] = useState<number | null>(null);
   const [seek, setSeek] = useState<{ ms: number; count: number } | null>(null);
   const [failed, setFailed] = useState(false);
@@ -142,10 +128,6 @@ export function OfflinePlayer({
   );
   const [limitReached, setLimitReached] = useState(usedUp);
   const [subtitles, setSubtitles] = useState<StoredSubtitle[]>([]);
-  const [subtitle, setSubtitle] = useState<number | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [fullscreen, setFullscreen] = useState(() => Boolean(document.fullscreenElement));
-  const [portal, setPortal] = useState<HTMLElement | null>(null);
   // Seconds the element's timeline is ahead of the source (blob fallback only).
   const offset = useRef(0);
   const watchRef = useRef(watch);
@@ -314,9 +296,7 @@ export function OfflinePlayer({
         urls.push(url);
         list.push({ track: entry.track, url });
       }
-      if (!active) return;
-      setSubtitles(list);
-      setSubtitle(list.find((entry) => entry.track.default)?.track.id ?? null);
+      if (active) setSubtitles(list);
     })();
     return () => {
       active = false;
@@ -324,43 +304,7 @@ export function OfflinePlayer({
     };
   }, [manifest.subtitles, playback.downloadId, subtitleIds]);
 
-  // The chosen subtitle shows, the others are off (the menu is local, no new session).
-  useEffect(() => {
-    const element = video.current;
-    if (!element) return;
-    const tracks = element.textTracks;
-    for (let index = 0; index < tracks.length; index += 1) {
-      const track = tracks[index];
-      if (track) track.mode = track.id === String(subtitle) ? 'showing' : 'disabled';
-    }
-  }, [subtitle, subtitles]);
-
   // ---------- controls ----------
-
-  const scheduleHide = useCallback(() => {
-    window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setIdle(true), CONTROLS_HIDE_MS);
-  }, []);
-  const poke = useCallback(() => {
-    setIdle(false);
-    scheduleHide();
-  }, [scheduleHide]);
-  useEffect(() => {
-    if (playing) scheduleHide();
-    else window.clearTimeout(hideTimer.current);
-  }, [playing, scheduleHide]);
-  useEffect(
-    () => () => {
-      window.clearTimeout(hideTimer.current);
-      window.clearTimeout(osdTimer.current);
-    },
-    [],
-  );
-  const showOsd = useCallback((text: string) => {
-    setOsd(text);
-    window.clearTimeout(osdTimer.current);
-    osdTimer.current = window.setTimeout(() => setOsd(null), 1200);
-  }, []);
 
   // What the listener wants, not what the element reports: re-attaching the element (hls.js after
   // a media error) runs the load algorithm, which clears `paused` without a `pause` event. The
@@ -392,36 +336,15 @@ export function OfflinePlayer({
     },
     [seekTo],
   );
-  const changeVolume = useCallback(
-    (delta: number) => {
-      const element = video.current;
-      if (!element) return;
-      const next = Math.round(Math.min(1, Math.max(0, element.volume + delta)) * 10) / 10;
-      element.volume = next;
-      element.muted = next === 0;
-      showOsd(t('player.volume', { percent: Math.round(next * 100) }));
-    },
-    [showOsd, t],
-  );
-  const toggleFullscreen = useCallback(() => {
-    const root = document.documentElement;
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else if (typeof root.requestFullscreen === 'function') void root.requestFullscreen();
-  }, []);
-  useEffect(() => {
-    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-  useEffect(
-    () => () => {
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-    },
+  /** The position now on the source timeline; kept once the media is detached (limit, unmount). */
+  const positionOf = useCallback(
+    () =>
+      Math.max(0, (frozenAt.current ?? (video.current?.currentTime ?? 0) - offset.current) * 1000),
     [],
   );
 
-  // Keys as in the main player: Space/Enter/K play-pause, ←/→ ±10 s, ↑/↓ volume, F full screen,
-  // T subtitles, Escape/Backspace back. Audio downloads have the audio player's keys instead.
+  // Audio downloads have the audio player's keys; a video download has the video player's
+  // (OfflineVideo).
   const keepRate = useCallback(
     (rate: number) => {
       void storeRate(playback.downloadId, playback.profileId, rate).catch(() => undefined);
@@ -433,8 +356,7 @@ export function OfflinePlayer({
     chapters: manifest.chapters ?? [],
     durationMs,
     positionMs: currentMs,
-    positionOf: () =>
-      Math.max(0, (frozenAt.current ?? (video.current?.currentTime ?? 0) - offset.current) * 1000),
+    positionOf,
     initialRate,
     active: !limitReached,
     enabled: audio,
@@ -443,77 +365,6 @@ export function OfflinePlayer({
     onBack,
     onRateChange: keepRate,
   });
-  useEffect(() => {
-    if (audio) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.altKey || event.ctrlKey || event.metaKey) return;
-      poke();
-      if (inMenu(event.target)) {
-        if (event.key === 'Backspace') {
-          event.preventDefault();
-          setMenuOpen(false);
-        }
-        return;
-      }
-      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-      switch (key) {
-        case ' ':
-        case 'Enter':
-          if (isActivatable(event.target)) return;
-          event.preventDefault();
-          togglePlay();
-          return;
-        case 'k':
-          togglePlay();
-          return;
-        case 'ArrowLeft':
-          event.preventDefault();
-          seekBy(-SEEK_STEP_S);
-          return;
-        case 'ArrowRight':
-          event.preventDefault();
-          seekBy(SEEK_STEP_S);
-          return;
-        case 'ArrowUp':
-          event.preventDefault();
-          changeVolume(VOLUME_STEP);
-          return;
-        case 'ArrowDown':
-          event.preventDefault();
-          changeVolume(-VOLUME_STEP);
-          return;
-        case 'f':
-          event.preventDefault();
-          toggleFullscreen();
-          return;
-        case 't':
-          if (subtitles.length === 0 || limitReached) return;
-          event.preventDefault();
-          setMenuOpen(true);
-          return;
-        case 'Escape':
-        case 'Backspace':
-          if (document.fullscreenElement) return;
-          event.preventDefault();
-          onBack();
-          return;
-        default:
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [
-    audio,
-    changeVolume,
-    limitReached,
-    onBack,
-    poke,
-    seekBy,
-    subtitles.length,
-    toggleFullscreen,
-    togglePlay,
-  ]);
-
   // ---------- media element events ----------
 
   useEffect(() => {
@@ -529,7 +380,7 @@ export function OfflinePlayer({
     };
     // Blob fallback: the cues are on the source timeline, the file's timeline is ahead. A track
     // loads its cues when it is switched on, so every load shifts what is not shifted yet.
-    const shiftCues = () => {
+    const shiftTracks = () => {
       if (engine !== 'blob') return;
       const shift = offset.current;
       for (const node of element.querySelectorAll('track')) {
@@ -537,12 +388,8 @@ export function OfflinePlayer({
         const cues = (node.track as TextTrack | undefined)?.cues;
         const applied = Number(node.dataset.shift ?? 0);
         if (!cues || cues.length === 0 || applied === shift) continue;
-        for (let index = 0; index < cues.length; index += 1) {
-          const cue = cues[index];
-          if (!cue) continue;
-          cue.startTime += shift - applied;
-          cue.endTime += shift - applied;
-        }
+        // Each cue once by what is still missing (the list re-sorts while a cue moves).
+        shiftCues(cues, shift - applied);
         node.dataset.shift = String(shift);
       }
     };
@@ -551,7 +398,7 @@ export function OfflinePlayer({
         offset.current = timelineOffset(element, durationMs);
         const resume = resumeMs > 0 && resumeMs < durationMs - RESUME_TAIL_MS ? resumeMs / 1000 : 0;
         element.currentTime = offset.current + resume;
-        shiftCues();
+        shiftTracks();
       }
       if (!locked.current && wantPlaying.current) element.play().catch(() => setPlaying(false));
     };
@@ -619,9 +466,9 @@ export function OfflinePlayer({
     element.addEventListener('progress', onProgress);
     element.addEventListener('error', onError);
     // `load` of a <track> does not bubble: listen in the capture phase.
-    element.addEventListener('load', shiftCues, true);
+    element.addEventListener('load', shiftTracks, true);
     return () => {
-      element.removeEventListener('load', shiftCues, true);
+      element.removeEventListener('load', shiftTracks, true);
       element.removeEventListener('loadedmetadata', onLoadedMetadata);
       element.removeEventListener('play', onPlay);
       element.removeEventListener('playing', onPlaying);
@@ -663,18 +510,7 @@ export function OfflinePlayer({
   // The media session offers play again once the player is gone.
   useEffect(() => () => releaseMediaSession(), []);
 
-  const language = i18n.language;
-  const elapsed = formatPlayerTime(currentMs, durationMs);
-  const total = formatPlayerTime(durationMs, durationMs);
-  const hidden = idle && playing && !menuOpen;
   const limit = watch?.limitMinutes;
-  const subtitleOptions = [
-    { id: 'off', label: t('player.tracks.off') },
-    ...subtitles.map((entry, index) => ({
-      id: String(entry.track.id),
-      label: trackLabel(t, entry.track, index, language),
-    })),
-  ];
 
   if (audio) {
     return (
@@ -702,7 +538,9 @@ export function OfflinePlayer({
                   : t('player.watchLimit.bodyUnknown')}
               </p>
               <div>
-                <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
+                {/* focusOnMount, not react-aria's autoFocus, which can wait 500 ms for a
+                    transition (11.13). */}
+                <AriaButton ref={focusOnMount} variant="secondary" icon="back" onPress={onBack}>
                   {t('common.back')}
                 </AriaButton>
               </div>
@@ -735,138 +573,37 @@ export function OfflinePlayer({
   }
 
   return (
-    <main
-      ref={setPortal}
-      className={styles.player}
-      aria-label={t('player.region')}
-      data-engine={engine ?? undefined}
-      data-download-id={playback.downloadId}
-      data-profile-id={playback.profileId}
-      data-start-ms={startMs ?? undefined}
-      data-seek-ms={seek?.ms}
-      data-seek-count={seek?.count}
-      data-ended-reason={limitReached ? 'limit' : undefined}
-      data-controls={hidden ? 'hidden' : 'visible'}
-      onPointerMove={poke}
-      onPointerDown={poke}
-      onFocus={poke}
-    >
-      {/* The text tracks are the stored WebVTT files (below); a download without any has none. */}
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-      <video
-        ref={video as RefObject<HTMLVideoElement | null>}
-        className={styles.video}
-        src={engine === 'blob' ? (blobUrl ?? undefined) : undefined}
-        preload="auto"
-        playsInline
-        disableRemotePlayback
-        disablePictureInPicture
-        onPointerUp={(event) => {
-          if (event.button === 0) togglePlay();
-        }}
-        onDoubleClick={toggleFullscreen}
-      >
-        {subtitles.map((entry) => (
-          <track
-            key={entry.track.id}
-            id={String(entry.track.id)}
-            kind="subtitles"
-            src={entry.url}
-            srcLang={entry.track.language}
-            label={entry.track.title ?? languageName(entry.track.language, language) ?? ''}
-            default={entry.track.id === subtitle}
-          />
-        ))}
-      </video>
-
-      {failed && !limitReached && (
-        <div className={styles.center} role="alert">
-          <p className={styles.failTitle}>{t('player.error.title')}</p>
-          <p>{t('offline.player.failed')}</p>
-        </div>
-      )}
-
-      {limitReached && (
-        <div className={styles.center} role="alert">
-          <p className={styles.failTitle}>{t('player.watchLimit.title')}</p>
-          <p>
-            {limit !== undefined
-              ? t('player.watchLimit.body', { count: limit })
-              : t('player.watchLimit.bodyUnknown')}
-          </p>
-          <div>
-            <AriaButton variant="secondary" icon="back" onPress={onBack} autoFocus>
-              {t('common.back')}
-            </AriaButton>
-          </div>
-        </div>
-      )}
-
-      {osd && (
-        <div className={styles.osd} role="status">
-          {osd}
-        </div>
-      )}
-
-      <div className={styles.top}>
-        <AriaButton
-          variant="ghost"
-          icon="back"
-          iconOnly
-          aria-label={t('player.back')}
-          onPress={onBack}
-        />
-        <h1 className={styles.title}>{title}</h1>
-      </div>
-
-      <div className={styles.bottom}>
-        <SeekBar
-          label={t('player.seek')}
-          valueText={t('player.time', { elapsed, total })}
-          currentMs={currentMs}
-          durationMs={durationMs}
-          buffered={buffered}
-          onSeek={seekTo}
-        />
-        <div className={styles.bar}>
-          <AriaButton
-            variant="ghost"
-            icon={playing ? 'pause' : 'play'}
-            iconOnly
-            aria-label={playing ? t('player.pause') : t('player.play')}
-            onPress={togglePlay}
-            isDisabled={limitReached}
-            autoFocus
-          />
-          <span className={styles.time}>
-            <span aria-hidden="true">{elapsed}</span>
-            <span aria-hidden="true" className={styles.timeTotal}>
-              {total}
-            </span>
-          </span>
-          <span className={styles.spacer} />
-          <AriaButton
-            variant="ghost"
-            icon={fullscreen ? 'fullscreenExit' : 'fullscreen'}
-            iconOnly
-            aria-label={fullscreen ? t('player.exitFullscreen') : t('player.fullscreen')}
-            onPress={toggleFullscreen}
-          />
-          {subtitles.length > 0 && (
-            <MenuButton
-              buttonLabel={t('offline.player.subtitles')}
-              label={t('offline.player.subtitles')}
-              options={subtitleOptions}
-              selectedKey={subtitle === null ? 'off' : String(subtitle)}
-              onSelect={(id) => setSubtitle(id === 'off' ? null : Number(id))}
-              isOpen={menuOpen}
-              onOpenChange={setMenuOpen}
-              isDisabled={limitReached}
-              portalContainer={portal ?? undefined}
-            />
-          )}
-        </div>
-      </div>
-    </main>
+    <OfflineVideo
+      media={video}
+      src={engine === 'blob' ? (blobUrl ?? undefined) : undefined}
+      title={title}
+      durationMs={durationMs}
+      currentMs={currentMs}
+      positionOf={positionOf}
+      buffered={buffered}
+      playing={playing}
+      wantsPlaying={() => wantPlaying.current}
+      chapters={manifest.chapters ?? []}
+      audioTrack={manifest.audio}
+      subtitles={subtitles}
+      profileLanguage={profileLanguage}
+      failed={failed}
+      limitReached={limitReached}
+      limitMinutes={limit}
+      togglePlay={togglePlay}
+      seekTo={seekTo}
+      seekBy={seekBy}
+      onBack={onBack}
+      backTo={backTo}
+      data={{
+        'data-engine': engine ?? undefined,
+        'data-download-id': playback.downloadId,
+        'data-profile-id': playback.profileId,
+        'data-start-ms': startMs ?? undefined,
+        'data-seek-ms': seek?.ms,
+        'data-seek-count': seek?.count,
+        'data-ended-reason': limitReached ? 'limit' : undefined,
+      }}
+    />
   );
 }

@@ -89,6 +89,7 @@ func transcodeTo(reason, quality string, w, h, bitrate int, tonemap, audioCopy b
 // Plan 10.3 per client (Chrome, Firefox, Safari, Android), rows 1–4; the subtitle rows 5 and 6
 // follow in TestDecideSubtitles.
 func TestDecideMatrix(t *testing.T) {
+	t.Parallel()
 	h264MP4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac", Width: 1920, Height: 1080}
 	hevcSDR := model.MediaFile{Container: "mkv", VideoCodec: "hevc", AudioCodec: "aac"}
 	hevcHDR := model.MediaFile{Container: "mkv", VideoCodec: "hevc", AudioCodec: "aac"}
@@ -179,6 +180,7 @@ func TestDecideMatrix(t *testing.T) {
 // Dolby Vision: profile 8 plays its HDR10 base layer (remux on an HDR display, tonemap else),
 // profiles 5 and 7 always transcode (reason dolby_vision).
 func TestDecideDolbyVision(t *testing.T) {
+	t.Parallel()
 	file := model.MediaFile{Container: "mkv", VideoCodec: "hevc", AudioCodec: "eac3"}
 	for _, tc := range []struct {
 		name    string
@@ -215,6 +217,7 @@ func TestDecideDolbyVision(t *testing.T) {
 
 // W-8: limits of the profile and the manual quality choice.
 func TestDecideLimitsAndQuality(t *testing.T) {
+	t.Parallel()
 	mp4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac"}
 	p1080 := sizedProbe("h264", "bt709", 1920, 1080, 10_000_000)
 	p720 := sizedProbe("h264", "bt709", 1280, 720, 3_000_000)
@@ -265,6 +268,7 @@ func TestDecideLimitsAndQuality(t *testing.T) {
 // Audio tracks: the default track plays directly, another one is remuxed with that track (reason
 // audio_track); an undecodable track is encoded.
 func TestDecideAudioTrack(t *testing.T) {
+	t.Parallel()
 	mp4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac", Width: 1920, Height: 1080}
 	p := sizedProbe("h264", "bt709", 1920, 1080, 6_000_000)
 	pick := func(c model.PlaybackCapabilities, idx int) Request { return Request{Caps: c, AudioStream: idx} }
@@ -287,6 +291,7 @@ func TestDecideAudioTrack(t *testing.T) {
 // Plan 10.3 rows 5 and 6: bitmap subtitles are burned in (transcode), text subtitles go as
 // WebVTT next to direct play or remux; a text track can be burned in on request.
 func TestDecideSubtitles(t *testing.T) {
+	t.Parallel()
 	mp4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac", Width: 1920, Height: 1080}
 	mkv := mp4
 	mkv.Container = "mkv"
@@ -327,6 +332,7 @@ func TestDecideSubtitles(t *testing.T) {
 
 // Budget (plan 3.5): an SDR transcode above 720p runs one rung lower; HDR, remux and 720p do not.
 func TestLoweredRung(t *testing.T) {
+	t.Parallel()
 	limits := model.PlaybackLimits{MaxBitrateKbps: 3000}
 	d := transcodeTo(ReasonVideoCodec, model.Quality1080, 1920, 1080, 3_000_000, false, true, 1)
 	got, ok := lowered(d, 1920, 1080, limits)
@@ -346,31 +352,33 @@ func TestLoweredRung(t *testing.T) {
 }
 
 func TestQualityOptions(t *testing.T) {
+	t.Parallel()
 	p := sizedProbe("h264", "bt709", 1920, 800, 5_000_000)
 	mp4 := model.MediaFile{Container: "mp4", VideoCodec: "h264", AudioCodec: "aac"}
 	limits := model.PlaybackLimits{MaxHeight: 720}
 	d := Decide(mp4, p, Request{Caps: capsChrome, Limits: limits, AudioStream: -1})
-	opts := QualityOptions(d, 1920, 800, limits, capsChrome, "")
+	opts := QualityOptions(d, newSource(mp4, p, limits, capsChrome, transcode.Capabilities{}), true, "")
 	var got []string
 	for _, o := range opts {
 		got = append(got, o.Quality)
 		if o.Quality == model.Quality1080 && (o.Available || o.Width != 1920 || o.Height != 800) {
 			t.Errorf("1080p = %+v (the source keeps 1920x800, the limit rules it out)", o)
 		}
-		if o.Quality == model.Quality720 && (!o.Available || o.Current || o.Width != 1728) {
+		// 720p fits 1920x800 into its 16:9 box of 1280x720: 1280x532 (G2-m1).
+		if o.Quality == model.Quality720 && (!o.Available || o.Current || o.Width != 1280 || o.Height != 532) {
 			t.Errorf("720p = %+v", o)
 		}
-		if o.Quality == model.QualityAuto && (!o.Current || o.Height != 720 || o.Bitrate != 4_000_000) {
+		if o.Quality == model.QualityAuto && (!o.Current || o.Height != 532 || o.Bitrate != 4_000_000) {
 			t.Errorf("auto = %+v", o)
 		}
 	}
-	if !slices.Equal(got, []string{"auto", "1080p", "720p", "480p", "360p"}) {
+	if !slices.Equal(got, []string{"auto", "original", "2160p", "1080p", "720p", "480p", "360p"}) {
 		t.Errorf("qualities = %v", got)
 	}
 	// A manual rung is current; a rung the source does not fill is unavailable.
 	small := sizedProbe("h264", "bt709", 640, 360, 1_000_000)
 	d = Decide(mp4, small, Request{Caps: capsChrome, AudioStream: -1, Quality: model.Quality360})
-	for _, o := range QualityOptions(d, 640, 360, model.PlaybackLimits{}, capsChrome, model.Quality360) {
+	for _, o := range QualityOptions(d, newSource(mp4, small, model.PlaybackLimits{}, capsChrome, transcode.Capabilities{}), true, model.Quality360) {
 		if want := o.Quality == model.Quality360; o.Current != want || (o.Quality == model.Quality480 && o.Available) {
 			t.Errorf("small source option %+v", o)
 		}
@@ -378,6 +386,7 @@ func TestQualityOptions(t *testing.T) {
 }
 
 func TestNormalizeCapabilities(t *testing.T) {
+	t.Parallel()
 	if got := normalizeCapabilities(nil); got.HLS != "mse" || len(got.Video) != 1 || got.Video[0] != "h264" || got.Audio[0] != "aac" {
 		t.Errorf("absent report = %+v", got)
 	}
@@ -394,6 +403,7 @@ func TestNormalizeCapabilities(t *testing.T) {
 }
 
 func TestDeviceCap(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		caps model.PlaybackCapabilities
 		want int

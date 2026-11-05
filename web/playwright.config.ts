@@ -5,6 +5,95 @@ import { ARTEFACTS, BASE_URL, EXTERNAL_BASE_URL, PORT, STORAGE_STATE } from './e
 // that a dev machine may lack; its project runs only when SLOUCHCAT_E2E_WEBKIT=1.
 const withWebkit = process.env.SLOUCHCAT_E2E_WEBKIT === '1';
 
+// What Firefox runs (Marco's decision of 3 November 2026, ADR 0013 addendum). Chromium runs every
+// spec; Firefox runs what differs between the engines: media in the browser and the flows a viewer
+// cannot get around, whole, and of every other page one keyboard test (rule 8), tagged `@keyboard`
+// in its title -- plus the tests that once found a Firefox focus difference. Firefox's focus model
+// is where the two engines part most often (Tab does not wrap, the sequential start point stays
+// behind a replaced button, :focus-visible after a pointer, a dialog kept for its exit
+// animation), and one Tab and arrow walk per page in Firefox keeps catching that; the other tests
+// of those pages check what the server answers and the page draws, which the engine does not
+// change. Before: Chromium 309 tests, Firefox 307. After: Chromium 309, Firefox 122 (31 whole
+// files with 79 tests, 43 `@keyboard` tests in 39 files).
+//
+// Every spec, by group (73 files; whole = all tests of the file run in Firefox):
+//
+//  Playback, whole (Video/HLS/MSE, tracks, quality, chapters, versions, HDR, the player reacting
+//  to the server): audio-transcode, admin-streams, chapters, hdr, hls, player, quality, resume,
+//  sidecar, stream-token, tracks, versions, watch-limit.
+//  Audio, whole (audiobooks, podcasts): audio-download, audio-offline, audiobook, podcast,
+//  podcast-auto-download.
+//  Offline, whole: auto-download, downloads, offline-measure, offline-pin, offline-playback,
+//  offline-profiles, offline-revocation, offline-start, offline-watch-limit, season-download.
+//  (offline-cold-start stays Chromium-only, see testIgnore below.)
+//  Sign-in and setup, whole: invite, login, setup.
+//  One `@keyboard` test each: admin-accounts, admin-backup, admin-collections, admin-devices,
+//  admin-folder-browser, admin-home, admin-home-rows, admin-integrations, admin-item,
+//  admin-libraries, admin-library-folders (the Tab budget to the folders dialog, a known Firefox
+//  focus bug), admin-metadata, admin-picks, admin-podcasts, admin-spotlight, admin-stats,
+//  admin-webhooks, announcements (the notice's dialog: focus inside, Tab cycles, arrows stay),
+//  collection, detail, episode, extras, favorites, home, invitations, maintenance,
+//  notification-channels, notifications, person, picks-page, search, series, sidenav, trailer,
+//  watchlist.
+//  Two: admin-announcements (the editor walk; «sofort veröffentlichen», where the h1 takes the
+//  focus a few frames late and headless Firefox does not wrap Tab), admin-jobs (the cancel menu
+//  and the h1 focus, a known Firefox focus bug; the failures tab, where Firefox keeps the closing
+//  confirmation for its exit animation), library (the keyboard walk; the filter panel, where
+//  Firefox draws :focus-visible after a script focus only after a key), profiles (the picker and
+//  the profile management are two pages).
+//  Chromium only, no keyboard test of a page of their own: admin-density and admin-phone (sizes
+//  and widths of the admin pages).
+//
+// A new spec runs in Chromium only until it is listed here or one of its tests carries
+// `@keyboard`; a new page needs its keyboard test anyway (rule 8), so tag that one.
+const FIREFOX_WHOLE_SPECS = [
+  // playback
+  'audio-transcode',
+  'admin-streams',
+  'chapters',
+  'hdr',
+  'hls',
+  'player',
+  'quality',
+  'resume',
+  'sidecar',
+  'stream-token',
+  'tracks',
+  'versions',
+  'watch-limit',
+  // audio
+  'audio-download',
+  'audio-offline',
+  'audiobook',
+  'podcast',
+  'podcast-auto-download',
+  // offline
+  'auto-download',
+  'downloads',
+  'offline-measure',
+  'offline-pin',
+  'offline-playback',
+  'offline-profiles',
+  'offline-revocation',
+  'offline-start',
+  'offline-watch-limit',
+  'season-download',
+  // sign-in and setup
+  'invite',
+  'login',
+  'setup',
+];
+
+// A project's grep is matched against "<project> <file> <describe…> <title> <tags>" with the file
+// relative to testDir, so the first pattern picks the whole files and the second the tagged tests.
+const shardIndex = process.env.SLOUCHCAT_E2E_SHARD?.split('/')[0];
+const blobFileName = shardIndex ? `report-${shardIndex}.zip` : undefined;
+
+const firefoxGrep = [
+  new RegExp(` (${FIREFOX_WHOLE_SPECS.join('|')})\\.spec\\.ts `),
+  /(^| )@keyboard( |$)/,
+];
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -25,7 +114,15 @@ export default defineConfig({
   // the screenshots -- and the gate job merges all of them into the one HTML report that a red run
   // uploads (`playwright merge-reports`). A single HTML report per shard would be six reports with
   // a sixth of the run in each.
-  reporter: process.env.CI ? [['list'], ['blob', { outputDir: `${ARTEFACTS}blob` }]] : 'list',
+  //
+  // A shard of the duration plan (SLOUCHCAT_E2E_SHARD=i/n, set by `task web:e2e SHARD=i/n`) runs
+  // with --test-list instead of --shard, and Playwright then names every blob report.zip; the
+  // index keeps the merged download of the shards apart. Locally e2e/parallel.mjs asks for the
+  // blob report too (SLOUCHCAT_E2E_BLOB=1) and merges its shards the same way.
+  reporter:
+    process.env.CI || process.env.SLOUCHCAT_E2E_BLOB === '1'
+      ? [['list'], ['blob', { outputDir: `${ARTEFACTS}blob`, fileName: blobFileName }]]
+      : 'list',
   timeout: 30_000,
   expect: { timeout: 10_000 },
   globalSetup: './e2e/global-setup.ts',
@@ -62,6 +159,8 @@ export default defineConfig({
         // without a sound card therefore needs a null sink (CI workflow, docs/dev/SETUP.md).
         launchOptions: { firefoxUserPrefs: { 'media.volume_scale': '0.0' } },
       },
+      // Media, offline, sign-in and one keyboard test per page (FIREFOX_WHOLE_SPECS above).
+      grep: firefoxGrep,
       // Flight mode cannot be emulated with a service worker in Playwright's Firefox: setOffline
       // does not reach the worker's own requests (the app still gets its session), and a route
       // that cuts the API makes Firefox bypass the worker for the page (NS_ERROR_OFFLINE). The

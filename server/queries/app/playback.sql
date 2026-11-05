@@ -22,6 +22,17 @@ JOIN sessions AS s ON s.id = ps.session_id
 WHERE ps.id = @id AND ps.revoked_at IS NULL AND ps.expires_at > @now
   AND s.revoked_at IS NULL AND s.expires_at > @now;
 
+-- name: GetLastPlaybackTracks :one
+-- The tracks of the latest playback of a browser session and title, ended or not: the playback a
+-- track switch replaces (the client stops it before the next start). A start with
+-- rememberForSeries keeps only the part that differs from it (review step 9, M-1). Per browser
+-- session, not per tab: two tabs of one session on the same title share the latest row, and a new
+-- session has none (changedTracks names the limits, final review stage 2).
+SELECT media_file_id, audio_track, subtitle_track FROM playback_sessions
+WHERE session_id = @session_id AND item_id = @item_id
+ORDER BY started_at DESC, id DESC
+LIMIT 1;
+
 -- name: TouchPlaybackSession :exec
 UPDATE playback_sessions SET last_activity_at = @now, expires_at = @expires_at
 WHERE id = @id AND revoked_at IS NULL;
@@ -42,7 +53,7 @@ RETURNING id;
 -- the activity log whose playback ended (no row: unknown or ended already).
 UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
 WHERE id = @id AND revoked_at IS NULL AND expires_at > @now
-RETURNING id, account_id, profile_id, item_id;
+RETURNING id, session_id, account_id, profile_id, item_id;
 
 -- name: RevokePlaybackSessionsByDevice :many
 -- Playback sessions of a device: recorded for it or started by one of its browser sessions.
@@ -50,7 +61,7 @@ UPDATE playback_sessions SET revoked_at = @now, stopped_by = @stopped_by
 WHERE revoked_at IS NULL
   AND (playback_sessions.device_id = sqlc.arg('device_id')
        OR playback_sessions.session_id IN (SELECT s.id FROM sessions AS s WHERE s.device_id = sqlc.arg('device_id')))
-RETURNING id, account_id, profile_id, item_id;
+RETURNING id, session_id, account_id, profile_id, item_id;
 
 -- name: CountActivePlaybackSessions :one
 -- Running streams of a profile (W-8 maxStreams): not revoked, not expired, a request within the
@@ -136,6 +147,16 @@ LEFT JOIN sessions AS s ON s.id = ps.session_id
 WHERE ps.expires_at >= @since
   AND (ps.revoked_at IS NOT NULL OR ps.expires_at <= @now
        OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= @now);
+
+-- name: ListEndedPlaybackFiles :many
+-- The media files of the playback sessions that ended in [@since, @now]: revoked (a stop of the
+-- client, the administration, a logout, a replacement) or expired (a closed or killed app). The
+-- sweep queues their chapter images (concept 13 11.6); a row on the bound of two sweeps comes
+-- twice, which the job key absorbs. A row is revoked before it expires, so the index on expires_at
+-- bounds the scan.
+SELECT DISTINCT media_file_id FROM playback_sessions
+WHERE expires_at >= @since AND media_file_id <> ''
+  AND ((revoked_at >= @since AND revoked_at <= @now) OR (revoked_at IS NULL AND expires_at <= @now));
 
 -- name: DeleteExpiredPlaybackSessions :execrows
 -- Rows that ended before @before (the retention of the statistics).

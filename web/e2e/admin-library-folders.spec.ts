@@ -94,7 +94,9 @@ const openDialog = async (page: Page) => {
   await expect(dialog(page)).toBeVisible();
 };
 
-test('the folders dialog opens from the keyboard and lists the folder', async ({ page }) => {
+test('the folders dialog opens from the keyboard and lists the folder @keyboard', async ({
+  page,
+}) => {
   // Tabbed to, not focused by script: a ring only counts when the keyboard put it there.
   // The page carries a row per library, so the budget is generous. Enter folds the row out;
   // its first stops are «Erneut scannen» and «Ordner».

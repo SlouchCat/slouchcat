@@ -140,7 +140,7 @@ func (s *Service) jobOverview(ctx context.Context) (model.JobOverview, error) {
 		stats[t.Name] = st
 	}
 	out := model.JobOverview{Paused: len(paused), Types: make([]model.JobTypeInfo, 0, len(types))}
-	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify} {
+	for _, pool := range []jobs.Pool{jobs.PoolGeneral, jobs.PoolDownload, jobs.PoolNotify, jobs.PoolIndex} {
 		p := model.JobPool{Pool: string(pool), Workers: s.jobctl.workers[pool]}
 		if backlog, ok := s.poolBacklog(stats, pool, -1); ok {
 			p.BacklogSeconds = &backlog
@@ -192,6 +192,7 @@ func (s *Service) jobTypeInfo(ctx context.Context, t jobs.Type, stats map[string
 	if st.known {
 		info.Group, info.Trigger, info.Pool = string(t.Group), string(t.Trigger), string(t.Pool)
 		info.Runnable = t.Run != nil
+		info.OverridesPauseForPlayback = t.OverridesPauseForPlayback
 		info.Stopping = info.Paused && s.jobctl.reg.Running(t.Name) > 0
 		if st.medianOK {
 			m := int(st.median.Seconds())
@@ -251,13 +252,17 @@ func (s *Service) jobSchedule(typ string, sc jobs.Schedule) *model.JobSchedule {
 	if sc.Window != nil {
 		out.Window = &model.JobWindow{StartMinute: sc.Window.Start, EndMinute: sc.Window.End}
 	}
+	if !sc.OnceAt.IsZero() {
+		out.OnceAt, out.OnceLocal = sc.OnceAt.UTC(), sc.OnceLocal
+	}
 	return out
 }
 
 // jobRun maps a run with its subject, duration and estimate (concept 09, 6.2).
 func (s *Service) jobRun(ctx context.Context, j jobs.Job, st *typeStats, now time.Time) model.JobRun {
 	run := model.JobRun{JobSummary: jobSummary(j), Priority: j.Priority, Skipped: j.Skipped, Estimate: model.JobEstimateNone,
-		StartedAt: utcOrZero(j.StartedAt), FinishedAt: utcOrZero(j.FinishedAt), Subject: s.jobSubject(ctx, j)}
+		StartedAt: utcOrZero(j.StartedAt), FinishedAt: utcOrZero(j.FinishedAt), Subject: s.jobSubject(ctx, j),
+		OverridesPause: j.OverridesPause}
 	if j.State == jobs.StateQueued && j.RunAfter.After(now) {
 		run.RunAfter = j.RunAfter.UTC()
 	}
@@ -517,11 +522,17 @@ func (s *Service) ResumeJobType(ctx context.Context, typ string) (model.JobTypeI
 	return s.jobTypeInfoOf(ctx, typ)
 }
 
-// UpdateJobSchedule changes interval, window or switch of a schedule type (updateJobSchedule,
-// F-4). The interval must lie within the type's limits (Trakt whole hours 6 to 48), the window be
-// valid; the interval of trakt.refresh is written into spotlight_config and the switch of
-// update.check into the setting as well (one value, two doors). model.ErrJobTypeNotScheduled for
-// a type without schedule, *model.ValidationError for refused values.
+// UpdateJobSchedule changes interval, window, one-off date or switch of a schedule type
+// (updateJobSchedule, F-4; concept 14 F-6). The interval must lie within the type's limits (Trakt
+// whole hours 6 to 48), the window be valid, the one-off date pass the scheduler's check
+// (onceLocal); the interval of trakt.refresh is written into spotlight_config and the switch of
+// update.check into the setting as well (one value, two doors), after the scheduler accepted the
+// change, so a refused value writes neither. The writes are not one transaction (the scheduler
+// owns job_schedules): when the second write fails after UpdateSchedule, the call returns the error
+// and the two doors differ until the next save of either; this is accepted (review of wave C,
+// m-10), since both doors show their own value and a repeated save aligns them.
+// model.ErrJobTypeNotScheduled for a type without schedule, *model.ValidationError for refused
+// values.
 func (s *Service) UpdateJobSchedule(ctx context.Context, typ string, upd model.JobScheduleUpdate) (model.JobTypeInfo, error) {
 	t, known, err := s.jobType(ctx, typ)
 	if err != nil {
@@ -551,8 +562,12 @@ func (s *Service) UpdateJobSchedule(ctx context.Context, typ string, upd model.J
 		change.Window = &w
 	}
 	change.Enabled = upd.Enabled
+	change.OnceLocal, change.ClearOnce = upd.OnceLocal, upd.ClearOnce
 	if verr != nil {
 		return model.JobTypeInfo{}, verr
+	}
+	if _, err := s.jobctl.sched.UpdateSchedule(ctx, typ, change); err != nil {
+		return model.JobTypeInfo{}, err
 	}
 	if typ == jobTraktRefresh && change.Every != nil {
 		cfg, err := s.write.GetSpotlightConfig(ctx)
@@ -568,9 +583,6 @@ func (s *Service) UpdateJobSchedule(ctx context.Context, typ string, upd model.J
 		if err := s.setUpdateCheckEnabled(ctx, *change.Enabled); err != nil {
 			return model.JobTypeInfo{}, err
 		}
-	}
-	if _, err := s.jobctl.sched.UpdateSchedule(ctx, typ, change); err != nil {
-		return model.JobTypeInfo{}, err
 	}
 	s.log.InfoContext(ctx, "job schedule updated by the admin", "job_type", typ)
 	return s.jobTypeInfoOf(ctx, typ)

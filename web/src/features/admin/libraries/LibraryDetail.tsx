@@ -1,5 +1,5 @@
-import type { Library } from '@slouchcat/api-client';
-import { memo, useRef } from 'react';
+import type { Library, LibraryKeyframeIndex } from '@slouchcat/api-client';
+import { memo, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { paths } from '@/app/paths';
 import { Chip, Notice, ProgressBar, TextLink } from '@/ui';
@@ -14,6 +14,9 @@ import styles from './Libraries.module.css';
  * under the pointer, and a double press must not cancel the scan it just started.
  */
 const CANCEL_GRACE_MS = 1000;
+
+/** The job type whose row on the jobs page the coverage links (`?item=` opens it). */
+const BACKFILL_TYPE = 'keyframes.backfill';
 
 /** The handlers of a fold-out, stable across renders so the fold-outs need not render again. */
 export interface LibraryHandlers {
@@ -127,10 +130,43 @@ export const LibraryDetail = memo(function LibraryDetail({
         </Notice>
       )}
 
+      {library.keyframeIndex && <KeyframeCoverage coverage={library.keyframeIndex} />}
+
       <Folders library={library} />
     </section>
   );
 });
+
+/**
+ * The keyframe index of a video library (concept 14, 7.2): how many of its files can be remuxed
+ * right away, and while some still wait, the way to the backfill on the jobs page (its button
+ * stays there, F-4). Audio libraries have no coverage; one without video files says nothing.
+ */
+function KeyframeCoverage({ coverage }: { coverage: LibraryKeyframeIndex }) {
+  const { t, i18n } = useTranslation();
+  const number = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  if (coverage.videoFiles === 0) return null;
+  const complete = coverage.indexed === coverage.videoFiles;
+  return (
+    <p className={styles.keyframes}>
+      <span className={styles.muted}>
+        {complete
+          ? t('admin.libraries.keyframes.complete')
+          : t('admin.libraries.keyframes.summary', {
+              indexed: number.format(coverage.indexed),
+              videoFiles: number.format(coverage.videoFiles),
+              pending: number.format(coverage.pending),
+              unavailable: number.format(coverage.unavailable),
+            })}
+      </span>
+      {coverage.pending > 0 && (
+        <TextLink href={`${paths.adminJobs}?item=${BACKFILL_TYPE}`}>
+          {t('admin.libraries.keyframes.backfill')}
+        </TextLink>
+      )}
+    </p>
+  );
+}
 
 /**
  * Every folder of the library with its whole path, content, provider list, file system, network
