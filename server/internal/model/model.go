@@ -1434,7 +1434,17 @@ type Library struct {
 	DefaultRating *int // audio libraries only (AN-2)
 	Roots         []LibraryRoot
 	Scan          LibraryScan
+	KeyframeIndex *LibraryKeyframeIndex // video libraries only (concept 14, F-7)
 	CreatedAt     time.Time
+}
+
+// LibraryKeyframeIndex is the keyframe index coverage of the files of a video library that are
+// worth indexing (concept 14, 4.1): Indexed + Pending + Unavailable = VideoFiles.
+type LibraryKeyframeIndex struct {
+	VideoFiles  int
+	Indexed     int // keyframes_source cues, mp4 or scan
+	Pending     int // keyframes_source NULL
+	Unavailable int // keyframes_source none
 }
 
 // AdminPodcast is a podcast subscription as the administration sees it (M6, H-2); not an ItemSummary.

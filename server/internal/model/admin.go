@@ -243,6 +243,7 @@ type JobRun struct {
 	Progress             *JobProgress
 	EstimatedSecondsLeft *int
 	Estimate             string // JobEstimateMeasured, JobEstimateMedian, JobEstimateNone
+	OverridesPause       bool   // runs while its type is paused (a playback request, concept 14)
 }
 
 // JobProgress is the reported progress of a run.
@@ -269,14 +270,18 @@ type JobSchedule struct {
 	TimeZone        string
 	MinEverySeconds int
 	MaxEverySeconds int
+	OnceAt          time.Time // one-off date; zero: none
+	OnceLocal       string    // OnceAt as wall time in TimeZone (2006-01-02T15:04); "" without a date
 }
 
 // JobScheduleUpdate names the fields updateJobSchedule changes; nil means unchanged, ClearWindow
-// removes the window.
+// removes the window, ClearOnce the one-off date (OnceLocal is ignored then).
 type JobScheduleUpdate struct {
 	EverySeconds *int
 	Window       *JobWindow
 	ClearWindow  bool
+	OnceLocal    *string
+	ClearOnce    bool
 	Enabled      *bool
 }
 
@@ -285,7 +290,7 @@ type JobTypeInfo struct {
 	Type                  string
 	Group                 string // library, metadata, delivery, system
 	Trigger               string // schedule, event, manual
-	Pool                  string // general, download, notify
+	Pool                  string // general, download, notify, index
 	Paused                bool
 	PausedAt              time.Time
 	Stopping              bool // paused and a run still coming to a halt

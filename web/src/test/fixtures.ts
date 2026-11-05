@@ -230,6 +230,10 @@ export const library = (overrides: Partial<Library> = {}): Library => ({
     },
   ],
   scan: { state: 'done', itemCount: 12, fileCount: 14, finishedAt: '2026-10-18T18:05:00Z' },
+  // Video libraries carry their keyframe index coverage (contract 1.13.0); audio libraries omit it.
+  ...((overrides.kind ?? 'video') === 'video'
+    ? { keyframeIndex: { videoFiles: 14, indexed: 14, pending: 0, unavailable: 0 } }
+    : {}),
   ...overrides,
 });
 

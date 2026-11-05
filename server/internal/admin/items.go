@@ -266,7 +266,7 @@ func (s *Service) CancelLibraryScan(ctx context.Context, libraryID int64) (model
 	if s.maint == nil {
 		return model.Library{}, ErrNotConfigured
 	}
-	return s.maint.CancelScan(ctx, libraryID)
+	return s.withKeyframeIndex(ctx)(s.maint.CancelScan(ctx, libraryID))
 }
 
 func nullInt(v sql.NullInt64) *int {

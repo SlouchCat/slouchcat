@@ -90,6 +90,11 @@ func (s *server) UpdateJobSchedule(ctx context.Context, req gen.UpdateJobSchedul
 	} else if body.Window != nil {
 		upd.Window = &model.JobWindow{StartMinute: body.Window.StartMinute, EndMinute: body.Window.EndMinute}
 	}
+	if body.ClearOnce != nil && *body.ClearOnce {
+		upd.ClearOnce = true
+	} else {
+		upd.OnceLocal = body.OnceLocal
+	}
 	info, err := s.opts.Admin.UpdateJobSchedule(ctx, req.Type, upd)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -128,6 +133,9 @@ func toJobTypeInfo(t model.JobTypeInfo) gen.JobTypeInfo {
 		if sc.Window != nil {
 			g.Window = &gen.JobWindow{StartMinute: sc.Window.StartMinute, EndMinute: sc.Window.EndMinute}
 		}
+		if !sc.OnceAt.IsZero() {
+			g.Once = &gen.JobScheduleOnce{Local: sc.OnceLocal, At: sc.OnceAt.UTC()}
+		}
 		out.Schedule = &g
 	}
 	for _, r := range t.RunningRuns {
@@ -154,6 +162,9 @@ func toJobRun(r model.JobRun) gen.JobRun {
 	}
 	if r.Progress != nil {
 		out.Progress = &gen.JobProgress{Done: int(r.Progress.Done), Total: int(r.Progress.Total), Note: optString(r.Progress.Note)}
+	}
+	if r.OverridesPause {
+		out.OverridesPause = &r.OverridesPause
 	}
 	return out
 }

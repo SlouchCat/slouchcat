@@ -193,10 +193,14 @@ func toLibrary(l model.Library) gen.Library {
 	if l.Scan.LastError != "" {
 		scan.LastError = &l.Scan.LastError
 	}
-	return gen.Library{
+	out := gen.Library{
 		Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), DefaultRating: toRating(l.DefaultRating),
 		Roots: roots, Scan: scan, CreatedAt: l.CreatedAt.UTC(),
 	}
+	if k := l.KeyframeIndex; k != nil {
+		out.KeyframeIndex = &gen.LibraryKeyframeIndex{VideoFiles: k.VideoFiles, Indexed: k.Indexed, Pending: k.Pending, Unavailable: k.Unavailable}
+	}
+	return out
 }
 
 // libraryRequest maps the contract request with its folders.

@@ -2830,6 +2830,7 @@
         "general": "General",
         "download": "Downloads",
         "notify": "Notifications",
+        "index": "Keyframe index",
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",

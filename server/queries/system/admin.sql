@@ -22,6 +22,24 @@ SELECT
         AND (e.parent_id = @id OR e.parent_id IN (SELECT p.id FROM items AS p WHERE p.parent_id = @id AND p.kind = 'season'))) AS episodes,
     (SELECT count(*) FROM items AS x WHERE x.parent_id = @id AND x.kind = 'extra' AND x.deleted_at IS NULL) AS extras;
 
+-- Keyframe index coverage of the libraries (Library.keyframeIndex, concept 14, 4.1, F-7).
+
+-- name: AdminCountKeyframeIndex :many
+-- Files worth indexing per library and keyframes_source, one query for every library. "Worth
+-- indexing" (concept 14, 4.1; the same condition as in package library): the file is present
+-- (missing_since IS NULL), its video can be remuxed (h264, hevc, av1, vp9) and its title is no
+-- audiobook and no podcast episode. The media_files part is the condition of the partial index
+-- media_files_keyframes (00033), which carries the count (INDEXED BY fails the query when the
+-- condition drifts from the index); CROSS JOIN keeps media_files outside, the kind comes through
+-- the primary key of items.
+SELECT i.library_id, m.keyframes_source, count(*) AS files
+FROM media_files AS m INDEXED BY media_files_keyframes
+CROSS JOIN items AS i ON i.id = m.item_id
+WHERE m.missing_since IS NULL
+  AND m.video_codec IN ('h264', 'hevc', 'av1', 'vp9')
+  AND i.kind NOT IN ('audiobook', 'podcast_episode')
+GROUP BY i.library_id, m.keyframes_source;
+
 -- Maintenance issues (listMaintenanceIssues, B-9). Each kind has a page query and a count; a
 -- NULL library_id lists every library. unmatched and unrated list an episode only when its series
 -- is matched (rated); otherwise the series stands for all its episodes, so a large series fills
