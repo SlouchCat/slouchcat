@@ -215,7 +215,8 @@ func TestJobPoolIndexAndOverridesPauseOverHTTP(t *testing.T) {
 }
 
 // The HLS endpoints that rebuild a lost output document 409 playback_source_changed (concept 14,
-// 6.4); step 5 answers it. The other answers and x-visibility stay as they were.
+// 6.4); step 5 answers it. The subtitle track shares their token check and answers it as well.
+// The other answers and x-visibility stay as they were.
 func TestContractHLSSourceChanged(t *testing.T) {
 	t.Parallel()
 	data, err := os.ReadFile("../../../api/openapi.yaml")
@@ -224,7 +225,14 @@ func TestContractHLSSourceChanged(t *testing.T) {
 	}
 	doc := parseYAML(t, data)
 	paths, _ := doc["paths"].(map[string]any)
-	for _, p := range []string{"master.m3u8", "media.m3u8", "init.mp4", "seg/{n}"} {
+	kept := map[string][]string{
+		"master.m3u8":           {"200", "401", "404", "503"},
+		"media.m3u8":            {"200", "401", "404", "503"},
+		"init.mp4":              {"200", "401", "404", "503"},
+		"seg/{n}":               {"200", "401", "404", "503"},
+		"subtitles/{track}.vtt": {"200", "401", "404"},
+	}
+	for p, statuses := range kept {
 		item, _ := paths["/playback/sessions/{id}/"+p].(map[string]any)
 		op, _ := item["get"].(map[string]any)
 		if vis, _ := op["x-visibility"].(string); vis != "scoped" {
@@ -235,7 +243,7 @@ func TestContractHLSSourceChanged(t *testing.T) {
 		if ref, _ := conflict["$ref"].(string); ref != "#/components/responses/StreamSourceChanged" {
 			t.Errorf("%s: 409 = %v, want StreamSourceChanged", p, conflict)
 		}
-		for _, status := range []string{"200", "401", "404", "503"} {
+		for _, status := range statuses {
 			if _, ok := responses[status]; !ok {
 				t.Errorf("%s: response %s is gone", p, status)
 			}

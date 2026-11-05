@@ -1006,6 +1006,9 @@ export interface paths {
          *     styling is dropped. Works for direct and HLS playbacks alike: the client attaches the URL as a
          *     `<track>` element. `track` is the `id` of a `Track` with `kind` `subtitle` and `text` true; a bitmap
          *     track (PGS, DVD) or a track of another file answers 404. `Cache-Control: private, no-store`.
+         *     After a source change of the session the stream token answers 409 `playback_source_changed`
+         *     here as on the HLS endpoints (since contract 1.13.0); the client restarts from the HLS
+         *     answer and leaves the subtitle request alone.
          */
         get: operations["getPlaybackSubtitle"];
         put?: never;
@@ -9627,6 +9630,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
         };
     };
     deleteDownload: {

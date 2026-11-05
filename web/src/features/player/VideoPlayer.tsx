@@ -167,21 +167,28 @@ export function resumeSeconds(resume: number, durationMs: number): number {
 }
 
 /**
- * Whether the stream token of this playback was revoked: the server answers 401 for a stopped
- * session (admin, watch-time limit, logout). The media element reports a failed request without
- * its status, so a one-byte request asks again.
+ * The status the stream answers now; undefined when the request fails. The media element reports a
+ * failed request without its status, so a one-byte request asks again.
  */
-export async function streamRevoked(streamUrl: string): Promise<boolean> {
+async function streamStatus(streamUrl: string): Promise<number | undefined> {
   try {
     const url = new URL(apiUrl(streamUrl), window.location.href);
     const response = await fetch(
       new Request(url, { headers: { Range: 'bytes=0-0' }, cache: 'no-store' }),
     );
     void response.body?.cancel();
-    return response.status === 401;
+    return response.status;
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+/**
+ * Whether the stream token of this playback was revoked: the server answers 401 for a stopped
+ * session (admin, watch-time limit, logout).
+ */
+export async function streamRevoked(streamUrl: string): Promise<boolean> {
+  return (await streamStatus(streamUrl)) === 401;
 }
 
 export function VideoPlayer({
@@ -274,6 +281,12 @@ export function VideoPlayer({
   const stopHls = useRef<() => void>(() => undefined);
   // A new session with the same choice at the position (set below, once switchPlayback exists).
   const restartForSource = useRef<() => void>(() => undefined);
+  // The stream answered 409 `playback_source_changed` (concept 14, 7.4): the server ended this
+  // session for the new file, and a stop without a cause is that end, not one to show.
+  const sourceChanged = useRef(false);
+  // The native player's question to the stream after an error, while it is open: the stop watch
+  // waits for it, so a source change restarts instead of ending the playback.
+  const streamProbe = useRef<Promise<void> | null>(null);
 
   /** The server ended the playback: pause, stop loading, show why. */
   const endedOnce = useRef(false);
@@ -294,11 +307,36 @@ export function VideoPlayer({
    */
   const onRevoked = useCallback(
     (reason?: EndedReason) => {
-      if (switchedAway.current) return;
+      if (switchedAway.current || (reason === undefined && sourceChanged.current)) return;
       const remaining = watchTime.current?.remainingMinutes;
       endPlayback(reason ?? (remaining !== undefined && remaining <= 1 ? 'limit' : 'admin'));
     },
     [endPlayback],
+  );
+
+  /**
+   * The server ended the session because its file changed: once a new session with the same
+   * choice at the position; in that new session the usual error (never an end by the server).
+   */
+  const onSourceChanged = useCallback(() => {
+    if (switchedAway.current || sourceChanged.current) return;
+    sourceChanged.current = true;
+    if (restartedSession) {
+      stopHls.current();
+      setFailed(true);
+    } else {
+      restartForSource.current();
+    }
+  }, [restartedSession]);
+
+  /** The stop watch's answer; one without a cause waits for an open question to the stream. */
+  const onServerStop = useCallback(
+    (reason?: EndedReason) => {
+      const probe = reason === undefined ? streamProbe.current : null;
+      if (probe) void probe.then(() => onRevoked(reason));
+      else onRevoked(reason);
+    },
+    [onRevoked],
   );
 
   const onProgress = useCallback(
@@ -324,7 +362,7 @@ export function VideoPlayer({
   usePlaybackStopWatch({
     playbackSessionId: info.playbackSessionId,
     active: playing && !switching && ended === null,
-    onStopped: onRevoked,
+    onStopped: onServerStop,
   });
 
   // I-5: the sound and subtitle panels ask the server again when they open and every 30 s while
@@ -695,12 +733,7 @@ export function VideoPlayer({
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (switchedAway.current) return;
           if (data.response?.code === 409) {
-            if (restartedSession) {
-              hls.stopLoad();
-              setFailed(true);
-            } else {
-              restartForSource.current();
-            }
+            onSourceChanged();
             return;
           }
           if (data.response?.code === 401) {
@@ -729,7 +762,7 @@ export function VideoPlayer({
       stopHls.current = () => undefined;
       destroy();
     };
-  }, [engine, info, onRevoked, resumeMs, restartedSession]);
+  }, [engine, info, onRevoked, onSourceChanged, resumeMs]);
 
   // Media element events.
   useEffect(() => {
@@ -796,12 +829,18 @@ export function VideoPlayer({
       if (Number.isFinite(element.duration)) setDurationMs(element.duration * 1000);
     };
     // With hls.js the element's errors reach hls.js as well, which reports them (and recovers).
-    // A direct stream that the server closed answers 401 to the element's next range request.
+    // A direct stream that the server closed answers 401 to the element's next range request;
+    // the native HLS player's master playlist answers 409 after a source change, as with hls.js.
     const onError = () => {
       if (engine === 'hlsjs' || switchedAway.current) return;
-      void streamRevoked(info.streamUrl).then((revoked) => {
-        if (revoked) onRevoked();
+      const probe = streamStatus(info.streamUrl).then((status) => {
+        if (status === 409) onSourceChanged();
+        else if (status === 401) onRevoked();
         else setFailed(true);
+      });
+      streamProbe.current = probe;
+      void probe.finally(() => {
+        if (streamProbe.current === probe) streamProbe.current = null;
       });
     };
 
@@ -827,7 +866,7 @@ export function VideoPlayer({
       element.removeEventListener('durationchange', onDuration);
       element.removeEventListener('error', onError);
     };
-  }, [engine, info, onRevoked, openedAt, resumeMs, switchFrom]);
+  }, [engine, info, onRevoked, onSourceChanged, openedAt, resumeMs, switchFrom]);
 
   // Another version, track or quality: pause and stop loading here (the session is about to end)
   // and hand the position over to the next session.

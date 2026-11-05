@@ -3,8 +3,9 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { alienDetail, alienTracks, episodes, hlsPlayback, ids, playback } from '@/test/fixtures';
-import { json, mockApi, problem, renderApp, signedIn, type Call } from '@/test/api';
+import { json, mockApi, problem, renderApp, signedIn, type Call, type Routes } from '@/test/api';
 import { playerDriver } from '@/test/player';
+import { STOP_WATCH_INTERVAL_MS } from './usePlaybackStopWatch';
 
 // M4 player: tracks (W-4, I-5), quality (W-8), chapters, intro and auto-next (W-9), the limits
 // (K-5, W-8) and a stream the admin ended (W-6). The server decides; the player shows its answers.
@@ -83,7 +84,7 @@ function stubMedia() {
 function routes(
   first: PlaybackInfo,
   answer: (body: PlaybackRequest, count: number) => PlaybackInfo = () => first,
-  extra: Record<string, (call: Call) => Response> = {},
+  extra: Routes = {},
 ) {
   let count = 0;
   return {
@@ -712,34 +713,54 @@ describe('player M4', () => {
     );
     renderApp(`/play/${ids.alien}`);
     await waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+    // A quality chosen before: the restart keeps it with the tracks.
+    const player = playerDriver();
+    fireEvent.keyDown(document.body, { key: 'q' });
+    await player.findList('quality');
+    await player.chooseQuality('480p');
+    await waitFor(() =>
+      expect(region()).toHaveAttribute('data-playback-session-id', 'ps-restart-2'),
+    );
+    await waitFor(() => expect(hlsMock.instances).toHaveLength(2));
     media.currentTime = 754.2;
     // hls.js reports a segment's status without the problem body; a 409 is the source change.
     act(() =>
-      hlsMock.instances[0]!.emitError({
+      hlsMock.instances[1]!.emitError({
         type: 'networkError',
         details: 'fragLoadError',
         fatal: true,
         response: { code: 409 },
       }),
     );
-    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    await waitFor(() => expect(starts(calls)).toHaveLength(3));
     // The same choice at the position, and no stop by the server.
-    expect(starts(calls)[1]!.body).toMatchObject({
+    expect(starts(calls)[2]!.body).toMatchObject({
       positionMs: 754_200,
       audioTrack: 2,
       subtitleTrack: 21,
+      quality: '480p',
     });
-    expect(hlsMock.instances[0]!.stopped).toBeGreaterThanOrEqual(1);
-    await waitFor(() =>
-      expect(region()).toHaveAttribute('data-playback-session-id', 'ps-restart-2'),
+    expect(hlsMock.instances[1]!.stopped).toBeGreaterThanOrEqual(1);
+    // The old session's 401 after the 409 is the restart, not a stop (switchedAway).
+    act(() =>
+      hlsMock.instances[1]!.emitError({
+        type: 'networkError',
+        details: 'fragLoadError',
+        fatal: true,
+        response: { code: 401 },
+      }),
     );
-    await waitFor(() => expect(hlsMock.instances).toHaveLength(2));
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    await waitFor(() =>
+      expect(region()).toHaveAttribute('data-playback-session-id', 'ps-restart-3'),
+    );
+    await waitFor(() => expect(hlsMock.instances).toHaveLength(3));
     expect(region()).not.toHaveAttribute('data-ended-reason');
     expect(screen.queryByRole('alert')).toBeNull();
 
     // A 409 in the new session restarts nothing: the usual error shows.
     act(() =>
-      hlsMock.instances[1]!.emitError({
+      hlsMock.instances[2]!.emitError({
         type: 'networkError',
         details: 'manifestLoadError',
         fatal: true,
@@ -749,8 +770,141 @@ describe('player M4', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Wiedergabe nicht möglich');
     expect(region()).not.toHaveAttribute('data-ended-reason');
     await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(starts(calls)).toHaveLength(3);
+    expect(hlsMock.instances).toHaveLength(3);
+  });
+
+  it('leaves a failed subtitle request alone: the 409 of the stream restarts once (concept 14, 7.4)', async () => {
+    stubMedia();
+    vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation((type) =>
+      type === 'application/vnd.apple.mpegurl' ? '' : 'probably',
+    );
+    vi.stubGlobal('MediaSource', { isTypeSupported: () => true });
+    const choice: PlaybackInfo = {
+      ...hlsPlayback,
+      selection: { audioTrack: 2, subtitleTrack: 21, subtitleDelivery: 'text' },
+      subtitleUrl: '/api/v1/playback/sessions/ps-2/subtitles/21.vtt?st=ps-2.token',
+    };
+    const { calls } = mockApi(
+      routes(choice, (_body, count) => ({
+        ...choice,
+        playbackSessionId: `ps-sub-${count}`,
+        streamUrl: `/api/v1/playback/sessions/ps-sub-${count}/master.m3u8?st=ps-sub-${count}.token`,
+        subtitleUrl: `/api/v1/playback/sessions/ps-sub-${count}/subtitles/21.vtt?st=ps-sub-${count}.token`,
+      })),
+    );
+    const { container } = renderApp(`/play/${ids.alien}`);
+    await waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+    const track = await waitFor(() => {
+      const element = container.querySelector('track');
+      if (!element) throw new Error('no track yet');
+      return element;
+    });
+    // The track element reports its failed load (the 409 of the shared token) on itself.
+    act(() => {
+      track.dispatchEvent(new Event('error'));
+    });
+    await act(() => vi.advanceTimersByTimeAsync(STOP_WATCH_INTERVAL_MS + 100));
+    expect(starts(calls)).toHaveLength(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+
+    // The segment's 409 restarts once; the new session's track fails the same way, nothing more.
+    act(() =>
+      hlsMock.instances[0]!.emitError({
+        type: 'networkError',
+        details: 'fragLoadError',
+        fatal: true,
+        response: { code: 409 },
+      }),
+    );
+    await waitFor(() => expect(region()).toHaveAttribute('data-playback-session-id', 'ps-sub-2'));
+    const next = await waitFor(() => {
+      const element = container.querySelector('track');
+      if (!element?.getAttribute('src')?.includes('ps-sub-2')) throw new Error('old track');
+      return element;
+    });
+    act(() => {
+      next.dispatchEvent(new Event('error'));
+    });
+    await act(() => vi.advanceTimersByTimeAsync(STOP_WATCH_INTERVAL_MS + 100));
     expect(starts(calls)).toHaveLength(2);
-    expect(hlsMock.instances).toHaveLength(2);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+  });
+
+  it('starts once anew on a 409 of the native HLS player; a stop without a cause meanwhile ends nothing (concept 14, 7.4)', async () => {
+    const media = stubMedia();
+    const choice: PlaybackInfo = {
+      ...hlsPlayback,
+      selection: { audioTrack: 2, subtitleTrack: 21, subtitleDelivery: 'text' },
+    };
+    // The first question to the stream waits until the stop watch answered.
+    let release = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let probes = 0;
+    const { calls } = mockApi(
+      routes(
+        choice,
+        (_body, count) => ({
+          ...choice,
+          playbackSessionId: `ps-native-${count}`,
+          streamUrl: `/api/v1/playback/sessions/ps-native-${count}/master.m3u8?st=ps-native-${count}.token`,
+        }),
+        {
+          'GET /playback/sessions/*/master.m3u8': async () => {
+            probes += 1;
+            if (probes === 1) await held;
+            return problem(409, 'playback_source_changed');
+          },
+          // The server ended the session for the new file: stopped, without a cause.
+          'GET /playback/sessions/*/state': () => json({ state: 'stopped' }),
+        },
+      ),
+    );
+    const { container } = renderApp(`/play/${ids.alien}`);
+    const video = await startPlayer(container);
+    // Safari plays the master playlist itself: no hls.js.
+    expect(hlsMock.instances).toHaveLength(0);
+    expect(video).toHaveAttribute('src', expect.stringContaining('/ps-2/master.m3u8'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeVisible());
+    media.currentTime = 754.2;
+    act(() => {
+      video.dispatchEvent(new Event('error'));
+    });
+    await waitFor(() => expect(probes).toBe(1));
+    // The stop watch answers while the question is open: no end by the server.
+    await act(() => vi.advanceTimersByTimeAsync(STOP_WATCH_INTERVAL_MS + 100));
+    expect(calls.some((call) => call.path.endsWith('/state'))).toBe(true);
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+
+    release();
+    await waitFor(() => expect(starts(calls)).toHaveLength(2));
+    expect(starts(calls)[1]!.body).toMatchObject({
+      positionMs: 754_200,
+      audioTrack: 2,
+      subtitleTrack: 21,
+    });
+    await waitFor(() =>
+      expect(region()).toHaveAttribute('data-playback-session-id', 'ps-native-2'),
+    );
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // A 409 in the new session: the usual error, no second restart and no end by the server.
+    const next = await startPlayer(container);
+    act(() => {
+      next.dispatchEvent(new Event('error'));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Wiedergabe nicht möglich'),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(STOP_WATCH_INTERVAL_MS + 100));
+    expect(region()).not.toHaveAttribute('data-ended-reason');
+    expect(starts(calls)).toHaveLength(2);
+    expect(probes).toBe(2);
   });
 
   it('asks the stream after a direct-play error: 401 means ended, anything else a failure', async () => {
