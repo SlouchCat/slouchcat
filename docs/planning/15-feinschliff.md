@@ -1,11 +1,16 @@
 # Konzept: Feinschliff an Startseite, Verwaltung und Titelpflege
 
-- **Status: Fassung 1 (5. November 2026), zur Durchsicht durch Marco.** Die Fragen **F-1 bis
-  F-16** in Abschnitt 11 sind offen; jede trägt eine Empfehlung. **Die Umsetzung beginnt erst auf
-  Marcos ausdrückliches Wort.**
+- **Status: Fassung 2 (5. November 2026).** Marco hat am selben Tag alle Fragen **F-1 bis
+  F-16** beantwortet (Abschnitt 11). Abweichend von der Empfehlung: **Spotlight C «Endlosband»**
+  (F-6), **Editor als Dialog** wie Emby (F-8), **Zeitfenster für schwere automatische Jobs schon
+  in diesem Konzept** (F-5), auf der Startseite **Kachelreihe «Meine Medien» und je Bibliothek
+  eine Reihe «Neu in …»** (F-11, nach einem dritten Mockup) und **höchstens 15 Reihen** (F-12).
+  Wo die Abschnitte 2 bis 9 noch die Empfehlung aus Fassung 1 beschreiben, sind sie auf die
+  Antwort umgeschrieben. **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco hat am 5. November 2026 nach der Abnahme von Release 1.13.0 auf CT 190 acht
   Wünsche geschickt, mit Bildschirmfotos (Abschnitt 1). Für Punkt 5 (Spotlight) und Punkt 6
-  (Metadaten bearbeiten) wollte er je ein **klickbares Mockup** (Anhang A).
+  (Metadaten bearbeiten) wollte er je ein **klickbares Mockup**, für Punkt 7 (Bibliotheken) bei
+  den Fragen ein drittes (Anhang A).
 - **Verankert gegen:** `main` **`d06a40e3`** («Merge pull request #96», Release 1.13.1),
   Vertragsfassung **1.13.0** (`api/openapi.yaml:4`; 1.13.1 hat den Vertrag nicht geändert),
   letzte Migration **`00033_keyframe_source.sql`**, letzte ADR **`0023`**, letzte Frage im
@@ -76,14 +81,14 @@
    20 min» und der Fortschrittsbalken der Folge. Der Vertrag bekommt dafür additiv am `ItemRef`
    ein Feld **`series`** (`{ id, title, images }`, nur bei Folgen gesetzt); `seriesTitle` bleibt
    für alte Clients.
-3. **Klick:** führt zur **Folge** (F-1). Empfehlung: zur Detailseite der Folge mit «Fortsetzen»
-   im Fokus, wie heute; ein Fortsetzen-Knopf auf der Karte (▶ beim Zeigen, am Handy nicht) ist
-   eine Option.
-4. **Fertig gesehen → nächste Folge** (F-2). Empfehlung: Ist die zuletzt gesehene Folge fertig und
-   gibt es eine nächste, bleibt die Serie in der Reihe mit der **nächsten Folge** («S4 · F8 ·
+3. **Klick** (F-1, entschieden): führt zur **Detailseite der Folge** mit «Fortsetzen» im Fokus,
+   wie heute bei Folgen. Kein eigener Abspielknopf auf der Karte.
+4. **Fertig gesehen → nächste Folge** (F-2, entschieden): Ist die zuletzt gesehene Folge fertig
+   und gibt es eine nächste, bleibt die Serie in der Reihe mit der **nächsten Folge** («S4 · F8 ·
    Neu»), solange die letzte Aktivität höchstens **60 Tage** zurückliegt (gleiche Frist wie die
    automatischen Downloads). Sortiert wird nach der letzten Aktivität. Das ist die Regel
-   `NextEpisode`, keine Empfehlung durch einen Algorithmus (Non-Goal bleibt unberührt).
+   `NextEpisode`, keine Empfehlung durch einen Algorithmus (Non-Goal bleibt unberührt). Ist die
+   letzte Folge der Serie fertig, fällt die Serie aus der Reihe.
 5. **Vorabmalerei:** `posterPrepaint` nimmt bei Folgen das Serienposter; damit malt auch eine
    «Weiterschauen»-Reihe an erster Stelle.
 
@@ -170,20 +175,51 @@ ausgeschaltet ist (Konzept 14, O-6). Ein einmaliger Termin («Einmalig am») lä
 
 ### 4.2 Vorschlag
 
-1. **Die zwei Hand-Jobs werden einplanbar** wie «Keyframe-Index nachholen»: Jobart
+1. **Die zwei Hand-Jobs werden einplanbar** (F-3, entschieden) wie «Keyframe-Index nachholen»: Jobart
    `schedule`, Zeitplan ab Werk **aus**, Takt 7 Tage, «Jetzt ausführen» bleibt. Damit hat das
    aufgeklappte Feld «Zeitplan» auch dort Takt, Zeitfenster und «Einmalig am». Keine Migration:
    `ensureSchedule` legt die Zeile beim nächsten Start an (`scheduler.go:175-223`).
 2. **Ereignis-Jobs bekommen statt des Zeitplans einen Satz**, der im aufgeklappten Feld steht,
    wo sonst der Zeitplan steht: «Kein Zeitplan: läuft von selbst je Datei, sobald …» (aus dem
-   bestehenden `trigger`-Text). Die Spalte zeigt statt «bei Bedarf» **«automatisch»** (F-4).
-3. **Nicht vorgeschlagen, aber möglich** (F-5): ein **Zeitfenster für schwere Ereignis-Jobs**
-   (Keyframe-Index, Intro und Abspann, Kapitelbilder), damit sie nur nachts laufen und das NAS
-   tagsüber in Ruhe lassen. Das ist ein Eingriff in die Warteschlange (Jobs warten bis zum
-   Fenster), kein Zeitplan. Empfehlung: nicht jetzt; erst, wenn die NAS-Last stört.
+   bestehenden `trigger`-Text). Die Spalte zeigt statt «bei Bedarf» **«automatisch»** (F-4,
+   entschieden).
+3. **Zeitfenster für schwere automatische Jobs** (F-5, entschieden: ja, **je Job einstellbar**,
+   Wiedergabe geht vor). Siehe 4.3.
 
-Aufwand: rund **0,5 Tage**. Vertrag unverändert (der Typ meldet schon heute `trigger` und
-`schedule`).
+Aufwand für 1 und 2: rund **0,5 Tage**, Vertrag unverändert (der Typ meldet schon heute
+`trigger` und `schedule`).
+
+### 4.3 Zeitfenster für schwere automatische Jobs
+
+Marco will, dass die Jobs, die ganze Dateien lesen, nur nachts laufen können, damit das NAS
+tagsüber ruhig bleibt.
+
+- **Welche Jobs:** `probe.keyframes` (Keyframe-Index, ganze Datei lesen), `segments.detect`
+  (Intro und Abspann) und `chapters.images` (Kapitelbilder erzeugen). Andere automatische Jobs
+  lesen nur Kopfdaten oder kleine Dateien und bekommen kein Fenster. Die Zeitplan-Jobs haben ihr
+  Fenster schon heute im Zeitplan.
+- **Einstellung je Job:** Im aufgeklappten Feld dieser drei Jobs steht anstelle des Zeitplans ein
+  Feld **«Nur in einem Zeitfenster»** mit Von und Bis (wie im Zeitplan, Zeitzone des Servers, über
+  Mitternacht erlaubt), ab Werk **aus**.
+- **Was das Fenster bewirkt:** Ausserhalb des Fensters nimmt kein Arbeiter einen neuen Auftrag
+  dieser Jobart. Die Aufträge bleiben wartend; die Spalte «Nächster Lauf» zeigt «wartet bis
+  01:00». Ein Auftrag, der beim Ende des Fensters läuft, läuft fertig (die Jobs sind je Datei
+  kurz genug; Abbrechen würde Arbeit wegwerfen).
+- **Wiedergabe geht vor** (entschieden): Ein Auftrag, den eine Wiedergabe auslöst (Keyframe-Index
+  beim Start, Kapitelbilder nach dem Abspielen), läuft **sofort, trotz Fenster**. Dafür gibt es
+  schon das Merkmal `jobs.override_pause` aus Konzept 14 (F-3): Ein so markierter Auftrag wird
+  trotz Pause beansprucht (`queries/system/jobs.sql:97`). Es wird zu «für Wiedergabe» verallgemeinert
+  und gilt für Pause **und** Fenster; die Seite zeigt ihn wie heute als «für Wiedergabe».
+- **Speicher:** zwei Spalten `window_start`, `window_end` (Minuten des Tages, wie in
+  `job_schedules`) an `job_types`, wo schon `paused_at` steht. Das ist eine Migration.
+- **Vertrag:** Die Jobart meldet ihr Fenster; eine Operation zum Setzen
+  (`PUT /admin/job-types/{type}/window`, `x-visibility: admin`). Der Server lehnt sie für andere
+  Jobarten ab (409, wie `job_type_not_scheduled`).
+- **Scheduler-Regeln:** Pause geht vor Fenster (eine pausierte Jobart läuft auch im Fenster nicht).
+  «Jetzt ausführen» gibt es für diese Jobarten nicht (sie haben keinen `Run`); das Fenster wirkt
+  darum nur auf die Warteschlange.
+
+Aufwand: rund **1,5 Tage**.
 
 ## 5. P-4 «Benachrichtigungen» bleibt in der Verwaltung
 
@@ -200,7 +236,7 @@ Die Seite selbst ist **pro Konto** (`/me/channels`, `x-visibility: account`): we
 **dieses Konto** bekommt. Die Kanäle des Servers (E-Mail-Server, Telegram-Bot, Web-Push) richtet
 man unter Integrationen ein.
 
-### 5.2 Vorschlag
+### 5.2 Vorschlag (F-7, entschieden)
 
 - Neue Route **`/admin/notifications`** unter `adminRoute`. Sie zeigt **dieselbe Seite**
   (`ChannelSettingsPage`, dieselben Bauteile) in der Verwaltung, mit Verwaltungsleiste und
@@ -229,26 +265,39 @@ Leerraum dafür, dass auch die letzten Poster an die linke Kante können (`Row.t
 | Variante | Verhalten | Dafür | Dagegen |
 |---|---|---|---|
 | **A · heute** | Rahmen wandert, Reihe springt erst bei angeschnittenem Poster. | Reihe steht ruhig. | Das Auge muss dem Rahmen folgen; Marco will das nicht mehr. |
-| **B · immer links** (Empfehlung) | Bei **jedem** Wechsel rückt die Reihe, bis das aktive Poster bündig links unter dem Titel steht. Gezeigte Titel liegen links ausserhalb; nach links wischen zeigt sie. Nach dem letzten Titel gleitet die Reihe zurück an den Anfang. | Aktives Poster immer am selben Ort; Reihenfolge fest; einfach zu bauen (die Mechanik gibt es schon, nur die Bedingung fällt weg). | Die Reihe bewegt sich alle 5 s um eine Karte. |
-| **C · Endlosband** | Links steht der aktive Titel, die gezeigten wandern ans Ende. | Kein Leerraum, kein Sprung zurück. | Reihenfolge wechselt ständig; nach links blättern gibt es nicht; für Bildschirmleser schwer. |
+| **B · immer links** (Empfehlung in Fassung 1) | Bei **jedem** Wechsel rückt die Reihe, bis das aktive Poster bündig links unter dem Titel steht. Gezeigte Titel liegen links ausserhalb; nach links wischen zeigt sie. Nach dem letzten Titel gleitet die Reihe zurück an den Anfang. | Aktives Poster immer am selben Ort; Reihenfolge fest; einfach zu bauen (die Mechanik gibt es schon, nur die Bedingung fällt weg). | Die Reihe bewegt sich alle 5 s um eine Karte. |
+| **C · Endlosband** (**Marcos Wahl**, F-6) | Links steht der aktive Titel, die gezeigten wandern ans Ende. | Kein Leerraum, kein Sprung zurück. | Reihenfolge wechselt ständig; nach links blättern gibt es nicht; für Bildschirmleser schwer. |
 
-### 6.3 Vorschlag (Variante B)
+### 6.3 Bau (Variante C «Endlosband», F-6)
 
-- In `HeroCarousel` fällt `if (visible && placed.current) return;` weg: Jeder Wechsel (Takt,
-  Klick, Enter, Pfeile am Band) stellt das aktive Poster an die linke Kante, weich, bei «Bewegung
-  reduzieren» ohne Animation.
-- **Pfeiltasten in der Reihe** bewegen weiter nur den Fokus (F-5 aus Konzept 08); der Fokus
-  scrollt wie in allen Reihen (`revealElement`). Erst Enter oder Klick wählt und rückt die Reihe.
-- **Wischen am Handy** scrollt die Reihe frei wie heute; nach dem nächsten Wechsel rückt sie
-  wieder an das aktive Poster. Tippt man während des Wischens, gilt der Takt-Halt wie heute.
-- **Nach dem letzten Titel** springt die Auswahl auf den ersten, und die Reihe gleitet zurück an
-  den Anfang.
+- **Reihenfolge:** Die Reihe zeigt die Spotlight-Titel **ab dem aktiven Titel im Kreis**: aktiv,
+  dann die nächsten, am Ende die schon gezeigten. Die Liste der Titel und ihre Reihenfolge im
+  Band bleiben, wie sie der Server liefert (`heroStart`, Takt); nur die Anzeige der Reihe ist
+  gedreht. Der rote Rahmen sitzt **immer auf dem ersten Poster**.
+- **Wechsel nach vorn** (Takt, Pfeil rechts am Band, Klick auf ein Poster): Die Reihe gleitet um
+  so viele Karten nach links, bis der gewählte Titel vorne steht; die vorbeigezogenen Poster
+  hängen sich hinten an. Ein Klick auf das vierte Poster dreht also um drei Karten. Animation
+  0,45 s, bei «Bewegung reduzieren» ohne Animation.
+- **Wechsel zurück** (Pfeil links am Band, «Abspielen» mit Pfeil links wie heute `pageBack`): Der
+  letzte Titel der Reihe gleitet von links nach vorne.
+- **Tastatur in der Reihe:** Pfeile bewegen den Fokus wie heute (F-5 aus Konzept 08), Enter wählt.
+  Nach dem Wählen steht der gewählte Titel vorne, und **der Fokus bleibt auf ihm** (dem ersten
+  Poster). Pfeil links auf dem ersten Poster verlässt die Reihe zur Seitenleiste, wie heute.
+- **Bildschirmleser:** Jedes Poster trägt seine **feste** Stelle im Band
+  (`aria-posinset`/`aria-setsize`, z. B. «3 von 12»), damit die Drehung die Ansage nicht
+  verfälscht; die Positionsanzeige oben rechts im Band bleibt «3 / 12». Die Drehung selbst wird
+  nicht angesagt.
+- **Wischen am Handy** scrollt die Reihe frei; nach dem nächsten Wechsel steht sie wieder bei 0.
+- **Wegfallen:** der Leerraum am Ende der Spotlight-Reihe (`Row.tsx` `trailingSpace`), die
+  Bedingung «nur scrollen, wenn angeschnitten» (`HeroCarousel.tsx:286`) und die Endsperre
+  `holdEnds` am letzten Poster (im Kreis gibt es kein Ende).
+- **Vorabmalerei:** unverändert; das erste Poster ist ohnehin der aktive Titel.
 - Konzept 08 (N-4) und ADR 0016 bekommen einen Nachtrag (Abschnitt 10).
-- Tests: `e2e/home.spec.ts` 191 (prüft heute `scrollLeft` 0 nach dem zweiten Poster) und 541
-  (N-4) werden auf «immer links» umgeschrieben; Storybook-Vergleichsbilder `ActivePoster` und
-  `PosterStrip` neu.
+- Tests: `e2e/home.spec.ts` 191 und 541 (N-4) werden auf das Endlosband umgeschrieben (aktives
+  Poster immer erstes, Reihenfolge gedreht, Fokus nach Enter auf dem ersten Poster);
+  Storybook-Vergleichsbilder `ActivePoster` und `PosterStrip` neu.
 
-Aufwand: rund **1 Tag**. Nur Web-App.
+Aufwand: rund **1,5 Tage**. Nur Web-App.
 
 ## 7. P-6 Metadaten bearbeiten mit dem Stift
 
@@ -281,24 +330,29 @@ das Aussehen: dieselben vier Aufgaben, als vier Reiter in Slouchcat-Bauteilen.
 
 | Variante | Was der Stift öffnet | Dafür | Dagegen |
 |---|---|---|---|
-| **A · Dialog** | Fenster über der Seite, wie Emby. | Vertraut, viel Platz. | Seite dahinter verdeckt; die Wirkung eines neuen Posters sieht man erst nach dem Schliessen. |
-| **B · Seitenblatt** (Empfehlung) | Blatt von rechts, 520 px; die Seite bleibt links sichtbar und zeigt Änderungen sofort. Am Handy ganzseitig. | Sofortige Vorschau auf der echten Seite; aus der Bibliothek Titel für Titel durchgehen. | Schmaler; Hintergründe zwei statt vier nebeneinander. |
+| **A · Dialog** (**Marcos Wahl**, F-8) | Fenster über der Seite, wie Emby. | Vertraut, viel Platz. | Seite dahinter verdeckt; die Wirkung eines neuen Posters sieht man erst nach dem Schliessen. |
+| **B · Seitenblatt** (Empfehlung in Fassung 1) | Blatt von rechts, 520 px; die Seite bleibt links sichtbar und zeigt Änderungen sofort. Am Handy ganzseitig. | Sofortige Vorschau auf der echten Seite; aus der Bibliothek Titel für Titel durchgehen. | Schmaler; Hintergründe zwei statt vier nebeneinander. |
 | **C · Verwaltungsseite** | Der Stift führt auf die bestehende Seite Pflege › Titel. | Am wenigsten Bau. | Führt aus der Zuschauerseite weg; keine Vorschau. |
 
-### 7.4 Vorschlag (Variante B)
+### 7.4 Bau (Variante A «Dialog», F-8)
 
-**Wo der Stift steht** (F-9):
+**Wo der Stift steht** (F-9, entschieden):
 
 - Auf der **Detailseite** von Film, Serie, Staffel und Folge neben den Knöpfen (ersetzt «Verwalten»;
-  der Weg zur Verwaltungsseite bleibt im Blatt oben als Verweis).
+  der Weg zur Verwaltungsseite bleibt im Dialog oben als Verweis).
 - Auf **Covern im Bibliotheksraster** beim Zeigen oder mit Tab (oben rechts). Am Handy nur auf
   der Detailseite, damit das Raster ruhig bleibt.
-- Nicht auf den Reihen der Startseite (dort ist der Platz eng und die Karte ein Link).
-- Sichtbar nur für **Administrator mit Hauptprofil** (`canManage`, wie heute). Das ist eine
-  Abkürzung, keine Regel: Der Server beantwortet jeden Bearbeitungsaufruf nur für diese Sitzung
-  (`x-visibility: admin`, Regel 12).
+- Nicht auf den Reihen der Startseite.
+- **Nur für den Server-Administrator** (Marco ausdrücklich): Rolle `admin` mit Hauptprofil
+  (`canManage`, wie heute). Andere Konten und Nebenprofile sehen keinen Stift. Das ist eine
+  Abkürzung im Client, keine Regel: Der Server beantwortet jeden Bearbeitungsaufruf nur für diese
+  Sitzung (`x-visibility: admin`, Regel 12).
 
-**Das Blatt** hat einen Kopf (Mini-Poster, Titel, Art, Bibliothek, Verweis «In der Verwaltung
+**Der Dialog** liegt über der Seite (Breite bis 1100 px, Höhe bis 90 % des Fensters, eigener
+Bildlauf im Inhalt), am Handy ganzseitig. Escape oder «Schliessen» schliesst ihn, der Fokus geht
+zurück auf den Stift; im offenen Dialog bleibt der Fokus im Dialog (`Dialog` aus `web/src/ui`).
+Nach dem Schliessen lädt die Seite den Titel neu, damit neue Bilder und Texte sofort stehen.
+Er hat einen Kopf (Mini-Poster, Titel, Art, Bibliothek, Verweis «In der Verwaltung
 öffnen») und vier Reiter:
 
 1. **Bilder** (zuerst, weil Marco Bilder und Cover nennt): oben die Bildarten des Titels (Film
@@ -311,7 +365,9 @@ das Aussehen: dieselben vier Aufgaben, als vier Reiter in Slouchcat-Bauteilen.
    Film), Beschreibung, Genres (Chips mit Vorschlägen aus den vorhandenen Genres),
    Altersfreigabe, Originalsprache. Neben jedem Feld die Herkunft («aus TMDB») und ein
    **Schloss**. Wer ein Feld ändert, sperrt es; das Schloss hebt die Sperre auf. «Speichern»
-   schreibt alle geänderten Felder auf einmal. Texte gelten für **eine Sprache** (F-10).
+   schreibt alle geänderten Felder auf einmal. Texte gelten für die **Metadaten-Sprache des
+   Servers** (F-10, entschieden; heute Deutsch); die anderen Sprachen holt der Server weiter von
+   den Anbietern.
 3. **Zuordnen:** der bestehende Dialog (Suche TMDB/TVDB, Treffer wählen).
 4. **Aktualisieren:** «Fehlendes ergänzen» (wie heute) oder «Alles neu laden» (überschreibt alle
    freien Felder und automatisch gewählten Bilder), dazu «Auch gesperrte Felder freigeben».
@@ -330,7 +386,7 @@ Keine Migration: Spalten, `locked_fields`, `item_images` und der Anbieter `manua
 neuen Operationen bekommen einen Eintrag im Vertragstest (Regel 7). Der Upload landet nie
 ausserhalb des Bild-Caches (Regel 4); die Bilder werden weiter `scoped` ausgeliefert.
 
-Aufwand: rund **6 Tage** (Server 2,5, Blatt und Reiter 2,5, Tests und Storybook 1).
+Aufwand: rund **6 Tage** (Server 2,5, Dialog und Reiter 2,5, Tests und Storybook 1).
 
 ## 8. P-7 Bibliotheken auf der Startseite
 
@@ -343,21 +399,60 @@ unter «Meine Medien». Eine Reihe je Bibliothek oder die Kachelreihe «Meine Me
 hat Marco am 29. Oktober 2026 **abgelehnt** (Konzept 08, Wunsch 2 und F-7; ADR 0016, Option e),
 damit die Startseite übersichtlich bleibt.
 
-### 8.2 Was gemeint sein kann (F-11)
+### 8.2 Varianten (Mockup, Anhang A.3)
 
-| Variante | Was es ist | Bau |
-|---|---|---|
-| **A · Reihe je Bibliothek** (Empfehlung) | In Startseitenreihen erscheint je Bibliothek eine zusätzliche Reihe «Neu in Filme», «Neu in Serien» usw. Jede lässt sich wie die anderen Reihen platzieren und ausblenden; ab Werk ausgeblendet. Inhalt: die neuesten Titel der Bibliothek (wie `sort=added` der Bibliotheksseite), Link «Alle» zur Bibliotheksseite. | Migration (`home_rows` neu mit `library_id`), Vertrag (Schlüssel plus `libraryId`), Admin-Seite, Startseite. |
-| **B · Kachelreihe «Meine Medien»** | Eine Reihe mit einer Kachel je Bibliothek (Name, Zahl, Bild), die zur Bibliotheksseite führt. Wie Emby. | Eine neue Reihenart `libraries`; kleiner als A. |
-| **C · Umschalter oben** | Chips «Alle · Filme · Serien · Dokus» über der Startseite; alle Reihen zeigen nur noch Titel der gewählten Bibliothek. | Jede Reihen-Abfrage bekommt einen Bibliotheksfilter; gross. |
+| Variante | Was es ist |
+|---|---|
+| A · Reihe je Bibliothek | In Startseitenreihen erscheint je Bibliothek eine Reihe «Neu in Filme», «Neu in Serien» usw., platzierbar und ausblendbar. |
+| B · Kachelreihe «Meine Medien» | Eine Reihe mit einer Kachel je Bibliothek (Name, Zahl, Bildcollage), die zur Bibliotheksseite führt, wie in Emby. |
+| C · Umschalter oben | Chips «Alle · Filme · Serien …» filtern alle Reihen auf eine Bibliothek. |
 
-Empfehlung **A**, weil sie zu Marcos Wort «auswählen und anzeigen» passt und die bestehende Seite
-Startseitenreihen nur erweitert. Ihre Grenze: Spec E-9 erlaubt höchstens acht Reihen. Vorschlag
-(F-12): **höchstens acht sichtbare Reihen**, beliebig viele ausgeblendete; wer eine
-Bibliotheksreihe einblendet, blendet eine andere aus. So bleibt E-9 wörtlich erfüllt.
+**Marcos Wahl (F-11): A und B zusammen.** «Meine Medien finde ich gut. Jedoch möchte ich auch Neu
+in Filme, Neu in Serien etc. für jede Bibliothek. Die Verwaltung soll dieses auch anzeigen.» Und
+zur Anzahl (F-12): «15 Plätze soll reichen.»
 
-Aufwand A: rund **2,5 Tage**, Migration 00034, Vertrag 1.14.0. Die Reihen bleiben für den ganzen
-Server gleich; je Profil wählen ist nicht Teil dieses Papiers.
+### 8.3 Bau
+
+- **Neue Reihen:**
+  - **«Meine Medien»** (Schlüssel `libraries`): eine Kachel je Bibliothek, die das Profil sehen
+    darf (`ListVisibleLibraries`, eine Bibliothek zählt nur mit mindestens einem sichtbaren
+    Titel), in der Reihenfolge der Seitenleiste. Die Kachel zeigt Name, Zahl der Titel und eine
+    Collage aus vier Postern der neuesten Titel; ein Klick öffnet die Bibliotheksseite.
+  - **«Neu in <Bibliothek>»** (Schlüssel `library`, mit `libraryId`): die neuesten sichtbaren Titel
+    der Bibliothek, wie die Bibliotheksseite mit `sort=added`, höchstens 20; «Alle anzeigen» führt
+    zur Bibliotheksseite, sortiert nach «Neu hinzugefügt». Eine Reihe je Bibliothek, auch für
+    Hörbücher und Podcasts.
+- **Verwaltung › Startseitenreihen** zeigt **alle** Reihen: die acht bisherigen, «Meine Medien»
+  und je Bibliothek eine Zeile «Neu in …» mit dem Zusatz «Bibliothek». Platz und Ausblenden wie
+  heute. Ab Werk: «Meine Medien» und alle Bibliotheksreihen **ausgeblendet**, am Ende der Liste;
+  die Startseite sieht nach dem Update aus wie vorher.
+- **Neue Bibliothek:** bekommt ihre Zeile «Neu in …» automatisch, ausgeblendet, am Ende.
+  **Gelöschte Bibliothek:** ihre Zeile verschwindet.
+- **Höchstens 15 Plätze** (F-12): Die Liste hat höchstens 15 Zeilen **sichtbar**; ausgeblendete
+  zählen nicht. Wer bei 15 sichtbaren eine weitere einblendet, bekommt den Hinweis «Schon 15
+  Reihen sichtbar. Blende zuerst eine andere aus.» Leere Reihen bleiben wie heute verborgen
+  (E-9). Spec E-9 ändert sich von acht auf fünfzehn (Abschnitt 10).
+- **Reihen bleiben für den ganzen Server gleich**; nur ihr Inhalt richtet sich nach dem Profil.
+  Die Bibliotheksreihen zeigen nur sichtbare Titel (Regel 2; Abfrage in `queries/scoped/` mit
+  `visible_items`). Eine Bibliothek, die ein Profil nicht sieht, fehlt dort ganz.
+- **Speicher (Migration):** `home_rows` wird neu aufgebaut, weil der CHECK auf acht Schlüssel fällt:
+  Spalten `key` (`spotlight`, `picks`, …, `libraries`, `library`), `library_id` (nur bei
+  `library`, Fremdschlüssel mit `ON DELETE CASCADE`), `position`, `hidden`, eindeutig je
+  `(key, library_id)`. Die Migration übernimmt die acht Zeilen und legt «Meine Medien» und eine
+  Zeile je bestehender Bibliothek ausgeblendet an.
+- **Vertrag:** `HomeRowKey` bekommt `libraries` und `library`; `HomeRow` und `HomeRowSetting`
+  ein optionales `libraryId`; `HomePage.rows` `maxItems` 15; `setHomeRows` nimmt die ganze Liste
+  in neuer Länge (jede Zeile genau einmal), `HomeRowSetting.position` bis 14 plus Zahl der
+  ausgeblendeten (Grenze im Server, nicht im Schema). Die Reihe «Meine Medien» liefert ihre
+  Kacheln als neues Feld `libraries` am `HomeRow`. Bricht das alte Clients? Ein alter Client kennt
+  die neuen Schlüssel nicht und überspringt sie (`labels.ts` hat einen Rückfall); der Vertrag
+  wird darum **1.15.0, additiv**, sofern der Vertragstest das bestätigt.
+- **Vorabmalerei:** malt bei «Meine Medien» oder einer Bibliotheksreihe an erster Stelle deren
+  Poster wie bei jeder Posterreihe.
+- **Tests:** `contract_home_rows_test.go`, `discover_test.go`, `HomeRowsPage` (Vitest, Storybook),
+  `e2e/home.spec.ts`, neue Tastaturprüfung der Kachelreihe (Regel 8).
+
+Aufwand: rund **3 Tage**.
 
 ## 9. P-8 «Update installieren»
 
@@ -380,12 +475,12 @@ Server gleich; je Profil wählen ist nicht Teil dieses Papiers.
 
 | Variante | Wie | Bewertung |
 |---|---|---|
-| **A · Updater-Begleiter** (Empfehlung) | Ein kleiner zweiter Container `slouchcat-updater` im Compose-Profil `updater`, **nur er** bekommt `/var/run/docker.sock` und den Ordner `deploy/`. Er hat keinen offenen Port, nur das interne Docker-Netz, und nimmt nur einen Auftrag an: «installiere Version X», wobei X die Version aus dem Manifest ist und neuer als die laufende. Ablauf: `.env` sichern (`.env.bak-vor-X`), `SLOUCHCAT_VERSION=X` setzen, `docker compose pull slouchcat`, Image-Digest gegen das Manifest prüfen, `docker compose up -d slouchcat`, auf `healthy` warten. Wird der Server nicht gesund, setzt er die alte Version zurück und meldet den Fehler. | Ein Klick für Marco; die gefährliche Berechtigung liegt in einem Container ohne Webseite, ohne Benutzer und ohne Medien. Ab Werk nicht dabei; wer ihn will, startet das Profil. |
+| **A · Updater-Begleiter** (**Marcos Wahl**, F-13) | Ein kleiner zweiter Container `slouchcat-updater` im Compose-Profil `updater`, **nur er** bekommt `/var/run/docker.sock` und den Ordner `deploy/`. Er hat keinen offenen Port, nur das interne Docker-Netz, und nimmt nur einen Auftrag an: «installiere Version X», wobei X die Version aus dem Manifest ist und neuer als die laufende. Ablauf: `.env` sichern (`.env.bak-vor-X`), `SLOUCHCAT_VERSION=X` setzen, `docker compose pull slouchcat`, Image-Digest gegen das Manifest prüfen, `docker compose up -d slouchcat`, auf `healthy` warten. Wird der Server nicht gesund, setzt er die alte Version zurück und meldet den Fehler. | Ein Klick für Marco; die gefährliche Berechtigung liegt in einem Container ohne Webseite, ohne Benutzer und ohne Medien. Ab Werk nicht dabei; wer ihn will, startet das Profil. |
 | B · Docker-Socket im Slouchcat-Container | Der Server selbst steuert Docker. | **Abgelehnt.** Wer die Web-App übernimmt, hätte Root auf dem Gastgeber. |
 | C · Nur Anleitung | Der Knopf zeigt die zwei Befehle zum Kopieren. | Ohne Risiko, aber kein Installieren. Gilt als **Rückfall**, wenn der Updater fehlt. |
 | D · Watchtower | Fremdes Werkzeug, aktualisiert von selbst. | **Abgelehnt.** Widerspricht dem gepinnten Tag und dem bewussten Schritt; kein Knopf, keine Rücknahme. |
 
-### 9.3 Vorschlag (Variante A mit Rückfall C)
+### 9.3 Bau (Variante A mit Rückfall C; F-13, F-14, F-15 entschieden)
 
 - **Auf der Karte «Server»:** Ist eine neuere Version da, erscheint **«Update auf 1.13.1
   installieren»** mit den Release-Notizen in einem Bestätigungsdialog («Der Server startet neu;
@@ -398,7 +493,11 @@ Server gleich; je Profil wählen ist nicht Teil dieses Papiers.
   in `/config` (nie im Log, Regel 10).
 - **Rücknahme:** Migrationen gehen nur vorwärts (Regel 5). Ist beim Update eine Migration gelaufen,
   geht zurück nur mit der Sicherung, die der Server vor der Migration anlegt; der Updater setzt
-  dann die alte Version **nicht** von selbst zurück, sondern meldet es.
+  dann die alte Version **nicht** von selbst zurück, sondern meldet es. Ohne Migration setzt er
+  bei einem gescheiterten Start **selbst** auf die alte Version zurück (F-14) und meldet das auf
+  der Karte und als Ereignis «Fehler» an die Administratoren.
+- **CT 190** bekommt das Profil `updater` für die Abnahme (F-15); `docs/INSTALLATION.md` und
+  `deploy/README.md` beschreiben das Profil als freiwillig.
 - **Nebenbefund beheben:** Nach einer fehlgeschlagenen Prüfung versucht es der Server nach
   **15 min, 1 h und 6 h** erneut, das Zeitlimit steigt auf **20 s**. Das ist ein eigener kleiner
   Schritt ohne Vertrag (Abschnitt 12, Stufe 1).
@@ -408,69 +507,76 @@ Aufwand: rund **4 Tage** (Updater 2, Server und Karte 1, Doku und Test auf CT 19
 
 ## 10. Was sich gegenüber früheren Entscheiden ändert
 
-| Früherer Entscheid | Was dieses Papier vorschlägt | Frage |
+| Früherer Entscheid | Was dieses Konzept entscheidet | Frage |
 |---|---|---|
-| Konzept 08, N-4 (Marcos Nachtrag 30. Oktober 2026); ADR 0016 | Spotlight-Reihe rückt bei jedem Wechsel, aktives Poster immer links. | F-6 |
-| Konzept 08, Wunsch 2 und F-7; ADR 0016 Option e; Entscheidungsprotokoll «Nicht gebaut» | Reihen je Bibliothek werden möglich, ab Werk ausgeblendet. | F-11 |
-| Spec E-9 (höchstens acht Reihen) | Höchstens acht **sichtbare** Reihen. | F-12 |
+| Konzept 08, N-4 (Marcos Nachtrag 30. Oktober 2026); ADR 0016 | Spotlight-Reihe als Endlosband: aktives Poster immer vorne, gezeigte Titel hinten an, kein Leerraum und keine Endsperre. | F-6 |
+| Konzept 08, Wunsch 2 und F-7; ADR 0016 Option e; Entscheidungsprotokoll «Nicht gebaut» | Kachelreihe «Meine Medien» und je Bibliothek eine Reihe «Neu in …», ab Werk ausgeblendet. | F-11 |
+| Spec E-9 (höchstens acht Reihen) | Höchstens **fünfzehn** sichtbare Reihen; leere bleiben verborgen. | F-12 |
 | Konzept 11, O-3; Konzept 12, S-1 | «Benachrichtigungen» öffnet in der Verwaltung; `/settings/notifications` bleibt für alle. | F-7 |
 | Konzept 13 (Kapitelbilder nachholen), Konzept 10 (Originalsprachen nachholen) | Beide werden Zeitplan-Jobs, Zeitplan ab Werk aus. | F-3 |
-| `deploy/compose.yaml`, Kommentar «Update ist ein bewusster Schritt»; Spec A-5 | Update per Knopf, wenn der Updater-Begleiter eingerichtet ist. | F-13 bis F-15 |
+| Konzept 09 (Pause ist das einzige Halten einer automatischen Jobart); Konzept 14 F-3 (`override_pause` nur für die Pause) | Zeitfenster je Jobart für drei schwere automatische Jobs; das Merkmal «für Wiedergabe» gilt für Pause und Fenster. | F-5 |
+| `deploy/compose.yaml`, Kommentar «Update ist ein bewusster Schritt»; Spec A-5 | Update per Knopf, wenn der Updater-Begleiter eingerichtet ist; sonst Anleitung. | F-13 bis F-15 |
 
-## 11. Fragen an Marco
+Mit dem Baubeginn trägt Schritt 0 **Frage 22** ins Entscheidungsprotokoll ein (alle Antworten aus
+Abschnitt 11) und ergänzt Spec E-9 und A-5, Konzept 08 (N-4, F-7), ADR 0016 und ADR 0017 je mit
+einem Hinweis auf dieses Konzept.
 
-| Nr. | Frage | Empfehlung |
-|---|---|---|
-| F-1 | Weiterschauen: Wohin führt der Klick auf eine Serienkarte? (a) Detailseite der Folge mit «Fortsetzen», (b) sofort weiterspielen, (c) Serienseite mit der Folge vorgewählt. | **(a)**, wie heute bei Folgen. |
-| F-2 | Weiterschauen: Soll eine Serie nach einer fertig gesehenen Folge mit der **nächsten** Folge in der Reihe bleiben (wie «Als Nächstes» in Emby)? | **Ja**, höchstens 60 Tage nach der letzten Aktivität. |
-| F-3 | Hintergrundjobs: «Kapitelbilder nachholen» und «Originalsprachen nachholen» einplanbar machen (Zeitplan ab Werk aus)? | **Ja.** |
-| F-4 | Hintergrundjobs: Statt «bei Bedarf» «automatisch» schreiben? | **Ja**, mit dem Satz im aufgeklappten Feld. |
-| F-5 | Hintergrundjobs: Zeitfenster für schwere automatische Jobs (nur nachts)? | **Nicht jetzt.** |
-| F-6 | Spotlight: Variante A, B oder C (Mockup A.1)? | **B · immer links.** |
-| F-7 | Benachrichtigungen: Eigene Seite in der Verwaltung, `/settings/notifications` bleibt für alle? | **Ja.** |
-| F-8 | Metadaten: Variante A, B oder C (Mockup A.2)? | **B · Seitenblatt.** |
-| F-9 | Metadaten: Stift auf Detailseite **und** Bibliotheksraster (am Handy nur Detailseite)? Auch auf den Reihen der Startseite? | **Detailseite und Raster, nicht Startseite.** |
-| F-10 | Metadaten: Für welche Sprache gelten bearbeitete Texte? (a) die Sprache der Metadaten des Servers (Deutsch), (b) wählbar im Blatt. | **(a)**; andere Sprachen holt der Server weiter. |
-| F-11 | Bibliotheken auf der Startseite: Meinst du A (Reihe je Bibliothek), B (Kachelreihe «Meine Medien») oder C (Umschalter oben)? | **A.** |
-| F-12 | Bibliotheken: Höchstens acht sichtbare Reihen, beliebig viele ausgeblendete? | **Ja.** |
-| F-13 | Update: Updater-Begleiter (A) bauen, mit Anleitung als Rückfall? | **Ja.** |
-| F-14 | Update: Soll der Updater nach einem gescheiterten Start ohne Migration selbst auf die alte Version zurück? | **Ja**; mit Migration nur melden. |
-| F-15 | Update: Auf CT 190 gleich einrichten (Profil `updater`)? | **Ja**, zum Abnehmen. |
-| F-16 | Reihenfolge: Stufen 1 → 2 → 3 → 4 wie in Abschnitt 12, jede Stufe ein eigenes Release? | **Ja.** |
+## 11. Fragen an Marco und seine Antworten (5. November 2026)
+
+| Nr. | Frage | Empfehlung | **Antwort** |
+|---|---|---|---|
+| F-1 | Weiterschauen: Wohin führt der Klick auf eine Serienkarte? | Detailseite der Folge | **Detailseite der Folge** |
+| F-2 | Weiterschauen: Serie bleibt nach fertiger Folge mit der nächsten Folge? | Ja, 60 Tage | **Ja, bis 60 Tage** |
+| F-3 | «Kapitelbilder nachholen» und «Originalsprachen nachholen» einplanbar? | Ja | **Ja** |
+| F-4 | «automatisch» statt «bei Bedarf»? | Ja | **Ja** |
+| F-5 | Zeitfenster für schwere automatische Jobs? | Nicht jetzt | **Ja, in Konzept 15; je Job einstellbar; Wiedergabe sofort, trotz Fenster** |
+| F-6 | Spotlight: A, B oder C? | B | **C · Endlosband** |
+| F-7 | Benachrichtigungen als Seite in der Verwaltung? | Ja | **Ja** |
+| F-8 | Metadaten-Editor: A, B oder C? | B · Seitenblatt | **A · Dialog wie Emby** |
+| F-9 | Wo steht der Stift? | Detailseite und Raster | **Detailseite und Bibliotheksraster, nur für den Server-Administrator** |
+| F-10 | Sprache der bearbeiteten Texte? | Sprache des Servers | **Sprache des Servers** |
+| F-11 | Bibliotheken auf der Startseite: A, B oder C? | A | **«Meine Medien» (B) und je Bibliothek «Neu in …» (A); die Verwaltung zeigt alle** |
+| F-12 | Wie viele Reihen? | höchstens 8 sichtbare | **15 Plätze** |
+| F-13 | Updater-Begleiter mit Anleitung als Rückfall? | Ja | **Ja** |
+| F-14 | Updater nimmt einen gescheiterten Start ohne Migration selbst zurück? | Ja | **Ja; mit Migration nur melden** |
+| F-15 | Updater auf CT 190 einrichten? | Ja | **Ja** |
+| F-16 | Vier Stufen, je ein Release? | Ja | **Ja** |
 
 ## 12. Bauplan in Stufen
 
 | Stufe | Inhalt | Vertrag / Migration | Aufwand |
 |---|---|---|---|
-| **1 · nur Web-App und kleine Server-Fixes** | P-2 Beschreibungen, P-3 Anzeige «automatisch» und zwei Jobs einplanbar, P-4 Benachrichtigungen in der Verwaltung, P-5 Spotlight B, Wiederholung der Update-Prüfung (9.3) | unverändert, Release 1.13.2 / keine | ≈ 3 Tage |
-| **2 · Weiterschauen** | P-1 mit nächster Folge (F-2) | 1.14.0 (additiv) / keine | ≈ 2 Tage |
-| **3 · Titelpflege und Startseite** | P-6 Seitenblatt mit vier Reitern, Upload, Schlösser; P-7 Reihen je Bibliothek | 1.15.0 / 00034 | ≈ 8,5 Tage |
-| **4 · Update installieren** | P-8 Updater-Begleiter, Knopf, ADR 0024, Doku, Abnahme auf CT 190 | 1.16.0 / keine | ≈ 4 Tage |
+| **1 · Web-App und kleine Server-Fixes** | P-2 Beschreibungen, P-3 Anzeige «automatisch» und zwei Jobs einplanbar, P-4 Benachrichtigungen in der Verwaltung, P-5 Spotlight als Endlosband, Wiederholung der Update-Prüfung (9.3) | unverändert, Release 1.13.2 / keine | ≈ 3,5 Tage |
+| **2 · Weiterschauen und Zeitfenster** | P-1 mit nächster Folge, P-3 Zeitfenster je Jobart (4.3) | 1.14.0 (additiv) / 00034 (`job_types`) | ≈ 3,5 Tage |
+| **3 · Titelpflege und Startseite** | P-6 Dialog mit vier Reitern, Upload, Schlösser; P-7 «Meine Medien» und «Neu in …», 15 Plätze | 1.15.0 / 00035 (`home_rows`) | ≈ 9 Tage |
+| **4 · Update installieren** | P-8 Updater-Begleiter, Knopf, ADR 0024, Doku, Einrichtung und Abnahme auf CT 190 | 1.16.0 / keine | ≈ 4 Tage |
 
 - Jeder Planschritt ist ein eigener Commit mit DoD-Belegen der Stufe 1 der Teststufen
   (`task check:fast` und die betroffenen Tests); vor jedem Pull Request `task ci` grün
   (`CLAUDE.md`, «Arbeitsweise»).
-- Jede neue oder umgebaute Seite hat ihren Playwright-Tastaturtest (Regel 8): Seitenblatt
-  (Tab-Reihenfolge, Escape schliesst, Fokus zurück auf den Stift, keine Fokusfalle ausser im
-  offenen Blatt), Admin-Seite Benachrichtigungen, Spotlight.
-- Abnahme je Stufe auf CT 190.
+- Jede neue oder umgebaute Seite hat ihren Playwright-Tastaturtest (Regel 8): Metadaten-Dialog
+  (Tab-Reihenfolge, Escape schliesst, Fokus zurück auf den Stift, keine Fokusfalle ausserhalb des
+  offenen Dialogs), Admin-Seite Benachrichtigungen, Spotlight, Kachelreihe «Meine Medien».
+- Abnahme je Stufe auf CT 190; jede Stufe erscheint als eigenes Release (F-16).
 
 ## 13. Was nicht dazugehört
 
 - Startseitenreihen **je Profil** (bleiben für den ganzen Server).
 - Bearbeiten von **Besetzung**, Studios und Schlagworten; eine Sperre «ganzer Titel» wie in Emby
   (die Schlösser je Feld reichen).
+- Texte in anderen Sprachen als der Server-Sprache bearbeiten (F-10).
 - Hochladen von Bildern **von einer Adresse** (nur Datei vom Gerät).
 - Automatische Updates ohne Knopf, Updates von Vorabversionen, Rückkehr über eine Migration hinweg.
-- Zeitfenster für automatische Jobs (F-5, später).
+- Zeitfenster für andere als die drei schweren automatischen Jobs.
 - Alles aus den Non-Goals der Spec (Regel 11).
 
 ## Anhang A. Mockups
 
-Beide sind privat; Marco kann sie teilen. Die Kopien im Repository enthalten keine Filmbilder,
+Alle drei sind privat; Marco kann sie teilen. Die Kopien im Repository enthalten keine Filmbilder,
 nur Platzhalter-Flächen (das Repository ist öffentlich).
 
 | Nr. | Inhalt | Artefakt | Kopie im Repository |
 |---|---|---|---|
-| A.1 | Spotlight-Reihe, Varianten A/B/C, Desktop und Handy, Takt 5 s, Pause, Tastatur | <https://claude.ai/artifact/MXs2iAKkryJTKLSNZzZMXd> | `docs/planning/mockups/15-spotlight-prototyp.html` |
-| A.2 | Metadaten bearbeiten, Varianten A/B/C, Detailseite und Bibliothek, Film und Folge, vier Reiter, echtes Hochladen im Browser | <https://claude.ai/artifact/FiyTRoDydz7rJqhEB5eVcP> | `docs/planning/mockups/15-metadaten-prototyp.html` |
+| A.1 | Spotlight-Reihe, Varianten A/B/C, Desktop und Handy, Takt 5 s, Pause, Tastatur; gewählt **C** | <https://claude.ai/artifact/MXs2iAKkryJTKLSNZzZMXd> | `docs/planning/mockups/15-spotlight-prototyp.html` |
+| A.2 | Metadaten bearbeiten, Varianten A/B/C, Detailseite und Bibliothek, Film und Folge, vier Reiter, echtes Hochladen im Browser; gewählt **A** | <https://claude.ai/artifact/FiyTRoDydz7rJqhEB5eVcP> | `docs/planning/mockups/15-metadaten-prototyp.html` |
+| A.3 | Bibliotheken auf der Startseite, Varianten A/B/C mit der Verwaltungsseite Startseitenreihen; gewählt **A und B** | <https://claude.ai/artifact/TFBzRhLp2nHkd5xgUTZQ1J> | `docs/planning/mockups/15-bibliotheken-prototyp.html` |

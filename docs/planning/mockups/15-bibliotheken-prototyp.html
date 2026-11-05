@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Startseite Bibliotheken Prototyp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+</head>
+<body>
+<style>
+  /* Layout: switches on top, then the home page (or the admin page "Startseitenreihen" for variant A)
+     in a desktop or phone frame, the notes of the chosen variant underneath. Slouchcat tokens, dark only. */
+  :root {
+    color-scheme: dark;
+    --bg-base: #0b0c10; --bg-elevated: #13151b;
+    --surface-1: #16181f; --surface-2: #1d2029; --surface-3: #262a35;
+    --text-primary: #f3f3f5; --text-secondary: #b6b9c4; --text-muted: #9095a3;
+    --border-subtle: #ffffff14; --focus: #f3f3f5; --track: #ffffff33;
+    --scrim-strong: #0b0c10cc; --scrim-clear: #0b0c1000;
+    --accent: #e8794a; --on-accent: #1c0d06; --accent-soft: #e8794a33;
+    --success: #5fcf8f; --warning: #e8b65a; --muted-dot: #6b7080;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --gutter: 32px; --card: 150px; --gap: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 48px; line-height: 1.45;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+  .intro h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--text-secondary); max-width: 80ch; font-size: .9rem; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .group > span { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--surface-1); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button { font: inherit; font-size: .82rem; color: var(--text-secondary); background: transparent; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text-primary); }
+  .seg button:hover { color: var(--text-primary); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  button { font: inherit; }
+
+  .frame { position: relative; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 14px; overflow: hidden; width: 100%; margin-inline: auto; padding-block: 20px 28px; display: grid; gap: 26px; }
+  .frame.phone { max-width: 390px; --gutter: 16px; --gap: 10px; --card: calc((390px - 32px - 20px) / 3); }
+  .top { display: flex; align-items: center; gap: 14px; padding: 0 var(--gutter); flex-wrap: wrap; }
+  .brand { font-weight: 800; letter-spacing: -0.02em; }
+  .brand span { color: var(--accent); }
+  .chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 2px var(--gutter); }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { border: 1px solid var(--border-subtle); background: var(--surface-1); color: var(--text-secondary); border-radius: 999px; padding: 6px 14px; font-size: .85rem; cursor: pointer; white-space: nowrap; }
+  .chip[aria-pressed="true"] { background: var(--text-primary); color: var(--bg-base); border-color: var(--text-primary); font-weight: 600; }
+  .chip small { opacity: .7; margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+  .sec { display: grid; gap: 10px; }
+  .sec h2 { margin: 0; padding: 0 var(--gutter); font-size: 1.1rem; display: flex; align-items: baseline; gap: 10px; }
+  .sec h2 a { font-size: .8rem; font-weight: 400; color: var(--text-muted); text-decoration: none; margin-left: auto; }
+  .sec h2 .tag { font-size: .68rem; font-weight: 500; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 8px; }
+  .row { display: flex; gap: var(--gap); overflow-x: auto; scrollbar-width: none; padding: 0 var(--gutter); scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); }
+  .row::-webkit-scrollbar { display: none; }
+  .card { flex: 0 0 var(--card); scroll-snap-align: start; min-width: 0; }
+  .p { aspect-ratio: 2/3; border-radius: 10px; display: flex; align-items: flex-end; padding: 8px; font-size: .78rem; font-weight: 700; line-height: 1.1; position: relative; overflow: hidden; }
+  .phone .p { font-size: .66rem; }
+  .p.act { outline: 3px solid var(--accent); outline-offset: -3px; }
+  .bar2 { position: absolute; left: 8px; right: 8px; bottom: 6px; height: 3px; border-radius: 2px; background: var(--track); }
+  .bar2 i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+  .cap { font-size: .8rem; margin-top: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cap small { display: block; color: var(--text-muted); font-size: .72rem; }
+  .phone .cap { font-size: .7rem; }
+
+  .tiles { display: flex; gap: var(--gap); overflow-x: auto; scrollbar-width: none; padding: 0 var(--gutter); }
+  .tiles::-webkit-scrollbar { display: none; }
+  .tile { flex: 0 0 260px; aspect-ratio: 16/9; border-radius: 12px; border: 0; padding: 0; cursor: pointer; position: relative; overflow: hidden; color: var(--text-primary); text-align: left; display: grid; grid-template-columns: repeat(4, 1fr); }
+  .phone .tile { flex-basis: 200px; }
+  .tile i { display: block; height: 100%; }
+  .tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--scrim-strong) 10%, var(--scrim-clear) 70%); }
+  .tile b { position: absolute; left: 12px; bottom: 10px; z-index: 1; font-size: 1rem; }
+  .tile small { position: absolute; right: 12px; bottom: 12px; z-index: 1; font-size: .75rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+  /* Admin page */
+  .admin { padding: 0 var(--gutter); display: grid; gap: 12px; }
+  .admin h2 { margin: 0; font-size: 1.1rem; }
+  .admin .count { font-size: .82rem; color: var(--text-secondary); }
+  .admin .count b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .admin .count.full b { color: var(--warning); }
+  .tbl { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  .tblwrap { overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: 12px; }
+  .tbl th { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+  .tbl td { padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); white-space: nowrap; }
+  .tbl tr:last-child td { border-bottom: 0; }
+  .tbl tr.libr td:nth-child(2) b::after { content: " · Bibliothek"; font-weight: 400; color: var(--text-muted); font-size: .78rem; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--success); }
+  .dot.off { background: var(--muted-dot); }
+  .tbl select { font: inherit; font-size: .82rem; background: var(--surface-3); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 4px 8px; }
+  .tbl input { accent-color: var(--accent); }
+  .tbl label { display: inline-flex; gap: 6px; align-items: center; color: var(--text-secondary); cursor: pointer; }
+  .warn { font-size: .8rem; color: var(--warning); min-height: 1.2em; }
+
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .notes > div { background: var(--surface-1); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .notes h3 { margin: 0 0 6px; font-size: .95rem; }
+  .notes ul { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: .86rem; display: grid; gap: 4px; }
+  .notes .pro h3 { color: var(--success); } .notes .con h3 { color: var(--warning); }
+  .toast { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 9; background: var(--surface-3); border-radius: 999px; padding: 8px 16px; font-size: .85rem; white-space: nowrap; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Konzept 15 · Bibliotheken auf der Startseite</h1>
+    <p>Klickbarer Prototyp für Punkt 7, drei Varianten. Bei A siehst du zusätzlich die Verwaltungsseite
+       «Startseitenreihen»: Blende dort Bibliotheksreihen ein oder aus und verschiebe sie; die Startseite
+       folgt. Es bleiben höchstens acht sichtbare Reihen. «Weiterschauen» zeigt schon die Serienkarten aus Punkt 1.
+       Poster sind Platzhalter.</p>
+  </div>
+  <div class="bar">
+    <div class="group"><span>Variante</span>
+      <div class="seg" id="variant">
+        <button type="button" data-v="a" aria-pressed="true">A · Reihe je Bibliothek</button>
+        <button type="button" data-v="b" aria-pressed="false">B · Kacheln «Meine Medien»</button>
+        <button type="button" data-v="c" aria-pressed="false">C · Umschalter oben</button>
+      </div>
+    </div>
+    <div class="group" id="pagegrp"><span>Seite</span>
+      <div class="seg" id="page">
+        <button type="button" data-v="home" aria-pressed="true">Startseite</button>
+        <button type="button" data-v="admin" aria-pressed="false">Verwaltung › Startseitenreihen</button>
+      </div>
+    </div>
+    <div class="group"><span>Ansicht</span>
+      <div class="seg" id="view">
+        <button type="button" data-v="desk" aria-pressed="true">Desktop</button>
+        <button type="button" data-v="phone" aria-pressed="false">Handy</button>
+      </div>
+    </div>
+  </div>
+  <div class="frame" id="frame"></div>
+  <div class="notes" id="notes"></div>
+</div>
+
+<script>
+const PAL = [["#3b5b7a","#16202b"],["#7a3b3b","#2b1616"],["#4f7a5e","#162b1f"],["#7a6a3b","#2b2516"],["#5e5e6e","#1c1c24"],["#8a5a2a","#2b1d10"],["#2f6a6a","#0f2424"],["#8a3a5a","#2b1020"],["#3a4a8a","#10162b"],["#6a8a9a","#18242b"]];
+const LIBS = [
+  { id: "filme", name: "Filme", count: 1240, titles: ["Nebelküste", "Die letzte Fähre", "Gipfelsturm", "Masterplan Zürich", "Ende der Eichenallee", "Meuterei", "Mayday", "Sternfahrt", "Das Haus am Hang", "Tribut"] },
+  { id: "serien", name: "Serien", count: 186, titles: ["Zwei Brüder am Strand", "Silo der Stille", "Hafenwache", "Bergdoktorin", "Die Kanzlei", "Nachtschicht", "Weltraumfrachter", "Kommissar Bär", "Das Internat", "Grenzland"] },
+  { id: "dokus", name: "Dokus", count: 94, titles: ["Unser Planet: Meere", "Die Alpen von oben", "Bienenvolk", "Eisenbahn-Legenden", "Vulkane", "Das Gotthard-Projekt", "Wale", "Urwald", "Die Rhone", "Nordlicht"] },
+  { id: "kinder", name: "Kinder", count: 210, titles: ["Spielzeugkiste", "Kater Konrad", "Die kleine Raupe", "Drachenzähmer", "Piratenbucht", "Mondbär", "Zauberwald", "Roboterfreunde", "Pinguin Paul", "Schneeflocke"] },
+  { id: "hoerbuecher", name: "Hörbücher", count: 58, titles: ["Der Name der Rose", "Die Physiker", "Homo Faber", "Heidi", "Der Steppenwolf", "Momo", "Krabat", "Der Richter und sein Henker", "Die Verwandlung", "Siddhartha"] }
+];
+const CONT = [["Zwei Brüder am Strand", "S4 · F7 · Noch 20 min", 0.4, "serien"], ["Nebelküste", "Noch 59 min", 0.55, "filme"], ["Silo der Stille", "S1 · F4 · Neu", 0, "serien"], ["Coco-Abend", "Noch 1 h 45 min", 0.1, "kinder"], ["Hafenwache", "S2 · F1 · Noch 41 min", 0.25, "serien"], ["Die Alpen von oben", "Noch 22 min", 0.6, "dokus"], ["Heidi", "Kapitel 9 · Noch 3 h", 0.3, "hoerbuecher"]];
+const S = {
+  v: "a", page: "home", view: "desk", lib: "all", toast: "",
+  rows: [
+    { key: "spotlight", name: "Spotlight", hidden: false },
+    { key: "picks", name: "Cat's Empfehlungen", hidden: true },
+    { key: "continue", name: "Weiterschauen", hidden: false },
+    { key: "recent", name: "Neu hinzugefügt", hidden: false },
+    { key: "lib:filme", name: "Neu in Filme", hidden: false, lib: "filme" },
+    { key: "lib:serien", name: "Neu in Serien", hidden: false, lib: "serien" },
+    { key: "released", name: "Kürzlich veröffentlicht", hidden: true },
+    { key: "watchlist", name: "Merkliste", hidden: false },
+    { key: "lib:dokus", name: "Neu in Dokus", hidden: true, lib: "dokus" },
+    { key: "lib:kinder", name: "Neu in Kinder", hidden: true, lib: "kinder" },
+    { key: "lib:hoerbuecher", name: "Neu in Hörbücher", hidden: true, lib: "hoerbuecher" },
+    { key: "collections", name: "Sammlungen", hidden: false },
+    { key: "genres", name: "Genres", hidden: false }
+  ]
+};
+const MAX = 8;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const grad = (k, a = 160) => `linear-gradient(${a}deg, ${PAL[k % PAL.length][0]} 0%, ${PAL[k % PAL.length][1]} 90%)`;
+const libOf = id => LIBS.find(l => l.id === id);
+
+function card(t, sub, k, prog) {
+  return `<div class="card"><div class="p" style="background:${grad(k)}">${esc(t)}${prog !== undefined && prog > 0 ? `<span class="bar2"><i style="width:${prog * 100}%"></i></span>` : ""}</div><div class="cap">${esc(t)}<small>${esc(sub)}</small></div></div>`;
+}
+function rowHTML(title, items, more, tag) {
+  return `<section class="sec"><h2>${esc(title)}${tag ? `<span class="tag">${tag}</span>` : ""}${more ? `<a href="#" data-more="${more}">Alle anzeigen ›</a>` : ""}</h2><div class="row">${items.join("")}</div></section>`;
+}
+function mixed(n, seed, filter) {
+  const libs = filter === "all" ? LIBS.filter(l => l.id !== "hoerbuecher") : [libOf(filter)];
+  const out = [];
+  for (let k = 0; k < n; k++) { const l = libs[(k + seed) % libs.length]; const t = l.titles[(k * 3 + seed) % l.titles.length]; out.push(card(t, l.name === "Serien" ? "Serie · 2026" : "2026", k + seed + LIBS.indexOf(l) * 2)); }
+  return out;
+}
+function rowFor(r, filter) {
+  switch (r.key) {
+    case "spotlight": return `<section class="sec"><h2>Spotlight</h2><div class="row">${mixed(8, 1, filter === "all" ? "filme" : filter).map((c, i) => i === 0 ? c.replace('class="p"', 'class="p act"') : c).join("")}</div></section>`;
+    case "continue": {
+      const list = CONT.filter(c => filter === "all" || c[3] === filter);
+      if (!list.length) return "";
+      return rowHTML("Weiterschauen", list.map((c, k) => card(c[0], c[1], k + 2, c[2])));
+    }
+    case "recent": return rowHTML("Neu hinzugefügt", mixed(10, 2, filter));
+    case "released": return rowHTML("Kürzlich veröffentlicht", mixed(10, 4, filter));
+    case "watchlist": return rowHTML("Merkliste", mixed(6, 5, filter));
+    case "picks": return rowHTML("Cat's Empfehlungen", mixed(6, 6, filter));
+    case "collections": return filter === "all" || filter === "filme" ? rowHTML("Sammlungen", ["Harry-Potter-Reihe", "Pixar", "Bond", "Marvel", "Herr der Ringe", "Studio Ghibli"].map((t, k) => card(t, "Sammlung", k + 3))) : "";
+    case "genres": return rowHTML("Genres", ["Action", "Drama", "Komödie", "Krimi", "Doku", "Familie", "Horror", "Thriller"].map((t, k) => card(t, "Genre", k + 5)));
+    default: {
+      const l = libOf(r.lib);
+      return rowHTML(r.name, l.titles.map((t, k) => card(t, l.id === "serien" ? "Serie · neu" : "neu", k + LIBS.indexOf(l) * 3)), l.id, "Bibliothek");
+    }
+  }
+}
+function visibleRows() { return S.rows.filter(r => !r.hidden); }
+
+function renderHome() {
+  let h = `<div class="top"><div class="brand">Slouch<span>cat</span></div></div>`;
+  if (S.v === "c") {
+    h += `<div class="chips" role="toolbar" aria-label="Bibliothek">${[{ id: "all", name: "Alle", count: LIBS.reduce((a, l) => a + l.count, 0) }, ...LIBS].map(l => `<button type="button" class="chip" data-lib="${l.id}" aria-pressed="${S.lib === l.id}">${esc(l.name)}<small>${l.count.toLocaleString("de-CH")}</small></button>`).join("")}</div>`;
+  }
+  const base = S.v === "a" ? visibleRows() : S.rows.filter(r => !r.hidden && !r.lib);
+  base.forEach((r, i) => {
+    h += rowFor(r, S.v === "c" ? S.lib : "all");
+    if (S.v === "b" && r.key === "continue") {
+      h += `<section class="sec"><h2>Meine Medien</h2><div class="tiles">${LIBS.map((l, k) => `<button type="button" class="tile" data-tile="${l.id}" aria-label="${esc(l.name)} öffnen">${[0, 1, 2, 3].map(j => `<i style="background:${grad(k * 3 + j)}"></i>`).join("")}<b>${esc(l.name)}</b><small>${l.count.toLocaleString("de-CH")} Titel</small></button>`).join("")}</div></section>`;
+    }
+  });
+  return h;
+}
+function renderAdmin() {
+  const vis = visibleRows().length;
+  return `<div class="admin">
+    <h2>Startseitenreihen</h2>
+    <div class="count ${vis >= MAX ? "full" : ""}">Sichtbar: <b>${vis} von ${MAX}</b>. Die Bibliotheksreihen sind neu und ab Werk ausgeblendet; hier sind Filme und Serien als Beispiel eingeblendet.</div>
+    <div class="warn" id="warn" role="status"></div>
+    <div class="tblwrap"><table class="tbl"><thead><tr><th>Platz</th><th>Reihe</th><th>Zustand</th><th>Ausblenden</th></tr></thead><tbody>
+      ${S.rows.map((r, i) => `<tr class="${r.lib ? "libr" : ""}">
+        <td><select data-pos="${i}" aria-label="Platz von ${esc(r.name)}">${S.rows.map((_, j) => `<option value="${j}" ${j === i ? "selected" : ""}>Platz ${j + 1}</option>`).join("")}</select></td>
+        <td><b>${esc(r.name)}</b></td>
+        <td><span class="dot ${r.hidden ? "off" : ""}"></span>${r.hidden ? "ausgeblendet" : "sichtbar"}</td>
+        <td><label><input type="checkbox" data-hide="${i}" ${r.hidden ? "checked" : ""}> Ausblenden</label></td></tr>`).join("")}
+    </tbody></table></div>
+  </div>`;
+}
+function render() {
+  const f = $("frame");
+  f.className = "frame" + (S.view === "phone" ? " phone" : "");
+  $("pagegrp").hidden = S.v !== "a";
+  if (S.v !== "a") S.page = "home";
+  f.innerHTML = (S.page === "admin" ? renderAdmin() : renderHome()) + (S.toast ? `<div class="toast" role="status">${esc(S.toast)}</div>` : "");
+  notes();
+}
+function notes() {
+  const N = {
+    a: ["A · Reihe je Bibliothek (Empfehlung)", ["Du wählst in «Startseitenreihen», welche Bibliotheken eine eigene Reihe «Neu in …» bekommen und an welchem Platz.", "Baut auf der bestehenden Seite auf; die Seitenleiste bleibt wie sie ist.", "Höchstens acht sichtbare Reihen (Spec E-9); ausgeblendete beliebig viele."], ["Jede eingeblendete Bibliotheksreihe kostet einen der acht Plätze.", "Gilt für alle Profile gleich, wie die anderen Reihen."]],
+    b: ["B · Kacheln «Meine Medien»", ["Eine einzige Reihe mit einer Kachel je Bibliothek, wie in Emby; ein Klick öffnet die Bibliotheksseite.", "Kostet nur einen Platz, egal wie viele Bibliotheken."], ["Zeigt keine Titel, nur den Weg dorthin; dasselbe steht schon in der Seitenleiste.", "Hast du in Konzept 08 abgelehnt, damit die Startseite übersichtlich bleibt."]],
+    c: ["C · Umschalter oben", ["Ein Tipp auf «Kinder» und die ganze Startseite zeigt nur noch Kindertitel, auch Weiterschauen und Neu hinzugefügt.", "Keine zusätzliche Reihe."], ["Jede Reihe braucht einen Bibliotheksfilter im Server; am meisten Bau.", "Leicht zu vergessen, dass ein Filter aktiv ist; die Seite wirkt dann leer.", "Spotlight und Sammlungen passen nicht zu jeder Bibliothek."]]
+  }[S.v];
+  $("notes").innerHTML = `<div class="pro"><h3>${N[0]}: dafür</h3><ul>${N[1].map(x => `<li>${x}</li>`).join("")}</ul></div><div class="con"><h3>Dagegen</h3><ul>${N[2].map(x => `<li>${x}</li>`).join("")}</ul></div>`;
+}
+function toast(t) { S.toast = t; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { S.toast = ""; render(); }, 2000); }
+function seg(id, key) {
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S[key] = b.dataset.v;
+    $(id).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    if (key === "v") { S.page = "home"; $("page").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === "home")); }
+    render();
+  });
+}
+seg("variant", "v"); seg("page", "page"); seg("view", "view");
+$("frame").addEventListener("click", e => {
+  const c = e.target.closest("[data-lib]"); if (c) { S.lib = c.dataset.lib; render(); $("frame").querySelector(`[data-lib="${S.lib}"]`).focus(); return; }
+  const t = e.target.closest("[data-tile]"); if (t) { toast(`Öffnet die Bibliotheksseite «${libOf(t.dataset.tile).name}»`); return; }
+  const m = e.target.closest("[data-more]"); if (m) { e.preventDefault(); toast(`Öffnet «${libOf(m.dataset.more).name}», sortiert nach «Neu hinzugefügt»`); }
+});
+$("frame").addEventListener("change", e => {
+  const hi = e.target.dataset.hide, po = e.target.dataset.pos;
+  if (hi !== undefined) {
+    const r = S.rows[+hi];
+    if (r.hidden && visibleRows().length >= MAX) { e.target.checked = true; $("warn").textContent = `Schon ${MAX} Reihen sichtbar. Blende zuerst eine andere aus.`; return; }
+    r.hidden = e.target.checked; render(); $("frame").querySelector(`[data-hide="${hi}"]`)?.focus();
+  }
+  if (po !== undefined) {
+    const [r] = S.rows.splice(+po, 1); S.rows.splice(+e.target.value, 0, r); render();
+    $("frame").querySelector(`[data-pos="${e.target.value}"]`)?.focus();
+  }
+});
+render();
+</script>
+</body>
+</html>
