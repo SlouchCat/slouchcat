@@ -53,14 +53,13 @@ type PinPort interface {
 }
 
 // Encoder is the part of transcode.Runner the preparation uses: the segment-wise download encode
-// (M5 stream A), the keyframe index of a remux, the WebVTT conversion of text subtitles and the
-// probe of a fetched enclosure (M6).
+// (M5 stream A), the WebVTT conversion of text subtitles and the probe of a fetched enclosure (M6).
+// The keyframe index of a remux comes from the library (concept 14, 6.8), never from the encoder.
 type Encoder interface {
 	Probe(ctx context.Context, path string) (transcode.Probe, error)
 	Download(ctx context.Context, caps transcode.Capabilities, src transcode.Source, plan transcode.Plan, workDir string,
 		startSegment int, onInit func(init []byte) error,
 		onSegment func(n int, data []byte, start, dur time.Duration) error) error
-	Keyframes(ctx context.Context, path string) ([]time.Duration, error)
 	Subtitles(ctx context.Context, path string, streamIndex int) ([]byte, error)
 	SubtitleStreams(ctx context.Context, path string, streamIndexes []int) (map[int][]byte, error)
 	SubtitlesFile(ctx context.Context, path string) ([]byte, error)
@@ -98,6 +97,10 @@ const (
 	writeBatch      = 500                 // rows per transaction (plan 3.6)
 	autoRetryWait   = 6 * time.Hour       // a failed auto-download is tried again after this wait
 )
+
+// keyframesPatience is how long after its creation a download of a remux waits for the keyframe
+// index before it encodes instead (concept 14, O-8; keyframesWait spaces the attempts).
+const keyframesPatience = 24 * time.Hour
 
 // admissionPatience is how long admission may take before the download shows paused (live
 // playback holds the transcode budget).

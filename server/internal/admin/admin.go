@@ -470,12 +470,77 @@ func (s *Service) secretKey(ctx context.Context, env, setting string) (string, e
 
 // ListLibraries returns all libraries with their scan state.
 func (s *Service) ListLibraries(ctx context.Context) ([]model.Library, error) {
-	return s.libraries.List(ctx)
+	libs, err := s.libraries.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.fillKeyframeIndex(ctx, libs); err != nil {
+		return nil, err
+	}
+	return libs, nil
 }
 
 // GetLibrary returns one library or model.ErrNotFound.
 func (s *Service) GetLibrary(ctx context.Context, id int64) (model.Library, error) {
-	return s.libraries.Get(ctx, id)
+	return s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
+}
+
+// fillKeyframeIndex sets Library.KeyframeIndex of the video libraries in libs from one count over
+// every library (AdminCountKeyframeIndex, concept 14 F-7); a video library without such files
+// gets zeros, an audio library none.
+func (s *Service) fillKeyframeIndex(ctx context.Context, libs []model.Library) error {
+	if !slices.ContainsFunc(libs, func(l model.Library) bool { return l.Kind == model.LibraryVideo }) {
+		return nil
+	}
+	rows, err := s.sys.AdminCountKeyframeIndex(ctx)
+	if err != nil {
+		return fmt.Errorf("count keyframe index: %w", err)
+	}
+	counts := make(map[int64]*model.LibraryKeyframeIndex)
+	for _, r := range rows {
+		c := counts[r.LibraryID]
+		if c == nil {
+			c = &model.LibraryKeyframeIndex{}
+			counts[r.LibraryID] = c
+		}
+		n := int(r.Files)
+		c.VideoFiles += n
+		switch {
+		case !r.KeyframesSource.Valid:
+			c.Pending += n
+		case r.KeyframesSource.String == "none":
+			c.Unavailable += n
+		default: // cues, mp4, scan
+			c.Indexed += n
+		}
+	}
+	for i := range libs {
+		if libs[i].Kind != model.LibraryVideo {
+			continue
+		}
+		c := counts[libs[i].ID]
+		if c == nil {
+			c = &model.LibraryKeyframeIndex{}
+		}
+		libs[i].KeyframeIndex = c
+	}
+	return nil
+}
+
+// withKeyframeIndex returns a function that passes the library of a call through
+// fillKeyframeIndex, so every answer with a library carries its coverage:
+// s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id)).
+func (s *Service) withKeyframeIndex(ctx context.Context) func(model.Library, error) (model.Library, error) {
+	return func(lib model.Library, err error) (model.Library, error) {
+		if err != nil {
+			return lib, err
+		}
+		libs := []model.Library{lib}
+		if err := s.fillKeyframeIndex(ctx, libs); err != nil {
+			return model.Library{}, err
+		}
+		return libs[0], nil
+	}
 }
 
 // CreateLibrary validates the request and creates the library, which queues its first scan.
@@ -484,7 +549,7 @@ func (s *Service) CreateLibrary(ctx context.Context, req model.LibraryRequest) (
 	if verr := validateLibrary(nil, "", req); verr != nil {
 		return model.Library{}, verr
 	}
-	return s.libraries.Create(ctx, req)
+	return s.withKeyframeIndex(ctx)(s.libraries.Create(ctx, req))
 }
 
 // ScanLibrary queues a full scan. A podcast library fetches every subscription of the library
@@ -499,17 +564,17 @@ func (s *Service) ScanLibrary(ctx context.Context, id int64) (model.Library, err
 			return model.Library{}, err
 		}
 		if roots, err := s.read.ListLibraryRoots(ctx, id); err == nil && len(roots) > 0 {
-			return s.libraries.QueueScan(ctx, id)
+			return s.withKeyframeIndex(ctx)(s.libraries.QueueScan(ctx, id))
 		}
-		return s.libraries.Get(ctx, id)
+		return s.withKeyframeIndex(ctx)(s.libraries.Get(ctx, id))
 	}
-	return s.libraries.QueueScan(ctx, id)
+	return s.withKeyframeIndex(ctx)(s.libraries.QueueScan(ctx, id))
 }
 
 // AcceptLibraryLoss lifts the loss protection for the next scan and queues it.
 func (s *Service) AcceptLibraryLoss(ctx context.Context, id int64) (model.Library, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
-	return s.libraries.AcceptLoss(ctx, id)
+	return s.withKeyframeIndex(ctx)(s.libraries.AcceptLoss(ctx, id))
 }
 
 // AddLibraryRoots adds further folders to a library in one go (idea 02, E8; F-13). The folder
@@ -524,7 +589,7 @@ func (s *Service) AddLibraryRoots(ctx context.Context, libraryID int64, roots []
 	if verr = validateRootShapes(verr, "roots", roots); verr != nil {
 		return model.Library{}, verr
 	}
-	return s.libraries.AddRoots(ctx, libraryID, roots)
+	return s.withKeyframeIndex(ctx)(s.libraries.AddRoots(ctx, libraryID, roots))
 }
 
 // UpdateLibraryRoot changes the content, the provider list (ADR 0015) or the path (ADR 0023) of a
@@ -550,7 +615,7 @@ func (s *Service) UpdateLibraryRoot(ctx context.Context, libraryID, rootID int64
 	if verr != nil {
 		return model.Library{}, verr
 	}
-	return s.libraries.UpdateRoot(ctx, libraryID, rootID, upd)
+	return s.withKeyframeIndex(ctx)(s.libraries.UpdateRoot(ctx, libraryID, rootID, upd))
 }
 
 // ListMetadataProviders describes the four providers to the administration
@@ -615,7 +680,7 @@ func (s *Service) RemoveLibraryRoot(ctx context.Context, libraryID, rootID int64
 	if verr != nil {
 		return model.Library{}, verr
 	}
-	return s.libraries.RemoveRoot(ctx, libraryID, rootID, confirmPath)
+	return s.withKeyframeIndex(ctx)(s.libraries.RemoveRoot(ctx, libraryID, rootID, confirmPath))
 }
 
 // queueRefresh queues a metadata match for the title, which fills in the rating again now that the

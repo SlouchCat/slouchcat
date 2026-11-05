@@ -170,6 +170,14 @@
   gap: var(--sc-space-4);
 }
 
+/* «Einmalig am» with «Termin entfernen» below it. */
+.onceField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+}
+
 .formActions {
   display: flex;
   flex-wrap: wrap;

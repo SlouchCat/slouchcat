@@ -648,7 +648,8 @@
         "audio_codec": "Audio codec",
         "hdr": "HDR video",
         "pixel_format": "Pixel format (10-bit, 4:2:2 or 4:4:4)",
-        "keyframes_pending": "Keyframe index pending",
+        "keyframes_pending": "Keyframe index not built yet",
+        "keyframes_unavailable": "No keyframe index possible",
         "dolby_vision": "Dolby Vision (profile 5 or 7)",
         "bandwidth": "Bandwidth limit",
         "max_height": "Quality limit",
@@ -700,7 +701,8 @@
       "original": "Original",
       "detail": "{{bitrate}} · about {{size}} per hour",
       "unavailableBurn": "Subtitles are burned in",
-      "unavailableIndex": "Index is being built",
+      "unavailableIndex": "Index not built yet",
+      "unavailableNoIndex": "No index possible",
       "unavailableTranscode": "Plays only converted",
       "remembered": "Remembered: {{quality}}",
       "rememberedNote": "Titles above {{quality}} are then converted.",
@@ -981,6 +983,11 @@
       "counts": "Titles: {{items}} · Files: {{files}}",
       "progress": "{{seen}} of {{total}} files",
       "finishedAt": "Last scan: {{date}}",
+      "keyframes": {
+        "summary": "Keyframe index: {{indexed}} of {{videoFiles}} video files · {{pending}} pending · {{unavailable}} not possible",
+        "complete": "Keyframe index complete",
+        "backfill": "Backfill on the background jobs page"
+      },
       "error": {
         "root_missing": "The folder is missing. Is the drive mounted? Nothing was deleted.",
         "root_empty": "The folder is empty. Nothing was deleted.",
@@ -1511,7 +1518,8 @@
       "empty": "Nothing is playing right now.",
       "facts": {
         "device": "Device",
-        "quality": "Quality"
+        "quality": "Quality",
+        "reason": "Reason"
       },
       "unknownDevice": "Unknown device",
       "original": "Original",
@@ -2830,6 +2838,7 @@
         "general": "General",
         "download": "Downloads",
         "notify": "Notifications",
+        "index": "Keyframe index",
         "workers": "{{count}} workers",
         "backlog": "backlog about {{duration}}",
         "free": "free",
@@ -2839,12 +2848,14 @@
       "pausedBanner": {
         "title_one": "{{count}} job paused",
         "title_other": "{{count}} jobs paused",
-        "body": "Paused jobs start no runs until you resume them: {{types}}."
+        "body": "Paused jobs start no runs until you resume them: {{types}}.",
+        "playbackOverride": "Playback requests of {{name}} run anyway."
       },
       "running": {
         "title": "Running now",
         "empty": "Nothing is running right now.",
         "since": "for {{duration}}",
+        "overridesPause": "for playback, despite the pause",
         "progress": "{{done}} of {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
         "pause": "Pause run",
@@ -2896,6 +2907,7 @@
         "in": "in {{duration}}",
         "every": "every {{duration}}",
         "window": "{{start}}–{{end}}",
+        "once": "One-off: {{date}}",
         "off": "off",
         "onDemand": "on demand",
         "pausedNext": "paused",
@@ -2999,7 +3011,12 @@
         "updateHint": "On/off is the same setting as the update check in the settings.",
         "save": "Save",
         "heading": "Schedule",
-        "discard": "Discard"
+        "discard": "Discard",
+        "once": "Once on",
+        "onceHint": "Server time zone: {{zone}}. The date runs once besides the interval, also outside the time window.",
+        "clearOnce": "Remove date",
+        "onceRange": "The date must lie between now and one year from now.",
+        "onceInvalid": "Not a valid date."
       },
       "duration": {
         "seconds": "{{count}} s",
@@ -3023,8 +3040,13 @@
           "trigger": "From the scan per new file, “Probe file” in maintenance"
         },
         "probe_keyframes": {
-          "name": "Keyframe index",
-          "trigger": "From the scan per file, before a playback with priority"
+          "name": "Keyframe index (read the whole file)",
+          "trigger": "On import only without an index from the container, from the backfill, before a playback (also while paused) and for offline downloads"
+        },
+        "keyframes_backfill": {
+          "name": "Backfill keyframe index",
+          "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: reads the index from the container of every video file that has none yet",
+          "progress": "Files checked: {{done}} of {{total}}"
         },
         "library_sweep": {
           "name": "Sweep missing titles",

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"regexp"
@@ -64,16 +65,34 @@ func (s *Service) loadProbeTarget(ctx context.Context, j *jobs.Job) (probeTarget
 	return probeTarget{file: mf, root: pr, abs: abs, found: true}, nil
 }
 
+// errFileChanged: the media file row changed (size or mtime) while probe.file or probe.keyframes
+// read the file; the job runs again after fileChangedRetry with the new version, without using an
+// attempt (concept 14, Z-9).
+var errFileChanged = errors.New("media file changed during the read")
+
+// fileChangedRetry is the wait of a job whose file changed while it read it.
+const fileChangedRetry = 10 * time.Second
+
+// fileChanged returns the error of a job whose file changed while it read it: errFileChanged,
+// retried by the queue without using an attempt.
+func fileChanged(mediaFileID string) error {
+	return fmt.Errorf("media file %s: %w: %w", mediaFileID, errFileChanged, jobs.RetryLater(fileChangedRetry, "the file changed during the read"))
+}
+
 // handleProbe runs ffprobe on a media file, stores codecs, resolution, duration and the probe
-// JSON, replaces its tracks (embedded streams and sidecar subtitles) and queues the keyframe index.
+// JSON, replaces its tracks (embedded streams and sidecar subtitles) and stores the keyframe
+// index from the container or queues the full read (concept 14, 2.2). Everything that reads the
+// file or starts a process runs before the write transaction; the transaction only writes, and
+// only for the file version (size, mtime) remembered from the row before the file was read.
 func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	t, err := s.loadProbeTarget(ctx, j)
 	if err != nil || !t.found {
 		return err
 	}
+	version := VersionOf(t.file)
 	if t.file.Size == 0 {
 		// Never playable; spares an ffprobe process (placeholder trees of the scan benchmark).
-		return s.storeProbeError(ctx, t, errEmptyFile)
+		return s.storeProbeError(ctx, t, version, errEmptyFile)
 	}
 	pr, err := s.probe.Probe(ctx, t.abs)
 	if err != nil {
@@ -81,16 +100,18 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		if ctx.Err() != nil || !errors.As(err, &fileErr) {
 			// Interrupted, or the environment failed (ffprobe missing or not configured, no
 			// process, an I/O error): not a property of the file, so the job retries with backoff.
-			return fmt.Errorf("probe %s: %w", t.file.ID, err)
+			// The message goes to jobs.last_error: the file relative to its root, never the
+			// absolute path (9.5).
+			return fmt.Errorf("probe %s: %s", t.file.ID, strings.ReplaceAll(err.Error(), t.abs, t.file.RelPath))
 		}
-		return s.storeProbeError(ctx, t, err)
+		return s.storeProbeError(ctx, t, version, err)
 	}
 	r, err := paths.Open(t.root)
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 	sidecars, err := findSidecars(r, t.file.RelPath)
-	_ = r.Close()
 	if err != nil {
 		return fmt.Errorf("list sidecar subtitles: %w", err)
 	}
@@ -104,6 +125,8 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		DurationMs: sql.NullInt64{Int64: pr.Format.Duration.Milliseconds(), Valid: pr.Format.Duration > 0},
 		Probe:      sql.NullString{String: string(raw), Valid: true},
 		ID:         t.file.ID,
+		Size:       version.Size,
+		Mtime:      version.Mtime,
 	}
 	if v := mainVideo(pr.Streams); v != nil {
 		params.VideoCodec = sql.NullString{String: v.Codec, Valid: v.Codec != ""}
@@ -114,6 +137,31 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		params.AudioCodec = sql.NullString{String: a.Codec, Valid: a.Codec != ""}
 	}
 
+	item, err := systemq.New(s.db.Read).GetItemSystem(ctx, t.file.ItemID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("load item of the probed file: %w", err)
+	}
+	// The keyframe index of this version: from the container when it passes the checks, else the
+	// full read (probe.keyframes). A file that has its index already (the scanner clears it when
+	// the file changes) is not read again.
+	var index containerIndex
+	if !t.file.KeyframesSource.Valid {
+		index, err = s.indexFromContainer(ctx, indexTarget{
+			id: t.file.ID, root: t.root, dir: r, rel: t.file.RelPath, abs: t.abs, container: params.Container,
+			duration: pr.Format.Duration, codec: params.VideoCodec.String, kind: item.Kind, muxer: pr.Format.Tags["encoder"],
+		})
+		if err != nil {
+			return err
+		}
+	}
+	var payload mediaFilePayload
+	if err := decodePayload(j, &payload); err != nil {
+		return err
+	}
+	// Whether chapters.images follows reads the cache directory, so it is decided before the
+	// write transaction too.
+	chapterImages := s.cacheDir != "" && chapterKind(item.Kind) && (payload.ChapterImages || s.hadChapterImages(t.file, item.Kind))
+
 	now := s.now()
 	params.Now = sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
 	tx, err := s.db.Write.BeginTx(ctx, nil)
@@ -122,8 +170,12 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	if err := q.UpdateMediaFileProbe(ctx, params); err != nil {
+	n, err := q.UpdateMediaFileProbe(ctx, params)
+	if err != nil {
 		return fmt.Errorf("store probe: %w", err)
+	}
+	if n == 0 {
+		return fileChanged(t.file.ID)
 	}
 	if err := q.DeleteMediaFileTracks(ctx, t.file.ID); err != nil {
 		return fmt.Errorf("delete tracks: %w", err)
@@ -164,23 +216,17 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			return fmt.Errorf("insert sidecar track: %w", err)
 		}
 	}
-	// An audio title has no video keyframes (concept 4.5): no probe.keyframes job for audiobooks
-	// and podcast episodes, which spares one queue entry per file of a large podcast folder.
-	item, err := q.GetItemSystem(ctx, t.file.ItemID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("load item of the probed file: %w", err)
-	}
-	audioTitle := item.Kind == "audiobook" || item.Kind == "podcast_episode"
-	if !audioTitle {
+	switch {
+	case len(index.keyframes) > 0:
+		if _, err := StoreKeyframes(ctx, tx, t.file.ID, index.keyframes, index.source, version, now); err != nil {
+			return err
+		}
+	case index.worthy && !index.missing:
 		if err := enqueueTx(ctx, q, now, keyframesJob(t.file.ID)); err != nil {
 			return err
 		}
 	}
-	var payload mediaFilePayload
-	if err := decodePayload(j, &payload); err != nil {
-		return err
-	}
-	if s.cacheDir != "" && chapterKind(item.Kind) && (payload.ChapterImages || s.hadChapterImages(t.file, item.Kind)) {
+	if chapterImages {
 		if err := enqueueChapterImagesTx(ctx, q, now, t.file.ID); err != nil {
 			return err
 		}
@@ -220,7 +266,9 @@ var errEmptyFile = errors.New("empty file")
 // storeProbeError records a failed ffprobe run (B-9 "unplayable"): probed_at and probe_error
 // with the message, in which the absolute path is replaced by the file name, and no tracks. The
 // job ends successfully, so a broken file is not retried; a changed file or a refresh probes again.
-func (s *Service) storeProbeError(ctx context.Context, t probeTarget, cause error) error {
+// Like the probe, the error is written only for the version v the run read: when the file changed
+// meanwhile, the job runs again on the new version (concept 14, Z-9).
+func (s *Service) storeProbeError(ctx context.Context, t probeTarget, v FileVersion, cause error) error {
 	msg := strings.ReplaceAll(cause.Error(), t.abs, path.Base(t.file.RelPath))
 	msg = strings.ReplaceAll(msg, t.root.Dir(), "")
 	if len(msg) > maxProbeError {
@@ -233,10 +281,15 @@ func (s *Service) storeProbeError(ctx context.Context, t probeTarget, cause erro
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	if err := q.UpdateMediaFileProbeError(ctx, systemq.UpdateMediaFileProbeErrorParams{
+	n, err := q.UpdateMediaFileProbeError(ctx, systemq.UpdateMediaFileProbeErrorParams{
 		ProbeError: sql.NullString{String: msg, Valid: true}, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, ID: t.file.ID,
-	}); err != nil {
+		Size: v.Size, Mtime: v.Mtime,
+	})
+	if err != nil {
 		return fmt.Errorf("store probe error: %w", err)
+	}
+	if n == 0 {
+		return fileChanged(t.file.ID)
 	}
 	if err := q.DeleteMediaFileTracks(ctx, t.file.ID); err != nil {
 		return fmt.Errorf("delete tracks: %w", err)
@@ -247,26 +300,112 @@ func (s *Service) storeProbeError(ctx context.Context, t probeTarget, cause erro
 	return s.finishAudiobook(ctx, t.file.ItemID) // a book completes without its broken part
 }
 
-// handleKeyframes stores the keyframe index of a media file (see EncodeKeyframes).
+// fullReadTimeout bounds the full keyframe read of probe.keyframes (concept 14, 6.3): 27.5 GB at
+// 15 MB/s take about 31 minutes, the bound leaves a factor of four.
+const fullReadTimeout = 2 * time.Hour
+
+// handleKeyframes is probe.keyframes, the full keyframe read in the pool index (concept 14, 6.3).
+// A file with an index, and a file whose video cannot be remuxed, has nothing to do (jobs.Skip).
+// Otherwise the index from the container is tried first (cheap; it covers jobs queued before the
+// container was read during probe.file), then ffprobe reads every packet of the video stream
+// within fullReadTimeout. Keyframes are stored as scan, a read without one and a broken file
+// (transcode.FileError) as none, both for the version remembered from the row; a missing file ends
+// the job without an index, and every other failure is returned for the backoff, so the source
+// stays NULL and the backfill tries again. A container read that timed out is such a failure: the
+// share hangs, and a full read of up to fullReadTimeout would hold the one worker of the pool. Audiobooks and podcast episodes are not left out here:
+// the automatic paths do not queue them, a playback does (2.3).
 func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 	t, err := s.loadProbeTarget(ctx, j)
 	if err != nil || !t.found {
-		return err
+		return err // a vanished row or a file marked missing ends quietly
+	}
+	version := VersionOf(t.file)
+	if t.file.KeyframesSource.Valid || !transcode.CopyableVideo(t.file.VideoCodec.String) {
+		jobs.Skip(ctx)
+		return nil
 	}
 	// The index of a long file takes minutes; the note names the file relative to its root
 	// (concept 09, 6.2), never the absolute path.
 	jobs.Progress(ctx, 0, 0, t.file.RelPath)
-	var kf []time.Duration
-	if t.file.VideoCodec.Valid || !t.file.AudioCodec.Valid {
-		// An audio file (cover art aside) has no video keyframes: its index stays empty.
-		kf, err = s.probe.Keyframes(ctx, t.abs)
+	dir, err := paths.Open(t.root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			s.log.InfoContext(ctx, "library root missing, keyframe index not read", "media_file_id", t.file.ID, "path", t.file.RelPath)
+			return nil
+		}
+		return err
+	}
+	defer dir.Close()
+	index, err := s.indexFromContainer(ctx, indexTarget{
+		id: t.file.ID, root: t.root, dir: dir, rel: t.file.RelPath, abs: t.abs, container: t.file.Container,
+		duration: time.Duration(t.file.DurationMs.Int64) * time.Millisecond, codec: t.file.VideoCodec.String,
+	})
+	switch {
+	case err != nil:
+		return err
+	case index.missing:
+		return nil // logged by indexFromContainer; like a missing file after the full read
+	case index.timedOut:
+		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, errIndexReadTimeout)
+	case len(index.keyframes) > 0:
+		return s.storeReadIndex(ctx, t.file.ID, index.keyframes, index.source, version)
+	}
+
+	readCtx, cancel := context.WithTimeout(ctx, fullReadTimeout)
+	defer cancel()
+	kf, err := s.probe.Keyframes(readCtx, t.abs)
+	var fileErr *transcode.FileError
+	switch {
+	case err == nil:
+		// No keyframe in the whole read stores none (StoreKeyframes).
+		return s.storeReadIndex(ctx, t.file.ID, kf, KeyframesScan, version)
+	case ctx.Err() != nil:
+		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, ctx.Err())
+	case fileMissing(dir, t.file.RelPath, err):
+		// A file gone for good is marked by the next scan; one gone for a moment (a network share
+		// that dropped) is read by the next backfill. Five retries would not help either.
+		s.log.InfoContext(ctx, "media file missing, keyframe index not read", "media_file_id", t.file.ID, "path", t.file.RelPath)
+		return nil
+	case readCtx.Err() == nil && errors.As(err, &fileErr):
+		s.log.WarnContext(ctx, "full keyframe read failed on the file, index marked impossible", "media_file_id", t.file.ID,
+			"path", t.file.RelPath, "err", strings.ReplaceAll(err.Error(), t.abs, t.file.RelPath))
+		return s.storeReadIndex(ctx, t.file.ID, nil, KeyframesNone, version)
+	}
+	// The message goes to jobs.last_error: the file relative to its root, never the absolute path
+	// (9.5).
+	return fmt.Errorf("keyframes of media file %s: %s", t.file.ID, strings.ReplaceAll(err.Error(), t.abs, t.file.RelPath))
+}
+
+// storeReadIndex stores the index of probe.keyframes for version v. When nothing is written and
+// the row has no index but another version, the file changed during the read: the probe.file of
+// the new version found this job under its key and queued nothing, so the job runs again on the
+// new version instead of ending without an index (review of wave B, m-2).
+func (s *Service) storeReadIndex(ctx context.Context, mediaFileID string, kf []time.Duration, source string, v FileVersion) error {
+	stored, err := StoreKeyframes(ctx, s.db.Write, mediaFileID, kf, source, v, s.now())
+	if err != nil || stored {
+		return err
+	}
+	cur, err := systemq.New(s.db.Write).GetMediaFileSystem(ctx, mediaFileID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, err)
+		return fmt.Errorf("load media file: %w", err)
 	}
-	return systemq.New(s.db.Write).UpdateMediaFileKeyframes(ctx, systemq.UpdateMediaFileKeyframesParams{
-		Keyframes: EncodeKeyframes(kf), Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, ID: t.file.ID,
-	})
+	if !cur.KeyframesSource.Valid && !cur.MissingSince.Valid && VersionOf(cur) != v {
+		return fileChanged(mediaFileID)
+	}
+	return nil
+}
+
+// fileMissing reports whether a failed read of rel means the file is not there: the error says
+// so (ffprobe prints the operating system's message), or the file is gone now.
+func fileMissing(dir *os.Root, rel string, err error) bool {
+	if errors.Is(err, fs.ErrNotExist) || strings.Contains(strings.ToLower(err.Error()), "no such file or directory") {
+		return true
+	}
+	_, serr := dir.Stat(rel)
+	return errors.Is(serr, fs.ErrNotExist)
 }
 
 // keyframesFormat is the version byte of the keyframe blob.

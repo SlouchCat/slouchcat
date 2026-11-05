@@ -133,6 +133,15 @@ test('two streams listed; the admin ends one, its player stops within 5 s', asyn
     await expect(viewerRow).toContainText(/Transcode \((HW|SW)\)|Remux/);
     await expect(viewerRow).toContainText(/\d{3,4}p|Original/);
     await expect(viewerRow).toContainText(/Chrome|Chromium|Firefox|Edge|Safari/);
+    // The reason of the transcode is a line of the tile, in the words of the player's stream
+    // info (concept 14, 7.1); the label is for screen readers.
+    expect(second.transcoding?.reason).toBeTruthy();
+    const reason = viewerRow
+      .locator('dl > div')
+      .filter({ has: overview.locator('dt', { hasText: 'Grund' }) });
+    await expect(reason).toHaveCount(1);
+    await expect(reason.locator('dd')).not.toBeEmpty();
+    await expect(reason.locator('dd')).not.toHaveText(second.transcoding?.reason ?? '');
     expect(first.playbackSessionId).not.toBe(second.playbackSessionId);
 
     // «Serverlast»: the four counters hold at least these two streams, the bandwidth is a rate.

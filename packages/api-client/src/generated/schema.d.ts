@@ -1006,6 +1006,9 @@ export interface paths {
          *     styling is dropped. Works for direct and HLS playbacks alike: the client attaches the URL as a
          *     `<track>` element. `track` is the `id` of a `Track` with `kind` `subtitle` and `text` true; a bitmap
          *     track (PGS, DVD) or a track of another file answers 404. `Cache-Control: private, no-store`.
+         *     After a source change of the session the stream token answers 409 `playback_source_changed`
+         *     here as on the HLS endpoints (since contract 1.13.0); the client restarts from the HLS
+         *     answer and leaves the subtitle request alone.
          */
         get: operations["getPlaybackSubtitle"];
         put?: never;
@@ -2939,7 +2942,9 @@ export interface paths {
          * @description Only the fields sent change. The interval must lie within `schedule.limits` of the type (the
          *     spotlight list 6 to 48 whole hours, every other type 5 minutes to 7 days); a window names minutes of the server's
          *     day (`schedule.timeZone`), may span midnight and must not be empty; `clearWindow` removes it. The next
-         *     run is realigned: last firing plus interval, at least now, then moved into the window. One value,
+         *     run is realigned: last firing plus interval, at least now, then moved into the window. `onceLocal`
+         *     sets a one-off date as wall time of the server's time zone, from now plus one minute to now plus 366
+         *     days; `clearOnce` removes it. One value,
          *     two doors: the interval of the spotlight list's schedule is `SpotlightConfig.intervalHours`, the
          *     switch of `update.check` is `AdminSettings.updateCheckEnabled`; this operation writes those
          *     settings as well.
@@ -4818,7 +4823,8 @@ export interface components {
             /**
              * @description Why the file is not played directly (`container`, `video_codec`, `audio_codec`, `hdr`,
              *     `pixel_format` for H.264 High 10 and 4:2:2/4:4:4 sources, `keyframes_pending` for a remux
-             *     candidate that is transcoded until its keyframe index exists, `dolby_vision` for profiles 5 and
+             *     candidate that is transcoded until its keyframe index exists, `keyframes_unavailable` for a remux
+             *     candidate whose keyframe index cannot be built, `dolby_vision` for profiles 5 and
              *     7, `bandwidth` and `max_height` for the profile's limits, `quality` for a manual rung below the
              *     source, `audio_track` for a non-default audio track in a container that cannot be played
              *     directly with it, `subtitle_burn` for burned-in subtitles, `budget_lowered` when the transcode
@@ -4929,6 +4935,7 @@ export interface components {
             width?: number;
             height?: number;
             bitrate?: number;
+            /** @description Why the file is not played directly, the codes of `Transcoding.reason` (among them `keyframes_pending` and `keyframes_unavailable`). */
             reason?: string;
             /** Format: date-time */
             startedAt: string;
@@ -5484,8 +5491,25 @@ export interface components {
             defaultRating?: components["schemas"]["Rating"];
             roots: components["schemas"]["LibraryRoot"][];
             scan: components["schemas"]["LibraryScan"];
+            /** @description Keyframe index coverage of a video library; absent for audio libraries (since contract 1.13.0). */
+            keyframeIndex?: components["schemas"]["LibraryKeyframeIndex"];
             /** Format: date-time */
             createdAt: string;
+        };
+        /**
+         * @description Keyframe index of the files of the library that can be remuxed (concept 14, F-7). Counted are
+         *     present files with H.264, HEVC, AV1 or VP9 video outside audiobooks and podcasts;
+         *     `indexed + pending + unavailable = videoFiles`.
+         */
+        LibraryKeyframeIndex: {
+            /** @description Present files with H.264, HEVC, AV1 or VP9 video outside audiobooks and podcasts. */
+            videoFiles: number;
+            /** @description Files with an index (Matroska cues, MP4 tables or full read). */
+            indexed: number;
+            /** @description Files without an index yet; the next playback transcodes. */
+            pending: number;
+            /** @description Files whose index cannot be built; they are always transcoded. */
+            unavailable: number;
         };
         LibraryRoot: {
             /** Format: int64 */
@@ -6595,6 +6619,8 @@ export interface components {
             estimatedSecondsLeft?: number;
             /** @enum {string} */
             estimate: "measured" | "median" | "none";
+            /** @description The run starts and keeps running while its type is paused (a playback request, concept 14); only sent when true (since contract 1.13.0). */
+            overridesPause?: boolean;
         };
         JobProgress: {
             done: number;
@@ -6616,8 +6642,10 @@ export interface components {
             lastFiredAt?: string;
             enabled: boolean;
             window?: components["schemas"]["JobWindow"];
+            /** @description The one-off date; absent without one (since contract 1.13.0). */
+            once?: components["schemas"]["JobScheduleOnce"];
             /**
-             * @description The server's time zone of the window, for example `Europe/Zurich`.
+             * @description The server's time zone of the window and the one-off date, for example `Europe/Zurich`.
              * @example Europe/Zurich
              */
             timeZone: string;
@@ -6626,11 +6654,31 @@ export interface components {
                 maxEverySeconds: number;
             };
         };
-        /** @description Only the fields sent change; `clearWindow` removes the window (a JSON null would be indistinguishable from an absent field for the generated clients). */
+        /** @description A one-off run of a scheduled type besides its interval; absent without a date. It fires once and is gone then. */
+        JobScheduleOnce: {
+            /**
+             * @description The date as wall time in `JobSchedule.timeZone`.
+             * @example 2026-11-08T03:00
+             */
+            local: string;
+            /**
+             * Format: date-time
+             * @description The same date as an instant.
+             */
+            at: string;
+        };
+        /** @description Only the fields sent change; `clearWindow` removes the window and `clearOnce` the one-off date (a JSON null would be indistinguishable from an absent field for the generated clients). */
         JobScheduleUpdate: {
             everySeconds?: number;
             window?: components["schemas"]["JobWindow"];
             clearWindow?: boolean;
+            /**
+             * @description One-off date as wall time in `JobSchedule.timeZone`; ignored with `clearOnce` (since contract 1.13.0).
+             * @example 2026-11-08T03:00
+             */
+            onceLocal?: string;
+            /** @description Removes the one-off date (since contract 1.13.0). */
+            clearOnce?: boolean;
             enabled?: boolean;
         };
         JobTypeInfo: {
@@ -6640,7 +6688,7 @@ export interface components {
             /** @enum {string} */
             trigger: "schedule" | "event" | "manual";
             /** @enum {string} */
-            pool: "general" | "download" | "notify";
+            pool: "general" | "download" | "notify" | "index";
             paused: boolean;
             /** Format: date-time */
             pausedAt?: string;
@@ -6664,10 +6712,15 @@ export interface components {
             queuedEstimateSeconds?: number;
             /** @description False for a type in the database that no worker of this server knows (after a downgrade). */
             known: boolean;
+            /** @description Runs of the type that a playback requests start and keep running while the type is paused (concept 14, 6.4); only sent when true (since contract 1.13.0). */
+            overridesPauseForPlayback?: boolean;
         };
         JobPool: {
-            /** @enum {string} */
-            pool: "general" | "download" | "notify";
+            /**
+             * @description `index` has one worker: the full keyframe reads (concept 14; since contract 1.13.0).
+             * @enum {string}
+             */
+            pool: "general" | "download" | "notify" | "index";
             workers: number;
             /** @description Estimated work waiting in the pool, divided by its workers; absent without any median. */
             backlogSeconds?: number;
@@ -7380,6 +7433,20 @@ export interface components {
         };
         /** @description Unknown playback session, no HLS output, or the title is no longer visible (`not_found`). */
         StreamNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description `playback_source_changed`: the file of a remux playback changed since it started (its keyframe
+         *     index is gone or newer than the playback), so the lost HLS output cannot be rebuilt with the
+         *     segments of the client's playlist. The server ends the playback session; the client starts a
+         *     new one at the current position (concept 14, 6.4).
+         */
+        StreamSourceChanged: {
             headers: {
                 [name: string]: unknown;
             };
@@ -9439,6 +9506,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9468,6 +9536,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9497,6 +9566,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9528,6 +9598,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
             503: components["responses"]["StreamUnavailable"];
         };
     };
@@ -9559,6 +9630,7 @@ export interface operations {
             };
             401: components["responses"]["StreamUnauthenticated"];
             404: components["responses"]["StreamNotFound"];
+            409: components["responses"]["StreamSourceChanged"];
         };
     };
     deleteDownload: {
@@ -13256,7 +13328,11 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description A value is outside its range (`validation_failed`, fields `everySeconds`, `window`). */
+            /**
+             * @description A value is outside its range (`validation_failed`, fields `everySeconds`, `window`, `onceLocal`;
+             *     `onceLocal` answers `invalid_value` for a value that is no wall time and `out_of_range` outside
+             *     now plus one minute to now plus 366 days).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;

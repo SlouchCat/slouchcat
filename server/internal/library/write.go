@@ -358,11 +358,15 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		}
 		w.stats.created++
 	case opUpdate:
+		// A changed file loses the keyframe index of its old version, whichever way the scanner
+		// matched it (path, identity, hash); a rename or move keeps it (concept 14, 4.2, Z-1).
+		changed := op.disk.size != op.known.Size || op.disk.mtime != op.known.Mtime
 		if err := q.UpdateMediaFileLocation(ctx, systemq.UpdateMediaFileLocationParams{
 			RelPath: op.disk.rel, Dev: toInt64(op.disk.id.dev), Inode: toInt64(op.disk.id.inode),
 			Size: op.disk.size, Mtime: op.disk.mtime,
 			PartialHash:  nullString(op.hash),
 			VersionLabel: nullString(op.disk.parsed.VersionLabel),
+			ResetIndex:   boolInt(changed),
 			Now:          w.ms, ID: op.known.ID,
 		}); err != nil {
 			return fmt.Errorf("update media file: %w", err)

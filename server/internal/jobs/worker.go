@@ -94,7 +94,7 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 	defer cancel(nil)
 	rep := newReporter(w.queue, w.id, job.ID, log)
 	if w.runs != nil {
-		w.runs.add(job.ID, job.Type, cancel, rep)
+		w.runs.add(job.ID, job.Type, job.OverridesPause, cancel, rep)
 		defer w.runs.remove(job.ID)
 	}
 	handlerCtx := context.WithValue(jobCtx, reporterKey{}, rep)
@@ -121,7 +121,11 @@ func (w *Worker) run(ctx context.Context, job *Job) {
 				if err != nil && jobCtx.Err() == nil {
 					log.Warn("heartbeat", "err", err)
 				}
-				// A pause set while this run held an old lease (restart) is noticed here.
+				// A pause set while this run held an old lease (restart) is noticed here; a run
+				// with override_pause keeps running (concept 14, 6.5).
+				if job.OverridesPause {
+					continue
+				}
 				if paused, perr := w.queue.TypePaused(jobCtx, job.Type); perr == nil && paused {
 					cancel(ErrPaused)
 					return

@@ -32,3 +32,22 @@ func BenchmarkClaimWithQueuedBacklog(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkEnqueueOverridingPauseWithQueuedBacklog measures the insert of a playback request
+// while tens of thousands of jobs wait: the cap of MaxPauseOverrides counts the queued and running
+// rows with override_pause over the partial index jobs_override_pause (concept 14, 6.4).
+func BenchmarkEnqueueOverridingPauseWithQueuedBacklog(b *testing.B) {
+	q, _ := newBenchQueue(b)
+	ctx := context.Background()
+	for i := range 50_000 {
+		if _, err := q.Enqueue(ctx, NewJob{Type: "probe.keyframes", Priority: 1, IdempotencyKey: fmt.Sprintf("keyframes:%d", i)}); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ResetTimer()
+	for i := range b.N {
+		if _, err := q.EnqueueOverridingPause(ctx, NewJob{Type: "probe.keyframes", Priority: 9, IdempotencyKey: fmt.Sprintf("playback:%d", i)}); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

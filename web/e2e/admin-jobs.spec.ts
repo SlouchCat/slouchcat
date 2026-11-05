@@ -48,7 +48,7 @@ async function resumeAll(api: APIRequestContext): Promise<void> {
 async function restoreSweep(api: APIRequestContext): Promise<void> {
   const response = await api.patch(`/api/v1/admin/job-types/${SWEEP}/schedule`, {
     headers: CSRF,
-    data: { everySeconds: 3600, clearWindow: true, enabled: true },
+    data: { everySeconds: 3600, clearWindow: true, clearOnce: true, enabled: true },
   });
   expect(response.status(), await response.text()).toBe(200);
 }
@@ -323,6 +323,90 @@ test('background jobs by keyboard: the menu cancels waiting runs after asking; a
   await expectNoFocusTrap(page);
 });
 
+/** The sweep's schedule as the server holds it. */
+async function sweepSchedule(
+  api: APIRequestContext,
+): Promise<{ timeZone: string; once?: { local: string; at: string } }> {
+  const response = await api.get('/api/v1/admin/job-types');
+  expect(response.status(), await response.text()).toBe(200);
+  const overview = (await response.json()) as {
+    types: {
+      type: string;
+      schedule?: { timeZone: string; once?: { local: string; at: string } };
+    }[];
+  };
+  const schedule = overview.types.find((info) => info.type === SWEEP)?.schedule;
+  expect(schedule).toBeDefined();
+  return schedule!;
+}
+
+test('background jobs by keyboard: a one-off date in the schedule as the server wall time, and removed again @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await resumeAll(owner);
+  await restoreSweep(owner);
+  const { timeZone } = await sweepSchedule(owner);
+  // Two days ahead at 03:30: within now plus a minute to a year in any zone of the server.
+  const day = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+  const local = `${day}T03:30`;
+
+  await page.goto('/admin/jobs');
+  await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
+  const toggle = page.getByRole('button', { name: SWEEP_NAME, exact: true });
+  await resetFocus(page);
+  await tabTo(page, toggle, TAB_MAX);
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const schedule = foldOut(page, SWEEP_NAME).getByRole('region', {
+    name: `Zeitplan von ${SWEEP_NAME}`,
+  });
+
+  // Tab from the window's switch reaches «Einmalig am», a native date and time field that names
+  // the server's zone.
+  await tabTo(page, schedule.getByRole('switch', { name: 'Nur in einem Zeitfenster' }), TAB_MAX);
+  await page.keyboard.press('Tab');
+  const once = schedule.getByLabel('Einmalig am');
+  await expectFocusOn(page, once);
+  await expectVisibleFocus(page);
+  await expect(once).toHaveAttribute('type', 'datetime-local');
+  await expect(
+    schedule.getByText(`Zeitzone des Servers: ${timeZone}.`, { exact: false }),
+  ).toBeVisible();
+
+  // The segments of the native field differ per browser and language: fill sets the value, and
+  // Enter in the field saves the form. The server holds the wall time as it was typed.
+  await once.fill(local);
+  await expectFocusOn(page, once);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status').first()).toContainText(
+    `Zeitplan von ${SWEEP_NAME} gespeichert.`,
+  );
+  expect((await sweepSchedule(owner)).once?.local).toBe(local);
+  const row = page.getByRole('row', { name: new RegExp(`^${SWEEP_NAME}`) });
+  await expect(row.getByText(/Termin: /)).toBeVisible();
+
+  // Escape has nothing to close: the focus stays in the field, visible.
+  await page.keyboard.press('Escape');
+  await expectFocusOn(page, once);
+  await expectVisibleFocus(page);
+
+  // «Termin entfernen» with Enter empties the field and keeps the focus there; «Speichern»
+  // removes the date on the server.
+  const clear = schedule.getByRole('button', { name: 'Termin entfernen' });
+  await tabTo(page, clear, 10);
+  await page.keyboard.press('Enter');
+  await expectFocusOn(page, once);
+  await expect(once).toHaveValue('');
+  const save = schedule.getByRole('button', { name: 'Speichern', exact: true });
+  await tabTo(page, save, 10);
+  await page.keyboard.press('Enter');
+  await expect(row.getByText(/Termin: /)).toHaveCount(0);
+  expect((await sweepSchedule(owner)).once).toBeUndefined();
+  await expectNoFocusTrap(page);
+});
+
 /** Two failures the stubbed dashboard adds to the server's own (see the next test). */
 const STUB_RETRY = 990_001;
 const STUB_CANCEL = 990_002;
@@ -414,11 +498,13 @@ test.describe('failures', () => {
     // «Abbrechen» asks: Escape keeps the run with the focus back on the button, Enter on the
     // confirmation cancels it, the row goes and the h1 takes the focus.
     const cancel = table.getByRole('button', {
-      name: `Lauf ${STUB_CANCEL} von Keyframe-Index abbrechen`,
+      name: `Lauf ${STUB_CANCEL} von Keyframe-Index (ganze Datei lesen) abbrechen`,
     });
     await tabTo(page, cancel, TAB_MAX);
     await page.keyboard.press('Enter');
-    const dialog = page.getByRole('alertdialog', { name: 'Lauf von Keyframe-Index abbrechen?' });
+    const dialog = page.getByRole('alertdialog', {
+      name: 'Lauf von Keyframe-Index (ganze Datei lesen) abbrechen?',
+    });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText('Slouchcat versucht diesen Lauf nicht mehr.')).toBeVisible();
     await page.keyboard.press('Escape');

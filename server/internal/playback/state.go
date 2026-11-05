@@ -19,6 +19,12 @@ import (
 //     recheckWatchLimit, StopStream, EndDevice), marks it stopped with its stopped_by value.
 //     StopStream and EndDevice register a playback the registry does not know first (one from
 //     before a restart): their rows name its browser session.
+//   - endSourceChanged marks a remux whose file changed since its start (concept 14, 6.4) stopped
+//     for a changed source, a cause that is never persisted (the row keeps stopped_by NULL):
+//     Authorize and rebuild answer model.ErrPlaybackSourceChanged for its revoked row instead of
+//     401, so every later stream request (and one that raced the first 409) restarts the
+//     playback, and State answers model.ErrNotFound for it ("keep playing", no stop), because the
+//     next stream request restarts it. The mark lasts stateRetention like any stop.
 //   - The sweep marks the playback sessions that ended elsewhere (expiry) and forgets stopped
 //     entries stateRetention after their stop, and running ones after activeRetention (rows the
 //     sweep never lists again, deleted with their browser session), so the map holds at most the
@@ -43,6 +49,10 @@ type stateEntry struct {
 	stopped   bool
 	stoppedBy string
 	stoppedAt time.Time
+	// sourceChanged marks a stop for a changed source (endSourceChanged); itemID is the title of
+	// the playback then, so Authorize can check the token of its revoked row.
+	sourceChanged bool
+	itemID        string
 }
 
 // stateRegistry holds the playback sessions of this server process. It has no database handle:
@@ -81,6 +91,43 @@ func (r *stateRegistry) stop(id, stoppedBy string, now time.Time) {
 	}
 }
 
+// stopSourceChanged marks a playback session of the browser session sessionID stopped for a changed
+// source of the title itemID (registering it first, after a restart). An earlier stop with a
+// stopped_by value (the administration, a limit, the client) keeps its reason. An earlier stop
+// without one is the sweep between the revoke of endSourceChanged and this mark: the revoke was
+// that of the changed source, so the mark takes it over.
+func (r *stateRegistry) stopSourceChanged(id string, sessionID int64, itemID string, now time.Time) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.entries == nil {
+		r.entries = map[string]*stateEntry{}
+	}
+	e, ok := r.entries[id]
+	if !ok {
+		e = &stateEntry{sessionID: sessionID, addedAt: now}
+		r.entries[id] = e
+	}
+	switch {
+	case !e.stopped:
+		e.stopped, e.stoppedAt = true, now
+	case e.stoppedBy != "":
+		return
+	}
+	e.sourceChanged, e.itemID = true, itemID
+}
+
+// sourceChanged returns the title of a playback session stopped for a changed source; ok is false
+// for any other playback session.
+func (r *stateRegistry) sourceChanged(id string) (itemID string, ok bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	e, found := r.entries[id]
+	if !found || !e.sourceChanged {
+		return "", false
+	}
+	return e.itemID, true
+}
+
 // prune forgets the playback sessions stopped more than stateRetention before now and the running
 // ones registered more than activeRetention before now.
 func (r *stateRegistry) prune(now time.Time) {
@@ -98,7 +145,7 @@ func (r *stateRegistry) get(id string, sessionID int64) (model.PlaybackState, bo
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	e, ok := r.entries[id]
-	if !ok || e.sessionID != sessionID {
+	if !ok || e.sessionID != sessionID || e.sourceChanged {
 		return model.PlaybackState{}, false
 	}
 	return model.PlaybackState{Stopped: e.stopped, StoppedBy: e.stoppedBy}, true
@@ -106,7 +153,9 @@ func (r *stateRegistry) get(id string, sessionID int64) (model.PlaybackState, bo
 
 // State reports whether a playback session of the browser session still runs, from memory only.
 // A playback session of another browser session, an unknown one and one this process no longer
-// knows (a restart, stateRetention after its stop) return model.ErrNotFound.
+// knows (a restart, stateRetention after its stop) return model.ErrNotFound, and so does one
+// stopped for a changed source: that is no stop for the player, its next stream request answers
+// model.ErrPlaybackSourceChanged and it starts again.
 func (s *Service) State(session model.Session, id string) (model.PlaybackState, error) {
 	st, ok := s.states.get(id, session.ID)
 	if !ok {

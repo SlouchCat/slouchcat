@@ -78,6 +78,8 @@ linters:
         - pattern: ^exec\.(Command|CommandContext|LookPath)$
           pkg: ^os/exec$
           msg: external processes run only through internal/transcode, with exec.CommandContext and an argument list (CLAUDE.md rule 3)
+        - pattern: \.(EnqueueOverridingPause|RaiseQueuedJobForPlayback)$
+          msg: only a playback lifts the pause of a job type, through package library (concept 14 6.5, ADR 0022)
     govet:
       enable-all: true
       disable:
@@ -95,6 +97,10 @@ linters:
       - path: internal/transcode/
         linters:
           - forbidigo
+      - path: internal/(jobs|library)/
+        linters:
+          - forbidigo
+        text: (EnqueueOverridingPause|RaiseQueuedJobForPlayback)
       - path: _test\.go
         linters:
           - gosec

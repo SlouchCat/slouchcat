@@ -200,6 +200,23 @@ func TestJobTypesOverview(t *testing.T) {
 	}
 }
 
+// The overview passes the flag of the registry: a type whose playback runs override the pause
+// says so, every other type does not (contract 1.13.0).
+func TestJobTypesOverridesPauseForPlayback(t *testing.T) {
+	jf := newJobFixture(t)
+	noop := func(context.Context, *jobs.Job) error { return nil }
+	jf.reg.Register(jobs.Type{Name: "fake.index", Group: jobs.GroupLibrary, Pool: jobs.PoolIndex, Trigger: jobs.TriggerEvent,
+		Priority: 1, Handler: noop, OverridesPauseForPlayback: true})
+	if info := jf.typeInfo(t, "fake.index"); !info.OverridesPauseForPlayback {
+		t.Errorf("fake.index = %+v, want OverridesPauseForPlayback", info)
+	}
+	for _, typ := range []string{fakeEvent, fakeSchedule, JobUpdateCheck} {
+		if info := jf.typeInfo(t, typ); info.OverridesPauseForPlayback {
+			t.Errorf("%s carries OverridesPauseForPlayback", typ)
+		}
+	}
+}
+
 // A measured estimate from the reported progress once 5 % and 30 s are reached.
 func TestJobRunMeasuredEstimate(t *testing.T) {
 	jf := newJobFixture(t)
@@ -351,6 +368,14 @@ func TestUpdateJobSchedule(t *testing.T) {
 	}
 	if cfg, err := appq.New(jf.db.Read).GetSpotlightConfig(ctx); err != nil || cfg.IntervalHours != 7 {
 		t.Errorf("spotlight interval = %d %v, want 7", cfg.IntervalHours, err)
+	}
+	// A one-off date the scheduler refuses (concept 14 F-6) writes neither the schedule nor the
+	// spotlight config.
+	if _, err := jf.svc.UpdateJobSchedule(ctx, jobTraktRefresh, model.JobScheduleUpdate{EverySeconds: ptr(9 * 3600), OnceLocal: ptr("2001-01-01T00:00")}); !errors.As(err, &verr) || verr.Fields[0].Field != "onceLocal" {
+		t.Errorf("trakt update with a past one-off date: %v, want a validation error on onceLocal", err)
+	}
+	if cfg, err := appq.New(jf.db.Read).GetSpotlightConfig(ctx); err != nil || cfg.IntervalHours != 7 {
+		t.Errorf("spotlight interval after a refused update = %d %v, want 7", cfg.IntervalHours, err)
 	}
 	// Update check: the switch is the setting.
 	info, err = jf.svc.UpdateJobSchedule(ctx, JobUpdateCheck, model.JobScheduleUpdate{Enabled: ptr(false)})

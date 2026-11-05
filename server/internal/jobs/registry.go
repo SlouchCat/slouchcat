@@ -39,6 +39,9 @@ const (
 	PoolGeneral  Pool = "general"
 	PoolDownload Pool = "download"
 	PoolNotify   Pool = "notify"
+	// PoolIndex has exactly one worker (concept 14 F-2): the full keyframe reads of minutes run one
+	// after the other and never hold up a general worker.
+	PoolIndex Pool = "index"
 )
 
 // Trigger says what starts a run of the type: the scheduler, an event in the server (a scan, a
@@ -61,7 +64,7 @@ const ManualPriority = 7
 type Type struct {
 	Name    string  // "scan.library"
 	Group   Group   // library, metadata, delivery, system
-	Pool    Pool    // general, download, notify
+	Pool    Pool    // general, download, notify, index
 	Trigger Trigger // schedule, event, manual
 	// Priority is the priority of a scheduled run of this type; a manual run uses ManualPriority.
 	Priority int
@@ -86,6 +89,10 @@ type Type struct {
 	// the last attempt; update.check: update_check_enabled and the last check). nil: Every,
 	// enabled, no history.
 	Seed func(ctx context.Context) (ScheduleSeed, error)
+	// OverridesPauseForPlayback: a playback queues runs of this type that start and keep running
+	// while the type is paused (Queue.EnqueueOverridingPause, concept 14, 6.4); the administration
+	// page says so in its pause banner.
+	OverridesPauseForPlayback bool
 }
 
 // ScheduleSeed are the values of the first schedule row of a type (Type.Seed).
@@ -132,14 +139,16 @@ type runEntry struct {
 	typ    string
 	cancel context.CancelCauseFunc
 	rep    *reporter // nil in tests that add a run without one
+	// overridesPause: a pause of the type does not stop the run (Job.OverridesPause).
+	overridesPause bool
 }
 
 func newRunList() *runList { return &runList{runs: map[int64]runEntry{}} }
 
-func (l *runList) add(id int64, typ string, cancel context.CancelCauseFunc, rep *reporter) {
+func (l *runList) add(id int64, typ string, overridesPause bool, cancel context.CancelCauseFunc, rep *reporter) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.runs[id] = runEntry{typ: typ, cancel: cancel, rep: rep}
+	l.runs[id] = runEntry{typ: typ, cancel: cancel, rep: rep, overridesPause: overridesPause}
 }
 
 // series returns the progress series of the running job id (see reporter.series).
@@ -159,13 +168,14 @@ func (l *runList) remove(id int64) {
 	delete(l.runs, id)
 }
 
-// cancelType ends the context of every running job of typ with cause and returns how many.
+// cancelType ends the context of every running job of typ with cause and returns how many; a run
+// with override_pause keeps running (concept 14, 6.5).
 func (l *runList) cancelType(typ string, cause error) int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	n := 0
 	for _, e := range l.runs {
-		if e.typ == typ {
+		if e.typ == typ && !e.overridesPause {
 			e.cancel(cause)
 			n++
 		}
@@ -210,9 +220,9 @@ func (r *Registry) ProgressSince(id int64) (since time.Time, done int64, ok bool
 }
 
 // Pause pauses the job type typ (F-1, F-6): no worker claims its jobs any more, and every running
-// job of the type is stopped at once and goes back to the queue without a used attempt. The pause
-// is a row in job_types and survives a restart; a type without a row is model.ErrNotFound.
-// Idempotent.
+// job of the type is stopped at once and goes back to the queue without a used attempt, except a
+// job with override_pause (a playback request, concept 14 6.5). The pause is a row in job_types
+// and survives a restart; a type without a row is model.ErrNotFound. Idempotent.
 func (r *Registry) Pause(ctx context.Context, typ string) error {
 	now := r.q.now()
 	n, err := r.q.q.PauseJobType(ctx, systemq.PauseJobTypeParams{Now: now.UnixMilli(), Type: typ})

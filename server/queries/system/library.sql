@@ -19,9 +19,12 @@ UPDATE items SET deleted_at = @now, updated_at = @now
 WHERE items.id = @id AND items.deleted_at IS NULL AND items.kind IN ('movie', 'episode', 'extra')
   AND NOT EXISTS (SELECT 1 FROM media_files AS m WHERE m.item_id = items.id);
 
--- name: UpdateMediaFileProbeError :exec
+-- name: UpdateMediaFileProbeError :execrows
 -- ffprobe failed on the file (B-9 "unplayable"): the attempt is recorded, the stream columns stay.
-UPDATE media_files SET probe_error = @probe_error, probed_at = @now, updated_at = @now WHERE id = @id;
+-- Only for the version (size, mtime) the probe read, like UpdateMediaFileProbe: 0 rows means the
+-- file changed meanwhile, and probe.file runs again on the new version (concept 14, Z-9).
+UPDATE media_files SET probe_error = @probe_error, probed_at = @now, updated_at = @now
+WHERE id = @id AND size = @size AND mtime = @mtime;
 
 -- name: SoftDeleteEmptySeasons :execrows
 -- Seasons whose children (episodes, extras) are all soft-deleted leave with them (sweep).

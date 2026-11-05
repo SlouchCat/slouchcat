@@ -184,6 +184,11 @@ func (s *Service) Refresh(ctx context.Context, itemID string) error {
 		return fmt.Errorf("refresh %s: list files: %w", item.ID, err)
 	}
 	for _, f := range files {
+		// A file marked "no index possible" gets another try with the probe; a stored index stays
+		// (concept 14, 4.2, O-16).
+		if err := s.write.ResetUnavailableKeyframes(ctx, systemq.ResetUnavailableKeyframesParams{Now: s.now().UnixMilli(), ID: f}); err != nil {
+			return fmt.Errorf("refresh %s: reset keyframe index: %w", item.ID, err)
+		}
 		payload, err := json.Marshal(struct {
 			MediaFileID string `json:"mediaFileId"`
 		}{f})

@@ -1042,7 +1042,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	if err := scheduler.Start(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	adm.WithJobControl(registry, scheduler, map[jobs.Pool]int{jobs.PoolGeneral: 2, jobs.PoolDownload: 1, jobs.PoolNotify: 1})
+	adm.WithJobControl(registry, scheduler, map[jobs.Pool]int{jobs.PoolGeneral: 2, jobs.PoolDownload: 1, jobs.PoolNotify: 1, jobs.PoolIndex: 1})
 	// M9: the webhook receiver; the fixture has no integration, so every token is unknown (401).
 	pf.integrations = integrations.New(f.DB, contractPathScanner{}, log)
 	adm.WithIntegrations(pf.integrations)

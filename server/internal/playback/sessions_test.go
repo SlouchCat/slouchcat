@@ -3,6 +3,7 @@ package playback
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
@@ -552,83 +554,94 @@ func TestRunSweepsUntilCancelled(t *testing.T) {
 	}
 }
 
-// fakeIndex is a keyframe indexer for Start: it returns kf after delay, or the context error.
-type fakeIndex struct {
-	mu    sync.Mutex
-	calls int
-	kf    []time.Duration
-	delay time.Duration
-}
-
-func (x *fakeIndex) keyframes(ctx context.Context, _ string) ([]time.Duration, error) {
-	x.mu.Lock()
-	x.calls++
-	x.mu.Unlock()
-	select {
-	case <-time.After(x.delay):
-		return x.kf, nil
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-}
-
 func keyframeJob(t *testing.T, f *vistest.Fixture, fileID string) (priority int, state string) {
 	t.Helper()
-	err := f.DB.Read.QueryRowContext(context.Background(),
-		`SELECT priority, state FROM jobs WHERE idempotency_key = ? AND state IN ('queued', 'running')`, "keyframes:"+fileID).Scan(&priority, &state)
-	if err != nil {
-		t.Fatalf("keyframe job of %s: %v", fileID, err)
-	}
+	priority, state, _ = keyframeJobOverride(t, f, fileID)
 	return priority, state
 }
 
-// I1: a remux without keyframe index computes it on demand and stores it for the next start.
-func TestRemuxComputesMissingKeyframes(t *testing.T) {
-	t.Parallel()
+// keyframeJobOverride is keyframeJob with the pause override of the job (jobs.override_pause).
+func keyframeJobOverride(t *testing.T, f *vistest.Fixture, fileID string) (priority int, state string, override bool) {
+	t.Helper()
+	err := f.DB.Read.QueryRowContext(context.Background(),
+		`SELECT priority, state, override_pause FROM jobs WHERE idempotency_key = ? AND state IN ('queued', 'running')`, "keyframes:"+fileID).Scan(&priority, &state, &override)
+	if err != nil {
+		t.Fatalf("keyframe job of %s: %v", fileID, err)
+	}
+	return priority, state, override
+}
+
+// keyframeJobs counts the keyframe jobs of a media file in any state.
+func keyframeJobs(t *testing.T, f *vistest.Fixture, fileID string) int {
+	t.Helper()
+	var n int
+	if err := f.DB.Read.QueryRowContext(context.Background(), `SELECT count(*) FROM jobs WHERE idempotency_key = ?`, "keyframes:"+fileID).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+// Concept 14, 2.3 and I-4: a remux candidate without keyframe index transcodes at once, without
+// reading the file, and queues the index job at priority 9 with the pause override, so the next
+// start remuxes. Not parallel: the start is timed. I-4 holds by structure (Start has no keyframe
+// reader to wait for); the time bound only catches a gross regression and leaves room for slow
+// runners.
+func TestStartWithoutKeyframesTranscodesAtOnce(t *testing.T) {
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
-	idx := &fakeIndex{kf: []time.Duration{0, 5 * time.Second, 10 * time.Second}}
-	s := New(f.DB, vistest.Logger(), WithTranscoder(tc), WithKeyframeIndex(idx.keyframes))
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
 	ctx := context.Background()
 	m := f.Rated(6)
 	f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", h264Probe(t), nil)
 	session := browserSession(t, f, f.P6)
 
+	started := time.Now()
 	info, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+	took := time.Since(started)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Transcoding == nil || info.Transcoding.Mode != ModeRemux || info.Transcoding.Reason != ReasonContainer {
+	if took > 2*time.Second {
+		t.Errorf("start without index took %v, want no wait", took)
+	}
+	if info.Transcoding == nil || info.Transcoding.Mode != ModeTranscode || info.Transcoding.Reason != ReasonKeyframesPending {
 		t.Fatalf("H.264 MKV without index = %+v", info.Transcoding)
 	}
-	if got := tc.starts(); len(got) != 1 || len(got[0].Keyframes) != 3 || got[0].Keyframes[1] != 5*time.Second {
+	if got := tc.starts(); len(got) != 1 || got[0].Decision.Mode != ModeTranscode || got[0].Keyframes != nil {
 		t.Fatalf("started = %+v", got)
 	}
+	if prio, state, override := keyframeJobOverride(t, f, m.FileID); prio != 9 || state != "queued" || !override {
+		t.Errorf("keyframe job = %d %s override %t, want 9 queued with the pause override", prio, state, override)
+	}
+	// Playback never stores an index itself.
 	pf, err := visibility.New(f.DB, vistest.Logger()).MediaFileProbe(ctx, visibility.Profile(f.P6), m.ID, m.FileID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if kf, err := library.DecodeKeyframes(pf.Keyframes); err != nil || len(kf) != 3 {
-		t.Errorf("stored index = %v, %v", kf, err)
+	if pf.Keyframes != nil || pf.KeyframesSource != "" || pf.KeyframesAt != 0 {
+		t.Errorf("stored index = %+v", pf)
 	}
-	// The next start uses the stored index.
-	if _, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{}); err != nil {
+	// Once the job stored the index, the next start remuxes.
+	f.SetKeyframes(t, m.FileID, library.EncodeKeyframes([]time.Duration{0, 5 * time.Second, 10 * time.Second}), library.KeyframesCues, time.Now().UnixMilli())
+	next, err := s.Start(ctx, session, m.ID, model.PlaybackRequest{})
+	if err != nil {
 		t.Fatal(err)
 	}
-	if idx.calls != 1 {
-		t.Errorf("index computed %d times", idx.calls)
+	if next.Transcoding == nil || next.Transcoding.Mode != ModeRemux || next.Transcoding.Reason != ReasonContainer {
+		t.Fatalf("with index = %+v", next.Transcoding)
+	}
+	if got := tc.starts(); len(got) != 2 || len(got[1].Keyframes) != 3 || got[1].Keyframes[1] != 5*time.Second {
+		t.Errorf("started = %+v", got)
 	}
 }
 
-// I1: an index that takes longer than the timeout falls back to transcoding and queues the index
-// job at top priority, replacing the scan's low-priority job.
+// Concept 14, 2.3: a missing index falls back to transcoding and raises the scan's low-priority
+// job of the file to priority 9 instead of replacing it (Z-4).
 func TestRemuxFallsBackWhileKeyframesPending(t *testing.T) {
 	t.Parallel()
 	f := vistest.New(t)
 	tc := newFakeTranscoder()
-	idx := &fakeIndex{kf: []time.Duration{0}, delay: time.Hour}
-	s := New(f.DB, vistest.Logger(), WithTranscoder(tc), WithKeyframeIndex(idx.keyframes))
-	s.keyframeTimeout = 50 * time.Millisecond
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
 	ctx := context.Background()
 	m := f.Rated(6)
 	f.SetMediaFile(t, m.FileID, "mkv", "h264", "ac3", h264Probe(t), nil)
@@ -637,13 +650,9 @@ func TestRemuxFallsBackWhileKeyframesPending(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	start := time.Now()
 	info, err := s.Start(ctx, browserSession(t, f, f.P6), m.ID, model.PlaybackRequest{Capabilities: &model.PlaybackCapabilities{Video: []string{"h264"}, Audio: []string{"aac", "ac3"}, HLS: "native"}})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if time.Since(start) > 5*time.Second {
-		t.Errorf("start took %v", time.Since(start))
 	}
 	if info.Transcoding == nil || info.Transcoding.Mode != ModeTranscode || info.Transcoding.Reason != ReasonKeyframesPending || info.Transcoding.Backend != "software" {
 		t.Fatalf("pending index = %+v", info.Transcoding)
@@ -657,12 +666,47 @@ func TestRemuxFallsBackWhileKeyframesPending(t *testing.T) {
 	if prio, state := keyframeJob(t, f, m.FileID); prio != 9 || state != "queued" {
 		t.Errorf("keyframe job = %d %s, want 9 queued", prio, state)
 	}
+	if n := keyframeJobs(t, f, m.FileID); n != 1 {
+		t.Errorf("%d keyframe jobs, want the raised one only", n)
+	}
 	var row struct{ mode, reason string }
 	if err := f.DB.Read.QueryRowContext(ctx, `SELECT mode, reason FROM playback_sessions WHERE id = ?`, info.PlaybackSessionID).Scan(&row.mode, &row.reason); err != nil {
 		t.Fatal(err)
 	}
 	if row.mode != ModeTranscode || row.reason != ReasonKeyframesPending {
 		t.Errorf("row = %+v", row)
+	}
+}
+
+// Concept 14, 2.3 and Z-3: a file whose index is impossible (source none) transcodes with reason
+// keyframes_unavailable, offers no original and queues nothing.
+func TestRemuxWithUnavailableKeyframesTranscodesWithoutJob(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(6)
+	f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", h264Probe(t), nil)
+	f.SetKeyframes(t, m.FileID, nil, library.KeyframesNone, time.Now().UnixMilli())
+
+	info, err := s.Start(ctx, browserSession(t, f, f.P6), m.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Transcoding == nil || info.Transcoding.Mode != ModeTranscode || info.Transcoding.Reason != ReasonKeyframesUnavailable {
+		t.Fatalf("impossible index = %+v", info.Transcoding)
+	}
+	if got := tc.starts(); len(got) != 1 || got[0].Decision.Mode != ModeTranscode || got[0].Decision.Reason != ReasonKeyframesUnavailable {
+		t.Errorf("started = %+v", got)
+	}
+	for _, q := range info.Qualities {
+		if q.Quality == model.QualityOriginal && q.Available {
+			t.Errorf("original offered without an index: %+v", q)
+		}
+	}
+	if n := keyframeJobs(t, f, m.FileID); n != 0 {
+		t.Errorf("%d keyframe jobs queued, want none", n)
 	}
 }
 
@@ -686,8 +730,9 @@ func TestRemuxRejectedByTranscoderFallsBack(t *testing.T) {
 	if got := tc.starts(); len(got) != 1 || got[0].Decision.Mode != ModeTranscode || !got[0].Decision.AudioCopy {
 		t.Errorf("started = %+v", got)
 	}
-	if prio, _ := keyframeJob(t, f, m.FileID); prio != 9 {
-		t.Errorf("keyframe job priority %d", prio)
+	// The stored index is final for this file version (concept 14, I-1): no job reads it again.
+	if n := keyframeJobs(t, f, m.FileID); n != 0 {
+		t.Errorf("%d keyframe jobs queued for a stored index", n)
 	}
 }
 
@@ -823,6 +868,202 @@ func TestHLSRebuildsLostOutput(t *testing.T) {
 	wg.Wait()
 	if n := len(tc.starts()); n != 5 {
 		t.Errorf("concurrent rebuild started %d outputs, want 1 more", n-4)
+	}
+}
+
+// remuxSession starts a remux of an H.264 MKV with a stored index, loses its output (server
+// restart) and returns the grant of the playback.
+func remuxSession(t *testing.T, f *vistest.Fixture, s *Service, tc *fakeTranscoder, m vistest.Movie) (model.PlaybackInfo, model.PlaybackGrant) {
+	t.Helper()
+	ctx := context.Background()
+	f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", h264Probe(t), library.EncodeKeyframes([]time.Duration{0, 4 * time.Second, 9 * time.Second}))
+	info, err := s.Start(ctx, browserSession(t, f, f.P18), m.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Transcoding == nil || info.Transcoding.Mode != ModeRemux {
+		t.Fatalf("start = %+v, want a remux", info.Transcoding)
+	}
+	tc.lose(info.PlaybackSessionID)
+	g, err := s.Authorize(ctx, tokenOf(t, info.StreamURL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return info, g
+}
+
+// Concept 14, 6.4: a lost remux output whose file changed since the start (an index newer than
+// the playback, or none any more) is not rebuilt on another keyframe grid: the playback session
+// ends and the request answers model.ErrPlaybackSourceChanged (409 playback_source_changed). Later
+// requests of the playback answer the same instead of 401 (review of wave D), also for a playback
+// from before a restart, and the stop watch does not report the end as a stop.
+func TestHLSRebuildOfChangedRemuxSourceEndsPlayback(t *testing.T) {
+	t.Parallel()
+	for name, change := range map[string]func(t *testing.T, f *vistest.Fixture, fileID string){
+		"newer index": func(t *testing.T, f *vistest.Fixture, fileID string) {
+			f.SetKeyframes(t, fileID, library.EncodeKeyframes([]time.Duration{0, 5 * time.Second}), library.KeyframesCues, time.Now().Add(time.Hour).UnixMilli())
+		},
+		"index gone": func(t *testing.T, f *vistest.Fixture, fileID string) { f.SetKeyframes(t, fileID, nil, "", 0) },
+		"index none": func(t *testing.T, f *vistest.Fixture, fileID string) {
+			f.SetKeyframes(t, fileID, nil, library.KeyframesNone, time.Now().Add(time.Hour).UnixMilli())
+		},
+		"index gone after a restart": func(t *testing.T, f *vistest.Fixture, fileID string) { f.SetKeyframes(t, fileID, nil, "", 0) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			f := vistest.New(t)
+			tc := newFakeTranscoder()
+			s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+			ctx := context.Background()
+			m := f.Rated(12)
+			info, g := remuxSession(t, f, s, tc, m)
+			change(t, f, m.FileID)
+			if strings.HasSuffix(name, "after a restart") {
+				s.states.remove(info.PlaybackSessionID) // a restarted process does not know the playback
+			}
+
+			for _, segment := range []int{0, 4} {
+				if _, err := s.HLS(ctx, g, segment); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+					t.Fatalf("request for segment %d of a changed remux: %v, want ErrPlaybackSourceChanged", segment, err)
+				}
+			}
+			if got := tc.starts(); len(got) != 1 {
+				t.Errorf("started %d outputs, want the first one only", len(got))
+			}
+			var revoked bool
+			var stoppedBy sql.NullString
+			if err := f.DB.Read.QueryRowContext(ctx, `SELECT revoked_at IS NOT NULL, stopped_by FROM playback_sessions WHERE id = ?`,
+				info.PlaybackSessionID).Scan(&revoked, &stoppedBy); err != nil {
+				t.Fatal(err)
+			}
+			if !revoked || stoppedBy.Valid {
+				t.Errorf("row revoked %t stopped_by %v, want revoked by the server", revoked, stoppedBy)
+			}
+			token := tokenOf(t, info.StreamURL)
+			if _, err := s.Authorize(ctx, token); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+				t.Errorf("token after the end: %v, want ErrPlaybackSourceChanged", err)
+			}
+			if _, err := s.Authorize(ctx, info.PlaybackSessionID+"."+strings.Repeat("A", 43)); !errors.Is(err, model.ErrUnauthenticated) {
+				t.Errorf("forged token after the end: %v, want ErrUnauthenticated", err)
+			}
+			if st, err := s.State(g.Session, info.PlaybackSessionID); !errors.Is(err, model.ErrNotFound) {
+				t.Errorf("stop watch after the end = %+v, %v; want ErrNotFound (no stop)", st, err)
+			}
+			if n := keyframeJobs(t, f, m.FileID); n != 0 {
+				t.Errorf("%d keyframe jobs queued", n)
+			}
+		})
+	}
+}
+
+// Final review, m3: a sweep that marks the playback stopped without a cause before the
+// source-change mark (the window between the revoke of endSourceChanged and its mark) does not
+// keep it: later requests answer model.ErrPlaybackSourceChanged, not 401, and the stop watch
+// reports no stop.
+func TestSourceChangedMarkTakesOverAStopWithoutCause(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(12)
+	info, g := remuxSession(t, f, s, tc, m)
+	f.SetKeyframes(t, m.FileID, nil, "", 0)
+	s.states.stop(info.PlaybackSessionID, "", time.Now()) // the sweep, as if it ran in the window
+	if _, err := s.HLS(ctx, g, 0); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+		t.Fatalf("request of a changed remux: %v, want ErrPlaybackSourceChanged", err)
+	}
+	if _, err := s.Authorize(ctx, tokenOf(t, info.StreamURL)); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+		t.Errorf("token after the end: %v, want ErrPlaybackSourceChanged", err)
+	}
+	if st, err := s.State(g.Session, info.PlaybackSessionID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("stop watch after the end = %+v, %v; want ErrNotFound (no stop)", st, err)
+	}
+}
+
+// Final review, m4: another stop came first. The administration stops the remux, then a request
+// that loaded the row before that stop ends it for the changed source: the row keeps stopped_by
+// admin, the token answers 401 and the stop watch reports the stop of the administration, also
+// when the source-change mark comes after that stop.
+func TestSourceChangedEndKeepsAnEarlierStop(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(12)
+	info, g := remuxSession(t, f, s, tc, m)
+	id := info.PlaybackSessionID
+	row, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: s.now().UnixMilli()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.SetKeyframes(t, m.FileID, nil, "", 0)
+	if err := s.StopStream(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.endSourceChanged(ctx, row, keyframeIndex{}); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("source-change end after the stop: %v, want ErrUnauthenticated", err)
+	}
+	if _, err := s.HLS(ctx, g, 0); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("request after the stop: %v, want ErrUnauthenticated", err)
+	}
+	s.states.stopSourceChanged(id, row.SessionID, row.ItemID, time.Now())
+	var stoppedBy sql.NullString
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT stopped_by FROM playback_sessions WHERE id = ?`, id).Scan(&stoppedBy); err != nil {
+		t.Fatal(err)
+	}
+	if stoppedBy.String != model.StoppedByAdmin {
+		t.Errorf("row stopped_by %v, want admin", stoppedBy)
+	}
+	if _, err := s.Authorize(ctx, tokenOf(t, info.StreamURL)); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("token after the stop: %v, want ErrUnauthenticated", err)
+	}
+	if st, err := s.State(g.Session, id); err != nil || !st.Stopped || st.StoppedBy != model.StoppedByAdmin {
+		t.Errorf("stop watch = %+v, %v; want stopped by admin", st, err)
+	}
+}
+
+// Concept 14, 6.4: a remux whose index is unchanged rebuilds as a remux, and a playback that
+// started as a transcode stays a transcode whatever happened to the index meanwhile.
+func TestHLSRebuildKeepsUnchangedRemuxAndTranscode(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+
+	remux := f.Rated(12)
+	_, g := remuxSession(t, f, s, tc, remux)
+	if _, err := s.HLS(ctx, g, 2); err != nil {
+		t.Fatalf("rebuild of an unchanged remux: %v", err)
+	}
+	if got := tc.starts(); len(got) != 2 || got[1].Decision.Mode != ModeRemux || len(got[1].Keyframes) != 3 {
+		t.Fatalf("rebuilt remux = %+v", got)
+	}
+
+	pending := f.Rated(6)
+	f.SetMediaFile(t, pending.FileID, "mkv", "h264", "aac", h264Probe(t), nil)
+	info, err := s.Start(ctx, browserSession(t, f, f.P18), pending.ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Transcoding == nil || info.Transcoding.Mode != ModeTranscode || info.Transcoding.Reason != ReasonKeyframesPending {
+		t.Fatalf("start without index = %+v", info.Transcoding)
+	}
+	// The index job ran after the start; the lost output is rebuilt as the same transcode.
+	f.SetKeyframes(t, pending.FileID, library.EncodeKeyframes([]time.Duration{0, 5 * time.Second}), library.KeyframesCues, time.Now().Add(time.Hour).UnixMilli())
+	tc.lose(info.PlaybackSessionID)
+	gt, err := s.Authorize(ctx, tokenOf(t, info.StreamURL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.HLS(ctx, gt, 5); err != nil {
+		t.Fatalf("rebuild of a transcode: %v", err)
+	}
+	got := tc.starts()
+	if len(got) != 4 || got[3].Decision != got[2].Decision || got[3].Decision.Mode != ModeTranscode || got[3].StartSegment != 5 || got[3].Keyframes != nil {
+		t.Errorf("rebuilt transcode = %+v, started %+v", got[3:], got[2])
 	}
 }
 

@@ -67,8 +67,8 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 			t.Errorf("%s = %+v, want a schedule type that fires at the start", name, ty)
 		}
 	}
-	if len(r.Types()) != 10 {
-		t.Errorf("registered types = %d, want the nine job types of the library plus jobs.prune", len(r.Types()))
+	if len(r.Types()) != 11 {
+		t.Errorf("registered types = %d, want the ten job types of the library plus jobs.prune", len(r.Types()))
 	}
 	// Concept 13 stage 3: chapters.images is an event type, its backfill a manual type with a Run.
 	if ty, ok := r.Lookup(JobChapterImages); !ok || ty.Trigger != jobs.TriggerEvent || ty.Run != nil || ty.Priority != prioChapterImages {

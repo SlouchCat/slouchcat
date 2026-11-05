@@ -278,6 +278,8 @@ function PlayerView({
   const [switchingTo, setSwitchingTo] = useState<string | undefined>(undefined);
   const [stopping, setStopping] = useState(false);
   const [switchStartedAt, setSwitchStartedAt] = useState<number | undefined>(undefined);
+  // The running session is the restart after `playback_source_changed` (concept 14, 7.4).
+  const [sourceRestarted, setSourceRestarted] = useState(false);
   const [trackChoice, setTrackChoice] = useState<TrackChoice>({ file: null });
   const [quality, setQuality] = useState<Quality | undefined>(undefined);
   // A new session with the same choices (a second switch back) must not reuse a cached answer.
@@ -398,6 +400,7 @@ function PlayerView({
     setSwitchingTo(fileId);
     if (!(await endCurrent())) return;
     setStartMs(positionMs);
+    setSourceRestarted(false);
     setTrackChoice({
       file: fileId,
       ...versionTracks(
@@ -415,6 +418,7 @@ function PlayerView({
     if (!current || switching) return;
     if (!(await endCurrent())) return;
     setStartMs(positionMs);
+    setSourceRestarted(change.sourceChanged === true);
     if (change.quality !== undefined) setQuality(change.quality);
     setTrackChoice({ file: file ?? null, ...switchTracks(current, change) });
     setGeneration((value) => value + 1);
@@ -502,6 +506,7 @@ function PlayerView({
         onSwitchVersion={(fileId, positionMs) => void switchVersion(fileId, positionMs)}
         onSwitch={(change, positionMs) => void switchPlayback(change, positionMs)}
         switchStartedAt={switchStartedAt}
+        sourceRestarted={sourceRestarted}
         onNextEpisode={playNext}
         onPlayEpisode={playEpisode}
         onOpenPerson={openPerson}

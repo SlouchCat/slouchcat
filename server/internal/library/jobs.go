@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/mediaindex"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -42,6 +43,8 @@ const (
 	// prioKeyframesPlayback: a playback fell back to transcoding because the index is missing;
 	// the index runs before everything else so the next start remuxes.
 	prioKeyframesPlayback = 9
+	// prioKeyframesDownload: an offline download of a remux waits for the index (concept 14, 6.8).
+	prioKeyframesDownload = 5
 )
 
 type libraryPayload struct {
@@ -99,42 +102,136 @@ func keyframesJob(mediaFileID string) newJob {
 	return newJob{JobProbeKeyframes, prioKeyframes, "keyframes:" + mediaFileID, mediaFilePayload{MediaFileID: mediaFileID}}
 }
 
-// QueueKeyframesForPlayback queues the keyframe index of a media file at top priority (a playback
-// is transcoding because the index is missing). A queued index job of a scan (priority 1) is
-// replaced; a running one is left alone.
-func QueueKeyframesForPlayback(ctx context.Context, q *jobs.Queue, mediaFileID string) error {
-	payload, err := json.Marshal(mediaFilePayload{MediaFileID: mediaFileID})
+// keyframesFailedQuiet is how long a playback queues no full read again after the last one of the
+// file failed (concept 14, 6.4, O-17): the backfill tries it again.
+const keyframesFailedQuiet = 24 * time.Hour
+
+// QueueKeyframesForPlayback asks for the keyframe index of a media file a playback transcodes
+// because the index is missing (concept 14, 6.4): probe.keyframes at priority 9 under the key
+// keyframes:<id>, through jobs.Queue.EnqueueOverridingPause, so the job runs while its type is
+// paused (at most jobs.MaxPauseOverrides at a time). A job that waits under the key (one of a
+// scan or the backfill at priority 1) is raised instead (RaiseQueuedJobForPlayback); a running
+// one stays as it is. Nothing is queued for a file whose index is impossible (source none), whose
+// row is gone, or whose last full read failed within keyframesFailedQuiet. db is a read
+// connection. The result is zero when nothing was queued or raised.
+func QueueKeyframesForPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) (jobs.PauseOverride, error) {
+	j, wanted, err := keyframesWanted(ctx, db, mediaFileID, now)
+	if err != nil || !wanted {
+		return jobs.PauseOverride{}, err
+	}
+	payload, err := json.Marshal(j.payload)
 	if err != nil {
-		return fmt.Errorf("encode %s payload: %w", JobProbeKeyframes, err)
+		return jobs.PauseOverride{}, fmt.Errorf("encode %s payload: %w", j.typ, err)
 	}
-	nj := jobs.NewJob{Type: JobProbeKeyframes, Priority: prioKeyframesPlayback, IdempotencyKey: "keyframes:" + mediaFileID, Payload: payload}
-	id, err := q.Enqueue(ctx, nj)
-	if err != nil {
-		return err
+	res, err := q.EnqueueOverridingPause(ctx, jobs.NewJob{Type: j.typ, Priority: prioKeyframesPlayback, IdempotencyKey: j.key, Payload: payload})
+	if err != nil || res.Inserted {
+		return res, err
 	}
-	j, err := q.Get(ctx, id)
-	if err != nil {
-		return err
-	}
-	if j.State != jobs.StateQueued || j.Priority >= prioKeyframesPlayback {
-		return nil
-	}
-	if _, err := q.Cancel(ctx, id); err != nil {
-		return err
-	}
-	_, err = q.Enqueue(ctx, nj)
-	return err
+	return q.RaiseQueuedJobForPlayback(ctx, res.ID, prioKeyframesPlayback)
 }
 
-// StoreKeyframes stores a keyframe index that playback computed on demand, like the index job.
-func StoreKeyframes(ctx context.Context, db *sql.DB, mediaFileID string, kf []time.Duration, now time.Time) error {
-	err := systemq.New(db).UpdateMediaFileKeyframes(ctx, systemq.UpdateMediaFileKeyframesParams{
-		Keyframes: EncodeKeyframes(kf), Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, ID: mediaFileID,
+// QueueKeyframesForDownload asks for the keyframe index of a media file an offline download of a
+// remux waits for (concept 14, 6.8): probe.keyframes at priority 5 under the key keyframes:<id>,
+// without the pause override (that exception is for playback only, F-3). A job that waits under
+// the key is raised to that priority; a running one stays as it is. Like
+// QueueKeyframesForPlayback it queues nothing for a file whose index is there or impossible,
+// whose row is gone, or whose last full read failed within keyframesFailedQuiet; a full read that
+// is already queued or running under the key (one of the backfill, which does not look at O-17)
+// counts all the same. db is a read connection. queued reports whether a full read is queued or
+// running now: without one the download has nothing to wait for and encodes.
+func QueueKeyframesForDownload(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) (queued bool, err error) {
+	active, err := systemq.New(db).GetActiveJobIDByKey(ctx, sql.NullString{String: keyframesJob(mediaFileID).key, Valid: true})
+	switch {
+	case err == nil:
+		if _, err = q.RaiseQueuedPriority(ctx, active, prioKeyframesDownload); err != nil {
+			return false, err
+		}
+		return true, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return false, fmt.Errorf("active full keyframe read of %s: %w", mediaFileID, err)
+	}
+	j, wanted, err := keyframesWanted(ctx, db, mediaFileID, now)
+	if err != nil || !wanted {
+		return false, err
+	}
+	payload, err := json.Marshal(j.payload)
+	if err != nil {
+		return false, fmt.Errorf("encode %s payload: %w", j.typ, err)
+	}
+	id, err := q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: prioKeyframesDownload, IdempotencyKey: j.key, Payload: payload})
+	if err != nil {
+		return false, err
+	}
+	if _, err = q.RaiseQueuedPriority(ctx, id, prioKeyframesDownload); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// keyframesWanted reports whether a full read of a media file may be queued on demand: its row
+// exists without an index (none: impossible for this version; else written meanwhile) and its
+// last full read did not fail within keyframesFailedQuiet (O-17). j is the job of that read.
+func keyframesWanted(ctx context.Context, db *sql.DB, mediaFileID string, now time.Time) (j newJob, wanted bool, err error) {
+	read := systemq.New(db)
+	mf, err := read.GetMediaFileSystem(ctx, mediaFileID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return newJob{}, false, nil
+	}
+	if err != nil {
+		return newJob{}, false, fmt.Errorf("load media file: %w", err)
+	}
+	if mf.KeyframesSource.Valid {
+		return newJob{}, false, nil
+	}
+	j = keyframesJob(mediaFileID)
+	failed, err := read.LastJobFailedSince(ctx, systemq.LastJobFailedSinceParams{
+		Type: j.typ, IdempotencyKey: sql.NullString{String: j.key, Valid: true},
+		Since: sql.NullInt64{Int64: now.Add(-keyframesFailedQuiet).UnixMilli(), Valid: true},
 	})
 	if err != nil {
-		return fmt.Errorf("store keyframe index of %s: %w", mediaFileID, err)
+		return newJob{}, false, fmt.Errorf("last full keyframe read of %s: %w", mediaFileID, err)
 	}
-	return nil
+	return j, !failed, nil
+}
+
+// Keyframe sources: the values of media_files.keyframes_source (concept 14, 4.1).
+const (
+	KeyframesCues = string(mediaindex.SourceCues) // Matroska and WebM cues
+	KeyframesMP4  = string(mediaindex.SourceMP4)  // MP4 sample tables
+	KeyframesScan = "scan"                        // the full read (transcode.Runner.Keyframes)
+	KeyframesNone = "none"                        // no index possible for this file version
+)
+
+// FileVersion is the size and mtime of a media file row, remembered before its file is read: a
+// probe or an index is only written for the version it was computed from (concept 14, 4.2).
+type FileVersion struct {
+	Size  int64
+	Mtime int64
+}
+
+// VersionOf returns the version of a media file row.
+func VersionOf(f systemq.MediaFile) FileVersion { return FileVersion{Size: f.Size, Mtime: f.Mtime} }
+
+// StoreKeyframes is the one writer of the keyframe index (concept 14, 4.2): it stores kf with its
+// source only while the file has no index and the row still has version v (I-1, Z-9), on db (the
+// write connection or the caller's transaction). An empty kf is stored as KeyframesNone without a
+// blob. stored is false when an index was there already or the file changed meanwhile, which is
+// not an error.
+func StoreKeyframes(ctx context.Context, db systemq.DBTX, mediaFileID string, kf []time.Duration, source string, v FileVersion, now time.Time) (stored bool, err error) {
+	var blob []byte
+	if len(kf) == 0 {
+		source = KeyframesNone
+	} else {
+		blob = EncodeKeyframes(kf)
+	}
+	n, err := systemq.New(db).SetMediaFileKeyframes(ctx, systemq.SetMediaFileKeyframesParams{
+		Keyframes: blob, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true},
+		Source: sql.NullString{String: source, Valid: true}, ID: mediaFileID, Size: v.Size, Mtime: v.Mtime,
+	})
+	if err != nil {
+		return false, fmt.Errorf("store keyframe index of %s: %w", mediaFileID, err)
+	}
+	return n > 0, nil
 }
 
 func matchJob(itemID string) newJob {
@@ -183,7 +280,8 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 // RegisterTypes registers the job types of the library on r (concept 09, ADR 0017): the full
 // scan and the sweep are schedule types (every 6 h and hourly, both at the start of the server),
 // chapters.images_backfill is a manual type (concept 13 stage 3), the rest are event types queued
-// by scans, watchers, webhooks, playbacks and matches (library.relink).
+// by scans, watchers, webhooks, playbacks and matches (library.relink). keyframes.backfill is a
+// schedule type with the schedule off (concept 14, 6.6); probe.keyframes runs in the pool index.
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{
@@ -192,7 +290,10 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	})
 	r.Register(jobs.Type{Name: JobScanPath, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioPathScan, Handler: s.handlePathScan, Cancel: s.cancelScanJob})
 	r.Register(jobs.Type{Name: JobProbeFile, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioProbe, Handler: s.handleProbe})
-	r.Register(jobs.Type{Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioKeyframes, Handler: s.handleKeyframes})
+	r.Register(jobs.Type{
+		Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolIndex, Trigger: jobs.TriggerEvent,
+		Priority: prioKeyframes, Handler: s.handleKeyframes, OverridesPauseForPlayback: true,
+	})
 	r.Register(jobs.Type{
 		Name: JobSweep, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioSweep, Handler: s.handleSweep, Run: s.runSweep, Every: sweepInterval, StartDelay: &atStart,
@@ -204,6 +305,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Name: JobChapterImagesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerManual,
 		Priority: prioChapterImages, Handler: s.handleChapterImagesBackfill, Run: s.runChapterImagesBackfill,
 	})
+	r.Register(s.keyframesBackfillType())
 }
 
 // cancelScanJob is the cancel hook of scan.library and scan.path (jobs.Type.Cancel, concept 09

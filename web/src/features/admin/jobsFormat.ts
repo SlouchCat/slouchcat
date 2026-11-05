@@ -42,6 +42,31 @@ export function formatInterval(t: TFunction, seconds: number): string {
 export const formatMinute = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 
+/**
+ * A one-off date of a schedule (`JobSchedule.once.local`, wall time of the server's zone) as
+ * "So., 8. Nov., 03:30": formatted as it stands, never converted to the browser's zone. The text
+ * as it is when it is no wall time.
+ */
+export function formatOnce(local: string, language: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(local);
+  if (!match) return local;
+  const [year, month, day, hour, minute] = match.slice(1).map(Number) as [
+    number,
+    number,
+    number,
+    number,
+    number,
+  ];
+  return new Intl.DateTimeFormat(language, {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, day, hour, minute)));
+}
+
 export type TypeState = 'idle' | 'queued' | 'running' | 'paused' | 'stopping' | 'unknown';
 
 /** The one word on the card's chip. */

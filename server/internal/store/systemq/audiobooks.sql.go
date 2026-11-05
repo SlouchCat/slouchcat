@@ -185,7 +185,7 @@ func (q *Queries) InsertChapter(ctx context.Context, arg InsertChapterParams) er
 }
 
 const listAudiobookParts = `-- name: ListAudiobookParts :many
-SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index FROM media_files
+SELECT id, item_id, root_id, rel_path, dev, inode, size, mtime, partial_hash, version_label, container, video_codec, audio_codec, width, height, duration_ms, probe, keyframes, probed_at, keyframes_at, missing_since, created_at, updated_at, probe_error, part_index, keyframes_source FROM media_files
 WHERE item_id = ?1 AND missing_since IS NULL
 ORDER BY COALESCE(part_index, 0), rel_path, id
 `
@@ -226,6 +226,7 @@ func (q *Queries) ListAudiobookParts(ctx context.Context, itemID string) ([]Medi
 			&i.UpdatedAt,
 			&i.ProbeError,
 			&i.PartIndex,
+			&i.KeyframesSource,
 		); err != nil {
 			return nil, err
 		}

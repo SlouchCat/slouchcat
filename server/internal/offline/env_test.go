@@ -316,10 +316,6 @@ func audioProbe(codec string, bitRate int64) transcode.Probe {
 		Streams: []transcode.Stream{{Index: 0, Type: "audio", Codec: codec, Channels: 2, Default: true}}}
 }
 
-func (e *fakeEncoder) Keyframes(context.Context, string) ([]time.Duration, error) {
-	return []time.Duration{0, 4 * time.Second, 8 * time.Second}, nil
-}
-
 func (e *fakeEncoder) Subtitles(_ context.Context, path string, index int) ([]byte, error) {
 	e.mu.Lock()
 	e.single = append(e.single, index)

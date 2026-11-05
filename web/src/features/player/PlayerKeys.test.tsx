@@ -993,7 +993,8 @@ describe('video player tabs, pause view, phone and slow connection (concept 13, 
   });
 
   it.each([
-    ['keyframes_pending', 'Index wird erstellt'],
+    ['keyframes_pending', 'Index fehlt noch'],
+    ['keyframes_unavailable', 'Kein Index möglich'],
     ['video_codec', 'Nur umgewandelt abspielbar'],
   ] as const)('names why original is not available: %s', async (reason, text) => {
     await start(hlsFilm(reason));

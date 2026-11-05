@@ -159,7 +159,8 @@ Echtzeit. Die Kalibrierung von Kosten und Budgets (Plan 3.5) folgt in `docs/perf
   Keyframe). Es sind dieselben Quellframes, der Player ersetzt sie beim Anhängen; beim Transcode beträgt
   die Überlappung nur das AAC-Priming (21 ms).
 - Remux braucht den Keyframe-Index der Quelle: Ohne ihn lehnt `NewPlan` mit `ErrNoKeyframes` ab, und der
-  Aufrufer berechnet den Index zuerst (`Runner.Keyframes`) oder kodiert um. Ein 4-s-Raster würde bei
+  Aufrufer berechnet den Index zuerst (`Runner.Keyframes`) oder kodiert um. **Seit ADR 0022 (5. November 2026)
+  kodiert der Aufrufer nur noch um;** der Index kommt aus dem Container oder dem Volllese-Job. Ein 4-s-Raster würde bei
   langen GOPs die Nummerierung verschieben (siehe oben). Nur-Audio-Quellen nutzen das Raster.
 - Endet das Video vor dem Audio, kann das letzte Rastersegment ohne Videoframe bleiben und wird nie
   geschrieben; die Sitzung meldet es als `ErrNoSegment`.

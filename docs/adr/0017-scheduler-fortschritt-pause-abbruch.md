@@ -126,3 +126,10 @@ Laufliste im Speicher, der Heartbeat ist nur noch der Rückfall.
 - Spec A-3 bleibt unverändert und wird erweitert erfüllt; Plan 3.6 «cron-artig» ist durch Intervalle
   mit Zeitfenster abgelöst (Abschnitt 3 des Konzepts). Umsetzung in sechs Schritten nach Konzept
   Abschnitt 10; Vertrag erst in Schritt 3, Oberfläche in Schritt 4.
+
+## Nachtrag (5. November 2026)
+
+ADR 0022 ergänzt diesen Entscheid um drei Punkte: Wiedergabe-Aufträge der Jobart `probe.keyframes`
+laufen trotz Pause (Merkmal `jobs.override_pause`, höchstens drei gleichzeitig), der vierte Pool
+`index` mit genau einem Arbeiter, und der einmalige Termin `job_schedules.once_at` für alle
+Zeitplan-Jobs.

@@ -326,8 +326,8 @@ func TestFFmpegArgsGolden2160(t *testing.T) {
 	const (
 		x264  = "-c:v libx264 -preset veryfast -crf 23 -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v %[3]s -g 9999 -sc_threshold 0"
 		nvEnc = "-c:v h264_nvenc -preset p4 -tune hq -rc vbr -cq 23 -b:v 0 -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v %[3]s -g 9999 -no-scenecut 1 -forced-idr 1"
-		qsEnc = "-c:v h264_qsv -preset veryfast -global_quality 23 -look_ahead 0 -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v %[3]s -g 9999 -forced_idr 1"
-		vaEnc = "-c:v h264_vaapi -rc_mode VBR -b:v %[1]d -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v %[3]s -g 9999"
+		qsEnc = "-c:v h264_qsv -preset faster -b:v %[4]d -maxrate %[1]d -bufsize %[2]d -look_ahead 0 -profile:v high -level:v %[3]s -g 9999 -forced_idr 1"
+		vaEnc = "-c:v h264_vaapi -rc_mode VBR -b:v %[4]d -maxrate %[1]d -bufsize %[2]d -profile:v high -level:v %[3]s -g 9999"
 		aac   = "-c:a aac -b:a 160k -ac 2"
 		head  = "-nostdin -hide_banner -loglevel warning -copyts"
 		cudaI = "-hwaccel cuda -hwaccel_output_format cuda"
@@ -337,7 +337,7 @@ func TestFFmpegArgsGolden2160(t *testing.T) {
 		maps  = " -i /media/UHD.mkv -map 0:0 -map 0:1 -map_metadata -1 -map_chapters -1 -vf "
 		kf    = " -force_key_frames 4.000000,8.000000 " + aac
 	)
-	enc := func(f string, rate int, level string) string { return fmt.Sprintf(f, rate, 2*rate, level) }
+	enc := func(f string, rate int, level string) string { return fmt.Sprintf(f, rate, 2*rate, level, rate*3/4) }
 	cases := []struct {
 		name string
 		caps Capabilities

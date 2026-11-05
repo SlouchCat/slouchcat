@@ -71,7 +71,8 @@ func TestAudiobookChaptersAndParts(t *testing.T) {
 	var ids []string
 	for _, p := range parts {
 		ids = append(ids, p.File.ID)
-		if p.RootPath != f.MediaDir || p.ItemID != book || !p.File.Available || p.File.DurationMs != 10000 {
+		// Mtime with the size is the file version a keyframe index is stored for (concept 14, 4.2).
+		if p.RootPath != f.MediaDir || p.ItemID != book || !p.File.Available || p.File.DurationMs != 10000 || p.Mtime != 1 {
 			t.Errorf("part %+v", p)
 		}
 	}

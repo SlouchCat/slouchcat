@@ -251,30 +251,32 @@ func (q *Queries) GetDownloadRule(ctx context.Context, arg GetDownloadRuleParams
 
 const getDownloadSource = `-- name: GetDownloadSource :one
 SELECT m.id, m.item_id, m.rel_path, m.size, m.video_codec, m.audio_codec, m.width, m.height, m.duration_ms,
-       m.probe, m.probe_error, m.keyframes, r.path AS root_path
+       m.probe, m.probe_error, m.keyframes, m.keyframes_source, m.mtime, r.path AS root_path
 FROM media_files AS m
 JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.id = ?1
 `
 
 type GetDownloadSourceRow struct {
-	ID         string
-	ItemID     string
-	RelPath    string
-	Size       int64
-	VideoCodec sql.NullString
-	AudioCodec sql.NullString
-	Width      sql.NullInt64
-	Height     sql.NullInt64
-	DurationMs sql.NullInt64
-	Probe      sql.NullString
-	ProbeError sql.NullString
-	Keyframes  []byte
-	RootPath   string
+	ID              string
+	ItemID          string
+	RelPath         string
+	Size            int64
+	VideoCodec      sql.NullString
+	AudioCodec      sql.NullString
+	Width           sql.NullInt64
+	Height          sql.NullInt64
+	DurationMs      sql.NullInt64
+	Probe           sql.NullString
+	ProbeError      sql.NullString
+	Keyframes       []byte
+	KeyframesSource sql.NullString
+	Mtime           int64
+	RootPath        string
 }
 
 // The source of a preparation: library root, path, stored probe (or probe error) and keyframe index
-// of the file.
+// of the file with its source (NULL: not there yet, none: impossible; concept 14, 6.8).
 func (q *Queries) GetDownloadSource(ctx context.Context, id string) (GetDownloadSourceRow, error) {
 	row := q.db.QueryRowContext(ctx, getDownloadSource, id)
 	var i GetDownloadSourceRow
@@ -291,6 +293,8 @@ func (q *Queries) GetDownloadSource(ctx context.Context, id string) (GetDownload
 		&i.Probe,
 		&i.ProbeError,
 		&i.Keyframes,
+		&i.KeyframesSource,
+		&i.Mtime,
 		&i.RootPath,
 	)
 	return i, err

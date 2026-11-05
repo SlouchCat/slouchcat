@@ -1434,7 +1434,17 @@ type Library struct {
 	DefaultRating *int // audio libraries only (AN-2)
 	Roots         []LibraryRoot
 	Scan          LibraryScan
+	KeyframeIndex *LibraryKeyframeIndex // video libraries only (concept 14, F-7)
 	CreatedAt     time.Time
+}
+
+// LibraryKeyframeIndex is the keyframe index coverage of the files of a video library that are
+// worth indexing (concept 14, 4.1): Indexed + Pending + Unavailable = VideoFiles.
+type LibraryKeyframeIndex struct {
+	VideoFiles  int
+	Indexed     int // keyframes_source cues, mp4 or scan
+	Pending     int // keyframes_source NULL
+	Unavailable int // keyframes_source none
 }
 
 // AdminPodcast is a podcast subscription as the administration sees it (M6, H-2); not an ItemSummary.
@@ -1468,10 +1478,14 @@ type PodcastCreate struct {
 // ErrTranscodeBusy: the transcode budget stayed exhausted (503 transcode_busy).
 // ErrSegmentRestarted: a newer seek restarted the encoder while a segment request waited (503
 // segment_restarted, retry after a second).
+// ErrPlaybackSourceChanged: the file of a remux playback changed since it started, so its lost
+// HLS output cannot be rebuilt; the playback session ended (409 playback_source_changed, concept
+// 14, 6.4).
 var (
-	ErrUnauthenticated  = errors.New("unauthenticated")
-	ErrTranscodeBusy    = errors.New("transcode budget exhausted")
-	ErrSegmentRestarted = errors.New("segment request superseded by a newer seek")
+	ErrUnauthenticated       = errors.New("unauthenticated")
+	ErrTranscodeBusy         = errors.New("transcode budget exhausted")
+	ErrSegmentRestarted      = errors.New("segment request superseded by a newer seek")
+	ErrPlaybackSourceChanged = errors.New("playback source changed since the start")
 )
 
 // PlaybackCapabilities are the codecs and the HLS support the client reports with startPlayback

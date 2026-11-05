@@ -12,7 +12,7 @@ import (
 
 const getVisibleMediaFileProbe = `-- name: GetVisibleMediaFileProbe :one
 
-SELECT m.id, m.probe, m.keyframes, m.duration_ms
+SELECT m.id, m.probe, m.keyframes, m.keyframes_source, m.keyframes_at, m.duration_ms
 FROM media_files AS m
 JOIN visible_items AS v ON v.item_id = m.item_id AND v.profile_id = ?1
 WHERE m.item_id = ?2 AND m.id = ?3
@@ -25,15 +25,18 @@ type GetVisibleMediaFileProbeParams struct {
 }
 
 type GetVisibleMediaFileProbeRow struct {
-	ID         string
-	Probe      sql.NullString
-	Keyframes  []byte
-	DurationMs sql.NullInt64
+	ID              string
+	Probe           sql.NullString
+	Keyframes       []byte
+	KeyframesSource sql.NullString
+	KeyframesAt     sql.NullInt64
+	DurationMs      sql.NullInt64
 }
 
 // Playback data of a media file of a visible title (package store/scopedq, read by the visibility
 // package only): the stored ffprobe result and keyframe index the playback decision and the HLS
-// plan need (M1b).
+// plan need (M1b), with the source and time of the index (concept 14, 6.4: the playback only
+// looks the index up, a rebuild compares its time with the start of the playback).
 func (q *Queries) GetVisibleMediaFileProbe(ctx context.Context, arg GetVisibleMediaFileProbeParams) (GetVisibleMediaFileProbeRow, error) {
 	row := q.db.QueryRowContext(ctx, getVisibleMediaFileProbe, arg.ProfileID, arg.ItemID, arg.MediaFileID)
 	var i GetVisibleMediaFileProbeRow
@@ -41,6 +44,8 @@ func (q *Queries) GetVisibleMediaFileProbe(ctx context.Context, arg GetVisibleMe
 		&i.ID,
 		&i.Probe,
 		&i.Keyframes,
+		&i.KeyframesSource,
+		&i.KeyframesAt,
 		&i.DurationMs,
 	)
 	return i, err

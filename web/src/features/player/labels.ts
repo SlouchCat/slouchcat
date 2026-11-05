@@ -587,11 +587,38 @@ export function qualityName(t: TFunction, quality: QualityOption['quality']): st
   return quality;
 }
 
+const reasons = [
+  'container',
+  'video_codec',
+  'audio_codec',
+  'hdr',
+  'pixel_format',
+  'keyframes_pending',
+  'keyframes_unavailable',
+  'dolby_vision',
+  'bandwidth',
+  'max_height',
+  'quality',
+  'audio_track',
+  'subtitle_burn',
+  'budget_lowered',
+] as const;
+type Reason = (typeof reasons)[number];
+
+/**
+ * The server's reason for not playing directly in words, for the stream info and the admin's
+ * streams page alike (one text per reason); an unknown code shows as it is.
+ */
+export const reasonText = (t: TFunction, reason: string): string =>
+  (reasons as readonly string[]).includes(reason)
+    ? t(`player.streamInfo.reasons.${reason as Reason}`)
+    : reason;
+
 /**
  * Second line of a quality option (11.5): why `original` is not available, from what the server
- * reports about the playback (burned-in subtitles, a keyframe index still being built, any other
- * transcode); else the bit rate and the data per hour the client estimates from it (bit/s × 3600
- * / 8, «ca. 3,6 GB pro Stunde» for 8 Mbit/s).
+ * reports about the playback (burned-in subtitles, a keyframe index not built yet or not
+ * possible, any other transcode); else the bit rate and the data per hour the client estimates
+ * from it (bit/s × 3600 / 8, «ca. 3,6 GB pro Stunde» for 8 Mbit/s).
  */
 export function qualityDetail(
   t: TFunction,
@@ -603,6 +630,9 @@ export function qualityDetail(
     if (info.selection.subtitleDelivery === 'burn') return t('player.quality.unavailableBurn');
     if (info.transcoding?.reason === 'keyframes_pending') {
       return t('player.quality.unavailableIndex');
+    }
+    if (info.transcoding?.reason === 'keyframes_unavailable') {
+      return t('player.quality.unavailableNoIndex');
     }
     return t('player.quality.unavailableTranscode');
   }

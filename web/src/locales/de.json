@@ -648,7 +648,8 @@
         "audio_codec": "Audiocodec",
         "hdr": "HDR-Video",
         "pixel_format": "Pixelformat (10 Bit, 4:2:2 oder 4:4:4)",
-        "keyframes_pending": "Keyframe-Index wird erstellt",
+        "keyframes_pending": "Keyframe-Index fehlt noch",
+        "keyframes_unavailable": "Kein Keyframe-Index möglich",
         "dolby_vision": "Dolby Vision (Profil 5 oder 7)",
         "bandwidth": "Bandbreiten-Limit",
         "max_height": "Qualitäts-Limit",
@@ -700,7 +701,8 @@
       "original": "Original",
       "detail": "{{bitrate}} · ca. {{size}} pro Stunde",
       "unavailableBurn": "Untertitel werden eingebrannt",
-      "unavailableIndex": "Index wird erstellt",
+      "unavailableIndex": "Index fehlt noch",
+      "unavailableNoIndex": "Kein Index möglich",
       "unavailableTranscode": "Nur umgewandelt abspielbar",
       "remembered": "Gemerkt: {{quality}}",
       "rememberedNote": "Titel über {{quality}} werden dann umgewandelt.",
@@ -981,6 +983,11 @@
       "counts": "Titel: {{items}} · Dateien: {{files}}",
       "progress": "{{seen}} von {{total}} Dateien",
       "finishedAt": "Letzter Scan: {{date}}",
+      "keyframes": {
+        "summary": "Keyframe-Index: {{indexed}} von {{videoFiles}} Videodateien · {{pending}} ausstehend · {{unavailable}} nicht möglich",
+        "complete": "Keyframe-Index vollständig",
+        "backfill": "Nachholen auf der Seite Hintergrundjobs"
+      },
       "error": {
         "root_missing": "Der Ordner fehlt. Ist das Laufwerk eingehängt? Es wurde nichts gelöscht.",
         "root_empty": "Der Ordner ist leer. Es wurde nichts gelöscht.",
@@ -1511,7 +1518,8 @@
       "empty": "Gerade läuft nichts.",
       "facts": {
         "device": "Gerät",
-        "quality": "Qualität"
+        "quality": "Qualität",
+        "reason": "Grund"
       },
       "unknownDevice": "Unbekanntes Gerät",
       "original": "Original",
@@ -2830,6 +2838,7 @@
         "general": "Allgemein",
         "download": "Downloads",
         "notify": "Benachrichtigungen",
+        "index": "Keyframe-Index",
         "workers": "{{count}} Arbeiter",
         "backlog": "Stau ca. {{duration}}",
         "free": "frei",
@@ -2839,12 +2848,14 @@
       "pausedBanner": {
         "title_one": "{{count}} Job pausiert",
         "title_other": "{{count}} Jobs pausiert",
-        "body": "Pausierte Jobs starten keine Läufe, bis du sie fortsetzt: {{types}}."
+        "body": "Pausierte Jobs starten keine Läufe, bis du sie fortsetzt: {{types}}.",
+        "playbackOverride": "Wiedergabe-Aufträge von {{name}} laufen trotzdem."
       },
       "running": {
         "title": "Läuft gerade",
         "empty": "Gerade läuft nichts.",
         "since": "seit {{duration}}",
+        "overridesPause": "für Wiedergabe, trotz Pause",
         "progress": "{{done}} von {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
         "pause": "Lauf pausieren",
@@ -2896,6 +2907,7 @@
         "in": "in {{duration}}",
         "every": "alle {{duration}}",
         "window": "{{start}}–{{end}}",
+        "once": "Termin: {{date}}",
         "off": "aus",
         "onDemand": "bei Bedarf",
         "pausedNext": "pausiert",
@@ -2999,7 +3011,12 @@
         "updateHint": "Ein/Aus ist dieselbe Einstellung wie die Update-Prüfung in den Einstellungen.",
         "save": "Speichern",
         "heading": "Zeitplan",
-        "discard": "Verwerfen"
+        "discard": "Verwerfen",
+        "once": "Einmalig am",
+        "onceHint": "Zeitzone des Servers: {{zone}}. Der Termin läuft einmal zusätzlich zum Takt, auch ausserhalb des Zeitfensters.",
+        "clearOnce": "Termin entfernen",
+        "onceRange": "Termin muss zwischen jetzt und einem Jahr liegen.",
+        "onceInvalid": "Kein gültiger Termin."
       },
       "duration": {
         "seconds": "{{count}} s",
@@ -3023,8 +3040,13 @@
           "trigger": "vom Scan je neue Datei, «Datei prüfen» in der Pflege"
         },
         "probe_keyframes": {
-          "name": "Keyframe-Index",
-          "trigger": "vom Scan je Datei, vor einer Wiedergabe mit Vorrang"
+          "name": "Keyframe-Index (ganze Datei lesen)",
+          "trigger": "beim Einlesen nur ohne Index aus dem Container, beim Nachholen, vor einer Wiedergabe (auch bei Pause) und für Offline-Downloads"
+        },
+        "keyframes_backfill": {
+          "name": "Keyframe-Index nachholen",
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: liest den Index aus dem Container aller Videodateien, die noch keinen haben",
+          "progress": "Dateien geprüft: {{done}} von {{total}}"
         },
         "library_sweep": {
           "name": "Aufräumen fehlender Titel",

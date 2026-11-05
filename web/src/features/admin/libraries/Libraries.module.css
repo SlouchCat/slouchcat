@@ -69,6 +69,15 @@
   align-items: center;
 }
 
+/* The keyframe index line: the counts, and the link to the backfill while files wait. */
+.keyframes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-1) var(--sc-space-3);
+  align-items: baseline;
+  margin: 0;
+}
+
 .scanProgress > :first-child {
   flex: 1;
   max-width: 24rem;

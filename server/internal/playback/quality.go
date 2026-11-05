@@ -156,10 +156,10 @@ func rungBitrate(r transcode.Rung, limits model.PlaybackLimits) int {
 // originalAvailable reports whether quality original can play for the request req (concept 13
 // 11.5): decided with original (without a cap), the video is not re-encoded (direct play or
 // remux; not with burned-in subtitles, (b)), and the playback d that runs did not find the
-// keyframe index of that remux missing ((a), reason keyframes_pending). Audio-only playbacks
-// have no original.
+// keyframe index of that remux missing or impossible ((a), reason keyframes_pending or
+// keyframes_unavailable). Audio-only playbacks have no original.
 func originalAvailable(d Decision, file model.MediaFile, probe *transcode.Probe, req Request) bool {
-	if d.Audio || d.Reason == ReasonKeyframesPending {
+	if d.Audio || d.Reason == ReasonKeyframesPending || d.Reason == ReasonKeyframesUnavailable {
 		return false
 	}
 	if d.Quality == model.QualityOriginal {

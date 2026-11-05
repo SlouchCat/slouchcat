@@ -30,6 +30,9 @@ const (
 	// ReasonKeyframesPending: a remux candidate whose keyframe index is not computed yet; it is
 	// transcoded on the 4-s grid while the index job runs (see Service.ensureKeyframes).
 	ReasonKeyframesPending = "keyframes_pending"
+	// ReasonKeyframesUnavailable: a remux candidate whose keyframe index is impossible for this
+	// file version (keyframes_source none, concept 14, 2.3); it is transcoded and no job is queued.
+	ReasonKeyframesUnavailable = "keyframes_unavailable"
 	// ReasonDolbyVision: Dolby Vision profile 5 or 7 has no base layer a browser can show; it is
 	// transcoded with tonemapping (profile 8 remuxes its HDR10 base layer).
 	ReasonDolbyVision = "dolby_vision"
@@ -239,15 +242,10 @@ func containerPlayable(container string, caps model.PlaybackCapabilities) bool {
 // other codecs it lists (HEVC, AV1, VP9), except HEVC on a native-HLS client (Safari), which needs
 // the hvc1 tag of a remux.
 func directVideo(codec string, caps model.PlaybackCapabilities) bool {
-	switch codec {
-	case "h264":
-		return true
-	case "hevc":
-		return caps.HLS != "native"
-	case "av1", "vp9":
-		return true
+	if !transcode.CopyableVideo(codec) {
+		return false
 	}
-	return false
+	return codec != "hevc" || caps.HLS != "native"
 }
 
 // Decide picks the playback mode for a media file on a client (M4 design section 3, plan 10.3).

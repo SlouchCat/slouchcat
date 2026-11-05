@@ -123,6 +123,28 @@ describe('admin streams (W-6)', () => {
     expect(within(lena).queryByRole('progressbar')).toBeNull();
   });
 
+  it('names why a stream is not played directly, in the words of the stream info (concept 14, 7.1)', async () => {
+    mockApi(
+      routes(() => [
+        { ...streams[0]!, reason: 'keyframes_pending' },
+        { ...streams[0]!, id: 'ps-3', profileName: 'Sandra', reason: 'keyframes_unavailable' },
+        { ...streams[0]!, id: 'ps-4', profileName: 'Nora', reason: 'future_reason' },
+        { ...streams[1]!, reason: 'container' },
+      ]),
+    );
+    renderApp('/admin/streams');
+    await screen.findByRole('article', { name: 'Marco: Slouchcat Test Multi Audio' });
+    const marco = tileOf('Marco');
+    expect(within(marco).getByText('Grund').closest('dt')).not.toBeNull();
+    expect(within(marco).getByText('Keyframe-Index fehlt noch')).toBeVisible();
+    expect(within(tileOf('Sandra')).getByText('Kein Keyframe-Index möglich')).toBeVisible();
+    // A code this client does not know yet shows as it is.
+    expect(within(tileOf('Nora')).getByText('future_reason')).toBeVisible();
+    // Direct play has no reason line.
+    expect(within(tileOf('Lena')).queryByText('Grund')).toBeNull();
+    expect(within(tileOf('Lena')).queryByText('Container')).toBeNull();
+  });
+
   it('shows the backdrop across, and the title on the fallback without one or when it fails', async () => {
     mockApi(routes(() => streams));
     const { container } = renderApp('/admin/streams');

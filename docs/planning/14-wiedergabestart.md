@@ -15,6 +15,10 @@
   Fassung 2 arbeitet alle Befunde ein, die Abwägungen stehen in Abschnitt 13.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Datum: 1. November 2026 (Fassung 1 und 2), Freigabe 2. November 2026.**
+- **Bau: freigegeben von Marco am 5. November 2026**, Zweig `claude/wiedergabestart-89645e` ab `main`
+  `c514ab1` (Release 1.12.0). **Endgültige Nummern: Migration 00033, Vertrag 1.13.0**, Frage 20,
+  ADR 0022. Wo dieses Papier 00032 und 1.8.0 schreibt, gilt 00033 und 1.13.0. Entscheide aus dem
+  Bau stehen im Nachtrag 11.3.
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`5e0e63d`** («Merge pull request
   #61», Konzept 11), Vertragsfassung **1.6.0** (`api/openapi.yaml:4`), letzte Migration
   **`00030_library_metadata.sql`**, letzte ADR **`0018-metadaten-sprachen-bilder-freigabeland.md`**.
@@ -1169,6 +1173,73 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist (Schritt 0).
 | **O-17** | **Rückfrage an Marco – kein neuer Wiedergabe-Auftrag nach einem Fehlschlag.** Ist der letzte Volllese-Job einer Datei in den letzten 24 h endgültig fehlgeschlagen, reiht die Wiedergabe nicht neu ein (6.4). Auch das legt F-3 enger aus | **Ja, 24 h**: verhindert, dass wiederholte Starts einer Datei mit NAS-Fehler immer neue Volllesungen trotz Pause auslösen; der Nachhol-Lauf versucht es wieder. Ohne Sperre: jeder Start einer solchen Datei reiht einen Auftrag ein (die Idempotenz hält es bei einem gleichzeitig) **Marco (1.11.2026): Ja, 24 h Ruhe.** |
 | **O-18** | **Rückfrage an Marco – Hörbücher und Podcast-Folgen** bleiben von den automatischen Wegen ausgenommen (wie heute in `probe.file`), auch vom Nachhol-Lauf und der Zählung; eine Podcast-Folge mit Video bekommt ihren Index nur beim ersten Abspielen, und der erste Start transcodiert | **Ja, so lassen**: Podcast-Folgen mit Video sind selten, grosse Podcast-Ordner häufig. Alternativ: Podcast-Folgen mit H.264/HEVC wie Filme behandeln (kostet beim Einlesen 0,4–1,1 s je Folge) **Marco (1.11.2026): Ja, ausnehmen.** |
 | **O-19** | **NVENC hält die Leiter nur im Mittel** (`-cq` verwirft den VBV-Puffer; Aladdin lokal 11,1 Mbit/s gleitend bei R = 8) | nicht in diesem Papier; als Befund in `docs/perf/wiedergabestart.md` vermerken und bei Bedarf eigenes Thema (z. B. `-rc vbr` mit Puffer statt `-cq`), sobald ein Profil mit Bandbreitengrenze auf NVENC klemmt |
+
+### 11.3 Nachtrag: Entscheide aus dem Bau (ab 5. November 2026)
+
+- **Schnitt** (Marco, 5. November 2026): Schritt 3 geteilt in 3a (Migration 00033, `task gen`,
+  eingefrorener Stand, `transcode.CopyableVideo`) und 3b (Schreibregeln, `probe.file`), Schritt 4 in
+  4a (Paket `jobs`: Pool, Pause-Ausnahme, Termin) und 4b (Paket `library`: Volllese-Job,
+  Nachhol-Lauf). Wellen: A = 0, 1, 2, 3a; B = 3b, 4a; C = 4b, 6; D = 5, 7. Schritt 8 (Image,
+  CT 190, Abnahme) folgt nach dem PR.
+- **Messungen auf CT 190** (QSV in Schritt 1, Dauer von `probe.file` in Schritt 3) laufen mit der
+  Abnahme in Schritt 8 (Marco, 5. November 2026); bis dahin belegen Golden-Tests die Argumente.
+- **O-9:** alle 263 fehlgeschlagenen `probe.keyframes` auf CT 190 sind `No such file or
+  directory`, aufgelaufen innerhalb von 32 s am 31. Oktober 2026 um 10:11, ohne `missing_since`.
+  Das ist ein NFS-Aussetzer und passt in die Klasse «Datei fehlt» aus 6.3; die Tabelle bleibt.
+- **Verschiebungen seit `5e0e63d`:** der Zeitplan einer Jobart ist seit Konzept 12 ein Teil der Seite
+  Hintergrundjobs, kein Dialog; «Einmalig am» kommt dorthin. Die Streams-Ansicht zeigt Kacheln
+  (`StreamTile`); der Grund wird dort eine Zeile der Kachel statt einer Spalte.
+
+- **Schritt 1 (Ratensteuerung):** Ziel `vbrTarget(R) = max(0,75 · R, min(R − 1 kbit/s, 1 Mbit/s))` für QSV
+  und VAAPI, gültig ab `maxrate ≥ 2`; 360p bekommt damit 999 kbit/s, 2160p 18,75 Mbit/s. Beides ist
+  erst in Schritt 8 gemessen. Der CBR-Zweig der Downloads bleibt Byte für Byte.
+- **Schritt 2 (`mediaindex`):** Eigenbau bleibt (O-12), rund 430 und 410 Codezeilen; der Mehrumfang ist
+  Härtung, nicht Sonderfälle. `ctts` wird auch in Version 0 vorzeichenbehaftet gelesen (wie ffmpeg),
+  Einträge hinter dem Ende von `ctts` haben Versatz 0, fragmentiertes MP4 erkennt der Leser auch an
+  `mvex`. Die Dauer aus dem Matroska-Kopf wird nicht gelesen, `Check` nimmt die Dauer der Probe.
+  Cue-Zeiten, die rückwärts laufen, verwerfen den Index (Zeichen für Beschädigung). Die Obergrenze für
+  SeekHeads zählt Versuche, nicht Erfolge (Review A, M). **Befund zur Endlücke:** weil die innere Lücke
+  auf 30 s begrenzt ist, ist `max(60 s, 2 × grösste Lücke)` immer 60 s.
+- **Schritt 3 (Einlesen):** Die Stichprobe springt auf Eintrag + 1 ms, weil ffprobe rückwärts sucht und
+  die Einträge auf ms gerundet sind; die Toleranz ist damit −2/+1 ms. Die Saat ist ein FNV-64a-Wert der
+  Datei-ID. Ein leerer Index wird als `none` ohne Blob gespeichert. Nicht indexwürdige Dateien (VC-1,
+  MPEG-2, ohne Video) bekommen keinen Volllese-Job mehr (2.1). Auch `probe_error` wird nur für die
+  gemerkte Dateiversion geschrieben (Review B, M); eine geänderte Datei wird ohne verbrauchten Versuch
+  wiederholt (`jobs.RetryLater`). `MediaFileLocation` und `GetDownloadSource` tragen `mtime`.
+- **Schritt 4 (Jobs):** Migration 00033 hat zusätzlich den Teilindex `jobs_override_pause` (Prüfung
+  der Obergrenze bei 50 000 wartenden Jobs 9,1 ms → 38 µs) und `media_files_keyframes` auf
+  `(keyframes_source, id)` (Nachhol-Lauf ohne Sortieren); 00033 war dabei noch nicht ausgeliefert.
+  `probe.keyframes` überspringt nur bei gesetzter Quelle oder nicht remuxbarem Codec: Hörbücher und
+  Podcast-Folgen bekommen ihren Index weiter auf Abruf beim Abspielen (2.3). Eine Zeitüberschreitung
+  beim Lesen des Containers führt zu Backoff, nicht zur Volllesung, und eine fehlende Datei zu keiner
+  Volllesung (Review C): der einzige Arbeiter im Pool `index` bleibt frei. Ändert sich die Datei
+  während einer Volllesung, läuft der Job auf der neuen Version erneut (Review B). Die 24-h-Sperre
+  schaut auf den neuesten beendeten Lauf der Datei. Fehlertexte nennen den Pfad relativ zur Wurzel.
+  Termin und Takt werden in einer Transaktion geschrieben; ein zwischen Lesen und Feuern neu
+  gesetzter Termin bleibt stehen, `last_fired_at` wird trotzdem gesetzt; `clearOnce` geht vor
+  `onceLocal`; ein verpasster Termin einer Jobart mit `StartDelay` feuert nach dieser Verzögerung.
+- **Schritt 5 (Wiedergabe, Offline):** Offline-Downloads warten nur, solange wirklich eine Volllesung
+  eingereiht ist oder läuft; nach einem Fehlschlag in den letzten 24 h kodieren sie sofort, ausser
+  der Nachhol-Lauf hat inzwischen eine neue Volllesung eingereiht (Review D, M; Schluss-Review m1). «Original» wird für `keyframes_unavailable` nicht angeboten. Nach einem Dateiwechsel antworten
+  alle HLS-Endpunkte und die Untertitel-Route der Sitzung 10 Minuten lang mit 409 (Direct Play
+  `getItemStream` bleibt bei 401) (Marke nur im
+  Speicher, gefälschtes Token weiter 401), die Statusabfrage mit 404; so startet auch der eingebaute
+  Player von Safari neu, statt «von der Verwaltung beendet» zu melden. Kein Aktivitätseintrag für
+  diesen Fall (bräuchte einen neuen Wert für `ActivityDetail.by`).
+- **Schritt 6 (Vertrag 1.13.0):** Die Zählung `AdminCountKeyframeIndex` liegt in `admin` mit
+  `INDEXED BY media_files_keyframes`; ein Test bindet die vier Stellen der Regel «indexwürdig»
+  (Go, Zählung, Liste und Zählung des Nachhol-Laufs) über 168 Kombinationen zusammen. `keyframeIndex`
+  steht in jeder Antwort der Verwaltung mit einer Bibliothek. Die 409 steht an beiden Playlisten,
+  `init.mp4`, `seg/{n}` und den Untertiteln. Neu dazu `JobTypeInfo.overridesPauseForPlayback`, damit der
+  Client die Pause-Ausnahme nicht selbst kennt (Review D). Neues ist mit «since contract 1.13.0»
+  markiert.
+- **Schritt 7 (Oberfläche):** Der Grund steht als eigene Zeile der Stream-Kachel; die Abdeckung steht
+  im aufgeklappten Bereich der Bibliothek und fehlt bei 0 Videodateien; der Link führt nach
+  `/admin/jobs?item=keyframes.backfill`. Der Pool heisst «Keyframe-Index: 1 Arbeiter». «Termin
+  entfernen» leert den Entwurf, erst «Speichern» schickt `clearOnce`. Ein halb ausgefülltes Datum hält
+  die native Prüfung des Browsers vom Speichern ab (mit dem Text des Browsers). Der Player erkennt den
+  Dateiwechsel am Status 409, weil hls.js den Inhalt der Antwort nicht weitergibt. Safari ist mangels
+  Apple-Gerät nur mit Vitest geprüft.
 
 ---
 

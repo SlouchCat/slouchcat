@@ -18,7 +18,7 @@ type input struct {
 	loc   visibility.MediaFileLocation
 	parts []visibility.MediaFileLocation // audiobook parts in order; nil for other kinds
 	probe *transcode.Probe               // nil when a file is not probed yet
-	kf    []byte                         // keyframe index of loc (single files only)
+	kf    keyframeIndex                  // keyframe index of loc (single files only)
 }
 
 // multiPart reports whether the input is an audiobook of several files.
