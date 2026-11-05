@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Metadaten-Editor Prototyp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+</head>
+<body>
+<style>
+  /* Layout: switches on top, then a viewer page (title detail or library grid) in a desktop or phone
+     frame; the pencil opens the editor as dialog, side sheet or admin page. Slouchcat tokens, dark only. */
+  :root {
+    color-scheme: dark;
+    --bg-base: #0b0c10; --bg-elevated: #13151b; --overlay: #0b0c10d9; --overlay-light: #0b0c1033;
+    --surface-1: #16181f; --surface-2: #1d2029; --surface-3: #262a35;
+    --text-primary: #f3f3f5; --text-secondary: #b6b9c4; --text-muted: #9095a3;
+    --border-subtle: #ffffff14; --border-strong: #ffffff2e; --focus: #f3f3f5;
+    --scrim-solid: #0b0c10f5; --scrim-strong: #0b0c10cc; --scrim-clear: #0b0c1000;
+    --accent: #e8794a; --on-accent: #1c0d06; --accent-soft: #e8794a33;
+    --success: #5fcf8f; --warning: #e8b65a; --danger: #f2777a;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --gutter: 40px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 48px; line-height: 1.45;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+  .intro h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--text-secondary); max-width: 80ch; font-size: .9rem; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .group > span { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--surface-1); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button { font: inherit; font-size: .82rem; color: var(--text-secondary); background: transparent; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text-primary); }
+  .seg button:hover { color: var(--text-primary); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  button { font: inherit; }
+
+  .frame { position: relative; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 14px; overflow: hidden; width: 100%; margin-inline: auto; min-height: 640px; }
+  .frame.phone { max-width: 390px; --gutter: 16px; min-height: 760px; }
+
+  /* Detail page */
+  .detail { position: relative; padding: 56px var(--gutter) 32px; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; align-items: end; min-height: 460px; }
+  .phone .detail { grid-template-columns: 1fr; padding-top: 180px; gap: 16px; }
+  .detail .bd { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  .detail::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--scrim-solid) 0%, var(--scrim-strong) 40%, var(--scrim-clear) 85%), linear-gradient(0deg, var(--bg-base) 0%, var(--scrim-clear) 50%); }
+  .detail > *:not(.bd) { position: relative; z-index: 1; min-width: 0; }
+  .phone .detail .pst { display: none; }
+  .pst { aspect-ratio: 2/3; border-radius: 12px; background-size: cover; display: flex; align-items: flex-end; padding: 12px; font-weight: 700; box-shadow: 0 10px 30px var(--scrim-strong); }
+  .logo { font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1; margin: 0 0 10px; text-wrap: balance; }
+  .logo.img { font-family: Georgia, "Times New Roman", serif; font-style: italic; letter-spacing: .02em; color: var(--accent); text-transform: uppercase; }
+  .meta { display: flex; gap: 10px; color: var(--text-secondary); font-size: .9rem; flex-wrap: wrap; align-items: center; }
+  .fsk { border: 1px solid var(--text-secondary); border-radius: 4px; padding: 0 6px; font-size: .78rem; color: var(--text-primary); }
+  .tagline { color: var(--text-primary); font-style: italic; margin: 10px 0 4px; }
+  .ov { color: var(--text-secondary); max-width: 62ch; margin: 0 0 16px; font-size: .92rem; }
+  .genres { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .genres span { font-size: .78rem; color: var(--text-secondary); background: var(--surface-2); border-radius: 999px; padding: 2px 10px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn { border: 0; border-radius: 999px; padding: 9px 18px; font-size: .9rem; background: var(--surface-3); color: var(--text-primary); cursor: pointer; }
+  .btn.primary { background: var(--text-primary); color: var(--bg-base); font-weight: 600; }
+  .btn.accent { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+  .btn.ghost { background: transparent; color: var(--text-secondary); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .pen { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--surface-3); color: var(--text-primary); cursor: pointer; display: inline-grid; place-items: center; }
+  .pen svg { width: 18px; height: 18px; }
+  .admintag { font-size: .7rem; color: var(--text-muted); }
+
+  /* Library grid */
+  .lib { padding: 28px var(--gutter); }
+  .lib h2 { margin: 0 0 16px; font-size: 1.3rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
+  .phone .grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .gcard { position: relative; }
+  .gcard .p { aspect-ratio: 2/3; border-radius: 10px; background-size: cover; display: flex; align-items: flex-end; padding: 8px; font-size: .8rem; font-weight: 700; }
+  .gcard .t { font-size: .82rem; margin-top: 6px; }
+  .gcard .pen { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; background: var(--scrim-strong); opacity: 0; transition: opacity .15s; }
+  .gcard:hover .pen, .gcard:focus-within .pen, .phone .gcard .pen { opacity: 1; }
+
+  /* Editor shells */
+  .shade { position: absolute; inset: 0; background: var(--overlay); z-index: 5; }
+  .shade.light { background: var(--overlay-light); }
+  .editor { position: absolute; z-index: 6; background: var(--bg-elevated); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-height: 0; }
+  .editor.dialog { inset: 32px 6%; border-radius: 16px; border: 1px solid var(--border-subtle); }
+  .editor.sheet { top: 0; right: 0; bottom: 0; width: min(520px, 100%); border-left: 1px solid var(--border-subtle); box-shadow: -20px 0 40px var(--scrim-strong); }
+  .editor.page { inset: 0; }
+  .phone .editor { inset: 0; width: 100%; border-radius: 0; }
+  .ehead { display: flex; gap: 12px; align-items: center; padding: 16px 20px 10px; }
+  .ehead .mini { width: 36px; aspect-ratio: 2/3; border-radius: 4px; background-size: cover; flex: none; }
+  .ehead h3 { margin: 0; font-size: 1.05rem; line-height: 1.2; }
+  .ehead small { color: var(--text-muted); display: block; font-size: .78rem; }
+  .ehead .x { margin-left: auto; }
+  .tabs { display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid var(--border-subtle); overflow-x: auto; }
+  .tabs button { border: 0; background: none; color: var(--text-secondary); padding: 10px 12px; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; font-size: .9rem; }
+  .tabs button[aria-selected="true"] { color: var(--text-primary); border-bottom-color: var(--accent); }
+  .ebody { overflow-y: auto; padding: 16px 20px 20px; display: grid; gap: 18px; align-content: start; min-height: 0; }
+  .efoot { display: flex; gap: 10px; justify-content: flex-end; align-items: center; padding: 12px 20px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; }
+  .efoot .msg { margin-right: auto; font-size: .82rem; color: var(--success); }
+  .editor.page .ebody { padding-inline: var(--gutter); }
+
+  /* Images tab */
+  .kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .kind { border: 2px solid transparent; border-radius: 12px; background: var(--surface-1); padding: 8px; cursor: pointer; text-align: left; color: inherit; display: grid; gap: 6px; }
+  .kind[aria-pressed="true"] { border-color: var(--accent); }
+  .kind .th { border-radius: 8px; background-size: cover; display: flex; align-items: flex-end; padding: 6px; font-size: .72rem; font-weight: 700; }
+  .kind .th.poster { aspect-ratio: 2/3; } .kind .th.backdrop, .kind .th.still { aspect-ratio: 16/9; } .kind .th.logo { aspect-ratio: 16/9; display: grid; place-items: center; font-family: Georgia, serif; font-style: italic; color: var(--accent); font-size: 1rem; background: var(--surface-3); }
+  .kind b { font-size: .85rem; }
+  .badge { font-size: .7rem; border-radius: 999px; padding: 1px 8px; justify-self: start; background: var(--surface-3); color: var(--text-secondary); }
+  .badge.lock { background: var(--accent-soft); color: var(--accent); }
+  .filters { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: center; }
+  .filters label { font-size: .78rem; color: var(--text-muted); display: inline-flex; gap: 6px; align-items: center; }
+  select, input[type="text"], input[type="number"], input[type="date"], textarea {
+    font: inherit; font-size: .88rem; color: var(--text-primary); background: var(--surface-3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 7px 10px; width: 100%; min-width: 0;
+  }
+  .filters select { width: auto; }
+  textarea { resize: vertical; min-height: 96px; line-height: 1.45; }
+  .cands { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 12px; }
+  .cands.wide { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .cand { border: 2px solid transparent; border-radius: 10px; padding: 0; background: none; color: inherit; cursor: pointer; text-align: left; }
+  .cand[aria-pressed="true"] { border-color: var(--accent); }
+  .cand .im { border-radius: 8px; background-size: cover; display: flex; align-items: flex-end; padding: 6px; font-size: .72rem; font-weight: 700; }
+  .cand .im.poster { aspect-ratio: 2/3; } .cand .im.backdrop, .cand .im.still { aspect-ratio: 16/9; } .cand .im.logo { aspect-ratio: 16/9; display: grid; place-items: center; background: var(--surface-3); font-family: Georgia, serif; font-style: italic; color: var(--accent); font-size: .95rem; }
+  .cand .im.upl { background-position: center; }
+  .cand small { display: block; font-size: .72rem; color: var(--text-muted); padding: 4px 2px; font-variant-numeric: tabular-nums; }
+  .sec { display: grid; gap: 10px; }
+  .sec h4 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+  .row2 { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .upload { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 8px 16px; background: var(--surface-3); cursor: pointer; font-size: .88rem; }
+  .upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .upload:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .hintline { font-size: .78rem; color: var(--text-muted); }
+
+  /* Metadata tab */
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+  .phone .fields, .sheet .fields { grid-template-columns: minmax(0, 1fr); }
+  .f { display: grid; gap: 4px; min-width: 0; }
+  .f.full { grid-column: 1 / -1; }
+  .f .lab { display: flex; align-items: center; gap: 6px; font-size: .78rem; color: var(--text-secondary); }
+  .lockbtn { margin-left: auto; border: 0; background: none; color: var(--text-muted); cursor: pointer; padding: 2px 4px; border-radius: 6px; display: inline-flex; gap: 4px; align-items: center; font-size: .72rem; }
+  .lockbtn[aria-pressed="true"] { color: var(--accent); }
+  .lockbtn svg { width: 14px; height: 14px; }
+  .src { font-size: .7rem; color: var(--text-muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip { display: inline-flex; gap: 4px; align-items: center; background: var(--surface-3); border-radius: 999px; padding: 3px 4px 3px 10px; font-size: .8rem; }
+  .chip button { border: 0; background: none; color: var(--text-muted); cursor: pointer; border-radius: 50%; width: 20px; height: 20px; }
+  .chips input { width: 140px; }
+  .note { background: var(--surface-1); border-radius: 10px; padding: 10px 12px; font-size: .82rem; color: var(--text-secondary); }
+
+  /* Match / refresh */
+  .res { display: grid; gap: 8px; }
+  .hit { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--surface-1); border-radius: 10px; padding: 8px; }
+  .hit .p { aspect-ratio: 2/3; border-radius: 4px; background-size: cover; }
+  .hit small { color: var(--text-muted); display: block; font-size: .76rem; }
+  .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: start; background: var(--surface-1); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+  .opt input { margin-top: 4px; accent-color: var(--accent); }
+  .opt span { font-size: .9rem; } .opt small { grid-column: 2; color: var(--text-muted); font-size: .78rem; }
+
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .notes > div { background: var(--surface-1); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .notes h3 { margin: 0 0 6px; font-size: .95rem; }
+  .notes ul { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: .86rem; display: grid; gap: 4px; }
+  .notes .pro h3 { color: var(--success); } .notes .con h3 { color: var(--warning); }
+  .toast { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 9; background: var(--surface-3); border-radius: 999px; padding: 8px 16px; font-size: .85rem; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Konzept 15 · Metadaten bearbeiten</h1>
+    <p>Klickbarer Prototyp für Punkt 6. Als Administrator mit Hauptprofil siehst du auf der Detailseite
+       und auf jedem Cover der Bibliothek einen Stift. Er öffnet den Editor mit den Reitern Bilder,
+       Metadaten, Zuordnen und Aktualisieren. Wähle oben, ob der Editor als Dialog, als Seitenblatt
+       oder als eigene Verwaltungsseite aufgeht. Bilder sind Platzhalter; «Eigenes Bild hochladen»
+       nimmt eine echte Datei von deinem Gerät, sie bleibt in deinem Browser.</p>
+  </div>
+  <div class="bar">
+    <div class="group"><span>Editor als</span>
+      <div class="seg" id="shell">
+        <button type="button" data-v="dialog" aria-pressed="false">A · Dialog</button>
+        <button type="button" data-v="sheet" aria-pressed="true">B · Seitenblatt</button>
+        <button type="button" data-v="page" aria-pressed="false">C · Verwaltungsseite</button>
+      </div>
+    </div>
+    <div class="group"><span>Seite</span>
+      <div class="seg" id="where">
+        <button type="button" data-v="detail" aria-pressed="true">Detailseite</button>
+        <button type="button" data-v="lib" aria-pressed="false">Bibliothek</button>
+      </div>
+    </div>
+    <div class="group"><span>Titel</span>
+      <div class="seg" id="kindsel">
+        <button type="button" data-v="movie" aria-pressed="true">Film</button>
+        <button type="button" data-v="episode" aria-pressed="false">Folge</button>
+      </div>
+    </div>
+    <div class="group"><span>Ansicht</span>
+      <div class="seg" id="view">
+        <button type="button" data-v="desk" aria-pressed="true">Desktop</button>
+        <button type="button" data-v="phone" aria-pressed="false">Handy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="frame" id="frame"></div>
+  <div class="notes" id="notes"></div>
+</div>
+
+<script>
+const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+const LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const UNLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>';
+const g = (a, b, ang = 160) => `linear-gradient(${ang}deg, ${a} 0%, ${b} 90%)`;
+const PAL = [["#3b5b7a","#16202b"],["#7a3b3b","#2b1616"],["#4f7a5e","#162b1f"],["#7a6a3b","#2b2516"],["#5e5e6e","#1c1c24"],["#8a5a2a","#2b1d10"],["#2f6a6a","#0f2424"],["#8a3a5a","#2b1020"],["#3a4a8a","#10162b"],["#6a8a9a","#18242b"]];
+function cands(kind) {
+  const provs = ["TMDB", "TMDB", "fanart.tv", "TMDB", "Lokal", "TMDB", "fanart.tv", "TMDB", "TMDB", "TVDB"];
+  const langs = kind === "backdrop" || kind === "still" ? ["ohne Text","ohne Text","ohne Text","en","ohne Text","de","ohne Text","ohne Text","en","ohne Text"] : ["de","en","de","en","ohne Text","fr","en","de","it","en"];
+  const size = { poster: "2000×3000", backdrop: "3840×2160", logo: "1200×460", still: "1920×1080" }[kind];
+  return PAL.map((p, k) => ({ id: kind + k, bg: g(p[0], p[1], 120 + k * 17), prov: provs[k], lang: langs[k], size, votes: 40 - k * 3 }));
+}
+const S = {
+  shell: "sheet", where: "detail", kind: "movie", view: "desk", open: false, tab: "images", imgKind: "poster",
+  filt: { prov: "all", lang: "all" }, toast: "", dirty: false, uploads: {},
+  item: null
+};
+function freshItem(kind) {
+  return kind === "movie" ? {
+    kind: "movie", title: "Nebelküste", original: "Fog Coast", sort: "Nebelküste", year: 2026, date: "2026-03-12",
+    tagline: "Manche Häfen gibt es nur bei Ebbe.", overview: "Eine Lotsin entdeckt in einem Fischerdorf an der Nordsee, dass die Fähre, die jeden Abend ausläuft, nie ankommt. Als ihr Bruder an Bord geht, bleibt ihr eine Nacht.",
+    genres: ["Thriller", "Drama"], fsk: "FSK 12", lang: "Englisch", textLang: "de",
+    locks: { title: false, overview: false, genres: false, fsk: false }, src: { title: "TMDB", overview: "TMDB", genres: "TMDB", year: "TMDB", fsk: "TMDB (CH)" },
+    img: { poster: { bg: g(PAL[0][0], PAL[0][1]), prov: "TMDB", lang: "de", locked: false }, backdrop: { bg: g(PAL[0][0], "#0b0c10", 110), prov: "TMDB", lang: "ohne Text", locked: false }, logo: { bg: "", prov: "fanart.tv", lang: "de", locked: false } }
+  } : {
+    kind: "episode", title: "Donuts im Stau", original: "Donuts in Traffic", sort: "S04E07", year: 2007, date: "2007-11-05",
+    tagline: "", overview: "Charlie bleibt mit einer Schachtel Donuts im Stau stecken, während Alan die Geburtstagsfeier plant.",
+    genres: ["Komödie"], fsk: "FSK 6", lang: "Englisch", textLang: "de", series: "Zwei Brüder am Strand", season: 4, ep: 7,
+    locks: { title: false, overview: false, genres: false, fsk: false }, src: { title: "TMDB", overview: "TMDB", genres: "Serie", year: "TMDB", fsk: "Serie" },
+    img: { still: { bg: "", prov: "–", lang: "", locked: false } }
+  };
+}
+S.item = freshItem("movie");
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function kindsOf() { return S.item.kind === "movie" ? [["poster", "Poster"], ["backdrop", "Hintergrund"], ["logo", "Logo"]] : [["still", "Folgenbild"]]; }
+function thumb(kind, img, cls) {
+  if (kind === "logo") return `<div class="${cls} logo">${img.bg === "none" ? "–" : esc(S.item.title)}</div>`;
+  if (!img.bg) return `<div class="${cls} ${kind}" style="background:var(--surface-3)">kein Bild</div>`;
+  return `<div class="${cls} ${kind}" style="background-image:${img.bg};background-size:cover;background-position:center"></div>`;
+}
+
+function renderPage() {
+  const it = S.item, f = $("frame");
+  f.className = "frame" + (S.view === "phone" ? " phone" : "");
+  let html = "";
+  if (S.where === "detail") {
+    const bd = it.kind === "movie" ? it.img.backdrop.bg : (it.img.still.bg || "var(--surface-2)");
+    html = `<section class="detail">
+      <div class="bd" style="background:${bd};background-size:cover;background-position:center"></div>
+      ${it.kind === "movie" ? `<div class="pst" style="background:${it.img.poster.bg};background-size:cover;background-position:center"></div>` : `<div class="pst" style="background:${it.img.still.bg || "var(--surface-2)"};aspect-ratio:16/9;background-size:cover"></div>`}
+      <div>
+        ${it.kind === "episode" ? `<div class="meta" style="margin-bottom:6px">${esc(it.series)} · Staffel ${it.season}, Folge ${it.ep}</div>` : ""}
+        <h2 class="logo ${it.kind === "movie" && it.img.logo.bg !== "none" ? "img" : ""}">${esc(it.title)}</h2>
+        <div class="meta"><span class="fsk">${esc(it.fsk)}</span><span>${it.year}</span><span>·</span><span>${it.kind === "movie" ? "2 h 05 min" : "21 min"}</span></div>
+        ${it.tagline ? `<p class="tagline">${esc(it.tagline)}</p>` : ""}
+        <p class="ov">${esc(it.overview)}</p>
+        <div class="genres">${it.genres.map(x => `<span>${esc(x)}</span>`).join("")}</div>
+        <div class="actions">
+          <button type="button" class="btn primary">▶ Abspielen</button>
+          <button type="button" class="btn">+ Merkliste</button>
+          <button type="button" class="pen" id="openEd" aria-label="Metadaten bearbeiten" title="Metadaten bearbeiten">${PEN}</button>
+          <span class="admintag">nur für Administratoren</span>
+        </div>
+      </div>
+    </section>`;
+  } else {
+    const names = ["Nebelküste", "Die letzte Fähre", "Gipfelsturm", "Masterplan Zürich", "Ende der Eichenallee", "Spielzeugkiste", "Das Haus am Hang", "Meuterei", "Mayday", "Sternfahrt"];
+    html = `<section class="lib"><h2>Filme</h2><div class="grid">${names.map((n, k) => `
+      <div class="gcard"><div class="p" style="background:${k === 0 ? it.img.poster?.bg || g(PAL[0][0], PAL[0][1]) : g(PAL[k][0], PAL[k][1])};background-size:cover;background-position:center">${k === 0 ? "" : esc(n)}</div>
+      <div class="t">${esc(k === 0 ? (it.kind === "movie" ? it.title : n) : n)}</div>
+      <button type="button" class="pen" data-open="${k}" aria-label="${esc(n)} bearbeiten">${PEN}</button></div>`).join("")}</div>
+      <p class="hintline" style="margin-top:14px">Am Desktop erscheint der Stift beim Zeigen oder mit Tab; am Handy steht er immer da. Nur der erste Titel ist im Prototyp echt bearbeitbar.</p></section>`;
+  }
+  if (S.open) html += (S.shell !== "page" ? `<div class="shade${S.shell === "sheet" ? " light" : ""}" id="shade"></div>` : "") + editorHTML();
+  if (S.toast) html += `<div class="toast" role="status">${esc(S.toast)}</div>`;
+  f.innerHTML = html;
+  notes();
+}
+
+function editorHTML() {
+  const it = S.item;
+  const mini = it.kind === "movie" ? it.img.poster.bg : (it.img.still.bg || "var(--surface-3)");
+  const tabs = [["images", "Bilder"], ["meta", "Metadaten"], ["match", "Zuordnen"], ["refresh", "Aktualisieren"]];
+  return `<div class="editor ${S.shell}" role="dialog" aria-modal="${S.shell !== "page"}" aria-labelledby="edTitle">
+    <div class="ehead">
+      ${S.shell === "page" ? `<button type="button" class="btn ghost" id="closeEd">‹ Zurück</button>` : ""}
+      <div class="mini" style="background:${mini};background-size:cover"></div>
+      <div><h3 id="edTitle">${esc(it.title)}</h3><small>${it.kind === "movie" ? "Film · 2026 · Bibliothek Filme" : `${esc(it.series)} · S${it.season} F${it.ep}`}${S.shell === "page" ? " · Verwaltung › Pflege › Titel" : ""}</small></div>
+      ${S.shell !== "page" ? `<button type="button" class="pen x" id="closeEd" aria-label="Schliessen">✕</button>` : ""}
+    </div>
+    <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-tab="${k}" aria-selected="${S.tab === k}">${l}</button>`).join("")}</div>
+    <div class="ebody">${{ images: imagesTab, meta: metaTab, match: matchTab, refresh: refreshTab }[S.tab]()}</div>
+    <div class="efoot">${footer()}</div>
+  </div>`;
+}
+function footer() {
+  if (S.tab === "meta") return `<span class="msg" id="msg"></span><button type="button" class="btn ghost" id="resetMeta">Verwerfen</button><button type="button" class="btn accent" id="saveMeta" ${S.dirty ? "" : "disabled"}>Speichern</button>`;
+  if (S.tab === "images") return `<span class="hintline" style="margin-right:auto">Ein gewähltes Bild gilt sofort und bleibt gesperrt, bis du es zurücksetzt.</span><button type="button" class="btn" id="doneEd">Fertig</button>`;
+  return `<button type="button" class="btn" id="doneEd">Fertig</button>`;
+}
+
+function imagesTab() {
+  const it = S.item, k = S.imgKind;
+  const ks = kindsOf();
+  if (!ks.find(x => x[0] === k)) S.imgKind = ks[0][0];
+  const cur = it.img[S.imgKind];
+  let list = cands(S.imgKind);
+  if (S.filt.prov !== "all") list = list.filter(c => c.prov === S.filt.prov);
+  if (S.filt.lang !== "all") list = list.filter(c => c.lang === S.filt.lang);
+  const ups = S.uploads[S.imgKind] || [];
+  const wide = S.imgKind !== "poster";
+  return `<div class="sec"><h4>Bildart</h4><div class="kinds">${ks.map(([kk, l]) => {
+      const im = it.img[kk];
+      return `<button type="button" class="kind" data-kind="${kk}" aria-pressed="${kk === S.imgKind}">
+        ${thumb(kk, im, "th")}<b>${l}</b>
+        <span class="badge ${im.locked ? "lock" : ""}">${im.locked ? "gewählt · gesperrt" : im.bg ? `automatisch · ${esc(im.prov)}` : "fehlt"}</span></button>`;
+    }).join("")}</div></div>
+    <div class="sec">
+      <h4>Aktuell: ${cur.bg ? `${esc(cur.prov)}${cur.lang ? " · " + esc(cur.lang) : ""}` : "kein Bild"}</h4>
+      <div class="row2">
+        <label class="upload">⇪ Eigenes Bild hochladen<input type="file" id="upl" accept="image/jpeg,image/png,image/webp"></label>
+        <button type="button" class="btn" id="unlock" ${cur.locked ? "" : "disabled"}>Zurück auf automatisch</button>
+        <button type="button" class="btn ghost" id="reload">Neu laden</button>
+      </div>
+      <p class="hintline">JPEG, PNG oder WebP bis 20 MB. Der Server rechnet die Grössen selbst; ein hochgeladenes Bild holt er nie neu.</p>
+    </div>
+    <div class="sec">
+      <h4>Vorschläge der Anbieter</h4>
+      <div class="filters">
+        <label>Anbieter <select id="fprov">${["all", "TMDB", "fanart.tv", "TVDB", "Lokal"].map(v => `<option value="${v}" ${S.filt.prov === v ? "selected" : ""}>${v === "all" ? "Alle" : v}</option>`).join("")}</select></label>
+        <label>Sprache <select id="flang">${["all", "de", "en", "fr", "it", "ohne Text"].map(v => `<option value="${v}" ${S.filt.lang === v ? "selected" : ""}>${v === "all" ? "Alle" : v}</option>`).join("")}</select></label>
+        <span class="hintline">${list.length + ups.length} Bilder · sortiert nach Sprache, Grösse, Stimmen</span>
+      </div>
+      <div class="cands ${wide ? "wide" : ""}">
+        ${ups.map(u => `<button type="button" class="cand" data-up="${u.id}" aria-pressed="${cur.id === u.id}"><div class="im ${S.imgKind} upl" style="background-image:url('${u.url}')"></div><small>Hochgeladen · ${esc(u.name)}</small></button>`).join("")}
+        ${list.map(c => `<button type="button" class="cand" data-cand="${c.id}" aria-pressed="${cur.id === c.id}">
+          ${S.imgKind === "logo" ? `<div class="im logo">${esc(it.title)}</div>` : `<div class="im ${S.imgKind}" style="background-image:${c.bg}"></div>`}
+          <small>${c.prov} · ${c.lang} · ${c.size} · ★ ${c.votes}</small></button>`).join("")}
+      </div>
+    </div>`;
+}
+function lockBtn(f) {
+  const on = S.item.locks[f];
+  return `<button type="button" class="lockbtn" data-lock="${f}" aria-pressed="${on}" title="${on ? "Gesperrt: Aktualisieren ändert das Feld nicht" : "Frei: Aktualisieren darf das Feld überschreiben"}">${on ? LOCK + "gesperrt" : UNLOCK + "frei"}</button>`;
+}
+function metaTab() {
+  const it = S.item;
+  return `<div class="note">Was du hier änderst, sperrt das Feld: «Aktualisieren» überschreibt es nicht mehr. Das Schloss hebt die Sperre wieder auf. Texte gelten für die Sprache <b>Deutsch</b>; die anderen Sprachen holt der Server weiter von den Anbietern.</div>
+  <div class="fields">
+    <div class="f full"><div class="lab"><label for="m_title">Titel</label><span class="src">aus ${it.src.title}</span>${lockBtn("title")}</div><input type="text" id="m_title" data-f="title" value="${esc(it.title)}"></div>
+    <div class="f"><div class="lab"><label for="m_original">Originaltitel</label></div><input type="text" id="m_original" data-f="original" value="${esc(it.original)}"></div>
+    <div class="f"><div class="lab"><label for="m_sort">Sortiertitel</label></div><input type="text" id="m_sort" data-f="sort" value="${esc(it.sort)}"></div>
+    <div class="f"><div class="lab"><label for="m_year">Jahr</label><span class="src">aus ${it.src.year}</span></div><input type="number" id="m_year" data-f="year" value="${it.year}"></div>
+    <div class="f"><div class="lab"><label for="m_date">Erscheinungsdatum</label></div><input type="date" id="m_date" data-f="date" value="${it.date}"></div>
+    ${it.kind === "movie" ? `<div class="f full"><div class="lab"><label for="m_tagline">Slogan</label></div><input type="text" id="m_tagline" data-f="tagline" value="${esc(it.tagline)}"></div>` : ""}
+    <div class="f full"><div class="lab"><label for="m_overview">Beschreibung</label><span class="src">aus ${it.src.overview}</span>${lockBtn("overview")}</div><textarea id="m_overview" data-f="overview">${esc(it.overview)}</textarea></div>
+    <div class="f full"><div class="lab"><span>Genres</span><span class="src">aus ${it.src.genres}</span>${lockBtn("genres")}</div>
+      <div class="chips">${it.genres.map((x, i) => `<span class="chip">${esc(x)}<button type="button" data-delg="${i}" aria-label="${esc(x)} entfernen">✕</button></span>`).join("")}
+      <input type="text" id="m_genre" placeholder="Genre hinzufügen" list="glist" aria-label="Genre hinzufügen"><datalist id="glist"><option>Abenteuer</option><option>Action</option><option>Drama</option><option>Horror</option><option>Komödie</option><option>Krimi</option><option>Mystery</option><option>Thriller</option></datalist></div></div>
+    <div class="f"><div class="lab"><label for="m_fsk">Altersfreigabe</label><span class="src">aus ${it.src.fsk}</span>${lockBtn("fsk")}</div>
+      <select id="m_fsk" data-f="fsk">${["FSK 0", "FSK 6", "FSK 12", "FSK 16", "FSK 18"].map(v => `<option ${it.fsk === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <div class="f"><div class="lab"><label for="m_lang">Originalsprache</label></div>
+      <select id="m_lang" data-f="lang">${["Englisch", "Deutsch", "Französisch", "Japanisch"].map(v => `<option ${it.lang === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+  </div>
+  <p class="hintline">Heute schon vorhanden und hier nur zusammengeführt: Altersfreigabe und Originalsprache. Neu: Titel, Texte, Jahr, Datum, Genres und die Schlösser je Feld.</p>`;
+}
+function matchTab() {
+  const hits = [["Nebelküste", "2026 · TMDB 1184512 · Film", true], ["Fog Coast", "2019 · TMDB 602331 · Kurzfilm", false], ["Die Nebelküste", "1987 · TMDB 41877 · Film", false]];
+  return `<div class="note">Zuordnen gibt es heute schon in der Verwaltung (Pflege › Titel). Hier ist es derselbe Dialog: suchen, Treffer wählen, der Server lädt alles neu und sperrt die IDs.</div>
+    <div class="row2"><input type="text" id="q" value="${esc(S.item.title)}" aria-label="Suche" style="flex:1"><select aria-label="Anbieter" style="width:auto"><option>TMDB</option><option>TVDB</option></select><button type="button" class="btn">Suchen</button></div>
+    <div class="res">${hits.map(([t, m, cur]) => `<div class="hit"><div class="p" style="background:${g(PAL[cur ? 0 : 5][0], PAL[cur ? 0 : 5][1])}"></div><div><b>${t}</b><small>${m}</small></div>${cur ? '<span class="badge lock">zugeordnet</span>' : '<button type="button" class="btn">Zuordnen</button>'}</div>`).join("")}</div>`;
+}
+function refreshTab() {
+  return `<div class="sec"><h4>Was soll der Server neu holen?</h4>
+    <label class="opt"><input type="radio" name="rf" checked><span>Fehlendes ergänzen</span><small>Holt nur leere Felder und fehlende Bilder. Wie heute «Aktualisieren».</small></label>
+    <label class="opt"><input type="radio" name="rf"><span>Alles neu laden</span><small>Überschreibt alle freien Felder und automatisch gewählten Bilder. Gesperrte Felder und gewählte Bilder bleiben.</small></label>
+    <label class="opt"><input type="checkbox"><span>Auch gesperrte Felder freigeben</span><small>Hebt vorher alle Schlösser dieses Titels auf. Danach gilt wieder nur, was die Anbieter liefern.</small></label>
+    <div class="row2"><button type="button" class="btn accent" id="runRefresh">Jetzt aktualisieren</button><span class="hintline">läuft als Job «Metadaten auffüllen» mit hoher Priorität</span></div></div>`;
+}
+function notes() {
+  const N = {
+    dialog: ["A · Dialog (wie Emby)", ["Vertraut aus Emby: ein Fenster über der Seite, Reiter oben.", "Viel Platz für die Bildvorschläge."], ["Die Seite dahinter ist verdeckt; was ein neues Poster bewirkt, siehst du erst nach dem Schliessen.", "Am Handy ohnehin ganzseitig."]],
+    sheet: ["B · Seitenblatt (Empfehlung)", ["Die Seite bleibt links sichtbar: ein neues Poster, Hintergrund oder ein neuer Titel erscheint sofort dahinter.", "Gleiche Bauteile wie die Verwaltung; am Handy wird es ganzseitig.", "Von der Bibliothek aus bleibt das Raster sichtbar, du kannst Titel für Titel durchgehen."], ["Schmaler als ein Dialog: Hintergründe stehen zwei nebeneinander statt vier."]],
+    page: ["C · Verwaltungsseite", ["Baut auf der bestehenden Seite Pflege › Titel auf; kein neues Fenster.", "Platz für Dateien und Trailer wie heute."], ["Der Stift führt aus der Zuschauerseite in die Verwaltung; zurück musst du über «Zurück».", "Keine Vorschau auf der echten Seite."]]
+  }[S.shell];
+  $("notes").innerHTML = `<div class="pro"><h3>${N[0]}: dafür</h3><ul>${N[1].map(x => `<li>${x}</li>`).join("")}</ul></div><div class="con"><h3>Dagegen</h3><ul>${N[2].map(x => `<li>${x}</li>`).join("")}</ul></div>`;
+}
+
+function toast(t) { S.toast = t; renderPage(); clearTimeout(toast.h); toast.h = setTimeout(() => { S.toast = ""; renderPage(); }, 2200); }
+function seg(id, key, after) {
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    S[key] = b.dataset.v;
+    $(id).querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    if (after) after();
+    renderPage();
+  });
+}
+seg("shell", "shell"); seg("where", "where"); seg("view", "view");
+seg("kindsel", "kind", () => { S.item = freshItem(S.kind); S.imgKind = S.kind === "movie" ? "poster" : "still"; S.dirty = false; if (S.kind === "episode") S.where = "detail", document.querySelectorAll("#where button").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === "detail")); });
+
+let draft = null;
+$("frame").addEventListener("click", e => {
+  const t = e.target;
+  if (t.closest("#openEd") || t.closest("[data-open]")) { S.open = true; S.tab = "images"; draft = null; renderPage(); $("frame").querySelector(".tabs button[aria-selected=true]")?.focus(); return; }
+  if (t.closest("#closeEd") || t.closest("#doneEd") || t.id === "shade") { S.open = false; S.dirty = false; renderPage(); $("openEd")?.focus(); return; }
+  const tab = t.closest("[data-tab]"); if (tab) { S.tab = tab.dataset.tab; renderPage(); $("frame").querySelector(`[data-tab=${S.tab}]`).focus(); return; }
+  const kind = t.closest("[data-kind]"); if (kind) { S.imgKind = kind.dataset.kind; renderPage(); return; }
+  const c = t.closest("[data-cand]");
+  if (c) { const cd = cands(S.imgKind).find(x => x.id === c.dataset.cand); S.item.img[S.imgKind] = { id: cd.id, bg: S.imgKind === "logo" ? "x" : cd.bg, prov: cd.prov, lang: cd.lang, locked: true }; toast("Bild gewählt und gesperrt"); return; }
+  const u = t.closest("[data-up]");
+  if (u) { const up = (S.uploads[S.imgKind] || []).find(x => x.id === u.dataset.up); S.item.img[S.imgKind] = { id: up.id, bg: `url('${up.url}')`, prov: "Hochgeladen", lang: "", locked: true }; toast("Eigenes Bild gesetzt"); return; }
+  if (t.closest("#unlock")) { const fresh = freshItem(S.item.kind).img[S.imgKind]; S.item.img[S.imgKind] = fresh; toast("Zurück auf automatisch: der Server wählt wieder selbst"); return; }
+  if (t.closest("#reload")) { toast("Vorschläge neu geladen"); return; }
+  const lk = t.closest("[data-lock]"); if (lk) { const f = lk.dataset.lock; S.item.locks[f] = !S.item.locks[f]; renderPage(); $("frame").querySelector(`[data-lock=${f}]`).focus(); return; }
+  const dg = t.closest("[data-delg]"); if (dg) { S.item.genres.splice(+dg.dataset.delg, 1); S.item.locks.genres = true; S.dirty = true; renderPage(); return; }
+  if (t.closest("#saveMeta")) { S.dirty = false; toast("Gespeichert. Gesperrt: " + Object.entries(S.item.locks).filter(([, v]) => v).map(([k]) => ({ title: "Titel", overview: "Beschreibung", genres: "Genres", fsk: "Altersfreigabe" }[k])).join(", ")); return; }
+  if (t.closest("#resetMeta")) { const fr = freshItem(S.item.kind); Object.assign(S.item, { title: fr.title, original: fr.original, sort: fr.sort, year: fr.year, date: fr.date, tagline: fr.tagline, overview: fr.overview, genres: fr.genres, fsk: fr.fsk, lang: fr.lang, locks: fr.locks }); S.dirty = false; renderPage(); return; }
+  if (t.closest("#runRefresh")) { toast("Aktualisierung eingereiht"); return; }
+});
+$("frame").addEventListener("input", e => {
+  const f = e.target.dataset.f;
+  if (!f) return;
+  S.item[f] = f === "year" ? +e.target.value : e.target.value;
+  if (S.item.locks[f] !== undefined) {
+    if (!S.item.locks[f]) { S.item.locks[f] = true; const b = $("frame").querySelector(`[data-lock=${f}]`); if (b) { b.setAttribute("aria-pressed", "true"); b.innerHTML = LOCK + "gesperrt"; } }
+  }
+  S.dirty = true;
+  const sv = $("saveMeta"); if (sv) sv.disabled = false;
+  // live preview behind the sheet
+  const page = $("frame").querySelector(".detail");
+  if (page) {
+    if (f === "title") page.querySelector(".logo").textContent = S.item.title;
+    if (f === "overview") page.querySelector(".ov").textContent = S.item.overview;
+    if (f === "tagline" && page.querySelector(".tagline")) page.querySelector(".tagline").textContent = S.item.tagline;
+  }
+});
+$("frame").addEventListener("change", e => {
+  if (e.target.id === "fprov") { S.filt.prov = e.target.value; renderPage(); }
+  if (e.target.id === "flang") { S.filt.lang = e.target.value; renderPage(); }
+  if (e.target.dataset.f === "fsk" || e.target.dataset.f === "lang") renderPage();
+  if (e.target.id === "upl" && e.target.files[0]) {
+    const file = e.target.files[0];
+    if (file.size > 20 * 1024 * 1024) { toast("Die Datei ist grösser als 20 MB"); return; }
+    const url = URL.createObjectURL(file), id = "up" + Date.now();
+    (S.uploads[S.imgKind] ||= []).unshift({ id, url, name: file.name.slice(0, 24) });
+    S.item.img[S.imgKind] = { id, bg: `url('${url}')`, prov: "Hochgeladen", lang: "", locked: true };
+    toast("Eigenes Bild hochgeladen und gesperrt");
+  }
+});
+$("frame").addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target.id === "m_genre" && e.target.value.trim()) {
+    e.preventDefault(); S.item.genres.push(e.target.value.trim()); S.item.locks.genres = true; S.dirty = true; renderPage(); $("m_genre").focus();
+  }
+  if (e.key === "Escape" && S.open && S.shell !== "page") { S.open = false; renderPage(); $("openEd")?.focus(); }
+});
+renderPage();
+</script>
+</body>
+</html>
