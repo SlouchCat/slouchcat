@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 14 «Schneller Wiedergabestart»: gebaut, auf CT 190 abgenommen, PR #90 offen (5. November 2026)
+## Konzept 14 «Schneller Wiedergabestart»: gemergt und auf CT 190 abgenommen (5. November 2026)
 
 **Zweig `claude/wiedergabestart-89645e` ab `main` `c514ab1` (Release 1.12.0).** Marcos Freigabe des
 Baus vom 5. November 2026. Vertrag **1.13.0** (additiv), Migration **00033**, Frage 20, ADR 0022.
@@ -52,8 +52,12 @@ Prüfung der Obergrenze beim Einreihen 9,1 ms → 38 µs (50 000 wartende Jobs);
   zweite Start remuxt; Nachhol-Lauf 257 Dateien in 88 s, «ausstehend = 0» in allen Bibliotheken;
   Termin feuert pünktlich; QSV-Bild auf dem Handy scharf; QSV und VAAPI mit VBR statt CQP. Werte in
   `docs/perf/wiedergabestart.md`.
-- PR #90 (GitHub-CI 19 von 19 grün) wartet auf Marcos Wort zum Merge.
-- Release 1.13.0 nach der Abnahme; Entwurf `release-notes-1.13.0.txt` im Wurzelordner (unversioniert).
+- **PR #90** auf Marcos Wort gemergt (`619d53cb`), GitHub-CI 19 von 19 grün.
+- **Release 1.13.0:** Versionsstellen auf 1.13.0 im Zweig `claude/release-1.13.0`
+  (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`), Tag `v1.13.0` setzt Marco auf den Merge-Commit. Release-Notes:
+  `release-notes-1.13.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.12.0). Danach CT 190
+  vom Zweig-Image `wiedergabestart-68cefaf` auf das Release-Image 1.13.0 (keine Migration mehr).
 - Bekannte Grenzen: 4K-HDR auf QSV startet weiter in 2–3 s (CPU-Tonemapping); NVENC hält die Leiter
   nur im Mittel (O-19); Safari mangels Apple-Gerät nur mit Vitest geprüft.
 
