@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"regexp"
@@ -297,25 +298,105 @@ func (s *Service) storeProbeError(ctx context.Context, t probeTarget, v FileVers
 	return s.finishAudiobook(ctx, t.file.ItemID) // a book completes without its broken part
 }
 
-// handleKeyframes stores the keyframe index of a media file (see EncodeKeyframes).
+// fullReadTimeout bounds the full keyframe read of probe.keyframes (concept 14, 6.3): 27.5 GB at
+// 15 MB/s take about 31 minutes, the bound leaves a factor of four.
+const fullReadTimeout = 2 * time.Hour
+
+// handleKeyframes is probe.keyframes, the full keyframe read in the pool index (concept 14, 6.3).
+// A file with an index, and a file whose video cannot be remuxed, has nothing to do (jobs.Skip).
+// Otherwise the index from the container is tried first (cheap; it covers jobs queued before the
+// container was read during probe.file), then ffprobe reads every packet of the video stream
+// within fullReadTimeout. Keyframes are stored as scan, a read without one and a broken file
+// (transcode.FileError) as none, both for the version remembered from the row; a missing file ends
+// the job without an index, and every other failure is returned for the backoff, so the source
+// stays NULL and the backfill tries again. Audiobooks and podcast episodes are not left out here:
+// the automatic paths do not queue them, a playback does (2.3).
 func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 	t, err := s.loadProbeTarget(ctx, j)
 	if err != nil || !t.found {
-		return err
+		return err // a vanished row or a file marked missing ends quietly
+	}
+	version := VersionOf(t.file)
+	if t.file.KeyframesSource.Valid || !transcode.CopyableVideo(t.file.VideoCodec.String) {
+		jobs.Skip(ctx)
+		return nil
 	}
 	// The index of a long file takes minutes; the note names the file relative to its root
 	// (concept 09, 6.2), never the absolute path.
 	jobs.Progress(ctx, 0, 0, t.file.RelPath)
-	var kf []time.Duration
-	if t.file.VideoCodec.Valid || !t.file.AudioCodec.Valid {
-		// An audio file (cover art aside) has no video keyframes: its index stays empty.
-		kf, err = s.probe.Keyframes(ctx, t.abs)
+	dir, err := paths.Open(t.root)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			s.log.InfoContext(ctx, "library root missing, keyframe index not read", "media_file_id", t.file.ID, "path", t.file.RelPath)
+			return nil
+		}
+		return err
+	}
+	defer dir.Close()
+	index, err := s.indexFromContainer(ctx, indexTarget{
+		id: t.file.ID, root: t.root, dir: dir, rel: t.file.RelPath, abs: t.abs, container: t.file.Container,
+		duration: time.Duration(t.file.DurationMs.Int64) * time.Millisecond, codec: t.file.VideoCodec.String,
+	})
+	if err != nil {
+		return err
+	}
+	if len(index.keyframes) > 0 {
+		return s.storeReadIndex(ctx, t.file.ID, index.keyframes, index.source, version)
+	}
+
+	readCtx, cancel := context.WithTimeout(ctx, fullReadTimeout)
+	defer cancel()
+	kf, err := s.probe.Keyframes(readCtx, t.abs)
+	var fileErr *transcode.FileError
+	switch {
+	case err == nil:
+		// No keyframe in the whole read stores none (StoreKeyframes).
+		return s.storeReadIndex(ctx, t.file.ID, kf, KeyframesScan, version)
+	case ctx.Err() != nil:
+		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, ctx.Err())
+	case fileMissing(dir, t.file.RelPath, err):
+		// A file gone for good is marked by the next scan; one gone for a moment (a network share
+		// that dropped) is read by the next backfill. Five retries would not help either.
+		s.log.InfoContext(ctx, "media file missing, keyframe index not read", "media_file_id", t.file.ID, "path", t.file.RelPath)
+		return nil
+	case readCtx.Err() == nil && errors.As(err, &fileErr):
+		s.log.WarnContext(ctx, "full keyframe read failed on the file, index marked impossible", "media_file_id", t.file.ID,
+			"path", t.file.RelPath, "err", strings.ReplaceAll(err.Error(), t.abs, t.file.RelPath))
+		return s.storeReadIndex(ctx, t.file.ID, nil, KeyframesNone, version)
+	}
+	return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, err)
+}
+
+// storeReadIndex stores the index of probe.keyframes for version v. When nothing is written and
+// the row has no index but another version, the file changed during the read: the probe.file of
+// the new version found this job under its key and queued nothing, so the job runs again on the
+// new version instead of ending without an index (review of wave B, m-2).
+func (s *Service) storeReadIndex(ctx context.Context, mediaFileID string, kf []time.Duration, source string, v FileVersion) error {
+	stored, err := StoreKeyframes(ctx, s.db.Write, mediaFileID, kf, source, v, s.now())
+	if err != nil || stored {
+		return err
+	}
+	cur, err := systemq.New(s.db.Write).GetMediaFileSystem(ctx, mediaFileID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, err)
+		return fmt.Errorf("load media file: %w", err)
 	}
-	_, err = StoreKeyframes(ctx, s.db.Write, t.file.ID, kf, KeyframesScan, VersionOf(t.file), s.now())
-	return err
+	if !cur.KeyframesSource.Valid && !cur.MissingSince.Valid && VersionOf(cur) != v {
+		return fileChanged(mediaFileID)
+	}
+	return nil
+}
+
+// fileMissing reports whether a failed read of rel means the file is not there: the error says
+// so (ffprobe prints the operating system's message), or the file is gone now.
+func fileMissing(dir *os.Root, rel string, err error) bool {
+	if errors.Is(err, fs.ErrNotExist) || strings.Contains(strings.ToLower(err.Error()), "no such file or directory") {
+		return true
+	}
+	_, serr := dir.Stat(rel)
+	return errors.Is(serr, fs.ErrNotExist)
 }
 
 // keyframesFormat is the version byte of the keyframe blob.

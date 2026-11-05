@@ -773,7 +773,7 @@ func (s *Service) ensureKeyframes(ctx context.Context, loc visibility.MediaFileL
 
 // queueKeyframes queues the keyframe index job of a media file at top priority.
 func (s *Service) queueKeyframes(ctx context.Context, fileID string) {
-	if err := library.QueueKeyframesForPlayback(context.WithoutCancel(ctx), s.queue, fileID); err != nil {
+	if _, err := library.QueueKeyframesForPlayback(context.WithoutCancel(ctx), s.db.Read, s.queue, fileID, s.now()); err != nil {
 		s.log.WarnContext(ctx, "queue keyframe index", "media_file_id", fileID, "err", err)
 	}
 }

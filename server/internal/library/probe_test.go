@@ -81,13 +81,16 @@ func TestProbeJobsOnTestMedia(t *testing.T) {
 		t.Errorf("sidecar tracks after the second probe = %d, want 4", n)
 	}
 
-	// The full read finds the same index once the stored one is gone.
+	// The full read finds the same index once the stored one is gone (probe.keyframes tries the
+	// cues first; without them it reads the whole file).
 	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE media_files SET keyframes = NULL, keyframes_at = NULL, keyframes_source = NULL WHERE id = ?`, id); err != nil {
 		t.Fatal(err)
 	}
+	e.svc.indexReader = noContainerIndex
 	if err := e.svc.handleKeyframes(e.ctx, mediaJob(t, JobProbeKeyframes, id)); err != nil {
 		t.Fatal(err)
 	}
+	e.svc.indexReader = nil
 	if v := e.str(`SELECT keyframes_source || '/' || (hex(keyframes) = ?) FROM media_files WHERE id = ?`, cues, id); v != "scan/1" {
 		t.Errorf("full read source/equal to the cues = %q, want scan/1", v)
 	}

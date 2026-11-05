@@ -100,31 +100,50 @@ func keyframesJob(mediaFileID string) newJob {
 	return newJob{JobProbeKeyframes, prioKeyframes, "keyframes:" + mediaFileID, mediaFilePayload{MediaFileID: mediaFileID}}
 }
 
-// QueueKeyframesForPlayback queues the keyframe index of a media file at top priority (a playback
-// is transcoding because the index is missing). A queued index job of a scan (priority 1) is
-// replaced; a running one is left alone.
-func QueueKeyframesForPlayback(ctx context.Context, q *jobs.Queue, mediaFileID string) error {
-	payload, err := json.Marshal(mediaFilePayload{MediaFileID: mediaFileID})
+// keyframesFailedQuiet is how long a playback queues no full read again after the last one of the
+// file failed (concept 14, 6.4, O-17): the backfill tries it again.
+const keyframesFailedQuiet = 24 * time.Hour
+
+// QueueKeyframesForPlayback asks for the keyframe index of a media file a playback transcodes
+// because the index is missing (concept 14, 6.4): probe.keyframes at priority 9 under the key
+// keyframes:<id>, through jobs.Queue.EnqueueOverridingPause, so the job runs while its type is
+// paused (at most jobs.MaxPauseOverrides at a time). A job that waits under the key (one of a
+// scan or the backfill at priority 1) is raised instead (RaiseQueuedJobForPlayback); a running
+// one stays as it is. Nothing is queued for a file whose index is impossible (source none), whose
+// row is gone, or whose last full read failed within keyframesFailedQuiet. db is a read
+// connection. The result is zero when nothing was queued or raised.
+func QueueKeyframesForPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) (jobs.PauseOverride, error) {
+	read := systemq.New(db)
+	mf, err := read.GetMediaFileSystem(ctx, mediaFileID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return jobs.PauseOverride{}, nil
+	}
 	if err != nil {
-		return fmt.Errorf("encode %s payload: %w", JobProbeKeyframes, err)
+		return jobs.PauseOverride{}, fmt.Errorf("load media file: %w", err)
 	}
-	nj := jobs.NewJob{Type: JobProbeKeyframes, Priority: prioKeyframesPlayback, IdempotencyKey: "keyframes:" + mediaFileID, Payload: payload}
-	id, err := q.Enqueue(ctx, nj)
+	if mf.KeyframesSource.Valid {
+		return jobs.PauseOverride{}, nil // none: impossible for this version; else written meanwhile
+	}
+	j := keyframesJob(mediaFileID)
+	failed, err := read.LastJobFailedSince(ctx, systemq.LastJobFailedSinceParams{
+		Type: j.typ, IdempotencyKey: sql.NullString{String: j.key, Valid: true},
+		Since: sql.NullInt64{Int64: now.Add(-keyframesFailedQuiet).UnixMilli(), Valid: true},
+	})
 	if err != nil {
-		return err
+		return jobs.PauseOverride{}, fmt.Errorf("last full keyframe read of %s: %w", mediaFileID, err)
 	}
-	j, err := q.Get(ctx, id)
+	if failed {
+		return jobs.PauseOverride{}, nil
+	}
+	payload, err := json.Marshal(j.payload)
 	if err != nil {
-		return err
+		return jobs.PauseOverride{}, fmt.Errorf("encode %s payload: %w", j.typ, err)
 	}
-	if j.State != jobs.StateQueued || j.Priority >= prioKeyframesPlayback {
-		return nil
+	res, err := q.EnqueueOverridingPause(ctx, jobs.NewJob{Type: j.typ, Priority: prioKeyframesPlayback, IdempotencyKey: j.key, Payload: payload})
+	if err != nil || res.Inserted {
+		return res, err
 	}
-	if _, err := q.Cancel(ctx, id); err != nil {
-		return err
-	}
-	_, err = q.Enqueue(ctx, nj)
-	return err
+	return q.RaiseQueuedJobForPlayback(ctx, res.ID, prioKeyframesPlayback)
 }
 
 // Keyframe sources: the values of media_files.keyframes_source (concept 14, 4.1).
@@ -222,7 +241,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	})
 	r.Register(jobs.Type{Name: JobScanPath, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioPathScan, Handler: s.handlePathScan, Cancel: s.cancelScanJob})
 	r.Register(jobs.Type{Name: JobProbeFile, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioProbe, Handler: s.handleProbe})
-	r.Register(jobs.Type{Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioKeyframes, Handler: s.handleKeyframes})
+	r.Register(jobs.Type{Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolIndex, Trigger: jobs.TriggerEvent, Priority: prioKeyframes, Handler: s.handleKeyframes})
 	r.Register(jobs.Type{
 		Name: JobSweep, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioSweep, Handler: s.handleSweep, Run: s.runSweep, Every: sweepInterval, StartDelay: &atStart,

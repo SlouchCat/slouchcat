@@ -122,6 +122,19 @@ WHERE id = @id AND keyframes_source IS NULL AND size = @size AND mtime = @mtime;
 -- index (cues, mp4, scan) stays (concept 14, 4.2, O-16).
 UPDATE media_files SET keyframes_source = NULL, updated_at = @now WHERE id = @id AND keyframes_source = 'none';
 
+-- name: LastJobFailedSince :one
+-- Whether the newest run of a type under an idempotency key failed at or after @since, with no
+-- later run done or cancelled (concept 14, 6.4, O-17: a playback queues no new full keyframe read
+-- for a file whose last read failed within 24 h). Over the index jobs_history.
+SELECT EXISTS (
+    SELECT 1 FROM jobs AS f
+    WHERE f.type = @type AND f.state = 'failed' AND f.finished_at >= @since AND f.idempotency_key = @idempotency_key
+      AND NOT EXISTS (
+          SELECT 1 FROM jobs AS l
+          WHERE l.type = f.type AND l.state IN ('done', 'cancelled') AND l.finished_at > f.finished_at
+            AND l.idempotency_key = f.idempotency_key)
+) AS failed;
+
 -- name: DeleteMediaFileTracks :exec
 DELETE FROM tracks WHERE media_file_id = @media_file_id;
 

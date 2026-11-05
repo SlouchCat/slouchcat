@@ -440,6 +440,33 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 	return err
 }
 
+const lastJobFailedSince = `-- name: LastJobFailedSince :one
+SELECT EXISTS (
+    SELECT 1 FROM jobs AS f
+    WHERE f.type = ?1 AND f.state = 'failed' AND f.finished_at >= ?2 AND f.idempotency_key = ?3
+      AND NOT EXISTS (
+          SELECT 1 FROM jobs AS l
+          WHERE l.type = f.type AND l.state IN ('done', 'cancelled') AND l.finished_at > f.finished_at
+            AND l.idempotency_key = f.idempotency_key)
+) AS failed
+`
+
+type LastJobFailedSinceParams struct {
+	Type           string
+	Since          sql.NullInt64
+	IdempotencyKey sql.NullString
+}
+
+// Whether the newest run of a type under an idempotency key failed at or after @since, with no
+// later run done or cancelled (concept 14, 6.4, O-17: a playback queues no new full keyframe read
+// for a file whose last read failed within 24 h). Over the index jobs_history.
+func (q *Queries) LastJobFailedSince(ctx context.Context, arg LastJobFailedSinceParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, lastJobFailedSince, arg.Type, arg.Since, arg.IdempotencyKey)
+	var failed bool
+	err := row.Scan(&failed)
+	return failed, err
+}
+
 const listDeletedItemsByLibrary = `-- name: ListDeletedItemsByLibrary :many
 SELECT id, kind, parent_id, season_number, episode_number, sort_title, year, tmdb_id, tvdb_id, imdb_id, deleted_at
 FROM items
