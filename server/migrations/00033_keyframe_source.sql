@@ -8,7 +8,8 @@
 --   media_files_keyframes         partial index that carries the coverage count and the search of
 --                                 the backfill job; it lists only files worth indexing (present,
 --                                 a codec that can be remuxed). The condition on items.kind comes
---                                 through the join.
+--                                 through the join. The id behind the source orders the cursor of
+--                                 the backfill, so a batch needs no sort.
 --   jobs.override_pause           1 = the run may start while background work is paused (set only
 --                                 for playback requests, never by default).
 --   jobs_override_pause           partial index that carries the cap count of the playback
@@ -30,7 +31,7 @@ ALTER TABLE media_files ADD COLUMN keyframes_source TEXT CHECK (keyframes_source
 
 UPDATE media_files SET keyframes_source = 'scan' WHERE length(keyframes) > 1;
 
-CREATE INDEX media_files_keyframes ON media_files (keyframes_source)
+CREATE INDEX media_files_keyframes ON media_files (keyframes_source, id)
     WHERE missing_since IS NULL AND video_codec IN ('h264', 'hevc', 'av1', 'vp9');
 
 ALTER TABLE jobs ADD COLUMN override_pause INTEGER NOT NULL DEFAULT 0 CHECK (override_pause IN (0, 1));

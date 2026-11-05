@@ -38,7 +38,7 @@ func TestFrozenWiedergabestartStateCoversTheConcept(t *testing.T) {
 		"run that does not":                         `SELECT count(*) FROM jobs WHERE override_pause = 0`,
 		"schedule with a one-off date":              `SELECT count(*) FROM job_schedules WHERE once_at > 0 AND enabled = 0`,
 		"schedule without a one-off date":           `SELECT count(*) FROM job_schedules WHERE once_at IS NULL`,
-		"partial index of the keyframe sources":     `SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'media_files_keyframes' AND tbl_name = 'media_files' AND sql LIKE '%WHERE missing_since IS NULL%'`,
+		"partial index of the keyframe sources":     `SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'media_files_keyframes' AND tbl_name = 'media_files' AND sql LIKE '%(keyframes_source, id)%WHERE missing_since IS NULL%'`,
 		"partial index of the pause overrides":      `SELECT count(*) FROM sqlite_master WHERE type = 'index' AND name = 'jobs_override_pause' AND tbl_name = 'jobs' AND sql LIKE '%WHERE override_pause = 1%'`,
 		"migration 00033 recorded as applied":       `SELECT count(*) FROM goose_db_version WHERE version_id = 33 AND is_applied = 1`,
 		"foreign keys of the frozen state hold":     `SELECT count(*) = 0 FROM pragma_foreign_key_check`,

@@ -458,12 +458,14 @@ func (q *Queries) InsertTrack(ctx context.Context, arg InsertTrackParams) error 
 
 const lastJobFailedSince = `-- name: LastJobFailedSince :one
 SELECT EXISTS (
-    SELECT 1 FROM jobs AS f
-    WHERE f.type = ?1 AND f.state = 'failed' AND f.finished_at >= ?2 AND f.idempotency_key = ?3
-      AND NOT EXISTS (
-          SELECT 1 FROM jobs AS l
-          WHERE l.type = f.type AND l.state IN ('done', 'cancelled') AND l.finished_at > f.finished_at
-            AND l.idempotency_key = f.idempotency_key)
+    SELECT 1 FROM (
+        SELECT l.state FROM jobs AS l
+        WHERE l.type = ?1 AND l.state IN ('done', 'failed', 'cancelled') AND l.finished_at >= ?2
+          AND l.idempotency_key = ?3
+        ORDER BY l.finished_at DESC, l.id DESC
+        LIMIT 1
+    ) AS newest
+    WHERE newest.state = 'failed'
 ) AS failed
 `
 
@@ -473,9 +475,11 @@ type LastJobFailedSinceParams struct {
 	IdempotencyKey sql.NullString
 }
 
-// Whether the newest run of a type under an idempotency key failed at or after @since, with no
-// later run done or cancelled (concept 14, 6.4, O-17: a playback queues no new full keyframe read
-// for a file whose last read failed within 24 h). Over the index jobs_history.
+// Whether the newest finished run of a type under an idempotency key failed at or after @since
+// (concept 14, 6.4, O-17: a playback queues no new full keyframe read for a file whose last read
+// failed within 24 h). A run newer than one at @since finished at @since or later too, so only
+// the runs since @since are looked at: a range of the index jobs_history, the newest of them by
+// finished_at decides.
 func (q *Queries) LastJobFailedSince(ctx context.Context, arg LastJobFailedSinceParams) (bool, error) {
 	row := q.db.QueryRowContext(ctx, lastJobFailedSince, arg.Type, arg.Since, arg.IdempotencyKey)
 	var failed bool
@@ -711,8 +715,9 @@ type ListKeyframesBackfillFilesRow struct {
 // library.indexWorthy (4.1): present, a video codec that can be remuxed
 // (transcode.CopyableVideo), neither an audiobook nor a podcast episode. It implies the WHERE of
 // the partial index media_files_keyframes, which carries the search (INDEXED BY: without
-// statistics the planner takes media_files_missing, which lists nearly every file).
-// CountKeyframesBackfillFiles states the same condition.
+// statistics the planner takes media_files_missing, which lists nearly every file); the id in
+// the index gives the order of the cursor without a sort. CountKeyframesBackfillFiles states the
+// same condition.
 func (q *Queries) ListKeyframesBackfillFiles(ctx context.Context, arg ListKeyframesBackfillFilesParams) ([]ListKeyframesBackfillFilesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listKeyframesBackfillFiles, arg.AfterID, arg.LimitCount)
 	if err != nil {

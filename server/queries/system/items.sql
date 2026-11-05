@@ -128,8 +128,9 @@ UPDATE media_files SET keyframes_source = NULL, updated_at = @now WHERE id = @id
 -- library.indexWorthy (4.1): present, a video codec that can be remuxed
 -- (transcode.CopyableVideo), neither an audiobook nor a podcast episode. It implies the WHERE of
 -- the partial index media_files_keyframes, which carries the search (INDEXED BY: without
--- statistics the planner takes media_files_missing, which lists nearly every file).
--- CountKeyframesBackfillFiles states the same condition.
+-- statistics the planner takes media_files_missing, which lists nearly every file); the id in
+-- the index gives the order of the cursor without a sort. CountKeyframesBackfillFiles states the
+-- same condition.
 SELECT mf.id, mf.root_id, mf.rel_path, mf.container, mf.duration_ms, mf.video_codec, mf.size, mf.mtime, i.kind
 FROM media_files AS mf INDEXED BY media_files_keyframes
 JOIN items AS i ON i.id = mf.item_id
@@ -147,16 +148,20 @@ WHERE mf.keyframes_source IS NULL AND mf.missing_since IS NULL AND mf.video_code
   AND i.kind NOT IN ('audiobook', 'podcast_episode');
 
 -- name: LastJobFailedSince :one
--- Whether the newest run of a type under an idempotency key failed at or after @since, with no
--- later run done or cancelled (concept 14, 6.4, O-17: a playback queues no new full keyframe read
--- for a file whose last read failed within 24 h). Over the index jobs_history.
+-- Whether the newest finished run of a type under an idempotency key failed at or after @since
+-- (concept 14, 6.4, O-17: a playback queues no new full keyframe read for a file whose last read
+-- failed within 24 h). A run newer than one at @since finished at @since or later too, so only
+-- the runs since @since are looked at: a range of the index jobs_history, the newest of them by
+-- finished_at decides.
 SELECT EXISTS (
-    SELECT 1 FROM jobs AS f
-    WHERE f.type = @type AND f.state = 'failed' AND f.finished_at >= @since AND f.idempotency_key = @idempotency_key
-      AND NOT EXISTS (
-          SELECT 1 FROM jobs AS l
-          WHERE l.type = f.type AND l.state IN ('done', 'cancelled') AND l.finished_at > f.finished_at
-            AND l.idempotency_key = f.idempotency_key)
+    SELECT 1 FROM (
+        SELECT l.state FROM jobs AS l
+        WHERE l.type = @type AND l.state IN ('done', 'failed', 'cancelled') AND l.finished_at >= @since
+          AND l.idempotency_key = @idempotency_key
+        ORDER BY l.finished_at DESC, l.id DESC
+        LIMIT 1
+    ) AS newest
+    WHERE newest.state = 'failed'
 ) AS failed;
 
 -- name: DeleteMediaFileTracks :exec

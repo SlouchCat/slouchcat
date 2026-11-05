@@ -232,11 +232,13 @@ func (e *env) keyframeJob(id string) string {
 // The playback request (6.4): a new job at priority 9 through EnqueueOverridingPause (it carries
 // override_pause, which nothing else sets); a waiting job of a scan is raised instead of cancelled
 // (Z-4); nothing for a file whose index is impossible; nothing within 24 h after a failed read
-// (O-17), again after that.
+// (O-17), again after that, and at once when a later run of the file is done (review of wave C,
+// m-8: the newest finished run decides).
 func TestQueueKeyframesForPlayback(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	_, ids := e.videoFiles("A (2001)/A (2001).mkv", "B (2002)/B (2002).mkv", "C (2003)/C (2003).mkv", "D (2004)/D (2004).mkv")
+	_, ids := e.videoFiles("A (2001)/A (2001).mkv", "B (2002)/B (2002).mkv", "C (2003)/C (2003).mkv", "D (2004)/D (2004).mkv",
+		"E (2005)/E (2005).mkv")
 	queue := func(id string) jobs.PauseOverride {
 		t.Helper()
 		res, err := QueueKeyframesForPlayback(e.ctx, e.db.Read, e.queue, id, e.clock.Now())
@@ -292,6 +294,18 @@ func TestQueueKeyframesForPlayback(t *testing.T) {
 	e.clock.Advance(2 * time.Hour)
 	if res := queue(ids[3]); !res.Inserted {
 		t.Errorf("request 25 h after a failed read = %+v, want a new job", res)
+	}
+
+	for i, state := range []string{"failed", "done"} {
+		run, err := e.queue.Enqueue(e.ctx, jobs.NewJob{Type: JobProbeKeyframes, Priority: prioKeyframes, IdempotencyKey: "keyframes:" + ids[4]})
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.exec(`UPDATE jobs SET state = ?, finished_at = ? WHERE id = ?`, state, e.clock.Now().Add(time.Duration(i)*time.Hour).UnixMilli(), run)
+	}
+	e.clock.Advance(2 * time.Hour)
+	if res := queue(ids[4]); !res.Inserted {
+		t.Errorf("request after a failed and a later done read = %+v, want a new job", res)
 	}
 }
 
