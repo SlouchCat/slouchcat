@@ -7,7 +7,12 @@
 version: 2
 updates:
   - package-ecosystem: github-actions
-    directory: /
+    # "/" alone only covers .github/workflows and a root action.yml; the composite actions under
+    # .github/actions pin actions too and need their own entry. `directories` accepts globs, so a
+    # new composite action is picked up without touching this file.
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: monthly
     commit-message:

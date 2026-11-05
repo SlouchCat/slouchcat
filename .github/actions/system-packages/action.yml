@@ -47,7 +47,7 @@ runs:
     # the Playwright version, because `playwright install-deps` derives its own library list from
     # it. `restore-keys` is a prefix: a changed list still starts from the newest cache of this job.
     - name: Cache the system packages
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/apt-debs
         key: apt-debs-noble-${{ inputs.group }}-${{ hashFiles('.github/ci-packages.txt', 'pnpm-lock.yaml') }}
