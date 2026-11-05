@@ -56,6 +56,32 @@ test('the scanned test library is listed with its state and counts', async ({ pa
   await openRow(page, 'Filme');
   await expect(foldOut(page, 'Filme').getByText(/testdata\/media\/Movies$/)).toBeVisible();
   await expect(foldOut(page, 'Filme').getByText(/^Dateisystem /)).toBeVisible();
+
+  // The keyframe index of the video library (concept 14, 7.2): its counts, and while files wait
+  // the link to the backfill on the jobs page, which Enter follows.
+  const listed = await page.request.get('/api/v1/admin/libraries');
+  expect(listed.status(), await listed.text()).toBe(200);
+  const movies = (
+    (await listed.json()) as { name: string; keyframeIndex?: { pending: number } }[]
+  ).find((library) => library.name === 'Filme');
+  expect(movies?.keyframeIndex).toBeDefined();
+  await expect(
+    foldOut(page, 'Filme').getByText(
+      /^Keyframe-Index( vollständig|: \d+ von \d+ Videodateien · \d+ ausstehend · \d+ nicht möglich)$/,
+    ),
+  ).toBeVisible();
+  const backfill = foldOut(page, 'Filme').getByRole('link', {
+    name: 'Nachholen auf der Seite Hintergrundjobs',
+  });
+  if ((movies?.keyframeIndex?.pending ?? 0) === 0) {
+    await expect(backfill).toHaveCount(0);
+    return;
+  }
+  await tabTo(page, backfill, 20);
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin\/jobs\?item=keyframes\.backfill$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
 });
 
 test('tabs by kind with the arrow keys, counts and the tab in the address', async ({ page }) => {

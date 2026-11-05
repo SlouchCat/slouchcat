@@ -209,9 +209,13 @@ describe('admin overview (concept 11, A-3)', () => {
       ['Fehlgeschlagen', '1'],
     ]);
     const running = within(tasks).getByRole('list', { name: 'Laufende Aufgaben' });
-    expect(within(running).getByText('Keyframe-Index · Oppenheimer (2023)')).toBeVisible();
     expect(
-      within(running).getByRole('progressbar', { name: 'Fortschritt Keyframe-Index' }),
+      within(running).getByText('Keyframe-Index (ganze Datei lesen) · Oppenheimer (2023)'),
+    ).toBeVisible();
+    expect(
+      within(running).getByRole('progressbar', {
+        name: 'Fortschritt Keyframe-Index (ganze Datei lesen)',
+      }),
     ).toHaveAttribute('aria-valuenow', '30');
     expect(within(running).getByText('12 von 40')).toBeVisible();
     expect(within(running).getByText('noch ca. 3 min')).toBeVisible();
@@ -466,7 +470,7 @@ describe('admin overview (concept 11, A-3)', () => {
       'Wiedergabe von «Dune» (Lena) beendet, Gerät vergessen',
       'Scan von «Filme» fertig: 3 neue Titel',
       'Scan von «Serien» von Hand abgebrochen',
-      'Keyframe-Index: 4 Jobs fehlgeschlagen',
+      'Keyframe-Index (ganze Datei lesen): 4 Jobs fehlgeschlagen',
       'Ereignis auf dem Server',
     ]);
     expect(within(feed).getAllByRole('listitem')[0]!.querySelector('time')).toHaveAttribute(
@@ -510,7 +514,7 @@ describe('admin overview (concept 11, A-3)', () => {
     );
     expect(sentence('scan_started')).toBe('Scan von «eine Bibliothek» gestartet');
     expect(sentence('job_failed', { detail: { jobType: 'probe.keyframes', count: 1 } })).toBe(
-      'Keyframe-Index: 1 Job fehlgeschlagen',
+      'Keyframe-Index (ganze Datei lesen): 1 Job fehlgeschlagen',
     );
     expect(sentence('job_failed', { detail: { jobType: 'new.kind', count: 2 } })).toBe(
       'new.kind: 2 Jobs fehlgeschlagen',

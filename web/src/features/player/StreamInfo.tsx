@@ -1,33 +1,9 @@
 import type { PlaybackInfo } from '@slouchcat/api-client';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { formatBitrate, formatResolution } from '@/lib/format';
 import { FactList } from '@/ui';
-import { qualityName, selectedAudio, selectedSubtitle, trackLabel } from './labels';
+import { qualityName, reasonText, selectedAudio, selectedSubtitle, trackLabel } from './labels';
 import styles from './Player.module.css';
-
-const reasons = [
-  'container',
-  'video_codec',
-  'audio_codec',
-  'hdr',
-  'pixel_format',
-  'keyframes_pending',
-  'dolby_vision',
-  'bandwidth',
-  'max_height',
-  'quality',
-  'audio_track',
-  'subtitle_burn',
-  'budget_lowered',
-] as const;
-type Reason = (typeof reasons)[number];
-
-/** The server's reason for not playing directly in words; an unknown code shows as it is. */
-const reasonText = (t: TFunction, reason: string): string =>
-  (reasons as readonly string[]).includes(reason)
-    ? t(`player.streamInfo.reasons.${reason as Reason}`)
-    : reason;
 
 /**
  * "Stream-Info" overlay of the player (B-5, W-4, W-8): how the server delivers this playback, in
