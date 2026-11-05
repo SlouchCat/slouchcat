@@ -1,9 +1,29 @@
 # Aktueller Stand
 
-## Scanner: wiederverwendete Inode ist keine Verschiebung (3. November 2026)
+## Release 1.13.1 (5. November 2026)
+
+Patch-Release ab `main` nach PR #93. Der Vertrag bleibt **1.13.0** (keine Änderung an
+`api/openapi.yaml` seit `v1.13.0`), keine Migration.
+
+- **PR #79** (Merge `f2f12b3`): Der Scanner hält eine neue Datei mit der Inode einer eben gelöschten
+  Datei gleicher Grösse nicht mehr für die verschobene alte (Abschnitt unten).
+- **PR #92** (Merge `ad76bbc`): e2e-Test des Offline-Players wartet vor den Pfeiltasten der
+  Werkzeugleiste (Firefox-Wackler).
+- **PR #93** (Merge `66940d2`): CI-Actions auf `setup-go` 7.0.0, `cache` 6.1.0, `upload-artifact`
+  7.0.2, `download-artifact` 8.0.2, `attest-build-provenance` 4.2.2 (mit
+  `create-storage-record: false`); Dependabot prüft auch `.github/actions/*`.
+- Versionsstellen auf 1.13.1 im Zweig `claude/release-1.13.1` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
+  `v1.13.1` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.13.1.txt` im
+  Wurzelordner (unversioniert).
+- Beim Tag `v1.13.1` läuft der Attest-Schritt erstmals mit `attest-build-provenance` 4.2.2; den
+  Release-Lauf darauf prüfen.
+
+## Scanner: wiederverwendete Inode ist keine Verschiebung (gemergt 5. November 2026, in 1.13.1)
 
 Zweig `claude/scanner-inode-reuse` ab `main` `cbf17fb`, `main` `ae0502b` (mit Idee 04) und
-`58245ed` (Release 1.13.0) eingemergt; PR #79 offen, Merge auf Marcos Wort. Der Scanner ordnete eine neue Datei einer bekannten zu, sobald (`dev`, `inode`, `size`)
+`58245ed` (Release 1.13.0) eingemergt; als **PR #79** gemergt (Merge `f2f12b3`, 5. November 2026),
+veröffentlicht in 1.13.1. Der Scanner ordnete eine neue Datei einer bekannten zu, sobald (`dev`, `inode`, `size`)
 übereinstimmten. ext4 vergibt die Inode einer eben gelöschten Datei neu; bei gleicher Grösse hielt
 der Scanner die neue Datei für die verschobene alte und holte deren Titel zurück, statt einen neuen
 anzulegen. Aufgefallen als wackliger
