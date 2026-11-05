@@ -526,8 +526,12 @@ func (s *Service) ResumeJobType(ctx context.Context, typ string) (model.JobTypeI
 // whole hours 6 to 48), the window be valid, the one-off date pass the scheduler's check
 // (onceLocal); the interval of trakt.refresh is written into spotlight_config and the switch of
 // update.check into the setting as well (one value, two doors), after the scheduler accepted the
-// change, so a refused value writes neither. model.ErrJobTypeNotScheduled for a type without
-// schedule, *model.ValidationError for refused values.
+// change, so a refused value writes neither. The writes are not one transaction (the scheduler
+// owns job_schedules): when the second write fails after UpdateSchedule, the call returns the error
+// and the two doors differ until the next save of either; this is accepted (review of wave C,
+// m-10), since both doors show their own value and a repeated save aligns them.
+// model.ErrJobTypeNotScheduled for a type without schedule, *model.ValidationError for refused
+// values.
 func (s *Service) UpdateJobSchedule(ctx context.Context, typ string, upd model.JobScheduleUpdate) (model.JobTypeInfo, error) {
 	t, known, err := s.jobType(ctx, typ)
 	if err != nil {

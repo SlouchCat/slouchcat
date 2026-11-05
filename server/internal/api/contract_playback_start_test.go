@@ -135,7 +135,9 @@ func TestJobScheduleOnceOverHTTP(t *testing.T) {
 }
 
 // The pool index is listed with its one worker, and a run that overrides the pause carries
-// overridesPause: true; any other run leaves the field out.
+// overridesPause: true; any other run leaves the field out. It proves the mapping of the handler
+// against the fixtures; the wiring of the production pools is covered by cmd/slouchcat
+// workers_test.go.
 func TestJobPoolIndexAndOverridesPauseOverHTTP(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
