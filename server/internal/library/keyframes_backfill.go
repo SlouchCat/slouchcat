@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"time"
 
@@ -72,8 +73,10 @@ type backfillRoot struct {
 // (ListKeyframesBackfillFiles, keyframesBackfillBatch at a time). Per file it reads the container index outside any
 // transaction (indexFromContainer, with the version remembered from the row) and then writes once:
 // the index when it passed the checks, else probe.keyframes at prioKeyframes (an active job of the
-// file holds the key, so nothing is doubled). The progress is done of total with the file relative
-// to its root. A pause or a cancel ends the run through ctx; the next run starts over and the
+// file holds the key, so nothing is doubled). A file whose container read timed out (a hanging
+// share; the next run tries it again) and a missing file get no full read. The progress is done
+// of total with the file relative to its root; it ends at done of done, since probe.file may index
+// files of the count meanwhile. A pause or a cancel ends the run through ctx; the next run starts over and the
 // condition keyframes_source IS NULL leaves out what is done.
 func (s *Service) handleKeyframesBackfill(ctx context.Context, _ *jobs.Job) error {
 	read := systemq.New(s.db.Read)
@@ -131,7 +134,7 @@ func (s *Service) handleKeyframesBackfill(ctx context.Context, _ *jobs.Job) erro
 				if ok {
 					stored++
 				}
-			case index.worthy:
+			case index.worthy && !index.timedOut && !index.missing:
 				if err := s.enqueueFullRead(ctx, f.ID); err != nil {
 					return err
 				}
@@ -147,7 +150,7 @@ func (s *Service) handleKeyframesBackfill(ctx context.Context, _ *jobs.Job) erro
 			}
 		}
 	}
-	jobs.Progress(ctx, done, max(total, done), "")
+	jobs.Progress(ctx, done, done, "")
 	if done == 0 {
 		jobs.Skip(ctx)
 	}
@@ -175,7 +178,13 @@ func (s *Service) backfillRoot(ctx context.Context, roots map[int64]*backfillRoo
 	}
 	r := &backfillRoot{root: root}
 	if r.dir, err = paths.Open(root); err != nil {
-		s.log.WarnContext(ctx, "library root not readable, keyframe backfill leaves its files", "root_id", id, "err", err)
+		// The error of paths.Open names the absolute root; the log keeps only its cause (9.5).
+		reason := "not readable"
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) {
+			reason = pathErr.Err.Error()
+		}
+		s.log.WarnContext(ctx, "library root not readable, keyframe backfill leaves its files", "root_id", id, "err", reason)
 	}
 	roots[id] = r
 	return r, nil

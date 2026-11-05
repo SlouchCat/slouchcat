@@ -5,6 +5,7 @@ import (
 	"errors"
 	"hash/fnv"
 	"io"
+	"io/fs"
 	"os"
 	"strings"
 	"time"
@@ -54,16 +55,21 @@ type containerIndex struct {
 	keyframes []time.Duration
 	source    string
 	// timedOut is set when the container could not be read within Service.indexTimeout (the
-	// backfill stops after three in a row, concept 14, 6.1).
+	// backfill stops after three in a row, concept 14, 6.1). The share may hang: the backfill
+	// queues no full read for such a file and probe.keyframes does not start one (review of wave
+	// C, m-3).
 	timedOut bool
+	// missing is set when the file is not there (fs.ErrNotExist on open): nothing to read, so no
+	// full read either (review of wave C, m-4).
+	missing bool
 }
 
 // indexFromContainer decides whether a probed file is indexworthy and, if so, reads the keyframe
 // index its container carries (concept 14, 2.2): mediaindex.Read in its own goroutine with
-// Service.indexTimeout, then mediaindex.Check and the sample transcode.Runner.VerifyKeyframes. Any
-// failure means «full read needed»; an index that fails the checks is logged as a warning. It
-// runs outside any transaction: it reads the file and starts ffprobe. The error is only that of
-// ctx.
+// Service.indexTimeout, then mediaindex.Check and the sample transcode.Runner.VerifyKeyframes. A
+// timeout and a missing file are reported as such; any other failure means «full read needed»; an
+// index that fails the checks is logged as a warning. It runs outside any transaction: it reads
+// the file and starts ffprobe. The error is only that of ctx.
 func (s *Service) indexFromContainer(ctx context.Context, t indexTarget) (containerIndex, error) {
 	if !indexWorthy(true, t.codec, t.kind) {
 		return containerIndex{}, nil
@@ -79,9 +85,13 @@ func (s *Service) indexFromContainer(ctx context.Context, t indexTarget) (contai
 	case ctx.Err() != nil:
 		return containerIndex{}, ctx.Err()
 	case errors.Is(err, errIndexReadTimeout):
-		s.log.WarnContext(ctx, "container index not read in time, full read queued", "media_file_id", t.id, "path", t.rel,
+		s.log.WarnContext(ctx, "container index not read in time", "media_file_id", t.id, "path", t.rel,
 			"timeout", s.indexTimeout)
 		res.timedOut = true
+		return res, nil
+	case errors.Is(err, fs.ErrNotExist):
+		s.log.InfoContext(ctx, "media file missing, keyframe index not read", "media_file_id", t.id, "path", t.rel)
+		res.missing = true
 		return res, nil
 	case err != nil:
 		s.log.InfoContext(ctx, "no keyframe index in the container, full read queued", "media_file_id", t.id, "path", t.rel,

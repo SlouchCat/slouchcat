@@ -100,7 +100,9 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		if ctx.Err() != nil || !errors.As(err, &fileErr) {
 			// Interrupted, or the environment failed (ffprobe missing or not configured, no
 			// process, an I/O error): not a property of the file, so the job retries with backoff.
-			return fmt.Errorf("probe %s: %w", t.file.ID, err)
+			// The message goes to jobs.last_error: the file relative to its root, never the
+			// absolute path (9.5).
+			return fmt.Errorf("probe %s: %s", t.file.ID, strings.ReplaceAll(err.Error(), t.abs, t.file.RelPath))
 		}
 		return s.storeProbeError(ctx, t, version, err)
 	}
@@ -219,7 +221,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		if _, err := StoreKeyframes(ctx, tx, t.file.ID, index.keyframes, index.source, version, now); err != nil {
 			return err
 		}
-	case index.worthy:
+	case index.worthy && !index.missing:
 		if err := enqueueTx(ctx, q, now, keyframesJob(t.file.ID)); err != nil {
 			return err
 		}
@@ -309,7 +311,8 @@ const fullReadTimeout = 2 * time.Hour
 // within fullReadTimeout. Keyframes are stored as scan, a read without one and a broken file
 // (transcode.FileError) as none, both for the version remembered from the row; a missing file ends
 // the job without an index, and every other failure is returned for the backoff, so the source
-// stays NULL and the backfill tries again. Audiobooks and podcast episodes are not left out here:
+// stays NULL and the backfill tries again. A container read that timed out is such a failure: the
+// share hangs, and a full read of up to fullReadTimeout would hold the one worker of the pool. Audiobooks and podcast episodes are not left out here:
 // the automatic paths do not queue them, a playback does (2.3).
 func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 	t, err := s.loadProbeTarget(ctx, j)
@@ -337,10 +340,14 @@ func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 		id: t.file.ID, root: t.root, dir: dir, rel: t.file.RelPath, abs: t.abs, container: t.file.Container,
 		duration: time.Duration(t.file.DurationMs.Int64) * time.Millisecond, codec: t.file.VideoCodec.String,
 	})
-	if err != nil {
+	switch {
+	case err != nil:
 		return err
-	}
-	if len(index.keyframes) > 0 {
+	case index.missing:
+		return nil // logged by indexFromContainer; like a missing file after the full read
+	case index.timedOut:
+		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, errIndexReadTimeout)
+	case len(index.keyframes) > 0:
 		return s.storeReadIndex(ctx, t.file.ID, index.keyframes, index.source, version)
 	}
 
@@ -364,7 +371,9 @@ func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 			"path", t.file.RelPath, "err", strings.ReplaceAll(err.Error(), t.abs, t.file.RelPath))
 		return s.storeReadIndex(ctx, t.file.ID, nil, KeyframesNone, version)
 	}
-	return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, err)
+	// The message goes to jobs.last_error: the file relative to its root, never the absolute path
+	// (9.5).
+	return fmt.Errorf("keyframes of media file %s: %s", t.file.ID, strings.ReplaceAll(err.Error(), t.abs, t.file.RelPath))
 }
 
 // storeReadIndex stores the index of probe.keyframes for version v. When nothing is written and

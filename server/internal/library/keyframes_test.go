@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -187,6 +188,70 @@ func TestFullReadOfChangedFileRunsAgain(t *testing.T) {
 	}
 	if v := e.indexState(ids[0]); v != "scan/blob jobs=0" {
 		t.Errorf("index of the new version = %q", v)
+	}
+}
+
+// Review of wave C, m-3: a container read that times out (a hanging network share) ends
+// probe.keyframes with an error for the backoff instead of a full read of up to two hours on the
+// same share, which would hold the one worker of the pool index.
+func TestFullReadAfterContainerTimeoutBacksOff(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	_, ids := e.videoFiles("A (2001)/A (2001).mkv")
+	e.svc.indexTimeout = 50 * time.Millisecond
+	release := make(chan struct{})
+	defer close(release)
+	e.svc.indexReader = func(io.ReaderAt, int64, string) (mediaindex.Index, error) {
+		<-release
+		return mediaindex.Index{}, mediaindex.ErrNoIndex
+	}
+	marker := filepath.Join(t.TempDir(), "started")
+	e.svc.probe = transcode.Runner{FFprobePath: scriptFFprobe(t, "touch '"+marker+"'\necho '0.000000,K__'")}
+	err := e.fullRead(ids[0])
+	var later *jobs.RetryLaterError
+	if !errors.Is(err, errIndexReadTimeout) || errors.As(err, &later) {
+		t.Errorf("full read after a container timeout = %v, want errIndexReadTimeout for the backoff", err)
+	}
+	if _, serr := os.Stat(marker); !errors.Is(serr, fs.ErrNotExist) {
+		t.Errorf("ffprobe started after the container timeout (%v)", serr)
+	}
+	if v := e.indexState(ids[0]); v != "- jobs=0" {
+		t.Errorf("index = %q, want none", v)
+	}
+}
+
+// Review of wave C, m-7: the final error of probe.file and of probe.keyframes, which the queue
+// stores as jobs.last_error and the jobs page shows, names the file relative to its root, never
+// the absolute path that ffprobe prints.
+func TestJobErrorsNameTheFileRelativeToItsRoot(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir, ids := e.videoFiles("A (2001)/A (2001).mkv")
+	e.svc.indexReader = noContainerIndex
+	e.svc.probe = transcode.Runner{FFprobePath: scriptFFprobe(t, `for a; do last=$a; done; echo "$last: Input/output error" >&2; exit 1`)}
+	for _, typ := range []string{JobProbeFile, JobProbeKeyframes} {
+		if _, err := e.queue.Enqueue(e.ctx, jobs.NewJob{Type: typ, Payload: []byte(`{"mediaFileId":"` + ids[0] + `"}`)}); err != nil {
+			t.Fatal(err)
+		}
+		j, err := e.queue.Claim(e.ctx, "test-1", []string{typ})
+		if err != nil || j == nil {
+			t.Fatalf("claim %s = %v, %v", typ, j, err)
+		}
+		handle := e.svc.handleProbe
+		if typ == JobProbeKeyframes {
+			handle = e.svc.handleKeyframes
+		}
+		cause := handle(e.ctx, j)
+		if cause == nil {
+			t.Fatalf("%s: nil, want the I/O error", typ)
+		}
+		if err := e.queue.Fail(e.ctx, "test-1", j, cause); err != nil {
+			t.Fatal(err)
+		}
+		msg := e.str(`SELECT last_error FROM jobs WHERE id = ?`, j.ID)
+		if strings.Contains(msg, dir) || !strings.Contains(msg, "A (2001)/A (2001).mkv: Input/output error") {
+			t.Errorf("%s: last_error = %q, want the file relative to its root", typ, msg)
+		}
 	}
 }
 
