@@ -352,6 +352,14 @@ func TestUpdateJobSchedule(t *testing.T) {
 	if cfg, err := appq.New(jf.db.Read).GetSpotlightConfig(ctx); err != nil || cfg.IntervalHours != 7 {
 		t.Errorf("spotlight interval = %d %v, want 7", cfg.IntervalHours, err)
 	}
+	// A one-off date the scheduler refuses (concept 14 F-6) writes neither the schedule nor the
+	// spotlight config.
+	if _, err := jf.svc.UpdateJobSchedule(ctx, jobTraktRefresh, model.JobScheduleUpdate{EverySeconds: ptr(9 * 3600), OnceLocal: ptr("2001-01-01T00:00")}); !errors.As(err, &verr) || verr.Fields[0].Field != "onceLocal" {
+		t.Errorf("trakt update with a past one-off date: %v, want a validation error on onceLocal", err)
+	}
+	if cfg, err := appq.New(jf.db.Read).GetSpotlightConfig(ctx); err != nil || cfg.IntervalHours != 7 {
+		t.Errorf("spotlight interval after a refused update = %d %v, want 7", cfg.IntervalHours, err)
+	}
 	// Update check: the switch is the setting.
 	info, err = jf.svc.UpdateJobSchedule(ctx, JobUpdateCheck, model.JobScheduleUpdate{Enabled: ptr(false)})
 	if err != nil || info.Schedule.Enabled {
