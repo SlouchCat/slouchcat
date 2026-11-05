@@ -39,7 +39,7 @@ SET state = 'running', lease_owner = ?1, lease_until = ?2,
 WHERE id = (
     SELECT j.id FROM jobs AS j
     WHERE j.state = 'queued' AND j.run_after <= ?3 AND j.type IN (/*SLICE:types*/?)
-      AND j.type NOT IN (SELECT t.type FROM job_types AS t WHERE t.paused_at IS NOT NULL)
+      AND (j.override_pause = 1 OR j.type NOT IN (SELECT t.type FROM job_types AS t WHERE t.paused_at IS NOT NULL))
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )
@@ -54,8 +54,9 @@ type ClaimJobParams struct {
 }
 
 // Every attempt starts the run anew: started_at is set, the progress and skipped of the attempt
-// before are cleared (concept 09, 4.1). A paused type (job_types.paused_at) is not claimed; the
-// subquery reads at most a few dozen rows.
+// before are cleared (concept 09, 4.1). A paused type (job_types.paused_at) is not claimed, except
+// a job with override_pause (a playback request, concept 14 6.5); the subquery reads at most a few
+// dozen rows.
 func (q *Queries) ClaimJob(ctx context.Context, arg ClaimJobParams) (Job, error) {
 	query := claimJob
 	var queryParams []interface{}
@@ -453,6 +454,50 @@ func (q *Queries) InsertJob(ctx context.Context, arg InsertJobParams) (int64, er
 	return id, err
 }
 
+const insertJobOverridingPause = `-- name: InsertJobOverridingPause :one
+INSERT INTO jobs (type, priority, idempotency_key, payload, run_after, max_attempts, override_pause, created_at, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6,
+        (SELECT count(*) < CAST(?7 AS INTEGER) FROM jobs AS o WHERE o.override_pause = 1 AND o.state IN ('queued', 'running')),
+        ?8, ?8)
+ON CONFLICT (idempotency_key) WHERE state IN ('queued', 'running') DO NOTHING
+RETURNING id, override_pause
+`
+
+type InsertJobOverridingPauseParams struct {
+	Type           string
+	Priority       int64
+	IdempotencyKey sql.NullString
+	Payload        string
+	RunAfter       int64
+	MaxAttempts    int64
+	MaxOverrides   int64
+	Now            int64
+}
+
+type InsertJobOverridingPauseRow struct {
+	ID            int64
+	OverridePause int64
+}
+
+// Queue.EnqueueOverridingPause (concept 14, 6.4 and 6.5): InsertJob with override_pause, which a
+// job gets only while fewer than @max_overrides queued or running jobs carry it (O-7). One
+// statement on the one writer connection, so concurrent playback starts cannot pass the cap.
+func (q *Queries) InsertJobOverridingPause(ctx context.Context, arg InsertJobOverridingPauseParams) (InsertJobOverridingPauseRow, error) {
+	row := q.db.QueryRowContext(ctx, insertJobOverridingPause,
+		arg.Type,
+		arg.Priority,
+		arg.IdempotencyKey,
+		arg.Payload,
+		arg.RunAfter,
+		arg.MaxAttempts,
+		arg.MaxOverrides,
+		arg.Now,
+	)
+	var i InsertJobOverridingPauseRow
+	err := row.Scan(&i.ID, &i.OverridePause)
+	return i, err
+}
+
 const insertJobSchedule = `-- name: InsertJobSchedule :execrows
 INSERT INTO job_schedules (type, every_ms, start_delay_ms, enabled, window_start, window_end, next_run_at, updated_at)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
@@ -601,7 +646,7 @@ const listDueJobSchedules = `-- name: ListDueJobSchedules :many
 SELECT s.type, s.every_ms, s.start_delay_ms, s.enabled, s.window_start, s.window_end, s.next_run_at, s.last_fired_at, s.updated_at, s.once_at, t.paused_at
 FROM job_schedules AS s
 JOIN job_types AS t ON t.type = s.type
-WHERE s.enabled = 1 AND s.next_run_at <= ?1
+WHERE (s.enabled = 1 AND s.next_run_at <= ?1) OR (s.once_at IS NOT NULL AND s.once_at <= ?1)
 ORDER BY s.type
 `
 
@@ -619,8 +664,9 @@ type ListDueJobSchedulesRow struct {
 	PausedAt     sql.NullInt64
 }
 
-// The tick of the scheduler: every enabled schedule whose next run has come, with the pause of
-// its type (a paused type is not run, but its next run moves on).
+// The tick of the scheduler: every enabled schedule whose next run has come and every schedule
+// whose one-off date has come (whatever its switch, concept 14 6.7), with the pause of its type (a
+// paused type is not run, but its next run moves on and its one-off date lapses).
 func (q *Queries) ListDueJobSchedules(ctx context.Context, now int64) ([]ListDueJobSchedulesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listDueJobSchedules, now)
 	if err != nil {
@@ -1011,6 +1057,27 @@ func (q *Queries) MarkJobScheduleFired(ctx context.Context, arg MarkJobScheduleF
 	return result.RowsAffected()
 }
 
+const markJobScheduleOnceFired = `-- name: MarkJobScheduleOnceFired :execrows
+UPDATE job_schedules SET once_at = NULL, updated_at = ?1, last_fired_at = ?1
+WHERE type = ?2 AND once_at = ?3
+`
+
+type MarkJobScheduleOnceFiredParams struct {
+	Now         int64
+	Type        string
+	FiredOnceAt sql.NullInt64
+}
+
+// The one-off date fired: it is cleared, the next run of the interval stays. The condition on the
+// date that was read keeps a date the administrator set again in the meantime.
+func (q *Queries) MarkJobScheduleOnceFired(ctx context.Context, arg MarkJobScheduleOnceFiredParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markJobScheduleOnceFired, arg.Now, arg.Type, arg.FiredOnceAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const pauseJobType = `-- name: PauseJobType :execrows
 UPDATE job_types SET updated_at = ?1, paused_at = ?1 WHERE type = ?2 AND paused_at IS NULL
 `
@@ -1085,6 +1152,38 @@ func (q *Queries) PullQueuedJobForward(ctx context.Context, arg PullQueuedJobFor
 	return result.RowsAffected()
 }
 
+const raiseQueuedJobForPlayback = `-- name: RaiseQueuedJobForPlayback :one
+UPDATE jobs
+SET priority = max(priority, CAST(?1 AS INTEGER)),
+    override_pause = CASE WHEN override_pause = 1 THEN 1 ELSE (
+        SELECT count(*) < CAST(?2 AS INTEGER) FROM jobs AS o WHERE o.override_pause = 1 AND o.state IN ('queued', 'running')) END,
+    run_after = min(run_after, ?3), updated_at = ?3
+WHERE jobs.id = ?4 AND jobs.state = 'queued'
+RETURNING override_pause
+`
+
+type RaiseQueuedJobForPlaybackParams struct {
+	Priority     int64
+	MaxOverrides int64
+	Now          int64
+	ID           int64
+}
+
+// A playback that finds a waiting job under its key (concept 14, 6.4): the priority rises and never
+// falls, override_pause is set by the cap of InsertJobOverridingPause (a job that has it keeps it),
+// and a job in backoff or delay runs now. A running or finished job is not touched (no row).
+func (q *Queries) RaiseQueuedJobForPlayback(ctx context.Context, arg RaiseQueuedJobForPlaybackParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, raiseQueuedJobForPlayback,
+		arg.Priority,
+		arg.MaxOverrides,
+		arg.Now,
+		arg.ID,
+	)
+	var override_pause int64
+	err := row.Scan(&override_pause)
+	return override_pause, err
+}
+
 const raiseQueuedJobPriority = `-- name: RaiseQueuedJobPriority :execrows
 UPDATE jobs SET priority = max(priority, ?1), updated_at = ?2 WHERE id = ?3 AND state = 'queued'
 `
@@ -1146,6 +1245,33 @@ func (q *Queries) ReleaseJob(ctx context.Context, arg ReleaseJobParams) (int64, 
 	return result.RowsAffected()
 }
 
+const replaceJobScheduleOnce = `-- name: ReplaceJobScheduleOnce :execrows
+UPDATE job_schedules SET once_at = ?1, updated_at = ?2
+WHERE type = ?3 AND once_at = ?4
+`
+
+type ReplaceJobScheduleOnceParams struct {
+	OnceAt     sql.NullInt64
+	Now        int64
+	Type       string
+	ReadOnceAt sql.NullInt64
+}
+
+// Moves (start delay) or drops (pause, missed by more than a day; @once_at NULL) the one-off date
+// the scheduler read, and only that one.
+func (q *Queries) ReplaceJobScheduleOnce(ctx context.Context, arg ReplaceJobScheduleOnceParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, replaceJobScheduleOnce,
+		arg.OnceAt,
+		arg.Now,
+		arg.Type,
+		arg.ReadOnceAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const requeueExpiredLeases = `-- name: RequeueExpiredLeases :execrows
 UPDATE jobs
 SET state = 'queued', lease_owner = NULL, lease_until = NULL, updated_at = ?1
@@ -1192,6 +1318,25 @@ type SetJobScheduleNextRunParams struct {
 // The start rule (start_delay_ms) and the alignment to the window move the next run only.
 func (q *Queries) SetJobScheduleNextRun(ctx context.Context, arg SetJobScheduleNextRunParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setJobScheduleNextRun, arg.NextRunAt, arg.Now, arg.Type)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setJobScheduleOnce = `-- name: SetJobScheduleOnce :execrows
+UPDATE job_schedules SET once_at = ?1, updated_at = ?2 WHERE type = ?3
+`
+
+type SetJobScheduleOnceParams struct {
+	OnceAt sql.NullInt64
+	Now    int64
+	Type   string
+}
+
+// UpdateSchedule sets or clears the one-off date (@once_at NULL).
+func (q *Queries) SetJobScheduleOnce(ctx context.Context, arg SetJobScheduleOnceParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setJobScheduleOnce, arg.OnceAt, arg.Now, arg.Type)
 	if err != nil {
 		return 0, err
 	}

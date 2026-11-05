@@ -6,6 +6,17 @@ VALUES (@type, @priority, @idempotency_key, @payload, @run_after, @max_attempts,
 ON CONFLICT (idempotency_key) WHERE state IN ('queued', 'running') DO NOTHING
 RETURNING id;
 
+-- name: InsertJobOverridingPause :one
+-- Queue.EnqueueOverridingPause (concept 14, 6.4 and 6.5): InsertJob with override_pause, which a
+-- job gets only while fewer than @max_overrides queued or running jobs carry it (O-7). One
+-- statement on the one writer connection, so concurrent playback starts cannot pass the cap.
+INSERT INTO jobs (type, priority, idempotency_key, payload, run_after, max_attempts, override_pause, created_at, updated_at)
+VALUES (@type, @priority, @idempotency_key, @payload, @run_after, @max_attempts,
+        (SELECT count(*) < CAST(@max_overrides AS INTEGER) FROM jobs AS o WHERE o.override_pause = 1 AND o.state IN ('queued', 'running')),
+        @now, @now)
+ON CONFLICT (idempotency_key) WHERE state IN ('queued', 'running') DO NOTHING
+RETURNING id, override_pause;
+
 -- name: GetActiveJobIDByKey :one
 SELECT id FROM jobs
 WHERE idempotency_key = @idempotency_key AND state IN ('queued', 'running');
@@ -31,6 +42,18 @@ UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state =
 -- Raises the priority of a job that no worker has claimed yet and never lowers it: a manual
 -- spotlight refresh (M11) overtakes the nightly one that already waits behind a scan backlog.
 UPDATE jobs SET priority = max(priority, @priority), updated_at = @now WHERE id = @id AND state = 'queued';
+
+-- name: RaiseQueuedJobForPlayback :one
+-- A playback that finds a waiting job under its key (concept 14, 6.4): the priority rises and never
+-- falls, override_pause is set by the cap of InsertJobOverridingPause (a job that has it keeps it),
+-- and a job in backoff or delay runs now. A running or finished job is not touched (no row).
+UPDATE jobs
+SET priority = max(priority, CAST(@priority AS INTEGER)),
+    override_pause = CASE WHEN override_pause = 1 THEN 1 ELSE (
+        SELECT count(*) < CAST(@max_overrides AS INTEGER) FROM jobs AS o WHERE o.override_pause = 1 AND o.state IN ('queued', 'running')) END,
+    run_after = min(run_after, @now), updated_at = @now
+WHERE jobs.id = @id AND jobs.state = 'queued'
+RETURNING override_pause;
 
 -- name: PullQueuedJobForward :execrows
 -- Lets a job that no worker has claimed and that waits for a later start run now, at its own
@@ -61,8 +84,9 @@ WHERE state = 'running' AND lease_until < @now AND attempts < max_attempts;
 
 -- name: ClaimJob :one
 -- Every attempt starts the run anew: started_at is set, the progress and skipped of the attempt
--- before are cleared (concept 09, 4.1). A paused type (job_types.paused_at) is not claimed; the
--- subquery reads at most a few dozen rows.
+-- before are cleared (concept 09, 4.1). A paused type (job_types.paused_at) is not claimed, except
+-- a job with override_pause (a playback request, concept 14 6.5); the subquery reads at most a few
+-- dozen rows.
 UPDATE jobs
 SET state = 'running', lease_owner = @worker_id, lease_until = @lease_until,
     attempts = attempts + 1, updated_at = @now, started_at = @now, finished_at = NULL,
@@ -70,7 +94,7 @@ SET state = 'running', lease_owner = @worker_id, lease_until = @lease_until,
 WHERE id = (
     SELECT j.id FROM jobs AS j
     WHERE j.state = 'queued' AND j.run_after <= @now AND j.type IN (sqlc.slice('types'))
-      AND j.type NOT IN (SELECT t.type FROM job_types AS t WHERE t.paused_at IS NOT NULL)
+      AND (j.override_pause = 1 OR j.type NOT IN (SELECT t.type FROM job_types AS t WHERE t.paused_at IS NOT NULL))
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
 )
@@ -199,12 +223,13 @@ SELECT * FROM job_schedules WHERE type = @type;
 SELECT * FROM job_schedules ORDER BY type;
 
 -- name: ListDueJobSchedules :many
--- The tick of the scheduler: every enabled schedule whose next run has come, with the pause of
--- its type (a paused type is not run, but its next run moves on).
+-- The tick of the scheduler: every enabled schedule whose next run has come and every schedule
+-- whose one-off date has come (whatever its switch, concept 14 6.7), with the pause of its type (a
+-- paused type is not run, but its next run moves on and its one-off date lapses).
 SELECT s.*, t.paused_at
 FROM job_schedules AS s
 JOIN job_types AS t ON t.type = s.type
-WHERE s.enabled = 1 AND s.next_run_at <= @now
+WHERE (s.enabled = 1 AND s.next_run_at <= @now) OR (s.once_at IS NOT NULL AND s.once_at <= @now)
 ORDER BY s.type;
 
 -- name: SetJobScheduleNextRun :execrows
@@ -213,6 +238,22 @@ UPDATE job_schedules SET next_run_at = @next_run_at, updated_at = @now WHERE typ
 
 -- name: MarkJobScheduleFired :execrows
 UPDATE job_schedules SET next_run_at = @next_run_at, updated_at = @now, last_fired_at = @now WHERE type = @type;
+
+-- name: MarkJobScheduleOnceFired :execrows
+-- The one-off date fired: it is cleared, the next run of the interval stays. The condition on the
+-- date that was read keeps a date the administrator set again in the meantime.
+UPDATE job_schedules SET once_at = NULL, updated_at = @now, last_fired_at = @now
+WHERE type = @type AND once_at = @fired_once_at;
+
+-- name: ReplaceJobScheduleOnce :execrows
+-- Moves (start delay) or drops (pause, missed by more than a day; @once_at NULL) the one-off date
+-- the scheduler read, and only that one.
+UPDATE job_schedules SET once_at = sqlc.narg('once_at'), updated_at = @now
+WHERE type = @type AND once_at = @read_once_at;
+
+-- name: SetJobScheduleOnce :execrows
+-- UpdateSchedule sets or clears the one-off date (@once_at NULL).
+UPDATE job_schedules SET once_at = sqlc.narg('once_at'), updated_at = @now WHERE type = @type;
 
 -- name: UpdateJobSchedule :execrows
 -- UpdateSchedule writes interval, switch, window and the realigned next run together.

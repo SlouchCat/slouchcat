@@ -31,6 +31,20 @@ import (
 //   - At start, a type with StartDelay fires after that delay (0: at once); without one the next
 //     run of an existing row stands, so a restart does not shift the rhythm. A missing row is
 //     created from Type.Every and Type.Seed (the setting and history of the earlier poller).
+//
+// The one-off date (job_schedules.once_at, concept 14 6.7, ADR 0022) is a promise, not a rhythm:
+//
+//   - A row is due when its one-off date has come, whatever its switch (enabled = 0 does not hold
+//     the date back; the switch is the interval's) and its window (who says 03:30 means 03:30).
+//   - The date fires Run with the type's normal priority, then clears the date and sets
+//     last_fired_at; next_run_at stays (a date does not shift the rhythm, like "Jetzt
+//     ausführen"). The clearing names the date that was read, so a date the administrator set
+//     again between reading and firing stays. Date and interval in the same tick run once.
+//   - A paused type skips the date: it lapses with a log, like the pause skips interval runs.
+//   - Missed while the server was down: at start a date at most OnceCatchUp old fires once, after
+//     the type's StartDelay (at the first tick without one); an older date lapses with a log.
+//   - UpdateSchedule takes the date as wall time in the scheduler's location (OnceLayout), from
+//     now + OnceMinLead to now + OnceMaxLead, and stores it in ms UTC.
 
 // Bounds of an interval (the CHECK of job_schedules.every_ms).
 const (
@@ -39,6 +53,12 @@ const (
 	// SchedulerTick is how often the scheduler reads the due schedules.
 	SchedulerTick = 60 * time.Second
 	minutesPerDay = 24 * 60
+	// OnceLayout is the wall time of a one-off date in the scheduler's location.
+	OnceLayout = "2006-01-02T15:04"
+	// Bounds of a one-off date relative to now, and how old a missed one may be at start.
+	OnceMinLead = time.Minute
+	OnceMaxLead = 366 * 24 * time.Hour
+	OnceCatchUp = 24 * time.Hour
 )
 
 // Window is a time window in minutes of the server's day; End is exclusive, End < Start spans
@@ -70,15 +90,23 @@ type Schedule struct {
 	NextRunAt   time.Time
 	LastFiredAt time.Time // zero: never fired
 	UpdatedAt   time.Time
+	// OnceAt is the one-off date (zero: none), OnceLocal the same as wall time in the scheduler's
+	// location (OnceLayout; "" without a date).
+	OnceAt    time.Time
+	OnceLocal string
 }
 
 // ScheduleUpdate names the fields UpdateSchedule changes; a nil field stays as it is. ClearWindow
-// removes the window (Window is ignored then).
+// removes the window (Window is ignored then), ClearOnce the one-off date (OnceLocal is ignored
+// then).
 type ScheduleUpdate struct {
 	Every       *time.Duration
 	Enabled     *bool
 	Window      *Window
 	ClearWindow bool
+	// OnceLocal sets the one-off date as wall time in the scheduler's location (OnceLayout).
+	OnceLocal *string
+	ClearOnce bool
 }
 
 // Scheduler runs the schedule types of a registry from job_schedules.
@@ -172,16 +200,42 @@ func (s *Scheduler) ensureSchedule(ctx context.Context, t Type, now time.Time) e
 	if created == 1 {
 		s.log.InfoContext(ctx, "schedule created", "job_type", t.Name, "every", every, "enabled", enabled, "next_run_at", next.UTC())
 	}
-	if t.StartDelay == nil {
-		return nil
-	}
 	row, err := s.sys.GetJobSchedule(ctx, t.Name)
 	if err != nil {
 		return fmt.Errorf("get schedule of %s: %w", t.Name, err)
 	}
+	if err := s.missedOnce(ctx, t, row, now); err != nil {
+		return err
+	}
+	if t.StartDelay == nil {
+		return nil
+	}
 	atStart := s.align(now.Add(*t.StartDelay), windowOf(row.WindowStart, row.WindowEnd))
 	if _, err := s.sys.SetJobScheduleNextRun(ctx, systemq.SetJobScheduleNextRunParams{NextRunAt: atStart.UnixMilli(), Now: now.UnixMilli(), Type: t.Name}); err != nil {
 		return fmt.Errorf("set start of %s: %w", t.Name, err)
+	}
+	return nil
+}
+
+// missedOnce applies the start rule of a one-off date that passed while the server was down: at
+// most OnceCatchUp old it fires once, after the type's StartDelay (at the first tick without one);
+// older it lapses.
+func (s *Scheduler) missedOnce(ctx context.Context, t Type, row systemq.JobSchedule, now time.Time) error {
+	if !row.OnceAt.Valid || row.OnceAt.Int64 > now.UnixMilli() {
+		return nil
+	}
+	at := time.UnixMilli(row.OnceAt.Int64)
+	var moved sql.NullInt64
+	switch {
+	case now.Sub(at) > OnceCatchUp:
+		s.log.InfoContext(ctx, "one-off run dropped, missed by more than a day", "job_type", t.Name, "once_at", at.UTC())
+	case t.StartDelay != nil && *t.StartDelay > 0:
+		moved = sql.NullInt64{Int64: now.Add(*t.StartDelay).UnixMilli(), Valid: true}
+	default:
+		return nil // due: the first tick fires it
+	}
+	if _, err := s.sys.ReplaceJobScheduleOnce(ctx, systemq.ReplaceJobScheduleOnceParams{OnceAt: moved, Now: now.UnixMilli(), Type: t.Name, ReadOnceAt: row.OnceAt}); err != nil {
+		return fmt.Errorf("start rule of the one-off date of %s: %w", t.Name, err)
 	}
 	return nil
 }
@@ -202,9 +256,11 @@ func (s *Scheduler) Run(ctx context.Context) {
 	}
 }
 
-// Tick runs every enabled schedule whose next run has come and moves it on. A run that fails is
-// logged and tried again at the next tick (its next run does not move); a paused type is skipped
-// and moves on; a type that is not registered is skipped and stays.
+// Tick runs every enabled schedule whose next run has come and moves it on, and every schedule
+// whose one-off date has come and clears the date; both in one row run once. A run that fails is
+// logged and tried again at the next tick (neither its next run nor its date moves); a paused type
+// is skipped, its next run moves on and its date lapses; a type that is not registered is skipped
+// and stays.
 func (s *Scheduler) Tick(ctx context.Context) error {
 	now := s.now()
 	rows, err := s.sys.ListDueJobSchedules(ctx, now.UnixMilli())
@@ -218,9 +274,19 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 			continue
 		}
 		log := s.log.With("job_type", row.Type)
+		intervalDue := row.Enabled == 1 && row.NextRunAt <= now.UnixMilli()
+		onceDue := row.OnceAt.Valid && row.OnceAt.Int64 <= now.UnixMilli()
 		switch {
 		case row.PausedAt.Valid:
-			log.InfoContext(ctx, "scheduled run skipped, job type paused")
+			if intervalDue {
+				log.InfoContext(ctx, "scheduled run skipped, job type paused")
+			}
+			if onceDue {
+				log.InfoContext(ctx, "one-off run dropped, job type paused", "once_at", time.UnixMilli(row.OnceAt.Int64).UTC())
+				if _, err := s.sys.ReplaceJobScheduleOnce(ctx, systemq.ReplaceJobScheduleOnceParams{Now: now.UnixMilli(), Type: row.Type, ReadOnceAt: row.OnceAt}); err != nil {
+					return fmt.Errorf("drop one-off date of %s: %w", row.Type, err)
+				}
+			}
 		default:
 			ids, err := t.Run(ctx, s.q, t.Priority)
 			if err != nil {
@@ -229,7 +295,15 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 				}
 				continue
 			}
-			log.InfoContext(ctx, "scheduled run queued", "jobs", len(ids))
+			log.InfoContext(ctx, "scheduled run queued", "jobs", len(ids), "one_off", onceDue)
+			if onceDue {
+				if _, err := s.sys.MarkJobScheduleOnceFired(ctx, systemq.MarkJobScheduleOnceFiredParams{Now: now.UnixMilli(), Type: row.Type, FiredOnceAt: row.OnceAt}); err != nil {
+					return fmt.Errorf("mark one-off date of %s fired: %w", row.Type, err)
+				}
+			}
+		}
+		if !intervalDue {
+			continue
 		}
 		next := s.align(now.Add(time.Duration(row.EveryMs)*time.Millisecond), windowOf(row.WindowStart, row.WindowEnd))
 		if _, err := s.sys.MarkJobScheduleFired(ctx, systemq.MarkJobScheduleFiredParams{NextRunAt: next.UnixMilli(), Now: now.UnixMilli(), Type: row.Type}); err != nil {
@@ -239,10 +313,12 @@ func (s *Scheduler) Tick(ctx context.Context) error {
 	return nil
 }
 
-// UpdateSchedule changes interval, switch and window of the schedule of typ and realigns its
-// next run (last firing plus interval, at least now, then the window). An unknown type is
-// model.ErrNotFound; an interval outside MinEvery..MaxEvery or an invalid window a
-// model.ValidationError (fields everySeconds, window).
+// UpdateSchedule changes interval, switch, window and one-off date of the schedule of typ and
+// realigns its next run (last firing plus interval, at least now, then the window); an update of
+// the date alone leaves the next run as it is. An unknown type is model.ErrNotFound; an interval
+// outside MinEvery..MaxEvery, an invalid window or a date that is no wall time (OnceLayout) or lies
+// outside now + OnceMinLead .. now + OnceMaxLead a model.ValidationError (fields everySeconds,
+// window, onceLocal; codes invalid_value, out_of_range).
 func (s *Scheduler) UpdateSchedule(ctx context.Context, typ string, u ScheduleUpdate) (Schedule, error) {
 	row, err := s.sys.GetJobSchedule(ctx, typ)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -251,7 +327,8 @@ func (s *Scheduler) UpdateSchedule(ctx context.Context, typ string, u ScheduleUp
 	if err != nil {
 		return Schedule{}, fmt.Errorf("get schedule of %s: %w", typ, err)
 	}
-	cur := fromScheduleRow(row)
+	cur := fromScheduleRow(row, s.loc)
+	now := s.now()
 	every, enabled, window := cur.Every, cur.Enabled, cur.Window
 	if u.Every != nil {
 		every = *u.Every
@@ -273,10 +350,30 @@ func (s *Scheduler) UpdateSchedule(ctx context.Context, typ string, u ScheduleUp
 	if window != nil && !window.valid() {
 		verr = verr.Add("window", "invalid_value")
 	}
+	var once sql.NullInt64
+	if !u.ClearOnce && u.OnceLocal != nil {
+		at, err := time.ParseInLocation(OnceLayout, *u.OnceLocal, s.loc)
+		switch {
+		case err != nil:
+			verr = verr.Add("onceLocal", "invalid_value")
+		case at.Before(now.Add(OnceMinLead)) || at.After(now.Add(OnceMaxLead)):
+			verr = verr.Add("onceLocal", "out_of_range")
+		default:
+			once = sql.NullInt64{Int64: at.UnixMilli(), Valid: true}
+		}
+	}
 	if verr != nil {
 		return Schedule{}, verr
 	}
-	now := s.now()
+	if u.ClearOnce || u.OnceLocal != nil {
+		if _, err := s.sys.SetJobScheduleOnce(ctx, systemq.SetJobScheduleOnceParams{OnceAt: once, Now: now.UnixMilli(), Type: typ}); err != nil {
+			return Schedule{}, fmt.Errorf("set one-off date of %s: %w", typ, err)
+		}
+		s.log.InfoContext(ctx, "one-off date updated", "job_type", typ, "once_at", nullMsUTC(once))
+		if u.Every == nil && u.Enabled == nil && u.Window == nil && !u.ClearWindow {
+			return s.Schedule(ctx, typ)
+		}
+	}
 	base := now.Add(every)
 	if !cur.LastFiredAt.IsZero() {
 		base = cur.LastFiredAt.Add(every)
@@ -309,7 +406,7 @@ func (s *Scheduler) Schedule(ctx context.Context, typ string) (Schedule, error) 
 	if err != nil {
 		return Schedule{}, fmt.Errorf("get schedule of %s: %w", typ, err)
 	}
-	return fromScheduleRow(row), nil
+	return fromScheduleRow(row, s.loc), nil
 }
 
 // Schedules returns every schedule row, by type.
@@ -320,7 +417,7 @@ func (s *Scheduler) Schedules(ctx context.Context) ([]Schedule, error) {
 	}
 	out := make([]Schedule, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, fromScheduleRow(r))
+		out = append(out, fromScheduleRow(r, s.loc))
 	}
 	return out, nil
 }
@@ -361,7 +458,15 @@ func windowColumns(w *Window) (start, end sql.NullInt64) {
 	return sql.NullInt64{Int64: int64(w.Start), Valid: true}, sql.NullInt64{Int64: int64(w.End), Valid: true}
 }
 
-func fromScheduleRow(r systemq.JobSchedule) Schedule {
+// nullMsUTC returns a nullable Unix-millisecond value as a UTC time for a log, nil for NULL.
+func nullMsUTC(v sql.NullInt64) any {
+	if !v.Valid {
+		return nil
+	}
+	return time.UnixMilli(v.Int64).UTC()
+}
+
+func fromScheduleRow(r systemq.JobSchedule, loc *time.Location) Schedule {
 	out := Schedule{
 		Type: r.Type, Every: time.Duration(r.EveryMs) * time.Millisecond, Enabled: r.Enabled == 1,
 		Window: windowOf(r.WindowStart, r.WindowEnd), NextRunAt: time.UnixMilli(r.NextRunAt).UTC(),
@@ -373,6 +478,10 @@ func fromScheduleRow(r systemq.JobSchedule) Schedule {
 	}
 	if r.LastFiredAt.Valid {
 		out.LastFiredAt = time.UnixMilli(r.LastFiredAt.Int64).UTC()
+	}
+	if r.OnceAt.Valid {
+		out.OnceAt = time.UnixMilli(r.OnceAt.Int64).UTC()
+		out.OnceLocal = out.OnceAt.In(loc).Format(OnceLayout)
 	}
 	return out
 }

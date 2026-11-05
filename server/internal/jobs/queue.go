@@ -39,6 +39,10 @@
 //     RetryLater; the job waits for the given time without using an attempt.
 //   - Cancel: queued and running jobs can be cancelled; a running handler sees its context
 //     cancelled at the next heartbeat.
+//   - Pause override (concept 14, 6.5, ADR 0022): a job with override_pause is claimed while its
+//     type is paused and a pause does not stop it. Only EnqueueOverridingPause and
+//     RaiseQueuedJobForPlayback set it, for at most MaxPauseOverrides queued or running jobs at a
+//     time, and only package library calls them (forbidigo in .golangci.yml).
 //
 // Job types and schedules (concept 09, ADR 0017): every service registers its job types with
 // Registry.Register (registry.go: group, pool, trigger, priority, handler, Run, interval), and the
@@ -65,6 +69,9 @@ const (
 	DebounceWindow     = 2 * time.Second
 	DefaultMaxAttempts = 5
 	maxBackoffShift    = 20 // caps the backoff at about 121 days
+	// MaxPauseOverrides is how many queued or running jobs may carry override_pause at once (O-7):
+	// a viewer who starts many titles without an index cannot lift the pause for all of them.
+	MaxPauseOverrides = 3
 )
 
 // ErrLeaseLost is returned when the job is no longer running under the caller's lease: it was
@@ -137,6 +144,9 @@ type Job struct {
 	FinishedAt time.Time
 	Progress   RunProgress // the last reported progress of the attempt
 	Skipped    bool        // the run had nothing to do (Skip)
+	// OverridesPause: the job is claimed and keeps running while its type is paused (a playback
+	// request, EnqueueOverridingPause).
+	OverridesPause bool
 }
 
 // Duration returns how long the last attempt ran: FinishedAt - StartedAt in a final state, the
@@ -173,24 +183,10 @@ func NewQueue(db *sql.DB, now func() time.Time) *Queue {
 // Enqueue adds a job and returns its ID. With an IdempotencyKey that an active job already
 // holds, it returns the ID of that job instead.
 func (q *Queue) Enqueue(ctx context.Context, j NewJob) (int64, error) {
-	if j.Type == "" {
-		return 0, errors.New("job type must not be empty")
+	payload, maxAttempts, key, err := j.columns()
+	if err != nil {
+		return 0, err
 	}
-	if j.Priority < 0 || j.Priority > 9 {
-		return 0, fmt.Errorf("priority %d outside 0..9", j.Priority)
-	}
-	maxAttempts := j.MaxAttempts
-	if maxAttempts == 0 {
-		maxAttempts = DefaultMaxAttempts
-	}
-	payload := j.Payload
-	if len(payload) == 0 {
-		payload = json.RawMessage(`{}`)
-	}
-	if !json.Valid(payload) {
-		return 0, errors.New("payload is not valid JSON")
-	}
-	key := sql.NullString{String: j.IdempotencyKey, Valid: j.IdempotencyKey != ""}
 	now := q.now()
 
 	id, err := q.q.InsertJob(ctx, systemq.InsertJobParams{
@@ -210,6 +206,108 @@ func (q *Queue) Enqueue(ctx context.Context, j NewJob) (int64, error) {
 		return 0, fmt.Errorf("enqueue %s: %w", j.Type, err)
 	}
 	return id, nil
+}
+
+// columns validates j and returns the payload ({} by default), the attempts (DefaultMaxAttempts by
+// default) and the idempotency key of its row.
+func (j NewJob) columns() (json.RawMessage, int, sql.NullString, error) {
+	if j.Type == "" {
+		return nil, 0, sql.NullString{}, errors.New("job type must not be empty")
+	}
+	if j.Priority < 0 || j.Priority > 9 {
+		return nil, 0, sql.NullString{}, fmt.Errorf("priority %d outside 0..9", j.Priority)
+	}
+	maxAttempts := j.MaxAttempts
+	if maxAttempts == 0 {
+		maxAttempts = DefaultMaxAttempts
+	}
+	payload := j.Payload
+	if len(payload) == 0 {
+		payload = json.RawMessage(`{}`)
+	}
+	if !json.Valid(payload) {
+		return nil, 0, sql.NullString{}, errors.New("payload is not valid JSON")
+	}
+	return payload, maxAttempts, sql.NullString{String: j.IdempotencyKey, Valid: j.IdempotencyKey != ""}, nil
+}
+
+// PauseOverride says what EnqueueOverridingPause or RaiseQueuedJobForPlayback did.
+type PauseOverride struct {
+	ID int64
+	// Inserted: EnqueueOverridingPause queued a new job. False: an active job holds the key and ID
+	// is that job, unchanged (RaiseQueuedJobForPlayback raises it).
+	Inserted bool
+	// Raised: RaiseQueuedJobForPlayback changed the waiting job. False: it runs (and stays as it
+	// is) or has ended.
+	Raised bool
+	// OverridesPause: the job carries override_pause and runs while its type is paused; false
+	// when MaxPauseOverrides other jobs carry it (the job waits for the end of the pause).
+	OverridesPause bool
+}
+
+// EnqueueOverridingPause is Enqueue for a job a playback needs now (concept 14, 6.4 and 6.5): the
+// new job carries override_pause while fewer than MaxPauseOverrides queued or running jobs carry
+// it, checked in the same statement as the insert, so concurrent starts cannot pass the cap. When
+// an active job holds the key, nothing is inserted and Inserted is false. Only package library
+// calls it (forbidigo).
+func (q *Queue) EnqueueOverridingPause(ctx context.Context, j NewJob) (PauseOverride, error) {
+	payload, maxAttempts, key, err := j.columns()
+	if err != nil {
+		return PauseOverride{}, err
+	}
+	now := q.now()
+	row, err := q.q.InsertJobOverridingPause(ctx, systemq.InsertJobOverridingPauseParams{
+		Type:           j.Type,
+		Priority:       int64(j.Priority),
+		IdempotencyKey: key,
+		Payload:        string(payload),
+		RunAfter:       now.Add(j.Delay).UnixMilli(),
+		MaxAttempts:    int64(maxAttempts),
+		MaxOverrides:   MaxPauseOverrides,
+		Now:            now.UnixMilli(),
+	})
+	if errors.Is(err, sql.ErrNoRows) && key.Valid {
+		// The insert was skipped because an active job holds the key.
+		id, err := q.q.GetActiveJobIDByKey(ctx, key)
+		if err != nil {
+			return PauseOverride{}, fmt.Errorf("enqueue %s: %w", j.Type, err)
+		}
+		cur, err := q.Get(ctx, id)
+		if err != nil {
+			return PauseOverride{}, err
+		}
+		return PauseOverride{ID: id, OverridesPause: cur.OverridesPause}, nil
+	}
+	if err != nil {
+		return PauseOverride{}, fmt.Errorf("enqueue %s: %w", j.Type, err)
+	}
+	return PauseOverride{ID: row.ID, Inserted: true, OverridesPause: row.OverridePause == 1}, nil
+}
+
+// RaiseQueuedJobForPlayback raises the waiting job id for a playback (concept 14, 6.4): its
+// priority to at least priority (never lower), override_pause by the cap of
+// EnqueueOverridingPause (a job that carries it keeps it), and a job in backoff or delay runs now
+// (run_after = min(run_after, now)). A running job stays as it is (no cancel, decision of 26
+// October 2026); Raised is false then, and for a job that has ended. Only package library calls it
+// (forbidigo).
+func (q *Queue) RaiseQueuedJobForPlayback(ctx context.Context, id int64, priority int) (PauseOverride, error) {
+	if priority < 0 || priority > 9 {
+		return PauseOverride{}, fmt.Errorf("priority %d outside 0..9", priority)
+	}
+	override, err := q.q.RaiseQueuedJobForPlayback(ctx, systemq.RaiseQueuedJobForPlaybackParams{
+		Priority: int64(priority), MaxOverrides: MaxPauseOverrides, Now: q.now().UnixMilli(), ID: id,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		cur, gerr := q.Get(ctx, id)
+		if gerr != nil {
+			return PauseOverride{}, gerr
+		}
+		return PauseOverride{ID: id, OverridesPause: cur.OverridesPause}, nil
+	}
+	if err != nil {
+		return PauseOverride{}, fmt.Errorf("raise job %d for playback: %w", id, err)
+	}
+	return PauseOverride{ID: id, Raised: true, OverridesPause: override == 1}, nil
 }
 
 // Claim leases the next runnable job of one of types for workerID. It returns (nil, nil) when
@@ -444,6 +542,7 @@ func fromRow(r systemq.Job) Job {
 		FinishedAt:     msTime(r.FinishedAt),
 		Progress:       RunProgress{Done: r.ProgressDone.Int64, Total: r.ProgressTotal.Int64, Note: r.ProgressNote.String},
 		Skipped:        r.Skipped == 1,
+		OverridesPause: r.OverridePause == 1,
 	}
 }
 

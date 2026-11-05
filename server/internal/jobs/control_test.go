@@ -400,7 +400,7 @@ func TestProgressTimerAndSeries(t *testing.T) {
 	rep := newReporter(q, "w1", id, discard)
 	rep.interval = 50 * time.Millisecond
 	hctx := context.WithValue(ctx, reporterKey{}, rep)
-	r.runs.add(id, "p", func(error) {}, rep)
+	r.runs.add(id, "p", false, func(error) {}, rep)
 	defer r.runs.remove(id)
 
 	Progress(hctx, 1, 0, "walk") // written at once
