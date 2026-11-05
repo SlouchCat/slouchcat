@@ -135,10 +135,21 @@ func QueueKeyframesForPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, m
 // without the pause override (that exception is for playback only, F-3). A job that waits under
 // the key is raised to that priority; a running one stays as it is. Like
 // QueueKeyframesForPlayback it queues nothing for a file whose index is there or impossible,
-// whose row is gone, or whose last full read failed within keyframesFailedQuiet. db is a read
-// connection. queued reports whether a full read is queued or running now: without one the
-// download has nothing to wait for and encodes.
+// whose row is gone, or whose last full read failed within keyframesFailedQuiet; a full read that
+// is already queued or running under the key (one of the backfill, which does not look at O-17)
+// counts all the same. db is a read connection. queued reports whether a full read is queued or
+// running now: without one the download has nothing to wait for and encodes.
 func QueueKeyframesForDownload(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) (queued bool, err error) {
+	active, err := systemq.New(db).GetActiveJobIDByKey(ctx, sql.NullString{String: keyframesJob(mediaFileID).key, Valid: true})
+	switch {
+	case err == nil:
+		if _, err = q.RaiseQueuedPriority(ctx, active, prioKeyframesDownload); err != nil {
+			return false, err
+		}
+		return true, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return false, fmt.Errorf("active full keyframe read of %s: %w", mediaFileID, err)
+	}
 	j, wanted, err := keyframesWanted(ctx, db, mediaFileID, now)
 	if err != nil || !wanted {
 		return false, err

@@ -284,6 +284,32 @@ func TestPrepareEncodesAtOnceAfterAFailedKeyframeRead(t *testing.T) {
 	}
 }
 
+// Final review, m1: the last full read failed within 24 h, but the backfill (which does not look at
+// O-17) has queued a new one meanwhile; the download waits for it instead of encoding, and the
+// waiting read rises to priority 5.
+func TestPrepareWaitsForAQueuedKeyframeReadAfterAFailedOne(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	failKeyframeRead(t, e, m.FileID)
+	e.clock.Advance(time.Hour)
+	queued, err := e.queue.Enqueue(context.Background(), jobs.NewJob{Type: library.JobProbeKeyframes, Priority: 1,
+		IdempotencyKey: "keyframes:" + m.FileID, Payload: []byte(`{"mediaFileId":"` + m.FileID + `"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadQueued || len(e.enc.calls()) != 0 {
+		t.Fatalf("row %+v, encoder calls %v; want waiting for the queued read", r, e.enc.calls())
+	}
+	var prio int
+	if err := e.f.DB.Read.QueryRow(`SELECT priority FROM jobs WHERE id = ?`, queued).Scan(&prio); err != nil || prio != 5 {
+		t.Errorf("priority of the queued read = %d (%v), want 5", prio, err)
+	}
+}
+
 // Concept 14, 6.8 (review of wave D): the full read the download waits for fails; the next attempt
 // encodes instead of waiting for the rest of the day.
 func TestPrepareEncodesWhenTheKeyframeReadFailsDuringTheWait(t *testing.T) {
