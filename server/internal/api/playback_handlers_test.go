@@ -239,7 +239,8 @@ func TestStreamTokenEndpoints(t *testing.T) {
 // keyframe index is newer than the playback) answers 409 playback_source_changed on every HLS
 // endpoint that rebuilds. The playback session ended with it; later requests with its token answer
 // the same 409 on every HLS endpoint (not 401, review of wave D), and the stop watch reports no stop
-// (404, like a playback the server does not know).
+// (404, like a playback the server does not know). The media stream does not document the 409 and
+// answers the token like any revoked one, 401 (final review, m2).
 func TestHLSSourceChangedAnswers409(t *testing.T) {
 	t.Parallel()
 	for _, rel := range []string{"master.m3u8", "media.m3u8", "init.mp4", "seg/3"} {
@@ -272,6 +273,10 @@ func TestHLSSourceChangedAnswers409(t *testing.T) {
 			}
 			if state := send(t, pf.h, http.MethodGet, base+"state", "p12", "", nil); state.Code != http.StatusNotFound {
 				t.Errorf("stop watch after the end: %d %s, want 404 (no stop)", state.Code, state.Body.String())
+			}
+			stream := send(t, pf.h, http.MethodGet, BasePath+"/items/"+m.ID+"/stream?st="+url.QueryEscape(st), "", "", nil)
+			if stream.Code != http.StatusUnauthorized || problemCode(t, stream) != "unauthenticated" {
+				t.Errorf("media stream after the end: %d %s, want 401", stream.Code, stream.Body.String())
 			}
 		})
 	}

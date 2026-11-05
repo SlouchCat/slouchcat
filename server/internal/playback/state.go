@@ -92,8 +92,10 @@ func (r *stateRegistry) stop(id, stoppedBy string, now time.Time) {
 }
 
 // stopSourceChanged marks a playback session of the browser session sessionID stopped for a changed
-// source of the title itemID (registering it first, after a restart). An earlier stop keeps its
-// reason.
+// source of the title itemID (registering it first, after a restart). An earlier stop with a
+// stopped_by value (the administration, a limit, the client) keeps its reason. An earlier stop
+// without one is the sweep between the revoke of endSourceChanged and this mark: the revoke was
+// that of the changed source, so the mark takes it over.
 func (r *stateRegistry) stopSourceChanged(id string, sessionID int64, itemID string, now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -105,9 +107,13 @@ func (r *stateRegistry) stopSourceChanged(id string, sessionID int64, itemID str
 		e = &stateEntry{sessionID: sessionID, addedAt: now}
 		r.entries[id] = e
 	}
-	if !e.stopped {
-		e.stopped, e.stoppedAt, e.sourceChanged, e.itemID = true, now, true, itemID
+	switch {
+	case !e.stopped:
+		e.stopped, e.stoppedAt = true, now
+	case e.stoppedBy != "":
+		return
 	}
+	e.sourceChanged, e.itemID = true, itemID
 }
 
 // sourceChanged returns the title of a playback session stopped for a changed source; ok is false

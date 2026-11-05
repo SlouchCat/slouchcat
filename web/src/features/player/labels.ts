@@ -617,8 +617,8 @@ export const reasonText = (t: TFunction, reason: string): string =>
 /**
  * Second line of a quality option (11.5): why `original` is not available, from what the server
  * reports about the playback (burned-in subtitles, a keyframe index not built yet or not
- * possible, any other transcode); else the bit rate and the data per hour the client estimates from it (bit/s × 3600
- * / 8, «ca. 3,6 GB pro Stunde» for 8 Mbit/s).
+ * possible, any other transcode); else the bit rate and the data per hour the client estimates
+ * from it (bit/s × 3600 / 8, «ca. 3,6 GB pro Stunde» for 8 Mbit/s).
  */
 export function qualityDetail(
   t: TFunction,

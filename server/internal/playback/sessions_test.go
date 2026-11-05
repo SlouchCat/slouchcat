@@ -20,6 +20,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
@@ -952,6 +953,74 @@ func TestHLSRebuildOfChangedRemuxSourceEndsPlayback(t *testing.T) {
 				t.Errorf("%d keyframe jobs queued", n)
 			}
 		})
+	}
+}
+
+// Final review, m3: a sweep that marks the playback stopped without a cause before the
+// source-change mark (the window between the revoke of endSourceChanged and its mark) does not
+// keep it: later requests answer model.ErrPlaybackSourceChanged, not 401, and the stop watch
+// reports no stop.
+func TestSourceChangedMarkTakesOverAStopWithoutCause(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(12)
+	info, g := remuxSession(t, f, s, tc, m)
+	f.SetKeyframes(t, m.FileID, nil, "", 0)
+	s.states.stop(info.PlaybackSessionID, "", time.Now()) // the sweep, as if it ran in the window
+	if _, err := s.HLS(ctx, g, 0); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+		t.Fatalf("request of a changed remux: %v, want ErrPlaybackSourceChanged", err)
+	}
+	if _, err := s.Authorize(ctx, tokenOf(t, info.StreamURL)); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+		t.Errorf("token after the end: %v, want ErrPlaybackSourceChanged", err)
+	}
+	if st, err := s.State(g.Session, info.PlaybackSessionID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("stop watch after the end = %+v, %v; want ErrNotFound (no stop)", st, err)
+	}
+}
+
+// Final review, m4: another stop came first. The administration stops the remux, then a request
+// that loaded the row before that stop ends it for the changed source: the row keeps stopped_by
+// admin, the token answers 401 and the stop watch reports the stop of the administration, also
+// when the source-change mark comes after that stop.
+func TestSourceChangedEndKeepsAnEarlierStop(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	tc := newFakeTranscoder()
+	s := New(f.DB, vistest.Logger(), WithTranscoder(tc))
+	ctx := context.Background()
+	m := f.Rated(12)
+	info, g := remuxSession(t, f, s, tc, m)
+	id := info.PlaybackSessionID
+	row, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: s.now().UnixMilli()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.SetKeyframes(t, m.FileID, nil, "", 0)
+	if err := s.StopStream(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.endSourceChanged(ctx, row, keyframeIndex{}); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("source-change end after the stop: %v, want ErrUnauthenticated", err)
+	}
+	if _, err := s.HLS(ctx, g, 0); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("request after the stop: %v, want ErrUnauthenticated", err)
+	}
+	s.states.stopSourceChanged(id, row.SessionID, row.ItemID, time.Now())
+	var stoppedBy sql.NullString
+	if err := f.DB.Read.QueryRowContext(ctx, `SELECT stopped_by FROM playback_sessions WHERE id = ?`, id).Scan(&stoppedBy); err != nil {
+		t.Fatal(err)
+	}
+	if stoppedBy.String != model.StoppedByAdmin {
+		t.Errorf("row stopped_by %v, want admin", stoppedBy)
+	}
+	if _, err := s.Authorize(ctx, tokenOf(t, info.StreamURL)); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Errorf("token after the stop: %v, want ErrUnauthenticated", err)
+	}
+	if st, err := s.State(g.Session, id); err != nil || !st.Stopped || st.StoppedBy != model.StoppedByAdmin {
+		t.Errorf("stop watch = %+v, %v; want stopped by admin", st, err)
 	}
 }
 

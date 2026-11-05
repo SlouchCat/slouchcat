@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -24,7 +25,10 @@ func grantFrom(ctx context.Context) (model.PlaybackGrant, bool) {
 // token answers 401 unauthenticated. The browser session behind the token goes into the context
 // like a cookie session, so the handlers read titles with its profile; the visibility of the title
 // is re-checked by the playback service on every request (404 when no longer visible).
-func (p problems) streamAuth(pb PlaybackService) func(http.Handler) http.Handler {
+// sourceChanged keeps the 409 playback_source_changed of a remux the server ended for a changed
+// file (concept 14, 6.4) for the HLS and subtitle routes that document it; without it the route
+// answers that token like any revoked one, 401.
+func (p problems) streamAuth(pb PlaybackService, sourceChanged bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if pb == nil {
@@ -32,6 +36,9 @@ func (p problems) streamAuth(pb PlaybackService) func(http.Handler) http.Handler
 				return
 			}
 			g, err := pb.Authorize(r.Context(), r.URL.Query().Get("st"))
+			if !sourceChanged && errors.Is(err, model.ErrPlaybackSourceChanged) {
+				err = model.ErrUnauthenticated
+			}
 			if err != nil {
 				p.mapError(w, r, err)
 				return
