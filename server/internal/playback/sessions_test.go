@@ -893,7 +893,9 @@ func remuxSession(t *testing.T, f *vistest.Fixture, s *Service, tc *fakeTranscod
 
 // Concept 14, 6.4: a lost remux output whose file changed since the start (an index newer than
 // the playback, or none any more) is not rebuilt on another keyframe grid: the playback session
-// ends and the request answers model.ErrPlaybackSourceChanged (409 playback_source_changed).
+// ends and the request answers model.ErrPlaybackSourceChanged (409 playback_source_changed). Later
+// requests of the playback answer the same instead of 401 (review of wave D), also for a playback
+// from before a restart, and the stop watch does not report the end as a stop.
 func TestHLSRebuildOfChangedRemuxSourceEndsPlayback(t *testing.T) {
 	t.Parallel()
 	for name, change := range map[string]func(t *testing.T, f *vistest.Fixture, fileID string){
@@ -904,6 +906,7 @@ func TestHLSRebuildOfChangedRemuxSourceEndsPlayback(t *testing.T) {
 		"index none": func(t *testing.T, f *vistest.Fixture, fileID string) {
 			f.SetKeyframes(t, fileID, nil, library.KeyframesNone, time.Now().Add(time.Hour).UnixMilli())
 		},
+		"index gone after a restart": func(t *testing.T, f *vistest.Fixture, fileID string) { f.SetKeyframes(t, fileID, nil, "", 0) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -914,14 +917,13 @@ func TestHLSRebuildOfChangedRemuxSourceEndsPlayback(t *testing.T) {
 			m := f.Rated(12)
 			info, g := remuxSession(t, f, s, tc, m)
 			change(t, f, m.FileID)
+			if strings.HasSuffix(name, "after a restart") {
+				s.states.remove(info.PlaybackSessionID) // a restarted process does not know the playback
+			}
 
 			for _, segment := range []int{0, 4} {
-				_, err := s.HLS(ctx, g, segment)
-				if segment == 0 && !errors.Is(err, model.ErrPlaybackSourceChanged) {
-					t.Fatalf("rebuild of a changed remux: %v, want ErrPlaybackSourceChanged", err)
-				}
-				if segment > 0 && err == nil {
-					t.Error("second request rebuilt the ended playback")
+				if _, err := s.HLS(ctx, g, segment); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+					t.Fatalf("request for segment %d of a changed remux: %v, want ErrPlaybackSourceChanged", segment, err)
 				}
 			}
 			if got := tc.starts(); len(got) != 1 {
@@ -936,8 +938,15 @@ func TestHLSRebuildOfChangedRemuxSourceEndsPlayback(t *testing.T) {
 			if !revoked || stoppedBy.Valid {
 				t.Errorf("row revoked %t stopped_by %v, want revoked by the server", revoked, stoppedBy)
 			}
-			if _, err := s.Authorize(ctx, tokenOf(t, info.StreamURL)); !errors.Is(err, model.ErrUnauthenticated) {
-				t.Errorf("token after the end: %v", err)
+			token := tokenOf(t, info.StreamURL)
+			if _, err := s.Authorize(ctx, token); !errors.Is(err, model.ErrPlaybackSourceChanged) {
+				t.Errorf("token after the end: %v, want ErrPlaybackSourceChanged", err)
+			}
+			if _, err := s.Authorize(ctx, info.PlaybackSessionID+"."+strings.Repeat("A", 43)); !errors.Is(err, model.ErrUnauthenticated) {
+				t.Errorf("forged token after the end: %v, want ErrUnauthenticated", err)
+			}
+			if st, err := s.State(g.Session, info.PlaybackSessionID); !errors.Is(err, model.ErrNotFound) {
+				t.Errorf("stop watch after the end = %+v, %v; want ErrNotFound (no stop)", st, err)
 			}
 			if n := keyframeJobs(t, f, m.FileID); n != 0 {
 				t.Errorf("%d keyframe jobs queued", n)

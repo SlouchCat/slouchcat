@@ -786,6 +786,11 @@ func (s *Service) Authorize(ctx context.Context, token string) (model.PlaybackGr
 	now := s.now()
 	row, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: id, Now: now.UnixMilli()})
 	if errors.Is(err, sql.ErrNoRows) {
+		// A remux ended for a changed source keeps answering 409, so the player restarts it
+		// (concept 14, 6.4); the token must still be the one of that playback.
+		if item, ok := s.states.sourceChanged(id); ok && hmac.Equal(mac, tokenMAC(s.key, id, item)) {
+			return model.PlaybackGrant{}, model.ErrPlaybackSourceChanged
+		}
 		return model.PlaybackGrant{}, model.ErrUnauthenticated
 	}
 	if err != nil {
@@ -908,7 +913,7 @@ func (s *Service) rebuild(ctx context.Context, g model.PlaybackGrant, segment in
 	}
 	row, err := s.read.GetPlaybackSession(ctx, appq.GetPlaybackSessionParams{ID: g.ID, Now: s.now().UnixMilli()})
 	if err != nil {
-		return nil, unauthenticatedOr(err, "get playback session")
+		return nil, s.endedOr(g.ID, err, "get playback session")
 	}
 	if row.Mode == ModeRemux && sourceChanged(in.kf, row.StartedAt) {
 		return nil, s.endSourceChanged(ctx, row, in.kf)
@@ -948,17 +953,34 @@ func sourceChanged(ix keyframeIndex, startedAt int64) bool {
 	return err != nil || len(kf) == 0
 }
 
+// endedOr is the error of a rebuild whose playback session row is gone (err from
+// GetPlaybackSession): model.ErrPlaybackSourceChanged when a request before ended it for a changed
+// source (a request that waited for that rebuild), else as unauthenticatedOr.
+func (s *Service) endedOr(id string, err error, what string) error {
+	if _, ok := s.states.sourceChanged(id); ok && errors.Is(err, sql.ErrNoRows) {
+		return model.ErrPlaybackSourceChanged
+	}
+	return unauthenticatedOr(err, what)
+}
+
 // endSourceChanged ends a remux playback whose file changed since its start (sourceChanged): the
 // row is revoked without a stopped_by (the server, not a person, ended it), its streams, output
 // and subtitles go, and the result is model.ErrPlaybackSourceChanged, so the client starts a new
-// playback at its position.
+// playback at its position. The cause is kept in memory only (stateRegistry.stopSourceChanged), so
+// later requests of the playback answer the same instead of 401. A row another stop ended
+// meanwhile keeps that stop.
 func (s *Service) endSourceChanged(ctx context.Context, row appq.PlaybackSession, ix keyframeIndex) error {
 	now := s.now()
-	if _, err := s.write.StopPlaybackSession(ctx, appq.StopPlaybackSessionParams{
+	rows, err := s.write.StopPlaybackSession(ctx, appq.StopPlaybackSessionParams{
 		ID: row.ID, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true},
-	}); err != nil {
+	})
+	if err != nil {
 		return fmt.Errorf("end playback session: %w", err)
 	}
+	if len(rows) == 0 {
+		return model.ErrUnauthenticated
+	}
+	s.states.stopSourceChanged(row.ID, row.SessionID, row.ItemID, now)
 	s.end(row.ID, "")
 	s.log.InfoContext(ctx, "remux source changed since the start, playback ended", "playback_id", row.ID,
 		"media_file_id", row.MediaFileID, "keyframes_source", ix.source, "keyframes_at", ix.at, "started_at", row.StartedAt)

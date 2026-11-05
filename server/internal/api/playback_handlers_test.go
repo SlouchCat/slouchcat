@@ -237,7 +237,9 @@ func TestStreamTokenEndpoints(t *testing.T) {
 
 // Concept 14, 6.4 over HTTP: the lost output of a remux whose file changed since the start (its
 // keyframe index is newer than the playback) answers 409 playback_source_changed on every HLS
-// endpoint that rebuilds; the playback session ended with it, so the token is refused afterwards.
+// endpoint that rebuilds. The playback session ended with it; later requests with its token answer
+// the same 409 on every HLS endpoint (not 401, review of wave D), and the stop watch reports no stop
+// (404, like a playback the server does not know).
 func TestHLSSourceChangedAnswers409(t *testing.T) {
 	t.Parallel()
 	for _, rel := range []string{"master.m3u8", "media.m3u8", "init.mp4", "seg/3"} {
@@ -262,8 +264,14 @@ func TestHLSSourceChangedAnswers409(t *testing.T) {
 			if stops := pf.tc.stops(); len(stops) != 1 || stops[0] != id {
 				t.Errorf("transcoder stops = %v", stops)
 			}
-			if again := send(t, pf.h, http.MethodGet, base+rel+"?st="+url.QueryEscape(st), "", "", nil); again.Code != http.StatusUnauthorized {
-				t.Errorf("after the end: %d %s", again.Code, again.Body.String())
+			for _, next := range []string{"master.m3u8", "media.m3u8", "init.mp4", "seg/0"} {
+				again := send(t, pf.h, http.MethodGet, base+next+"?st="+url.QueryEscape(st), "", "", nil)
+				if again.Code != http.StatusConflict || problemCode(t, again) != "playback_source_changed" {
+					t.Errorf("%s after the end: %d %s", next, again.Code, again.Body.String())
+				}
+			}
+			if state := send(t, pf.h, http.MethodGet, base+"state", "p12", "", nil); state.Code != http.StatusNotFound {
+				t.Errorf("stop watch after the end: %d %s, want 404 (no stop)", state.Code, state.Body.String())
 			}
 		})
 	}
