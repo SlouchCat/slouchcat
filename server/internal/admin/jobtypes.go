@@ -192,6 +192,7 @@ func (s *Service) jobTypeInfo(ctx context.Context, t jobs.Type, stats map[string
 	if st.known {
 		info.Group, info.Trigger, info.Pool = string(t.Group), string(t.Trigger), string(t.Pool)
 		info.Runnable = t.Run != nil
+		info.OverridesPauseForPlayback = t.OverridesPauseForPlayback
 		info.Stopping = info.Paused && s.jobctl.reg.Running(t.Name) > 0
 		if st.medianOK {
 			m := int(st.median.Seconds())

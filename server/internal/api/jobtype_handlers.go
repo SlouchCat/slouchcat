@@ -145,6 +145,9 @@ func toJobTypeInfo(t model.JobTypeInfo) gen.JobTypeInfo {
 		last := toJobRun(*t.LastRun)
 		out.LastRun = &last
 	}
+	if t.OverridesPauseForPlayback {
+		out.OverridesPauseForPlayback = &t.OverridesPauseForPlayback
+	}
 	return out
 }
 

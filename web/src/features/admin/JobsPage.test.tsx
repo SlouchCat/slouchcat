@@ -287,6 +287,8 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     });
     // The banner names the paused job with "Fortsetzen"; the row offers it instead of "Pausieren".
     expect(screen.getByText('1 Job pausiert')).toBeVisible();
+    // A type without overridesPauseForPlayback gets no playback note.
+    expect(screen.queryByText(/laufen trotzdem/)).toBeNull();
     const scanRow = within(groupPanel()).getByRole('row', { name: /^Bibliotheksscan/ });
     expect(within(scanRow).getByText('wird angehalten')).toBeVisible();
     const scan = await openRow(user, 'Bibliotheksscan');
@@ -781,6 +783,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
           pool: 'index',
           runnable: false,
           paused: true,
+          overridesPauseForPlayback: true,
           counts: { queued: 0, planned: 0, running: 1, failed: 0 },
           running: [
             run({ id: 90, type: 'probe.keyframes', subject: 'Alien', overridesPause: true }),

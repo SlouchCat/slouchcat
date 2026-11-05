@@ -283,6 +283,12 @@ func TestKeyframeTypesRegistered(t *testing.T) {
 	if !ok || kf.Pool != jobs.PoolIndex || kf.Trigger != jobs.TriggerEvent || kf.Priority != prioKeyframes {
 		t.Errorf("%s = %+v, want an event type in the pool index", JobProbeKeyframes, kf)
 	}
+	// Only probe.keyframes says that a playback overrides its pause (JobTypeInfo, contract 1.13.0).
+	for _, typ := range r.Types() {
+		if want := typ.Name == JobProbeKeyframes; typ.OverridesPauseForPlayback != want {
+			t.Errorf("%s OverridesPauseForPlayback = %v, want %v", typ.Name, typ.OverridesPauseForPlayback, want)
+		}
+	}
 }
 
 // keyframeJob returns priority, state and override_pause of the active keyframe job of a file, and

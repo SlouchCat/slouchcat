@@ -305,6 +305,8 @@ type JobTypeInfo struct {
 	MedianSeconds         *int
 	QueuedEstimateSeconds *int
 	Known                 bool // false for a row in job_types without a registered type
+	// OverridesPauseForPlayback: runs a playback requests run while the type is paused (concept 14).
+	OverridesPauseForPlayback bool
 }
 
 // JobPool is a worker pool with its backlog.

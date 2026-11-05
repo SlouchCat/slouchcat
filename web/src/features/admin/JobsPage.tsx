@@ -85,9 +85,6 @@ import {
 } from './queries';
 import styles from './jobs/Jobs.module.css';
 
-/** Types whose runs for a playback start and keep running while the type is paused (concept 14). */
-const PLAYBACK_OVERRIDE_TYPES: ReadonlySet<string> = new Set(['probe.keyframes']);
-
 /** The groups of the job types, in their order (concept 09, 2.2); one tab each. */
 const GROUPS = ['library', 'metadata', 'delivery', 'system'] as const;
 
@@ -665,7 +662,8 @@ function JobsContent() {
             types: paused.map((info) => typeName(t, info.type)).join(', '),
           })}
           {paused
-            .filter((info) => PLAYBACK_OVERRIDE_TYPES.has(info.type))
+            // Runs a playback requests start and keep running while the type is paused (concept 14).
+            .filter((info) => info.overridesPauseForPlayback === true)
             .map(
               (info) =>
                 ` ${t('admin.jobs.pausedBanner.playbackOverride', { name: typeName(t, info.type) })}`,

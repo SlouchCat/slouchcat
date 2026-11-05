@@ -89,6 +89,10 @@ type Type struct {
 	// the last attempt; update.check: update_check_enabled and the last check). nil: Every,
 	// enabled, no history.
 	Seed func(ctx context.Context) (ScheduleSeed, error)
+	// OverridesPauseForPlayback: a playback queues runs of this type that start and keep running
+	// while the type is paused (Queue.EnqueueOverridingPause, concept 14, 6.4); the administration
+	// page says so in its pause banner.
+	OverridesPauseForPlayback bool
 }
 
 // ScheduleSeed are the values of the first schedule row of a type (Type.Seed).

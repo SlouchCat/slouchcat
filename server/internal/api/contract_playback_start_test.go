@@ -155,6 +155,20 @@ func TestJobPoolIndexAndOverridesPauseOverHTTP(t *testing.T) {
 	if !found {
 		t.Errorf("pools = %+v, want index with one worker", ov.Pools)
 	}
+	// No type of the fixture overrides its pause for a playback: the field is left out, and the
+	// mapping sends it for one that does (probe.keyframes, package library).
+	var rawTypes struct {
+		Types []map[string]json.RawMessage `json:"types"`
+	}
+	decode(t, rec, &rawTypes)
+	for _, typ := range rawTypes.Types {
+		if flag, has := typ["overridesPauseForPlayback"]; has {
+			t.Errorf("type %s carries overridesPauseForPlayback %s", typ["type"], flag)
+		}
+	}
+	if got := toJobTypeInfo(model.JobTypeInfo{Type: "probe.keyframes", OverridesPauseForPlayback: true}); got.OverridesPauseForPlayback == nil || !*got.OverridesPauseForPlayback {
+		t.Errorf("toJobTypeInfo overridesPauseForPlayback = %v, want true", got.OverridesPauseForPlayback)
+	}
 
 	plain, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: "download.prepare", IdempotencyKey: "plain"})
 	if err != nil {

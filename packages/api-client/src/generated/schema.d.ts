@@ -6709,6 +6709,8 @@ export interface components {
             queuedEstimateSeconds?: number;
             /** @description False for a type in the database that no worker of this server knows (after a downgrade). */
             known: boolean;
+            /** @description Runs of the type that a playback requests start and keep running while the type is paused (concept 14, 6.4); only sent when true (since contract 1.13.0). */
+            overridesPauseForPlayback?: boolean;
         };
         JobPool: {
             /**

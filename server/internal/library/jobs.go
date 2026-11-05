@@ -279,7 +279,10 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	})
 	r.Register(jobs.Type{Name: JobScanPath, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioPathScan, Handler: s.handlePathScan, Cancel: s.cancelScanJob})
 	r.Register(jobs.Type{Name: JobProbeFile, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioProbe, Handler: s.handleProbe})
-	r.Register(jobs.Type{Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolIndex, Trigger: jobs.TriggerEvent, Priority: prioKeyframes, Handler: s.handleKeyframes})
+	r.Register(jobs.Type{
+		Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolIndex, Trigger: jobs.TriggerEvent,
+		Priority: prioKeyframes, Handler: s.handleKeyframes, OverridesPauseForPlayback: true,
+	})
 	r.Register(jobs.Type{
 		Name: JobSweep, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioSweep, Handler: s.handleSweep, Run: s.runSweep, Every: sweepInterval, StartDelay: &atStart,
