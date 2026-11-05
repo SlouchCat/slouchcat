@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 14 «Schneller Wiedergabestart»: gebaut, PR offen (5. November 2026)
+## Konzept 14 «Schneller Wiedergabestart»: gebaut, auf CT 190 abgenommen, PR #90 offen (5. November 2026)
 
 **Zweig `claude/wiedergabestart-89645e` ab `main` `c514ab1` (Release 1.12.0).** Marcos Freigabe des
 Baus vom 5. November 2026. Vertrag **1.13.0** (additiv), Migration **00033**, Frage 20, ADR 0022.
@@ -46,10 +46,13 @@ Weitere Messwerte aus dem Bau: `probe.file` auf den lokalen Testmedien im Mittel
 Prüfung der Obergrenze beim Einreihen 9,1 ms → 38 µs (50 000 wartende Jobs); Claim 5–10 % langsamer.
 
 **Offen:**
-- Push und Pull Request auf Marcos Wort; danach Abnahme auf CT 190 (Papier Schritt 8: Image auf dem
-  CT bauen, Migration 00033, Silo S01E03 in Firefox mit pausiertem `probe.keyframes`, Nachhol-Lauf,
-  Termin, Bild auf dem Handy) mit den Messungen nach `docs/perf/wiedergabestart.md` (QSV inkl. 480p
-  und 360p, VAAPI, Dauer von `probe.file`, Startzeit, Abdeckung «ausstehend = 0»).
+- **Abnahme auf CT 190 am 5. November 2026 bestanden** (Image `wiedergabestart-68cefaf`, Migration
+  00033 in 1,8 s; Sicherung `.env.bak-vor-wiedergabestart`): Silo S01E03 ohne Index startet mit
+  `POST /play` in 16,6 ms statt 20 016 ms, der Index kommt trotz Pause in 193 ms aus den Cues, der
+  zweite Start remuxt; Nachhol-Lauf 257 Dateien in 88 s, «ausstehend = 0» in allen Bibliotheken;
+  Termin feuert pünktlich; QSV-Bild auf dem Handy scharf; QSV und VAAPI mit VBR statt CQP. Werte in
+  `docs/perf/wiedergabestart.md`.
+- PR #90 (GitHub-CI 19 von 19 grün) wartet auf Marcos Wort zum Merge.
 - Release 1.13.0 nach der Abnahme; Entwurf `release-notes-1.13.0.txt` im Wurzelordner (unversioniert).
 - Bekannte Grenzen: 4K-HDR auf QSV startet weiter in 2–3 s (CPU-Tonemapping); NVENC hält die Leiter
   nur im Mittel (O-19); Safari mangels Apple-Gerät nur mit Vitest geprüft.
