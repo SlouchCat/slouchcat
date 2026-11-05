@@ -194,6 +194,101 @@ func TestScanMovedAcrossDevicesMatchesByHash(t *testing.T) {
 	}
 }
 
+// TestScanReusedInodeIsNoMove covers a file system that gives a new file the inode of a removed
+// one: with the same size, (dev, inode, size) alone would take the new file for the old one moved.
+func TestScanReusedInodeIsNoMove(t *testing.T) {
+	t.Parallel()
+	const from, to = "Alien (1979)/Alien (1979).mkv", "Zodiac (2007)/Zodiac (2007).mkv"
+	setup := func(t *testing.T) (e *env, dir string, libID int64, fileID string) {
+		e = newEnv(t)
+		dir = tree(t, twentyMovies[:10])
+		lib := e.create(dir)
+		e.scan(lib.ID)
+		return e, dir, lib.ID, e.str(`SELECT id FROM media_files WHERE rel_path = ?`, from)
+	}
+	later := func(t *testing.T, dir, rel string) {
+		t.Helper()
+		mt := time.Now().Add(time.Hour)
+		if err := os.Chtimes(filepath.Join(dir, filepath.FromSlash(rel)), mt, mt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// reuse gives the file at from new content of the same size and a new mtime and moves it to
+	// to, in place: what a removed file and a new one written into its inode look like.
+	reuse := func(t *testing.T, dir string) {
+		t.Helper()
+		p := filepath.Join(dir, filepath.FromSlash(from))
+		before, err := os.Stat(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, bytes.Repeat([]byte("z"), int(before.Size())), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		later(t, dir, from)
+		rename(t, dir, from, to)
+		after, err := os.Stat(filepath.Join(dir, filepath.FromSlash(to)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fileIdentity(after) != fileIdentity(before) || after.Size() != before.Size() {
+			t.Fatal("test setup: the new file has another identity")
+		}
+	}
+
+	t.Run("new content", func(t *testing.T) {
+		t.Parallel()
+		e, dir, libID, fileID := setup(t)
+		reuse(t, dir)
+		e.scan(libID)
+
+		if v := e.str(`SELECT rel_path FROM media_files WHERE id = ?`, fileID); v != from {
+			t.Fatalf("old file moved to %q, want it kept at %q", v, from)
+		}
+		if n := e.count(`SELECT count(*) FROM media_files WHERE id = ? AND missing_since IS NOT NULL`, fileID); n != 1 {
+			t.Errorf("old file not missing")
+		}
+		if n := e.count(`SELECT count(*) FROM media_files AS f JOIN items AS i ON i.id = f.item_id
+		                 WHERE f.rel_path = ? AND f.id <> ? AND i.title = 'Zodiac'`, to, fileID); n != 1 {
+			t.Errorf("new file is no file of its own with a new title")
+		}
+		if v := e.str(`SELECT i.title FROM media_files AS f JOIN items AS i ON i.id = f.item_id WHERE f.id = ?`, fileID); v != "Alien" {
+			t.Errorf("old file belongs to %q, want Alien", v)
+		}
+		if n := e.count(`SELECT count(*) FROM media_files`); n != 11 {
+			t.Errorf("media files = %d, want 11", n)
+		}
+	})
+
+	t.Run("new content, known file without partial_hash", func(t *testing.T) {
+		t.Parallel()
+		e, dir, libID, fileID := setup(t)
+		// Nothing tells a reused inode apart without the old hash: the inode decides, as before.
+		if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE media_files SET partial_hash = NULL WHERE id = ?`, fileID); err != nil {
+			t.Fatal(err)
+		}
+		reuse(t, dir)
+		e.scan(libID)
+		if id := e.str(`SELECT id FROM media_files WHERE rel_path = ?`, to); id != fileID {
+			t.Fatalf("moved file id %q, want %q", id, fileID)
+		}
+	})
+
+	t.Run("same content, touched", func(t *testing.T) {
+		t.Parallel()
+		e, dir, libID, fileID := setup(t)
+		later(t, dir, from)
+		rename(t, dir, from, to)
+		e.scan(libID)
+		if id := e.str(`SELECT id FROM media_files WHERE rel_path = ?`, to); id != fileID {
+			t.Fatalf("moved file id %q, want %q", id, fileID)
+		}
+		if n := e.count(`SELECT count(*) FROM media_files`); n != 10 {
+			t.Errorf("media files = %d, want 10", n)
+		}
+	})
+}
+
 func TestLossProtection(t *testing.T) {
 	t.Parallel()
 	ten := twentyMovies[:10]

@@ -719,6 +719,10 @@ func videoFile(ctx context.Context, r *os.Root, p string, d fs.DirEntry, content
 
 // planRoot matches the files on disk against the known files of the root: same rel_path, then
 // (dev, inode, size), then partial_hash; the rest is new, and known files left over are missing.
+// A match by (dev, inode, size) with another mtime holds only with the same partial_hash: a file
+// system may give a new file the inode of a removed one (ext4 does), and a rename keeps the mtime.
+// A known file without partial_hash still matches by inode alone, and so does one whose new file
+// cannot be read.
 // It returns the operations, the count of unchanged files and the count of newly missing ones.
 //
 // scope limits a path scan (nil for a full scan): rs.disk holds only the files of the scanned
@@ -778,7 +782,7 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 	type identity struct {
 		dev, inode, size int64
 	}
-	byID := map[identity]*systemq.MediaFile{}
+	byID := map[identity][]*systemq.MediaFile{}
 	byHash := map[string]*systemq.MediaFile{}
 	for i := range rs.known {
 		k := &rs.known[i]
@@ -786,7 +790,8 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 			continue
 		}
 		if k.Inode != 0 {
-			byID[identity{k.Dev, k.Inode, k.Size}] = k
+			id := identity{k.Dev, k.Inode, k.Size}
+			byID[id] = append(byID[id], k)
 		}
 		if k.PartialHash.Valid {
 			if _, dup := byHash[k.PartialHash.String]; !dup {
@@ -802,13 +807,32 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 			return nil, 0, 0, err
 		}
 		jobs.Progress(ctx, int64(i+1), int64(len(unmatched)), rs.lib+" · "+path.Join(rootName, path.Dir(d.rel)))
+		// sameInode holds the known files with the inode of d but another mtime: d is one of them
+		// moved and written to, or a new file in a reused inode; only the content tells them apart.
+		// A known file without partial_hash cannot be told apart and matches by inode alone.
+		var byInode *systemq.MediaFile
+		var sameInode []*systemq.MediaFile
 		if d.id.inode != 0 {
-			if k := byID[identity{toInt64(d.id.dev), toInt64(d.id.inode), d.size}]; k != nil && usable(k) {
-				claimed[k.ID] = true
-				ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String,
-					reprobe: k.Mtime != d.mtime || k.MissingSince.Valid})
-				continue
+			for _, k := range byID[identity{toInt64(d.id.dev), toInt64(d.id.inode), d.size}] {
+				if !usable(k) {
+					continue
+				}
+				if k.Mtime == d.mtime {
+					byInode = k
+					break
+				}
+				if k.PartialHash.Valid {
+					sameInode = append(sameInode, k)
+				} else if byInode == nil {
+					byInode = k
+				}
 			}
+		}
+		if k := byInode; k != nil {
+			claimed[k.ID] = true
+			ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String,
+				reprobe: k.Mtime != d.mtime || k.MissingSince.Valid})
+			continue
 		}
 		if d.parsed.Extra && s.deferOrphan(rs.root.ID, d) {
 			rs.deferred = append(rs.deferred, d) // see reviveDeferred
@@ -818,8 +842,22 @@ func (s *Service) planRoot(ctx context.Context, rs *rootScan, scope *dirScope) (
 		if errors.Is(err, fs.ErrNotExist) {
 			continue // removed since the walk
 		}
+		if err != nil && len(sameInode) > 0 {
+			// Unreadable for now (a share that drops): the inode decides, so the known file is not
+			// lost; the probe of the moved file reports the error.
+			k := sameInode[0]
+			claimed[k.ID] = true
+			ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: k.PartialHash.String, reprobe: true})
+			continue
+		}
 		if err != nil {
 			s.log.WarnContext(ctx, "file not readable, skipped", "root_id", rs.root.ID, "path", d.rel, "err", err)
+			continue
+		}
+		if i := slices.IndexFunc(sameInode, func(k *systemq.MediaFile) bool { return k.PartialHash.String == h }); i >= 0 {
+			k := sameInode[i]
+			claimed[k.ID] = true
+			ops = append(ops, scanOp{kind: opUpdate, rs: rs, disk: d, known: k, hash: h, reprobe: true})
 			continue
 		}
 		if k := byHash[h]; k != nil && usable(k) {

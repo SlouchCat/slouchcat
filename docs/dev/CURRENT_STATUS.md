@@ -1,5 +1,35 @@
 # Aktueller Stand
 
+## Scanner: wiederverwendete Inode ist keine Verschiebung (3. November 2026)
+
+Zweig `claude/scanner-inode-reuse` ab `main` `cbf17fb`, `main` `ae0502b` (mit Idee 04) und
+`58245ed` (Release 1.13.0) eingemergt; PR #79 offen, Merge auf Marcos Wort. Der Scanner ordnete eine neue Datei einer bekannten zu, sobald (`dev`, `inode`, `size`)
+übereinstimmten. ext4 vergibt die Inode einer eben gelöschten Datei neu; bei gleicher Grösse hielt
+der Scanner die neue Datei für die verschobene alte und holte deren Titel zurück, statt einen neuen
+anzulegen. Aufgefallen als wackliger
+`TestRelinkFoldsOlderTwins` in PR #76 (Idee 04), dort nur in der Testhilfe `addFilm` entschärft
+(jede Datei eigene Grösse); die Entschärfung bleibt.
+
+- Fix in `planRoot`: Ein Treffer über die Inode gilt direkt nur bei gleicher `mtime` (eine
+  Umbenennung behält sie, ein Umbenennen kostet also weiterhin kein Lesen). Bei anderer `mtime`
+  entscheidet der `partial_hash`: gleich, dann dieselbe Datei; sonst geht es weiter wie bei einer
+  neuen Datei (Abgleich über `partial_hash`, sonst neu). Die alte Datei fehlt dann, im Pfad-Scan
+  erst, wenn ihr Ordner zum Scan gehört (sonst beim nächsten vollen Scan).
+- Mehrere bekannte Dateien mit derselben Inode (die fehlende alte und die neue) sind alle
+  Kandidaten; die mit gleicher `mtime` gewinnt.
+- Ausnahmen, in denen die Inode wie bisher allein entscheidet: Die bekannte Datei hat keinen
+  `partial_hash` (Hashen schlug damals fehl), oder die neue Datei lässt sich gerade nicht lesen
+  (abgerissene Freigabe). So geht keine Datei verloren, und der Schwellwert für verlorene Dateien
+  springt nicht an.
+- Kosten: gehasht (128 KiB) wird zusätzlich nur eine Datei mit fremdem Pfad, bekannter Inode und
+  neuer `mtime`; solche Dateien wurden vorher ohnehin neu geprüft (`ffprobe`).
+- Grenzfall: Eine verschobene Datei, die am Ort im Kopf oder Ende umgeschrieben wurde (gleiche
+  Grösse), gilt jetzt als neue Datei. Vorher galt sie als dieselbe.
+- Test `TestScanReusedInodeIsNoMove`: gleiche Inode und Grösse, neuer Inhalt und neue `mtime`
+  ergibt eine neue Datei mit neuem Titel (ohne Fix rot); verschoben und nur berührt bleibt
+  dieselbe Datei; ohne alten `partial_hash` entscheidet die Inode. Paketbeschreibung in
+  `server/internal/library/doc.go` angepasst.
+
 ## Konzept 14 «Schneller Wiedergabestart»: gemergt und auf CT 190 abgenommen (5. November 2026)
 
 **Zweig `claude/wiedergabestart-89645e` ab `main` `c514ab1` (Release 1.12.0).** Marcos Freigabe des
