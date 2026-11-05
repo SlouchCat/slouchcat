@@ -269,7 +269,8 @@ func readable(root paths.Root, rel string) error {
 // keyframes looks up the keyframe index of the source of a download for a remux (concept 14, 6.8).
 // A stored index is returned. Without one yet the full read is queued at priority 5 (without the
 // pause override) and the result is errKeyframesWait, until keyframesPatience after the download
-// was created. nil means encoding: the index is impossible (none), unreadable, or the wait is over.
+// was created. nil means encoding: the index is impossible (none), unreadable, no full read is
+// queued or running (the last one failed recently), or the wait is over.
 func (s *Service) keyframes(ctx context.Context, row systemq.Download, m systemq.GetDownloadSourceRow) ([]time.Duration, error) {
 	if m.KeyframesSource.Valid && m.KeyframesSource.String != library.KeyframesNone {
 		kf, err := library.DecodeKeyframes(m.Keyframes)
@@ -286,8 +287,15 @@ func (s *Service) keyframes(ctx context.Context, row systemq.Download, m systemq
 		s.log.InfoContext(ctx, "keyframe index still missing, encoding the download", "download_id", row.ID, "media_file_id", m.ID)
 		return nil, nil
 	}
-	if err := library.QueueKeyframesForDownload(context.WithoutCancel(ctx), s.db.Read, s.queue, m.ID, s.now()); err != nil {
+	queued, err := library.QueueKeyframesForDownload(context.WithoutCancel(ctx), s.db.Read, s.queue, m.ID, s.now())
+	if err != nil {
 		return nil, fmt.Errorf("queue keyframe index of %s: %w", m.ID, err)
+	}
+	if !queued {
+		// No full read is queued or running (the last one failed within a day, O-17, or the row
+		// changed meanwhile): nothing would end the wait, so the download encodes now.
+		s.log.InfoContext(ctx, "no keyframe read pending, encoding the download", "download_id", row.ID, "media_file_id", m.ID)
+		return nil, nil
 	}
 	return nil, fmt.Errorf("%w: media file %s", errKeyframesWait, m.ID)
 }

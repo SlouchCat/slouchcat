@@ -136,22 +136,25 @@ func QueueKeyframesForPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, m
 // the key is raised to that priority; a running one stays as it is. Like
 // QueueKeyframesForPlayback it queues nothing for a file whose index is there or impossible,
 // whose row is gone, or whose last full read failed within keyframesFailedQuiet. db is a read
-// connection.
-func QueueKeyframesForDownload(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) error {
+// connection. queued reports whether a full read is queued or running now: without one the
+// download has nothing to wait for and encodes.
+func QueueKeyframesForDownload(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) (queued bool, err error) {
 	j, wanted, err := keyframesWanted(ctx, db, mediaFileID, now)
 	if err != nil || !wanted {
-		return err
+		return false, err
 	}
 	payload, err := json.Marshal(j.payload)
 	if err != nil {
-		return fmt.Errorf("encode %s payload: %w", j.typ, err)
+		return false, fmt.Errorf("encode %s payload: %w", j.typ, err)
 	}
 	id, err := q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: prioKeyframesDownload, IdempotencyKey: j.key, Payload: payload})
 	if err != nil {
-		return err
+		return false, err
 	}
-	_, err = q.RaiseQueuedPriority(ctx, id, prioKeyframesDownload)
-	return err
+	if _, err = q.RaiseQueuedPriority(ctx, id, prioKeyframesDownload); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // keyframesWanted reports whether a full read of a media file may be queued on demand: its row

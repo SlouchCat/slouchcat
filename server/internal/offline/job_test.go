@@ -249,6 +249,62 @@ func TestPrepareEncodesAtOnceWithoutPossibleKeyframes(t *testing.T) {
 	}
 }
 
+// failKeyframeRead ends the full read of a media file as failed now (the state the job of
+// package library leaves after its last attempt).
+func failKeyframeRead(t *testing.T, e *env, fileID string) {
+	t.Helper()
+	id, err := e.queue.Enqueue(context.Background(), jobs.NewJob{Type: library.JobProbeKeyframes, Priority: 1,
+		IdempotencyKey: "keyframes:" + fileID, Payload: []byte(`{"mediaFileId":"` + fileID + `"}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.exec(`UPDATE jobs SET state = 'failed', finished_at = ? WHERE id = ?`, e.clock.Now().UnixMilli(), id)
+}
+
+// Concept 14, 6.8 with O-17 (review of wave D): the last full read of the file failed within
+// 24 h, so nothing is queued and nothing would end the wait; the first attempt encodes.
+func TestPrepareEncodesAtOnceAfterAFailedKeyframeRead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	failKeyframeRead(t, e, m.FileID)
+	e.clock.Advance(time.Hour)
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	if n := e.runJobs(); n != 1 {
+		t.Fatalf("%d jobs ran, want the one attempt", n)
+	}
+	if r := e.row(st.ID); r.state != model.DownloadReady || !slices.Equal(e.enc.modes, []string{"transcode"}) {
+		t.Errorf("row %+v, modes %v; want encoded in the first attempt", r, e.enc.modes)
+	}
+	var n int
+	if err := e.f.DB.Read.QueryRow(`SELECT count(*) FROM jobs WHERE type = ? AND state IN ('queued', 'running')`,
+		library.JobProbeKeyframes).Scan(&n); err != nil || n != 0 {
+		t.Errorf("%d pending keyframe jobs (%v), want none", n, err)
+	}
+}
+
+// Concept 14, 6.8 (review of wave D): the full read the download waits for fails; the next attempt
+// encodes instead of waiting for the rest of the day.
+func TestPrepareEncodesWhenTheKeyframeReadFailsDuringTheWait(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	m := e.f.Rated(18)
+	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
+	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadQueued || len(e.enc.calls()) != 0 {
+		t.Fatalf("first attempt: %+v, encoder calls %v; want waiting", r, e.enc.calls())
+	}
+	e.exec(`UPDATE jobs SET state = 'failed', finished_at = ? WHERE type = ? AND idempotency_key = ?`,
+		e.clock.Now().UnixMilli(), library.JobProbeKeyframes, "keyframes:"+m.FileID)
+	e.clock.Advance(10 * time.Minute)
+	e.runJobs()
+	if r := e.row(st.ID); r.state != model.DownloadReady || !slices.Equal(e.enc.modes, []string{"transcode"}) {
+		t.Errorf("after the failed read: row %+v, modes %v; want encoded", r, e.enc.modes)
+	}
+}
+
 // A crash in the middle of a write: the next attempt cuts media.mp4 and index.jsonl back to the
 // last complete segment and continues there.
 func TestPrepareResumesAfterCrash(t *testing.T) {
