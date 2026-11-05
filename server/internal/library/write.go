@@ -306,6 +306,17 @@ type batchWriter struct {
 	adopted  []string        // podcasts a second folder brought the feed of (Service.noteAdoptedPodcasts)
 }
 
+// scannedBefore reports whether the scan before this one completed (concept 13 11.6, «after the
+// first complete scan»): a file that appears or changes now is news, and its probe queues its
+// chapter images. The library row is read before this scan sets "running", and the queueing has
+// set "queued" over the previous state; a finished scan that left no error is a complete one
+// ("done": failed and aborted scans store their reason, a cancelled one too). Without a
+// migration this is conservative: the files of a scan after a failed or aborted one wait for the
+// backfill that an administrator starts by hand, like those of the first scan.
+func (w *batchWriter) scannedBefore() bool {
+	return w.lib.LastScanFinishedAt.Valid && !w.lib.LastScanError.Valid
+}
+
 // ix is the item index of the titles the current root produces.
 func (w *batchWriter) ix() *itemIndex { return w.index.forContent(w.root.Content) }
 
@@ -342,7 +353,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 		}); err != nil {
 			return fmt.Errorf("insert media file: %w", err)
 		}
-		if err := enqueueTx(ctx, q, w.now, probeJob(fileID)); err != nil {
+		if err := enqueueTx(ctx, q, w.now, probeJob(fileID, w.scannedBefore())); err != nil {
 			return err
 		}
 		w.stats.created++
@@ -365,7 +376,7 @@ func (w *batchWriter) apply(ctx context.Context, op scanOp, info fileInfo) error
 			}
 		}
 		if op.reprobe {
-			if err := enqueueTx(ctx, q, w.now, probeJob(op.known.ID)); err != nil {
+			if err := enqueueTx(ctx, q, w.now, probeJob(op.known.ID, w.scannedBefore())); err != nil {
 				return err
 			}
 		}

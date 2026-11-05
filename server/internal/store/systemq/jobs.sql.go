@@ -1055,6 +1055,25 @@ func (q *Queries) PruneJobs(ctx context.Context, arg PruneJobsParams) (int64, er
 	return result.RowsAffected()
 }
 
+const pullQueuedJobForward = `-- name: PullQueuedJobForward :execrows
+UPDATE jobs SET run_after = ?1, updated_at = ?1 WHERE id = ?2 AND state = 'queued' AND run_after > ?1
+`
+
+type PullQueuedJobForwardParams struct {
+	Now int64
+	ID  int64
+}
+
+// Lets a job that no worker has claimed and that waits for a later start run now, at its own
+// priority (a backfill started by hand brings a delayed job of the same key forward).
+func (q *Queries) PullQueuedJobForward(ctx context.Context, arg PullQueuedJobForwardParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pullQueuedJobForward, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const raiseQueuedJobPriority = `-- name: RaiseQueuedJobPriority :execrows
 UPDATE jobs SET priority = max(priority, ?1), updated_at = ?2 WHERE id = ?3 AND state = 'queued'
 `
@@ -1069,6 +1088,27 @@ type RaiseQueuedJobPriorityParams struct {
 // spotlight refresh (M11) overtakes the nightly one that already waits behind a scan backlog.
 func (q *Queries) RaiseQueuedJobPriority(ctx context.Context, arg RaiseQueuedJobPriorityParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, raiseQueuedJobPriority, arg.Priority, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const raiseQueuedJobPriorityByKey = `-- name: RaiseQueuedJobPriorityByKey :execrows
+UPDATE jobs SET priority = max(priority, ?1), updated_at = ?2
+WHERE idempotency_key = ?3 AND state = 'queued'
+`
+
+type RaiseQueuedJobPriorityByKeyParams struct {
+	Priority       interface{}
+	Now            int64
+	IdempotencyKey sql.NullString
+}
+
+// RaiseQueuedJobPriority for the waiting job that holds an idempotency key, inside the caller's
+// transaction (an event that finds a job of a bulk run under its key raises it to its own rung).
+func (q *Queries) RaiseQueuedJobPriorityByKey(ctx context.Context, arg RaiseQueuedJobPriorityByKeyParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, raiseQueuedJobPriorityByKey, arg.Priority, arg.Now, arg.IdempotencyKey)
 	if err != nil {
 		return 0, err
 	}
@@ -1180,6 +1220,26 @@ type SetQueuedJobPayloadParams struct {
 // Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 func (q *Queries) SetQueuedJobPayload(ctx context.Context, arg SetQueuedJobPayloadParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setQueuedJobPayload, arg.Payload, arg.Now, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setRunningJobPayload = `-- name: SetRunningJobPayload :execrows
+UPDATE jobs SET payload = ?1, updated_at = ?2 WHERE id = ?3 AND state = 'running'
+`
+
+type SetRunningJobPayloadParams struct {
+	Payload string
+	Now     int64
+	ID      int64
+}
+
+// Replaces the payload of a job a worker runs: the handler keeps a note for its next run (the
+// first time chapters.images found its file unreadable); a retry keeps the payload.
+func (q *Queries) SetRunningJobPayload(ctx context.Context, arg SetRunningJobPayloadParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setRunningJobPayload, arg.Payload, arg.Now, arg.ID)
 	if err != nil {
 		return 0, err
 	}

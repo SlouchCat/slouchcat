@@ -66,6 +66,12 @@ type pathScanRoot struct {
 
 type mediaFilePayload struct {
 	MediaFileID string `json:"mediaFileId"`
+	// ChapterImages asks probe.file to queue chapters.images after the probe (a film or an
+	// episode file that appeared or changed after its library finished a scan, concept 13 11.6).
+	ChapterImages bool `json:"chapterImages,omitempty"`
+	// UnreadableSince is when chapters.images first found its media file unreadable (Unix ms; 0
+	// while readable): the job gives up a week after it, not a week after it was queued.
+	UnreadableSince int64 `json:"unreadableSince,omitempty"`
 }
 
 type itemPayload struct {
@@ -84,19 +90,20 @@ type newJob struct {
 	payload  any
 }
 
-func probeJob(mediaFileID string) newJob {
-	return newJob{JobProbeFile, prioProbe, "probe:" + mediaFileID, mediaFilePayload{mediaFileID}}
+// probeJob probes a media file; chapterImages queues chapters.images after the probe.
+func probeJob(mediaFileID string, chapterImages bool) newJob {
+	return newJob{JobProbeFile, prioProbe, "probe:" + mediaFileID, mediaFilePayload{MediaFileID: mediaFileID, ChapterImages: chapterImages}}
 }
 
 func keyframesJob(mediaFileID string) newJob {
-	return newJob{JobProbeKeyframes, prioKeyframes, "keyframes:" + mediaFileID, mediaFilePayload{mediaFileID}}
+	return newJob{JobProbeKeyframes, prioKeyframes, "keyframes:" + mediaFileID, mediaFilePayload{MediaFileID: mediaFileID}}
 }
 
 // QueueKeyframesForPlayback queues the keyframe index of a media file at top priority (a playback
 // is transcoding because the index is missing). A queued index job of a scan (priority 1) is
 // replaced; a running one is left alone.
 func QueueKeyframesForPlayback(ctx context.Context, q *jobs.Queue, mediaFileID string) error {
-	payload, err := json.Marshal(mediaFilePayload{mediaFileID})
+	payload, err := json.Marshal(mediaFilePayload{MediaFileID: mediaFileID})
 	if err != nil {
 		return fmt.Errorf("encode %s payload: %w", JobProbeKeyframes, err)
 	}
@@ -175,8 +182,8 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 
 // RegisterTypes registers the job types of the library on r (concept 09, ADR 0017): the full
 // scan and the sweep are schedule types (every 6 h and hourly, both at the start of the server),
-// the rest are event types queued by scans, watchers, webhooks, playbacks and matches
-// (library.relink).
+// chapters.images_backfill is a manual type (concept 13 stage 3), the rest are event types queued
+// by scans, watchers, webhooks, playbacks and matches (library.relink).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{
@@ -192,6 +199,11 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	})
 	r.Register(jobs.Type{Name: JobSegmentsDetect, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioSegments, Handler: s.handleSegments})
 	r.Register(jobs.Type{Name: JobRelink, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioMatch, Handler: s.handleRelink, Cancel: s.cancelRelink})
+	r.Register(jobs.Type{Name: JobChapterImages, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioChapterImages, Handler: s.handleChapterImages})
+	r.Register(jobs.Type{
+		Name: JobChapterImagesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerManual,
+		Priority: prioChapterImages, Handler: s.handleChapterImagesBackfill, Run: s.runChapterImagesBackfill,
+	})
 }
 
 // cancelScanJob is the cancel hook of scan.library and scan.path (jobs.Type.Cancel, concept 09

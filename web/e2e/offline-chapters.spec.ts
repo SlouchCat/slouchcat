@@ -33,14 +33,21 @@ for (const quality of ['high', 'low'] as const) {
     const [download] = await waitForComplete(page, 1, (entry) => entry.id === created.id);
     const chapters = download.manifest!.chapters ?? [];
     expect(chapters.map((chapter) => chapter.title)).toEqual(TITLES);
-    // The same marks as online.
+    // The same marks as online; only the online ones carry their images (Chapter.imageUrl is
+    // absent in DownloadManifest.chapters, contract 1.12.0).
     const started = await owner.post(`/api/v1/items/${itemId}/play`, {
       headers: CSRF,
       data: { capabilities: { video: ['h264'], audio: ['aac'] } },
     });
     expect(started.status(), await started.text()).toBe(200);
-    const online = (await started.json()) as { chapters: unknown[]; playbackSessionId: string };
-    expect(chapters).toEqual(online.chapters);
+    const online = (await started.json()) as {
+      chapters: { startMs: number; endMs: number; title?: string; auto?: boolean }[];
+      playbackSessionId: string;
+    };
+    expect(chapters).toEqual(
+      online.chapters.map(({ startMs, endMs, title, auto }) => ({ startMs, endMs, title, auto })),
+    );
+    expect(chapters.every((chapter) => !('imageUrl' in chapter))).toBe(true);
     // The session served only the comparison: it ends here, not by timeout.
     const stop = await owner.delete(`/api/v1/playback/sessions/${online.playbackSessionId}`, {
       headers: CSRF,

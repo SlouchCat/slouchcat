@@ -306,7 +306,8 @@ func (s *Service) Start(ctx context.Context, session model.Session, itemID strin
 		mediaKind = model.MediaKindAudio
 	}
 	if bookChapters == nil {
-		bookChapters = probe.ChapterMarks()
+		bookChapters = transcode.Chapters(probe, item.Kind, file.DurationMs)
+		s.withChapterImages(ctx, item, loc, bookChapters)
 	}
 	info := model.PlaybackInfo{
 		MediaKind:         mediaKind,
@@ -1135,8 +1136,9 @@ func (s *Service) sweep(ctx context.Context) {
 	if _, err := s.write.DeleteExpiredPlaybackSessions(ctx, now.Add(-endedRetention).UnixMilli()); err != nil {
 		s.log.WarnContext(ctx, "delete ended playback sessions", "err", err)
 	}
-	s.sweepCondense(ctx, now)    // condense.go: raw progress events older than 90 days (M10)
-	s.sweepSubtitles(time.Now()) // file times are wall-clock times
+	s.sweepChapterImages(ctx, now) // chapters.go: images of the files whose playback ended
+	s.sweepCondense(ctx, now)      // condense.go: raw progress events older than 90 days (M10)
+	s.sweepSubtitles(time.Now())   // file times are wall-clock times
 }
 
 func unauthenticatedOr(err error, what string) error {

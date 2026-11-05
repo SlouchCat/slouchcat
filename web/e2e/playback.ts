@@ -51,7 +51,7 @@ export interface PlaybackData {
   };
   subtitleUrl?: string;
   qualities: { quality: string; available: boolean; current: boolean; height?: number }[];
-  chapters: { startMs: number; endMs: number; title?: string }[];
+  chapters: { startMs: number; endMs: number; title?: string; imageUrl?: string }[];
   segments: {
     intro?: { startMs: number; endMs: number };
     outro?: { startMs: number; endMs: number };

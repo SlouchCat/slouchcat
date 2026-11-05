@@ -160,7 +160,8 @@ func TestStartTracksAndSubtitles(t *testing.T) {
 			}
 		}
 	}
-	if len(info.Chapters) != 2 || info.Chapters[1] != (model.Chapter{StartMs: 3_600_000, EndMs: 7_200_000, Title: "Teil 2"}) {
+	// Two chapters in two hours: replacement chapters every 10 minutes (transcode.Chapters, F-6).
+	if len(info.Chapters) != 12 || info.Chapters[11] != (model.Chapter{StartMs: 6_600_000, EndMs: 7_200_000, Auto: true}) {
 		t.Errorf("chapters = %+v", info.Chapters)
 	}
 	if info.MediaFile.Bitrate != 6_000_000 || info.MediaFile.HDR != "" {

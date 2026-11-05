@@ -335,6 +335,9 @@ type MediaFileLocation struct {
 	File     model.MediaFile
 	RootPath string
 	RelPath  string
+	// ProbedAt is the Unix millisecond time of the last probe (0: never probed); the chapter
+	// images of the file are stored per probe (concept 13 stage 3).
+	ProbedAt int64
 }
 
 // MediaFile returns a media file of a visible title. An empty fileID selects the primary file: the
@@ -351,7 +354,7 @@ func (r *Reader) MediaFile(ctx context.Context, s Scope, itemID, fileID string) 
 	}
 	for _, f := range files {
 		if (fileID == "" && !f.MissingSince.Valid) || (fileID != "" && f.ID == fileID) {
-			return MediaFileLocation{ItemID: f.ItemID, File: mediaFile(f), RootPath: f.RootPath, RelPath: f.RelPath}, nil
+			return MediaFileLocation{ItemID: f.ItemID, File: mediaFile(f), RootPath: f.RootPath, RelPath: f.RelPath, ProbedAt: f.ProbedAt.Int64}, nil
 		}
 	}
 	return MediaFileLocation{}, model.ErrNotFound

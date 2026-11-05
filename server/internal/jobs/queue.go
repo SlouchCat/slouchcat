@@ -15,13 +15,15 @@
 //     8 update.check, the daily release check (admin): seconds of work, before every bulk job
 //     7 manual metadata.match and refresh, manual trakt.refresh ("Jetzt abrufen")
 //     6 scan.path
-//     5 scan.library, download.prepare
+//     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
+//     (library, concept 13)
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
 //     library.relink
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
 //     library.sweep, nightly trakt.refresh
-//     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find
+//     1 probe.keyframes of a scan, image.fetch of episode stills, trailer.find, chapters.images of
+//     the backfill (chapters.images_backfill)
 //     A job that runs once a day and finishes in seconds belongs above the bulk rungs (6 and
 //     below): a library import queues tens of thousands of jobs at 1 and 2, and a daily job at
 //     the same rung waits behind all of them.
@@ -308,6 +310,20 @@ func (q *Queue) Cancel(ctx context.Context, id int64) (bool, error) {
 	return n == 1, nil
 }
 
+// SetRunningPayload replaces the payload of a running job, so its handler finds a note in its
+// next run (a retry or a RetryLater keeps the payload). It reports false when the job does not
+// run (any more).
+func (q *Queue) SetRunningPayload(ctx context.Context, id int64, payload json.RawMessage) (bool, error) {
+	if !json.Valid(payload) {
+		return false, errors.New("payload is not valid JSON")
+	}
+	n, err := q.q.SetRunningJobPayload(ctx, systemq.SetRunningJobPayloadParams{Payload: string(payload), Now: q.now().UnixMilli(), ID: id})
+	if err != nil {
+		return false, fmt.Errorf("set payload of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
 // SetQueuedPayload replaces the payload of a queued job, for handlers that coalesce work into
 // one pending job (scan.path merges directories). It reports false when the job is no longer
 // queued: a worker claimed it, or it ended.
@@ -333,6 +349,17 @@ func (q *Queue) RaiseQueuedPriority(ctx context.Context, id int64, priority int)
 	n, err := q.q.RaiseQueuedJobPriority(ctx, systemq.RaiseQueuedJobPriorityParams{Priority: int64(priority), Now: q.now().UnixMilli(), ID: id})
 	if err != nil {
 		return false, fmt.Errorf("raise priority of job %d: %w", id, err)
+	}
+	return n == 1, nil
+}
+
+// PullQueuedForward lets a job that no worker has claimed yet and that waits for a later start
+// (Delay) run now, keeping its priority and attempts, and reports whether it did. A claimed,
+// finished or already due job stays as it is.
+func (q *Queue) PullQueuedForward(ctx context.Context, id int64) (bool, error) {
+	n, err := q.q.PullQueuedJobForward(ctx, systemq.PullQueuedJobForwardParams{Now: q.now().UnixMilli(), ID: id})
+	if err != nil {
+		return false, fmt.Errorf("pull job %d forward: %w", id, err)
 	}
 	return n == 1, nil
 }

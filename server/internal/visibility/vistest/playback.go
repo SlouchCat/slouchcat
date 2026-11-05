@@ -23,6 +23,13 @@ func (f *Fixture) SetMediaFile(t testing.TB, fileID, container, videoCodec, audi
 		container, videoCodec, audioCodec, sql.NullString{String: probe, Valid: probe != ""}, keyframes, fileID)
 }
 
+// SetProbedAt sets the probe time of a media file (Unix milliseconds); the chapter images of a
+// file are stored per probe (concept 13 stage 3).
+func (f *Fixture) SetProbedAt(t testing.TB, fileID string, probedAt int64) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE media_files SET probed_at = ? WHERE id = ?`, probedAt, fileID)
+}
+
 // SetRating changes the own rating of a title (nil = unrated); the triggers update the effective
 // rating, so visibility changes from the next query on.
 func (f *Fixture) SetRating(t testing.TB, itemID string, rating *int) {

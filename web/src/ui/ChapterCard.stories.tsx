@@ -60,3 +60,49 @@ export const Automatic: Story = { render: () => <Row auto /> };
 
 /** Focused by keyboard. */
 export const Focused: Story = { tags: ['press:Tab+Tab'] };
+
+/**
+ * Stage 3: every chapter with its image, the playing one outlined; a replacement chapter keeps
+ * «automatisch» over its image, and an image that fails to load leaves the number.
+ */
+export const Images: Story = {
+  render: () => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 12rem)', gap: '1rem' }}>
+      <ChapterCard
+        index={0}
+        title="Anfang"
+        startMs={0}
+        durationMs={durationMs}
+        imageUrl={art.backdropDusk}
+        progress={100}
+        onPress={noop}
+      />
+      <ChapterCard
+        index={1}
+        title="Die Farm"
+        startMs={600_000}
+        durationMs={durationMs}
+        imageUrl={art.backdropDusk}
+        progress={40}
+        isCurrent
+        onPress={noop}
+      />
+      <ChapterCard
+        index={2}
+        startMs={1_200_000}
+        durationMs={durationMs}
+        imageUrl={art.backdropDusk}
+        auto
+        onPress={noop}
+      />
+      <ChapterCard
+        index={3}
+        title="Los Angeles"
+        startMs={1_800_000}
+        durationMs={durationMs}
+        imageUrl="missing-chapter.webp"
+        onPress={noop}
+      />
+    </div>
+  ),
+};

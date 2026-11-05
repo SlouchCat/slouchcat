@@ -3034,6 +3034,14 @@
           "name": "Intro und Abspann erkennen",
           "trigger": "vom Scan je Serienstaffel"
         },
+        "chapters_images": {
+          "name": "Kapitelbilder erzeugen",
+          "trigger": "je Datei 10 Minuten nach dem Ende einer Wiedergabe, für neue Dateien nach einem vollständigen Scan und nach einer neuen Prüfung"
+        },
+        "chapters_images_backfill": {
+          "name": "Kapitelbilder nachholen",
+          "trigger": "nur von Hand mit «Jetzt ausführen», für alle Filme und Folgen ohne Kapitelbilder"
+        },
         "library_relink": {
           "name": "Gelöschten Titel wiederverknüpfen",
           "trigger": "nach der Zuordnung eines Titels, der einen gelöschten Zwilling hat"

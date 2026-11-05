@@ -88,6 +88,51 @@ describe('SeekBar (concept 13, V-8)', () => {
     expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
   });
 
+  it('shows the image of the chapter under the pointer above time and name, only that one', () => {
+    const { slider, container } = renderBar({
+      chapters: [
+        { startMs: 0, title: 'Anfang', imageUrl: '/c/0.webp' },
+        { startMs: 600_000 },
+        { startMs: 1_200_000, title: 'Ende', imageUrl: '/c/2.webp' },
+      ],
+    });
+    fireEvent.pointerMove(slider, { clientX: 100 });
+    const preview = () => container.querySelector('[aria-hidden="true"]')!;
+    expect(
+      [...preview().querySelectorAll('img')].map((image) => image.getAttribute('src')),
+    ).toEqual(['/c/0.webp']);
+    expect(preview().firstElementChild?.tagName).toBe('IMG');
+    expect(preview().querySelector('img')).toHaveAttribute('alt', '');
+    expect(preview()).toHaveTextContent('3:00Anfang');
+    expect(preview().querySelector('[data-image-box]')).toBeNull();
+    // The second chapter has no image yet: an empty 16:9 box keeps the field's height.
+    fireEvent.pointerMove(slider, { clientX: 500 });
+    expect(preview().querySelector('img')).toBeNull();
+    expect(preview().firstElementChild).toHaveAttribute('data-image-box');
+    expect(preview()).toHaveTextContent('15:00Kapitel 2');
+    fireEvent.pointerMove(slider, { clientX: 900 });
+    expect(preview().querySelector('img')).toHaveAttribute('src', '/c/2.webp');
+  });
+
+  it('drops an image that fails to load and keeps time and name', () => {
+    const { slider, container } = renderBar({
+      chapters: [{ startMs: 0, title: 'Anfang', imageUrl: '/c/missing.webp' }],
+    });
+    fireEvent.pointerMove(slider, { clientX: 100 });
+    fireEvent.error(container.querySelector('img')!);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('[data-image-box]')).not.toBeNull();
+    fireEvent.pointerMove(slider, { clientX: 200 });
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('[aria-hidden="true"]')).toHaveTextContent('6:00Anfang');
+  });
+
+  it('keeps no image box when no chapter has an image', () => {
+    const { slider, container } = renderBar({ chapters });
+    fireEvent.pointerMove(slider, { clientX: 500 });
+    expect(container.querySelector('[data-image-box]')).toBeNull();
+  });
+
   it('shows the time alone without chapters', () => {
     const { slider, container } = renderBar();
     fireEvent.pointerMove(slider, { clientX: 100 });

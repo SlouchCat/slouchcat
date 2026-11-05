@@ -70,6 +70,18 @@ type Service struct {
 	// browseRoots are the directories a new library root must lie below (WithBrowseRoots, E14);
 	// empty switches the rule off.
 	browseRoots []string
+	// cacheDir is the cache directory that holds the chapter images (WithCacheDir, concept 13
+	// stage 3); empty switches chapters.images off.
+	cacheDir string
+	// onChapterImagesStored runs after chapters.images renamed its folder (a test hook; nil
+	// outside tests).
+	onChapterImagesStored func()
+	// hangingReads holds the library roots whose read test of chapters.images timed out and still
+	// hangs (root path → struct{}; Service.readable).
+	hangingReads sync.Map
+	// frameGrabber replaces transcode.Runner.GrabFrame of chapters.images (a test seam; nil
+	// outside tests).
+	frameGrabber func(ctx context.Context, in string, at time.Duration, width int, v transcode.Stream, out string) (bool, error)
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it
@@ -97,6 +109,12 @@ type Service struct {
 
 // Option configures New.
 type Option func(*Service)
+
+// WithCacheDir sets the cache directory below which chapters.images stores the chapter images
+// (chapter_images.go); without it the chapter image jobs do nothing.
+func WithCacheDir(dir string) Option {
+	return func(s *Service) { s.cacheDir = dir }
+}
 
 // WithClock replaces time.Now, for tests.
 func WithClock(now func() time.Time) Option {

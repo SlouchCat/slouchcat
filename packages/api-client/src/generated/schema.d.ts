@@ -592,6 +592,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/items/{id}/chapters/{idx}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Image of a chapter of a film or an episode (binary, contract 1.12.0)
+         * @description Implemented as an `http.Handler` (concept 13 stage 3). `PlaybackInfo.chapters[].imageUrl` names
+         *     this route for every chapter whose image exists; the client does not build the URL itself. One
+         *     WebP frame of 480 px width per chapter, taken a tenth into the chapter (at most 30 s after its
+         *     start, a black frame is replaced by one 10 s later), HDR and Dolby Vision tonemapped to SDR. The
+         *     background job `chapters.images` makes the images 10 minutes after a playback of the file ended
+         *     (never while it plays), when a file appears or changes after a complete scan of its library and
+         *     when a file with images is probed again; `chapters.images_backfill` (Hintergrundjobs) makes them
+         *     for the whole collection. The handler resolves the media file of the title through the
+         *     scope of the active profile: an unknown, invisible or age-restricted title, a `mediaFileId`
+         *     that is no ULID or no file of this title, an `idx` outside the chapter list and a missing image
+         *     answer 404, never 403. The URL carries `v`, the version of the images: the time of the file's
+         *     probe and a fingerprint of its chapter list (`<probedAt>-<8 hex digits>`), so a new probe or
+         *     other chapter marks give new URLs. A `v` of the file's current probe serves the images of that
+         *     version with `ETag` (the version in quotes) and `Cache-Control: private, max-age=31536000,
+         *     immutable`; with another, a malformed or no `v` the answer carries the image of the current
+         *     version with its `ETag` and `Cache-Control: private, no-cache`, so a frame cached under an
+         *     older URL is never shown for a new probe.
+         */
+        get: operations["getChapterImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/items/{id}/trailers": {
         parameters: {
             query?: never;
@@ -4651,12 +4687,39 @@ export interface components {
              */
             current: boolean;
         };
+        /**
+         * @description A chapter on the source timeline. Since contract 1.12.0 (concept 13, 11.6) the chapters of a
+         *     film or an episode follow these rules; audiobooks, podcast episodes and extras keep their marks
+         *     as before. Marks of zero length are dropped. A title that only numbers the chapter (a time such
+         *     as `00:12:36.172`, «Chapter 12», «Kapitel 12») is left out, and the client numbers such chapters
+         *     by their position in the list. A file of at least 30 minutes with fewer than four chapters gets
+         *     replacement chapters instead (`auto`, no title) at its start and at every full 10 minutes of the
+         *     file. A real credits chapter («Credits», «Abspann», «End Credits») that looks like end credits
+         *     (at most 15 minutes, starting in the second half) stays with its title; the 10-minute marks go
+         *     on after it. A section under 3 minutes merges with a neighbour (the last one of a stretch into
+         *     the one before it), and a stretch under 3 minutes after a credits chapter merges into it.
+         */
         Chapter: {
             /** Format: int64 */
             startMs: number;
             /** Format: int64 */
             endMs: number;
             title?: string;
+            /**
+             * @description Set (true) on a replacement chapter that the server placed every 10 minutes because the
+             *     file has too few chapters of its own (since contract 1.12.0, F-6); such a chapter has no
+             *     title. Absent on real chapters.
+             */
+            auto?: boolean;
+            /**
+             * @description Relative URL of `getChapterImage` for this chapter of a film or an episode, set only when
+             *     the image exists (since contract 1.12.0, concept 13 stage 3). It carries `v`, the version of
+             *     the images (probe time and chapter fingerprint), and changes with every new probe and chapter
+             *     list; clients use it as it is. Absent while the background
+             *     job `chapters.images` has not made the image yet, on audiobooks and podcast episodes, and
+             *     in `DownloadManifest.chapters`.
+             */
+            imageUrl?: string;
         };
         PlaybackPart: {
             mediaFileId: string;
@@ -4718,6 +4781,11 @@ export interface components {
             subtitleUrl?: string;
             /** @description The quality rungs of this playback, highest first (W-8 manual choice). */
             qualities: components["schemas"]["QualityOption"][];
+            /**
+             * @description Chapters on the timeline of the playback (empty without marks). Since contract 1.12.0 a film
+             *     or an episode carries cleaned titles, replacement chapters (`Chapter.auto`) and chapter
+             *     images (`Chapter.imageUrl`), see `Chapter`.
+             */
             chapters: components["schemas"]["Chapter"][];
             segments: components["schemas"]["Segments"];
             /** @description The next visible episode of the same series (auto-next, W-9). */
@@ -5601,7 +5669,9 @@ export interface components {
              * @description Chapters on the timeline of the playback (empty without marks): those of an audiobook
              *     on the book's timeline; since contract 1.10.0 also those of a film or an episode, the
              *     chapter marks of the downloaded file that `PlaybackInfo.chapters` offers online. Before
-             *     1.10.0 a video download carried none.
+             *     1.10.0 a video download carried none. Since contract 1.12.0 they follow the rules of
+             *     `Chapter` (cleaned titles, replacement chapters), without `imageUrl`: offline playback
+             *     fetches no chapter images.
              */
             chapters: components["schemas"]["Chapter"][];
         };
@@ -8674,6 +8744,57 @@ export interface operations {
                 };
             };
             /** @description Unknown, not visible, or no image of this kind and size (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getChapterImage: {
+        parameters: {
+            query: {
+                /** @description The media file whose chapters `PlaybackInfo` described (a ULID). */
+                mediaFileId: string;
+                /** @description Version of the images as in `imageUrl` (`<probedAt>-<8 hex digits>`); decides the folder and the caching of the answer. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                /** @description Position of the chapter in `PlaybackInfo.chapters`, from 0. */
+                idx: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chapter image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": string;
+                };
+            };
+            /** @description No valid session (`unauthenticated`). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Unknown or not visible title, no file of this title with this `mediaFileId`, no chapter or no
+             *     image at `idx` (`not_found`).
+             */
             404: {
                 headers: {
                     [name: string]: unknown;

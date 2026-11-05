@@ -431,6 +431,12 @@ type PlaybackService interface {
 	HLS(ctx context.Context, g model.PlaybackGrant, segment int) (model.HLSStream, error)
 	// Stop ends a playback session of the browser session (model.ErrNotFound for any other).
 	Stop(ctx context.Context, session model.Session, playbackID string) error
+	// ChapterImage opens the image of chapter idx of a media file of a visible title (concept 13
+	// stage 3); model.ErrNotFound for anything that is not visible, not a ULID of a file of the
+	// title, or has no image.
+	// version is the v of the image URL (library.ChapterImagesVersion); the ETag of the result
+	// names the version the image belongs to.
+	ChapterImage(ctx context.Context, profile model.Profile, itemID, mediaFileID string, idx int, version string) (model.StreamSource, error)
 	// State reports from memory whether a playback session of the browser session still runs
 	// (concept 13); model.ErrNotFound for any other and for one the server does not know.
 	State(session model.Session, playbackID string) (model.PlaybackState, error)

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectVisibleFocus, tabTo } from './keyboard';
+import { CSRF } from './catalog';
+import { expectFocusOn, expectNoFocusTrap, expectVisibleFocus, tabTo } from './keyboard';
 import {
   arrowTo,
   CHAPTERS_TITLE,
@@ -16,7 +17,8 @@ import {
 
 // W-9: a chapter jump lands within ±1 s of the chapter start; "Intro überspringen" shows during
 // the detected intro and jumps to its end; from the outro (or the end) a 10-s countdown plays the
-// next episode, unless a key cancels it.
+// next episode, unless a key cancels it. Stage 3 of concept 13: the chapter images the job
+// `chapters.images` makes show in the tab «Kapitel» and in the field over the timeline.
 
 const time = async (page: Page) => (await videoState(page)).time;
 
@@ -80,6 +82,103 @@ test('the chapter tab by keyboard jumps to the chapter start (±1 s); Escape clo
   await expect(cards).toHaveCount(0);
   await expectFocusOn(page, tab);
   await expect(page).toHaveURL(/\/play\//);
+});
+
+test('chapter images: the row by keyboard and the field over the timeline (stage 3)', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(60_000);
+  const itemId = await itemIdByTitle(owner, CHAPTERS_TITLE);
+  await resetProgress(page.request, itemId, 10_000);
+  // The test file came with the first scan, so only the backfill (started by hand on the page
+  // Hintergrundjobs, here through its API) makes its images (11.6). A run that already made them
+  // queues nothing; a run that the end of a playback queued 10 minutes ahead is brought forward.
+  // The fixture stopped every running stream, so no playback holds the job back.
+  const run = await owner.post('/api/v1/admin/job-types/chapters.images_backfill/run', {
+    headers: CSRF,
+  });
+  expect(run.status(), await run.text()).toBe(202);
+  // Wait until no backfill or image run waits or runs, so no ffmpeg keeps running into later
+  // specs. Runs that a playback of this spec queues 10 minutes ahead (planned) only wait.
+  const pending = async () => {
+    let total = 0;
+    for (const type of ['chapters.images_backfill', 'chapters.images']) {
+      for (const state of ['queued', 'running']) {
+        const response = await owner.get(`/api/v1/admin/jobs?type=${type}&state=${state}&limit=1`);
+        expect(response.status(), await response.text()).toBe(200);
+        total += ((await response.json()) as { total: number }).total;
+      }
+    }
+    return total;
+  };
+  await expect.poll(pending, { timeout: 30_000 }).toBe(0);
+
+  // A start lists the images (Chapter.imageUrl, only once they exist); the server serves them.
+  const info = await play(page, itemId);
+  const urls = info.chapters.map((chapter) => chapter.imageUrl);
+  expect(urls.every((url) => url !== undefined)).toBe(true);
+  for (const url of urls) {
+    // Relative to the API base, like every image URL (apiUrl in the client).
+    const response = await page.request.get(url!.startsWith('/api/') ? url! : `/api/v1${url}`);
+    expect(response.status(), url).toBe(200);
+  }
+  await page.keyboard.press('Space');
+  await expect.poll(async () => (await videoState(page)).paused).toBe(true);
+
+  // The row: every card shows its image (decorative, the card keeps its name), no number.
+  await page.keyboard.press('c');
+  const cards = page.getByRole('list', { name: 'Kapitel' });
+  const buttons = cards.getByRole('button');
+  await expect(buttons).toHaveCount(3);
+  for (const index of [0, 1, 2]) {
+    const picture = buttons.nth(index).locator('img');
+    await expect(picture).toHaveAttribute('alt', '');
+    await expect(picture).toHaveAttribute('src', new RegExp(`/chapters/${index}/image\\?`));
+    await expect
+      .poll(() => picture.evaluate((element: HTMLImageElement) => element.naturalWidth))
+      .toBeGreaterThan(0);
+  }
+  const start = cards.getByRole('button', { name: /^Kapitel 1: Anfang/ });
+  await expectFocusOn(page, start);
+  await expectVisibleFocus(page);
+  // → walks the cards, Enter jumps; the images change nothing in the keyboard model.
+  const last = cards.getByRole('button', { name: /^Kapitel 3: Ende/ });
+  await arrowTo(page, last, 'ArrowRight');
+  await expectVisibleFocus(page);
+  await page.keyboard.press('Enter');
+  const third = info.chapters[2].startMs / 1000;
+  await expect.poll(() => time(page)).toBeGreaterThanOrEqual(third - 1);
+  expect(await time(page)).toBeLessThanOrEqual(third + 1);
+  await expect(last).toHaveAttribute('aria-current', 'true');
+  // ↑ to the tab strip, ↑ to the button row; Tab leaves the player (no trap).
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('toolbar', { name: 'Mehr zum Titel' }).locator(':focus')).toHaveCount(
+    1,
+  );
+  await page.keyboard.press('ArrowUp');
+  await expect(page.getByRole('toolbar', { name: 'Wiedergabe' }).locator(':focus')).toHaveCount(1);
+  await expectNoFocusTrap(page);
+
+  // The field over the timeline: the pointer over the second chapter (3 to 6.5 s of 10 s) shows
+  // its image above the time and the name.
+  const seek = page.getByRole('slider', { name: 'Wiedergabeposition' });
+  const box = (await seek.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height / 2);
+  const field = seek.locator('[aria-hidden="true"]').filter({ hasText: 'Kapitel 2: Mitte' });
+  await expect(field).toBeVisible();
+  const preview = field.locator('img');
+  await expect(preview).toHaveCount(1);
+  await expect(preview).toHaveAttribute('src', /\/chapters\/1\/image\?/);
+  await expect
+    .poll(() => preview.evaluate((element: HTMLImageElement) => element.naturalWidth))
+    .toBeGreaterThan(0);
+  const pictureBox = (await preview.boundingBox())!;
+  const timeBox = (await field.getByText(/^0:0\d$/).boundingBox())!;
+  expect(pictureBox.y + pictureBox.height).toBeLessThanOrEqual(timeBox.y);
+  // Over the third chapter its image replaces the second's.
+  await page.mouse.move(box.x + box.width * 0.85, box.y + box.height / 2);
+  await expect(seek.locator('img')).toHaveAttribute('src', /\/chapters\/2\/image\?/);
 });
 
 test.describe('intro show', () => {

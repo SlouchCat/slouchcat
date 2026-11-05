@@ -18,6 +18,11 @@ WHERE type = @type AND state IN ('queued', 'running')
 ORDER BY id
 LIMIT 1;
 
+-- name: SetRunningJobPayload :execrows
+-- Replaces the payload of a job a worker runs: the handler keeps a note for its next run (the
+-- first time chapters.images found its file unreadable); a retry keeps the payload.
+UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'running';
+
 -- name: SetQueuedJobPayload :execrows
 -- Replaces the payload of a job that no worker has claimed yet (coalescing of scan.path).
 UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state = 'queued';
@@ -26,6 +31,17 @@ UPDATE jobs SET payload = @payload, updated_at = @now WHERE id = @id AND state =
 -- Raises the priority of a job that no worker has claimed yet and never lowers it: a manual
 -- spotlight refresh (M11) overtakes the nightly one that already waits behind a scan backlog.
 UPDATE jobs SET priority = max(priority, @priority), updated_at = @now WHERE id = @id AND state = 'queued';
+
+-- name: PullQueuedJobForward :execrows
+-- Lets a job that no worker has claimed and that waits for a later start run now, at its own
+-- priority (a backfill started by hand brings a delayed job of the same key forward).
+UPDATE jobs SET run_after = @now, updated_at = @now WHERE id = @id AND state = 'queued' AND run_after > @now;
+
+-- name: RaiseQueuedJobPriorityByKey :execrows
+-- RaiseQueuedJobPriority for the waiting job that holds an idempotency key, inside the caller's
+-- transaction (an event that finds a job of a bulk run under its key raises it to its own rung).
+UPDATE jobs SET priority = max(priority, @priority), updated_at = @now
+WHERE idempotency_key = @idempotency_key AND state = 'queued';
 
 -- name: GetJob :one
 SELECT * FROM jobs WHERE id = @id;

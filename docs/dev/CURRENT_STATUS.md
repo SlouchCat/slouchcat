@@ -1,5 +1,49 @@
 # Aktueller Stand
 
+## Konzept 13 «Abspielseite», Stufe 3 «Bilder»: gebaut, Pull Request vorbereitet (5. November 2026)
+
+**Zweig `claude/abspielseite-stufe3-992847` ab `main` `4022ba8` (Release 1.11.0).** Marcos Wort
+«Wenn Stufe 2 abgeschlossen ist …, starte direkt Stufe 3». Vertrag **1.12.0** (additiv). Keine
+Migration. Alle Entscheide des Baus in `docs/planning/13-abspielseite.md` 11.15 «Stufe 3».
+
+- **Schritt 13:** `transcode.Chapters` für Film und Folge (Hörbücher, Podcasts, Extras
+  unverändert): Titel, die nur eine Zeit oder «Chapter 12» sind, fallen weg (der Client zeigt
+  «Kapitel 3»); unter vier Kapiteln und ab 30 Minuten Ersatzkapitel auf jeder vollen 10. Minute
+  (`Chapter.auto`); ein echter Abspann (höchstens 15 Minuten, zweite Hälfte) bleibt. Wiedergabe und
+  Download-Manifest nutzen dieselbe Funktion, ein gemeinsamer Mapper `toChapters`.
+- **Schritt 14:** `Runner.GrabFrame` (Eingabe-Sprung, ein Bild, WebP 480 px, HDR/DV auf der CPU
+  tonemappt, anamorph entzerrt, Schwarztest im selben Lauf, zweiter Versuch 10 s später); Jobarten
+  `chapters.images` (Ereignis, Priorität 5) und `chapters.images_backfill` (nur von Hand, reiht mit
+  Priorität 1 ein); Ablage `cache/chapters/<mediaFileId>-<probedAt>-<hash8>/`, Aufräumen im
+  stündlichen `library.sweep`; Auslöser neue Datei nach fehlerfreiem Scan, Ende einer Wiedergabe
+  (minütliche Aufräumrunde, 10 Minuten verzögert, wartet solange die Datei läuft) und neuer Probe;
+  `getChapterImage` als `http.Handler` (`scoped`, 404 für alles Unsichtbare, versionierte URL mit
+  `immutable`, sonst `no-cache` mit ETag), `Chapter.imageUrl` in `PlaybackInfo`.
+- **Schritt 15:** Bildreihe im Reiter «Kapitel» (`ChapterCard` mit Bild, Nummer als Rückfall,
+  «automatisch»), Kapitelbild im Feld über der Zeitleiste (`SeekBar`, feste 16:9-Box);
+  Tastaturtest in `chapters.spec.ts`; Stories `UI/ChapterCard` «Images» und `UI/SeekBar`
+  «PreviewImage», Baselines auf CT 190 geschossen (Marcos Wort).
+- **Reviews:** Schritt 13 (0 M), Schritt 15 (2 M), Schritt 14 (4 M), Schluss-Review der Fixes
+  (1 M), Kurz-Review (APPROVE); alle M- und die meisten m-Befunde behoben.
+- **Marcos Entscheid beim Bau:** Backfill-Jobs mit Priorität 1, Ereignis-Jobs 5.
+
+**Belege (`task ci` auf `01a5f04`, Storybook auf `8371246`):**
+
+| Prüfung | Ergebnis |
+|---|---|
+| `ci:server` | Codegen, Lint, `go test` unter `-race`: 35 Pakete `ok` |
+| `ci:web` | Lint, Vitest `1414 passed` |
+| `ci:storybook` | erst `357 passed`, 2 fehlende Baselines; nach den Baselines (`8371246`) `359 passed` |
+| `build`, `ci:e2e:parallel` (3 Shards) | 481 von 481 (157, 162, 162) |
+| Nachzug `ed50794` (nur `library`, `jobs`) | `task check:fast` und gezielte Tests `ok`, golangci-lint 0, `gen:check` sauber |
+
+**Offen:**
+- Push und Pull Request auf Marcos Wort, danach Abnahme auf CT 190 (Bestand braucht
+  «Kapitelbilder nachholen» von Hand) und Release 1.12.0. Release-Notiz-Entwurf
+  `release-notes-1.12.0.txt` im Wurzelordner (unversioniert).
+- Bekannte Grenzen: keine Kapitelbilder offline und im Kapitelblatt des Handy-Layouts; Farben bei
+  Dolby Vision Profil 5 können abweichen.
+
 ## Konzept 13 «Abspielseite», Stufe 2 «Sprache und Qualität»: gemergt und auf CT 190 abgenommen (4. November 2026)
 
 **Zweig `claude/abspielseite-stufe2` ab `main` `d74b665` (Release 1.10.0).** Marcos Wort «Stelle
@@ -52,7 +96,7 @@ Bedeutungsänderung: fehlendes oder leeres `subtitleTrack` heisst «Server wähl
 - **PR #86** auf Marcos Wort gemergt (`632938b`), GitHub-CI 19 von 19 grün.
 - **Release 1.11.0:** Versionsstellen auf 1.11.0 im Zweig `claude/release-1.11.0`
   (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
-  `docs/dev/HANDOVER.md`), Tag `v1.11.0` setzt Marco auf den Merge-Commit. Release-Notes:
+  `docs/dev/HANDOVER.md`), Tag `v1.11.0` auf `4022ba8` (PR #87), gesetzt am 4. November 2026. Release-Notes:
   `release-notes-1.11.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.10.0). Danach Stufe 3
   (Schritte 13 bis 15, Kapitelbilder, Vertrag 1.12.0) in einer neuen Session (Marcos Wort).
 

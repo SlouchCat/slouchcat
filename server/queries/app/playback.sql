@@ -148,6 +148,16 @@ WHERE ps.expires_at >= @since
   AND (ps.revoked_at IS NOT NULL OR ps.expires_at <= @now
        OR s.id IS NULL OR s.revoked_at IS NOT NULL OR s.expires_at <= @now);
 
+-- name: ListEndedPlaybackFiles :many
+-- The media files of the playback sessions that ended in [@since, @now]: revoked (a stop of the
+-- client, the administration, a logout, a replacement) or expired (a closed or killed app). The
+-- sweep queues their chapter images (concept 13 11.6); a row on the bound of two sweeps comes
+-- twice, which the job key absorbs. A row is revoked before it expires, so the index on expires_at
+-- bounds the scan.
+SELECT DISTINCT media_file_id FROM playback_sessions
+WHERE expires_at >= @since AND media_file_id <> ''
+  AND ((revoked_at >= @since AND revoked_at <= @now) OR (revoked_at IS NULL AND expires_at <= @now));
+
 -- name: DeleteExpiredPlaybackSessions :execrows
 -- Rows that ended before @before (the retention of the statistics).
 DELETE FROM playback_sessions WHERE expires_at < @before OR revoked_at IS NOT NULL AND revoked_at < @before;

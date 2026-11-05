@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { SeekBar } from './SeekBar';
+import { art } from './stories/fixtures';
 
 // A film of two hours: eight chapters, the third without a title.
 const chapters = [
@@ -55,13 +56,10 @@ export const Chapters: Story = {
 /** Focused by keyboard: the track thickens and shows the thumb. */
 export const Focused: Story = { args: { chapters }, tags: ['press:Tab'] };
 
-/**
- * The pointer rests over the third chapter: the field shows the time and «Kapitel 3», which has no
- * title of its own.
- */
-export const Preview: Story = {
-  args: { chapters },
-  play: ({ canvasElement }) => {
+/** Rests the pointer over the bar at a fraction of its width. */
+const pointAt =
+  (at: number) =>
+  ({ canvasElement }: { canvasElement: HTMLElement }) => {
     const slider = canvasElement.querySelector<HTMLElement>('[role="slider"]');
     if (!slider) return;
     const box = slider.getBoundingClientRect();
@@ -69,9 +67,30 @@ export const Preview: Story = {
       new PointerEvent('pointermove', {
         bubbles: true,
         pointerType: 'mouse',
-        clientX: box.left + box.width * 0.3,
+        clientX: box.left + box.width * at,
         clientY: box.top + box.height / 2,
       }),
     );
-  },
+  };
+
+/**
+ * The pointer rests over the third chapter: the field shows the time and «Kapitel 3», which has no
+ * title of its own.
+ */
+export const Preview: Story = { args: { chapters }, play: pointAt(0.3) };
+
+/**
+ * Stage 3: the chapters have images, and the field shows the image of the chapter under the
+ * pointer («Los Angeles») above the time and the name.
+ */
+export const PreviewImage: Story = {
+  args: { chapters: chapters.map((chapter) => ({ ...chapter, imageUrl: art.backdropDusk })) },
+  decorators: [
+    (Story) => (
+      <div style={{ paddingTop: '6rem' }}>
+        <Story />
+      </div>
+    ),
+  ],
+  play: pointAt(0.4),
 };

@@ -7,6 +7,8 @@ import styles from './SeekBar.module.css';
 export interface SeekBarChapter {
   startMs: number;
   title?: string;
+  /** The chapter image (stage 3, `Chapter.imageUrl` resolved), shown in the field over the pointer. */
+  imageUrl?: string;
 }
 
 /** A stretch the server detected (contract `Segment`). */
@@ -23,7 +25,7 @@ interface SeekBarProps {
   /** Buffered ranges as [startMs, endMs]. */
   buffered: readonly (readonly [number, number])[];
   onSeek: (ms: number) => void;
-  /** Chapter marks on the track; the preview names the chapter under the pointer. */
+  /** Chapter marks on the track; the preview names the chapter under the pointer, with its image. */
   chapters?: readonly SeekBarChapter[];
   /** Intro and outro, drawn lighter than the rest of the unfilled track. */
   segments?: { intro?: SeekBarSegment; outro?: SeekBarSegment };
@@ -44,7 +46,8 @@ export function chapterIndexAt(chapters: readonly SeekBarChapter[], ms: number):
 
 /**
  * Seek bar as an ARIA slider: chapter marks, a lighter intro and outro, and while the pointer is
- * over it a small field with the time and the chapter there. Plain arrow keys are handled by the
+ * over it a small field with the image of the chapter there (when it has one; no trickplay, F-7),
+ * the time and the chapter's name. Plain arrow keys are handled by the
  * player's key map (±10 s); the slider itself takes Shift+←/→ for the chapters, when the page
  * passes them, and the pointer.
  */
@@ -64,6 +67,9 @@ export function SeekBar({
   const track = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
   const [pointerMs, setPointerMs] = useState<number | null>(null);
+  // Images that failed to load: the same rule as ChapterCard, a URL that failed is not loaded
+  // again while the bar is mounted; the field shows the empty box for it.
+  const [failedImages, setFailedImages] = useState<ReadonlySet<string>>(() => new Set());
   const fraction = (ms: number) => (durationMs > 0 ? Math.min(1, Math.max(0, ms / durationMs)) : 0);
   const percent = (ms: number) => `${fraction(ms) * 100}%`;
   const stretch = (start: number, end: number): CSSProperties => ({
@@ -87,6 +93,11 @@ export function SeekBar({
       ? undefined
       : (chapters[chapterAtPointer]?.title ??
         t('player.chapters.untitled', { n: chapterAtPointer + 1 }));
+  const chapterImage = chapterAtPointer < 0 ? undefined : chapters[chapterAtPointer]?.imageUrl;
+  const previewImage = chapterImage && !failedImages.has(chapterImage) ? chapterImage : undefined;
+  // Once a chapter of the title has an image, every chapter keeps the 16:9 box, so the field does
+  // not change its height between chapters with and without one.
+  const imageBox = chapters.some((chapter) => chapter.imageUrl);
 
   return (
     <div
@@ -180,13 +191,32 @@ export function SeekBar({
         <span className={styles.thumb} style={{ left: percent(currentMs) }} />
       </div>
       {pointerMs !== null && (
-        // The slider speaks its value; the field is for the pointer only. Its fixed width (room
-        // for a chapter image in stage 3) keeps it inside the bar at both ends.
+        // The slider speaks its value; the field is for the pointer only. Its fixed width (the
+        // room of the chapter image) keeps it inside the bar at both ends.
         <div
           className={styles.preview}
           aria-hidden="true"
           style={{ left: `clamp(5rem, ${percent(pointerMs)}, calc(100% - 5rem))` }}
         >
+          {previewImage ? (
+            // Only the chapter under the pointer loads its image; the browser cache keeps it for
+            // the next visit. The key gives each chapter a fresh element, so the field never shows
+            // the previous chapter's image under this one's name while it loads; the box keeps its
+            // 16:9 size meanwhile. Decoded at once (no `decoding="async"`): the field is on screen
+            // only while the pointer rests.
+            <img
+              key={previewImage}
+              className={styles.previewImage}
+              src={previewImage}
+              alt=""
+              width={480}
+              height={270}
+              draggable={false}
+              onError={() => setFailedImages((failed) => new Set(failed).add(previewImage))}
+            />
+          ) : (
+            imageBox && <span className={styles.previewImage} data-image-box="" />
+          )}
           <span className={styles.previewTime}>{formatPlayerTime(pointerMs, durationMs)}</span>
           {chapterName && <span className={styles.previewChapter}>{chapterName}</span>}
         </div>

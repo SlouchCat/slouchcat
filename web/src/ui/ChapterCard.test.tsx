@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -49,6 +49,66 @@ describe('ChapterCard (concept 13, V-8)', () => {
     );
     expect(container.querySelector('img')).toHaveAttribute('src', 'c.webp');
     expect(screen.getByRole('button').textContent).toBe('Anfang 0:00');
+  });
+
+  it('draws the image as decoration, lazily, and goes back to the number when it fails', () => {
+    const { container, rerender } = render(
+      <ChapterCard
+        index={2}
+        title="Der Damm"
+        startMs={0}
+        durationMs={60_000}
+        imageUrl="/api/v1/items/a/chapters/2/image?mediaFileId=b"
+        onPress={() => undefined}
+      />,
+    );
+    const image = container.querySelector('img')!;
+    expect(image).toHaveAttribute('alt', '');
+    expect(image).toHaveAttribute('loading', 'lazy');
+    expect(screen.getByRole('button')).toHaveAccessibleName('Der Damm 0:00');
+    fireEvent.error(image);
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByRole('button')).toHaveTextContent('3');
+    // Another image (a new probe, another file) is tried; the failed one is not loaded again.
+    rerender(
+      <ChapterCard
+        index={2}
+        title="Der Damm"
+        startMs={0}
+        durationMs={60_000}
+        imageUrl="/api/v1/items/a/chapters/2/image?mediaFileId=c"
+        onPress={() => undefined}
+      />,
+    );
+    expect(container.querySelector('img')).toHaveAttribute(
+      'src',
+      '/api/v1/items/a/chapters/2/image?mediaFileId=c',
+    );
+    rerender(
+      <ChapterCard
+        index={2}
+        title="Der Damm"
+        startMs={0}
+        durationMs={60_000}
+        imageUrl="/api/v1/items/a/chapters/2/image?mediaFileId=b"
+        onPress={() => undefined}
+      />,
+    );
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('keeps «automatisch» on a replacement chapter with an image', () => {
+    render(
+      <ChapterCard
+        index={3}
+        startMs={1_800_000}
+        durationMs={7_200_000}
+        imageUrl="c.webp"
+        auto
+        onPress={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('button')).toHaveAccessibleName('Kapitel 4 automatisch 0:30:00');
   });
 
   it('marks the playing chapter, its progress and a replacement chapter', () => {

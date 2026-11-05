@@ -1,4 +1,4 @@
-import type { Ref } from 'react';
+import { useState, type Ref } from 'react';
 import { Button } from 'react-aria-components';
 import { useTranslation } from 'react-i18next';
 import { formatPlayerTime } from '@/lib/format';
@@ -14,7 +14,10 @@ interface ChapterCardProps {
   startMs: number;
   /** Length of the title: from an hour on the time reads h:mm:ss. */
   durationMs: number;
-  /** The chapter image (stage 3); until there is one the card shows the number. */
+  /**
+   * The chapter image (stage 3, `Chapter.imageUrl` resolved); until there is one, or when it fails
+   * to load, the card shows the number.
+   */
   imageUrl?: string;
   /** How much of the chapter has played, 0 … 100; left out for a chapter not reached yet. */
   progress?: number;
@@ -52,6 +55,10 @@ export function ChapterCard({
   const { t } = useTranslation();
   const name = title ?? t('player.chapters.untitled', { n: index + 1 });
   const played = progress === undefined ? undefined : Math.min(100, Math.max(0, progress));
+  // The rule of SeekBar's field: a URL that failed is not loaded again while the card is
+  // mounted; another URL (a new probe, another file) is.
+  const [failedImages, setFailedImages] = useState<ReadonlySet<string>>(() => new Set());
+  const image = imageUrl && !failedImages.has(imageUrl) ? imageUrl : undefined;
   return (
     <Button
       ref={ref}
@@ -62,16 +69,20 @@ export function ChapterCard({
       excludeFromTabOrder={excludeFromTabOrder || (tabIndex !== undefined && tabIndex < 0)}
     >
       <span className={styles.frame}>
-        {imageUrl ? (
+        {image ? (
+          // Decoration: the card is named by its title. The key gives a new URL a fresh element,
+          // so the frame never shows the old image while the new one loads.
           <img
+            key={image}
             className={styles.image}
-            src={imageUrl}
+            src={image}
             alt=""
             width={480}
             height={270}
             loading="lazy"
             decoding="async"
             draggable={false}
+            onError={() => setFailedImages((failed) => new Set(failed).add(image))}
           />
         ) : (
           <span className={styles.number} aria-hidden="true">
