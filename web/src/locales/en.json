@@ -701,7 +701,8 @@
       "original": "Original",
       "detail": "{{bitrate}} · about {{size}} per hour",
       "unavailableBurn": "Subtitles are burned in",
-      "unavailableIndex": "Index is being built",
+      "unavailableIndex": "Index not built yet",
+      "unavailableNoIndex": "No index possible",
       "unavailableTranscode": "Plays only converted",
       "remembered": "Remembered: {{quality}}",
       "rememberedNote": "Titles above {{quality}} are then converted.",
@@ -3040,7 +3041,7 @@
         },
         "probe_keyframes": {
           "name": "Keyframe index (read the whole file)",
-          "trigger": "From the scan per file, before a playback with priority"
+          "trigger": "On import only without an index from the container, from the backfill, before a playback (also while paused) and for offline downloads"
         },
         "keyframes_backfill": {
           "name": "Backfill keyframe index",

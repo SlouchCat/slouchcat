@@ -57,8 +57,8 @@ test('the scanned test library is listed with its state and counts', async ({ pa
   await expect(foldOut(page, 'Filme').getByText(/testdata\/media\/Movies$/)).toBeVisible();
   await expect(foldOut(page, 'Filme').getByText(/^Dateisystem /)).toBeVisible();
 
-  // The keyframe index of the video library (concept 14, 7.2): its counts, and while files wait
-  // the link to the backfill on the jobs page, which Enter follows.
+  // The keyframe index of the video library (concept 14, 7.2): its counts, and the link to the
+  // backfill only while files wait (the next test follows it).
   const listed = await page.request.get('/api/v1/admin/libraries');
   expect(listed.status(), await listed.text()).toBe(200);
   const movies = (
@@ -73,15 +73,43 @@ test('the scanned test library is listed with its state and counts', async ({ pa
   const backfill = foldOut(page, 'Filme').getByRole('link', {
     name: 'Nachholen auf der Seite Hintergrundjobs',
   });
-  if ((movies?.keyframeIndex?.pending ?? 0) === 0) {
-    await expect(backfill).toHaveCount(0);
-    return;
-  }
+  await expect(backfill).toHaveCount((movies?.keyframeIndex?.pending ?? 0) > 0 ? 1 : 0);
+});
+
+test('the keyframe index links the backfill, whose row the jobs page opens', async ({ page }) => {
+  // With cue indexes the test library has nothing pending: the answer says files wait, the rest
+  // is the real page.
+  await page.route('**/api/v1/admin/libraries', async (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    const response = await route.fetch();
+    const body = (await response.json()) as { name: string; keyframeIndex?: unknown }[];
+    for (const library of body) {
+      if (library.name === 'Filme') {
+        library.keyframeIndex = { videoFiles: 4, indexed: 3, pending: 1, unavailable: 0 };
+      }
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await page.reload();
+  await expect(toggle(page, 'Filme')).toBeVisible();
+  await resetFocus(page);
+  await openRow(page, 'Filme');
+  await expect(
+    foldOut(page, 'Filme').getByText(
+      'Keyframe-Index: 3 von 4 Videodateien · 1 ausstehend · 0 nicht möglich',
+    ),
+  ).toBeVisible();
+  const backfill = foldOut(page, 'Filme').getByRole('link', {
+    name: 'Nachholen auf der Seite Hintergrundjobs',
+  });
   await tabTo(page, backfill, 20);
   await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/jobs\?item=keyframes\.backfill$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Keyframe-Index nachholen', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('tabs by kind with the arrow keys, counts and the tab in the address', async ({ page }) => {

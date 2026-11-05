@@ -934,6 +934,44 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     );
   });
 
+  it('opens keyframes.backfill from the link of the libraries page (concept 14, 7.3)', async () => {
+    mockApi(
+      routes({
+        'GET /admin/job-types': () =>
+          json({
+            ...overview(),
+            types: [
+              ...overview().types,
+              type({
+                type: 'keyframes.backfill',
+                schedule: {
+                  everySeconds: 604_800,
+                  nextRunAt: '2026-11-12T03:00:00Z',
+                  enabled: false,
+                  timeZone: 'Europe/Zurich',
+                  limits: { minEverySeconds: 300, maxEverySeconds: 604_800 },
+                },
+              }),
+            ],
+          }),
+      }),
+    );
+    renderApp('/admin/jobs?item=keyframes.backfill');
+    const tabs = await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    await waitFor(() =>
+      expect(within(tabs).getByRole('tab', { selected: true })).toHaveAccessibleName(/^Bibliothek/),
+    );
+    await waitFor(() =>
+      expect(
+        within(groupPanel()).getByRole('button', { name: 'Keyframe-Index nachholen' }),
+      ).toHaveAttribute('aria-expanded', 'true'),
+    );
+    expect(within(groupPanel()).getByRole('button', { name: 'Bibliotheksscan' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  });
+
   it('refuses anyone but an administrator in the primary profile', async () => {
     const { calls } = mockApi(
       routes({

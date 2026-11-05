@@ -616,8 +616,8 @@ export const reasonText = (t: TFunction, reason: string): string =>
 
 /**
  * Second line of a quality option (11.5): why `original` is not available, from what the server
- * reports about the playback (burned-in subtitles, a keyframe index still being built, any other
- * transcode); else the bit rate and the data per hour the client estimates from it (bit/s × 3600
+ * reports about the playback (burned-in subtitles, a keyframe index not built yet or not
+ * possible, any other transcode); else the bit rate and the data per hour the client estimates from it (bit/s × 3600
  * / 8, «ca. 3,6 GB pro Stunde» for 8 Mbit/s).
  */
 export function qualityDetail(
@@ -630,6 +630,9 @@ export function qualityDetail(
     if (info.selection.subtitleDelivery === 'burn') return t('player.quality.unavailableBurn');
     if (info.transcoding?.reason === 'keyframes_pending') {
       return t('player.quality.unavailableIndex');
+    }
+    if (info.transcoding?.reason === 'keyframes_unavailable') {
+      return t('player.quality.unavailableNoIndex');
     }
     return t('player.quality.unavailableTranscode');
   }

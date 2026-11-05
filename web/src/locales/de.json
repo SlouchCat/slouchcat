@@ -701,7 +701,8 @@
       "original": "Original",
       "detail": "{{bitrate}} · ca. {{size}} pro Stunde",
       "unavailableBurn": "Untertitel werden eingebrannt",
-      "unavailableIndex": "Index wird erstellt",
+      "unavailableIndex": "Index fehlt noch",
+      "unavailableNoIndex": "Kein Index möglich",
       "unavailableTranscode": "Nur umgewandelt abspielbar",
       "remembered": "Gemerkt: {{quality}}",
       "rememberedNote": "Titel über {{quality}} werden dann umgewandelt.",
@@ -3040,7 +3041,7 @@
         },
         "probe_keyframes": {
           "name": "Keyframe-Index (ganze Datei lesen)",
-          "trigger": "vom Scan je Datei, vor einer Wiedergabe mit Vorrang"
+          "trigger": "beim Einlesen nur ohne Index aus dem Container, beim Nachholen, vor einer Wiedergabe (auch bei Pause) und für Offline-Downloads"
         },
         "keyframes_backfill": {
           "name": "Keyframe-Index nachholen",
