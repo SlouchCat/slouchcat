@@ -1190,6 +1190,56 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist (Schritt 0).
   Hintergrundjobs, kein Dialog; «Einmalig am» kommt dorthin. Die Streams-Ansicht zeigt Kacheln
   (`StreamTile`); der Grund wird dort eine Zeile der Kachel statt einer Spalte.
 
+- **Schritt 1 (Ratensteuerung):** Ziel `vbrTarget(R) = max(0,75 · R, min(R − 1 kbit/s, 1 Mbit/s))` für QSV
+  und VAAPI, gültig ab `maxrate ≥ 2`; 360p bekommt damit 999 kbit/s, 2160p 18,75 Mbit/s. Beides ist
+  erst in Schritt 8 gemessen. Der CBR-Zweig der Downloads bleibt Byte für Byte.
+- **Schritt 2 (`mediaindex`):** Eigenbau bleibt (O-12), rund 430 und 410 Codezeilen; der Mehrumfang ist
+  Härtung, nicht Sonderfälle. `ctts` wird auch in Version 0 vorzeichenbehaftet gelesen (wie ffmpeg),
+  Einträge hinter dem Ende von `ctts` haben Versatz 0, fragmentiertes MP4 erkennt der Leser auch an
+  `mvex`. Die Dauer aus dem Matroska-Kopf wird nicht gelesen, `Check` nimmt die Dauer der Probe.
+  Cue-Zeiten, die rückwärts laufen, verwerfen den Index (Zeichen für Beschädigung). Die Obergrenze für
+  SeekHeads zählt Versuche, nicht Erfolge (Review A, M). **Befund zur Endlücke:** weil die innere Lücke
+  auf 30 s begrenzt ist, ist `max(60 s, 2 × grösste Lücke)` immer 60 s.
+- **Schritt 3 (Einlesen):** Die Stichprobe springt auf Eintrag + 1 ms, weil ffprobe rückwärts sucht und
+  die Einträge auf ms gerundet sind; die Toleranz ist damit −2/+1 ms. Die Saat ist ein FNV-64a-Wert der
+  Datei-ID. Ein leerer Index wird als `none` ohne Blob gespeichert. Nicht indexwürdige Dateien (VC-1,
+  MPEG-2, ohne Video) bekommen keinen Volllese-Job mehr (2.1). Auch `probe_error` wird nur für die
+  gemerkte Dateiversion geschrieben (Review B, M); eine geänderte Datei wird ohne verbrauchten Versuch
+  wiederholt (`jobs.RetryLater`). `MediaFileLocation` und `GetDownloadSource` tragen `mtime`.
+- **Schritt 4 (Jobs):** Migration 00033 hat zusätzlich den Teilindex `jobs_override_pause` (Prüfung
+  der Obergrenze bei 50 000 wartenden Jobs 9,1 ms → 38 µs) und `media_files_keyframes` auf
+  `(keyframes_source, id)` (Nachhol-Lauf ohne Sortieren); 00033 war dabei noch nicht ausgeliefert.
+  `probe.keyframes` überspringt nur bei gesetzter Quelle oder nicht remuxbarem Codec: Hörbücher und
+  Podcast-Folgen bekommen ihren Index weiter auf Abruf beim Abspielen (2.3). Eine Zeitüberschreitung
+  beim Lesen des Containers führt zu Backoff, nicht zur Volllesung, und eine fehlende Datei zu keiner
+  Volllesung (Review C): der einzige Arbeiter im Pool `index` bleibt frei. Ändert sich die Datei
+  während einer Volllesung, läuft der Job auf der neuen Version erneut (Review B). Die 24-h-Sperre
+  schaut auf den neuesten beendeten Lauf der Datei. Fehlertexte nennen den Pfad relativ zur Wurzel.
+  Termin und Takt werden in einer Transaktion geschrieben; ein zwischen Lesen und Feuern neu
+  gesetzter Termin bleibt stehen, `last_fired_at` wird trotzdem gesetzt; `clearOnce` geht vor
+  `onceLocal`; ein verpasster Termin einer Jobart mit `StartDelay` feuert nach dieser Verzögerung.
+- **Schritt 5 (Wiedergabe, Offline):** Offline-Downloads warten nur, solange wirklich eine Volllesung
+  eingereiht ist oder läuft; nach einem Fehlschlag in den letzten 24 h kodieren sie sofort (Review D,
+  M). «Original» wird für `keyframes_unavailable` nicht angeboten. Nach einem Dateiwechsel antworten
+  alle HLS-Endpunkte und die Untertitel-Route der Sitzung 10 Minuten lang mit 409 (Marke nur im
+  Speicher, gefälschtes Token weiter 401), die Statusabfrage mit 404; so startet auch der eingebaute
+  Player von Safari neu, statt «von der Verwaltung beendet» zu melden. Kein Aktivitätseintrag für
+  diesen Fall (bräuchte einen neuen Wert für `ActivityDetail.by`).
+- **Schritt 6 (Vertrag 1.13.0):** Die Zählung `AdminCountKeyframeIndex` liegt in `admin` mit
+  `INDEXED BY media_files_keyframes`; ein Test bindet die vier Stellen der Regel «indexwürdig»
+  (Go, Zählung, Liste und Zählung des Nachhol-Laufs) über 168 Kombinationen zusammen. `keyframeIndex`
+  steht in jeder Antwort der Verwaltung mit einer Bibliothek. Die 409 steht an beiden Playlisten,
+  `init.mp4`, `seg/{n}` und den Untertiteln. Neu dazu `JobTypeInfo.overridesPauseForPlayback`, damit der
+  Client die Pause-Ausnahme nicht selbst kennt (Review D). Neues ist mit «since contract 1.13.0»
+  markiert.
+- **Schritt 7 (Oberfläche):** Der Grund steht als eigene Zeile der Stream-Kachel; die Abdeckung steht
+  im aufgeklappten Bereich der Bibliothek und fehlt bei 0 Videodateien; der Link führt nach
+  `/admin/jobs?item=keyframes.backfill`. Der Pool heisst «Keyframe-Index: 1 Arbeiter». «Termin
+  entfernen» leert den Entwurf, erst «Speichern» schickt `clearOnce`. Ein halb ausgefülltes Datum hält
+  die native Prüfung des Browsers vom Speichern ab (mit dem Text des Browsers). Der Player erkennt den
+  Dateiwechsel am Status 409, weil hls.js den Inhalt der Antwort nicht weitergibt. Safari ist mangels
+  Apple-Gerät nur mit Vitest geprüft.
+
 ---
 
 ## 12. Risiken
