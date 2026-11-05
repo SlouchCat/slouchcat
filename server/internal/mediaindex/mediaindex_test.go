@@ -51,7 +51,8 @@ func TestToDuration(t *testing.T) {
 		{9_223_372_036, 1, 9_223_372_036 * time.Second, true}, // the largest whole second
 		{92_233_720_369, 10, 0, false},                        // 9223372036.9 s: the remainder overflows
 		{math.MaxInt64, 1, 0, false},
-		{math.MinInt64, 1 << 32, 0, false},
+		{math.MinInt64, 1, 0, false},       // the negative overflow guard
+		{math.MinInt64, 1 << 32, 0, false}, // the scale guard
 		{1, 0, 0, false},
 	} {
 		got, ok := toDuration(tc.x, tc.scale)

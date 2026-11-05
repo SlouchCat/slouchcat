@@ -45,6 +45,8 @@ func TestRateControlNeverCQP(t *testing.T) {
 		{"720p", 720, 1_200_000, 1_000_000},
 		{"480p", 480, 900_000, 899_000},
 		{"360p", 360, 500_000, 499_000},
+		{"360p", 360, 3, 2},
+		{"360p", 360, 2, 1}, // the smallest cap with a target below it
 	}
 	for _, b := range backends {
 		for _, c := range cases {

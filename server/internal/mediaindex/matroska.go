@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+	"slices"
 	"time"
 )
 
@@ -37,7 +38,8 @@ const (
 	mkvCuesLimit   = 8 << 20  // Cues in one read; the largest measured was 2.03 MB
 	mkvTail        = 1 << 20  // searched for the Cues ID when no SeekHead names them
 	mkvTopLevel    = 64       // top-level elements walked before the first Cluster
-	mkvSeekHeads   = 4        // SeekHeads followed (mkvmerge writes a second one at the end)
+	mkvSeekHeads   = 4        // SeekHead positions tried (mkvmerge writes a second one at the end)
+	mkvCandidates  = 5        // positions kept per element: one per SeekHead and one from the walk
 	mkvTailTries   = 16       // Cues ID matches tried in the tail
 	trackTypeVideo = 1
 	mkvHeaderMax   = 12 // ID (up to 4 bytes) and size (up to 8 bytes)
@@ -58,8 +60,8 @@ type matroska struct {
 	head      []byte // file bytes [0, len(head))
 	segStart  int64  // seek positions are relative to it (RFC 9559, section 16)
 	segEnd    int64
-	found     map[uint32]int64 // file offset of Info, Tracks, Cues
-	seekHeads map[int64]bool   // SeekHeads already read
+	found     map[uint32][]int64 // file offsets of Info, Tracks, Cues, in the order found
+	seekHeads map[int64]bool     // SeekHead positions already tried
 }
 
 func readMatroska(rd *reader) (Index, error) {
@@ -67,7 +69,7 @@ func readMatroska(rd *reader) (Index, error) {
 	if err != nil {
 		return Index{}, err
 	}
-	m := &matroska{rd: rd, head: head, found: map[uint32]int64{}, seekHeads: map[int64]bool{}}
+	m := &matroska{rd: rd, head: head, found: map[uint32][]int64{}, seekHeads: map[int64]bool{}}
 	ebml, err := m.element(0)
 	if err != nil || ebml.id != idEBML || ebml.unknown {
 		return Index{}, fmt.Errorf("%w: no EBML header", ErrNoIndex)
@@ -80,9 +82,7 @@ func readMatroska(rd *reader) (Index, error) {
 		return Index{}, fmt.Errorf("%w: segment of unknown size", ErrNoIndex)
 	}
 	m.segStart, m.segEnd = seg.data, min(seg.data+seg.size, rd.size)
-	if err := m.locate(); err != nil {
-		return Index{}, err
-	}
+	m.locate()
 	scale, err := m.timestampScale()
 	if err != nil {
 		return Index{}, err
@@ -96,55 +96,67 @@ func readMatroska(rd *reader) (Index, error) {
 	return ix, err
 }
 
-// locate finds Info, Tracks and Cues: through the SeekHeads (a SeekHead may name a second one)
-// and by walking the top-level elements up to the first Cluster, then, for Cues only, by a
-// search of the last MiB (cues).
-func (m *matroska) locate() error {
+// locate notes the candidate positions of Info, Tracks and Cues: those the SeekHeads name (a
+// SeekHead may name a second one) and those of a walk over the top-level elements up to the first
+// Cluster. A SeekHead entry may be stale, so the walk goes on when the SeekHeads named all three;
+// master and cues try the candidates in order, cues then searches the last MiB. An element whose
+// header does not parse ends the walk, a SeekHead that does not parse is skipped: what was found
+// so far still counts.
+func (m *matroska) locate() {
 	pos := m.segStart
 	for range mkvTopLevel {
-		if pos >= m.segEnd || (m.found[idInfo] > 0 && m.found[idTracks] > 0 && m.found[idCues] > 0) {
-			return nil
+		if pos >= m.segEnd {
+			return
 		}
 		el, err := m.element(pos)
 		if err != nil {
-			return err
+			return
 		}
 		switch el.id {
 		case idCluster:
-			return nil
+			return
 		case idSeekHead:
-			if err := m.seekHead(el, pos); err != nil {
-				return err
+			if m.try(pos) {
+				m.seekHead(el)
 			}
 		case idInfo, idTracks, idCues:
 			m.note(el.id, pos)
 		}
 		if el.unknown {
-			return nil
+			return
 		}
 		pos = el.data + el.size
 	}
-	return nil
 }
 
+// note adds pos to the candidates of id, at most mkvCandidates distinct ones.
 func (m *matroska) note(id uint32, pos int64) {
-	if m.found[id] == 0 { // pos > 0: the EBML header comes first
-		m.found[id] = pos
+	if c := m.found[id]; len(c) < mkvCandidates && !slices.Contains(c, pos) {
+		m.found[id] = append(c, pos)
 	}
 }
 
-// seekHead notes the positions a SeekHead names and follows the SeekHeads it names.
-func (m *matroska) seekHead(el element, pos int64) error {
+// try reports whether the SeekHead at pos may be read and counts it: every position tried, read
+// or not, uses up one of mkvSeekHeads, so a SeekHead naming thousands of stale SeekHeads costs at
+// most mkvSeekHeads reads.
+func (m *matroska) try(pos int64) bool {
 	if m.seekHeads[pos] || len(m.seekHeads) >= mkvSeekHeads {
-		return nil
+		return false
 	}
 	m.seekHeads[pos] = true
+	return true
+}
+
+// seekHead notes the positions a SeekHead names and follows the SeekHeads it names. A SeekHead
+// that cannot be read ends here; the entries before a corrupt one still count (master and cues
+// check what they find at a position).
+func (m *matroska) seekHead(el element) {
 	data, err := m.data(el, mkvMasterLimit)
 	if err != nil {
-		return err
+		return
 	}
 	var next []int64
-	err = eachChild(data, func(id uint32, seek []byte) error {
+	_ = eachChild(data, func(id uint32, seek []byte) error {
 		if id != idSeek {
 			return nil
 		}
@@ -176,26 +188,22 @@ func (m *matroska) seekHead(el element, pos int64) error {
 		case idInfo, idTracks, idCues:
 			m.note(target, p)
 		case idSeekHead:
-			next = append(next, p)
+			if len(next) < mkvSeekHeads { // more could never be tried
+				next = append(next, p)
+			}
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
 	for _, p := range next {
-		if m.seekHeads[p] || len(m.seekHeads) >= mkvSeekHeads {
-			continue // checked before the read: a SeekHead may name thousands of SeekHeads
+		if !m.try(p) {
+			continue
 		}
 		sh, err := m.element(p)
 		if err != nil || sh.id != idSeekHead {
 			continue // a stale entry; the walk and the tail search remain
 		}
-		if err := m.seekHead(sh, p); err != nil {
-			return err
-		}
+		m.seekHead(sh)
 	}
-	return nil
 }
 
 // timestampScale reads TimestampScale from Info (default 1 000 000 ns).
@@ -256,27 +264,21 @@ func (m *matroska) videoTrack() (uint64, error) {
 	return track, err
 }
 
-// master reads the data of the Info or Tracks element.
+// master reads the data of the Info or Tracks element at the first candidate that holds it.
 func (m *matroska) master(id uint32) ([]byte, error) {
-	pos := m.found[id]
-	if pos == 0 {
-		return nil, fmt.Errorf("%w: element %#x not found", ErrNoIndex, id)
+	for _, pos := range m.found[id] {
+		if el, err := m.element(pos); err == nil && el.id == id {
+			return m.data(el, mkvMasterLimit)
+		}
 	}
-	el, err := m.element(pos)
-	if err != nil {
-		return nil, err
-	}
-	if el.id != id {
-		return nil, fmt.Errorf("%w: element %#x expected at %d", ErrNoIndex, id, pos)
-	}
-	return m.data(el, mkvMasterLimit)
+	return nil, fmt.Errorf("%w: element %#x not found", ErrNoIndex, id)
 }
 
-// cues returns the video cue times (videoCues) of the Cues element where a SeekHead or the walk
-// found it, else of the first match of its ID in the last MiB of the file that parses as Cues
+// cues returns the video cue times (videoCues) of the Cues element at the first candidate that
+// holds it, else of the first match of its ID in the last MiB of the file that parses as Cues
 // with video cues.
 func (m *matroska) cues(track, scale uint64) ([]time.Duration, int, error) {
-	if pos := m.found[idCues]; pos > 0 {
+	for _, pos := range m.found[idCues] {
 		el, err := m.element(pos)
 		if err == nil && el.id == idCues {
 			data, err := m.data(el, mkvCuesLimit)
@@ -310,9 +312,11 @@ func (m *matroska) cues(track, scale uint64) ([]time.Duration, int, error) {
 }
 
 // videoCues returns the times of the cue points that name the video track in any of their
-// CueTrackPositions, rounded to ms, and the number of all cue points.
+// CueTrackPositions, rounded to ms, and the number of all cue points. A video cue time before the
+// one of the previous video cue point is corruption (ErrNoIndex).
 func videoCues(data []byte, track, scale uint64) ([]time.Duration, int, error) {
 	var out []time.Duration
+	var last uint64
 	points := 0
 	err := eachChild(data, func(id uint32, point []byte) error {
 		if id != idCuePoint {
@@ -351,6 +355,10 @@ func videoCues(data []byte, track, scale uint64) ([]time.Duration, int, error) {
 		if at > math.MaxInt64/scale {
 			return fmt.Errorf("%w: cue time overflows", ErrNoIndex)
 		}
+		if len(out) > 0 && at < last { // cues are written in time order; equal times are merged by Read
+			return fmt.Errorf("%w: cue time %d before %d", ErrNoIndex, at, last)
+		}
+		last = at
 		out = append(out, time.Duration(at*scale).Round(time.Millisecond)) //nolint:gosec // G115: at*scale <= MaxInt64 checked above
 		return nil
 	})

@@ -158,6 +158,34 @@ func matroskaFixtures() map[string][]byte {
 		"no-cues": mkvFile(
 			fixed("info", info(1_000_000)), fixed("tracks", av), fixed("cluster", cluster(100)),
 		),
+		// The SeekHead names Info at the Cluster (a stale entry); the walk finds the real one.
+		"stale-info-entry": mkvFile(
+			child{"sh", func(p map[string]int64) []byte {
+				return el(idSeekHead, seek(idInfo, p["cluster"]), seek(idTracks, p["tracks"]), seek(idCues, p["cues"]))
+			}},
+			fixed("info", info(1_000_000)), fixed("tracks", av), fixed("cluster", cluster(1000)),
+			fixed("cues", videoAudioCues()),
+		),
+		// Bytes that are no element end the walk behind the SeekHead, which does not name the
+		// Cues; the tail search still finds them.
+		"junk-after-seekhead": mkvFile(
+			child{"sh", func(p map[string]int64) []byte {
+				return el(idSeekHead, seek(idInfo, p["info"]), seek(idTracks, p["tracks"]))
+			}},
+			fixed("junk", make([]byte, 16)),
+			fixed("info", info(1_000_000)), fixed("tracks", av), fixed("cluster", cluster(1000)),
+			fixed("cues", videoAudioCues()),
+		),
+		// Two video cue points in the same ms are merged.
+		"cues-equal-times": mkvFile(
+			fixed("info", info(1_000_000)), fixed("tracks", av), fixed("cluster", cluster(100)),
+			fixed("cues", el(idCues, cuePoint(0, 1), cuePoint(1000, 1), cuePoint(1000, 1), cuePoint(2000, 1))),
+		),
+		// A video cue time before the previous one is corruption.
+		"cues-backwards": mkvFile(
+			fixed("info", info(1_000_000)), fixed("tracks", av), fixed("cluster", cluster(100)),
+			fixed("cues", el(idCues, cuePoint(0, 1), cuePoint(2000, 1), cuePoint(1000, 1))),
+		),
 		"unknown-segment-size": append(el(idEBML, el(0x4282, []byte("matroska"))),
 			unknownSize(idSegment, info(1_000_000), av, cluster(100), videoAudioCues())...),
 	}
@@ -177,6 +205,9 @@ func TestReadMatroska(t *testing.T) {
 		{"no-seekhead", "webm", ms(longCues...), 1, 24},
 		{"seekhead-cues-only", "MKV", ms(longCues...), 1, 24},
 		{"video-second-track", "mkv", ms(0, 2, 2000), 2, 4}, // 1.5 ms rounds to 2 ms
+		{"stale-info-entry", "mkv", ms(longCues...), 1, 24},
+		{"junk-after-seekhead", "mkv", ms(longCues...), 1, 24},
+		{"cues-equal-times", "mkv", ms(0, 1000, 2000), 1, 4},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := fx[tc.name]
@@ -208,6 +239,34 @@ func TestReadMatroskaSecondSeekHeadReads(t *testing.T) {
 	}
 }
 
+// A SeekHead with thousands of entries naming SeekHeads at positions that hold none (behind the
+// SeekHead of about 840 KB, so outside the head): every position tried counts against the limit
+// of four SeekHeads, so they cost a few reads, not one each.
+func TestReadMatroskaStaleSeekHeadFlood(t *testing.T) {
+	const stale = 20_000 // 42 bytes each: the SeekHead stays under the 1 MiB limit
+	b := mkvFile(
+		child{"sh", func(p map[string]int64) []byte {
+			entries := [][]byte{seek(idInfo, p["info"]), seek(idTracks, p["tracks"]), seek(idCues, p["cues"])}
+			for i := range stale {
+				entries = append(entries, seek(idSeekHead, p["cluster"]+64+int64(i))) // zeros of the block
+			}
+			return el(idSeekHead, entries...)
+		}},
+		fixed("info", info(1_000_000)), fixed("tracks", tracks([2]uint64{1, 1}, [2]uint64{2, 2})),
+		fixed("cluster", cluster(stale+100)), fixed("cues", videoAudioCues()),
+	)
+	ix, err := Read(bytes.NewReader(b), int64(len(b)), "mkv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(ix.Keyframes, ms(longCues...)) {
+		t.Fatalf("keyframes %v", ix.Keyframes)
+	}
+	if ix.Stats.Reads > 16 {
+		t.Fatalf("stats %+v, want at most 16 reads", ix.Stats)
+	}
+}
+
 // «H264 MKV Long»: 90 s, last keyframe at 75 s; the end gap of 15 s must pass Check.
 func TestReadMatroskaLongEndGap(t *testing.T) {
 	b := matroskaFixtures()["one-seekhead"]
@@ -222,7 +281,7 @@ func TestReadMatroskaLongEndGap(t *testing.T) {
 
 func TestReadMatroskaNoIndex(t *testing.T) {
 	fx := matroskaFixtures()
-	for _, name := range []string{"cues-without-video", "no-cues", "unknown-segment-size"} {
+	for _, name := range []string{"cues-without-video", "no-cues", "unknown-segment-size", "cues-backwards"} {
 		t.Run(name, func(t *testing.T) {
 			b := fx[name]
 			if _, err := Read(bytes.NewReader(b), int64(len(b)), "mkv"); !errors.Is(err, ErrNoIndex) {

@@ -7,8 +7,8 @@
 // 14, section 9.1): every read has a fixed limit and nothing is allocated from a size above it,
 // positions stay inside the file, sums and products are checked for overflow, an index holds at
 // most maxEntries keyframes, and the element nesting is fixed by the code (at most six levels;
-// the one recursion, a SeekHead naming another, stops after four SeekHeads). Anything unexpected
-// ends in ErrNoIndex, never in a panic.
+// the one recursion, a SeekHead naming another, stops after four SeekHead positions tried, read
+// or not). Anything unexpected ends in ErrNoIndex, never in a panic.
 package mediaindex
 
 import (
@@ -54,7 +54,9 @@ const maxEntries = 1_000_000
 
 // Read returns the keyframe index the container of the file carries. size is the file size,
 // container the value of media_files.container (mkv, webm, mp4, m4v, mov); any other container
-// returns ErrNoIndex. Every error wraps ErrNoIndex.
+// returns ErrNoIndex. Every error wraps ErrNoIndex. Matroska cue times that go backwards are
+// ErrNoIndex; equal times (two cue points in one ms) are merged, and the MP4 times, computed in
+// decode order, are sorted.
 func Read(r io.ReaderAt, size int64, container string) (Index, error) {
 	if r == nil || size <= 0 {
 		return Index{}, fmt.Errorf("%w: empty file", ErrNoIndex)
@@ -125,7 +127,9 @@ const (
 )
 
 // Check applies the plausibility rules an index from the container must pass before it is
-// stored (concept 14, section 6.2). duration is the probed duration of the file.
+// stored (concept 14, section 6.2). duration is the probed duration of the file. The rule
+// «sorted, no duplicates» holds for every index Read returns (it rejects cue times that go
+// backwards, merges equal ones and sorts the MP4 times); Check still tests it for any Index.
 func Check(ix Index, duration time.Duration) error {
 	kf := ix.Keyframes
 	if duration <= 0 {

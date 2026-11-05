@@ -297,8 +297,9 @@ func tonemapperOf(caps Capabilities) string {
 
 // vbrTarget is the -b:v of the capped VBR encodes of QSV and VAAPI for the cap maxrate (bit/s):
 // 0.75 * maxrate, but at low rates closer to the cap, min(maxrate - 1 kbit/s, 1 Mbit/s), because
-// h264_qsv refuses targets under 1000k (Jellyfin's lower bound). It is always below maxrate: a
-// target equal to the cap makes ffmpeg pick CBR.
+// h264_qsv refuses targets under 1000k (Jellyfin's lower bound). It is below maxrate for every
+// maxrate >= 2 (a target equal to the cap makes ffmpeg pick CBR) and at least 1; maxrate 1 leaves
+// no positive target below it and gets 1.
 func vbrTarget(maxrate int) int {
 	return max(maxrate*3/4, min(maxrate-1000, 1_000_000), 1)
 }

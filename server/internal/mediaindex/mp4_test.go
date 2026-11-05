@@ -6,6 +6,7 @@ import (
 	"errors"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 )
@@ -41,7 +42,19 @@ func full(version byte, fields ...[]byte) []byte {
 
 func mvhd(scale uint32) []byte { return box("mvhd", full(0, u32(0, 0, scale, 0), make([]byte, 80))) }
 
+func mvhd1(scale uint32) []byte {
+	return box("mvhd", full(1, u64(0, 0), u32(scale), u64(0), make([]byte, 80)))
+}
+
+func mdhd0(scale uint32) []byte { return box("mdhd", full(0, u32(0, 0, scale, 0), u32(0))) }
+
 func mdhd1(scale uint32) []byte { return box("mdhd", full(1, u64(0, 0), u32(scale), u64(0), u32(0))) }
+
+func tkhd0(id uint32) []byte { return box("tkhd", full(0, u32(0, 0, id, 0, 0), make([]byte, 60))) }
+
+func tkhd1(id uint32) []byte {
+	return box("tkhd", full(1, u64(0, 0), u32(id, 0), u64(0), make([]byte, 60)))
+}
 
 func hdlr(handler string) []byte {
 	return box("hdlr", full(0, u32(0), []byte(handler), u32(0, 0, 0), []byte{0}))
@@ -54,6 +67,16 @@ func elst(entries ...[2]int64) []byte {
 		b = append(b, u32(uint32(e[0]), uint32(int32(e[1])), 1<<16)...)
 	}
 	return box("edts", box("elst", full(0, b)))
+}
+
+// elst1 is elst in version 1 (64-bit fields).
+func elst1(entries ...[2]int64) []byte {
+	b := u32(uint32(len(entries)))
+	for _, e := range entries {
+		b = append(b, u64(uint64(e[0]), uint64(e[1]))...)
+		b = append(b, u32(1<<16)...)
+	}
+	return box("edts", box("elst", full(1, b)))
 }
 
 // table builds stts or ctts from (count, value) pairs.
@@ -71,11 +94,12 @@ func stss(samples ...uint32) []byte {
 
 // trakBox builds a track; edts (from elst) and the sample tables are passed as finished boxes.
 func trakBox(id uint32, handler string, edts []byte, stbl ...[]byte) []byte {
-	return box("trak",
-		box("tkhd", full(0, u32(0, 0, id, 0, 0), make([]byte, 60))),
-		edts,
-		box("mdia", mdhd1(12800), hdlr(handler), box("minf", box("stbl", stbl...))),
-	)
+	return trakWith(tkhd0(id), mdhd1(12800), handler, edts, stbl...)
+}
+
+// trakWith builds a track from finished tkhd and mdhd boxes.
+func trakWith(tkhd, mdhd []byte, handler string, edts []byte, stbl ...[]byte) []byte {
+	return box("trak", tkhd, edts, box("mdia", mdhd, hdlr(handler), box("minf", box("stbl", stbl...))))
 }
 
 // mp4File puts ftyp, mdat and moov in order; faststart puts moov before mdat.
@@ -109,8 +133,14 @@ func mp4Fixtures() map[string][]byte {
 		"two-edits":         mp4File(false, box("moov", mvhd(1000), trakBox(1, "vide", elst([2]int64{200, 0}, [2]int64{200, 2560}), frames, keys))),
 		"fragmented":        mp4File(true, box("moov", mvhd(1000), trakBox(1, "vide", nil, frames, keys), box("mvex", box("trex", full(0, u32(1, 1, 0, 0, 0)))))),
 		"moof-before-moov":  slices.Concat(box("ftyp", []byte("iso6")), box("moof", box("mfhd", full(0, u32(1)))), box("moov", mvhd(1000), trakBox(1, "vide", nil, frames, keys))),
-		"no-video":          mp4File(false, box("moov", mvhd(1000), audio)),
-		"no-moov":           slices.Concat(box("ftyp", []byte("isom")), box("mdat", make([]byte, 100))),
+		// ctts covers only the first five samples; ffmpeg reads the rest as offset 0.
+		"ctts-short": mp4File(false, box("moov", mvhd(1000), trakBox(1, "vide", nil, frames, table("ctts", 0, [2]int64{1, 1024}, [2]int64{4, 512}), keys))),
+		// tkhd, mvhd and elst in version 1, mdhd in version 0; 5 ms of empty edit in the movie
+		// timescale.
+		"v1-boxes-mdhd-v0": mp4File(false, box("moov", mvhd1(1000),
+			trakWith(tkhd1(7), mdhd0(12800), "vide", elst1([2]int64{5, -1}, [2]int64{600, 1024}), frames, bframes, keys))),
+		"no-video": mp4File(false, box("moov", mvhd(1000), audio)),
+		"no-moov":  slices.Concat(box("ftyp", []byte("isom")), box("mdat", make([]byte, 100))),
 		"large-mdat-moov-to-eof": slices.Concat(box("ftyp", []byte("isom")),
 			u32(1), []byte("mdat"), u64(16+100), make([]byte, 100),
 			u32(0), []byte("moov"), mvhd(1000)[0:], trakBox(1, "vide", nil, frames, keys)),
@@ -131,6 +161,8 @@ func TestReadMP4(t *testing.T) {
 		{"ctts-v1-negative", ms(0, 160, 400), 1},
 		{"all-sync", ms(0, 40, 80), 1},
 		{"large-mdat-moov-to-eof", ms(0, 200, 400), 1},
+		{"ctts-short", ms(80, 200, 400), 1},
+		{"v1-boxes-mdhd-v0", ms(5, 205, 405), 7},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			b := fx[tc.name]
@@ -173,6 +205,17 @@ func TestReadMP4MoovTooLarge(t *testing.T) {
 	}
 	if ix.Stats.BytesRead > 64 {
 		t.Fatalf("read %d bytes, want only the box headers", ix.Stats.BytesRead)
+	}
+}
+
+// A sample table that announces more than maxEntries entries is refused before its entries are
+// allocated, although the box holds them all.
+func TestReadMP4TableTooLong(t *testing.T) {
+	long := slices.Concat(u32(uint32(8+8+(maxEntries+1)*8)), []byte("stts"), full(0, u32(maxEntries+1)), make([]byte, (maxEntries+1)*8))
+	b := mp4File(false, box("moov", mvhd(1000), trakBox(1, "vide", nil, long, keys)))
+	_, err := Read(bytes.NewReader(b), int64(len(b)), "mp4")
+	if !errors.Is(err, ErrNoIndex) || !strings.Contains(err.Error(), "entries in a sample table") {
+		t.Fatalf("err %v, want ErrNoIndex for the table length", err)
 	}
 }
 

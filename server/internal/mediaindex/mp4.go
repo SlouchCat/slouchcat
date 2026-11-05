@@ -150,7 +150,7 @@ func (t *trak) keyframes() ([]time.Duration, error) {
 	}
 	var total int64
 	for _, r := range stts {
-		total += r.count // at most 2^29 entries (moov limit) of less than 2^32 each: no overflow
+		total += r.count // at most maxEntries entries (runs) of less than 2^32 each: no overflow
 	}
 	sync, err := t.syncSamples(total)
 	if err != nil {
@@ -277,13 +277,18 @@ func (t *trak) syncSamples(total int64) ([]int64, error) {
 	return out, nil
 }
 
-// runs reads the entries of stts or ctts; signed reads the values as int32.
+// runs reads the entries of stts or ctts; signed reads the values as int32. A table of more than
+// maxEntries entries is ErrNoIndex before anything is allocated (16 bytes an entry; the largest
+// measured ctts had about 225 000).
 func runs(b []byte, signed bool) ([]run, error) {
 	c := cursor{b: b}
 	c.skip(4)
 	n := uint64(c.u32())
 	if c.bad || n > uint64(len(c.b))/8 {
 		return nil, errBox
+	}
+	if n > maxEntries {
+		return nil, fmt.Errorf("%w: %d entries in a sample table", ErrNoIndex, n)
 	}
 	out := make([]run, n)
 	for i := range out {
@@ -297,7 +302,8 @@ func runs(b []byte, signed bool) ([]run, error) {
 	return out, nil
 }
 
-// runCursor finds the value (ctts) or the running sum (stts: the DTS) of ascending samples.
+// runCursor finds the value (ctts) or the running sum (stts: the DTS) of ascending samples. A
+// sample behind the last ctts entry has offset 0, as in ffmpeg; one behind stts has no DTS.
 type runCursor struct {
 	runs  []run
 	sum   bool
@@ -321,11 +327,14 @@ func (c *runCursor) at(n int64) (int64, bool) {
 		c.first += r.count
 		c.i++
 	}
+	if !c.sum {
+		if c.i == len(c.runs) {
+			return 0, true
+		}
+		return c.runs[c.i].value, true
+	}
 	if c.i == len(c.runs) {
 		return 0, false
-	}
-	if !c.sum {
-		return c.runs[c.i].value, true
 	}
 	d, ok := mulNonNeg(n-c.first, c.runs[c.i].value)
 	if !ok {

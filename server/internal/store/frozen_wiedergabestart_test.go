@@ -32,6 +32,8 @@ func TestFrozenWiedergabestartStateCoversTheConcept(t *testing.T) {
 		"empty v1 blob without a source":            `SELECT count(*) FROM media_files WHERE keyframes_source IS NULL AND length(keyframes) = 1`,
 		"no source on a blob with entries":          `SELECT count(*) = 0 FROM media_files WHERE keyframes_source IS NULL AND length(keyframes) > 1`,
 		"no source other than the four":             `SELECT count(*) = 0 FROM media_files WHERE keyframes_source NOT IN ('cues', 'mp4', 'scan', 'none')`,
+		"cues only on Matroska files":               `SELECT count(*) = 0 FROM media_files WHERE keyframes_source = 'cues' AND container NOT IN ('mkv', 'webm')`,
+		"MP4 tables only on MP4 files":              `SELECT count(*) = 0 FROM media_files WHERE keyframes_source = 'mp4' AND container NOT IN ('mp4', 'm4v', 'mov')`,
 		"run that may start during a pause":         `SELECT count(*) FROM jobs WHERE override_pause = 1`,
 		"run that does not":                         `SELECT count(*) FROM jobs WHERE override_pause = 0`,
 		"schedule with a one-off date":              `SELECT count(*) FROM job_schedules WHERE once_at > 0 AND enabled = 0`,
@@ -80,6 +82,7 @@ func TestMigration00033KeyframeSourceBackfill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer rows.Close() // the loop below reads to the end, which closes rows already
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -90,7 +93,6 @@ func TestMigration00033KeyframeSourceBackfill(t *testing.T) {
 	if err := rows.Err(); err != nil {
 		t.Fatal(err)
 	}
-	rows.Close()
 	if len(ids) != 3 {
 		t.Fatalf("got %d media files, want 3", len(ids))
 	}
@@ -126,7 +128,7 @@ func TestMigration00033KeyframeSourceBackfill(t *testing.T) {
 		}
 	}
 	var bad int
-	if err := db.Read.QueryRow(`SELECT count(*) FROM media_files WHERE (length(keyframes) > 1) <> (keyframes_source = 'scan')`).Scan(&bad); err != nil {
+	if err := db.Read.QueryRow(`SELECT count(*) FROM media_files WHERE (coalesce(length(keyframes), 0) > 1) IS NOT (keyframes_source IS 'scan')`).Scan(&bad); err != nil {
 		t.Fatal(err)
 	}
 	if bad != 0 {
