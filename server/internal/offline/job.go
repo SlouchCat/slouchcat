@@ -36,6 +36,11 @@ var errDeleted = errors.New("offline: download deleted during its preparation")
 // budget, without using an attempt.
 var errSourceWait = errors.New("offline: download source not available yet")
 
+// errKeyframesWait marks a remux whose keyframe index is not there yet (concept 14, 6.8): the
+// preparation queued the full read and waits like for budget, without using an attempt, until
+// keyframesPatience after the download was created; then it encodes.
+var errKeyframesWait = errors.New("offline: keyframe index not there yet")
+
 // errInitChanged stops a resumed encode whose init segment differs from the one in media.mp4
 // (another encoder backend or ffmpeg build since the last attempt).
 var errInitChanged = errors.New("offline: init segment differs from the prepared copy")
@@ -185,9 +190,11 @@ type planned struct {
 	cleanup string // fetched enclosure below the downloads root, removed once ready (M6)
 }
 
-// planFor resolves the source through package paths and plans the download; a remux without
-// keyframe index computes it first (and stores it), else the video is encoded. A source that is
-// not probed yet or cannot be read is errSourceWait.
+// planFor resolves the source through package paths and plans the download. A remux uses the
+// stored keyframe index and never reads it itself (concept 14, 6.8, I-3): without one yet it queues
+// the full read and returns errKeyframesWait until keyframesPatience after the download was
+// created, then (and when the index is impossible) the video is encoded. A source that is not
+// probed yet or cannot be read is errSourceWait.
 func (s *Service) planFor(ctx context.Context, row systemq.Download) (planned, error) {
 	item, err := s.write.GetDownloadItem(ctx, row.ItemID)
 	if err != nil {
@@ -229,10 +236,11 @@ func (s *Service) planFor(ctx context.Context, row systemq.Download) (planned, e
 	c := decide(file, probe, prof, int(row.AudioStream))
 	src := transcode.Source{Path: abs, Probe: *probe}
 	if c.Target.Mode == transcode.ModeRemux {
-		if src.Keyframes = s.keyframes(ctx, m.ID, abs, m.Keyframes, library.FileVersion{Size: m.Size, Mtime: m.Mtime}); len(src.Keyframes) == 0 {
-			if ctx.Err() != nil {
-				return planned{}, ctx.Err()
-			}
+		kf, err := s.keyframes(ctx, row, m)
+		if err != nil {
+			return planned{}, err
+		}
+		if src.Keyframes = kf; len(kf) == 0 {
 			c = decideWith(file, probe, prof, int(row.AudioStream), false)
 		}
 	}
@@ -258,23 +266,44 @@ func readable(root paths.Root, rel string) error {
 	return f.Close()
 }
 
-// keyframes returns the keyframe index of a media file for a remux: the stored one, else computed
-// by the encoder and stored for playback too; nil when neither works.
-func (s *Service) keyframes(ctx context.Context, fileID, abs string, blob []byte, v library.FileVersion) []time.Duration {
-	if len(blob) > 0 {
-		if kf, err := library.DecodeKeyframes(blob); err == nil && len(kf) > 0 {
-			return kf
+// keyframes looks up the keyframe index of the source of a download for a remux (concept 14, 6.8).
+// A stored index is returned. Without one yet the full read is queued at priority 5 (without the
+// pause override) and the result is errKeyframesWait, until keyframesPatience after the download
+// was created. nil means encoding: the index is impossible (none), unreadable, or the wait is over.
+func (s *Service) keyframes(ctx context.Context, row systemq.Download, m systemq.GetDownloadSourceRow) ([]time.Duration, error) {
+	if m.KeyframesSource.Valid && m.KeyframesSource.String != library.KeyframesNone {
+		kf, err := library.DecodeKeyframes(m.Keyframes)
+		if err == nil && len(kf) > 0 {
+			return kf, nil
 		}
+		s.log.WarnContext(ctx, "keyframe index unusable, encoding the download", "media_file_id", m.ID, "err", err)
+		return nil, nil
 	}
-	kf, err := s.enc.Keyframes(ctx, abs)
-	if err != nil || len(kf) == 0 {
-		s.log.InfoContext(ctx, "keyframe index unavailable, encoding the download", "media_file_id", fileID, "err", err)
-		return nil
+	if m.KeyframesSource.Valid {
+		return nil, nil // none: no index possible for this file version
 	}
-	if _, err := library.StoreKeyframes(ctx, s.db.Write, fileID, kf, library.KeyframesScan, v, s.now()); err != nil {
-		s.log.WarnContext(ctx, "store keyframe index", "media_file_id", fileID, "err", err)
+	if s.now().Sub(time.UnixMilli(row.CreatedAt)) >= keyframesPatience {
+		s.log.InfoContext(ctx, "keyframe index still missing, encoding the download", "download_id", row.ID, "media_file_id", m.ID)
+		return nil, nil
 	}
-	return kf
+	if err := library.QueueKeyframesForDownload(context.WithoutCancel(ctx), s.db.Read, s.queue, m.ID, s.now()); err != nil {
+		return nil, fmt.Errorf("queue keyframe index of %s: %w", m.ID, err)
+	}
+	return nil, fmt.Errorf("%w: media file %s", errKeyframesWait, m.ID)
+}
+
+// keyframesWait is the delay of the next attempt of a download waiting for its keyframe index
+// (O-8): 10 min, then 30 min, then hourly by the time since the download was created, at most
+// until keyframesPatience is over. About 26 skipped runs per download and day instead of 144.
+func keyframesWait(waited time.Duration) time.Duration {
+	step := time.Hour
+	switch {
+	case waited < 10*time.Minute:
+		step = 10 * time.Minute
+	case waited < 40*time.Minute:
+		step = 30 * time.Minute
+	}
+	return max(min(step, keyframesPatience-waited), time.Second)
 }
 
 // copyFiles are the open media file and index of a preparation with the readable index.
@@ -464,6 +493,11 @@ func (s *Service) encode(ctx context.Context, j *jobs.Job, row systemq.Download)
 	if errors.Is(err, errSourceWait) && ctx.Err() == nil {
 		s.log.InfoContext(ctx, "download source not available, waiting", "download_id", id, "err", err)
 		return s.wait(ctx, j, id, model.DownloadQueued, "", sourceWait)
+	}
+	if errors.Is(err, errKeyframesWait) {
+		delay := keyframesWait(s.now().Sub(time.UnixMilli(row.CreatedAt)))
+		s.log.InfoContext(ctx, "download waits for the keyframe index", "download_id", id, "retry_in", delay.String())
+		return s.wait(ctx, j, id, model.DownloadQueued, "", delay)
 	}
 	if errors.Is(err, errSourceBroken) {
 		// Waiting does not help a file ffprobe cannot read; a rescan that probes it again allows a

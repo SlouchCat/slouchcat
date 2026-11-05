@@ -14,26 +14,13 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
 // Regression tests of the M5 server review (findings W1 to W4 and K1 to K11); W5 is in package
 // admin, W6 and K9 in package api, K3 in package playback, K12 in package store.
-
-// kfEncoder fails the keyframe index while failKF is set (ffprobe hung once).
-type kfEncoder struct {
-	*fakeEncoder
-	failKF atomic.Bool
-	kf     []time.Duration
-}
-
-func (k *kfEncoder) Keyframes(context.Context, string) ([]time.Duration, error) {
-	if k.failKF.Load() {
-		return nil, errors.New("ffprobe failed (transient)")
-	}
-	return k.kf, nil
-}
 
 // contiguous checks that the index entries cover the clip from 0 without gap or overlap and that
 // media.mp4 is the init segment followed by the segments.
@@ -57,31 +44,31 @@ func contiguous(t *testing.T, e *env, id, init string) {
 	}
 }
 
-// W1: attempt 1 has no keyframe index (4-s transcode) and stops after two segments; attempt 2
-// finds the index and plans a remux with other boundaries. The copy starts over instead of
-// appending remux segments to transcode segments.
+// W1: attempt 1 has no keyframe index after a day of waiting (4-s transcode, concept 14 O-8) and
+// stops after two segments; attempt 2 finds the index the full read stored meanwhile and plans a
+// remux with other boundaries. The copy starts over instead of appending remux segments to
+// transcode segments.
 func TestPrepareStartsOverForAnotherPlan(t *testing.T) {
 	t.Parallel()
-	enc := &kfEncoder{fakeEncoder: newFakeEncoder(), kf: []time.Duration{0, 6 * time.Second, 12 * time.Second}}
-	e := newEnv(t, WithEncoder(enc))
+	e := newEnv(t)
 	m := e.f.Rated(18)
 	e.f.SetMediaFile(t, m.FileID, "mp4", "h264", "aac", probeJSON(t, testProbe()), nil)
-	enc.failKF.Store(true)
 	st := e.create(e.f.P18, e.devA, m.ID, model.DownloadHigh)
-	enc.failAt, enc.failCalls = 2, 1
+	e.clock.Advance(keyframesPatience)
+	e.enc.failAt, e.enc.failCalls = 2, 1
 	e.runJobs()
 	if r := e.row(st.ID); r.state != model.DownloadQueued || r.done != 2 {
 		t.Fatalf("after attempt 1: %+v", r)
 	}
-	enc.failKF.Store(false)
+	e.f.SetKeyframes(t, m.FileID, library.EncodeKeyframes([]time.Duration{0, 6 * time.Second, 12 * time.Second}), library.KeyframesScan, e.clock.Now().UnixMilli())
 	e.clock.Advance(jobs.Backoff(1))
 	e.runJobs()
 	r := e.row(st.ID)
 	if r.state != model.DownloadReady || r.done != 3 || r.total != 3 {
 		t.Fatalf("after attempt 2: %+v", r)
 	}
-	if !slices.Equal(enc.modes, []string{"transcode", "remux"}) || !slices.Equal(enc.calls(), []int{0, 0}) {
-		t.Errorf("modes %v, start segments %v; want the remux from segment 0", enc.modes, enc.calls())
+	if !slices.Equal(e.enc.modes, []string{"transcode", "remux"}) || !slices.Equal(e.enc.calls(), []int{0, 0}) {
+		t.Errorf("modes %v, start segments %v; want the remux from segment 0", e.enc.modes, e.enc.calls())
 	}
 	contiguous(t, e, st.ID, initData)
 	if h, _ := readEntries(t, e, st.ID); h.Plan == "" {

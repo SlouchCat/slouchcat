@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/library"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
@@ -46,6 +47,12 @@ func TestPrepareWithRealEncoder(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.f.SetMediaFile(t, m.FileID, "mkv", "h264", "aac", probeJSON(t, probe), nil)
+	// The full read of package library stores the index the remux uses (concept 14, 6.8).
+	kf, err := runner.Keyframes(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.f.SetKeyframes(t, m.FileID, library.EncodeKeyframes(kf), library.KeyframesScan, time.Now().UnixMilli())
 
 	for _, tc := range []struct {
 		quality string

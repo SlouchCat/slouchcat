@@ -43,6 +43,8 @@ const (
 	// prioKeyframesPlayback: a playback fell back to transcoding because the index is missing;
 	// the index runs before everything else so the next start remuxes.
 	prioKeyframesPlayback = 9
+	// prioKeyframesDownload: an offline download of a remux waits for the index (concept 14, 6.8).
+	prioKeyframesDownload = 5
 )
 
 type libraryPayload struct {
@@ -113,27 +115,9 @@ const keyframesFailedQuiet = 24 * time.Hour
 // row is gone, or whose last full read failed within keyframesFailedQuiet. db is a read
 // connection. The result is zero when nothing was queued or raised.
 func QueueKeyframesForPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) (jobs.PauseOverride, error) {
-	read := systemq.New(db)
-	mf, err := read.GetMediaFileSystem(ctx, mediaFileID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return jobs.PauseOverride{}, nil
-	}
-	if err != nil {
-		return jobs.PauseOverride{}, fmt.Errorf("load media file: %w", err)
-	}
-	if mf.KeyframesSource.Valid {
-		return jobs.PauseOverride{}, nil // none: impossible for this version; else written meanwhile
-	}
-	j := keyframesJob(mediaFileID)
-	failed, err := read.LastJobFailedSince(ctx, systemq.LastJobFailedSinceParams{
-		Type: j.typ, IdempotencyKey: sql.NullString{String: j.key, Valid: true},
-		Since: sql.NullInt64{Int64: now.Add(-keyframesFailedQuiet).UnixMilli(), Valid: true},
-	})
-	if err != nil {
-		return jobs.PauseOverride{}, fmt.Errorf("last full keyframe read of %s: %w", mediaFileID, err)
-	}
-	if failed {
-		return jobs.PauseOverride{}, nil
+	j, wanted, err := keyframesWanted(ctx, db, mediaFileID, now)
+	if err != nil || !wanted {
+		return jobs.PauseOverride{}, err
 	}
 	payload, err := json.Marshal(j.payload)
 	if err != nil {
@@ -144,6 +128,56 @@ func QueueKeyframesForPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, m
 		return res, err
 	}
 	return q.RaiseQueuedJobForPlayback(ctx, res.ID, prioKeyframesPlayback)
+}
+
+// QueueKeyframesForDownload asks for the keyframe index of a media file an offline download of a
+// remux waits for (concept 14, 6.8): probe.keyframes at priority 5 under the key keyframes:<id>,
+// without the pause override (that exception is for playback only, F-3). A job that waits under
+// the key is raised to that priority; a running one stays as it is. Like
+// QueueKeyframesForPlayback it queues nothing for a file whose index is there or impossible,
+// whose row is gone, or whose last full read failed within keyframesFailedQuiet. db is a read
+// connection.
+func QueueKeyframesForDownload(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) error {
+	j, wanted, err := keyframesWanted(ctx, db, mediaFileID, now)
+	if err != nil || !wanted {
+		return err
+	}
+	payload, err := json.Marshal(j.payload)
+	if err != nil {
+		return fmt.Errorf("encode %s payload: %w", j.typ, err)
+	}
+	id, err := q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: prioKeyframesDownload, IdempotencyKey: j.key, Payload: payload})
+	if err != nil {
+		return err
+	}
+	_, err = q.RaiseQueuedPriority(ctx, id, prioKeyframesDownload)
+	return err
+}
+
+// keyframesWanted reports whether a full read of a media file may be queued on demand: its row
+// exists without an index (none: impossible for this version; else written meanwhile) and its
+// last full read did not fail within keyframesFailedQuiet (O-17). j is the job of that read.
+func keyframesWanted(ctx context.Context, db *sql.DB, mediaFileID string, now time.Time) (j newJob, wanted bool, err error) {
+	read := systemq.New(db)
+	mf, err := read.GetMediaFileSystem(ctx, mediaFileID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return newJob{}, false, nil
+	}
+	if err != nil {
+		return newJob{}, false, fmt.Errorf("load media file: %w", err)
+	}
+	if mf.KeyframesSource.Valid {
+		return newJob{}, false, nil
+	}
+	j = keyframesJob(mediaFileID)
+	failed, err := read.LastJobFailedSince(ctx, systemq.LastJobFailedSinceParams{
+		Type: j.typ, IdempotencyKey: sql.NullString{String: j.key, Valid: true},
+		Since: sql.NullInt64{Int64: now.Add(-keyframesFailedQuiet).UnixMilli(), Valid: true},
+	})
+	if err != nil {
+		return newJob{}, false, fmt.Errorf("last full keyframe read of %s: %w", mediaFileID, err)
+	}
+	return j, !failed, nil
 }
 
 // Keyframe sources: the values of media_files.keyframes_source (concept 14, 4.1).
