@@ -575,18 +575,32 @@ func (q *Queries) UpdateItemsProvidersByRoot(ctx context.Context, arg UpdateItem
 	return result.RowsAffected()
 }
 
-const updateMediaFileProbeError = `-- name: UpdateMediaFileProbeError :exec
-UPDATE media_files SET probe_error = ?1, probed_at = ?2, updated_at = ?2 WHERE id = ?3
+const updateMediaFileProbeError = `-- name: UpdateMediaFileProbeError :execrows
+UPDATE media_files SET probe_error = ?1, probed_at = ?2, updated_at = ?2
+WHERE id = ?3 AND size = ?4 AND mtime = ?5
 `
 
 type UpdateMediaFileProbeErrorParams struct {
 	ProbeError sql.NullString
 	Now        sql.NullInt64
 	ID         string
+	Size       int64
+	Mtime      int64
 }
 
 // ffprobe failed on the file (B-9 "unplayable"): the attempt is recorded, the stream columns stay.
-func (q *Queries) UpdateMediaFileProbeError(ctx context.Context, arg UpdateMediaFileProbeErrorParams) error {
-	_, err := q.db.ExecContext(ctx, updateMediaFileProbeError, arg.ProbeError, arg.Now, arg.ID)
-	return err
+// Only for the version (size, mtime) the probe read, like UpdateMediaFileProbe: 0 rows means the
+// file changed meanwhile, and probe.file runs again on the new version (concept 14, Z-9).
+func (q *Queries) UpdateMediaFileProbeError(ctx context.Context, arg UpdateMediaFileProbeErrorParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMediaFileProbeError,
+		arg.ProbeError,
+		arg.Now,
+		arg.ID,
+		arg.Size,
+		arg.Mtime,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

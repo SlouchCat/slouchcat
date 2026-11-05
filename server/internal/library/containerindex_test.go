@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/mediaindex"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
 )
@@ -339,8 +340,9 @@ func TestProbeOfOldVersionIsNotWritten(t *testing.T) {
 		return mediaindex.Read(r, size, container)
 	}
 	err := e.probeFile(id)
-	if !errors.Is(err, errFileChanged) {
-		t.Fatalf("probe of the old version = %v, want errFileChanged", err)
+	var later *jobs.RetryLaterError
+	if !errors.Is(err, errFileChanged) || !errors.As(err, &later) {
+		t.Fatalf("probe of the old version = %v, want errFileChanged retried without an attempt", err)
 	}
 	if v := e.str(`SELECT coalesce(probed_at, '-') || ' ' || coalesce(video_codec, '-') FROM media_files WHERE id = ?`, id); v != "- -" {
 		t.Errorf("probe of the old version written: %q", v)
@@ -389,5 +391,92 @@ func TestProbeReadsOutsideTheTransaction(t *testing.T) {
 	}
 	if v := e.indexState(id); v != "cues/blob jobs=0" {
 		t.Errorf("index = %q", v)
+	}
+}
+
+// Review of wave B, M-1: a failed probe of the old version does not mark the new version
+// unplayable; the job runs again on the new version without using an attempt.
+func TestProbeErrorOfOldVersionIsNotWritten(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	dir := tree(t, []string{"Alien (1979)/Alien (1979).mkv"})
+	e.scan(e.create(dir).ID)
+	id := e.str(`SELECT id FROM media_files`)
+	// ffprobe tells it started, waits for the release and then fails on the file.
+	marks := t.TempDir()
+	entered, release := filepath.Join(marks, "entered"), filepath.Join(marks, "release")
+	script := filepath.Join(t.TempDir(), "ffprobe")
+	body := "#!/bin/sh\ntouch '" + entered + "'\nwhile [ ! -f '" + release + "' ]; do sleep 0.01; done\n" +
+		"echo 'Invalid data found when processing input' >&2\nexit 1\n"
+	if err := os.WriteFile(script, []byte(body), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	e.svc.probe = transcode.Runner{FFprobePath: script}
+	done := make(chan error, 1)
+	go func() { done <- e.probeFile(id) }()
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		if _, err := os.Stat(entered); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("ffprobe not started")
+		}
+	}
+	// What the scanner writes for a changed file.
+	if _, err := e.db.Write.ExecContext(e.ctx, `UPDATE media_files SET mtime = mtime + 1000 WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := <-done
+	var later *jobs.RetryLaterError
+	if !errors.Is(err, errFileChanged) || !errors.As(err, &later) {
+		t.Fatalf("failed probe of the old version = %v, want errFileChanged retried without an attempt", err)
+	}
+	if v := e.str(`SELECT coalesce(probe_error, '-') || ' ' || coalesce(probed_at, '-') FROM media_files WHERE id = ?`, id); v != "- -" {
+		t.Errorf("probe error of the old version written: %q", v)
+	}
+	// The run on the new version stores the error.
+	if err := os.WriteFile(release, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.probeFile(id); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.str(`SELECT coalesce(probe_error, '-') FROM media_files WHERE id = ?`, id); !strings.Contains(v, "Invalid data") {
+		t.Errorf("probe error of the new version = %q", v)
+	}
+}
+
+// Review of wave B, m-3: a container read that hangs longer than the parser timeout queues the
+// full read; the parser goroutine ends when its read returns.
+func TestProbeContainerReadTimeoutQueuesFullRead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	id := e.probeLib(longMKV)
+	e.svc.indexTimeout = 50 * time.Millisecond
+	release, returned := make(chan struct{}), make(chan struct{})
+	e.svc.indexReader = func(r io.ReaderAt, size int64, container string) (mediaindex.Index, error) {
+		defer close(returned)
+		<-release
+		return mediaindex.Read(r, size, container)
+	}
+	var logs bytes.Buffer
+	e.svc.log = slog.New(slog.NewTextHandler(&logs, nil))
+	if err := e.probeFile(id); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.indexState(id); v != "- jobs=1" {
+		t.Errorf("index = %q, want none and a full read", v)
+	}
+	if !strings.Contains(logs.String(), "container index not read in time") {
+		t.Errorf("log %q, want the timeout", logs.String())
+	}
+	close(release)
+	select {
+	case <-returned:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the parser goroutine did not end after its read returned")
 	}
 }

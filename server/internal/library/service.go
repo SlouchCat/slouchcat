@@ -87,6 +87,8 @@ type Service struct {
 	// when probe.file reads the keyframe index of the container (test seams; nil outside tests).
 	indexReader      func(r io.ReaderAt, size int64, container string) (mediaindex.Index, error)
 	keyframeVerifier func(ctx context.Context, abs string, at []time.Duration, seed uint64) error
+	// indexTimeout bounds the read of the container index (indexReadTimeout; shorter in tests).
+	indexTimeout time.Duration
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it
@@ -195,7 +197,7 @@ func WithVisibilityRecheck(recheck func(ctx context.Context) error) Option {
 // New returns the library service. queue must work on db.Write.
 func New(db *store.DB, queue *jobs.Queue, probe transcode.Runner, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{
-		db: db, queue: queue, probe: probe, log: log, now: time.Now,
+		db: db, queue: queue, probe: probe, log: log, now: time.Now, indexTimeout: indexReadTimeout,
 		watchers: map[int64]*Watcher{}, watcherStop: map[int64]context.CancelFunc{},
 		retrying: map[int64]bool{}, scanLocks: map[int64]chan struct{}{},
 		runs:        map[int64]map[*scanRun]bool{},

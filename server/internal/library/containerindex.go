@@ -15,10 +15,11 @@ import (
 )
 
 // indexReadTimeout bounds mediaindex.Read (concept 14, 6.1): a read on a hanging network share
-// cannot be cancelled, so the parser runs in its own goroutine (measured maximum 0.76 s).
+// cannot be cancelled, so the parser runs in its own goroutine (measured maximum 0.76 s). It is
+// the default of Service.indexTimeout.
 const indexReadTimeout = 10 * time.Second
 
-// errIndexReadTimeout: the container index was not read within indexReadTimeout.
+// errIndexReadTimeout: the container index was not read within Service.indexTimeout.
 var errIndexReadTimeout = errors.New("reading the container index timed out")
 
 // indexWorthy reports whether a media file gets a keyframe index (concept 14, 2.1 and 4.1): a
@@ -36,6 +37,7 @@ type indexTarget struct {
 	root      paths.Root // its library root
 	dir       *os.Root   // the root opened through paths.Open
 	rel       string     // path relative to the root
+	abs       string     // absolute path for ffprobe, resolved through paths
 	container string     // media_files.container (canonicalContainer)
 	duration  time.Duration
 	codec     string // codec of the main video stream, "" without video
@@ -51,14 +53,14 @@ type containerIndex struct {
 	// KeyframesMP4); empty for a worthy file means the full read (probe.keyframes) is needed.
 	keyframes []time.Duration
 	source    string
-	// timedOut is set when the container could not be read within indexReadTimeout (the
+	// timedOut is set when the container could not be read within Service.indexTimeout (the
 	// backfill stops after three in a row, concept 14, 6.1).
 	timedOut bool
 }
 
 // indexFromContainer decides whether a probed file is indexworthy and, if so, reads the keyframe
 // index its container carries (concept 14, 2.2): mediaindex.Read in its own goroutine with
-// indexReadTimeout, then mediaindex.Check and the sample transcode.Runner.VerifyKeyframes. Any
+// Service.indexTimeout, then mediaindex.Check and the sample transcode.Runner.VerifyKeyframes. Any
 // failure means «full read needed»; an index that fails the checks is logged as a warning. It
 // runs outside any transaction: it reads the file and starts ffprobe. The error is only that of
 // ctx.
@@ -78,7 +80,7 @@ func (s *Service) indexFromContainer(ctx context.Context, t indexTarget) (contai
 		return containerIndex{}, ctx.Err()
 	case errors.Is(err, errIndexReadTimeout):
 		s.log.WarnContext(ctx, "container index not read in time, full read queued", "media_file_id", t.id, "path", t.rel,
-			"timeout", indexReadTimeout)
+			"timeout", s.indexTimeout)
 		res.timedOut = true
 		return res, nil
 	case err != nil:
@@ -91,15 +93,11 @@ func (s *Service) indexFromContainer(ctx context.Context, t indexTarget) (contai
 			"path", t.rel, "source", string(ix.Source), "muxer", t.muxer, "err", err)
 		return res, nil
 	}
-	abs, err := paths.Resolve(t.root, t.rel)
-	if err != nil {
-		return res, nil
-	}
 	verify := s.probe.VerifyKeyframes
 	if s.keyframeVerifier != nil {
 		verify = s.keyframeVerifier
 	}
-	if err := verify(ctx, abs, ix.Keyframes, sampleSeed(t.id)); err != nil {
+	if err := verify(ctx, t.abs, ix.Keyframes, sampleSeed(t.id)); err != nil {
 		if ctx.Err() != nil {
 			return containerIndex{}, ctx.Err()
 		}
@@ -108,7 +106,7 @@ func (s *Service) indexFromContainer(ctx context.Context, t indexTarget) (contai
 			msg = "keyframe index of the container not verified, full read queued"
 		}
 		s.log.WarnContext(ctx, msg, "media_file_id", t.id, "path", t.rel, "source", string(ix.Source), "muxer", t.muxer,
-			"err", strings.ReplaceAll(err.Error(), abs, t.rel))
+			"err", strings.ReplaceAll(err.Error(), t.abs, t.rel))
 		return res, nil
 	}
 	res.keyframes, res.source = ix.Keyframes, string(ix.Source)
@@ -116,7 +114,7 @@ func (s *Service) indexFromContainer(ctx context.Context, t indexTarget) (contai
 }
 
 // readContainerIndex opens the file below t.dir and runs mediaindex.Read on it in its own
-// goroutine; after indexReadTimeout (or the end of ctx) it returns without waiting, and the
+// goroutine; after Service.indexTimeout (or the end of ctx) it returns without waiting, and the
 // goroutine closes the file when its read returns.
 func (s *Service) readContainerIndex(ctx context.Context, t indexTarget) (mediaindex.Index, error) {
 	read := mediaindex.Read
@@ -143,7 +141,7 @@ func (s *Service) readContainerIndex(ctx context.Context, t indexTarget) (mediai
 		ix, err := read(f, st.Size(), t.container)
 		done <- result{ix, err}
 	}()
-	timer := time.NewTimer(indexReadTimeout)
+	timer := time.NewTimer(s.indexTimeout)
 	defer timer.Stop()
 	select {
 	case r := <-done:

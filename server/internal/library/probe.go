@@ -64,9 +64,19 @@ func (s *Service) loadProbeTarget(ctx context.Context, j *jobs.Job) (probeTarget
 	return probeTarget{file: mf, root: pr, abs: abs, found: true}, nil
 }
 
-// errFileChanged: the media file row changed (size or mtime) while probe.file read the file; the
-// job retries after its backoff with the new version (concept 14, Z-9).
-var errFileChanged = errors.New("media file changed during the probe")
+// errFileChanged: the media file row changed (size or mtime) while probe.file or probe.keyframes
+// read the file; the job runs again after fileChangedRetry with the new version, without using an
+// attempt (concept 14, Z-9).
+var errFileChanged = errors.New("media file changed during the read")
+
+// fileChangedRetry is the wait of a job whose file changed while it read it.
+const fileChangedRetry = 10 * time.Second
+
+// fileChanged returns the error of a job whose file changed while it read it: errFileChanged,
+// retried by the queue without using an attempt.
+func fileChanged(mediaFileID string) error {
+	return fmt.Errorf("media file %s: %w: %w", mediaFileID, errFileChanged, jobs.RetryLater(fileChangedRetry, "the file changed during the read"))
+}
 
 // handleProbe runs ffprobe on a media file, stores codecs, resolution, duration and the probe
 // JSON, replaces its tracks (embedded streams and sidecar subtitles) and stores the keyframe
@@ -81,7 +91,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	version := VersionOf(t.file)
 	if t.file.Size == 0 {
 		// Never playable; spares an ffprobe process (placeholder trees of the scan benchmark).
-		return s.storeProbeError(ctx, t, errEmptyFile)
+		return s.storeProbeError(ctx, t, version, errEmptyFile)
 	}
 	pr, err := s.probe.Probe(ctx, t.abs)
 	if err != nil {
@@ -91,7 +101,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			// process, an I/O error): not a property of the file, so the job retries with backoff.
 			return fmt.Errorf("probe %s: %w", t.file.ID, err)
 		}
-		return s.storeProbeError(ctx, t, err)
+		return s.storeProbeError(ctx, t, version, err)
 	}
 	r, err := paths.Open(t.root)
 	if err != nil {
@@ -134,13 +144,20 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	var index containerIndex
 	if !t.file.KeyframesSource.Valid {
 		index, err = s.indexFromContainer(ctx, indexTarget{
-			id: t.file.ID, root: t.root, dir: r, rel: t.file.RelPath, container: params.Container,
+			id: t.file.ID, root: t.root, dir: r, rel: t.file.RelPath, abs: t.abs, container: params.Container,
 			duration: pr.Format.Duration, codec: params.VideoCodec.String, kind: item.Kind, muxer: pr.Format.Tags["encoder"],
 		})
 		if err != nil {
 			return err
 		}
 	}
+	var payload mediaFilePayload
+	if err := decodePayload(j, &payload); err != nil {
+		return err
+	}
+	// Whether chapters.images follows reads the cache directory, so it is decided before the
+	// write transaction too.
+	chapterImages := s.cacheDir != "" && chapterKind(item.Kind) && (payload.ChapterImages || s.hadChapterImages(t.file, item.Kind))
 
 	now := s.now()
 	params.Now = sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
@@ -155,7 +172,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		return fmt.Errorf("store probe: %w", err)
 	}
 	if n == 0 {
-		return fmt.Errorf("probe %s: %w", t.file.ID, errFileChanged)
+		return fileChanged(t.file.ID)
 	}
 	if err := q.DeleteMediaFileTracks(ctx, t.file.ID); err != nil {
 		return fmt.Errorf("delete tracks: %w", err)
@@ -206,11 +223,7 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			return err
 		}
 	}
-	var payload mediaFilePayload
-	if err := decodePayload(j, &payload); err != nil {
-		return err
-	}
-	if s.cacheDir != "" && chapterKind(item.Kind) && (payload.ChapterImages || s.hadChapterImages(t.file, item.Kind)) {
+	if chapterImages {
 		if err := enqueueChapterImagesTx(ctx, q, now, t.file.ID); err != nil {
 			return err
 		}
@@ -250,7 +263,9 @@ var errEmptyFile = errors.New("empty file")
 // storeProbeError records a failed ffprobe run (B-9 "unplayable"): probed_at and probe_error
 // with the message, in which the absolute path is replaced by the file name, and no tracks. The
 // job ends successfully, so a broken file is not retried; a changed file or a refresh probes again.
-func (s *Service) storeProbeError(ctx context.Context, t probeTarget, cause error) error {
+// Like the probe, the error is written only for the version v the run read: when the file changed
+// meanwhile, the job runs again on the new version (concept 14, Z-9).
+func (s *Service) storeProbeError(ctx context.Context, t probeTarget, v FileVersion, cause error) error {
 	msg := strings.ReplaceAll(cause.Error(), t.abs, path.Base(t.file.RelPath))
 	msg = strings.ReplaceAll(msg, t.root.Dir(), "")
 	if len(msg) > maxProbeError {
@@ -263,10 +278,15 @@ func (s *Service) storeProbeError(ctx context.Context, t probeTarget, cause erro
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	if err := q.UpdateMediaFileProbeError(ctx, systemq.UpdateMediaFileProbeErrorParams{
+	n, err := q.UpdateMediaFileProbeError(ctx, systemq.UpdateMediaFileProbeErrorParams{
 		ProbeError: sql.NullString{String: msg, Valid: true}, Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, ID: t.file.ID,
-	}); err != nil {
+		Size: v.Size, Mtime: v.Mtime,
+	})
+	if err != nil {
 		return fmt.Errorf("store probe error: %w", err)
+	}
+	if n == 0 {
+		return fileChanged(t.file.ID)
 	}
 	if err := q.DeleteMediaFileTracks(ctx, t.file.ID); err != nil {
 		return fmt.Errorf("delete tracks: %w", err)

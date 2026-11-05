@@ -65,7 +65,7 @@ func (r *Reader) Parts(ctx context.Context, s Scope, itemID string) ([]MediaFile
 	}
 	out := make([]MediaFileLocation, 0, len(rows))
 	for _, f := range rows {
-		out = append(out, MediaFileLocation{ItemID: f.ItemID, RootPath: f.RootPath, RelPath: f.RelPath, File: mediaFile(scopedq.ListMediaFilesForItemRow{
+		out = append(out, MediaFileLocation{ItemID: f.ItemID, RootPath: f.RootPath, RelPath: f.RelPath, Mtime: f.Mtime, File: mediaFile(scopedq.ListMediaFilesForItemRow{
 			ID: f.ID, ItemID: f.ItemID, RelPath: f.RelPath, Size: f.Size, Mtime: f.Mtime, Container: f.Container,
 			VideoCodec: f.VideoCodec, AudioCodec: f.AudioCodec, Width: f.Width, Height: f.Height, DurationMs: f.DurationMs,
 			VersionLabel: f.VersionLabel, MissingSince: f.MissingSince, CreatedAt: f.CreatedAt, RootPath: f.RootPath,

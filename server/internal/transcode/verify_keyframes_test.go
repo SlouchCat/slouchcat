@@ -106,10 +106,32 @@ func TestVerifyKeyframesFFmpeg(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(ix.Keyframes) != 7 {
-				t.Fatalf("index %v, want 7 keyframes", ix.Keyframes)
+			// The index holds the forced keyframes, shifted by the start of the first one (the edit
+			// list of the MP4 with B-frames), and entry for entry what the full read finds.
+			forced := []time.Duration{0, 2, 7, 8, 15, 21, 27}
+			if len(ix.Keyframes) != len(forced) {
+				t.Fatalf("index %v, want the keyframes %v s", ix.Keyframes, forced)
 			}
 			ctx := context.Background()
+			full, err := r.Keyframes(ctx, path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(full) != len(forced) {
+				t.Fatalf("full read %v, want the keyframes %v s", full, forced)
+			}
+			offset := ix.Keyframes[0]
+			if offset < 0 || offset > 500*time.Millisecond {
+				t.Errorf("first keyframe at %v, want at most 0.5 s", offset)
+			}
+			for i, s := range forced {
+				if d := ix.Keyframes[i] - offset - s*time.Second; d < -2*time.Millisecond || d > 2*time.Millisecond {
+					t.Errorf("keyframe %d at %v, want %d s after the first", i, ix.Keyframes[i], s)
+				}
+				if d := ix.Keyframes[i] - full[i]; d < -2*time.Millisecond || d > 2*time.Millisecond {
+					t.Errorf("keyframe %d at %v, the full read finds it at %v", i, ix.Keyframes[i], full[i])
+				}
+			}
 			started := time.Now()
 			for seed := range uint64(10) {
 				if err := r.VerifyKeyframes(ctx, path, ix.Keyframes, seed); err != nil {
