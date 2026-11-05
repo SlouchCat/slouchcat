@@ -186,8 +186,8 @@ func TestSchedulerOnceSetAgainWhileFiringStays(t *testing.T) {
 	if c.runs.Load() != 1 {
 		t.Fatalf("runs = %d", c.runs.Load())
 	}
-	if s := e.schedule("a.race"); !s.OnceAt.Equal(again) || !s.LastFiredAt.IsZero() {
-		t.Errorf("schedule = %+v, want the new date %v kept (and the firing not marked on it)", s, again)
+	if s := e.schedule("a.race"); !s.OnceAt.Equal(again) || !s.LastFiredAt.Equal(e.clock.Now()) {
+		t.Errorf("schedule = %+v, want the new date %v kept and the firing marked now", s, again)
 	}
 }
 
@@ -235,6 +235,8 @@ func TestSchedulerOnceValidatesAndClears(t *testing.T) {
 	for value, code := range map[string]string{
 		"tomorrow":                              "invalid_value",
 		"2026-10-18 15:00":                      "invalid_value",
+		"2026-12-01T3:30":                       "invalid_value", // one-digit hour: "15" would take it
+		"2026-12-1T03:30":                       "invalid_value",
 		*wall(now):                              "out_of_range",
 		*wall(now.Add(-time.Hour)):              "out_of_range",
 		*wall(now.Add(OnceMaxLead + time.Hour)): "out_of_range",
@@ -255,5 +257,25 @@ func TestSchedulerOnceValidatesAndClears(t *testing.T) {
 	}
 	if s := e.update("a.valid", ScheduleUpdate{ClearOnce: true, OnceLocal: wall(now.Add(time.Hour))}); !s.OnceAt.IsZero() || s.OnceLocal != "" {
 		t.Errorf("schedule after ClearOnce = %+v, want no date", s)
+	}
+}
+
+// The date and the interval part of one update are stored together: when the second statement
+// fails, the date is not stored behind the error.
+func TestSchedulerOnceUpdateIsAtomic(t *testing.T) {
+	c := &counter{name: "a.atomic"}
+	e := newSchedEnv(t, scheduled(c, time.Hour, dur(0)))
+	if _, err := e.q.db.ExecContext(e.ctx, `CREATE TRIGGER refuse_every BEFORE UPDATE OF every_ms ON job_schedules
+		BEGIN SELECT RAISE(ABORT, 'refused'); END`); err != nil {
+		t.Fatal(err)
+	}
+	before := e.schedule("a.atomic")
+	every := 2 * time.Hour
+	_, err := e.s.UpdateSchedule(e.ctx, "a.atomic", ScheduleUpdate{Every: &every, OnceLocal: wall(e.clock.Now().Add(time.Hour))})
+	if err == nil {
+		t.Fatal("update accepted although its second statement fails")
+	}
+	if after := e.schedule("a.atomic"); !after.OnceAt.IsZero() || after.Every != before.Every {
+		t.Errorf("schedule after the failed update = %+v, want it unchanged (%+v)", after, before)
 	}
 }

@@ -128,6 +128,29 @@ func TestEnqueueOverridingPauseCap(t *testing.T) {
 	}
 }
 
+// A job that holds the key can end between the skipped insert and the lookup of its ID: the insert
+// is repeated once instead of failing with sql.ErrNoRows.
+func TestEnqueueOverridingPauseRepeatsWhenHolderEnds(t *testing.T) {
+	ctx := context.Background()
+	q, _ := newTestQueue(t)
+	holder := mustEnqueue(t, q, NewJob{Type: "a", IdempotencyKey: "keyframes:1"})
+	j := mustClaim(t, q, "w1")
+	calls := 0
+	q.afterSkippedInsert = func() {
+		calls++
+		if err := q.Complete(ctx, "w1", j.ID); err != nil { // the holder ends right after the skipped insert
+			t.Error(err)
+		}
+	}
+	r, err := q.EnqueueOverridingPause(ctx, NewJob{Type: "a", Priority: 9, IdempotencyKey: "keyframes:1"})
+	if err != nil {
+		t.Fatalf("EnqueueOverridingPause = %v, want the insert repeated", err)
+	}
+	if calls != 1 || !r.Inserted || r.ID == holder || !r.OverridesPause {
+		t.Errorf("result = %+v after %d skipped inserts, want a new job (not %d) with the override", r, calls, holder)
+	}
+}
+
 // Four concurrent playback starts cannot pass the cap: the check is part of the insert.
 func TestEnqueueOverridingPauseCapConcurrent(t *testing.T) {
 	q, _ := newTestQueue(t)

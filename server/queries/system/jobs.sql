@@ -240,10 +240,13 @@ UPDATE job_schedules SET next_run_at = @next_run_at, updated_at = @now WHERE typ
 UPDATE job_schedules SET next_run_at = @next_run_at, updated_at = @now, last_fired_at = @now WHERE type = @type;
 
 -- name: MarkJobScheduleOnceFired :execrows
--- The one-off date fired: it is cleared, the next run of the interval stays. The condition on the
--- date that was read keeps a date the administrator set again in the meantime.
-UPDATE job_schedules SET once_at = NULL, updated_at = @now, last_fired_at = @now
-WHERE type = @type AND once_at = @fired_once_at;
+-- The one-off date fired: the firing is marked, the date is cleared, the next run of the interval
+-- stays. Only the clearing depends on the date that was read, so a date the administrator set
+-- again in the meantime stays while the firing that happened is still recorded.
+UPDATE job_schedules
+SET once_at = CASE WHEN once_at = @fired_once_at THEN NULL ELSE once_at END,
+    updated_at = @now, last_fired_at = @now
+WHERE type = @type;
 
 -- name: ReplaceJobScheduleOnce :execrows
 -- Moves (start delay) or drops (pause, missed by more than a day; @once_at NULL) the one-off date

@@ -170,6 +170,9 @@ type Queue struct {
 	now func() time.Time
 	// pruneTasks are the further cleanups of jobs.prune (AddPruneTask).
 	pruneTasks []func(ctx context.Context) (int64, error)
+	// afterSkippedInsert is a seam for tests: EnqueueOverridingPause calls it between a skipped
+	// insert and the lookup of the job that holds the key.
+	afterSkippedInsert func()
 }
 
 // NewQueue returns a queue on db. now is the clock; nil means time.Now.
@@ -177,7 +180,7 @@ func NewQueue(db *sql.DB, now func() time.Time) *Queue {
 	if now == nil {
 		now = time.Now
 	}
-	return &Queue{db: db, q: systemq.New(db), now: now}
+	return &Queue{db: db, q: systemq.New(db), now: now, afterSkippedInsert: func() {}}
 }
 
 // Enqueue adds a job and returns its ID. With an IdempotencyKey that an active job already
@@ -256,19 +259,31 @@ func (q *Queue) EnqueueOverridingPause(ctx context.Context, j NewJob) (PauseOver
 		return PauseOverride{}, err
 	}
 	now := q.now()
-	row, err := q.q.InsertJobOverridingPause(ctx, systemq.InsertJobOverridingPauseParams{
-		Type:           j.Type,
-		Priority:       int64(j.Priority),
-		IdempotencyKey: key,
-		Payload:        string(payload),
-		RunAfter:       now.Add(j.Delay).UnixMilli(),
-		MaxAttempts:    int64(maxAttempts),
-		MaxOverrides:   MaxPauseOverrides,
-		Now:            now.UnixMilli(),
-	})
-	if errors.Is(err, sql.ErrNoRows) && key.Valid {
+	// A job that holds the key can end between the skipped insert and the lookup of its ID; the
+	// insert is then repeated once (the key is free by now).
+	for attempt := 0; ; attempt++ {
+		row, err := q.q.InsertJobOverridingPause(ctx, systemq.InsertJobOverridingPauseParams{
+			Type:           j.Type,
+			Priority:       int64(j.Priority),
+			IdempotencyKey: key,
+			Payload:        string(payload),
+			RunAfter:       now.Add(j.Delay).UnixMilli(),
+			MaxAttempts:    int64(maxAttempts),
+			MaxOverrides:   MaxPauseOverrides,
+			Now:            now.UnixMilli(),
+		})
+		if err == nil {
+			return PauseOverride{ID: row.ID, Inserted: true, OverridesPause: row.OverridePause == 1}, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) || !key.Valid {
+			return PauseOverride{}, fmt.Errorf("enqueue %s: %w", j.Type, err)
+		}
 		// The insert was skipped because an active job holds the key.
+		q.afterSkippedInsert()
 		id, err := q.q.GetActiveJobIDByKey(ctx, key)
+		if errors.Is(err, sql.ErrNoRows) && attempt == 0 {
+			continue
+		}
 		if err != nil {
 			return PauseOverride{}, fmt.Errorf("enqueue %s: %w", j.Type, err)
 		}
@@ -278,10 +293,6 @@ func (q *Queue) EnqueueOverridingPause(ctx context.Context, j NewJob) (PauseOver
 		}
 		return PauseOverride{ID: id, OverridesPause: cur.OverridesPause}, nil
 	}
-	if err != nil {
-		return PauseOverride{}, fmt.Errorf("enqueue %s: %w", j.Type, err)
-	}
-	return PauseOverride{ID: row.ID, Inserted: true, OverridesPause: row.OverridePause == 1}, nil
 }
 
 // RaiseQueuedJobForPlayback raises the waiting job id for a playback (concept 14, 6.4): its

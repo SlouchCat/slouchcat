@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -60,6 +61,10 @@ const (
 	OnceMaxLead = 366 * 24 * time.Hour
 	OnceCatchUp = 24 * time.Hour
 )
+
+// onceShape is the fixed width of OnceLayout: the layout element "15" alone also takes a one-digit
+// hour ("2026-12-01T3:30").
+var onceShape = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$`)
 
 // Window is a time window in minutes of the server's day; End is exclusive, End < Start spans
 // midnight.
@@ -354,7 +359,7 @@ func (s *Scheduler) UpdateSchedule(ctx context.Context, typ string, u ScheduleUp
 	if !u.ClearOnce && u.OnceLocal != nil {
 		at, err := time.ParseInLocation(OnceLayout, *u.OnceLocal, s.loc)
 		switch {
-		case err != nil:
+		case err != nil || !onceShape.MatchString(*u.OnceLocal):
 			verr = verr.Add("onceLocal", "invalid_value")
 		case at.Before(now.Add(OnceMinLead)) || at.After(now.Add(OnceMaxLead)):
 			verr = verr.Add("onceLocal", "out_of_range")
@@ -365,35 +370,52 @@ func (s *Scheduler) UpdateSchedule(ctx context.Context, typ string, u ScheduleUp
 	if verr != nil {
 		return Schedule{}, verr
 	}
-	if u.ClearOnce || u.OnceLocal != nil {
-		if _, err := s.sys.SetJobScheduleOnce(ctx, systemq.SetJobScheduleOnceParams{OnceAt: once, Now: now.UnixMilli(), Type: typ}); err != nil {
+	// The date and the interval part are written in one transaction, so a failing second
+	// statement does not leave the date stored behind an error.
+	tx, err := s.q.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Schedule{}, fmt.Errorf("update schedule of %s: begin: %w", typ, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	w := s.sys.WithTx(tx)
+	setOnce := u.ClearOnce || u.OnceLocal != nil
+	if setOnce {
+		if _, err := w.SetJobScheduleOnce(ctx, systemq.SetJobScheduleOnceParams{OnceAt: once, Now: now.UnixMilli(), Type: typ}); err != nil {
 			return Schedule{}, fmt.Errorf("set one-off date of %s: %w", typ, err)
 		}
-		s.log.InfoContext(ctx, "one-off date updated", "job_type", typ, "once_at", nullMsUTC(once))
-		if u.Every == nil && u.Enabled == nil && u.Window == nil && !u.ClearWindow {
-			return s.Schedule(ctx, typ)
+	}
+	dateOnly := setOnce && u.Every == nil && u.Enabled == nil && u.Window == nil && !u.ClearWindow
+	var next time.Time
+	if !dateOnly {
+		base := now.Add(every)
+		if !cur.LastFiredAt.IsZero() {
+			base = cur.LastFiredAt.Add(every)
+		}
+		if base.Before(now) {
+			base = now
+		}
+		next = s.align(base, window)
+		ws, we := windowColumns(window)
+		n, err := w.UpdateJobSchedule(ctx, systemq.UpdateJobScheduleParams{
+			EveryMs: every.Milliseconds(), Enabled: boolInt(enabled), WindowStart: ws, WindowEnd: we,
+			NextRunAt: next.UnixMilli(), Now: now.UnixMilli(), Type: typ,
+		})
+		if err != nil {
+			return Schedule{}, fmt.Errorf("update schedule of %s: %w", typ, err)
+		}
+		if n == 0 {
+			return Schedule{}, model.ErrNotFound
 		}
 	}
-	base := now.Add(every)
-	if !cur.LastFiredAt.IsZero() {
-		base = cur.LastFiredAt.Add(every)
+	if err := tx.Commit(); err != nil {
+		return Schedule{}, fmt.Errorf("update schedule of %s: commit: %w", typ, err)
 	}
-	if base.Before(now) {
-		base = now
+	if setOnce {
+		s.log.InfoContext(ctx, "one-off date updated", "job_type", typ, "once_at", nullMsUTC(once))
 	}
-	next := s.align(base, window)
-	ws, we := windowColumns(window)
-	n, err := s.sys.UpdateJobSchedule(ctx, systemq.UpdateJobScheduleParams{
-		EveryMs: every.Milliseconds(), Enabled: boolInt(enabled), WindowStart: ws, WindowEnd: we,
-		NextRunAt: next.UnixMilli(), Now: now.UnixMilli(), Type: typ,
-	})
-	if err != nil {
-		return Schedule{}, fmt.Errorf("update schedule of %s: %w", typ, err)
+	if !dateOnly {
+		s.log.InfoContext(ctx, "schedule updated", "job_type", typ, "every", every, "enabled", enabled, "window", window != nil, "next_run_at", next.UTC())
 	}
-	if n == 0 {
-		return Schedule{}, model.ErrNotFound
-	}
-	s.log.InfoContext(ctx, "schedule updated", "job_type", typ, "every", every, "enabled", enabled, "window", window != nil, "next_run_at", next.UTC())
 	return s.Schedule(ctx, typ)
 }
 

@@ -1058,20 +1058,23 @@ func (q *Queries) MarkJobScheduleFired(ctx context.Context, arg MarkJobScheduleF
 }
 
 const markJobScheduleOnceFired = `-- name: MarkJobScheduleOnceFired :execrows
-UPDATE job_schedules SET once_at = NULL, updated_at = ?1, last_fired_at = ?1
-WHERE type = ?2 AND once_at = ?3
+UPDATE job_schedules
+SET once_at = CASE WHEN once_at = ?1 THEN NULL ELSE once_at END,
+    updated_at = ?2, last_fired_at = ?2
+WHERE type = ?3
 `
 
 type MarkJobScheduleOnceFiredParams struct {
+	FiredOnceAt sql.NullInt64
 	Now         int64
 	Type        string
-	FiredOnceAt sql.NullInt64
 }
 
-// The one-off date fired: it is cleared, the next run of the interval stays. The condition on the
-// date that was read keeps a date the administrator set again in the meantime.
+// The one-off date fired: the firing is marked, the date is cleared, the next run of the interval
+// stays. Only the clearing depends on the date that was read, so a date the administrator set
+// again in the meantime stays while the firing that happened is still recorded.
 func (q *Queries) MarkJobScheduleOnceFired(ctx context.Context, arg MarkJobScheduleOnceFiredParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, markJobScheduleOnceFired, arg.Now, arg.Type, arg.FiredOnceAt)
+	result, err := q.db.ExecContext(ctx, markJobScheduleOnceFired, arg.FiredOnceAt, arg.Now, arg.Type)
 	if err != nil {
 		return 0, err
 	}
