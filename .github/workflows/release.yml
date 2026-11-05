@@ -96,11 +96,15 @@ jobs:
       # oci://ghcr.io/slouchcat/slouchcat:<version> --repo SlouchCat/slouchcat` checks it. It is
       # what makes a tampered registry or a compromised workflow visible afterwards.
       - name: Attest the build provenance
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.version.outputs.image }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+          # v4 also writes an artifact storage record by default, which needs
+          # `artifact-metadata: write`. The job does not get that permission, and the attestation
+          # pushed to the registry is all `gh attestation verify` needs.
+          create-storage-record: false
 
       # The notes are the message of the annotated tag, without its first line (which repeats the
       # version).

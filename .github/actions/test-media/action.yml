@@ -17,7 +17,7 @@ runs:
       run: echo "version=$(ffmpeg -version | head -1 | cut -d' ' -f3)" >> "$GITHUB_OUTPUT"
 
     - name: Cache the generated test media
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: testdata/media
         key: testmedia-${{ runner.os }}-${{ steps.ffmpeg.outputs.version }}-${{ hashFiles('testdata/generate-media.sh', 'testdata/*.py') }}
