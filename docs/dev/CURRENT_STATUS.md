@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 13 «Abspielseite», Stufe 3 «Bilder»: gebaut, Pull Request vorbereitet (5. November 2026)
+## Konzept 13 «Abspielseite», Stufe 3 «Bilder»: gemergt und auf CT 190 abgenommen (5. November 2026)
 
 **Zweig `claude/abspielseite-stufe3-992847` ab `main` `4022ba8` (Release 1.11.0).** Marcos Wort
 «Wenn Stufe 2 abgeschlossen ist …, starte direkt Stufe 3». Vertrag **1.12.0** (additiv). Keine
@@ -37,10 +37,18 @@ Migration. Alle Entscheide des Baus in `docs/planning/13-abspielseite.md` 11.15 
 | `build`, `ci:e2e:parallel` (3 Shards) | 481 von 481 (157, 162, 162) |
 | Nachzug `ed50794` (nur `library`, `jobs`) | `task check:fast` und gezielte Tests `ok`, golangci-lint 0, `gen:check` sauber |
 
+**Abnahme und Merge:**
+- **CT 190** auf `stufe3-b846c5a` (`v1.11.0-22-gb846c5a2`, auf dem CT gebaut nach
+  `/root/build-b846c5a`), Sicherung `.env.bak-vor-stufe3`, davor Release 1.11.0. Keine Migration,
+  Start `healthy`. Kapitelbilder für den Bestand entstehen erst nach dem Abspielen oder mit
+  «Kapitelbilder nachholen» von Hand. Abgenommen von Marco am 5. November 2026.
+- **PR #88** auf Marcos Wort gemergt (`d70ac4b`), GitHub-CI 19 von 19 grün.
+- **Release 1.12.0:** Versionsstellen auf 1.12.0 im Zweig `claude/release-1.12.0`
+  (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`), Tag `v1.12.0` setzt Marco auf den Merge-Commit. Release-Notes:
+  `release-notes-1.12.0.txt` im Wurzelordner (unversioniert wie 1.5.0 bis 1.11.0).
+
 **Offen:**
-- Push und Pull Request auf Marcos Wort, danach Abnahme auf CT 190 (Bestand braucht
-  «Kapitelbilder nachholen» von Hand) und Release 1.12.0. Release-Notiz-Entwurf
-  `release-notes-1.12.0.txt` im Wurzelordner (unversioniert).
 - Bekannte Grenzen: keine Kapitelbilder offline und im Kapitelblatt des Handy-Layouts; Farben bei
   Dolby Vision Profil 5 können abweichen.
 
