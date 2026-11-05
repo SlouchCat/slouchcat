@@ -91,12 +91,20 @@ test('flight mode: the download plays with subtitles and the chosen audio; progr
   await expectFocusOn(page, player.getByRole('button', { name: 'Pause' }));
 
   // The controls of the video player (F-15): the row is one Tab stop, ←/→ go from button to
-  // button and leave the position alone.
+  // button and leave the position alone. Paused, as online (player.spec): while the film plays,
+  // the bar fades out CONTROLS_HIDE_MS after the start without input, and then ←/→ seek (11.2).
+  // The wait for the first second above can take that long in Firefox.
   const bar = player.getByRole('toolbar', { name: 'Wiedergabe' });
   const pause = bar.getByRole('button', { name: 'Pause' });
+  const playButton = bar.getByRole('button', { name: 'Abspielen' });
+  await page.keyboard.press(' ');
+  await expectFocusOn(page, playButton);
+  await expect(player).toHaveAttribute('data-controls', 'visible');
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, bar.getByRole('button', { name: '30 Sekunden vor' }));
   await page.keyboard.press('ArrowLeft');
+  await expectFocusOn(page, playButton);
+  await page.keyboard.press(' ');
   await expectFocusOn(page, pause);
   // No quality, version or stream info offline: the gear names no rung.
   await expect(bar.getByRole('button', { name: 'Einstellungen', exact: true })).toBeVisible();
@@ -126,7 +134,6 @@ test('flight mode: the download plays with subtitles and the chosen audio; progr
   await expect(layer).toContainText(/^Deutsch \d$/, { timeout: 10_000 });
   await page.keyboard.press('5');
   await page.keyboard.press(' ');
-  const playButton = bar.getByRole('button', { name: 'Abspielen' });
   await expectFocusOn(page, playButton);
   await expect(layer).toHaveText('Deutsch 3');
   await page.keyboard.press('u');
