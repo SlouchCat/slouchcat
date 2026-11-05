@@ -19,6 +19,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/mediaindex"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -82,6 +83,10 @@ type Service struct {
 	// frameGrabber replaces transcode.Runner.GrabFrame of chapters.images (a test seam; nil
 	// outside tests).
 	frameGrabber func(ctx context.Context, in string, at time.Duration, width int, v transcode.Stream, out string) (bool, error)
+	// indexReader replaces mediaindex.Read and keyframeVerifier transcode.Runner.VerifyKeyframes
+	// when probe.file reads the keyframe index of the container (test seams; nil outside tests).
+	indexReader      func(r io.ReaderAt, size int64, container string) (mediaindex.Index, error)
+	keyframeVerifier func(ctx context.Context, abs string, at []time.Duration, seed uint64) error
 
 	mu       sync.Mutex
 	runCtx   context.Context // context of Start; watchers of libraries created later run under it

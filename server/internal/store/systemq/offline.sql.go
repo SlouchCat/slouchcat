@@ -251,7 +251,7 @@ func (q *Queries) GetDownloadRule(ctx context.Context, arg GetDownloadRuleParams
 
 const getDownloadSource = `-- name: GetDownloadSource :one
 SELECT m.id, m.item_id, m.rel_path, m.size, m.video_codec, m.audio_codec, m.width, m.height, m.duration_ms,
-       m.probe, m.probe_error, m.keyframes, r.path AS root_path
+       m.probe, m.probe_error, m.keyframes, m.mtime, r.path AS root_path
 FROM media_files AS m
 JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.id = ?1
@@ -270,6 +270,7 @@ type GetDownloadSourceRow struct {
 	Probe      sql.NullString
 	ProbeError sql.NullString
 	Keyframes  []byte
+	Mtime      int64
 	RootPath   string
 }
 
@@ -291,6 +292,7 @@ func (q *Queries) GetDownloadSource(ctx context.Context, id string) (GetDownload
 		&i.Probe,
 		&i.ProbeError,
 		&i.Keyframes,
+		&i.Mtime,
 		&i.RootPath,
 	)
 	return i, err

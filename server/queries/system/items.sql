@@ -72,9 +72,16 @@ WHERE deleted_at IS NULL
 
 -- name: UpdateMediaFileLocation :exec
 -- Same file at a new path (rename, move), changed in place, or back after missing_since.
+-- reset_index (1 when size or mtime changed, decided by the writer whichever way the scanner
+-- matched the file) clears the keyframe index of the old version; a rename or move without a
+-- change keeps it (concept 14, 4.2, Z-1).
 UPDATE media_files
 SET rel_path = @rel_path, dev = @dev, inode = @inode, size = @size, mtime = @mtime,
-    partial_hash = @partial_hash, version_label = @version_label, missing_since = NULL, updated_at = @now
+    partial_hash = @partial_hash, version_label = @version_label, missing_since = NULL,
+    keyframes = CASE WHEN CAST(@reset_index AS INTEGER) = 1 THEN NULL ELSE keyframes END,
+    keyframes_at = CASE WHEN CAST(@reset_index AS INTEGER) = 1 THEN NULL ELSE keyframes_at END,
+    keyframes_source = CASE WHEN CAST(@reset_index AS INTEGER) = 1 THEN NULL ELSE keyframes_source END,
+    updated_at = @now
 WHERE id = @id;
 
 -- name: RestoreItem :exec
@@ -93,15 +100,27 @@ WHERE items.deleted_at IS NOT NULL
 -- name: GetMediaFileSystem :one
 SELECT * FROM media_files WHERE id = @id;
 
--- name: UpdateMediaFileProbe :exec
+-- name: UpdateMediaFileProbe :execrows
+-- Only for the version (size, mtime) the probe read: 0 rows means the file changed meanwhile, and
+-- probe.file retries with the new version (concept 14, 4.2, Z-9).
 UPDATE media_files
 SET container = @container, video_codec = @video_codec, audio_codec = @audio_codec, width = @width,
     height = @height, duration_ms = @duration_ms, probe = @probe, probe_error = NULL, probed_at = @now,
     updated_at = @now
-WHERE id = @id;
+WHERE id = @id AND size = @size AND mtime = @mtime;
 
--- name: UpdateMediaFileKeyframes :exec
-UPDATE media_files SET keyframes = @keyframes, keyframes_at = @now, updated_at = @now WHERE id = @id;
+-- name: SetMediaFileKeyframes :execrows
+-- The keyframe index is final per file version (concept 14, I-1): written only while there is
+-- none and the row still has the size and mtime the writer remembered before it read the file.
+-- 0 rows (an index is there, or the file changed) is not an error. keyframes_source is cues,
+-- mp4, scan (with a blob) or none (blob NULL).
+UPDATE media_files SET keyframes = @keyframes, keyframes_at = @now, keyframes_source = @source, updated_at = @now
+WHERE id = @id AND keyframes_source IS NULL AND size = @size AND mtime = @mtime;
+
+-- name: ResetUnavailableKeyframes :exec
+-- The refresh of a title in the maintenance retries a file marked "index impossible"; a stored
+-- index (cues, mp4, scan) stays (concept 14, 4.2, O-16).
+UPDATE media_files SET keyframes_source = NULL, updated_at = @now WHERE id = @id AND keyframes_source = 'none';
 
 -- name: DeleteMediaFileTracks :exec
 DELETE FROM tracks WHERE media_file_id = @media_file_id;

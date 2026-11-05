@@ -846,6 +846,22 @@ func (q *Queries) ListSidecarTracksByRoot(ctx context.Context, rootID int64) ([]
 	return items, nil
 }
 
+const resetUnavailableKeyframes = `-- name: ResetUnavailableKeyframes :exec
+UPDATE media_files SET keyframes_source = NULL, updated_at = ?1 WHERE id = ?2 AND keyframes_source = 'none'
+`
+
+type ResetUnavailableKeyframesParams struct {
+	Now int64
+	ID  string
+}
+
+// The refresh of a title in the maintenance retries a file marked "index impossible"; a stored
+// index (cues, mp4, scan) stays (concept 14, 4.2, O-16).
+func (q *Queries) ResetUnavailableKeyframes(ctx context.Context, arg ResetUnavailableKeyframesParams) error {
+	_, err := q.db.ExecContext(ctx, resetUnavailableKeyframes, arg.Now, arg.ID)
+	return err
+}
+
 const restoreItem = `-- name: RestoreItem :exec
 UPDATE items SET deleted_at = NULL, updated_at = ?1
 WHERE items.deleted_at IS NOT NULL
@@ -868,6 +884,39 @@ type RestoreItemParams struct {
 func (q *Queries) RestoreItem(ctx context.Context, arg RestoreItemParams) error {
 	_, err := q.db.ExecContext(ctx, restoreItem, arg.Now, arg.ID)
 	return err
+}
+
+const setMediaFileKeyframes = `-- name: SetMediaFileKeyframes :execrows
+UPDATE media_files SET keyframes = ?1, keyframes_at = ?2, keyframes_source = ?3, updated_at = ?2
+WHERE id = ?4 AND keyframes_source IS NULL AND size = ?5 AND mtime = ?6
+`
+
+type SetMediaFileKeyframesParams struct {
+	Keyframes []byte
+	Now       sql.NullInt64
+	Source    sql.NullString
+	ID        string
+	Size      int64
+	Mtime     int64
+}
+
+// The keyframe index is final per file version (concept 14, I-1): written only while there is
+// none and the row still has the size and mtime the writer remembered before it read the file.
+// 0 rows (an index is there, or the file changed) is not an error. keyframes_source is cues,
+// mp4, scan (with a blob) or none (blob NULL).
+func (q *Queries) SetMediaFileKeyframes(ctx context.Context, arg SetMediaFileKeyframesParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setMediaFileKeyframes,
+		arg.Keyframes,
+		arg.Now,
+		arg.Source,
+		arg.ID,
+		arg.Size,
+		arg.Mtime,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setMediaFileMissing = `-- name: SetMediaFileMissing :exec
@@ -957,26 +1006,15 @@ func (q *Queries) UpdateItemRatingOverride(ctx context.Context, arg UpdateItemRa
 	return err
 }
 
-const updateMediaFileKeyframes = `-- name: UpdateMediaFileKeyframes :exec
-UPDATE media_files SET keyframes = ?1, keyframes_at = ?2, updated_at = ?2 WHERE id = ?3
-`
-
-type UpdateMediaFileKeyframesParams struct {
-	Keyframes []byte
-	Now       sql.NullInt64
-	ID        string
-}
-
-func (q *Queries) UpdateMediaFileKeyframes(ctx context.Context, arg UpdateMediaFileKeyframesParams) error {
-	_, err := q.db.ExecContext(ctx, updateMediaFileKeyframes, arg.Keyframes, arg.Now, arg.ID)
-	return err
-}
-
 const updateMediaFileLocation = `-- name: UpdateMediaFileLocation :exec
 UPDATE media_files
 SET rel_path = ?1, dev = ?2, inode = ?3, size = ?4, mtime = ?5,
-    partial_hash = ?6, version_label = ?7, missing_since = NULL, updated_at = ?8
-WHERE id = ?9
+    partial_hash = ?6, version_label = ?7, missing_since = NULL,
+    keyframes = CASE WHEN CAST(?8 AS INTEGER) = 1 THEN NULL ELSE keyframes END,
+    keyframes_at = CASE WHEN CAST(?8 AS INTEGER) = 1 THEN NULL ELSE keyframes_at END,
+    keyframes_source = CASE WHEN CAST(?8 AS INTEGER) = 1 THEN NULL ELSE keyframes_source END,
+    updated_at = ?9
+WHERE id = ?10
 `
 
 type UpdateMediaFileLocationParams struct {
@@ -987,11 +1025,15 @@ type UpdateMediaFileLocationParams struct {
 	Mtime        int64
 	PartialHash  sql.NullString
 	VersionLabel sql.NullString
+	ResetIndex   int64
 	Now          int64
 	ID           string
 }
 
 // Same file at a new path (rename, move), changed in place, or back after missing_since.
+// reset_index (1 when size or mtime changed, decided by the writer whichever way the scanner
+// matched the file) clears the keyframe index of the old version; a rename or move without a
+// change keeps it (concept 14, 4.2, Z-1).
 func (q *Queries) UpdateMediaFileLocation(ctx context.Context, arg UpdateMediaFileLocationParams) error {
 	_, err := q.db.ExecContext(ctx, updateMediaFileLocation,
 		arg.RelPath,
@@ -1001,18 +1043,19 @@ func (q *Queries) UpdateMediaFileLocation(ctx context.Context, arg UpdateMediaFi
 		arg.Mtime,
 		arg.PartialHash,
 		arg.VersionLabel,
+		arg.ResetIndex,
 		arg.Now,
 		arg.ID,
 	)
 	return err
 }
 
-const updateMediaFileProbe = `-- name: UpdateMediaFileProbe :exec
+const updateMediaFileProbe = `-- name: UpdateMediaFileProbe :execrows
 UPDATE media_files
 SET container = ?1, video_codec = ?2, audio_codec = ?3, width = ?4,
     height = ?5, duration_ms = ?6, probe = ?7, probe_error = NULL, probed_at = ?8,
     updated_at = ?8
-WHERE id = ?9
+WHERE id = ?9 AND size = ?10 AND mtime = ?11
 `
 
 type UpdateMediaFileProbeParams struct {
@@ -1025,10 +1068,14 @@ type UpdateMediaFileProbeParams struct {
 	Probe      sql.NullString
 	Now        sql.NullInt64
 	ID         string
+	Size       int64
+	Mtime      int64
 }
 
-func (q *Queries) UpdateMediaFileProbe(ctx context.Context, arg UpdateMediaFileProbeParams) error {
-	_, err := q.db.ExecContext(ctx, updateMediaFileProbe,
+// Only for the version (size, mtime) the probe read: 0 rows means the file changed meanwhile, and
+// probe.file retries with the new version (concept 14, 4.2, Z-9).
+func (q *Queries) UpdateMediaFileProbe(ctx context.Context, arg UpdateMediaFileProbeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateMediaFileProbe,
 		arg.Container,
 		arg.VideoCodec,
 		arg.AudioCodec,
@@ -1038,6 +1085,11 @@ func (q *Queries) UpdateMediaFileProbe(ctx context.Context, arg UpdateMediaFileP
 		arg.Probe,
 		arg.Now,
 		arg.ID,
+		arg.Size,
+		arg.Mtime,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

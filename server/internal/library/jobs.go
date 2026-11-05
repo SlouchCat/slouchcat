@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/mediaindex"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
@@ -126,15 +127,44 @@ func QueueKeyframesForPlayback(ctx context.Context, q *jobs.Queue, mediaFileID s
 	return err
 }
 
-// StoreKeyframes stores a keyframe index that playback computed on demand, like the index job.
-func StoreKeyframes(ctx context.Context, db *sql.DB, mediaFileID string, kf []time.Duration, now time.Time) error {
-	err := systemq.New(db).UpdateMediaFileKeyframes(ctx, systemq.UpdateMediaFileKeyframesParams{
-		Keyframes: EncodeKeyframes(kf), Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, ID: mediaFileID,
+// Keyframe sources: the values of media_files.keyframes_source (concept 14, 4.1).
+const (
+	KeyframesCues = string(mediaindex.SourceCues) // Matroska and WebM cues
+	KeyframesMP4  = string(mediaindex.SourceMP4)  // MP4 sample tables
+	KeyframesScan = "scan"                        // the full read (transcode.Runner.Keyframes)
+	KeyframesNone = "none"                        // no index possible for this file version
+)
+
+// FileVersion is the size and mtime of a media file row, remembered before its file is read: a
+// probe or an index is only written for the version it was computed from (concept 14, 4.2).
+type FileVersion struct {
+	Size  int64
+	Mtime int64
+}
+
+// VersionOf returns the version of a media file row.
+func VersionOf(f systemq.MediaFile) FileVersion { return FileVersion{Size: f.Size, Mtime: f.Mtime} }
+
+// StoreKeyframes is the one writer of the keyframe index (concept 14, 4.2): it stores kf with its
+// source only while the file has no index and the row still has version v (I-1, Z-9), on db (the
+// write connection or the caller's transaction). An empty kf is stored as KeyframesNone without a
+// blob. stored is false when an index was there already or the file changed meanwhile, which is
+// not an error.
+func StoreKeyframes(ctx context.Context, db systemq.DBTX, mediaFileID string, kf []time.Duration, source string, v FileVersion, now time.Time) (stored bool, err error) {
+	var blob []byte
+	if len(kf) == 0 {
+		source = KeyframesNone
+	} else {
+		blob = EncodeKeyframes(kf)
+	}
+	n, err := systemq.New(db).SetMediaFileKeyframes(ctx, systemq.SetMediaFileKeyframesParams{
+		Keyframes: blob, Now: sql.NullInt64{Int64: now.UnixMilli(), Valid: true},
+		Source: sql.NullString{String: source, Valid: true}, ID: mediaFileID, Size: v.Size, Mtime: v.Mtime,
 	})
 	if err != nil {
-		return fmt.Errorf("store keyframe index of %s: %w", mediaFileID, err)
+		return false, fmt.Errorf("store keyframe index of %s: %w", mediaFileID, err)
 	}
-	return nil
+	return n > 0, nil
 }
 
 func matchJob(itemID string) newJob {

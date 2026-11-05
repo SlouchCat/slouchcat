@@ -229,7 +229,7 @@ func (s *Service) planFor(ctx context.Context, row systemq.Download) (planned, e
 	c := decide(file, probe, prof, int(row.AudioStream))
 	src := transcode.Source{Path: abs, Probe: *probe}
 	if c.Target.Mode == transcode.ModeRemux {
-		if src.Keyframes = s.keyframes(ctx, m.ID, abs, m.Keyframes); len(src.Keyframes) == 0 {
+		if src.Keyframes = s.keyframes(ctx, m.ID, abs, m.Keyframes, library.FileVersion{Size: m.Size, Mtime: m.Mtime}); len(src.Keyframes) == 0 {
 			if ctx.Err() != nil {
 				return planned{}, ctx.Err()
 			}
@@ -260,7 +260,7 @@ func readable(root paths.Root, rel string) error {
 
 // keyframes returns the keyframe index of a media file for a remux: the stored one, else computed
 // by the encoder and stored for playback too; nil when neither works.
-func (s *Service) keyframes(ctx context.Context, fileID, abs string, blob []byte) []time.Duration {
+func (s *Service) keyframes(ctx context.Context, fileID, abs string, blob []byte, v library.FileVersion) []time.Duration {
 	if len(blob) > 0 {
 		if kf, err := library.DecodeKeyframes(blob); err == nil && len(kf) > 0 {
 			return kf
@@ -271,7 +271,7 @@ func (s *Service) keyframes(ctx context.Context, fileID, abs string, blob []byte
 		s.log.InfoContext(ctx, "keyframe index unavailable, encoding the download", "media_file_id", fileID, "err", err)
 		return nil
 	}
-	if err := library.StoreKeyframes(ctx, s.db.Write, fileID, kf, s.now()); err != nil {
+	if _, err := library.StoreKeyframes(ctx, s.db.Write, fileID, kf, library.KeyframesScan, v, s.now()); err != nil {
 		s.log.WarnContext(ctx, "store keyframe index", "media_file_id", fileID, "err", err)
 	}
 	return kf

@@ -217,7 +217,7 @@ WHERE i.id = @id;
 -- The source of a preparation: library root, path, stored probe (or probe error) and keyframe index
 -- of the file.
 SELECT m.id, m.item_id, m.rel_path, m.size, m.video_codec, m.audio_codec, m.width, m.height, m.duration_ms,
-       m.probe, m.probe_error, m.keyframes, r.path AS root_path
+       m.probe, m.probe_error, m.keyframes, m.mtime, r.path AS root_path
 FROM media_files AS m
 JOIN library_roots AS r ON r.id = m.root_id
 WHERE m.id = @id;

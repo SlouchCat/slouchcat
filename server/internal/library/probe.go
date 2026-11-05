@@ -64,13 +64,21 @@ func (s *Service) loadProbeTarget(ctx context.Context, j *jobs.Job) (probeTarget
 	return probeTarget{file: mf, root: pr, abs: abs, found: true}, nil
 }
 
+// errFileChanged: the media file row changed (size or mtime) while probe.file read the file; the
+// job retries after its backoff with the new version (concept 14, Z-9).
+var errFileChanged = errors.New("media file changed during the probe")
+
 // handleProbe runs ffprobe on a media file, stores codecs, resolution, duration and the probe
-// JSON, replaces its tracks (embedded streams and sidecar subtitles) and queues the keyframe index.
+// JSON, replaces its tracks (embedded streams and sidecar subtitles) and stores the keyframe
+// index from the container or queues the full read (concept 14, 2.2). Everything that reads the
+// file or starts a process runs before the write transaction; the transaction only writes, and
+// only for the file version (size, mtime) remembered from the row before the file was read.
 func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	t, err := s.loadProbeTarget(ctx, j)
 	if err != nil || !t.found {
 		return err
 	}
+	version := VersionOf(t.file)
 	if t.file.Size == 0 {
 		// Never playable; spares an ffprobe process (placeholder trees of the scan benchmark).
 		return s.storeProbeError(ctx, t, errEmptyFile)
@@ -89,8 +97,8 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 	sidecars, err := findSidecars(r, t.file.RelPath)
-	_ = r.Close()
 	if err != nil {
 		return fmt.Errorf("list sidecar subtitles: %w", err)
 	}
@@ -104,6 +112,8 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		DurationMs: sql.NullInt64{Int64: pr.Format.Duration.Milliseconds(), Valid: pr.Format.Duration > 0},
 		Probe:      sql.NullString{String: string(raw), Valid: true},
 		ID:         t.file.ID,
+		Size:       version.Size,
+		Mtime:      version.Mtime,
 	}
 	if v := mainVideo(pr.Streams); v != nil {
 		params.VideoCodec = sql.NullString{String: v.Codec, Valid: v.Codec != ""}
@@ -114,6 +124,24 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 		params.AudioCodec = sql.NullString{String: a.Codec, Valid: a.Codec != ""}
 	}
 
+	item, err := systemq.New(s.db.Read).GetItemSystem(ctx, t.file.ItemID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("load item of the probed file: %w", err)
+	}
+	// The keyframe index of this version: from the container when it passes the checks, else the
+	// full read (probe.keyframes). A file that has its index already (the scanner clears it when
+	// the file changes) is not read again.
+	var index containerIndex
+	if !t.file.KeyframesSource.Valid {
+		index, err = s.indexFromContainer(ctx, indexTarget{
+			id: t.file.ID, root: t.root, dir: r, rel: t.file.RelPath, container: params.Container,
+			duration: pr.Format.Duration, codec: params.VideoCodec.String, kind: item.Kind, muxer: pr.Format.Tags["encoder"],
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	now := s.now()
 	params.Now = sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
 	tx, err := s.db.Write.BeginTx(ctx, nil)
@@ -122,8 +150,12 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 	q := systemq.New(tx)
-	if err := q.UpdateMediaFileProbe(ctx, params); err != nil {
+	n, err := q.UpdateMediaFileProbe(ctx, params)
+	if err != nil {
 		return fmt.Errorf("store probe: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("probe %s: %w", t.file.ID, errFileChanged)
 	}
 	if err := q.DeleteMediaFileTracks(ctx, t.file.ID); err != nil {
 		return fmt.Errorf("delete tracks: %w", err)
@@ -164,14 +196,12 @@ func (s *Service) handleProbe(ctx context.Context, j *jobs.Job) error {
 			return fmt.Errorf("insert sidecar track: %w", err)
 		}
 	}
-	// An audio title has no video keyframes (concept 4.5): no probe.keyframes job for audiobooks
-	// and podcast episodes, which spares one queue entry per file of a large podcast folder.
-	item, err := q.GetItemSystem(ctx, t.file.ItemID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("load item of the probed file: %w", err)
-	}
-	audioTitle := item.Kind == "audiobook" || item.Kind == "podcast_episode"
-	if !audioTitle {
+	switch {
+	case len(index.keyframes) > 0:
+		if _, err := StoreKeyframes(ctx, tx, t.file.ID, index.keyframes, index.source, version, now); err != nil {
+			return err
+		}
+	case index.worthy:
 		if err := enqueueTx(ctx, q, now, keyframesJob(t.file.ID)); err != nil {
 			return err
 		}
@@ -264,9 +294,8 @@ func (s *Service) handleKeyframes(ctx context.Context, j *jobs.Job) error {
 	if err != nil {
 		return fmt.Errorf("keyframes of media file %s: %w", t.file.ID, err)
 	}
-	return systemq.New(s.db.Write).UpdateMediaFileKeyframes(ctx, systemq.UpdateMediaFileKeyframesParams{
-		Keyframes: EncodeKeyframes(kf), Now: sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}, ID: t.file.ID,
-	})
+	_, err = StoreKeyframes(ctx, s.db.Write, t.file.ID, kf, KeyframesScan, VersionOf(t.file), s.now())
+	return err
 }
 
 // keyframesFormat is the version byte of the keyframe blob.

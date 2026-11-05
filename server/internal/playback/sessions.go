@@ -730,7 +730,7 @@ func (s *Service) prepare(ctx context.Context, in input, src source, kfBlob []by
 		}
 	}
 	if d.Mode == ModeRemux {
-		if req.Keyframes = s.ensureKeyframes(ctx, loc.File.ID, abs, kfBlob); req.Keyframes == nil {
+		if req.Keyframes = s.ensureKeyframes(ctx, loc, abs, kfBlob); req.Keyframes == nil {
 			req.Decision = src.transcode(d, ReasonKeyframesPending)
 		}
 	}
@@ -741,7 +741,8 @@ func (s *Service) prepare(ctx context.Context, in input, src source, kfBlob []by
 // computed on demand (bounded by keyframeTimeout) and stored for the next start; when that is not
 // possible in time it returns nil and queues the index job at top priority, so the caller
 // transcodes this playback and the next start remuxes.
-func (s *Service) ensureKeyframes(ctx context.Context, fileID, abs string, blob []byte) []time.Duration {
+func (s *Service) ensureKeyframes(ctx context.Context, loc visibility.MediaFileLocation, abs string, blob []byte) []time.Duration {
+	fileID := loc.File.ID
 	if len(blob) > 0 {
 		kf, err := library.DecodeKeyframes(blob)
 		if err == nil && len(kf) > 0 {
@@ -755,7 +756,8 @@ func (s *Service) ensureKeyframes(ctx context.Context, fileID, abs string, blob 
 		kf, err := s.keyframes(kctx, abs)
 		cancel()
 		if err == nil && len(kf) > 0 {
-			if err := library.StoreKeyframes(ctx, s.db.Write, fileID, kf, s.now()); err != nil {
+			v := library.FileVersion{Size: loc.File.SizeBytes, Mtime: loc.Mtime}
+			if _, err := library.StoreKeyframes(ctx, s.db.Write, fileID, kf, library.KeyframesScan, v, s.now()); err != nil {
 				s.log.WarnContext(ctx, "store keyframe index", "media_file_id", fileID, "err", err)
 			}
 			s.log.InfoContext(ctx, "keyframe index computed for playback", "media_file_id", fileID,
