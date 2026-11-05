@@ -15,6 +15,10 @@
   Fassung 2 arbeitet alle Befunde ein, die Abwägungen stehen in Abschnitt 13.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Datum: 1. November 2026 (Fassung 1 und 2), Freigabe 2. November 2026.**
+- **Bau: freigegeben von Marco am 5. November 2026**, Zweig `claude/wiedergabestart-89645e` ab `main`
+  `c514ab1` (Release 1.12.0). **Endgültige Nummern: Migration 00033, Vertrag 1.13.0**, Frage 20,
+  ADR 0022. Wo dieses Papier 00032 und 1.8.0 schreibt, gilt 00033 und 1.13.0. Entscheide aus dem
+  Bau stehen im Nachtrag 11.3.
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`5e0e63d`** («Merge pull request
   #61», Konzept 11), Vertragsfassung **1.6.0** (`api/openapi.yaml:4`), letzte Migration
   **`00030_library_metadata.sql`**, letzte ADR **`0018-metadaten-sprachen-bilder-freigabeland.md`**.
@@ -1169,6 +1173,22 @@ Entscheidungsprotokoll, sobald das Papier freigegeben ist (Schritt 0).
 | **O-17** | **Rückfrage an Marco – kein neuer Wiedergabe-Auftrag nach einem Fehlschlag.** Ist der letzte Volllese-Job einer Datei in den letzten 24 h endgültig fehlgeschlagen, reiht die Wiedergabe nicht neu ein (6.4). Auch das legt F-3 enger aus | **Ja, 24 h**: verhindert, dass wiederholte Starts einer Datei mit NAS-Fehler immer neue Volllesungen trotz Pause auslösen; der Nachhol-Lauf versucht es wieder. Ohne Sperre: jeder Start einer solchen Datei reiht einen Auftrag ein (die Idempotenz hält es bei einem gleichzeitig) **Marco (1.11.2026): Ja, 24 h Ruhe.** |
 | **O-18** | **Rückfrage an Marco – Hörbücher und Podcast-Folgen** bleiben von den automatischen Wegen ausgenommen (wie heute in `probe.file`), auch vom Nachhol-Lauf und der Zählung; eine Podcast-Folge mit Video bekommt ihren Index nur beim ersten Abspielen, und der erste Start transcodiert | **Ja, so lassen**: Podcast-Folgen mit Video sind selten, grosse Podcast-Ordner häufig. Alternativ: Podcast-Folgen mit H.264/HEVC wie Filme behandeln (kostet beim Einlesen 0,4–1,1 s je Folge) **Marco (1.11.2026): Ja, ausnehmen.** |
 | **O-19** | **NVENC hält die Leiter nur im Mittel** (`-cq` verwirft den VBV-Puffer; Aladdin lokal 11,1 Mbit/s gleitend bei R = 8) | nicht in diesem Papier; als Befund in `docs/perf/wiedergabestart.md` vermerken und bei Bedarf eigenes Thema (z. B. `-rc vbr` mit Puffer statt `-cq`), sobald ein Profil mit Bandbreitengrenze auf NVENC klemmt |
+
+### 11.3 Nachtrag: Entscheide aus dem Bau (ab 5. November 2026)
+
+- **Schnitt** (Marco, 5. November 2026): Schritt 3 geteilt in 3a (Migration 00033, `task gen`,
+  eingefrorener Stand, `transcode.CopyableVideo`) und 3b (Schreibregeln, `probe.file`), Schritt 4 in
+  4a (Paket `jobs`: Pool, Pause-Ausnahme, Termin) und 4b (Paket `library`: Volllese-Job,
+  Nachhol-Lauf). Wellen: A = 0, 1, 2, 3a; B = 3b, 4a; C = 4b, 6; D = 5, 7. Schritt 8 (Image,
+  CT 190, Abnahme) folgt nach dem PR.
+- **Messungen auf CT 190** (QSV in Schritt 1, Dauer von `probe.file` in Schritt 3) laufen mit der
+  Abnahme in Schritt 8 (Marco, 5. November 2026); bis dahin belegen Golden-Tests die Argumente.
+- **O-9:** alle 263 fehlgeschlagenen `probe.keyframes` auf CT 190 sind `No such file or
+  directory`, aufgelaufen innerhalb von 32 s am 31. Oktober 2026 um 10:11, ohne `missing_since`.
+  Das ist ein NFS-Aussetzer und passt in die Klasse «Datei fehlt» aus 6.3; die Tabelle bleibt.
+- **Verschiebungen seit `5e0e63d`:** der Zeitplan einer Jobart ist seit Konzept 12 ein Teil der Seite
+  Hintergrundjobs, kein Dialog; «Einmalig am» kommt dorthin. Die Streams-Ansicht zeigt Kacheln
+  (`StreamTile`); der Grund wird dort eine Zeile der Kachel statt einer Spalte.
 
 ---
 
