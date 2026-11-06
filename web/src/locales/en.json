@@ -174,7 +174,8 @@
       "admin_limits_fixed": "An administrator always sees every library up to rating 18. Take the role away first.",
       "job_type_not_runnable": "This job has no manual run; its runs come from events.",
       "job_type_paused": "The job is paused; resume it first.",
-      "job_type_not_scheduled": "This job has no schedule."
+      "job_type_not_scheduled": "This job has no schedule.",
+      "job_type_not_windowable": "This job has no time window."
     },
     "field": {
       "required": "Required.",
@@ -2861,6 +2862,7 @@
         "empty": "Nothing is running right now.",
         "since": "for {{duration}}",
         "overridesPause": "for playback, despite the pause",
+        "overridesWindow": "for playback",
         "progress": "{{done}} of {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
         "pause": "Pause run",
@@ -2916,6 +2918,7 @@
         "off": "off",
         "automatic": "automatic",
         "pausedNext": "paused",
+        "waitsUntil": "waits until {{time}}",
         "trigger": "Triggered by",
         "triggerEvent": "automatically, by events in the server",
         "triggerManual": "by hand",
@@ -2959,7 +2962,8 @@
         "cancelled_other": "{{name}}: {{count}} runs cancelled.",
         "runCancelled": "Run {{id}} cancelled.",
         "runRetried": "Run {{id}} is queued again.",
-        "scheduleSaved": "Schedule of {{name}} saved."
+        "scheduleSaved": "Schedule of {{name}} saved.",
+        "windowSaved": "Time window of {{name}} saved."
       },
       "runs": {
         "title": "Runs of {{name}}",
@@ -3022,7 +3026,9 @@
         "onceHint": "Server time zone: {{zone}}. The date runs once besides the interval, also outside the time window.",
         "clearOnce": "Remove date",
         "onceRange": "The date must lie between now and one year from now.",
-        "onceInvalid": "Not a valid date."
+        "onceInvalid": "Not a valid date.",
+        "windowTitle": "Time window of {{name}}",
+        "windowWaits": "Outside the window, new runs wait; a running one finishes. A playback still starts at once."
       },
       "duration": {
         "seconds": "{{count}} s",

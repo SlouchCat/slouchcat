@@ -5,6 +5,8 @@ import type {
   JobScheduleUpdate,
   JobSummary,
   JobTypeInfo,
+  JobTypeWindowUpdate,
+  JobWindow,
 } from '@slouchcat/api-client';
 import type { TFunction } from 'i18next';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
@@ -60,6 +62,7 @@ import {
 } from '@/ui/aria';
 import {
   elapsedSeconds,
+  formatClock,
   formatInterval,
   formatMinute,
   formatOnce,
@@ -82,6 +85,7 @@ import {
   retryJob,
   runJobType,
   updateJobSchedule,
+  updateJobTypeWindow,
   type JobRunState,
 } from './queries';
 import styles from './jobs/Jobs.module.css';
@@ -154,13 +158,30 @@ function scheduleDraftOf(schedule: NonNullable<JobTypeInfo['schedule']>): Schedu
 }
 
 /**
- * Without a window its times do not count: they take the server's values, so a schedule that
- * ends up as the server holds it is no draft (an hour typed and the window switched off again).
+ * The time window of a windowable event type as its form holds it (concept 15, 4.3); the draft
+ * of such a type is one of these. Without a window the times start at 01:00–06:00.
  */
-function normaliseSchedule(
-  next: ScheduleDraft,
-  original: ScheduleDraft | undefined,
-): ScheduleDraft {
+interface WindowDraft {
+  windowed: boolean;
+  /** "01:00", the value of a time field. */
+  start: string;
+  end: string;
+}
+
+function windowDraftOf(window: JobWindow | undefined): WindowDraft {
+  return {
+    windowed: window !== undefined,
+    start: window ? formatMinute(window.startMinute) : '01:00',
+    end: window ? formatMinute(window.endMinute) : '06:00',
+  };
+}
+
+/**
+ * Without a window its times do not count: they take the server's values, so a schedule (or a
+ * type's window) that ends up as the server holds it is no draft (an hour typed and the window
+ * switched off again).
+ */
+function normaliseSchedule<T extends WindowDraft>(next: T, original: T | undefined): T {
   if (next.windowed || !original) return next;
   return { ...next, start: original.start, end: original.end };
 }
@@ -272,15 +293,28 @@ function lastText(t: TFunction, info: JobTypeInfo, now: number): string {
 /**
  * The next run: "in X · alle Y · window", or why there is none; then the one-off date
  * ("Termin: So., 8. Nov., 03:30"), which fires with the schedule switched off as well. A paused
- * type lets its date lapse (concept 14, 6.7).
+ * type lets its date lapse (concept 14, 6.7). An event type with a window says so; while the
+ * server names the window closed and runs wait, until when (concept 15, 4.3). The pause wins.
  */
 function nextText(t: TFunction, info: JobTypeInfo, now: number, language: string): string {
   if (info.paused) return t('admin.jobs.card.pausedNext');
   const schedule = info.schedule;
-  if (!schedule)
-    return info.trigger === 'manual'
-      ? t('admin.jobs.card.triggerManual')
-      : t('admin.jobs.card.automatic');
+  if (!schedule) {
+    if (info.trigger === 'manual') return t('admin.jobs.card.triggerManual');
+    if (!info.window) return t('admin.jobs.card.automatic');
+    if (info.windowOpensAt && info.counts.queued + info.counts.planned > 0) {
+      return t('admin.jobs.card.waitsUntil', {
+        time: formatClock(info.windowOpensAt, info.windowTimeZone, language),
+      });
+    }
+    return [
+      t('admin.jobs.card.automatic'),
+      t('admin.jobs.card.window', {
+        start: formatMinute(info.window.startMinute),
+        end: formatMinute(info.window.endMinute),
+      }),
+    ].join(t('admin.jobs.separator'));
+  }
   const parts: string[] = [];
   if (!schedule.enabled) {
     parts.push(t('admin.jobs.card.off'));
@@ -362,6 +396,10 @@ interface JobHandlers {
   onScheduleDiscard: (type: string) => void;
   /** The save of `sent` went through. */
   onScheduleSaved: (type: string, sent: ScheduleDraft) => Promise<void>;
+  onWindowChange: (type: string, next: WindowDraft) => void;
+  onWindowDiscard: (type: string) => void;
+  /** The save of `sent` went through. */
+  onWindowSaved: (type: string, sent: WindowDraft) => Promise<void>;
   onRunSettled: (text: string) => void;
   onFailure: (error: unknown) => void;
 }
@@ -412,7 +450,23 @@ function JobsContent() {
   const originalOf = useCallback((type: string) => originals.get(type), [originals]);
   const drafts = useDrafts<ScheduleDraft>(originalOf);
   const { set: setDraft, discard: discardDraft } = drafts;
-  const unsaved = useUnsavedChanges(drafts.dirty);
+  // The windowable event types have a window instead of a schedule (concept 15, 4.3).
+  const windowOriginals = useMemo(
+    () =>
+      new Map(
+        (cached?.types ?? []).flatMap((info) =>
+          info.windowable ? [[info.type, windowDraftOf(info.window)] as const] : [],
+        ),
+      ),
+    [cached],
+  );
+  const windowOriginalOf = useCallback(
+    (type: string) => windowOriginals.get(type),
+    [windowOriginals],
+  );
+  const windowDrafts = useDrafts<WindowDraft>(windowOriginalOf);
+  const { set: setWindowDraft, discard: discardWindowDraft } = windowDrafts;
+  const unsaved = useUnsavedChanges(drafts.dirty || windowDrafts.dirty);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const hold = confirmOpen || unsaved.pausePolling;
@@ -606,6 +660,17 @@ function JobsContent() {
             : current,
         );
       },
+      onWindowChange: (type, next) =>
+        setWindowDraft(type, normaliseSchedule(next, windowOriginalOf(type))),
+      onWindowDiscard: discardWindowDraft,
+      onWindowSaved: async (type, sent) => {
+        await settled(t('admin.jobs.messages.windowSaved', { name: typeName(t, type) }));
+        setWindowDraft(type, (current) =>
+          JSON.stringify(current) === JSON.stringify(sent)
+            ? (windowOriginalOf(type) ?? current)
+            : current,
+        );
+      },
       onRunSettled: (text) => void settled(text, true),
       onFailure: failed,
     }),
@@ -618,6 +683,9 @@ function JobsContent() {
       setDraft,
       originalOf,
       discardDraft,
+      setWindowDraft,
+      windowOriginalOf,
+      discardWindowDraft,
       settled,
       t,
       failed,
@@ -715,6 +783,8 @@ function JobsContent() {
       hold={hold}
       schedule={drafts.valueOf(info.type)}
       scheduleDirty={drafts.isDirty(info.type)}
+      windowDraft={windowDrafts.valueOf(info.type)}
+      windowDirty={windowDrafts.isDirty(info.type)}
       handlers={handlers}
     />
   );
@@ -953,7 +1023,13 @@ function RunningTable({
         <span className={styles.runName}>
           {typeName(t, job.type)}
           {stopping.has(job.type) && <Chip tone="warning">{t('admin.jobs.state.stopping')}</Chip>}
-          {job.overridesPause && <Chip tone="info">{t('admin.jobs.running.overridesPause')}</Chip>}
+          {(job.overridesPause || job.overridesWindow) && (
+            <Chip tone="info">
+              {job.overridesPause
+                ? t('admin.jobs.running.overridesPause')
+                : t('admin.jobs.running.overridesWindow')}
+            </Chip>
+          )}
         </span>
       ),
     },
@@ -1052,7 +1128,8 @@ function RunningTable({
  * The fold-out of a job type: «Jetzt ausführen» and «Pausieren»/«Fortsetzen» as buttons, the
  * cancellations in «Weitere Aktionen» (S-6), what the type does (concept 15, P-2), trigger and
  * last run in full; then the schedule (types with one) or, for an event type, why it has none
- * (P-3), and the runs (JOB-6, JOB-7). A type this server no longer knows offers
+ * (P-3) with its time window where it may have one (4.3), and the runs (JOB-6, JOB-7). A type
+ * this server no longer knows offers
  * nothing. Its handlers are stable, so it renders again only when its own data changes.
  */
 const JobDetail = memo(function JobDetail({
@@ -1062,6 +1139,8 @@ const JobDetail = memo(function JobDetail({
   hold,
   schedule,
   scheduleDirty,
+  windowDraft,
+  windowDirty,
   handlers,
 }: {
   info: JobTypeInfo;
@@ -1071,6 +1150,8 @@ const JobDetail = memo(function JobDetail({
   hold: boolean;
   schedule: ScheduleDraft | undefined;
   scheduleDirty: boolean;
+  windowDraft: WindowDraft | undefined;
+  windowDirty: boolean;
   handlers: JobHandlers;
 }) {
   const { t } = useTranslation();
@@ -1185,12 +1266,22 @@ const JobDetail = memo(function JobDetail({
               onSaved={handlers.onScheduleSaved}
             />
           )}
-          {info.trigger === 'event' && (
-            <section className={styles.block}>
-              <h3 className={styles.blockTitle}>{t('admin.jobs.schedule.heading')}</h3>
-              <Text tone="secondary">{t('admin.jobs.schedule.eventNote')}</Text>
-            </section>
-          )}
+          {info.trigger === 'event' &&
+            (info.windowable && windowDraft ? (
+              <WindowBlock
+                info={info}
+                value={windowDraft}
+                dirty={windowDirty}
+                onChange={handlers.onWindowChange}
+                onDiscard={handlers.onWindowDiscard}
+                onSaved={handlers.onWindowSaved}
+              />
+            ) : (
+              <section className={styles.block}>
+                <h3 className={styles.blockTitle}>{t('admin.jobs.schedule.heading')}</h3>
+                <Text tone="secondary">{t('admin.jobs.schedule.eventNote')}</Text>
+              </section>
+            ))}
           <RunsBlock
             info={info}
             hold={hold}
@@ -1398,6 +1489,122 @@ function ScheduleBlock({
   );
 }
 
+/**
+ * The time window of a windowable event type inside its row (concept 15, 4.3), built like the
+ * window of a schedule: the sentence why the type has no schedule, then «Nur in einem
+ * Zeitfenster» with Von and Bis in the server's zone (across midnight allowed). Saving sends the
+ * window, or `clearWindow` once it is switched off. What is typed is the page's draft of the type
+ * (S-17). The server checks the window (rule 12); a 422 names it until a field changes.
+ */
+function WindowBlock({
+  info,
+  value,
+  dirty,
+  onChange,
+  onDiscard,
+  onSaved,
+}: {
+  info: JobTypeInfo;
+  value: WindowDraft;
+  dirty: boolean;
+  onChange: (type: string, next: WindowDraft) => void;
+  onDiscard: (type: string) => void;
+  onSaved: (type: string, sent: WindowDraft) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const name = typeName(t, info.type);
+  const saveButton = useRef<HTMLButtonElement>(null);
+  const save = useMutation({
+    mutationFn: ({ body }: { body: JobTypeWindowUpdate; sent: WindowDraft }) =>
+      updateJobTypeWindow(info.type, body),
+    onSuccess: (_data, { sent }) => onSaved(info.type, sent),
+  });
+  const errors = save.error ? formErrors(t, save.error) : null;
+  const set = (patch: Partial<WindowDraft>) => {
+    if (save.error) save.reset();
+    onChange(info.type, { ...value, ...patch });
+  };
+
+  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    // Nothing changed: nothing to send, the focus stays on «Speichern».
+    if (!dirty) return;
+    let body: JobTypeWindowUpdate = { clearWindow: true };
+    if (value.windowed) {
+      const startMinute = minuteOf(value.start);
+      const endMinute = minuteOf(value.end);
+      if (startMinute === null || endMinute === null) return;
+      body = { window: { startMinute, endMinute } };
+    }
+    save.mutate({ body, sent: value });
+  };
+
+  return (
+    <section className={styles.block} aria-label={t('admin.jobs.schedule.windowTitle', { name })}>
+      <h3 className={styles.blockTitle}>{t('admin.jobs.schedule.heading')}</h3>
+      <Text tone="secondary">{t('admin.jobs.schedule.eventNote')}</Text>
+      <Form className={styles.fields} onSubmit={onSubmit} validationErrors={errors?.fields}>
+        {errors?.form && <Notice tone="danger">{errors.form}</Notice>}
+        <Switch isSelected={value.windowed} onChange={(windowed) => set({ windowed })}>
+          {t('admin.jobs.schedule.window')}
+        </Switch>
+        {value.windowed && (
+          <>
+            <div className={styles.windowFields}>
+              <TextField
+                name="windowStart"
+                type="time"
+                label={t('admin.jobs.schedule.windowStart')}
+                value={value.start}
+                onChange={(start) => set({ start })}
+                isRequired
+              />
+              <TextField
+                name="windowEnd"
+                type="time"
+                label={t('admin.jobs.schedule.windowEnd')}
+                description={t('admin.jobs.schedule.windowHint', {
+                  zone: info.windowTimeZone ?? '',
+                })}
+                value={value.end}
+                onChange={(end) => set({ end })}
+                isRequired
+              />
+            </div>
+            <Text tone="secondary" variant="caption">
+              {t('admin.jobs.schedule.windowWaits')}
+            </Text>
+          </>
+        )}
+        {errors?.fields.window && (
+          <Text tone="secondary" variant="caption">
+            {errors.fields.window}
+          </Text>
+        )}
+        <div className={styles.formActions}>
+          {dirty && (
+            <AriaButton
+              variant="ghost"
+              isDisabled={save.isPending}
+              onPress={() => {
+                save.reset();
+                onDiscard(info.type);
+                // The button goes with the draft; the focus stays in the form.
+                saveButton.current?.focus();
+              }}
+            >
+              {t('admin.jobs.schedule.discard')}
+            </AriaButton>
+          )}
+          <AriaButton ref={saveButton} type="submit" variant="primary" isPending={save.isPending}>
+            {t('admin.jobs.schedule.save')}
+          </AriaButton>
+        </div>
+      </Form>
+    </section>
+  );
+}
+
 /** The runs of a type inside its row: one tab per state (JOB-7; instead of the runs dialog). */
 function RunsBlock({
   info,
@@ -1505,10 +1712,14 @@ const RunsTab = memo(function RunsTab({
       cell: (job) => (
         <>
           {job.subject ?? t('admin.jobs.runs.noSubject', { id: job.id })}
-          {job.overridesPause && (
+          {(job.overridesPause || job.overridesWindow) && (
             <>
               {' '}
-              <Chip tone="info">{t('admin.jobs.running.overridesPause')}</Chip>
+              <Chip tone="info">
+                {job.overridesPause
+                  ? t('admin.jobs.running.overridesPause')
+                  : t('admin.jobs.running.overridesWindow')}
+              </Chip>
             </>
           )}
           {job.runAfter && state === 'planned' && (

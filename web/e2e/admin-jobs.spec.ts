@@ -24,7 +24,8 @@ import {
 // A waiting run to cancel comes from «Metadaten anwenden» (images only) while that type is
 // paused: «Jetzt ausführen» refuses a paused type, the apply endpoint queues anyway, and nothing
 // runs it before it is cancelled. A second one, cancelled in the row's runs, leaves its table, and
-// the focus goes to the h1 (ALL-2).
+// the focus goes to the h1 (ALL-2). The keyframe index takes a time window in its row (concept 15,
+// 4.3) around the server's current time, so it holds nothing back, and loses it again.
 
 /** The sidebar, the page's head and a group's rows with an open fold-out: room to walk them. */
 const TAB_MAX = 200;
@@ -33,6 +34,8 @@ const SWEEP = 'library.sweep';
 const SWEEP_NAME = 'Aufräumen fehlender Titel';
 const APPLY = 'metadata.apply';
 const APPLY_NAME = 'Metadaten anwenden';
+const PROBE = 'probe.keyframes';
+const PROBE_NAME = 'Keyframe-Index (ganze Datei lesen)';
 
 async function resumeAll(api: APIRequestContext): Promise<void> {
   const response = await api.get('/api/v1/admin/job-types');
@@ -83,10 +86,42 @@ function foldOut(page: Page, name: string) {
   });
 }
 
+/** Removes the time window of the keyframe index (a failed test must not leave one behind). */
+async function clearProbeWindow(api: APIRequestContext): Promise<void> {
+  const response = await api.put(`/api/v1/admin/job-types/${PROBE}/window`, {
+    headers: CSRF,
+    data: { clearWindow: true },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+}
+
+/** The keyframe index as the server reports it: its window and the zone of the window. */
+async function probeInfo(
+  api: APIRequestContext,
+): Promise<{ windowTimeZone?: string; window?: { startMinute: number; endMinute: number } }> {
+  const response = await api.get('/api/v1/admin/job-types');
+  expect(response.status(), await response.text()).toBe(200);
+  const overview = (await response.json()) as {
+    types: {
+      type: string;
+      windowTimeZone?: string;
+      window?: { startMinute: number; endMinute: number };
+    }[];
+  };
+  const info = overview.types.find((entry) => entry.type === PROBE);
+  expect(info).toBeDefined();
+  return info!;
+}
+
+/** Minutes of the day as "01:00". */
+const clock = (minute: number) =>
+  `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+
 test.afterEach(async ({ owner }) => {
   await cancelWaiting(owner, APPLY);
   await resumeAll(owner);
   await restoreSweep(owner);
+  await clearProbeWindow(owner);
 });
 
 test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and schedule', async ({
@@ -415,6 +450,92 @@ test('background jobs by keyboard: a one-off date in the schedule as the server 
   await page.keyboard.press('Enter');
   await expect(row.getByText(/Termin: /)).toHaveCount(0);
   expect((await sweepSchedule(owner)).once).toBeUndefined();
+  await expectNoFocusTrap(page);
+});
+
+test('background jobs by keyboard: a time window for the keyframe index, set and removed again @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await resumeAll(owner);
+  await clearProbeWindow(owner);
+  // A window from an hour ago to two hours ahead on the server's clock: open now, so the
+  // column names the window and the index holds nothing back while the test runs.
+  const { windowTimeZone } = await probeInfo(owner);
+  expect(windowTimeZone).toBeTruthy();
+  // A server without TZ names its zone "Local": the e2e server runs on this machine's clock.
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    ...(windowTimeZone === 'Local' ? {} : { timeZone: windowTimeZone }),
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+  const part = (name: string) => Number(parts.find((entry) => entry.type === name)?.value);
+  const now = part('hour') * 60 + part('minute');
+  const startMinute = (now + 1440 - 60) % 1440;
+  const endMinute = (now + 120) % 1440;
+
+  await page.goto('/admin/jobs');
+  await expect(page.getByRole('heading', { level: 1, name: 'Hintergrundjobs' })).toBeVisible();
+  const row = page.getByRole('row', { name: /^Keyframe-Index \(ganze Datei lesen\)/ });
+  await expect(row.getByText('automatisch', { exact: true })).toBeVisible();
+  const toggle = page.getByRole('button', { name: PROBE_NAME, exact: true });
+  await resetFocus(page);
+  await tabTo(page, toggle, TAB_MAX);
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const block = foldOut(page, PROBE_NAME).getByRole('region', {
+    name: `Zeitfenster von ${PROBE_NAME}`,
+  });
+  await expect(block.getByText(/^Kein Zeitplan: läuft von selbst/)).toBeVisible();
+
+  // Tab reaches the switch, Space turns it on; Tab walks Von and Bis, which name the zone.
+  const windowSwitch = block.getByRole('switch', { name: 'Nur in einem Zeitfenster' });
+  await tabTo(page, windowSwitch, TAB_MAX);
+  await expectVisibleFocus(page);
+  await expect(windowSwitch).not.toBeChecked();
+  await page.keyboard.press('Space');
+  await expect(windowSwitch).toBeChecked();
+  await expect(block.getByText(/Eine Wiedergabe startet trotzdem sofort\./)).toBeVisible();
+  await page.keyboard.press('Tab');
+  const start = block.getByLabel('Von');
+  await expectFocusOn(page, start);
+  await expectVisibleFocus(page);
+  await start.fill(clock(startMinute));
+  // Tab walks the segments of the native time field (hours, minutes) before it leaves it.
+  const end = block.getByLabel('Bis');
+  await tabTo(page, end, 5);
+  await expectVisibleFocus(page);
+  await end.fill(clock(endMinute));
+  await expect(
+    block.getByText(`Zeitzone des Servers: ${windowTimeZone}.`, { exact: false }),
+  ).toBeVisible();
+
+  // «Speichern» with Enter: the server holds the window, the column names it.
+  const save = block.getByRole('button', { name: 'Speichern', exact: true });
+  await tabTo(page, save, 10);
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status').first()).toContainText(
+    `Zeitfenster von ${PROBE_NAME} gespeichert.`,
+  );
+  expect((await probeInfo(owner)).window).toEqual({ startMinute, endMinute });
+  await expect(
+    row.getByText(`automatisch · ${clock(startMinute)}–${clock(endMinute)}`, { exact: true }),
+  ).toBeVisible();
+  await expect(block.getByRole('button', { name: 'Verwerfen' })).toHaveCount(0);
+  await expectFocusOn(page, save);
+
+  // Space on the switch turns it off again, «Speichern» removes the window on the server.
+  await resetFocus(page); // Tab from the top: Firefox keeps the start where a replaced field stood
+  await tabTo(page, windowSwitch, TAB_MAX);
+  await page.keyboard.press('Space');
+  await expect(windowSwitch).not.toBeChecked();
+  await expect(start).toHaveCount(0);
+  await tabTo(page, save, 10);
+  await page.keyboard.press('Enter');
+  await expect(row.getByText('automatisch', { exact: true })).toBeVisible();
+  expect((await probeInfo(owner)).window).toBeUndefined();
   await expectNoFocusTrap(page);
 });
 

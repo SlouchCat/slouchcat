@@ -77,6 +77,7 @@ const problemKeys = {
   job_type_not_runnable: 'errors.code.job_type_not_runnable',
   job_type_paused: 'errors.code.job_type_paused',
   job_type_not_scheduled: 'errors.code.job_type_not_scheduled',
+  job_type_not_windowable: 'errors.code.job_type_not_windowable',
   // The spotlight list (M11): another entry holds the place an entry is pinned to.
   rank_taken: 'errors.code.rank_taken',
 } as const;

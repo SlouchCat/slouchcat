@@ -198,6 +198,7 @@ export type JobRunPage = components['schemas']['JobRunPage'];
 export type JobSchedule = components['schemas']['JobSchedule'];
 export type JobScheduleOnce = components['schemas']['JobScheduleOnce'];
 export type JobScheduleUpdate = components['schemas']['JobScheduleUpdate'];
+export type JobTypeWindowUpdate = components['schemas']['JobTypeWindowUpdate'];
 export type JobWindow = components['schemas']['JobWindow'];
 export type JobPool = components['schemas']['JobPool'];
 export type JobCancelResult = components['schemas']['JobCancelResult'];

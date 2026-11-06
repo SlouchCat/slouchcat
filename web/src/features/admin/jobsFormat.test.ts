@@ -1,6 +1,6 @@
 import { t } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { formatOnce, formatSeconds, typeName } from './jobsFormat';
+import { formatClock, formatOnce, formatSeconds, typeName } from './jobsFormat';
 
 describe('job type names', () => {
   it('names metadata.apply from the locale instead of showing the code (concept 12, 10.3)', () => {
@@ -32,6 +32,23 @@ describe('one-off dates', () => {
 
   it('shows a value that is no wall time as it is', () => {
     expect(formatOnce('soon', 'de')).toBe('soon');
+  });
+});
+
+describe('window clock', () => {
+  it('shows an instant on the clock of the server zone, not the browser one', () => {
+    // 00:00 UTC is 01:00 in Zurich in winter and 19:00 the day before in New York.
+    expect(formatClock('2026-11-07T00:00:00Z', 'Europe/Zurich', 'de')).toBe('01:00');
+    expect(formatClock('2026-11-07T00:00:00Z', 'America/New_York', 'en')).toBe('19:00');
+  });
+
+  it('takes the browser zone for a zone it does not know (a server without TZ says "Local")', () => {
+    const browser = new Intl.DateTimeFormat('de', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date('2026-11-07T00:00:00Z'));
+    expect(formatClock('2026-11-07T00:00:00Z', 'Local', 'de')).toBe(browser);
   });
 });
 
