@@ -62,7 +62,7 @@ func scanbench(args []string) int {
 	root := fs.String("root", "", "tree with Movies/ and TV/ (task testdata:tree)")
 	kind := fs.String("kind", "both", "movies, series or both")
 	workers := fs.Int("workers", 4, "job workers")
-	interrupt := fs.Duration("interrupt", 10*time.Second, "cancel the interrupted run after this time")
+	interrupt := fs.Duration("interrupt", 10*time.Second, "cancel the interrupted run after this time (0: while its scans are queued)")
 	timeout := fs.Duration("timeout", 30*time.Minute, "limit of each phase")
 	ffprobe := fs.String("ffprobe", "ffprobe", "ffprobe binary")
 	logLevel := fs.String("log-level", "error", "log level of the services (debug, info, warn, error)")
@@ -216,15 +216,13 @@ type benchEnv struct {
 	lib     *library.Service
 	handler http.Handler
 	cookie  *http.Cookie
+	queue   *jobs.Queue
 	cancel  context.CancelFunc
 	wg      sync.WaitGroup
 }
 
-// newBenchEnv builds the environment; watchers starts the change detection of the roots. The
-// interrupted run leaves it off: a watcher that notices the freshly written tree right after the
-// administrator's cancel would queue a path scan and the library would read "queued" instead of
-// "aborted" (a race the measurement is not about).
-func newBenchEnv(ctx context.Context, o scanbenchOptions, watchers bool) (*benchEnv, error) {
+// newBenchEnv builds the environment; start runs its workers.
+func newBenchEnv(ctx context.Context, o scanbenchOptions) (*benchEnv, error) {
 	dir, err := os.MkdirTemp("", "slouchcat-scanbench-")
 	if err != nil {
 		return nil, err
@@ -241,8 +239,8 @@ func newBenchEnv(ctx context.Context, o scanbenchOptions, watchers bool) (*bench
 		e.close()
 		return nil, err
 	}
-	queue := jobs.NewQueue(e.db.Write, nil)
-	e.lib = library.New(e.db, queue, o.runner, o.log)
+	e.queue = jobs.NewQueue(e.db.Write, nil)
+	e.lib = library.New(e.db, e.queue, o.runner, o.log)
 	authSvc := auth.New(e.db, o.log)
 	password := make([]byte, 16)
 	if _, err := rand.Read(password); err != nil {
@@ -265,13 +263,20 @@ func newBenchEnv(ctx context.Context, o scanbenchOptions, watchers bool) (*bench
 		Auth: authSvc, Profiles: authSvc, Access: authSvc, Catalog: discover.New(e.db, cacheDir, o.log),
 		Playback: playback.New(e.db, o.log), // progress rows of the start page; no transcoder
 	})
+	return e, nil
+}
 
+// start runs the job workers until close; watchers also starts the change detection of the roots.
+// The interrupted run leaves it off: a watcher that notices the freshly written tree right after
+// the administrator's cancel would queue a path scan and the library would read "queued" instead
+// of "aborted" (a race the measurement is not about).
+func (e *benchEnv) start(ctx context.Context, o scanbenchOptions, watchers bool) {
 	runCtx, cancel := context.WithCancel(ctx)
 	e.cancel = cancel
 	noop := func(context.Context, *jobs.Job) error { return nil }
 	for i := range o.workers {
-		w := jobs.NewWorker(queue, fmt.Sprintf("bench-%d", i+1), o.log)
-		registry := jobs.NewRegistry(queue, o.log)
+		w := jobs.NewWorker(e.queue, fmt.Sprintf("bench-%d", i+1), o.log)
+		registry := jobs.NewRegistry(e.queue, o.log)
 		e.lib.RegisterTypes(registry)
 		registry.Attach(w)
 		w.Handle(library.JobMetadataMatch, noop)
@@ -284,7 +289,6 @@ func newBenchEnv(ctx context.Context, o scanbenchOptions, watchers bool) (*bench
 			}
 		})
 	}
-	return e, nil
 }
 
 func (e *benchEnv) close() {
@@ -465,10 +469,11 @@ func (e *benchEnv) create(ctx context.Context, libs []benchLibrary) ([]int64, er
 
 func runScanbench(ctx context.Context, o scanbenchOptions) (scanbenchReport, error) {
 	rep := scanbenchReport{Root: o.root, Workers: o.workers}
-	e, err := newBenchEnv(ctx, o, true)
+	e, err := newBenchEnv(ctx, o)
 	if err != nil {
 		return rep, err
 	}
+	e.start(ctx, o, true)
 	defer e.close()
 
 	// First run: scans, then the follow-up jobs, with the start page polled throughout.
@@ -564,14 +569,19 @@ func (e *benchEnv) libraryReport(ctx context.Context, b benchLibrary, id int64) 
 
 // runInterrupted scans the tree on a fresh database, cancels the scans after o.interrupt (as the
 // administrator does, CancelScan), records state and progress, queues the scans again and checks
-// that the result equals the first run.
+// that the result equals the first run. An interrupt of 0 cancels the scans while they are queued:
+// the workers start only after the cancel. A wall-clock interrupt cannot promise that on a small
+// tree, whose scan can end before the sleep does (TestScanbenchSmallTree).
 func runInterrupted(ctx context.Context, o scanbenchOptions, full []libraryReport) (interruptReport, error) {
 	var rep interruptReport
-	e, err := newBenchEnv(ctx, o, false)
+	e, err := newBenchEnv(ctx, o)
 	if err != nil {
 		return rep, err
 	}
 	defer e.close()
+	if o.interrupt > 0 {
+		e.start(ctx, o, false)
+	}
 	start := time.Now()
 	ids, err := e.create(ctx, o.libs)
 	if err != nil {
@@ -592,6 +602,9 @@ func runInterrupted(ctx context.Context, o scanbenchOptions, full []libraryRepor
 			Name: o.libs[i].name, State: l.Scan.State, LastError: l.Scan.LastError,
 			FilesSeen: l.Scan.FilesSeen, FilesTotal: l.Scan.FilesTotal, Items: l.Scan.ItemCount,
 		})
+	}
+	if o.interrupt <= 0 {
+		e.start(ctx, o, false)
 	}
 	start = time.Now()
 	for _, id := range ids {

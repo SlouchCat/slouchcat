@@ -35,7 +35,7 @@ func TestScanbenchSmallTree(t *testing.T) {
 		}
 	}
 	o := scanbenchOptions{
-		root: root, workers: 2, interrupt: time.Millisecond, timeout: time.Minute,
+		root: root, workers: 2, interrupt: 0, timeout: time.Minute,
 		runner: transcode.Runner{FFprobePath: "ffprobe"}, log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		libs: []benchLibrary{
 			{name: "Filme", kind: model.LibraryVideo, content: model.RootMovie, dir: filepath.Join(root, "Movies")},
