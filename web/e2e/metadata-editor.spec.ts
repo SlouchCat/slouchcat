@@ -119,8 +119,9 @@ test('the pen opens the dialog; Tab stays inside, Escape closes, focus back on t
   await expectFocusOn(page, pen(page));
   await expectNoFocusTrap(page);
 
-  // «Schliessen» closes as well.
-  await page.keyboard.press('Shift+Tab');
+  // «Schliessen» closes as well. The no-trap check left the focus on the last element of the page,
+  // where headless Firefox does not wrap around: back to the top, as after a page load.
+  await resetFocus(page);
   await tabTo(page, pen(page), 40);
   await page.keyboard.press('Enter');
   await expect(dialog(page)).toBeVisible();
