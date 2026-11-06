@@ -341,3 +341,11 @@ statt 586/617 ms; ohne das Nebeneinander (ein Kern) rund 250 bis 270 ms. Die Gre
 mit Abstand, und die acht bisherigen Reihen allein liegen deutlich unter den früheren 300 ms. Die
 Schätzung trägt die Kosten von HTTP und JSON nur über den Faktor mit; nachmessen auf CT 190 mit dem
 Image dieses Stands (offen).
+
+### Nachmessung auf CT 190 nach dem Umbau (7. November 2026)
+
+CT 190, Image `feinschliff3-8251b6c` (Stand `8251b6cf`, Migration 00037 lief in 1 s), dieselben
+13 Reihen, `measure-home.sh` mit Profil 1 (60 Läufe nach fünf zum Aufwärmen), Dauer aus dem
+Server-Log: **p50 63,5 ms, p95 66,4 ms, max 71,9 ms** statt 586/617/683 ms. Das ist weit besser als
+die Schätzung oben; der Faktor 4,7 aus dem Stand vorher hat die volle Durchsuchung von `items`
+abgebildet, die jetzt wegfällt. Die Grenze P-11 (300 ms p95) hält mit grossem Abstand.

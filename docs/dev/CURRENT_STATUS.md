@@ -5,8 +5,9 @@
 Zweig `claude/feinschliff-stufe3` ab `main` `d2361e54` (Release 1.14.0 veröffentlicht). Geplant als
 Release **1.15.0**: Vertrag **1.15.0, brechend für `getHome` und `setHomeRows`** (Web-App und Server
 kommen im selben Image), Migrationen **`00035_home_rows_libraries.sql`** und
-**`00036_item_text_sort_title.sql`** (Nachtrag in Konzept 15, 7.5). Der Weg zurück auf 1.14.0 geht
-nur über die Datenbanksicherung vor der Migration.
+**`00036_item_text_sort_title.sql`** (Nachtrag in Konzept 15, 7.5) und **`00037_items_top_added.sql`**
+(Teilindex für die Startseite). Der Weg zurück auf 1.14.0 geht nur über die Datenbanksicherung vor der
+Migration.
 
 - **P-6 Metadaten bearbeiten:** Stift «Metadaten bearbeiten» auf der Detailseite von Film, Serie,
   Staffel und Folge (ersetzt «Verwalten»; Podcasts, Hörbücher und Extras behalten «Verwalten») und
@@ -36,9 +37,13 @@ nur über die Datenbanksicherung vor der Migration.
 - **Wackeltests aus `main` behoben:** `TestQueueKeyframesForDownloadWindow` (unsortierte
   Erwartung), `TestScanbenchSmallTree` (Abbruch nach 1 ms kam unter Last zu spät),
   `AdminItemPage.test.tsx` Originalsprache (zweiter Klick während des ersten Speicherns).
-- **Messung** `docs/perf/feinschliff.md` Abschnitt 3: «Meine Medien» p95 23,5 ms, «Neu in …»
-  16,5 ms bei 10 000 Filmen; `FirstRow` hält bei der ersten gefüllten Reihe an. Auf CT 190 mit
-  echten Bibliotheken und vielen sichtbaren Reihen nachmessen (P-11, 300 ms p95).
+- **Messung** `docs/perf/feinschliff.md` Abschnitt 3: Auf CT 190 brauchte `GET /home` mit 13
+  sichtbaren Reihen zuerst **p95 617 ms** (P-11: 300 ms). Ursache: «Neu hinzugefügt», «Meine Medien»
+  und die Genres durchsuchten alle rund 70 000 Einträge von `items` samt Folgen und Podcastfolgen.
+  Umbau: Teilindex `items_top_added` (Migration 00037), Genres ab den sichtbaren Titeln, «Neu in …»
+  sortiert nur die neuesten Titel, Kacheln gebündelt, Reihen nebeneinander (höchstens vier). Nachher
+  auf CT 190 (`feinschliff3-8251b6c`): **p50 63,5 ms, p95 66,4 ms**. Die Startseite liefert für alle
+  vier Profile dieselben Daten wie vorher.
 
 **Belege auf `04a6e8a8`:** `task ci` grün bis auf Storybook: 360 gleich, **9 neue Stories ohne
 Vergleichsbild** (`ui-editordialog--with-tabs`, `--landscape`, `ui-librarytile--default`,
