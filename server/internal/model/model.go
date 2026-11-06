@@ -813,11 +813,35 @@ type HomePage struct {
 }
 
 type HomeRow struct {
-	Key         string // spotlight, picks, continue, recent, released, watchlist, collections, genres
+	// ID names the row (concept 15 P-7): the key for the fixed rows, "library:<id>" for a row
+	// library; Key is its kind (spotlight, picks, continue, recent, released, watchlist,
+	// collections, genres, libraries, library).
+	ID          string
+	Key         string
+	LibraryID   int64  // the library of a row library, else 0
+	LibraryName string // its name, the row title «Neu in …»
 	Items       []ItemSummary
 	Collections []CollectionRef
 	Genres      []GenreRef
+	Libraries   []LibraryTile // only in the row libraries
 }
+
+// LibraryTile is one tile of the row «Meine Medien» (concept 15 P-7): a library the profile sees
+// with the number of its visible top-level titles and the newest of them for the collage.
+type LibraryTile struct {
+	ID        int64
+	Name      string
+	Kind      string
+	ItemCount int
+	Items     []ItemSummary // at most LibraryTileCovers, newest first
+}
+
+// LibraryTileCovers is the number of posters of a tile's collage.
+const LibraryTileCovers = 4
+
+// MaxVisibleHomeRows caps the visible start page rows (F-12, E-9): hidden rows do not count, and
+// the start page never shows more.
+const MaxVisibleHomeRows = 15
 
 // Home row keys (model.HomeRow.Key, table home_rows), in the default order of ADR 0011.
 const (
@@ -829,18 +853,25 @@ const (
 	RowWatchlist   = "watchlist"
 	RowCollections = "collections"
 	RowGenres      = "genres"
+	RowLibraries   = "libraries" // «Meine Medien», concept 15 P-7
+	RowLibrary     = "library"   // «Neu in …», one row per library
 )
 
-// HomeRowKeys lists every row key in the default order.
-var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres}
+// HomeRowKeys lists every row key: the eight fixed rows in the default order, then the two kinds
+// of concept 15 P-7.
+var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres,
+	RowLibraries, RowLibrary}
 
 // Discover (M7). ---------------------------------------------------------------------------
 
 // HomeRowSetting is the stored order and visibility of one start page row (E-9).
 type HomeRowSetting struct {
-	Key      string
-	Position int
-	Hidden   bool
+	ID          string // the key, or "library:<id>" for a row library (concept 15 P-7)
+	Key         string
+	LibraryID   int64  // the library of a row library, else 0
+	LibraryName string // its name
+	Position    int
+	Hidden      bool
 }
 
 // SearchQuery is a search of the active profile (E-4). MaxRating -1 means no rating filter;

@@ -40,8 +40,8 @@ func (emptyCatalog) FirstHero(context.Context, model.Profile) (model.ItemSummary
 	return model.ItemSummary{}, 0, false, model.ErrNotFound
 }
 
-func (emptyCatalog) FirstRow(context.Context, model.Profile) ([]model.ItemSummary, error) {
-	return nil, model.ErrNotFound
+func (emptyCatalog) FirstRow(context.Context, model.Profile) (model.HomeRow, error) {
+	return model.HomeRow{}, model.ErrNotFound
 }
 
 const appShell = `<!doctype html><title>Slouchcat</title><body><!--hero--><div id="root"></div>`
@@ -526,6 +526,56 @@ func TestPosterPrepaint(t *testing.T) {
 	for _, tc := range cases {
 		if got := posterPrepaint(tc.items, 7); got != tc.want {
 			t.Errorf("%s: posterPrepaint = %q\nwant %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+// Concept 15 P-7: with «Meine Medien» on top the shell paints the collages of at most three tiles
+// (two cards wide each), the first image with priority, and stops at the first title without a
+// poster, like the cards.
+func TestTilePrepaint(t *testing.T) {
+	t.Parallel()
+	img := func(size string) *model.Image {
+		return &model.Image{Kind: "poster", Size: size, ContentHash: "h"}
+	}
+	card := func(id string) model.ItemSummary {
+		return model.ItemSummary{ID: id, Kind: "movie", Poster: img("w400"), PosterSmall: img("w200")}
+	}
+	const sizes = `sizes="(width >= 1440px) 12.5rem, (width >= 768px) 10.5rem, calc(33vw - 1.5rem)"`
+	both := func(id string) string {
+		u := "/api/v1/items/" + id + "/images/poster/"
+		return `<img src="` + u + `w200?v=h&amp;p=7" srcset="` + u + `w200?v=h&amp;p=7 200w, ` + u + `w400?v=h&amp;p=7 400w" ` + sizes
+	}
+	const (
+		open  = `<div id="poster-prepaint" aria-hidden="true">`
+		first = ` alt="" loading="eager" fetchpriority="high" decoding="sync">`
+		rest  = ` alt="" loading="eager">`
+	)
+	tile := func(ids ...string) model.LibraryTile {
+		t := model.LibraryTile{ID: 1, Name: "Filme"}
+		for _, id := range ids {
+			t.Items = append(t.Items, card(id))
+		}
+		return t
+	}
+	cases := []struct {
+		name  string
+		tiles []model.LibraryTile
+		want  string
+	}{
+		{"two tiles", []model.LibraryTile{tile("a", "b"), tile("c")},
+			open + `<span class="tile">` + both("a") + first + both("b") + rest + `</span><span class="tile">` + both("c") + rest + `</span></div>`},
+		{"at most three", []model.LibraryTile{tile("a"), tile("b"), tile("c"), tile("d")},
+			open + `<span class="tile">` + both("a") + first + `</span><span class="tile">` + both("b") + rest +
+				`</span><span class="tile">` + both("c") + rest + `</span></div>`},
+		{"stops at a title without poster", []model.LibraryTile{tile("a"), {Items: []model.ItemSummary{card("b"), {ID: "x"}}}, tile("c")},
+			open + `<span class="tile">` + both("a") + first + `</span></div>`},
+		{"first title without poster", []model.LibraryTile{{Items: []model.ItemSummary{{ID: "x"}}}}, ""},
+		{"no tiles", nil, ""},
+	}
+	for _, tc := range cases {
+		if got := tilePrepaint(tc.tiles, 7); got != tc.want {
+			t.Errorf("%s: tilePrepaint = %q\nwant %q", tc.name, got, tc.want)
 		}
 	}
 }

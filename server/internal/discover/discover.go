@@ -2,11 +2,13 @@
 // It reads titles only through the visibility package and opens stored images only through the
 // paths package, relative to the cache directory.
 //
-// Start page (M7, M11, E-1, E-9, ADR 0011): the eight rows spotlight (the configured Trakt list
-// intersected with the library, with the main user's curation), picks (Cat's recommendations),
-// continue (continue watching), recent (recently added), released (by release date within twelve
-// months, a series by its newest visible episode, S-5, S-6), watchlist, collections and genres, in
-// the order the administration stored (table home_rows); hidden and empty rows are omitted, the
+// Start page (M7, M11, E-1, E-9, ADR 0011, concept 15 P-7): the rows spotlight (the configured
+// Trakt list intersected with the library, with the main user's curation), picks (Cat's
+// recommendations), continue (continue watching), recent (recently added), released (by release
+// date within twelve months, a series by its newest visible episode, S-5, S-6), watchlist,
+// collections, genres, libraries («Meine Medien», one tile per visible library) and one row
+// library («Neu in …») per library, in the order the administration stored (table home_rows, a row
+// named by its id); hidden and empty rows are omitted, the
 // spotlight row also below the configured minimum of hits, spotlight_config.min_hits (AN-3). The
 // page names the row the client draws as the stage (HomePage.HeroRow: spotlight when present, else
 // none; picks is never the stage) and carries hasTrailer for the rows spotlight and picks only (D3).
@@ -49,10 +51,12 @@ const (
 	RowWatchlist   = model.RowWatchlist
 	RowCollections = model.RowCollections
 	RowGenres      = model.RowGenres
+	RowLibraries   = model.RowLibraries
+	RowLibrary     = model.RowLibrary
 )
 
-// MaxRows caps the start page (E-9; the contract's HomePage.rows maxItems).
-const MaxRows = 8
+// MaxRows caps the start page (E-9, F-12; the contract's HomePage.rows maxItems).
+const MaxRows = model.MaxVisibleHomeRows
 
 // Service implements the catalog service of the API.
 type Service struct {
@@ -156,19 +160,20 @@ func (s *Service) drawHeroStart(n int, start *int) int {
 // Home, FirstHero and FirstRow. With untilHero it stops once the stage row is placed: the rows
 // after it change neither the stage nor its place.
 func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bool) (model.HomePage, error) {
-	keys, err := s.rowOrder(ctx)
+	order, err := s.rowOrder(ctx)
 	if err != nil {
 		return model.HomePage{}, err
 	}
-	page := model.HomePage{Rows: make([]model.HomeRow, 0, len(keys))}
-	for _, key := range keys {
-		row, err := s.row(ctx, scope, key)
+	page := model.HomePage{Rows: make([]model.HomeRow, 0, len(order))}
+	for _, setting := range order {
+		row, err := s.row(ctx, scope, setting)
 		if err != nil {
-			return model.HomePage{}, fmt.Errorf("home row %s: %w", key, err)
+			return model.HomePage{}, fmt.Errorf("home row %s: %w", setting.ID, err)
 		}
-		if len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 {
+		// «Meine Medien» counts its tiles (8.3), the other rows their entries.
+		if len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Libraries) > 0 {
 			page.Rows = append(page.Rows, row)
-			if key == RowSpotlight {
+			if row.Key == RowSpotlight {
 				page.HeroRow = RowSpotlight
 				if untilHero {
 					break
@@ -202,30 +207,27 @@ func (s *Service) markTrailers(ctx context.Context, scope visibility.Scope, item
 	return nil
 }
 
-// rowOrder returns the keys of the visible rows in their stored order (migration 00015 stores the
-// default order; without rows the default order applies).
-func (s *Service) rowOrder(ctx context.Context) ([]string, error) {
+// rowOrder returns the rows not hidden in their stored order (migrations 00015, 00021 and 00035
+// store every row, the rows of concept 15 P-7 hidden).
+func (s *Service) rowOrder(ctx context.Context) ([]model.HomeRowSetting, error) {
 	rows, err := s.read.ListHomeRows(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list home rows: %w", err)
 	}
-	if len(rows) == 0 {
-		return model.HomeRowKeys, nil
-	}
-	keys := make([]string, 0, len(rows))
+	out := make([]model.HomeRowSetting, 0, len(rows))
 	for _, r := range rows {
 		if r.Hidden == 0 {
-			keys = append(keys, r.Key)
+			out = append(out, model.HomeRowSetting{ID: r.ID, Key: r.Key, LibraryID: r.LibraryID.Int64, LibraryName: r.LibraryName})
 		}
 	}
-	return keys, nil
+	return out, nil
 }
 
 // row loads one row of the start page; an unknown key gives an empty row.
-func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (model.HomeRow, error) {
-	row := model.HomeRow{Key: key}
+func (s *Service) row(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (model.HomeRow, error) {
+	row := model.HomeRow{ID: setting.ID, Key: setting.Key}
 	var err error
-	switch key {
+	switch setting.Key {
 	case RowPicks:
 		row.Items, err = s.vis.Picks(ctx, scope, visibility.MaxRowItems)
 	case RowContinue:
@@ -242,6 +244,11 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (
 		row.Items, err = s.vis.Released(ctx, scope, visibility.MaxRowItems)
 	case RowSpotlight:
 		row.Items, err = s.spotlightRow(ctx, scope)
+	case RowLibraries:
+		row.Libraries, err = s.vis.LibraryTiles(ctx, scope)
+	case RowLibrary:
+		row.LibraryID, row.LibraryName = setting.LibraryID, setting.LibraryName
+		row.Items, err = s.vis.LibraryNewest(ctx, scope, setting.LibraryID, visibility.MaxRowItems)
 	}
 	return row, err
 }
@@ -284,21 +291,24 @@ func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.I
 	return items[k], k, i == 0, nil
 }
 
-// FirstRow returns the titles of the first row of the start page when the page has no stage, or
+// FirstRow returns the first row of the start page when the page has no stage, or
 // model.ErrNotFound when it has one (the stage image is preloaded and painted instead, FirstHero),
-// when it has no rows, or when its first row holds collections or genres rather than titles. Those
-// titles are the first cards of a page without a stage, the images the client loads first (P-10);
-// the app shell of the start page preloads the first poster and paints the first cards ahead. It
-// derives from the same computation as Home, so it follows its rule.
-func (s *Service) FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error) {
+// when it has no rows, or when its first row holds collections or genres rather than titles or
+// library tiles. Its titles (or, for «Meine Medien», its tiles, concept 15 P-7) are the first cards
+// of a page without a stage, the images the client loads first (P-10); the app shell of the start
+// page preloads the first poster and paints the first cards ahead. It derives from the same
+// computation as Home, so it follows its rule.
+func (s *Service) FirstRow(ctx context.Context, profile model.Profile) (model.HomeRow, error) {
 	page, err := s.page(ctx, visibility.Profile(profile), true)
 	if err != nil {
-		return nil, err
+		return model.HomeRow{}, err
 	}
-	if page.HeroRow != "" || len(page.Rows) == 0 || len(page.Rows[0].Items) == 0 {
-		return nil, model.ErrNotFound
+	if page.HeroRow != "" || len(page.Rows) == 0 || (len(page.Rows[0].Items) == 0 && len(page.Rows[0].Libraries) == 0) {
+		return model.HomeRow{}, model.ErrNotFound
 	}
-	return firstRowCards(page.Rows[0]), nil
+	row := page.Rows[0]
+	row.Items = firstRowCards(row)
+	return row, nil
 }
 
 // firstRowCards returns the titles of row as its cards show them: only the row continue shows an

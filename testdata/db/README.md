@@ -232,3 +232,11 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   die von `wiedergabestart.sql`. `TestFrozenFeinschliffStateCoversTheConcept` prüft, dass jede dieser Datenarten
   vorhanden ist und die Prüfungen der Migration greifen; `TestMigration00034JobWindows` prüft den Schritt von
   `wiedergabestart.sql` aus.
+- `startseitenreihen.sql`: Stand nach P-7 von Stufe 3 des Konzepts «Feinschliff» (Konzept 15, 8.3; Migration 00035
+  `home_rows_libraries`). Erzeugt am 6. November 2026 aus `feinschliff.sql`: Stand eingespielt, mit `store.Open` migriert
+  (00035 baut `home_rows` mit Kennung `id` neu auf, übernimmt die acht Reihen mit `id = key` und legt «Meine Medien» und
+  `library:1`, `library:2` ausgeblendet dahinter an), dann per SQL die Daten des Schritts: eine dritte Bibliothek
+  «Hörbücher» (id 3), deren Reihe `library:3` der Trigger `home_rows_library_added` ausgeblendet ans Ende legt, «Meine
+  Medien» eingeblendet auf Platz 2, `library:2` eingeblendet, `library:1` ausgeblendet. Dann `store.Dump`. Die Pfade der
+  Wurzeln bleiben die von `feinschliff.sql`. `TestFrozenStartseitenreihenStateCoversTheConcept` prüft, dass jede dieser
+  Datenarten vorhanden ist; `TestMigration00035HomeRows` prüft den Schritt von `feinschliff.sql` aus.

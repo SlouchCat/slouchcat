@@ -303,9 +303,7 @@ var adminRegistry = map[string]adminCall{
 	"setCollectionItems": {contract: "PUT /admin/collections/{id}/items", path: "/admin/collections/" + unknownItemID + "/items", body: `{"itemIds":[]}`, ownerStatus: http.StatusNotFound},
 	"getHomeRows":        {contract: "GET /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK},
 	"setHomeRows": {contract: "PUT /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK,
-		body: `[{"key":"spotlight","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"continue","position":2,"hidden":false},` +
-			`{"key":"recent","position":3,"hidden":false},{"key":"released","position":4,"hidden":false},{"key":"watchlist","position":5,"hidden":false},` +
-			`{"key":"collections","position":6,"hidden":false},{"key":"genres","position":7,"hidden":false}]`},
+		body: `[{"id":"spotlight","key":"spotlight","position":0,"hidden":false}]`},
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// M11 spotlight: the fixture's list has no entry 4242, and it has no Trakt client id (422
 	// provider_not_configured).

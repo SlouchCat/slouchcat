@@ -192,7 +192,9 @@ type Favorite struct {
 }
 
 type HomeRow struct {
+	ID        string
 	Key       string
+	LibraryID sql.NullInt64
 	Position  int64
 	Hidden    int64
 	UpdatedAt int64

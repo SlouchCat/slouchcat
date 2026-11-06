@@ -65,9 +65,17 @@ func TestFrozenStatesMigrate(t *testing.T) {
 				t.Errorf("foreign_key_check after migration: %d violations", violations)
 			}
 			order := homeRowOrder(t, db)
-			keys := slices.Sorted(slices.Values(order))
-			want := []string{"collections", "continue", "genres", "picks", "recent", "released", "spotlight", "watchlist"}
-			if !slices.Equal(keys, want) {
+			// The eight rows of 00021, «Meine Medien» and one row per library (00035, concept 15
+			// P-7; TestMigration00035HomeRows checks where the migration puts them).
+			var libraries int
+			if err := db.Read.QueryRow(`SELECT count(*) FROM libraries`).Scan(&libraries); err != nil {
+				t.Fatal(err)
+			}
+			want := []string{"collections", "continue", "genres", "libraries", "picks", "recent", "released", "spotlight", "watchlist"}
+			for range libraries {
+				want = append(want, "library")
+			}
+			if keys := slices.Sorted(slices.Values(order)); !slices.Equal(keys, slices.Sorted(slices.Values(want))) {
 				t.Errorf("home_rows keys = %v, want %v", keys, want)
 			}
 			if len(order) > 0 && order[0] != "spotlight" {

@@ -170,7 +170,7 @@ func (s *server) SetHomeRows(ctx context.Context, req gen.SetHomeRowsRequestObje
 	var in []model.HomeRowSetting
 	if req.Body != nil {
 		for _, r := range *req.Body {
-			in = append(in, model.HomeRowSetting{Key: string(r.Key), Position: r.Position, Hidden: r.Hidden})
+			in = append(in, model.HomeRowSetting{ID: r.Id, Key: string(r.Key), Position: r.Position, Hidden: r.Hidden})
 		}
 	}
 	rows, err := s.opts.Admin.SetHomeRows(ctx, in)
@@ -217,7 +217,11 @@ func toAdminCollection(c model.AdminCollection) gen.AdminCollection {
 func toHomeRowSettings(rows []model.HomeRowSetting) []gen.HomeRowSetting {
 	out := make([]gen.HomeRowSetting, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, gen.HomeRowSetting{Key: gen.HomeRowKey(r.Key), Position: r.Position, Hidden: r.Hidden})
+		row := gen.HomeRowSetting{Id: r.ID, Key: gen.HomeRowKey(r.Key), Position: r.Position, Hidden: r.Hidden}
+		if r.Key == model.RowLibrary { // concept 15 P-7: the library and its name
+			row.LibraryId, row.LibraryName = &r.LibraryID, &r.LibraryName
+		}
+		out = append(out, row)
 	}
 	return out
 }

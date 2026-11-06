@@ -282,31 +282,51 @@ func TestContractAdminCollections(t *testing.T) {
 	wantStatus(t, send(t, h, http.MethodGet, BasePath+"/admin/collections/"+c.Id, "p18", "", nil), http.StatusNotFound)
 }
 
-// E-9: the stored order and the hidden flag reach the start page.
+// E-9: the stored order and the hidden flag reach the start page. Since contract 1.15.0 (concept
+// 15 P-7) every row carries its id, the rows of «Meine Medien» and one per library follow the eight
+// hidden, and setHomeRows takes the list by id: a row left out keeps its place.
 func TestContractHomeRows(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
 	h := pf.h
+	// Three more (empty) libraries, so the rows outnumber the fifteen visible places; each gets its
+	// row from the trigger of migration 00035.
+	if _, err := pf.f.DB.Write.Exec(`INSERT INTO libraries (name, kind, created_at, updated_at) VALUES ('A', 'video', 1, 1), ('B', 'video', 1, 1), ('C', 'video', 1, 1)`); err != nil {
+		t.Fatal(err)
+	}
 	rec := send(t, h, http.MethodGet, BasePath+"/admin/home-rows", "p18", "", nil)
 	adminCurationAnswer(t, rec, http.StatusOK)
 	var rows []gen.HomeRowSetting
 	decode(t, rec, &rows)
-	if len(rows) != 8 || rows[0].Key != "spotlight" || rows[7].Key != "genres" {
+	var libraries int
+	if err := pf.f.DB.Read.QueryRow(`SELECT count(*) FROM libraries`).Scan(&libraries); err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 9+libraries || rows[0].Id != "spotlight" || rows[7].Id != "genres" || rows[8].Id != "libraries" || !rows[8].Hidden {
 		t.Fatalf("default rows %+v", rows)
+	}
+	for _, r := range rows[9:] {
+		if r.Key != "library" || !r.Hidden || r.LibraryId == nil || r.Id != fmt.Sprintf("library:%d", *r.LibraryId) ||
+			r.LibraryName == nil || *r.LibraryName == "" {
+			t.Errorf("library row %+v, want hidden with its library and name", r)
+		}
+	}
+	if rows[0].LibraryId != nil || rows[0].LibraryName != nil {
+		t.Errorf("fixed row %+v carries a library", rows[0])
 	}
 
 	set := func(order []string, hidden string) {
 		t.Helper()
 		parts := make([]string, 0, len(order))
 		for i, k := range order {
-			parts = append(parts, fmt.Sprintf(`{"key":%q,"position":%d,"hidden":%t}`, k, i, k == hidden))
+			parts = append(parts, fmt.Sprintf(`{"id":%q,"key":%q,"position":%d,"hidden":%t}`, k, k, i, k == hidden))
 		}
 		rec := send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18", "["+strings.Join(parts, ",")+"]", nil)
 		adminCurationAnswer(t, rec, http.StatusOK)
 		var got []gen.HomeRowSetting
 		decode(t, rec, &got)
-		for i, r := range got {
-			if string(r.Key) != order[i] || r.Position != i || r.Hidden != (order[i] == hidden) {
+		for i, r := range got[:len(order)] {
+			if r.Id != order[i] || r.Position != i || r.Hidden != (order[i] == hidden) {
 				t.Fatalf("stored rows %+v, want order %v", got, order)
 			}
 		}
@@ -340,13 +360,49 @@ func TestContractHomeRows(t *testing.T) {
 		t.Errorf("P18 rows %v with recent hidden", keys)
 	}
 
+	// The rows a list leaves out (a library added after the page was read) keep their stored
+	// place and flag: here every row but «Meine Medien» and the first library row, which are shown.
+	rec = send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18",
+		`[{"id":"libraries","key":"libraries","position":0,"hidden":false},{"id":"library:1","key":"library","position":1,"hidden":false}]`, nil)
+	adminCurationAnswer(t, rec, http.StatusOK)
+	decode(t, rec, &rows)
+	ids := make([]string, 0, len(rows))
+	for _, r := range rows {
+		ids = append(ids, r.Id)
+	}
+	if want := append(slices.Clone(order), "libraries", "library:1"); !slices.Equal(ids[:len(want)], want) ||
+		!rows[0].Hidden || rows[8].Hidden || rows[9].Hidden || !rows[10].Hidden {
+		t.Errorf("short list: rows %+v, want %v first, recent hidden, the two shown", rows, want)
+	}
+	if keys := homeKeys(append(slices.Clone(order), "libraries", "library")); !slices.Contains(keys, "libraries") || !slices.Contains(keys, "library") {
+		t.Errorf("P18 rows %v, want «Meine Medien» and «Neu in Filme»", keys)
+	}
+
+	all := func(hidden bool) []string {
+		parts := make([]string, 0, len(rows))
+		for _, r := range rows {
+			parts = append(parts, fmt.Sprintf(`{"id":%q,"key":%q,"position":0,"hidden":%t}`, r.Id, r.Key, hidden && r.Key == "library"))
+		}
+		return parts
+	}
+	tooMany := "[" + strings.Join(all(false), ",") + "]"
+	if len(rows) <= 15 {
+		t.Fatalf("%d rows, want more than fifteen for the limit", len(rows))
+	}
 	for name, body := range map[string]string{
-		"seven rows":  `[{"key":"picks","position":0,"hidden":false}]`,
-		"twice picks": `[{"key":"picks","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"recent","position":2,"hidden":false},{"key":"watchlist","position":3,"hidden":false},{"key":"collections","position":4,"hidden":false},{"key":"genres","position":5,"hidden":false},{"key":"spotlight","position":6,"hidden":false},{"key":"released","position":7,"hidden":false}]`,
-		"empty":       `[]`,
+		"unknown id":   `[{"id":"trailers","key":"picks","position":0,"hidden":false}]`,
+		"unknown lib":  `[{"id":"library:999","key":"library","position":0,"hidden":false}]`,
+		"key mismatch": `[{"id":"picks","key":"recent","position":0,"hidden":false}]`,
+		"twice picks":  `[{"id":"picks","key":"picks","position":0,"hidden":false},{"id":"picks","key":"picks","position":1,"hidden":false}]`,
+		"empty":        `[]`,
 	} {
 		if got := fieldProblem(t, send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18", body, nil)); got != "rows invalid_value" {
 			t.Errorf("%s: %s", name, got)
 		}
 	}
+	if got := fieldProblem(t, send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18", tooMany, nil)); got != "rows too_many_visible" {
+		t.Errorf("every row visible: %s", got)
+	}
+	rec = send(t, h, http.MethodPut, BasePath+"/admin/home-rows", "p18", "["+strings.Join(all(true), ",")+"]", nil)
+	adminCurationAnswer(t, rec, http.StatusOK)
 }

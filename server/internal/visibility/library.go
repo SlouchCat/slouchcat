@@ -71,6 +71,78 @@ func (r *Reader) VisibleLibraries(ctx context.Context, s Scope) ([]model.Library
 	return out, nil
 }
 
+// LibraryTiles returns the tiles of the start page row «Meine Medien» (concept 15 P-7): the
+// libraries of VisibleLibraries in the same order, each with the number of its visible top-level
+// titles and its model.LibraryTileCovers newest ones (LibraryNewest), read in one read-only
+// transaction. A library the profile does not see is absent.
+func (r *Reader) LibraryTiles(ctx context.Context, s Scope) ([]model.LibraryTile, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := r.read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("begin library tiles: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	libs, err := r.q.WithTx(tx).ListVisibleLibraries(ctx, pid)
+	if err != nil {
+		return nil, fmt.Errorf("list visible libraries: %w", err)
+	}
+	ids := make([][]string, len(libs))
+	for i, l := range libs {
+		if ids[i], err = newestIDs(ctx, tx, s, pid, l.ID, model.LibraryTileCovers); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit library tiles: %w", err)
+	}
+	out := make([]model.LibraryTile, 0, len(libs))
+	for i, l := range libs {
+		items, err := r.ordered(ctx, s, pid, ids[i])
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, model.LibraryTile{ID: l.ID, Name: l.Name, Kind: l.Kind, ItemCount: int(l.ItemCount), Items: items})
+	}
+	return out, nil
+}
+
+// LibraryNewest returns the newest visible top-level titles of a library, at most limit (1 to
+// MaxRowItems), in the order of its library page sorted by «Neu hinzugefügt» (sort added): the
+// start page row «Neu in …» (concept 15 P-7). A library the profile does not see has none.
+func (r *Reader) LibraryNewest(ctx context.Context, s Scope, libraryID int64, limit int) ([]model.ItemSummary, error) {
+	pid, err := r.profile(ctx, s)
+	if err != nil {
+		return nil, err
+	}
+	tx, err := r.read.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("begin library newest: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	ids, err := newestIDs(ctx, tx, s, pid, libraryID, int(clamp(limit)))
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit library newest: %w", err)
+	}
+	return r.ordered(ctx, s, pid, ids)
+}
+
+// newestIDs returns the ids of the newest visible top-level titles of a library with the page
+// statement of LibraryItems sorted by added, without filters.
+func newestIDs(ctx context.Context, tx *sql.Tx, s Scope, pid, libraryID int64, limit int) ([]string, error) {
+	f := libraryFilter{LibraryQuery: model.LibraryQuery{Sort: model.LibrarySortAdded, MaxRating: -1}, desc: true, kinds: topKinds}
+	b := libraryStmt(s, pid, libraryID, f, "SELECT id, kind FROM lib WHERE 1", false)
+	b.add(" ORDER BY " + libraryOrderBy(f))
+	b.add(" LIMIT ?", limit)
+	ids, _, err := libraryIDs(ctx, tx, b)
+	return ids, err
+}
+
 // libraryContents returns the folder contents of the libraries with a visible title, by library.
 func (r *Reader) libraryContents(ctx context.Context, pid int64) (map[int64]map[string]bool, error) {
 	rows, err := r.q.ListVisibleLibraryContents(ctx, pid)

@@ -3,6 +3,7 @@ package discover
 import (
 	"context"
 	"errors"
+	"fmt"
 	"image/jpeg"
 	"io"
 	"math/rand/v2"
@@ -223,9 +224,10 @@ func TestHomeStoredOrderAndSpotlightRow(t *testing.T) {
 	if want := []string{RowCollections, RowWatchlist, RowRecent, RowPicks, RowSpotlight}; !slices.Equal(rowKeys(rows), want) {
 		t.Errorf("P18 rows reordered = %v, want %v", rowKeys(rows), want)
 	}
-	// Eight non-empty rows at most (E-9): every row of every profile fixture fits. With the film
-	// rated 0 released a month ago, P18 gets all eight rows in the reversed order.
-	exec(t, f, `UPDATE home_rows SET hidden = 0`)
+	// The eight fixed rows shown (E-9; the rows of concept 15 P-7 stay hidden): every row of every
+	// profile fixture fits. With the film rated 0 released a month ago, P18 gets all eight rows in
+	// the reversed order.
+	exec(t, f, `UPDATE home_rows SET hidden = 0 WHERE key NOT IN ('libraries', 'library')`)
 	f.SetReleaseDate(t, f.Rated(0).ID, time.Now().UTC().AddDate(0, -1, 0).Format(time.DateOnly))
 	for _, p := range []model.Profile{f.P0, f.P6, f.P12, f.P16, f.P18} {
 		rows, err := homeRows(ctx, s, p)
@@ -575,7 +577,7 @@ func TestHeroRowStageRule(t *testing.T) {
 	}
 	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key = 'spotlight'`)
 	noStage("hidden spotlight")
-	exec(t, f, `UPDATE home_rows SET hidden = 0`)
+	exec(t, f, `UPDATE home_rows SET hidden = 0 WHERE key NOT IN ('libraries', 'library')`)
 	exec(t, f, `UPDATE spotlight_config SET enabled = 0`)
 	noStage("disabled spotlight")
 	exec(t, f, `UPDATE spotlight_config SET enabled = 1, min_hits = 6`)
@@ -638,8 +640,8 @@ func TestFirstRow(t *testing.T) {
 
 	notFound := func(name string) {
 		t.Helper()
-		if items, err := s.FirstRow(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
-			t.Errorf("%s: FirstRow = %d titles, %v; want ErrNotFound", name, len(items), err)
+		if row, err := s.FirstRow(ctx, f.P18); !errors.Is(err, model.ErrNotFound) {
+			t.Errorf("%s: FirstRow = %d titles, %v; want ErrNotFound", name, len(row.Items), err)
 		}
 	}
 	notFound("stage on top")
@@ -654,11 +656,11 @@ func TestFirstRow(t *testing.T) {
 	if page.HeroRow != "" || len(page.Rows) == 0 || page.Rows[0].Key != RowRecent || len(page.Rows[0].Items) < 2 {
 		t.Fatalf("no stage: hero row %q, rows %v; want recent first with several titles", page.HeroRow, rowKeys(page.Rows))
 	}
-	items, err := s.FirstRow(ctx, f.P18)
+	first, err := s.FirstRow(ctx, f.P18)
 	if err != nil {
 		t.Fatalf("no stage: FirstRow: %v", err)
 	}
-	if got, want := itemIDs(items), itemIDs(page.Rows[0].Items); !slices.Equal(got, want) {
+	if got, want := itemIDs(first.Items), itemIDs(page.Rows[0].Items); !slices.Equal(got, want) {
 		t.Errorf("no stage: FirstRow = %v, want %v", got, want)
 	}
 
@@ -883,10 +885,11 @@ func TestHomeContinueOneEntryPerSeries(t *testing.T) {
 	continueRow("next episode not started", show.E2.ID, film)
 
 	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key = 'picks'`)
-	items, err := s.FirstRow(ctx, f.P18)
+	first, err := s.FirstRow(ctx, f.P18)
 	if err != nil {
 		t.Fatal(err)
 	}
+	items := first.Items
 	if got := itemIDs(items); !slices.Equal(got, []string{show.E2.ID, film}) {
 		t.Fatalf("FirstRow = %v, want the continue row", got)
 	}
@@ -910,5 +913,76 @@ func TestFirstRowCardsSeriesOnlyInContinue(t *testing.T) {
 	}
 	if items[0].SeriesRef != series {
 		t.Error("recent: the row's own titles were changed")
+	}
+}
+
+// Concept 15 P-7: «Meine Medien» holds one tile per library the profile sees, in the order of the
+// side navigation, with the number of its visible titles and its four newest; «Neu in …» holds the
+// newest visible titles of its library like the library page sorted by added, at most 20. A library
+// the profile does not see has neither tile nor row; a library row carries its name; FirstRow hands
+// the tiles to the prepaint when «Meine Medien» comes first.
+func TestHomeLibraryRows(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddEdgeCases(t)
+	s := New(f.DB, f.CacheDir, vistest.Logger())
+	ctx := context.Background()
+	lib, other := f.LibraryID(), f.OtherLibraryID()
+	exec(t, f, `UPDATE home_rows SET hidden = 1`)
+	exec(t, f, `UPDATE home_rows SET hidden = 0, position = CASE WHEN id = 'libraries' THEN -1 ELSE position END WHERE key IN ('libraries', 'library')`)
+
+	for _, p := range []model.Profile{f.P18, f.PX, f.P6} {
+		page, err := s.Home(ctx, p, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		navs, err := s.VisibleLibraries(ctx, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var wantIDs []string
+		for _, n := range navs {
+			wantIDs = append(wantIDs, fmt.Sprintf("library:%d", n.ID))
+		}
+		var ids []string
+		for _, r := range page.Rows {
+			ids = append(ids, r.ID)
+		}
+		if want := append([]string{RowLibraries}, wantIDs...); !slices.Equal(ids, want) {
+			t.Fatalf("%s rows %v, want %v", p.Name, ids, want)
+		}
+		tiles := page.Rows[0].Libraries
+		if len(tiles) != len(navs) || len(page.Rows[0].Items) != 0 {
+			t.Fatalf("%s tiles %+v, want one per visible library %+v", p.Name, tiles, navs)
+		}
+		for i, tile := range tiles {
+			newest, err := s.LibraryItems(ctx, p, tile.ID, model.LibraryQuery{Sort: model.LibrarySortAdded, MaxRating: -1, Limit: 20})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tile.ID != navs[i].ID || tile.Name != navs[i].Name || tile.Kind != navs[i].Kind || tile.ItemCount != navs[i].ItemCount ||
+				!slices.Equal(itemIDs(tile.Items), itemIDs(newest.Items[:min(4, len(newest.Items))])) {
+				t.Errorf("%s tile %+v, want %+v with the four newest %v", p.Name, tile, navs[i], itemIDs(newest.Items))
+			}
+			row := page.Rows[1+i]
+			if row.Key != RowLibrary || row.LibraryID != tile.ID || row.LibraryName != tile.Name ||
+				!slices.Equal(itemIDs(row.Items), itemIDs(newest.Items)) {
+				t.Errorf("%s row %s = %v (%d %q), want the library page by added %v", p.Name, row.ID, itemIDs(row.Items), row.LibraryID, row.LibraryName, itemIDs(newest.Items))
+			}
+		}
+		if p.ID == f.PX.ID && slices.Contains(ids, fmt.Sprintf("library:%d", other)) {
+			t.Errorf("PX sees the row of library X: %v", ids)
+		}
+		if p.ID == f.P18.ID && !slices.Contains(ids, fmt.Sprintf("library:%d", other)) {
+			t.Errorf("P18 misses the row of library X: %v", ids)
+		}
+
+		first, err := s.FirstRow(ctx, p)
+		if err != nil || first.Key != RowLibraries || len(first.Libraries) != len(tiles) {
+			t.Errorf("%s FirstRow = %+v (%v), want «Meine Medien» with its tiles", p.Name, first, err)
+		}
+	}
+	if lib == other {
+		t.Fatal("fixture libraries collide")
 	}
 }

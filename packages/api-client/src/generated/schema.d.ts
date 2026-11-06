@@ -501,8 +501,13 @@ export interface paths {
          *     `note` on each item), `continue`, `recent`, `released` (titles released in the last twelve
          *     months by `releaseDate`, a series by its newest visible episode), `watchlist` (E-5),
          *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
-         *     `items`). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
-         *     are omitted; never more than eight (E-9). `heroRow` names the row the client draws as the
+         *     `items`). Since contract 1.15.0 (concept 15 P-7; breaking: new keys, rows named by `id`):
+         *     `libraries` («Meine Medien», `libraries` instead of `items`: one tile per library the
+         *     active profile sees, in the order of `listVisibleLibraries`) and one row `library` per
+         *     library («Neu in …», `libraryId`, `libraryName`: its newest visible titles, at most 20, in
+         *     the order of `listLibraryItems` with `sort=added`; a library the profile does not see has
+         *     no row). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
+         *     are omitted; never more than fifteen (E-9, F-12). `heroRow` names the row the client draws as the
          *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
          *     a poster row. Every item passed the visibility layer of the active profile.
          *
@@ -2665,11 +2670,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The order of the start page rows (E-9) */
+        /**
+         * The order of the start page rows (E-9)
+         * @description Every row in display order (since contract 1.15.0, concept 15 P-7): the eight fixed rows,
+         *     `libraries` («Meine Medien») and one row `library` per library, each named by its `id`. A
+         *     new library gets its row hidden at the end.
+         */
         get: operations["getHomeRows"];
         /**
          * Set the order and visibility of the start page rows (E-9)
-         * @description Every row key exactly once; the array order is the display order.
+         * @description The rows by `id` (since contract 1.15.0, breaking): the array order is the display order, and
+         *     `hidden` of each listed row is stored; `position` is ignored. A stored row the array leaves
+         *     out (for example a library added after the page was read) keeps its place in the stored order
+         *     and its `hidden` flag. At most fifteen rows may be visible (F-12); hidden rows do not count.
          */
         put: operations["setHomeRows"];
         post?: never;
@@ -4596,13 +4609,45 @@ export interface components {
             tracks?: components["schemas"]["TrackList"];
         };
         /**
-         * @description The eight rows of the start page (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
-         *     by `spotlight` and `released` (ADR 0011); removed values are never reused.
+         * @description The kinds of start page rows (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
+         *     by `spotlight` and `released` (ADR 0011); removed values are never reused. Contract 1.15.0
+         *     added `libraries` («Meine Medien») and `library` («Neu in …», one row per library, concept
+         *     15 P-7); a row is named by `HomeRowId`, the key alone no longer.
          * @enum {string}
          */
-        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres";
+        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library";
+        /**
+         * @description The identity of a start page row (since contract 1.15.0): its key for every row but
+         *     `library`, `library:<libraryId>` for a library row.
+         */
+        HomeRowId: string;
+        /**
+         * @description One tile of the row `libraries` («Meine Medien», since contract 1.15.0): a library the active
+         *     profile sees, with the number of its visible top-level titles and the newest of them for the
+         *     collage; it opens the library page.
+         */
+        LibraryTile: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            kind: components["schemas"]["LibraryKind"];
+            /** @description Visible top-level titles (films, series, audiobooks, podcasts; never episodes). */
+            itemCount: number;
+            /** @description The newest visible top-level titles (the order of `sort=added`), for the collage. */
+            items: components["schemas"]["ItemRef"][];
+        };
         HomeRow: {
+            id: components["schemas"]["HomeRowId"];
             key: components["schemas"]["HomeRowKey"];
+            /**
+             * Format: int64
+             * @description Only in a row `library`; its «Alle anzeigen» opens that library sorted by `added`.
+             */
+            libraryId?: number;
+            /** @description Only in a row `library`, the name of its library (the row title «Neu in …»). */
+            libraryName?: string;
+            /** @description Only in the row `libraries`, whose `items` stay empty. */
+            libraries?: components["schemas"]["LibraryTile"][];
             /** @description The titles of the row; empty for `collections` and `genres`. */
             items: components["schemas"]["ItemRef"][];
             /** @description Only in the row `collections` (E-6). */
@@ -6258,7 +6303,15 @@ export interface components {
             itemIds: components["schemas"]["ItemID"][];
         };
         HomeRowSetting: {
+            id: components["schemas"]["HomeRowId"];
             key: components["schemas"]["HomeRowKey"];
+            /**
+             * Format: int64
+             * @description Only on a row `library` (since contract 1.15.0).
+             */
+            libraryId?: number;
+            /** @description Only on a row `library`, the name of its library; ignored in a request. */
+            libraryName?: string;
             position: number;
             hidden: boolean;
         };
@@ -13093,7 +13146,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description All eight rows in display order, with the hidden flag. */
+            /** @description All rows in display order, with the hidden flag. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13130,7 +13183,11 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description Validation failed (`validation_failed`; `rows` `invalid_value` unless every key appears once). */
+            /**
+             * @description Validation failed (`validation_failed`; `rows` `invalid_value` for an unknown `id`, an `id`
+             *     twice or a `key` that does not match the row; `rows` `too_many_visible` for more than fifteen
+             *     visible rows).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
