@@ -11,10 +11,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -994,5 +996,24 @@ func TestHomeLibraryRows(t *testing.T) {
 	}
 	if lib == other {
 		t.Fatal("fixture libraries collide")
+	}
+}
+
+// A row loads in a goroutine of loadRows, out of reach of the recoverer of the HTTP handler: a
+// panic in it becomes the row's error with its stack, so the page fails (500) and the process lives.
+func TestHomeRowPanicFailsThePage(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	s := New(f.DB, f.CacheDir, vistest.Logger())
+	row := s.loadRow
+	s.loadRow = func(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (model.HomeRow, error) {
+		if setting.Key == RowRecent {
+			panic("row exploded")
+		}
+		return row(ctx, scope, setting)
+	}
+	_, err := s.Home(context.Background(), f.P6, nil)
+	if err == nil || !strings.Contains(err.Error(), "home row recent: panic: row exploded") || !strings.Contains(err.Error(), "goroutine") {
+		t.Errorf("Home with a panicking row: err = %v, want the panic with its stack", err)
 	}
 }

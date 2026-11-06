@@ -30,6 +30,7 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
@@ -68,6 +69,10 @@ type Service struct {
 	log      *slog.Logger
 	now      func() time.Time
 
+	// loadRow loads one row of the start page for loadRows: row, replaced only by tests of the
+	// package to inject a failing or panicking row.
+	loadRow func(context.Context, visibility.Scope, model.HomeRowSetting) (model.HomeRow, error)
+
 	// The draw of the stage's first title (concept 08, F-2): rnd is not safe for concurrent use,
 	// so rndMu guards it; heroStart >= 0 replaces the draw by a fixed index (WithHeroStart).
 	rndMu     sync.Mutex
@@ -101,6 +106,7 @@ func WithHeroStart(k int) Option {
 // relative to; log is the redacting logger.
 func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{read: appq.New(db.Read), write: appq.New(db.Write), cacheDir: cacheDir, log: log, now: time.Now, heroStart: -1}
+	s.loadRow = s.row
 	for _, o := range opts {
 		o(s)
 	}
@@ -214,12 +220,24 @@ func (s *Service) loadRows(ctx context.Context, scope visibility.Scope, order []
 	for range min(runtime.GOMAXPROCS(0), 4, len(order)) {
 		wg.Go(func() {
 			for i := range next {
-				rows[i], errs[i] = s.row(ctx, scope, order[i])
+				rows[i], errs[i] = s.safeRow(ctx, scope, order[i])
 			}
 		})
 	}
 	wg.Wait()
 	return rows, errs
+}
+
+// safeRow loads one row with loadRow and turns a panic into the row's error with its stack: a row
+// runs in a goroutine of loadRows, where the recoverer of the HTTP handler cannot catch it, so the
+// error takes its place and fails the page like any other error of a row the page reaches.
+func (s *Service) safeRow(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (row model.HomeRow, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			row, err = model.HomeRow{}, fmt.Errorf("panic: %v\n%s", rec, debug.Stack())
+		}
+	}()
+	return s.loadRow(ctx, scope, setting)
 }
 
 // filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3), the
