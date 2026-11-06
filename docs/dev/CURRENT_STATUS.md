@@ -1,6 +1,17 @@
 # Aktueller Stand
 
-## Konzept 15 «Feinschliff», Stufe 2: gebaut und geprüft (6. November 2026)
+## Release 1.14.0 (6. November 2026)
+
+Release ab `main` nach PR #100 (Konzept 15, Stufe 2). Vertrag **1.14.0** (additiv), Migration
+**`00034_job_windows.sql`**: der Weg zurück auf 1.13.2 geht nur über die Datenbanksicherung, die der
+Server vor der Migration schreibt (`/config/backups/pre-migration-…`).
+
+- Versionsstellen auf 1.14.0 im Zweig `claude/release-1.14.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
+  `v1.14.0` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.14.0.txt` im
+  Wurzelordner (unversioniert).
+
+## Konzept 15 «Feinschliff», Stufe 2: gemergt und auf CT 190 abgenommen (6. November 2026)
 
 Zweig `claude/feinschliff-stufe2-26fc61` ab `main` `8ca83892` (Release 1.13.2). Geplant als Release
 **1.14.0**: Vertrag **1.14.0 (additiv)**, Migration **`00034_job_windows.sql`**.
@@ -38,6 +49,9 @@ design-tokens 2. e2e separat `task ci:e2e:parallel` (nach `task build`): **490/4
 Firefox-Fehler (`admin-picks.spec.ts:98` Tab-Lauf, `downloads.spec.ts:44` Vorbereitung unter Last)
 einzeln wiederholt grün (`task e2e:quick -- e2e/downloads.spec.ts e2e/admin-picks.spec.ts
 --project=firefox`: 11 passed).
+
+Abgenommen von Marco auf CT 190 (`feinschliff2-a6ea4c2`; Migration 00034 lief dort in 1,6 s),
+gemergt als **PR #100** (Merge `cb759b49`, GitHub-CI 19/19 grün auf `a6ea4c2e`).
 
 ## Release 1.13.2 (6. November 2026): veröffentlicht
 
