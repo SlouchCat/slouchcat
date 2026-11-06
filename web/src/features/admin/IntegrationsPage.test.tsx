@@ -951,7 +951,7 @@ describe('integrations (A-2)', () => {
     const email = await screen.findByRole('region', { name: 'E-Mail-Server' });
     expect(
       within(email).getByRole('link', { name: 'Zu den Benachrichtigungskanälen' }),
-    ).toHaveAttribute('href', '/settings/notifications');
+    ).toHaveAttribute('href', '/admin/notifications');
   });
 
   it('a guest gets the notice and no request', async () => {
