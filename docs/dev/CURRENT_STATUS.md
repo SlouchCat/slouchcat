@@ -1,6 +1,16 @@
 # Aktueller Stand
 
-## Konzept 15 «Feinschliff», Stufe 1: gebaut, Pull Request offen (6. November 2026)
+## Release 1.13.2 (6. November 2026)
+
+Release ab `main` nach PR #98 (Konzept 15, Stufe 1). Der Vertrag bleibt **1.13.0** (keine Änderung an
+`api/openapi.yaml` seit `v1.13.0`), keine Migration.
+
+- Versionsstellen auf 1.13.2 im Zweig `claude/release-1.13.2` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
+  `v1.13.2` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.13.2.txt` im
+  Wurzelordner (unversioniert).
+
+## Konzept 15 «Feinschliff», Stufe 1: gemergt und auf CT 190 abgenommen (6. November 2026)
 
 Zweig `claude/feinschliff-stufe1` ab `main` `311a5117` (Merge von PR #97, Konzept 15). Geplant als
 Release **1.13.2**: Vertrag bleibt **1.13.0**, keine Migration. Frage 22 im Entscheidungsprotokoll
@@ -38,8 +48,7 @@ in 3 Shards (501 s).
 Storybook-Baselines der zwei Bilder auf CT 190 neu geschossen (Marcos Wort, `/root/storybook-ct-k15`,
 `--update-snapshots=changed`): 359 passed, nur diese zwei PNG geändert.
 
-Offen: Abnahme auf CT 190, Merge,
-Release-PR 1.13.2 (Versionsstellen), Tag `v1.13.2` (Marco). Entwurf `release-notes-1.13.2.txt` im
+Abgenommen von Marco auf CT 190 (`feinschliff1-3410053`), gemergt als **PR #98** (Merge `84b30a98`). Entwurf `release-notes-1.13.2.txt` im
 Wurzelordner (unversioniert).
 
 ## Release 1.13.1 (5. November 2026)
