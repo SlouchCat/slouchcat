@@ -302,6 +302,10 @@ export function HeroCarousel({
   const glide = useRef<Animation | undefined>(undefined);
   const entering = useRef(0);
   useLayoutEffect(() => {
+    // Taken on every change: a step back that only undid a running glide must not leave the flag
+    // for the next change forward (a click on a poster or the timer, which set no direction).
+    const back = backward.current;
+    backward.current = false;
     const node = scroller.current;
     const track = node?.firstElementChild;
     const card = track?.firstElementChild;
@@ -326,8 +330,6 @@ export function HeroCarousel({
       entering.current = 0;
       return;
     }
-    const back = backward.current;
-    backward.current = false;
     if (!node || !animated) {
       if (node) node.scrollLeft = 0;
       setLead(current);
@@ -351,6 +353,17 @@ export function HeroCarousel({
     animation.onfinish = () => setLead(current);
     glide.current = animation;
   }, [current, leader, count, reducedMotion]);
+  // A glide still running when the band goes must not turn the row afterwards.
+  useEffect(
+    () => () => {
+      const animation = glide.current;
+      if (!animation) return;
+      animation.onfinish = null;
+      animation.cancel();
+      glide.current = undefined;
+    },
+    [],
+  );
 
   const press = () => {
     pressed.current = slide;

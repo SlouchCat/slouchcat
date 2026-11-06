@@ -618,6 +618,44 @@ test('the poster row is an endless band: the active poster leads, the DOM order 
   await expect.poll(() => offsetFromEdge(posters.nth(2))).toBeCloseTo(0, 0);
   await expect.poll(() => offsetFromEdge(posters.nth(0))).toBeGreaterThan(0);
   await keepsOrder();
+
+  // Forward, then back within the glide: the row stays as it was, and the next change forward (a
+  // poster click, which sets no direction) glides forward again instead of turning at once.
+  await page.evaluate(() => {
+    const fills: unknown[] = [];
+    (window as unknown as { glideFills: unknown[] }).glideFills = fills;
+    const animate = Object.getOwnPropertyDescriptor(Element.prototype, 'animate')
+      ?.value as Element['animate'];
+    Element.prototype.animate = function (keyframes, options) {
+      fills.push(typeof options === 'object' ? options.fill : undefined);
+      return animate.call(this, keyframes, options);
+    };
+  });
+  const forward = await next.elementHandle();
+  const back = await previous.elementHandle();
+  await page.evaluate(
+    async ([forward, back]) => {
+      (forward as HTMLElement | null)?.click();
+      // The forward glide has started (it runs 450 ms); the step back comes one frame later.
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      (back as HTMLElement | null)?.click();
+    },
+    [forward, back] as const,
+  );
+  await expect(posters.nth(2)).toHaveAttribute('aria-current', 'true');
+  await expect.poll(() => offsetFromEdge(posters.nth(2))).toBeCloseTo(0, 0);
+  const target = (2 + 2) % count;
+  await page.evaluate(() => {
+    (window as unknown as { glideFills: unknown[] }).glideFills.length = 0;
+  });
+  await posters.nth(target).click();
+  await expect(posters.nth(target)).toHaveAttribute('aria-current', 'true');
+  // The forward glide holds its last frame (fill forwards); the turn at once has no fill.
+  expect(
+    await page.evaluate(() => (window as unknown as { glideFills: unknown[] }).glideFills),
+  ).toContain('forwards');
+  await expect.poll(() => offsetFromEdge(posters.nth(target))).toBeCloseTo(0, 0);
+  await keepsOrder();
 });
 
 test('rows on a phone: three whole covers, a swipe snaps a cover to the left edge (N-3, N-4)', async ({
