@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"slices"
@@ -50,7 +51,7 @@ func TestItemMetadataOverHTTP(t *testing.T) {
 	it := patch(`{"title":" Zebra ","sortTitle":"Aaa Érster","overview":"Neu","tagline":"","year":1999,"releaseDate":"1999-12-31",
 		"genres":["Drama"," Drama ","Krimi"],"originalTitle":""}`)
 	m := it.Metadata
-	if m.Title != "Zebra" || m.SortTitle == nil || *m.SortTitle != "aaa erster" || m.Overview == nil || *m.Overview != "Neu" ||
+	if m.Title != "Zebra" || m.SortTitle == nil || *m.SortTitle != "Aaa Érster" || m.Overview == nil || *m.Overview != "Neu" ||
 		m.Tagline != nil || m.OriginalTitle != nil || m.Year == nil || *m.Year != 1999 || m.ReleaseDate == nil ||
 		*m.ReleaseDate != "1999-12-31" || !slices.Equal(m.Genres, []string{"Drama", "Krimi"}) {
 		t.Fatalf("metadata after the edit = %+v", m)
@@ -98,13 +99,29 @@ func TestItemMetadataOverHTTP(t *testing.T) {
 		t.Errorf("genres = %+v", list)
 	}
 
+	// The sort title is shown as typed; the library sorts by its folded key.
+	var key, typed string
+	if err := pf.f.DB.Read.QueryRow(`SELECT sort_key, sort_title FROM item_texts WHERE item_id = ? AND lang = 'de'`, fixtureFilm6).Scan(&key, &typed); err != nil {
+		t.Fatal(err)
+	}
+	if key != "aaa erster" || typed != "Aaa Érster" {
+		t.Errorf("de text row: sort_key %q sort_title %q, want aaa erster and Aaa Érster", key, typed)
+	}
+
 	// Unlock: the locks go, the values stay; the sort key follows the title again.
 	it = patch(`{"unlock":["title","sortTitle","genres"]}`)
 	if got := locked(it.Metadata); slices.Contains(got, "title") || slices.Contains(got, "sortTitle") || slices.Contains(got, "genres") || !slices.Contains(got, "overview") {
 		t.Errorf("locked after unlock = %v", got)
 	}
-	if it.Metadata.Title != "Zebra" || it.Metadata.SortTitle == nil || *it.Metadata.SortTitle != "zebra" {
+	if it.Metadata.Title != "Zebra" || it.Metadata.SortTitle == nil || *it.Metadata.SortTitle != "Zebra" {
 		t.Errorf("after unlock: title %q sort %v", it.Metadata.Title, it.Metadata.SortTitle)
+	}
+	var cleared sql.NullString
+	if err := pf.f.DB.Read.QueryRow(`SELECT sort_key, sort_title FROM item_texts WHERE item_id = ? AND lang = 'de'`, fixtureFilm6).Scan(&key, &cleared); err != nil {
+		t.Fatal(err)
+	}
+	if key != "zebra" || cleared.Valid {
+		t.Errorf("de text row after unlock: sort_key %q sort_title %v, want zebra and NULL", key, cleared)
 	}
 	if slices.Contains(it.LockedFields, "title:de") || slices.Contains(it.LockedFields, "sort_title:de") || slices.Contains(it.LockedFields, "genres") {
 		t.Errorf("lockedFields after unlock = %v", it.LockedFields)

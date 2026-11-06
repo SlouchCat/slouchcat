@@ -344,13 +344,14 @@ type ItemLocalImage struct {
 }
 
 type ItemText struct {
-	ItemID   string
-	Lang     string
-	Title    string
-	Overview sql.NullString
-	Tagline  sql.NullString
-	SortKey  sql.NullString
-	Rank     int64
+	ItemID    string
+	Lang      string
+	Title     string
+	Overview  sql.NullString
+	Tagline   sql.NullString
+	SortKey   sql.NullString
+	Rank      int64
+	SortTitle sql.NullString
 }
 
 type Job struct {

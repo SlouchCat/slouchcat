@@ -1723,8 +1723,8 @@ export interface paths {
          *     fields (their values stay until the next refresh). Texts (`title`, `sortTitle`, `tagline`,
          *     `overview`) always belong to the server's metadata language (`AdminItemMetadata.lang`, F-10); they
          *     are locked per language (`title:de`, `sort_title:de`, …), the other languages stay with the
-         *     providers. `sortTitle` is stored as the sort key of that language (lower-cased, diacritics folded,
-         *     no article stripped), which the library sorts by. `originalTitle`, `tagline` and `genres` exist
+         *     providers. `sortTitle` is kept as typed and stored as the sort key of that language (lower-cased,
+         *     diacritics folded, no article stripped), which the library sorts by. `originalTitle`, `tagline` and `genres` exist
          *     for movies and series only. A field the request sets loses its provenance (`fieldSources`). An
          *     empty body changes nothing. The answer is the administration view after the change.
          */
@@ -5433,7 +5433,10 @@ export interface components {
             /** @description The title in that language; the parsed title while there is no text row. */
             title: string;
             originalTitle?: string;
-            /** @description The sort key of that language (lower-cased). */
+            /**
+             * @description The sort title of that language as the administrator typed it while it is locked (`sortTitle` in
+             *     `locked`); else the title, which the sort key then follows.
+             */
             sortTitle?: string;
             year?: number;
             releaseDate?: string;

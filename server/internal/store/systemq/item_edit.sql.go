@@ -62,28 +62,30 @@ func (q *Queries) EditItemColumns(ctx context.Context, arg EditItemColumnsParams
 
 const editItemText = `-- name: EditItemText :exec
 
-INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, rank)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, sort_title, rank)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key,
+    sort_title = excluded.sort_title
 `
 
 type EditItemTextParams struct {
-	ItemID   string
-	Lang     string
-	Title    string
-	Overview sql.NullString
-	Tagline  sql.NullString
-	SortKey  sql.NullString
-	Rank     int64
+	ItemID    string
+	Lang      string
+	Title     string
+	Overview  sql.NullString
+	Tagline   sql.NullString
+	SortKey   sql.NullString
+	SortTitle sql.NullString
+	Rank      int64
 }
 
 // The administrator's metadata editor (concept 15 7.5, P-6; package admin): texts in the server's
 // metadata language, the title columns and their locks, and the genre suggestions. Times are Unix
 // milliseconds.
-// Writes the administrator's text row of one language as given, sort_key included (the lock
-// sort_title:<lang> that keeps it from the other writers is set in the same transaction); an
-// existing row keeps its rank.
+// Writes the administrator's text row of one language as given, sort_key and the typed sort_title
+// included (the lock sort_title:<lang> that keeps them from the other writers is set in the same
+// transaction); an existing row keeps its rank.
 func (q *Queries) EditItemText(ctx context.Context, arg EditItemTextParams) error {
 	_, err := q.db.ExecContext(ctx, editItemText,
 		arg.ItemID,
@@ -92,6 +94,7 @@ func (q *Queries) EditItemText(ctx context.Context, arg EditItemTextParams) erro
 		arg.Overview,
 		arg.Tagline,
 		arg.SortKey,
+		arg.SortTitle,
 		arg.Rank,
 	)
 	return err

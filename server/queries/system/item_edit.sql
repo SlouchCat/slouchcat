@@ -3,13 +3,14 @@
 -- milliseconds.
 
 -- name: EditItemText :exec
--- Writes the administrator's text row of one language as given, sort_key included (the lock
--- sort_title:<lang> that keeps it from the other writers is set in the same transaction); an
--- existing row keeps its rank.
-INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, rank)
-VALUES (@item_id, @lang, @title, @overview, @tagline, @sort_key, @rank)
+-- Writes the administrator's text row of one language as given, sort_key and the typed sort_title
+-- included (the lock sort_title:<lang> that keeps them from the other writers is set in the same
+-- transaction); an existing row keeps its rank.
+INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, sort_title, rank)
+VALUES (@item_id, @lang, @title, @overview, @tagline, @sort_key, @sort_title, @rank)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key;
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key,
+    sort_title = excluded.sort_title;
 
 -- name: EditItemColumns :exec
 UPDATE items

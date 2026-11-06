@@ -30,7 +30,7 @@ type AdminItemMetadata struct {
 	Lang          string
 	Title         string
 	OriginalTitle *string
-	SortTitle     *string // item_texts.sort_key of Lang
+	SortTitle     *string // item_texts.sort_title of Lang while locked, else Title
 	Year          *int
 	ReleaseDate   *string
 	Tagline       *string

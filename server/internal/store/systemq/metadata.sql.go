@@ -590,7 +590,7 @@ func (q *Queries) ListItemLocalImages(ctx context.Context, itemID string) ([]Ite
 }
 
 const listItemTextsByItem = `-- name: ListItemTextsByItem :many
-SELECT item_id, lang, title, overview, tagline, sort_key, rank FROM item_texts WHERE item_id = ?1 ORDER BY lang
+SELECT item_id, lang, title, overview, tagline, sort_key, rank, sort_title FROM item_texts WHERE item_id = ?1 ORDER BY lang
 `
 
 func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]ItemText, error) {
@@ -610,6 +610,7 @@ func (q *Queries) ListItemTextsByItem(ctx context.Context, itemID string) ([]Ite
 			&i.Tagline,
 			&i.SortKey,
 			&i.Rank,
+			&i.SortTitle,
 		); err != nil {
 			return nil, err
 		}

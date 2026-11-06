@@ -91,12 +91,19 @@ func (s *Service) itemMetadata(ctx context.Context, it systemq.Item, lang string
 		if t.Lang != lang {
 			continue
 		}
-		out.Title, out.Tagline, out.Overview, out.SortTitle = t.Title, optText(t.Tagline), optText(t.Overview), optText(t.SortKey)
+		out.Title, out.Tagline, out.Overview, out.SortTitle = t.Title, optText(t.Tagline), optText(t.Overview), optText(t.SortTitle)
+		if out.SortTitle == nil {
+			out.SortTitle = optText(t.SortKey) // locked before the typed text was kept
+		}
 	}
 	for _, name := range model.MetaFields {
 		if metaFields[name].lockedIn(locks, lang) {
 			out.Locked = append(out.Locked, name)
 		}
+	}
+	if !slices.Contains(out.Locked, model.MetaFieldSortTitle) {
+		// A free sort title follows the title: the field shows that, not the folded key.
+		out.SortTitle = &out.Title
 	}
 	for _, name := range model.MetaFields {
 		f := metaFields[name]
@@ -260,7 +267,7 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 		had := false
 		for _, t := range texts {
 			if t.Lang == lang {
-				row.Title, row.Overview, row.Tagline, row.SortKey, row.Rank, had = t.Title, t.Overview, t.Tagline, t.SortKey, t.Rank, true
+				row.Title, row.Overview, row.Tagline, row.SortKey, row.SortTitle, row.Rank, had = t.Title, t.Overview, t.Tagline, t.SortKey, t.SortTitle, t.Rank, true
 			}
 		}
 		if !had {
@@ -277,10 +284,13 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 		}
 		switch {
 		case edit.SortTitle != nil:
-			// The administrator's order: folded and lower-cased like every key, no article stripped.
+			// The administrator's order: folded and lower-cased like every key, no article stripped;
+			// the text stays as typed for the editor.
 			row.SortKey = sql.NullString{String: model.SortKey("", *edit.SortTitle), Valid: true}
+			row.SortTitle = sql.NullString{String: *edit.SortTitle, Valid: true}
 		case !sortLocked || !had:
 			row.SortKey = sql.NullString{String: model.SortKey(lang, row.Title), Valid: true}
+			row.SortTitle = sql.NullString{}
 		}
 		if err := q.EditItemText(ctx, row); err != nil {
 			return fmt.Errorf("write %s text: %w", lang, err)
