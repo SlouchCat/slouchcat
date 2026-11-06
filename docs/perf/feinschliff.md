@@ -175,3 +175,43 @@ gleich, die Kosten hängen nur noch an der Zahl der Gruppen. Das braucht eine Mi
 und einen eingefrorenen DB-Stand. Sinnvoll erst, wenn echte Profile auf CT 190 so viele
 Fortschrittszeilen haben, dass die Reihe spürbar wird; dann in einer eigenen Stufe mit Entscheid
 von Marco.
+
+## 3. Stufe 3, P-7: «Meine Medien» und «Neu in …» (6. November 2026)
+
+Konzept 15, Abschnitt 8.3. Die zwei neuen Reihen sind ab Werk ausgeblendet; die Startseite wird
+nur schwerer, wenn der Administrator sie einblendet. Gemessen, was jede eingeblendete Reihe je
+Aufruf von `GET /home` kostet, neben dem, was die Startseite und die Bibliotheksseite heute schon
+lesen.
+
+Entwicklungsrechner wie oben, Go 1.27.2, Stand `988f2710` (Zweig `claude/fs3-homerows`).
+Benchmark `BenchmarkLibraryRows` in `server/internal/visibility/library_bench_test.go`:
+
+```
+cd server
+go test -run '^$' -bench LibraryRows -benchtime 200x -v ./internal/visibility/
+```
+
+Datenbank aus `vistest.New` plus 10 000 Filme in der Filmbibliothek, je einer mit abspielbarer
+Datei und eigenem `added_at`; Profil P18 (sieht alles). Ohne `ANALYZE`. n = 200 je Fall.
+
+| Fall                                                                    | p50     | p95     |
+| ----------------------------------------------------------------------- | ------- | ------- |
+| `VisibleLibraries` (Seitenleiste, Vergleich)                            | 7,2 ms  | 8,2 ms  |
+| `Recent` (Reihe «Neu hinzugefügt», Vergleich)                           | 16,3 ms | 17,0 ms |
+| `LibraryTiles` («Meine Medien», eine Kachel)                            | 20,3 ms | 23,5 ms |
+| `LibraryNewest` («Neu in Filme», 20 Titel)                              | 13,8 ms | 16,5 ms |
+| `LibraryItems` mit `sort=added`, 20 Titel (Bibliotheksseite, Vergleich) | 43,8 ms | 84,2 ms |
+
+Einordnung:
+
+- «Neu in …» liest mit derselben Anweisung wie die Bibliotheksseite (`libraryStmt`, sortiert nach
+  `added_at`), aber ohne Zählung, Buchstaben, Genres und Altersstufen; sie kostet etwa so viel wie
+  die Reihe «Neu hinzugefügt». Je eingeblendeter Bibliotheksreihe kommt das einmal dazu.
+- «Meine Medien» zählt die Titel je Bibliothek wie die Seitenleiste und liest je Bibliothek die vier
+  neuesten Titel; der Aufwand wächst mit der Zahl der Bibliotheken und ihrer Grösse.
+- Mit allen fünfzehn Plätzen voll (die acht Reihen, «Meine Medien» und sechs Bibliotheksreihen) kämen
+  bei Bibliotheken dieser Grösse rund 20 ms + 6 × 14 ms ≈ 105 ms dazu, auf CT 190 nach
+  `docs/perf/M3.md` 1c mit dem Faktor 2 bis 3 also 210 bis 315 ms. Dann wäre die Grenze P-11
+  (`GET /home` < 300 ms p95) nicht mehr sicher. Mit einer oder zwei eingeblendeten Reihen bleibt
+  sie mit Abstand. Nachmessen bei der Abnahme der Stufe auf CT 190 mit den echten Bibliotheken
+  (offen).
