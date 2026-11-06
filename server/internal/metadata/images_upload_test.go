@@ -336,3 +336,62 @@ func TestUploadItemImageUndecodable(t *testing.T) {
 		t.Errorf("poster original %s %s, want the TMDB one", p, src)
 	}
 }
+
+// vp8x wraps the simple lossy WebP simple (VP8 chunk right after the header) in an extended file
+// with a w×h canvas, flags and the chunks extra before the frame.
+func vp8x(simple []byte, w, h int, flags byte, extra ...[]byte) []byte {
+	var body bytes.Buffer
+	body.WriteString("WEBPVP8X")
+	_ = binary.Write(&body, binary.LittleEndian, uint32(10))
+	body.Write([]byte{flags, 0, 0, 0})
+	body.Write([]byte{byte(w - 1), byte((w - 1) >> 8), byte((w - 1) >> 16), byte(h - 1), byte((h - 1) >> 8), byte((h - 1) >> 16)})
+	for _, c := range extra {
+		body.Write(c)
+	}
+	body.Write(simple[12:]) // the VP8 chunk
+	var out bytes.Buffer
+	out.WriteString("RIFF")
+	_ = binary.Write(&out, binary.LittleEndian, uint32(body.Len()))
+	out.Write(body.Bytes())
+	return out.Bytes()
+}
+
+// An extended WebP counts by its frame, not by the canvas it declares: a 100×100 canvas around an
+// 800×600 frame (ffmpeg decodes the frame) is refused, an animated WebP as well; a canvas that
+// matches its frame is taken with the frame's size.
+func TestUploadItemImageWebPFrame(t *testing.T) {
+	t.Parallel()
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	simple := e.webpBytes(t, 800, 600)
+	if string(simple[12:16]) != "VP8 " {
+		t.Fatalf("the encoder wrote %q, want a simple lossy WebP", simple[12:16])
+	}
+	anim := []byte("ANIM\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00")
+	for name, data := range map[string][]byte{
+		"small canvas":   vp8x(simple, 100, 100, 0),
+		"large canvas":   vp8x(simple, 1600, 1200, 0),
+		"animation flag": vp8x(simple, 800, 600, 0x02),
+		"anim chunk":     vp8x(simple, 800, 600, 0, anim),
+	} {
+		if got := uploadCode(t, e.svc.UploadItemImage(ctx, idByTMDB, "backdrop", data)); got != "file unsupported_format" {
+			t.Errorf("%s: %s, want file unsupported_format", name, got)
+		}
+	}
+	exif := []byte("EXIF\x03\x00\x00\x00abc\x00") // odd size, padded
+	ok := vp8x(simple, 800, 600, 0x08, exif)
+	if err := e.svc.UploadItemImage(ctx, idByTMDB, "backdrop", ok); err != nil {
+		t.Fatalf("matching canvas: %v", err)
+	}
+	if r := e.images(t, idByTMDB)["backdrop/original/jpeg"]; r.Width != 800 || r.Height != 600 || r.MediaType != "image/webp" {
+		t.Fatalf("original row %+v, want an 800×600 WebP", r)
+	}
+}

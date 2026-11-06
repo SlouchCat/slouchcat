@@ -53,8 +53,14 @@ func imageEncoderArgs(f ImageFormat) ([]string, error) {
 	}
 }
 
-// ScaleImageArgs builds the ffmpeg argument list of ScaleImage. One run decodes the input once,
-// scales it once per distinct width (lanczos) and encodes every output from that frame.
+// MaxImagePixels caps the frame ffmpeg decodes when it scales an image (50 megapixels, the limit
+// of an upload): a header can claim a small image while the bitstream holds a large one (a WebP
+// canvas around a bigger frame, a JPEG with several frame headers).
+const MaxImagePixels = 50_000_000
+
+// ScaleImageArgs builds the ffmpeg argument list of ScaleImage. One run decodes the input once
+// (at most MaxImagePixels), scales it once per distinct width (lanczos) and encodes every output
+// from that frame.
 func ScaleImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
 	if len(outs) == 0 {
 		return nil, errors.New("no image outputs")
@@ -82,7 +88,8 @@ func ScaleImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
 			graph.WriteString("[o" + strconv.Itoa(i) + "]")
 		}
 	}
-	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", inPath, "-filter_complex", graph.String()}
+	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+		"-max_pixels", strconv.Itoa(MaxImagePixels), "-i", inPath, "-filter_complex", graph.String()}
 	for i, o := range outs {
 		enc, err := imageEncoderArgs(o.Format)
 		if err != nil {

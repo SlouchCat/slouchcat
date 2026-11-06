@@ -1145,19 +1145,70 @@ func imageConfig(data []byte, mediaType string) (image.Config, error) {
 		cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 		return cfg, err
 	}
+	cfg, _, err := webpConfig(data)
+	return cfg, err
+}
+
+// webpConfig reads the dimensions of a WebP and whether it is animated. A simple file (VP8 or
+// VP8L right after the header) gives the size of its bitstream. An extended file (VP8X) gives its
+// canvas, which must match the first VP8 or VP8L chunk, since that is what a decoder reads (a
+// canvas of 100×100 around an 800×600 frame is refused); an animated file (flag or ANIM/ANMF
+// chunk) has no such chunk at the top level and gives its canvas.
+func webpConfig(data []byte) (image.Config, bool, error) {
 	if len(data) < 30 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
-		return image.Config{}, errors.New("not a webp image")
+		return image.Config{}, false, errors.New("not a webp image")
 	}
-	le16 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 }
 	le24 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 | int(b[2])<<16 }
-	switch string(data[12:16]) {
+	if string(data[12:16]) != "VP8X" {
+		cfg, err := webpFrame(string(data[12:16]), data[20:])
+		return cfg, false, err
+	}
+	canvas := image.Config{Width: le24(data[24:]) + 1, Height: le24(data[27:]) + 1}
+	const animationFlag = 0x02
+	if data[20]&animationFlag != 0 {
+		return canvas, true, nil
+	}
+	for off := 30; off+8 <= len(data); {
+		fourCC := string(data[off : off+4])
+		size := int(uint32(data[off+4]) | uint32(data[off+5])<<8 | uint32(data[off+6])<<16 | uint32(data[off+7])<<24)
+		body := data[off+8:]
+		switch fourCC {
+		case "ANIM", "ANMF":
+			return canvas, true, nil
+		case "VP8 ", "VP8L":
+			frame, err := webpFrame(fourCC, body)
+			if err != nil {
+				return image.Config{}, false, err
+			}
+			if frame.Width != canvas.Width || frame.Height != canvas.Height {
+				return image.Config{}, false, fmt.Errorf("webp canvas %dx%d does not match its frame %dx%d",
+					canvas.Width, canvas.Height, frame.Width, frame.Height)
+			}
+			return canvas, false, nil
+		}
+		if size < 0 || size > len(body) {
+			break
+		}
+		off += 8 + size + size&1 // chunks are padded to an even size
+	}
+	return image.Config{}, false, errors.New("webp without an image chunk")
+}
+
+// webpFrame reads the dimensions from the start of a VP8 or VP8L chunk body.
+func webpFrame(fourCC string, b []byte) (image.Config, error) {
+	le16 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 }
+	switch fourCC {
 	case "VP8 ":
-		return image.Config{Width: le16(data[26:]) & 0x3fff, Height: le16(data[28:]) & 0x3fff}, nil
+		if len(b) < 10 || b[3] != 0x9d || b[4] != 0x01 || b[5] != 0x2a {
+			return image.Config{}, errors.New("damaged webp vp8 header")
+		}
+		return image.Config{Width: le16(b[6:]) & 0x3fff, Height: le16(b[8:]) & 0x3fff}, nil
 	case "VP8L":
-		b := uint32(data[21]) | uint32(data[22])<<8 | uint32(data[23])<<16 | uint32(data[24])<<24
-		return image.Config{Width: int(b&0x3fff) + 1, Height: int((b>>14)&0x3fff) + 1}, nil
-	case "VP8X":
-		return image.Config{Width: le24(data[24:]) + 1, Height: le24(data[27:]) + 1}, nil
+		if len(b) < 5 || b[0] != 0x2f {
+			return image.Config{}, errors.New("damaged webp vp8l header")
+		}
+		v := uint32(b[1]) | uint32(b[2])<<8 | uint32(b[3])<<16 | uint32(b[4])<<24
+		return image.Config{Width: int(v&0x3fff) + 1, Height: int((v>>14)&0x3fff) + 1}, nil
 	}
 	return image.Config{}, errors.New("unknown webp chunk")
 }

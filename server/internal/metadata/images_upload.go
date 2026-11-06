@@ -25,13 +25,14 @@ import (
 // whose source no longer matches.
 
 // maxUploadPixels caps the pixel count of an uploaded image (50 megapixels), checked from the
-// header before ffmpeg decodes anything.
-const maxUploadPixels = 50_000_000
+// header before ffmpeg decodes anything; ffmpeg itself refuses a larger frame as well
+// (transcode.MaxImagePixels), whatever the header said.
+const maxUploadPixels = transcode.MaxImagePixels
 
 // The field codes of an upload refused by its content (field file, 422).
 const (
 	codeImageTooLarge     = "too_large"          // more than model.MaxImageUploadBytes
-	codeImageUnsupported  = "unsupported_format" // no JPEG, PNG or WebP by content, or a damaged header
+	codeImageUnsupported  = "unsupported_format" // no JPEG, PNG or still WebP by content, a damaged header or body
 	codeImageTooManyPixel = "too_many_pixels"    // more than maxUploadPixels
 )
 
@@ -60,6 +61,11 @@ func (s *Service) UploadItemImage(ctx context.Context, itemID, kind string, data
 	cfg, err := imageConfig(data, mediaType)
 	if err != nil || cfg.Width <= 0 || cfg.Height <= 0 {
 		return v.Add("file", codeImageUnsupported)
+	}
+	if mediaType == "image/webp" {
+		if _, animated, _ := webpConfig(data); animated {
+			return v.Add("file", codeImageUnsupported) // an image is one picture
+		}
 	}
 	if int64(cfg.Width)*int64(cfg.Height) > maxUploadPixels {
 		return v.Add("file", codeImageTooManyPixel)

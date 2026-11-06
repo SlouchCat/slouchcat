@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -245,16 +246,38 @@ func TestImageConfigWebP(t *testing.T) {
 	vp8l := make([]byte, 14)
 	vp8l[0] = 0x2f
 	binary.LittleEndian.PutUint32(vp8l[1:], uint32(300-1)|uint32(200-1)<<14)
-	vp8x := make([]byte, 14)
+	// An extended file: the VP8X canvas (1024×512), then the frame chunk, which must match it.
+	vp8x := make([]byte, 10)
 	vp8x[4], vp8x[5], vp8x[6] = 0xff, 0x03, 0 // width 1024
 	vp8x[7], vp8x[8], vp8x[9] = 0xff, 0x01, 0 // height 512
+	frame := func(w, h uint16) []byte {
+		b := append([]byte("VP8 "), 14, 0, 0, 0)
+		f := make([]byte, 14)
+		copy(f[3:], []byte{0x9d, 0x01, 0x2a})
+		binary.LittleEndian.PutUint16(f[6:], w)
+		binary.LittleEndian.PutUint16(f[8:], h)
+		return append(b, f...)
+	}
+	header10 := func(chunk string, payload []byte) []byte {
+		b := append([]byte("RIFF\x00\x00\x00\x00WEBP"+chunk), 10, 0, 0, 0)
+		return append(b, payload...)
+	}
+	extended := header10("VP8X", append(slices.Clone(vp8x), frame(1024, 512)...))
 	for _, c := range []struct {
 		data []byte
 		w, h int
-	}{{header("VP8 ", vp8), 640, 480}, {header("VP8L", vp8l), 300, 200}, {header("VP8X", vp8x), 1024, 512}} {
+	}{{header("VP8 ", vp8), 640, 480}, {header("VP8L", vp8l), 300, 200}, {extended, 1024, 512}} {
 		cfg, err := imageConfig(c.data, "image/webp")
 		if err != nil || cfg.Width != c.w || cfg.Height != c.h {
 			t.Errorf("%s: %dx%d %v, want %dx%d", c.data[12:16], cfg.Width, cfg.Height, err, c.w, c.h)
+		}
+	}
+	for name, data := range map[string][]byte{
+		"canvas without frame":   header10("VP8X", append(slices.Clone(vp8x), make([]byte, 4)...)),
+		"canvas around a larger": header10("VP8X", append(slices.Clone(vp8x), frame(4000, 3000)...)),
+	} {
+		if cfg, err := imageConfig(data, "image/webp"); err == nil {
+			t.Errorf("%s accepted as %dx%d", name, cfg.Width, cfg.Height)
 		}
 	}
 	if _, err := imageConfig([]byte("RIFF"), "image/webp"); err == nil {
