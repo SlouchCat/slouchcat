@@ -91,6 +91,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -447,7 +448,7 @@ const fieldSortTitle = "sort_title"
 var textLockFields = []string{"title", "overview", "tagline", fieldSortTitle}
 
 // textLockName is the lock of a text field in one language (title:de).
-func textLockName(field, lang string) string { return field + ":" + lang }
+func textLockName(field, lang string) string { return model.TextLockName(field, lang) }
 
 // textLocked reports whether a field is locked in lang: by its lock per language or by the lock
 // without language, which holds every language (and is the only lock of the fields without one).

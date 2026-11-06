@@ -255,6 +255,11 @@ var adminRegistry = map[string]adminCall{
 	// Concept 13 11.7: the original language by hand (the contract fake accepts every value).
 	"setItemOriginalLanguage": {contract: "PUT /admin/items/{id}/original-language", path: "/admin/items/" + fixtureFilm6 + "/original-language",
 		body: `{"language":"ja"}`, ownerStatus: http.StatusOK},
+	// Concept 15 7.5: the metadata editor writes the database, so the registry asks for an unknown
+	// title (TestItemMetadataOverHTTP covers 200, 404 and 422); the genre list leaves it unchanged.
+	"updateItemMetadata": {contract: "PATCH /admin/items/{id}/metadata", path: "/admin/items/" + unknownItemID + "/metadata",
+		body: `{"title":"Neu"}`, ownerStatus: http.StatusNotFound},
+	"listAdminGenres": {contract: "GET /admin/genres", path: "/admin/genres", ownerStatus: http.StatusOK},
 	"setItemsRating": {contract: "POST /admin/items/rating", path: "/admin/items/rating",
 		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
 	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",

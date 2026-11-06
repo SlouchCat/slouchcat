@@ -152,6 +152,12 @@ type AdminService interface {
 	// model.ErrNotFound, *model.ValidationError).
 	UploadItemImage(ctx context.Context, itemID, kind string, data []byte) (model.AdminItem, error)
 	SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) (model.AdminItem, error)
+	// UpdateItemMetadata writes, locks and unlocks the editor's fields of a title in the server's
+	// metadata language (concept 15 7.5): model.ErrNotFound, *model.ValidationError.
+	UpdateItemMetadata(ctx context.Context, itemID string, edit model.ItemMetadataEdit) (model.AdminItem, error)
+	// ListAdminGenres returns the server's metadata language and every genre of the live films and
+	// series in it (concept 15 7.5).
+	ListAdminGenres(ctx context.Context) (string, []string, error)
 	ItemImageCandidatePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 	// SetItemsRating applies SetItemRating to many titles; unknown ids are skipped and not counted.
 	SetItemsRating(ctx context.Context, itemIDs []string, rating *int) (int, error)

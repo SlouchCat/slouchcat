@@ -1695,6 +1695,56 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/items/{id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit and lock the metadata texts and columns of a title (concept 15 7.5, P-6)
+         * @description Since contract 1.15.0. Writes the given fields of a movie, series, season or episode and locks each
+         *     of them, so `metadata.match` and `metadata.fill` keep it; `unlock` lifts the locks of the named
+         *     fields (their values stay until the next refresh). Texts (`title`, `sortTitle`, `tagline`,
+         *     `overview`) always belong to the server's metadata language (`AdminItemMetadata.lang`, F-10); they
+         *     are locked per language (`title:de`, `sort_title:de`, …), the other languages stay with the
+         *     providers. `sortTitle` is stored as the sort key of that language (lower-cased, diacritics folded,
+         *     no article stripped), which the library sorts by. `originalTitle`, `tagline` and `genres` exist
+         *     for movies and series only. A field the request sets loses its provenance (`fieldSources`). An
+         *     empty body changes nothing. The answer is the administration view after the change.
+         */
+        patch: operations["updateItemMetadata"];
+        trace?: never;
+    };
+    "/admin/genres": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every genre of the server's metadata language (concept 15 7.5)
+         * @description Since contract 1.15.0. The genre names of all live movies and series in the server's metadata
+         *     language, sorted without regard to case, for the suggestions of the metadata editor. Unlike
+         *     `listGenres` (scoped, at most 20) unfiltered and complete.
+         */
+        get: operations["listAdminGenres"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/items/{id}/trailers": {
         parameters: {
             query?: never;
@@ -5299,6 +5349,63 @@ export interface components {
              *     its library is off, and for every other kind of title.
              */
             imageKinds?: components["schemas"]["ImageKind"][];
+            metadata?: components["schemas"]["AdminItemMetadata"];
+        };
+        /**
+         * @description A field of the metadata editor (since contract 1.15.0, concept 15 7.5).
+         * @enum {string}
+         */
+        AdminMetadataField: "title" | "originalTitle" | "sortTitle" | "year" | "releaseDate" | "tagline" | "overview" | "genres";
+        /**
+         * @description The fields the administrator changes (since contract 1.15.0); a field left out stays as it is. Texts
+         *     belong to the server's metadata language. `""` clears `originalTitle`, `releaseDate`, `tagline` and
+         *     `overview`; an empty `genres` list clears the genres of that language.
+         */
+        ItemMetadataUpdate: {
+            title?: string;
+            originalTitle?: string;
+            sortTitle?: string;
+            year?: number;
+            /** @description `YYYY-MM-DD` or `""`. */
+            releaseDate?: string;
+            tagline?: string;
+            overview?: string;
+            genres?: string[];
+            /** @description Fields whose lock goes; for a text field both its lock in the server language and an old lock without language. */
+            unlock?: components["schemas"]["AdminMetadataField"][];
+        };
+        /**
+         * @description The editable metadata of a title in the server's metadata language (since contract 1.15.0, concept 15
+         *     7.4): the current values, which of them are locked and which provider wrote them. A field without a
+         *     value is left out.
+         */
+        AdminItemMetadata: {
+            /** @description The server's metadata language (the first of its text languages), which the texts belong to. */
+            lang: string;
+            /** @description The title in that language; the parsed title while there is no text row. */
+            title: string;
+            originalTitle?: string;
+            /** @description The sort key of that language (lower-cased). */
+            sortTitle?: string;
+            year?: number;
+            releaseDate?: string;
+            tagline?: string;
+            overview?: string;
+            genres: string[];
+            /** @description The locked fields; a text field counts as locked by its lock in that language or by an old lock without language. */
+            locked: components["schemas"]["AdminMetadataField"][];
+            /** @description Which provider wrote which field (`year` follows `releaseDate`); a field the administrator wrote has none. */
+            sources: components["schemas"]["AdminMetadataSource"][];
+        };
+        AdminMetadataSource: {
+            field: components["schemas"]["AdminMetadataField"];
+            /** @description A `MetadataProvider`, or `union` for genres. */
+            provider: string;
+        };
+        /** @description The genres of the server's metadata language (since contract 1.15.0). */
+        AdminGenreList: {
+            lang: string;
+            genres: string[];
         };
         /** @description One image a source offers for a kind of a title (concept 10 6.4). */
         ImageCandidate: {
@@ -11156,6 +11263,81 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    updateItemMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemMetadataUpdate"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): `kind` (`invalid_value`: not a movie, series, season
+             *     or episode), a field outside its limits (`required` for an empty `title` or `sortTitle`,
+             *     `too_long`, `invalid_value` for `year`, `releaseDate`, a genre), a field for movies and series
+             *     only on another kind (`invalid_value`), or `unlock` naming a field the request also sets
+             *     (`invalid_value`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAdminGenres: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The genres. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminGenreList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
         };
     };
     createItemTrailer: {

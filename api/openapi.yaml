@@ -3400,6 +3400,81 @@ paths:
               schema:
                 $ref: "#/components/schemas/Problem"
 
+  /admin/items/{id}/metadata:
+    patch:
+      operationId: updateItemMetadata
+      summary: Edit and lock the metadata texts and columns of a title (concept 15 7.5, P-6)
+      description: |
+        Since contract 1.15.0. Writes the given fields of a movie, series, season or episode and locks each
+        of them, so `metadata.match` and `metadata.fill` keep it; `unlock` lifts the locks of the named
+        fields (their values stay until the next refresh). Texts (`title`, `sortTitle`, `tagline`,
+        `overview`) always belong to the server's metadata language (`AdminItemMetadata.lang`, F-10); they
+        are locked per language (`title:de`, `sort_title:de`, …), the other languages stay with the
+        providers. `sortTitle` is stored as the sort key of that language (lower-cased, diacritics folded,
+        no article stripped), which the library sorts by. `originalTitle`, `tagline` and `genres` exist
+        for movies and series only. A field the request sets loses its provenance (`fieldSources`). An
+        empty body changes nothing. The answer is the administration view after the change.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemMetadataUpdate"
+      responses:
+        "200":
+          description: The administration view after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`): `kind` (`invalid_value`: not a movie, series, season
+            or episode), a field outside its limits (`required` for an empty `title` or `sortTitle`,
+            `too_long`, `invalid_value` for `year`, `releaseDate`, a genre), a field for movies and series
+            only on another kind (`invalid_value`), or `unlock` naming a field the request also sets
+            (`invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/genres:
+    get:
+      operationId: listAdminGenres
+      summary: Every genre of the server's metadata language (concept 15 7.5)
+      description: |
+        Since contract 1.15.0. The genre names of all live movies and series in the server's metadata
+        language, sorted without regard to case, for the suggestions of the metadata editor. Unlike
+        `listGenres` (scoped, at most 20) unfiltered and complete.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The genres.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminGenreList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+
   /admin/items/{id}/trailers:
     post:
       operationId: createItemTrailer
@@ -9810,6 +9885,123 @@ components:
             its library is off, and for every other kind of title.
           items:
             $ref: "#/components/schemas/ImageKind"
+        metadata:
+          $ref: "#/components/schemas/AdminItemMetadata"
+
+    AdminMetadataField:
+      type: string
+      enum: [title, originalTitle, sortTitle, year, releaseDate, tagline, overview, genres]
+      description: A field of the metadata editor (since contract 1.15.0, concept 15 7.5).
+
+    ItemMetadataUpdate:
+      type: object
+      description: |
+        The fields the administrator changes (since contract 1.15.0); a field left out stays as it is. Texts
+        belong to the server's metadata language. `""` clears `originalTitle`, `releaseDate`, `tagline` and
+        `overview`; an empty `genres` list clears the genres of that language.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        originalTitle:
+          type: string
+          maxLength: 500
+        sortTitle:
+          type: string
+          minLength: 1
+          maxLength: 500
+        year:
+          type: integer
+          minimum: 1800
+          maximum: 2200
+        releaseDate:
+          type: string
+          description: "`YYYY-MM-DD` or `\"\"`."
+          maxLength: 10
+        tagline:
+          type: string
+          maxLength: 500
+        overview:
+          type: string
+          maxLength: 10000
+        genres:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        unlock:
+          type: array
+          description: Fields whose lock goes; for a text field both its lock in the server language and an old lock without language.
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/AdminMetadataField"
+
+    AdminItemMetadata:
+      type: object
+      description: |
+        The editable metadata of a title in the server's metadata language (since contract 1.15.0, concept 15
+        7.4): the current values, which of them are locked and which provider wrote them. A field without a
+        value is left out.
+      required: [lang, title, genres, locked, sources]
+      properties:
+        lang:
+          type: string
+          description: The server's metadata language (the first of its text languages), which the texts belong to.
+        title:
+          type: string
+          description: The title in that language; the parsed title while there is no text row.
+        originalTitle:
+          type: string
+        sortTitle:
+          type: string
+          description: The sort key of that language (lower-cased).
+        year:
+          type: integer
+        releaseDate:
+          type: string
+        tagline:
+          type: string
+        overview:
+          type: string
+        genres:
+          type: array
+          items:
+            type: string
+        locked:
+          type: array
+          description: The locked fields; a text field counts as locked by its lock in that language or by an old lock without language.
+          items:
+            $ref: "#/components/schemas/AdminMetadataField"
+        sources:
+          type: array
+          description: Which provider wrote which field (`year` follows `releaseDate`); a field the administrator wrote has none.
+          items:
+            $ref: "#/components/schemas/AdminMetadataSource"
+
+    AdminMetadataSource:
+      type: object
+      required: [field, provider]
+      properties:
+        field:
+          $ref: "#/components/schemas/AdminMetadataField"
+        provider:
+          type: string
+          description: A `MetadataProvider`, or `union` for genres.
+
+    AdminGenreList:
+      type: object
+      description: The genres of the server's metadata language (since contract 1.15.0).
+      required: [lang, genres]
+      properties:
+        lang:
+          type: string
+        genres:
+          type: array
+          items:
+            type: string
 
     ImageCandidate:
       type: object

@@ -29,6 +29,10 @@ func (e serviceProblem) VisitClearItemImageResponse(w http.ResponseWriter) error
 func (e serviceProblem) VisitSetItemOriginalLanguageResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
+func (e serviceProblem) VisitUpdateItemMetadataResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitListAdminGenresResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitCreateItemTrailerResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
@@ -152,6 +156,57 @@ func (s *server) SetItemOriginalLanguage(ctx context.Context, req gen.SetItemOri
 		return s.problem(ctx, err), nil
 	}
 	return gen.SetItemOriginalLanguage200JSONResponse(toAdminItem(it)), nil
+}
+
+// UpdateItemMetadata is the metadata editor (concept 15 7.5, contract 1.15.0); an empty body
+// changes nothing.
+func (s *server) UpdateItemMetadata(ctx context.Context, req gen.UpdateItemMetadataRequestObject) (gen.UpdateItemMetadataResponseObject, error) {
+	var edit model.ItemMetadataEdit
+	if b := req.Body; b != nil {
+		edit = model.ItemMetadataEdit{Title: b.Title, OriginalTitle: b.OriginalTitle, SortTitle: b.SortTitle, Year: b.Year,
+			ReleaseDate: b.ReleaseDate, Tagline: b.Tagline, Overview: b.Overview, Genres: b.Genres}
+		if b.Unlock != nil {
+			for _, f := range *b.Unlock {
+				edit.Unlock = append(edit.Unlock, string(f))
+			}
+		}
+	}
+	it, err := s.opts.Admin.UpdateItemMetadata(ctx, req.Id, edit)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.UpdateItemMetadata200JSONResponse(toAdminItem(it)), nil
+}
+
+func (s *server) ListAdminGenres(ctx context.Context, _ gen.ListAdminGenresRequestObject) (gen.ListAdminGenresResponseObject, error) {
+	lang, genres, err := s.opts.Admin.ListAdminGenres(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	if genres == nil {
+		genres = []string{}
+	}
+	return gen.ListAdminGenres200JSONResponse{Lang: lang, Genres: genres}, nil
+}
+
+// toAdminItemMetadata maps the editor's view of a title.
+func toAdminItemMetadata(m *model.AdminItemMetadata) *gen.AdminItemMetadata {
+	if m == nil {
+		return nil
+	}
+	out := &gen.AdminItemMetadata{Lang: m.Lang, Title: m.Title, OriginalTitle: m.OriginalTitle, SortTitle: m.SortTitle, Year: m.Year,
+		ReleaseDate: m.ReleaseDate, Tagline: m.Tagline, Overview: m.Overview, Genres: m.Genres,
+		Locked: make([]gen.AdminMetadataField, 0, len(m.Locked)), Sources: make([]gen.AdminMetadataSource, 0, len(m.Sources))}
+	if out.Genres == nil {
+		out.Genres = []string{}
+	}
+	for _, f := range m.Locked {
+		out.Locked = append(out.Locked, gen.AdminMetadataField(f))
+	}
+	for _, src := range m.Sources {
+		out.Sources = append(out.Sources, gen.AdminMetadataSource{Field: gen.AdminMetadataField(src.Field), Provider: src.Provider})
+	}
+	return out
 }
 
 // candidatePreviewURL is the address of getItemImageCandidatePreview for a local candidate.
@@ -328,6 +383,7 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 		OriginalLanguage: it.OriginalLanguage,
 		Providers:        providerEnums(it.Providers),
 		FieldSources:     make([]gen.FieldSource, 0, len(it.FieldSources)),
+		Metadata:         toAdminItemMetadata(it.Metadata),
 	}
 	for _, f := range it.FieldSources {
 		out.FieldSources = append(out.FieldSources, gen.FieldSource{Field: f.Field, Lang: f.Lang, Provider: f.Provider})

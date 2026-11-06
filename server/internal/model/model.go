@@ -410,6 +410,9 @@ type AdminItem struct {
 	// OriginalLanguage is the ISO 639-1 code of the original language (concept 13 11.7); "" when it
 	// was looked up and is unknown, nil while it was not looked up.
 	OriginalLanguage *string
+	// Metadata is the editable metadata in the server's metadata language (concept 15 7.4,
+	// contract 1.15.0).
+	Metadata *AdminItemMetadata
 }
 
 // MetadataCandidate is a search result of a metadata provider (manual match, B-6).

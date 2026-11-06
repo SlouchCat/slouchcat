@@ -60,6 +60,13 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 	for _, src := range sources {
 		out.FieldSources = append(out.FieldSources, model.FieldSource{Field: src.Field, Lang: src.Lang, Provider: src.Provider})
 	}
+	lang, err := s.serverTextLang(ctx)
+	if err != nil {
+		return model.AdminItem{}, err
+	}
+	if out.Metadata, err = s.itemMetadata(ctx, it, lang, sources); err != nil {
+		return model.AdminItem{}, err
+	}
 	files, err := s.mediaFiles(ctx, []string{it.ID})
 	if err != nil {
 		return model.AdminItem{}, err
