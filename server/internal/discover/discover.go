@@ -29,6 +29,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"math/rand/v2"
+	"runtime"
 	"slices"
 	"sync"
 	"time"
@@ -157,16 +158,25 @@ func (s *Service) drawHeroStart(n int, start *int) int {
 }
 
 // page builds the rows of the start page and names the stage; it is the one computation behind
-// Home, FirstHero and FirstRow. With untilHero it stops once the stage row is placed: the rows
-// after it change neither the stage nor its place.
+// Home, FirstHero and FirstRow. With untilHero it ends at the spotlight row, the only row that can
+// be the stage: the rows after it change neither the stage nor its place, so they are not loaded
+// (callers with untilHero read only the stage).
+//
+// The rows are loaded side by side (loadRows) and then placed in their order exactly as one after
+// the other: a row's error counts only when the page reaches that row, so a row behind the cut to
+// MaxRows (or behind the stage, with untilHero) never fails the page.
 func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bool) (model.HomePage, error) {
 	order, err := s.rowOrder(ctx)
 	if err != nil {
 		return model.HomePage{}, err
 	}
+	if j := slices.IndexFunc(order, func(r model.HomeRowSetting) bool { return r.Key == RowSpotlight }); untilHero && j >= 0 {
+		order = order[:j+1]
+	}
+	rows, errs := s.loadRows(ctx, scope, order)
 	page := model.HomePage{Rows: make([]model.HomeRow, 0, len(order))}
-	for _, setting := range order {
-		row, err := s.row(ctx, scope, setting)
+	for i, setting := range order {
+		row, err := rows[i], errs[i]
 		if err != nil {
 			return model.HomePage{}, fmt.Errorf("home row %s: %w", setting.ID, err)
 		}
@@ -184,6 +194,32 @@ func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bo
 		}
 	}
 	return page, nil
+}
+
+// loadRows loads the rows of order side by side, in at most min(GOMAXPROCS, 4) goroutines that
+// take the rows in their order, and returns each row with its error at the row's index. A row
+// holds at most one connection of the read pool at a time (its statements read all rows before the
+// next one, a transaction runs only its own statements), so the goroutines never wait on each other
+// for the pool (store.Open: at least four connections). On two cores the start page of the CT 190
+// database takes about a sixth less time (docs/perf/feinschliff.md section 3).
+func (s *Service) loadRows(ctx context.Context, scope visibility.Scope, order []model.HomeRowSetting) ([]model.HomeRow, []error) {
+	rows := make([]model.HomeRow, len(order))
+	errs := make([]error, len(order))
+	next := make(chan int, len(order))
+	for i := range order {
+		next <- i
+	}
+	close(next)
+	var wg sync.WaitGroup
+	for range min(runtime.GOMAXPROCS(0), 4, len(order)) {
+		wg.Go(func() {
+			for i := range next {
+				rows[i], errs[i] = s.row(ctx, scope, order[i])
+			}
+		})
+	}
+	wg.Wait()
+	return rows, errs
 }
 
 // filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3), the
