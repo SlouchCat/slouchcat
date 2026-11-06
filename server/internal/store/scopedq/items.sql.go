@@ -273,24 +273,28 @@ WITH watched AS (
     JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
     LEFT JOIN items AS se ON e.kind = 'episode' AND se.id = e.parent_id AND se.kind = 'season'
     WHERE p.profile_id = ?1 AND e.kind <> 'extra' AND (p.completed = 1 OR p.position_ms > 0)
-      AND (se.parent_id IS NULL OR EXISTS (
-            SELECT 1 FROM visible_items AS vs WHERE vs.item_id = se.parent_id AND vs.profile_id = ?1))
+),
+grouped AS (
+    SELECT w.item_id, w.updated_at, w.completed, w.in_window, w.series_id, w.season_number, w.last_episode,
+           max(printf('%020d', w.updated_at) || w.item_id) AS newest_key
+    FROM watched AS w
+    GROUP BY coalesce(w.series_id, w.item_id)
 ),
 newest AS (
-    SELECT w.item_id, w.updated_at, w.completed, w.in_window, w.series_id, w.season_number, w.last_episode, row_number() OVER (PARTITION BY coalesce(w.series_id, w.item_id)
-                                   ORDER BY w.updated_at DESC, w.item_id DESC) AS rn
-    FROM watched AS w
+    SELECT g.item_id, g.updated_at, g.completed, g.in_window, g.series_id, g.season_number, g.last_episode, g.newest_key FROM grouped AS g
+    WHERE g.series_id IS NULL OR EXISTS (
+        SELECT 1 FROM visible_items AS vs WHERE vs.item_id = g.series_id AND vs.profile_id = ?1)
 ),
 next_episodes AS (
     SELECT n.series_id, x.id AS next_id,
            row_number() OVER (PARTITION BY n.series_id
                               ORDER BY coalesce(x.season_number, xs.season_number), x.episode_number, x.id) AS rn
     FROM newest AS n
-    JOIN items AS xs ON xs.parent_id = n.series_id AND xs.kind = 'season'
-    JOIN items AS x ON x.parent_id = xs.id AND x.kind = 'episode'
+    CROSS JOIN items AS xs ON xs.parent_id = n.series_id AND xs.kind = 'season'
+    CROSS JOIN items AS x ON x.parent_id = xs.id AND x.kind = 'episode'
     JOIN visible_items AS vx ON vx.item_id = x.id AND vx.profile_id = ?1
     LEFT JOIN progress AS xp ON xp.profile_id = ?1 AND xp.item_id = x.id
-    WHERE n.rn = 1 AND n.completed = 1 AND n.in_window = 1 AND x.id <> n.item_id
+    WHERE n.completed = 1 AND n.in_window = 1 AND x.id <> n.item_id
       AND n.season_number IS NOT NULL AND n.last_episode IS NOT NULL
       AND ((coalesce(x.season_number, xs.season_number) = n.season_number AND x.episode_number > n.last_episode)
            OR coalesce(x.season_number, xs.season_number) > n.season_number)
@@ -301,7 +305,6 @@ SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.origina
 LEFT JOIN next_episodes AS nx ON nx.series_id = n.series_id AND nx.rn = 1
 JOIN items AS i ON i.id = CASE WHEN n.completed = 0 THEN n.item_id ELSE nx.next_id END
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE n.rn = 1
 ORDER BY n.updated_at DESC, i.id DESC
 LIMIT ?2
 `
@@ -319,10 +322,13 @@ type ListContinueWatchingParams struct {
 // are started or completed; a row at position 0 that is not completed is no activity. An episode of
 // a season of a series carries the series id, its season number and its last episode number (the
 // end of a file with several episodes), the same values as Reader.episodeChain passes to
-// GetNextVisibleEpisode; an episode of a series the profile may not see is left out entirely. Per
-// series only the newest row counts, completed or not (row_number over the series), so an older
+// GetNextVisibleEpisode. Per series only the newest row counts, completed or not, so an older
 // half-watched episode is ignored once another one was finished after it. Every other title is its
-// own group. The newest row then picks the entry:
+// own group. newest keeps that row per group: max() over updated_at, then item_id (zero-padded, so
+// the text compares like the pair) is SQLite's single max() aggregate, whose bare columns come from
+// the row with the maximum (grouped). A series the profile may not see drops its whole group
+// (newest), the same as leaving out each of its episodes, but checked once per series. The newest
+// row then picks the entry:
 //   - not completed (and started): the title itself;
 //   - a completed episode at most @since old: the next episode by the rule of
 //     GetNextVisibleEpisode (same season with a higher number, else a later season; specials only
@@ -332,10 +338,11 @@ type ListContinueWatchingParams struct {
 //     visible episode that is not completed; without one the series is absent;
 //   - anything else (a completed film, a completed episode older than @since): no entry.
 //
-// Cost: one pass over the progress rows of the profile (primary key profile_id, item_id) with a
-// join on items by id and the window sort; next_episodes joins only the series whose newest row is
-// a completed episode inside the window and walks items_parent (seasons of the series) and
-// items_episode (episodes of a season by number), so there is no query per series.
+// Cost (docs/perf/feinschliff.md): one pass over the progress rows of the profile (primary key
+// profile_id, item_id) with a join on items by id and a grouping; next_episodes starts from the
+// series whose newest row is a completed episode inside the window and walks items_parent (seasons
+// of the series) and items_episode (episodes of a season by number). The CROSS JOINs fix that
+// order: with plain JOINs SQLite scanned every title and filtered by series afterwards.
 func (q *Queries) ListContinueWatching(ctx context.Context, arg ListContinueWatchingParams) ([]Item, error) {
 	rows, err := q.db.QueryContext(ctx, listContinueWatching, arg.ProfileID, arg.LimitCount, arg.Since)
 	if err != nil {

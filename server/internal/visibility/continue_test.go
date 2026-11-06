@@ -377,3 +377,37 @@ func TestContinueWatchingLimitAcrossGroups(t *testing.T) {
 		t.Errorf("continue = %v,\nwant %v", ids(got), want)
 	}
 }
+
+// Two progress rows of a series at the same time: the higher item id is the newest, as with the
+// order updated_at DESC, item_id DESC (docs/perf/feinschliff.md: newest keeps it by max()). E2
+// carries the higher id than E1 in the fixture.
+func TestContinueWatchingSameTime(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return continueNow }))
+	ctx := context.Background()
+	show := f.Show
+	if show.E2.ID <= show.E1.ID {
+		t.Fatalf("fixture ids: E2 %s not above E1 %s", show.E2.ID, show.E1.ID)
+	}
+	for _, tc := range []struct {
+		name   string
+		e1, e2 bool // completed
+		want   string
+	}{
+		{"E1 completed, E2 started: E2 is the newest and started", true, false, show.E2.ID},
+		{"E1 started, E2 completed: E2 is the newest, the entry is E3", false, true, show.E3.ID},
+	} {
+		exec(t, f, `DELETE FROM progress WHERE profile_id = ?`, f.P16.ID)
+		setProgress(t, f, f.P16, show.E1.ID, tc.e1, daysAgo(1))
+		setProgress(t, f, f.P16, show.E2.ID, tc.e2, daysAgo(1))
+		got, err := r.ContinueWatching(ctx, Profile(f.P16), MaxRowItems)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(ids(got), []string{tc.want}) {
+			t.Errorf("%s: continue = %v, want %s", tc.name, ids(got), tc.want)
+		}
+	}
+}
