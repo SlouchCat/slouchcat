@@ -1,4 +1,5 @@
 import type { AdminItem } from '@slouchcat/api-client';
+import type { TFunction } from 'i18next';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
@@ -42,6 +43,29 @@ const isLanguageChoice = (code: string) =>
   !NO_LANGUAGE.has(code) &&
   (LANGUAGE_CODES[code] ?? code) === code &&
   !WITHDRAWN.has(code);
+
+/**
+ * The choices of «Originalsprache setzen»: «Aus Metadaten», «Unbekannt», then every language the
+ * server takes (and the current value), sorted by name.
+ */
+export function originalLanguageOptions(
+  t: TFunction,
+  names: Intl.DisplayNames,
+  language: string,
+  known: readonly string[],
+  value: string,
+) {
+  const codes = new Set(known.filter(isLanguageChoice));
+  if (value !== FROM_METADATA && value !== '') codes.add(value);
+  const languages = [...codes]
+    .map((code) => ({ value: code, label: names.of(code) ?? code }))
+    .sort((a, b) => a.label.localeCompare(b.label, language));
+  return [
+    { value: FROM_METADATA, label: t('admin.item.language.fromMetadata') },
+    { value: '', label: t('admin.item.language.unknown') },
+    ...languages,
+  ];
+}
 
 /** The original language choice of the tab, held by the page like the rating. */
 export interface LanguageChoice {
@@ -206,18 +230,10 @@ function OriginalLanguage({
     : won
       ? providerName(t, won)
       : t('admin.item.facts.none');
-  const options = useMemo(() => {
-    const codes = new Set(choice.known.filter(isLanguageChoice));
-    if (choice.value !== FROM_METADATA && choice.value !== '') codes.add(choice.value);
-    const languages = [...codes]
-      .map((code) => ({ value: code, label: names.of(code) ?? code }))
-      .sort((a, b) => a.label.localeCompare(b.label, i18n.language));
-    return [
-      { value: FROM_METADATA, label: t('admin.item.language.fromMetadata') },
-      { value: '', label: t('admin.item.language.unknown') },
-      ...languages,
-    ];
-  }, [choice.known, choice.value, names, i18n.language, t]);
+  const options = useMemo(
+    () => originalLanguageOptions(t, names, i18n.language, choice.known, choice.value),
+    [choice.known, choice.value, names, i18n.language, t],
+  );
   return (
     <DisclosureGroup
       level={2}

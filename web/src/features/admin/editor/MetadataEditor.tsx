@@ -9,7 +9,9 @@ import { Notice, Skeleton, TextLink, useSpatialHold } from '@/ui';
 import { AriaButton, EditorDialog, StatusRegion, Tabs, useStatusMessage } from '@/ui/aria';
 import { adminItemQuery, librariesQuery } from '../queries';
 import { ImagesEditorTab } from './ImagesEditorTab';
+import { emptyDraft, type EditorDraft } from './editorModel';
 import { MatchTab, RefreshTab } from './MatchRefreshTabs';
+import { MetadataEditorTab } from './MetadataEditorTab';
 import styles from './MetadataEditor.module.css';
 
 interface MetadataEditorProps {
@@ -43,6 +45,7 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
   const libraries = useQuery(librariesQuery);
   const [tab, setTab] = useState('images');
   const [message, setMessage] = useStatusMessage();
+  const [draft, setDraft] = useState<EditorDraft>(emptyDraft);
 
   const data = item.data;
   if (!data) {
@@ -108,6 +111,31 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
               label: t('admin.editor.tabs.images'),
               content: <ImagesEditorTab item={data} onChanged={adopt} />,
             },
+            ...(data.metadata
+              ? [
+                  {
+                    id: 'metadata',
+                    label: t('admin.editor.tabs.metadata'),
+                    // A dot while there are unsaved changes, so they show from every tab.
+                    ...(draft.unlock.length > 0 || Object.keys(draft.changed).length > 0
+                      ? {
+                          count: t('admin.item.tabs.unsavedMark'),
+                          countLabel: t('admin.item.rating.unsaved'),
+                          tone: 'warning' as const,
+                        }
+                      : {}),
+                    content: (
+                      <MetadataEditorTab
+                        item={data}
+                        meta={data.metadata}
+                        draft={draft}
+                        onDraftChange={setDraft}
+                        onChanged={adopt}
+                      />
+                    ),
+                  },
+                ]
+              : []),
             {
               id: 'match',
               label: t('admin.editor.tabs.match'),

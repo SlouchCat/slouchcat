@@ -62,9 +62,13 @@ export function EditorDialog({
               {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
               {link}
             </div>
-            <AriaButton variant="ghost" icon="close" onPress={onClose}>
-              {closeLabel}
-            </AriaButton>
+            <AriaButton
+              variant="ghost"
+              icon="close"
+              iconOnly
+              aria-label={closeLabel}
+              onPress={onClose}
+            />
           </div>
           <div className={styles.body}>{children}</div>
         </Dialog>

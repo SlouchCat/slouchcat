@@ -56,6 +56,12 @@ const paths = {
       <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" />
     </>
   ),
+  unlock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="9.5" rx="2" fill="none" />
+      <path d="M8 10.5V8a4 4 0 0 1 7.7-1.5" fill="none" />
+    </>
+  ),
   check: <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" />,
   pen: <path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5 4 20ZM13.5 7l3 3" fill="none" />,
   copy: (
