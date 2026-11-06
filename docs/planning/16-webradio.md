@@ -1,9 +1,12 @@
 # Konzept: Webradio in Slouchcat
 
-- **Status: Fassung 2 (6. November 2026), Kritiker-Review eingearbeitet (REVISE, 2 Blocker,
-  12 Major, 11 Minor; Abschnitt 17), mit Mockups.** Marco hat im Interview vom 6. November 2026 die
-  Grundsatzfragen **F-1 bis F-8** beantwortet (Abschnitt 2). Offen sind **F-9 bis F-18**
-  (Abschnitt 13), darunter die Wahl der Variante für die App und die Verwaltung.
+- **Status: Fassung 3 (6. November 2026), Kritiker-Review eingearbeitet (REVISE, 2 Blocker,
+  12 Major, 11 Minor; Abschnitt 17), mit Mockups.** Marco hat am 6. November 2026 die
+  Grundsatzfragen **F-1 bis F-8** (Abschnitt 2) und die Fragen **F-9 bis F-18** (Abschnitt 13)
+  beantwortet: **App A, Verwaltung A**. Abweichend von der Empfehlung: **kein Sperrbildschirm**
+  (F-11), **Standardland je Profil** (F-12), **keine Sender im Heimnetz** (F-15), **Radio zählt zur
+  täglichen Hörzeit** (F-16), **Favoriten verschwinden mit dem Katalogeintrag** (F-18), **Radio
+  zählt nicht zu den Stream-Grenzen W-8** (F-19). Keine Frage ist mehr offen.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco will in Slouchcat Webradio hören: vorgeladene Sender wie bei TuneIn, schnell
   filterbar (zum Beispiel nur Schweizer Sender), Favoriten, immer ein Senderbild, und Titel, Künstler
@@ -63,6 +66,8 @@
 | Frage 7 (19. Oktober 2026): «Radio ist kein Bestandteil von Spec v1 … für Spec v2 vorgemerkt.» | Radio kommt als eigener Bereich in Version 1.x. | Marcos Auftrag vom 6. November 2026 |
 | Medientypen der Spec: Filme, Serien, Hörbücher, Podcasts. | Neuer Bereich **Radio**, aber **kein Medientyp in `items`**: Sender sind keine Titel, haben keine Altersfreigabe und keine Bibliothek. | F-5, Abschnitt 12.1 |
 | Startseite: feste Reihen-Schlüssel (`model.HomeRowKeys`; Konzept 15 erweitert auf höchstens 15 Reihen). | Neuer Reihen-Schlüssel **`radio`** («Meine Sender»), zählt zu den 15 Reihen. | F-8 |
+| Tägliches Limit je Profil (K-5) misst Wiedergabezeit von Titeln. | Radio-Hörzeit zählt mit (7.10). | F-16 |
+| Grenzen je Profil und Gast (W-8): Streams und Bitrate. | Gelten für Radio **nicht**. | F-19 |
 | Die App hat keinen Player, der beim Navigieren weiterläuft: `AudioPlayerPage` lebt in der Route `/play/$itemId` ausserhalb von `AppLayout` (`app/router.tsx`, `playRoute`). | Neuer **Radio-Player auf App-Ebene** mit Mini-Player in `AppLayout`. Hörbücher und Podcasts bleiben, wie sie sind. | F-8, Abschnitt 10.3 |
 
 Regel 2 (Titelabfragen nur über `visibility`) und Regel 12 (Entscheid im Server) bleiben unberührt:
@@ -116,10 +121,10 @@ Neue Jobart **`radio.catalog.sync`** in der Gruppe der Metadaten-Jobs, registrie
   ersten Lauf zeigt die Radioseite «Senderkatalog wird geladen» und die Verwaltung den Fortschritt.
 - **Ablauf:** ganze Liste holen (rund 30 bis 40 MB JSON, gestreamt gelesen), je `stationuuid`
   vergleichen, neue Einträge anlegen, geänderte nachführen. Verschwundene Einträge werden als
-  «nicht mehr im Katalog» markiert. Ein Sender ohne Katalogeintrag wird nach 7 Tagen gelöscht,
-  **ausser** er ist Favorit eines Profils oder hat ein Schloss (5.5): dann bleibt er stehen,
-  spielbar, solange sein Stream antwortet, mit Hinweis in der App. Danach läuft die Einordnung
-  (5.4) für alle geänderten Sender.
+  «nicht mehr im Katalog» markiert und ist in der App 7 Tage lang mit dem Hinweis «Nicht mehr im
+  Katalog, verschwindet am …» zu sehen. Danach wird er gelöscht, **samt Favoriten und Schlössern**
+  (F-18). Eigene Sender (5.6) sind nicht betroffen. Danach läuft die Einordnung (5.4) für alle
+  geänderten Sender.
 - **Fortschritt und Abbruch** über die vorhandenen Haken der Job-Queue (ADR 0017).
 - **Was nie überschrieben wird:** Felder, die der Admin von Hand gesetzt hat (Schloss, 5.5), und
   eigene Sender (5.6).
@@ -174,9 +179,11 @@ einer Auswahl zu (Beispiel: `80s` mit 2'105 Sendern → Genre Oldies). Eine Rege
 Sender mit diesem Schlagwort. So deckt eine Handvoll Entscheide Tausende Sender ab. Die Seite zeigt je
 Filter die **Abdeckung** («Genre zugeordnet: 91 % der Sender»).
 
-**Vorauswahl für die App.** Der Admin legt ein **Standardland** fest (Vorgabe: das Land der
-Server-Sprache, für Marco die Schweiz; F-12). Die Radioseite öffnet mit «Schweiz» als erstem
-Schnellfilter, und jedes Profil merkt sich seinen zuletzt gewählten Filter auf dem Server.
+**Vorauswahl für die App.** Jedes Profil hat sein eigenes **Standardland** (F-12). Vorgabe für
+ein neues Profil ist das Land seiner Sprache und Region (für Marco die Schweiz); ändern lässt es
+sich auf der Radioseite im Menü des ersten Schnellfilters («Mein Land: Schweiz» → anderes Land).
+Die Radioseite öffnet mit diesem Land als erstem Schnellfilter, und jedes Profil merkt sich seinen
+zuletzt gewählten Filter auf dem Server.
 
 ### 5.5 Kuratieren: nur Ausnahmen
 
@@ -197,8 +204,8 @@ Sender, gestört); die volle Tabelle der 40'000 Sender ist durchsuchbar, aber ni
 
 Der Admin kann Sender eintragen, die im Katalog fehlen: Name, Stream-Adresse (direkt oder als
 `.pls`/`.m3u`, die der Server auflöst), Webseite, Land, Region, Genre, Bild. Eigene Sender sind
-wie Katalogsender filterbar. Eine Adresse im lokalen Netz (z. B. ein eigener Icecast) ist nur für
-eigene Sender und nur mit ausdrücklichem Haken «Adresse im lokalen Netz erlauben» möglich (7.8).
+wie Katalogsender filterbar. Adressen im lokalen Netz sind auch für eigene Sender **nicht**
+erlaubt (F-15, 7.8).
 
 ## 6. Senderbild: immer ein Bild
 
@@ -350,7 +357,7 @@ Stückdauern Abstand. Ein neues Relay hat anfangs nur ein Stück. Darum:
 - **Jeder Abruf über `netguard`:** Stream-Adressen, Weiterleitungen, Adressen aus `.pls`/`.m3u`,
   HLS-Listen und -Stücke, `StreamUrl`, `favicon`, Webseite, Manifest-Symbole, `og:image`, Cover Art
   Archive (leitet zu archive.org weiter) und iTunes. Ziele im lokalen Netz werden nach der
-  DNS-Auflösung abgewiesen (`RefuseLocal`). Ausnahme nur für eigene Sender mit Haken (5.6).
+  DNS-Auflösung abgewiesen (`RefuseLocal`), ohne Ausnahme, auch nicht für eigene Sender (F-15).
 - **ffmpeg sieht nie eine Netzadresse** (7.1 Punkt 4).
 - **Zulassungsliste der Inhalte:** `audio/mpeg`, `audio/aac`, `audio/aacp`, `audio/mp4`,
   `audio/ogg`, `application/ogg`, `audio/flac`, `audio/opus`; Listen `audio/x-scpls`,
@@ -370,6 +377,22 @@ Hause. Manche Anbieter verbieten in ihren Nutzungsbedingungen, eine Sperre so zu
 nur einzelne Sendungen (Sportrechte). Slouchcat gibt den Ton nur an angemeldete Profile der eigenen
 Installation weiter, nie öffentlich; ob das für einen Sender zulässig ist, verantwortet der
 Betreiber der Installation. Die Hilfe der Verwaltungsseite sagt das in zwei Sätzen.
+
+### 7.10 Tägliche Hörzeit (K-5, F-16)
+
+Radio zählt zum täglichen Limit des Profils (`profiles.watch_limit_minutes`, K-5), wie Filme,
+Hörbücher und Podcasts:
+
+- Die Meldung der App (7.2) sagt, ob gerade gespielt wird oder Pause ist. Der Server rechnet nur
+  gespielte Zeit an, je Viertelstunde in der neuen Tabelle `radio_listen_time` (Profil,
+  Viertelstunde, gespielte Millisekunden).
+- `playback.Service.WatchTime` und `WatchReport` zählen diese Zeit zu der aus den
+  Wiedergabesitzungen dazu; der Bericht des Hauptprofils zeigt sie mit.
+- Ist das Limit erreicht, beendet `checkWatchLimit` (über `endProfile`) auch die Hör-Sitzungen des
+  Profils; die App zeigt denselben Hinweis wie bei Filmen (`watch_limit_reached`). Ein neues
+  `listen` wird mit diesem Fehler abgewiesen.
+- Die Verwaltungsseite «Statistik» («Wann geschaut wird», Top 20) bleibt bei Titeln; Radio zählt
+  dort nicht mit.
 
 ## 8. Titelangaben und Cover
 
@@ -421,7 +444,7 @@ Neuer Eintrag **«Radio»** in der Seitenleiste (`app/AppLayout.tsx`, Liste `nav
 Seite hat:
 
 - **Suche** über Sendernamen, Region und Schlagworte.
-- **Schnellfilter:** Standardland (für Marco «Schweiz»), «Meine Sender», «Beliebt».
+- **Schnellfilter:** Standardland des Profils (für Marco «Schweiz», 5.4), «Meine Sender», «Beliebt».
 - **Filter:** Land, Region (erscheint, sobald ein Land gewählt ist), Sprache, Genre, Sendeart,
   Stimmung, Qualität, Schalter «nur mit Titelanzeige». Mehrfachwahl je Filter, Zähler je Wert, aktive
   Filter als entfernbare Chips, «Alle Filter zurücksetzen».
@@ -468,7 +491,8 @@ Heute gibt es keinen Player, der beim Navigieren weiterläuft (Abschnitt 3). Neu
 | Trailer startet (`ui/TrailerDialog.tsx`, Vorschau in `admin/item/TrailersTab.tsx`) | pausiert, läuft nach dem Schliessen weiter (im Zeitversatz) |
 | Profilwechsel, Abmelden | stoppt, Sitzung wird entzogen (7.5) |
 | Navigation innerhalb der App, auch in die Verwaltung | läuft weiter |
-| App oder Tab im Hintergrund | läuft weiter (Handy: so lange das System es zulässt; siehe F-11) |
+| App oder Tab im Hintergrund | läuft weiter (Handy: so lange das System es zulässt) |
+| Tägliche Hörzeit des Profils erreicht (K-5, 7.10) | stoppt mit Hinweis, wie bei Filmen |
 | Zweiter Tab startet Radio | erster Tab pausiert (Absprache über `BroadcastChannel`) |
 
   Hörbücher und Podcasts laufen heute vollflächig in `/play/$itemId` ausserhalb von `AppLayout`;
@@ -477,8 +501,9 @@ Heute gibt es keinen Player, der beim Navigieren weiterläuft (Abschnitt 3). Neu
 - **Tastatur:** Mini-Player und «Jetzt läuft» sind mit Tab erreichbar, Leertaste pausiert, Esc
   schliesst «Jetzt läuft» (Regel 8: Playwright-Tastaturtests für `/radio`, «Jetzt läuft» und
   `/admin/radio`).
-- Der **Sperrbildschirm** (Media Session: Sender, Titel, Cover, Pause) war im Interview nicht
-  gewählt; Frage F-11.
+- **Kein Bedienfeld auf dem Sperrbildschirm** (F-11, Media Session nicht gebaut). Das Handy zeigt
+  dort, was der Browser von sich aus zeigt. Ob das iPhone den Ton bei gesperrtem Bildschirm hält,
+  wird bei der Abnahme geprüft (Risiko in 16).
 
 ### 10.4 Drei Varianten (Mockup, Anhang A.1)
 
@@ -488,8 +513,10 @@ Heute gibt es keinen Player, der beim Navigieren weiterläuft (Abschnitt 3). Neu
 | **B «Filterleiste links»** | Filterspalte mit Kästchen und Zählern, rechts eine dichte Liste mit aktuellem Titel je Sender, Sortierung und Trefferzahl oben; am Handy als Blatt «Filter (3)» | schnellstes gezieltes Filtern, viele Sender auf einen Blick | wirkt eher wie ein Werkzeug als wie ein Radio |
 | **C «Jetzt läuft zuerst»** | grosse Bühne mit dem laufenden Sender, darunter «Meine Sender» als grosse Kacheln mit letztem Titel, dann «Entdecken» mit Länder-, Stimmungs- und Genre-Kacheln, die in ein gefiltertes Raster führen | am schönsten für Favoriten-Hörer | Filtern braucht einen Schritt mehr |
 
-**Empfehlung:** **A** als Grundlage, weil Marco TuneIn als Vorbild nennt und die App vor allem am
-Handy läuft; aus B die Zähler je Filterwert und die Trefferzahl übernehmen (F-9).
+**Gewählt: A «Katalog wie TuneIn»** (Marco, 6. November 2026, F-9). Gebaut wird A so, wie das Mockup
+sie zeigt: Zähler je Filterwert in den Auswahlfeldern, Trefferzahl über dem Raster, am Handy die
+Filter als Blatt von unten. Die Reihen zum Stöbern («Meine Sender», «Beliebt in der Schweiz», «Nach
+Genre», «Nach Stimmung») stehen nur ohne aktiven Filter; mit Filter zeigt die Seite nur das Raster.
 
 ## 11. Die Verwaltung
 
@@ -509,7 +536,7 @@ Inhalt in allen Varianten:
 - **Live:** laufende Relays als Kacheln wie auf «Streams» (Sender, Hörer mit Profilnamen, Bitrate,
   Laufzeit, Pufferstand, Zustand der Verbindung) und die Leiste **«Serverlast»** (Sender 3 von 10,
   Upload, Puffer 112 von 512 MB).
-- **Einstellungen:** Standardland, Zeitversatz, Höchstzahl Sender, Nachlauf ohne Hörer, Cover-Suche
+- **Einstellungen:** Zeitversatz, Höchstzahl Sender, Nachlauf ohne Hörer, Cover-Suche
   (MusicBrainz und iTunes je ein Schalter), gestörte Sender ausblenden, Länder im Katalog (alle oder
   gewählte).
 
@@ -528,8 +555,17 @@ Beschreibung auf «Hintergrundjobs» (Konzept 15, P-2).
 | **B «Liste und Detail»** | links durchsuchbare Senderliste mit Filtern, rechts der gewählte Sender mit Bild, Einordnung, Streams, Sichtbarkeit; Katalog und Einstellungen über zwei Knöpfe im Kopf | schnell für Einzelpflege | verleitet zur Pflege Sender für Sender, die Marco nicht will |
 | **C «Zustand und Regeln»** | Kacheln oben (Katalog, Erreichbar, Live, Serverlast), dann «Automatische Einordnung» als Herzstück mit Abdeckung und Arbeitsliste, darunter nur die Ausnahmen, Einstellungen als Zeilen | setzt Marcos Vorgabe «nicht 50k Sender kategorisieren» am direktesten um | lange Seite; volle Sendertabelle nur über Suche |
 
-**Empfehlung:** **C**, weil die Regeln die eigentliche Arbeit sind und Einzelpflege die Ausnahme;
-die Sendertabelle aus A als Reiter oder Link «Alle Sender» dazu (F-10).
+**Gewählt: A «Reiter»** (Marco, 6. November 2026, F-10; Empfehlung war C). Reiter mit `?tab=`
+(S-14): **Übersicht** (Katalog, Abdeckung, Live-Weiterleitungen, Serverlast), **Sender**, **Einordnung**,
+**Eigene Sender**, **Einstellungen**; Bearbeiten eines Senders im Seitenblatt. Damit Marcos Vorgabe
+«nicht 50k Sender kategorisieren» auch in A trägt:
+
+- Der Reiter **Sender** öffnet mit dem Filter **«Nur Ausnahmen»** (von Hand geändert, ausgeblendet,
+  eigene, gestört); die Suche geht immer über alle Sender (5.5).
+- Die **Übersicht** zeigt die Abdeckung je Filter und die Zahl der nicht zugeordneten Schlagworte
+  mit Link in den Reiter **Einordnung**.
+- Die Zustandsleiste nennt «n Schlagworte ohne Zuordnung», solange welche mit mehr als 50 Sendern
+  offen sind.
 
 ## 12. Server, Vertrag und Datenbank
 
@@ -553,9 +589,10 @@ die Sendertabelle aus A als Reiter oder Link «Alle Sender» dazu (F-10).
 | `radio_station_tags` | Schlagworte je Sender (roh, für die Regeln) |
 | `radio_station_facets` | abgeleitete Filterwerte je Sender (Genre, Sendeart, Stimmung), mit Merkmal «von Hand» |
 | `radio_station_locks` | gesperrte Felder je Sender (Schloss, 5.5) |
-| `radio_favorites` | `profile_id` (`ON DELETE CASCADE`), `station_id`, `position`; ein Sender mit Favoriten wird nicht gelöscht (5.2), darum **ohne** Kaskade auf den Sender |
-| `radio_profile_state` | `profile_id`, zuletzt gewählter Filter und Sortierung (JSON), `ON DELETE CASCADE` |
+| `radio_favorites` | `profile_id`, `station_id`, `position`; `ON DELETE CASCADE` auf Profil **und** Sender (F-18) |
+| `radio_profile_state` | `profile_id`, Standardland (F-12), zuletzt gewählter Filter und Sortierung (JSON), `ON DELETE CASCADE` |
 | `radio_listen_sessions` | Hör-Sitzungen (7.5) |
+| `radio_listen_time` | gespielte Zeit je Profil und Viertelstunde für das Tageslimit (7.10) |
 | `radio_config` | eine Zeile (`id = 1`) mit den Einstellungen, wie `spotlight_config` |
 
 **Migration 00037 (Stufe 2):** `radio_tag_rules` (Regeln des Admins, überschreiben die
@@ -577,6 +614,7 @@ Vorgabe-Datei), `radio_tracks` (Cache der Titelsuche) und der neue Schlüssel `r
 | `POST /radio/stations/{id}/listen` | `scoped` | Relay starten oder beitreten, Hör-Sitzung mit HLS-Adresse |
 | `POST /radio/listen/{session}/heartbeat`, `DELETE /radio/listen/{session}` | `scoped` | Sitzung offen halten, beenden (7.2) |
 | `GET /radio/stations/{id}/now` | `scoped` | Zeitleiste der Titelangaben |
+| `GET`/`PUT /radio/preferences` | `scoped` | Standardland, letzter Filter und Sortierung des Profils (5.4) |
 | `GET /radio/live/{session}/…` (HLS) | `scoped`, `http.Handler` (Regel 6), Middleware `radioAuth` | Wiedergabeliste und Stücke |
 | `GET /radio/images/{id}/{kind}/{size}` | `scoped`, `http.Handler` | Senderlogo und Cover |
 | `GET`/`PATCH /admin/radio/config` | `admin` | Einstellungen |
@@ -623,27 +661,28 @@ Release-Notes der Stufe 1 nennen die Änderung an der Compose-Datei.
   Audioausgabe (PR #18). Abspiel-Tests laufen wie dort im Playwright-Container.
 - Abnahmetest der Zeitleiste (7.6) und des Wiederaufbaus (7.4) in Go gegen den Test-Sender.
 
-## 13. Offene Fragen an Marco
+## 13. Fragen an Marco und seine Antworten (6. November 2026)
 
-| Nr. | Frage | Empfehlung |
+| Nr. | Frage | Antwort |
 |---|---|---|
-| F-9 | Welche Variante für die App (A, B, C oder eine Mischung)? | **A** mit Zählern und Trefferzahl aus B |
-| F-10 | Welche Variante für die Verwaltung? | **C** mit Link «Alle Sender» zur Tabelle aus A |
-| F-11 | Sperrbildschirm doch? Sender, Titel, Cover und Pause auf dem Handy-Sperrbildschirm und in der Mitteilungszentrale (Media Session). Ohne das zeigt das Handy beim gesperrten Bildschirm nur «Slouchcat», und das iPhone hält Ton im Hintergrund weniger zuverlässig. | **Ja**, klein und am Handy deutlich angenehmer |
-| F-12 | Standardland: eines für die ganze Installation (Admin) oder je Profil? | **Installation** (Schweiz), jedes Profil merkt sich seinen letzten Filter |
-| F-13 | Grenzen: 512 MB Puffer (in Byte durchgesetzt), höchstens 10 Sender, 2 Minuten Nachlauf. Der Puffer belegt Arbeitsspeicher; vor dem Bau wird der RAM von CT 190 nachgesehen. | **Ja**, mit Prüfung gegen CT 190 |
-| F-14 | Klicks an Radio Browser melden (verbessert deren Beliebtheitswerte, verrät aber, was gehört wird)? | **Nein** |
-| F-15 | Sollen eigene Sender im lokalen Netz möglich sein (z. B. ein eigener Icecast im Heimnetz)? | **Ja**, nur für eigene Sender mit ausdrücklichem Haken |
-| F-16 | Gäste und Grenzen: Zählt Radio zum Schauzeit-Limit (K-5) und zu den gleichzeitigen Streams und der Bandbreite je Profil und Gast (W-8)? Bekommen Gastkonten das Relay mit Schweizer Standort? | Radio zählt **nicht** zu K-5 (kein Schauen), **aber** zu W-8 (Streams und Bandbreite); Gäste hören wie alle Profile (F-5) |
-| F-17 | Reihe «Meine Sender» auf der Startseite: ab Werk eingeblendet oder ausgeblendet, an welchem Platz? | **Ausgeblendet, am Ende** (wie neue Reihen in Konzept 15); einschalten in «Startseite» |
-| F-18 | Verschwindet ein Favorit aus dem Katalog, bleibt er stehen, solange sein Stream antwortet (5.2). Einverstanden? | **Ja** |
+| F-9 | Welche Variante für die App (A, B, C oder eine Mischung)? | **Beantwortet: A** (6. November 2026) |
+| F-10 | Welche Variante für die Verwaltung? | **Beantwortet: A** (6. November 2026; Empfehlung war C) |
+| F-11 | Sperrbildschirm doch? Sender, Titel, Cover und Pause auf dem Handy-Sperrbildschirm und in der Mitteilungszentrale (Media Session). Ohne das zeigt das Handy beim gesperrten Bildschirm nur «Slouchcat», und das iPhone hält Ton im Hintergrund weniger zuverlässig. | **Nein** (Empfehlung war Ja). Kein Bedienfeld auf dem Sperrbildschirm (10.3) |
+| F-12 | Standardland: eines für die ganze Installation (Admin) oder je Profil? | **Je Profil** (Empfehlung war Installation). Standardland in `radio_profile_state`, wählbar auf der Radioseite (5.4) |
+| F-13 | Grenzen: 512 MB Puffer (in Byte durchgesetzt), höchstens 10 Sender, 2 Minuten Nachlauf. Der Puffer belegt Arbeitsspeicher; vor dem Bau wird der RAM von CT 190 nachgesehen. | **Ja, wie vorgeschlagen**, mit Prüfung gegen den RAM von CT 190 vor dem Bau |
+| F-14 | Klicks an Radio Browser melden (verbessert deren Beliebtheitswerte, verrät aber, was gehört wird)? | **Nein**, wie vorgeschlagen |
+| F-15 | Sollen eigene Sender im lokalen Netz möglich sein (z. B. ein eigener Icecast im Heimnetz)? | **Nein** (Empfehlung war Ja mit Haken). Keine Adressen im lokalen Netz, auch nicht für eigene Sender (5.6, 7.8) |
+| F-16 | Gäste und Grenzen: Zählt Radio zum Schauzeit-Limit (K-5) und zu den gleichzeitigen Streams und der Bandbreite je Profil und Gast (W-8)? Bekommen Gastkonten das Relay mit Schweizer Standort? | **«Gehört zur täglichen Hörzeit»** (eigene Antwort): Radio zählt zum Tageslimit des Profils (K-5, 7.10). Gäste hören wie alle Profile (F-5). Ob Radio auch zu den Stream-Grenzen W-8 zählt, ist F-19 |
+| F-17 | Reihe «Meine Sender» auf der Startseite: ab Werk eingeblendet oder ausgeblendet, an welchem Platz? | **Ausgeblendet, am Ende**, wie vorgeschlagen |
+| F-18 | Verschwindet ein Favorit aus dem Katalog, bleibt er stehen, solange sein Stream antwortet (5.2). Einverstanden? | **Nein, entfernen** (Empfehlung war Ja). Mit dem Katalogeintrag verschwindet nach 7 Tagen auch der Favorit (5.2) |
+| F-19 | Zählt Radio auch zu den Grenzen W-8 je Profil und Gast (höchstens n gleichzeitige Streams, höchstens n kbit/s)? | **Nein** (Empfehlung war Ja). Eine Hör-Sitzung belegt keinen der erlaubten Streams, und die Bitraten-Grenze gilt für Radio nicht; geschützt wird der Server durch Budget und Höchstzahl der Sender (7.3) |
 
 ## 14. Bauplan in Stufen
 
 | Stufe | Inhalt | Release |
 |---|---|---|
-| **1 «Hören»** | Katalog und täglicher Abgleich, Zusammenführen mit stabiler Kennung, Einordnung mit Vorgabe-Regeln, Radioseite mit Filtern, Suche und Sortierung, Favoriten, Relay mit Hör-Sitzungen **live** (Puffer läuft schon, Zeitversatz-Regler noch nicht), Unterbrüche, Titelangaben aus dem Stream, Senderbild-Kette, Mini-Player und «Jetzt läuft», Verwaltungsseite mit Katalog, Live, Ausnahmen und Einstellungen, Test-Sender, ADR 0025, Messungen 9 und 7.7 | vorläufig 1.17.0 (additiv), Migration 00036 |
-| **2 «Zurück und Cover»** | Zeitversatz bis 30 Minuten mit Regler, Zeitleiste nach Ton-Position, Cover-Kette MusicBrainz → iTunes, «Zuvor gespielt», Startseiten-Reihe «Meine Sender», Regeln des Admins mit Arbeitsliste und Abdeckung, eigene Sender, Radio auf «Streams», je nach F-11 Sperrbildschirm | vorläufig 1.18.0 (brechend für `getHome`/`setHomeRows`), Migration 00037 |
+| **1 «Hören»** | Katalog und täglicher Abgleich, Zusammenführen mit stabiler Kennung, Einordnung mit Vorgabe-Regeln, Radioseite mit Filtern, Suche und Sortierung, Favoriten, Relay mit Hör-Sitzungen **live** (Puffer läuft schon, Zeitversatz-Regler noch nicht), Hörzeit im Tageslimit (7.10), Unterbrüche, Titelangaben aus dem Stream, Senderbild-Kette, Mini-Player und «Jetzt läuft», Verwaltungsseite mit Katalog, Live, Ausnahmen und Einstellungen, Test-Sender, ADR 0025, Messungen 9 und 7.7 | vorläufig 1.17.0 (additiv), Migration 00036 |
+| **2 «Zurück und Cover»** | Zeitversatz bis 30 Minuten mit Regler, Zeitleiste nach Ton-Position, Cover-Kette MusicBrainz → iTunes, «Zuvor gespielt», Startseiten-Reihe «Meine Sender», Regeln des Admins mit Arbeitsliste und Abdeckung, eigene Sender, Radio auf «Streams» | vorläufig 1.18.0 (brechend für `getHome`/`setHomeRows`), Migration 00037 |
 
 Je Stufe ein Zweig, ein PR, Abnahme auf CT 190 und ein Release. Prüfung in den drei Teststufen
 (`docs/dev/SETUP.md`), Tests nach 12.5.
@@ -658,6 +697,8 @@ Je Stufe ein Zweig, ein PR, Abnahme auf CT 190 und ein Release. Prüfung in den 
   Empfehlungen des Admins.
 - Altersgrenzen für Radio (F-5).
 - «Zuletzt gehört» (F-8 nicht gewählt).
+- Bedienfeld auf dem Sperrbildschirm, Media Session (F-11).
+- Sender im lokalen Netz, auch als eigene Sender (F-15).
 - Steuerung von Sendern, Abstimmen bei Radio Browser, Rückmeldungen an den Katalog (F-14).
 
 ## 16. Risiken
@@ -670,7 +711,8 @@ Je Stufe ein Zweig, ein PR, Abnahme auf CT 190 und ein Release. Prüfung in den 
 | Speicher: viele Sender, hohe Bitraten | Server knapp | Budget in Byte (7.3) |
 | Titelangaben fehlen bei vielen Sendern | wenig Cover | Senderbild als Rückfall; Filter «nur mit Titelanzeige» |
 | Umrechnen nach AAC kostet etwas Klang | leicht schlechter bei MP3-Sendern | Bitrate der Quelle, höchstens 192 kbit/s; Messung in Stufe 1 |
-| iPhone hält Ton im Hintergrund nicht | Radio stoppt beim Sperren | Media Session (F-11); Messung am iPhone bei der Abnahme |
+| iPhone hält Ton im Hintergrund nicht | Radio stoppt beim Sperren | Prüfung am iPhone bei der Abnahme; Media Session wäre das Gegenmittel, ist nach F-11 aber nicht gebaut und bräuchte Marcos Wort |
+| Favorit verschwindet überraschend | Profil sucht seinen Sender | 7 Tage Hinweis «Nicht mehr im Katalog, verschwindet am …» (5.2) |
 | Startzeit über dem Ziel | träger Start | Vorfüllen, kürzere Stücke am Anfang (7.7) |
 
 ## 17. Kritiker-Review von Fassung 1 (6. November 2026)
@@ -704,6 +746,10 @@ Ergebnis **REVISE**: 2 Blocker, 12 Major, 11 Minor. Alle eingearbeitet:
 - **A.2 Verwaltung:** `docs/planning/mockups/16-webradio-verwaltung-prototyp.html` (Varianten A, B, C;
   Adresszeile mit `?tab=` und `?item=`). Privates Artefakt:
   https://claude.ai/artifact/5xMtdGgsRTeHQdYuNpakGV
+
+Wo Mockup und Konzept abweichen, gilt das Konzept: Die Verwaltung zeigt im Mockup noch die
+Einstellung «Standardland» (nach F-12 je Profil auf der Radioseite) und die Bildwahl kennt keinen
+Haken für Adressen im lokalen Netz (F-15).
 
 Was die Mockups vereinfachen: Titel wechseln alle 20 Sekunden, Upload und Seitenwechsel der Tabelle
 sind nur angedeutet, die übrigen Einträge der Seitenleisten führen nirgends hin, die Abdeckung nach
