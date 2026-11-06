@@ -454,6 +454,50 @@ describe('start page', () => {
     expect(within(hero).getByRole('heading', { name: 'Alien' })).toBeVisible();
   });
 
+  it('turns the poster row with the active poster first, keeping the DOM order (concept 15, 6.3)', async () => {
+    mockApi({
+      ...signedIn,
+      'GET /home': () =>
+        json({
+          heroRow: 'spotlight',
+          heroStart: 1,
+          rows: [{ key: 'spotlight', items: [heat, alien, arrival] }],
+        }),
+    });
+    renderApp('/');
+    const hero = await screen.findByRole('region', { name: 'Spotlight' });
+    const row = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
+    // The DOM keeps the server's order and each poster its fixed position; CSS order turns it.
+    const items = () => within(row).getAllByRole('listitem');
+    const seen = () => items().map((item) => [item.style.order, item.textContent]);
+    expect(items().map((item) => item.getAttribute('aria-posinset'))).toEqual(['1', '2', '3']);
+    expect(items().map((item) => item.getAttribute('aria-setsize'))).toEqual(['3', '3', '3']);
+    expect(seen()).toEqual([
+      ['2', expect.stringMatching(/^Heat/)],
+      ['0', expect.stringMatching(/^Alien/)],
+      ['1', expect.stringMatching(/^Arrival/)],
+    ]);
+    // No room after the last poster any more (N-4 is gone for this row).
+    expect(row.querySelector('[aria-hidden="true"]')).toBeNull();
+    // A click on the last poster as seen turns the row by two: Heat leads, the focus stays on it.
+    const heatPoster = within(row).getByRole('button', { name: /^Heat/ });
+    act(() => heatPoster.focus());
+    fireEvent.click(heatPoster);
+    expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
+    expect(seen().map(([order]) => order)).toEqual(['0', '1', '2']);
+    expect(heatPoster).toHaveAttribute('aria-current', 'true');
+    expect(heatPoster).toHaveFocus();
+    expect(within(hero).getByText('1 von 3')).toBeVisible();
+    // Back from the first slide: the last one leads.
+    fireEvent.click(within(hero).getByRole('button', { name: 'Zurückblättern' }));
+    expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
+    expect(seen().map(([order]) => order)).toEqual(['1', '2', '0']);
+    expect(items().map((item) => item.getAttribute('aria-posinset'))).toEqual(['1', '2', '3']);
+    // norigin refocuses its last key when the next test mounts the band again (focusOnPresetKey),
+    // and a focused poster would hold that band: leave the focus on a band button.
+    act(() => within(hero).getByRole('link', { name: 'Details' }).focus());
+  });
+
   it("repeats the shell's draw on the first read only (data-start, concept 08, 6)", async () => {
     const shell = document.createElement('meta');
     shell.name = 'slouchcat-hero-start';
@@ -485,7 +529,7 @@ describe('start page', () => {
     }
   });
 
-  it('holds on keyboard focus and the pause button, not on a click (F-3, F-9)', async () => {
+  it('holds on keyboard focus, on any focus in the poster row and the pause button, not on a click (F-3, F-9)', async () => {
     mockApi({
       ...signedIn,
       'GET /home': () =>
@@ -494,16 +538,25 @@ describe('start page', () => {
     renderApp('/');
     const hero = await screen.findByRole('region', { name: 'Spotlight' });
     expect(hero).not.toHaveAttribute('data-paused');
-    // A click on a poster shows its slide and leaves the band running, without navigating.
+    // Any focus in the poster row holds the band, visible or not, so a screen reader reads the row
+    // in peace (concept 15, 6.3); choosing the focused poster shows its slide without navigating.
     const poster = within(hero).getByRole('button', { name: /^Arrival/ });
-    poster.focus();
+    act(() => poster.focus());
     fireEvent.click(poster);
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
-    expect(hero).not.toHaveAttribute('data-paused');
-    // A key press makes the focus a keyboard one: the band holds until the focus leaves it.
-    fireEvent.keyDown(poster, { key: 'ArrowLeft' });
     expect(hero).toHaveAttribute('data-paused');
     act(() => poster.blur());
+    expect(hero).not.toHaveAttribute('data-paused');
+    // A click on a band button focuses it without a keyboard focus: the band keeps running. Last,
+    // so norigin's remembered focus is not a poster when the next test mounts the band again
+    // (focusOnPresetKey).
+    const details = within(hero).getByRole('link', { name: 'Details' });
+    act(() => details.focus());
+    expect(hero).not.toHaveAttribute('data-paused');
+    // A key press makes the focus a keyboard one: the band holds until the focus leaves it.
+    fireEvent.keyDown(details, { key: 'ArrowLeft' });
+    expect(hero).toHaveAttribute('data-paused');
+    act(() => details.blur());
     expect(hero).not.toHaveAttribute('data-paused');
 
     const pause = within(hero).getByRole('button', { name: 'Pause' });

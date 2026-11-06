@@ -96,7 +96,8 @@ export const PosterStrip: Story = { tags: ['press:Tab+Tab+Tab+Tab+Tab'] };
 
 /**
  * The band began with the server's draw (`start`, concept 08, F-2): the second slide is active, its
- * poster stands at the row's left edge, and the position reads «2 von 3».
+ * poster leads the row and the first slide's poster stands last (the endless band, concept 15,
+ * 6.3), and the position reads «2 von 3».
  */
 export const ActivePoster: Story = { args: { start: 1 } };
 
