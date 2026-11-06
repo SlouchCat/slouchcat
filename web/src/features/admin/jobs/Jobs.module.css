@@ -15,6 +15,39 @@
   list-style: none;
 }
 
+/* The name of a job type in its row and what it does below it (concept 15, P-2): the size of the
+   other cells, muted, one line cut with «…»; on a phone, where the table sizes its columns from
+   their content, two lines. */
+.nameCell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.description {
+  overflow: hidden;
+  color: var(--sc-color-text-muted);
+  font-weight: var(--sc-font-weight-regular);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (width < 768px) {
+  .description {
+    display: -webkit-box;
+    min-width: 12rem;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+}
+
+/* The same sentence in full at the top of the fold-out. */
+.detailDescription {
+  margin: 0;
+}
+
 /* «Läuft gerade»: the cells of a run. */
 .runName {
   display: inline-flex;

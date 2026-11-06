@@ -3,7 +3,7 @@ import type { TFunction } from 'i18next';
 
 // Text helpers of the jobs page (concept 09): durations rounded the way the page shows them
 // (seconds below a minute, minutes, hours from 90 minutes on, "over a day"), the name of a job
-// type from the locale with the code as fallback, and the state of a type.
+// type from the locale with the code as fallback, its description, and the state of a type.
 
 /** Locale key of a job type: `scan.library` → `scan_library` (i18next reads `.` as a separator). */
 export const typeKey = (type: string) => type.replace(/\./g, '_');
@@ -11,6 +11,13 @@ export const typeKey = (type: string) => type.replace(/\./g, '_');
 /** The name of a job type for the page; the code when the locale has none. */
 export const typeName = (t: TFunction, type: string) =>
   t(`admin.jobs.types.${typeKey(type)}.name`, { defaultValue: type });
+
+/**
+ * What a job type does, in one sentence (concept 15, P-2); empty for a type this server or the
+ * locale does not know, never the key or the code.
+ */
+export const typeDescription = (t: TFunction, info: Pick<JobTypeInfo, 'type' | 'known'>) =>
+  info.known ? t(`admin.jobs.types.${typeKey(info.type)}.description`, { defaultValue: '' }) : '';
 
 /** A duration in seconds as the page shows it: never finer than it is known. */
 export function formatSeconds(t: TFunction, seconds: number): string {

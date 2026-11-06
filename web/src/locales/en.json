@@ -2909,10 +2909,10 @@
         "window": "{{start}}–{{end}}",
         "once": "One-off: {{date}}",
         "off": "off",
-        "onDemand": "on demand",
+        "automatic": "automatic",
         "pausedNext": "paused",
         "trigger": "Triggered by",
-        "triggerEvent": "on demand, by events in the server",
+        "triggerEvent": "automatically, by events in the server",
         "triggerManual": "by hand",
         "unknown": "This server no longer knows this job (older build).",
         "median": "usually {{duration}}"
@@ -3011,6 +3011,7 @@
         "updateHint": "On/off is the same setting as the update check in the settings.",
         "save": "Save",
         "heading": "Schedule",
+        "eventNote": "No schedule: runs by itself as soon as there is work for it, as described under “Triggered by”.",
         "discard": "Discard",
         "once": "Once on",
         "onceHint": "Server time zone: {{zone}}. The date runs once besides the interval, also outside the time window.",
@@ -3029,99 +3030,123 @@
       "types": {
         "scan_library": {
           "name": "Library scan",
+          "description": "Looks for new, changed and missing files in every library.",
           "trigger": "Schedule every 6 h and server start, “Scan” on the libraries page, webhook, file watcher"
         },
         "scan_path": {
           "name": "Folder scan",
+          "description": "Reads a single folder again as soon as something changes there.",
           "trigger": "File watcher on changes, webhook"
         },
         "probe_file": {
           "name": "Probe file",
+          "description": "Reads tracks, length and format of a new or changed file.",
           "trigger": "From the scan per new file, “Probe file” in maintenance"
         },
         "probe_keyframes": {
           "name": "Keyframe index (read the whole file)",
+          "description": "Reads a whole file when it lacks the index for seeking.",
           "trigger": "On import only without an index from the container, from the backfill, before a playback (also while paused) and for offline downloads"
         },
         "keyframes_backfill": {
           "name": "Backfill keyframe index",
+          "description": "Queues every file without a keyframe index.",
           "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: reads the index from the container of every video file that has none yet",
           "progress": "Files checked: {{done}} of {{total}}"
         },
         "library_sweep": {
           "name": "Sweep missing titles",
+          "description": "Removes titles whose files have been missing beyond the grace period.",
           "trigger": "Schedule hourly and server start"
         },
         "segments_detect": {
           "name": "Detect intro and outro",
+          "description": "Finds intro and outro of episodes for “Skip intro”.",
           "trigger": "From the scan per season"
         },
         "chapters_images": {
           "name": "Create chapter images",
+          "description": "Creates the preview images of a file's chapters.",
           "trigger": "Per file 10 minutes after a playback ended, for new files after a complete scan and after a new probe"
         },
         "chapters_images_backfill": {
           "name": "Backfill chapter images",
-          "trigger": "Only by hand with «Run now», for every film and episode without chapter images"
+          "description": "Queues every file without chapter images for creation.",
+          "trigger": "Schedule (off by default, weekly) or a one-off date, “Run now”: for every film and episode without chapter images"
         },
         "library_relink": {
           "name": "Relink deleted title",
+          "description": "Attaches a moved file to its old title and watched state.",
           "trigger": "After the match of a title with a deleted twin"
         },
         "metadata_match": {
           "name": "Match title",
+          "description": "Finds the matching TMDB or TVDB entry for a new title.",
           "trigger": "From the scan, manual match, folder change"
         },
         "metadata_fill": {
           "name": "Fill metadata",
+          "description": "Fetches texts, genres, rating, cast and images of a title.",
           "trigger": "After the match, list change of a folder"
         },
         "metadata_vote_backfill": {
           "name": "Backfill votes",
+          "description": "Fetches missing vote counts for choosing the images.",
           "trigger": "After every full scan while titles wait for a vote"
         },
         "metadata_original_language_backfill": {
           "name": "Backfill original languages",
-          "trigger": "Once at the first start after the update, then «Run now»"
+          "description": "Adds the original language to every title for the audio choice.",
+          "trigger": "Once at the first start after the update, then the schedule (off by default, weekly), a one-off date or “Run now”"
         },
         "image_fetch": {
           "name": "Fetch images",
+          "description": "Downloads the chosen images of a title and renders their sizes.",
           "trigger": "After the match, catch-up at start"
         },
         "metadata_apply": {
           "name": "Apply metadata",
+          "description": "Applies changed metadata settings to a library.",
           "trigger": "«Apply now» on the Metadata page"
         },
         "trailer_find": {
           "name": "Find trailer",
+          "description": "Looks for a trailer on TMDB, YouTube or through the AI search.",
           "trigger": "After the match"
         },
         "podcast_fetch": {
           "name": "Fetch podcast feed",
+          "description": "Reads a single podcast feed and its new episodes.",
           "trigger": "From the feed poll per due subscription, “Refresh” per podcast, new subscription"
         },
         "podcast_poll": {
           "name": "Check podcast feeds",
+          "description": "Checks every podcast feed for new episodes.",
           "trigger": "Schedule every 5 min: due subscriptions are fetched"
         },
         "trakt_refresh": {
           "name": "Fetch spotlight list",
+          "description": "Fetches the Trakt list the spotlight takes its titles from.",
           "trigger": "Schedule at the interval of the spotlight page, “Fetch now”"
         },
         "update_check": {
           "name": "Update check",
+          "description": "Checks whether a newer Slouchcat version exists.",
           "trigger": "Schedule daily, 60 s after start, “Check now”"
         },
         "download_prepare": {
           "name": "Prepare download",
+          "description": "Prepares a download for offline playback.",
           "trigger": "A profile's download; the reconciliation every 10 min re-queues unfinished ones"
         },
         "notify_deliver": {
           "name": "Deliver notification",
+          "description": "Sends a notification by e-mail, Telegram or Web Push.",
           "trigger": "Every event with a channel (e-mail, Web Push, Telegram)"
         },
         "jobs_prune": {
           "name": "Prune history",
+          "description": "Deletes old runs and failures from the history.",
           "trigger": "Schedule daily: finished runs older than 30 days"
         }
       },

@@ -102,6 +102,9 @@ th.cell {
   display: inline-flex;
   gap: var(--sc-space-2);
   align-items: center;
+
+  /* Never wider than its cell: a line of the content that is cut with «…» cuts at the cell. */
+  max-width: 100%;
   min-height: var(--sc-space-6);
   padding: 0;
   border: 0;

@@ -64,6 +64,7 @@ import {
   formatMinute,
   formatOnce,
   formatSeconds,
+  typeDescription,
   typeName,
   typeKey,
   typeState,
@@ -279,7 +280,7 @@ function nextText(t: TFunction, info: JobTypeInfo, now: number, language: string
   if (!schedule)
     return info.trigger === 'manual'
       ? t('admin.jobs.card.triggerManual')
-      : t('admin.jobs.card.onDemand');
+      : t('admin.jobs.card.automatic');
   const parts: string[] = [];
   if (!schedule.enabled) {
     parts.push(t('admin.jobs.card.off'));
@@ -838,6 +839,26 @@ function JobsContent() {
 }
 
 /**
+ * The name of a type in its row, and below it what the type does on one muted line (concept 15,
+ * P-2; two lines on a phone). The line is hidden from screen readers: the button's name stays the
+ * type's name, and the fold-out reads the sentence in full at its top.
+ */
+function TypeNameCell({ info }: { info: JobTypeInfo }) {
+  const { t } = useTranslation();
+  const description = typeDescription(t, info);
+  return (
+    <span className={styles.nameCell}>
+      <span>{typeName(t, info.type)}</span>
+      {description && (
+        <span className={styles.description} aria-hidden="true">
+          {description}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
  * The columns of a group's table: the row folds out on the name (JOB-5). The widths keep the
  * columns in place across the group tabs and when a state changes (K12-9).
  */
@@ -848,7 +869,7 @@ function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
       width: '30%',
       header: t('admin.jobs.columns.job'),
       rowHeader: true,
-      cell: (info) => typeName(t, info.type),
+      cell: (info) => <TypeNameCell info={info} />,
     },
     {
       key: 'state',
@@ -1025,8 +1046,9 @@ function RunningTable({
 
 /**
  * The fold-out of a job type: «Jetzt ausführen» and «Pausieren»/«Fortsetzen» as buttons, the
- * cancellations in «Weitere Aktionen» (S-6), trigger and last run in full; then the schedule
- * (types with one) and the runs (JOB-6, JOB-7). A type this server no longer knows offers
+ * cancellations in «Weitere Aktionen» (S-6), what the type does (concept 15, P-2), trigger and
+ * last run in full; then the schedule (types with one) or, for an event type, why it has none
+ * (P-3), and the runs (JOB-6, JOB-7). A type this server no longer knows offers
  * nothing. Its handlers are stable, so it renders again only when its own data changes.
  */
 const JobDetail = memo(function JobDetail({
@@ -1049,6 +1071,7 @@ const JobDetail = memo(function JobDetail({
 }) {
   const { t } = useTranslation();
   const name = typeName(t, info.type);
+  const description = typeDescription(t, info);
   const waiting = info.counts.queued + info.counts.planned;
   const triggerText = info.known
     ? t(`admin.jobs.types.${typeKey(info.type)}.trigger`, {
@@ -1096,6 +1119,7 @@ const JobDetail = memo(function JobDetail({
 
   return (
     <div className={styles.detail}>
+      {description && <p className={styles.detailDescription}>{description}</p>}
       <div className={styles.detailHead}>
         {info.known && (
           <div className={styles.actions}>
@@ -1156,6 +1180,12 @@ const JobDetail = memo(function JobDetail({
               onDiscard={handlers.onScheduleDiscard}
               onSaved={handlers.onScheduleSaved}
             />
+          )}
+          {info.trigger === 'event' && (
+            <section className={styles.block}>
+              <h3 className={styles.blockTitle}>{t('admin.jobs.schedule.heading')}</h3>
+              <Text tone="secondary">{t('admin.jobs.schedule.eventNote')}</Text>
+            </section>
           )}
           <RunsBlock
             info={info}

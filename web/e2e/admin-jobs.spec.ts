@@ -11,10 +11,10 @@ import {
 
 // /admin/jobs (concept 09, ADR 0017; concept 12 variant C) by keyboard (rule 8): the page is
 // reached through the admin navigation, the group tabs move with the arrow keys and live in
-// `?tab=`, the sweep's row folds out with Enter, "Jetzt ausführen" of the sweep queues a run that
-// ends in "Erledigt", "Pausieren" and "Fortsetzen" switch the row's chip and the banner, the runs
-// of the row walk their tabs with the arrow keys, the schedule in the row sets the sweep to every
-// 2 hours and the row shows it; the menu «Weitere Aktionen» opens with Enter, moves with the
+// `?tab=`, the sweep's row folds out with Enter and opens with what the job does, "Jetzt
+// ausführen" of the sweep queues a run that ends in "Erledigt", "Pausieren" and "Fortsetzen"
+// switch the row's chip and the banner, the runs of the row walk their tabs with the arrow keys,
+// the schedule in the row sets the sweep to every 2 hours and the row shows it; the menu «Weitere Aktionen» opens with Enter, moves with the
 // arrows, closes with Escape onto its button and asks before «Wartende abbrechen»; the overview
 // links the tab «Fehlschläge», whose failures are retried and cancelled by keyboard (stubbed, see
 // the last test); browser back, visible focus, no trap. The sweep ends in seconds on
@@ -149,6 +149,10 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const sweep = foldOut(page, SWEEP_NAME);
   await expect(sweep.getByText(SWEEP, { exact: true })).toBeVisible();
+  // What the job does, in full at the top of the fold-out (concept 15, P-2).
+  await expect(
+    sweep.getByText('Entfernt Titel, deren Dateien länger als die Schonfrist fehlen.'),
+  ).toBeVisible();
 
   // "Jetzt ausführen" with Enter: one run is queued and ends in "Erledigt".
   const runButton = sweep.getByRole('button', {

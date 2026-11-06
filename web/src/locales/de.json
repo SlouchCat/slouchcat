@@ -2909,10 +2909,10 @@
         "window": "{{start}}–{{end}}",
         "once": "Termin: {{date}}",
         "off": "aus",
-        "onDemand": "bei Bedarf",
+        "automatic": "automatisch",
         "pausedNext": "pausiert",
         "trigger": "Ausgelöst durch",
-        "triggerEvent": "bei Bedarf, durch Ereignisse im Server",
+        "triggerEvent": "automatisch, durch Ereignisse im Server",
         "triggerManual": "von Hand",
         "unknown": "Dieser Server kennt den Job nicht mehr (älterer Stand).",
         "median": "üblich {{duration}}"
@@ -3011,6 +3011,7 @@
         "updateHint": "Ein/Aus ist dieselbe Einstellung wie die Update-Prüfung in den Einstellungen.",
         "save": "Speichern",
         "heading": "Zeitplan",
+        "eventNote": "Kein Zeitplan: läuft von selbst, sobald es dafür etwas zu tun gibt, wie unter «Ausgelöst durch» beschrieben.",
         "discard": "Verwerfen",
         "once": "Einmalig am",
         "onceHint": "Zeitzone des Servers: {{zone}}. Der Termin läuft einmal zusätzlich zum Takt, auch ausserhalb des Zeitfensters.",
@@ -3029,99 +3030,123 @@
       "types": {
         "scan_library": {
           "name": "Bibliotheksscan",
+          "description": "Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.",
           "trigger": "Zeitplan alle 6 h und Start des Servers, «Scannen» auf der Bibliotheksseite, Webhook, Dateiwächter"
         },
         "scan_path": {
           "name": "Ordnerscan",
+          "description": "Liest einen einzelnen Ordner neu ein, sobald sich dort etwas ändert.",
           "trigger": "Dateiwächter bei Änderungen, Webhook"
         },
         "probe_file": {
           "name": "Datei prüfen",
+          "description": "Liest Spuren, Länge und Format einer neuen oder geänderten Datei.",
           "trigger": "vom Scan je neue Datei, «Datei prüfen» in der Pflege"
         },
         "probe_keyframes": {
           "name": "Keyframe-Index (ganze Datei lesen)",
+          "description": "Liest eine Datei ganz, wenn ihr der Index fürs Spulen fehlt.",
           "trigger": "beim Einlesen nur ohne Index aus dem Container, beim Nachholen, vor einer Wiedergabe (auch bei Pause) und für Offline-Downloads"
         },
         "keyframes_backfill": {
           "name": "Keyframe-Index nachholen",
+          "description": "Reiht alle Dateien ohne Keyframe-Index ein.",
           "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: liest den Index aus dem Container aller Videodateien, die noch keinen haben",
           "progress": "Dateien geprüft: {{done}} von {{total}}"
         },
         "library_sweep": {
           "name": "Aufräumen fehlender Titel",
+          "description": "Entfernt Titel, deren Dateien länger als die Schonfrist fehlen.",
           "trigger": "Zeitplan stündlich und Start des Servers"
         },
         "segments_detect": {
           "name": "Intro und Abspann erkennen",
+          "description": "Findet Intro und Abspann von Folgen für «Intro überspringen».",
           "trigger": "vom Scan je Serienstaffel"
         },
         "chapters_images": {
           "name": "Kapitelbilder erzeugen",
+          "description": "Erzeugt die Vorschaubilder der Kapitel einer Datei.",
           "trigger": "je Datei 10 Minuten nach dem Ende einer Wiedergabe, für neue Dateien nach einem vollständigen Scan und nach einer neuen Prüfung"
         },
         "chapters_images_backfill": {
           "name": "Kapitelbilder nachholen",
-          "trigger": "nur von Hand mit «Jetzt ausführen», für alle Filme und Folgen ohne Kapitelbilder"
+          "description": "Reiht alle Dateien ohne Kapitelbilder zum Erzeugen ein.",
+          "trigger": "Zeitplan (ab Werk aus, wöchentlich) oder Termin, «Jetzt ausführen»: für alle Filme und Folgen ohne Kapitelbilder"
         },
         "library_relink": {
           "name": "Gelöschten Titel wiederverknüpfen",
+          "description": "Hängt eine verschobene Datei an ihren alten Titel und Gesehen-Stand.",
           "trigger": "nach der Zuordnung eines Titels, der einen gelöschten Zwilling hat"
         },
         "metadata_match": {
           "name": "Titel zuordnen",
+          "description": "Sucht für einen neuen Titel den passenden Eintrag bei TMDB oder TVDB.",
           "trigger": "vom Scan, Zuordnung von Hand, Ordner ändern"
         },
         "metadata_fill": {
           "name": "Metadaten auffüllen",
+          "description": "Holt Texte, Genres, Freigabe, Besetzung und Bilder eines Titels.",
           "trigger": "nach der Zuordnung, Listenänderung am Ordner"
         },
         "metadata_vote_backfill": {
           "name": "Wertungen nachholen",
+          "description": "Holt fehlende Stimmenzahlen für die Auswahl der Bilder.",
           "trigger": "nach jedem vollständigen Scan, solange Titel ohne Wertung warten"
         },
         "metadata_original_language_backfill": {
           "name": "Originalsprachen nachholen",
-          "trigger": "einmal beim ersten Start nach dem Update, danach «Jetzt ausführen»"
+          "description": "Ergänzt bei allen Titeln die Originalsprache für die Tonwahl.",
+          "trigger": "einmal beim ersten Start nach dem Update, danach Zeitplan (ab Werk aus, wöchentlich), Termin oder «Jetzt ausführen»"
         },
         "image_fetch": {
           "name": "Bilder holen",
+          "description": "Lädt die gewählten Bilder eines Titels und rechnet die Grössen.",
           "trigger": "nach der Zuordnung, Nachholen beim Start"
         },
         "metadata_apply": {
           "name": "Metadaten anwenden",
+          "description": "Wendet geänderte Einstellungen der Metadaten auf eine Bibliothek an.",
           "trigger": "«Jetzt anwenden» auf der Seite Metadaten"
         },
         "trailer_find": {
           "name": "Trailer suchen",
+          "description": "Sucht einen Trailer bei TMDB, YouTube oder über die KI-Suche.",
           "trigger": "nach der Zuordnung"
         },
         "podcast_fetch": {
           "name": "Podcast-Feed abrufen",
+          "description": "Liest einen einzelnen Podcast-Feed und neue Folgen.",
           "trigger": "vom Feed-Takt je fälligem Abo, «Aktualisieren» je Podcast, neues Abo"
         },
         "podcast_poll": {
           "name": "Podcast-Feeds prüfen",
+          "description": "Prüft alle Podcast-Feeds auf neue Folgen.",
           "trigger": "Zeitplan alle 5 min: fällige Abos werden abgerufen"
         },
         "trakt_refresh": {
           "name": "Spotlight-Liste abrufen",
+          "description": "Holt die Trakt-Liste, aus der das Spotlight seine Titel nimmt.",
           "trigger": "Zeitplan nach dem Takt der Seite Spotlight, «Jetzt abrufen»"
         },
         "update_check": {
           "name": "Update-Prüfung",
+          "description": "Schaut nach, ob es eine neuere Slouchcat-Version gibt.",
           "trigger": "Zeitplan täglich, 60 s nach dem Start, «Jetzt prüfen»"
         },
         "download_prepare": {
           "name": "Download vorbereiten",
+          "description": "Bereitet einen Download für die Offline-Wiedergabe vor.",
           "trigger": "Download eines Profils; der Abgleich alle 10 min reiht Unfertiges nach"
         },
         "notify_deliver": {
           "name": "Mitteilung zustellen",
+          "description": "Verschickt eine Benachrichtigung per E-Mail, Telegram oder Web-Push.",
           "trigger": "jedes Ereignis mit Kanal (E-Mail, Web-Push, Telegram)"
         },
         "jobs_prune": {
           "name": "Verlauf aufräumen",
+          "description": "Löscht alte Läufe und Fehlschläge aus dem Verlauf.",
           "trigger": "Zeitplan täglich: erledigte Läufe älter als 30 Tage"
         }
       },

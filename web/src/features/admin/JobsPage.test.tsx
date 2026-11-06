@@ -215,7 +215,19 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(within(scanRow).getByText('läuft')).toBeVisible();
     expect(within(scanRow).getByText(/3 · dran in ca. 2 h 40 min · üblich 3 min/)).toBeVisible();
     expect(within(scanRow).getByText(/^in .* · alle 6 h$/)).toBeVisible();
+    // What the type does, below its name (concept 15, P-2); the button keeps the name alone.
+    const SCAN_DESCRIPTION = 'Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.';
+    expect(within(scanRow).getByText(SCAN_DESCRIPTION)).toBeVisible();
+    expect(within(scanRow).getByText(SCAN_DESCRIPTION)).toHaveAttribute('aria-hidden', 'true');
     const scan = await openRow(user, 'Bibliotheksscan');
+    // The fold-out opens with the same sentence, above «Ausgelöst durch».
+    const fullDescription = within(scan).getByText(SCAN_DESCRIPTION);
+    expect(fullDescription).toBeVisible();
+    expect(
+      fullDescription.compareDocumentPosition(within(scan).getByText('Ausgelöst durch')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(scan).queryByText(/^Kein Zeitplan:/)).toBeNull();
     expect(
       within(scan).getByRole('button', { name: 'Bibliotheksscan jetzt ausführen' }),
     ).toBeVisible();
@@ -234,16 +246,31 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     ).toEqual(['Wartende abbrechen (3)', 'Alle Läufe abbrechen']);
     await user.keyboard('{Escape}');
 
-    // An event type: no run button, no schedule, "bei Bedarf"; metadata.apply has its name.
+    // An event type: no run button, no schedule but the sentence why (concept 15, P-3),
+    // «automatisch»; metadata.apply has its name, and a manual type still says «von Hand».
     await user.click(within(tabs).getByRole('tab', { name: /^Metadaten/ }));
     const matchRow = within(groupPanel()).getByRole('row', { name: /^Titel zuordnen/ });
-    expect(within(matchRow).getByText('bei Bedarf')).toBeVisible();
+    expect(within(matchRow).getByText('automatisch')).toBeVisible();
+    expect(
+      within(matchRow).getByText(
+        'Sucht für einen neuen Titel den passenden Eintrag bei TMDB oder TVDB.',
+      ),
+    ).toBeVisible();
     expect(within(matchRow).getByText(/236 · geplant 2/)).toBeVisible();
     expect(within(matchRow).getByText('wartet')).toBeVisible();
     const match = await openRow(user, 'Titel zuordnen');
     expect(within(match).queryByRole('button', { name: /jetzt ausführen/ })).toBeNull();
     expect(within(match).queryByRole('region', { name: /Zeitplan/ })).toBeNull();
+    expect(
+      within(match).getByText(
+        'Kein Zeitplan: läuft von selbst, sobald es dafür etwas zu tun gibt, wie unter «Ausgelöst durch» beschrieben.',
+      ),
+    ).toBeVisible();
     expect(within(groupPanel()).getByRole('button', { name: 'Metadaten anwenden' })).toBeVisible();
+    const applyRow = within(groupPanel()).getByRole('row', { name: /^Metadaten anwenden/ });
+    expect(within(applyRow).getByText('von Hand')).toBeVisible();
+    const apply = await openRow(user, 'Metadaten anwenden');
+    expect(within(apply).queryByText(/^Kein Zeitplan:/)).toBeNull();
   });
 
   it('"Pausieren" in a running row pauses the job once; both rows show "wird angehalten"', async () => {
@@ -727,6 +754,7 @@ describe('admin jobs page (concept 09, concept 12)', () => {
             types: [
               ...overview().types,
               type({ type: 'legacy.sweep', group: 'system', known: false, runnable: true }),
+              type({ type: 'future.job', group: 'system', trigger: 'event', runnable: false }),
             ],
           }),
       }),
@@ -734,6 +762,12 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     renderApp('/admin/jobs?tab=system');
     await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
     const user = userEvent.setup();
+    // Neither a type the server does not know nor one without a locale text shows a
+    // description (concept 15, P-2): the row holds the name alone, never a key.
+    for (const name of ['legacy.sweep', 'future.job']) {
+      const toggle = within(groupPanel()).getByRole('button', { name });
+      expect(toggle.textContent).toBe(name);
+    }
     const legacy = await openRow(user, 'legacy.sweep');
     expect(
       within(legacy).getByText('Dieser Server kennt den Job nicht mehr (älterer Stand).'),

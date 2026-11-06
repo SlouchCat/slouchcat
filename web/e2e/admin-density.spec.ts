@@ -69,6 +69,24 @@ test.describe('with a mouse from 768 px', () => {
     await expect.poll(() => height(row)).toBe(40);
   });
 
+  test('a job row adds one muted line with what the job does, cut to one line (concept 15, P-2)', async ({
+    page,
+  }) => {
+    await openJobs(page);
+    const row = page.getByRole('tabpanel').getByRole('row').nth(1);
+    const description = row.getByText(
+      'Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.',
+    );
+    await expect(description).toBeVisible();
+    expect(await fontSize(description)).toBe('14px');
+    // One line: the line's box is one line high, and the row grows by about that line only.
+    const line = await description.evaluate((element) =>
+      Math.round(parseFloat(getComputedStyle(element).lineHeight)),
+    );
+    expect(await height(description)).toBe(line);
+    expect(await height(row)).toBeLessThanOrEqual(40 + line);
+  });
+
   test('running text is 14 px in the content of /admin', async ({ page }) => {
     await page.goto('/admin/spotlight');
     await expect(page.getByRole('heading', { level: 1, name: 'Spotlight' })).toBeVisible();
