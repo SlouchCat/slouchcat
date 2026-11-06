@@ -473,9 +473,14 @@ func removeLocked(raw string, names ...string) string {
 	return string(out)
 }
 
+// storedPreviewSizes is the stored size per kind that previews a lock without choice: the smallest
+// derived width of at least previewSize.
+var storedPreviewSizes = map[string]string{"poster": "w400", "backdrop": "w780", "logo": "w400"}
+
 // ItemImages returns the decided image source per choosable kind of a title for the title page
 // (AdminItem.images): provider, language, source and preview of the item_images row, chosen and
-// locked; a locked kind without a row is a "lock without choice" (an upload or an old lock).
+// locked; a locked kind without a row is a "lock without choice" (an upload or an old lock), whose
+// preview is the stored image of the kind (StoredSize, StoredHash) when there is one.
 func (s *Service) ItemImages(ctx context.Context, itemID string) ([]model.AdminItemImage, error) {
 	item, err := s.liveItem(ctx, itemID)
 	if err != nil {
@@ -490,6 +495,7 @@ func (s *Service) ItemImages(ctx context.Context, itemID string) ([]model.AdminI
 		byKind[r.Kind] = r
 	}
 	locked := lockedFields(item.LockedFields)
+	var stored map[string]string // kind -> content hash of its preview size; read on the first lock without choice
 	out := []model.AdminItemImage{}
 	for _, kind := range choosableKinds[item.Kind] {
 		r, ok := byKind[kind]
@@ -500,8 +506,32 @@ func (s *Service) ItemImages(ctx context.Context, itemID string) ([]model.AdminI
 		if ok {
 			img.Provider, img.Lang, img.Source, img.Chosen = r.Provider, r.Lang, r.Source, r.Chosen == 1
 			img.PreviewURL = s.previewOf(r.Provider, r.Source)
+		} else {
+			if stored == nil {
+				if stored, err = s.storedPreviews(ctx, item.ID); err != nil {
+					return nil, err
+				}
+			}
+			if hash := stored[kind]; hash != "" {
+				img.StoredSize, img.StoredHash = storedPreviewSizes[kind], hash
+			}
 		}
 		out = append(out, img)
+	}
+	return out, nil
+}
+
+// storedPreviews returns the content hash of the stored preview size per kind of a title.
+func (s *Service) storedPreviews(ctx context.Context, itemID string) (map[string]string, error) {
+	rows, err := s.read.ListImagesByItem(ctx, itemID)
+	if err != nil {
+		return nil, fmt.Errorf("item images of %s: list stored images: %w", itemID, err)
+	}
+	out := map[string]string{}
+	for _, r := range rows {
+		if r.Size == storedPreviewSizes[r.Kind] && out[r.Kind] == "" {
+			out[r.Kind] = r.ContentHash
+		}
 	}
 	return out, nil
 }

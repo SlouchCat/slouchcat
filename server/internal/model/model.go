@@ -1799,13 +1799,17 @@ type ImageCandidateList struct {
 }
 
 // AdminItemImage is the decided image source of a kind for the title page (AdminItem.images,
-// concept 10 7.3); Locked without Provider is a lock without choice.
+// concept 10 7.3); Locked without Provider is a lock without choice. StoredSize and StoredHash name
+// the stored image of such a lock (an upload) the preview shows through getAdminItemImage; "" = none
+// stored.
 type AdminItemImage struct {
 	Kind       string
 	Provider   string
 	Lang       string
 	Source     string
 	PreviewURL string
+	StoredSize string
+	StoredHash string
 	Chosen     bool
 	Locked     bool
 }

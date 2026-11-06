@@ -211,13 +211,33 @@ test('Bilder: upload an own poster, the kind is locked; back to automatic', asyn
   );
   await expect(poster).toHaveAccessibleName('Poster, gewählt · gesperrt');
   await expect(panel.getByRole('heading', { name: 'Aktuell: eigenes Bild' })).toBeVisible();
+  // The tile and the mini poster of the head (the first picture of the dialog) show the upload,
+  // served by the administration.
+  const shown = [
+    panel.getByRole('region', { name: 'Aktuell: eigenes Bild' }).locator('img'),
+    dialog(page).locator('img').first(),
+  ];
+  for (const img of shown) {
+    await expect(img).toHaveAttribute(
+      'src',
+      new RegExp(`/api/v1/admin/items/${id}/images/poster/w400\\?v=[0-9a-f]{64}$`),
+    );
+    await expect
+      .poll(() =>
+        img.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth),
+      )
+      .toBeGreaterThan(0);
+  }
 
   const automatic = panel.getByRole('button', { name: 'Zurück auf automatisch' });
   await tabTo(page, automatic, 20);
   await page.keyboard.press('Enter');
   await expect(dialog(page).getByRole('status')).toHaveText(/^Sperre für Poster aufgehoben/);
   await expect(automatic).toHaveCount(0);
-  await expect(poster).not.toHaveAccessibleName('Poster, gewählt · gesperrt');
+  // The upload goes with the lock; without a provider (none in the e2e server) the kind is empty.
+  await expect(poster).toHaveAccessibleName('Poster, fehlt');
+  await expect(panel.getByRole('heading', { name: 'Aktuell: kein Bild' })).toBeVisible();
+  await expect(panel.locator('img')).toHaveCount(0);
 });
 
 test('Aktualisieren: «Jetzt aktualisieren» with «Vorher alle Sperren aufheben»', async ({

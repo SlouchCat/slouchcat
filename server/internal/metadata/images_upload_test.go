@@ -147,6 +147,15 @@ func TestUploadItemImage(t *testing.T) {
 	if a := e.images(t, idByTMDB)["poster/w200/jpeg"].Accent; !a.Valid {
 		t.Error("the uploaded poster carries no accent")
 	}
+	// The editor previews the upload from the stored w400 poster (a lock without choice).
+	adminImgs, err := e.svc.ItemImages(ctx, idByTMDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(adminImgs) == 0 || adminImgs[0].Kind != "poster" || adminImgs[0].Provider != "" || adminImgs[0].StoredSize != "w400" ||
+		(adminImgs[0].StoredHash != e.images(t, idByTMDB)["poster/w400/jpeg"].Hash && adminImgs[0].StoredHash != e.images(t, idByTMDB)["poster/w400/webp"].Hash) {
+		t.Fatalf("item images after the upload %+v, want the stored w400 poster", adminImgs)
+	}
 
 	// image.fetch and a new match keep the upload; TMDB is not asked for the poster again.
 	if err := e.svc.match(ctx, idByTMDB); err != nil {

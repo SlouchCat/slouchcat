@@ -414,6 +414,9 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 			case img.Provider != "":
 				preview := candidatePreviewURL(it.ID, img.Source)
 				g.PreviewUrl = &preview
+			case img.StoredHash != "":
+				preview := adminImageURL(it.ID, img.Kind, img.StoredSize, img.StoredHash)
+				g.PreviewUrl = &preview
 			}
 			images = append(images, g)
 		}
