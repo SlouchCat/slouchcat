@@ -689,6 +689,8 @@ type ListRecentlyAddedParams struct {
 	LimitCount int64
 }
 
+// The row recent (recently added). It walks the partial index items_top_added (migration 00037)
+// in its order; the planner takes it only while the kind term is written exactly as in the index.
 func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedParams) ([]Item, error) {
 	rows, err := q.db.QueryContext(ctx, listRecentlyAdded, arg.ProfileID, arg.LimitCount)
 	if err != nil {

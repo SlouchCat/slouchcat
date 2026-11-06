@@ -5,7 +5,8 @@
 -- (visibility/library.go), its statements join visible_items like these.
 
 -- Libraries with at least one visible top-level title, administration order, with the number of
--- those titles.
+-- those titles. The top-level titles come from the partial index items_top_added (migration
+-- 00037), which needs the kind term written exactly as in the index.
 -- name: ListVisibleLibraries :many
 SELECT l.id, l.name, l.kind, count(*) AS item_count
 FROM libraries AS l

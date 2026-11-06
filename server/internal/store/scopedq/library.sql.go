@@ -154,7 +154,8 @@ type ListVisibleLibrariesRow struct {
 // from a second copy of the library rights (concept 08, 4.3). The page itself is built in Go
 // (visibility/library.go), its statements join visible_items like these.
 // Libraries with at least one visible top-level title, administration order, with the number of
-// those titles.
+// those titles. The top-level titles come from the partial index items_top_added (migration
+// 00037), which needs the kind term written exactly as in the index.
 func (q *Queries) ListVisibleLibraries(ctx context.Context, profileID int64) ([]ListVisibleLibrariesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisibleLibraries, profileID)
 	if err != nil {
