@@ -26,8 +26,11 @@ Zweig `claude/feinschliff-stufe2-26fc61` ab `main` `8ca83892` (Release 1.13.2). 
   und 8 Low; L-1 bis L-5, L-7, L-8 behoben, L-6 (`seriesRef` an allen Folgen) bewusst belassen.
 - **Messung** `docs/perf/feinschliff.md`: `ListContinueWatching` mit 10 000 Fortschrittszeilen
   p95 50,1 → 20,1 ms (Index-Weg über die Staffeln, `GROUP BY` statt Fensterfunktion).
-- **Bekannt:** Ohne gesetztes `TZ` meldet der Server die Zeitzone «Local» (vorbestehend beim
-  Zeitplan); die Web-App nimmt dann die Zeitzone des Browsers.
+- **Zeitzone:** Der Planer meldete die Zeitzone als «Local», auch mit gesetztem `TZ` (vorbestehend
+  beim Zeitplan, bei der Abnahme auf CT 190 bemerkt). Er nimmt jetzt die Zone der Statistik
+  (`admin.ResolveZone`), also z. B. «Europe/Zurich»; die Web-App fällt bei «Local» weiter auf die
+  Zeitzone des Browsers zurück.
+- **Storybook-Baseline** `ui-postercard--continue-episode` auf CT 190 erzeugt (355 gleich, 1 neu).
 
 **Belege auf `269f2d23`:** `task ci` grün bis auf Storybook: 359 gleich, **1 neue Story ohne
 Vergleichsbild** (`ui-postercard--continue-episode`); Go 36 Pakete ok, Vitest 1441, api-client 4,
