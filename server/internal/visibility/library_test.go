@@ -458,10 +458,31 @@ func TestLibraryNewestTiesAtTheCut(t *testing.T) {
 	// tie; the others keep their times.
 	exec(t, f, `UPDATE items SET added_at = 9000000000000
 		WHERE library_id = ? AND kind IN ('movie', 'series', 'audiobook', 'podcast') AND rowid % 2 = 0`, f.LibraryID())
+	var tied []string
+	rows, err := f.DB.Read.QueryContext(ctx, `SELECT id FROM items WHERE library_id = ? AND added_at = 9000000000000`, f.LibraryID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			t.Fatal(err)
+		}
+		tied = append(tied, id)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 	for _, p := range []model.Profile{f.P18, f.P6} {
 		all := ids(libraryItems(t, r, p, f.LibraryID(), model.LibraryQuery{Sort: model.LibrarySortAdded}).Items)
 		if len(all) < 2 || (p.ID == f.P18.ID && len(all) < 6) {
 			t.Fatalf("%s sees %d titles, too few for the ties", p.Name, len(all))
+		}
+		// P6 must meet the tie with some of its titles hidden, else the case of invisible titles at
+		// the cut goes unchecked.
+		if seen := len(slices.DeleteFunc(slices.Clone(tied), func(id string) bool { return !slices.Contains(all, id) })); p.ID == f.P6.ID && (seen == 0 || seen >= len(tied)) {
+			t.Fatalf("P6 sees %d of the %d titles at the tied time, want some but not all", seen, len(tied))
 		}
 		for limit := 1; limit <= min(len(all)+1, MaxRowItems); limit++ {
 			got, err := r.LibraryNewest(ctx, Profile(p), f.LibraryID(), limit)
