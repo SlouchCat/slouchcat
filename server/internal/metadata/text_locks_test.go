@@ -119,3 +119,40 @@ func TestDecideFieldsTextLocks(t *testing.T) {
 		}
 	}
 }
+
+// TestWritersKeepALockedSortKey: the administrator's sort title (sort_title:de) survives a match
+// and a fill, which rewrite the title; the free language follows its title.
+func TestWritersKeepALockedSortKey(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550, locked: `["sort_title:de"]`})
+	mustExec(t, e.db.Write, `UPDATE items SET providers = '["tmdb","anilist"]' WHERE id = ?`, idByTMDB)
+	e.seedText(t, idByTMDB, "de", "Alt", "", "")
+	e.seedText(t, idByTMDB, "en", "Old", "", "")
+	mustExec(t, e.db.Write, `UPDATE item_texts SET sort_key = 'aaa von hand' WHERE item_id = ?`, idByTMDB)
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fill(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if tx := e.texts(t, idByTMDB); tx["de"].Title != "Erster Film" {
+		t.Fatalf("de title %+v, want the provider's (only the sort title is locked)", tx["de"])
+	}
+	keys := e.sortKeys(t, idByTMDB)
+	if keys["de"] != "aaa von hand" {
+		t.Fatalf("locked de sort key rewritten: %v", keys)
+	}
+	if keys["en"] != "first film" {
+		t.Fatalf("free en sort key %v, want the key of its title", keys)
+	}
+	// The lock lifted: the next writer computes the key from the title again.
+	mustExec(t, e.db.Write, `UPDATE items SET locked_fields = '[]' WHERE id = ?`, idByTMDB)
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if keys := e.sortKeys(t, idByTMDB); keys["de"] != "erster film" {
+		t.Fatalf("de sort key %v after the unlock, want the key of the title", keys)
+	}
+}

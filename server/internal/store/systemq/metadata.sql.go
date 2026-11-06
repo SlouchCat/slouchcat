@@ -1675,7 +1675,11 @@ const upsertItemText = `-- name: UpsertItemText :exec
 INSERT INTO item_texts (item_id, lang, title, overview, tagline, sort_key, rank)
 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
 ON CONFLICT (item_id, lang) DO UPDATE
-SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline, sort_key = excluded.sort_key,
+SET title = excluded.title, overview = excluded.overview, tagline = excluded.tagline,
+    sort_key = CASE
+        WHEN EXISTS (SELECT 1 FROM items AS li WHERE li.id = excluded.item_id
+                       AND instr(li.locked_fields, '"sort_title:' || excluded.lang || '"') > 0)
+        THEN item_texts.sort_key ELSE excluded.sort_key END,
     rank = excluded.rank
 `
 
@@ -1689,8 +1693,10 @@ type UpsertItemTextParams struct {
 	Rank     int64
 }
 
-// sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016). rank is
-// the position of lang in the effective metadata language list of the title (ADR 0018, 0 = first).
+// sort_key is model.SortKey(lang, title): every writer of a text row sets it (ADR 0016), except
+// that a sort title the administrator set (the lock sort_title:<lang> in items.locked_fields,
+// concept 15 7.5) keeps the stored key for every writer. rank is the position of lang in the
+// effective metadata language list of the title (ADR 0018, 0 = first).
 func (q *Queries) UpsertItemText(ctx context.Context, arg UpsertItemTextParams) error {
 	_, err := q.db.ExecContext(ctx, upsertItemText,
 		arg.ItemID,
