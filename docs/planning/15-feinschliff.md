@@ -87,6 +87,8 @@
    20 min» und der Fortschrittsbalken der Folge. Der Vertrag bekommt dafür additiv am `ItemRef`
    ein Feld **`series`** (`{ id, title, images }`, nur bei Folgen gesetzt); `seriesTitle` bleibt
    für alte Clients.
+   *Gebaut (Stufe 2):* Das Feld heisst **`seriesRef`** (Schema `SeriesRef`), weil `ItemDetail.series`
+   schon existiert und dort ein ganzes `ItemRef` ist.
 3. **Klick** (F-1, entschieden): führt zur **Detailseite der Folge** mit «Fortsetzen» im Fokus,
    wie heute bei Folgen. Kein eigener Abspielknopf auf der Karte.
 4. **Fertig gesehen → nächste Folge** (F-2, entschieden): Ist die zuletzt gesehene Folge fertig
@@ -230,6 +232,12 @@ tagsüber ruhig bleibt.
   - `QueueKeyframesForPlayback` setzt beide Merkmale, `queueAfterPlayback` nur `override_window`.
     Die Kapitelbilder nach dem Abspielen bleiben damit bei pausierter Jobart pausiert, wie heute.
   - Die Seite zeigt solche Aufträge wie heute als «für Wiedergabe».
+
+> **Nachtrag (6. November 2026, Review von Stufe 2, Befund M-1):** Marco hat entschieden: **Download
+> geht vor.** Der Keyframe-Index für einen Offline-Download (`QueueKeyframesForDownload`) setzt
+> ebenfalls `override_window` (ohne `override_pause`; die Pause hält ihn weiter an). Der Hinweis
+> auf der Seite sagt «Wiedergabe und Downloads starten trotzdem sofort.» Entscheidungsprotokoll,
+> Nachtrag zu Frage 22.
 - **Speicher (Migration):** `job_types` bekommt `window_start` und `window_end` (Minuten des Tages,
   wie in `job_schedules`; `CHECK` beide leer oder beide gesetzt), `jobs` bekommt `override_window`
   (`INTEGER NOT NULL DEFAULT 0`). Beide Tabellen sind `STRICT`; `ALTER TABLE … ADD COLUMN` reicht,
