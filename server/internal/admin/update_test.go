@@ -274,9 +274,11 @@ func TestQueueDueUpdateCheck(t *testing.T) {
 	}
 }
 
-// fakeSchedules records the schedule updates of the settings pages (admin.Schedules).
+// fakeSchedules records the schedule updates of the settings pages (admin.Schedules) and keeps the
+// one-off date per type, as the scheduler does.
 type fakeSchedules struct {
 	loc     *time.Location // nil: UTC
+	once    map[string]time.Time
 	updates []struct {
 		typ string
 		u   jobs.ScheduleUpdate
@@ -295,7 +297,37 @@ func (f *fakeSchedules) UpdateSchedule(_ context.Context, typ string, u jobs.Sch
 		typ string
 		u   jobs.ScheduleUpdate
 	}{typ, u})
-	return jobs.Schedule{Type: typ}, nil
+	if u.ClearOnce {
+		delete(f.once, typ)
+	} else if u.OnceLocal != nil {
+		at, err := time.ParseInLocation(jobs.OnceLayout, *u.OnceLocal, f.Location())
+		if err != nil {
+			return jobs.Schedule{}, err
+		}
+		f.setOnce(typ, at)
+	}
+	return jobs.Schedule{Type: typ, OnceAt: f.once[typ]}, nil
+}
+
+func (f *fakeSchedules) Schedule(_ context.Context, typ string) (jobs.Schedule, error) {
+	return jobs.Schedule{Type: typ, OnceAt: f.once[typ]}, nil
+}
+
+// setOnce sets the one-off date of typ, as an administrator does on the jobs page.
+func (f *fakeSchedules) setOnce(typ string, at time.Time) {
+	if f.once == nil {
+		f.once = map[string]time.Time{}
+	}
+	f.once[typ] = at
+}
+
+// fireDue clears the one-off dates that are due at now: the scheduler has fired them.
+func (f *fakeSchedules) fireDue(now time.Time) {
+	for typ, at := range f.once {
+		if !at.After(now) {
+			delete(f.once, typ)
+		}
+	}
 }
 
 func TestNewerVersion(t *testing.T) {
@@ -330,8 +362,8 @@ func TestNewerVersion(t *testing.T) {
 	}
 }
 
-// A failed check is tried again after 15 min, 1 h and 6 h through the one-off date of the
-// schedule (in the scheduler's zone); the fourth failure in a row leaves the daily rhythm alone,
+// A failed check of the job is tried again after 15 min, 1 h and 6 h through the one-off date of
+// the schedule (in the scheduler's zone); the fourth failure in a row leaves the daily rhythm alone,
 // and a success starts the sequence anew.
 func TestUpdateCheckRetryBackoff(t *testing.T) {
 	ctx := context.Background()
@@ -344,8 +376,9 @@ func TestUpdateCheckRetryBackoff(t *testing.T) {
 
 	check := func(wantOnce string, wantFailures int) {
 		t.Helper()
+		sched.fireDue(now)
 		before := len(sched.updates)
-		if _, err := f.svc.CheckForUpdate(ctx); err != nil {
+		if err := f.svc.handleUpdateCheck(ctx, nil); err != nil {
 			t.Fatal(err)
 		}
 		st, err := f.svc.storedUpdate(ctx)
@@ -389,6 +422,126 @@ func TestUpdateCheckRetryBackoff(t *testing.T) {
 	// The failed state keeps what the card shows.
 	if st, err := f.svc.UpdateState(ctx); err != nil || !strings.Contains(st.Error, "status 502") || st.LatestVersion != "1.13.1" {
 		t.Errorf("state after a failed check = %+v, %v", st, err)
+	}
+}
+
+// updateRetryFixture is a service with a failing manifest and a recording scheduler at now.
+func updateRetryFixture(t *testing.T, now time.Time) (*Service, *manifestServer, *fakeSchedules) {
+	t.Helper()
+	f := newFixture(t)
+	f.svc.now = func() time.Time { return now }
+	srv := newManifestServer(t, `oops`)
+	srv.set(`oops`, http.StatusBadGateway)
+	sched := &fakeSchedules{}
+	f.svc.WithSchedules(sched).WithSystem(SystemSource{Version: "1.12.0"}).WithUpdateCheck(srv.URL+"/manifest.json", srv.Client())
+	return f.svc, srv, sched
+}
+
+// A failed check by hand («Jetzt prüfen») records its error but neither counts toward the
+// retries of the job nor sets or moves one (review of stage 1).
+func TestUpdateCheckByHandDoesNotCountTowardRetries(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
+	svc, _, sched := updateRetryFixture(t, now)
+
+	st, err := svc.CheckForUpdate(ctx)
+	if err != nil || !strings.Contains(st.Error, "status 502") {
+		t.Fatalf("state after a failed check by hand = %+v, %v", st, err)
+	}
+	if stored, err := svc.storedUpdate(ctx); err != nil || stored.Failures != 0 || stored.RetryAt != 0 {
+		t.Errorf("stored after a failed check by hand = %+v, %v; want no failure counted", stored, err)
+	}
+	if len(sched.updates) != 0 {
+		t.Errorf("schedule updates = %+v, want none", sched.updates)
+	}
+
+	// The job's failure counts and sets the retry; one by hand after it leaves both alone.
+	if err := svc.handleUpdateCheck(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	retry := now.Add(15 * time.Minute)
+	if _, err := svc.CheckForUpdate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := svc.storedUpdate(ctx)
+	if err != nil || stored.Failures != 1 || stored.RetryAt != retry.UnixMilli() {
+		t.Errorf("stored = %+v, %v; want one failure and the retry at %v", stored, err, retry)
+	}
+	if len(sched.updates) != 1 || !sched.once[JobUpdateCheck].Equal(retry) {
+		t.Errorf("schedule updates = %+v, date %v; want the one retry at %v", sched.updates, sched.once[JobUpdateCheck], retry)
+	}
+}
+
+// A one-off date an administrator set before the retry stays (it checks earlier anyway); one after
+// it gives way to the retry (review of stage 1).
+func TestUpdateRetryKeepsAnEarlierAdminDate(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
+	svc, _, sched := updateRetryFixture(t, now)
+
+	earlier := now.Add(10 * time.Minute)
+	sched.setOnce(JobUpdateCheck, earlier)
+	if err := svc.handleUpdateCheck(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(sched.updates) != 0 || !sched.once[JobUpdateCheck].Equal(earlier) {
+		t.Errorf("schedule updates = %+v, date %v; want the administrator's date %v untouched", sched.updates, sched.once[JobUpdateCheck], earlier)
+	}
+	if stored, err := svc.storedUpdate(ctx); err != nil || stored.Failures != 1 || stored.RetryAt != 0 {
+		t.Errorf("stored = %+v, %v; want one failure and no retry of ours", stored, err)
+	}
+
+	// A later date is replaced by the retry (+1 h after the second failure).
+	sched.setOnce(JobUpdateCheck, now.Add(3*time.Hour))
+	if err := svc.handleUpdateCheck(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	retry := now.Add(time.Hour)
+	if len(sched.updates) != 1 || !sched.once[JobUpdateCheck].Equal(retry) {
+		t.Errorf("schedule updates = %+v, date %v; want the retry at %v", sched.updates, sched.once[JobUpdateCheck], retry)
+	}
+	if stored, err := svc.storedUpdate(ctx); err != nil || stored.Failures != 2 || stored.RetryAt != retry.UnixMilli() {
+		t.Errorf("stored = %+v, %v; want two failures and the retry at %v", stored, err, retry)
+	}
+}
+
+// A success clears the retry still pending, but not a date an administrator set in its place
+// (review of stage 1).
+func TestUpdateSuccessClearsOnlyThePendingRetry(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 11, 6, 10, 0, 0, 0, time.UTC)
+	svc, srv, sched := updateRetryFixture(t, now)
+	const good = `{"version":"1.13.1","url":"https://example.org/1.13.1"}`
+
+	// Failure, then a success by hand before the retry: the retry goes.
+	if err := svc.handleUpdateCheck(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	srv.set(good, http.StatusOK)
+	if _, err := svc.CheckForUpdate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(sched.updates) != 2 || !sched.updates[1].u.ClearOnce || !sched.once[JobUpdateCheck].IsZero() {
+		t.Errorf("schedule updates = %+v, date %v; want the retry set and cleared", sched.updates, sched.once[JobUpdateCheck])
+	}
+	if stored, err := svc.storedUpdate(ctx); err != nil || stored.Failures != 0 || stored.RetryAt != 0 {
+		t.Errorf("stored after the success = %+v, %v; want no failure and no retry", stored, err)
+	}
+
+	// Failure, then the administrator moves the date: the success leaves it.
+	srv.set(`oops`, http.StatusBadGateway)
+	if err := svc.handleUpdateCheck(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	admin := now.Add(2 * time.Hour)
+	sched.setOnce(JobUpdateCheck, admin)
+	before := len(sched.updates)
+	srv.set(good, http.StatusOK)
+	if err := svc.handleUpdateCheck(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(sched.updates) != before || !sched.once[JobUpdateCheck].Equal(admin) {
+		t.Errorf("schedule updates = %+v, date %v; want the administrator's date %v untouched", sched.updates[before:], sched.once[JobUpdateCheck], admin)
 	}
 }
 

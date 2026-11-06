@@ -23,9 +23,10 @@ import (
 // with the running one and stores the result in the setting update_state. The schedule update.check
 // (concept 09) queues it 60 s after the start and then every UpdateInterval; its switch is the
 // setting update_check_enabled (one value, two doors: this page and the jobs page). The check only
-// reads the manifest; it never installs anything. A failed check is tried again after 15 min, 1 h
-// and 6 h (updateRetryDelays) through the one-off date of the schedule; after that the daily
-// rhythm stands, and a success starts the sequence anew. Switched off (update_check_enabled "0") there is
+// reads the manifest; it never installs anything. A failed check of the job (the schedule or its
+// retry) is tried again after 15 min, 1 h and 6 h (updateRetryDelays) through the one-off date of
+// the schedule; after that the daily rhythm stands, and a success starts the sequence anew. A
+// failed check by hand (CheckForUpdate) records its error only. Switched off (update_check_enabled "0") there is
 // no job, no stored state and no notice.
 const (
 	JobUpdateCheck = "update.check"
@@ -51,8 +52,12 @@ type storedUpdate struct {
 	Notes         string `json:"notes,omitempty"`
 	CheckedAt     int64  `json:"checkedAt,omitempty"`
 	Error         string `json:"error,omitempty"`
-	// Failures counts the failed checks in a row (0 after a success); it picks the retry delay.
+	// Failures counts the failed checks of the job in a row (0 after a success); it picks the
+	// retry delay.
 	Failures int `json:"failures,omitempty"`
+	// RetryAt is the one-off date the check set for its retry (Unix ms, 0: none); a date of the
+	// schedule that differs is an administrator's.
+	RetryAt int64 `json:"retryAt,omitempty"`
 }
 
 // updateRetryDelays are the waits after the first, second and third failed check in a row; later
@@ -165,8 +170,9 @@ func (s *Service) updateSeed(ctx context.Context) (jobs.ScheduleSeed, error) {
 	return seed, nil
 }
 
-// handleUpdateCheck runs one check. A failed read of the manifest is stored in the state and not
-// retried (the next daily run or the admin tries again); only a failure to store it is an error.
+// handleUpdateCheck runs one check of the job. A failed read of the manifest is stored in the
+// state and tried again through the one-off date of the schedule (updateRetryDelays), not by the
+// queue; only a failure to store it is an error.
 func (s *Service) handleUpdateCheck(ctx context.Context, _ *jobs.Job) error {
 	on, err := s.updateCheckEnabled(ctx)
 	if err != nil {
@@ -176,7 +182,7 @@ func (s *Service) handleUpdateCheck(ctx context.Context, _ *jobs.Job) error {
 		jobs.Skip(ctx) // nothing to do while the check is switched off (concept 09, 6.2)
 		return nil
 	}
-	_, err = s.checkUpdate(ctx)
+	_, err = s.checkUpdate(ctx, true)
 	return err
 }
 
@@ -205,7 +211,8 @@ func (s *Service) UpdateState(ctx context.Context) (model.UpdateState, error) {
 }
 
 // CheckForUpdate reads the release manifest now; a failure is reported in the state's Error
-// (model.ErrUpdateCheckDisabled when the check is off).
+// (model.ErrUpdateCheckDisabled when the check is off). A failure by hand neither counts toward
+// the retries of the job nor sets one.
 func (s *Service) CheckForUpdate(ctx context.Context) (model.UpdateState, error) {
 	on, err := s.updateCheckEnabled(ctx)
 	if err != nil {
@@ -214,7 +221,7 @@ func (s *Service) CheckForUpdate(ctx context.Context) (model.UpdateState, error)
 	if !on {
 		return model.UpdateState{}, model.ErrUpdateCheckDisabled
 	}
-	return s.checkUpdate(ctx)
+	return s.checkUpdate(ctx, false)
 }
 
 // UpdateAvailable returns the header notice of the main account (SessionInfo.updateAvailable):
@@ -254,8 +261,9 @@ func (s *Service) forgetUpdateNotice() {
 }
 
 // checkUpdate reads the manifest, stores the result and returns the new state. A failed read keeps
-// the last known release and records the error.
-func (s *Service) checkUpdate(ctx context.Context) (model.UpdateState, error) {
+// the last known release and records the error; one of the job (scheduled) counts in Failures and
+// sets the retry. A success clears a retry still pending.
+func (s *Service) checkUpdate(ctx context.Context, scheduled bool) (model.UpdateState, error) {
 	s.ops.update.running.Lock()
 	defer s.ops.update.running.Unlock()
 	st, err := s.storedUpdate(ctx)
@@ -263,21 +271,25 @@ func (s *Service) checkUpdate(ctx context.Context) (model.UpdateState, error) {
 		return model.UpdateState{}, err
 	}
 	st.CheckedAt, st.Error = s.now().UnixMilli(), ""
-	failed := false
 	m, err := s.fetchManifest(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
 			return model.UpdateState{}, ctx.Err()
 		}
 		st.Error = logging.RedactString(err.Error())
-		failed = true
-		if st.Failures < len(updateRetryDelays)+1 { // one past the last delay is enough
-			st.Failures++
+		if scheduled {
+			if st.Failures < len(updateRetryDelays)+1 { // one past the last delay is enough
+				st.Failures++
+			}
+			st.RetryAt = s.scheduleUpdateRetry(ctx, st.Failures, st.RetryAt)
 		}
-		s.log.WarnContext(ctx, "update check failed", "err", err, "failures", st.Failures)
+		s.log.WarnContext(ctx, "update check failed", "err", err, "failures", st.Failures, "scheduled", scheduled)
 	} else {
 		st.LatestVersion, st.URL, st.Notes = m.Version, m.URL, m.Notes
-		st.Failures = 0
+		if st.RetryAt != 0 {
+			s.clearUpdateRetry(ctx, st.RetryAt)
+		}
+		st.Failures, st.RetryAt = 0, 0
 	}
 	raw, err := json.Marshal(st)
 	if err != nil {
@@ -287,9 +299,6 @@ func (s *Service) checkUpdate(ctx context.Context) (model.UpdateState, error) {
 		return model.UpdateState{}, fmt.Errorf("store update state: %w", err)
 	}
 	s.forgetUpdateNotice()
-	if failed {
-		s.scheduleUpdateRetry(ctx, st.Failures)
-	}
 	out, err := s.UpdateState(ctx)
 	if err == nil && st.Error == "" {
 		s.log.InfoContext(ctx, "update check done", "latest", st.LatestVersion, "available", out.Available)
@@ -298,18 +307,61 @@ func (s *Service) checkUpdate(ctx context.Context) (model.UpdateState, error) {
 }
 
 // scheduleUpdateRetry sets the one-off date of the schedule update.check to the retry after the
-// failures-th failed check in a row. The date fires one run and clears itself without shifting the
-// daily rhythm; a restart queues a check 60 s after the start anyway and goes on counting from the
-// stored failures. The date replaces one an administrator set for the same type; that is the
-// price of not needing a table of our own. A missing scheduler or row is no error (syncSchedule).
-func (s *Service) scheduleUpdateRetry(ctx context.Context, failures int) {
+// failures-th failed check in a row and returns that date (Unix ms; 0 when none of ours is
+// pending, pending the previous retry date). The date fires one run and clears itself without
+// shifting the daily rhythm; a restart queues a check 60 s after the start anyway and goes on
+// counting from the stored failures. A date an administrator set (any other than pending) stays
+// when it comes before the retry, which it then stands in for; a later one gives way to the retry,
+// the price of not needing a table of our own. A missing scheduler or row is no error
+// (syncSchedule).
+func (s *Service) scheduleUpdateRetry(ctx context.Context, failures int, pending int64) int64 {
 	d, ok := updateRetryDelay(failures)
 	if !ok || s.schedules == nil {
+		return 0
+	}
+	retry := s.now().Add(d)
+	cur, err := s.schedules.Schedule(ctx, JobUpdateCheck)
+	if errors.Is(err, model.ErrNotFound) {
+		return 0
+	}
+	if err != nil {
+		s.log.WarnContext(ctx, "read schedule for the update retry", "job_type", JobUpdateCheck, "err", err)
+		return 0
+	}
+	if !cur.OnceAt.IsZero() && cur.OnceAt.UnixMilli() != pending && !cur.OnceAt.After(retry) {
+		s.log.InfoContext(ctx, "update check retry left to the one-off date", "once_at", cur.OnceAt.UTC(), "failures", failures)
+		return 0
+	}
+	at := retry.In(s.schedules.Location()).Format(jobs.OnceLayout)
+	got, err := s.schedules.UpdateSchedule(ctx, JobUpdateCheck, jobs.ScheduleUpdate{OnceLocal: &at})
+	if err != nil {
+		if !errors.Is(err, model.ErrNotFound) {
+			s.log.WarnContext(ctx, "sync schedule with the setting", "job_type", JobUpdateCheck, "err", err)
+		}
+		return 0
+	}
+	s.log.InfoContext(ctx, "update check retry requested", "after", d, "failures", failures)
+	return got.OnceAt.UnixMilli()
+}
+
+// clearUpdateRetry clears the one-off date of the schedule update.check when it is still the
+// retry the check set (pending, Unix ms); a date that fired or one an administrator set since
+// stays.
+func (s *Service) clearUpdateRetry(ctx context.Context, pending int64) {
+	if s.schedules == nil {
 		return
 	}
-	at := s.now().Add(d).In(s.schedules.Location()).Format(jobs.OnceLayout)
-	s.syncSchedule(ctx, JobUpdateCheck, jobs.ScheduleUpdate{OnceLocal: &at})
-	s.log.InfoContext(ctx, "update check retry requested", "after", d, "failures", failures)
+	cur, err := s.schedules.Schedule(ctx, JobUpdateCheck)
+	if err != nil {
+		if !errors.Is(err, model.ErrNotFound) {
+			s.log.WarnContext(ctx, "read schedule for the update retry", "job_type", JobUpdateCheck, "err", err)
+		}
+		return
+	}
+	if cur.OnceAt.IsZero() || cur.OnceAt.UnixMilli() != pending {
+		return
+	}
+	s.syncSchedule(ctx, JobUpdateCheck, jobs.ScheduleUpdate{ClearOnce: true})
 }
 
 // errManifest marks a manifest that arrived but is not usable.
