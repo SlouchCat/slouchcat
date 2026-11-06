@@ -541,6 +541,10 @@ type Backup struct {
 // multipart framing.
 const MaxBackupBytes = 2 << 30
 
+// MaxImageUploadBytes caps an image the administrator uploads for a title (uploadItemImage,
+// concept 15 7.5); the request may be as large plus its multipart framing.
+const MaxImageUploadBytes = 20 << 20
+
 // BackupRequest creates a backup; a passphrase is required with secrets.
 type BackupRequest struct {
 	IncludeSecrets bool

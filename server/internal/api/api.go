@@ -49,6 +49,9 @@ const (
 	candidatePreviewPath = "/admin/items/{id}/image-candidates/preview"
 	// chapterImagePath serves the image of a chapter of a film or an episode (concept 13 stage 3).
 	chapterImagePath = "/items/{id}/chapters/{idx}/image"
+	// itemImageUploadPath takes an image the administrator uploads for a kind of a title
+	// (concept 15 7.5); multipart, larger body limit (largeBodies).
+	itemImageUploadPath = "/admin/items/{id}/images/{kind}/upload"
 )
 
 var binaryRoutes = map[string]string{
