@@ -100,7 +100,8 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
   const image = headImage(data);
   return (
     <EditorDialog
-      title={data.title}
+      // `title` is the item row; an edited title lives in the server language's text.
+      title={data.metadata?.title ?? data.title}
       subtitle={
         library
           ? t('admin.editor.subtitle', { kind: t(`kind.${data.kind}`), library })
