@@ -7,10 +7,13 @@ import (
 	"errors"
 	"hash/crc32"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -394,4 +397,71 @@ func TestUploadItemImageWebPFrame(t *testing.T) {
 	if r := e.images(t, idByTMDB)["backdrop/original/jpeg"]; r.Width != 800 || r.Height != 600 || r.MediaType != "image/webp" {
 		t.Fatalf("original row %+v, want an 800×600 WebP", r)
 	}
+}
+
+// An image.fetch that read the locks of a title before an upload cannot write its download over
+// the uploaded original: the upload waits for the fetch (lockItemImages), locks the kind and
+// stores its image last, and the next fetch keeps it.
+func TestUploadWaitsForRunningFetch(t *testing.T) {
+	t.Parallel()
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	// The decided poster changes to one whose download hangs until release.
+	arrived, release := make(chan struct{}), make(chan struct{})
+	var once, arrive sync.Once
+	letGo := func() { once.Do(func() { close(release) }) }
+	t.Cleanup(letGo)
+	slow := jpegBytes(t, 500, 750)
+	e.tmdb.mux.HandleFunc("GET /t/p/original/slow.jpg", func(w http.ResponseWriter, _ *http.Request) {
+		arrive.Do(func() { close(arrived) })
+		<-release
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write(slow)
+	})
+	mustExec(t, e.db.Write, `UPDATE item_images SET source = '/slow.jpg' WHERE item_id = ? AND kind = 'poster'`, idByTMDB)
+
+	fetched := make(chan error, 1)
+	go func() { fetched <- e.svc.fetchImages(ctx, idByTMDB) }()
+	<-arrived
+	upload := jpegBytes(t, 600, 900)
+	uploaded := make(chan error, 1)
+	go func() { uploaded <- e.svc.UploadItemImage(ctx, idByTMDB, "poster", upload) }()
+	select {
+	case err := <-uploaded:
+		letGo()
+		t.Fatalf("the upload finished while the fetch was downloading (%v)", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	letGo()
+	if err := <-fetched; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-uploaded; err != nil {
+		t.Fatal(err)
+	}
+	check := func(when string) {
+		t.Helper()
+		imgs := e.images(t, idByTMDB)
+		for _, key := range []string{"poster/original/jpeg", "poster/w400/jpeg", "poster/w800/webp"} {
+			if r := imgs[key]; r.Source != "upload:"+sha(upload) {
+				t.Errorf("%s: %s from %s, want the upload", when, key, r.Source)
+			}
+		}
+		if got, err := os.ReadFile(filepath.Join(e.cache, "images", idByTMDB, "poster-original.jpg")); err != nil || sha(got) != sha(upload) {
+			t.Errorf("%s: the original file is not the upload (%v)", when, err)
+		}
+	}
+	check("after the upload")
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	check("after the next fetch")
 }

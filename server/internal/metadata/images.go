@@ -161,11 +161,18 @@ var audioKinds = map[string]bool{"audiobook": true, "podcast": true, "podcast_ep
 // stems from the current original and its file exists (so a run after a deleted file or a new
 // size only fills the gap). The original is downloaded only when its row is missing, stale or its
 // file is gone. A kind without a path keeps its rows. A kind locked by the admin is never
-// fetched, but its missing sizes are scaled from the stored image (scaleLocked).
+// fetched, but its missing sizes are scaled from the stored image (scaleLocked); an upload waits
+// for the fetch of its title and the other way round.
 func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	if s.cacheE != nil {
 		return s.cacheE
 	}
+	// One image writer per title: the locks read below hold until the end (lockItemImages).
+	unlock, err := s.lockItemImages(ctx, itemID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil

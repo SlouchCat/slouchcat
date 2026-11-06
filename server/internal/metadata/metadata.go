@@ -163,6 +163,9 @@ type Service struct {
 	candMu    sync.Mutex
 	candCache map[string]candidateEntry // image candidates per title and kind (image_candidates.go)
 
+	imageMu    sync.Mutex
+	imageLocks map[string]*imageLock // the image writers per title at work (lockItemImages)
+
 	feeds feedFetcher // podcast feeds (podcast.go)
 }
 

@@ -73,6 +73,11 @@ func (s *Service) UploadItemImage(ctx context.Context, itemID, kind string, data
 	if s.cacheE != nil {
 		return s.cacheE
 	}
+	unlock, err := s.lockItemImages(ctx, item.ID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 
 	root, err := paths.Open(s.cache)
 	if err != nil {
@@ -167,4 +172,44 @@ func (s *Service) UploadItemImage(ctx context.Context, itemID, kind string, data
 	}
 	s.log.Info("image uploaded", "item_id", item.ID, "kind", kind, "media_type", mediaType, "width", cfg.Width, "height", cfg.Height)
 	return nil
+}
+
+// imageLock lets one image writer of a title work at a time; refs counts the writers holding or
+// waiting for it, so the last one removes it from Service.imageLocks.
+type imageLock struct {
+	slot chan struct{}
+	refs int
+}
+
+// lockItemImages waits until no other image writer of the title is at work and returns the
+// function that lets the next one in. image.fetch and the upload take it, so a fetch that
+// started before an upload cannot write its download over the uploaded original: the fetch
+// reads the locks of the title only once it holds the slot, the upload changes them only while
+// it holds it. The error is the context's while waiting.
+func (s *Service) lockItemImages(ctx context.Context, itemID string) (func(), error) {
+	s.imageMu.Lock()
+	if s.imageLocks == nil {
+		s.imageLocks = map[string]*imageLock{}
+	}
+	l := s.imageLocks[itemID]
+	if l == nil {
+		l = &imageLock{slot: make(chan struct{}, 1)}
+		s.imageLocks[itemID] = l
+	}
+	l.refs++
+	s.imageMu.Unlock()
+	release := func() {
+		s.imageMu.Lock()
+		if l.refs--; l.refs == 0 {
+			delete(s.imageLocks, itemID)
+		}
+		s.imageMu.Unlock()
+	}
+	select {
+	case l.slot <- struct{}{}:
+		return func() { <-l.slot; release() }, nil
+	case <-ctx.Done():
+		release()
+		return nil, ctx.Err()
+	}
 }
