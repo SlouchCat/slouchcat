@@ -264,7 +264,9 @@ Stufe 6): Reihe = erste 20 der Bibliotheksseite, Poster = deren erste vier, Zahl
 
 ### Behebung
 
-Vier Commits auf `claude/fs3-perf`, ohne Änderung an Sichtbarkeit oder Reihenfolge:
+Vier Commits auf `claude/feinschliff-stufe3` (`3f67c78e`, `63c2df5d`, `6e12919a`, `9be63b44`, in
+der Reihenfolge der Liste; diese Messung steht in `8251b6cf`), ohne Änderung an Sichtbarkeit oder
+Reihenfolge:
 
 1. **Migration 00037** `items_top_added`: Teilindex `ON items (added_at DESC, id DESC) WHERE kind
 IN ('movie', 'series', 'audiobook', 'podcast')`. `ListRecentlyAdded` liest ihn in seiner
@@ -319,7 +321,7 @@ Je Reihe, ein Kern, 40 Läufe warm, Profil 1:
 | 2 (`taskset`, wie CT) |   122,5 ms |   123,6 ms |     45,4 ms |     46,3 ms |
 | alle 28               |   127,6 ms |   133,0 ms |     33,1 ms |     36,2 ms |
 
-Benchmark `BenchmarkLibraryRows` (10 000 Filme, siehe oben), vorher `3429ef3b`, nachher `a4b3e3f6`:
+Benchmark `BenchmarkLibraryRows` (10 000 Filme, siehe oben), vorher `3429ef3b`, nachher `9be63b44`:
 
 | Fall                            | vorher p50 | vorher p95 | nachher p50 | nachher p95 |
 | ------------------------------- | ---------: | ---------: | ----------: | ----------: |
