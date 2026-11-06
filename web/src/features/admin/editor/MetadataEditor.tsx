@@ -6,7 +6,14 @@ import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { Notice, Skeleton, TextLink, useSpatialHold } from '@/ui';
-import { AriaButton, EditorDialog, StatusRegion, Tabs, useStatusMessage } from '@/ui/aria';
+import {
+  AriaButton,
+  ConfirmDialog,
+  EditorDialog,
+  StatusRegion,
+  Tabs,
+  useStatusMessage,
+} from '@/ui/aria';
 import { visibleLibrariesQuery } from '@/features/catalog/queries';
 import { adminItemQuery } from '../queries';
 import { ImagesEditorTab } from './ImagesEditorTab';
@@ -48,6 +55,10 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
   const [tab, setTab] = useState('images');
   const [message, setMessage] = useStatusMessage();
   const [draft, setDraft] = useState<EditorDraft>(emptyDraft);
+  const [discarding, setDiscarding] = useState(false);
+  const dirty = draft.unlock.length > 0 || Object.keys(draft.changed).length > 0;
+  // Escape or «Schliessen» with unsaved metadata asks first; a clean draft closes at once.
+  const requestClose = () => (dirty ? setDiscarding(true) : onClose());
 
   const data = item.data;
   if (!data) {
@@ -99,8 +110,19 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
       imageShape={image.shape}
       link={<TextLink href={paths.adminItem(data.id)}>{t('admin.editor.openAdmin')}</TextLink>}
       closeLabel={t('admin.editor.close')}
-      onClose={onClose}
+      onClose={requestClose}
     >
+      <ConfirmDialog
+        isOpen={discarding}
+        onOpenChange={setDiscarding}
+        title={t('admin.editor.discard.title')}
+        body={t('admin.editor.discard.body')}
+        confirmLabel={t('admin.editor.discard.confirm')}
+        cancelLabel={t('admin.editor.discard.cancel')}
+        tone="danger"
+        defaultFocus="cancel"
+        onConfirm={onClose}
+      />
       <div className={styles.body}>
         <StatusRegion message={message} />
         <Tabs
@@ -119,7 +141,7 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
                     id: 'metadata',
                     label: t('admin.editor.tabs.metadata'),
                     // A dot while there are unsaved changes, so they show from every tab.
-                    ...(draft.unlock.length > 0 || Object.keys(draft.changed).length > 0
+                    ...(dirty
                       ? {
                           count: t('admin.item.tabs.unsavedMark'),
                           countLabel: t('admin.item.rating.unsaved'),

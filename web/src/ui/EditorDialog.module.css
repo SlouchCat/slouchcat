@@ -9,11 +9,12 @@
   background-color: var(--sc-color-bg-overlay);
 }
 
+/* As high as its content, at most 90 % of the window; the body scrolls beyond that. */
 .modal {
   display: flex;
   width: 100%;
   max-width: var(--sc-size-dialog-editor);
-  height: 90dvh;
+  max-height: 90dvh;
 }
 
 .dialog {
@@ -94,6 +95,7 @@
   .modal {
     max-width: none;
     height: 100dvh;
+    max-height: none;
   }
 
   .dialog {

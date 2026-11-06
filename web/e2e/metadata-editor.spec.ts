@@ -130,6 +130,39 @@ test('the pen opens the dialog; Tab stays inside, Escape closes, focus back on t
   await expectFocusOn(page, pen(page));
 });
 
+test('unsaved changes: Escape asks first; «Weiter bearbeiten» stays, «Verwerfen» closes @keyboard', async ({
+  page,
+}) => {
+  await openFromDetail(page);
+  await selectTab(page, 'Metadaten', 1);
+  const panel = dialog(page).getByRole('tabpanel');
+  const overview = panel.getByRole('textbox', { name: 'Beschreibung' });
+  await tabTo(page, overview, 30);
+  await page.keyboard.type('E2E nicht gespeichert');
+  const question = page.getByRole('alertdialog', { name: 'Ungespeicherte Änderungen verwerfen?' });
+  await page.keyboard.press('Escape');
+  await expect(question).toBeVisible();
+  // Enter by habit keeps the draft: the focus starts on «Weiter bearbeiten».
+  await expectFocusOn(page, question.getByRole('button', { name: 'Weiter bearbeiten' }));
+  await page.keyboard.press('Enter');
+  await expect(question).toHaveCount(0);
+  await expect(dialog(page)).toBeVisible();
+  await expectFocusOn(page, overview);
+  await expect(overview).toHaveValue(/E2E nicht gespeichert$/);
+
+  // «Schliessen» asks the same; «Verwerfen und schliessen» closes, the focus is back on the pen.
+  await tabTo(page, dialog(page).getByRole('button', { name: 'Schliessen' }), 40);
+  await page.keyboard.press('Enter');
+  await expect(question).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, question.getByRole('button', { name: 'Verwerfen und schliessen' }));
+  await page.keyboard.press('Enter');
+  await expect(question).toHaveCount(0);
+  await expect(dialog(page)).toHaveCount(0);
+  await expectFocusOn(page, pen(page));
+  await expect(page.getByText('E2E nicht gespeichert')).toHaveCount(0);
+});
+
 test('Metadaten: a change locks the field, «Speichern» writes it, the page shows it', async ({
   page,
 }) => {

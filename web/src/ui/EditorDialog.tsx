@@ -24,10 +24,11 @@ interface EditorDialogProps {
 
 /**
  * A large modal editor over a page (react-aria; the metadata editor of concept 15 7.4): up to
- * 1100 px wide and 90 % of the window high with its own scroll, the whole screen on phones. The
- * head carries a picture, the heading, a line and a link, and «Schliessen». Focus moves into the
- * dialog and stays there; Escape or «Schliessen» closes it and the focus returns to the button
- * that opened it. A click outside does not close it, so a half-done edit is not lost by accident.
+ * 1100 px wide, as high as its content up to 90 % of the window with its own scroll beyond that,
+ * the whole screen on phones. The head carries a picture, the heading, a line and a link, and
+ * «Schliessen». Focus moves into the dialog and stays there; Escape or «Schliessen» calls onClose
+ * (the holder may ask first) and, once the dialog goes, the focus returns to the button that
+ * opened it. A click outside does not close it, so a half-done edit is not lost by accident.
  */
 export function EditorDialog({
   onClose,

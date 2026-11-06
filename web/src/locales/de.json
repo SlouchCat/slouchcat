@@ -953,6 +953,12 @@
     "editor": {
       "close": "Schliessen",
       "openAdmin": "In der Verwaltung öffnen",
+      "discard": {
+        "title": "Ungespeicherte Änderungen verwerfen?",
+        "body": "Deine Änderungen an den Metadaten sind noch nicht gespeichert. Schliesst du den Editor, gehen sie verloren.",
+        "confirm": "Verwerfen und schliessen",
+        "cancel": "Weiter bearbeiten"
+      },
       "subtitle": "{{kind}} · {{library}}",
       "notFound": "Diesen Titel gibt es nicht oder nicht mehr.",
       "tabs": {

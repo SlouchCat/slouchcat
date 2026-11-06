@@ -953,6 +953,12 @@
     "editor": {
       "close": "Close",
       "openAdmin": "Open in administration",
+      "discard": {
+        "title": "Discard unsaved changes?",
+        "body": "Your changes to the metadata are not saved yet. If you close the editor, they are lost.",
+        "confirm": "Discard and close",
+        "cancel": "Keep editing"
+      },
       "subtitle": "{{kind}} · {{library}}",
       "notFound": "This title does not exist (any more).",
       "tabs": {
