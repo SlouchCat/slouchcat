@@ -1076,6 +1076,66 @@ func span(from, to int, skip ...int) []int {
 	return out
 }
 
+// The rows of the start page load side by side but count as one after the other (loadRows, page):
+// the error or panic of a row fails the page only when the page reaches the row, ahead of the cut
+// to MaxRows filled rows or, with untilHero, up to the spotlight row; empty rows are skipped and
+// do not count towards the cut.
+func TestHomeRowErrorsAroundTheCut(t *testing.T) {
+	t.Parallel()
+	errRow := errors.New("row failed")
+	for _, tc := range []struct {
+		name      string
+		untilHero bool
+		fail      []int // rows that fail
+		panics    []int // rows that panic
+		empty     []int // rows without titles
+		want      []int // the rows of the page; nil with wantErr
+		wantHero  bool
+		wantErr   string
+	}{
+		{name: "error ahead of the cut", fail: []int{3}, wantErr: "row failed"},
+		{name: "panic ahead of the cut", panics: []int{14}, wantErr: "panic: row 14"},
+		{name: "errors behind the cut", fail: []int{15, 29}, panics: []int{20}, want: span(0, 15), wantHero: true},
+		{name: "empty rows move the cut", empty: []int{2, 7}, fail: []int{17}, want: span(0, 17, 2, 7), wantHero: true},
+		{name: "error at the moved cut", empty: []int{2, 7}, fail: []int{16}, wantErr: "row failed"},
+		{name: "empty rows only", empty: span(0, 100), want: []int{}},
+		{name: "until the stage", untilHero: true, fail: []int{6, 20}, panics: []int{7}, want: span(0, 6), wantHero: true},
+		{name: "error ahead of the stage", untilHero: true, fail: []int{4}, wantErr: "row failed"},
+		{name: "empty stage", untilHero: true, empty: []int{5}, fail: []int{6}, want: span(0, 5)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			s, order, _ := rowsFixture(t, func(_ context.Context, i int, setting model.HomeRowSetting) (model.HomeRow, error) {
+				switch {
+				case slices.Contains(tc.fail, i):
+					return model.HomeRow{}, errRow
+				case slices.Contains(tc.panics, i):
+					panic(fmt.Sprintf("row %d", i))
+				case slices.Contains(tc.empty, i):
+					return model.HomeRow{ID: setting.ID, Key: setting.Key}, nil
+				}
+				return model.HomeRow{ID: setting.ID, Key: setting.Key, Items: []model.ItemSummary{{ID: setting.ID}}}, nil
+			})
+			page, err := s.page(context.Background(), visibility.Profile(model.Profile{}), tc.untilHero)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("err = %v, want %q", err, tc.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := settingIDs(order, tc.want...); !slices.Equal(rowIDs(page.Rows), want) {
+				t.Errorf("rows %v, want %v", rowIDs(page.Rows), want)
+			}
+			if hero := page.HeroRow == RowSpotlight; hero != tc.wantHero {
+				t.Errorf("HeroRow = %q, want stage %v", page.HeroRow, tc.wantHero)
+			}
+		})
+	}
+}
+
 // Once the page holds MaxRows rows (or reached the stage, with untilHero) the rows still loading
 // are cancelled: here every row behind the cut waits for its context, so the page returns only
 // through that cancellation, well before the deadline of the request. Without a spotlight row a
