@@ -1,5 +1,41 @@
 # Aktueller Stand
 
+## Konzept 15 «Feinschliff», Stufe 2: gebaut und geprüft (6. November 2026)
+
+Zweig `claude/feinschliff-stufe2-26fc61` ab `main` `8ca83892` (Release 1.13.2). Geplant als Release
+**1.14.0**: Vertrag **1.14.0 (additiv)**, Migration **`00034_job_windows.sql`**.
+
+- **P-1 «Weiterschauen» je Serie:** eine Karte je Serie mit Serienposter, Serientitel und «S4 · F7 ·
+  Noch 20 min» oder «S4 · F8 · Neu»; ein Klick führt zur Folge (F-1). Je Serie zählt der jüngste
+  Fortschritt; ist die Folge fertig, zeigt die Karte die nächste nicht fertige sichtbare Folge,
+  solange die letzte Aktivität höchstens 60 Tage zurückliegt (F-2, `visibility.NextEpisodeWindow`,
+  geteilt mit den automatischen Downloads). Eine ganz fertige Serie fällt weg; Folgen ohne
+  Staffel- oder Folgennummer haben keine nächste Folge (wie `episodeChain`). Vertrag: neues Feld
+  **`ItemRef.seriesRef`** (Schema `SeriesRef`), abweichend vom Konzept nicht `series`, weil
+  `ItemDetail.series` schon existiert. Die Vorabmalerei malt das Serienposter nur für die Reihe
+  «Weiterschauen».
+- **P-3 Zeitfenster (4.3):** `probe.keyframes`, `segments.detect` und `chapters.images` laufen nur
+  im eingestellten Fenster (Verwaltung › Hintergrundjobs, aufgeklapptes Feld «Nur in einem
+  Zeitfenster», ab Werk aus). Neu: `job_types.window_start/window_end`, `jobs.override_window`,
+  `JobTypeInfo.windowable/window/windowTimeZone/windowOpensAt`, `JobRun.overridesWindow`,
+  `PUT /admin/job-types/{type}/window` (409 `job_type_not_windowable`). Pause geht vor Fenster;
+  Wiedergaben **und Offline-Downloads** (Marcos Entscheid «Download geht vor», Nachtrag zu
+  Frage 22) starten trotzdem sofort; `override_pause` und die Grenze von drei bleiben. Die Spalte
+  zeigt «wartet bis 01:00» nur, solange ein Auftrag ohne Ausnahme auf das Fenster wartet.
+- **Review** (OMC-Code-Reviewer): APPROVE mit 1 Medium (M-1 Downloads, entschieden und umgesetzt)
+  und 8 Low; L-1 bis L-5, L-7, L-8 behoben, L-6 (`seriesRef` an allen Folgen) bewusst belassen.
+- **Messung** `docs/perf/feinschliff.md`: `ListContinueWatching` mit 10 000 Fortschrittszeilen
+  p95 50,1 → 20,1 ms (Index-Weg über die Staffeln, `GROUP BY` statt Fensterfunktion).
+- **Bekannt:** Ohne gesetztes `TZ` meldet der Server die Zeitzone «Local» (vorbestehend beim
+  Zeitplan); die Web-App nimmt dann die Zeitzone des Browsers.
+
+**Belege auf `269f2d23`:** `task ci` grün bis auf Storybook: 359 gleich, **1 neue Story ohne
+Vergleichsbild** (`ui-postercard--continue-episode`); Go 36 Pakete ok, Vitest 1441, api-client 4,
+design-tokens 2. e2e separat `task ci:e2e:parallel` (nach `task build`): **490/492**, die zwei
+Firefox-Fehler (`admin-picks.spec.ts:98` Tab-Lauf, `downloads.spec.ts:44` Vorbereitung unter Last)
+einzeln wiederholt grün (`task e2e:quick -- e2e/downloads.spec.ts e2e/admin-picks.spec.ts
+--project=firefox`: 11 passed).
+
 ## Release 1.13.2 (6. November 2026): veröffentlicht
 
 Release ab `main` nach PR #98 (Konzept 15, Stufe 1). Der Vertrag bleibt **1.13.0** (keine Änderung an
