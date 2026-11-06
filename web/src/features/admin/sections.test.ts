@@ -35,8 +35,9 @@ describe('isSectionPath', () => {
     expect(current('/admin/accounts')).toEqual(['accounts']);
   });
 
-  it('knows the entry outside /admin: «Benachrichtigungen» is /settings/notifications', () => {
-    expect(current('/settings/notifications')).toEqual(['notifications']);
+  it('keeps «Benachrichtigungen» inside /admin; the account page under /settings is no entry', () => {
+    expect(current('/admin/notifications')).toEqual(['notifications']);
+    expect(current('/settings/notifications')).toEqual([]);
     expect(current('/settings/profiles')).toEqual([]);
   });
 });

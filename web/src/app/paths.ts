@@ -55,8 +55,10 @@ export const paths = {
   /** Usage statistics; `days` picks the period (7, 30, 90 or 365, default 30). */
   adminStats: '/admin/stats',
   adminBackup: '/admin/backup',
-  /** Notification channels of the signed-in account (M8). */
+  /** Notification channels of the signed-in account (M8), for every account with the app's column. */
   notificationSettings: '/settings/notifications',
+  /** The same page inside the administration (concept 15, P-4), with the admin sidebar. */
+  adminNotifications: '/admin/notifications',
   adminItem: (id: string) => `/admin/items/${encodeURIComponent(id)}`,
   invite: (token: string) => `/invite/${encodeURIComponent(token)}`,
 } as const;

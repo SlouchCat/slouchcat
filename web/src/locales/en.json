@@ -3798,6 +3798,7 @@
       "title": "Notification channels",
       "intro": "New episodes of your favourites, invitations and announcements arrive here in addition to the app’s inbox. The settings apply to the whole account with all its profiles; a message about a profile starts with its name.",
       "link": "Set up channels",
+      "serverChannels": "Set up the server’s channels → Integrations",
       "list": "Channels",
       "onlyPrimary": {
         "title": "Primary profile only",

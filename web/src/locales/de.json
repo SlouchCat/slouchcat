@@ -3798,6 +3798,7 @@
       "title": "Benachrichtigungskanäle",
       "intro": "Neue Folgen deiner Favoriten, Einladungen und Ankündigungen kommen hier zusätzlich zum Eingang der App an. Die Einstellungen gelten für das ganze Konto mit allen Profilen; eine Nachricht zu einem Profil beginnt mit seinem Namen.",
       "link": "Kanäle einstellen",
+      "serverChannels": "Kanäle des Servers einrichten → Integrationen",
       "list": "Kanäle",
       "onlyPrimary": {
         "title": "Nur im Hauptprofil",

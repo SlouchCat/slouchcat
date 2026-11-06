@@ -746,7 +746,7 @@ const SIDEBAR = [
   ['Ankündigungen', '/admin/announcements'],
   ['Hintergrundjobs', '/admin/jobs'],
   ['Integrationen', '/admin/integrations'],
-  ['Benachrichtigungen', '/settings/notifications'],
+  ['Benachrichtigungen', '/admin/notifications'],
   ['Statistiken', '/admin/stats'],
   ['Sicherung', '/admin/backup'],
 ] as const;

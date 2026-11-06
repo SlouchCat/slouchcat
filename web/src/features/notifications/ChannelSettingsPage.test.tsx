@@ -378,6 +378,23 @@ describe('notification channels page', () => {
     expect(within(bot).queryByRole('button', { name: 'Verknüpfen' })).not.toBeInTheDocument();
   });
 
+  it('shows the link to the server channels only inside the administration', async () => {
+    mockApi({ ...page, 'GET /me/channels': () => json(settings(email, push)) });
+    const view = renderApp('/admin/notifications');
+    const link = await screen.findByRole('link', {
+      name: 'Kanäle des Servers einrichten → Integrationen',
+    });
+    expect(link).toHaveAttribute('href', '/admin/integrations');
+    view.unmount();
+
+    mockApi({ ...page, 'GET /me/channels': () => json(settings(email, push)) });
+    renderApp('/settings/notifications');
+    await block('E-Mail');
+    expect(
+      screen.queryByRole('link', { name: 'Kanäle des Servers einrichten → Integrationen' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('gives a guest the hint without the link', async () => {
     mockApi({
       ...page,

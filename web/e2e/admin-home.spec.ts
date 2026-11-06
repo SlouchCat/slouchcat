@@ -43,7 +43,7 @@ const NAV_ENTRIES = [
   ['Ankündigungen', '/admin/announcements'],
   ['Hintergrundjobs', '/admin/jobs'],
   ['Integrationen', '/admin/integrations'],
-  ['Benachrichtigungen', '/settings/notifications'],
+  ['Benachrichtigungen', '/admin/notifications'],
   ['Statistiken', '/admin/stats'],
   ['Sicherung', '/admin/backup'],
 ] as const;
@@ -180,22 +180,17 @@ test('every admin page is reached through the sidebar (A-2)', async ({ page }) =
   await resetFocus(page);
   await tabTo(page, entry(page, 'Übersicht'));
   for (const [name, path] of NAV_ENTRIES.slice(2)) {
-    // Notifications belong to the account (/settings): checked below.
-    if (!path.startsWith('/admin/')) continue;
     const link = entry(page, name);
     await arrowTo(page, link);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(new RegExp(`${path}$`));
     // Every page has the heading of its entry; the sidebar keeps the focus on the followed link.
-    await expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
+    // «Benachrichtigungen» opens the account's page, whose heading is «Benachrichtigungskanäle».
+    const heading = name === 'Benachrichtigungen' ? 'Benachrichtigungskanäle' : name;
+    await expect(page.getByRole('heading', { level: 1, name: heading, exact: true })).toBeVisible();
     await expect(link).toHaveAttribute('aria-current', 'page');
     await expectFocusOn(page, link);
   }
-
-  await expect(entry(page, 'Benachrichtigungen')).toHaveAttribute(
-    'href',
-    '/settings/notifications',
-  );
 });
 
 test('the overview: eight equal cards in two columns, the server log collapsed (A-3)', async ({

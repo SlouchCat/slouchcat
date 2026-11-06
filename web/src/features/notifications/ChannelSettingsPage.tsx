@@ -6,7 +6,7 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { ButtonLink, Chip, Notice, Skeleton } from '@/ui';
+import { ButtonLink, Chip, Notice, Skeleton, TextLink } from '@/ui';
 import {
   AdminPage,
   AriaButton,
@@ -49,9 +49,11 @@ const ordered = (channels: readonly ChannelSetting[]) =>
  * the same settings; the in-app inbox is always on and not listed. The server decides what may be
  * chosen (`errors` for the main account only). Only the account's primary profile changes them:
  * another profile sees them without controls (BEN-5). Every account has this page, so it keeps
- * today's density (S-1).
+ * today's density (S-1). Inside the administration (`/admin/notifications`, concept 15, P-4) the
+ * same page stands under the admin sidebar in the compact density, and an administrator gets a
+ * link to the server's channels at the top.
  */
-export function ChannelSettingsPage() {
+export function ChannelSettingsPage({ inAdmin = false }: { inAdmin?: boolean } = {}) {
   const { t } = useTranslation();
   useDocumentTitle(t('settings.notifications.title'));
   const session = useActiveSession();
@@ -137,6 +139,13 @@ export function ChannelSettingsPage() {
       help={t('settings.notifications.intro')}
       titleRef={titleRef}
       liveSeconds={polls && linkOpen(channels.data) ? LINK_POLL_MS / 1000 : undefined}
+      actions={
+        inAdmin && isAdmin ? (
+          <TextLink href={paths.adminIntegrations}>
+            {t('settings.notifications.serverChannels')}
+          </TextLink>
+        ) : undefined
+      }
     >
       {!isPrimary && (
         <Notice
@@ -233,4 +242,9 @@ export function ChannelSettingsPage() {
       <ConfirmDialog {...unsaved.dialog} />
     </AdminPage>
   );
+}
+
+/** The same page as a child of the administration's layout (route `/admin/notifications`). */
+export function AdminChannelSettingsPage() {
+  return <ChannelSettingsPage inAdmin />;
 }
