@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1015,5 +1016,98 @@ func TestHomeRowPanicFailsThePage(t *testing.T) {
 	_, err := s.Home(context.Background(), f.P6, nil)
 	if err == nil || !strings.Contains(err.Error(), "home row recent: panic: row exploded") || !strings.Contains(err.Error(), "goroutine") {
 		t.Errorf("Home with a panicking row: err = %v, want the panic with its stack", err)
+	}
+}
+
+// rowsFixture returns a service over 30 shown rows (spotlight sixth, behind five other rows) whose
+// rows come from load instead of the database, the order of those rows and the fixture.
+func rowsFixture(t *testing.T, load func(ctx context.Context, i int, setting model.HomeRowSetting) (model.HomeRow, error)) (*Service, []model.HomeRowSetting, *vistest.Fixture) {
+	t.Helper()
+	f := vistest.New(t)
+	for i := range 30 {
+		exec(t, f, `INSERT INTO libraries (name, kind, created_at, updated_at) VALUES (?, 'video', 0, 0)`, fmt.Sprintf("Library %d", i))
+	}
+	exec(t, f, `UPDATE home_rows SET hidden = 0, position = position * 10`)
+	exec(t, f, `UPDATE home_rows SET position = (SELECT position FROM home_rows WHERE id = 'watchlist') + 5 WHERE id = 'spotlight'`)
+	s := New(f.DB, f.CacheDir, vistest.Logger())
+	order, err := s.rowOrder(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(order) < 30 || order[5].Key != RowSpotlight {
+		t.Fatalf("order %v, want at least 30 rows with spotlight sixth", order)
+	}
+	index := make(map[string]int, len(order))
+	for i, r := range order {
+		index[r.ID] = i
+	}
+	s.loadRow = func(ctx context.Context, _ visibility.Scope, setting model.HomeRowSetting) (model.HomeRow, error) {
+		return load(ctx, index[setting.ID], setting)
+	}
+	return s, order, f
+}
+
+// rowIDs returns the ids of rows.
+func rowIDs(rows []model.HomeRow) []string {
+	out := make([]string, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, r.ID)
+	}
+	return out
+}
+
+// settingIDs returns the ids of the rows of order at the indexes idx.
+func settingIDs(order []model.HomeRowSetting, idx ...int) []string {
+	out := make([]string, 0, len(idx))
+	for _, i := range idx {
+		out = append(out, order[i].ID)
+	}
+	return out
+}
+
+// span returns the indexes from..to-1 without skip.
+func span(from, to int, skip ...int) []int {
+	var out []int
+	for i := from; i < to; i++ {
+		if !slices.Contains(skip, i) {
+			out = append(out, i)
+		}
+	}
+	return out
+}
+
+// Once the page holds MaxRows rows (or reached the stage, with untilHero) the rows still loading
+// are cancelled: here every row behind the cut waits for its context, so the page returns only
+// through that cancellation, well before the deadline of the request. Without a spotlight row a
+// page until the stage loads no row at all.
+func TestHomeStopsLoadingBehindThePage(t *testing.T) {
+	t.Parallel()
+	var loaded atomic.Int32
+	s, order, f := rowsFixture(t, func(ctx context.Context, i int, setting model.HomeRowSetting) (model.HomeRow, error) {
+		loaded.Add(1)
+		if i >= MaxRows {
+			<-ctx.Done()
+			return model.HomeRow{}, ctx.Err()
+		}
+		return model.HomeRow{ID: setting.ID, Key: setting.Key, Items: []model.ItemSummary{{ID: setting.ID}}}, nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	page, err := s.page(ctx, visibility.Profile(model.Profile{}), false)
+	if err != nil || ctx.Err() != nil {
+		t.Fatalf("page: err %v, request %v, want the rows behind the cut cancelled", err, ctx.Err())
+	}
+	if want := settingIDs(order, span(0, MaxRows)...); !slices.Equal(rowIDs(page.Rows), want) {
+		t.Errorf("rows %v, want %v", rowIDs(page.Rows), want)
+	}
+	if n := int(loaded.Load()); n >= len(order) {
+		t.Errorf("loaded %d of %d rows, want the rows not yet started skipped", n, len(order))
+	}
+
+	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE id = 'spotlight'`)
+	loaded.Store(0)
+	page, err = s.page(ctx, visibility.Profile(model.Profile{}), true)
+	if err != nil || len(page.Rows) != 0 || page.HeroRow != "" || loaded.Load() != 0 {
+		t.Errorf("until the stage without spotlight: page %+v, err %v, %d rows loaded, want an empty page and no row loaded", page, err, loaded.Load())
 	}
 }
