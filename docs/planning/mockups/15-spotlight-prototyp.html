@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spotlight-Reihe Prototyp</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+</head>
+<body>
+<style>
+  /* Layout: switches on top, the home stage (hero + poster row) in a desktop or phone frame,
+     the description of the chosen variant underneath. Slouchcat tokens, single dark look on purpose. */
+  :root {
+    color-scheme: dark;
+    --bg-base: #0b0c10; --bg-elevated: #13151b;
+    --surface-1: #16181f; --surface-2: #1d2029; --surface-3: #262a35;
+    --text-primary: #f3f3f5; --text-secondary: #b6b9c4; --text-muted: #9095a3;
+    --border-subtle: #ffffff14; --focus: #f3f3f5; --track: #ffffff33;
+    --scrim-solid: #0b0c10f5; --scrim-strong: #0b0c10cc; --scrim-clear: #0b0c1000;
+    --accent: #e8794a; --on-accent: #1c0d06; --success: #5fcf8f; --warning: #e8b65a;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --gap: 16px; --card: 200px; --gutter: 40px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg-base); color: var(--text-primary); font-family: var(--font);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 48px; line-height: 1.45;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+  .intro h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.02em; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--text-secondary); max-width: 75ch; font-size: .9rem; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+  .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .group > span { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--surface-1); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button, .pbtn {
+    font: inherit; font-size: .82rem; color: var(--text-secondary); background: transparent; border: 0;
+    border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--text-primary); }
+  .pbtn { background: var(--surface-1); }
+  .pbtn:hover, .seg button:hover { color: var(--text-primary); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  /* Stage frame */
+  .frame { background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: 14px; overflow: hidden; margin-inline: auto; width: 100%; }
+  .frame.phone { max-width: 390px; --card: calc((390px - 2*16px - 2*10px) / 3); --gap: 10px; --gutter: 16px; }
+  .hero { position: relative; min-height: 340px; padding: 48px var(--gutter) 28px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; overflow: hidden; }
+  .phone .hero { min-height: 300px; padding-top: 28px; }
+  .hero .bd { position: absolute; inset: 0; transition: opacity .5s ease; }
+  .hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--scrim-solid) 0%, var(--scrim-strong) 35%, var(--scrim-clear) 75%), linear-gradient(0deg, var(--bg-base) 0%, var(--scrim-clear) 45%); }
+  .hero > *:not(.bd) { position: relative; z-index: 1; }
+  .eyebrow { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-secondary); display: flex; gap: 8px; align-items: center; }
+  .eyebrow::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .hero h2 { margin: 0; font-size: clamp(1.7rem, 4vw, 3rem); line-height: 1.05; letter-spacing: -0.02em; max-width: 14ch; text-wrap: balance; }
+  .meta { display: flex; gap: 10px; align-items: center; color: var(--text-secondary); font-size: .9rem; flex-wrap: wrap; }
+  .fsk { border: 1px solid var(--text-secondary); border-radius: 4px; padding: 0 6px; font-size: .78rem; color: var(--text-primary); }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btns span { border-radius: 999px; padding: 9px 18px; font-size: .9rem; background: var(--surface-3); }
+  .btns span:first-child { background: var(--text-primary); color: var(--bg-base); font-weight: 600; }
+  .pos { position: absolute; top: 16px; right: var(--gutter); z-index: 1; font-size: .78rem; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+  .rowwrap { position: relative; padding-bottom: 28px; }
+  .row { display: flex; gap: var(--gap); overflow-x: auto; scrollbar-width: none; padding: 6px var(--gutter) 4px; scroll-padding-inline: var(--gutter); }
+  .row::-webkit-scrollbar { display: none; }
+  .row.snap { scroll-snap-type: x mandatory; }
+  .row.snap .card { scroll-snap-align: start; }
+  .row.clip { overflow: hidden; }
+  .track { display: flex; gap: var(--gap); will-change: transform; }
+  .card { flex: 0 0 var(--card); border: 0; padding: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .poster { position: relative; aspect-ratio: 2/3; border-radius: 10px; overflow: hidden; opacity: .7; transition: opacity .2s; display: flex; align-items: flex-end; padding: 10px; }
+  .poster b { font-size: .95rem; line-height: 1.1; text-shadow: 0 1px 6px var(--bg-base); }
+  .phone .poster b { font-size: .72rem; }
+  .card.active .poster { opacity: 1; }
+  .card.active .poster::after { content: ""; position: absolute; inset: 0; border: 3px solid var(--accent); border-radius: 10px; }
+  .timer { position: absolute; left: 10px; right: 10px; top: 10px; height: 3px; border-radius: 2px; background: var(--track); overflow: hidden; }
+  .timer i { display: block; height: 100%; width: 0; background: var(--text-primary); }
+  .cap { margin-top: 6px; font-size: .85rem; }
+  .cap small { display: block; color: var(--text-muted); font-size: .75rem; }
+  .phone .cap { font-size: .72rem; }
+  .spacer { flex: 0 0 calc(100% - var(--card) - var(--gutter)); }
+  .ghost { position: absolute; top: 6px; bottom: 32px; left: 0; width: var(--gutter); background: linear-gradient(90deg, var(--bg-base), var(--scrim-clear)); pointer-events: none; z-index: 2; }
+  .nav { position: absolute; top: 40%; z-index: 3; border: 0; width: 36px; height: 36px; border-radius: 50%; background: var(--scrim-strong); color: var(--text-primary); font-size: 1rem; cursor: pointer; }
+  .nav.l { left: 6px; } .nav.r { right: 6px; }
+  .phone .nav { display: none; }
+
+  .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .note { background: var(--surface-1); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .note h3 { margin: 0 0 6px; font-size: .95rem; }
+  .note ul { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: .86rem; display: grid; gap: 4px; }
+  .note.pro h3 { color: var(--success); } .note.con h3 { color: var(--warning); }
+  .hint { font-size: .8rem; color: var(--text-muted); }
+  kbd { background: var(--surface-3); border-radius: 4px; padding: 0 5px; font-size: .78rem; }
+  @media (prefers-reduced-motion: reduce) { .track, .hero .bd { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Konzept 15 · Spotlight-Reihe</h1>
+    <p>Klickbarer Prototyp für Punkt 5. Die Bühne wechselt alle 5 s. Wähle oben eine Variante und
+       schau, wie sich die Posterreihe darunter bewegt. Poster anklicken stellt den Titel ins Band,
+       <kbd>←</kbd> <kbd>→</kbd> im Band bewegen den Fokus, <kbd>Enter</kbd> wählt. Die Poster sind Platzhalter.</p>
+  </div>
+
+  <div class="bar">
+    <div class="group"><span>Variante</span>
+      <div class="seg" id="variant">
+        <button type="button" data-v="a" aria-pressed="false">A · heute</button>
+        <button type="button" data-v="b" aria-pressed="true">B · immer links</button>
+        <button type="button" data-v="c" aria-pressed="false">C · Endlosband</button>
+      </div>
+    </div>
+    <div class="group"><span>Ansicht</span>
+      <div class="seg" id="view">
+        <button type="button" data-w="desk" aria-pressed="true">Desktop</button>
+        <button type="button" data-w="phone" aria-pressed="false">Handy</button>
+      </div>
+    </div>
+    <div class="group"><span>Steuerung</span>
+      <button type="button" class="pbtn" id="pause" aria-pressed="false">Pause</button>
+      <button type="button" class="pbtn" id="next">Nächster Titel</button>
+      <button type="button" class="pbtn" id="reset">Von vorn</button>
+    </div>
+  </div>
+
+  <div class="frame" id="frame">
+    <div class="hero" id="hero">
+      <div class="bd" id="bd"></div>
+      <div class="pos" id="pos"></div>
+      <div class="eyebrow">Spotlight</div>
+      <h2 id="ht"></h2>
+      <div class="meta" id="hm"></div>
+      <div class="btns"><span>▶ Abspielen</span><span>Details</span><span>▶ Trailer</span></div>
+    </div>
+    <div class="rowwrap">
+      <button type="button" class="nav l" id="prev" aria-label="Vorheriger Titel">‹</button>
+      <div class="row" id="row" role="listbox" aria-label="Spotlight"></div>
+      <button type="button" class="nav r" id="fwd" aria-label="Nächster Titel">›</button>
+    </div>
+  </div>
+
+  <div class="notes" id="notes"></div>
+  <p class="hint">Platzhalter-Titel und Farbflächen; im echten Band stehen Poster und Hintergrundbild aus der Bibliothek.</p>
+</div>
+
+<script>
+const TITLES = [
+  ["Nebelküste", 2026, "FSK 12", "2 h 05 min", "#3b5b7a", "#16202b"],
+  ["Die letzte Fähre", 2026, "FSK 16", "1 h 52 min", "#7a3b3b", "#2b1616"],
+  ["Gipfelsturm", 2026, "FSK 6", "1 h 48 min", "#4f7a5e", "#162b1f"],
+  ["Masterplan Zürich", 2026, "FSK 12", "1 h 41 min", "#7a6a3b", "#2b2516"],
+  ["Ende der Eichenallee", 2026, "FSK 16", "1 h 37 min", "#5e5e6e", "#1c1c24"],
+  ["Spielzeugkiste", 2026, "FSK 0", "1 h 35 min", "#8a5a2a", "#2b1d10"],
+  ["Das Haus am Hang", 2026, "FSK 16", "1 h 49 min", "#2f6a6a", "#0f2424"],
+  ["Obsession", 2026, "FSK 18", "1 h 49 min", "#8a3a5a", "#2b1020"],
+  ["Meuterei", 2026, "FSK 16", "1 h 58 min", "#3a4a8a", "#10162b"],
+  ["Mayday", 2026, "FSK 12", "1 h 46 min", "#6a8a9a", "#18242b"],
+  ["Tribut", 2026, "FSK 12", "2 h 22 min", "#9a5a3a", "#2b1810"],
+  ["Sternfahrt", 2026, "FSK 6", "1 h 30 min", "#5a3a8a", "#1a102b"]
+];
+const NOTES = {
+  a: { title: "A · heute (Referenz)", pro: ["Die Reihe steht still, solange das aktive Poster ganz sichtbar ist; nur der Rahmen wandert.", "So entschieden am 30. Oktober 2026 (Konzept 08, N-4)."], con: ["Erst wenn das aktive Poster angeschnitten ist, springt die Reihe und stellt es an die linke Kante.", "Das Auge muss dem Rahmen folgen."] },
+  b: { title: "B · immer links (Empfehlung)", pro: ["Das aktive Poster steht bei jedem Wechsel bündig links unter dem Titel im Band.", "Nach links wischen oder blättern zeigt die schon gezeigten Titel; nichts geht verloren.", "Nach dem letzten Titel springt das Band zurück an den Anfang."], con: ["Die Reihe bewegt sich bei jedem Wechsel (alle 5 s) um eine Karte.", "Am Ende braucht die Reihe einen Leerraum, damit auch der letzte Titel links stehen kann."] },
+  c: { title: "C · Endlosband", pro: ["Links steht immer der aktive Titel, rechts davon die nächsten; die gezeigten wandern hinten an.", "Kein Leerraum und kein Sprung zurück an den Anfang."], con: ["Die Reihenfolge ist nicht fest: nach 12 Wechseln steht wieder derselbe Titel vorn.", "Nach links blättern gibt es nicht, nur weiter; ein Titel, der eben vorbei war, steht ganz hinten.", "Für Bildschirmleser schwerer, weil sich die Liste ständig umordnet."] }
+};
+const S = { v: "b", w: "desk", i: 0, paused: false, t0: 0, raf: 0, timer: 0, order: [] };
+const INTERVAL = 5000;
+const $ = id => document.getElementById(id);
+const row = $("row"), frame = $("frame");
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function poster(i) {
+  const [t, , , , a, b] = TITLES[i];
+  return `linear-gradient(160deg, ${a} 0%, ${b} 85%)`;
+}
+function hero() {
+  const [t, y, f, d, a, b] = TITLES[S.i];
+  $("bd").style.background = `radial-gradient(120% 120% at 80% 20%, ${a} 0%, ${b} 55%, var(--bg-base) 100%)`;
+  $("ht").textContent = t;
+  $("hm").innerHTML = `<span class="fsk">${f}</span><span>${y}</span><span>·</span><span>${d}</span>`;
+  $("pos").textContent = `${S.i + 1} / ${TITLES.length}`;
+}
+function cardHTML(i) {
+  const [t, y] = TITLES[i];
+  const act = i === S.i;
+  return `<button type="button" class="card${act ? " active" : ""}" role="option" aria-selected="${act}" data-i="${i}" tabindex="${act ? 0 : -1}">
+    <div class="poster" style="background:${poster(i)}">${act ? '<div class="timer"><i></i></div>' : ""}<b>${t}</b></div>
+    <div class="cap">${t}<small>${y}</small></div></button>`;
+}
+function build() {
+  frame.className = "frame" + (S.w === "phone" ? " phone" : "");
+  row.className = "row" + (S.v === "c" ? " clip" : " snap");
+  if (S.v === "c") {
+    S.order = TITLES.map((_, k) => (S.i + k) % TITLES.length);
+    row.innerHTML = `<div class="track" id="track">${S.order.map(cardHTML).join("")}</div>`;
+  } else {
+    row.innerHTML = TITLES.map((_, k) => cardHTML(k)).join("") + (S.v === "b" ? '<div class="spacer" aria-hidden="true"></div>' : '<div style="flex:0 0 1px"></div>');
+  }
+  hero(); notes();
+}
+function mark() {
+  row.querySelectorAll(".card").forEach(c => {
+    const act = +c.dataset.i === S.i;
+    c.classList.toggle("active", act);
+    c.setAttribute("aria-selected", act);
+    c.tabIndex = act ? 0 : -1;
+    const p = c.querySelector(".poster"), tm = p.querySelector(".timer");
+    if (act && !tm) p.insertAdjacentHTML("afterbegin", '<div class="timer"><i></i></div>');
+    if (!act && tm) tm.remove();
+  });
+}
+function leftOf(card) {
+  const g = parseFloat(getComputedStyle(row).paddingLeft);
+  return card.offsetLeft - g;
+}
+function place(smooth) {
+  const card = row.querySelector(`.card[data-i="${S.i}"]`);
+  if (!card) return;
+  const left = card.offsetLeft - row.offsetLeft, view = row.clientWidth, sl = row.scrollLeft;
+  const g = parseFloat(getComputedStyle(row).paddingLeft);
+  const visible = left - g >= sl - 1 && left + card.offsetWidth <= sl + view - g + 1;
+  if (S.v === "a" && visible) return;
+  row.scrollTo({ left: left - g, behavior: smooth && !reduced ? "smooth" : "auto" });
+}
+function select(i, how) {
+  const n = TITLES.length;
+  i = ((i % n) + n) % n;
+  if (S.v === "c") {
+    const steps = (i - S.i + n) % n;
+    S.i = i; hero();
+    const track = $("track");
+    if (steps === 1 && !reduced) {
+      const first = track.firstElementChild;
+      const shift = first.offsetWidth + parseFloat(getComputedStyle(track).gap);
+      track.style.transition = "transform .45s ease";
+      track.style.transform = `translateX(-${shift}px)`;
+      mark();
+      track.addEventListener("transitionend", function done() {
+        track.removeEventListener("transitionend", done);
+        track.style.transition = "none"; track.style.transform = "";
+        track.appendChild(first);
+        refocus(how);
+      });
+    } else {
+      build(); refocus(how);
+    }
+  } else {
+    S.i = i; hero(); mark(); place(true); refocus(how);
+  }
+  restart();
+}
+function refocus(how) {
+  if (how !== "key") return;
+  row.querySelector(`.card[data-i="${S.i}"]`)?.focus({ preventScroll: true });
+}
+function restart() {
+  S.t0 = performance.now();
+}
+function tick(now) {
+  if (!S.paused && !document.hidden) {
+    const p = Math.min(1, (now - S.t0) / INTERVAL);
+    const bar = row.querySelector(".card.active .timer i");
+    if (bar) bar.style.width = (p * 100) + "%";
+    if (p >= 1) select(S.i + 1, "auto");
+  } else {
+    S.t0 = now - (S.pausedAt || 0);
+  }
+  S.raf = requestAnimationFrame(tick);
+}
+function notes() {
+  const n = NOTES[S.v];
+  $("notes").innerHTML = `<div class="note pro"><h3>${n.title}: dafür</h3><ul>${n.pro.map(x => `<li>${x}</li>`).join("")}</ul></div>
+    <div class="note con"><h3>Dagegen</h3><ul>${n.con.map(x => `<li>${x}</li>`).join("")}</ul></div>`;
+}
+function setPaused(p) {
+  if (p) S.pausedAt = performance.now() - S.t0;
+  S.paused = p;
+  $("pause").setAttribute("aria-pressed", p); $("pause").textContent = p ? "Weiter" : "Pause";
+}
+
+row.addEventListener("click", e => {
+  const c = e.target.closest(".card"); if (!c) return;
+  select(+c.dataset.i, "click");
+});
+row.addEventListener("keydown", e => {
+  const cards = [...row.querySelectorAll(".card")];
+  const k = cards.indexOf(document.activeElement);
+  if (k < 0) return;
+  if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    e.preventDefault();
+    const nk = Math.max(0, Math.min(cards.length - 1, k + (e.key === "ArrowRight" ? 1 : -1)));
+    cards.forEach(c => c.tabIndex = -1); cards[nk].tabIndex = 0;
+    cards[nk].focus({ preventScroll: true });
+    cards[nk].scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduced ? "auto" : "smooth" });
+  } else if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault(); select(+cards[k].dataset.i, "key");
+  }
+});
+row.addEventListener("focusin", e => { if (e.target.matches(":focus-visible")) setPaused(true); });
+$("variant").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.v = b.dataset.v;
+  $("variant").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  build(); place(false); restart();
+});
+$("view").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  S.w = b.dataset.w;
+  $("view").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  build(); place(false); restart();
+});
+$("pause").addEventListener("click", () => setPaused(!S.paused));
+$("next").addEventListener("click", () => select(S.i + 1, "click"));
+$("fwd").addEventListener("click", () => select(S.i + 1, "click"));
+$("prev").addEventListener("click", () => select(S.i - 1, "click"));
+$("reset").addEventListener("click", () => { S.i = 0; build(); row.scrollLeft = 0; restart(); });
+
+build(); restart(); S.raf = requestAnimationFrame(tick);
+</script>
+</body>
+</html>
