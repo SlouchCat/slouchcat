@@ -353,16 +353,19 @@ func New(db *store.DB, queue *jobs.Queue, keys KeySource, cacheDir string, runne
 // the due subscriptions, no handler of its own) and trakt.refresh are schedule types.
 // metadata.vote_backfill is an event type: concept 08 queues it after every full scan and at the
 // start of the server while titles wait for a vote (QueuePendingMetadata), so it has no Run.
-// metadata.original_language_backfill is a manual type (concept 13 11.7): queued once at the
-// first start after migration 00032, later by hand, so it has a Run.
+// metadata.original_language_backfill (concept 13 11.7) is queued once at the first start after
+// migration 00032; since concept 15 P-3 it is a schedule type every 7 days with the schedule off
+// by default, so later runs start by hand or by its schedule.
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{Name: JobMatch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: matchPriority, Handler: s.handleMatch})
 	r.Register(jobs.Type{Name: JobFill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleFill})
 	r.Register(jobs.Type{Name: JobVoteBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: fillPriority, Handler: s.handleVoteBackfill})
 	r.Register(jobs.Type{
-		Name: JobOriginalLanguageBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerManual,
+		Name: JobOriginalLanguageBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: fillPriority, Handler: s.handleOriginalLanguageBackfill, Run: s.runOriginalLanguageBackfill,
+		Every: originalLanguageEvery,
+		Seed:  func(context.Context) (jobs.ScheduleSeed, error) { return jobs.ScheduleSeed{Enabled: false}, nil },
 	})
 	r.Register(jobs.Type{Name: JobImageFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: imageFetchPriority, Handler: s.handleImageFetch})
 	r.Register(jobs.Type{Name: JobApply, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: applyPriority, Handler: s.handleApply})

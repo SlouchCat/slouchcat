@@ -396,9 +396,11 @@ func TestRegisterTypesSchedules(t *testing.T) {
 	if vote, ok := r.Lookup(JobVoteBackfill); !ok || vote.Trigger != jobs.TriggerEvent || vote.Run != nil {
 		t.Errorf("metadata.vote_backfill = %+v, want an event type without Run (concept 08 queues it)", vote)
 	}
-	if lang, ok := r.Lookup(JobOriginalLanguageBackfill); !ok || lang.Trigger != jobs.TriggerManual || lang.Run == nil ||
-		lang.Handler == nil || lang.Priority != fillPriority {
-		t.Errorf("metadata.original_language_backfill = %+v, want a manual type with Run and handler (concept 13 11.7)", lang)
+	if lang, ok := r.Lookup(JobOriginalLanguageBackfill); !ok || !lang.Scheduled() || lang.Run == nil || lang.Handler == nil ||
+		lang.Priority != fillPriority || lang.Every != 7*24*time.Hour || lang.StartDelay != nil || lang.Seed == nil {
+		t.Errorf("metadata.original_language_backfill = %+v, want a schedule type every 7 days with Run, handler and seed (concept 15 P-3)", lang)
+	} else if seed, err := lang.Seed(t.Context()); err != nil || seed.Enabled {
+		t.Errorf("metadata.original_language_backfill seed = %+v, %v, want the schedule off", seed, err)
 	}
 	w := jobs.NewWorker(e.queue, "w", slog.New(slog.DiscardHandler))
 	r.Attach(w, jobs.PoolGeneral)

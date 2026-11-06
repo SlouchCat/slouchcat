@@ -2,6 +2,7 @@ package library
 
 import (
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -70,11 +71,17 @@ func TestRunSweepRaisesWaitingSweep(t *testing.T) {
 	if len(r.Types()) != 11 {
 		t.Errorf("registered types = %d, want the ten job types of the library plus jobs.prune", len(r.Types()))
 	}
-	// Concept 13 stage 3: chapters.images is an event type, its backfill a manual type with a Run.
+	// Concept 13 stage 3: chapters.images is an event type. Concept 15 P-3: its backfill is a
+	// schedule type every 7 days, not at the start, with the schedule off by default.
 	if ty, ok := r.Lookup(JobChapterImages); !ok || ty.Trigger != jobs.TriggerEvent || ty.Run != nil || ty.Priority != prioChapterImages {
 		t.Errorf("%s = %+v", JobChapterImages, ty)
 	}
-	if ty, ok := r.Lookup(JobChapterImagesBackfill); !ok || ty.Trigger != jobs.TriggerManual || ty.Run == nil || ty.Handler == nil {
-		t.Errorf("%s = %+v", JobChapterImagesBackfill, ty)
+	ty, ok := r.Lookup(JobChapterImagesBackfill)
+	if !ok || ty.Trigger != jobs.TriggerSchedule || ty.Run == nil || ty.Handler == nil || ty.Every != 7*24*time.Hour ||
+		ty.StartDelay != nil || ty.Seed == nil {
+		t.Fatalf("%s = %+v", JobChapterImagesBackfill, ty)
+	}
+	if seed, err := ty.Seed(e.ctx); err != nil || seed.Enabled {
+		t.Errorf("%s seed = %+v, %v, want the schedule off", JobChapterImagesBackfill, seed, err)
 	}
 }

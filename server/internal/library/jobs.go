@@ -279,9 +279,10 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 
 // RegisterTypes registers the job types of the library on r (concept 09, ADR 0017): the full
 // scan and the sweep are schedule types (every 6 h and hourly, both at the start of the server),
-// chapters.images_backfill is a manual type (concept 13 stage 3), the rest are event types queued
-// by scans, watchers, webhooks, playbacks and matches (library.relink). keyframes.backfill is a
-// schedule type with the schedule off (concept 14, 6.6); probe.keyframes runs in the pool index.
+// the rest are event types queued by scans, watchers, webhooks, playbacks and matches
+// (library.relink). keyframes.backfill (concept 14, 6.6) and chapters.images_backfill (concept 13
+// stage 3, schedulable since concept 15 P-3) are schedule types every 7 days with the schedule off
+// by default; probe.keyframes runs in the pool index.
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{
@@ -302,8 +303,9 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{Name: JobRelink, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioMatch, Handler: s.handleRelink, Cancel: s.cancelRelink})
 	r.Register(jobs.Type{Name: JobChapterImages, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioChapterImages, Handler: s.handleChapterImages})
 	r.Register(jobs.Type{
-		Name: JobChapterImagesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerManual,
+		Name: JobChapterImagesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioChapterImages, Handler: s.handleChapterImagesBackfill, Run: s.runChapterImagesBackfill,
+		Every: chapterImagesBackfillEvery, Seed: scheduleOffSeed,
 	})
 	r.Register(s.keyframesBackfillType())
 }
