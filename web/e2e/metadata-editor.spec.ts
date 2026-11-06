@@ -11,7 +11,7 @@ import {
 } from './keyboard';
 
 // The metadata editor with the pen (concept 15 7.4, variant A «Dialog»; rule 8): the pen on the
-// detail page and on a library cover (always shown, on phones too) opens the dialog; Tab
+// detail page's poster and on a library cover (always shown, on phones too) opens the dialog; Tab
 // stays inside, Escape closes it and the focus returns to the pen; the tabs Bilder (upload, back to
 // automatic), Metadaten (edit, lock, save) and Aktualisieren. The e2e server has no TMDB key: there
 // are no candidates to choose (the choice is a Vitest case of MetadataEditor.test.tsx). The film is
@@ -124,6 +124,33 @@ test.afterEach(async ({ owner }) => {
     data: { unlock: ['overview', 'tagline'] },
   });
   await owner.delete(`${path}/images/poster`, { headers: CSRF });
+});
+
+test('the pen sits on the poster, before the actions in the Tab order @keyboard', async ({
+  page,
+}) => {
+  await page.goto(detail);
+  await expect(page.getByRole('heading', { level: 1, name: TITLE })).toBeVisible();
+  // On the poster's top right, not in the row of actions.
+  const poster = pen(page).locator('xpath=../..');
+  const picture = await boxOf(poster.locator('xpath=./*[1]'));
+  const button = await boxOf(pen(page));
+  expect(button.x).toBeGreaterThanOrEqual(picture.x + picture.width / 2);
+  expect(button.x + button.width).toBeLessThanOrEqual(picture.x + picture.width);
+  expect(button.y).toBeGreaterThanOrEqual(picture.y);
+  expect(button.y + button.height).toBeLessThanOrEqual(picture.y + picture.height / 4);
+  const play = page.getByRole('link', { name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/ });
+  await expect(play.locator('xpath=..').getByRole('button', { name: PEN })).toHaveCount(0);
+  // Small, but a touch target.
+  expect(button.width).toBeGreaterThanOrEqual(32);
+  expect(button.height).toBeGreaterThanOrEqual(32);
+  // Tab reaches the pen with a ring, then moves on to play.
+  await resetFocus(page);
+  await tabTo(page, pen(page), 40);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, play);
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, pen(page));
 });
 
 test('the pen opens the dialog; Tab stays inside, Escape closes, focus back on the pen @keyboard', async ({
@@ -446,6 +473,17 @@ test.describe('on a phone', () => {
     expect(mark.y).toBeGreaterThanOrEqual(button.y + button.height);
     expect(mark.y + mark.height).toBeLessThanOrEqual(cover.y + cover.height);
     await cardPen.tap();
+    await expect(dialog(page)).toBeVisible();
+  });
+
+  test('the detail page shows the pen; a tap opens the editor', async ({ page }) => {
+    await page.goto(detail);
+    await expect(page.getByRole('heading', { level: 1, name: TITLE })).toBeVisible();
+    await expect(pen(page)).toBeInViewport();
+    const button = await boxOf(pen(page));
+    expect(button.width).toBeGreaterThanOrEqual(32);
+    expect(button.x + button.width).toBeLessThanOrEqual(PHONE.width);
+    await pen(page).tap();
     await expect(dialog(page)).toBeVisible();
   });
 });

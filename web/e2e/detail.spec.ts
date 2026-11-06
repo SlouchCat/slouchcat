@@ -24,11 +24,17 @@ test('arrow keys land on play, move to back; facts are shown', async ({ page }) 
   await expect(file.getByText('MP4')).toBeVisible();
 });
 
-test('Tab reaches play and back after the header and the side navigation; no focus trap @keyboard', async ({
+test('Tab reaches the pen, play and back after the header and the side navigation; no focus trap @keyboard', async ({
   page,
 }) => {
-  // The side navigation's last stop (concept 08) comes right before the page.
+  // The side navigation's last stop (concept 08) comes right before the page: for the server
+  // administrator the pen on the poster first (concept 15 7.4), then play.
   await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    page.getByRole('button', { name: 'Metadaten bearbeiten', exact: true }),
+  );
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,

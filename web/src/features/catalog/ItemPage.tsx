@@ -174,7 +174,6 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
   const watchlist = useWatchlistMutation();
   const favorite = useFavoriteMutation();
   const failed = watchlist.error ?? favorite.error;
-  const [editing, setEditing] = useState(false);
 
   return (
     <>
@@ -222,19 +221,8 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
             />
           </Suspense>
         )}
-        {/* The pen opens the metadata editor (concept 15 7.4); titles it does not edit keep the
-            link to their administration page. */}
-        {canManage && EDITABLE_KINDS.has(item.kind) && (
-          <SpatialButton
-            variant="ghost"
-            size="lg"
-            icon="pen"
-            iconOnly
-            aria-label={t('item.editMetadata')}
-            title={t('item.editMetadata')}
-            onPress={() => setEditing(true)}
-          />
-        )}
+        {/* Titles the metadata editor does not edit keep the link to their administration page;
+            the others have the pen on the poster (PosterPen). */}
         {canManage && !EDITABLE_KINDS.has(item.kind) && (
           <SpatialButtonLink href={paths.adminItem(item.id)} variant="ghost" size="lg" icon="info">
             {t('item.manage')}
@@ -283,8 +271,34 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
         </SpatialGroup>
       )}
       {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
-      {editing && <EditMetadata itemId={item.id} onClose={() => setEditing(false)} />}
     </>
+  );
+}
+
+/**
+ * The pen on the poster (concept 15 7.4): it opens the metadata editor, for the one who manages
+ * the library. A plain button, so Tab reaches it before the actions and the arrow keys pass it
+ * by, as on the library's covers.
+ */
+function PosterPen({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation();
+  const session = useActiveSession();
+  const [editing, setEditing] = useState(false);
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!canManage || !EDITABLE_KINDS.has(item.kind)) return null;
+  return (
+    <div className={styles.posterTool}>
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="pen"
+        iconOnly
+        aria-label={t('item.editMetadata')}
+        title={t('item.editMetadata')}
+        onPress={() => setEditing(true)}
+      />
+      {editing && <EditMetadata itemId={item.id} onClose={() => setEditing(false)} />}
+    </div>
   );
 }
 
@@ -831,6 +845,7 @@ function ItemView({ itemId }: { itemId: string }) {
                 <PosterFallback />
               </span>
             )}
+            <PosterPen item={item} />
           </div>
 
           <div className={styles.info}>
