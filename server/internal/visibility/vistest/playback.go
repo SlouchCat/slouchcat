@@ -48,6 +48,13 @@ func (f *Fixture) SetRating(t testing.TB, itemID string, rating *int) {
 	exec(t, f.DB, `UPDATE items SET own_rating = ? WHERE id = ?`, rating, itemID)
 }
 
+// SetLockedFields replaces the locked_fields JSON of a title, for tests of locks written before
+// the per-language lock names (concept 15 7.5).
+func (f *Fixture) SetLockedFields(t testing.TB, itemID, lockedFields string) {
+	t.Helper()
+	exec(t, f.DB, `UPDATE items SET locked_fields = ? WHERE id = ?`, lockedFields, itemID)
+}
+
 // Session inserts a browser session of profile p (of the owner account, or of the guest account
 // after AddGuest) and returns it; playback sessions reference it.
 func (f *Fixture) Session(t testing.TB, p model.Profile) model.Session {

@@ -15,9 +15,7 @@ import (
 func TestItemMetadataUnlockOldLock(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
-	if _, err := pf.f.DB.Write.Exec(`UPDATE items SET locked_fields = '["title","overview","year"]' WHERE id = ?`, fixtureFilm6); err != nil {
-		t.Fatal(err)
-	}
+	pf.f.SetLockedFields(t, fixtureFilm6, `["title","overview","year"]`)
 	rec := send(t, pf.h, http.MethodPatch, BasePath+"/admin/items/"+fixtureFilm6+"/metadata", "p18", `{"unlock":["title"]}`, nil)
 	wantStatus(t, rec, http.StatusOK)
 	var it gen.AdminItem
