@@ -170,8 +170,7 @@ func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bo
 		if err != nil {
 			return model.HomePage{}, fmt.Errorf("home row %s: %w", setting.ID, err)
 		}
-		// «Meine Medien» counts its tiles (8.3), the other rows their entries.
-		if len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Libraries) > 0 {
+		if filled(row) {
 			page.Rows = append(page.Rows, row)
 			if row.Key == RowSpotlight {
 				page.HeroRow = RowSpotlight
@@ -185,6 +184,12 @@ func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bo
 		}
 	}
 	return page, nil
+}
+
+// filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3), the
+// other rows their entries.
+func filled(row model.HomeRow) bool {
+	return len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Libraries) > 0
 }
 
 // markTrailers sets HasTrailer on every title of a row from one visibility query (D3).
@@ -297,18 +302,58 @@ func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.I
 // library tiles. Its titles (or, for «Meine Medien», its tiles, concept 15 P-7) are the first cards
 // of a page without a stage, the images the client loads first (P-10); the app shell of the start
 // page preloads the first poster and paints the first cards ahead. It derives from the same
-// computation as Home, so it follows its rule.
+// computation as Home, so it follows its rule, but it loads the rows only up to the first one on
+// the page (the prepaint of GET / waits for it): a stage further down is found from the spotlight
+// row alone while it can only land within MaxRows, else from the page up to the stage.
 func (s *Service) FirstRow(ctx context.Context, profile model.Profile) (model.HomeRow, error) {
-	page, err := s.page(ctx, visibility.Profile(profile), true)
+	scope := visibility.Profile(profile)
+	order, err := s.rowOrder(ctx)
 	if err != nil {
 		return model.HomeRow{}, err
 	}
-	if page.HeroRow != "" || len(page.Rows) == 0 || (len(page.Rows[0].Items) == 0 && len(page.Rows[0].Libraries) == 0) {
-		return model.HomeRow{}, model.ErrNotFound
+	for i, setting := range order {
+		row, err := s.row(ctx, scope, setting)
+		if err != nil {
+			return model.HomeRow{}, fmt.Errorf("home row %s: %w", setting.ID, err)
+		}
+		if !filled(row) {
+			continue
+		}
+		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Libraries) == 0) {
+			return model.HomeRow{}, model.ErrNotFound
+		}
+		stage, err := s.stageBelow(ctx, scope, order, i)
+		if err != nil {
+			return model.HomeRow{}, err
+		}
+		if stage {
+			return model.HomeRow{}, model.ErrNotFound
+		}
+		row.Items = firstRowCards(row)
+		return row, nil
 	}
-	row := page.Rows[0]
-	row.Items = firstRowCards(row)
-	return row, nil
+	return model.HomeRow{}, model.ErrNotFound
+}
+
+// stageBelow reports whether the page whose first row stands at order[first] has a stage further
+// down, as page would place it: the spotlight row after first, when it has titles and lands
+// within MaxRows. Before the MaxRows-th setting it always lands (at most that many rows precede
+// it); later only the page up to the stage tells.
+func (s *Service) stageBelow(ctx context.Context, scope visibility.Scope, order []model.HomeRowSetting, first int) (bool, error) {
+	j := slices.IndexFunc(order[first+1:], func(r model.HomeRowSetting) bool { return r.Key == RowSpotlight })
+	if j < 0 {
+		return false, nil
+	}
+	j += first + 1
+	if j >= MaxRows {
+		page, err := s.page(ctx, scope, true)
+		return page.HeroRow != "", err
+	}
+	items, err := s.spotlightRow(ctx, scope)
+	if err != nil {
+		return false, fmt.Errorf("home row %s: %w", order[j].ID, err)
+	}
+	return len(items) > 0, nil
 }
 
 // firstRowCards returns the titles of row as its cards show them: only the row continue shows an

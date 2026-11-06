@@ -647,6 +647,16 @@ func TestFirstRow(t *testing.T) {
 	notFound("stage on top")
 	exec(t, f, `UPDATE home_rows SET position = CASE key WHEN 'spotlight' THEN 3 WHEN 'recent' THEN 0 ELSE position END`)
 	notFound("stage further down")
+	// An empty spotlight row further down is no stage: FirstRow stops at the first row and still
+	// answers what Home shows first.
+	exec(t, f, `DELETE FROM spotlight_entries`)
+	if page, err := s.Home(ctx, f.P18, nil); err != nil || page.HeroRow != "" || len(page.Rows) == 0 {
+		t.Fatalf("spotlight empty: hero row %q, rows %v, %v", page.HeroRow, rowKeys(page.Rows), err)
+	} else if first, err := s.FirstRow(ctx, f.P18); err != nil || first.Key != page.Rows[0].Key ||
+		!slices.Equal(itemIDs(first.Items), itemIDs(page.Rows[0].Items)) {
+		t.Errorf("spotlight empty: FirstRow = %s %v (%v), want %s %v", first.Key, itemIDs(first.Items), err,
+			page.Rows[0].Key, itemIDs(page.Rows[0].Items))
+	}
 
 	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key = 'spotlight'`)
 	page, err := s.Home(ctx, f.P18, nil)
