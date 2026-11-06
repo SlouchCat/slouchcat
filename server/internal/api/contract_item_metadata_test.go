@@ -148,3 +148,22 @@ func TestItemMetadataOverHTTP(t *testing.T) {
 		t.Errorf("unknown title: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+// refreshItem takes an optional body since contract 1.15.0: none, {} and {"unlockAll": …} are 202,
+// a body that is no JSON object of that shape is 400.
+func TestRefreshItemBodyOverHTTP(t *testing.T) {
+	t.Parallel()
+	pf := newProfileFixture(t)
+	path := BasePath + "/admin/items/" + fixtureFilm6 + "/refresh"
+	for body, want := range map[string]int{
+		"": http.StatusAccepted, `{}`: http.StatusAccepted, `{"unlockAll":true}`: http.StatusAccepted, `{"unlockAll":false}`: http.StatusAccepted,
+		`{"unlockAll":"yes"}`: http.StatusBadRequest,
+	} {
+		if rec := send(t, pf.h, http.MethodPost, path, "p18", body, nil); rec.Code != want {
+			t.Errorf("refresh %q: %d %s, want %d", body, rec.Code, rec.Body.String(), want)
+		}
+	}
+	if rec := send(t, pf.h, http.MethodPost, BasePath+"/admin/items/"+unknownItemID+"/refresh", "p18", `{"unlockAll":true}`, nil); rec.Code != http.StatusNotFound {
+		t.Errorf("refresh of an unknown title: %d %s", rec.Code, rec.Body.String())
+	}
+}

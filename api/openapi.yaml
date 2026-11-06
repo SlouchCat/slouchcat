@@ -3377,11 +3377,20 @@ paths:
       summary: Refresh metadata, images, trailers and probes of a title
       description: |
         Queues `metadata.match` at high priority (which queues `image.fetch` and `trailer.find`) and a probe
-        of every media file of the title. Locked fields and manual trailers are kept.
+        of every media file of the title. Locked fields and manual trailers are kept. Since contract 1.15.0
+        an optional body `{"unlockAll": true}` first lifts every lock of the title (concept 15 7.5): the
+        field and text locks and the image choices go, so the refresh decides them again; the locks of a
+        manual match (`setItemMatch`) and a rating set by hand stay. Without a body as before.
       tags: [admin]
       x-visibility: admin
       parameters:
         - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemRefreshRequest"
       responses:
         "202":
           description: Jobs queued.
@@ -9990,6 +9999,14 @@ components:
         provider:
           type: string
           description: A `MetadataProvider`, or `union` for genres.
+
+    ItemRefreshRequest:
+      type: object
+      description: Options of `refreshItem` (since contract 1.15.0).
+      properties:
+        unlockAll:
+          type: boolean
+          description: Lift every lock of the title before the refresh (not those of a manual match).
 
     AdminGenreList:
       type: object

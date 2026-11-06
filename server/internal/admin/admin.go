@@ -141,6 +141,9 @@ type Metadata interface {
 	AssignMatch(ctx context.Context, itemID, provider, providerID string) error
 	// Refresh queues the match and the probes of the title (model.ErrNotFound).
 	Refresh(ctx context.Context, itemID string) error
+	// UnlockAll lifts every lock of the title but those of a manual match, before a refresh
+	// (concept 15 7.5; model.ErrNotFound).
+	UnlockAll(ctx context.Context, itemID string) error
 	// AddManualTrailer stores a manual trailer (model.ErrNotFound, *model.ValidationError).
 	AddManualTrailer(ctx context.Context, itemID, lang, youtubeID string) (model.Trailer, error)
 	// DeleteTrailer removes a trailer of the title (model.ErrNotFound).

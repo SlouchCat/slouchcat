@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"slices"
 	"strings"
@@ -26,6 +27,7 @@ type fakeMetadata struct {
 	db        *sql.DB
 	matched   []string // itemID/provider/providerID
 	refreshed []string
+	unlocked  []string // itemID@number of refreshes before the unlock
 	searchErr error
 	searches  []string
 }
@@ -65,6 +67,11 @@ func (m *fakeMetadata) AssignMatch(ctx context.Context, itemID, provider, provid
 
 func (m *fakeMetadata) Refresh(_ context.Context, itemID string) error {
 	m.refreshed = append(m.refreshed, itemID)
+	return nil
+}
+
+func (m *fakeMetadata) UnlockAll(_ context.Context, itemID string) error {
+	m.unlocked = append(m.unlocked, fmt.Sprintf("%s@%d", itemID, len(m.refreshed)))
 	return nil
 }
 
@@ -637,8 +644,15 @@ func TestSetItemMatchLocksFields(t *testing.T) {
 	if len(m.meta.matched) != 2 {
 		t.Errorf("invalid requests reached package metadata: %v", m.meta.matched)
 	}
-	if _, err := m.svc.RefreshItem(m.ctx, film.ID); err != nil || !slices.Equal(m.meta.refreshed, []string{film.ID}) {
-		t.Errorf("refresh = %v, %v", err, m.meta.refreshed)
+	if _, err := m.svc.RefreshItem(m.ctx, film.ID, false); err != nil || !slices.Equal(m.meta.refreshed, []string{film.ID}) || len(m.meta.unlocked) != 0 {
+		t.Errorf("refresh = %v, %v, unlocked %v", err, m.meta.refreshed, m.meta.unlocked)
+	}
+	// unlockAll lifts the locks before the refresh is queued (concept 15 7.5).
+	if _, err := m.svc.RefreshItem(m.ctx, film.ID, true); err != nil || len(m.meta.refreshed) != 2 || !slices.Equal(m.meta.unlocked, []string{film.ID + "@1"}) {
+		t.Errorf("refresh with unlockAll = %v, refreshed %v, unlocked %v", err, m.meta.refreshed, m.meta.unlocked)
+	}
+	if _, err := m.svc.RefreshItem(m.ctx, "01J0000000000000000000XXXX", true); !errors.Is(err, model.ErrNotFound) || len(m.meta.unlocked) != 1 {
+		t.Errorf("refresh of an unknown title with unlockAll = %v, unlocked %v", err, m.meta.unlocked)
 	}
 	deleted := edge(f, func(x vistest.Movie) bool { return x.Deleted })
 	if _, err := m.svc.GetAdminItem(m.ctx, deleted.ID); !errors.Is(err, model.ErrNotFound) {

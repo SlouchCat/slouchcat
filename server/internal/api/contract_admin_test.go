@@ -24,6 +24,7 @@ func (contractMetadata) Search(context.Context, string, string, string, *int) ([
 }
 func (contractMetadata) AssignMatch(context.Context, string, string, string) error { return nil }
 func (contractMetadata) Refresh(context.Context, string) error                     { return nil }
+func (contractMetadata) UnlockAll(context.Context, string) error                   { return nil }
 func (contractMetadata) AddManualTrailer(_ context.Context, _, lang, youtubeID string) (model.Trailer, error) {
 	return model.Trailer{ID: 1, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }

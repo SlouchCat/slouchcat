@@ -78,7 +78,9 @@ func (s *server) SetItemMatch(ctx context.Context, req gen.SetItemMatchRequestOb
 }
 
 func (s *server) RefreshItem(ctx context.Context, req gen.RefreshItemRequestObject) (gen.RefreshItemResponseObject, error) {
-	it, err := s.opts.Admin.RefreshItem(ctx, req.Id)
+	// Without a body as before; unlockAll lifts the locks first (contract 1.15.0).
+	unlockAll := req.Body != nil && req.Body.UnlockAll != nil && *req.Body.UnlockAll
+	it, err := s.opts.Admin.RefreshItem(ctx, req.Id, unlockAll)
 	if err != nil {
 		return s.problem(ctx, err), nil
 	}

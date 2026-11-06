@@ -139,7 +139,7 @@ type AdminService interface {
 	// SetItemMatch assigns a film or series to a provider entry (B-6) and queues the match.
 	SetItemMatch(ctx context.Context, itemID, provider, providerID string) (model.AdminItem, error)
 	// RefreshItem queues metadata, images, trailers and probes of a title.
-	RefreshItem(ctx context.Context, itemID string) (model.AdminItem, error)
+	RefreshItem(ctx context.Context, itemID string, unlockAll bool) (model.AdminItem, error)
 	// CreateItemTrailer stores a manual trailer from a YouTube id or URL.
 	CreateItemTrailer(ctx context.Context, itemID, lang, youtubeID, url string) (model.Trailer, error)
 	// DeleteItemTrailer removes a trailer of a title.
