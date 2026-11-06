@@ -12,7 +12,6 @@ import { YearField } from '@/features/discover/YearField';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
-import { useWideScreen } from '@/lib/useWideScreen';
 import {
   Button,
   ButtonLink,
@@ -77,10 +76,9 @@ function LibraryView({ id }: { id: number | null }) {
   const panel = useRef<HTMLDivElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   // The pen on the covers (concept 15 7.4): a shortcut for the administrator's primary profile,
-  // not a rule (the server answers the editor only for that session), and not on phones.
+  // not a rule (the server answers the editor only for that session); on phones too.
   const session = useActiveSession();
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
-  const wide = useWideScreen();
   const [editing, setEditing] = useState<string | null>(null);
 
   const libraries = useQuery(visibleLibrariesQuery);
@@ -427,9 +425,7 @@ function LibraryView({ id }: { id: number | null }) {
                   showWatched
                   showRating={library.kind === 'video'}
                   tool={
-                    canManage && wide
-                      ? (item) => <CoverPen item={item} onEdit={setEditing} />
-                      : undefined
+                    canManage ? (item) => <CoverPen item={item} onEdit={setEditing} /> : undefined
                   }
                 />
                 {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}

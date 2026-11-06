@@ -1,4 +1,4 @@
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createProfile, loginOwner } from './accounts';
 import { CSRF, H264_COPY_TITLE, idOf, itemPath } from './catalog';
 import { expect, test } from './fixtures';
@@ -11,11 +11,12 @@ import {
 } from './keyboard';
 
 // The metadata editor with the pen (concept 15 7.4, variant A «Dialog»; rule 8): the pen on the
-// detail page and beside a library cover opens the dialog; Tab stays inside, Escape closes it and
-// the focus returns to the pen; the tabs Bilder (upload, back to automatic), Metadaten (edit, lock,
-// save) and Aktualisieren. The e2e server has no TMDB key: there are no candidates to choose (the
-// choice is a Vitest case of MetadataEditor.test.tsx). The film is the byte copy of the H264 film,
-// which only the maintenance spec reads (its duplicates); every change goes back after the test.
+// detail page and on a library cover (always shown, on phones too) opens the dialog; Tab
+// stays inside, Escape closes it and the focus returns to the pen; the tabs Bilder (upload, back to
+// automatic), Metadaten (edit, lock, save) and Aktualisieren. The e2e server has no TMDB key: there
+// are no candidates to choose (the choice is a Vitest case of MetadataEditor.test.tsx). The film is
+// the byte copy of the H264 film, which only the maintenance spec reads (its duplicates); every
+// change goes back after the test.
 
 const TITLE = H264_COPY_TITLE;
 const LIBRARY = 'Filme';
@@ -33,6 +34,48 @@ let id = '';
 const dialog = (page: Page) => page.getByRole('dialog', { name: TITLE });
 const tabs = (page: Page) => dialog(page).getByRole('tablist', { name: 'Bereiche des Editors' });
 const pen = (page: Page) => page.getByRole('button', { name: PEN, exact: true });
+const PHONE = { width: 390, height: 844 };
+
+/** Box of `locator`, which must be laid out. */
+async function boxOf(locator: Locator) {
+  const box = await locator.boundingBox();
+  expect(box, 'laid out').not.toBeNull();
+  return box!;
+}
+
+/** The library grid's cell of the film. */
+function filmCell(page: Page) {
+  return page
+    .getByRole('list', { name: LIBRARY })
+    .getByRole('listitem')
+    .filter({
+      has: page.getByRole('link').filter({ has: page.getByText(TITLE, { exact: true }) }),
+    });
+}
+
+/**
+ * Shows the film as watched in the library grid: its response only, the server keeps the state.
+ * The context's route catches the service worker's requests too.
+ */
+async function showWatched(page: Page): Promise<void> {
+  await page.context().route('**/api/v1/libraries/*/items?*', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.json()) as {
+      items: { title: string; progress?: Record<string, unknown> }[];
+    };
+    for (const item of body.items) {
+      if (item.title !== TITLE) continue;
+      item.progress = {
+        positionMs: 8000,
+        durationMs: 8000,
+        percent: 100,
+        completed: true,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    await route.fulfill({ response, json: body });
+  });
+}
 
 async function libraryId(owner: APIRequestContext): Promise<number> {
   const response = await owner.get('/api/v1/libraries/visible');
@@ -303,21 +346,17 @@ test('library grid: Tab reaches the card, then its pen; Enter opens, Escape retu
 }) => {
   await page.goto(`/libraries/${await libraryId(owner)}`);
   const grid = page.getByRole('list', { name: LIBRARY });
-  const cell = grid.getByRole('listitem').filter({
-    has: page.getByRole('link').filter({ has: page.getByText(TITLE, { exact: true }) }),
-  });
+  const cell = filmCell(page);
   const card = cell.getByRole('link');
   const cardPen = cell.getByRole('button', { name: `${TITLE}: Metadaten bearbeiten` });
+  // The pen shows without hover or focus.
+  await page.mouse.move(0, 0);
+  await expect(cardPen).toBeVisible();
+  await expect(cardPen.locator('xpath=..')).toHaveCSS('opacity', '1');
   await resetFocus(page);
   await tabTo(page, card, 80);
-  // The pen shows only on hover or focus (its frame over the cover fades in).
-  const frame = cardPen.locator('xpath=..');
-  await expect(frame).toHaveCSS('opacity', '0');
-  // Hidden, it takes no click (a tap on a wide touch screen would hit it unseen).
-  await expect(frame).toHaveCSS('pointer-events', 'none');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, cardPen);
-  await expect(frame).toHaveCSS('opacity', '1');
   await page.keyboard.press('Enter');
   await expect(dialog(page)).toBeVisible();
   await page.keyboard.press('Escape');
@@ -379,6 +418,36 @@ test('library grid: a saved title re-sorts the grid; the focus comes back to its
     await owner.patch(path, { headers: CSRF, data: { title: TITLE } });
     await owner.patch(path, { headers: CSRF, data: { unlock: ['title'] } });
   }
+});
+
+test.describe('on a phone', () => {
+  test.use({ viewport: PHONE, hasTouch: true });
+
+  test('the grid shows the pen beside the watched check; a tap opens the editor', async ({
+    page,
+    owner,
+  }) => {
+    await showWatched(page);
+    await page.goto(`/libraries/${await libraryId(owner)}`);
+    const cell = filmCell(page);
+    const cardPen = cell.getByRole('button', { name: `${TITLE}: Metadaten bearbeiten` });
+    await expect(cardPen).toBeVisible();
+    await cardPen.scrollIntoViewIfNeeded();
+    // Both on the cover: the pen at the top right, the check below it, apart.
+    const check = cell.getByRole('img', { name: 'Gesehen' });
+    await expect(check).toBeVisible();
+    const cover = await boxOf(check.locator('xpath=..'));
+    const button = await boxOf(cardPen);
+    const mark = await boxOf(check);
+    expect(button.width).toBeGreaterThanOrEqual(32);
+    expect(button.height).toBeGreaterThanOrEqual(32);
+    expect(button.x + button.width).toBeLessThanOrEqual(cover.x + cover.width);
+    expect(button.y).toBeGreaterThanOrEqual(cover.y);
+    expect(mark.y).toBeGreaterThanOrEqual(button.y + button.height);
+    expect(mark.y + mark.height).toBeLessThanOrEqual(cover.y + cover.height);
+    await cardPen.tap();
+    await expect(dialog(page)).toBeVisible();
+  });
 });
 
 test('a profile other than the primary one sees no pen', async ({ page, owner }) => {

@@ -119,7 +119,6 @@
   border-radius: var(--sc-radius-full);
   background-color: var(--sc-color-text-primary);
   color: var(--sc-color-bg-base);
-  transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
 .progress {
