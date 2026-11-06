@@ -339,6 +339,47 @@ test('library grid: Tab reaches the card, then its pen; Enter opens, Escape retu
   await expectNoFocusTrap(page, 400);
 });
 
+test('library grid: a saved title re-sorts the grid; the focus comes back to its pen @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const renamed = 'ZZZ E2E Neu sortiert';
+  try {
+    await page.goto(`/libraries/${await libraryId(owner)}`);
+    const grid = page.getByRole('list', { name: LIBRARY });
+    const cellOf = (title: string) =>
+      grid.getByRole('listitem').filter({
+        has: page.getByRole('link').filter({ has: page.getByText(title, { exact: true }) }),
+      });
+    await resetFocus(page);
+    await tabTo(page, cellOf(TITLE).getByRole('link'), 80);
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await expect(dialog(page)).toBeVisible();
+    await selectTab(page, 'Metadaten', 1);
+    const panel = dialog(page).getByRole('tabpanel');
+    await tabTo(page, panel.getByRole('textbox', { name: 'Titel', exact: true }), 10);
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type(renamed);
+    await tabTo(page, panel.getByRole('button', { name: 'Speichern' }), 40);
+    await page.keyboard.press('Enter');
+    // The head keeps the title of the item row; the status says the texts are saved.
+    await expect(page.getByRole('dialog').getByRole('status')).toHaveText('Metadaten gespeichert.');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // The grid reads the library again and puts the title last; the pen keeps the focus.
+    await expect(grid.getByRole('listitem').last()).toContainText(renamed);
+    await expectFocusOn(
+      page,
+      cellOf(renamed).getByRole('button', { name: `${renamed}: Metadaten bearbeiten` }),
+    );
+  } finally {
+    const path = `/api/v1/admin/items/${id}/metadata`;
+    await owner.patch(path, { headers: CSRF, data: { title: TITLE } });
+    await owner.patch(path, { headers: CSRF, data: { unlock: ['title'] } });
+  }
+});
+
 test('a profile other than the primary one sees no pen', async ({ page, owner }) => {
   const other = await createProfile(owner, { name: 'E2E Ohne Stift', maxRating: 18 });
   // A session of its own for the page: the owner's shared one keeps its primary profile.

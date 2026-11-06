@@ -1,5 +1,5 @@
 import type { AdminItem, ImageCandidate } from '@slouchcat/api-client';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { json, mockApi, problem, renderApp, signedIn } from '@/test/api';
@@ -256,6 +256,22 @@ describe('metadata editor', () => {
     await waitFor(() => expect(reads).toBeGreaterThan(before));
     expect(title).toHaveValue('Alien 2');
     expect(within(dialog).getByRole('tab', { name: 'Metadaten ungespeichert' })).toBeVisible();
+  });
+
+  it('Enter on a picked suggestion adds the suggestion, not the typed part', async () => {
+    routes();
+    const user = userEvent.setup();
+    const dialog = await openEditor(user);
+    await user.click(within(dialog).getByRole('tab', { name: 'Metadaten' }));
+    const panel = within(dialog).getByRole('tabpanel');
+    const genre = within(panel).getByRole('combobox', { name: 'Genre hinzufügen' });
+    await user.type(genre, 'Dra');
+    // Firefox writes the highlighted suggestion into the field after the page saw the Enter.
+    fireEvent.keyDown(genre, { key: 'Enter' });
+    fireEvent.change(genre, { target: { value: 'Drama' } });
+    expect(await within(panel).findByRole('button', { name: 'Drama entfernen' })).toBeVisible();
+    expect(within(panel).queryByRole('button', { name: 'Dra entfernen' })).not.toBeInTheDocument();
+    expect(genre).toHaveValue('');
   });
 
   it('a half-typed date is refused before sending instead of clearing the date', async () => {

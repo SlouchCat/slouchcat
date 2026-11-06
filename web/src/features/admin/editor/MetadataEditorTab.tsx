@@ -87,6 +87,7 @@ export function MetadataEditorTab({
   const genresId = useId();
   const genresErrorId = useId();
   const dateInput = useRef<HTMLInputElement>(null);
+  const genreInput = useRef<HTMLInputElement>(null);
   const [genre, setGenre] = useState('');
   const [invalid, setInvalid] = useState<Record<string, string>>({});
   const [unchanged, setUnchanged] = useState(false);
@@ -188,8 +189,8 @@ export function MetadataEditorTab({
   const suggestions = (genres.data?.genres ?? []).filter(
     (name) => !chosen.some((g) => g.toLowerCase() === name.toLowerCase()),
   );
-  const addGenre = () => {
-    set('genres', withGenre(chosen, genre));
+  const addGenre = (name = genre) => {
+    set('genres', withGenre(chosen, name));
     setGenre('');
   };
   const dirty = Object.keys(draft.changed).length > 0 || draft.unlock.length > 0;
@@ -279,15 +280,19 @@ export function MetadataEditorTab({
                   label={t('admin.editor.metadata.genreAdd')}
                   value={genre}
                   suggestions={suggestions}
+                  inputRef={genreInput}
                   onChange={setGenre}
                   onKeyDown={(event) => {
-                    // Enter adds the genre instead of saving the form.
+                    // Enter adds the genre instead of saving the form. The field is read after
+                    // the key: a browser that takes a highlighted suggestion with this Enter
+                    // (Firefox) writes the suggestion in only after the page's handlers ran, so
+                    // the typed part never becomes the chip.
                     if (event.key !== 'Enter') return;
                     event.preventDefault();
-                    addGenre();
+                    window.setTimeout(() => addGenre(genreInput.current?.value ?? genre));
                   }}
                 />
-                <AriaButton icon="plus" isDisabled={!genre.trim()} onPress={addGenre}>
+                <AriaButton icon="plus" isDisabled={!genre.trim()} onPress={() => addGenre()}>
                   {t('admin.editor.metadata.genreAddAction')}
                 </AriaButton>
               </div>
