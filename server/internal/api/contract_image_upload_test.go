@@ -77,6 +77,10 @@ func TestContractUploadItemImage(t *testing.T) {
 		"json body":     {path, `{"file":"x"}`, nil, http.StatusUnprocessableEntity, "file invalid_value"},
 		"kind":          {BasePath + "/admin/items/" + fixtureFilm6 + "/images/season/upload", uploadImageBody("p.jpg", jpeg), multipart, http.StatusUnprocessableEntity, "kind invalid_value"},
 		"unknown title": {BasePath + "/admin/items/" + unknownItemID + "/images/poster/upload", uploadImageBody("p.jpg", jpeg), multipart, http.StatusNotFound, ""},
+		// The title and the kind are checked before the body is read: a body that is no
+		// multipart or over the limit does not count then.
+		"kind before body":  {BasePath + "/admin/items/" + fixtureFilm6 + "/images/season/upload", `{"file":"x"}`, nil, http.StatusUnprocessableEntity, "kind invalid_value"},
+		"title before body": {BasePath + "/admin/items/" + unknownItemID + "/images/poster/upload", uploadImageBody("poster.jpg", "\xff\xd8\xff"+beyond), multipart, http.StatusNotFound, ""},
 	} {
 		rec := send(t, pf.h, http.MethodPut, tc.path, "p18", tc.body, tc.header)
 		if rec.Code != tc.status {

@@ -149,7 +149,7 @@ func (s *Service) ChoosableImageKinds(ctx context.Context, itemID string) ([]str
 	if err != nil || !on {
 		return []string{}, err
 	}
-	return slices.Clone(choosableKinds[item.Kind]), nil
+	return append([]string{}, choosableKinds[item.Kind]...), nil // empty, never nil, for an audiobook or podcast
 }
 
 // ImageCandidates lists the candidates of every source for one kind of a title (6.4): the image

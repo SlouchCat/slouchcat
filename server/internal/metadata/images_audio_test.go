@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"image"
 	"image/png"
@@ -282,5 +283,20 @@ func TestImageConfigWebP(t *testing.T) {
 	}
 	if _, err := imageConfig([]byte("RIFF"), "image/webp"); err == nil {
 		t.Error("short webp accepted")
+	}
+}
+
+// An audiobook or a podcast has no kind to choose or upload: AdminItem.imageKinds is an empty
+// list, not missing (contract 1.15.0).
+func TestChoosableImageKindsAudio(t *testing.T) {
+	t.Parallel()
+	e := audioEnv(t, t.TempDir())
+	e.addAudio(t, idBookFolder, "audiobook", 3, nil, nil, nil)
+	kinds, err := e.svc.ChoosableImageKinds(context.Background(), idBookFolder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, err := json.Marshal(kinds); err != nil || string(b) != "[]" {
+		t.Fatalf("image kinds of an audiobook %s (%v), want []", b, err)
 	}
 }
