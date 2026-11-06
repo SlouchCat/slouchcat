@@ -102,6 +102,13 @@ type ScheduleSeed struct {
 	LastRun time.Time // zero: never ran; else next_run_at = LastRun + Every, at least now
 }
 
+// SeedOff is the Seed of a schedule type whose first row is off at its default interval: a run
+// starts by hand until the administrator turns the schedule on (the backfills, O-6, concept 15
+// P-3).
+func SeedOff(context.Context) (ScheduleSeed, error) {
+	return ScheduleSeed{Enabled: false}, nil
+}
+
 // Scheduled reports whether the type has a schedule.
 func (t Type) Scheduled() bool { return t.Trigger == TriggerSchedule }
 

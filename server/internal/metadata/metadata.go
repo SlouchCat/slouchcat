@@ -365,7 +365,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Name: JobOriginalLanguageBackfill, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: fillPriority, Handler: s.handleOriginalLanguageBackfill, Run: s.runOriginalLanguageBackfill,
 		Every: originalLanguageEvery,
-		Seed:  func(context.Context) (jobs.ScheduleSeed, error) { return jobs.ScheduleSeed{Enabled: false}, nil },
+		Seed:  jobs.SeedOff,
 	})
 	r.Register(jobs.Type{Name: JobImageFetch, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: imageFetchPriority, Handler: s.handleImageFetch})
 	r.Register(jobs.Type{Name: JobApply, Group: jobs.GroupMetadata, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: applyPriority, Handler: s.handleApply})

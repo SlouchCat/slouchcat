@@ -305,7 +305,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{
 		Name: JobChapterImagesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioChapterImages, Handler: s.handleChapterImagesBackfill, Run: s.runChapterImagesBackfill,
-		Every: chapterImagesBackfillEvery, Seed: scheduleOffSeed,
+		Every: chapterImagesBackfillEvery, Seed: jobs.SeedOff,
 	})
 	r.Register(s.keyframesBackfillType())
 }

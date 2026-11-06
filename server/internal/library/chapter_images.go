@@ -568,8 +568,9 @@ func (s *Service) runChapterImagesBackfill(ctx context.Context, q *jobs.Queue, p
 
 // enqueueBackfillImages queues chapters.images of a file at the backfill's priority. A job of the
 // file that waits for a later start (queued ChapterImagesAfterPlayback after a playback) holds the
-// key; it may run now (jobs.Queue.PullQueuedForward), because the backfill was started by hand,
-// and keeps its own priority and attempts. The job itself still waits while the file plays.
+// key; it may run now (jobs.Queue.PullQueuedForward), because the backfill was started by hand or
+// by its schedule, and keeps its own priority and attempts. The job itself still waits while the
+// file plays.
 func (s *Service) enqueueBackfillImages(ctx context.Context, mediaFileID string) error {
 	j := chapterImagesJob(mediaFileID)
 	payload, err := json.Marshal(j.payload)

@@ -39,18 +39,12 @@ const (
 // errBackfillTimeouts: keyframesBackfillTimeouts container reads in a row timed out.
 var errBackfillTimeouts = errors.New("container reads time out")
 
-// scheduleOffSeed is the Seed of the backfills: their first schedule row is off (O-6, concept 15
-// P-3); a run starts by hand until the administrator turns the schedule on.
-func scheduleOffSeed(context.Context) (jobs.ScheduleSeed, error) {
-	return jobs.ScheduleSeed{Enabled: false}, nil
-}
-
 // keyframesBackfillType is the job type of the backfill (RegisterTypes).
 func (s *Service) keyframesBackfillType() jobs.Type {
 	return jobs.Type{
 		Name: JobKeyframesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioKeyframesBackfill, Every: keyframesBackfillEvery,
-		Seed:    scheduleOffSeed,
+		Seed:    jobs.SeedOff,
 		Run:     s.runKeyframesBackfill,
 		Handler: s.handleKeyframesBackfill,
 	}
