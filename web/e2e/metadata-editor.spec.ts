@@ -317,16 +317,26 @@ test('library grid: Tab reaches the card, then its pen; Enter opens, Escape retu
   await page.keyboard.press('Tab');
   await expectFocusOn(page, cardPen);
   await expect(frame).toHaveCSS('opacity', '1');
-  // The arrow keys pass it by: from the pen they move on from its card, never onto a pen.
   await page.keyboard.press('Enter');
   await expect(dialog(page)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog(page)).toHaveCount(0);
   await expectFocusOn(page, cardPen);
-  await card.focus();
-  await page.keyboard.press('ArrowRight');
-  const active = await page.evaluate(() => document.activeElement?.tagName.toLowerCase());
-  expect(active).toBe('a');
+  // The arrow keys pass the pen by: from it they move on from its card to the link of the card
+  // beside it, never onto a pen.
+  const right = await cell.evaluate((li) => li.nextElementSibling !== null);
+  const neighbour = await cell.evaluate(
+    (li, next) =>
+      (next ? li.nextElementSibling : li.previousElementSibling)
+        ?.querySelector('a')
+        ?.getAttribute('href') ?? null,
+    right,
+  );
+  expect(neighbour).not.toBeNull();
+  await page.keyboard.press(right ? 'ArrowRight' : 'ArrowLeft');
+  await expect(grid.locator(`a[href="${neighbour}"]`)).toBeFocused();
+  await expectVisibleFocus(page);
+  await expectNoFocusTrap(page, 400);
 });
 
 test('a profile other than the primary one sees no pen', async ({ page, owner }) => {
