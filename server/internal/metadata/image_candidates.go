@@ -36,12 +36,14 @@ const (
 	codeSourceUnknown = "source_unknown"
 )
 
-// choosableKinds are the kinds the administrator can choose per item kind (7.3): the episode still
-// is not chosen by hand (40'000 episodes; a refresh brings the provider's).
+// choosableKinds are the kinds the administrator can choose or upload per item kind (7.3): the
+// episode still (kind backdrop, concept 15 7.5) only while the setting "episode stills" is on for
+// the title's library (switchedOn); lifting a lock works either way.
 var choosableKinds = map[string][]string{
-	"movie":  {"poster", "backdrop", "logo"},
-	"series": {"poster", "backdrop", "logo"},
-	"season": {"poster"},
+	"movie":   {"poster", "backdrop", "logo"},
+	"series":  {"poster", "backdrop", "logo"},
+	"season":  {"poster"},
+	"episode": {"backdrop"},
 }
 
 type candidateEntry struct {
@@ -103,13 +105,60 @@ func (s *Service) choosable(ctx context.Context, itemID, kind string) (systemq.I
 	return item, nil
 }
 
+// choosableNow is choosable for the candidates, the choice and the upload: an episode still also
+// needs the setting "episode stills" of the title's library, since image.fetch leaves a switched-off
+// kind alone (*model.ValidationError kind invalid_value otherwise).
+func (s *Service) choosableNow(ctx context.Context, itemID, kind string) (systemq.Item, error) {
+	item, err := s.choosable(ctx, itemID, kind)
+	if err != nil {
+		return systemq.Item{}, err
+	}
+	on, err := s.switchedOn(ctx, item)
+	if err != nil {
+		return systemq.Item{}, err
+	}
+	if !on {
+		var v *model.ValidationError
+		return systemq.Item{}, v.Add("kind", "invalid_value")
+	}
+	return item, nil
+}
+
+// switchedOn reports whether the choosable kinds of the item are switched on: always, except for an
+// episode, whose still needs the setting "episode stills" of its library.
+func (s *Service) switchedOn(ctx context.Context, item systemq.Item) (bool, error) {
+	if item.Kind != "episode" {
+		return true, nil
+	}
+	st, err := s.Effective(ctx, item.LibraryID)
+	if err != nil {
+		return false, fmt.Errorf("image kinds of %s: %w", item.ID, err)
+	}
+	return st.HasImageKind(ImageKindEpisodeStill), nil
+}
+
+// ChoosableImageKinds lists the kinds the administrator can choose or upload for a title now
+// (AdminItem.imageKinds): choosableKinds, for an episode only with the setting "episode stills"
+// (model.ErrNotFound for an unknown or deleted title).
+func (s *Service) ChoosableImageKinds(ctx context.Context, itemID string) ([]string, error) {
+	item, err := s.liveItem(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	on, err := s.switchedOn(ctx, item)
+	if err != nil || !on {
+		return []string{}, err
+	}
+	return slices.Clone(choosableKinds[item.Kind]), nil
+}
+
 // ImageCandidates lists the candidates of every source for one kind of a title (6.4): the image
 // files next to the media first, then the providers of the folder in list order (TMDB without
 // language filter, TVDB artworks of a series); within a source by the kind's language chain,
 // then votes and width. refresh skips the cache. A provider that fails is named in Unavailable
 // instead of failing the list.
 func (s *Service) ImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error) {
-	item, err := s.choosable(ctx, itemID, kind)
+	item, err := s.choosableNow(ctx, itemID, kind)
 	if err != nil {
 		return model.ImageCandidateList{}, err
 	}
@@ -170,12 +219,18 @@ func (s *Service) collectCandidates(ctx context.Context, item systemq.Item, kind
 	out.Candidates = append(out.Candidates, sortCandidates(locals, chain)...)
 
 	series := item
-	if item.Kind == "season" {
+	switch item.Kind {
+	case "season":
 		if !item.ParentID.Valid {
 			return out, nil
 		}
 		if series, err = s.read.GetItemSystem(ctx, item.ParentID.String); err != nil {
 			return out, fmt.Errorf("image candidates of %s: series: %w", item.ID, err)
+		}
+	case "episode":
+		var ok bool
+		if series, ok, err = s.seriesOf(ctx, item); err != nil || !ok {
+			return out, err
 		}
 	}
 	order := model.ParseProviders(series.Providers)
@@ -192,7 +247,7 @@ func (s *Service) collectCandidates(ctx context.Context, item systemq.Item, kind
 			}
 			found, err = s.tmdbCandidates(ctx, item, series.TmdbID.Int64, kind)
 		case model.ProviderTVDB:
-			if !series.TvdbID.Valid || series.Kind != "series" || item.Kind == "season" || !s.tvdb.Configured(ctx) {
+			if !series.TvdbID.Valid || series.Kind != "series" || item.Kind == "season" || item.Kind == "episode" || !s.tvdb.Configured(ctx) {
 				continue
 			}
 			found, err = s.tvdbCandidates(ctx, series.TvdbID.Int64, kind)
@@ -209,8 +264,9 @@ func (s *Service) collectCandidates(ctx context.Context, item systemq.Item, kind
 		}
 		out.Candidates = append(out.Candidates, sortCandidates(found, chain)...)
 	}
-	// Fanart.tv last (step 6): films by TMDB id, series by TVDB id; no season posters here.
-	if item.Kind != "season" && s.fanart.Active(ctx) {
+	// Fanart.tv last (step 6): films by TMDB id, series by TVDB id; no season posters or episode
+	// stills here.
+	if item.Kind != "season" && item.Kind != "episode" && s.fanart.Active(ctx) {
 		id := series.TmdbID.Int64
 		if series.Kind == "series" {
 			id = series.TvdbID.Int64
@@ -250,6 +306,12 @@ func (s *Service) tmdbCandidates(ctx context.Context, item systemq.Item, tmdbID 
 		p = "/tv/" + strconv.FormatInt(tmdbID, 10)
 	case "season":
 		p = "/tv/" + strconv.FormatInt(tmdbID, 10) + "/season/" + strconv.FormatInt(item.SeasonNumber.Int64, 10)
+	case "episode":
+		if !item.SeasonNumber.Valid || !item.EpisodeNumber.Valid {
+			return nil, nil
+		}
+		p = "/tv/" + strconv.FormatInt(tmdbID, 10) + "/season/" + strconv.FormatInt(item.SeasonNumber.Int64, 10) +
+			"/episode/" + strconv.FormatInt(item.EpisodeNumber.Int64, 10)
 	}
 	imgs, err := c.AllImages(ctx, p)
 	if err != nil {
@@ -308,7 +370,7 @@ func sortCandidates(list []model.ImageCandidate, chain []string) []model.ImageCa
 // title; an expired cache is refilled before a source counts as unknown (9.5). Errors:
 // model.ErrNotFound, *model.ValidationError (kind invalid_value, source source_unknown).
 func (s *Service) SetItemImage(ctx context.Context, itemID, kind, provider, source string) error {
-	item, err := s.choosable(ctx, itemID, kind)
+	item, err := s.choosableNow(ctx, itemID, kind)
 	if err != nil {
 		return err
 	}
@@ -359,7 +421,7 @@ func (s *Service) findCandidate(itemID, kind, provider, source string) (model.Im
 
 // ClearItemImage lifts the choice and the lock of a kind (clearItemImage): the item_images row
 // goes, the kind leaves locked_fields, and a manual match of the title (of the series for a
-// season) decides the kind again; the match queues image.fetch (papier 14: the match, not fill,
+// season; an episode turns pending first) decides the kind again; the match queues image.fetch (papier 14: the match, not fill,
 // because fill of a title with one source decides no images). Errors: model.ErrNotFound,
 // *model.ValidationError (kind invalid_value).
 func (s *Service) ClearItemImage(ctx context.Context, itemID, kind string) error {
@@ -380,8 +442,16 @@ func (s *Service) ClearItemImage(ctx context.Context, itemID, kind string) error
 	}
 	s.log.Info("image choice cleared", "item_id", item.ID, "kind", kind)
 	target := item.ID
-	if item.Kind == "season" && item.ParentID.Valid {
+	switch {
+	case item.Kind == "season" && item.ParentID.Valid:
 		target = item.ParentID.String
+	case item.Kind == "episode" && item.MetadataState != statePending:
+		// The match of an episode runs only while it is pending (like Refresh).
+		if err := s.write.SetItemMetadataState(ctx, systemq.SetItemMetadataStateParams{
+			MetadataState: statePending, MatchedAt: item.MatchedAt, Now: now, ID: item.ID,
+		}); err != nil {
+			return fmt.Errorf("clear %s image of %s: %w", kind, item.ID, err)
+		}
 	}
 	return s.enqueueManualMatch(ctx, target)
 }

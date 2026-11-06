@@ -144,6 +144,7 @@ type Images struct {
 	Posters   []Image `json:"posters"`
 	Backdrops []Image `json:"backdrops"`
 	Logos     []Image `json:"logos"`
+	Stills    []Image `json:"stills"` // /tv/{id}/season/{n}/episode/{e}/images: the episode stills (kind backdrop)
 }
 
 // imageQuery adds images to append_to_response with the wanted languages (plus null, the images
@@ -204,7 +205,7 @@ func (c *Client) Movie(ctx context.Context, id int64, lang string, imageLangs []
 }
 
 // AllImages reads the images of a title in every language (/movie/{id}/images, /tv/{id}/images,
-// /tv/{id}/season/{n}/images without language filter), the candidates of the image choice per
+// /tv/{id}/season/{n}/images, /tv/{id}/season/{n}/episode/{e}/images without language filter), the candidates of the image choice per
 // title (concept 10 6.4). path is the title's path without "/images".
 func (c *Client) AllImages(ctx context.Context, path string) (Images, error) {
 	var im Images
