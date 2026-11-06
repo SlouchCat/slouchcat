@@ -1,16 +1,20 @@
 # Aktueller Stand
 
-## Release 1.13.2 (6. November 2026)
+## Release 1.13.2 (6. November 2026): veröffentlicht
 
 Release ab `main` nach PR #98 (Konzept 15, Stufe 1). Der Vertrag bleibt **1.13.0** (keine Änderung an
 `api/openapi.yaml` seit `v1.13.0`), keine Migration.
 
 - Versionsstellen auf 1.13.2 im Zweig `claude/release-1.13.2` (`deploy/.env.example`,
-  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
-  `v1.13.2` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.13.2.txt` im
-  Wurzelordner (unversioniert).
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`),
+  gemergt als **PR #99** (Merge `8ca83892`).
+- Tag `v1.13.2` von Marco auf `8ca83892` gesetzt (6. November 2026, Release-Notes
+  `release-notes-1.13.2.txt`). Release-Lauf `42213787617` grün, GitHub-Release um 11:57
+  veröffentlicht.
+- CT 190 läuft seit 13:01 auf Image `1.13.2` (Sicherung `.env.bak-vor-1.13.2`). Worktrees, Zweige
+  und Zwischen-Images der Stufe 1 sind aufgeräumt.
 
-## Konzept 15 «Feinschliff», Stufe 1: gemergt und auf CT 190 abgenommen (6. November 2026)
+## Konzept 15 «Feinschliff», Stufe 1: veröffentlicht als 1.13.2 (6. November 2026)
 
 Zweig `claude/feinschliff-stufe1` ab `main` `311a5117` (Merge von PR #97, Konzept 15). Geplant als
 Release **1.13.2**: Vertrag bleibt **1.13.0**, keine Migration. Frage 22 im Entscheidungsprotokoll
