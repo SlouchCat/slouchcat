@@ -426,6 +426,11 @@
       "all": "Alle anzeigen ›"
     },
     "remaining": "Noch {{time}}",
+    "continue": {
+      "episode": "S{{season}} · F{{episode}}",
+      "episodeRange": "S{{season}} · F{{episode}}–F{{end}}",
+      "new": "Neu"
+    },
     "empty": {
       "title": "Hier ist es noch leer",
       "body": "Sobald eine Bibliothek gescannt ist, erscheinen deine Filme hier.",

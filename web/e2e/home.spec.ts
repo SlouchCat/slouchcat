@@ -1,6 +1,6 @@
 import { type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { audioItemId, AUDIO_READY_MS, M4B_TITLE } from './audio';
-import { CSRF, EXTRAS_TITLE } from './catalog';
+import { CSRF, EXTRAS_TITLE, H264_TITLE, SHOW_TITLE } from './catalog';
 import { createPick, DEFAULT_HOME_ROWS, deletePick, listPicks, setHomeRows } from './curation';
 import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
@@ -11,7 +11,7 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
-import { itemIdByTitle } from './playback';
+import { episodeIds, itemIdByTitle, useFreshProfile } from './playback';
 import { TRAKT_ENTRIES } from './trakt-server.mjs';
 
 /**
@@ -855,6 +855,97 @@ test('no stage: without the spotlight row the page starts with a poster row (3.5
     expect(on.status(), await on.text()).toBe(200);
     await deletePick(owner, cover.id);
   }
+});
+
+/** Reports a position of a title for the profile of `api` (an online progress event). */
+async function reportProgress(
+  api: APIRequestContext,
+  itemId: string,
+  positionMs: number,
+  state: 'paused' | 'ended' = 'paused',
+): Promise<void> {
+  const response = await api.post(`/api/v1/items/${itemId}/progress`, {
+    headers: CSRF,
+    data: {
+      positionMs,
+      durationMs: 1_800_000,
+      playedMs: positionMs,
+      seq: 1,
+      state,
+      clientTime: new Date().toISOString(),
+    },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+}
+
+test('"Weiterschauen" per series: the series card, arrow keys in the row, Enter opens the episode (concept 15 P-1, F-1) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  // A profile of its own: its progress is only this test's, the owner's rows stay as they are.
+  await useFreshProfile(page, owner, 'E2E Weiterschauen');
+  const film = await itemIdByTitle(owner, H264_TITLE);
+  const [first, , double] = await episodeIds(owner, await itemIdByTitle(owner, SHOW_TITLE));
+  if (!first || !double) throw new Error('season 1 of the test show is incomplete');
+  const row = page.getByRole('region', { name: ROW_TITLES.continue });
+  const cards = row.getByRole('link');
+  const seriesCard = row.getByRole('link', { name: new RegExp(`^${SHOW_TITLE}, `) });
+
+  // The first episode watched to the end: the series stays with the next one, not started yet.
+  await reportProgress(page.request, film, 600_000);
+  await reportProgress(page.request, first, 1_800_000, 'ended');
+  await page.goto('/');
+  await expect(seriesCard).toHaveCount(1);
+  await expect(seriesCard).toHaveAccessibleName(new RegExp(`^${SHOW_TITLE}, S1 · F2, .+, Neu$`));
+  await expect(seriesCard.getByText('S1 · F2 · Neu', { exact: true })).toBeVisible();
+  await expect(seriesCard.getByRole('progressbar')).toHaveCount(0);
+
+  // The double episode started last: one card for the series, with the code and the time left.
+  await reportProgress(page.request, double, 600_000);
+  await page.goto('/');
+  await expect(seriesCard).toHaveCount(1);
+  await expect(seriesCard).toHaveAccessibleName(
+    new RegExp(`^${SHOW_TITLE}, S1 · F3–F4, .+, Noch 20 min$`),
+  );
+  await expect(seriesCard.getByText(SHOW_TITLE, { exact: true })).toBeVisible();
+  await expect(seriesCard.getByText('S1 · F3–F4 · Noch 20 min', { exact: true })).toBeVisible();
+  await expect(seriesCard.getByRole('progressbar', { name: '33 % gesehen' })).toBeVisible();
+  await expect(seriesCard).toHaveAttribute('href', `/items/${double}`);
+  // The film beside it stays a film card.
+  await expect(cards).toHaveCount(2);
+
+  // Down from the top into the row, then the arrow keys move along it as in every row.
+  await resetFocus(page);
+  const inRow = () =>
+    cards.evaluateAll((links) => links.indexOf(document.activeElement as HTMLAnchorElement));
+  for (let presses = 0; presses < 8 && (await inRow()) < 0; presses += 1) {
+    await page.keyboard.press('ArrowDown');
+  }
+  expect(await inRow()).toBeGreaterThanOrEqual(0);
+  await expectVisibleFocus(page);
+  const start = await inRow();
+  const step = start === 0 ? 'ArrowRight' : 'ArrowLeft';
+  await page.keyboard.press(step);
+  await expect.poll(inRow).toBe(start === 0 ? 1 : start - 1);
+  await expectVisibleFocus(page);
+  await page.keyboard.press(step === 'ArrowRight' ? 'ArrowLeft' : 'ArrowRight');
+  await expect.poll(inRow).toBe(start);
+
+  // Onto the series card; Enter opens the episode's page (F-1), the next arrow lands on resume.
+  const seriesIndex = await seriesCard.evaluate((card) =>
+    [...(card.closest('ul')?.querySelectorAll('a') ?? [])].indexOf(card as HTMLAnchorElement),
+  );
+  if (seriesIndex !== start) {
+    await page.keyboard.press(seriesIndex > start ? 'ArrowRight' : 'ArrowLeft');
+  }
+  await expectFocusOn(page, seriesCard);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp(`/items/${double}$`));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(
+    page,
+    page.getByRole('link', { name: /^Weiterschauen ab \d{2}:\d{2}:\d{2}$/ }),
+  );
 });
 
 test('arrow keys move hero → rows → header, Enter opens, back returns', async ({ page }) => {

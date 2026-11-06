@@ -361,6 +361,13 @@ export const episodes = {
   s0e1: episodeRef(seriesIds.s0e1, 0, 1, 'Episode 1'),
 };
 
+/** The series on an episode's card (`seriesRef`, contract 1.14.0): its title and poster. */
+export const showSeriesRef: NonNullable<ItemRef['seriesRef']> = {
+  id: seriesIds.show,
+  title: showRef.title,
+  images: images(seriesIds.show),
+};
+
 const seasons = [
   seasonRef(seriesIds.season1, 'Season 1', 1, 3),
   seasonRef(seriesIds.specials, 'Specials', 0, 1),

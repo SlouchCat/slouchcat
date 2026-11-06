@@ -67,16 +67,48 @@ function firstKey(row: HomeRow): string | undefined {
 
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
 
+/** "Noch 20 min": the time left of a started title. */
+function remaining(t: TFunction, progress: NonNullable<ItemRef['progress']>): string {
+  const minutes = Math.max(1, Math.round((progress.durationMs - progress.positionMs) / 60_000));
+  return t('home.remaining', { time: formatRuntime(t, minutes) });
+}
+
+/**
+ * The series a card of "Weiterschauen" shows instead of its episode (concept 15 P-1): its poster
+ * and title. Undefined for every other card and for an episode without `seriesRef`, which show the
+ * title itself; the other rows stay as they are.
+ */
+const seriesOf = (row: HomeRow, item: ItemRef) =>
+  row.key === 'continue' && item.kind === 'episode' ? item.seriesRef : undefined;
+
+/** "S4 · F7", or "S4 · F7–F8" for a file with several episodes; undefined without numbers. */
+function shortEpisodeCode(t: TFunction, item: ItemRef): string | undefined {
+  if (item.seasonNumber === undefined || item.episodeNumber === undefined) return undefined;
+  const numbers = { season: item.seasonNumber, episode: item.episodeNumber };
+  return item.episodeEnd !== undefined && item.episodeEnd > item.episodeNumber
+    ? t('home.continue.episodeRange', { ...numbers, end: item.episodeEnd })
+    : t('home.continue.episode', numbers);
+}
+
+/**
+ * Title, caption and spoken name of a series card (seriesOf): "S4 · F7 · Noch 20 min" under the
+ * series title, "S4 · F8 · Neu" for the next episode not started yet; the name adds the episode's
+ * own title ("Die Simpsons, S4 · F7, Donuts im Stau, Noch 20 min").
+ */
+function seriesCardText(t: TFunction, series: { title: string }, item: ItemRef) {
+  const code = shortEpisodeCode(t, item);
+  const state = item.progress ? remaining(t, item.progress) : t('home.continue.new');
+  return {
+    title: series.title,
+    caption: [code, state].filter(Boolean).join(t('format.separator')),
+    label: [series.title, code, item.title, state].filter(Boolean).join(t('format.listSeparator')),
+  };
+}
+
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
   // A curated title carries the main user's note (picks, E-2); it says more than the year.
   if (item.note) return item.note;
-  if (row.key === 'continue' && item.progress) {
-    const minutes = Math.max(
-      1,
-      Math.round((item.progress.durationMs - item.progress.positionMs) / 60_000),
-    );
-    return t('home.remaining', { time: formatRuntime(t, minutes) });
-  }
+  if (row.key === 'continue' && item.progress) return remaining(t, item.progress);
   // An audiobook or a podcast is known by its author more than by its year (M6).
   if (isAudioKind(item.kind) && item.author) return item.author;
   return item.year !== undefined ? String(item.year) : undefined;
@@ -136,9 +168,9 @@ export function HomePage() {
   // has a stage, starts with collections or genres, or its first title has no poster.
   const [posterShown, setPosterShown] = useState(false);
   const leadCard = home.data?.heroRow ? undefined : leadRow?.items[0];
-  const leadCardHasArt = Boolean(
-    leadCard && (leadCard.images.poster ?? leadCard.images.posterSmall),
-  );
+  // A series card shows the series poster, which the server paints ahead as well (cardPoster).
+  const leadImages = leadRow && leadCard && (seriesOf(leadRow, leadCard) ?? leadCard).images;
+  const leadCardHasArt = Boolean(leadImages && (leadImages.poster ?? leadImages.posterSmall));
   const posterPrepaintDone = home.isError || (home.isSuccess && (!leadCardHasArt || posterShown));
   useEffect(() => {
     if (posterPrepaintDone) dismissPosterPrepaint();
@@ -253,35 +285,44 @@ export function HomePage() {
         moreHref={moreHref}
         moreLabel={moreHref ? t('home.rows.all') : undefined}
       >
-        {row.items.map((item, itemIndex) => (
-          <PosterCard
-            key={item.id}
-            focusKey={cardKey(row, item)}
-            href={paths.item(item.id)}
-            title={item.title}
-            caption={cardCaption(t, row, item)}
-            posterUrl={imageUrl(item.images.poster)}
-            posterSmallUrl={imageUrl(item.images.posterSmall)}
-            accent={item.accent}
-            eager={eagerRow && itemIndex < EAGER_POSTERS}
-            priority={posterLeads && eagerRow && itemIndex === 0}
-            onImageShown={
-              posterLeads && eagerRow && itemIndex === 0 ? () => setPosterShown(true) : undefined
-            }
-            deferImage={heroHasArt && !heroShown}
-            shape={isAudioKind(item.kind) ? 'square' : 'poster'}
-            progress={
-              row.key === 'continue' && item.progress
-                ? {
-                    percent: item.progress.percent,
-                    label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
-                      percent: Math.round(item.progress.percent),
-                    }),
-                  }
-                : undefined
-            }
-          />
-        ))}
+        {row.items.map((item, itemIndex) => {
+          const series = seriesOf(row, item);
+          const text = series
+            ? seriesCardText(t, series, item)
+            : { title: item.title, caption: cardCaption(t, row, item), label: undefined };
+          const images = (series ?? item).images;
+          return (
+            <PosterCard
+              key={item.id}
+              focusKey={cardKey(row, item)}
+              // A series card leads to its episode too, with "Fortsetzen" in focus (F-1).
+              href={paths.item(item.id)}
+              title={text.title}
+              caption={text.caption}
+              label={text.label}
+              posterUrl={imageUrl(images.poster)}
+              posterSmallUrl={imageUrl(images.posterSmall)}
+              accent={item.accent}
+              eager={eagerRow && itemIndex < EAGER_POSTERS}
+              priority={posterLeads && eagerRow && itemIndex === 0}
+              onImageShown={
+                posterLeads && eagerRow && itemIndex === 0 ? () => setPosterShown(true) : undefined
+              }
+              deferImage={heroHasArt && !heroShown}
+              shape={isAudioKind(item.kind) ? 'square' : 'poster'}
+              progress={
+                row.key === 'continue' && item.progress
+                  ? {
+                      percent: item.progress.percent,
+                      label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
+                        percent: Math.round(item.progress.percent),
+                      }),
+                    }
+                  : undefined
+              }
+            />
+          );
+        })}
       </Row>
     );
   };

@@ -426,6 +426,11 @@
       "all": "Show all ›"
     },
     "remaining": "{{time}} left",
+    "continue": {
+      "episode": "S{{season}} · E{{episode}}",
+      "episodeRange": "S{{season}} · E{{episode}}–E{{end}}",
+      "new": "New"
+    },
     "empty": {
       "title": "Nothing here yet",
       "body": "Your films appear here as soon as a library has been scanned.",
