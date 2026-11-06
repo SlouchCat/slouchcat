@@ -8,6 +8,7 @@ import { paths } from '@/app/paths';
 import { Notice, Skeleton, TextLink, useSpatialHold } from '@/ui';
 import { AriaButton, EditorDialog, StatusRegion, Tabs, useStatusMessage } from '@/ui/aria';
 import { adminItemQuery, librariesQuery } from '../queries';
+import { ImagesEditorTab } from './ImagesEditorTab';
 import { MatchTab, RefreshTab } from './MatchRefreshTabs';
 import styles from './MetadataEditor.module.css';
 
@@ -40,7 +41,7 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
   useSpatialHold(true);
   const item = useQuery(adminItemQuery(itemId));
   const libraries = useQuery(librariesQuery);
-  const [tab, setTab] = useState('match');
+  const [tab, setTab] = useState('images');
   const [message, setMessage] = useStatusMessage();
 
   const data = item.data;
@@ -102,6 +103,11 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
           selectedKey={tab}
           onSelectionChange={setTab}
           tabs={[
+            {
+              id: 'images',
+              label: t('admin.editor.tabs.images'),
+              content: <ImagesEditorTab item={data} onChanged={adopt} />,
+            },
             {
               id: 'match',
               label: t('admin.editor.tabs.match'),

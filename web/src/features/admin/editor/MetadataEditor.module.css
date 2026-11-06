@@ -17,3 +17,32 @@
   gap: var(--sc-space-3);
   align-items: center;
 }
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* The current image of a kind beside its state and actions; under each other on phones. */
+.current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  align-items: flex-start;
+}
+
+.current > .stack {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0;
+}
+
+.preview {
+  flex: none;
+  width: var(--sc-size-poster-sm);
+}
+
+.preview[data-shape='landscape'] {
+  width: calc(var(--sc-size-poster-sm) * 2);
+}
