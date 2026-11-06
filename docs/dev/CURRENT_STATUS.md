@@ -1,17 +1,23 @@
 # Aktueller Stand
 
-## Release 1.14.0 (6. November 2026)
+## Release 1.14.0 (6. November 2026): veröffentlicht
 
 Release ab `main` nach PR #100 (Konzept 15, Stufe 2). Vertrag **1.14.0** (additiv), Migration
 **`00034_job_windows.sql`**: der Weg zurück auf 1.13.2 geht nur über die Datenbanksicherung, die der
 Server vor der Migration schreibt (`/config/backups/pre-migration-…`).
 
 - Versionsstellen auf 1.14.0 im Zweig `claude/release-1.14.0` (`deploy/.env.example`,
-  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
-  `v1.14.0` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.14.0.txt` im
-  Wurzelordner (unversioniert).
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`),
+  gemergt als **PR #101** (Merge `6a3d9eb5`).
+- Tag `v1.14.0` von Marco auf `6a3d9eb5` gesetzt (6. November 2026, Release-Notes
+  `release-notes-1.14.0.txt`). Release-Lauf `42287836155` grün, GitHub-Release um 21:24
+  veröffentlicht.
+- CT 190 läuft seit 21:27 auf Image `1.14.0` (Sicherung `.env.bak-vor-1.14.0`; Migration 00034 lief
+  dort schon beim Testimage, DB-Sicherung
+  `pre-migration-v1.13.2-21-g353f552a-20261106T185611.630Z.db`). Worktrees, Zweige und
+  Zwischen-Images der Stufe 2 sind aufgeräumt.
 
-## Konzept 15 «Feinschliff», Stufe 2: gemergt und auf CT 190 abgenommen (6. November 2026)
+## Konzept 15 «Feinschliff», Stufe 2: veröffentlicht als 1.14.0 (6. November 2026)
 
 Zweig `claude/feinschliff-stufe2-26fc61` ab `main` `8ca83892` (Release 1.13.2). Geplant als Release
 **1.14.0**: Vertrag **1.14.0 (additiv)**, Migration **`00034_job_windows.sql`**.
