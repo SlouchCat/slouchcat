@@ -3,6 +3,7 @@ package visibility
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -74,7 +75,8 @@ func (r *Reader) VisibleLibraries(ctx context.Context, s Scope) ([]model.Library
 // LibraryTiles returns the tiles of the start page row «Meine Medien» (concept 15 P-7): the
 // libraries of VisibleLibraries in the same order, each with the number of its visible top-level
 // titles and its model.LibraryTileCovers newest ones (LibraryNewest), read in one read-only
-// transaction. A library the profile does not see is absent.
+// transaction; the covers of all tiles are then summarized together. A library the profile does
+// not see is absent.
 func (r *Reader) LibraryTiles(ctx context.Context, s Scope) ([]model.LibraryTile, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
@@ -98,11 +100,21 @@ func (r *Reader) LibraryTiles(ctx context.Context, s Scope) ([]model.LibraryTile
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit library tiles: %w", err)
 	}
+	covers, err := r.ordered(ctx, s, pid, slices.Concat(ids...))
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[string]model.ItemSummary, len(covers))
+	for _, it := range covers {
+		byID[it.ID] = it
+	}
 	out := make([]model.LibraryTile, 0, len(libs))
 	for i, l := range libs {
-		items, err := r.ordered(ctx, s, pid, ids[i])
-		if err != nil {
-			return nil, err
+		items := make([]model.ItemSummary, 0, len(ids[i]))
+		for _, id := range ids[i] {
+			if it, ok := byID[id]; ok { // a title hidden since the transaction is left out, as ordered does
+				items = append(items, it)
+			}
 		}
 		out = append(out, model.LibraryTile{ID: l.ID, Name: l.Name, Kind: l.Kind, ItemCount: int(l.ItemCount), Items: items})
 	}
@@ -133,10 +145,24 @@ func (r *Reader) LibraryNewest(ctx context.Context, s Scope, libraryID int64, li
 }
 
 // newestIDs returns the ids of the newest visible top-level titles of a library with the page
-// statement of LibraryItems sorted by added, without filters.
+// statement of LibraryItems sorted by added, without filters. It first reads the time the
+// limit-th newest title was added and then sorts only the titles added at or after it: the order
+// begins with added_at (never NULL), so no title added earlier can be among the first limit, and
+// the sort key that breaks ties is computed for those few titles instead of the whole library
+// (docs/perf/feinschliff.md section 3). With fewer than limit titles it sorts them all.
 func newestIDs(ctx context.Context, tx *sql.Tx, s Scope, pid, libraryID int64, limit int) ([]string, error) {
 	f := libraryFilter{LibraryQuery: model.LibraryQuery{Sort: model.LibrarySortAdded, MaxRating: -1}, desc: true, kinds: topKinds}
+	nth := libraryStmt(s, pid, libraryID, f, "SELECT added_at FROM lib WHERE 1", false)
+	nth.add(" ORDER BY added_at DESC LIMIT 1 OFFSET ?", limit-1)
+	var since int64
+	err := tx.QueryRowContext(ctx, nth.sql.String(), nth.args...).Scan(&since)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("library title added %d-th newest: %w", limit, err)
+	}
 	b := libraryStmt(s, pid, libraryID, f, "SELECT id, kind FROM lib WHERE 1", false)
+	if err == nil {
+		b.add(" AND added_at >= ?", since)
+	}
 	b.add(" ORDER BY " + libraryOrderBy(f))
 	b.add(" LIMIT ?", limit)
 	ids, _, err := libraryIDs(ctx, tx, b)

@@ -444,3 +444,33 @@ func TestPicksPage(t *testing.T) {
 		t.Errorf("P0 picks: row %d, page %d of %d, want 20 and 26 of 26 in the same order", len(row), len(page), total)
 	}
 }
+
+// LibraryNewest («Neu in …», concept 15 P-7) reads only the titles added at or after its limit-th
+// newest one (newestIDs) and must still give the first titles of the library page sorted by added
+// for every limit, also when the cut falls into titles added at the same time (the sort key and
+// the id break the tie) and when titles of that time are not visible to the profile.
+func TestLibraryNewestTiesAtTheCut(t *testing.T) {
+	t.Parallel()
+	f := libraryFixture(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+	// Every second title of the library shares one time, the newest, so each cut at 1..n meets the
+	// tie; the others keep their times.
+	exec(t, f, `UPDATE items SET added_at = 9000000000000
+		WHERE library_id = ? AND kind IN ('movie', 'series', 'audiobook', 'podcast') AND rowid % 2 = 0`, f.LibraryID())
+	for _, p := range []model.Profile{f.P18, f.P6} {
+		all := ids(libraryItems(t, r, p, f.LibraryID(), model.LibraryQuery{Sort: model.LibrarySortAdded}).Items)
+		if len(all) < 2 || (p.ID == f.P18.ID && len(all) < 6) {
+			t.Fatalf("%s sees %d titles, too few for the ties", p.Name, len(all))
+		}
+		for limit := 1; limit <= min(len(all)+1, MaxRowItems); limit++ {
+			got, err := r.LibraryNewest(ctx, Profile(p), f.LibraryID(), limit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := all[:min(limit, len(all))]; !slices.Equal(ids(got), want) {
+				t.Errorf("%s LibraryNewest(%d) = %v, want the library page by added %v", p.Name, limit, ids(got), want)
+			}
+		}
+	}
+}
