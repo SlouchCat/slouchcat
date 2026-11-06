@@ -16,24 +16,20 @@
 }
 
 /* What a job type does, in its own column (concept 15, P-2): the size of the other cells, muted,
-   one line cut with «…»; on a phone, where the table sizes its columns from their content, two
-   lines. */
+   at most two lines, cut with «…» after the second. On a phone, where the table sizes its columns
+   from their content, the column keeps a least width instead of shrinking to its longest word. */
 .description {
-  display: block;
+  display: -webkit-box;
   overflow: hidden;
   color: var(--sc-color-text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 @media (width < 768px) {
   .description {
-    display: -webkit-box;
     min-width: 12rem;
-    white-space: normal;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
   }
 }
 

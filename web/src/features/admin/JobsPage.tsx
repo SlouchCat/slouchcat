@@ -839,9 +839,9 @@ function JobsContent() {
 }
 
 /**
- * What a type does, in its own column of the row (concept 15, P-2): one muted line cut with «…»
- * and the whole sentence in the tooltip (two lines on a phone); empty for an unknown type. The
- * fold-out reads the sentence in full at its top.
+ * What a type does, in its own column of the row (concept 15, P-2): at most two muted lines cut
+ * with «…» and the whole sentence in the tooltip; empty for an unknown type. The fold-out reads
+ * the sentence in full at its top.
  */
 function TypeDescription({ info }: { info: JobTypeInfo }) {
   const { t } = useTranslation();
@@ -856,14 +856,15 @@ function TypeDescription({ info }: { info: JobTypeInfo }) {
 
 /**
  * The columns of a group's table: the row folds out on the name (JOB-5). The widths keep the
- * columns in place across the group tabs and when a state changes (K12-9); the description takes
- * what is left (concept 15, P-2).
+ * columns in place across the group tabs and when a state changes (K12-9). The description takes
+ * what is left, the largest share (concept 15, P-2); the name keeps 12.5rem so its longest word
+ * fits at 768 px, and the state its chip.
  */
 function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
   return [
     {
       key: 'name',
-      width: '26%',
+      width: '12.5rem',
       header: t('admin.jobs.columns.job'),
       rowHeader: true,
       cell: (info) => typeName(t, info.type),
@@ -875,7 +876,7 @@ function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
     },
     {
       key: 'state',
-      width: '11%',
+      width: '7rem',
       header: t('admin.jobs.columns.state'),
       cell: (info) => {
         const state = typeState(info);
@@ -884,20 +885,20 @@ function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
     },
     {
       key: 'queued',
-      width: '12%',
+      width: '11%',
       header: t('admin.jobs.card.queued'),
       cell: (info) => queuedText(t, info),
     },
     {
       key: 'last',
-      width: '14%',
+      width: '12%',
       header: t('admin.jobs.card.lastRun'),
       // Cut to one line here; the fold-out shows the whole text.
       cell: (info) => <LastRun info={info} oneLine />,
     },
     {
       key: 'next',
-      width: '20%',
+      width: '16%',
       header: t('admin.jobs.card.nextRun'),
       cell: (info) => <NextRun info={info} />,
     },

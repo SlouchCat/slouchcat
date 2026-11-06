@@ -62,6 +62,11 @@ test.describe('with a mouse from 768 px', () => {
   });
 
   test('a table row is 40 px high (S-5)', async ({ page }) => {
+    // A single-line row is 40 px: 24 px fold-out button and state chip plus the compact cell
+    // padding. Since concept 15 (P-2) a job row carries a description of up to two lines, so on
+    // this 1440 px screen the row is taller by design. At 1920 px the first job type's name and
+    // description fit on one line each, and there the row must be exactly 40 px again.
+    await page.setViewportSize({ width: 1920, height: 1080 });
     await openJobs(page);
     // The first job type of the selected tab: its fold-out button and state chip are 24 px.
     const row = page.getByRole('tabpanel').getByRole('row').nth(1);
@@ -69,31 +74,37 @@ test.describe('with a mouse from 768 px', () => {
     await expect.poll(() => height(row)).toBe(40);
   });
 
-  test('a job row says what the job does in its own column, one line cut with «…» (concept 15, P-2)', async ({
+  test('a job row says what the job does in its own column, at most two lines cut with «…» (concept 15, P-2)', async ({
     page,
   }) => {
+    const SENTENCE = 'Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.';
+    const measure = (locator: Locator) =>
+      locator.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          clamp: style.getPropertyValue('-webkit-line-clamp'),
+          overflow: style.overflow,
+          lines: Math.round(element.clientHeight / parseFloat(style.lineHeight)),
+          cut: element.scrollHeight > element.clientHeight,
+        };
+      });
     await openJobs(page);
     const row = page.getByRole('tabpanel').getByRole('row').nth(1);
-    const description = row
-      .getByRole('cell')
-      .first()
-      .getByText('Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.');
+    const description = row.getByRole('cell').first().getByText(SENTENCE);
     await expect(description).toBeVisible();
+    await expect(description).toHaveAttribute('title', SENTENCE);
     expect(await fontSize(description)).toBe('14px');
-    const box = await description.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return {
-        whiteSpace: style.whiteSpace,
-        textOverflow: style.textOverflow,
-        line: Math.round(parseFloat(style.lineHeight)),
-        cut: element.scrollWidth > element.clientWidth,
-      };
+    // At 1440 px the sentence wraps once and shows in full on two lines.
+    expect(await measure(description)).toEqual({
+      clamp: '2',
+      overflow: 'hidden',
+      lines: 2,
+      cut: false,
     });
-    // One line that does not wrap, cut at the cell with an ellipsis.
-    expect(box.whiteSpace).toBe('nowrap');
-    expect(box.textOverflow).toBe('ellipsis');
-    expect(box.cut).toBe(true);
-    expect(await height(description)).toBe(box.line);
+    // At 768 px the column is narrow: two lines, the rest cut with «…» (the title holds it).
+    await page.setViewportSize({ width: 768, height: 900 });
+    await expect.poll(async () => (await measure(description)).cut).toBe(true);
+    expect((await measure(description)).lines).toBe(2);
   });
 
   test('running text is 14 px in the content of /admin', async ({ page }) => {

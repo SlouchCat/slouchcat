@@ -25,14 +25,15 @@ export function formatSeconds(t: TFunction, seconds: number): string {
   if (s < 60) return t('admin.jobs.duration.seconds', { count: s });
   const minutes = Math.round(s / 60);
   if (minutes < 90) return t('admin.jobs.duration.minutes', { count: minutes });
-  const hours = Math.floor(s / 3600);
+  // Whole minutes first, then hours: 5 h 59 min 30 s carries into 6 h, never "5 h 60 min".
+  const hours = Math.floor(minutes / 60);
   if (hours >= 24) {
     const days = Math.floor(hours / 24);
     return days === 1
       ? t('admin.jobs.duration.overDay')
       : t('admin.jobs.duration.days', { count: days });
   }
-  const rest = Math.round((s - hours * 3600) / 60);
+  const rest = minutes % 60;
   if (rest === 0) return t('admin.jobs.duration.hours', { count: hours });
   return t('admin.jobs.duration.hoursMinutes', { hours, minutes: rest });
 }
