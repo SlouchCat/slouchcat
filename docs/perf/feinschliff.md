@@ -213,5 +213,131 @@ Einordnung:
   bei Bibliotheken dieser Grösse rund 20 ms + 6 × 14 ms ≈ 105 ms dazu, auf CT 190 nach
   `docs/perf/M3.md` 1c mit dem Faktor 2 bis 3 also 210 bis 315 ms. Dann wäre die Grenze P-11
   (`GET /home` < 300 ms p95) nicht mehr sicher. Mit einer oder zwei eingeblendeten Reihen bleibt
-  sie mit Abstand. Nachmessen bei der Abnahme der Stufe auf CT 190 mit den echten Bibliotheken
-  (offen).
+  sie mit Abstand. Nachmessen bei der Abnahme der Stufe auf CT 190 mit den echten Bibliotheken:
+  siehe unten; die Schätzung war zu günstig, weil die Testdatenbank keine Folgen enthielt.
+
+### Nachmessung auf CT 190 (7. November 2026)
+
+CT 190 (2 vCPU), Image des Stands `3429ef3b`, alle 13 Reihen eingeblendet: spotlight, picks,
+continue, recent, released, watchlist, collections, genres, libraries und die Bibliotheksreihen
+`library:1` Filme, `library:2` Serien, `library:3` test, `library:4` Podcast. Serverseitige Dauer
+von `GET /home`, 60 Läufe warm, Profil 1 (Hauptprofil des Administrators):
+
+| Stand                                  | p50         | p95        | max    |
+| -------------------------------------- | ----------- | ---------- | ------ |
+| `3429ef3b`, 13 Reihen                  | 586 ms      | **617 ms** | 683 ms |
+| acht bisherige Reihen (nach dem Start) | ~300–320 ms |            |        |
+
+Die Grenze P-11 (< 300 ms p95) war damit deutlich überschritten, und schon die acht bisherigen
+Reihen lagen an ihr.
+
+### Ursache
+
+Gemessen auf einer Kopie der Datenbank von CT 190 (rund 70 000 Einträge in `items`: 2 099 Filme, 498 Serien mit
+2 010 Staffeln und 29 106 Folgen, 100 Podcasts mit 38 605 Folgen; im Abzug sind 496 Serien
+gelöscht, «Neu in Serien» zeigt darum zwei Serien), im Prozess über `discover.Service` je Reihe und
+für `Home` gesamt, ohne HTTP und JSON. Entwicklungsrechner wie oben, ein Kern (`GOMAXPROCS=1`,
+`taskset`), 40 Läufe warm, Profil 1. Der Stand `3429ef3b` braucht dort 126 ms p50; CT 190 ist also
+rund 4,7-mal langsamer als ein Kern des Entwicklungsrechners.
+
+Die Abfragepläne (`EXPLAIN QUERY PLAN`, ohne `ANALYZE` wie im Betrieb) zeigen bei drei Abfragen
+`SCAN i`: Der Planer läuft über **alle** Zeilen von `items` und wertet für jede die View
+`visible_items` aus, auch für jede Folge und jede Podcastfolge, und sucht erst danach die Art
+(`kind IN ('movie', 'series', 'audiobook', 'podcast')`):
+
+- `ListRecentlyAdded` (Reihe «Neu hinzugefügt», bisherige Reihe): rund 30 ms. Der vorhandene
+  Index `items_added` hilft nicht: Vor dem 20. neuesten Titel liegen 17 006 Podcastfolgen, die der
+  Podcast-Abgleich laufend nachträgt; der Aufwand wüchse mit jeder neuen Folge.
+- `ListVisibleLibraries` (Zählung der Kacheln von «Meine Medien» und der Seitenleiste): rund 28 ms.
+- `ListVisibleGenres` (Reihe «Genres», bisherige Reihe): beginnt bei `item_genres` und wertet die
+  View je Genre eines Titels aus, rund 10 ms.
+
+Dazu sortierte `newestIDs` («Neu in …» und die vier Poster je Kachel) jede Bibliothek ganz, mit dem
+Sortierschlüssel jedes sichtbaren Titels (5 ms für die 1 795 Filme, zweimal je Seite), und
+`LibraryTiles` fasste die Poster jeder Kachel einzeln zusammen. Die alte Grundlast von rund 300 ms
+war zur Hälfte die Reihe «Neu hinzugefügt».
+
+«Neu in Serien» listet Serien, nicht Folgen, und «Neu in Podcast» Podcasts (nach dem Zeitpunkt des
+Abonnements), genau wie die Bibliotheksseite mit `sort=added`; die Zahl auf jeder Kachel ist die
+Gesamtzahl der Bibliotheksseite. Geprüft für alle vier Profile des Abzugs (auch das Profil mit
+Stufe 6): Reihe = erste 20 der Bibliotheksseite, Poster = deren erste vier, Zahl = `total`.
+
+### Behebung
+
+Vier Commits auf `claude/fs3-perf`, ohne Änderung an Sichtbarkeit oder Reihenfolge:
+
+1. **Migration 00037** `items_top_added`: Teilindex `ON items (added_at DESC, id DESC) WHERE kind
+IN ('movie', 'series', 'audiobook', 'podcast')`. `ListRecentlyAdded` liest ihn in seiner
+   Reihenfolge und hört nach 20 sichtbaren Titeln auf (30 ms → 0,07 ms), `ListVisibleLibraries`
+   zählt über ihn nur die rund 2 700 Titel der obersten Ebene (28 ms → 3,3 ms). Der Planer nimmt
+   einen Teilindex nur, wenn die Abfrage dieselbe Bedingung trägt; die Kommentare der Abfragen
+   halten das fest, `TestMigration00037TopAddedIndex` prüft Index und Pläne auf
+   `testdata/db/startseitenreihen.sql`.
+2. `ListVisibleGenres` beginnt bei den Titeln (über `items_top_added`) und hängt die Genres mit
+   `CROSS JOIN` an: die View einmal je Titel (10 ms → 5 ms).
+3. `newestIDs` liest zuerst, wann der `limit`-te neueste Titel hinzukam, und sortiert nur die Titel
+   ab diesem Zeitpunkt; `added_at` ist nie NULL und steht vorne in der Ordnung, das Ergebnis bleibt
+   gleich, auch bei gleichen Zeitpunkten an der Schnittstelle (`TestLibraryNewestTiesAtTheCut`).
+   `LibraryTiles` fasst die Poster aller Kacheln in einem Aufruf zusammen.
+4. `page()` lädt die Reihen nebeneinander, in höchstens `min(GOMAXPROCS, 4)` Goroutinen, und setzt
+   sie danach wie bisher in der gespeicherten Reihenfolge zusammen (Fehler, Schnitt bei 15 Reihen
+   und Bühne unverändert). Jede Reihe hält höchstens eine Verbindung des Lesepools zugleich. Der
+   Gewinn ist kleiner als die Zahl der Kerne: Die Lesevorgänge in modernc SQLite behindern sich
+   vermutlich gegenseitig.
+
+Die Antwort von `Home` ist vorher und nachher für alle vier Profile des Abzugs byte-gleich (JSON
+verglichen, feste Bühnenwahl).
+
+### Nachher, Abzug von CT 190
+
+Je Reihe, ein Kern, 40 Läufe warm, Profil 1:
+
+| Reihe       | vorher p50 | vorher p95 | nachher p50 | nachher p95 |
+| ----------- | ---------: | ---------: | ----------: | ----------: |
+| spotlight   |     3,2 ms |     3,5 ms |      3,3 ms |      3,6 ms |
+| picks       |     1,3 ms |     1,5 ms |      1,3 ms |      1,5 ms |
+| continue    |     3,7 ms |     3,9 ms |      3,6 ms |      3,9 ms |
+| recent      |    35,1 ms |    35,6 ms |      2,1 ms |      2,3 ms |
+| released    |     3,5 ms |     3,8 ms |      3,5 ms |      3,8 ms |
+| watchlist   |     1,1 ms |     1,2 ms |      1,1 ms |      1,2 ms |
+| collections |     4,2 ms |     4,6 ms |      4,2 ms |      4,6 ms |
+| genres      |    10,3 ms |    10,5 ms |      5,2 ms |      5,5 ms |
+| libraries   |    43,3 ms |    43,7 ms |     11,1 ms |     11,5 ms |
+| library:1   |     8,0 ms |     8,3 ms |      5,0 ms |      5,3 ms |
+| library:2   |     2,4 ms |     2,5 ms |      3,2 ms |      3,3 ms |
+| library:3   |     3,6 ms |     3,8 ms |      3,3 ms |      3,6 ms |
+| library:4   |     3,1 ms |     3,4 ms |      2,6 ms |      2,9 ms |
+
+`library:2` wird um knapp 1 ms teurer: Bei zwei Serien kostet die zusätzliche Abfrage von
+`newestIDs` mehr, als das Sortieren spart.
+
+`Home` gesamt, 40 Läufe warm, Profil 1:
+
+| Kerne                 | vorher p50 | vorher p95 | nachher p50 | nachher p95 |
+| --------------------- | ---------: | ---------: | ----------: | ----------: |
+| 1 (`GOMAXPROCS=1`)    |   125,9 ms |   126,7 ms |     52,9 ms |     56,8 ms |
+| 2 (`taskset`, wie CT) |   122,5 ms |   123,6 ms |     45,4 ms |     46,3 ms |
+| alle 28               |   127,6 ms |   133,0 ms |     33,1 ms |     36,2 ms |
+
+Benchmark `BenchmarkLibraryRows` (10 000 Filme, siehe oben), vorher `3429ef3b`, nachher `a4b3e3f6`:
+
+| Fall                            | vorher p50 | vorher p95 | nachher p50 | nachher p95 |
+| ------------------------------- | ---------: | ---------: | ----------: | ----------: |
+| `VisibleLibraries`              |     7,0 ms |     7,2 ms |      8,7 ms |      8,8 ms |
+| `Recent`                        |    16,2 ms |    17,1 ms |      1,3 ms |      2,2 ms |
+| `LibraryTiles`                  |    20,1 ms |    20,5 ms |     17,8 ms |     19,0 ms |
+| `LibraryNewest`                 |    13,6 ms |    14,7 ms |      9,5 ms |     10,9 ms |
+| `LibraryItems` mit `sort=added` |    43,0 ms |    45,6 ms |     42,9 ms |     43,5 ms |
+
+`VisibleLibraries` wird in diesem Benchmark etwas teurer: Dort sind fast alle Zeilen Filme, der
+Umweg über den Index bringt also nichts und kostet je Titel einen Zugriff auf die Tabelle. Mit
+Folgen und Podcastfolgen wie auf CT 190 ist er achtmal schneller.
+
+### Schätzung für CT 190
+
+Mit dem Faktor 4,7 (CT 190 zu einem Kern des Entwicklungsrechners, aus dem Stand vorher) und den
+zwei Kernen von CT 190: nachher rund **210 ms p50 und 220 bis 230 ms p95** für alle 13 Reihen,
+statt 586/617 ms; ohne das Nebeneinander (ein Kern) rund 250 bis 270 ms. Die Grenze P-11 hält damit
+mit Abstand, und die acht bisherigen Reihen allein liegen deutlich unter den früheren 300 ms. Die
+Schätzung trägt die Kosten von HTTP und JSON nur über den Faktor mit; nachmessen auf CT 190 mit dem
+Image dieses Stands (offen).
