@@ -78,6 +78,30 @@ export const DangerQuietFocused: Story = {
   args: { variant: 'dangerQuiet', children: 'Löschen …' },
 };
 
+/** A small tool over a picture: the pen on a cover (concept 15 7.4), 32 px. */
+export const Small: Story = {
+  render: () => (
+    <Stack direction="row" gap={2}>
+      <Button variant="secondary" size="sm" icon="pen" iconOnly aria-label="Metadaten bearbeiten" />
+      <Button variant="secondary" size="sm" icon="info">
+        Details
+      </Button>
+    </Stack>
+  ),
+};
+
+export const SmallFocused: Story = {
+  tags: ['press:Tab'],
+  args: {
+    variant: 'secondary',
+    size: 'sm',
+    icon: 'pen',
+    iconOnly: true,
+    children: undefined,
+    'aria-label': 'Metadaten bearbeiten',
+  },
+};
+
 export const Block: Story = {
   args: { variant: 'primary', block: true, children: 'Weiter' },
 };
