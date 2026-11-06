@@ -21,8 +21,8 @@ import (
 // provider), the original lies as <kind>-original.<ext> in the image cache with provider manual
 // and source_url upload:<sha256>, and the derived sizes are scaled from it before anything of the
 // kind changes (a file ffmpeg cannot decode is refused as unsupported_format). Lifting the
-// lock (ClearItemImage) lets the match decide the kind again; image.fetch then replaces the upload,
-// whose source no longer matches.
+// lock (ClearItemImage) removes the upload and lets the match decide the kind again; image.fetch
+// then fetches the provider's image, if there is one.
 
 // maxUploadPixels caps the pixel count of an uploaded image (50 megapixels), checked from the
 // header before ffmpeg decodes anything; ffmpeg itself refuses a larger frame as well

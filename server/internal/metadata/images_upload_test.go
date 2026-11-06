@@ -248,6 +248,103 @@ func TestUploadItemImage(t *testing.T) {
 	}
 }
 
+// manualRows returns the image rows of a kind with provider manual (an upload).
+func (e *env) manualRows(t *testing.T, id, kind string) []string {
+	t.Helper()
+	rows, err := e.db.Read.Query(`SELECT rel_path FROM images WHERE item_id = ? AND kind = ? AND provider = 'manual'`, id, kind)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var rel string
+		if err := rows.Scan(&rel); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, rel)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// «Zurück auf automatisch» on an upload (concept 15 7.4): the uploaded rows, their files and the
+// field source manual go with the lock, before the match runs. With a provider image (the TMDB
+// poster) image.fetch brings it back; without one (the film has no TMDB logo) the kind is empty
+// for viewers and the editor alike, and stays so after the match and image.fetch.
+func TestClearUploadedImage(t *testing.T) {
+	t.Parallel()
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"poster", "logo"} {
+		var data []byte
+		if kind == "poster" {
+			data = jpegBytes(t, 600, 900)
+		} else {
+			data = pngBytes(t, 800, 300)
+		}
+		if err := e.svc.UploadItemImage(ctx, idByTMDB, kind, data); err != nil {
+			t.Fatal(err)
+		}
+		files := e.manualRows(t, idByTMDB, kind)
+		if len(files) == 0 {
+			t.Fatalf("no uploaded %s rows", kind)
+		}
+		if err := e.svc.ClearItemImage(ctx, idByTMDB, kind); err != nil {
+			t.Fatal(err)
+		}
+		if got := e.manualRows(t, idByTMDB, kind); len(got) != 0 {
+			t.Errorf("%s rows of the upload after lifting the lock: %v", kind, got)
+		}
+		for _, rel := range files {
+			if _, err := os.Stat(filepath.Join(e.cache, filepath.FromSlash(rel))); !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("%s file %s after lifting the lock: %v", kind, rel, err)
+			}
+		}
+		var n int
+		if err := e.db.Read.QueryRow(`SELECT count(*) FROM item_field_sources WHERE item_id = ? AND field = ?`, idByTMDB, kind).Scan(&n); err != nil || n != 0 {
+			t.Errorf("%s field sources after lifting the lock: %d (%v), want none", kind, n, err)
+		}
+		if r := e.item(t, idByTMDB); strings.Contains(r.Locked, `"`+kind+`"`) {
+			t.Errorf("locked fields %s still hold %s", r.Locked, kind)
+		}
+	}
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	imgs := e.images(t, idByTMDB)
+	if p, src := e.imageProvider(t, idByTMDB, "poster", "w400", "jpeg"); p != model.ProviderTMDB || src != e.tmdb.srv.URL+"/t/p/original/poster550.jpg" {
+		t.Errorf("poster after lifting the lock: %s %s, want the TMDB poster", p, src)
+	}
+	for key := range imgs {
+		if strings.HasPrefix(key, "logo/") {
+			t.Errorf("logo row %s without a provider logo", key)
+		}
+	}
+	adminImgs, err := e.svc.ItemImages(ctx, idByTMDB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, img := range adminImgs {
+		if img.Kind == "logo" {
+			t.Errorf("editor logo %+v, want none", img)
+		}
+	}
+}
+
 // slicesOf copies b, so appending to the copy leaves b alone.
 func slicesOf(b []byte) []byte { return append([]byte(nil), b...) }
 

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
+	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
 )
 
@@ -420,25 +421,79 @@ func (s *Service) findCandidate(itemID, kind, provider, source string) (model.Im
 }
 
 // ClearItemImage lifts the choice and the lock of a kind (clearItemImage): the item_images row
-// goes, the kind leaves locked_fields, and a manual match of the title (of the series for a
-// season; an episode turns pending first) decides the kind again; the match queues image.fetch (papier 14: the match, not fill,
-// because fill of a title with one source decides no images). Errors: model.ErrNotFound,
+// goes, the kind leaves locked_fields, an uploaded image of the kind goes with its rows (provider
+// manual), files and field source, and a manual match of the title (of the series for a season; an
+// episode turns pending first) decides the kind again; the match queues image.fetch (papier 14: the
+// match, not fill, because fill of a title with one source decides no images), which finds no
+// image left of the upload and fetches the provider's, if there is one. Errors: model.ErrNotFound,
 // *model.ValidationError (kind invalid_value).
 func (s *Service) ClearItemImage(ctx context.Context, itemID, kind string) error {
 	item, err := s.choosable(ctx, itemID, kind)
 	if err != nil {
 		return err
 	}
+	// One image writer per title: a running image.fetch or upload finishes first.
+	unlock, err := s.lockItemImages(ctx, item.ID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	rows, err := s.read.ListImagesByItem(ctx, item.ID)
+	if err != nil {
+		return fmt.Errorf("clear %s image of %s: list images: %w", kind, item.ID, err)
+	}
+	var uploaded []systemq.Image
+	for _, r := range rows {
+		if r.Kind == kind && r.Provider == ImageSourceManual {
+			uploaded = append(uploaded, r)
+		}
+	}
+	sources, err := s.read.ListItemFieldSources(ctx, item.ID)
+	if err != nil {
+		return fmt.Errorf("clear %s image of %s: list field sources: %w", kind, item.ID, err)
+	}
+	manualSource := slices.ContainsFunc(sources, func(f systemq.ListItemFieldSourcesRow) bool {
+		return f.Field == kind && f.Lang == "" && f.Provider == ImageSourceManual
+	})
 	now := s.now().UnixMilli()
 	err = s.inTx(ctx, func(q *systemq.Queries) error {
+		cur, err := q.GetItemSystem(ctx, item.ID) // the locks as they stand now
+		if err != nil {
+			return err
+		}
 		if err := q.DeleteItemImage(ctx, systemq.DeleteItemImageParams{ItemID: item.ID, Kind: kind}); err != nil {
 			return err
 		}
-		return q.SetItemLockedFields(ctx, systemq.SetItemLockedFieldsParams{ID: item.ID,
-			LockedFields: removeLocked(item.LockedFields, kind), Now: now})
+		if err := q.SetItemLockedFields(ctx, systemq.SetItemLockedFieldsParams{ID: item.ID,
+			LockedFields: removeLocked(cur.LockedFields, kind), Now: now}); err != nil {
+			return err
+		}
+		if manualSource {
+			if err := q.DeleteItemFieldSourceLang(ctx, systemq.DeleteItemFieldSourceLangParams{ItemID: item.ID, Field: kind, Lang: ""}); err != nil {
+				return err
+			}
+		}
+		for _, r := range uploaded {
+			if err := q.DeleteImage(ctx, r.ID); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("clear %s image of %s: %w", kind, item.ID, err)
+	}
+	if len(uploaded) > 0 {
+		// The files of the rows that went, through package paths (rule 4); a file left behind
+		// is only space, no row points at it.
+		if root, err := paths.Open(s.cache); err != nil {
+			s.log.Warn("remove uploaded image files", "item_id", item.ID, "kind", kind, "err", err)
+		} else {
+			for _, r := range uploaded {
+				s.removeFile(root, item.ID, kind, r.RelPath)
+			}
+			_ = root.Close()
+		}
 	}
 	s.log.Info("image choice cleared", "item_id", item.ID, "kind", kind)
 	target := item.ID
