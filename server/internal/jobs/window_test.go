@@ -276,7 +276,15 @@ func TestWindowOpeningWakesIdleWorker(t *testing.T) {
 // SetWindow: only a registered windowable type, a valid window, nil removes it.
 func TestSetWindow(t *testing.T) {
 	ctx := context.Background()
-	r, _, _ := newControlEnv(t, windowType("a", noopHandler), eventType("b", noopHandler))
+	r, q, _ := newControlEnv(t, windowType("a", noopHandler), eventType("b", noopHandler))
+	window := func() *Window {
+		t.Helper()
+		row, err := q.q.GetJobType(ctx, "a")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return windowOf(row.WindowStart, row.WindowEnd)
+	}
 	for _, typ := range []string{"b", "nobody.home"} {
 		if err := r.SetWindow(ctx, typ, &Window{Start: 0, End: 60}); !errors.Is(err, ErrNotWindowable) {
 			t.Errorf("SetWindow(%s) = %v, want ErrNotWindowable", typ, err)
@@ -289,15 +297,12 @@ func TestSetWindow(t *testing.T) {
 		}
 	}
 	mustSetWindow(t, r, "a", &Window{Start: 23 * 60, End: 60})
-	if w, err := r.Window(ctx, "a"); err != nil || w == nil || *w != (Window{Start: 23 * 60, End: 60}) {
-		t.Errorf("window = %+v %v", w, err)
+	if w := window(); w == nil || *w != (Window{Start: 23 * 60, End: 60}) {
+		t.Errorf("window = %+v", w)
 	}
 	mustSetWindow(t, r, "a", nil)
-	if w, err := r.Window(ctx, "a"); err != nil || w != nil {
-		t.Errorf("window after removing it = %+v %v", w, err)
-	}
-	if _, err := r.Window(ctx, "nobody.home"); !errors.Is(err, model.ErrNotFound) {
-		t.Errorf("window of an unknown type: %v", err)
+	if w := window(); w != nil {
+		t.Errorf("window after removing it = %+v", w)
 	}
 }
 

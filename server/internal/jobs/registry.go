@@ -392,18 +392,6 @@ func validateType(t Type) error {
 	return nil
 }
 
-// Window returns the time window of typ (nil: none); model.ErrNotFound without a row.
-func (r *Registry) Window(ctx context.Context, typ string) (*Window, error) {
-	row, err := r.q.q.GetJobType(ctx, typ)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, model.ErrNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get job type %s: %w", typ, err)
-	}
-	return windowOf(row.WindowStart, row.WindowEnd), nil
-}
-
 // SetWindow holds the registered type typ to the time window w, in minutes of the day in the
 // scheduler's location (concept 15, 4.3); nil removes it. ErrNotWindowable for a type without
 // Type.Windowable (or not registered), a *model.ValidationError (field window, invalid_value) for
