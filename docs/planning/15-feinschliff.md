@@ -486,8 +486,12 @@ Operationen bekommen einen Eintrag im Vertragstest (Regel 7).
 > neue, leere Spalte `item_texts.sort_title`, gesetzt nur solange `sort_title:<lang>` gesperrt ist.
 > Sortiert wird weiter nach `sort_key`. Weitere Entscheide beim Bau: «Zurück auf automatisch»
 > entfernt auch ein hochgeladenes Bild; ein freier Sortiertitel erscheint als leeres Feld mit dem
-> Titel als Platzhalter; ungespeicherte Änderungen fragen vor dem Schliessen nach; der Stift im
-> Raster fehlt auf Geräten ohne Zeiger (Tablets), dort bleibt er auf der Detailseite.
+> Titel als Platzhalter; ungespeicherte Änderungen fragen vor dem Schliessen nach.
+>
+> **Nachtrag (7. November 2026, Abnahme von Stufe 3):** Marco will den Stift **direkt auf dem
+> Cover**: auf der Detailseite oben rechts auf dem Poster statt in der Knopfzeile, im
+> Bibliotheksraster immer sichtbar, auch auf Handy und Tablet; weiterhin nur für den
+> Server-Administrator. Entscheidungsprotokoll, Nachtrag zu Frage 22.
 
 Aufwand: rund **7,5 Tage** (Server 4: Sperren je Sprache, Sortiertitel, Hochladen; Dialog und
 Reiter 2,5; Tests und Storybook 1).
