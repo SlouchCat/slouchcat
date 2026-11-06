@@ -87,18 +87,42 @@
 }
 
 /* A tool beside the card's link, over the top right of the cover; it shows while the pointer is
-   on the card or the tool has the focus (concept 15 7.4). */
+   on the card or the tool has the focus (concept 15 7.4). Hidden, it takes no click; the watched
+   check under it steps aside while it shows. Touch screens have no pointer to show it with: there
+   the pen stays on the detail page and the grid keeps calm. */
 .tool {
   position: absolute;
   top: var(--sc-space-2);
   right: var(--sc-space-2);
   opacity: 0;
+  pointer-events: none;
   transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
 }
 
-.tool:focus-within,
-.cell:hover .tool {
+.tool:focus-within {
   opacity: 1;
+  pointer-events: auto;
+}
+
+.cell:has(.tool:focus-within) [data-watched] {
+  opacity: 0;
+}
+
+@media (hover: hover) {
+  .cell:hover .tool {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .cell:has(.tool):hover [data-watched] {
+    opacity: 0;
+  }
+}
+
+@media (hover: none) {
+  .tool {
+    display: none;
+  }
 }
 
 .links {

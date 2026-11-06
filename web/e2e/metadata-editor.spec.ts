@@ -279,6 +279,8 @@ test('library grid: Tab reaches the card, then its pen; Enter opens, Escape retu
   // The pen shows only on hover or focus (its frame over the cover fades in).
   const frame = cardPen.locator('xpath=..');
   await expect(frame).toHaveCSS('opacity', '0');
+  // Hidden, it takes no click (a tap on a wide touch screen would hit it unseen).
+  await expect(frame).toHaveCSS('pointer-events', 'none');
   await page.keyboard.press('Tab');
   await expectFocusOn(page, cardPen);
   await expect(frame).toHaveCSS('opacity', '1');

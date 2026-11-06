@@ -159,7 +159,7 @@ export function PosterCard({
           </span>
         )}
         {watchedLabel && (
-          <span className={styles.watched} role="img" aria-label={watchedLabel}>
+          <span className={styles.watched} role="img" aria-label={watchedLabel} data-watched="">
             <Icon name="check" size="sm" />
           </span>
         )}
