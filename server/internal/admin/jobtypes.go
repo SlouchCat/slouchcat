@@ -109,9 +109,13 @@ func (s *Service) jobOverview(ctx context.Context) (model.JobOverview, error) {
 		return model.JobOverview{}, fmt.Errorf("list job types: %w", err)
 	}
 	paused := map[string]time.Time{}
+	windows := map[string]*model.JobWindow{}
 	for _, r := range typeRows {
 		if r.PausedAt.Valid {
 			paused[r.Type] = time.UnixMilli(r.PausedAt.Int64).UTC()
+		}
+		if r.WindowStart.Valid && r.WindowEnd.Valid {
+			windows[r.Type] = &model.JobWindow{StartMinute: int(r.WindowStart.Int64), EndMinute: int(r.WindowEnd.Int64)}
 		}
 	}
 	// Every registered type, then every row of job_types that no type explains (known = false).
@@ -148,7 +152,7 @@ func (s *Service) jobOverview(ctx context.Context) (model.JobOverview, error) {
 		out.Pools = append(out.Pools, p)
 	}
 	for _, t := range types {
-		info, err := s.jobTypeInfo(ctx, t, stats, paused, now)
+		info, err := s.jobTypeInfo(ctx, t, stats, paused, windows[t.Name], now)
 		if err != nil {
 			return model.JobOverview{}, err
 		}
@@ -179,7 +183,8 @@ func (s *Service) poolBacklog(stats map[string]*typeStats, pool jobs.Pool, minPr
 	return int(total.Seconds()) / workers, true
 }
 
-func (s *Service) jobTypeInfo(ctx context.Context, t jobs.Type, stats map[string]*typeStats, paused map[string]time.Time, now time.Time) (model.JobTypeInfo, error) {
+func (s *Service) jobTypeInfo(ctx context.Context, t jobs.Type, stats map[string]*typeStats, paused map[string]time.Time, window *model.JobWindow,
+	now time.Time) (model.JobTypeInfo, error) {
 	st := stats[t.Name]
 	info := model.JobTypeInfo{
 		Type: t.Name, Group: jobTypeUnknownGroup, Trigger: jobTypeUnknownTrigger, Pool: jobTypeUnknownPool, Known: st.known,
@@ -193,6 +198,17 @@ func (s *Service) jobTypeInfo(ctx context.Context, t jobs.Type, stats map[string
 		info.Group, info.Trigger, info.Pool = string(t.Group), string(t.Trigger), string(t.Pool)
 		info.Runnable = t.Run != nil
 		info.OverridesPauseForPlayback = t.OverridesPauseForPlayback
+		if t.Windowable {
+			// The window of a type (concept 15, 4.3) reads the scheduler's location, like the
+			// claim; windowOpensAt saves the client from computing time zones.
+			loc := s.jobctl.sched.Location()
+			info.Windowable, info.Window, info.WindowTimeZone = true, window, loc.String()
+			if window != nil {
+				if at, closed := (jobs.Window{Start: window.StartMinute, End: window.EndMinute}).OpensAt(now, loc); closed {
+					info.WindowOpensAt = at.UTC()
+				}
+			}
+		}
 		info.Stopping = info.Paused && s.jobctl.reg.Running(t.Name) > 0
 		if st.medianOK {
 			m := int(st.median.Seconds())
@@ -262,7 +278,7 @@ func (s *Service) jobSchedule(typ string, sc jobs.Schedule) *model.JobSchedule {
 func (s *Service) jobRun(ctx context.Context, j jobs.Job, st *typeStats, now time.Time) model.JobRun {
 	run := model.JobRun{JobSummary: jobSummary(j), Priority: j.Priority, Skipped: j.Skipped, Estimate: model.JobEstimateNone,
 		StartedAt: utcOrZero(j.StartedAt), FinishedAt: utcOrZero(j.FinishedAt), Subject: s.jobSubject(ctx, j),
-		OverridesPause: j.OverridesPause}
+		OverridesPause: j.OverridesPause, OverridesWindow: j.OverridesWindow}
 	if j.State == jobs.StateQueued && j.RunAfter.After(now) {
 		run.RunAfter = j.RunAfter.UTC()
 	}
@@ -585,6 +601,40 @@ func (s *Service) UpdateJobSchedule(ctx context.Context, typ string, upd model.J
 		}
 	}
 	s.log.InfoContext(ctx, "job schedule updated by the admin", "job_type", typ)
+	return s.jobTypeInfoOf(ctx, typ)
+}
+
+// UpdateJobTypeWindow holds a windowable type to a time window of the day or removes it
+// (updateJobTypeWindow, concept 15 4.3). model.ErrJobTypeNotWindowable for a type without
+// jobs.Type.Windowable (or one no worker knows), *model.ValidationError (window, invalid_value)
+// for a window outside 0..1439 or with start = end, like the window of a schedule. Neither field
+// changes nothing.
+func (s *Service) UpdateJobTypeWindow(ctx context.Context, typ string, upd model.JobTypeWindowUpdate) (model.JobTypeInfo, error) {
+	t, known, err := s.jobType(ctx, typ)
+	if err != nil {
+		return model.JobTypeInfo{}, err
+	}
+	if !known || !t.Windowable {
+		return model.JobTypeInfo{}, model.ErrJobTypeNotWindowable
+	}
+	var w *jobs.Window
+	switch {
+	case upd.ClearWindow:
+	case upd.Window != nil:
+		w = &jobs.Window{Start: upd.Window.StartMinute, End: upd.Window.EndMinute}
+		if w.Start < 0 || w.Start > 1439 || w.End < 0 || w.End > 1439 || w.Start == w.End {
+			var verr *model.ValidationError
+			return model.JobTypeInfo{}, verr.Add("window", "invalid_value")
+		}
+	default:
+		return s.jobTypeInfoOf(ctx, typ)
+	}
+	if err := s.jobctl.reg.SetWindow(ctx, typ, w); errors.Is(err, jobs.ErrNotWindowable) {
+		return model.JobTypeInfo{}, model.ErrJobTypeNotWindowable
+	} else if err != nil {
+		return model.JobTypeInfo{}, err
+	}
+	s.log.InfoContext(ctx, "job type window updated by the admin", "job_type", typ, "window", w != nil)
 	return s.jobTypeInfoOf(ctx, typ)
 }
 

@@ -217,6 +217,89 @@ func TestJobTypesOverridesPauseForPlayback(t *testing.T) {
 	}
 }
 
+// updateJobTypeWindow (concept 15, 4.3): only a windowable type, the window checked like the one of
+// a schedule; the type reports windowable, its window, the zone and, while the window is closed,
+// when it opens. A run with override_window says so.
+func TestUpdateJobTypeWindow(t *testing.T) {
+	jf := newJobFixture(t)
+	ctx := jf.ctx
+	noop := func(context.Context, *jobs.Job) error { return nil }
+	const heavy = "fake.heavy"
+	jf.reg.Register(jobs.Type{Name: heavy, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent,
+		Priority: 1, Handler: noop, Windowable: true})
+	if err := jf.sched.Start(ctx); err != nil { // the row in job_types
+		t.Fatal(err)
+	}
+	for _, typ := range []string{fakeEvent, fakeSchedule, JobUpdateCheck} {
+		if _, err := jf.svc.UpdateJobTypeWindow(ctx, typ, model.JobTypeWindowUpdate{ClearWindow: true}); !errors.Is(err, model.ErrJobTypeNotWindowable) {
+			t.Errorf("window of %s: %v, want ErrJobTypeNotWindowable", typ, err)
+		}
+		if info := jf.typeInfo(t, typ); info.Windowable || info.Window != nil || info.WindowTimeZone != "" || !info.WindowOpensAt.IsZero() {
+			t.Errorf("%s reports a window: %+v", typ, info)
+		}
+	}
+	if _, err := jf.svc.UpdateJobTypeWindow(ctx, "nobody.home", model.JobTypeWindowUpdate{}); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("window of an unknown type: %v", err)
+	}
+	for _, w := range []model.JobWindow{{StartMinute: 60, EndMinute: 60}, {StartMinute: -1, EndMinute: 60}, {StartMinute: 0, EndMinute: 1440}} {
+		var verr *model.ValidationError
+		if _, err := jf.svc.UpdateJobTypeWindow(ctx, heavy, model.JobTypeWindowUpdate{Window: &w}); !errors.As(err, &verr) ||
+			len(verr.Fields) != 1 || verr.Fields[0].Field != "window" || verr.Fields[0].Code != "invalid_value" {
+			t.Errorf("window %+v: %v, want window invalid_value", w, err)
+		}
+	}
+	info := jf.typeInfo(t, heavy)
+	if !info.Windowable || info.Window != nil || info.WindowTimeZone != "UTC" || !info.WindowOpensAt.IsZero() {
+		t.Fatalf("windowable type without a window = %+v", info)
+	}
+
+	// 22:00 to 06:00 at 12:00 UTC: closed, opens at 22:00 of the same day.
+	info, err := jf.svc.UpdateJobTypeWindow(ctx, heavy, model.JobTypeWindowUpdate{Window: &model.JobWindow{StartMinute: 22 * 60, EndMinute: 6 * 60}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Window == nil || *info.Window != (model.JobWindow{StartMinute: 22 * 60, EndMinute: 6 * 60}) ||
+		!info.WindowOpensAt.Equal(time.Date(2026, 10, 30, 22, 0, 0, 0, time.UTC)) {
+		t.Errorf("after setting the window = %+v, want 22:00-06:00 opening at 22:00", info)
+	}
+	if got := jf.typeInfo(t, heavy); got.Window == nil || !got.WindowOpensAt.Equal(info.WindowOpensAt) {
+		t.Errorf("overview = %+v", got)
+	}
+	// Inside the window (02:00 the next day, across midnight) nothing waits for it.
+	jf.now = time.Date(2026, 10, 31, 2, 0, 0, 0, time.UTC)
+	if got := jf.typeInfo(t, heavy); got.Window == nil || !got.WindowOpensAt.IsZero() {
+		t.Errorf("inside the window = %+v, want no windowOpensAt", got)
+	}
+	// 06:00 is the exclusive end: closed again until 22:00.
+	jf.now = time.Date(2026, 10, 31, 6, 0, 0, 0, time.UTC)
+	if got := jf.typeInfo(t, heavy); !got.WindowOpensAt.Equal(time.Date(2026, 10, 31, 22, 0, 0, 0, time.UTC)) {
+		t.Errorf("at the end of the window = %+v, want it to open at 22:00", got)
+	}
+	// Neither field changes nothing.
+	if got, err := jf.svc.UpdateJobTypeWindow(ctx, heavy, model.JobTypeWindowUpdate{}); err != nil || got.Window == nil {
+		t.Errorf("empty update = %+v %v, want the window kept", got, err)
+	}
+
+	// A waiting run that may start outside the window (a playback) says so in the list of runs.
+	id, err := jf.queue.Enqueue(ctx, jobs.NewJob{Type: heavy, IdempotencyKey: "chapters:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	jf.exec(t, `UPDATE jobs SET override_window = 1 WHERE id = ?`, id)
+	page, err := jf.svc.ListJobRuns(ctx, heavy, "queued", 0)
+	if err != nil || len(page.Runs) != 1 || !page.Runs[0].OverridesWindow || page.Runs[0].OverridesPause {
+		t.Errorf("queued runs = %+v %v, want the run with override_window", page, err)
+	}
+
+	info, err = jf.svc.UpdateJobTypeWindow(ctx, heavy, model.JobTypeWindowUpdate{ClearWindow: true, Window: &model.JobWindow{StartMinute: 1, EndMinute: 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Windowable || info.Window != nil || !info.WindowOpensAt.IsZero() {
+		t.Errorf("after clearing the window = %+v", info)
+	}
+}
+
 // A measured estimate from the reported progress once 5 % and 30 s are reached.
 func TestJobRunMeasuredEstimate(t *testing.T) {
 	jf := newJobFixture(t)

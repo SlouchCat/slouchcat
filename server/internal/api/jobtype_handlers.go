@@ -10,7 +10,7 @@ import (
 )
 
 // The page "Hintergrundjobs" (concept 09, ADR 0017, step 3): seven admin operations on job types
-// and runs. The admin service computes everything; these handlers map between the contract and
+// and runs, and the time window of the heavy event types (concept 15, 4.3). The admin service computes everything; these handlers map between the contract and
 // the model.
 
 func (e serviceProblem) VisitListJobTypesResponse(w http.ResponseWriter) error  { return e.visit(w) }
@@ -19,6 +19,9 @@ func (e serviceProblem) VisitRunJobTypeResponse(w http.ResponseWriter) error    
 func (e serviceProblem) VisitPauseJobTypeResponse(w http.ResponseWriter) error  { return e.visit(w) }
 func (e serviceProblem) VisitResumeJobTypeResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitUpdateJobScheduleResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitUpdateJobTypeWindowResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 func (e serviceProblem) VisitCancelJobRunsResponse(w http.ResponseWriter) error { return e.visit(w) }
@@ -102,6 +105,21 @@ func (s *server) UpdateJobSchedule(ctx context.Context, req gen.UpdateJobSchedul
 	return gen.UpdateJobSchedule200JSONResponse(toJobTypeInfo(info)), nil
 }
 
+func (s *server) UpdateJobTypeWindow(ctx context.Context, req gen.UpdateJobTypeWindowRequestObject) (gen.UpdateJobTypeWindowResponseObject, error) {
+	body := deref(req.Body)
+	var upd model.JobTypeWindowUpdate
+	if body.ClearWindow != nil && *body.ClearWindow {
+		upd.ClearWindow = true
+	} else if body.Window != nil {
+		upd.Window = &model.JobWindow{StartMinute: body.Window.StartMinute, EndMinute: body.Window.EndMinute}
+	}
+	info, err := s.opts.Admin.UpdateJobTypeWindow(ctx, req.Type, upd)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.UpdateJobTypeWindow200JSONResponse(toJobTypeInfo(info)), nil
+}
+
 func (s *server) CancelJobRuns(ctx context.Context, req gen.CancelJobRunsRequestObject) (gen.CancelJobRunsResponseObject, error) {
 	all := req.Params.Scope != nil && *req.Params.Scope == gen.CancelJobRunsParamsScopeAll
 	n, err := s.opts.Admin.CancelJobRuns(ctx, req.Type, all)
@@ -148,6 +166,13 @@ func toJobTypeInfo(t model.JobTypeInfo) gen.JobTypeInfo {
 	if t.OverridesPauseForPlayback {
 		out.OverridesPauseForPlayback = &t.OverridesPauseForPlayback
 	}
+	if t.Windowable {
+		out.Windowable, out.WindowTimeZone = &t.Windowable, optString(t.WindowTimeZone)
+		if t.Window != nil {
+			out.Window = &gen.JobWindow{StartMinute: t.Window.StartMinute, EndMinute: t.Window.EndMinute}
+		}
+		out.WindowOpensAt = optTime(t.WindowOpensAt)
+	}
 	return out
 }
 
@@ -168,6 +193,9 @@ func toJobRun(r model.JobRun) gen.JobRun {
 	}
 	if r.OverridesPause {
 		out.OverridesPause = &r.OverridesPause
+	}
+	if r.OverridesWindow {
+		out.OverridesWindow = &r.OverridesWindow
 	}
 	return out
 }
