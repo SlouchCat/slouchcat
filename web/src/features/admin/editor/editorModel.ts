@@ -46,7 +46,9 @@ export function serverValues(item: AdminItem, meta: AdminItemMetadata): EditorVa
   return {
     title: meta.title,
     originalTitle: meta.originalTitle ?? '',
-    sortTitle: meta.sortTitle ?? meta.title,
+    // A free sort title follows the title: the field is empty (the title shows as its
+    // placeholder), so anything typed, the title's own text too, sets and locks it.
+    sortTitle: meta.locked.includes('sortTitle') ? (meta.sortTitle ?? '') : '',
     year: meta.year !== undefined ? String(meta.year) : '',
     releaseDate: meta.releaseDate ?? '',
     tagline: meta.tagline ?? '',

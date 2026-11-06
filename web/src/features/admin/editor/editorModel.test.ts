@@ -83,6 +83,29 @@ describe('metadata editor: the draft', () => {
     expect(shownLocked(item, meta, server, edited, 'overview')).toBe(true);
   });
 
+  it('a free sort title is empty; anything typed sets and locks it, clearing keeps it free', () => {
+    expect(server.sortTitle).toBe('');
+    expect(shownLocked(item, meta, server, emptyDraft, 'sortTitle')).toBe(false);
+    // The title's own text is a value of its own: it locks the order against a new title.
+    const same = editField(server, emptyDraft, 'sortTitle', 'Alien');
+    expect(same.changed).toEqual({ sortTitle: 'Alien' });
+    expect(shownLocked(item, meta, server, same, 'sortTitle')).toBe(true);
+    expect(saveOf(same).metadata).toEqual({ sortTitle: 'Alien' });
+    const cleared = editField(server, same, 'sortTitle', '');
+    expect(cleared).toEqual(emptyDraft);
+    expect(shownLocked(item, meta, server, cleared, 'sortTitle')).toBe(false);
+    expect(saveOf(cleared).metadata).toBeUndefined();
+  });
+
+  it('a locked sort title shows its text; its lock lifts it', () => {
+    const lockedMeta: AdminItemMetadata = { ...meta, sortTitle: 'Alien 1', locked: ['sortTitle'] };
+    const lockedServer = serverValues(item, lockedMeta);
+    expect(lockedServer.sortTitle).toBe('Alien 1');
+    expect(shownLocked(item, lockedMeta, lockedServer, emptyDraft, 'sortTitle')).toBe(true);
+    const lifted = toggleLock(item, lockedMeta, lockedServer, emptyDraft, 'sortTitle');
+    expect(saveOf(lifted).metadata).toEqual({ unlock: ['sortTitle'] });
+  });
+
   it('the rating and the language unlock by going back to «Aus Metadaten»', () => {
     const own = { ...item, ownRating: 16 } as AdminItem;
     const ownServer = serverValues(own, meta);

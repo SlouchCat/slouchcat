@@ -7,7 +7,7 @@ import type {
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -139,6 +139,8 @@ function KindPanel({
   const [shown, setShown] = useState(PAGE);
   const [filter, setFilter] = useState<CandidateFilter>({ provider: null, lang: null });
   const [tooLarge, setTooLarge] = useState(false);
+  const currentId = useId();
+  const candidatesId = useId();
 
   const candidates = useQuery({
     queryKey: candidatesKey(item.id, kind, refresh),
@@ -150,9 +152,12 @@ function KindPanel({
         }),
       ),
   });
-  // A new image of the kind: the candidates mark another one as current.
+  // A new image of the kind: the candidates mark another one as current, and the message of an
+  // earlier failed upload goes.
   const changed = (next: AdminItem, message: string) => {
     void queryClient.invalidateQueries({ queryKey: ['admin', 'image-candidates', item.id, kind] });
+    setTooLarge(false);
+    upload.reset();
     onChanged(next, message);
   };
   const choose = useMutation({
@@ -233,12 +238,12 @@ function KindPanel({
 
   return (
     <>
-      <section className={styles.current} aria-labelledby="editor-image-current">
+      <section className={styles.current} aria-labelledby={currentId}>
         <div className={styles.preview} data-shape={shape}>
           <ImageTile src={image?.previewUrl} title={item.title} shape={shape} />
         </div>
         <div className={styles.stack}>
-          <h3 id="editor-image-current" className={styles.sectionTitle}>
+          <h3 id={currentId} className={styles.sectionTitle}>
             {current
               ? t('admin.editor.images.current', { source: current })
               : t('admin.editor.images.currentNone')}
@@ -299,8 +304,8 @@ function KindPanel({
       {clear.isError && <Notice tone="danger">{problemMessage(t, clear.error)}</Notice>}
       {choose.isError && <Notice tone="danger">{problemMessage(t, choose.error)}</Notice>}
 
-      <section className={styles.stack} aria-labelledby="editor-image-candidates">
-        <h3 id="editor-image-candidates" className={styles.sectionTitle}>
+      <section className={styles.stack} aria-labelledby={candidatesId}>
+        <h3 id={candidatesId} className={styles.sectionTitle}>
           {t('admin.editor.images.candidates')}
         </h3>
         {candidates.isPending && <Skeleton shape="block" />}

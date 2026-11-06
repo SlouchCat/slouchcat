@@ -75,6 +75,12 @@
   }
 }
 
+.fieldError {
+  margin: 0;
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
+}
+
 .fieldMeta {
   display: flex;
   flex-wrap: wrap;

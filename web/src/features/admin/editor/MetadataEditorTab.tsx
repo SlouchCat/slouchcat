@@ -1,7 +1,7 @@
 import type { AdminItem } from '@slouchcat/api-client';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, request } from '@/api/client';
 import { fieldMessage, formErrors } from '@/api/errors';
@@ -10,7 +10,7 @@ import { AriaButton, Form, LockToggle, TextField } from '@/ui/aria';
 import { ratingOptions, titleRatingOf } from '../../shared/choices';
 import { providerName } from '../item/facts';
 import { FROM_METADATA, hasOriginalLanguage, originalLanguageOptions } from '../item/MetadataTab';
-import { metadataSettingsQuery } from '../queries';
+import { adminItemQuery, metadataSettingsQuery } from '../queries';
 import {
   canToggleLock,
   editField,
@@ -83,6 +83,10 @@ export function MetadataEditorTab({
     () => new Intl.DisplayNames([i18n.language], { type: 'language' }),
     [i18n.language],
   );
+  const queryClient = useQueryClient();
+  const genresId = useId();
+  const genresErrorId = useId();
+  const dateInput = useRef<HTMLInputElement>(null);
   const [genre, setGenre] = useState('');
   const [invalid, setInvalid] = useState<Record<string, string>>({});
   const [unchanged, setUnchanged] = useState(false);
@@ -109,8 +113,17 @@ export function MetadataEditorTab({
       onDraftChange(emptyDraft);
       onChanged(next, t('admin.editor.metadata.saved'));
     },
+    // A step may have gone through before the one that failed (the texts, then the rating): the
+    // dialog reads the title again and keeps the draft, so «Speichern» can try the rest again.
+    onError: () =>
+      void queryClient.invalidateQueries({ queryKey: adminItemQuery(item.id).queryKey }),
   });
-  const errors = save.isError ? formErrors(t, save.error) : { fields: {}, form: null };
+  const errors: { fields: Record<string, string>; form: string | null } = save.isError
+    ? formErrors(t, save.error)
+    : { fields: {}, form: null };
+  // Genres and the rating have no react-aria field the form could hand their message to.
+  const genresError = errors.fields.genres;
+  const ratingError = errors.fields.rating;
 
   const set = <F extends EditorField>(field: F, value: EditorValues[F]) => {
     setUnchanged(false);
@@ -146,6 +159,8 @@ export function MetadataEditorTab({
         name={field}
         label={fieldLabel(field)}
         value={value(field)}
+        // A free sort title follows the title: the field stays empty and shows it.
+        placeholder={field === 'sortTitle' ? value('title') : undefined}
         onChange={(next) => set(field, next)}
       />
       {meta_(field)}
@@ -157,6 +172,8 @@ export function MetadataEditorTab({
     const plan = saveOf(draft);
     const local: Record<string, string> = {};
     for (const [field, code] of Object.entries(plan.invalid)) local[field] = fieldMessage(t, code);
+    // A half-typed date reads as empty; sending it would clear the date.
+    if (dateInput.current?.validity.badInput) local.releaseDate = fieldMessage(t, 'invalid_value');
     setInvalid(local);
     if (Object.keys(local).length > 0) return;
     if (!plan.metadata && plan.rating === undefined && plan.language === undefined) {
@@ -206,6 +223,7 @@ export function MetadataEditorTab({
             name="releaseDate"
             label={fieldLabel('releaseDate')}
             type="date"
+            inputRef={dateInput}
             value={value('releaseDate')}
             onChange={(next) => set('releaseDate', next)}
           />
@@ -224,8 +242,13 @@ export function MetadataEditorTab({
         </div>
         {titleKind && (
           <div className={styles.full}>
-            <div role="group" aria-labelledby="editor-genres" className={styles.stack}>
-              <span id="editor-genres" className={styles.label}>
+            <div
+              role="group"
+              aria-labelledby={genresId}
+              aria-describedby={genresError ? genresErrorId : undefined}
+              className={styles.stack}
+            >
+              <span id={genresId} className={styles.label}>
                 {fieldLabel('genres')}
               </span>
               <ul className={styles.genres}>
@@ -268,6 +291,11 @@ export function MetadataEditorTab({
                   {t('admin.editor.metadata.genreAddAction')}
                 </AriaButton>
               </div>
+              {genresError && (
+                <p id={genresErrorId} className={styles.fieldError}>
+                  {genresError}
+                </p>
+              )}
             </div>
             {meta_('genres')}
           </div>
@@ -282,6 +310,7 @@ export function MetadataEditorTab({
               ...ratingOptions(t).map(({ value: age, label }) => ({ value: age, label })),
             ]}
           />
+          {ratingError && <p className={styles.fieldError}>{ratingError}</p>}
           {meta_('rating')}
         </div>
         {hasOriginalLanguage(item) && (
