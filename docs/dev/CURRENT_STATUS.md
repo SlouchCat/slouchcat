@@ -6,9 +6,11 @@ Zweig `claude/feinschliff-stufe1` ab `main` `311a5117` (Merge von PR #97, Konzep
 Release **1.13.2**: Vertrag bleibt **1.13.0**, keine Migration. Frage 22 im Entscheidungsprotokoll
 (F-1 bis F-16); Hinweise in Konzept 08, ADR 0016, ADR 0017 und Spec E-9/A-5.
 
-- **P-2 Beschreibung je Job:** zweite, gedämpfte Zeile unter dem Namen (einzeilig, «…»), ungekürzt
-  oben in der aufgeklappten Zeile; Texte `admin.jobs.types.<key>.description` für alle 24 Jobs.
-  Die Jobzeile ist dadurch 55 statt 40 px hoch; der Dichtetest S-5 erlaubt 40 px plus eine Zeile.
+- **P-2 Beschreibung je Job:** nach Marcos Abnahme auf CT 190 (6. November 2026) **eigene Spalte
+  «Beschreibung»** statt zweiter Zeile unter dem Namen: höchstens zwei Zeilen, danach «…», voller
+  Satz als `title` und oben in der aufgeklappten Zeile; Texte `admin.jobs.types.<key>.description`
+  für alle 24 Jobs. Bei 1280 px passen 23 von 24 ganz, ab 1440 px alle. S-5 bleibt streng 40 px,
+  gemessen bei 1920 px, wo die Zeile einzeilig ist. Nebenbei behoben: «in 5 h 60 min» → «in 6 h».
 - **P-3:** Ereignis-Jobs zeigen «automatisch» statt «bei Bedarf» und im aufgeklappten Feld einen
   Satz, warum sie keinen Zeitplan haben. «Kapitelbilder nachholen» und «Originalsprachen
   nachholen» sind Zeitplan-Jobs (ab Werk aus, 7 Tage, `jobs.SeedOff`). Zeitfenster (4.3) folgen in
