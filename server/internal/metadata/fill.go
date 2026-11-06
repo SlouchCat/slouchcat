@@ -167,7 +167,8 @@ type fieldWrite struct {
 
 // decideFields applies rule 2 of the job: per field the first provider in order with a value
 // wins, unless the field is locked or a stored source stands further front. candidates are in
-// list order. The lock name of a text field is the field name (both languages).
+// list order. A text field is locked per language (title:de) or, by an old lock without
+// language, in every language (textLocked).
 func decideFields(order []string, candidates []providerFields, stored map[fieldKey]string, locked map[string]bool) map[fieldKey]fieldWrite {
 	rank := func(p string) int {
 		if i := slices.Index(order, p); i >= 0 {
@@ -178,7 +179,7 @@ func decideFields(order []string, candidates []providerFields, stored map[fieldK
 	out := map[fieldKey]fieldWrite{}
 	for _, c := range candidates {
 		for key, value := range c.values {
-			if _, done := out[key]; done || locked[key.field] {
+			if _, done := out[key]; done || textLocked(locked, key.field, key.lang) {
 				continue
 			}
 			if prev, ok := stored[key]; ok && rank(prev) < rank(c.provider) {

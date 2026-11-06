@@ -1171,16 +1171,16 @@ func buildTexts(cur systemq.Item, stored []systemq.ItemText, locked map[string]b
 			Tagline:  nullString(firstNonEmpty(m.Tagline, fb.Tagline)),
 		}
 		prev, had := old[lang]
-		if locked["title"] {
+		if textLocked(locked, "title", lang) {
 			t.Title = cur.Title
 			if had {
 				t.Title = prev.Title
 			}
 		}
-		if locked["overview"] {
+		if textLocked(locked, "overview", lang) {
 			t.Overview = prev.Overview
 		}
-		if locked["tagline"] {
+		if textLocked(locked, "tagline", lang) {
 			t.Tagline = prev.Tagline
 		}
 		t.SortKey = sortKey(lang, t.Title)
@@ -1370,14 +1370,15 @@ func sortKey(lang, title string) sql.NullString {
 }
 
 // pruneTexts deletes the stored text rows of languages that are not in the effective list any
-// more (ADR 0018, 6.1), unless a text field of the title is locked (then every row stays: the
-// administrator's text may live in any of them).
+// more (ADR 0018, 6.1). A lock without language of a text field keeps every row (the
+// administrator's text may live in any of them); a lock per language keeps the row of its
+// language (concept 15 7.5).
 func pruneTexts(ctx context.Context, q *systemq.Queries, itemID string, stored []systemq.ItemText, langs []string, locked map[string]bool) error {
 	if locked["title"] || locked["overview"] || locked["tagline"] {
 		return nil
 	}
 	for _, t := range stored {
-		if slices.Contains(langs, t.Lang) {
+		if slices.Contains(langs, t.Lang) || langLocked(locked, t.Lang) {
 			continue
 		}
 		if err := q.DeleteItemText(ctx, systemq.DeleteItemTextParams{ItemID: itemID, Lang: t.Lang}); err != nil {
