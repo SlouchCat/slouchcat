@@ -2,6 +2,8 @@ package visibility
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -246,6 +248,24 @@ func TestSeriesRefOnEpisodes(t *testing.T) {
 	}
 }
 
+// releasedEpisodeID is the item id of episode k (1-based) of AddReleasedSeries n.
+func releasedEpisodeID(n, k int) string { return fmt.Sprintf("01J9RELEASEDE%010d%03d", n, k) }
+
+// addNumberedSeries adds series n by AddReleasedSeries with one season (number 1) and an episode per
+// entry of numbers: {first, last} with last 0 for a single episode, so {3, 4} is a double episode.
+func addNumberedSeries(t *testing.T, f *vistest.Fixture, n int, numbers [][2]int) string {
+	t.Helper()
+	eps := make([]vistest.ReleasedEpisode, len(numbers))
+	id := f.AddReleasedSeries(t, n, 0, eps)
+	exec(t, f, `UPDATE items SET season_number = 1 WHERE parent_id = ? AND kind = 'season'`, id)
+	for k, num := range numbers {
+		end := sql.NullInt64{Int64: int64(num[1]), Valid: num[1] != 0}
+		exec(t, f, `UPDATE items SET season_number = 1, episode_number = ?, episode_end = ? WHERE id = ?`,
+			num[0], end, releasedEpisodeID(n, k+1))
+	}
+	return id
+}
+
 // Review L-2: without its season or episode number a completed episode has no next one, in the row
 // as in NextEpisode (episodeChain); SQL must not jump to the first episode of a later season.
 func TestContinueWatchingWithoutNumbers(t *testing.T) {
@@ -282,5 +302,78 @@ func TestContinueWatchingWithoutNumbers(t *testing.T) {
 		if len(got) != 0 || next != nil {
 			t.Errorf("%s: continue = %v, next episode %+v, want neither", tc.name, ids(got), next)
 		}
+	}
+}
+
+// Review L-8: a completed double episode (E3-E4) leads to E5, also when E5 has the lower id.
+func TestContinueWatchingAfterDoubleEpisode(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return continueNow }))
+	ctx := context.Background()
+	// Episode ids by insertion: 1 = E5, 2 = E1, 3 = E3-E4, 4 = E2.
+	addNumberedSeries(t, f, 1, [][2]int{{5, 0}, {1, 0}, {3, 4}, {2, 0}})
+	e5, e34 := releasedEpisodeID(1, 1), releasedEpisodeID(1, 3)
+	exec(t, f, `DELETE FROM progress WHERE profile_id = ?`, f.P16.ID)
+	setProgress(t, f, f.P16, e34, true, daysAgo(1))
+	got, err := r.ContinueWatching(ctx, Profile(f.P16), MaxRowItems)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := r.NextEpisode(ctx, Profile(f.P16), e34)
+	if err != nil || next == nil {
+		t.Fatalf("next episode of E3-E4: %v, %v", next, err)
+	}
+	if !slices.Equal(ids(got), []string{e5}) || next.ID != e5 {
+		t.Errorf("continue = %v, next episode %s, want E5 (%s) for both", ids(got), next.ID, e5)
+	}
+}
+
+// Review L-8: series and films mixed over MaxRowItems. Grouping comes before the limit (a series
+// with two progress rows takes one place), the order is the newest activity of each group across
+// series and films, and the oldest groups fall off.
+func TestContinueWatchingLimitAcrossGroups(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return continueNow }))
+	ctx := context.Background()
+	exec(t, f, `DELETE FROM progress WHERE profile_id = ?`, f.P16.ID)
+
+	const groups = MaxRowItems + 4
+	var want []string
+	for g := range groups {
+		at := daysAgo(float64(g + 1)) // group 0 is the newest
+		n := g/2 + 1
+		if g%2 == 1 {
+			film := f.AddReleasedFilm(t, n, 0, "")
+			setProgress(t, f, f.P16, film, false, at)
+			want = append(want, film)
+			continue
+		}
+		addNumberedSeries(t, f, n, [][2]int{{1, 0}, {2, 0}, {3, 0}})
+		e1, e2 := releasedEpisodeID(n, 1), releasedEpisodeID(n, 2)
+		switch n % 3 {
+		case 0: // started: the episode itself
+			setProgress(t, f, f.P16, e1, false, at)
+			want = append(want, e1)
+		case 1: // completed: the next episode
+			setProgress(t, f, f.P16, e1, true, at)
+			want = append(want, e2)
+		case 2: // an older completed row (newer than the next group) and a newer started one
+			setProgress(t, f, f.P16, e1, true, at-int64(12*time.Hour/time.Millisecond))
+			setProgress(t, f, f.P16, e2, false, at)
+			want = append(want, e2)
+		}
+	}
+	// A completed film is newer than all of them and takes no place.
+	done := f.AddReleasedFilm(t, groups, 0, "")
+	setProgress(t, f, f.P16, done, true, daysAgo(0.5))
+
+	got, err := r.ContinueWatching(ctx, Profile(f.P16), MaxRowItems)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want = want[:MaxRowItems]; !slices.Equal(ids(got), want) {
+		t.Errorf("continue = %v,\nwant %v", ids(got), want)
 	}
 }
