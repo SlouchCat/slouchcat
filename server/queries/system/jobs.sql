@@ -9,13 +9,29 @@ RETURNING id;
 -- name: InsertJobOverridingPause :one
 -- Queue.EnqueueOverridingPause (concept 14, 6.4 and 6.5): InsertJob with override_pause, which a
 -- job gets only while fewer than @max_overrides queued or running jobs carry it (O-7). One
--- statement on the one writer connection, so concurrent playback starts cannot pass the cap.
-INSERT INTO jobs (type, priority, idempotency_key, payload, run_after, max_attempts, override_pause, created_at, updated_at)
+-- statement on the one writer connection, so concurrent playback starts cannot pass the cap. A
+-- playback also lifts the time window of the type (override_window, concept 15 4.3), without a cap.
+INSERT INTO jobs (type, priority, idempotency_key, payload, run_after, max_attempts, override_pause, override_window, created_at, updated_at)
 VALUES (@type, @priority, @idempotency_key, @payload, @run_after, @max_attempts,
         (SELECT count(*) < CAST(@max_overrides AS INTEGER) FROM jobs AS o WHERE o.override_pause = 1 AND o.state IN ('queued', 'running')),
-        @now, @now)
+        1, @now, @now)
 ON CONFLICT (idempotency_key) WHERE state IN ('queued', 'running') DO NOTHING
 RETURNING id, override_pause;
+
+-- name: InsertJobOverridingWindow :one
+-- Queue.EnqueueOverridingWindow (concept 15, 4.3): InsertJob with override_window, so the job may
+-- start outside the time window of its type (a playback request; no cap, the pause still holds).
+INSERT INTO jobs (type, priority, idempotency_key, payload, run_after, max_attempts, override_window, created_at, updated_at)
+VALUES (@type, @priority, @idempotency_key, @payload, @run_after, @max_attempts, 1, @now, @now)
+ON CONFLICT (idempotency_key) WHERE state IN ('queued', 'running') DO NOTHING
+RETURNING id;
+
+-- name: RaiseQueuedJobOverridingWindow :execrows
+-- A playback that finds a waiting job under its key (concept 15, 4.3): the priority rises and never
+-- falls, and the job may start outside the time window of its type. Its start stays as it is. A
+-- running or finished job is not touched.
+UPDATE jobs SET priority = max(priority, @priority), override_window = 1, updated_at = @now
+WHERE id = @id AND state = 'queued';
 
 -- name: GetActiveJobIDByKey :one
 SELECT id FROM jobs
@@ -46,11 +62,13 @@ UPDATE jobs SET priority = max(priority, @priority), updated_at = @now WHERE id 
 -- name: RaiseQueuedJobForPlayback :one
 -- A playback that finds a waiting job under its key (concept 14, 6.4): the priority rises and never
 -- falls, override_pause is set by the cap of InsertJobOverridingPause (a job that has it keeps it),
--- and a job in backoff or delay runs now. A running or finished job is not touched (no row).
+-- override_window is set without a cap (concept 15, 4.3), and a job in backoff or delay runs now. A
+-- running or finished job is not touched (no row).
 UPDATE jobs
 SET priority = max(priority, CAST(@priority AS INTEGER)),
     override_pause = CASE WHEN override_pause = 1 THEN 1 ELSE (
         SELECT count(*) < CAST(@max_overrides AS INTEGER) FROM jobs AS o WHERE o.override_pause = 1 AND o.state IN ('queued', 'running')) END,
+    override_window = 1,
     run_after = min(run_after, @now), updated_at = @now
 WHERE jobs.id = @id AND jobs.state = 'queued'
 RETURNING override_pause;
@@ -85,15 +103,27 @@ WHERE state = 'running' AND lease_until < @now AND attempts < max_attempts;
 -- name: ClaimJob :one
 -- Every attempt starts the run anew: started_at is set, the progress and skipped of the attempt
 -- before are cleared (concept 09, 4.1). A paused type (job_types.paused_at) is not claimed, except
--- a job with override_pause (a playback request, concept 14 6.5); the subquery reads at most a few
--- dozen rows.
+-- a job with override_pause (a playback request, concept 14 6.5). A type with a time window
+-- (job_types.window_start, window_end; concept 15 4.3) is claimed only while @minute, the minute
+-- of the server's day, lies in it (end exclusive, end < start spans midnight, like the window of a
+-- schedule), except a job with override_window. Both rules hold on their own: override_pause does
+-- not lift the window, override_window does not lift the pause. The subqueries read at most a few
+-- dozen rows. @minute stands before the slice of types on purpose: sqlc numbers a repeated
+-- parameter (?4) and the slice expands to plain ?, which SQLite numbers after the highest one so
+-- far; a repeated parameter after the slice would point into the list of types.
 UPDATE jobs
 SET state = 'running', lease_owner = @worker_id, lease_until = @lease_until,
     attempts = attempts + 1, updated_at = @now, started_at = @now, finished_at = NULL,
     progress_done = NULL, progress_total = NULL, progress_note = NULL, skipped = 0
 WHERE id = (
     SELECT j.id FROM jobs AS j
-    WHERE j.state = 'queued' AND j.run_after <= @now AND j.type IN (sqlc.slice('types'))
+    WHERE j.state = 'queued' AND j.run_after <= @now
+      AND (j.override_window = 1 OR j.type NOT IN (
+          SELECT w.type FROM job_types AS w
+          WHERE w.window_start IS NOT NULL AND NOT CASE
+              WHEN w.window_start < w.window_end THEN CAST(@minute AS INTEGER) >= w.window_start AND CAST(@minute AS INTEGER) < w.window_end
+              ELSE CAST(@minute AS INTEGER) >= w.window_start OR CAST(@minute AS INTEGER) < w.window_end END))
+      AND j.type IN (sqlc.slice('types'))
       AND (j.override_pause = 1 OR j.type NOT IN (SELECT t.type FROM job_types AS t WHERE t.paused_at IS NOT NULL))
     ORDER BY j.priority DESC, j.created_at, j.id
     LIMIT 1
@@ -205,6 +235,11 @@ UPDATE job_types SET paused_at = NULL, updated_at = @now WHERE type = @type AND 
 
 -- name: ListPausedJobTypes :many
 SELECT type FROM job_types WHERE paused_at IS NOT NULL ORDER BY type;
+
+-- name: SetJobTypeWindow :execrows
+-- The time window of a type (concept 15, 4.3); both NULL removes it.
+UPDATE job_types SET window_start = sqlc.narg('window_start'), window_end = sqlc.narg('window_end'), updated_at = @now
+WHERE type = @type;
 
 -- name: ListJobTypes :many
 SELECT * FROM job_types ORDER BY type;

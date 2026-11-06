@@ -222,3 +222,13 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `profiles` und `items` nachgezogen (die Daten erfüllen beide Prüfungen), und das Schema gleicht danach Zeile für Zeile
   dem von `verwaltung.sql` nach der Migration. `TestFrozenAbspielseiteStateCoversTheConcept` prüft, dass jede dieser
   Datenarten vorhanden ist.
+- `feinschliff.sql`: Stand nach Schritt 1 von Stufe 2 des Konzepts «Feinschliff» (Konzept 15, 4.3; Migration 00034
+  `job_windows`). Erzeugt am 6. November 2026 aus `wiedergabestart.sql`: Stand eingespielt, mit `store.Open` migriert
+  (00034 legt `job_types.window_start`, `window_end` leer und `jobs.override_window` mit 0 an), dann per SQL die Daten
+  des Schritts: ein Zeitfenster 01:00 bis 06:00 an `probe.keyframes`, eines über Mitternacht (23:00 bis 05:00) an
+  `segments.detect`, die Zeile `chapters.images` ohne Fenster, ein wartender `probe.keyframes` einer Wiedergabe mit
+  `override_pause` und `override_window`, ein verzögerter `chapters.images` nach einer Wiedergabe nur mit
+  `override_window` und ein gewöhnlicher wartender `segments.detect`. Dann `store.Dump`. Die Pfade der Wurzeln bleiben
+  die von `wiedergabestart.sql`. `TestFrozenFeinschliffStateCoversTheConcept` prüft, dass jede dieser Datenarten
+  vorhanden ist und die Prüfungen der Migration greifen; `TestMigration00034JobWindows` prüft den Schritt von
+  `wiedergabestart.sql` aus.

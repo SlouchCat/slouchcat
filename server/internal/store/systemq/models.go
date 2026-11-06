@@ -373,6 +373,7 @@ type Job struct {
 	ProgressNote   sql.NullString
 	Skipped        int64
 	OverridePause  int64
+	OverrideWindow int64
 }
 
 type JobSchedule struct {
@@ -389,9 +390,11 @@ type JobSchedule struct {
 }
 
 type JobType struct {
-	Type      string
-	PausedAt  sql.NullInt64
-	UpdatedAt int64
+	Type        string
+	PausedAt    sql.NullInt64
+	UpdatedAt   int64
+	WindowStart sql.NullInt64
+	WindowEnd   sql.NullInt64
 }
 
 type Library struct {

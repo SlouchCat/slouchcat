@@ -194,8 +194,10 @@ func hasChapterImages(cache paths.Root, rel string) bool {
 // the probed film and episode files among mediaFileIDs that have no images (11.6 (2)): the playback
 // sweep calls it with the files of the playbacks that ended. Anything else (no cache directory,
 // another kind, an unprobed, missing, deleted or unknown file, images present) queues nothing. A
-// waiting job of the backfill under the same key is raised to the event's priority 5. A file that
-// fails does not hold up the others: the errors come back joined.
+// waiting job of the backfill under the same key is raised to the event's priority 5. The job may
+// start outside the time window of chapters.images (override_window, concept 15 4.3), a waiting
+// one as well, but a pause holds it (no override_pause). A file that fails does not hold up the
+// others: the errors come back joined.
 func QueueChapterImagesAfterPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, cacheDir string, mediaFileIDs []string) error {
 	if cacheDir == "" || len(mediaFileIDs) == 0 {
 		return nil
@@ -235,12 +237,8 @@ func queueAfterPlayback(ctx context.Context, read *systemq.Queries, q *jobs.Queu
 	if err != nil {
 		return fmt.Errorf("encode %s payload: %w", j.typ, err)
 	}
-	jobID, err := q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: j.priority, IdempotencyKey: j.key, Payload: payload,
+	_, err = q.EnqueueOverridingWindow(ctx, jobs.NewJob{Type: j.typ, Priority: j.priority, IdempotencyKey: j.key, Payload: payload,
 		Delay: ChapterImagesAfterPlayback})
-	if err != nil {
-		return err
-	}
-	_, err = q.RaiseQueuedPriority(ctx, jobID, j.priority)
 	return err
 }
 

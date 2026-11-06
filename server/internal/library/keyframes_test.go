@@ -288,6 +288,10 @@ func TestKeyframeTypesRegistered(t *testing.T) {
 		if want := typ.Name == JobProbeKeyframes; typ.OverridesPauseForPlayback != want {
 			t.Errorf("%s OverridesPauseForPlayback = %v, want %v", typ.Name, typ.OverridesPauseForPlayback, want)
 		}
+		// The three event types that read whole files may be held to a time window (concept 15, 4.3).
+		if want := typ.Name == JobProbeKeyframes || typ.Name == JobSegmentsDetect || typ.Name == JobChapterImages; typ.Windowable != want {
+			t.Errorf("%s Windowable = %v, want %v", typ.Name, typ.Windowable, want)
+		}
 	}
 }
 
@@ -343,6 +347,10 @@ func TestQueueKeyframesForPlayback(t *testing.T) {
 	}
 	if v := e.str(`SELECT run_after <= ? FROM jobs WHERE id = ?`, e.clock.Now().UnixMilli(), scan); v != "1" {
 		t.Errorf("raised scan job still delayed")
+	}
+	// A playback lifts the time window too (concept 15, 4.3), the new job and the raised one.
+	if n := e.count(`SELECT count(*) FROM jobs WHERE idempotency_key IN ('keyframes:' || ?, 'keyframes:' || ?) AND override_window = 1`, ids[0], ids[1]); n != 2 {
+		t.Errorf("playback keyframe jobs with override_window = %d, want 2", n)
 	}
 
 	e.exec(`UPDATE media_files SET keyframes_source = 'none' WHERE id = ?`, ids[2])

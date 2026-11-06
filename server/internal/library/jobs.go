@@ -109,7 +109,8 @@ const keyframesFailedQuiet = 24 * time.Hour
 // QueueKeyframesForPlayback asks for the keyframe index of a media file a playback transcodes
 // because the index is missing (concept 14, 6.4): probe.keyframes at priority 9 under the key
 // keyframes:<id>, through jobs.Queue.EnqueueOverridingPause, so the job runs while its type is
-// paused (at most jobs.MaxPauseOverrides at a time). A job that waits under the key (one of a
+// paused (at most jobs.MaxPauseOverrides at a time) and outside the time window of its type
+// (override_window, concept 15 4.3). A job that waits under the key (one of a
 // scan or the backfill at priority 1) is raised instead (RaiseQueuedJobForPlayback); a running
 // one stays as it is. Nothing is queued for a file whose index is impossible (source none), whose
 // row is gone, or whose last full read failed within keyframesFailedQuiet. db is a read
@@ -282,7 +283,8 @@ func enqueueTx(ctx context.Context, q *systemq.Queries, now time.Time, j newJob)
 // the rest are event types queued by scans, watchers, webhooks, playbacks and matches
 // (library.relink). keyframes.backfill (concept 14, 6.6) and chapters.images_backfill (concept 13
 // stage 3, schedulable since concept 15 P-3) are schedule types every 7 days with the schedule off
-// by default; probe.keyframes runs in the pool index.
+// by default; probe.keyframes runs in the pool index. probe.keyframes, segments.detect and
+// chapters.images read whole files and may be held to a time window (concept 15, 4.3).
 func (s *Service) RegisterTypes(r *jobs.Registry) {
 	atStart := time.Duration(0)
 	r.Register(jobs.Type{
@@ -293,15 +295,17 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 	r.Register(jobs.Type{Name: JobProbeFile, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioProbe, Handler: s.handleProbe})
 	r.Register(jobs.Type{
 		Name: JobProbeKeyframes, Group: jobs.GroupLibrary, Pool: jobs.PoolIndex, Trigger: jobs.TriggerEvent,
-		Priority: prioKeyframes, Handler: s.handleKeyframes, OverridesPauseForPlayback: true,
+		Priority: prioKeyframes, Handler: s.handleKeyframes, OverridesPauseForPlayback: true, Windowable: true,
 	})
 	r.Register(jobs.Type{
 		Name: JobSweep, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioSweep, Handler: s.handleSweep, Run: s.runSweep, Every: sweepInterval, StartDelay: &atStart,
 	})
-	r.Register(jobs.Type{Name: JobSegmentsDetect, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioSegments, Handler: s.handleSegments})
+	r.Register(jobs.Type{Name: JobSegmentsDetect, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioSegments, Handler: s.handleSegments,
+		Windowable: true})
 	r.Register(jobs.Type{Name: JobRelink, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioMatch, Handler: s.handleRelink, Cancel: s.cancelRelink})
-	r.Register(jobs.Type{Name: JobChapterImages, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioChapterImages, Handler: s.handleChapterImages})
+	r.Register(jobs.Type{Name: JobChapterImages, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerEvent, Priority: prioChapterImages, Handler: s.handleChapterImages,
+		Windowable: true})
 	r.Register(jobs.Type{
 		Name: JobChapterImagesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioChapterImages, Handler: s.handleChapterImagesBackfill, Run: s.runChapterImagesBackfill,
