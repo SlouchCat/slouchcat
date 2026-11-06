@@ -108,13 +108,15 @@ ORDER BY ci.position, i.release_date IS NULL, i.release_date, i.id
 LIMIT @limit_count OFFSET @offset_count;
 
 -- Genres of the visible titles (films, series, audiobooks, podcasts) in one language, most
--- frequent first.
+-- frequent first. The titles come first, from the partial index items_top_added (migration
+-- 00037), so visible_items is evaluated once per title; CROSS JOIN keeps the genres after them
+-- (from item_genres first it was evaluated once per genre of a title).
 -- name: ListVisibleGenres :many
 SELECT g.name, count(*) AS item_count
-FROM item_genres AS g
-JOIN items AS i ON i.id = g.item_id
+FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
-WHERE g.lang = @lang AND i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+CROSS JOIN item_genres AS g ON g.item_id = i.id AND g.lang = @lang
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 GROUP BY g.name
 ORDER BY item_count DESC, g.name
 LIMIT @limit_count;

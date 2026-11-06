@@ -64,6 +64,7 @@ func TestMigration00037TopAddedIndex(t *testing.T) {
 	}{
 		{"items.sql", "ListRecentlyAdded", true},
 		{"library.sql", "ListVisibleLibraries", false},
+		{"discover.sql", "ListVisibleGenres", false},
 	} {
 		plan := queryPlan(t, db, scopedQuery(t, tc.file, tc.query))
 		if !strings.Contains(plan, "INDEX items_top_added") {
