@@ -6778,7 +6778,7 @@ export interface components {
             window?: components["schemas"]["JobWindow"];
             /**
              * Format: date-time
-             * @description When the window opens next; only sent while a window is set and closed right now, so waiting runs wait until then (since contract 1.14.0).
+             * @description When the window opens next; only sent while a window is set and closed right now and at least one waiting or planned run without the playback override waits for it (since contract 1.14.0).
              */
             windowOpensAt?: string;
             /**

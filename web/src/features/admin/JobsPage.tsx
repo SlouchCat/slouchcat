@@ -294,7 +294,8 @@ function lastText(t: TFunction, info: JobTypeInfo, now: number): string {
  * The next run: "in X · alle Y · window", or why there is none; then the one-off date
  * ("Termin: So., 8. Nov., 03:30"), which fires with the schedule switched off as well. A paused
  * type lets its date lapse (concept 14, 6.7). An event type with a window says so; while the
- * server names the window closed and runs wait, until when (concept 15, 4.3). The pause wins.
+ * server sends windowOpensAt (closed, and runs without the playback override wait for it), until
+ * when (concept 15, 4.3). The server decides that, the page only shows it. The pause wins.
  */
 function nextText(t: TFunction, info: JobTypeInfo, now: number, language: string): string {
   if (info.paused) return t('admin.jobs.card.pausedNext');
@@ -302,7 +303,7 @@ function nextText(t: TFunction, info: JobTypeInfo, now: number, language: string
   if (!schedule) {
     if (info.trigger === 'manual') return t('admin.jobs.card.triggerManual');
     if (!info.window) return t('admin.jobs.card.automatic');
-    if (info.windowOpensAt && info.counts.queued + info.counts.planned > 0) {
+    if (info.windowOpensAt) {
       return t('admin.jobs.card.waitsUntil', {
         time: formatClock(info.windowOpensAt, info.windowTimeZone, language),
       });

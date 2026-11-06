@@ -218,8 +218,9 @@ func TestJobTypesOverridesPauseForPlayback(t *testing.T) {
 }
 
 // updateJobTypeWindow (concept 15, 4.3): only a windowable type, the window checked like the one of
-// a schedule; the type reports windowable, its window, the zone and, while the window is closed,
-// when it opens. A run with override_window says so.
+// a schedule; the type reports windowable, its window, the zone and, while the window is closed and
+// a waiting or planned run without override_window waits for it, when it opens. A run with
+// override_window says so.
 func TestUpdateJobTypeWindow(t *testing.T) {
 	jf := newJobFixture(t)
 	ctx := jf.ctx
@@ -253,17 +254,21 @@ func TestUpdateJobTypeWindow(t *testing.T) {
 		t.Fatalf("windowable type without a window = %+v", info)
 	}
 
-	// 22:00 to 06:00 at 12:00 UTC: closed, opens at 22:00 of the same day.
+	// 22:00 to 06:00 at 12:00 UTC: closed, but no run waits for it.
 	info, err := jf.svc.UpdateJobTypeWindow(ctx, heavy, model.JobTypeWindowUpdate{Window: &model.JobWindow{StartMinute: 22 * 60, EndMinute: 6 * 60}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Window == nil || *info.Window != (model.JobWindow{StartMinute: 22 * 60, EndMinute: 6 * 60}) ||
-		!info.WindowOpensAt.Equal(time.Date(2026, 10, 30, 22, 0, 0, 0, time.UTC)) {
-		t.Errorf("after setting the window = %+v, want 22:00-06:00 opening at 22:00", info)
+	if info.Window == nil || *info.Window != (model.JobWindow{StartMinute: 22 * 60, EndMinute: 6 * 60}) || !info.WindowOpensAt.IsZero() {
+		t.Errorf("after setting the window = %+v, want 22:00-06:00 without windowOpensAt (nothing waits)", info)
 	}
-	if got := jf.typeInfo(t, heavy); got.Window == nil || !got.WindowOpensAt.Equal(info.WindowOpensAt) {
-		t.Errorf("overview = %+v", got)
+	// A waiting run without override_window waits until 22:00 of the same day.
+	id, err := jf.queue.Enqueue(ctx, jobs.NewJob{Type: heavy, IdempotencyKey: "chapters:1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := jf.typeInfo(t, heavy); got.Window == nil || !got.WindowOpensAt.Equal(time.Date(2026, 10, 30, 22, 0, 0, 0, time.UTC)) {
+		t.Errorf("overview with a waiting run = %+v, want it to open at 22:00", got)
 	}
 	// Inside the window (02:00 the next day, across midnight) nothing waits for it.
 	jf.now = time.Date(2026, 10, 31, 2, 0, 0, 0, time.UTC)
@@ -280,15 +285,22 @@ func TestUpdateJobTypeWindow(t *testing.T) {
 		t.Errorf("empty update = %+v %v, want the window kept", got, err)
 	}
 
-	// A waiting run that may start outside the window (a playback) says so in the list of runs.
-	id, err := jf.queue.Enqueue(ctx, jobs.NewJob{Type: heavy, IdempotencyKey: "chapters:1"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// A waiting run that may start outside the window (a playback) says so in the list of runs; it
+	// does not wait for the window, so the type reports no windowOpensAt.
 	jf.exec(t, `UPDATE jobs SET override_window = 1 WHERE id = ?`, id)
 	page, err := jf.svc.ListJobRuns(ctx, heavy, "queued", 0)
 	if err != nil || len(page.Runs) != 1 || !page.Runs[0].OverridesWindow || page.Runs[0].OverridesPause {
 		t.Errorf("queued runs = %+v %v, want the run with override_window", page, err)
+	}
+	if got := jf.typeInfo(t, heavy); got.Window == nil || !got.WindowOpensAt.IsZero() {
+		t.Errorf("only a run with override_window = %+v, want no windowOpensAt", got)
+	}
+	// A planned run without override_window waits for the window as well.
+	if _, err := jf.queue.Enqueue(ctx, jobs.NewJob{Type: heavy, IdempotencyKey: "chapters:2", Delay: 24 * time.Hour}); err != nil {
+		t.Fatal(err)
+	}
+	if got := jf.typeInfo(t, heavy); got.Planned != 1 || !got.WindowOpensAt.Equal(time.Date(2026, 10, 31, 22, 0, 0, 0, time.UTC)) {
+		t.Errorf("with a planned run = %+v, want it to open at 22:00", got)
 	}
 
 	info, err = jf.svc.UpdateJobTypeWindow(ctx, heavy, model.JobTypeWindowUpdate{ClearWindow: true, Window: &model.JobWindow{StartMinute: 1, EndMinute: 2}})

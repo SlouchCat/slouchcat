@@ -597,6 +597,7 @@ const jobCountsByType = `-- name: JobCountsByType :many
 SELECT type,
        CAST(COALESCE(SUM(state = 'queued' AND run_after <= ?1), 0) AS INTEGER) AS queued,
        CAST(COALESCE(SUM(state = 'queued' AND run_after > ?1), 0) AS INTEGER)  AS planned,
+       CAST(COALESCE(SUM(state = 'queued' AND override_window = 0), 0) AS INTEGER) AS window_held,
        CAST(COALESCE(SUM(state = 'running'), 0) AS INTEGER)                      AS running,
        CAST(COALESCE(SUM(state = 'failed'), 0) AS INTEGER)                       AS failed,
        CAST(COALESCE(MIN(CASE WHEN state = 'queued' THEN priority END), 0) AS INTEGER) AS min_queued_priority
@@ -609,6 +610,7 @@ type JobCountsByTypeRow struct {
 	Type              string
 	Queued            int64
 	Planned           int64
+	WindowHeld        int64
 	Running           int64
 	Failed            int64
 	MinQueuedPriority int64
@@ -618,8 +620,9 @@ type JobCountsByTypeRow struct {
 // The page "Hintergrundjobs" (concept 09, step 3): counts per type, running and last runs, the
 // runs of a type by state. Times are Unix milliseconds.
 // ---------------------------------------------------------------------------------------------
-// Per type: waiting runs (due), planned runs (start in the future), running and failed runs, and
-// the lowest priority among the waiting ones (the waiting time cumulates over the pool from it).
+// Per type: waiting runs (due), planned runs (start in the future), those of both without
+// override_window (they wait for a closed time window, concept 15 4.3), running and failed runs,
+// and the lowest priority among the waiting ones (the waiting time cumulates over the pool from it).
 func (q *Queries) JobCountsByType(ctx context.Context, now int64) ([]JobCountsByTypeRow, error) {
 	rows, err := q.db.QueryContext(ctx, jobCountsByType, now)
 	if err != nil {
@@ -633,6 +636,7 @@ func (q *Queries) JobCountsByType(ctx context.Context, now int64) ([]JobCountsBy
 			&i.Type,
 			&i.Queued,
 			&i.Planned,
+			&i.WindowHeld,
 			&i.Running,
 			&i.Failed,
 			&i.MinQueuedPriority,

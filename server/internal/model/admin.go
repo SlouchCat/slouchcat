@@ -310,7 +310,8 @@ type JobTypeInfo struct {
 	// OverridesPauseForPlayback: runs a playback requests run while the type is paused (concept 14).
 	OverridesPauseForPlayback bool
 	// Windowable: the type may be held to a time window (concept 15, 4.3); Window is that window
-	// (nil: none), WindowOpensAt when it opens next while it is closed (zero otherwise), and
+	// (nil: none), WindowOpensAt when it opens next while it is closed and a waiting run without
+	// override_window waits for it (zero otherwise), and
 	// WindowTimeZone the name of the server's zone of the window ("" when not windowable).
 	Windowable     bool
 	Window         *JobWindow

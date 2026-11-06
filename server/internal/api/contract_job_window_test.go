@@ -74,6 +74,15 @@ func TestJobTypeWindowOverHTTP(t *testing.T) {
 		info.WindowTimeZone == nil || *info.WindowTimeZone != loc.String() {
 		t.Fatalf("after setting a window = %+v", info)
 	}
+	// No run waits for the window yet: no windowOpensAt.
+	if info.WindowOpensAt != nil {
+		t.Errorf("windowOpensAt without a waiting run = %v, want none", info.WindowOpensAt)
+	}
+	// A waiting run without override_window waits until the window opens.
+	if _, err := pf.queue.Enqueue(ctx, jobs.NewJob{Type: heavy, IdempotencyKey: "chapters:0"}); err != nil {
+		t.Fatal(err)
+	}
+	info = put(heavy, fmt.Sprintf(`{"window":{"startMinute":%d,"endMinute":%d}}`, start, end), http.StatusOK)
 	if at := info.WindowOpensAt; at == nil || at.Location() != time.UTC || at.Before(time.Now().Add(110*time.Minute)) || at.After(time.Now().Add(121*time.Minute)) {
 		t.Errorf("windowOpensAt = %v, want about two hours from now in UTC", at)
 	}

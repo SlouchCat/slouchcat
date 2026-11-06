@@ -200,10 +200,12 @@ func (s *Service) jobTypeInfo(ctx context.Context, t jobs.Type, stats map[string
 		info.OverridesPauseForPlayback = t.OverridesPauseForPlayback
 		if t.Windowable {
 			// The window of a type (concept 15, 4.3) reads the scheduler's location, like the
-			// claim; windowOpensAt saves the client from computing time zones.
+			// claim; windowOpensAt saves the client from computing time zones. It is set only while
+			// a waiting run without override_window waits for the closed window (the server
+			// decides, plan 2.1): a run with it starts anyway.
 			loc := s.jobctl.sched.Location()
 			info.Windowable, info.Window, info.WindowTimeZone = true, window, loc.String()
-			if window != nil {
+			if window != nil && st.counts.WindowHeld > 0 {
 				if at, closed := (jobs.Window{Start: window.StartMinute, End: window.EndMinute}).OpensAt(now, loc); closed {
 					info.WindowOpensAt = at.UTC()
 				}

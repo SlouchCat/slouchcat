@@ -1022,8 +1022,12 @@ describe('admin jobs page (concept 09, concept 12)', () => {
             run({ id: 95, type: 'probe.keyframes', subject: 'Heat', overridesWindow: true }),
           ],
         }),
-        // Closed, nothing waits: the window alone.
-        windowed({ type: 'segments.detect', windowOpensAt: '2026-11-07T00:00:00Z' }),
+        // Closed, but only runs with the playback override wait: the server sends no
+        // windowOpensAt, so the page shows the window alone (it does not count runs itself).
+        windowed({
+          type: 'segments.detect',
+          counts: { queued: 2, planned: 1, running: 0, failed: 0 },
+        }),
         // Paused: the pause wins over the window.
         windowed({
           type: 'chapters.images',
