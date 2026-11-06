@@ -110,3 +110,11 @@ zwei Dritteln, Beginn bei Platz 1, 8 s Takt, Pause bei Mauszeiger und bei jedem 
   Effekten» wird durch eine ausblendbare Leiste eingelöst, die unter 768 px unsichtbar ist.
 - **Kein Geheimnis im Protokoll** (Regel 10): `library_id`, `sort`, `start` dürfen ins Protokoll;
   nichts Neues mit Geheimnissen.
+
+## Nachtrag (6. November 2026)
+
+Konzept 15 (Frage 22) ändert zwei Punkte: Die Spotlight-Reihe wird ein **Endlosband** (F-6): Der
+aktive Titel steht immer vorne, die gezeigten wandern ans Ende; der Leerraum am Ende entfällt, die
+DOM-Reihenfolge bleibt fest, gedreht wird über CSS `order`. Option e (Reihe je Bibliothek) wird mit
+Stufe 3 doch gebaut: Kachelreihe «Meine Medien» und je Bibliothek «Neu in …» (F-11), höchstens 15
+sichtbare Reihen (F-12).
