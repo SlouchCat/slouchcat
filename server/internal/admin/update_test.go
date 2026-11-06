@@ -276,10 +276,18 @@ func TestQueueDueUpdateCheck(t *testing.T) {
 
 // fakeSchedules records the schedule updates of the settings pages (admin.Schedules).
 type fakeSchedules struct {
+	loc     *time.Location // nil: UTC
 	updates []struct {
 		typ string
 		u   jobs.ScheduleUpdate
 	}
+}
+
+func (f *fakeSchedules) Location() *time.Location {
+	if f.loc == nil {
+		return time.UTC
+	}
+	return f.loc
 }
 
 func (f *fakeSchedules) UpdateSchedule(_ context.Context, typ string, u jobs.ScheduleUpdate) (jobs.Schedule, error) {
@@ -319,5 +327,91 @@ func TestNewerVersion(t *testing.T) {
 		if got := newerVersion(tc.latest, tc.current); got != tc.want {
 			t.Errorf("newerVersion(%q, %q) = %v, want %v", tc.latest, tc.current, got, tc.want)
 		}
+	}
+}
+
+// A failed check is tried again after 15 min, 1 h and 6 h through the one-off date of the
+// schedule (in the scheduler's zone); the fourth failure in a row leaves the daily rhythm alone,
+// and a success starts the sequence anew.
+func TestUpdateCheckRetryBackoff(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	now := time.Date(2026, 11, 5, 16, 33, 0, 0, time.UTC)
+	f.svc.now = func() time.Time { return now }
+	srv := newManifestServer(t, `{"version":"1.13.1","url":"https://example.org/1.13.1"}`)
+	sched := &fakeSchedules{loc: time.FixedZone("CET", 3600)}
+	f.svc.WithSchedules(sched).WithSystem(SystemSource{Version: "1.12.0"}).WithUpdateCheck(srv.URL+"/manifest.json", srv.Client())
+
+	check := func(wantOnce string, wantFailures int) {
+		t.Helper()
+		before := len(sched.updates)
+		if _, err := f.svc.CheckForUpdate(ctx); err != nil {
+			t.Fatal(err)
+		}
+		st, err := f.svc.storedUpdate(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Failures != wantFailures {
+			t.Errorf("failures = %d, want %d", st.Failures, wantFailures)
+		}
+		got := sched.updates[before:]
+		if wantOnce == "" {
+			if len(got) != 0 {
+				t.Errorf("schedule updates = %+v, want none (daily rhythm)", got)
+			}
+			return
+		}
+		if len(got) != 1 || got[0].typ != JobUpdateCheck || got[0].u.OnceLocal == nil || *got[0].u.OnceLocal != wantOnce || got[0].u.Every != nil || got[0].u.Enabled != nil {
+			t.Fatalf("schedule updates = %+v, want one one-off date %s", got, wantOnce)
+		}
+	}
+
+	srv.set(`oops`, http.StatusBadGateway)
+	check("2026-11-05T17:48", 1) // +15 min, 16:33 UTC = 17:33 CET
+	now = now.Add(15 * time.Minute)
+	check("2026-11-05T18:48", 2) // +1 h from 16:48 UTC
+	now = now.Add(time.Hour)
+	check("2026-11-06T00:48", 3) // +6 h from 17:48 UTC
+	now = now.Add(6 * time.Hour)
+	check("", 4) // back to the daily rhythm
+	now = now.Add(24 * time.Hour)
+	check("", 4) // stays there, the counter does not grow without bound
+
+	srv.set(`{"version":"1.13.1","url":"https://example.org/1.13.1"}`, http.StatusOK)
+	check("", 0) // a success resets
+	if st, err := f.svc.UpdateState(ctx); err != nil || st.Error != "" || !st.Available {
+		t.Fatalf("state after the success = %+v, %v", st, err)
+	}
+	srv.set(`oops`, http.StatusBadGateway)
+	check("2026-11-07T01:03", 1) // 15 min again, from 2026-11-06 23:48 UTC
+
+	// The failed state keeps what the card shows.
+	if st, err := f.svc.UpdateState(ctx); err != nil || !strings.Contains(st.Error, "status 502") || st.LatestVersion != "1.13.1" {
+		t.Errorf("state after a failed check = %+v, %v", st, err)
+	}
+}
+
+func TestUpdateRetryDelay(t *testing.T) {
+	for failures, want := range map[int]time.Duration{1: 15 * time.Minute, 2: time.Hour, 3: 6 * time.Hour} {
+		if d, ok := updateRetryDelay(failures); !ok || d != want {
+			t.Errorf("updateRetryDelay(%d) = %v, %v; want %v", failures, d, ok, want)
+		}
+	}
+	for _, failures := range []int{-1, 0, 4, 100} {
+		if d, ok := updateRetryDelay(failures); ok {
+			t.Errorf("updateRetryDelay(%d) = %v, true; want the daily rhythm", failures, d)
+		}
+	}
+}
+
+func TestUpdateTimeout(t *testing.T) {
+	if updateTimeout != 20*time.Second {
+		t.Errorf("updateTimeout = %v, want 20s", updateTimeout)
+	}
+	f := newFixture(t)
+	f.svc.WithUpdateCheck("https://example.org/manifest.json", nil)
+	if got := f.svc.ops.update.client.Timeout; got != updateTimeout {
+		t.Errorf("default client timeout = %v, want %v", got, updateTimeout)
 	}
 }

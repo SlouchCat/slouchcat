@@ -19,11 +19,13 @@ import (
 )
 
 // Update check of M8 (A-5, design 3.5). The job update.check reads the release manifest
-// {"version", "url", "notes", "publishedAt"} (JSON, at most 64 KiB, 10 s), compares its version
+// {"version", "url", "notes", "publishedAt"} (JSON, at most 64 KiB, 20 s), compares its version
 // with the running one and stores the result in the setting update_state. The schedule update.check
 // (concept 09) queues it 60 s after the start and then every UpdateInterval; its switch is the
 // setting update_check_enabled (one value, two doors: this page and the jobs page). The check only
-// reads the manifest; it never installs anything. Switched off (update_check_enabled "0") there is
+// reads the manifest; it never installs anything. A failed check is tried again after 15 min, 1 h
+// and 6 h (updateRetryDelays) through the one-off date of the schedule; after that the daily
+// rhythm stands, and a success starts the sequence anew. Switched off (update_check_enabled "0") there is
 // no job, no stored state and no notice.
 const (
 	JobUpdateCheck = "update.check"
@@ -38,7 +40,7 @@ const (
 	// start delay (the first row takes them, after that the table job_schedules is the source).
 	UpdateInterval   = 24 * time.Hour
 	updateStartDelay = 60 * time.Second
-	updateTimeout    = 10 * time.Second
+	updateTimeout    = 20 * time.Second
 	maxManifestBytes = 64 << 10
 )
 
@@ -49,6 +51,23 @@ type storedUpdate struct {
 	Notes         string `json:"notes,omitempty"`
 	CheckedAt     int64  `json:"checkedAt,omitempty"`
 	Error         string `json:"error,omitempty"`
+	// Failures counts the failed checks in a row (0 after a success); it picks the retry delay.
+	Failures int `json:"failures,omitempty"`
+}
+
+// updateRetryDelays are the waits after the first, second and third failed check in a row; later
+// failures wait for the daily rhythm. The release manifest sits on GitHub, whose single hiccup
+// (CT 190, 5 Nov 2026: a 10 s timeout one minute after the start) kept the stored release stale
+// for a whole day.
+var updateRetryDelays = [...]time.Duration{15 * time.Minute, time.Hour, 6 * time.Hour}
+
+// updateRetryDelay returns the wait before the retry after the failures-th failed check in a row;
+// false when the daily rhythm takes over.
+func updateRetryDelay(failures int) (time.Duration, bool) {
+	if failures < 1 || failures > len(updateRetryDelays) {
+		return 0, false
+	}
+	return updateRetryDelays[failures-1], true
 }
 
 // manifest is the release manifest.
@@ -71,7 +90,7 @@ type updateCheck struct {
 }
 
 // WithUpdateCheck sets the release manifest (config.ManifestURL) and the HTTP client of the check
-// (nil: a client with the 10 s timeout) and returns the receiver.
+// (nil: a client with the 20 s timeout) and returns the receiver.
 func (s *Service) WithUpdateCheck(manifestURL string, client *http.Client) *Service {
 	if client == nil {
 		client = &http.Client{Timeout: updateTimeout}
@@ -244,15 +263,21 @@ func (s *Service) checkUpdate(ctx context.Context) (model.UpdateState, error) {
 		return model.UpdateState{}, err
 	}
 	st.CheckedAt, st.Error = s.now().UnixMilli(), ""
+	failed := false
 	m, err := s.fetchManifest(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
 			return model.UpdateState{}, ctx.Err()
 		}
 		st.Error = logging.RedactString(err.Error())
-		s.log.WarnContext(ctx, "update check failed", "err", err)
+		failed = true
+		if st.Failures < len(updateRetryDelays)+1 { // one past the last delay is enough
+			st.Failures++
+		}
+		s.log.WarnContext(ctx, "update check failed", "err", err, "failures", st.Failures)
 	} else {
 		st.LatestVersion, st.URL, st.Notes = m.Version, m.URL, m.Notes
+		st.Failures = 0
 	}
 	raw, err := json.Marshal(st)
 	if err != nil {
@@ -262,11 +287,29 @@ func (s *Service) checkUpdate(ctx context.Context) (model.UpdateState, error) {
 		return model.UpdateState{}, fmt.Errorf("store update state: %w", err)
 	}
 	s.forgetUpdateNotice()
+	if failed {
+		s.scheduleUpdateRetry(ctx, st.Failures)
+	}
 	out, err := s.UpdateState(ctx)
 	if err == nil && st.Error == "" {
 		s.log.InfoContext(ctx, "update check done", "latest", st.LatestVersion, "available", out.Available)
 	}
 	return out, err
+}
+
+// scheduleUpdateRetry sets the one-off date of the schedule update.check to the retry after the
+// failures-th failed check in a row. The date fires one run and clears itself without shifting the
+// daily rhythm; a restart queues a check 60 s after the start anyway and goes on counting from the
+// stored failures. The date replaces one an administrator set for the same type; that is the
+// price of not needing a table of our own. A missing scheduler or row is no error (syncSchedule).
+func (s *Service) scheduleUpdateRetry(ctx context.Context, failures int) {
+	d, ok := updateRetryDelay(failures)
+	if !ok || s.schedules == nil {
+		return
+	}
+	at := s.now().Add(d).In(s.schedules.Location()).Format(jobs.OnceLayout)
+	s.syncSchedule(ctx, JobUpdateCheck, jobs.ScheduleUpdate{OnceLocal: &at})
+	s.log.InfoContext(ctx, "update check retry requested", "after", d, "failures", failures)
 }
 
 // errManifest marks a manifest that arrived but is not usable.
