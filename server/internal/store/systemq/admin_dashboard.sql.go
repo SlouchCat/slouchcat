@@ -138,7 +138,7 @@ func (q *Queries) ListFailedJobsNewestPerType(ctx context.Context) ([]ListFailed
 }
 
 const listRunningJobs = `-- name: ListRunningJobs :many
-SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause FROM jobs
+SELECT id, type, priority, idempotency_key, payload, state, run_after, lease_owner, lease_until, attempts, max_attempts, last_error, created_at, updated_at, started_at, finished_at, progress_done, progress_total, progress_note, skipped, override_pause, override_window FROM jobs
 WHERE state = 'running'
 ORDER BY started_at DESC, id DESC
 LIMIT ?1
@@ -176,6 +176,7 @@ func (q *Queries) ListRunningJobs(ctx context.Context, limitCount int64) ([]Job,
 			&i.ProgressNote,
 			&i.Skipped,
 			&i.OverridePause,
+			&i.OverrideWindow,
 		); err != nil {
 			return nil, err
 		}

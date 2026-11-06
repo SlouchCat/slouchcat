@@ -49,8 +49,6 @@ const rowPages: Partial<Record<HomeRow['key'], string>> = {
 // The server paints as many ahead on a page without a stage (posterPrepaintCards, api/preload.go).
 const EAGER_POSTERS = 6;
 
-const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
-
 /** A row counts when it holds titles, collections or genres (E-9: never an empty row). */
 const hasEntries = (row: HomeRow) =>
   row.items.length > 0 || (row.collections?.length ?? 0) > 0 || (row.genres?.length ?? 0) > 0;
@@ -67,16 +65,63 @@ function firstKey(row: HomeRow): string | undefined {
 
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
 
+/** "Noch 20 min": the time left of a started title. */
+function remaining(t: TFunction, progress: NonNullable<ItemRef['progress']>): string {
+  const minutes = Math.max(1, Math.round((progress.durationMs - progress.positionMs) / 60_000));
+  return t('home.remaining', { time: formatRuntime(t, minutes) });
+}
+
+/**
+ * The series a card of "Weiterschauen" shows instead of its episode (concept 15 P-1): its poster
+ * and title. Undefined for every other card and for an episode without `seriesRef`, which show the
+ * title itself; the other rows stay as they are.
+ */
+const seriesOf = (row: HomeRow, item: ItemRef) =>
+  row.key === 'continue' && item.kind === 'episode' ? item.seriesRef : undefined;
+
+/**
+ * Focus and React key of a card. A series card of "Weiterschauen" keys on its series, not on the
+ * episode: after the episode ends the card shows the next one and keeps its focus on return.
+ */
+const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${seriesOf(row, item)?.id ?? item.id}`;
+
+/**
+ * The progress of a started title: a position past 0. A next episode with a progress row at 0
+ * (opened, never played) counts as new, without "Noch …" and without a bar.
+ */
+const startedProgress = (item: ItemRef) =>
+  item.progress && item.progress.positionMs > 0 ? item.progress : undefined;
+
+/** "S4 · F7", or "S4 · F7–F8" for a file with several episodes; undefined without numbers. */
+function shortEpisodeCode(t: TFunction, item: ItemRef): string | undefined {
+  if (item.seasonNumber === undefined || item.episodeNumber === undefined) return undefined;
+  const numbers = { season: item.seasonNumber, episode: item.episodeNumber };
+  return item.episodeEnd !== undefined && item.episodeEnd > item.episodeNumber
+    ? t('home.continue.episodeRange', { ...numbers, end: item.episodeEnd })
+    : t('home.continue.episode', numbers);
+}
+
+/**
+ * Title, caption and spoken name of a series card (seriesOf): "S4 · F7 · Noch 20 min" under the
+ * series title, "S4 · F8 · Neu" for the next episode not started yet; the name adds the episode's
+ * own title ("Die Simpsons, S4 · F7, Donuts im Stau, Noch 20 min").
+ */
+function seriesCardText(t: TFunction, series: { title: string }, item: ItemRef) {
+  const code = shortEpisodeCode(t, item);
+  const progress = startedProgress(item);
+  const state = progress ? remaining(t, progress) : t('home.continue.new');
+  return {
+    title: series.title,
+    caption: [code, state].filter(Boolean).join(t('format.separator')),
+    label: [series.title, code, item.title, state].filter(Boolean).join(t('format.listSeparator')),
+  };
+}
+
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
   // A curated title carries the main user's note (picks, E-2); it says more than the year.
   if (item.note) return item.note;
-  if (row.key === 'continue' && item.progress) {
-    const minutes = Math.max(
-      1,
-      Math.round((item.progress.durationMs - item.progress.positionMs) / 60_000),
-    );
-    return t('home.remaining', { time: formatRuntime(t, minutes) });
-  }
+  const progress = startedProgress(item);
+  if (row.key === 'continue' && progress) return remaining(t, progress);
   // An audiobook or a podcast is known by its author more than by its year (M6).
   if (isAudioKind(item.kind) && item.author) return item.author;
   return item.year !== undefined ? String(item.year) : undefined;
@@ -136,9 +181,9 @@ export function HomePage() {
   // has a stage, starts with collections or genres, or its first title has no poster.
   const [posterShown, setPosterShown] = useState(false);
   const leadCard = home.data?.heroRow ? undefined : leadRow?.items[0];
-  const leadCardHasArt = Boolean(
-    leadCard && (leadCard.images.poster ?? leadCard.images.posterSmall),
-  );
+  // A series card shows the series poster, which the server paints ahead as well (cardPoster).
+  const leadImages = leadRow && leadCard && (seriesOf(leadRow, leadCard) ?? leadCard).images;
+  const leadCardHasArt = Boolean(leadImages && (leadImages.poster ?? leadImages.posterSmall));
   const posterPrepaintDone = home.isError || (home.isSuccess && (!leadCardHasArt || posterShown));
   useEffect(() => {
     if (posterPrepaintDone) dismissPosterPrepaint();
@@ -253,35 +298,45 @@ export function HomePage() {
         moreHref={moreHref}
         moreLabel={moreHref ? t('home.rows.all') : undefined}
       >
-        {row.items.map((item, itemIndex) => (
-          <PosterCard
-            key={item.id}
-            focusKey={cardKey(row, item)}
-            href={paths.item(item.id)}
-            title={item.title}
-            caption={cardCaption(t, row, item)}
-            posterUrl={imageUrl(item.images.poster)}
-            posterSmallUrl={imageUrl(item.images.posterSmall)}
-            accent={item.accent}
-            eager={eagerRow && itemIndex < EAGER_POSTERS}
-            priority={posterLeads && eagerRow && itemIndex === 0}
-            onImageShown={
-              posterLeads && eagerRow && itemIndex === 0 ? () => setPosterShown(true) : undefined
-            }
-            deferImage={heroHasArt && !heroShown}
-            shape={isAudioKind(item.kind) ? 'square' : 'poster'}
-            progress={
-              row.key === 'continue' && item.progress
-                ? {
-                    percent: item.progress.percent,
-                    label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
-                      percent: Math.round(item.progress.percent),
-                    }),
-                  }
-                : undefined
-            }
-          />
-        ))}
+        {row.items.map((item, itemIndex) => {
+          const series = seriesOf(row, item);
+          const text = series
+            ? seriesCardText(t, series, item)
+            : { title: item.title, caption: cardCaption(t, row, item), label: undefined };
+          const images = (series ?? item).images;
+          const progress = row.key === 'continue' ? startedProgress(item) : undefined;
+          return (
+            <PosterCard
+              key={cardKey(row, item)}
+              focusKey={cardKey(row, item)}
+              // A series card leads to its episode too, with "Fortsetzen" in focus (F-1).
+              href={paths.item(item.id)}
+              title={text.title}
+              caption={text.caption}
+              label={text.label}
+              posterUrl={imageUrl(images.poster)}
+              posterSmallUrl={imageUrl(images.posterSmall)}
+              accent={item.accent}
+              eager={eagerRow && itemIndex < EAGER_POSTERS}
+              priority={posterLeads && eagerRow && itemIndex === 0}
+              onImageShown={
+                posterLeads && eagerRow && itemIndex === 0 ? () => setPosterShown(true) : undefined
+              }
+              deferImage={heroHasArt && !heroShown}
+              shape={isAudioKind(item.kind) ? 'square' : 'poster'}
+              progress={
+                progress
+                  ? {
+                      percent: progress.percent,
+                      label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
+                        percent: Math.round(progress.percent),
+                      }),
+                    }
+                  : undefined
+              }
+            />
+          );
+        })}
       </Row>
     );
   };

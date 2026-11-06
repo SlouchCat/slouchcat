@@ -85,6 +85,20 @@ func (w Window) valid() bool {
 	return w.Start >= 0 && w.Start < minutesPerDay && w.End >= 0 && w.End < minutesPerDay && w.Start != w.End
 }
 
+// OpensAt returns when the window opens next after now in loc, and false while now lies in it
+// (the "waits until 01:00" of a type with a window, concept 15 4.3). Same rule as the alignment of
+// a schedule's next run.
+func (w Window) OpensAt(now time.Time, loc *time.Location) (time.Time, bool) {
+	at := alignIn(now, &w, loc)
+	return at, !at.Equal(now)
+}
+
+// minuteOfDay returns the minute of the day of t in loc (0..1439), the clock of every window.
+func minuteOfDay(t time.Time, loc *time.Location) int {
+	lt := t.In(loc)
+	return lt.Hour()*60 + lt.Minute()
+}
+
 // Schedule is one row of job_schedules.
 type Schedule struct {
 	Type        string
@@ -129,7 +143,8 @@ type Scheduler struct {
 type SchedulerOption func(*Scheduler)
 
 // WithLocation sets the location of the time windows (default time.Local, the TZ of the
-// container).
+// container). NewScheduler hands it to the queue, so the windows of the job types (Queue.Claim)
+// read the same clock as the windows of the schedules.
 func WithLocation(loc *time.Location) SchedulerOption {
 	return func(s *Scheduler) { s.loc = loc }
 }
@@ -145,6 +160,7 @@ func NewScheduler(q *Queue, r *Registry, log *slog.Logger, opts ...SchedulerOpti
 	for _, o := range opts {
 		o(s)
 	}
+	q.loc.Store(s.loc)
 	return s
 }
 
@@ -450,18 +466,20 @@ func (s *Scheduler) Location() *time.Location { return s.loc }
 // align moves t to the next start of the window when t lies outside it; without a window t
 // stands. Minutes of the day are read in the scheduler's location, so a window "03:00 to 05:00"
 // means the server's local time, also across a change of daylight saving time.
-func (s *Scheduler) align(t time.Time, w *Window) time.Time {
+func (s *Scheduler) align(t time.Time, w *Window) time.Time { return alignIn(t, w, s.loc) }
+
+// alignIn is align in loc.
+func alignIn(t time.Time, w *Window, loc *time.Location) time.Time {
 	if w == nil {
 		return t
 	}
-	lt := t.In(s.loc)
-	if w.contains(lt.Hour()*60 + lt.Minute()) {
+	if w.contains(minuteOfDay(t, loc)) {
 		return t
 	}
-	y, m, d := lt.Date()
-	start := time.Date(y, m, d, 0, w.Start, 0, 0, s.loc)
+	y, m, d := t.In(loc).Date()
+	start := time.Date(y, m, d, 0, w.Start, 0, 0, loc)
 	if !start.After(t) {
-		start = time.Date(y, m, d+1, 0, w.Start, 0, 0, s.loc)
+		start = time.Date(y, m, d+1, 0, w.Start, 0, 0, loc)
 	}
 	return start
 }

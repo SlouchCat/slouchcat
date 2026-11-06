@@ -53,6 +53,21 @@ export const WithProgress: Story = {
   },
 };
 
+/**
+ * "Weiterschauen" per series (concept 15 P-1): the series poster and title, the episode's code and
+ * time left below; the spoken name adds the episode's own title.
+ */
+export const ContinueEpisode: Story = {
+  args: {
+    title: 'Moos und Stein',
+    caption: 'S4 · F7 · Noch 20 min',
+    label: 'Moos und Stein, S4 · F7, Der lange Winter, Noch 20 min',
+    posterUrl: art.posterMoss,
+    accent: accents.moss,
+    progress: { percent: 56, label: '56 % gesehen' },
+  },
+};
+
 export const WithoutPoster: Story = {
   args: { title: 'Slouchcat Test H264 (2024)', caption: '2024', posterUrl: undefined },
 };

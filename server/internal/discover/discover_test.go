@@ -841,3 +841,74 @@ func TestLibraryViewsWithoutTrailerFlags(t *testing.T) {
 		}
 	}
 }
+
+// Concept 15 P-1: the row continue of the start page holds one entry per series. Two started
+// episodes give the newer one; once it is completed the series stays with the next episode (no
+// progress yet), and a completed last episode removes the series. With continue on top, FirstRow
+// hands the shell those entries with the series and its poster.
+func TestHomeContinueOneEntryPerSeries(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	s := New(f.DB, f.CacheDir, vistest.Logger())
+	ctx := context.Background()
+	show, now := f.Show, time.Now().UnixMilli()
+	progress := func(itemID string, completed int, at int64) {
+		exec(t, f, `INSERT INTO progress (profile_id, item_id, position_ms, duration_ms, completed, updated_at) VALUES (?, ?, 1000, ?, ?, ?)
+		            ON CONFLICT (profile_id, item_id) DO UPDATE SET completed = excluded.completed, updated_at = excluded.updated_at`,
+			f.P18.ID, itemID, vistest.DurationMs, completed, at)
+	}
+	continueRow := func(name string, want ...string) {
+		t.Helper()
+		rows, err := homeRows(ctx, s, f.P18)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := itemIDs(rowOf(rows, RowContinue).Items); !slices.Equal(got, want) {
+			t.Errorf("%s: continue = %v, want %v", name, got, want)
+		}
+	}
+	film := f.Rated(12).ID // started by the seed, long ago
+	progress(show.E1.ID, 0, now-2000)
+	progress(show.E2.ID, 0, now-1000)
+	continueRow("two started episodes", show.E2.ID, film)
+	progress(show.E2.ID, 1, now-500)
+	continueRow("newest episode completed", show.E3.ID, film)
+	progress(show.E3.ID, 1, now-100)
+	continueRow("last episode completed", film)
+
+	progress(show.E1.ID, 1, now) // rewatched E1: E2 and E3 are completed, so the series is gone
+	continueRow("every next episode completed", film)
+	exec(t, f, `DELETE FROM progress WHERE profile_id = ? AND item_id IN (?, ?)`, f.P18.ID, show.E2.ID, show.E3.ID)
+	continueRow("next episode not started", show.E2.ID, film)
+
+	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE key = 'picks'`)
+	items, err := s.FirstRow(ctx, f.P18)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := itemIDs(items); !slices.Equal(got, []string{show.E2.ID, film}) {
+		t.Fatalf("FirstRow = %v, want the continue row", got)
+	}
+	if e := items[0]; e.Progress != nil || e.SeriesRef == nil || e.SeriesRef.ID != show.Series.ID || e.SeriesRef.Poster == nil || items[1].SeriesRef != nil {
+		t.Errorf("FirstRow entries = %+v / %+v, want the next episode without progress with the series poster, the film without series", e, items[1].SeriesRef)
+	}
+}
+
+// Concept 15 P-1: only the row continue shows an episode with its series, so FirstRow keeps
+// SeriesRef there and drops it in every other row (the prepaint follows the card).
+func TestFirstRowCardsSeriesOnlyInContinue(t *testing.T) {
+	t.Parallel()
+	series := &model.SeriesRef{ID: "s1", Title: "Show"}
+	items := []model.ItemSummary{{ID: "e1", Kind: "episode", SeriesRef: series}, {ID: "f1", Kind: "movie"}}
+	if got := firstRowCards(model.HomeRow{Key: RowContinue, Items: items}); got[0].SeriesRef != series {
+		t.Errorf("continue: SeriesRef = %v, want the series", got[0].SeriesRef)
+	}
+	got := firstRowCards(model.HomeRow{Key: RowRecent, Items: items})
+	if got[0].SeriesRef != nil {
+		t.Errorf("recent: SeriesRef = %v, want none", got[0].SeriesRef)
+	}
+	if items[0].SeriesRef != series {
+		t.Error("recent: the row's own titles were changed")
+	}
+}

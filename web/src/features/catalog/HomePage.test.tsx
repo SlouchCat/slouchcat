@@ -2,8 +2,18 @@ import type { ItemRef, Trailer } from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { alien, arrival, heat, homePage, ids } from '@/test/fixtures';
+import {
+  alien,
+  arrival,
+  episodes,
+  heat,
+  homePage,
+  ids,
+  seriesIds,
+  showSeriesRef,
+} from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn } from '@/test/api';
+import { spatialFocusKey } from '@/ui';
 
 describe('start page', () => {
   afterEach(() => {
@@ -317,6 +327,24 @@ describe('start page', () => {
       await waitFor(() => expect(painted.dataset.done).toBe(''));
     });
 
+    it('waits for the series poster of an episode on top of "Weiterschauen" (concept 15 P-1)', async () => {
+      const painted = prepaint();
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            rows: [{ key: 'continue', items: [{ ...episodes.e1, seriesRef: showSeriesRef }] }],
+          }),
+      });
+      const { container } = renderApp('/');
+      await screen.findByRole('heading', { name: 'Weiterschauen' });
+      const poster = container.querySelector('img');
+      expect(poster).toHaveAttribute('fetchpriority', 'high');
+      expect(painted.dataset.done).toBeUndefined();
+      fireEvent.load(poster!);
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+
     it.each([
       { first: 'a stage on top', home: homePage },
       {
@@ -374,6 +402,154 @@ describe('start page', () => {
       '36',
     );
     expect(within(row).getByText('Noch 1 h 15 min')).toBeVisible();
+  });
+
+  describe('"Weiterschauen" per series (concept 15 P-1)', () => {
+    /** S4 · F7, started: 20 of 45 minutes left. */
+    const started: ItemRef = {
+      ...episodes.e1,
+      title: 'Donuts im Stau',
+      seasonNumber: 4,
+      episodeNumber: 7,
+      seriesRef: showSeriesRef,
+      progress: { ...episodes.e1.progress!, positionMs: 1_500_000, percent: 56 },
+    };
+    /** The next episode, not started yet; a double episode. */
+    const next: ItemRef = { ...episodes.e34, seriesRef: showSeriesRef };
+    const seriesPoster = `/api/v1/items/${seriesIds.show}/images/poster/w500?v=abc`;
+
+    it('shows the series poster and title with "S4 · F7 · Noch 20 min" and leads to the episode', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'continue', items: [started, alien] }] }),
+      });
+      const { router } = renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Weiterschauen' });
+
+      // The name says series and episode; the card shows the series, its code and the time left.
+      const card = within(row).getByRole('link', {
+        name: 'Slouchcat Test Show, S4 · F7, Donuts im Stau, Noch 20 min',
+      });
+      expect(card).toHaveAttribute('href', `/items/${seriesIds.e1}`);
+      expect(within(card).getByText('Slouchcat Test Show')).toBeVisible();
+      expect(within(card).getByText('S4 · F7 · Noch 20 min')).toBeVisible();
+      expect(within(card).queryByText('Donuts im Stau')).not.toBeInTheDocument();
+      expect(card.querySelector('img')).toHaveAttribute('src', seriesPoster);
+      expect(within(card).getByRole('progressbar', { name: '56 % gesehen' })).toHaveAttribute(
+        'aria-valuenow',
+        '56',
+      );
+
+      // A film in the same row stays as it was.
+      const film = within(row).getByRole('link', { name: /Alien/ });
+      expect(film).not.toHaveAttribute('aria-label');
+      expect(within(film).getByText('Noch 1 h 15 min')).toBeVisible();
+      expect(film.querySelector('img')).toHaveAttribute(
+        'src',
+        `/api/v1/items/${ids.alien}/images/poster/w500?v=abc`,
+      );
+
+      // F-1: the card opens the episode's page, no play button of its own.
+      expect(within(card).queryByRole('button')).not.toBeInTheDocument();
+      fireEvent.click(card);
+      await waitFor(() => expect(router.state.location.pathname).toBe(`/items/${seriesIds.e1}`));
+    });
+
+    it('shows "Neu" for the next episode, a double episode as "F3–F4", without a progress bar', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'continue', items: [next] }] }),
+      });
+      renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Weiterschauen' });
+      const card = within(row).getByRole('link', {
+        name: 'Slouchcat Test Show, S1 · F3–F4, Episode 3, Neu',
+      });
+      expect(card).toHaveAttribute('href', `/items/${seriesIds.e34}`);
+      expect(within(card).getByText('S1 · F3–F4 · Neu')).toBeVisible();
+      expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    it('shows "Neu" without "Noch …" and without a bar for a next episode with progress at 0', async () => {
+      const opened: ItemRef = {
+        ...next,
+        progress: {
+          positionMs: 0,
+          durationMs: 2_700_000,
+          percent: 0,
+          completed: false,
+          updatedAt: '2026-11-05T19:00:00Z',
+        },
+      };
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'continue', items: [opened] }] }),
+      });
+      renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Weiterschauen' });
+      const card = within(row).getByRole('link', {
+        name: 'Slouchcat Test Show, S1 · F3–F4, Episode 3, Neu',
+      });
+      expect(within(card).getByText('S1 · F3–F4 · Neu')).toBeVisible();
+      expect(within(card).queryByText(/Noch/)).not.toBeInTheDocument();
+      expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    it('keeps the series card and its focus when the next episode replaces the episode', async () => {
+      // The film stands first, so the default focus of the page is not the series card.
+      let items: ItemRef[] = [alien, started];
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'continue', items }] }),
+      });
+      const { queryClient } = renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Weiterschauen' });
+      const card = within(row).getByRole('link', { name: /^Slouchcat Test Show, S4 · F7/ });
+      act(() => card.focus());
+      await waitFor(() => expect(spatialFocusKey()).toBe(`continue-${seriesIds.show}`));
+
+      // The episode ended (the player refetches the start page): the card shows the next one.
+      items = [alien, next];
+      await act(() => queryClient.invalidateQueries({ queryKey: ['home'] }));
+      const updated = await within(row).findByRole('link', {
+        name: 'Slouchcat Test Show, S1 · F3–F4, Episode 3, Neu',
+      });
+      expect(updated).toBe(card);
+      expect(updated).toHaveFocus();
+
+      // With the focus lost (as after a return to the page), an arrow key finds the series card
+      // by its key again, not the first card of the page.
+      act(() => updated.blur());
+      fireEvent.keyDown(window, { key: 'ArrowDown' });
+      await waitFor(() => expect(updated).toHaveFocus());
+    });
+
+    it('keeps the episode card of today without seriesRef, and in every other row', async () => {
+      mockApi({
+        ...signedIn,
+        'GET /home': () =>
+          json({
+            rows: [
+              { key: 'continue', items: [episodes.e1] },
+              { key: 'recent', items: [started] },
+            ],
+          }),
+      });
+      const { container } = renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Weiterschauen' });
+      // Without seriesRef: the episode's own title, the time left, the lettered fallback tile.
+      const fallback = within(row).getByRole('link', { name: /Pilot/ });
+      expect(fallback).not.toHaveAttribute('aria-label');
+      expect(within(fallback).getByText('Noch 35 min')).toBeVisible();
+      expect(fallback.querySelector('img')).toBeNull();
+
+      // "Neu hinzugefügt" shows an episode as before, also with seriesRef.
+      const recent = screen.getByRole('region', { name: 'Neu hinzugefügt' });
+      const episode = within(recent).getByRole('link', { name: /^Donuts im Stau/ });
+      expect(episode).not.toHaveAttribute('aria-label');
+      expect(within(episode).queryByText('Slouchcat Test Show')).not.toBeInTheDocument();
+      expect(container.querySelector(`img[src="${seriesPoster}"]`)).toBeNull();
+    });
   });
 
   it('never renders an empty row and works without a stage', async () => {

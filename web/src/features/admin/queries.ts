@@ -27,6 +27,7 @@ import type {
   JobRun,
   JobRunPage,
   JobScheduleUpdate,
+  JobTypeWindowUpdate,
   JobSummary,
   RelinkPairList,
   JobTypeInfo,
@@ -384,6 +385,13 @@ export const resumeJobType = (type: string): Promise<JobTypeInfo> =>
 
 export const updateJobSchedule = (type: string, body: JobScheduleUpdate): Promise<JobTypeInfo> =>
   request(api.PATCH('/admin/job-types/{type}/schedule', { params: { path: { type } }, body }));
+
+/** The time window of a windowable event type (concept 15, 4.3; contract 1.14.0). */
+export const updateJobTypeWindow = (
+  type: string,
+  body: JobTypeWindowUpdate,
+): Promise<JobTypeInfo> =>
+  request(api.PUT('/admin/job-types/{type}/window', { params: { path: { type } }, body }));
 
 export const cancelJobRuns = (type: string, scope: 'queued' | 'all'): Promise<JobCancelResult> =>
   request(

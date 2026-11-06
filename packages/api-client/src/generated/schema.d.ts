@@ -506,6 +506,13 @@ export interface paths {
          *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
          *     a poster row. Every item passed the visibility layer of the active profile.
          *
+         *     The row `continue` holds one entry per series (since contract 1.14.0, concept 15 P-1): the
+         *     episode with the newest progress of the series while it is not completed, else the next
+         *     episode not yet completed (the rule of `ItemDetail.nextEpisode`) while that progress is at
+         *     most 60 days old; a series without one is absent. A next episode never started carries no
+         *     `progress` (the card shows it as new). Films, audiobooks and podcast episodes appear while started and not
+         *     completed. The row is ordered by the newest progress, of the series or of the title.
+         *
          *     `heroStart` names the title the stage begins with (concept 08, F-2, ADR 0016): an index into
          *     the `items` of the `heroRow`, drawn at random by the server once per page view. The app
          *     shell `GET /` draws it and writes it as `data-start` on `#hero-prepaint` and into its
@@ -2952,6 +2959,31 @@ export interface paths {
         patch: operations["updateJobSchedule"];
         trace?: never;
     };
+    "/admin/job-types/{type}/window": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Hold a heavy event job type to a time window of the day
+         * @description Only for the types with `windowable` (the event types that read whole files: keyframe index,
+         *     intro and outro, chapter images). Outside the window no worker starts a waiting run of the type;
+         *     a run that is going when the window closes finishes, and a run a playback asks for starts at once
+         *     (`JobRun.overridesWindow`). A pause still holds every run. The window names minutes of the server's
+         *     day (`JobTypeInfo.windowTimeZone`), may span midnight and must not be empty; `clearWindow` removes
+         *     it. Without either field nothing changes. Since contract 1.14.0.
+         */
+        put: operations["updateJobTypeWindow"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/job-types/{type}/runs": {
         parameters: {
             query?: never;
@@ -4311,6 +4343,15 @@ export interface components {
             episodeEnd?: number;
             /** @description Title of the series in the profile language (seasons and episodes). */
             seriesTitle?: string;
+            /**
+             * @description The series of an episode with its title and images (since contract 1.14.0); set only on
+             *     episodes of a series the profile may see, absent on every other kind. A card of an
+             *     episode shows the series poster from here, since episodes have no poster of their own.
+             *     Named `seriesRef`, not `series` as in concept 15 section 2.2, because `ItemDetail`
+             *     already has a property `series` (the full `ItemRef` of the series) and one property
+             *     must not carry two schemas in the `allOf` of `ItemDetail`.
+             */
+            seriesRef?: components["schemas"]["SeriesRef"];
             extraKind?: components["schemas"]["ExtraKind"];
             /** @description Visible seasons of a series, visible episodes of a season. */
             childCount?: number;
@@ -4339,6 +4380,16 @@ export interface components {
              *     "no trailer" (`ItemDetail.trailerCount` is the complete answer).
              */
             hasTrailer?: boolean;
+        };
+        /**
+         * @description The series of an episode as it appears on the episode's card (since contract 1.14.0): id,
+         *     title in the profile language and the images of the series, as on an `ItemRef`.
+         */
+        SeriesRef: {
+            id: components["schemas"]["ItemID"];
+            /** @description Title of the series in the profile language, like `ItemRef.seriesTitle`. */
+            title: string;
+            images: components["schemas"]["ItemImages"];
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
             /** @description On the watchlist of the active profile (E-5). */
@@ -6621,6 +6672,8 @@ export interface components {
             estimate: "measured" | "median" | "none";
             /** @description The run starts and keeps running while its type is paused (a playback request, concept 14); only sent when true (since contract 1.13.0). */
             overridesPause?: boolean;
+            /** @description The run starts outside the time window of its type (a playback request, concept 15); only sent when true (since contract 1.14.0). */
+            overridesWindow?: boolean;
         };
         JobProgress: {
             done: number;
@@ -6681,6 +6734,11 @@ export interface components {
             clearOnce?: boolean;
             enabled?: boolean;
         };
+        /** @description The time window of a windowable job type; `clearWindow` removes it and wins over `window` (since contract 1.14.0). */
+        JobTypeWindowUpdate: {
+            window?: components["schemas"]["JobWindow"];
+            clearWindow?: boolean;
+        };
         JobTypeInfo: {
             type: components["schemas"]["JobTypeName"];
             /** @enum {string} */
@@ -6714,6 +6772,20 @@ export interface components {
             known: boolean;
             /** @description Runs of the type that a playback requests start and keep running while the type is paused (concept 14, 6.4); only sent when true (since contract 1.13.0). */
             overridesPauseForPlayback?: boolean;
+            /** @description The type may be held to a time window of the day (`updateJobTypeWindow`); only sent when true (since contract 1.14.0). */
+            windowable?: boolean;
+            /** @description The time window of a windowable type, in minutes of `windowTimeZone`; absent without one (since contract 1.14.0). */
+            window?: components["schemas"]["JobWindow"];
+            /**
+             * Format: date-time
+             * @description When the window opens next; only sent while a window is set and closed right now and at least one waiting or planned run without the playback override waits for it (since contract 1.14.0).
+             */
+            windowOpensAt?: string;
+            /**
+             * @description The server's time zone of the window, for example `Europe/Zurich`; sent with `windowable` (since contract 1.14.0).
+             * @example Europe/Zurich
+             */
+            windowTimeZone?: string;
         };
         JobPool: {
             /**
@@ -13333,6 +13405,62 @@ export interface operations {
              *     `onceLocal` answers `invalid_value` for a value that is no wall time and `out_of_range` outside
              *     now plus one minute to now plus 366 days).
              */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateJobTypeWindow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job type, for example `scan.library`. */
+                type: components["parameters"]["JobType"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobTypeWindowUpdate"];
+            };
+        };
+        responses: {
+            /** @description The job type with its new window. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTypeInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown job type (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The type has no time window of its own (`job_type_not_windowable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The window is outside 0 to 1439 or empty (`validation_failed`, field `window`, `invalid_value`). */
             422: {
                 headers: {
                     [name: string]: unknown;

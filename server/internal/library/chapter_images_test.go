@@ -426,6 +426,11 @@ func TestChapterImagesBackfillPullsDelayedJob(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND state = 'queued' AND run_after > ?`, JobChapterImages, now); n != 1 {
 		t.Fatalf("delayed jobs after the playback = %d, want 1", n)
 	}
+	// After a playback the job may start outside the time window of its type, not during a pause
+	// (concept 15, 4.3).
+	if n := e.count(`SELECT count(*) FROM jobs WHERE type = ? AND override_window = 1 AND override_pause = 0`, JobChapterImages); n != 1 {
+		t.Errorf("chapter image jobs of the playback with override_window only = %d, want 1", n)
+	}
 	if err := e.svc.handleChapterImagesBackfill(e.ctx, &jobs.Job{Type: JobChapterImagesBackfill}); err != nil {
 		t.Fatal(err)
 	}
@@ -460,6 +465,9 @@ func TestChapterImagesEventRaisesBackfillJob(t *testing.T) {
 	}
 	if p := priority(); p != prioChapterImages {
 		t.Errorf("after a playback the job has priority %d, want %d", p, prioChapterImages)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE idempotency_key = ? AND override_window = 1 AND override_pause = 0`, "chapters:"+id); n != 1 {
+		t.Errorf("the raised backfill job does not carry override_window alone")
 	}
 	// The same through a probe of a file with images: lower the job again, write a folder.
 	e.exec(`UPDATE jobs SET priority = 1 WHERE idempotency_key = ?`, "chapters:"+id)

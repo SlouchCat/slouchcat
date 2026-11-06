@@ -475,6 +475,8 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 		p.write(w, r, http.StatusConflict, "job_type_paused", "The job type is paused; resume it first.")
 	case errors.Is(err, model.ErrJobTypeNotScheduled):
 		p.write(w, r, http.StatusConflict, "job_type_not_scheduled", "This job type has no schedule.")
+	case errors.Is(err, model.ErrJobTypeNotWindowable):
+		p.write(w, r, http.StatusConflict, "job_type_not_windowable", "This job type has no time window of its own.")
 	case errors.Is(err, model.ErrUpdateCheckDisabled):
 		p.write(w, r, http.StatusUnprocessableEntity, "update_check_disabled", "The update check is switched off.")
 	case errors.Is(err, model.ErrChannelUnavailable):

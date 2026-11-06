@@ -51,6 +51,26 @@ export const formatMinute = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 
 /**
+ * An instant as "01:00" on the clock of `timeZone` (the server's zone, for example when a job
+ * type's window opens). Without a zone, or one the browser does not know (a server without `TZ`
+ * names its zone "Local"), the browser's zone: in a household mostly the same.
+ */
+export function formatClock(instant: string, timeZone: string | undefined, language: string) {
+  const options: Intl.DateTimeFormatOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  };
+  let format: Intl.DateTimeFormat;
+  try {
+    format = new Intl.DateTimeFormat(language, timeZone ? { ...options, timeZone } : options);
+  } catch {
+    format = new Intl.DateTimeFormat(language, options);
+  }
+  return format.format(new Date(instant));
+}
+
+/**
  * A one-off date of a schedule (`JobSchedule.once.local`, wall time of the server's zone) as
  * "So., 8. Nov., 03:30": formatted as it stands, never converted to the browser's zone. The text
  * as it is when it is no wall time.

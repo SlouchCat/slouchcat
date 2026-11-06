@@ -357,7 +357,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	adminSvc.RegisterTypes(registry)
 	offlineSvc.RegisterTypes(registry)
 	notifySvc.RegisterTypes(registry)
-	scheduler := jobs.NewScheduler(queue, registry, log)
+	// The schedules and the job windows read the zone of the statistics: time.Local is the same
+	// clock but only named "Local", and its name reaches the admin (windowTimeZone, timeZone).
+	scheduler := jobs.NewScheduler(queue, registry, log, jobs.WithLocation(zone))
 	if err := scheduler.Start(ctx); err != nil {
 		return fmt.Errorf("start job scheduler: %w", err)
 	}

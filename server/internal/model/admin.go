@@ -30,6 +30,7 @@ var (
 	ErrJobTypeNotRunnable    = errors.New("job type not runnable")        // 409 job_type_not_runnable (concept 09: event types)
 	ErrJobTypePaused         = errors.New("job type paused")              // 409 job_type_paused
 	ErrJobTypeNotScheduled   = errors.New("job type not scheduled")       // 409 job_type_not_scheduled
+	ErrJobTypeNotWindowable  = errors.New("job type not windowable")      // 409 job_type_not_windowable (concept 15)
 	ErrUpdateCheckDisabled   = errors.New("update check disabled")        // 422 update_check_disabled
 	ErrRankTaken             = errors.New("spotlight rank taken")         // 409 rank_taken (M11)
 	ErrRefreshTooSoon        = errors.New("refresh too soon")             // 429 too_many_requests (M11: one manual spotlight refresh a minute)
@@ -244,6 +245,7 @@ type JobRun struct {
 	EstimatedSecondsLeft *int
 	Estimate             string // JobEstimateMeasured, JobEstimateMedian, JobEstimateNone
 	OverridesPause       bool   // runs while its type is paused (a playback request, concept 14)
+	OverridesWindow      bool   // starts outside the time window of its type (a playback request, concept 15)
 }
 
 // JobProgress is the reported progress of a run.
@@ -307,6 +309,21 @@ type JobTypeInfo struct {
 	Known                 bool // false for a row in job_types without a registered type
 	// OverridesPauseForPlayback: runs a playback requests run while the type is paused (concept 14).
 	OverridesPauseForPlayback bool
+	// Windowable: the type may be held to a time window (concept 15, 4.3); Window is that window
+	// (nil: none), WindowOpensAt when it opens next while it is closed and a waiting run without
+	// override_window waits for it (zero otherwise), and
+	// WindowTimeZone the name of the server's zone of the window ("" when not windowable).
+	Windowable     bool
+	Window         *JobWindow
+	WindowOpensAt  time.Time
+	WindowTimeZone string
+}
+
+// JobTypeWindowUpdate is the body of updateJobTypeWindow: ClearWindow removes the window and wins
+// over Window; neither changes nothing.
+type JobTypeWindowUpdate struct {
+	Window      *JobWindow
+	ClearWindow bool
 }
 
 // JobPool is a worker pool with its backlog.

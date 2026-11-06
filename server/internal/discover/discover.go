@@ -298,7 +298,22 @@ func (s *Service) FirstRow(ctx context.Context, profile model.Profile) ([]model.
 	if page.HeroRow != "" || len(page.Rows) == 0 || len(page.Rows[0].Items) == 0 {
 		return nil, model.ErrNotFound
 	}
-	return page.Rows[0].Items, nil
+	return firstRowCards(page.Rows[0]), nil
+}
+
+// firstRowCards returns the titles of row as its cards show them: only the row continue shows an
+// episode with the poster and title of its series (concept 15 P-1), so in any other row an
+// episode leaves SeriesRef out and the prepaint keeps the episode's own (missing) poster, like the
+// card.
+func firstRowCards(row model.HomeRow) []model.ItemSummary {
+	if row.Key == RowContinue {
+		return row.Items
+	}
+	items := slices.Clone(row.Items)
+	for i := range items {
+		items[i].SeriesRef = nil
+	}
+	return items
 }
 
 // VisibleLibraries returns the libraries with a visible top-level title for the side navigation

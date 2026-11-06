@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -288,6 +289,10 @@ func TestKeyframeTypesRegistered(t *testing.T) {
 		if want := typ.Name == JobProbeKeyframes; typ.OverridesPauseForPlayback != want {
 			t.Errorf("%s OverridesPauseForPlayback = %v, want %v", typ.Name, typ.OverridesPauseForPlayback, want)
 		}
+		// The three event types that read whole files may be held to a time window (concept 15, 4.3).
+		if want := typ.Name == JobProbeKeyframes || typ.Name == JobSegmentsDetect || typ.Name == JobChapterImages; typ.Windowable != want {
+			t.Errorf("%s Windowable = %v, want %v", typ.Name, typ.Windowable, want)
+		}
 	}
 }
 
@@ -344,6 +349,10 @@ func TestQueueKeyframesForPlayback(t *testing.T) {
 	if v := e.str(`SELECT run_after <= ? FROM jobs WHERE id = ?`, e.clock.Now().UnixMilli(), scan); v != "1" {
 		t.Errorf("raised scan job still delayed")
 	}
+	// A playback lifts the time window too (concept 15, 4.3), the new job and the raised one.
+	if n := e.count(`SELECT count(*) FROM jobs WHERE idempotency_key IN ('keyframes:' || ?, 'keyframes:' || ?) AND override_window = 1`, ids[0], ids[1]); n != 2 {
+		t.Errorf("playback keyframe jobs with override_window = %d, want 2", n)
+	}
 
 	e.exec(`UPDATE media_files SET keyframes_source = 'none' WHERE id = ?`, ids[2])
 	if res := queue(ids[2]); res != (jobs.PauseOverride{}) {
@@ -377,6 +386,86 @@ func TestQueueKeyframesForPlayback(t *testing.T) {
 	e.clock.Advance(2 * time.Hour)
 	if res := queue(ids[4]); !res.Inserted {
 		t.Errorf("request after a failed and a later done read = %+v, want a new job", res)
+	}
+}
+
+// Concept 15 M-1 (the download goes first): an offline download's request starts outside the time
+// window of probe.keyframes (override_window), a waiting job under the key is raised and gets it,
+// but a paused type still holds it (no override_pause, F-3, ADR 0022), and a plain job stays
+// held by the window.
+func TestQueueKeyframesForDownloadWindow(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	_, ids := e.videoFiles("A (2001)/A (2001).mkv", "B (2002)/B (2002).mkv", "C (2003)/C (2003).mkv", "D (2004)/D (2004).mkv")
+	e.exec(`DELETE FROM jobs WHERE type = ?`, JobProbeKeyframes) // the scan's own full reads
+	// A window that is closed now: it opens in an hour, in the queue's (the scheduler's) location.
+	local := e.clock.Now().In(e.queue.Location())
+	minute := local.Hour()*60 + local.Minute()
+	e.exec(`INSERT INTO job_types (type, updated_at, window_start, window_end) VALUES (?, 1, ?, ?)
+	        ON CONFLICT (type) DO UPDATE SET window_start = excluded.window_start, window_end = excluded.window_end`,
+		JobProbeKeyframes, (minute+60)%1440, (minute+120)%1440)
+	download := func(id string) {
+		t.Helper()
+		if queued, err := QueueKeyframesForDownload(e.ctx, e.db.Read, e.queue, id, e.clock.Now()); err != nil || !queued {
+			t.Fatalf("download request for %s = %v, %v, want queued", id, queued, err)
+		}
+	}
+	claim := func() string {
+		t.Helper()
+		j, err := e.queue.Claim(e.ctx, "w1", []string{JobProbeKeyframes})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if j == nil {
+			return "-"
+		}
+		return j.IdempotencyKey
+	}
+	overrides := func(id string) string {
+		t.Helper()
+		return e.str(`SELECT priority || ' pause=' || override_pause || ' window=' || override_window FROM jobs
+		              WHERE idempotency_key = 'keyframes:' || ? AND state IN ('queued', 'running')`, id)
+	}
+
+	// A new request starts outside the window, at the download priority, without the pause override.
+	download(ids[0])
+	if v := overrides(ids[0]); v != "5 pause=0 window=1" {
+		t.Errorf("new download request: %q", v)
+	}
+	if got := claim(); got != "keyframes:"+ids[0] {
+		t.Fatalf("claimed %s outside the window, want the download request for A", got)
+	}
+
+	// A waiting job of the backfill under the key is raised and may start outside the window too.
+	for _, id := range ids[1:] {
+		if _, err := e.queue.Enqueue(e.ctx, jobs.NewJob{Type: JobProbeKeyframes, Priority: prioKeyframes, IdempotencyKey: "keyframes:" + id,
+			Payload: []byte(`{"mediaFileId":"` + id + `"}`)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	download(ids[1])
+	if v := overrides(ids[1]); v != "5 pause=0 window=1" {
+		t.Errorf("raised backfill job: %q", v)
+	}
+	if n := e.count(`SELECT count(*) FROM jobs WHERE idempotency_key = 'keyframes:' || ?`, ids[1]); n != 1 {
+		t.Errorf("jobs of B = %d, want the one raised", n)
+	}
+
+	// The pause still holds a download: nothing starts while the type is paused.
+	e.exec(`UPDATE job_types SET paused_at = 1 WHERE type = ?`, JobProbeKeyframes)
+	download(ids[2])
+	if got := claim(); got != "-" {
+		t.Fatalf("claimed %s while paused, want nothing", got)
+	}
+	e.exec(`UPDATE job_types SET paused_at = NULL WHERE type = ?`, JobProbeKeyframes)
+	got := []string{claim(), claim()}
+	slices.Sort(got)
+	if want := []string{"keyframes:" + ids[1], "keyframes:" + ids[2]}; !slices.Equal(got, want) {
+		t.Errorf("claimed %v after the pause, want the download requests %v", got, want)
+	}
+	// The plain backfill job of D waits for the window.
+	if got := claim(); got != "-" {
+		t.Errorf("claimed %s outside the window, want the plain job held", got)
 	}
 }
 

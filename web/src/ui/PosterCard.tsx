@@ -46,6 +46,12 @@ interface PosterCardProps {
   title: string;
   /** Secondary line under the title (year, remaining time). */
   caption?: string;
+  /**
+   * Spoken name of the card when the title and caption shown do not say enough (a card of
+   * "Weiterschauen" that shows the series also names its episode, concept 15 P-1). Without it the
+   * card is named by its text.
+   */
+  label?: string;
   /** Same-origin poster URL (w400), or undefined for the lettered fallback tile. */
   posterUrl?: string;
   /** The same poster in w200, offered to the browser through `srcset`. */
@@ -93,6 +99,7 @@ export function PosterCard({
   children,
   title,
   caption,
+  label,
   posterUrl,
   posterSmallUrl,
   accent,
@@ -176,6 +183,7 @@ export function PosterCard({
         type="button"
         className={`${styles.button} ${className}`}
         style={itemAccentStyle(accent)}
+        aria-label={label}
         aria-current={ariaCurrent}
         tabIndex={tabIndex}
         onFocus={onFocus}
@@ -194,6 +202,7 @@ export function PosterCard({
       href={href}
       className={className}
       style={itemAccentStyle(accent)}
+      aria-label={label}
       aria-current={ariaCurrent}
       tabIndex={tabIndex}
       onFocus={onFocus}

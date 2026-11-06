@@ -1,4 +1,10 @@
-import type { JobOverview, JobRun, JobSummary, JobTypeInfo } from '@slouchcat/api-client';
+import type {
+  JobOverview,
+  JobRun,
+  JobSummary,
+  JobTypeInfo,
+  JobWindow,
+} from '@slouchcat/api-client';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -886,6 +892,199 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     // with the schedule switched off as well.
     const row = within(groupPanel()).getByRole('row', { name: /^Keyframe-Index nachholen/ });
     expect(within(row).getByText(/^aus · Termin: Sa\.?, 7\. Nov\.?, 03:30$/)).toBeVisible();
+  });
+
+  it('sets the time window of a heavy event type: on across midnight, a refusal, and off again (concept 15, 4.3)', async () => {
+    const PROBE = 'Keyframe-Index (ganze Datei lesen)';
+    let window: JobWindow | undefined;
+    let refuse = false;
+    const probe = () =>
+      type({
+        type: 'probe.keyframes',
+        trigger: 'event',
+        pool: 'index',
+        runnable: false,
+        windowable: true,
+        windowTimeZone: 'Europe/Zurich',
+        window,
+      });
+    const data = (): JobOverview => ({ ...overview(), types: [...overview().types, probe()] });
+    const { calls } = mockApi(
+      routes({
+        'GET /admin/job-types': () => json(data()),
+        'PUT /admin/job-types/probe.keyframes/window': ({ body }) => {
+          if (refuse) {
+            return problem(422, 'validation_failed', {
+              errors: [{ field: 'window', code: 'invalid_value' }],
+            });
+          }
+          const update = body as { window?: JobWindow; clearWindow?: boolean };
+          window = update.clearWindow ? undefined : update.window;
+          return json(probe());
+        },
+      }),
+    );
+    renderApp('/admin/jobs');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    const user = userEvent.setup();
+    const puts = () => calls.filter((call) => call.method === 'PUT');
+    const row = () =>
+      within(groupPanel()).getByRole('row', { name: /^Keyframe-Index \(ganze Datei lesen\)/ });
+    expect(within(row()).getByText('automatisch')).toBeVisible();
+
+    // The fold-out keeps the sentence why there is no schedule and adds the window, off.
+    const detail = await openRow(user, PROBE);
+    const block = () => within(detail).getByRole('region', { name: `Zeitfenster von ${PROBE}` });
+    expect(
+      within(block()).getByText(/^Kein Zeitplan: läuft von selbst, sobald es dafür/),
+    ).toBeVisible();
+    const toggle = () => within(block()).getByRole('switch', { name: 'Nur in einem Zeitfenster' });
+    expect(toggle()).not.toBeChecked();
+    expect(within(block()).queryByLabelText('Von')).toBeNull();
+    expect(
+      within(block()).queryByText(/Wiedergabe und Downloads starten trotzdem sofort\./),
+    ).toBeNull();
+
+    // Switched on: Von and Bis in the server's zone; 22:00 to 05:00 spans midnight.
+    await user.click(toggle());
+    const start = within(block()).getByLabelText('Von');
+    const end = within(block()).getByLabelText('Bis');
+    expect(start).toHaveValue('01:00');
+    expect(end).toHaveValue('06:00');
+    expect(end).toHaveAccessibleDescription(/Zeitzone des Servers: Europe\/Zurich\./);
+    expect(
+      within(block()).getByText(/Wiedergabe und Downloads starten trotzdem sofort\./),
+    ).toBeVisible();
+    expect(screen.getByText('Aktualisierung pausiert')).toBeVisible();
+    await user.clear(start);
+    await user.type(start, '22:00');
+    await user.clear(end);
+    await user.type(end, '05:00');
+    await user.click(within(block()).getByRole('button', { name: 'Speichern' }));
+    expect(await screen.findByText(`Zeitfenster von ${PROBE} gespeichert.`)).toBeVisible();
+    expect(puts()[0]?.path).toBe('/admin/job-types/probe.keyframes/window');
+    expect(puts()[0]?.body).toEqual({ window: { startMinute: 1320, endMinute: 300 } });
+    await waitFor(() => expect(within(row()).getByText('automatisch · 22:00–05:00')).toBeVisible());
+    await act(() => afterDialogsClosed());
+    await waitFor(() =>
+      expect(within(block()).queryByRole('button', { name: 'Verwerfen' })).toBeNull(),
+    );
+
+    // A window the server refuses is named until a field changes.
+    refuse = true;
+    await user.clear(within(block()).getByLabelText('Bis'));
+    await user.type(within(block()).getByLabelText('Bis'), '22:00');
+    await user.click(within(block()).getByRole('button', { name: 'Speichern' }));
+    expect(await within(block()).findByRole('alert')).toHaveTextContent(
+      'Bitte prüfe die markierten Felder.',
+    );
+    expect(within(block()).getByText('Ungültiger Wert.')).toBeVisible();
+    expect(puts()).toHaveLength(2);
+    await user.type(within(block()).getByLabelText('Bis'), '{backspace}1');
+    await waitFor(() => expect(within(block()).queryByRole('alert')).toBeNull());
+
+    // Switched off: the times typed no longer count, saving sends clearWindow.
+    refuse = false;
+    await user.click(toggle());
+    expect(within(block()).queryByLabelText('Von')).toBeNull();
+    await user.click(within(block()).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(puts()).toHaveLength(3));
+    expect(puts()[2]?.body).toEqual({ clearWindow: true });
+    await waitFor(() => expect(within(row()).getByText('automatisch')).toBeVisible());
+    await act(() => afterDialogsClosed());
+    expect(toggle()).not.toBeChecked();
+
+    // Other event types keep the sentence alone.
+    await user.click(screen.getByRole('tab', { name: /^Metadaten/ }));
+    const match = await openRow(user, 'Titel zuordnen');
+    expect(within(match).queryByRole('switch', { name: 'Nur in einem Zeitfenster' })).toBeNull();
+    expect(within(match).queryByRole('region', { name: /Zeitfenster/ })).toBeNull();
+  });
+
+  it('names a closed window with waiting runs, a set window and runs that override it (concept 15, 4.3)', async () => {
+    const night: JobWindow = { startMinute: 60, endMinute: 360 };
+    const windowed = (overrides: Partial<JobTypeInfo>) =>
+      type({
+        trigger: 'event',
+        runnable: false,
+        windowable: true,
+        windowTimeZone: 'Europe/Zurich',
+        window: night,
+        ...overrides,
+      });
+    const data = (): JobOverview => ({
+      ...overview(),
+      types: [
+        ...overview().types,
+        // Closed with waiting runs: until when, in the server's zone (00:00 UTC is 01:00 there).
+        windowed({
+          type: 'probe.keyframes',
+          pool: 'index',
+          windowOpensAt: '2026-11-07T00:00:00Z',
+          counts: { queued: 3, planned: 0, running: 1, failed: 0 },
+          running: [
+            run({ id: 95, type: 'probe.keyframes', subject: 'Heat', overridesWindow: true }),
+          ],
+        }),
+        // Closed, but only runs with the playback override wait: the server sends no
+        // windowOpensAt, so the page shows the window alone (it does not count runs itself).
+        windowed({
+          type: 'segments.detect',
+          counts: { queued: 2, planned: 1, running: 0, failed: 0 },
+        }),
+        // Paused: the pause wins over the window.
+        windowed({
+          type: 'chapters.images',
+          paused: true,
+          windowOpensAt: '2026-11-07T00:00:00Z',
+          counts: { queued: 2, planned: 0, running: 0, failed: 0 },
+        }),
+      ],
+    });
+    mockApi(
+      routes({
+        'GET /admin/job-types': () => json(data()),
+        'GET /admin/jobs': () =>
+          json({
+            runs: [
+              run({
+                id: 96,
+                type: 'probe.keyframes',
+                state: 'queued',
+                subject: 'Ronin',
+                startedAt: undefined,
+                overridesWindow: true,
+              }),
+            ],
+            total: 1,
+          }),
+      }),
+    );
+    renderApp('/admin/jobs');
+    await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
+    const rowOf = (name: string) =>
+      within(groupPanel()).getByRole('row', { name: new RegExp(`^${name}`) });
+    expect(
+      within(rowOf('Keyframe-Index \\(ganze Datei lesen\\)')).getByText('wartet bis 01:00'),
+    ).toBeVisible();
+    expect(
+      within(rowOf('Intro und Abspann erkennen')).getByText('automatisch · 01:00–06:00'),
+    ).toBeVisible();
+    expect(within(rowOf('Kapitelbilder erzeugen')).getAllByText('pausiert')).toHaveLength(2);
+
+    // A run a playback started outside the window says so, running and waiting.
+    const running = screen.getByRole('table', { name: 'Läuft gerade' });
+    const heat = within(running).getByRole('row', { name: /^Keyframe-Index/ });
+    expect(within(heat).getByText('für Wiedergabe')).toBeVisible();
+    const user = userEvent.setup();
+    const detail = await openRow(user, 'Keyframe-Index (ganze Datei lesen)');
+    const runs = within(detail).getByRole('region', {
+      name: 'Läufe von Keyframe-Index (ganze Datei lesen)',
+    });
+    await user.click(within(runs).getByRole('tab', { name: /^Wartend/ }));
+    const table = await within(runs).findByRole('table');
+    const ronin = within(table).getByRole('row', { name: /^Ronin/ });
+    expect(within(ronin).getByText('für Wiedergabe')).toBeVisible();
   });
 
   it('sends a one-off date as the wall time typed, removes it with clearOnce and names a refusal', async () => {

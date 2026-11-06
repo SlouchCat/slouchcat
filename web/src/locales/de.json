@@ -174,7 +174,8 @@
       "admin_limits_fixed": "Ein Administrator sieht immer alle Bibliotheken bis FSK 18. Entziehe zuerst die Rolle.",
       "job_type_not_runnable": "Dieser Job hat keinen manuellen Lauf; seine Läufe kommen von Ereignissen.",
       "job_type_paused": "Der Job ist pausiert; setze ihn zuerst fort.",
-      "job_type_not_scheduled": "Dieser Job hat keinen Zeitplan."
+      "job_type_not_scheduled": "Dieser Job hat keinen Zeitplan.",
+      "job_type_not_windowable": "Dieser Job hat kein Zeitfenster."
     },
     "field": {
       "required": "Pflichtfeld.",
@@ -426,6 +427,11 @@
       "all": "Alle anzeigen ›"
     },
     "remaining": "Noch {{time}}",
+    "continue": {
+      "episode": "S{{season}} · F{{episode}}",
+      "episodeRange": "S{{season}} · F{{episode}}–F{{end}}",
+      "new": "Neu"
+    },
     "empty": {
       "title": "Hier ist es noch leer",
       "body": "Sobald eine Bibliothek gescannt ist, erscheinen deine Filme hier.",
@@ -2856,6 +2862,7 @@
         "empty": "Gerade läuft nichts.",
         "since": "seit {{duration}}",
         "overridesPause": "für Wiedergabe, trotz Pause",
+        "overridesWindow": "für Wiedergabe",
         "progress": "{{done}} von {{total}}",
         "progressLabel": "{{name}}: {{percent}} %",
         "pause": "Lauf pausieren",
@@ -2911,6 +2918,7 @@
         "off": "aus",
         "automatic": "automatisch",
         "pausedNext": "pausiert",
+        "waitsUntil": "wartet bis {{time}}",
         "trigger": "Ausgelöst durch",
         "triggerEvent": "automatisch, durch Ereignisse im Server",
         "triggerManual": "von Hand",
@@ -2954,7 +2962,8 @@
         "cancelled_other": "{{name}}: {{count}} Läufe abgebrochen.",
         "runCancelled": "Lauf {{id}} abgebrochen.",
         "runRetried": "Lauf {{id}} wartet wieder.",
-        "scheduleSaved": "Zeitplan von {{name}} gespeichert."
+        "scheduleSaved": "Zeitplan von {{name}} gespeichert.",
+        "windowSaved": "Zeitfenster von {{name}} gespeichert."
       },
       "runs": {
         "title": "Läufe von {{name}}",
@@ -3017,7 +3026,9 @@
         "onceHint": "Zeitzone des Servers: {{zone}}. Der Termin läuft einmal zusätzlich zum Takt, auch ausserhalb des Zeitfensters.",
         "clearOnce": "Termin entfernen",
         "onceRange": "Termin muss zwischen jetzt und einem Jahr liegen.",
-        "onceInvalid": "Kein gültiger Termin."
+        "onceInvalid": "Kein gültiger Termin.",
+        "windowTitle": "Zeitfenster von {{name}}",
+        "windowWaits": "Ausserhalb des Fensters warten neue Aufträge; ein laufender läuft fertig. Wiedergabe und Downloads starten trotzdem sofort."
       },
       "duration": {
         "seconds": "{{count}} s",

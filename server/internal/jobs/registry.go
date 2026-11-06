@@ -93,6 +93,11 @@ type Type struct {
 	// while the type is paused (Queue.EnqueueOverridingPause, concept 14, 6.4); the administration
 	// page says so in its pause banner.
 	OverridesPauseForPlayback bool
+	// Windowable: the administrator may hold the type to a time window of the day (concept 15,
+	// 4.3; Registry.SetWindow): outside it no worker claims its jobs, except a playback request
+	// (override_window). Only an event type that reads whole files carries it; a schedule type has
+	// its window in the schedule.
+	Windowable bool
 }
 
 // ScheduleSeed are the values of the first schedule row of a type (Type.Seed).
@@ -108,6 +113,9 @@ type ScheduleSeed struct {
 func SeedOff(context.Context) (ScheduleSeed, error) {
 	return ScheduleSeed{Enabled: false}, nil
 }
+
+// ErrNotWindowable is the answer of SetWindow for a type without Type.Windowable.
+var ErrNotWindowable = errors.New("job type has no time window")
 
 // Scheduled reports whether the type has a schedule.
 func (t Type) Scheduled() bool { return t.Trigger == TriggerSchedule }
@@ -367,6 +375,7 @@ func validateType(t Type) error {
 		if t.Run != nil || t.Every != 0 || t.StartDelay != nil || t.Seed != nil {
 			return fmt.Errorf("an event type has neither Run nor a schedule")
 		}
+		return nil
 	case TriggerManual:
 		if t.Run == nil {
 			return fmt.Errorf("a manual type needs Run")
@@ -377,6 +386,34 @@ func validateType(t Type) error {
 	default:
 		return fmt.Errorf("unknown trigger %q", t.Trigger)
 	}
+	if t.Windowable {
+		return fmt.Errorf("only an event type has a time window of its own")
+	}
+	return nil
+}
+
+// SetWindow holds the registered type typ to the time window w, in minutes of the day in the
+// scheduler's location (concept 15, 4.3); nil removes it. ErrNotWindowable for a type without
+// Type.Windowable (or not registered), a *model.ValidationError (field window, invalid_value) for
+// a window outside 0..1439 or with start = end. Idle workers see the change at their next poll;
+// a running job is not stopped.
+func (r *Registry) SetWindow(ctx context.Context, typ string, w *Window) error {
+	if t, ok := r.Lookup(typ); !ok || !t.Windowable {
+		return ErrNotWindowable
+	}
+	if w != nil && !w.valid() {
+		var verr *model.ValidationError
+		return verr.Add("window", "invalid_value")
+	}
+	start, end := windowColumns(w)
+	n, err := r.q.q.SetJobTypeWindow(ctx, systemq.SetJobTypeWindowParams{WindowStart: start, WindowEnd: end, Now: r.q.now().UnixMilli(), Type: typ})
+	if err != nil {
+		return fmt.Errorf("set window of %s: %w", typ, err)
+	}
+	if n == 0 {
+		return model.ErrNotFound
+	}
+	r.log.InfoContext(ctx, "job type window set", "job_type", typ, "window", w != nil)
 	return nil
 }
 

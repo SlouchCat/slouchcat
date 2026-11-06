@@ -267,6 +267,9 @@ type AdminService interface {
 	PauseJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
 	ResumeJobType(ctx context.Context, typ string) (model.JobTypeInfo, error)
 	UpdateJobSchedule(ctx context.Context, typ string, upd model.JobScheduleUpdate) (model.JobTypeInfo, error)
+	// UpdateJobTypeWindow: model.ErrNotFound, model.ErrJobTypeNotWindowable, *model.ValidationError
+	// (concept 15, 4.3).
+	UpdateJobTypeWindow(ctx context.Context, typ string, upd model.JobTypeWindowUpdate) (model.JobTypeInfo, error)
 	CancelJobRuns(ctx context.Context, typ string, all bool) (int, error)
 	// Settings and integrations (A-2). UpdateSettings checks everything before it stores anything:
 	// *model.ValidationError, *model.EnvWinsError, model.ErrTMDBKeyInvalid, model.ErrTMDBUnreachable,

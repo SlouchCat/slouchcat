@@ -43,6 +43,14 @@
 //     type is paused and a pause does not stop it. Only EnqueueOverridingPause and
 //     RaiseQueuedJobForPlayback set it, for at most MaxPauseOverrides queued or running jobs at a
 //     time, and only package library calls them (forbidigo in .golangci.yml).
+//   - Time window (concept 15, 4.3): a type with a window (Type.Windowable, Registry.SetWindow) is
+//     claimed only inside it, in minutes of the day in the scheduler's location; a job that runs
+//     when the window closes finishes. A job with override_window is claimed outside it (a
+//     playback request: EnqueueOverridingWindow, and EnqueueOverridingPause and
+//     RaiseQueuedJobForPlayback set it as well; package library only, forbidigo). It has no cap.
+//     The pause comes first: override_pause does not lift the window, override_window not the
+//     pause. Idle workers poll every second (Worker.poll), so a window that opens, is set or is
+//     removed takes effect at the next poll without a signal.
 //
 // Job types and schedules (concept 09, ADR 0017): every service registers its job types with
 // Registry.Register (registry.go: group, pool, trigger, priority, handler, Run, interval), and the
@@ -56,6 +64,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/store/systemq"
@@ -147,6 +156,9 @@ type Job struct {
 	// OverridesPause: the job is claimed and keeps running while its type is paused (a playback
 	// request, EnqueueOverridingPause).
 	OverridesPause bool
+	// OverridesWindow: the job is claimed outside the time window of its type (a playback request,
+	// EnqueueOverridingWindow; concept 15, 4.3).
+	OverridesWindow bool
 }
 
 // Duration returns how long the last attempt ran: FinishedAt - StartedAt in a final state, the
@@ -168,6 +180,9 @@ type Queue struct {
 	db  *sql.DB
 	q   *systemq.Queries
 	now func() time.Time
+	// loc is the location of the time windows of the types: the scheduler's (NewScheduler stores
+	// it here), time.Local until then. Claim reads the minute of the day in it.
+	loc atomic.Pointer[time.Location]
 	// pruneTasks are the further cleanups of jobs.prune (AddPruneTask).
 	pruneTasks []func(ctx context.Context) (int64, error)
 	// afterSkippedInsert is a seam for tests: EnqueueOverridingPause calls it between a skipped
@@ -180,8 +195,13 @@ func NewQueue(db *sql.DB, now func() time.Time) *Queue {
 	if now == nil {
 		now = time.Now
 	}
-	return &Queue{db: db, q: systemq.New(db), now: now, afterSkippedInsert: func() {}}
+	q := &Queue{db: db, q: systemq.New(db), now: now, afterSkippedInsert: func() {}}
+	q.loc.Store(time.Local)
+	return q
 }
+
+// Location returns the location of the time windows of the types (the scheduler's).
+func (q *Queue) Location() *time.Location { return q.loc.Load() }
 
 // Enqueue adds a job and returns its ID. With an IdempotencyKey that an active job already
 // holds, it returns the ID of that job instead.
@@ -250,9 +270,10 @@ type PauseOverride struct {
 
 // EnqueueOverridingPause is Enqueue for a job a playback needs now (concept 14, 6.4 and 6.5): the
 // new job carries override_pause while fewer than MaxPauseOverrides queued or running jobs carry
-// it, checked in the same statement as the insert, so concurrent starts cannot pass the cap. When
-// an active job holds the key, nothing is inserted and Inserted is false. Only package library
-// calls it (forbidigo).
+// it, checked in the same statement as the insert, so concurrent starts cannot pass the cap, and
+// always override_window (concept 15, 4.3: a playback lifts the time window, which has no cap).
+// When an active job holds the key, nothing is inserted and Inserted is false. Only package
+// library calls it (forbidigo).
 func (q *Queue) EnqueueOverridingPause(ctx context.Context, j NewJob) (PauseOverride, error) {
 	payload, maxAttempts, key, err := j.columns()
 	if err != nil {
@@ -297,7 +318,8 @@ func (q *Queue) EnqueueOverridingPause(ctx context.Context, j NewJob) (PauseOver
 
 // RaiseQueuedJobForPlayback raises the waiting job id for a playback (concept 14, 6.4): its
 // priority to at least priority (never lower), override_pause by the cap of
-// EnqueueOverridingPause (a job that carries it keeps it), and a job in backoff or delay runs now
+// EnqueueOverridingPause (a job that carries it keeps it), override_window without a cap (concept
+// 15, 4.3), and a job in backoff or delay runs now
 // (run_after = min(run_after, now)). A running job stays as it is (no cancel, decision of 26
 // October 2026); Raised is false then, and for a job that has ended. Only package library calls it
 // (forbidigo).
@@ -321,9 +343,49 @@ func (q *Queue) RaiseQueuedJobForPlayback(ctx context.Context, id int64, priorit
 	return PauseOverride{ID: id, Raised: true, OverridesPause: override == 1}, nil
 }
 
+// EnqueueOverridingWindow is Enqueue for a job a playback asks for that may start outside the time
+// window of its type (concept 15, 4.3: chapters.images after a playback). It carries
+// override_window, not override_pause (a paused type stays paused, and MaxPauseOverrides does not
+// count it). When an active job holds the key, that job is raised like RaiseQueuedPriority and
+// gets override_window while it waits; a running job stays as it is. It returns the job's ID. Only
+// package library calls it (forbidigo).
+func (q *Queue) EnqueueOverridingWindow(ctx context.Context, j NewJob) (int64, error) {
+	payload, maxAttempts, key, err := j.columns()
+	if err != nil {
+		return 0, err
+	}
+	now := q.now()
+	id, err := q.q.InsertJobOverridingWindow(ctx, systemq.InsertJobOverridingWindowParams{
+		Type:           j.Type,
+		Priority:       int64(j.Priority),
+		IdempotencyKey: key,
+		Payload:        string(payload),
+		RunAfter:       now.Add(j.Delay).UnixMilli(),
+		MaxAttempts:    int64(maxAttempts),
+		Now:            now.UnixMilli(),
+	})
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) || !key.Valid {
+		return 0, fmt.Errorf("enqueue %s: %w", j.Type, err)
+	}
+	// The insert was skipped because an active job holds the key.
+	if id, err = q.q.GetActiveJobIDByKey(ctx, key); err != nil {
+		return 0, fmt.Errorf("enqueue %s: %w", j.Type, err)
+	}
+	if _, err := q.q.RaiseQueuedJobOverridingWindow(ctx, systemq.RaiseQueuedJobOverridingWindowParams{
+		Priority: int64(j.Priority), Now: now.UnixMilli(), ID: id,
+	}); err != nil {
+		return 0, fmt.Errorf("raise job %d over the window: %w", id, err)
+	}
+	return id, nil
+}
+
 // Claim leases the next runnable job of one of types for workerID. It returns (nil, nil) when
 // no job is runnable. Jobs whose lease expired after their last attempt are failed first; the
-// other expired leases return to the queue and compete again by priority and age.
+// other expired leases return to the queue and compete again by priority and age. A paused type
+// and a type outside its time window are not claimed (see the package documentation).
 func (q *Queue) Claim(ctx context.Context, workerID string, types []string) (*Job, error) {
 	if len(types) == 0 {
 		return nil, nil
@@ -340,6 +402,7 @@ func (q *Queue) Claim(ctx context.Context, workerID string, types []string) (*Jo
 		LeaseUntil: sql.NullInt64{Int64: now.Add(LeaseDuration).UnixMilli(), Valid: true},
 		Now:        now.UnixMilli(),
 		Types:      types,
+		Minute:     int64(minuteOfDay(now, q.Location())),
 	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -536,24 +599,25 @@ func FromRow(r systemq.Job) Job { return fromRow(r) }
 
 func fromRow(r systemq.Job) Job {
 	return Job{
-		ID:             r.ID,
-		Type:           r.Type,
-		Priority:       int(r.Priority),
-		IdempotencyKey: r.IdempotencyKey.String,
-		Payload:        json.RawMessage(r.Payload),
-		State:          State(r.State),
-		RunAfter:       time.UnixMilli(r.RunAfter),
-		LeaseUntil:     time.UnixMilli(r.LeaseUntil.Int64),
-		Attempts:       int(r.Attempts),
-		MaxAttempts:    int(r.MaxAttempts),
-		LastError:      r.LastError.String,
-		CreatedAt:      time.UnixMilli(r.CreatedAt),
-		UpdatedAt:      time.UnixMilli(r.UpdatedAt),
-		StartedAt:      msTime(r.StartedAt),
-		FinishedAt:     msTime(r.FinishedAt),
-		Progress:       RunProgress{Done: r.ProgressDone.Int64, Total: r.ProgressTotal.Int64, Note: r.ProgressNote.String},
-		Skipped:        r.Skipped == 1,
-		OverridesPause: r.OverridePause == 1,
+		ID:              r.ID,
+		Type:            r.Type,
+		Priority:        int(r.Priority),
+		IdempotencyKey:  r.IdempotencyKey.String,
+		Payload:         json.RawMessage(r.Payload),
+		State:           State(r.State),
+		RunAfter:        time.UnixMilli(r.RunAfter),
+		LeaseUntil:      time.UnixMilli(r.LeaseUntil.Int64),
+		Attempts:        int(r.Attempts),
+		MaxAttempts:     int(r.MaxAttempts),
+		LastError:       r.LastError.String,
+		CreatedAt:       time.UnixMilli(r.CreatedAt),
+		UpdatedAt:       time.UnixMilli(r.UpdatedAt),
+		StartedAt:       msTime(r.StartedAt),
+		FinishedAt:      msTime(r.FinishedAt),
+		Progress:        RunProgress{Done: r.ProgressDone.Int64, Total: r.ProgressTotal.Int64, Note: r.ProgressNote.String},
+		Skipped:         r.Skipped == 1,
+		OverridesPause:  r.OverridePause == 1,
+		OverridesWindow: r.OverrideWindow == 1,
 	}
 }
 

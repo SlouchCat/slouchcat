@@ -240,20 +240,23 @@ func heroPrepaint(item model.ItemSummary, start int, profileID int64) string {
 // srcset, sizes; the first one with priority and sync decoding, like the preload); the start page
 // fades it out once its own first poster is on screen. It stops at the first title without a
 // poster: the card shows the lettered fallback there, and a gap would misplace the cards after it.
+// An episode of the row "Weiterschauen" shows the poster of its series (cardPoster; FirstRow keeps
+// SeriesRef only there), so that row paints too.
 func posterPrepaint(items []model.ItemSummary, profileID int64) string {
 	var b strings.Builder
 	for i, item := range items[:min(len(items), posterPrepaintCards)] {
 		var attrs string
+		id, poster, small := cardPoster(item)
 		switch {
-		case item.Poster != nil && item.PosterSmall != nil:
-			small, large := imageURL(item.ID, *item.PosterSmall, profileID), imageURL(item.ID, *item.Poster, profileID)
-			attrs = `src="` + html.EscapeString(small) + `" srcset="` +
-				html.EscapeString(small+" "+posterSmallWidth+", "+large+" "+posterLargeWidth) +
+		case poster != nil && small != nil:
+			smallURL, largeURL := imageURL(id, *small, profileID), imageURL(id, *poster, profileID)
+			attrs = `src="` + html.EscapeString(smallURL) + `" srcset="` +
+				html.EscapeString(smallURL+" "+posterSmallWidth+", "+largeURL+" "+posterLargeWidth) +
 				`" sizes="` + posterSizes + `"`
-		case item.Poster != nil:
-			attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.Poster, profileID)) + `"`
-		case item.PosterSmall != nil:
-			attrs = `src="` + html.EscapeString(imageURL(item.ID, *item.PosterSmall, profileID)) + `"`
+		case poster != nil:
+			attrs = `src="` + html.EscapeString(imageURL(id, *poster, profileID)) + `"`
+		case small != nil:
+			attrs = `src="` + html.EscapeString(imageURL(id, *small, profileID)) + `"`
 		}
 		if attrs == "" {
 			break
@@ -272,6 +275,15 @@ func posterPrepaint(items []model.ItemSummary, profileID int64) string {
 		return ""
 	}
 	return `<div id="poster-prepaint" aria-hidden="true">` + b.String() + `</div>`
+}
+
+// cardPoster returns the title id and the w400 and w200 posters a poster card shows for item: the
+// series' for an episode (episodes have no poster, concept 15 P-1), else the item's own.
+func cardPoster(item model.ItemSummary) (string, *model.Image, *model.Image) {
+	if item.Kind == "episode" && item.SeriesRef != nil {
+		return item.SeriesRef.ID, item.SeriesRef.Poster, item.SeriesRef.PosterSmall
+	}
+	return item.ID, item.Poster, item.PosterSmall
 }
 
 // squareCover reports whether a card shows a square cover instead of a 2:3 poster: audiobooks and
@@ -314,14 +326,15 @@ func heroLink(item model.ItemSummary, profileID int64) string {
 // posterLink returns the Link header value that preloads the poster a PosterCard shows for item
 // (same URLs, srcset and sizes), or "" when the item has no poster.
 func posterLink(item model.ItemSummary, profileID int64) string {
-	if item.Poster != nil && item.PosterSmall != nil {
-		small, large := imageURL(item.ID, *item.PosterSmall, profileID), imageURL(item.ID, *item.Poster, profileID)
-		return "<" + small + `>; rel=preload; as=image; imagesrcset="` + small + " " + posterSmallWidth + ", " +
-			large + " " + posterLargeWidth + `"; imagesizes="` + posterSizes + `"; fetchpriority=high`
+	id, poster, small := cardPoster(item)
+	if poster != nil && small != nil {
+		smallURL, largeURL := imageURL(id, *small, profileID), imageURL(id, *poster, profileID)
+		return "<" + smallURL + `>; rel=preload; as=image; imagesrcset="` + smallURL + " " + posterSmallWidth + ", " +
+			largeURL + " " + posterLargeWidth + `"; imagesizes="` + posterSizes + `"; fetchpriority=high`
 	}
-	for _, img := range []*model.Image{item.Poster, item.PosterSmall} {
+	for _, img := range []*model.Image{poster, small} {
 		if img != nil {
-			return "<" + imageURL(item.ID, *img, profileID) + ">; rel=preload; as=image; fetchpriority=high"
+			return "<" + imageURL(id, *img, profileID) + ">; rel=preload; as=image; fetchpriority=high"
 		}
 	}
 	return ""
