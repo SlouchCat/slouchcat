@@ -894,3 +894,21 @@ func TestHomeContinueOneEntryPerSeries(t *testing.T) {
 		t.Errorf("FirstRow entries = %+v / %+v, want the next episode without progress with the series poster, the film without series", e, items[1].SeriesRef)
 	}
 }
+
+// Concept 15 P-1: only the row continue shows an episode with its series, so FirstRow keeps
+// SeriesRef there and drops it in every other row (the prepaint follows the card).
+func TestFirstRowCardsSeriesOnlyInContinue(t *testing.T) {
+	t.Parallel()
+	series := &model.SeriesRef{ID: "s1", Title: "Show"}
+	items := []model.ItemSummary{{ID: "e1", Kind: "episode", SeriesRef: series}, {ID: "f1", Kind: "movie"}}
+	if got := firstRowCards(model.HomeRow{Key: RowContinue, Items: items}); got[0].SeriesRef != series {
+		t.Errorf("continue: SeriesRef = %v, want the series", got[0].SeriesRef)
+	}
+	got := firstRowCards(model.HomeRow{Key: RowRecent, Items: items})
+	if got[0].SeriesRef != nil {
+		t.Errorf("recent: SeriesRef = %v, want none", got[0].SeriesRef)
+	}
+	if items[0].SeriesRef != series {
+		t.Error("recent: the row's own titles were changed")
+	}
+}

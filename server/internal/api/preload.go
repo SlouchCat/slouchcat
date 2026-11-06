@@ -240,7 +240,8 @@ func heroPrepaint(item model.ItemSummary, start int, profileID int64) string {
 // srcset, sizes; the first one with priority and sync decoding, like the preload); the start page
 // fades it out once its own first poster is on screen. It stops at the first title without a
 // poster: the card shows the lettered fallback there, and a gap would misplace the cards after it.
-// An episode shows the poster of its series (cardPoster), so a row "Weiterschauen" paints too.
+// An episode of the row "Weiterschauen" shows the poster of its series (cardPoster; FirstRow keeps
+// SeriesRef only there), so that row paints too.
 func posterPrepaint(items []model.ItemSummary, profileID int64) string {
 	var b strings.Builder
 	for i, item := range items[:min(len(items), posterPrepaintCards)] {
