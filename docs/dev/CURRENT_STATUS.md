@@ -33,7 +33,10 @@ Release **1.13.2**: Vertrag bleibt **1.13.0**, keine Migration. Frage 22 im Ents
 api-client 4, design-tokens 2, 36 Go-Pakete ok. e2e separat `task ci:e2e:parallel`: **488/488**
 in 3 Shards (501 s).
 
-Offen: Storybook-Baselines der zwei Bilder auf CT 190 (Marcos Wort), Abnahme auf CT 190, Merge,
+Storybook-Baselines der zwei Bilder auf CT 190 neu geschossen (Marcos Wort, `/root/storybook-ct-k15`,
+`--update-snapshots=changed`): 359 passed, nur diese zwei PNG geändert.
+
+Offen: Abnahme auf CT 190, Merge,
 Release-PR 1.13.2 (Versionsstellen), Tag `v1.13.2` (Marco). Entwurf `release-notes-1.13.2.txt` im
 Wurzelordner (unversioniert).
 
