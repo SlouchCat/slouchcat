@@ -6,7 +6,7 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
-import { Notice, Skeleton, StatusDot, Text, TextLink } from '@/ui';
+import { Chip, Notice, Skeleton, StatusDot, Text, TextLink } from '@/ui';
 import {
   AdminPage,
   AriaButton,
@@ -29,7 +29,16 @@ import {
   type TabItem,
 } from '@/ui/aria';
 import { HomeRowsPreview } from './homerows/HomeRowsPreview';
-import { pageOf, rowTitleKey, toRows, toSettings, type HomeRow } from './homerows/rows';
+import {
+  MAX_VISIBLE_ROWS,
+  pageOf,
+  rowTitle,
+  setHidden as withHidden,
+  toRows,
+  toSettings,
+  visibleCount,
+  type HomeRow,
+} from './homerows/rows';
 import { homeRowsQuery, setHomeRows } from './queries';
 import styles from './homerows/HomeRows.module.css';
 
@@ -42,7 +51,10 @@ const TAB_IDS = [ORDER, PREVIEW] as const;
 const DRAFT = 'rows';
 
 /**
- * Start page (M7, E-9; concept 12, variant C): the order of its eight rows for every profile.
+ * Start page (M7, E-9; concept 12, variant C; concept 15 P-7): the order of its rows for every
+ * profile: the eight fixed rows, «Meine Medien» and one row «Neu in …» per library (tagged
+ * «Bibliothek»), each named by its id. At most fifteen rows are visible (F-12): showing one more is
+ * refused with a message.
  * The tab «Reihenfolge» gives each row a position (RankSelect, S-16) and «Ausblenden», and folds
  * out what the row shows with a link to the page that keeps its content; the tab «Vorschau»
  * sketches the start page in the order on the page, saved or not. The SaveBar stores everything
@@ -122,7 +134,7 @@ function HomeRowsContent() {
   });
 
   const rows = drafts.valueOf(DRAFT) ?? [];
-  const name = (row: HomeRow) => t(rowTitleKey[row.key]);
+  const name = (row: HomeRow) => rowTitle(t, row);
   const change = (next: HomeRow[], text: string | null) => {
     drafts.set(DRAFT, next);
     say(text);
@@ -133,11 +145,11 @@ function HomeRowsContent() {
       rankTo(rows, rows.indexOf(row), position, 'move'),
       t('admin.homeRows.moved', { row: name(row), position: position + 1 }),
     );
-  const setHidden = (row: HomeRow, hidden: boolean) =>
-    change(
-      rows.map((entry) => (entry.key === row.key ? { ...entry, hidden } : entry)),
-      null,
-    );
+  const setHidden = (row: HomeRow, hidden: boolean) => {
+    const next = withHidden(rows, row.id, hidden);
+    if (next) change(next, null);
+    else say(t('admin.homeRows.tooMany', { count: MAX_VISIBLE_ROWS }), 'warning');
+  };
 
   const onDiscard = () => {
     drafts.discard(DRAFT);
@@ -174,7 +186,14 @@ function HomeRowsContent() {
       width: '36%',
       header: t('admin.homeRows.columns.row'),
       rowHeader: true,
-      cell: (row) => name(row),
+      cell: (row) =>
+        row.key === 'library' ? (
+          <span className={styles.name}>
+            {name(row)} <Chip>{t('admin.homeRows.libraryTag')}</Chip>
+          </span>
+        ) : (
+          name(row)
+        ),
     },
     {
       key: 'state',
@@ -219,7 +238,7 @@ function HomeRowsContent() {
     );
   };
 
-  const visible = rows.filter((row) => !row.hidden).length;
+  const visible = visibleCount(rows);
   const tabs: TabItem[] = [
     {
       id: ORDER,
@@ -236,7 +255,7 @@ function HomeRowsContent() {
             caption={t('admin.homeRows.list')}
             columns={columns}
             rows={rows}
-            rowKey={(row) => row.key}
+            rowKey={(row) => row.id}
             expand={{ render: detail, expandedKeys: expanded, onExpandedChange }}
             layout="fixed"
           />
