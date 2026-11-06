@@ -245,3 +245,42 @@ func TestSeriesRefOnEpisodes(t *testing.T) {
 		t.Errorf("episode detail series = %+v", s)
 	}
 }
+
+// Review L-2: without its season or episode number a completed episode has no next one, in the row
+// as in NextEpisode (episodeChain); SQL must not jump to the first episode of a later season.
+func TestContinueWatchingWithoutNumbers(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	r := New(f.DB, vistest.Logger(), WithClock(func() time.Time { return continueNow }))
+	ctx := context.Background()
+	show := f.Show
+	p16 := Profile(f.P16)
+	// The specials become season 2, so a later season exists.
+	exec(t, f, `UPDATE items SET season_number = 2 WHERE id IN (?, ?)`, show.Specials.ID, show.Special.ID)
+	exec(t, f, `DELETE FROM progress WHERE profile_id = ?`, f.P16.ID)
+	setProgress(t, f, f.P16, show.E1.ID, true, daysAgo(1))
+	if got, err := r.ContinueWatching(ctx, p16, MaxRowItems); err != nil || !slices.Equal(ids(got), []string{show.E2.ID}) {
+		t.Fatalf("with numbers = %v, %v, want E2", ids(got), err)
+	}
+
+	for _, tc := range []struct{ name, update string }{
+		{"no episode number", `UPDATE items SET episode_number = NULL WHERE id = ?`},
+		{"no season number", `UPDATE items SET season_number = NULL WHERE id IN (?, ?)`},
+	} {
+		exec(t, f, `UPDATE items SET season_number = 1, episode_number = 1 WHERE id = ?`, show.E1.ID)
+		exec(t, f, `UPDATE items SET season_number = 1 WHERE id = ?`, show.Season.ID)
+		exec(t, f, tc.update, show.E1.ID, show.Season.ID)
+		got, err := r.ContinueWatching(ctx, p16, MaxRowItems)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		next, err := r.NextEpisode(ctx, p16, show.E1.ID)
+		if err != nil {
+			t.Fatalf("%s: next episode: %v", tc.name, err)
+		}
+		if len(got) != 0 || next != nil {
+			t.Errorf("%s: continue = %v, next episode %+v, want neither", tc.name, ids(got), next)
+		}
+	}
+}

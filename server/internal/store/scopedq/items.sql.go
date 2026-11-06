@@ -291,6 +291,7 @@ next_episodes AS (
     JOIN visible_items AS vx ON vx.item_id = x.id AND vx.profile_id = ?1
     LEFT JOIN progress AS xp ON xp.profile_id = ?1 AND xp.item_id = x.id
     WHERE n.rn = 1 AND n.completed = 1 AND n.in_window = 1 AND x.id <> n.item_id
+      AND n.season_number IS NOT NULL AND n.last_episode IS NOT NULL
       AND ((coalesce(x.season_number, xs.season_number) = n.season_number AND x.episode_number > n.last_episode)
            OR coalesce(x.season_number, xs.season_number) > n.season_number)
       AND (coalesce(x.season_number, xs.season_number) <> 0 OR n.season_number = 0)
@@ -325,7 +326,8 @@ type ListContinueWatchingParams struct {
 //   - not completed (and started): the title itself;
 //   - a completed episode at most @since old: the next episode by the rule of
 //     GetNextVisibleEpisode (same season with a higher number, else a later season; specials only
-//     after a special; visible only). Edge decision of concept 15 step 2: an episode the profile
+//     after a special; visible only; none when the completed episode lacks its season or episode
+//     number, like episodeChain). Edge decision of concept 15 step 2: an episode the profile
 //     already completed is skipped (a rewatch of an old episode), so the entry is the first next
 //     visible episode that is not completed; without one the series is absent;
 //   - anything else (a completed film, a completed episode older than @since): no entry.
