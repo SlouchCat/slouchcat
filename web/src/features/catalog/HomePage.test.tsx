@@ -13,6 +13,7 @@ import {
   showSeriesRef,
 } from '@/test/fixtures';
 import { json, mockApi, renderApp, signedIn } from '@/test/api';
+import { spatialFocusKey } from '@/ui';
 
 describe('start page', () => {
   afterEach(() => {
@@ -467,6 +468,60 @@ describe('start page', () => {
       expect(card).toHaveAttribute('href', `/items/${seriesIds.e34}`);
       expect(within(card).getByText('S1 · F3–F4 · Neu')).toBeVisible();
       expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    it('shows "Neu" without "Noch …" and without a bar for a next episode with progress at 0', async () => {
+      const opened: ItemRef = {
+        ...next,
+        progress: {
+          positionMs: 0,
+          durationMs: 2_700_000,
+          percent: 0,
+          completed: false,
+          updatedAt: '2026-11-05T19:00:00Z',
+        },
+      };
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'continue', items: [opened] }] }),
+      });
+      renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Weiterschauen' });
+      const card = within(row).getByRole('link', {
+        name: 'Slouchcat Test Show, S1 · F3–F4, Episode 3, Neu',
+      });
+      expect(within(card).getByText('S1 · F3–F4 · Neu')).toBeVisible();
+      expect(within(card).queryByText(/Noch/)).not.toBeInTheDocument();
+      expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    it('keeps the series card and its focus when the next episode replaces the episode', async () => {
+      // The film stands first, so the default focus of the page is not the series card.
+      let items: ItemRef[] = [alien, started];
+      mockApi({
+        ...signedIn,
+        'GET /home': () => json({ rows: [{ key: 'continue', items }] }),
+      });
+      const { queryClient } = renderApp('/');
+      const row = await screen.findByRole('region', { name: 'Weiterschauen' });
+      const card = within(row).getByRole('link', { name: /^Slouchcat Test Show, S4 · F7/ });
+      act(() => card.focus());
+      await waitFor(() => expect(spatialFocusKey()).toBe(`continue-${seriesIds.show}`));
+
+      // The episode ended (the player refetches the start page): the card shows the next one.
+      items = [alien, next];
+      await act(() => queryClient.invalidateQueries({ queryKey: ['home'] }));
+      const updated = await within(row).findByRole('link', {
+        name: 'Slouchcat Test Show, S1 · F3–F4, Episode 3, Neu',
+      });
+      expect(updated).toBe(card);
+      expect(updated).toHaveFocus();
+
+      // With the focus lost (as after a return to the page), an arrow key finds the series card
+      // by its key again, not the first card of the page.
+      act(() => updated.blur());
+      fireEvent.keyDown(window, { key: 'ArrowDown' });
+      await waitFor(() => expect(updated).toHaveFocus());
     });
 
     it('keeps the episode card of today without seriesRef, and in every other row', async () => {

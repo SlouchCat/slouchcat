@@ -49,8 +49,6 @@ const rowPages: Partial<Record<HomeRow['key'], string>> = {
 // The server paints as many ahead on a page without a stage (posterPrepaintCards, api/preload.go).
 const EAGER_POSTERS = 6;
 
-const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${item.id}`;
-
 /** A row counts when it holds titles, collections or genres (E-9: never an empty row). */
 const hasEntries = (row: HomeRow) =>
   row.items.length > 0 || (row.collections?.length ?? 0) > 0 || (row.genres?.length ?? 0) > 0;
@@ -81,6 +79,19 @@ function remaining(t: TFunction, progress: NonNullable<ItemRef['progress']>): st
 const seriesOf = (row: HomeRow, item: ItemRef) =>
   row.key === 'continue' && item.kind === 'episode' ? item.seriesRef : undefined;
 
+/**
+ * Focus and React key of a card. A series card of "Weiterschauen" keys on its series, not on the
+ * episode: after the episode ends the card shows the next one and keeps its focus on return.
+ */
+const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${seriesOf(row, item)?.id ?? item.id}`;
+
+/**
+ * The progress of a started title: a position past 0. A next episode with a progress row at 0
+ * (opened, never played) counts as new, without "Noch …" and without a bar.
+ */
+const startedProgress = (item: ItemRef) =>
+  item.progress && item.progress.positionMs > 0 ? item.progress : undefined;
+
 /** "S4 · F7", or "S4 · F7–F8" for a file with several episodes; undefined without numbers. */
 function shortEpisodeCode(t: TFunction, item: ItemRef): string | undefined {
   if (item.seasonNumber === undefined || item.episodeNumber === undefined) return undefined;
@@ -97,7 +108,8 @@ function shortEpisodeCode(t: TFunction, item: ItemRef): string | undefined {
  */
 function seriesCardText(t: TFunction, series: { title: string }, item: ItemRef) {
   const code = shortEpisodeCode(t, item);
-  const state = item.progress ? remaining(t, item.progress) : t('home.continue.new');
+  const progress = startedProgress(item);
+  const state = progress ? remaining(t, progress) : t('home.continue.new');
   return {
     title: series.title,
     caption: [code, state].filter(Boolean).join(t('format.separator')),
@@ -108,7 +120,8 @@ function seriesCardText(t: TFunction, series: { title: string }, item: ItemRef) 
 function cardCaption(t: TFunction, row: HomeRow, item: ItemRef): string | undefined {
   // A curated title carries the main user's note (picks, E-2); it says more than the year.
   if (item.note) return item.note;
-  if (row.key === 'continue' && item.progress) return remaining(t, item.progress);
+  const progress = startedProgress(item);
+  if (row.key === 'continue' && progress) return remaining(t, progress);
   // An audiobook or a podcast is known by its author more than by its year (M6).
   if (isAudioKind(item.kind) && item.author) return item.author;
   return item.year !== undefined ? String(item.year) : undefined;
@@ -291,9 +304,10 @@ export function HomePage() {
             ? seriesCardText(t, series, item)
             : { title: item.title, caption: cardCaption(t, row, item), label: undefined };
           const images = (series ?? item).images;
+          const progress = row.key === 'continue' ? startedProgress(item) : undefined;
           return (
             <PosterCard
-              key={item.id}
+              key={cardKey(row, item)}
               focusKey={cardKey(row, item)}
               // A series card leads to its episode too, with "Fortsetzen" in focus (F-1).
               href={paths.item(item.id)}
@@ -311,11 +325,11 @@ export function HomePage() {
               deferImage={heroHasArt && !heroShown}
               shape={isAudioKind(item.kind) ? 'square' : 'poster'}
               progress={
-                row.key === 'continue' && item.progress
+                progress
                   ? {
-                      percent: item.progress.percent,
+                      percent: progress.percent,
                       label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
-                        percent: Math.round(item.progress.percent),
+                        percent: Math.round(progress.percent),
                       }),
                     }
                   : undefined
