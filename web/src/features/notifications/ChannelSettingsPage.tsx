@@ -1,5 +1,6 @@
 import type { Channel, ChannelSetting, ChannelSettings } from '@slouchcat/api-client';
 import { useQuery } from '@tanstack/react-query';
+import { Navigate } from '@tanstack/react-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
@@ -244,7 +245,15 @@ export function ChannelSettingsPage({ inAdmin = false }: { inAdmin?: boolean } =
   );
 }
 
-/** The same page as a child of the administration's layout (route `/admin/notifications`). */
+/**
+ * The same page as a child of the administration's layout (route `/admin/notifications`). Anyone
+ * but an administrator's primary profile has no administration around it (AdminLayout) and goes to
+ * the page under the settings instead.
+ */
 export function AdminChannelSettingsPage() {
+  const session = useActiveSession();
+  if (session.account.role !== 'admin' || !session.profile.isPrimary) {
+    return <Navigate to={paths.notificationSettings} replace />;
+  }
   return <ChannelSettingsPage inAdmin />;
 }

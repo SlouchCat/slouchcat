@@ -395,6 +395,25 @@ describe('notification channels page', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('sends a guest and a second profile from the administration to the settings page', async () => {
+    for (const other of [guestSession, secondProfileSession]) {
+      mockApi({
+        ...page,
+        'GET /auth/session': other,
+        'GET /me/channels': () => json(settings(email, push)),
+      });
+      const view = renderApp('/admin/notifications');
+      await waitFor(() =>
+        expect(view.router.state.location.pathname).toBe('/settings/notifications'),
+      );
+      await block('E-Mail');
+      expect(
+        screen.queryByRole('link', { name: 'Kanäle des Servers einrichten → Integrationen' }),
+      ).not.toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
   it('gives a guest the hint without the link', async () => {
     mockApi({
       ...page,
