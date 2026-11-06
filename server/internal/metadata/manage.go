@@ -209,9 +209,11 @@ var matchLocks = []string{"tmdb_id", "tvdb_id", "imdb_id"}
 
 // UnlockAll lifts every lock of a title before a refresh (refreshItem with unlockAll, concept 15
 // 7.5): the field and text locks go, and an image kind that was locked loses its decided source
-// (the item_images row, like ClearItemImage), so the next match and fill decide it again. The
-// locks of a manual match stay, and so does a rating of source manual or nfo, which is kept by its
-// source. Errors: model.ErrNotFound.
+// (the item_images row, like ClearItemImage), so the next match and fill decide it again. A sort
+// title whose lock sort_title:<lang> goes follows the title again in the same transaction (sort_key
+// from the title, no typed sort title), as the editor's unlock of the field does. The locks of a
+// manual match stay, and so does a rating of source manual or nfo, which is kept by its source.
+// Errors: model.ErrNotFound.
 func (s *Service) UnlockAll(ctx context.Context, itemID string) error {
 	item, err := s.liveItem(ctx, itemID)
 	if err != nil {
@@ -237,6 +239,20 @@ func (s *Service) UnlockAll(ctx context.Context, itemID string) error {
 				continue
 			}
 			if err := q.DeleteItemImage(ctx, systemq.DeleteItemImageParams{ItemID: item.ID, Kind: kind}); err != nil {
+				return err
+			}
+		}
+		texts, err := q.ListItemTextsByItem(ctx, item.ID)
+		if err != nil {
+			return err
+		}
+		for _, t := range texts {
+			if !locked[textLockName(fieldSortTitle, t.Lang)] {
+				continue
+			}
+			if err := q.EditItemText(ctx, systemq.EditItemTextParams{ItemID: item.ID, Lang: t.Lang, Title: t.Title,
+				Overview: t.Overview, Tagline: t.Tagline, Rank: t.Rank,
+				SortKey: sql.NullString{String: model.SortKey(t.Lang, t.Title), Valid: true}}); err != nil {
 				return err
 			}
 		}

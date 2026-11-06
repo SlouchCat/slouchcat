@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -170,6 +171,10 @@ func TestUnlockAllKeepsTheMatch(t *testing.T) {
 	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550,
 		locked: `["title:de","overview","poster","tmdb_id","own_rating","original_language","sort_title:de"]`})
 	e.seedText(t, idByTMDB, "de", "Mein Titel", "Von Hand", "")
+	e.seedText(t, idByTMDB, "en", "My Title", "", "")
+	// The typed sort title of de (locked) and an English key nobody locked.
+	mustExec(t, e.db.Write, `UPDATE item_texts SET sort_key = 'aaa von hand', sort_title = 'AAA von Hand' WHERE item_id = ? AND lang = 'de'`, idByTMDB)
+	mustExec(t, e.db.Write, `UPDATE item_texts SET sort_key = 'zzz english' WHERE item_id = ? AND lang = 'en'`, idByTMDB)
 	mustExec(t, e.db.Write, `INSERT INTO item_images (item_id, kind, provider, lang, source, chosen, updated_at)
 		VALUES (?, 'poster', 'tmdb', 'de', '/chosen.jpg', 1, 0), (?, 'backdrop', 'tmdb', '', '/auto.jpg', 0, 0)`, idByTMDB, idByTMDB)
 	if err := e.svc.UnlockAll(ctx, idByTMDB); err != nil {
@@ -177,6 +182,17 @@ func TestUnlockAllKeepsTheMatch(t *testing.T) {
 	}
 	if r := e.item(t, idByTMDB); r.Locked != `["tmdb_id"]` {
 		t.Fatalf("locked_fields %s, want only the match lock", r.Locked)
+	}
+	// The sort title of de follows its title again before any match; en keeps its key.
+	if keys := e.sortKeys(t, idByTMDB); keys["de"] != model.SortKey("de", "Mein Titel") || keys["en"] != "zzz english" {
+		t.Fatalf("sort keys %v after UnlockAll, want the key of the de title and the en key kept", keys)
+	}
+	var typed sql.NullString
+	if err := e.db.Read.QueryRow(`SELECT sort_title FROM item_texts WHERE item_id = ? AND lang = 'de'`, idByTMDB).Scan(&typed); err != nil || typed.Valid {
+		t.Fatalf("de sort title %v (%v) after UnlockAll, want NULL", typed, err)
+	}
+	if tx := e.texts(t, idByTMDB); tx["de"].Title != "Mein Titel" || tx["de"].Overview.String != "Von Hand" {
+		t.Fatalf("de texts %+v after UnlockAll, want them kept until the match", tx["de"])
 	}
 	var kinds string
 	if err := e.db.Read.QueryRow(`SELECT group_concat(kind) FROM item_images WHERE item_id = ?`, idByTMDB).Scan(&kinds); err != nil {
