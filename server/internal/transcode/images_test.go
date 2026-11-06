@@ -3,6 +3,7 @@ package transcode
 import (
 	"bytes"
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -131,8 +132,8 @@ func TestScaleImageErrors(t *testing.T) {
 	if err := os.WriteFile(bad, []byte("not an image"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.ScaleImage(context.Background(), bad, []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 10, Format: ImageJPEG}}); err == nil {
-		t.Fatal("ScaleImage accepted a broken input")
+	if err := r.ScaleImage(context.Background(), bad, []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 10, Format: ImageJPEG}}); !errors.Is(err, ErrImageExit) {
+		t.Fatalf("ScaleImage of a broken input: %v, want ErrImageExit", err)
 	}
 	if _, err := r.Palette(context.Background(), bad, 8); err == nil {
 		t.Fatal("Palette accepted a broken input")
@@ -140,8 +141,8 @@ func TestScaleImageErrors(t *testing.T) {
 	if _, err := r.Palette(context.Background(), bad, 1); err == nil {
 		t.Fatal("Palette accepted one colour")
 	}
-	if err := (Runner{}).ScaleImage(context.Background(), bad, []ImageOutput{{Path: "o", Width: 10, Format: ImageJPEG}}); err == nil {
-		t.Fatal("ScaleImage ran without an ffmpeg path")
+	if err := (Runner{}).ScaleImage(context.Background(), bad, []ImageOutput{{Path: "o", Width: 10, Format: ImageJPEG}}); err == nil || errors.Is(err, ErrImageExit) {
+		t.Fatalf("ScaleImage without an ffmpeg path: %v, want an error other than ErrImageExit", err)
 	}
 }
 

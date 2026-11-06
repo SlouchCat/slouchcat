@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"hash/crc32"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -268,5 +269,70 @@ func TestUploadEpisodeStill(t *testing.T) {
 	mustExec(t, e.db.Write, `INSERT INTO settings (key, value, updated_at) VALUES (?, '["logo","season_poster"]', 0)`, SettingImageKinds)
 	if got := uploadCode(t, e.svc.UploadItemImage(ctx, idE0101, "backdrop", still)); got != "kind invalid_value" {
 		t.Fatalf("episode still with the setting off: %s", got)
+	}
+}
+
+// dirFiles returns the files of dir by name with the SHA-256 of their content.
+func dirFiles(t *testing.T, dir string) map[string]string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for _, en := range entries {
+		data, err := os.ReadFile(filepath.Join(dir, en.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[en.Name()] = sha(data)
+	}
+	return out
+}
+
+// A file whose header passes (format by content, pixel count) but whose body ffmpeg cannot decode
+// is refused as unsupported_format, and nothing of the kind changes: the rows, the choice, the
+// lock, the field source and the files stay, no temporary file is left behind.
+func TestUploadItemImageUndecodable(t *testing.T) {
+	t.Parallel()
+	requireFFmpeg(t)
+	e := newEnv(t, goodToken)
+	ctx := context.Background()
+	e.addItem(t, itemSeed{id: idByTMDB, title: "First", tmdbID: 550})
+	if err := e.svc.match(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.fetchImages(ctx, idByTMDB); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(e.cache, "images", idByTMDB)
+	full := pngBytes(t, 600, 900)
+	for name, data := range map[string][]byte{
+		"header only":    pngHeader(600, 900),
+		"truncated png":  full[:len(full)/2],
+		"truncated jpeg": jpegBytes(t, 600, 900)[:400],
+	} {
+		images, chosen, locked, files := e.images(t, idByTMDB), e.itemImages(t, idByTMDB), e.item(t, idByTMDB).Locked, dirFiles(t, dir)
+		if got := uploadCode(t, e.svc.UploadItemImage(ctx, idByTMDB, "poster", data)); got != "file unsupported_format" {
+			t.Errorf("%s: %s, want file unsupported_format", name, got)
+		}
+		if after := e.images(t, idByTMDB); !maps.Equal(after, images) {
+			t.Errorf("%s: image rows changed", name)
+		}
+		if after := e.itemImages(t, idByTMDB); !maps.Equal(after, chosen) {
+			t.Errorf("%s: item_images %v, want %v", name, after, chosen)
+		}
+		if after := e.item(t, idByTMDB).Locked; after != locked {
+			t.Errorf("%s: locked fields %s, want %s", name, after, locked)
+		}
+		if after := dirFiles(t, dir); !maps.Equal(after, files) {
+			t.Errorf("%s: image dir %v, want %v", name, after, files)
+		}
+	}
+	if _, ok := e.itemImages(t, idByTMDB)["poster"]; !ok {
+		t.Error("the poster lost its item_images row")
+	}
+	if p, src := e.imageProvider(t, idByTMDB, "poster", originalSize, originalFormat); p != "tmdb" || strings.HasPrefix(src, "upload:") {
+		t.Errorf("poster original %s %s, want the TMDB one", p, src)
 	}
 }

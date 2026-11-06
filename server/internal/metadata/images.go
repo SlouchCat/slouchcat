@@ -360,10 +360,21 @@ func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind s
 // (and files) of sizes the pipeline no longer produces (M1a's w500 poster). A palette failure
 // keeps the accent the poster rows had.
 func (s *Service) deriveAndPrune(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, src imageRequest, prev []systemq.Image) error {
-	produced, err := s.deriveImages(ctx, root, dir, itemID, kind, origRel, src, storedAccent(prev))
+	sc, err := s.scaleDerived(ctx, root, dir, itemID, kind, origRel, storedAccent(prev))
 	if err != nil {
 		return err
 	}
+	defer s.dropScaled(root, itemID, kind, sc)
+	produced, err := s.storeDerived(ctx, root, dir, itemID, kind, src, sc)
+	if err != nil {
+		return err
+	}
+	return s.pruneSizes(ctx, root, itemID, kind, prev, produced)
+}
+
+// pruneSizes removes the rows (and files) of kind in prev whose size and format are not among
+// produced, apart from the original.
+func (s *Service) pruneSizes(ctx context.Context, root *os.Root, itemID, kind string, prev []systemq.Image, produced map[string]bool) error {
 	for _, r := range prev {
 		if r.Size == originalSize || produced[r.Size+"/"+r.Format] {
 			continue
@@ -557,7 +568,7 @@ func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID,
 	return rel, nil
 }
 
-// derived is one scaled output of deriveImages before it is renamed into place.
+// derived is one scaled output of scaleDerived before storeDerived renames it into place.
 type derived struct {
 	size      string // w780 … w3840
 	width     int
@@ -567,24 +578,30 @@ type derived struct {
 	tmp       string // rel_path of the temporary file
 }
 
-// deriveImages scales the original at origRel into every width and format of kind in one ffmpeg
-// run, computes the accent colour for posters (prevAccent stays when the palette fails), renames
-// the files into place and upserts their rows. It returns the produced "<size>/<format>" keys.
-func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, src imageRequest, prevAccent sql.NullString) (map[string]bool, error) {
-	sourceURL := src.url
+// scaled holds the outputs of one ffmpeg run in their temporary files, until storeDerived renames
+// them into place; dropScaled removes what is left.
+type scaled struct {
+	outs   []derived
+	accent sql.NullString // the accent of a poster; invalid for the other kinds
+}
+
+// scaleDerived scales the original at origRel into every width and format of kind in one ffmpeg
+// run, to temporary files, and computes the accent colour for posters (prevAccent stays when the
+// palette fails). Nothing of the kind's rows or final files changes; on an error the temporary
+// files are gone already.
+func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, prevAccent sql.NullString) (*scaled, error) {
 	in, err := paths.Resolve(s.cache, origRel)
 	if err != nil {
 		return nil, fmt.Errorf("resolve original: %w", err)
 	}
-	var outs []derived
-	var args []transcode.ImageOutput
+	sc := &scaled{}
+	ok := false
 	defer func() {
-		for _, o := range outs {
-			if err := root.Remove(o.tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
-				s.log.Warn("remove temporary image", "item_id", itemID, "kind", kind, "err", err)
-			}
+		if !ok {
+			s.dropScaled(root, itemID, kind, sc)
 		}
 	}()
+	var args []transcode.ImageOutput
 	for _, sz := range sizesFor(kind, s.originalWidth(root, origRel)) {
 		for _, f := range formatsOf(kind) {
 			tmp, err := tempName(dir)
@@ -595,30 +612,45 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			if err != nil {
 				return nil, fmt.Errorf("resolve temporary image: %w", err)
 			}
-			outs = append(outs, derived{size: sz.name, width: sz.width, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
+			sc.outs = append(sc.outs, derived{size: sz.name, width: sz.width, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
 			args = append(args, transcode.ImageOutput{Path: abs, Width: sz.width, Format: f.format})
 		}
 	}
 	if err := s.runner.ScaleImage(ctx, in, args); err != nil {
 		return nil, fmt.Errorf("scale %s: %w", origRel, err)
 	}
-
-	var accent sql.NullString
 	if kind == "poster" {
-		for i, o := range outs {
+		for i, o := range sc.outs {
 			if o.width == accentSourceWidth && o.format == transcode.ImageJPEG {
-				accent = s.accent(ctx, itemID, args[i].Path)
+				sc.accent = s.accent(ctx, itemID, args[i].Path)
 			}
 		}
-		if !accent.Valid {
-			accent = prevAccent
+		if !sc.accent.Valid {
+			sc.accent = prevAccent
 		}
 	}
+	ok = true
+	return sc, nil
+}
 
+// dropScaled removes the temporary files of sc that were not renamed into place.
+func (s *Service) dropScaled(root *os.Root, itemID, kind string, sc *scaled) {
+	for _, o := range sc.outs {
+		if err := root.Remove(o.tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+			s.log.Warn("remove temporary image", "item_id", itemID, "kind", kind, "err", err)
+		}
+	}
+}
+
+// storeDerived renames the scaled files of sc into place and upserts their rows with the source
+// src. It returns the produced "<size>/<format>" keys.
+func (s *Service) storeDerived(ctx context.Context, root *os.Root, dir, itemID, kind string, src imageRequest, sc *scaled) (map[string]bool, error) {
+	sourceURL := src.url
+	accent := sc.accent
 	dims := map[int]image.Config{} // per width, from the first format of the kind (JPEG, or PNG for a logo)
 	produced := map[string]bool{}
 	first := formatsOf(kind)[0].format
-	for _, o := range outs {
+	for _, o := range sc.outs {
 		data, err := root.ReadFile(o.tmp)
 		if err != nil {
 			return nil, fmt.Errorf("read scaled image: %w", err)

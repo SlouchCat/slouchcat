@@ -193,6 +193,10 @@ func saturationLightness(c color.NRGBA) (s, l float64) {
 	return d / (hi + lo), l
 }
 
+// ErrImageExit: ffmpeg ran and exited with an error while the context was still live, so it could
+// not decode the input image (or write an output); the upload answers such a file as unsupported.
+var ErrImageExit = errors.New("ffmpeg exited with an error")
+
 // runImageFFmpeg runs the configured ffmpeg with an argument list and returns its standard output.
 func (r Runner) runImageFFmpeg(ctx context.Context, args ...string) ([]byte, error) {
 	if r.FFmpegPath == "" {
@@ -203,6 +207,10 @@ func (r Runner) runImageFFmpeg(ctx context.Context, args ...string) ([]byte, err
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && ctx.Err() == nil {
+			err = fmt.Errorf("%w: %w", ErrImageExit, err)
+		}
 		return nil, fmt.Errorf("ffmpeg: %w: %s", err, imageErrTail(strings.TrimSpace(stderr.String()), 2048))
 	}
 	return stdout.Bytes(), nil
