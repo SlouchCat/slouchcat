@@ -64,6 +64,7 @@ import {
   formatMinute,
   formatOnce,
   formatSeconds,
+  typeDescription,
   typeName,
   typeKey,
   typeState,
@@ -279,7 +280,7 @@ function nextText(t: TFunction, info: JobTypeInfo, now: number, language: string
   if (!schedule)
     return info.trigger === 'manual'
       ? t('admin.jobs.card.triggerManual')
-      : t('admin.jobs.card.onDemand');
+      : t('admin.jobs.card.automatic');
   const parts: string[] = [];
   if (!schedule.enabled) {
     parts.push(t('admin.jobs.card.off'));
@@ -838,21 +839,44 @@ function JobsContent() {
 }
 
 /**
+ * What a type does, in its own column of the row (concept 15, P-2): at most two muted lines cut
+ * with «…» and the whole sentence in the tooltip; empty for an unknown type. The fold-out reads
+ * the sentence in full at its top.
+ */
+function TypeDescription({ info }: { info: JobTypeInfo }) {
+  const { t } = useTranslation();
+  const description = typeDescription(t, info);
+  if (!description) return null;
+  return (
+    <span className={styles.description} title={description}>
+      {description}
+    </span>
+  );
+}
+
+/**
  * The columns of a group's table: the row folds out on the name (JOB-5). The widths keep the
- * columns in place across the group tabs and when a state changes (K12-9).
+ * columns in place across the group tabs and when a state changes (K12-9). The description takes
+ * what is left, the largest share (concept 15, P-2); the name keeps 12.5rem so its longest word
+ * fits at 768 px, and the state its chip.
  */
 function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
   return [
     {
       key: 'name',
-      width: '30%',
+      width: '12.5rem',
       header: t('admin.jobs.columns.job'),
       rowHeader: true,
       cell: (info) => typeName(t, info.type),
     },
     {
+      key: 'description',
+      header: t('admin.jobs.columns.description'),
+      cell: (info) => <TypeDescription info={info} />,
+    },
+    {
       key: 'state',
-      width: '14%',
+      width: '7rem',
       header: t('admin.jobs.columns.state'),
       cell: (info) => {
         const state = typeState(info);
@@ -861,19 +885,20 @@ function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
     },
     {
       key: 'queued',
-      width: '14%',
+      width: '11%',
       header: t('admin.jobs.card.queued'),
       cell: (info) => queuedText(t, info),
     },
     {
       key: 'last',
-      width: '22%',
+      width: '12%',
       header: t('admin.jobs.card.lastRun'),
       // Cut to one line here; the fold-out shows the whole text.
       cell: (info) => <LastRun info={info} oneLine />,
     },
     {
       key: 'next',
+      width: '16%',
       header: t('admin.jobs.card.nextRun'),
       cell: (info) => <NextRun info={info} />,
     },
@@ -1025,8 +1050,9 @@ function RunningTable({
 
 /**
  * The fold-out of a job type: «Jetzt ausführen» and «Pausieren»/«Fortsetzen» as buttons, the
- * cancellations in «Weitere Aktionen» (S-6), trigger and last run in full; then the schedule
- * (types with one) and the runs (JOB-6, JOB-7). A type this server no longer knows offers
+ * cancellations in «Weitere Aktionen» (S-6), what the type does (concept 15, P-2), trigger and
+ * last run in full; then the schedule (types with one) or, for an event type, why it has none
+ * (P-3), and the runs (JOB-6, JOB-7). A type this server no longer knows offers
  * nothing. Its handlers are stable, so it renders again only when its own data changes.
  */
 const JobDetail = memo(function JobDetail({
@@ -1049,6 +1075,7 @@ const JobDetail = memo(function JobDetail({
 }) {
   const { t } = useTranslation();
   const name = typeName(t, info.type);
+  const description = typeDescription(t, info);
   const waiting = info.counts.queued + info.counts.planned;
   const triggerText = info.known
     ? t(`admin.jobs.types.${typeKey(info.type)}.trigger`, {
@@ -1096,6 +1123,7 @@ const JobDetail = memo(function JobDetail({
 
   return (
     <div className={styles.detail}>
+      {description && <p className={styles.detailDescription}>{description}</p>}
       <div className={styles.detailHead}>
         {info.known && (
           <div className={styles.actions}>
@@ -1156,6 +1184,12 @@ const JobDetail = memo(function JobDetail({
               onDiscard={handlers.onScheduleDiscard}
               onSaved={handlers.onScheduleSaved}
             />
+          )}
+          {info.trigger === 'event' && (
+            <section className={styles.block}>
+              <h3 className={styles.blockTitle}>{t('admin.jobs.schedule.heading')}</h3>
+              <Text tone="secondary">{t('admin.jobs.schedule.eventNote')}</Text>
+            </section>
           )}
           <RunsBlock
             info={info}

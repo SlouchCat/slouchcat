@@ -8,6 +8,9 @@
   `docs/planning/mockups/08-startseite-prototyp.html` (Abschnitt 7.5). Marco hat die Umsetzung am
   29. Oktober 2026 nach dem Merge von Konzept 07 (PR #45) beauftragt («Beginne mit der
   Entwicklung»); Schritt 0 trägt Frage 14 und ADR 0016 nach.
+- **Nachtrag (6. November 2026):** Konzept 15 (Frage 22) ändert **N-4** für die Spotlight-Reihe
+  (Endlosband, F-6) und **F-7** (Kachelreihe «Meine Medien» und je Bibliothek «Neu in …», F-11;
+  höchstens 15 Reihen, F-12). Die Abschnitte unten beschreiben den Stand vor Konzept 15.
 - **Datum: 29. Oktober 2026, Fassung 2 vom selben Tag; Fassung 3 (Nummern nach dem Merge von 07)
   vom selben Tag**
 - **Wogegen dieses Konzept verankert ist:** `main`, Stand **`4049724`** («Merge pull request #45»,

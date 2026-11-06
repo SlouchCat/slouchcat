@@ -27,10 +27,12 @@ interface RowListProps {
   rememberLastChild?: boolean;
   preferredChildFocusKey?: string;
   /**
-   * Room after the last card, one viewport less one card wide, so the last card too can stand at
-   * the left edge (the spotlight row, concept 08, N-4). Hidden from assistive technology.
+   * Visual place of the child at `position` (CSS `order`), for a row that turns without changing
+   * its DOM order (the spotlight row, concept 15, 6.3). Each item then carries its fixed position
+   * (`aria-posinset`, `aria-setsize`), which the turning never changes. Such a row does not snap:
+   * a swipe scrolls it freely, and a snap would pull it back to its old first card after a turn.
    */
-  trailingSpace?: boolean;
+  order?: (position: number) => number;
 }
 
 /**
@@ -45,12 +47,17 @@ export function RowList({
   scrollerRef,
   rememberLastChild,
   preferredChildFocusKey,
-  trailingSpace = false,
+  order,
   ...aria
 }: RowListProps) {
+  const count = Children.count(children);
   return (
     // -1: Firefox makes a scroll box a Tab stop of its own; the cards are the stops.
-    <div ref={scrollerRef} className={styles.scroller} tabIndex={-1}>
+    <div
+      ref={scrollerRef}
+      className={order ? `${styles.scroller} ${styles.free}` : styles.scroller}
+      tabIndex={-1}
+    >
       <SpatialGroup
         focusKey={focusKey}
         as="ul"
@@ -59,10 +66,16 @@ export function RowList({
         preferredChildFocusKey={preferredChildFocusKey}
         {...aria}
       >
-        {Children.map(children, (child) => (
-          <li className={variant === 'chips' ? styles.chip : styles.item}>{child}</li>
+        {Children.map(children, (child, position) => (
+          <li
+            className={variant === 'chips' ? styles.chip : styles.item}
+            style={order && { order: order(position) }}
+            aria-posinset={order && position + 1}
+            aria-setsize={order && count}
+          >
+            {child}
+          </li>
         ))}
-        {trailingSpace && <li className={styles.space} aria-hidden="true" />}
       </SpatialGroup>
     </div>
   );

@@ -38,9 +38,10 @@ import (
 //     library (probeJob's chapterImages), by the probe of a file that had images for its previous
 //     probe, and by the playback sweep for the files of playbacks that ended
 //     (QueueChapterImagesAfterPlayback, 10 minutes later). It waits while the file plays.
-//   - chapters.images_backfill, key chapters_images_backfill: a manual type (Run), started only by
-//     hand on the page Hintergrundjobs; it queues chapters.images at priority 1 for every probed
-//     film and episode file without images.
+//   - chapters.images_backfill, key chapters_images_backfill: a schedule type every 7 days with
+//     the schedule off by default (concept 15 P-3), started by hand on the page Hintergrundjobs or
+//     by its schedule once the administrator turns it on; it queues chapters.images at priority 1
+//     for every probed film and episode file without images.
 const (
 	JobChapterImages         = "chapters.images"
 	JobChapterImagesBackfill = "chapters.images_backfill"
@@ -50,6 +51,8 @@ const (
 	// holds up probes, matches and images of new titles.
 	prioChapterImagesBackfill = 1
 	chapterImagesBackfillKey  = "chapters_images_backfill"
+	// chapterImagesBackfillEvery is the default interval of the backfill's schedule.
+	chapterImagesBackfillEvery = 7 * 24 * time.Hour
 	// ChapterImagesDir is the folder of the chapter images below the cache directory.
 	ChapterImagesDir = "chapters"
 	// chapterTempPrefix starts the name of a folder a job is writing; the sweep removes one that
@@ -565,8 +568,9 @@ func (s *Service) runChapterImagesBackfill(ctx context.Context, q *jobs.Queue, p
 
 // enqueueBackfillImages queues chapters.images of a file at the backfill's priority. A job of the
 // file that waits for a later start (queued ChapterImagesAfterPlayback after a playback) holds the
-// key; it may run now (jobs.Queue.PullQueuedForward), because the backfill was started by hand,
-// and keeps its own priority and attempts. The job itself still waits while the file plays.
+// key; it may run now (jobs.Queue.PullQueuedForward), because the backfill was started by hand or
+// by its schedule, and keeps its own priority and attempts. The job itself still waits while the
+// file plays.
 func (s *Service) enqueueBackfillImages(ctx context.Context, mediaFileID string) error {
 	j := chapterImagesJob(mediaFileID)
 	payload, err := json.Marshal(j.payload)

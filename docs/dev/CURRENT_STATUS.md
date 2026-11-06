@@ -1,5 +1,47 @@
 # Aktueller Stand
 
+## Konzept 15 «Feinschliff», Stufe 1: gebaut, Pull Request offen (6. November 2026)
+
+Zweig `claude/feinschliff-stufe1` ab `main` `311a5117` (Merge von PR #97, Konzept 15). Geplant als
+Release **1.13.2**: Vertrag bleibt **1.13.0**, keine Migration. Frage 22 im Entscheidungsprotokoll
+(F-1 bis F-16); Hinweise in Konzept 08, ADR 0016, ADR 0017 und Spec E-9/A-5.
+
+- **P-2 Beschreibung je Job:** nach Marcos Abnahme auf CT 190 (6. November 2026) **eigene Spalte
+  «Beschreibung»** statt zweiter Zeile unter dem Namen: höchstens zwei Zeilen, danach «…», voller
+  Satz als `title` und oben in der aufgeklappten Zeile; Texte `admin.jobs.types.<key>.description`
+  für alle 24 Jobs. Bei 1280 px passen 23 von 24 ganz, ab 1440 px alle. S-5 bleibt streng 40 px,
+  gemessen bei 1920 px, wo die Zeile einzeilig ist. Nebenbei behoben: «in 5 h 60 min» → «in 6 h».
+- **P-3:** Ereignis-Jobs zeigen «automatisch» statt «bei Bedarf» und im aufgeklappten Feld einen
+  Satz, warum sie keinen Zeitplan haben. «Kapitelbilder nachholen» und «Originalsprachen
+  nachholen» sind Zeitplan-Jobs (ab Werk aus, 7 Tage, `jobs.SeedOff`). Zeitfenster (4.3) folgen in
+  Stufe 2.
+- **P-4:** neue Route `/admin/notifications` mit derselben `ChannelSettingsPage` und einem Verweis
+  auf Integrationen; Gäste und Zweitprofile werden nach `/settings/notifications` umgeleitet, das
+  für alle Konten bleibt. Der Link im E-Mail-Formular zeigt auf die neue Seite.
+- **P-5 Endlosband:** Spotlight-Reihe dreht über CSS `order`, DOM-Reihenfolge fest,
+  `aria-posinset`/`aria-setsize`, `holdEnds` nach sichtbarer Reihenfolge, Takt hält bei Fokus in der
+  Reihe, kein Leerraum und kein Einrasten mehr in dieser Reihe.
+- **Update-Prüfung:** Zeitlimit 20 s; nach einem Fehlschlag eines geplanten Laufs erneut nach
+  15 min, 1 h und 6 h über den einmaligen Termin (`retryAt` im Zustand `update_state`, keine
+  Migration). Ein früherer Termin des Administrators bleibt; ein Erfolg löscht nur den eigenen
+  Termin. «Jetzt prüfen» auf der Karte zählt nicht mit; «Jetzt ausführen» auf der Jobs-Seite zählt
+  mit (der Job kennt seine Herkunft nicht).
+- **Review** (OMC-Code-Reviewer): REVISE mit 1 Medium (Richtungsmerker des Bands nach Umkehr
+  mitten im Gleiten) und 9 Low; 7 behoben, nicht umgesetzt: Sommerzeit-Verschiebung des
+  Termins, Animation beim Umkehren mitten im Gleiten, toter Zweig `triggerManual`.
+
+**Belege auf `5ab72ed8`:** `task ci` grün bis auf Storybook: 357 gleich, **2 erwartete Abweichungen**
+(`ui-herocarousel--active-poster`, `ui-herocarousel--paused`: gedrehte Reihe); Vitest 1430,
+api-client 4, design-tokens 2, 36 Go-Pakete ok. e2e separat `task ci:e2e:parallel`: **488/488**
+in 3 Shards (501 s).
+
+Storybook-Baselines der zwei Bilder auf CT 190 neu geschossen (Marcos Wort, `/root/storybook-ct-k15`,
+`--update-snapshots=changed`): 359 passed, nur diese zwei PNG geändert.
+
+Offen: Abnahme auf CT 190, Merge,
+Release-PR 1.13.2 (Versionsstellen), Tag `v1.13.2` (Marco). Entwurf `release-notes-1.13.2.txt` im
+Wurzelordner (unversioniert).
+
 ## Release 1.13.1 (5. November 2026)
 
 Patch-Release ab `main` nach PR #93. Der Vertrag bleibt **1.13.0** (keine Änderung an

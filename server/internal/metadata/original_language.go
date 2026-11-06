@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -26,8 +27,8 @@ import (
 // countryOfOrigin (JP, KR, CN). An unknown value "" never gets a provenance row, so a provider
 // that knows the language later may still write it.
 //
-// metadata.original_language_backfill fills the titles matched before migration 00032: a manual
-// job type (Run) in batches of originalLanguageBatch, in id order after the cursor of its payload
+// metadata.original_language_backfill fills the titles matched before migration 00032: a schedule
+// type (every 7 days, schedule off by default, concept 15 P-3) in batches of originalLanguageBatch, in id order after the cursor of its payload
 // (ListOriginalLanguageBackfillItems: NULL, not locked). Per title it asks the providers of the
 // list through fetchTitleRecords (their rate limiters apply, a provider without key is skipped)
 // and decides the field with decideFields; one transaction per title writes the value (or "")
@@ -39,12 +40,14 @@ import (
 // QueueOriginalLanguageBackfillOnce queues the chain once at the first start after the migration
 // (the setting
 // metadata.original_language_backfill_queued remembers it); later runs start by hand on the page
-// Hintergrundjobs.
+// Hintergrundjobs or by the schedule once the administrator turns it on.
 const (
 	JobOriginalLanguageBackfill = "metadata.original_language_backfill"
 	fieldOriginalLanguage       = "original_language"
 	originalLanguageKey         = "original_language_backfill"
 	originalLanguageBatch       = 200
+	// originalLanguageEvery is the default interval of the schedule (off by default).
+	originalLanguageEvery = 7 * 24 * time.Hour
 	// originalLanguageMaxFailures provider errors in a row end a batch with an error: the
 	// provider is down, asking it for the rest of the batch only costs time.
 	originalLanguageMaxFailures = 5

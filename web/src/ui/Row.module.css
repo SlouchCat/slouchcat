@@ -60,8 +60,9 @@
 }
 
 /*
- * Every row snaps a whole card to the left edge after a swipe or a page (concept 08, N-4). The
- * scroller is the size container of its cards: below 768 px exactly three fit between the gutters.
+ * Every row but the spotlight row snaps a whole card to the left edge after a swipe or a page
+ * (concept 08, N-4). The scroller is the size container of its cards: below 768 px exactly three
+ * fit between the gutters.
  */
 .scroller {
   /* Width of a card; below 768 px a third of the room between the gutters (N-3). */
@@ -73,6 +74,11 @@
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
   container-type: inline-size;
+}
+
+/* A row that turns instead (the spotlight row, concept 15, 6.3): a swipe scrolls it freely. */
+.free {
+  scroll-snap-type: none;
 }
 
 .scroller::-webkit-scrollbar {
@@ -94,12 +100,6 @@
   flex: none;
   width: var(--row-card-width);
   scroll-snap-align: start;
-}
-
-/* After the last card: the rest of the viewport, so the last card can reach the left edge. */
-.space {
-  flex: none;
-  width: calc(100cqi - var(--row-card-width) - 2 * var(--page-gutter) - var(--sc-space-4));
 }
 
 .chip {

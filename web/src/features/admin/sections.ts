@@ -2,9 +2,9 @@ import { paths } from '@/app/paths';
 import type { IconName } from '@/ui';
 
 // Every page of the administration (A-2 "an einem Ort"), in the groups of the admin sidebar
-// (AdminShellNav, concept 11). Notification channels belong to the account and live under
-// /settings: that entry leaves the administration, where the app's column stands again. The
-// profiles of the own account are part of «Konten» (concept 12, KP-1): the own account's row folds
+// (AdminShellNav, concept 11). Notification channels belong to the account; the administration
+// shows the same page under /admin/notifications (concept 15, P-4), so the entry stays in the
+// admin area, while /settings/notifications stays for every account. The profiles of the own account are part of «Konten» (concept 12, KP-1): the own account's row folds
 // out «Meine Profile»; `/settings/profiles` stays for every account.
 
 export const adminGroups = ['library', 'accounts', 'curation', 'system'] as const;
@@ -58,7 +58,7 @@ export const adminSections: readonly AdminSection[] = [
   { key: 'announcements', href: paths.adminAnnouncements, icon: 'megaphone', group: 'curation' },
   { key: 'jobs', href: paths.adminJobs, icon: 'refresh', group: 'system' },
   { key: 'integrations', href: paths.adminIntegrations, icon: 'plug', group: 'system' },
-  { key: 'notifications', href: paths.notificationSettings, icon: 'bell', group: 'system' },
+  { key: 'notifications', href: paths.adminNotifications, icon: 'bell', group: 'system' },
   { key: 'stats', href: paths.adminStats, icon: 'chart', group: 'system' },
   { key: 'backup', href: paths.adminBackup, icon: 'archive', group: 'system' },
 ];

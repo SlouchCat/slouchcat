@@ -11,12 +11,13 @@ import {
 
 // /admin/jobs (concept 09, ADR 0017; concept 12 variant C) by keyboard (rule 8): the page is
 // reached through the admin navigation, the group tabs move with the arrow keys and live in
-// `?tab=`, the sweep's row folds out with Enter, "Jetzt ausführen" of the sweep queues a run that
-// ends in "Erledigt", "Pausieren" and "Fortsetzen" switch the row's chip and the banner, the runs
-// of the row walk their tabs with the arrow keys, the schedule in the row sets the sweep to every
-// 2 hours and the row shows it; the menu «Weitere Aktionen» opens with Enter, moves with the
-// arrows, closes with Escape onto its button and asks before «Wartende abbrechen»; the overview
-// links the tab «Fehlschläge», whose failures are retried and cancelled by keyboard (stubbed, see
+// `?tab=`, the sweep's row says what the job does in its own column, folds out with Enter and
+// opens with that sentence in full, "Jetzt ausführen" of the sweep queues a run that ends in
+// "Erledigt", "Pausieren" and "Fortsetzen" switch the row's chip and the banner, the runs of the
+// row walk their tabs with the arrow keys, the schedule in the row sets the sweep to every 2 hours
+// and the row shows it; the menu «Weitere Aktionen» opens with Enter, moves with the arrows,
+// closes with Escape onto its button and asks before «Wartende abbrechen»; the overview links the
+// tab «Fehlschläge», whose failures are retried and cancelled by keyboard (stubbed, see
 // the last test); browser back, visible focus, no trap. The sweep ends in seconds on
 // the e2e server and queues nothing else. A pause survives a restart (F-6) and the server is
 // shared, so the test resumes every paused type and restores the sweep's schedule afterwards.
@@ -141,7 +142,15 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await expect(page).toHaveURL(/\/admin\/jobs$/);
   await expectVisibleFocus(page);
 
-  // The sweep's row folds out with Enter and shows its code.
+  // The sweep's row says what the job does in the column after its name (concept 15, P-2); the
+  // toggle keeps the name alone. The row folds out with Enter and shows its code.
+  const SWEEP_DESCRIPTION = 'Entfernt Titel, deren Dateien länger als die Schonfrist fehlen.';
+  await expect(
+    page
+      .getByRole('row', { name: new RegExp(`^${SWEEP_NAME}`) })
+      .getByRole('cell')
+      .first(),
+  ).toHaveText(SWEEP_DESCRIPTION);
   const toggle = page.getByRole('button', { name: SWEEP_NAME, exact: true });
   await tabTo(page, toggle, 20);
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -149,6 +158,8 @@ test('background jobs by keyboard: tabs, fold-out, run, pause, resume, runs and 
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   const sweep = foldOut(page, SWEEP_NAME);
   await expect(sweep.getByText(SWEEP, { exact: true })).toBeVisible();
+  // What the job does, in full at the top of the fold-out (concept 15, P-2).
+  await expect(sweep.getByText(SWEEP_DESCRIPTION)).toBeVisible();
 
   // "Jetzt ausführen" with Enter: one run is queued and ends in "Erledigt".
   const runButton = sweep.getByRole('button', {

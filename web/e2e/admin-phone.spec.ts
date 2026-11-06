@@ -27,6 +27,7 @@ const PAGES = [
   '/admin/integrations',
   '/admin/stats',
   '/admin/backup',
+  '/admin/notifications',
   '/settings/notifications',
   '/settings/profiles',
 ];

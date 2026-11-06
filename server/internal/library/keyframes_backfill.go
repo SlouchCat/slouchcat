@@ -44,7 +44,7 @@ func (s *Service) keyframesBackfillType() jobs.Type {
 	return jobs.Type{
 		Name: JobKeyframesBackfill, Group: jobs.GroupLibrary, Pool: jobs.PoolGeneral, Trigger: jobs.TriggerSchedule,
 		Priority: prioKeyframesBackfill, Every: keyframesBackfillEvery,
-		Seed:    func(context.Context) (jobs.ScheduleSeed, error) { return jobs.ScheduleSeed{Enabled: false}, nil },
+		Seed:    jobs.SeedOff,
 		Run:     s.runKeyframesBackfill,
 		Handler: s.handleKeyframesBackfill,
 	}

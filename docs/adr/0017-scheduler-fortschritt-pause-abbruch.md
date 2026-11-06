@@ -133,3 +133,9 @@ ADR 0022 ergänzt diesen Entscheid um drei Punkte: Wiedergabe-Aufträge der Joba
 laufen trotz Pause (Merkmal `jobs.override_pause`, höchstens drei gleichzeitig), der vierte Pool
 `index` mit genau einem Arbeiter, und der einmalige Termin `job_schedules.once_at` für alle
 Zeitplan-Jobs.
+
+## Nachtrag (6. November 2026)
+
+Konzept 15 (Frage 22) ergänzt mit Stufe 2 ein **Zeitfenster je Jobart** für `probe.keyframes`,
+`segments.detect` und `chapters.images` (F-5). Aufträge einer Wiedergabe laufen trotz Fenster
+(eigenes Merkmal `jobs.override_window`). Die Pause bleibt, wie hier entschieden.

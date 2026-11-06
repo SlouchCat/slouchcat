@@ -133,6 +133,11 @@ nur den Namen.
 - Nur Texte, kein Vertrag, keine Migration (Regel 9: Texte aus `locales/{de,en}.json`).
   Unbekannte Jobtypen zeigen keine Beschreibung.
 
+> **Nachtrag (6. November 2026, Abnahme auf CT 190):** Marco wollte die Beschreibung in einer
+> **eigenen Spalte** statt als zweite Zeile unter dem Namen (Wahl zwischen Spalte und Infobox).
+> Gebaut: Spalte «Beschreibung» nach dem Namen, höchstens zwei Zeilen mit «…», voller Satz als
+> `title` und oben in der aufgeklappten Zeile.
+
 ### 3.3 Entwurf der Texte
 
 | Job | Beschreibung (Entwurf) |

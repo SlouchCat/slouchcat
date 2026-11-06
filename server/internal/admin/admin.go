@@ -71,6 +71,11 @@ const jobTraktRefresh = "trakt.refresh"
 // into the schedule row as well (SetSpotlightConfig, the update check of UpdateSettings).
 type Schedules interface {
 	UpdateSchedule(ctx context.Context, typ string, u jobs.ScheduleUpdate) (jobs.Schedule, error)
+	// Schedule returns the row of typ (model.ErrNotFound without one); the update check reads its
+	// one-off date before it sets a retry.
+	Schedule(ctx context.Context, typ string) (jobs.Schedule, error)
+	// Location is the zone of the one-off dates (ScheduleUpdate.OnceLocal is wall time in it).
+	Location() *time.Location
 }
 
 // Libraries is implemented by package library.

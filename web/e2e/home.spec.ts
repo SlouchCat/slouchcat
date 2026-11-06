@@ -56,7 +56,8 @@ async function waitForSpotlight(api: APIRequestContext): Promise<void> {
 
 /**
  * Distance of `card`'s left edge from the left edge of its row's visible part, less the page
- * gutter (the list's inline padding): 0 when the card stands at the row's left edge (N-4).
+ * gutter (the list's inline padding): 0 when the card stands at the row's left edge (the endless
+ * band's leading poster, concept 15, 6.3).
  */
 const offsetFromEdge = (card: Locator) =>
   card.evaluate((card) => {
@@ -72,19 +73,6 @@ const offsetFromEdge = (card: Locator) =>
 /** The band's poster row scroller (the list's parent): what scrolls sideways. */
 const stripScroller = (page: Page) =>
   hero(page).getByRole('list', { name: 'Spotlight-Titel' }).locator('..');
-
-/** Whether `card` (its list item) lies wholly inside its row's visible part. */
-const inView = (card: Locator) =>
-  card.evaluate((card) => {
-    const element = card.closest('li');
-    const list = card.closest('ul');
-    const scroller = list?.parentElement;
-    if (!element || !scroller || !list) return false;
-    const gutter = parseFloat(getComputedStyle(list).paddingLeft);
-    const box = element.getBoundingClientRect();
-    const view = scroller.getBoundingClientRect();
-    return box.left >= view.left + gutter - 1 && box.right <= view.right + 1;
-  });
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
@@ -188,7 +176,7 @@ test('The spotlight band comes from the mock and goes while Trakt is down (E-7, 
   }
 });
 
-test('the band: arrow keys move in the poster row, Enter selects, the focus stays (7b, C-4, F-5)', async ({
+test('the band: arrow keys move in the poster row, Enter selects, the focus stays on the first poster (7b, C-4, F-5, concept 15)', async ({
   page,
   owner,
 }) => {
@@ -219,14 +207,15 @@ test('the band: arrow keys move in the poster row, Enter selects, the focus stay
   await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
   await expect(posters.nth(1)).not.toHaveAttribute('aria-current');
 
-  // Enter shows the focused poster's slide without leaving the page; the poster keeps the focus.
+  // Enter shows the focused poster's slide without leaving the page; the poster keeps the focus
+  // and now leads the row (the endless band, concept 15, 6.3), with the row at its start.
   await page.keyboard.press('Enter');
   await expect(heading).toHaveText(second);
   await expect(posters.nth(1)).toHaveAttribute('aria-current', 'true');
   await expect(posters.nth(0)).not.toHaveAttribute('aria-current');
   await expectFocusOn(page, posters.nth(1));
   await expect(page).toHaveURL(/\/$/);
-  // The row did not move: the second poster was in view, only the marker went there.
+  await expect.poll(() => offsetFromEdge(posters.nth(1))).toBeCloseTo(0, 0);
   expect(await stripScroller(page).evaluate((element) => element.scrollLeft)).toBe(0);
 
   // The active poster is the row's one Tab stop (roving tabindex): Tab
@@ -240,10 +229,8 @@ test('the band: arrow keys move in the poster row, Enter selects, the focus stay
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, posters.nth(1));
 
-  // Left of the row's first poster is the band's way out to the side navigation, on the
-  // current page's entry (concept 08, 7.1); right from there returns to the band's active poster.
-  await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, posters.nth(0));
+  // Left of the row's first poster (the active one) is the band's way out to the side navigation,
+  // on the current page's entry (concept 08, 7.1); right from there returns to the active poster.
   await page.keyboard.press('ArrowLeft');
   await expectFocusOn(
     page,
@@ -253,6 +240,19 @@ test('the band: arrow keys move in the poster row, Enter selects, the focus stay
   );
   await page.keyboard.press('ArrowRight');
   await expectFocusOn(page, posters.nth(1));
+  await expect(heading).toHaveText(second);
+
+  // The arrows follow the row as seen: right walks on after the active poster, and the poster
+  // that was first before now stands last; right on it holds the focus (the end hold).
+  const count = await posters.count();
+  for (let position = 2; position < count; position += 1) {
+    await page.keyboard.press('ArrowRight');
+    await expectFocusOn(page, posters.nth(position));
+  }
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, posters.nth(0));
+  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, posters.nth(0));
   await expect(heading).toHaveText(second);
 
   // Up returns to the buttons, down again lands on the active poster, not the last focused one.
@@ -505,7 +505,8 @@ test('the band holds on keyboard focus and the pause button, not on a click (F-3
   await expect(band).not.toHaveAttribute('data-paused');
   await expect(timer).toHaveCount(1);
 
-  // A mouse click on a poster shows its slide and does not hold the band.
+  // A mouse click on a poster shows its slide and does not hold the band: the press takes no focus
+  // (PosterCard), so the hold for any focus in the poster row (concept 15, 6.3) does not apply.
   await posters.nth(1).click();
   await expect(posters.nth(1)).toHaveAttribute('aria-current', 'true');
   await expect(band).not.toHaveAttribute('data-paused');
@@ -538,44 +539,123 @@ test('the band holds on keyboard focus and the pause button, not on a click (F-3
   await expect(timer).toHaveCount(1);
 });
 
-test('the poster row stands still while the active poster is in view and scrolls it to the left edge only when it is not (N-4)', async ({
+test('the poster row is an endless band: the active poster leads, the DOM order stays (concept 15, 6.3)', async ({
   page,
   owner,
 }) => {
   test.setTimeout(90_000);
   await waitForSpotlight(owner);
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  // A narrow row beside the side navigation (the pager shows from 768 px on), so that the band
-  // leaves the visible part within a few slides.
+  // A narrow row beside the side navigation (the pager shows from 768 px on).
   await page.setViewportSize({ width: 800, height: 900 });
   await page.reload();
   await expect(hero(page)).toBeVisible();
   await resetFocus(page);
+  const titles = await spotlightTitles(owner);
   const posters = strip(page);
   const scroller = stripScroller(page);
+  const items = hero(page).getByRole('list', { name: 'Spotlight-Titel' }).locator(':scope > li');
   const count = await posters.count();
+  expect(count).toBe(titles.length);
+  expect(count).toBeGreaterThan(2);
   const top = await page.evaluate(() => window.scrollY);
   const next = hero(page).getByRole('button', { name: 'Weiterblättern' });
-  // The first poster stands at the left edge.
+  const previous = hero(page).getByRole('button', { name: 'Zurückblättern' });
+  // The DOM keeps the server's order and every poster its fixed position, whatever leads.
+  const keepsOrder = async () => {
+    for (let position = 0; position < count; position += 1) {
+      await expect(posters.nth(position)).toHaveAccessibleName(startsWith(titles[position] ?? ''));
+      await expect(items.nth(position)).toHaveAttribute('aria-posinset', String(position + 1));
+      await expect(items.nth(position)).toHaveAttribute('aria-setsize', String(count));
+    }
+  };
+  // No room after the last poster: one list item per poster, none hidden.
+  await expect(items).toHaveCount(count);
+  await expect(items.and(page.locator('[aria-hidden]'))).toHaveCount(0);
+
+  // The first poster leads; every change forward puts the next one first, with the marker.
   await expect.poll(() => offsetFromEdge(posters.nth(0))).toBeCloseTo(0, 0);
-  let scrolled = 0;
   for (let slide = 1; slide < count; slide += 1) {
-    const visible = await inView(posters.nth(slide));
-    const before = await scroller.evaluate((element) => element.scrollLeft);
     await next.click();
     await expect(posters.nth(slide)).toHaveAttribute('aria-current', 'true');
-    if (visible) {
-      // The marker moved, the posters stayed.
-      expect(await scroller.evaluate((element) => element.scrollLeft)).toBe(before);
-    } else {
-      // Out of view: the row brings the poster to its left edge (the space after the last poster
-      // lets the last ones get there), whole, never cut.
-      await expect.poll(() => offsetFromEdge(posters.nth(slide))).toBeCloseTo(0, 0);
-      scrolled += 1;
-    }
+    await expect.poll(() => offsetFromEdge(posters.nth(slide))).toBeCloseTo(0, 0);
+    // The one shown before stands last.
+    expect(await offsetFromEdge(posters.nth(slide - 1))).toBeGreaterThan(
+      await offsetFromEdge(posters.nth((slide + 1) % count)),
+    );
   }
-  expect(scrolled).toBeGreaterThan(0);
+  await keepsOrder();
+  // After the last title the first one leads again, without a jump back.
+  await next.click();
+  await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+  await expect.poll(() => offsetFromEdge(posters.nth(0))).toBeCloseTo(0, 0);
+  // Back: the last title comes to the front.
+  await previous.click();
+  await expect(posters.nth(count - 1)).toHaveAttribute('aria-current', 'true');
+  await expect.poll(() => offsetFromEdge(posters.nth(count - 1))).toBeCloseTo(0, 0);
+  await expect.poll(() => offsetFromEdge(posters.nth(0))).toBeGreaterThan(0);
+
+  // A swipe scrolls the row freely; the next change brings it back to its start.
+  await scroller.evaluate((element) => element.scrollTo({ left: 250 }));
+  await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+  await next.click();
+  await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+  await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBe(0);
+  await expect.poll(() => offsetFromEdge(posters.nth(0))).toBeCloseTo(0, 0);
+  await keepsOrder();
   expect(await page.evaluate(() => window.scrollY)).toBe(top);
+
+  // With motion (held by the pause button, so only the click moves it), a click on the third
+  // poster slides the row by two cards, then it leads.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  await hero(page).getByRole('button', { name: 'Pause' }).click();
+  await expect(posters.nth(0)).toHaveAttribute('aria-current', 'true');
+  await posters.nth(2).click();
+  await expect(posters.nth(2)).toHaveAttribute('aria-current', 'true');
+  await expect.poll(() => offsetFromEdge(posters.nth(2))).toBeCloseTo(0, 0);
+  await expect.poll(() => offsetFromEdge(posters.nth(0))).toBeGreaterThan(0);
+  await keepsOrder();
+
+  // Forward, then back within the glide: the row stays as it was, and the next change forward (a
+  // poster click, which sets no direction) glides forward again instead of turning at once.
+  await page.evaluate(() => {
+    const fills: unknown[] = [];
+    (window as unknown as { glideFills: unknown[] }).glideFills = fills;
+    const animate = Object.getOwnPropertyDescriptor(Element.prototype, 'animate')
+      ?.value as Element['animate'];
+    Element.prototype.animate = function (keyframes, options) {
+      fills.push(typeof options === 'object' ? options.fill : undefined);
+      return animate.call(this, keyframes, options);
+    };
+  });
+  const forward = await next.elementHandle();
+  const back = await previous.elementHandle();
+  await page.evaluate(
+    async ([forward, back]) => {
+      (forward as HTMLElement | null)?.click();
+      // The forward glide has started (it runs 450 ms); the step back comes one frame later.
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      (back as HTMLElement | null)?.click();
+    },
+    [forward, back] as const,
+  );
+  await expect(posters.nth(2)).toHaveAttribute('aria-current', 'true');
+  await expect.poll(() => offsetFromEdge(posters.nth(2))).toBeCloseTo(0, 0);
+  const target = (2 + 2) % count;
+  await page.evaluate(() => {
+    (window as unknown as { glideFills: unknown[] }).glideFills.length = 0;
+  });
+  await posters.nth(target).click();
+  await expect(posters.nth(target)).toHaveAttribute('aria-current', 'true');
+  // The forward glide holds its last frame (fill forwards); the turn at once has no fill.
+  expect(
+    await page.evaluate(() => (window as unknown as { glideFills: unknown[] }).glideFills),
+  ).toContain('forwards');
+  await expect.poll(() => offsetFromEdge(posters.nth(target))).toBeCloseTo(0, 0);
+  await keepsOrder();
 });
 
 test('rows on a phone: three whole covers, a swipe snaps a cover to the left edge (N-3, N-4)', async ({

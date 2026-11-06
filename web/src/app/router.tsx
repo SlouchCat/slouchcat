@@ -484,6 +484,16 @@ const announcementsRoute = createRoute({
     'AnnouncementsPage',
   ),
 });
+
+// The notification channels of the account inside the administration (concept 15, P-4).
+const adminNotificationsRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/notifications',
+  component: lazyRouteComponent(
+    () => import('@/features/notifications/ChannelSettingsPage'),
+    'AdminChannelSettingsPage',
+  ),
+});
 // end admin M8
 
 const profileSettingsRoute = createRoute({
@@ -620,6 +630,7 @@ export const routeTree = rootRoute.addChildren([
           backupRoute,
           statsRoute,
           announcementsRoute,
+          adminNotificationsRoute,
         ]),
         profileSettingsRoute,
         playbackSettingsRoute,

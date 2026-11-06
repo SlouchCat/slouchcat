@@ -1,6 +1,6 @@
 import { t } from 'i18next';
 import { describe, expect, it } from 'vitest';
-import { formatOnce, typeName } from './jobsFormat';
+import { formatOnce, formatSeconds, typeName } from './jobsFormat';
 
 describe('job type names', () => {
   it('names metadata.apply from the locale instead of showing the code (concept 12, 10.3)', () => {
@@ -32,5 +32,15 @@ describe('one-off dates', () => {
 
   it('shows a value that is no wall time as it is', () => {
     expect(formatOnce('soon', 'de')).toBe('soon');
+  });
+});
+
+describe('durations', () => {
+  it('carries rounded minutes into the hours: 5 h 59 min 30 s is 6 h, never 5 h 60 min', () => {
+    expect(formatSeconds(t, 6 * 3600 - 30)).toBe('6 h');
+    expect(formatSeconds(t, 6 * 3600 - 31)).toBe('5 h 59 min');
+    expect(formatSeconds(t, 2 * 3600 + 40 * 60)).toBe('2 h 40 min');
+    expect(formatSeconds(t, 89 * 60)).toBe('89 min');
+    expect(formatSeconds(t, 24 * 3600 - 30)).toBe('über 1 Tag');
   });
 });

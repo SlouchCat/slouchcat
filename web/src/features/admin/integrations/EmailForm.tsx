@@ -150,7 +150,7 @@ export function EmailForm({
               {t('admin.integrations.email.intro')}{' '}
               {/* The channels each profile uses are set on their own page; it links back here
                   (BEN-1). */}
-              <TextLink href={paths.notificationSettings}>
+              <TextLink href={paths.adminNotifications}>
                 {t('admin.integrations.notificationsLink')}
               </TextLink>
             </>

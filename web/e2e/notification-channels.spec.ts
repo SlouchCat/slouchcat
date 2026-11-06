@@ -330,6 +330,61 @@ test('keyboard: arrows to "Kanäle einstellen", Tab/Space/Enter in the blocks, f
   expect(stored.events).toContain('new_content');
 });
 
+test('admin: the page stays in the administration, compact, with the link to the integrations @keyboard', async ({
+  page,
+}) => {
+  await page.goto('/admin/notifications');
+  await expect(pageTitle(page)).toBeVisible();
+  const nav = page.getByRole('navigation', { name: 'Verwaltung' });
+  const entry = nav.getByRole('link', { name: /^Benachrichtigungen(,|$)/ });
+  await expect(entry).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('navigation', { name: 'Hauptnavigation' })).toHaveCount(0);
+  // The administration's shell sets the compact density.
+  expect(await page.evaluate(() => document.documentElement.dataset.shell)).toBe('admin');
+  const toServer = page.getByRole('link', {
+    name: 'Kanäle des Servers einrichten → Integrationen',
+  });
+  await expect(toServer).toBeVisible();
+
+  // The sidebar is one Tab stop; ↑ reaches «Integrationen», Enter follows and keeps the sidebar.
+  await resetFocus(page);
+  await tabTo(page, entry);
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, nav.getByRole('link', { name: /^Integrationen(,|$)/ }));
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin\/integrations$/);
+  await expect(nav).toBeVisible();
+  // Back returns to the page and the entry is current again.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/notifications$/);
+  await expect(entry).toHaveAttribute('aria-current', 'page');
+
+  // The link at the top of the page by Tab and Enter; Back returns.
+  await resetFocus(page);
+  await tabTo(page, toServer);
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/admin\/integrations$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Integrationen' })).toBeVisible();
+  await page.goBack();
+  await expect(pageTitle(page)).toBeVisible();
+
+  // A block folds by its band (Enter) and unfolds again; the page has no focus trap.
+  const band = card(page, 'E-Mail').getByRole('button', { name: 'E-Mail' });
+  await resetFocus(page);
+  await tabTo(page, band);
+  await page.keyboard.press('Enter');
+  await expect(band).toHaveAttribute('aria-expanded', 'false');
+  await page.keyboard.press('Enter');
+  await expect(band).toHaveAttribute('aria-expanded', 'true');
+  await expectNoFocusTrap(page);
+
+  // The account page under /settings stays outside: app column, no link to the integrations.
+  await page.goto('/settings/notifications');
+  await expect(pageTitle(page)).toBeVisible();
+  await expect(toServer).toHaveCount(0);
+  await expect(page.getByRole('navigation', { name: 'Verwaltung' })).toHaveCount(0);
+});
+
 test('another profile than the primary one sees the channels without controls', async ({
   browser,
   baseURL,

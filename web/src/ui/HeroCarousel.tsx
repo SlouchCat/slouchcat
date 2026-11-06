@@ -98,6 +98,15 @@ function focusVisible(element: Element | null): boolean {
 
 const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta']);
 
+/** How long the poster row slides on a change (concept 15, 6.3). */
+const GLIDE_MS = 450;
+
+/** The sideways shift of the row's track in px (its transform, which a running glide sets). */
+function trackShift(track: HTMLElement): number {
+  const transform = getComputedStyle(track).transform;
+  return transform && transform !== 'none' ? new DOMMatrixReadOnly(transform).m41 : 0;
+}
+
 // Rendered width of the stage: the viewport less the side navigation's column from 768 px (concept
 // 08, 8). The server's hero preload and prepaint copy it (heroSizes in server/internal/api/
 // preload.go); change them together.
@@ -144,8 +153,10 @@ export function dismissHeroPrepaint() {
  *
  * It holds (`data-paused` on the section) while a trailer is open (`paused`), with one slide, while
  * the viewer paused it with the pause button (F-9), while an element inside it has the keyboard
- * focus (`:focus-visible`; a click with the mouse focuses without it and does not hold, F-3) and
- * while the browser tab is hidden. Never under the pointer. With reduced motion it never moves on
+ * focus (`:focus-visible`; a click with the mouse focuses without it and does not hold, F-3), while
+ * the focus is anywhere in the poster row, visible or not, so a screen reader reads the row in
+ * peace (concept 15, 6.3; a poster pressed with the pointer takes no focus), and while the browser
+ * tab is hidden. Never under the pointer. With reduced motion it never moves on
  * by itself and shows no time bar; everything else works.
  *
  * Keyboard: arrow left on the first button and arrow right on the last button page through the
@@ -157,11 +168,14 @@ export function dismissHeroPrepaint() {
  * Tab lands on the active poster (roving tabindex); its last poster holds the focus inside the
  * band, left of the first one is the way out to the side navigation.
  *
- * The poster row stands still while the band moves: the marker wanders from poster to poster, the
- * posters stay where they are (Marco, 30 October 2026). Only when the active poster is outside the
- * row's visible part does the row scroll sideways (never the page), and then until that poster
- * stands at its left edge (N-4); a space after the last poster lets it get there. The first slide
- * is placed the same way, at once.
+ * The poster row is an endless band (concept 15, 6.3): the active slide's poster always stands
+ * first, with the marker, followed by the next ones; the ones already shown move to the end. The
+ * DOM keeps the server's order, only CSS `order` turns the row, and each poster keeps its fixed
+ * position for assistive technology («3 von 12»); the spatial navigation follows what is seen. On
+ * a change forward (the interval, arrow right on the band, a poster) the row slides left until the
+ * chosen poster stands first, then turns; on a change back the last poster slides in from the
+ * left. With reduced motion it turns at once. A swipe scrolls the row freely; the next change
+ * brings it back to its start.
  *
  * The three buttons keep the slide they were pressed on: a change between pointer down and up
  * opens the pressed title, not the one the band moved to (12.1).
@@ -194,10 +208,10 @@ export function HeroCarousel({
   const [first] = useState(() => Math.min(Math.max(start, 0), Math.max(count - 1, 0)));
   const [index, setIndex] = useState(first);
   const [userPaused, setUserPaused] = useState(false);
-  const [keyboardFocus, setKeyboardFocus] = useState(false);
+  const [focusHeld, setFocusHeld] = useState(false);
   const [hiddenTab, setHiddenTab] = useState(() => document.visibilityState === 'hidden');
   const [reducedMotion] = useState(prefersReducedMotion);
-  const paused = held || userPaused || keyboardFocus || hiddenTab || reducedMotion || count < 2;
+  const paused = held || userPaused || focusHeld || hiddenTab || reducedMotion || count < 2;
 
   const current = Math.min(index, count - 1);
   const slide = slides[current];
@@ -216,7 +230,15 @@ export function HeroCarousel({
     setArmed(add);
   }
 
-  const step = (delta: number) => setIndex((value) => (value + delta + count) % count);
+  // The slide whose poster leads the row (CSS order 0); it follows `current` once the row has slid.
+  const [lead, setLead] = useState(first);
+  const leader = Math.min(lead, count - 1);
+  // A step back turns the row at once and lets the poster that came first slide in from the left.
+  const backward = useRef(false);
+  const step = (delta: number) => {
+    backward.current = delta < 0;
+    setIndex((value) => (value + delta + count) % count);
+  };
   // norigin keeps the handlers it saw at registration; route them through a ref.
   const stepRef = useRef(step);
   useLayoutEffect(() => {
@@ -241,22 +263,27 @@ export function HeroCarousel({
   // The slide a band button was pressed on (12.1); a keyboard click (detail 0) takes the current.
   const pressed = useRef<HeroSlide | undefined>(undefined);
 
-  // Keyboard focus holds the band, a pointer's focus does not (F-3): decided when the focus
-  // arrives, and again on a key press, which makes the focus a keyboard one.
+  // Keyboard focus holds the band, a pointer's focus does not (F-3), except in the poster row, where
+  // any focus holds (concept 15, 6.3): decided when the focus arrives, and again on a key press,
+  // which makes the focus a keyboard one.
   const section = useRef<HTMLElement>(null);
+  // The poster row's scroll box; its first child is the track that turns (below).
+  const scroller = useRef<HTMLDivElement>(null);
   const shown = Boolean(slides[current]);
   useEffect(() => {
     const node = section.current;
     if (!node) return;
-    const onFocusIn = (event: FocusEvent) =>
-      setKeyboardFocus(focusVisible(event.target as Element));
+    const onFocusIn = (event: FocusEvent) => {
+      const target = event.target as Element;
+      setFocusHeld(focusVisible(target) || (scroller.current?.contains(target) ?? false));
+    };
     const onFocusOut = (event: FocusEvent) => {
-      if (!node.contains(event.relatedTarget as Node | null)) setKeyboardFocus(false);
+      if (!node.contains(event.relatedTarget as Node | null)) setFocusHeld(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (MODIFIERS.has(event.key)) return;
       pressed.current = undefined;
-      setKeyboardFocus(true);
+      setFocusHeld(true);
     };
     node.addEventListener('focusin', onFocusIn);
     node.addEventListener('focusout', onFocusOut);
@@ -268,28 +295,75 @@ export function HeroCarousel({
     };
   }, [shown]);
 
-  // The poster row stays put as long as the active poster is wholly visible; the marker moves, not
-  // the posters. Once the active poster is cut off or out of view, the row scrolls sideways only
-  // (scrollIntoView would move the page too) until the poster stands at its left edge (N-4). At
-  // once on the first slide, gliding afterwards.
-  const scroller = useRef<HTMLDivElement>(null);
-  const placed = useRef(false);
-  useEffect(() => {
+  // The endless band (concept 15, 6.3). Forward: the track slides left by as many cards as the
+  // chosen poster stood from the front, from wherever a swipe or a running glide left it; its last
+  // frame holds until the row has turned. Back: the row turns at once and the track slides in from
+  // one card (plus the swipe) to the left. Either way the row ends at its start (scrollLeft 0).
+  const glide = useRef<Animation | undefined>(undefined);
+  const entering = useRef(0);
+  useLayoutEffect(() => {
+    // Taken on every change: a step back that only undid a running glide must not leave the flag
+    // for the next change forward (a click on a poster or the timer, which set no direction).
+    const back = backward.current;
+    backward.current = false;
     const node = scroller.current;
-    const card = node?.querySelectorAll('li')[current];
-    const list = node?.firstElementChild;
-    if (!node || !card || !list) return;
-    const gutter = parseFloat(getComputedStyle(list).paddingLeft) || 0;
-    const view = node.getBoundingClientRect();
-    const box = card.getBoundingClientRect();
-    const visible = box.left >= view.left + gutter - 1 && box.right <= view.right + 1;
-    if (visible && placed.current) return;
-    const left = Math.max(0, box.left - view.left + node.scrollLeft - gutter);
-    if (Math.abs(left - node.scrollLeft) > 1) {
-      node.scrollTo({ left, behavior: placed.current && !reducedMotion ? 'smooth' : 'auto' });
+    const track = node?.firstElementChild;
+    const card = track?.firstElementChild;
+    const animated =
+      !reducedMotion &&
+      track instanceof HTMLElement &&
+      card instanceof HTMLElement &&
+      typeof track.animate === 'function';
+    const easing = animated
+      ? getComputedStyle(track).getPropertyValue('--sc-motion-easing-standard').trim() || 'ease'
+      : 'ease';
+    if (current === leader) {
+      // The row has turned: the finished glide goes in the same frame.
+      glide.current?.cancel();
+      glide.current = undefined;
+      if (animated && entering.current) {
+        track.animate(
+          [{ transform: `translateX(${-entering.current}px)` }, { transform: 'none' }],
+          { duration: GLIDE_MS, easing },
+        );
+      }
+      entering.current = 0;
+      return;
     }
-    placed.current = true;
-  }, [current, reducedMotion]);
+    if (!node || !animated) {
+      if (node) node.scrollLeft = 0;
+      setLead(current);
+      return;
+    }
+    const from = node.scrollLeft - trackShift(track);
+    glide.current?.cancel();
+    glide.current = undefined;
+    node.scrollLeft = 0;
+    const stride = card.offsetWidth + (parseFloat(getComputedStyle(track).columnGap) || 0);
+    if (back) {
+      entering.current = stride + from;
+      setLead(current);
+      return;
+    }
+    const shift = ((current - leader + count) % count) * stride;
+    const animation = track.animate(
+      [{ transform: `translateX(${-from}px)` }, { transform: `translateX(${-shift}px)` }],
+      { duration: GLIDE_MS, easing, fill: 'forwards' },
+    );
+    animation.onfinish = () => setLead(current);
+    glide.current = animation;
+  }, [current, leader, count, reducedMotion]);
+  // A glide still running when the band goes must not turn the row afterwards.
+  useEffect(
+    () => () => {
+      const animation = glide.current;
+      if (!animation) return;
+      animation.onfinish = null;
+      animation.cancel();
+      glide.current = undefined;
+    },
+    [],
+  );
 
   const press = () => {
     pressed.current = slide;
@@ -338,10 +412,12 @@ export function HeroCarousel({
     }
     return pageForward(direction);
   };
-  // The row's last poster holds the focus inside the band; left of the first one is the band's
-  // way out to the side navigation (concept 08, 7.1), or nothing where there is none.
+  // The row's visual place of a slide's poster: the leading one first, the rest after it in turn.
+  const order = (position: number) => (position - leader + count) % count;
+  // The row's last poster (as seen) holds the focus inside the band; left of the first one is the
+  // band's way out to the side navigation (concept 08, 7.1), or nothing where there is none.
   const holdEnds = (position: number) => (direction: string) =>
-    !(direction === 'right' && position === count - 1);
+    !(direction === 'right' && order(position) === count - 1);
 
   if (!slide) return null;
 
@@ -510,7 +586,7 @@ export function HeroCarousel({
           aria-label={rowLabel}
           rememberLastChild={false}
           preferredChildFocusKey={stripKey(slide)}
-          trailingSpace
+          order={order}
         >
           {slides.map((item, position) => {
             const active = position === current;

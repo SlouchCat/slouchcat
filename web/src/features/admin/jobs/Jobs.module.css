@@ -15,6 +15,29 @@
   list-style: none;
 }
 
+/* What a job type does, in its own column (concept 15, P-2): the size of the other cells, muted,
+   at most two lines, cut with «…» after the second. On a phone, where the table sizes its columns
+   from their content, the column keeps a least width instead of shrinking to its longest word. */
+.description {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sc-color-text-muted);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+@media (width < 768px) {
+  .description {
+    min-width: 12rem;
+  }
+}
+
+/* The same sentence in full at the top of the fold-out. */
+.detailDescription {
+  margin: 0;
+}
+
 /* «Läuft gerade»: the cells of a run. */
 .runName {
   display: inline-flex;

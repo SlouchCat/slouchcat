@@ -119,7 +119,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] E-6 Sammlungen entstehen automatisch aus TMDB-Reihen und manuell durch den Admin.
 - [ ] E-7 Reihen „Trending bei Trakt“ und „Beliebt bei Trakt“ (Filme und Serien, Top 20) zeigen ausschliesslich Titel, die in der eigenen Bibliothek vorhanden sind, und aktualisieren sich täglich.
 - [ ] E-8 Ein Profil markiert Serien als Favorit; erscheint eine neue Folge in der Bibliothek, wird das Profil benachrichtigt (In-App und über seine Kanäle aus A-6).
-- [ ] E-9 Die Startseite bleibt übersichtlich: höchstens acht Reihen, keine leeren Reihen, klare Reihenfolge, die der Hauptbenutzer anpassen kann.
+- [ ] E-9 Die Startseite bleibt übersichtlich: höchstens acht Reihen, keine leeren Reihen, klare Reihenfolge, die der Hauptbenutzer anpassen kann. (Ab Konzept 15 Stufe 3, Frage 22 F-12: höchstens fünfzehn sichtbare Reihen.)
 
 ### Offline-Wiedergabe (O)
 - [ ] O-1 Ein Profil lädt einen Film, eine Folge, ein Hörbuch oder eine Podcast-Episode in wählbarer Qualität auf das Gerät.
@@ -142,7 +142,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] A-2 Bibliotheken, Konten, Profile, Gäste, Geräte, Integrationen und Top Picks werden an einem Ort verwaltet, mit derselben Design-Sorgfalt wie die Zuschauerseite.
 - [ ] A-3 Ein Dashboard zeigt laufende Streams, Hintergrundjobs, Speicherplatz, Integrationsstatus und Fehler.
 - [ ] A-4 Datenbank und Konfiguration lassen sich per Knopf sichern und aus einer Sicherung wiederherstellen; Medien sind nie Teil der Sicherung.
-- [ ] A-5 Ein Hinweis erscheint, wenn eine neue Slouchcat-Version verfügbar ist.
+- [ ] A-5 Ein Hinweis erscheint, wenn eine neue Slouchcat-Version verfügbar ist. (Ab Konzept 15 Stufe 4, Frage 22 F-13: mit eingerichtetem Updater-Begleiter auch «Update installieren».)
 - [ ] A-6 Benachrichtigungskanäle (E-Mail, Web-Push, Telegram) sind je Konto konfigurierbar für neue Inhalte, Beschaffungsstatus, Fehler und Einladungen.
 - [ ] A-7 Der Hauptbenutzer veröffentlicht Ankündigungen (News), die Profile beim nächsten Start sehen und die optional per E-Mail an Gastkonten gehen.
 - [ ] A-8 Statistiken zeigen meistgesehene Titel, Schauzeit je Profil, Transcoding-Anteil und Geräteverteilung.
