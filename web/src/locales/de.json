@@ -3028,7 +3028,7 @@
         "onceRange": "Termin muss zwischen jetzt und einem Jahr liegen.",
         "onceInvalid": "Kein gültiger Termin.",
         "windowTitle": "Zeitfenster von {{name}}",
-        "windowWaits": "Ausserhalb des Fensters warten neue Aufträge; ein laufender läuft fertig. Eine Wiedergabe startet trotzdem sofort."
+        "windowWaits": "Ausserhalb des Fensters warten neue Aufträge; ein laufender läuft fertig. Wiedergabe und Downloads starten trotzdem sofort."
       },
       "duration": {
         "seconds": "{{count}} s",

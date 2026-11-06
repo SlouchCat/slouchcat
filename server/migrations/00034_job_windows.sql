@@ -6,8 +6,8 @@
 --                           NULL = no window (the default). Outside the window no worker claims a
 --                           job of the type; a job that runs when the window closes finishes.
 --   jobs.override_window    1 = the run may start outside the window of its type (set only for
---                           playback requests, never by default). Unlike override_pause it has no
---                           cap and no index: nothing counts it.
+--                           playback requests and offline downloads, never by default). Unlike
+--                           override_pause it has no cap and no index: nothing counts it.
 --
 -- ADD COLUMN takes no table constraint, so the rule "both or neither" and the range of window_end
 -- sit on the column window_end; a column CHECK in SQLite may read the other columns of the row, so

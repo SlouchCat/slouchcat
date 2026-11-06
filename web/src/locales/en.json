@@ -3028,7 +3028,7 @@
         "onceRange": "The date must lie between now and one year from now.",
         "onceInvalid": "Not a valid date.",
         "windowTitle": "Time window of {{name}}",
-        "windowWaits": "Outside the window, new runs wait; a running one finishes. A playback still starts at once."
+        "windowWaits": "Outside the window, new runs wait; a running one finishes. Playback and downloads still start at once."
       },
       "duration": {
         "seconds": "{{count}} s",

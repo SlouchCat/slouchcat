@@ -132,38 +132,34 @@ func QueueKeyframesForPlayback(ctx context.Context, db *sql.DB, q *jobs.Queue, m
 }
 
 // QueueKeyframesForDownload asks for the keyframe index of a media file an offline download of a
-// remux waits for (concept 14, 6.8): probe.keyframes at priority 5 under the key keyframes:<id>,
-// without the pause override (that exception is for playback only, F-3). A job that waits under
-// the key is raised to that priority; a running one stays as it is. Like
+// remux waits for (concept 14, 6.8): probe.keyframes at priority 5 under the key keyframes:<id>
+// through jobs.Queue.EnqueueOverridingWindow, so the job starts outside the time window of its
+// type (concept 15 M-1: the download goes first), but without the pause override (that exception
+// is for playback only, F-3, ADR 0022; MaxPauseOverrides does not count it). A job that waits under
+// the key is raised to that priority and gets override_window; a running one stays as it is. Like
 // QueueKeyframesForPlayback it queues nothing for a file whose index is there or impossible,
 // whose row is gone, or whose last full read failed within keyframesFailedQuiet; a full read that
 // is already queued or running under the key (one of the backfill, which does not look at O-17)
 // counts all the same. db is a read connection. queued reports whether a full read is queued or
 // running now: without one the download has nothing to wait for and encodes.
 func QueueKeyframesForDownload(ctx context.Context, db *sql.DB, q *jobs.Queue, mediaFileID string, now time.Time) (queued bool, err error) {
-	active, err := systemq.New(db).GetActiveJobIDByKey(ctx, sql.NullString{String: keyframesJob(mediaFileID).key, Valid: true})
+	j := keyframesJob(mediaFileID)
+	_, err = systemq.New(db).GetActiveJobIDByKey(ctx, sql.NullString{String: j.key, Valid: true})
 	switch {
-	case err == nil:
-		if _, err = q.RaiseQueuedPriority(ctx, active, prioKeyframesDownload); err != nil {
+	case errors.Is(err, sql.ErrNoRows):
+		var wanted bool
+		if j, wanted, err = keyframesWanted(ctx, db, mediaFileID, now); err != nil || !wanted {
 			return false, err
 		}
-		return true, nil
-	case !errors.Is(err, sql.ErrNoRows):
+	case err != nil:
 		return false, fmt.Errorf("active full keyframe read of %s: %w", mediaFileID, err)
 	}
-	j, wanted, err := keyframesWanted(ctx, db, mediaFileID, now)
-	if err != nil || !wanted {
-		return false, err
-	}
+	// A new job, or the active one under the key: EnqueueOverridingWindow raises a waiting one.
 	payload, err := json.Marshal(j.payload)
 	if err != nil {
 		return false, fmt.Errorf("encode %s payload: %w", j.typ, err)
 	}
-	id, err := q.Enqueue(ctx, jobs.NewJob{Type: j.typ, Priority: prioKeyframesDownload, IdempotencyKey: j.key, Payload: payload})
-	if err != nil {
-		return false, err
-	}
-	if _, err = q.RaiseQueuedPriority(ctx, id, prioKeyframesDownload); err != nil {
+	if _, err = q.EnqueueOverridingWindow(ctx, jobs.NewJob{Type: j.typ, Priority: prioKeyframesDownload, IdempotencyKey: j.key, Payload: payload}); err != nil {
 		return false, err
 	}
 	return true, nil

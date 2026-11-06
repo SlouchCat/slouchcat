@@ -497,7 +497,7 @@ test('background jobs by keyboard: a time window for the keyframe index, set and
   await expect(windowSwitch).not.toBeChecked();
   await page.keyboard.press('Space');
   await expect(windowSwitch).toBeChecked();
-  await expect(block.getByText(/Eine Wiedergabe startet trotzdem sofort\./)).toBeVisible();
+  await expect(block.getByText(/Wiedergabe und Downloads starten trotzdem sofort\./)).toBeVisible();
   await page.keyboard.press('Tab');
   const start = block.getByLabel('Von');
   await expectFocusOn(page, start);

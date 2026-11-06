@@ -941,7 +941,9 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     const toggle = () => within(block()).getByRole('switch', { name: 'Nur in einem Zeitfenster' });
     expect(toggle()).not.toBeChecked();
     expect(within(block()).queryByLabelText('Von')).toBeNull();
-    expect(within(block()).queryByText(/Eine Wiedergabe startet trotzdem sofort\./)).toBeNull();
+    expect(
+      within(block()).queryByText(/Wiedergabe und Downloads starten trotzdem sofort\./),
+    ).toBeNull();
 
     // Switched on: Von and Bis in the server's zone; 22:00 to 05:00 spans midnight.
     await user.click(toggle());
@@ -950,7 +952,9 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(start).toHaveValue('01:00');
     expect(end).toHaveValue('06:00');
     expect(end).toHaveAccessibleDescription(/Zeitzone des Servers: Europe\/Zurich\./);
-    expect(within(block()).getByText(/Eine Wiedergabe startet trotzdem sofort\./)).toBeVisible();
+    expect(
+      within(block()).getByText(/Wiedergabe und Downloads starten trotzdem sofort\./),
+    ).toBeVisible();
     expect(screen.getByText('Aktualisierung pausiert')).toBeVisible();
     await user.clear(start);
     await user.type(start, '22:00');
