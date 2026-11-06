@@ -361,6 +361,13 @@ func toAdminItem(it model.AdminItem) gen.AdminItem {
 		}
 		out.Images = &images
 	}
+	if it.ImageKinds != nil {
+		kinds := make([]gen.ImageKind, 0, len(it.ImageKinds))
+		for _, k := range it.ImageKinds {
+			kinds = append(kinds, gen.ImageKind(k))
+		}
+		out.ImageKinds = &kinds
+	}
 	return out
 }
 

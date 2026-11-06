@@ -82,6 +82,9 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 	if out.Images, err = s.meta.ItemImages(ctx, it.ID); err != nil {
 		return model.AdminItem{}, fmt.Errorf("list item images: %w", err)
 	}
+	if out.ImageKinds, err = s.meta.ChoosableImageKinds(ctx, it.ID); err != nil {
+		return model.AdminItem{}, fmt.Errorf("list image kinds: %w", err)
+	}
 	return out, nil
 }
 

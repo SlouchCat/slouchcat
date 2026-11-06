@@ -1775,7 +1775,8 @@ export interface paths {
          *     kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
          *     provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
          *     of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
-         *     series, poster for seasons; another kind is 422.
+         *     series, poster for seasons, backdrop (the TMDB stills) for episodes while the setting "episode
+         *     stills" is on (since contract 1.15.0, `AdminItem.imageKinds`); another kind is 422.
          */
         get: operations["listItemImageCandidates"];
         put?: never;
@@ -1828,9 +1829,40 @@ export interface paths {
         /**
          * Lift the choice and the lock of a kind
          * @description Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
-         *     for a season) decides the kind again by the language chain and queues `image.fetch`.
+         *     for a season; an episode turns pending first) decides the kind again by the language chain and
+         *     queues `image.fetch`, which also replaces an uploaded image (`uploadItemImage`).
          */
         delete: operations["clearItemImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/images/{kind}/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upload an own image for a kind of a title (binary upload, concept 15 7.5)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6) since contract 1.15.0. The body is
+         *     `multipart/form-data` with the part `file`, at most 20 MB (the body limit of this route is
+         *     20 MB plus 1 MiB framing). The server takes the format from the content, not from the file name
+         *     or the declared type: JPEG, PNG or WebP; it reads the pixel count from the header (at most 50
+         *     megapixels) before it decodes anything. The image becomes the title's image of the kind and the
+         *     kind is locked (`lockedFields`) without a chosen source (`images` lists the kind as `locked`
+         *     without `provider`); its sizes are derived at once and delivered like every image (`scoped`).
+         *     A later refresh, match or `applyMetadata` keeps it; `clearItemImage` lifts the lock and the
+         *     provider's image replaces the upload. Kinds as in `AdminItem.imageKinds`: poster, backdrop and
+         *     logo for films and series, poster for seasons, backdrop (the episode still) for episodes while
+         *     the setting "episode stills" (`episode_still`) is on.
+         */
+        put: operations["uploadItemImage"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5259,6 +5291,14 @@ export interface components {
             };
             /** @description The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out. */
             images?: components["schemas"]["AdminItemImage"][];
+            /**
+             * @description The kinds the administrator can choose (`listItemImageCandidates`, `setItemImage`) or upload
+             *     (`uploadItemImage`) for this title now (since contract 1.15.0, concept 15 7.5): poster,
+             *     backdrop and logo for films and series, poster for seasons, backdrop (the episode still)
+             *     for episodes; empty for an episode while the setting "episode stills" (`episode_still`) of
+             *     its library is off, and for every other kind of title.
+             */
+            imageKinds?: components["schemas"]["ImageKind"][];
         };
         /** @description One image a source offers for a kind of a title (concept 10 6.4). */
         ImageCandidate: {
@@ -7020,6 +7060,14 @@ export interface components {
             includeSecrets: boolean;
             /** Format: password */
             passphrase?: string;
+        };
+        /** @description The image of `uploadItemImage` (since contract 1.15.0). */
+        ItemImageUpload: {
+            /**
+             * Format: binary
+             * @description A JPEG, PNG or WebP image of at most 20 MB and 50 megapixels.
+             */
+            file: string;
         };
         /**
          * @description The parts in this order: `passphrase` (when the archive is encrypted), then `file`. The server
@@ -11395,6 +11443,59 @@ export interface operations {
                 };
             };
             /** @description The kind is not chosen by hand for this title (`validation_failed`, field `kind`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    uploadItemImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                kind: components["schemas"]["ImageKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ItemImageUpload"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the upload. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): field `kind` (`invalid_value`: not in
+             *     `AdminItem.imageKinds`), field `file` (`required`: no part `file`; `invalid_value`: no
+             *     multipart body; `too_large`: more than 20 MB; `unsupported_format`: no JPEG, PNG or WebP by
+             *     content or a damaged header; `too_many_pixels`: more than 50 megapixels).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;

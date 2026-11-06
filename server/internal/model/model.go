@@ -404,6 +404,9 @@ type AdminItem struct {
 	Episodes        int
 	Extras          int
 	Images          []AdminItemImage // the decided image source per choosable kind (concept 10 7.3)
+	// ImageKinds are the kinds the administrator can choose or upload now (concept 15 7.5): an
+	// episode's still only while the setting "episode stills" is on.
+	ImageKinds []string
 	// OriginalLanguage is the ISO 639-1 code of the original language (concept 13 11.7); "" when it
 	// was looked up and is unknown, nil while it was not looked up.
 	OriginalLanguage *string

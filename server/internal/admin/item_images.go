@@ -41,6 +41,19 @@ func (s *Service) ClearItemImage(ctx context.Context, itemID, kind string) (mode
 	return s.GetAdminItem(ctx, itemID)
 }
 
+// UploadItemImage stores an uploaded image for a kind, locks the kind and answers with the
+// administration view (concept 15 7.5).
+func (s *Service) UploadItemImage(ctx context.Context, itemID, kind string, data []byte) (model.AdminItem, error) {
+	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
+	if s.meta == nil {
+		return model.AdminItem{}, ErrNotConfigured
+	}
+	if err := s.meta.UploadItemImage(ctx, itemID, kind, data); err != nil {
+		return model.AdminItem{}, err
+	}
+	return s.GetAdminItem(ctx, itemID)
+}
+
 // SetItemOriginalLanguage stores and locks (or, with nil, releases) the original language of a
 // title and answers with the administration view (concept 13 11.7).
 func (s *Service) SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) (model.AdminItem, error) {

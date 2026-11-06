@@ -70,6 +70,7 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + backupDownloadPath:   "admin",
 	"GET " + BasePath + adminImagePath:       "admin",
 	"GET " + BasePath + candidatePreviewPath: "admin",
+	"PUT " + BasePath + itemImageUploadPath:  "admin",
 }
 
 // Options configure NewHandler.
@@ -153,6 +154,7 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
 		r.With(authorize).Get(adminImagePath, s.getAdminItemImage)
 		r.With(authorize).Get(candidatePreviewPath, s.getItemImageCandidatePreview)
+		r.With(authorize).Put(itemImageUploadPath, s.uploadItemImage)
 	})
 	// The catalog names the first stage title, or the first title without a stage, when it
 	// implements heroPicker (discover.Service does); the start page's app shell then carries a

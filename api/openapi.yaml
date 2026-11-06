@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.14.0
+  version: 1.15.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -3541,7 +3541,8 @@ paths:
         kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
         provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
         of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
-        series, poster for seasons; another kind is 422.
+        series, poster for seasons, backdrop (the TMDB stills) for episodes while the setting "episode
+        stills" is on (since contract 1.15.0, `AdminItem.imageKinds`); another kind is 422.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -3677,7 +3678,8 @@ paths:
       summary: Lift the choice and the lock of a kind
       description: |
         Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
-        for a season) decides the kind again by the language chain and queues `image.fetch`.
+        for a season; an episode turns pending first) decides the kind again by the language chain and
+        queues `image.fetch`, which also replaces an uploaded image (`uploadItemImage`).
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -3706,6 +3708,68 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "422":
           description: The kind is not chosen by hand for this title (`validation_failed`, field `kind`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/images/{kind}/upload:
+    put:
+      operationId: uploadItemImage
+      summary: Upload an own image for a kind of a title (binary upload, concept 15 7.5)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6) since contract 1.15.0. The body is
+        `multipart/form-data` with the part `file`, at most 20 MB (the body limit of this route is
+        20 MB plus 1 MiB framing). The server takes the format from the content, not from the file name
+        or the declared type: JPEG, PNG or WebP; it reads the pixel count from the header (at most 50
+        megapixels) before it decodes anything. The image becomes the title's image of the kind and the
+        kind is locked (`lockedFields`) without a chosen source (`images` lists the kind as `locked`
+        without `provider`); its sizes are derived at once and delivered like every image (`scoped`).
+        A later refresh, match or `applyMetadata` keeps it; `clearItemImage` lifts the lock and the
+        provider's image replaces the upload. Kinds as in `AdminItem.imageKinds`: poster, backdrop and
+        logo for films and series, poster for seasons, backdrop (the episode still) for episodes while
+        the setting "episode stills" (`episode_still`) is on.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ItemImageUpload"
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, image/webp
+      responses:
+        "200":
+          description: The administration view after the upload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`): field `kind` (`invalid_value`: not in
+            `AdminItem.imageKinds`), field `file` (`required`: no part `file`; `invalid_value`: no
+            multipart body; `too_large`: more than 20 MB; `unsupported_format`: no JPEG, PNG or WebP by
+            content or a damaged header; `too_many_pixels`: more than 50 megapixels).
           content:
             application/problem+json:
               schema:
@@ -9736,6 +9800,16 @@ components:
           description: The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out.
           items:
             $ref: "#/components/schemas/AdminItemImage"
+        imageKinds:
+          type: array
+          description: |
+            The kinds the administrator can choose (`listItemImageCandidates`, `setItemImage`) or upload
+            (`uploadItemImage`) for this title now (since contract 1.15.0, concept 15 7.5): poster,
+            backdrop and logo for films and series, poster for seasons, backdrop (the episode still)
+            for episodes; empty for an episode while the setting "episode stills" (`episode_still`) of
+            its library is off, and for every other kind of title.
+          items:
+            $ref: "#/components/schemas/ImageKind"
 
     ImageCandidate:
       type: object
@@ -12836,6 +12910,16 @@ components:
           minLength: 12
           maxLength: 1024
           writeOnly: true
+
+    ItemImageUpload:
+      type: object
+      description: The image of `uploadItemImage` (since contract 1.15.0).
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: A JPEG, PNG or WebP image of at most 20 MB and 50 megapixels.
 
     RestoreUpload:
       type: object

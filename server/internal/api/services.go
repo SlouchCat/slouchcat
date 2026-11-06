@@ -148,6 +148,9 @@ type AdminService interface {
 	ItemImageCandidates(ctx context.Context, itemID, kind string, refresh bool) (model.ImageCandidateList, error)
 	SetItemImage(ctx context.Context, itemID, kind, provider, source string) (model.AdminItem, error)
 	ClearItemImage(ctx context.Context, itemID, kind string) (model.AdminItem, error)
+	// UploadItemImage stores an uploaded image for a kind and locks the kind (concept 15 7.5;
+	// model.ErrNotFound, *model.ValidationError).
+	UploadItemImage(ctx context.Context, itemID, kind string, data []byte) (model.AdminItem, error)
 	SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) (model.AdminItem, error)
 	ItemImageCandidatePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
 	// SetItemsRating applies SetItemRating to many titles; unknown ids are skipped and not counted.

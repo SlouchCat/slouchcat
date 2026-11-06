@@ -248,3 +248,18 @@ func (m contractMetadata) ItemImages(context.Context, string) ([]model.AdminItem
 func (m contractMetadata) LocalImagePreview(context.Context, string, string) (model.StreamSource, error) {
 	return model.StreamSource{}, model.ErrNotFound
 }
+
+// The upload of concept 15 7.5: the fake takes a JPEG (by its first bytes) for a kind of
+// ChoosableImageKinds and refuses anything else like the service does.
+func (m contractMetadata) UploadItemImage(_ context.Context, _, kind string, data []byte) error {
+	if kind != "poster" && kind != "backdrop" && kind != "logo" {
+		return (&model.ValidationError{}).Add("kind", "invalid_value")
+	}
+	if len(data) < 3 || data[0] != 0xff || data[1] != 0xd8 || data[2] != 0xff {
+		return (&model.ValidationError{}).Add("file", "unsupported_format")
+	}
+	return nil
+}
+func (m contractMetadata) ChoosableImageKinds(context.Context, string) ([]string, error) {
+	return []string{"poster", "backdrop", "logo"}, nil
+}

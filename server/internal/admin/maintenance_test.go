@@ -780,3 +780,7 @@ func (m *fakeMetadata) ItemImages(context.Context, string) ([]model.AdminItemIma
 func (m *fakeMetadata) LocalImagePreview(context.Context, string, string) (model.StreamSource, error) {
 	return model.StreamSource{}, model.ErrNotFound
 }
+func (m *fakeMetadata) UploadItemImage(context.Context, string, string, []byte) error { return nil }
+func (m *fakeMetadata) ChoosableImageKinds(context.Context, string) ([]string, error) {
+	return []string{}, nil
+}

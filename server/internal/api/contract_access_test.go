@@ -248,6 +248,10 @@ var adminRegistry = map[string]adminCall{
 	"setItemImage": {contract: "PUT /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster",
 		body: `{"provider":"tmdb","source":"/p.jpg"}`, ownerStatus: http.StatusOK},
 	"clearItemImage": {contract: "DELETE /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster", ownerStatus: http.StatusOK},
+	// Concept 15 7.5: the upload (binary handler; the contract fake takes a JPEG by its first bytes).
+	"uploadItemImage": {contract: "PUT /admin/items/{id}/images/{kind}/upload", path: "/admin/items/" + fixtureFilm6 + "/images/poster/upload",
+		body: uploadImageBody("poster.jpg", "\xff\xd8\xff\xe0 a JPEG for the fake"), header: map[string]string{"Content-Type": uploadImageContentType},
+		ownerStatus: http.StatusOK},
 	// Concept 13 11.7: the original language by hand (the contract fake accepts every value).
 	"setItemOriginalLanguage": {contract: "PUT /admin/items/{id}/original-language", path: "/admin/items/" + fixtureFilm6 + "/original-language",
 		body: `{"language":"ja"}`, ownerStatus: http.StatusOK},
