@@ -27,6 +27,7 @@ export { dismissHeroPrepaint, HeroCarousel, HERO_PLAY_KEY, type HeroSlide } from
 export { Icon, type IconName } from './Icon';
 export { InboxEntry } from './InboxEntry';
 export { LetterBar } from './LetterBar';
+export { LibraryTile, type LibraryTileCover } from './LibraryTile';
 export { Logo } from './Logo';
 export { Notice } from './Notice';
 export { BADGE_MAX, NotificationBadge } from './NotificationBadge';

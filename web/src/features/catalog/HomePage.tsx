@@ -18,6 +18,7 @@ import {
   GenreChip,
   HERO_PLAY_KEY,
   HeroCarousel,
+  LibraryTile,
   Notice,
   PosterCard,
   Row,
@@ -28,7 +29,7 @@ import {
   type HeroSlide,
 } from '@/ui';
 import { ItemMeta } from './ItemMeta';
-import { homeRowTitleKey as rowTitleKey, isAudioKind } from './labels';
+import { homeRowTitle, isAudioKind } from './labels';
 import { homeQuery } from './queries';
 import styles from './HomePage.module.css';
 
@@ -39,28 +40,44 @@ const TrailerPanel = lazy(() =>
   import('./TrailerPanel').then((module) => ({ default: module.TrailerPanel })),
 );
 
-// Rows with a page of all their titles ("Alle anzeigen ›", concept 08 O-3: only these two).
+// Rows with a page of all their titles ("Alle anzeigen ›", concept 08 O-3), and a library row
+// («Neu in …», concept 15 P-7), whose library opens sorted by «Zuletzt hinzugefügt».
 const rowPages: Partial<Record<HomeRow['key'], string>> = {
   picks: paths.picks,
   watchlist: paths.watchlist,
 };
+const rowPage = (row: HomeRow): string | undefined =>
+  row.key === 'library' && row.libraryId !== undefined
+    ? `${paths.library(row.libraryId)}?sort=added`
+    : rowPages[row.key];
 
 // Posters loaded eagerly: the cards of the first row that fit a wide screen (P-10); the rest are lazy.
 // The server paints as many ahead on a page without a stage (posterPrepaintCards, api/preload.go).
 const EAGER_POSTERS = 6;
+// Tiles of «Meine Medien» loaded eagerly: two cards wide each, so as wide as EAGER_POSTERS cards; the
+// server paints as many ahead when the row comes first (tilePrepaintTiles, api/preload.go).
+const EAGER_TILES = 3;
 
-/** A row counts when it holds titles, collections or genres (E-9: never an empty row). */
+/**
+ * A row counts when it holds titles, collections, genres or library tiles (E-9: never an empty
+ * row; «Meine Medien» counts its tiles, concept 15 P-7).
+ */
 const hasEntries = (row: HomeRow) =>
-  row.items.length > 0 || (row.collections?.length ?? 0) > 0 || (row.genres?.length ?? 0) > 0;
+  row.items.length > 0 ||
+  (row.collections?.length ?? 0) > 0 ||
+  (row.genres?.length ?? 0) > 0 ||
+  (row.libraries?.length ?? 0) > 0;
 
 /** Focus key of the first card of a row (the default focus when the stage does not lead). */
 function firstKey(row: HomeRow): string | undefined {
   const item = row.items[0];
   if (item) return cardKey(row, item);
   const collection = row.collections?.[0];
-  if (collection) return `${row.key}-${collection.id}`;
+  if (collection) return `${row.id}-${collection.id}`;
+  const tile = row.libraries?.[0];
+  if (tile) return `${row.id}-${tile.id}`;
   const genre = row.genres?.[0];
-  return genre ? `${row.key}-${genre.name}` : undefined;
+  return genre ? `${row.id}-${genre.name}` : undefined;
 }
 
 const genreHref = (name: string) => `${paths.search}?genre=${encodeURIComponent(name)}`;
@@ -80,10 +97,11 @@ const seriesOf = (row: HomeRow, item: ItemRef) =>
   row.key === 'continue' && item.kind === 'episode' ? item.seriesRef : undefined;
 
 /**
- * Focus and React key of a card. A series card of "Weiterschauen" keys on its series, not on the
- * episode: after the episode ends the card shows the next one and keeps its focus on return.
+ * Focus and React key of a card, by the row's id (several library rows share a key, concept 15
+ * P-7). A series card of "Weiterschauen" keys on its series, not on the episode: after the episode
+ * ends the card shows the next one and keeps its focus on return.
  */
-const cardKey = (row: HomeRow, item: ItemRef) => `${row.key}-${seriesOf(row, item)?.id ?? item.id}`;
+const cardKey = (row: HomeRow, item: ItemRef) => `${row.id}-${seriesOf(row, item)?.id ?? item.id}`;
 
 /**
  * The progress of a started title: a position past 0. A next episode with a progress row at 0
@@ -180,7 +198,10 @@ export function HomePage() {
   // (P-10); they give way once the first card shows its own poster, or right away when the page
   // has a stage, starts with collections or genres, or its first title has no poster.
   const [posterShown, setPosterShown] = useState(false);
-  const leadCard = home.data?.heroRow ? undefined : leadRow?.items[0];
+  // «Meine Medien» on top paints the collages of its first tiles; its first poster leads.
+  const leadCard = home.data?.heroRow
+    ? undefined
+    : (leadRow?.items[0] ?? leadRow?.libraries?.[0]?.items[0]);
   // A series card shows the series poster, which the server paints ahead as well (cardPoster).
   const leadImages = leadRow && leadCard && (seriesOf(leadRow, leadCard) ?? leadCard).images;
   const leadCardHasArt = Boolean(leadImages && (leadImages.poster ?? leadImages.posterSmall));
@@ -251,16 +272,47 @@ export function HomePage() {
     }));
 
   const posterRow = (row: HomeRow) => {
-    const title = t(rowTitleKey[row.key]);
-    const focusKey = `row-${row.key}`;
+    const title = homeRowTitle(t, row);
+    const focusKey = `row-${row.id}`;
     const eagerRow = row === firstPosterRow;
+    if (row.key === 'libraries') {
+      // «Meine Medien» (concept 15 P-7): a tile per library, which opens the library page.
+      return (
+        <Row key={row.id} title={title} focusKey={focusKey} variant="tiles">
+          {(row.libraries ?? []).map((tile, tileIndex) => {
+            const leads = posterLeads && eagerRow && tileIndex === 0;
+            return (
+              <LibraryTile
+                key={tile.id}
+                focusKey={`${row.id}-${tile.id}`}
+                href={paths.library(tile.id)}
+                name={tile.name}
+                caption={t('library.page.count', {
+                  count: tile.itemCount,
+                  noun: t(`library.page.noun.${tile.kind}`, { count: tile.itemCount }),
+                })}
+                covers={tile.items.map((item) => ({
+                  posterUrl: imageUrl(item.images.poster),
+                  posterSmallUrl: imageUrl(item.images.posterSmall),
+                }))}
+                accent={tile.items[0]?.accent}
+                eager={eagerRow && tileIndex < EAGER_TILES}
+                priority={leads}
+                onImageShown={leads ? () => setPosterShown(true) : undefined}
+                deferImage={heroHasArt && !heroShown}
+              />
+            );
+          })}
+        </Row>
+      );
+    }
     if (row.key === 'genres') {
       return (
-        <Row key={row.key} title={title} focusKey={focusKey} variant="chips">
+        <Row key={row.id} title={title} focusKey={focusKey} variant="chips">
           {(row.genres ?? []).map((genre) => (
             <GenreChip
               key={genre.name}
-              focusKey={`${row.key}-${genre.name}`}
+              focusKey={`${row.id}-${genre.name}`}
               href={genreHref(genre.name)}
               name={genre.name}
               count={genre.count}
@@ -271,11 +323,11 @@ export function HomePage() {
     }
     if (row.key === 'collections') {
       return (
-        <Row key={row.key} title={title} focusKey={focusKey}>
+        <Row key={row.id} title={title} focusKey={focusKey}>
           {(row.collections ?? []).map((collection, itemIndex) => (
             <CollectionCard
               key={collection.id}
-              focusKey={`${row.key}-${collection.id}`}
+              focusKey={`${row.id}-${collection.id}`}
               href={paths.collection(collection.id)}
               name={collection.name}
               caption={t('collection.count', { count: collection.count })}
@@ -289,10 +341,10 @@ export function HomePage() {
         </Row>
       );
     }
-    const moreHref = rowPages[row.key];
+    const moreHref = rowPage(row);
     return (
       <Row
-        key={row.key}
+        key={row.id}
         title={title}
         focusKey={focusKey}
         moreHref={moreHref}
@@ -353,8 +405,8 @@ export function HomePage() {
               if (isStage(row)) {
                 return (
                   <HeroCarousel
-                    key={row.key}
-                    label={t(rowTitleKey[row.key])}
+                    key={row.id}
+                    label={homeRowTitle(t, row)}
                     slides={slides(row)}
                     playLabel={t('item.play')}
                     detailsLabel={t('item.details')}

@@ -424,7 +424,9 @@
       "genres": "Genres",
       "spotlight": "Spotlight",
       "released": "Kürzlich veröffentlicht",
-      "all": "Alle anzeigen ›"
+      "all": "Alle anzeigen ›",
+      "libraries": "Meine Medien",
+      "library": "Neu in {{library}}"
     },
     "remaining": "Noch {{time}}",
     "continue": {
@@ -1832,6 +1834,8 @@
       },
       "hide": "Ausblenden",
       "hideLabel": "{{row}} ausblenden",
+      "libraryTag": "Bibliothek",
+      "tooMany": "Schon {{count}} Reihen sichtbar. Blende zuerst eine andere aus.",
       "rows": {
         "spotlight": "Die Trakt-Liste, geschnitten mit der Bibliothek. Erscheint als Bühne mit Hintergrundbild an ihrem Platz; unter der Mindestzahl Treffer fehlt sie.",
         "picks": "Von Hand gepflegt, mit Notiz, Zielprofil und Zeitfenster.",
@@ -1840,7 +1844,9 @@
         "released": "Nach Erscheinungsdatum der letzten zwölf Monate; eine Serie nach ihrer neusten Folge.",
         "watchlist": "Die Merkliste des Profils.",
         "collections": "Eigene Sammlungen und die von TMDB.",
-        "genres": "Die Genres der sichtbaren Titel."
+        "genres": "Die Genres der sichtbaren Titel.",
+        "libraries": "Eine Kachel je Bibliothek, die das Profil sieht, mit der Zahl der Titel; führt zur Bibliotheksseite.",
+        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; «Alle anzeigen» führt zur Bibliothek, sortiert nach «Zuletzt hinzugefügt»."
       },
       "pageLink": "Zur Seite «{{page}}»",
       "moved": "{{row}} steht jetzt auf Platz {{position}}. Speichere, damit es gilt.",

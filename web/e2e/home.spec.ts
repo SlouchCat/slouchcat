@@ -1,7 +1,14 @@
 import { type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { audioItemId, AUDIO_READY_MS, M4B_TITLE } from './audio';
 import { CSRF, EXTRAS_TITLE, H264_TITLE, SHOW_TITLE } from './catalog';
-import { createPick, DEFAULT_HOME_ROWS, deletePick, listPicks, setHomeRows } from './curation';
+import {
+  createPick,
+  DEFAULT_HOME_ROWS,
+  deletePick,
+  listHomeRows,
+  listPicks,
+  setHomeRows,
+} from './curation';
 import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
 import {
@@ -946,6 +953,100 @@ test('"Weiterschauen" per series: the series card, arrow keys in the row, Enter 
     page,
     page.getByRole('link', { name: /^Weiterschauen ab \d{2}:\d{2}:\d{2}$/ }),
   );
+});
+
+/** The libraries the owner's main profile sees, in the order of the side navigation. */
+async function visibleLibraries(api: APIRequestContext): Promise<{ id: number; name: string }[]> {
+  const response = await api.get('/api/v1/libraries/visible');
+  expect(response.status(), await response.text()).toBe(200);
+  return (await response.json()) as { id: number; name: string }[];
+}
+
+test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter opens the library, back returns (concept 15 P-7) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const libraries = await visibleLibraries(owner);
+  const films = libraries.find((library) => library.name === 'Filme');
+  if (!films) throw new Error('the e2e library «Filme» is missing');
+  const row = (await listHomeRows(owner)).find((entry) => entry.libraryId === films.id);
+  if (!row) throw new Error('the row «Neu in Filme» is missing');
+  try {
+    // «Meine Medien» first, «Neu in Filme» second, the spotlight band further down.
+    await setHomeRows(owner, ['libraries', row.id, ...DEFAULT_HOME_ROWS]);
+    await page.goto('/');
+    const mine = page.getByRole('region', { name: 'Meine Medien' });
+    const tiles = mine.getByRole('link');
+    await expect(sections(page).nth(0)).toHaveAccessibleName('Meine Medien');
+    await expect(sections(page).nth(1)).toHaveAccessibleName('Neu in Filme');
+    // A tile per library the profile sees, in the order of the side navigation, with its count.
+    await expect(tiles).toHaveCount(libraries.length);
+    for (const [index, library] of libraries.entries()) {
+      await expect(tiles.nth(index)).toHaveAttribute('href', `/libraries/${library.id}`);
+      await expect(tiles.nth(index)).toHaveAccessibleName(new RegExp(`^${library.name}\\s*\\d`));
+    }
+    // 16:9, two cards wide (Row.module.css .tile).
+    const box = await tiles.first().boundingBox();
+    expect(box && Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
+
+    // The page starts on the first tile (no stage on top); the arrow keys move along the tiles.
+    await resetFocus(page);
+    const inTiles = () =>
+      tiles.evaluateAll((links) => links.indexOf(document.activeElement as HTMLAnchorElement));
+    for (let presses = 0; presses < 3 && (await inTiles()) < 0; presses += 1) {
+      await page.keyboard.press('ArrowDown');
+    }
+    expect(await inTiles()).toBe(0);
+    await expectVisibleFocus(page);
+    if (libraries.length > 1) {
+      await page.keyboard.press('ArrowRight');
+      await expect.poll(inTiles).toBe(1);
+      await expectVisibleFocus(page);
+      await expect(tiles.nth(1)).toBeInViewport();
+      await page.keyboard.press('ArrowLeft');
+      await expect.poll(inTiles).toBe(0);
+    }
+    // Down into «Neu in Filme», up back to the tiles.
+    const filmCards = page.getByRole('region', { name: 'Neu in Filme' }).getByRole('link');
+    await page.keyboard.press('ArrowDown');
+    await expect
+      .poll(() =>
+        filmCards.evaluateAll((links) =>
+          links.includes(document.activeElement as HTMLAnchorElement),
+        ),
+      )
+      .toBe(true);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(inTiles).toBe(0);
+
+    // Enter opens the library page, browser back returns to the start page.
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/libraries/${libraries[0].id}$`));
+    await expect(page.getByRole('heading', { level: 1, name: libraries[0].name })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(mine).toBeVisible();
+
+    // Tab reaches the first tile after the side navigation, then «Alle anzeigen ›» of «Neu in
+    // Filme»: Enter opens the library sorted by «Zuletzt hinzugefügt».
+    await resetFocus(page);
+    await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }));
+    await tabTo(page, tiles.first(), 3);
+    const all = page
+      .getByRole('region', { name: 'Neu in Filme' })
+      .getByRole('link', { name: 'Alle anzeigen ›' });
+    await expect(all).toHaveAttribute('href', `/libraries/${films.id}?sort=added`);
+    await tabTo(page, all, libraries.length + 2);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/libraries/${films.id}\\?sort=added$`));
+    await expect(page.getByRole('heading', { level: 1, name: 'Filme' })).toBeVisible();
+    await page.goBack();
+    await expect(mine).toBeVisible();
+    await resetFocus(page);
+    await expectNoFocusTrap(page, 160);
+  } finally {
+    await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  }
 });
 
 test('arrow keys move hero → rows → header, Enter opens, back returns', async ({ page }) => {

@@ -1,0 +1,96 @@
+/*
+ * A library tile (concept 15 P-7): 16:9, as wide as the row's item (Row.module.css, .tile: two
+ * cards and the gap between them). #poster-prepaint > .tile in global.css paints the same
+ * geometry ahead; change them together.
+ */
+.tile {
+  --sc-item-accent: initial;
+
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  text-decoration: none;
+  outline-offset: var(--sc-focus-ring-offset);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The posters side by side, as many columns as titles (one to four). */
+.collage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+}
+
+.slice {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  object-fit: cover;
+}
+
+/* The accent tints an empty slice (no poster, or the hero artwork goes first, P-10). */
+span.slice {
+  background-color: var(--sc-item-accent, transparent);
+  opacity: 0.18;
+}
+
+/* Scrim under the name and the count. */
+.tile::after {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+    to top,
+    var(--sc-color-scrim-strong) 0%,
+    var(--sc-color-scrim-clear) 65%
+  );
+  content: '';
+  pointer-events: none;
+}
+
+.meta {
+  position: absolute;
+  z-index: 1;
+  right: var(--sc-space-3);
+  bottom: var(--sc-space-3);
+  left: var(--sc-space-3);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sc-space-2);
+  justify-content: space-between;
+}
+
+.name {
+  overflow: hidden;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caption {
+  flex: none;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    transform: scale(var(--sc-focus-scale));
+  }
+}
+
+.tile:focus-visible {
+  transform: scale(var(--sc-focus-scale));
+}

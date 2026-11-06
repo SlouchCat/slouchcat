@@ -366,6 +366,52 @@ test('the prepaints lie on the band and on the first card, column shown and hidd
   }
 });
 
+test('the prepaint of «Meine Medien» lies on the first tiles, column shown and hidden (concept 15 P-7)', async ({
+  page,
+  owner,
+}) => {
+  // The suite's first library holds films without artwork, so the server paints no tile here;
+  // the geometry is checked with the server's markup (tilePrepaint, api/preload.go) and 1 px
+  // images, like the cards above.
+  await page.goto('/');
+  try {
+    await setHomeRows(owner, ['libraries', ...DEFAULT_HOME_ROWS], ['spotlight']);
+    for (const hidden of [false, true]) {
+      await page.evaluate((value) => {
+        if (value) localStorage.setItem('slouchcat.sidenav', 'hidden');
+        else localStorage.removeItem('slouchcat.sidenav');
+      }, hidden);
+      await page.reload();
+      const mine = page.getByRole('region', { name: 'Meine Medien' });
+      await expect(mine.getByRole('link').first()).toBeVisible();
+      const slices = `<img src="${PIXEL}" alt="" loading="eager"><img src="${PIXEL}" alt="" loading="eager">`;
+      await insertPrepaint(
+        page,
+        `<div id="poster-prepaint" aria-hidden="true"><span class="tile">${slices}</span><span class="tile">${slices}</span></div>`,
+      );
+      const tile = 'main section[aria-labelledby] ul li:first-child a';
+      await expect
+        .poll(() =>
+          page.evaluate(
+            (query) => getComputedStyle(document.querySelector(query)!).transform,
+            tile,
+          ),
+        )
+        .toBe('none');
+      expectSameBox(await boxOf(page, '#poster-prepaint > .tile'), await boxOf(page, tile));
+      if ((await mine.getByRole('link').count()) > 1) {
+        expectSameBox(
+          await boxOf(page, '#poster-prepaint > .tile:nth-child(2)'),
+          await boxOf(page, 'main section[aria-labelledby] ul li:nth-child(2) a'),
+        );
+      }
+    }
+  } finally {
+    await page.evaluate(() => localStorage.removeItem('slouchcat.sidenav'));
+    await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  }
+});
+
 interface ShellRecord {
   /** Whether <html> had `data-shell="admin"` before the app rendered anything into #root. */
   shellBeforeApp: boolean | null;

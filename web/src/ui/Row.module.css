@@ -107,6 +107,13 @@
   scroll-snap-align: start;
 }
 
+/* A library tile (LibraryTile): two cards and the gap between them; #poster-prepaint > .tile. */
+.tile {
+  flex: none;
+  width: calc(2 * var(--row-card-width) + var(--sc-space-4));
+  scroll-snap-align: start;
+}
+
 /* CARD_SIZES (PosterCard.tsx), posterSizes (api/preload.go) and #poster-prepaint (global.css). */
 @media (width >= 768px) {
   .scroller {
