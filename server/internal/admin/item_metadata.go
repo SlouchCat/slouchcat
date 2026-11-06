@@ -252,6 +252,19 @@ func (s *Service) writeMetadataEdit(ctx context.Context, itemID, lang string, ed
 	}
 	for _, name := range edit.Unlock {
 		f := metaFields[name]
+		if f.legacy && slices.Contains(locks, f.lock) {
+			// The old lock without language held every language: only lang is freed, the other
+			// languages with a stored text keep the field locked in their own name.
+			texts, err := q.ListItemTextsByItem(ctx, it.ID)
+			if err != nil {
+				return fmt.Errorf("list item texts: %w", err)
+			}
+			for _, t := range texts {
+				if l := f.lockName(t.Lang); t.Lang != lang && !slices.Contains(locks, l) {
+					locks = append(locks, l)
+				}
+			}
+		}
 		locks = slices.DeleteFunc(locks, func(l string) bool { return l == f.lockName(lang) || (f.legacy && l == f.lock) })
 	}
 	sortLocked := metaFields[model.MetaFieldSortTitle].lockedIn(locks, lang)

@@ -10009,7 +10009,7 @@ components:
             maxLength: 64
         unlock:
           type: array
-          description: Fields whose lock goes; for a text field both its lock in the server language and an old lock without language.
+          description: Fields whose lock goes; for a text field its lock in the server language and an old lock without language, which the other languages with a stored text keep as their own lock (`title:<lang>`), so only the server language is freed.
           maxItems: 8
           items:
             $ref: "#/components/schemas/AdminMetadataField"
