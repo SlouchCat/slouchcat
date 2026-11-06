@@ -61,40 +61,39 @@ test.describe('with a mouse from 768 px', () => {
     expect(await fontSize(heading)).toBe('24px');
   });
 
-  test('a table row is 40 px high, plus the job description line (S-5, concept 15 P-2)', async ({
-    page,
-  }) => {
+  test('a table row is 40 px high (S-5)', async ({ page }) => {
     await openJobs(page);
-    // The first job type of the selected tab: its fold-out button and state chip are 24 px. Since
-    // concept 15 (P-2) the row carries one more line with what the job does; the 40 px of the
-    // single-line row stay, the row grows by at most that line.
+    // The first job type of the selected tab: its fold-out button and state chip are 24 px.
     const row = page.getByRole('tabpanel').getByRole('row').nth(1);
     await expect(row).toBeVisible();
-    const description = row.getByText(
-      'Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.',
-    );
-    const line = await description.evaluate((element) =>
-      Math.round(parseFloat(getComputedStyle(element).lineHeight)),
-    );
-    await expect.poll(() => height(row)).toBeGreaterThan(40);
-    expect(await height(row)).toBeLessThanOrEqual(40 + line);
+    await expect.poll(() => height(row)).toBe(40);
   });
 
-  test('a job row adds one muted line with what the job does, cut to one line (concept 15, P-2)', async ({
+  test('a job row says what the job does in its own column, one line cut with «…» (concept 15, P-2)', async ({
     page,
   }) => {
     await openJobs(page);
     const row = page.getByRole('tabpanel').getByRole('row').nth(1);
-    const description = row.getByText(
-      'Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.',
-    );
+    const description = row
+      .getByRole('cell')
+      .first()
+      .getByText('Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.');
     await expect(description).toBeVisible();
     expect(await fontSize(description)).toBe('14px');
-    // One line: the line's box is one line high, and the row grows by about that line only.
-    const line = await description.evaluate((element) =>
-      Math.round(parseFloat(getComputedStyle(element).lineHeight)),
-    );
-    expect(await height(description)).toBe(line);
+    const box = await description.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        whiteSpace: style.whiteSpace,
+        textOverflow: style.textOverflow,
+        line: Math.round(parseFloat(style.lineHeight)),
+        cut: element.scrollWidth > element.clientWidth,
+      };
+    });
+    // One line that does not wrap, cut at the cell with an ellipsis.
+    expect(box.whiteSpace).toBe('nowrap');
+    expect(box.textOverflow).toBe('ellipsis');
+    expect(box.cut).toBe(true);
+    expect(await height(description)).toBe(box.line);
   });
 
   test('running text is 14 px in the content of /admin', async ({ page }) => {

@@ -15,19 +15,13 @@
   list-style: none;
 }
 
-/* The name of a job type in its row and what it does below it (concept 15, P-2): the size of the
-   other cells, muted, one line cut with «…»; on a phone, where the table sizes its columns from
-   their content, two lines. */
-.nameCell {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
+/* What a job type does, in its own column (concept 15, P-2): the size of the other cells, muted,
+   one line cut with «…»; on a phone, where the table sizes its columns from their content, two
+   lines. */
 .description {
+  display: block;
   overflow: hidden;
   color: var(--sc-color-text-muted);
-  font-weight: var(--sc-font-weight-regular);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

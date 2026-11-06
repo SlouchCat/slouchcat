@@ -215,10 +215,23 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     expect(within(scanRow).getByText('läuft')).toBeVisible();
     expect(within(scanRow).getByText(/3 · dran in ca. 2 h 40 min · üblich 3 min/)).toBeVisible();
     expect(within(scanRow).getByText(/^in .* · alle 6 h$/)).toBeVisible();
-    // What the type does, below its name (concept 15, P-2); the button keeps the name alone.
+    // What the type does, in its own column right after the name (concept 15, P-2), the whole
+    // sentence in the tooltip; the button keeps the name alone.
     const SCAN_DESCRIPTION = 'Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.';
-    expect(within(scanRow).getByText(SCAN_DESCRIPTION)).toBeVisible();
-    expect(within(scanRow).getByText(SCAN_DESCRIPTION)).toHaveAttribute('aria-hidden', 'true');
+    expect(
+      within(groupPanel())
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent),
+    ).toEqual(['Job', 'Beschreibung', 'Zustand', 'Wartend', 'Letzter Lauf', 'Nächster Lauf']);
+    const descriptionCell = within(scanRow).getAllByRole('cell')[0]!;
+    expect(descriptionCell).toHaveTextContent(SCAN_DESCRIPTION);
+    expect(within(descriptionCell).getByText(SCAN_DESCRIPTION)).toBeVisible();
+    expect(within(descriptionCell).getByText(SCAN_DESCRIPTION)).toHaveAttribute(
+      'title',
+      SCAN_DESCRIPTION,
+    );
+    const scanToggle = within(scanRow).getByRole('button', { name: 'Bibliotheksscan' });
+    expect(scanToggle.textContent).toBe('Bibliotheksscan');
     const scan = await openRow(user, 'Bibliotheksscan');
     // The fold-out opens with the same sentence, above «Ausgelöst durch».
     const fullDescription = within(scan).getByText(SCAN_DESCRIPTION);
@@ -763,10 +776,11 @@ describe('admin jobs page (concept 09, concept 12)', () => {
     await screen.findByRole('tablist', { name: 'Jobs nach Gruppe' });
     const user = userEvent.setup();
     // Neither a type the server does not know nor one without a locale text shows a
-    // description (concept 15, P-2): the row holds the name alone, never a key.
+    // description (concept 15, P-2): its cell stays empty, never a key.
     for (const name of ['legacy.sweep', 'future.job']) {
-      const toggle = within(groupPanel()).getByRole('button', { name });
-      expect(toggle.textContent).toBe(name);
+      const row = within(groupPanel()).getByRole('row', { name: new RegExp(`^${name}`) });
+      expect(within(row).getByRole('button', { name }).textContent).toBe(name);
+      expect(within(row).getAllByRole('cell')[0]).toBeEmptyDOMElement();
     }
     const legacy = await openRow(user, 'legacy.sweep');
     expect(

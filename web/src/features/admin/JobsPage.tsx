@@ -839,41 +839,43 @@ function JobsContent() {
 }
 
 /**
- * The name of a type in its row, and below it what the type does on one muted line (concept 15,
- * P-2; two lines on a phone). The line is hidden from screen readers: the button's name stays the
- * type's name, and the fold-out reads the sentence in full at its top.
+ * What a type does, in its own column of the row (concept 15, P-2): one muted line cut with «…»
+ * and the whole sentence in the tooltip (two lines on a phone); empty for an unknown type. The
+ * fold-out reads the sentence in full at its top.
  */
-function TypeNameCell({ info }: { info: JobTypeInfo }) {
+function TypeDescription({ info }: { info: JobTypeInfo }) {
   const { t } = useTranslation();
   const description = typeDescription(t, info);
+  if (!description) return null;
   return (
-    <span className={styles.nameCell}>
-      <span>{typeName(t, info.type)}</span>
-      {description && (
-        <span className={styles.description} aria-hidden="true">
-          {description}
-        </span>
-      )}
+    <span className={styles.description} title={description}>
+      {description}
     </span>
   );
 }
 
 /**
  * The columns of a group's table: the row folds out on the name (JOB-5). The widths keep the
- * columns in place across the group tabs and when a state changes (K12-9).
+ * columns in place across the group tabs and when a state changes (K12-9); the description takes
+ * what is left (concept 15, P-2).
  */
 function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
   return [
     {
       key: 'name',
-      width: '30%',
+      width: '26%',
       header: t('admin.jobs.columns.job'),
       rowHeader: true,
-      cell: (info) => <TypeNameCell info={info} />,
+      cell: (info) => typeName(t, info.type),
+    },
+    {
+      key: 'description',
+      header: t('admin.jobs.columns.description'),
+      cell: (info) => <TypeDescription info={info} />,
     },
     {
       key: 'state',
-      width: '14%',
+      width: '11%',
       header: t('admin.jobs.columns.state'),
       cell: (info) => {
         const state = typeState(info);
@@ -882,19 +884,20 @@ function typeColumns(t: TFunction): DataColumn<JobTypeInfo>[] {
     },
     {
       key: 'queued',
-      width: '14%',
+      width: '12%',
       header: t('admin.jobs.card.queued'),
       cell: (info) => queuedText(t, info),
     },
     {
       key: 'last',
-      width: '22%',
+      width: '14%',
       header: t('admin.jobs.card.lastRun'),
       // Cut to one line here; the fold-out shows the whole text.
       cell: (info) => <LastRun info={info} oneLine />,
     },
     {
       key: 'next',
+      width: '20%',
       header: t('admin.jobs.card.nextRun'),
       cell: (info) => <NextRun info={info} />,
     },

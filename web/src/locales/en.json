@@ -3160,6 +3160,7 @@
       },
       "columns": {
         "job": "Job",
+        "description": "Description",
         "state": "State"
       },
       "failed": {
