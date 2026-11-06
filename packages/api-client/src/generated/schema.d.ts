@@ -506,6 +506,13 @@ export interface paths {
          *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
          *     a poster row. Every item passed the visibility layer of the active profile.
          *
+         *     The row `continue` holds one entry per series (since contract 1.14.0, concept 15 P-1): the
+         *     episode with the newest progress of the series while it is not completed, else the next
+         *     episode not yet completed (the rule of `ItemDetail.nextEpisode`) while that progress is at
+         *     most 60 days old; a series without one is absent. A next episode never started carries no
+         *     `progress` (the card shows it as new). Films, audiobooks and podcast episodes appear while started and not
+         *     completed. The row is ordered by the newest progress, of the series or of the title.
+         *
          *     `heroStart` names the title the stage begins with (concept 08, F-2, ADR 0016): an index into
          *     the `items` of the `heroRow`, drawn at random by the server once per page view. The app
          *     shell `GET /` draws it and writes it as `data-start` on `#hero-prepaint` and into its
@@ -4311,6 +4318,15 @@ export interface components {
             episodeEnd?: number;
             /** @description Title of the series in the profile language (seasons and episodes). */
             seriesTitle?: string;
+            /**
+             * @description The series of an episode with its title and images (since contract 1.14.0); set only on
+             *     episodes of a series the profile may see, absent on every other kind. A card of an
+             *     episode shows the series poster from here, since episodes have no poster of their own.
+             *     Named `seriesRef`, not `series` as in concept 15 section 2.2, because `ItemDetail`
+             *     already has a property `series` (the full `ItemRef` of the series) and one property
+             *     must not carry two schemas in the `allOf` of `ItemDetail`.
+             */
+            seriesRef?: components["schemas"]["SeriesRef"];
             extraKind?: components["schemas"]["ExtraKind"];
             /** @description Visible seasons of a series, visible episodes of a season. */
             childCount?: number;
@@ -4339,6 +4355,16 @@ export interface components {
              *     "no trailer" (`ItemDetail.trailerCount` is the complete answer).
              */
             hasTrailer?: boolean;
+        };
+        /**
+         * @description The series of an episode as it appears on the episode's card (since contract 1.14.0): id,
+         *     title in the profile language and the images of the series, as on an `ItemRef`.
+         */
+        SeriesRef: {
+            id: components["schemas"]["ItemID"];
+            /** @description Title of the series in the profile language, like `ItemRef.seriesTitle`. */
+            title: string;
+            images: components["schemas"]["ItemImages"];
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
             /** @description On the watchlist of the active profile (E-5). */

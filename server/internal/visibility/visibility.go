@@ -233,13 +233,23 @@ func (r *Reader) Released(ctx context.Context, s Scope, limit int) ([]model.Item
 	return r.summaries(ctx, s, pid, items)
 }
 
-// ContinueWatching returns started, not completed titles of the profile, most recent first.
+// NextEpisodeWindow is how long a completed episode keeps its series in "Weiterschauen" with the
+// next episode (concept 15 P-1, F-2) and gets the next episodes downloaded automatically (O-3).
+const NextEpisodeWindow = 60 * 24 * time.Hour
+
+// ContinueWatching returns the row "Weiterschauen" of the profile, newest activity first: per
+// visible series the episode with the newest progress while it is not completed, else the next
+// visible episode not yet completed while that progress is at most NextEpisodeWindow old (concept
+// 15 P-1); started, not completed films, audiobooks and podcast episodes as before. The rules are
+// those of ListContinueWatching.
 func (r *Reader) ContinueWatching(ctx context.Context, s Scope, limit int) ([]model.ItemSummary, error) {
 	pid, err := r.profile(ctx, s)
 	if err != nil {
 		return nil, err
 	}
-	items, err := r.q.ListContinueWatching(ctx, scopedq.ListContinueWatchingParams{ProfileID: pid, LimitCount: clamp(limit)})
+	items, err := r.q.ListContinueWatching(ctx, scopedq.ListContinueWatchingParams{
+		ProfileID: pid, LimitCount: clamp(limit), Since: r.now().Add(-NextEpisodeWindow).UnixMilli(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list continue watching: %w", err)
 	}
@@ -407,16 +417,17 @@ type extras struct {
 	texts        map[string][]scopedq.ItemText
 	images       map[string][]scopedq.Image
 	progress     map[string]scopedq.Progress
-	childCounts  map[string]int    // visible seasons of a series, visible episodes of a season
-	seriesTitles map[string]string // title of the series of a season or episode, profile language
-	parents      map[string]string // parent id of an item whose parent is visible too
+	childCounts  map[string]int              // visible seasons of a series, visible episodes of a season
+	seriesTitles map[string]string           // title of the series of a season or episode, profile language
+	series       map[string]*model.SeriesRef // the series of an episode with its images
+	parents      map[string]string           // parent id of an item whose parent is visible too
 }
 
 // extras loads texts, images, progress, child counts and series titles for a set of visible
 // items; lang picks the series titles.
 func (r *Reader) extras(ctx context.Context, pid int64, lang langPref, ids []string) (extras, error) {
 	out := extras{texts: map[string][]scopedq.ItemText{}, images: map[string][]scopedq.Image{}, progress: map[string]scopedq.Progress{},
-		childCounts: map[string]int{}, seriesTitles: map[string]string{}, parents: map[string]string{}}
+		childCounts: map[string]int{}, seriesTitles: map[string]string{}, series: map[string]*model.SeriesRef{}, parents: map[string]string{}}
 	if len(ids) == 0 {
 		return out, nil
 	}

@@ -263,22 +263,79 @@ func (q *Queries) GetVisibleItem(ctx context.Context, arg GetVisibleItemParams) 
 }
 
 const listContinueWatching = `-- name: ListContinueWatching :many
-SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language FROM items AS i
+WITH watched AS (
+    SELECT p.item_id, p.updated_at, p.completed, p.updated_at >= ?3 AS in_window,
+           se.parent_id AS series_id,
+           coalesce(e.season_number, se.season_number) AS season_number,
+           coalesce(e.episode_end, e.episode_number) AS last_episode
+    FROM progress AS p
+    JOIN items AS e ON e.id = p.item_id
+    JOIN visible_items AS ve ON ve.item_id = e.id AND ve.profile_id = ?1
+    LEFT JOIN items AS se ON e.kind = 'episode' AND se.id = e.parent_id AND se.kind = 'season'
+    WHERE p.profile_id = ?1 AND e.kind <> 'extra' AND (p.completed = 1 OR p.position_ms > 0)
+      AND (se.parent_id IS NULL OR EXISTS (
+            SELECT 1 FROM visible_items AS vs WHERE vs.item_id = se.parent_id AND vs.profile_id = ?1))
+),
+newest AS (
+    SELECT w.item_id, w.updated_at, w.completed, w.in_window, w.series_id, w.season_number, w.last_episode, row_number() OVER (PARTITION BY coalesce(w.series_id, w.item_id)
+                                   ORDER BY w.updated_at DESC, w.item_id DESC) AS rn
+    FROM watched AS w
+),
+next_episodes AS (
+    SELECT n.series_id, x.id AS next_id,
+           row_number() OVER (PARTITION BY n.series_id
+                              ORDER BY coalesce(x.season_number, xs.season_number), x.episode_number, x.id) AS rn
+    FROM newest AS n
+    JOIN items AS xs ON xs.parent_id = n.series_id AND xs.kind = 'season'
+    JOIN items AS x ON x.parent_id = xs.id AND x.kind = 'episode'
+    JOIN visible_items AS vx ON vx.item_id = x.id AND vx.profile_id = ?1
+    LEFT JOIN progress AS xp ON xp.profile_id = ?1 AND xp.item_id = x.id
+    WHERE n.rn = 1 AND n.completed = 1 AND n.in_window = 1 AND x.id <> n.item_id
+      AND ((coalesce(x.season_number, xs.season_number) = n.season_number AND x.episode_number > n.last_episode)
+           OR coalesce(x.season_number, xs.season_number) > n.season_number)
+      AND (coalesce(x.season_number, xs.season_number) <> 0 OR n.season_number = 0)
+      AND coalesce(xp.completed, 0) = 0
+)
+SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language FROM newest AS n
+LEFT JOIN next_episodes AS nx ON nx.series_id = n.series_id AND nx.rn = 1
+JOIN items AS i ON i.id = CASE WHEN n.completed = 0 THEN n.item_id ELSE nx.next_id END
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-JOIN progress AS p ON p.item_id = i.id AND p.profile_id = ?1
-WHERE p.completed = 0 AND p.position_ms > 0 AND i.kind <> 'extra'
-ORDER BY p.updated_at DESC, i.id DESC
+WHERE n.rn = 1
+ORDER BY n.updated_at DESC, i.id DESC
 LIMIT ?2
 `
 
 type ListContinueWatchingParams struct {
 	ProfileID  int64
 	LimitCount int64
+	Since      int64
 }
 
-// Started but not completed titles of the profile, most recently watched first (E-1 "Weiterschauen").
+// The row "Weiterschauen" (E-1, concept 15 P-1), newest activity first: one entry per series and
+// one per started, not completed film, audiobook or podcast episode.
+//
+// watched holds the activity of the profile: progress rows of visible titles (extras never) that
+// are started or completed; a row at position 0 that is not completed is no activity. An episode of
+// a season of a series carries the series id, its season number and its last episode number (the
+// end of a file with several episodes), the same values as Reader.episodeChain passes to
+// GetNextVisibleEpisode; an episode of a series the profile may not see is left out entirely. Per
+// series only the newest row counts, completed or not (row_number over the series), so an older
+// half-watched episode is ignored once another one was finished after it. Every other title is its
+// own group. The newest row then picks the entry:
+//   - not completed (and started): the title itself;
+//   - a completed episode at most @since old: the next episode by the rule of
+//     GetNextVisibleEpisode (same season with a higher number, else a later season; specials only
+//     after a special; visible only). Edge decision of concept 15 step 2: an episode the profile
+//     already completed is skipped (a rewatch of an old episode), so the entry is the first next
+//     visible episode that is not completed; without one the series is absent;
+//   - anything else (a completed film, a completed episode older than @since): no entry.
+//
+// Cost: one pass over the progress rows of the profile (primary key profile_id, item_id) with a
+// join on items by id and the window sort; next_episodes joins only the series whose newest row is
+// a completed episode inside the window and walks items_parent (seasons of the series) and
+// items_episode (episodes of a season by number), so there is no query per series.
 func (q *Queries) ListContinueWatching(ctx context.Context, arg ListContinueWatchingParams) ([]Item, error) {
-	rows, err := q.db.QueryContext(ctx, listContinueWatching, arg.ProfileID, arg.LimitCount)
+	rows, err := q.db.QueryContext(ctx, listContinueWatching, arg.ProfileID, arg.LimitCount, arg.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -1632,7 +1689,7 @@ func (q *Queries) ListVisibleSeasons(ctx context.Context, arg ListVisibleSeasons
 }
 
 const listVisibleSeriesOf = `-- name: ListVisibleSeriesOf :many
-SELECT i.id AS item_id, s.id AS series_id, s.title AS series_title
+SELECT i.id AS item_id, i.kind AS item_kind, s.id AS series_id, s.title AS series_title
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 LEFT JOIN items AS p ON p.id = i.parent_id
@@ -1649,6 +1706,7 @@ type ListVisibleSeriesOfParams struct {
 
 type ListVisibleSeriesOfRow struct {
 	ItemID      string
+	ItemKind    string
 	SeriesID    string
 	SeriesTitle string
 }
@@ -1674,7 +1732,12 @@ func (q *Queries) ListVisibleSeriesOf(ctx context.Context, arg ListVisibleSeries
 	items := []ListVisibleSeriesOfRow{}
 	for rows.Next() {
 		var i ListVisibleSeriesOfRow
-		if err := rows.Scan(&i.ItemID, &i.SeriesID, &i.SeriesTitle); err != nil {
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.ItemKind,
+			&i.SeriesID,
+			&i.SeriesTitle,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

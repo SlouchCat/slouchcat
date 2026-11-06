@@ -17,8 +17,10 @@ import (
 // profile may not see is absent from every list, and a person exists for the profile only through
 // the visible titles of their credits.
 
-// treeExtras fills the child counts of series and seasons, the parents the profile may see and the
-// series titles of seasons and episodes (the text chain of the scope, then the parsed title).
+// treeExtras fills the child counts of series and seasons, the parents the profile may see, the
+// series titles of seasons and episodes (the text chain of the scope, then the parsed title) and
+// the series of episodes with their images (concept 15 P-1). The series of all items are loaded
+// together: one query for their texts and, when the items hold an episode, one for their images.
 func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids []string, out *extras) error {
 	counts, err := r.q.ListVisibleChildCounts(ctx, scopedq.ListVisibleChildCountsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
@@ -55,8 +57,40 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 	for _, t := range texts {
 		bySeries[t.ItemID] = append(bySeries[t.ItemID], t)
 	}
+	var episodeSeries []string
 	for _, s := range series {
 		out.seriesTitles[s.ItemID] = pickTexts(bySeries[s.SeriesID], lang, s.SeriesTitle).title
+		if s.ItemKind == "episode" && !slices.Contains(episodeSeries, s.SeriesID) {
+			episodeSeries = append(episodeSeries, s.SeriesID)
+		}
+	}
+	if len(episodeSeries) == 0 {
+		return nil
+	}
+	images, err := r.q.ListItemImages(ctx, scopedq.ListItemImagesParams{ProfileID: pid, ItemIds: episodeSeries})
+	if err != nil {
+		return fmt.Errorf("list series images: %w", err)
+	}
+	imagesBySeries := map[string][]scopedq.Image{}
+	for _, im := range images {
+		imagesBySeries[im.ItemID] = append(imagesBySeries[im.ItemID], im)
+	}
+	for _, s := range series {
+		if s.ItemKind != "episode" {
+			continue
+		}
+		rows := imagesBySeries[s.SeriesID]
+		out.series[s.ItemID] = &model.SeriesRef{
+			ID:            s.SeriesID,
+			Title:         out.seriesTitles[s.ItemID],
+			Poster:        pickImage(rows, "poster", posterSize),
+			PosterSmall:   pickImage(rows, "poster", posterSmallSize),
+			PosterLarge:   pickImage(rows, "poster", posterLargeSize),
+			Backdrop:      pickImage(rows, "backdrop", backdropSize),
+			BackdropSmall: pickImage(rows, "backdrop", backdropSmallSize),
+			BackdropLarge: pickImage(rows, "backdrop", backdropLargeSize),
+			BackdropUhd:   pickImage(rows, "backdrop", backdropUhdSize),
+		}
 	}
 	return nil
 }

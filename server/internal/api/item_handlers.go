@@ -552,6 +552,17 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 	}
 	ref.SeasonNumber, ref.EpisodeNumber, ref.EpisodeEnd, ref.ChildCount = it.SeasonNumber, it.EpisodeNumber, it.EpisodeEnd, it.ChildCount
 	ref.SeriesTitle = optString(it.SeriesTitle)
+	if s := it.SeriesRef; s != nil { // episodes only (contract 1.14.0); the image URLs name the series
+		ref.SeriesRef = &gen.SeriesRef{Id: s.ID, Title: s.Title, Images: gen.ItemImages{
+			Poster:        toImageRef(s.ID, profileID, s.Poster),
+			PosterSmall:   toImageRef(s.ID, profileID, s.PosterSmall),
+			PosterLarge:   toImageRef(s.ID, profileID, s.PosterLarge),
+			Backdrop:      toImageRef(s.ID, profileID, s.Backdrop),
+			BackdropSmall: toImageRef(s.ID, profileID, s.BackdropSmall),
+			BackdropLarge: toImageRef(s.ID, profileID, s.BackdropLarge),
+			BackdropUhd:   toImageRef(s.ID, profileID, s.BackdropUhd),
+		}}
+	}
 	if it.ExtraKind != "" {
 		k := gen.ExtraKind(it.ExtraKind)
 		ref.ExtraKind = &k

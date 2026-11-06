@@ -419,6 +419,9 @@ func TestPosterLink(t *testing.T) {
 			"</api/v1/items/a/images/poster/w200?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
 		// A card without poster shows the lettered fallback; a backdrop is never its image.
 		{"no poster", model.ItemSummary{ID: "a", Backdrop: &model.Image{Kind: "backdrop", Size: "w1280", ContentHash: "h"}}, ""},
+		// An episode shows the poster of its series (concept 15 P-1).
+		{"episode with the series poster", model.ItemSummary{ID: "e", Kind: "episode", SeriesRef: &model.SeriesRef{ID: "s", Poster: img("w400")}},
+			"</api/v1/items/s/images/poster/w400?v=h&p=7>; rel=preload; as=image; fetchpriority=high"},
 	}
 	for _, tc := range cases {
 		if got := posterLink(tc.item, 7); got != tc.want {
@@ -509,6 +512,12 @@ func TestPosterPrepaint(t *testing.T) {
 			card("a", "movie"), {ID: "b", Backdrop: &model.Image{Kind: "backdrop", Size: "w1280", ContentHash: "h"}}, card("c", "movie"),
 		}, open + `<img ` + both("a") + first + `</div>`},
 		{"first card without poster", []model.ItemSummary{{ID: "a"}, card("b", "movie")}, ""},
+		// An episode shows the poster of its series (concept 15 P-1): a row "Weiterschauen" paints
+		// too. An episode without a visible series has no poster and stops the prepaint.
+		{"episode with the series poster", []model.ItemSummary{
+			{ID: "e", Kind: "episode", SeriesRef: &model.SeriesRef{ID: "s", Poster: img("w400"), PosterSmall: img("w200")}}, card("b", "movie"),
+		}, open + `<img ` + both("s") + first + `<img ` + both("b") + rest + `</div>`},
+		{"episode without series", []model.ItemSummary{{ID: "e", Kind: "episode"}, card("b", "movie")}, ""},
 		{"no cards", nil, ""},
 		// Attribute values are escaped even though the URLs are built by the server.
 		{"escaped", []model.ItemSummary{{ID: "a", Poster: &model.Image{Kind: "poster", Size: `w400"><x&`, ContentHash: "h"}}},

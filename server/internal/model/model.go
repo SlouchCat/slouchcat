@@ -585,6 +585,9 @@ type ItemSummary struct {
 	SeriesTitle   string
 	ExtraKind     string // trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other
 	ChildCount    *int   // visible seasons of a series, visible episodes of a season
+	// SeriesRef is the visible series of an episode with its title and images (concept 15 P-1,
+	// contract 1.14.0 ItemRef.seriesRef); nil on every other kind.
+	SeriesRef *SeriesRef
 
 	// Audio (M6). Author of an audiobook or podcast; PublishedAt and DurationMs of a podcast episode,
 	// DurationMs also the book-wide duration of an audiobook; Explicit marks itunes:explicit (AN-2).
@@ -599,6 +602,20 @@ type ItemSummary struct {
 	// HasTrailer says whether a trailer is stored (M11, D3); nil = not looked up (the contract's
 	// optional ItemRef.hasTrailer), filled for the rows spotlight and picks of the start page only.
 	HasTrailer *bool
+}
+
+// SeriesRef is the series of an episode as its card shows it: id, title in the profile language and
+// the images of the series in the sizes of ItemSummary (concept 15 P-1).
+type SeriesRef struct {
+	ID            string
+	Title         string
+	Poster        *Image // w400
+	PosterSmall   *Image // w200
+	PosterLarge   *Image // w800
+	Backdrop      *Image // w1280
+	BackdropSmall *Image // w780
+	BackdropLarge *Image // w1920
+	BackdropUhd   *Image // w3840
 }
 
 // CastMember is one credit of a title (B-3).

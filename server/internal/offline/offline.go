@@ -93,10 +93,13 @@ const (
 	unfetchedKeep   = 7 * 24 * time.Hour // server copy that no device fetched
 	tombstoneKeep   = 400 * 24 * time.Hour
 	readNoticeKeep  = 90 * 24 * time.Hour // read inbox entries (M7 notifications), by their age
-	autoWindow      = 60 * 24 * time.Hour // series watched in this window get auto-downloads (O-3)
 	writeBatch      = 500                 // rows per transaction (plan 3.6)
 	autoRetryWait   = 6 * time.Hour       // a failed auto-download is tried again after this wait
 )
+
+// autoWindow: series watched in this window get auto-downloads (O-3); the same window keeps a
+// series in "Weiterschauen" with its next episode (concept 15 P-1).
+const autoWindow = visibility.NextEpisodeWindow
 
 // keyframesPatience is how long after its creation a download of a remux waits for the keyframe
 // index before it encodes instead (concept 14, O-8; keyframesWait spaces the attempts).
