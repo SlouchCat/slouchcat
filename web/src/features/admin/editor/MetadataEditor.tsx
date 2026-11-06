@@ -7,7 +7,8 @@ import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { Notice, Skeleton, TextLink, useSpatialHold } from '@/ui';
 import { AriaButton, EditorDialog, StatusRegion, Tabs, useStatusMessage } from '@/ui/aria';
-import { adminItemQuery, librariesQuery } from '../queries';
+import { visibleLibrariesQuery } from '@/features/catalog/queries';
+import { adminItemQuery } from '../queries';
 import { ImagesEditorTab } from './ImagesEditorTab';
 import { emptyDraft, type EditorDraft } from './editorModel';
 import { MatchTab, RefreshTab } from './MatchRefreshTabs';
@@ -42,7 +43,8 @@ export function MetadataEditor({ itemId, onClose }: MetadataEditorProps) {
   // The page behind keeps its arrow keys to itself while the dialog is open.
   useSpatialHold(true);
   const item = useQuery(adminItemQuery(itemId));
-  const libraries = useQuery(librariesQuery);
+  // The pen sits on browsing pages, which hold this list already.
+  const libraries = useQuery(visibleLibrariesQuery);
   const [tab, setTab] = useState('images');
   const [message, setMessage] = useStatusMessage();
   const [draft, setDraft] = useState<EditorDraft>(emptyDraft);
