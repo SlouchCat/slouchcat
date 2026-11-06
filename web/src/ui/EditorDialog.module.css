@@ -1,0 +1,102 @@
+.overlay {
+  position: fixed;
+  z-index: var(--sc-z-modal);
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sc-space-4);
+  background-color: var(--sc-color-bg-overlay);
+}
+
+.modal {
+  display: flex;
+  width: 100%;
+  max-width: var(--sc-size-dialog-editor);
+  height: 90dvh;
+}
+
+.dialog {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--sc-panel-radius);
+  background-color: var(--sc-color-bg-elevated);
+  outline: none;
+}
+
+.head {
+  display: flex;
+  gap: var(--sc-space-4);
+  align-items: flex-start;
+  padding: var(--sc-panel-padding);
+  border-bottom: 1px solid var(--sc-color-border-subtle);
+}
+
+.thumb {
+  flex: none;
+  overflow: hidden;
+  width: var(--sc-space-12);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+}
+
+.thumb[data-shape='landscape'] {
+  width: var(--sc-space-20);
+  aspect-ratio: 16 / 9;
+}
+
+.thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.heading {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sc-font-size-xl);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sc-panel-padding);
+}
+
+/* The whole screen on phones. */
+@media (width < 768px) {
+  .overlay {
+    padding: 0;
+  }
+
+  .modal {
+    max-width: none;
+    height: 100dvh;
+  }
+
+  .dialog {
+    border-radius: 0;
+  }
+}

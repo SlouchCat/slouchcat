@@ -78,11 +78,27 @@
 }
 
 .cell {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-2);
   align-items: stretch;
   min-width: 0;
+}
+
+/* A tool beside the card's link, over the top right of the cover; it shows while the pointer is
+   on the card or the tool has the focus (concept 15 7.4). */
+.tool {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+  opacity: 0;
+  transition: opacity var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.tool:focus-within,
+.cell:hover .tool {
+  opacity: 1;
 }
 
 .links {

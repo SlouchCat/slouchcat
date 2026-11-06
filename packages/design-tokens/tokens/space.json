@@ -121,6 +121,10 @@
       "wide": {
         "$value": "56rem",
         "$description": "Maximum width of a dialog whose content is a list, such as the folder browser."
+      },
+      "editor": {
+        "$value": "68.75rem",
+        "$description": "Maximum width of the metadata editor (1100 px, concept 15 7.4)."
       }
     },
     "hero": {

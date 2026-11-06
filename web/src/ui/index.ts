@@ -55,6 +55,7 @@ export {
   SpatialGroup,
   SpatialPage,
   spatialFocusKey,
+  useSpatialHold,
 } from './spatial';
 export { Stack } from './Stack';
 export { StatusDot, type StatusDotState } from './StatusDot';

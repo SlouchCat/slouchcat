@@ -35,6 +35,11 @@ interface ItemGridProps {
   showRating?: boolean;
   /** Extra class of the grid (the library's column count). */
   className?: string;
+  /**
+   * A control beside the card's link in the same cell, over the cover (the library's pen,
+   * concept 15 7.4): after the link in the Tab order, outside the arrow-key navigation.
+   */
+  tool?: (item: ItemRef) => ReactNode;
 }
 
 /** Titles as poster cards in a grid; arrow keys move between them (spatial navigation). */
@@ -46,6 +51,7 @@ export function ItemGrid({
   showWatched = false,
   showRating = false,
   className,
+  tool,
 }: ItemGridProps) {
   const { t } = useTranslation();
   return (
@@ -94,6 +100,7 @@ export function ItemGrid({
                   : undefined
               }
             />
+            {tool && <div className={styles.tool}>{tool(item)}</div>}
             {below?.(item)}
           </li>
         );

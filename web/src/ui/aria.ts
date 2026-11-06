@@ -24,6 +24,7 @@ export { CheckboxGroup } from './CheckboxGroup';
 export { CodeBlock } from './CodeBlock';
 export { DataTable, type DataColumn } from './DataTable';
 export { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
+export { EditorDialog } from './EditorDialog';
 export {
   FolderList,
   contentsOf,

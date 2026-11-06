@@ -271,6 +271,7 @@
     "submitting": "Wird angemeldet …"
   },
   "library": {
+    "editMetadata": "{{title}}: Metadaten bearbeiten",
     "kind": {
       "video": "Video",
       "audiobooks": "Hörbücher",
@@ -518,6 +519,7 @@
     }
   },
   "item": {
+    "editMetadata": "Metadaten bearbeiten",
     "play": "Abspielen",
     "details": "Details",
     "resume": "Weiterschauen ab {{time}}",
@@ -948,6 +950,102 @@
     }
   },
   "admin": {
+    "editor": {
+      "close": "Schliessen",
+      "openAdmin": "In der Verwaltung öffnen",
+      "subtitle": "{{kind}} · {{library}}",
+      "notFound": "Diesen Titel gibt es nicht oder nicht mehr.",
+      "tabs": {
+        "label": "Bereiche des Editors",
+        "images": "Bilder",
+        "metadata": "Metadaten",
+        "match": "Zuordnen",
+        "refresh": "Aktualisieren"
+      },
+      "images": {
+        "kinds": "Bildart",
+        "kindName": {
+          "still": "Folgenbild"
+        },
+        "state": {
+          "auto": "automatisch · {{provider}}",
+          "locked": "gewählt · gesperrt",
+          "missing": "fehlt"
+        },
+        "kindState": "{{kind}}, {{state}}",
+        "current": "Aktuell: {{source}}",
+        "currentNone": "Aktuell: kein Bild",
+        "own": "eigenes Bild",
+        "upload": {
+          "action": "Eigenes Bild hochladen",
+          "hint": "JPEG, PNG oder WebP bis 20 MB. Der Server rechnet die Grössen selbst; ein hochgeladenes Bild holt er nie neu.",
+          "done": "{{kind}}: eigenes Bild hochgeladen und gesperrt.",
+          "failed": "Hochladen fehlgeschlagen",
+          "error": {
+            "tooLarge": "Die Datei ist grösser als 20 MB.",
+            "format": "Das ist kein JPEG-, PNG- oder WebP-Bild, oder die Datei ist beschädigt.",
+            "pixels": "Das Bild hat mehr als 50 Megapixel.",
+            "missing": "Es kam keine Datei an. Bitte noch einmal wählen.",
+            "kind": "Diese Bildart lässt sich für diesen Titel nicht hochladen."
+          }
+        },
+        "automatic": "Zurück auf automatisch",
+        "candidates": "Vorschläge der Anbieter",
+        "filter": {
+          "provider": "Anbieter",
+          "lang": "Sprache",
+          "all": "Alle"
+        },
+        "count_one": "{{count}} Bild",
+        "count_other": "{{count}} Bilder",
+        "chooseHint": "Ein Klick wählt das Bild: Es gilt sofort und bleibt gesperrt, bis du es zurück auf automatisch stellst.",
+        "stillsOff": "Folgenbilder sind für diese Bibliothek ausgeschaltet. Einschalten lassen sie sich in der Verwaltung unter Metadaten.",
+        "stillsOffLink": "Zu den Metadaten-Einstellungen",
+        "noKinds": "Für diesen Titel gibt es keine Bildarten."
+      },
+      "metadata": {
+        "intro": "Was du hier änderst, sperrt das Feld: «Aktualisieren» überschreibt es nicht mehr. Das Schloss hebt die Sperre wieder auf.",
+        "lang": "Texte gelten für die Sprache {{language}}; die anderen Sprachen holt der Server weiter von den Anbietern.",
+        "field": {
+          "title": "Titel",
+          "originalTitle": "Originaltitel",
+          "sortTitle": "Sortiertitel",
+          "year": "Jahr",
+          "releaseDate": "Erscheinungsdatum",
+          "tagline": "Slogan",
+          "overview": "Beschreibung",
+          "genres": "Genres",
+          "rating": "Altersfreigabe",
+          "language": "Originalsprache"
+        },
+        "source": "aus {{provider}}",
+        "manual": "von Hand",
+        "lock": {
+          "label": "Sperre {{field}}",
+          "locked": "gesperrt",
+          "free": "frei"
+        },
+        "genreAdd": "Genre hinzufügen",
+        "genreAddAction": "Hinzufügen",
+        "genreRemove": "{{genre}} entfernen",
+        "genresNone": "Keine Genres.",
+        "discard": "Verwerfen",
+        "saved": "Metadaten gespeichert.",
+        "unchanged": "Nichts geändert."
+      },
+      "match": {
+        "intro": "Suchen und einen Treffer wählen: Der Server speichert die Zuordnung und lädt den Titel neu.",
+        "notMatchable": "Staffeln und Folgen ordnet der Server über ihre Serie zu."
+      },
+      "refresh": {
+        "body": "«Jetzt aktualisieren» lädt alle freien Felder und automatisch gewählten Bilder neu. Gesperrte Felder und gewählte Bilder bleiben.",
+        "options": "Vor dem Aktualisieren",
+        "unlockAll": "Vorher alle Sperren dieses Titels aufheben",
+        "unlockAllHint": "Danach gilt wieder, was die Anbieter liefern. Eine Zuordnung von Hand und eine eigene Freigabe bleiben.",
+        "run": "Jetzt aktualisieren",
+        "hint": "Läuft als Job mit hoher Priorität; die neuen Werte stehen, sobald er fertig ist."
+      }
+    },
     "libraries": {
       "title": "Bibliotheken",
       "intro": "Ordner, die Slouchcat beobachtet, und der Stand ihrer Scans.",

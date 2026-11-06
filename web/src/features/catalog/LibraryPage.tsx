@@ -6,11 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
+import { useActiveSession } from '@/app/session';
 import { cardKey, ItemGrid, MoreButton } from '@/features/discover/ItemGrid';
 import { YearField } from '@/features/discover/YearField';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
+import { useWideScreen } from '@/lib/useWideScreen';
 import {
   Button,
   ButtonLink,
@@ -37,6 +39,7 @@ import {
   type LibraryParams,
   type LibrarySort,
 } from './libraryParams';
+import { CoverPen, EditMetadata } from './EditMetadata';
 import { libraryItemsQuery, visibleLibrariesQuery } from './queries';
 import { useBackFocus } from './useBackFocus';
 import styles from './LibraryPage.module.css';
@@ -73,6 +76,12 @@ function LibraryView({ id }: { id: number | null }) {
   const panelId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // The pen on the covers (concept 15 7.4): a shortcut for the administrator's primary profile,
+  // not a rule (the server answers the editor only for that session), and not on phones.
+  const session = useActiveSession();
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
+  const wide = useWideScreen();
+  const [editing, setEditing] = useState<string | null>(null);
 
   const libraries = useQuery(visibleLibrariesQuery);
   const library = libraries.data?.find((entry) => entry.id === id);
@@ -417,7 +426,13 @@ function LibraryView({ id }: { id: number | null }) {
                   className={styles.grid}
                   showWatched
                   showRating={library.kind === 'video'}
+                  tool={
+                    canManage && wide
+                      ? (item) => <CoverPen item={item} onEdit={setEditing} />
+                      : undefined
+                  }
                 />
+                {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}
                 <MoreButton
                   shown={items.length}
                   keys={cardKeys}

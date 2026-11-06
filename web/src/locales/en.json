@@ -271,6 +271,7 @@
     "submitting": "Signing in …"
   },
   "library": {
+    "editMetadata": "{{title}}: edit metadata",
     "kind": {
       "video": "Video",
       "audiobooks": "Audiobooks",
@@ -518,6 +519,7 @@
     }
   },
   "item": {
+    "editMetadata": "Edit metadata",
     "play": "Play",
     "details": "Details",
     "resume": "Resume from {{time}}",
@@ -948,6 +950,102 @@
     }
   },
   "admin": {
+    "editor": {
+      "close": "Close",
+      "openAdmin": "Open in administration",
+      "subtitle": "{{kind}} · {{library}}",
+      "notFound": "This title does not exist (any more).",
+      "tabs": {
+        "label": "Parts of the editor",
+        "images": "Images",
+        "metadata": "Metadata",
+        "match": "Match",
+        "refresh": "Refresh"
+      },
+      "images": {
+        "kinds": "Image kind",
+        "kindName": {
+          "still": "Episode still"
+        },
+        "state": {
+          "auto": "automatic · {{provider}}",
+          "locked": "chosen · locked",
+          "missing": "missing"
+        },
+        "kindState": "{{kind}}, {{state}}",
+        "current": "Current: {{source}}",
+        "currentNone": "Current: no image",
+        "own": "own image",
+        "upload": {
+          "action": "Upload own image",
+          "hint": "JPEG, PNG or WebP up to 20 MB. The server derives the sizes itself and never fetches an uploaded image again.",
+          "done": "{{kind}}: own image uploaded and locked.",
+          "failed": "Upload failed",
+          "error": {
+            "tooLarge": "The file is larger than 20 MB.",
+            "format": "This is no JPEG, PNG or WebP image, or the file is damaged.",
+            "pixels": "The image has more than 50 megapixels.",
+            "missing": "No file arrived. Please choose it again.",
+            "kind": "This image kind cannot be uploaded for this title."
+          }
+        },
+        "automatic": "Back to automatic",
+        "candidates": "Suggestions of the providers",
+        "filter": {
+          "provider": "Provider",
+          "lang": "Language",
+          "all": "All"
+        },
+        "count_one": "{{count}} image",
+        "count_other": "{{count}} images",
+        "chooseHint": "A click chooses the image: it applies at once and stays locked until you set it back to automatic.",
+        "stillsOff": "Episode stills are switched off for this library. They can be switched on in the administration under Metadata.",
+        "stillsOffLink": "To the metadata settings",
+        "noKinds": "This title has no image kinds."
+      },
+      "metadata": {
+        "intro": "What you change here locks the field: «Refresh» no longer overwrites it. The lock lifts the lock again.",
+        "lang": "Texts apply to the language {{language}}; the server keeps fetching the other languages from the providers.",
+        "field": {
+          "title": "Title",
+          "originalTitle": "Original title",
+          "sortTitle": "Sort title",
+          "year": "Year",
+          "releaseDate": "Release date",
+          "tagline": "Tagline",
+          "overview": "Overview",
+          "genres": "Genres",
+          "rating": "Age rating",
+          "language": "Original language"
+        },
+        "source": "from {{provider}}",
+        "manual": "by hand",
+        "lock": {
+          "label": "Lock {{field}}",
+          "locked": "locked",
+          "free": "free"
+        },
+        "genreAdd": "Add genre",
+        "genreAddAction": "Add",
+        "genreRemove": "Remove {{genre}}",
+        "genresNone": "No genres.",
+        "discard": "Discard",
+        "saved": "Metadata saved.",
+        "unchanged": "Nothing changed."
+      },
+      "match": {
+        "intro": "Search and choose a hit: the server stores the match and loads the title again.",
+        "notMatchable": "The server matches seasons and episodes through their series."
+      },
+      "refresh": {
+        "body": "«Refresh now» reloads every free field and every automatically chosen image. Locked fields and chosen images stay.",
+        "options": "Before the refresh",
+        "unlockAll": "Lift every lock of this title first",
+        "unlockAllHint": "Afterwards what the providers deliver applies again. A manual match and an own rating stay.",
+        "run": "Refresh now",
+        "hint": "Runs as a job with high priority; the new values appear once it is done."
+      }
+    },
     "libraries": {
       "title": "Libraries",
       "intro": "Folders Slouchcat watches and the state of their scans.",
