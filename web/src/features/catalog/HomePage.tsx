@@ -28,6 +28,7 @@ import {
   VisuallyHidden,
   type HeroSlide,
 } from '@/ui';
+import { CoverPen, EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { homeRowTitle, isAudioKind } from './labels';
 import { homeQuery } from './queries';
@@ -95,6 +96,16 @@ function remaining(t: TFunction, progress: NonNullable<ItemRef['progress']>): st
  */
 const seriesOf = (row: HomeRow, item: ItemRef) =>
   row.key === 'continue' && item.kind === 'episode' ? item.seriesRef : undefined;
+
+/**
+ * The title a card's pen edits (concept 15 P-6): the title of the cover it sits on. On a series
+ * card of "Weiterschauen" that is the series, whose poster and title the card shows, not the
+ * episode the card opens.
+ */
+function editedTitle(row: HomeRow, item: ItemRef): Pick<ItemRef, 'id' | 'kind' | 'title'> {
+  const series = seriesOf(row, item);
+  return series ? { id: series.id, kind: 'series', title: series.title } : item;
+}
 
 /**
  * Focus and React key of a card, by the row's id (several library rows share a key, concept 15
@@ -176,6 +187,11 @@ export function HomePage() {
   const [heroShown, setHeroShown] = useState(false);
   // The stage slide whose trailer dialog is open (W-10).
   const [trailerSlide, setTrailerSlide] = useState<HeroSlide>();
+  // The pen on the covers (concept 15 P-6), as in the library: a shortcut for the administrator's
+  // primary profile, not a rule (the server answers the editor only for that session).
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
+  // The title whose metadata editor is open.
+  const [editing, setEditing] = useState<string | null>(null);
   // Only a stage at the top is the page's first image: the server paints it into the shell, and the
   // posters wait for it. A stage further down has no prepaint and holds no poster back.
   const leadRow = home.data?.rows.find(hasEntries);
@@ -271,6 +287,15 @@ export function HomePage() {
       detailsHref: paths.item(item.id),
     }));
 
+  // The pen of a spotlight poster: only the active poster's pen is a Tab stop, like the poster
+  // itself (the row's roving tabindex). Not on the stage above, which shows one title at a time.
+  const spotlightPen = (row: HomeRow, slide: HeroSlide, active: boolean) => {
+    const item = row.items.find((entry) => entry.id === slide.id);
+    return item && EDITABLE_KINDS.has(item.kind) ? (
+      <CoverPen item={item} onEdit={setEditing} excludeFromTabOrder={!active} />
+    ) : undefined;
+  };
+
   const posterRow = (row: HomeRow) => {
     const title = homeRowTitle(t, row);
     const focusKey = `row-${row.id}`;
@@ -357,7 +382,8 @@ export function HomePage() {
             : { title: item.title, caption: cardCaption(t, row, item), label: undefined };
           const images = (series ?? item).images;
           const progress = row.key === 'continue' ? startedProgress(item) : undefined;
-          return (
+          const edited = editedTitle(row, item);
+          const card = (
             <PosterCard
               key={cardKey(row, item)}
               focusKey={cardKey(row, item)}
@@ -387,6 +413,16 @@ export function HomePage() {
                   : undefined
               }
             />
+          );
+          return canManage && EDITABLE_KINDS.has(edited.kind) ? (
+            <div key={cardKey(row, item)} className={styles.cell}>
+              {card}
+              <div className={styles.tool}>
+                <CoverPen item={edited} onEdit={setEditing} />
+              </div>
+            </div>
+          ) : (
+            card
           );
         })}
       </Row>
@@ -418,8 +454,11 @@ export function HomePage() {
                     start={home.data.heroStart}
                     intervalSeconds={home.data.heroIntervalSeconds}
                     onTrailerPress={setTrailerSlide}
-                    paused={trailerSlide !== undefined}
+                    paused={trailerSlide !== undefined || editing !== null}
                     onArtShown={() => setHeroShown(true)}
+                    tool={
+                      canManage ? (slide, active) => spotlightPen(row, slide, active) : undefined
+                    }
                   />
                 );
               }
@@ -442,6 +481,7 @@ export function HomePage() {
             )}
           </div>
         )}
+        {editing && <EditMetadata itemId={editing} onClose={() => setEditing(null)} />}
         {trailerSlide && (
           <Suspense fallback={null}>
             <TrailerPanel

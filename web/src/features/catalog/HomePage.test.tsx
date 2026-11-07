@@ -12,7 +12,7 @@ import {
   seriesIds,
   showSeriesRef,
 } from '@/test/fixtures';
-import { json, mockApi, renderApp, signedIn } from '@/test/api';
+import { json, mockApi, renderApp, session, signedIn } from '@/test/api';
 import { spatialFocusKey } from '@/ui';
 
 describe('start page', () => {
@@ -241,7 +241,7 @@ describe('start page', () => {
     }
 
     // A slide without the small size falls back to w1280 without srcset.
-    fireEvent.click(within(hero).getByRole('button', { name: /^Arrival/ }));
+    fireEvent.click(within(hero).getByRole('button', { name: /^Arrival(?!:)/ }));
     const third = images().find((image) => image.getAttribute('src')?.includes(ids.arrival));
     expect(third).toHaveAttribute(
       'src',
@@ -615,10 +615,12 @@ describe('start page', () => {
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
     // The poster row marks the active slide's poster, named after its title, with the time bar.
     const row = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
-    const arrivalPoster = within(row).getByRole('button', { name: /^Arrival/ });
+    const arrivalPoster = within(row).getByRole('button', { name: /^Arrival(?!:)/ });
     expect(arrivalPoster).toHaveAttribute('aria-current', 'true');
     expect(arrivalPoster.querySelector('[class*="timer"]')).not.toBeNull();
-    expect(within(row).getByRole('button', { name: /^Heat/ })).not.toHaveAttribute('aria-current');
+    expect(within(row).getByRole('button', { name: /^Heat(?!:)/ })).not.toHaveAttribute(
+      'aria-current',
+    );
   });
 
   it('begins with heroStart and keeps the slide when a refetch draws another (F-2)', async () => {
@@ -668,9 +670,9 @@ describe('start page', () => {
       ['1', expect.stringMatching(/^Arrival/)],
     ]);
     // No room after the last poster any more (N-4 is gone for this row).
-    expect(row.querySelector('[aria-hidden="true"]')).toBeNull();
+    expect(row.querySelector(':scope > [aria-hidden="true"]')).toBeNull();
     // A click on the last poster as seen turns the row by two: Heat leads, the focus stays on it.
-    const heatPoster = within(row).getByRole('button', { name: /^Heat/ });
+    const heatPoster = within(row).getByRole('button', { name: /^Heat(?!:)/ });
     act(() => heatPoster.focus());
     fireEvent.click(heatPoster);
     expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
@@ -733,7 +735,7 @@ describe('start page', () => {
     expect(hero).not.toHaveAttribute('data-paused');
     // Any focus in the poster row holds the band, visible or not, so a screen reader reads the row
     // in peace (concept 15, 6.3); choosing the focused poster shows its slide without navigating.
-    const poster = within(hero).getByRole('button', { name: /^Arrival/ });
+    const poster = within(hero).getByRole('button', { name: /^Arrival(?!:)/ });
     act(() => poster.focus());
     fireEvent.click(poster);
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
@@ -1232,6 +1234,96 @@ describe('start page', () => {
       expect(painted.dataset.done).toBeUndefined();
       fireEvent.load(first!);
       await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+  });
+
+  describe('the pen on the covers (concept 15 P-6)', () => {
+    const collectionId = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
+    const started: ItemRef = { ...episodes.e1, seriesRef: showSeriesRef };
+    const rows = {
+      heroRow: 'spotlight',
+      rows: [
+        { id: 'spotlight', key: 'spotlight', items: [heat, arrival] },
+        { id: 'continue', key: 'continue', items: [started, alien] },
+        { id: 'recent', key: 'recent', items: [arrival] },
+        {
+          id: 'collections',
+          key: 'collections',
+          items: [],
+          collections: [{ id: collectionId, name: 'Alien-Reihe', count: 3, cover: alien }],
+        },
+        { id: 'genres', key: 'genres', items: [], genres: [{ name: 'Horror', count: 4 }] },
+      ],
+    };
+
+    it("puts a pen beside every title's cover, the series on a series card, none elsewhere", async () => {
+      const { calls } = mockApi({ ...signedIn, 'GET /home': () => json(rows) });
+      renderApp('/');
+      const continueRow = await screen.findByRole('region', { name: 'Weiterschauen' });
+      // The series card's pen edits the series it shows, not the episode its link opens.
+      const seriesPen = within(continueRow).getByRole('button', {
+        name: 'Slouchcat Test Show: Metadaten bearbeiten',
+      });
+      const filmPen = within(continueRow).getByRole('button', {
+        name: 'Alien: Metadaten bearbeiten',
+      });
+      // Beside the card's link, not inside it; after it in the Tab order.
+      for (const pen of [seriesPen, filmPen]) {
+        expect(pen.closest('a')).toBeNull();
+        expect(pen).not.toHaveAttribute('tabindex');
+        const link = pen.closest('li')!.querySelector('a')!;
+        expect(link.compareDocumentPosition(pen) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      }
+      expect(
+        within(screen.getByRole('region', { name: 'Neu hinzugefügt' })).getByRole('button', {
+          name: 'Arrival: Metadaten bearbeiten',
+        }),
+      ).toBeVisible();
+      // No pen on a collection or a genre: they are not titles.
+      for (const name of ['Sammlungen', 'Genres']) {
+        expect(
+          within(screen.getByRole('region', { name })).queryByRole('button', {
+            name: /Metadaten bearbeiten$/,
+          }),
+        ).not.toBeInTheDocument();
+      }
+      // The spotlight row: a pen on each poster, only the active poster's pen is a Tab stop (the
+      // row's roving tabindex); none on the stage above.
+      const hero = screen.getByRole('region', { name: 'Spotlight' });
+      const strip = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
+      const heatPen = within(strip).getByRole('button', { name: 'Heat: Metadaten bearbeiten' });
+      const arrivalPen = within(strip).getByRole('button', {
+        name: 'Arrival: Metadaten bearbeiten',
+      });
+      expect(heatPen).not.toHaveAttribute('tabindex');
+      expect(arrivalPen).toHaveAttribute('tabindex', '-1');
+      expect(heatPen.closest('button[aria-current]')).toBeNull();
+      expect(
+        within(hero)
+          .getAllByRole('button', { name: /Metadaten bearbeiten$/ })
+          .every((pen) => strip.contains(pen)),
+      ).toBe(true);
+
+      // A press opens the editor of the series.
+      fireEvent.click(seriesPen);
+      await waitFor(() =>
+        expect(calls.map((call) => `${call.method} ${call.path}`)).toContain(
+          `GET /admin/items/${seriesIds.show}`,
+        ),
+      );
+    });
+
+    it('shows no pen to a profile other than the primary one', async () => {
+      mockApi({
+        'GET /auth/session': () =>
+          json({ ...session, profile: { ...session.profile, isPrimary: false } }),
+        'GET /home': () => json(rows),
+      });
+      renderApp('/');
+      await screen.findByRole('region', { name: 'Weiterschauen' });
+      expect(
+        screen.queryByRole('button', { name: /Metadaten bearbeiten$/ }),
+      ).not.toBeInTheDocument();
     });
   });
 });
