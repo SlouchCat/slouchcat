@@ -1,7 +1,7 @@
 # Konzept: Serien- und Filmseite, Bibliotheksraster und Seitenleiste
 
 - **Status: Fassung 3 (7. November 2026), mit klickbarem Mockup.** Marco hat am 7. November 2026
-  alle Fragen **F-1 bis F-16** beantwortet (Abschnitt 11): **Serie A**,
+  alle Fragen **F-1 bis F-17** beantwortet (Abschnitt 11): **Serie A**,
   **Knöpfe A mit Trailer in der Reihe der Rundknöpfe**, **Sammlung nur als Reihe** (2),
   **Seitenleiste B mit Profilkopf, «Meine Medien» immer offen**. Abweichend von der Empfehlung:
   **FSK überall weg** (F-10), **Merken-Knopf nur beim Zeigen** (F-12), **Schauspielerbilder alle im
@@ -41,6 +41,7 @@
 | D-7 | Der Stift verhält sich wie die FSK (wird beim Darüberfahren grösser und kleiner), überall wo er steht. | 7 |
 | D-8 | Die Seitenleiste schöner, nach dem Vorbild der Leiste in der Verwaltung. Normale Profile sehen nur Medien, der Hauptaccount auch die Profile. | 9 |
 | D-9 | Analog zum Stift einen Knopf, der einen Film oder eine Serie auf die Merkliste nimmt, je Profil, unten rechts auf dem Cover. | 8 |
+| D-10 | «Cat's Empfehlungen» umbenennen in «User-Empfehlungen» (nachgereicht am 7. November 2026). | 9.3 |
 
 ## 2. D-1, D-3 Aufbau der Serien- und Filmseite
 
@@ -103,7 +104,7 @@ Detailseite einer Staffel gibt es schon (`ItemView` mit `kind = season`) und bek
 
 - **A:** grosser heller Knopf mit zwei Zeilen («Weiterschauen» / «S01E02 · Der Sockengolf-Champion ·
   noch 12 min», Fortschrittsstrich); darunter runde Knöpfe **mit Beschriftung**: Trailer, Von vorne
-  (nur bei Fortschritt), Merken, Favorit, Cat's Empfehlungen. (Fassung 1 hatte Trailer neben dem
+  (nur bei Fortschritt), Merken, Favorit, User-Empfehlungen (D-10). (Fassung 1 hatte Trailer neben dem
   grossen Knopf; Marco will ihn ausgeschrieben mit Symbol in der Reihe von Merken.)
 - **B:** derselbe grosse Knopf, dann nur Symbole mit Hinweis beim Zeigen; «Von vorne», «Zu Cat's
   Empfehlungen» und «Metadaten bearbeiten» im Menü «⋯».
@@ -285,12 +286,26 @@ nur das Aussehen.
 der Schalter und der Gerätespeicher `slouchcat.sidenav.libraries` fallen weg. «Wechseln» führt zur
 bestehenden Profilwahl. «Profile» sieht weiterhin das Hauptprofil **jedes** Kontos (F-14).
 
+### 9.3 D-10 «User-Empfehlungen»
+
+- Heute heisst die vom Server-Admin kuratierte Liste fest «Cat's Empfehlungen» (englisch «Cat's
+  picks»): 7 Stellen in `web/src/locales/de.json` (u. a. `nav`/`home.picks` :419, `addToPicks`
+  :599, Seitentitel :1745, Meldungen :1822 und :1836, Verwaltung :2164 und :4048), ebenso in
+  `en.json`.
+- **Entschieden (F-17): fester Text «User-Empfehlungen»**, für alle Profile gleich, nicht vom
+  Profilnamen abgeleitet und nicht einstellbar. Englisch **«User picks»**. Knopf: «Zu den
+  User-Empfehlungen», entfernen: «Aus den User-Empfehlungen entfernen».
+- Nur Texte: keine Änderung an Vertrag, Datenbank oder Routen (`/picks` und der Reihenschlüssel
+  `picks` bleiben). Stufe 1. Tests und Storybook-Baselines, die den Text prüfen, ziehen mit.
+- Frühere Einträge im Entscheidungsprotokoll behalten den alten Namen; sie beschreiben ihren Stand.
+
 ## 10. Was sich gegenüber früheren Entscheiden ändert
 
 | Früher | Neu | Frage |
 |---|---|---|
 | Konzept 08 N-2: Seitenleiste ohne Symbole | Symbole wie in der Verwaltung, Profilkopf | F-13 |
 | Konzept 08: Gruppe «Meine Medien» zuklappbar | immer offen | F-13 |
+| Name «Cat's Empfehlungen» | «User-Empfehlungen» | F-17 |
 | FSK im Kopf der Detailseite (`ItemMeta`) | keine FSK-Anzeige mehr | F-10 |
 | Buchstabenleiste filtert (Konzept 07) | Buchstabe springt in der ganzen Liste | F-9 |
 | FSK auf jedem Poster der Bibliothek | ohne FSK | F-10 |
@@ -318,12 +333,13 @@ bestehenden Profilwahl. «Profile» sieht weiterhin das Hauptprofil **jedes** Ko
 | F-14 | Wer sieht «Profile»? | Hauptprofil jedes Kontos | **wie empfohlen** |
 | F-15 | «Wiedergabe» bleibt für alle Profile in der Leiste? | ja | **ja, für alle** |
 | F-16 | Bau in Stufen wie in Abschnitt 12? | ja | **drei Stufen, je ein Release** |
+| F-17 | Neuer Name für «Cat's Empfehlungen»: Name des Admin-Profils, frei wählbar oder fest? | Name des Admin-Profils | **fest «User-Empfehlungen»** |
 
 ## 12. Bauplan in Stufen (vorläufig)
 
 | Stufe | Inhalt | Vertrag | Migration |
 |---|---|---|---|
-| 1 | D-7 Stift, D-8 Seitenleiste, FSK überall weg (D-6 Punkt 4) | nein | nein |
+| 1 | D-7 Stift, D-8 Seitenleiste, FSK überall weg (D-6 Punkt 4), D-10 Umbenennung | nein | nein |
 | 2 | D-1 bis D-4 Detailseite: Kopf, Knopfzeile, `nextUp`, Staffelcover, Folgenliste, Sammlung; D-9 Merken auf dem Cover | additiv | nein |
 | 3 | D-5 Personen- und Sammlungsbilder (ADR 0026); D-6 Nachladen, Virtualisierung, Buchstabensprung | additiv | ja |
 

@@ -370,7 +370,7 @@
     },
     film: {
       A: '<b>Film in Variante A.</b> Gleicher Kopf wie die Serie: Pfeil zurück, grosser Knopf (Abspielen, Fortsetzen mit Restzeit, Nochmals ansehen), darunter beschriftete Rundknöpfe mit Trailer. Darunter Sammlung, Datei und Besetzung mit Fotos.',
-      B: '<b>Film in Variante B.</b> Gleicher Kopf wie die Serie in B: nur Symbole mit Hinweis beim Zeigen, «Von vorne» und «Zu Cat\'s Empfehlungen» im Menü «⋯».',
+      B: '<b>Film in Variante B.</b> Gleicher Kopf wie die Serie in B: nur Symbole mit Hinweis beim Zeigen, «Von vorne» und «Zu den User-Empfehlungen» im Menü «⋯».',
       C: '<b>Film in Variante C.</b> Die Karte «Als Nächstes» zeigt beim Film die Stelle, an der du stehst, mit Restzeit. Ohne Fortschritt ist es ein normaler Abspielknopf.'
     },
     coll: {
@@ -433,7 +433,7 @@
         <div class="actions lab"><button type="button" data-act="trailer"><span class="c">${ICON.trailer}</span>Trailer</button>${canRestart ? `<button type="button" data-act="restart"><span class="c">${ICON.restart}</span>Von vorne</button>` : ''}
         ${L('merken', 'Gemerkt', '', ICON.markOn, ICON.mark, 'Merken')}
         ${L('fav', 'Favorit', '', ICON.heartOn, ICON.heart, 'Favorit')}
-        ${L('cat', 'Bei Cat', '', ICON.catOn, ICON.cat, 'Cat\'s Empfehlungen')}</div>`;
+        ${L('cat', 'Empfohlen', '', ICON.catOn, ICON.cat, 'User-Empfehlungen')}</div>`;
     }
     if (S.variant === 'B') {
       const I = (k, onT, offT, onIc, offIc) => `<button type="button" class="ico ${m[k] ? 'on' : ''}" data-mark="${k}" aria-pressed="${m[k]}" aria-label="${m[k] ? onT : offT}" data-tip="${m[k] ? onT : offT}">${m[k] ? onIc : offIc}</button>`;
@@ -442,7 +442,7 @@
         ${I('merken', 'Gemerkt', 'Merken', ICON.markOn, ICON.mark)}
         ${I('fav', 'Ist Favorit', 'Favorit', ICON.heartOn, ICON.heart)}
         <span class="menuwrap"><button type="button" class="ico" data-act="menu" aria-haspopup="menu" aria-expanded="${S.menu}" aria-label="Mehr" data-tip="Mehr">${ICON.more}</button>
-        ${S.menu ? `<div class="menu" role="menu">${canRestart ? `<button role="menuitem" type="button" data-act="restart">${ICON.restart}Von vorne abspielen</button>` : ''}<button role="menuitem" type="button" data-mark="cat">${m.cat ? ICON.catOn : ICON.cat}${m.cat ? 'Aus Cat\'s Empfehlungen entfernen' : 'Zu Cat\'s Empfehlungen'}</button>${S.admin ? `<button role="menuitem" type="button" data-act="pen">${ICON.pen}Metadaten bearbeiten</button>` : ''}</div>` : ''}</span></div>`;
+        ${S.menu ? `<div class="menu" role="menu">${canRestart ? `<button role="menuitem" type="button" data-act="restart">${ICON.restart}Von vorne abspielen</button>` : ''}<button role="menuitem" type="button" data-mark="cat">${m.cat ? ICON.catOn : ICON.cat}${m.cat ? 'Aus den User-Empfehlungen entfernen' : 'Zu den User-Empfehlungen'}</button>${S.admin ? `<button role="menuitem" type="button" data-act="pen">${ICON.pen}Metadaten bearbeiten</button>` : ''}</div>` : ''}</span></div>`;
     }
     // C: next card plus compact pills
     const hue = kind === 'serie' ? SEASONS[0].hue : FILM.hue;
@@ -451,7 +451,7 @@
     const sub = kind === 'serie' ? (S.progress === 'mitte' ? 'noch 12 min von 21 min' : S.progress === 'alles' ? 'Alles gesehen, von vorne beginnen' : `${RUN[(n.e - 1) % 8]} min`) : n.sub;
     return `<div class="actions"><button type="button" class="nextcard" data-act="play">${still(hue + 20, n.pct)}<span><small>${n.kicker}</small><b>${title}</b><span>${sub}</span></span></button></div>
       <div class="actions">${P('merken', 'Gemerkt', 'Merken', ICON.markOn, ICON.mark)}${P('fav', 'Favorit', 'Favorit', ICON.heartOn, ICON.heart)}
-      <button type="button" class="pill" data-act="trailer">${ICON.trailer}Trailer</button>${P('cat', 'Bei Cat', 'Cat\'s Empfehlungen', ICON.catOn, ICON.cat)}
+      <button type="button" class="pill" data-act="trailer">${ICON.trailer}Trailer</button>${P('cat', 'Empfohlen', 'User-Empfehlungen', ICON.catOn, ICON.cat)}
       ${canRestart ? `<button type="button" class="pill" data-act="restart">${ICON.restart}Von vorne</button>` : ''}</div>`;
   }
 
@@ -610,7 +610,7 @@
 
   function pageNav() {
     const role = S.navRole, A = S.navVariant === 'A';
-    const libs = [['Filme', 1795, ICON.film, true], ['Serien', 2, ICON.tv], ['test', 304, ICON.folder], ['Podcast', 94, ICON.mic], ['Cat\'s Empfehlungen', 3, ICON.cat]];
+    const libs = [['Filme', 1795, ICON.film, true], ['Serien', 2, ICON.tv], ['test', 304, ICON.folder], ['Podcast', 94, ICON.mic], ['User-Empfehlungen', 3, ICON.cat]];
     const link = (ic, t, extra = '', cur = false) => `<a ${cur ? 'aria-current="page"' : ''}>${ic}<span>${t}</span>${extra}</a>`;
     let h = `<button type="button" class="x" aria-label="Schliessen">${ICON.x}</button>`;
     if (!A) h += `<div class="prof"><span class="av">${role === 'profil' ? 'L' : 'M'}</span><span><b>${role === 'profil' ? 'Lina' : 'Marco'}</b><span>${role === 'profil' ? 'Profil von Marco' : role === 'admin' ? 'Hauptprofil · Server-Admin' : 'Hauptprofil'}</span></span><button type="button">Wechseln</button></div>`;
