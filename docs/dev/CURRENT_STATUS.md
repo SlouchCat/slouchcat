@@ -1,6 +1,18 @@
 # Aktueller Stand
 
-## Konzept 15 «Feinschliff», Stufe 4: gebaut und auf CT 190 abgenommen (7. November 2026)
+## Release 1.16.0 (7. November 2026)
+
+Release ab `main` nach PR #108 (Konzept 15, Stufe 4). Vertrag **1.16.0, additiv**, keine Migration.
+Neu ist das zweite Image `ghcr.io/slouchcat/slouchcat-updater` (Updater-Begleiter, ADR 0024).
+
+- Versionsstellen auf 1.16.0 im Zweig `claude/release-1.16.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
+  `v1.16.0` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.16.0.txt` im
+  Wurzelordner (unversioniert).
+- Nach dem ersten Release-Lauf muss das neue Paket `slouchcat-updater` auf GitHub einmal von Hand
+  öffentlich gemacht werden (Kopf von `.github/workflows/release.yml`).
+
+## Konzept 15 «Feinschliff», Stufe 4: gemergt und auf CT 190 abgenommen (7. November 2026)
 
 Zweig `claude/feinschliff-stufe4` ab `main` `88d03c11` (Release 1.15.0 veröffentlicht). Geplant als
 Release **1.16.0**: Vertrag **1.16.0, additiv**, **keine Migration**. Neue **ADR 0024
@@ -74,7 +86,13 @@ Index-Digest von 1.15.0). Port 8096, `/dev/dri` und Gruppe 993 standen danach wi
 
 Marco hat Stufe 4 am 7. November 2026 freigegeben.
 
-**Offen:** Merge, Release 1.16.0, danach auf CT 190 die Testteile entfernen (`compose.abnahme.yaml`,
+Die GitHub-CI fand auf dem Zweig einen Testfehler, der nur dort auftrat: In Firefox übernahm der
+Service Worker die Seite mitten in `metadata-editor.spec.ts:539`, und die Test-Attrappe für
+`/api/v1/home` griff nicht mehr. Die Testdatei blockiert jetzt den Service Worker wie zehn andere
+(`1f9fe1fb`; CI-Teillauf 1/6 lokal 99/99). Gemergt als **PR #108** (Merge `a96e196f`, GitHub-CI 19/19
+grün auf `1f9fe1fb`).
+
+**Offen:** Release 1.16.0, danach auf CT 190 die Testteile entfernen (`compose.abnahme.yaml`,
 Test-Manifest, Images `1.14.99` und `abnahme-*`) und den Updater auf das Release-Image heben.
 
 ## Release 1.15.0 (7. November 2026): veröffentlicht
