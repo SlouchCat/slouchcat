@@ -154,3 +154,61 @@ func TestWatchReportDayBoundaries(t *testing.T) {
 		}
 	}
 }
+
+// Listened radio (radio_listen_time, concept 16 section 7.10, F-16) counts to the K-5 daily limit
+// and to the days of the report: SumPlayedMs and SumPlayedMsByQuarterHour add it per quarter hour.
+func TestWatchTimeCountsRadioListenTime(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	now := time.Date(2026, 10, 21, 12, 0, 0, 0, zurich)
+	clock := &manualClock{now: now}
+	s := New(f.DB, vistest.Logger(), WithClock(clock.Now), WithTokenKey(testKey))
+	ctx := context.Background()
+	kid := f.AddLimitedProfile(t, "Kind", model.PlaybackLimits{WatchLimitMinutes: 30})
+	m := f.Rated(6)
+	at := time.Date(2026, 10, 21, 11, 0, 0, 0, zurich).UnixMilli()
+	if _, err := f.DB.Write.Exec(`INSERT INTO progress_events (profile_id, item_id, position_ms, duration_ms, played_ms, seq, state, client_time, server_time)
+		VALUES (?, ?, 0, 1000, 60000, 1, 'playing', ?, ?)`, kid.ID, m.ID, at, at); err != nil {
+		t.Fatal(err)
+	}
+	quarter := func(t time.Time) int64 { return t.UnixMilli() / 900_000 }
+	for _, l := range []struct {
+		at     time.Time
+		played int64
+	}{
+		{time.Date(2026, 10, 21, 10, 0, 0, 0, zurich), 300_000},  // today
+		{time.Date(2026, 10, 21, 0, 0, 0, 0, zurich), 60_000},    // first quarter of today
+		{time.Date(2026, 10, 20, 23, 45, 0, 0, zurich), 120_000}, // last quarter of yesterday
+		{time.Date(2026, 10, 17, 10, 0, 0, 0, zurich), 900_000},  // before the report range
+	} {
+		if _, err := f.DB.Write.Exec(`INSERT INTO radio_listen_time (profile_id, quarter, played_ms) VALUES (?, ?, ?)`,
+			kid.ID, quarter(l.at), l.played); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Another profile's radio time never counts.
+	if _, err := f.DB.Write.Exec(`INSERT INTO radio_listen_time (profile_id, quarter, played_ms) VALUES (?, ?, 900000)`,
+		f.P18.ID, quarter(now.Add(-time.Hour))); err != nil {
+		t.Fatal(err)
+	}
+	wt, err := s.WatchTime(ctx, kid, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wt == nil || *wt != (model.WatchTime{LimitMinutes: 30, UsedMinutes: 7, RemainingMinutes: 23}) {
+		t.Errorf("watch time = %+v, want 7 of 30 minutes used (1 title + 6 radio)", wt)
+	}
+	rep, err := s.WatchReport(ctx, browserSession(t, f, f.P18), kid.ID, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []model.WatchDay{{Date: "2026-10-20", Minutes: 2}, {Date: "2026-10-21", Minutes: 7}}
+	if len(rep.Days) != len(want) {
+		t.Fatalf("days = %+v", rep.Days)
+	}
+	for i := range want {
+		if rep.Days[i] != want[i] {
+			t.Errorf("day %d = %+v, want %+v", i, rep.Days[i], want[i])
+		}
+	}
+}

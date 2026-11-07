@@ -1,0 +1,67 @@
+-- Webradio listen sessions and listen time (package store/appq, concept 16 sections 7.2, 7.5 and
+-- 7.10; owner: radio, lane A). A listen session belongs to one login session, account, profile and
+-- station; ended_by takes the model.StoppedBy* values plus radio's own 'expired', 'station' and
+-- 'restart'. Times are Unix milliseconds.
+
+-- name: InsertRadioListenSession :exec
+INSERT INTO radio_listen_sessions (id, session_id, account_id, profile_id, station_id, created_at,
+                                   last_seen_at, expires_at, playing)
+VALUES (@id, @session_id, @account_id, @profile_id, @station_id, @now, @now, @expires_at, 1);
+
+-- name: GetRadioListenSession :one
+SELECT * FROM radio_listen_sessions WHERE id = @id;
+
+-- name: TouchRadioListenSession :execrows
+-- A heartbeat or a live request (at most once a minute, M-2) slides the expiry of an open session.
+UPDATE radio_listen_sessions SET last_seen_at = @now, expires_at = @expires_at, playing = @playing
+WHERE id = @id AND ended_at IS NULL;
+
+-- name: EndRadioListenSession :execrows
+UPDATE radio_listen_sessions SET ended_at = @now, ended_by = @ended_by
+WHERE id = @id AND ended_at IS NULL;
+
+-- name: EndRadioListenSessionsBySession :many
+-- Logout or revocation of a login session; returns the ended ids so the relays close them.
+UPDATE radio_listen_sessions SET ended_at = @now, ended_by = @ended_by
+WHERE session_id = @session_id AND ended_at IS NULL
+RETURNING id;
+
+-- name: EndRadioListenSessionsByProfile :many
+UPDATE radio_listen_sessions SET ended_at = @now, ended_by = @ended_by
+WHERE profile_id = @profile_id AND ended_at IS NULL
+RETURNING id;
+
+-- name: EndRadioListenSessionsByAccount :many
+UPDATE radio_listen_sessions SET ended_at = @now, ended_by = @ended_by
+WHERE account_id = @account_id AND ended_at IS NULL
+RETURNING id;
+
+-- name: EndRadioListenSessionsOfStation :many
+-- The relay of a station ended (ended_by 'station').
+UPDATE radio_listen_sessions SET ended_at = @now, ended_by = @ended_by
+WHERE station_id = @station_id AND ended_at IS NULL
+RETURNING id;
+
+-- name: EndOpenRadioListenSessions :execrows
+-- At startup no relay runs, so every open session ended with the last process ('restart').
+UPDATE radio_listen_sessions SET ended_at = @now, ended_by = 'restart' WHERE ended_at IS NULL;
+
+-- name: ExpireRadioListenSessions :many
+-- Sessions whose client stopped asking (expires_at passed) end as 'expired'.
+UPDATE radio_listen_sessions SET ended_at = @now, ended_by = 'expired'
+WHERE ended_at IS NULL AND expires_at <= @now
+RETURNING id;
+
+-- name: ListOpenRadioListenSessions :many
+SELECT * FROM radio_listen_sessions WHERE ended_at IS NULL ORDER BY station_id, created_at, id;
+
+-- name: AddRadioListenTime :exec
+-- Adds listened time to one quarter hour of a profile; a quarter never holds more than 15 minutes.
+INSERT INTO radio_listen_time (profile_id, quarter, played_ms)
+VALUES (@profile_id, @quarter, min(900000, @played_ms))
+ON CONFLICT (profile_id, quarter) DO UPDATE SET
+    played_ms = min(900000, radio_listen_time.played_ms + excluded.played_ms);
+
+-- name: DeleteOldRadioListenTime :execrows
+-- Listen time older than the K-5 report needs (quarter < @before_quarter).
+DELETE FROM radio_listen_time WHERE quarter < @before_quarter;

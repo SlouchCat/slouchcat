@@ -618,6 +618,128 @@ type PushSubscription struct {
 	Failures   int64
 }
 
+type RadioConfig struct {
+	ID               int64
+	BufferMinutes    int64
+	BudgetMb         int64
+	MaxRelays        int64
+	GraceSeconds     int64
+	HideBroken       int64
+	Countries        sql.NullString
+	LastSyncAt       sql.NullInt64
+	LastSyncError    sql.NullString
+	SyncFailures     int64
+	EntriesTotal     int64
+	EntriesReachable int64
+	StationsTotal    int64
+	LastAdded        int64
+	LastRemoved      int64
+	UpdatedAt        int64
+}
+
+type RadioFavorite struct {
+	ProfileID int64
+	StationID int64
+	Position  int64
+	CreatedAt int64
+}
+
+type RadioListenSession struct {
+	ID         string
+	SessionID  int64
+	AccountID  int64
+	ProfileID  int64
+	StationID  int64
+	CreatedAt  int64
+	LastSeenAt int64
+	ExpiresAt  int64
+	Playing    int64
+	EndedAt    sql.NullInt64
+	EndedBy    sql.NullString
+}
+
+type RadioListenTime struct {
+	ProfileID int64
+	Quarter   int64
+	PlayedMs  int64
+}
+
+type RadioProfileState struct {
+	ProfileID      int64
+	DefaultCountry sql.NullString
+	LastFilter     sql.NullString
+	LastSort       sql.NullString
+	UpdatedAt      int64
+}
+
+type RadioStation struct {
+	ID           int64
+	Source       string
+	GroupKey     string
+	Name         string
+	SortKey      string
+	SearchText   string
+	Country      sql.NullString
+	Region       sql.NullString
+	Languages    string
+	Homepage     sql.NullString
+	FaviconUrl   sql.NullString
+	Votes        int64
+	Clicks       int64
+	Quality      sql.NullString
+	Reachable    int64
+	Failures     int64
+	BrokenAt     sql.NullInt64
+	Hidden       int64
+	Recommended  int64
+	ShowsTitles  int64
+	MissingSince sql.NullInt64
+	LogoState    string
+	LogoHash     sql.NullString
+	LogoTriedAt  sql.NullInt64
+	CreatedAt    int64
+	UpdatedAt    int64
+}
+
+type RadioStationAlias struct {
+	Stationuuid    string
+	StationID      int64
+	SeenAt         int64
+	CatalogChanged sql.NullString
+	MissingSince   sql.NullInt64
+}
+
+type RadioStationFacet struct {
+	StationID int64
+	Facet     string
+	Value     string
+	Manual    int64
+}
+
+type RadioStationLock struct {
+	StationID int64
+	Field     string
+}
+
+type RadioStationTag struct {
+	StationID int64
+	Tag       string
+}
+
+type RadioStream struct {
+	ID          int64
+	StationID   int64
+	Stationuuid sql.NullString
+	Url         string
+	UrlResolved sql.NullString
+	Codec       sql.NullString
+	Bitrate     sql.NullInt64
+	Hls         int64
+	Lastcheckok int64
+	Preferred   int64
+	UpdatedAt   int64
+}
+
 type SearchDoc struct {
 	ID     int64
 	Kind   string

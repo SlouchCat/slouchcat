@@ -239,8 +239,13 @@ func (q *Queries) OldestCondensableDay(ctx context.Context, before int64) (int64
 }
 
 const sumPlayedMs = `-- name: SumPlayedMs :one
-SELECT CAST(COALESCE(SUM(played_ms), 0) AS INTEGER) AS played_ms FROM progress_events
-WHERE profile_id = ?1 AND server_time >= ?2 AND server_time < ?3
+SELECT CAST(
+    COALESCE((SELECT SUM(pe.played_ms) FROM progress_events AS pe
+              WHERE pe.profile_id = ?1 AND pe.server_time >= ?2 AND pe.server_time < ?3), 0)
+  + COALESCE((SELECT SUM(rl.played_ms) FROM radio_listen_time AS rl
+              WHERE rl.profile_id = ?1 AND rl.quarter * 900000 >= ?2
+                AND rl.quarter * 900000 < ?3), 0)
+  AS INTEGER) AS played_ms
 `
 
 type SumPlayedMsParams struct {
@@ -249,7 +254,9 @@ type SumPlayedMsParams struct {
 	ToMs      int64
 }
 
-// Played time of a profile in [from, to) by server time (K-5 watch time, one calendar day).
+// Played time of a profile in [from, to) by server time (K-5 watch time, one calendar day): titles
+// plus listened radio (radio_listen_time, concept 16 section 7.10). Radio counts per quarter hour;
+// a day starts on a quarter hour (see below), so a quarter lies wholly inside or outside the day.
 func (q *Queries) SumPlayedMs(ctx context.Context, arg SumPlayedMsParams) (int64, error) {
 	row := q.db.QueryRowContext(ctx, sumPlayedMs, arg.ProfileID, arg.FromMs, arg.ToMs)
 	var played_ms int64
@@ -258,9 +265,14 @@ func (q *Queries) SumPlayedMs(ctx context.Context, arg SumPlayedMsParams) (int64
 }
 
 const sumPlayedMsByQuarterHour = `-- name: SumPlayedMsByQuarterHour :many
-SELECT CAST(server_time / 900000 AS INTEGER) AS quarter, CAST(SUM(played_ms) AS INTEGER) AS played_ms
-FROM progress_events
-WHERE profile_id = ?1 AND server_time >= ?2 AND server_time < ?3
+SELECT CAST(quarter AS INTEGER) AS quarter, CAST(SUM(played_ms) AS INTEGER) AS played_ms
+FROM (
+    SELECT pe.server_time / 900000 AS quarter, pe.played_ms FROM progress_events AS pe
+    WHERE pe.profile_id = ?1 AND pe.server_time >= ?2 AND pe.server_time < ?3
+    UNION ALL
+    SELECT rl.quarter, rl.played_ms FROM radio_listen_time AS rl
+    WHERE rl.profile_id = ?1 AND rl.quarter * 900000 >= ?2 AND rl.quarter * 900000 < ?3
+) AS played
 GROUP BY quarter
 ORDER BY quarter
 `
@@ -278,6 +290,7 @@ type SumPlayedMsByQuarterHourRow struct {
 
 // Played time of a profile in [from, to) per quarter hour of server time (K-5 report): every UTC
 // offset is a multiple of 15 minutes, so each quarter hour lies within one local calendar day.
+// Listened radio (radio_listen_time) adds to the quarter hours of titles (concept 16 section 7.10).
 func (q *Queries) SumPlayedMsByQuarterHour(ctx context.Context, arg SumPlayedMsByQuarterHourParams) ([]SumPlayedMsByQuarterHourRow, error) {
 	rows, err := q.db.QueryContext(ctx, sumPlayedMsByQuarterHour, arg.ProfileID, arg.FromMs, arg.ToMs)
 	if err != nil {
