@@ -44,7 +44,12 @@ import (
 // version is set at build time with -ldflags "-X main.version=...".
 var version = "dev"
 
-const shutdownTimeout = 5 * time.Second
+const (
+	shutdownTimeout = 5 * time.Second
+	// drainTimeout bounds the wait for a running install at shutdown; it stays below the
+	// stop_grace_period of 30 s in compose.updater.yaml, after which Docker kills the process.
+	drainTimeout = 25 * time.Second
+)
 
 func main() {
 	os.Exit(run())
@@ -96,7 +101,11 @@ func run() int {
 	sctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	_ = srv.Shutdown(sctx)
-	// A running install dies with the process; the next start marks it failed.
+	// A running install stops at its next step and leaves its phase in state.json; the next
+	// start takes over (recover). compose.updater.yaml gives the container stop_grace_period 30s.
+	if !u.drain(drainTimeout) {
+		log.Warn("updater: install still running at exit; the next start takes over")
+	}
 	return 0
 }
 

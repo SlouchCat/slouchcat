@@ -287,6 +287,21 @@ func (u *Updater) run(p plan, s updater.State) {
 		u.set(s)
 		u.log.Info("updater: install finished", "phase", ph, "code", code, "message", msg, "from", p.from, "to", p.to)
 	}
+	// interrupted reports whether the updater is being stopped. The install then ends where it
+	// is, without a rollback (its commands would run with a dead context) and without a final
+	// state: state.json keeps the running phase, and recover takes over at the next start.
+	interrupted := func() bool {
+		if ctx.Err() == nil {
+			return false
+		}
+		u.log.Warn("updater: stopped during the install; the next start takes over", "phase", s.Phase, "to", p.to)
+		return true
+	}
+	// A recreate must not be cut off half-way by the shutdown: compose up runs to its own end
+	// (the updater waits for it, see drain).
+	upCtx := func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(context.WithoutCancel(ctx), commandTimeout)
+	}
 
 	// backing_up: save the env file, then set the one line.
 	env, err := readEnvFile(p.env, u.cfg.uid, u.cfg.gid)
@@ -312,6 +327,9 @@ func (u *Updater) run(p plan, s updater.State) {
 	cancel()
 	if err != nil {
 		u.restoreEnv(env)
+		if interrupted() {
+			return
+		}
 		finish(updater.PhaseFailed, updater.CodePullFailed, "docker compose pull failed")
 		return
 	}
@@ -323,8 +341,11 @@ func (u *Updater) run(p plan, s updater.State) {
 	cctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	code, msg := u.verify(cctx, p)
 	cancel()
-	if code != "" {
+	if code != "" || ctx.Err() != nil {
 		u.restoreEnv(env)
+		if interrupted() {
+			return
+		}
 		finish(updater.PhaseFailed, code, msg)
 		return
 	}
@@ -334,7 +355,7 @@ func (u *Updater) run(p plan, s updater.State) {
 	// although the server is fine. The updater waits itself, below.
 	phase(updater.PhaseRestarting)
 	cause, causeMsg := updater.CodeUnhealthy, fmt.Sprintf("version %s did not become healthy within %s", p.to, u.wait)
-	cctx, cancel = context.WithTimeout(ctx, commandTimeout)
+	cctx, cancel = upCtx()
 	err = u.up(cctx, p.project)
 	cancel()
 	if err == nil {
@@ -348,6 +369,9 @@ func (u *Updater) run(p plan, s updater.State) {
 		}
 	} else {
 		causeMsg = fmt.Sprintf("docker compose up failed for version %s", p.to)
+	}
+	if interrupted() {
+		return
 	}
 
 	// The new version failed. With a migration nothing is taken back (F-14): the old server
@@ -363,14 +387,33 @@ func (u *Updater) run(p plan, s updater.State) {
 		finish(updater.PhaseFailed, updater.CodeRollbackFailed, "could not restore the env file: "+err.Error())
 		return
 	}
-	cctx, cancel = context.WithTimeout(ctx, commandTimeout)
+	cctx, cancel = upCtx()
 	err = u.up(cctx, p.project)
 	cancel()
 	if err == nil && u.waitHealthy(ctx) {
 		finish(updater.PhaseRolledBack, cause, causeMsg+fmt.Sprintf("; version %s runs again", p.from))
 		return
 	}
+	if interrupted() {
+		return
+	}
 	finish(updater.PhaseFailed, updater.CodeRollbackFailed, causeMsg+fmt.Sprintf("; version %s did not come back either", p.from))
+}
+
+// drain waits up to d for a running install to end once the process context is done; it reports
+// whether it ended.
+func (u *Updater) drain(d time.Duration) bool {
+	done := make(chan struct{})
+	go func() {
+		u.wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return true
+	case <-time.After(d):
+		return false
+	}
 }
 
 // verify compares the digest of the image compose resolves now with the manifest.

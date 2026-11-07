@@ -17,6 +17,9 @@ services:
       dockerfile: deploy/Dockerfile.updater
     container_name: slouchcat-updater
     restart: unless-stopped
+    # A running install gets time to finish the compose call it is in and to leave its phase in
+    # state.json (the updater waits at most 25 s); Docker's default is 10 s.
+    stop_grace_period: 30s
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # The same absolute path as on the host, so that ./config, ./cache and every other relative

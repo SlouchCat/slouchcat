@@ -72,7 +72,7 @@ func (f *fakeDocker) RepoDigests(context.Context, string) ([]string, error) {
 	return f.digests, nil
 }
 
-func (f *fakeDocker) Compose(_ context.Context, p Project, args ...string) error {
+func (f *fakeDocker) Compose(ctx context.Context, p Project, args ...string) error {
 	f.mu.Lock()
 	gate := f.pullGate
 	f.calls = append(f.calls, append(p.args(), args...))
@@ -80,7 +80,11 @@ func (f *fakeDocker) Compose(_ context.Context, p Project, args ...string) error
 	switch args[0] {
 	case "pull":
 		if gate != nil {
-			<-gate
+			select {
+			case <-gate:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 		return f.pullErr
 	case "up":
@@ -118,6 +122,7 @@ type harness struct {
 	fake     *fakeDocker
 	manifest string
 	u        *Updater
+	stop     context.CancelFunc // ends the updater's process context (SIGTERM)
 	token    []byte
 	logs     *bytes.Buffer
 	srv      *httptest.Server
@@ -167,10 +172,13 @@ func (h *harness) start() {
 		h.t.Fatal(err)
 	}
 	cfg := settings{deployDir: h.deploy, uid: os.Getuid(), gid: os.Getgid(), manifestURL: h.srv.URL, container: "slouchcat"}
-	u, token, err := newUpdater(h.t.Context(), cfg, h.fake, log)
+	ctx, stop := context.WithCancel(h.t.Context())
+	h.t.Cleanup(stop)
+	u, token, err := newUpdater(ctx, cfg, h.fake, log)
 	if err != nil {
 		h.t.Fatal(err)
 	}
+	h.stop = stop
 	u.client = h.srv.Client()
 	u.every, u.wait = 2*time.Millisecond, 150*time.Millisecond
 	h.u, h.token = u, token
@@ -541,6 +549,73 @@ func TestInstallBusy(t *testing.T) {
 	if s := h.finish(); s.Phase != updater.PhaseDone {
 		t.Errorf("state = %+v", s)
 	}
+}
+
+// A SIGTERM during the install: no rollback with a dead context, no final state; state.json keeps
+// the running phase for the next start.
+func TestInstallStopsOnShutdown(t *testing.T) {
+	t.Run("while pulling", func(t *testing.T) {
+		h := newHarness(t)
+		h.fake.pullGate = make(chan struct{})
+		h.start()
+		if status, _ := h.install(); status != http.StatusAccepted {
+			t.Fatalf("install = %d", status)
+		}
+		waitPhase(t, h, updater.PhasePulling)
+		h.stop()
+		if !h.u.drain(5 * time.Second) {
+			t.Fatal("the install did not stop")
+		}
+		if s := diskState(t, h); s.Phase != updater.PhasePulling || !s.FinishedAt.IsZero() {
+			t.Errorf("state.json = %+v, want the phase pulling kept", s)
+		}
+		if got := h.readEnv(); got != oldEnv {
+			t.Errorf(".env = %q, want the original (nothing was restarted)", got)
+		}
+	})
+	t.Run("while waiting", func(t *testing.T) {
+		h := newHarness(t)
+		h.fake.afterUp = func(f *fakeDocker, _ int) { f.c.Health = "starting" } // a long migration
+		h.start()
+		h.u.wait = time.Minute
+		h.install()
+		waitPhase(t, h, updater.PhaseWaiting)
+		h.stop()
+		if !h.u.drain(5 * time.Second) {
+			t.Fatal("the install did not stop")
+		}
+		if s := diskState(t, h); s.Phase != updater.PhaseWaiting || s.Code != "" || !s.FinishedAt.IsZero() {
+			t.Errorf("state.json = %+v, want the phase waiting kept", s)
+		}
+		if got := h.readEnv(); got != newEnv() {
+			t.Errorf(".env = %q, want the new version kept (no rollback)", got)
+		}
+		if got := h.fake.verbs(); !slices.Equal(got, []string{"pull", "config", "up"}) {
+			t.Errorf("compose calls = %v, want no rollback", got)
+		}
+	})
+}
+
+// waitPhase waits until the install reached phase ph.
+func waitPhase(t *testing.T, h *harness, ph updater.Phase) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for h.u.State().Phase != ph {
+		if time.Now().After(deadline) {
+			t.Fatalf("phase = %s, want %s", h.u.State().Phase, ph)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// diskState reads state.json.
+func diskState(t *testing.T, h *harness) updater.State {
+	t.Helper()
+	var s updater.State
+	if err := updater.ReadJSON(filepath.Join(h.deploy, "updater", updater.StateFile), &s); err != nil {
+		t.Fatal(err)
+	}
+	return s
 }
 
 func TestAuth(t *testing.T) {
