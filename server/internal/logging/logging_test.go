@@ -26,6 +26,8 @@ var fakeSecrets = []string{
 	// The device cookie: the lockout key of AN-11 (ADR 0005); its value was logged on a cancelled write.
 	"device-FAKE-cookie",
 	"WebhookFAKEshouty-01234567890abcdefgh",
+	// Concept 15 P-8 (ADR 0024): the shared token of the updater companion.
+	"updater-FAKE-token", "updater-FAKE-bearer",
 }
 
 func logAll(t *testing.T, format Format) string {
@@ -102,6 +104,10 @@ func logAll(t *testing.T, format Format) string {
 		"err", fmt.Errorf("receive: %w", errors.New(`POST "/api/v1/webhooks/WebhookFAKEerrtoken-01234567890abcdef": EOF`)),
 		"reported_path", "/movies/Dune (2021)",
 	)
+	// The updater companion: the server sends its token only as a header and never logs it; a slip
+	// with the key names still is redacted.
+	log.Info("updater request", "updater_token", "updater-FAKE-token", "Authorization", "Bearer updater-FAKE-bearer",
+		"updater_url", "http://slouchcat-updater:8099/status")
 	// A mistyped route still carries a real token: the guard must not care about the spelling.
 	log.Info("webhook 404", "path", "/api/v1/WEBHOOKS/WebhookFAKEshouty-01234567890abcdefgh")
 	return buf.String()
