@@ -11,6 +11,9 @@ web/dist/
 web/storybook-static/
 packages/*/dist/
 server/bin/
+# `go build ./cmd/<name>` inside server/ without -o leaves the binary here
+/server/updater
+/server/slouchcat
 server/internal/webassets/dist/*
 !server/internal/webassets/dist/.gitkeep
 coverage/
