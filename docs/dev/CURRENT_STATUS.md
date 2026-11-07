@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 15 «Feinschliff», Stufe 4: gebaut, Abnahme auf CT 190 offen (7. November 2026)
+## Konzept 15 «Feinschliff», Stufe 4: gebaut und auf CT 190 abgenommen (7. November 2026)
 
 Zweig `claude/feinschliff-stufe4` ab `main` `88d03c11` (Release 1.15.0 veröffentlicht). Geplant als
 Release **1.16.0**: Vertrag **1.16.0, additiv**, **keine Migration**. Neue **ADR 0024
@@ -55,9 +55,27 @@ e2e `task build` + `task ci:e2e:parallel`: **522/523**, `admin-picks.spec.ts:98`
 grün. Nach den Low-Fixes (`aa3abad3`): gezielte Go-Tests, `-race -count=3 ./cmd/updater/`, Lint,
 `task check:fast`, AdminHomePage-Vitest 56/56 und `task e2e:quick -- e2e/admin-home.spec.ts` 9/9 grün.
 
-**Offen:** Vergleichsbild `ui-confirmdialog--with-details` von CT 190; Einrichtung des Updaters auf
-CT 190 (F-15) mit seinen drei Compose-Dateien und Abnahme (Port 8096 und GPU wie vorher, Update über
-ein Test-Manifest mit Digest, Rücknahme ohne Migration); Release 1.16.0.
+**Abnahme auf CT 190 (7. November 2026):** Vergleichsbild `ui-confirmdialog--with-details` auf CT 190
+geschossen (`66c3703f`, 367 passed). Testimage aus `66c3703f` mit der Version **1.14.99** (damit 1.15.0
+als neuer gilt) und Updater-Image `abnahme-66c3703`, eingerichtet mit `compose.updater.yaml` und einer
+Testdatei `compose.abnahme.yaml` (Test-Manifest über https mit eigener CA, Version 1.15.0 und dem echten
+Index-Digest von 1.15.0). Port 8096, `/dev/dri` und Gruppe 993 standen danach wie vorher; im Updater ist
+`config` leer und schreibgeschützt. Marco hat zweimal auf «Update auf 1.15.0 installieren» geklickt:
+
+- **Lauf 1, Rücknahme:** Herunterladen, Digest, Neustart in 2 s; 1.15.0 lief gesund, schrieb aber
+  (als Release vor 1.16) kein `server.json`. Nach 10 min nahm der Updater das Update zurück
+  (`rolled_back`), 1.14.99 lief wieder, der Server meldete einmal das Ereignis «Fehler».
+- **Lauf 2, Erfolg:** dasselbe, `server.json` für 1.15.0 von Hand geschrieben, eine Sekunde später
+  `done`; CT 190 läuft seither auf Release 1.15.0.
+- **Befunde und Fixes:** Der Updater löschte alle `.env.bak-vor-*` ausser den fünf neuesten (auf CT 190
+  rund 20 von Hand) und überschrieb eine gleichnamige Sicherung: er löscht und ersetzt jetzt keine
+  Sicherung mehr, sondern wählt `-2`, `-3`, … (`242ca4de`, `2a3a68de`). Die Meldung nach der Wartezeit
+  unterscheidet jetzt «läuft gesund, meldet sich aber nicht» von «wird nicht gesund» (`af3a6607`).
+
+Marco hat Stufe 4 am 7. November 2026 freigegeben.
+
+**Offen:** Merge, Release 1.16.0, danach auf CT 190 die Testteile entfernen (`compose.abnahme.yaml`,
+Test-Manifest, Images `1.14.99` und `abnahme-*`) und den Updater auf das Release-Image heben.
 
 ## Release 1.15.0 (7. November 2026): veröffentlicht
 
