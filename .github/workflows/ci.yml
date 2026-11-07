@@ -428,6 +428,20 @@ jobs:
           tags: slouchcat:ci-arm64
           cache-from: type=gha
 
+      # The updater companion (ADR 0024) is published with every release; building it here keeps
+      # the first release that carries it from being the first build. A Go cross-compile on the
+      # Docker CLI image, nothing runs under QEMU. Own cache scope.
+      - name: Build the updater image for linux/amd64 and linux/arm64 (no push)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Dockerfile.updater
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          push: false
+          cache-from: type=gha,scope=updater
+          cache-to: type=gha,mode=max,scope=updater
+
       - name: amd64 turns healthy (< 5 s, idle RSS below the gate in measure-healthy.sh)
         run: IMAGE=slouchcat:ci-amd64 deploy/scripts/measure-healthy.sh
 

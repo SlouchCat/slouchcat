@@ -1,15 +1,18 @@
-# Publishes a release: the container image on ghcr.io and the release manifest the update check
-# reads (A-5, ADR 0001: source, image and version information are public, decision 1 of
+# Publishes a release: the container image on ghcr.io, the image of the updater companion
+# (ghcr.io/<owner>/slouchcat-updater, ADR 0024) and the release manifest the update check and the
+# updater read (A-5, ADR 0001: source, image and version information are public, decision 1 of
 # 2026-10-18). Runs only for a tag `vX.Y.Z`, so nothing is published until somebody tags a commit.
 #
 # The manifest is attached to the GitHub release as `manifest.json`, because the server reads it
 # from the fixed address of the newest release:
 #   https://github.com/SlouchCat/slouchcat/releases/latest/download/manifest.json
-# Its fields are the four the update check knows (server/internal/admin/update.go): version, url,
-# notes, publishedAt. `version` is the tag without the leading v, so it compares as a semantic
-# version against the one built into the binary.
+# Its fields: version, url, notes, publishedAt (the update check, server/internal/admin/update.go)
+# and image, the server image pinned by the digest of this build ("ghcr.io/slouchcat/slouchcat@
+# sha256:..."). `version` is the tag without the leading v, so it compares as a semantic version
+# against the one built into the binary. The updater (server/cmd/updater) refuses a manifest
+# without image and compares the pulled image against that digest before it restarts anything.
 #
-# After the FIRST release the package has to be made public by hand, once -- GitHub creates a new
+# After the FIRST release a package has to be made public by hand, once -- GitHub creates a new
 # one private, and `docker compose pull` would ask every installation for a login. Decision 1 of
 # 2026-10-18 says image and version information are public. It takes two settings, in this order,
 # and the first one is easy to miss:
@@ -19,6 +22,9 @@
 #      disabled by organization administrators", and no amount of confirming changes anything.
 #      Needs an organization owner, not a repository admin.
 #   2. The package page -> Package settings -> Danger Zone -> Change visibility -> Public.
+#
+#   The updater image is a package of its own (slouchcat-updater). It needs step 2 once as well,
+#   after the first release that publishes it (1.16.0); step 1 holds for the organization already.
 #
 #   Check it without being signed in: ghcr.io hands out an anonymous pull token for a public
 #   package, and
@@ -52,13 +58,14 @@ jobs:
       # The image name has to be lower case: a Docker repository name may not carry a capital, and
       # github.repository keeps the spelling of the owner ("SlouchCat/slouchcat"). The first run of
       # this workflow died on exactly that, before it pushed anything.
-      - name: Read the version out of the tag and the image name out of the repository
+      - name: Read the version out of the tag and the image names out of the repository
         id: version
         run: |
           tag="${GITHUB_REF_NAME}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
           echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          echo "updater_image=ghcr.io/${GITHUB_REPOSITORY,,}-updater" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
         with:
@@ -106,6 +113,34 @@ jobs:
           # pushed to the registry is all `gh attestation verify` needs.
           create-storage-record: false
 
+      # The updater companion (ADR 0024) is released with the server, from the same commit, but
+      # it is a separate image: only it gets the Docker socket. Its own cache scope keeps the two
+      # builds from overwriting each other's cache.
+      - name: Build and push the updater image for linux/amd64 and linux/arm64
+        id: build-updater
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: deploy/Dockerfile.updater
+          platforms: linux/amd64,linux/arm64
+          build-args: VERSION=${{ steps.version.outputs.version }}
+          push: true
+          tags: |
+            ${{ steps.version.outputs.updater_image }}:${{ steps.version.outputs.version }}
+            ${{ steps.version.outputs.updater_image }}:latest
+          cache-from: type=gha,scope=updater
+          cache-to: type=gha,mode=max,scope=updater
+          provenance: mode=max
+          sbom: true
+
+      - name: Attest the build provenance of the updater image
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.version.outputs.updater_image }}
+          subject-digest: ${{ steps.build-updater.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
       # The notes are the message of the annotated tag, without its first line (which repeats the
       # version).
       #
@@ -133,7 +168,10 @@ jobs:
             --arg url "${{ github.server_url }}/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
             --arg notes "$notes" \
             --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            '{version: $version, url: $url, notes: $notes, publishedAt: $publishedAt}' > manifest.json
+            --arg image "${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}" \
+            '{version: $version, url: $url, notes: $notes, publishedAt: $publishedAt, image: $image}' > manifest.json
+          # The updater accepts only this form (server/cmd/updater, digestRef).
+          jq -e '.image | test("^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$")' manifest.json
           cat manifest.json
 
       # The written offer for the GPL source of the ffmpeg build travels with every release
