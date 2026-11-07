@@ -26,6 +26,34 @@ export const Closed: Story = {};
 /** Opened from the keyboard: focus sits on the confirm button. */
 export const Open: Story = { tags: ['press:Tab+Enter'] };
 
+/**
+ * More than the question (concept 15 P-8): the release notes of an update in a box of their own,
+ * scrolled with the keyboard, between the sentence and the buttons.
+ */
+export const WithDetails: Story = {
+  tags: ['press:Tab+Enter'],
+  args: {
+    trigger: <AriaButton>Update auf 1.16.0 installieren</AriaButton>,
+    title: 'Update auf 1.16.0 installieren?',
+    body: 'Der Server startet neu; laufende Wiedergaben brechen ab. Vor einer Datenbankänderung sichert er die Datenbank.',
+    confirmLabel: 'Installieren',
+    tone: 'primary',
+    children: (
+      <div
+        role="region"
+        aria-label="Release-Notizen"
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
+        style={{ maxHeight: '8rem', overflowY: 'auto', whiteSpace: 'pre-wrap' }}
+      >
+        {
+          'Neu: Update per Knopf mit dem Updater-Begleiter.\n\nBehoben: Die Update-Prüfung versucht es nach einem Aussetzer nach 15 Minuten erneut.\n\n- Kleinere Korrekturen in der Verwaltung\n- Neue Texte für die Hintergrundjobs\n- Schnellerer Start der Wiedergabe'
+        }
+      </div>
+    ),
+  },
+};
+
 /** Dialog around a form, opened by the page: focus sits in the first field. */
 export const Form: Story = {
   render: () => (
