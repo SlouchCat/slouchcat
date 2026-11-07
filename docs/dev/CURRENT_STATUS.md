@@ -1,5 +1,28 @@
 # Aktueller Stand
 
+## Release 1.16.1 (7. November 2026): Ruckler beim Remux
+
+Patch ohne Vertragsänderung (Vertrag bleibt 1.16.0), keine Migration. Zweig `claude/remux-seams`.
+
+Marco sah beim Schauen von Silo S03E09 (HEVC aus MKV, EAC3 zu AAC, Remux) gelegentliche Mikroruckler.
+Diagnose an CT 190, unabhängige Zweitmeinung und eine Messung im Browser (Firefox,
+`requestVideoFrameCallback`): Alle drei markierten Ruckler lagen 0,6–0,9 s nach einem ffmpeg-Neustart.
+
+- **Ton-Lücke an jedem Neustart** (etwa 134 ms, beim normalen Schauen rund jede Minute wegen
+  `MaxAhead`): Der Eingangs-Seek landete auf dem Keyframe der Grenze, der neue Lauf las keinen Ton davor.
+  Jetzt sucht der Eingang den letzten Keyframe vor dem Ausgabe-Seek; der Ton überlappt die Naht.
+- **Keyframe drei Frames zu früh** an fast jeder zweiten Grenze (mp4-Muxer, Paketdauer vor dem Keyframe
+  zwei Frames): `setts` setzt die Paketdauern des kopierten Videos auf den Abstand zur nächsten
+  Dekodierzeit; `-copytb 1` verhindert, dass ffmpeg 6.1 die Zeitstempel dabei rundet.
+- Tests `TestHLSRemuxSeams`, `TestRemuxInputSeek`; Review APPROVE (Auflagen umgesetzt); Einzelheiten im Nachtrag von ADR 0003. Nachmessung mit den neuen Argumenten
+  an der Originaldatei im Container (ffmpeg 7.1.4-Jellyfin): keine Muxer-Warnung, 40 von 40 Grenzen exakt,
+  Naht 116 ms Überlappung statt 134 ms Lücke.
+- Nebenbefund, nicht behoben: Das Herauslösen eingebetteter Text-Untertitel (`ffmpeg webvtt`) bricht bei
+  grossen Dateien auf dem langsamen NAS nach 60 s ab (`signal: killed`, 500); bei Silo S03E09 fehlten so
+  die deutschen Forced-Untertitel.
+- Versionsstellen auf 1.16.1 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
 ## Release 1.16.0 (7. November 2026): veröffentlicht
 
 Release ab `main` nach PR #108 (Konzept 15, Stufe 4). Vertrag **1.16.0, additiv**, keine Migration.

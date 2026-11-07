@@ -60,10 +60,10 @@ func TestFFmpegArgsConstantRate(t *testing.T) {
 			head + " " + maps + " -vf scale=w=1280:h=720:flags=bicubic,format=yuv420p -c:v libx264 -preset veryfast -crf 23 -maxrate 4000000 -bufsize 8000000 -profile:v high -level:v 4.1 -g 9999 -sc_threshold 0 " + kf + " -c:a aac -b:a 96k -ac 2"},
 		{"remux encodes the audio at the bit rate", Capabilities{Backend: BackendSoftware},
 			Target{Mode: ModeRemux, VideoCopy: true, ConstantRate: true, AudioBitrate: 96, SubtitleBurnIn: -1, AudioStream: -1},
-			head + " " + maps + " -c:v copy -c:a aac -b:a 96k -ac 2"},
+			head + " " + maps + " -c:v copy -copytb 1 -bsf:v " + copyDurations + " -c:a aac -b:a 96k -ac 2"},
 		{"copied audio ignores the bit rate", Capabilities{Backend: BackendSoftware},
 			Target{Mode: ModeRemux, VideoCopy: true, AudioCopy: true, ConstantRate: true, AudioBitrate: 96, SubtitleBurnIn: -1, AudioStream: -1},
-			head + " " + maps + " -c:v copy -c:a copy"},
+			head + " " + maps + " -c:v copy -copytb 1 -bsf:v " + copyDurations + " -c:a copy"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

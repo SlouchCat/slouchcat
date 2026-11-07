@@ -311,6 +311,23 @@ func TestSeekMargin(t *testing.T) {
 	}
 }
 
+func TestRemuxInputSeek(t *testing.T) {
+	kf := []time.Duration{sec(1), sec(5), sec(9)}
+	for _, c := range []struct {
+		kf      []time.Duration
+		x, want time.Duration
+	}{
+		{kf, sec(8.75), sec(5)},     // the keyframe before the output seek
+		{kf, sec(5), sec(1)},        // x on a keyframe: the one before it
+		{kf, sec(0.75), 0},          // before the first keyframe: the start
+		{nil, sec(8.75), sec(8.75)}, // no index: no earlier seek
+	} {
+		if got := remuxInputSeek(c.kf, c.x); got != c.want {
+			t.Errorf("remuxInputSeek(%v, %v) = %v, want %v", c.kf, c.x, got, c.want)
+		}
+	}
+}
+
 // FitSize puts a video into the 16:9 box of a rung (final review stage 2, G2-m1): a wide film is
 // limited by the box width, a 16:9 or narrower one by the height, nothing is scaled up, and the
 // 854x480 of a 16:9 480p file stays (the box is 854 pixels wide).
