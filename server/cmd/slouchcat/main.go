@@ -339,7 +339,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	notifySvc.SetConfig(adminSvc)
 	// The updater companion (concept 15 P-8, ADR 0024): optional; a failed or rolled back install
 	// goes to the administration once as the event errors.
-	adminSvc.WithUpdater(cfg.UpdaterURL, cfg.UpdaterDir(), nil)
+	adminSvc.WithUpdater(cfg.UpdaterURL, cfg.UpdaterDir(), notifySvc.UpdateInstallFailed)
 	// Incoming Radarr/Sonarr webhooks (M9, I-8): the address shown once carries the public URL of
 	// the administration's settings, so it can be pasted into "Connect → Webhook" as it is.
 	integrationSvc := integrations.New(db, libSvc, log, integrations.WithBaseURL(func(ctx context.Context) string {
