@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Konzept 15 «Feinschliff», Stufe 3: gebaut (6. November 2026)
+## Konzept 15 «Feinschliff», Stufe 3: auf CT 190 abgenommen (7. November 2026)
 
 Zweig `claude/feinschliff-stufe3` ab `main` `d2361e54` (Release 1.14.0 veröffentlicht). Geplant als
 Release **1.15.0**: Vertrag **1.15.0, brechend für `getHome` und `setHomeRows`** (Web-App und Server
@@ -53,6 +53,24 @@ e2e `task build` + `task ci:e2e:parallel`: **505/507**; `admin-libraries.spec.ts
 einzeln grün, `metadata-editor.spec.ts:86` (Firefox) war ein Testfehler (headless Firefox springt
 am Seitenende nicht zum Anfang) und ist mit `e9fd70f8` behoben (`task e2e:quick --
 e2e/metadata-editor.spec.ts --project=firefox` dreimal 12 passed, Chromium 8 passed).
+
+**Abnahme auf CT 190 (7. November 2026):** Marco hat drei Runden auf CT 190 geprüft und am Ende
+freigegeben. Aus der Abnahme kamen drei Änderungen (Entscheidungsprotokoll vom 7. November 2026,
+Konzept 15, 7.5):
+
+- **Stift direkt auf dem Cover:** auf der Detailseite oben rechts auf dem Poster statt in der
+  Knopfzeile, am Handy über dem Hintergrundbild. Im Bibliotheksraster ist er immer sichtbar, auch
+  auf Touch-Geräten.
+- **Stift auf den Covern der Startseite:** auf allen Titelkarten, nicht auf Kacheln «Meine Medien»,
+  Sammlungen und Genres. Auf «Weiterschauen» bearbeitet er die Serie. Alle Stifte erscheinen nur für
+  den Server-Administrator.
+- **Dialog fest 90 % der Fensterhöhe:** Die Reiter «Zuordnen» und «Aktualisieren» verschieben das
+  Fenster nicht mehr.
+
+CT 190 lief zur Abnahme auf `feinschliff3-23b2f0a`. Die GitHub-CI auf `23b2f0a4` fand einen Testfehler
+in `episode.spec.ts:72`: Der Stift ist auf der Folgenseite ein neuer Tab-Halt vor «Abspielen». Der Test
+ist angepasst wie `detail.spec.ts` (`task e2e:quick -- e2e/episode.spec.ts` 5 passed, Firefox 1
+passed).
 
 ## Release 1.14.0 (6. November 2026): veröffentlicht
 
