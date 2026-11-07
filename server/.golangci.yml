@@ -44,17 +44,20 @@ linters:
         test-helpers:
           # storetest and vistest open template databases and seed fixtures for tests. Code that
           # ships must never reach them; vistest builds on storetest, so the two may import each
-          # other.
+          # other. radiotest is the webradio test station (concept 16, build plan S4).
           files:
             - $all
             - "!$test"
             - "!**/internal/store/storetest/**"
             - "!**/internal/visibility/vistest/**"
+            - "!**/internal/radio/radiotest/**"
           deny:
             - pkg: github.com/slouchcat/slouchcat/server/internal/store/storetest
               desc: test helper; import it only from _test.go files
             - pkg: github.com/slouchcat/slouchcat/server/internal/visibility/vistest
               desc: test helper; import it only from _test.go files
+            - pkg: github.com/slouchcat/slouchcat/server/internal/radio/radiotest
+              desc: test station; import it only from _test.go files
         browse:
           # The folder browser (idea 02) is the first code that lists directories. It gets its own
           # boundary instead of a place in internal/admin, which may read titles unfiltered: a
