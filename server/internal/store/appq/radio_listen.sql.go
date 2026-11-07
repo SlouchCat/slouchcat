@@ -29,6 +29,19 @@ func (q *Queries) AddRadioListenTime(ctx context.Context, arg AddRadioListenTime
 	return err
 }
 
+const clearRadioStationBroken = `-- name: ClearRadioStationBroken :execrows
+UPDATE radio_stations SET broken_at = NULL WHERE id = ?1 AND broken_at IS NOT NULL
+`
+
+// A relay of a broken station started to play again (S2 visibility table: success clears broken_at).
+func (q *Queries) ClearRadioStationBroken(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clearRadioStationBroken, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteOldRadioListenTime = `-- name: DeleteOldRadioListenTime :execrows
 DELETE FROM radio_listen_time WHERE quarter < ?1
 `
@@ -340,6 +353,59 @@ func (q *Queries) ListOpenRadioListenSessions(ctx context.Context) ([]RadioListe
 		return nil, err
 	}
 	return items, nil
+}
+
+const recordRadioRelayAbort = `-- name: RecordRadioRelayAbort :one
+UPDATE radio_stations SET
+    failures = failures + 1,
+    broken_at = CASE WHEN failures + 1 >= 3 THEN coalesce(broken_at, ?1) ELSE broken_at END
+WHERE id = ?2
+RETURNING failures, broken_at
+`
+
+type RecordRadioRelayAbortParams struct {
+	Now sql.NullInt64
+	ID  int64
+}
+
+type RecordRadioRelayAbortRow struct {
+	Failures int64
+	BrokenAt sql.NullInt64
+}
+
+// A relay of the station ended because no stream answered (7.4): one abort more; at three in a
+// row the station is marked broken.
+func (q *Queries) RecordRadioRelayAbort(ctx context.Context, arg RecordRadioRelayAbortParams) (RecordRadioRelayAbortRow, error) {
+	row := q.db.QueryRowContext(ctx, recordRadioRelayAbort, arg.Now, arg.ID)
+	var i RecordRadioRelayAbortRow
+	err := row.Scan(&i.Failures, &i.BrokenAt)
+	return i, err
+}
+
+const resetRadioRelayFailures = `-- name: ResetRadioRelayFailures :execrows
+UPDATE radio_stations SET failures = 0 WHERE id = ?1 AND failures > 0
+`
+
+// A relay ran for a minute: the aborts before no longer count.
+func (q *Queries) ResetRadioRelayFailures(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, resetRadioRelayFailures, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setRadioStationShowsTitles = `-- name: SetRadioStationShowsTitles :execrows
+UPDATE radio_stations SET shows_titles = 1 WHERE id = ?1 AND shows_titles = 0
+`
+
+// The relay saw the first real title of a station (concept 16 section 8, facet "titles").
+func (q *Queries) SetRadioStationShowsTitles(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setRadioStationShowsTitles, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const touchRadioListenSession = `-- name: TouchRadioListenSession :execrows
