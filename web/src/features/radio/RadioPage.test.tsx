@@ -123,6 +123,27 @@ describe('radio page', () => {
     );
   });
 
+  it('stores the whole preferences after a change, the stored filter not again', async () => {
+    const { calls } = radioApi({
+      'GET /radio/preferences': () =>
+        json({ defaultCountry: 'CH', lastFilter: { genre: ['jazz'] }, lastSort: 'new' }),
+    });
+    const { router } = renderApp('/radio');
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ genre: 'jazz', sort: 'new' }),
+    );
+    await userEvent
+      .setup()
+      .click(await screen.findByRole('button', { name: 'Filter Jazz entfernen' }));
+    await waitFor(
+      () =>
+        expect(calls.filter((call) => call.method === 'PUT').map((call) => call.body)).toEqual([
+          { defaultCountry: 'CH', lastFilter: {}, lastSort: 'new' },
+        ]),
+      { timeout: 3000 },
+    );
+  });
+
   it('marks a favourite with the heart', async () => {
     const { calls } = radioApi({
       'PUT /radio/favorites/1': () => new Response(null, { status: 204 }),

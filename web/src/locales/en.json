@@ -4414,15 +4414,15 @@
       "metal": "Metal",
       "mixed": "Mixed",
       "blues": "Blues",
-      "soul": "Soul and R&B",
+      "soul": "Soul",
+      "rnb": "R&B",
       "latin": "Latin",
       "reggae": "Reggae",
       "dance": "Dance",
       "indie": "Indie",
-      "punk": "Punk",
       "religious": "Religious",
       "soundtrack": "Soundtracks",
-      "children": "Children"
+      "kids": "Kids"
     },
     "kind": {
       "music": "Music",

@@ -73,14 +73,17 @@ export const radioPreferencesQuery = queryOptions({
   staleTime: Infinity,
 });
 
-/** Stores default country, last filter and sort of the active profile (F-12). */
+/**
+ * Stores default country, last filter and sort of the active profile (F-12). The PUT replaces
+ * all three (an absent filter would clear the stored one), so the body is always complete.
+ */
 export function useSaveRadioPreferences() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: {
       defaultCountry: string;
-      lastFilter?: RadioFilter;
-      lastSort?: RadioSort;
+      lastFilter: RadioFilter;
+      lastSort: RadioSort;
     }): Promise<RadioPreferences> => request(api.PUT('/radio/preferences', { body })),
     onSuccess: (saved) => queryClient.setQueryData(radioPreferencesQuery.queryKey, saved),
   });
