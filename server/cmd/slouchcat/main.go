@@ -286,6 +286,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	if !cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
 		log.Warn("SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP is ignored without --dev")
 	}
+	if !cfg.Dev && cfg.TestUpdaterDir != "" {
+		log.Warn("SLOUCHCAT_TEST_UPDATER_DIR is ignored without --dev")
+	}
 	// The match hands a matched title to the library, which is created after the metadata service
 	// because it takes the metadata checks; the closure reads libSvc when a match runs.
 	var libSvc *library.Service

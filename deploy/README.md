@@ -183,6 +183,8 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_TELEGRAM_BOT_TOKEN` | leer | Token des Telegram-Bots von @BotFather (optional, M8); übersteuert das in der Verwaltung hinterlegte Token |
 | `SLOUCHCAT_PUBLIC_URL` | leer | Öffentliche Adresse des Servers für Links in E-Mails und Nachrichten (optional, M8); übersteuert die Einstellung in der Verwaltung |
 | `SLOUCHCAT_UPDATE_MANIFEST_URL` | Release-Manifest auf GitHub | Quelle der Update-Prüfung (M8); ein anderer Wert gilt nur mit `--dev` (Tests mit Mock) |
+| `SLOUCHCAT_UPDATER_URL` | leer | Adresse des Updater-Begleiters im internen Docker-Netz, z. B. `http://slouchcat-updater:8099` (optional, Konzept 15, ADR 0024); setzt `compose.updater.yaml`. Leer: kein Begleiter, die Karte «Server» zeigt die Schritte für das Update von Hand |
+| `SLOUCHCAT_TEST_UPDATER_DIR` | leer (`/run/slouchcat-updater`) | Anderer geteilter Ordner des Updaters (`token`, `state.json`, `server.json`); gilt nur mit `--dev` (Tests), sonst Warnung im Log |
 | `SLOUCHCAT_TELEGRAM_BASE_URL` | leer | Basis-URL eines Telegram-Mocks; gilt nur mit `--dev` (Tests) |
 | `SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP` | leer (eine Minute) | Kürzere Sperre zwischen zwei manuellen Spotlight-Abrufen, z. B. `2s`; gilt nur mit `--dev` (e2e-Suite), sonst Warnung im Log und die Minute bleibt |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |

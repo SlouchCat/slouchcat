@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 )
 
 func envMap(m map[string]string) func(string) string {
@@ -61,6 +62,8 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_TELEGRAM_BOT_TOKEN":  "123456:bot-FAKE-token",
 		"SLOUCHCAT_TELEGRAM_BASE_URL":   "http://127.0.0.1:9/telegram",
 		"SLOUCHCAT_UPDATE_MANIFEST_URL": "http://127.0.0.1:9/manifest.json",
+		"SLOUCHCAT_UPDATER_URL":         "http://slouchcat-updater:8099/",
+		"SLOUCHCAT_TEST_UPDATER_DIR":    "/tmp/updater/",
 		"SLOUCHCAT_PUBLIC_URL":          "https://media.example.test/",
 		"SLOUCHCAT_HERO_START":          "2",
 	})
@@ -78,6 +81,7 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		SMTPHost: "smtp.example.test", SMTPPort: 465, SMTPUser: "mailer", SMTPPassword: "smtp-FAKE-password",
 		SMTPFrom: "Slouchcat <media@example.test>", SMTPTLS: "tls", TelegramBotToken: "123456:bot-FAKE-token",
 		TelegramBaseURL: "http://127.0.0.1:9/telegram", UpdateManifestURL: "http://127.0.0.1:9/manifest.json",
+		UpdaterURL: "http://slouchcat-updater:8099", TestUpdaterDir: "/tmp/updater",
 		PublicURL: "https://media.example.test", BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: 0}
 	if !reflect.DeepEqual(cfg, want) {
 		t.Fatalf("got %+v, want %+v", cfg, want)
@@ -96,6 +100,9 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 	// Development mode honours the mock URLs of the Telegram bot and the update manifest.
 	if cfg.TelegramAPIBase() != "http://127.0.0.1:9/telegram" || cfg.ManifestURL() != "http://127.0.0.1:9/manifest.json" {
 		t.Errorf("dev mode: telegram %q, manifest %q", cfg.TelegramAPIBase(), cfg.ManifestURL())
+	}
+	if cfg.UpdaterDir() != "/tmp/updater" {
+		t.Errorf("dev mode: updater dir %q, want the test folder", cfg.UpdaterDir())
 	}
 	if cfg.TranscodeDir() != filepath.Join(absCache, "transcode") {
 		t.Errorf("transcode dir = %q", cfg.TranscodeDir())
@@ -128,6 +135,9 @@ func TestValidation(t *testing.T) {
 		"bad smtp port":        {env: map[string]string{"SLOUCHCAT_SMTP_PORT": "70000"}},
 		"smtp port not number": {env: map[string]string{"SLOUCHCAT_SMTP_PORT": "submission"}},
 		"bad manifest url":     {env: map[string]string{"SLOUCHCAT_UPDATE_MANIFEST_URL": "ftp://example.test/manifest.json"}},
+		"bad updater url":      {env: map[string]string{"SLOUCHCAT_UPDATER_URL": "slouchcat-updater:8099"}},
+		"updater url query":    {env: map[string]string{"SLOUCHCAT_UPDATER_URL": "http://slouchcat-updater:8099/?token=x"}},
+		"relative updater dir": {env: map[string]string{"SLOUCHCAT_TEST_UPDATER_DIR": "updater"}},
 		"bad public url":       {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "media.example.test"}},
 		"public url query":     {env: map[string]string{"SLOUCHCAT_PUBLIC_URL": "https://media.example.test/?x=1"}},
 		"bad hero start":       {env: map[string]string{"SLOUCHCAT_HERO_START": "first"}},
@@ -214,6 +224,11 @@ func TestNotifyConfig(t *testing.T) {
 	}
 	if cfg.TelegramAPIBase() != "" || cfg.ManifestURL() != DefaultUpdateManifestURL {
 		t.Errorf("without --dev: telegram %q, manifest %q; want the real API and the default manifest", cfg.TelegramAPIBase(), cfg.ManifestURL())
+	}
+	// The shared folder of the updater companion moves in development mode only (ADR 0024).
+	cfg, err = Load(nil, envMap(map[string]string{"SLOUCHCAT_TEST_UPDATER_DIR": "/tmp/updater"}))
+	if err != nil || cfg.UpdaterDir() != updater.ServerDir || cfg.UpdaterURL != "" {
+		t.Errorf("without --dev: updater dir %q, url %q, err %v; want %s and no companion", cfg.UpdaterDir(), cfg.UpdaterURL, err, updater.ServerDir)
 	}
 	if logged := cfg.LogValue().String(); !strings.Contains(logged, "update_manifest_default=true") || !strings.Contains(logged, "smtp_configured=false") {
 		t.Errorf("LogValue: %s", logged)

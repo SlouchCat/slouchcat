@@ -22,6 +22,7 @@ import (
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/notify/email"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 )
 
 // EnvPrefix is the prefix of every environment variable the server reads.
@@ -85,6 +86,13 @@ type Config struct {
 	// UpdateManifestURL is the release manifest of the update check (M8, A-5); another value than
 	// DefaultUpdateManifestURL is honoured in development mode only (ManifestURL).
 	UpdateManifestURL string
+	// UpdaterURL is the updater companion as the server reaches it on the internal Docker network
+	// (concept 15 9.3, ADR 0024), for example updater.DefaultURL; deploy/compose.updater.yaml sets
+	// it. Empty = no companion: the update card shows the manual steps.
+	UpdaterURL string
+	// TestUpdaterDir replaces the shared folder of the companion (updater.ServerDir) for tests and
+	// the e2e suite; honoured in development mode only (UpdaterDir).
+	TestUpdaterDir string
 	// PublicURL is the address of the server for links in e-mails and messages (M8); it wins over the
 	// stored setting. Empty = the setting or no links.
 	PublicURL string
@@ -118,6 +126,15 @@ func (c Config) ManifestURL() string {
 		return DefaultUpdateManifestURL
 	}
 	return c.UpdateManifestURL
+}
+
+// UpdaterDir returns the shared folder of the updater companion (token, state.json, server.json):
+// TestUpdaterDir in development mode, else updater.ServerDir.
+func (c Config) UpdaterDir() string {
+	if !c.Dev || c.TestUpdaterDir == "" {
+		return updater.ServerDir
+	}
+	return c.TestUpdaterDir
 }
 
 // SpotlightRefreshGap returns the least time between two manual spotlight fetches that the e2e
@@ -338,13 +355,15 @@ func (c Config) LogValue() slog.Value {
 		slog.Bool("telegram_configured", c.TelegramBotToken != ""),
 		slog.String("public_url", c.PublicURL),
 		slog.Bool("update_manifest_default", c.ManifestURL() == DefaultUpdateManifestURL),
+		slog.String("updater_url", c.UpdaterURL),
+		slog.String("updater_dir", c.UpdaterDir()),
 		slog.Int("hero_start", c.HeroStart),
 		slog.Duration("spotlight_refresh_gap", c.SpotlightRefreshGap()),
 	)
 }
 
-// loadNotifyConfig reads the e-mail server, the Telegram bot, the update manifest and the public URL
-// (M8) into cfg and validates them.
+// loadNotifyConfig reads the e-mail server, the Telegram bot, the update manifest, the updater
+// companion and the public URL (M8, concept 15) into cfg and validates them.
 func loadNotifyConfig(cfg *Config, env func(name, def string) string) error {
 	cfg.SMTPHost = strings.TrimSpace(env("SMTP_HOST", ""))
 	cfg.SMTPUser = strings.TrimSpace(env("SMTP_USER", ""))
@@ -372,6 +391,19 @@ func loadNotifyConfig(cfg *Config, env func(name, def string) string) error {
 	}
 	if !httpURL(cfg.UpdateManifestURL) {
 		return fmt.Errorf("%sUPDATE_MANIFEST_URL: want an http or https URL", EnvPrefix)
+	}
+	cfg.UpdaterURL = strings.TrimRight(strings.TrimSpace(env("UPDATER_URL", "")), "/")
+	if cfg.UpdaterURL != "" {
+		u, err := url.Parse(cfg.UpdaterURL)
+		if err != nil || !httpURL(cfg.UpdaterURL) || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+			return fmt.Errorf("%sUPDATER_URL: want an http or https URL without query, fragment or credentials", EnvPrefix)
+		}
+	}
+	if d := strings.TrimSpace(env("TEST_UPDATER_DIR", "")); d != "" {
+		if !filepath.IsAbs(d) {
+			return fmt.Errorf("%sTEST_UPDATER_DIR: want an absolute path", EnvPrefix)
+		}
+		cfg.TestUpdaterDir = filepath.Clean(d)
 	}
 	cfg.PublicURL = strings.TrimRight(strings.TrimSpace(env("PUBLIC_URL", "")), "/")
 	if cfg.PublicURL != "" {
