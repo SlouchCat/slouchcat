@@ -115,6 +115,55 @@ func TestRecorderKeepsTheFirstStartOfAVersion(t *testing.T) {
 	}
 }
 
+// An earlier record of the same version counts only while it fits the database found now. After a
+// manual downgrade (the backup restored, an old server that writes no server.json) the same
+// version starts on the old schema again: its record and backup are new, and the old backup is
+// named no more from the next start on. A start whose migrations never finished fits whatever
+// schema they left.
+func TestRecorderDropsARecordThatNoLongerFits(t *testing.T) {
+	dir := t.TempDir()
+	log := slog.New(slog.DiscardHandler)
+	read := func() ServerRecord {
+		t.Helper()
+		var got ServerRecord
+		if err := ReadJSON(filepath.Join(dir, ServerFile), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+
+	first := NewRecorder(dir, "1.16.0", log)
+	first.Before(37, "pre-migration-1.16.0-A.db")
+	first.After(38)
+
+	// Downgraded by hand to 1.15.0 with the backup (schema 37), then 1.16.0 installed again.
+	again := NewRecorder(dir, "1.16.0", log)
+	if b := again.KeptBackup(); b != "pre-migration-1.16.0-A.db" {
+		t.Fatalf("kept backup before the schema is known = %q", b) // spared for this one start
+	}
+	again.Before(37, "pre-migration-1.16.0-B.db")
+	if got := read(); got.SchemaBefore != 37 || got.Backup != "pre-migration-1.16.0-B.db" || !got.Migrated() {
+		t.Fatalf("start on the old schema: %+v, want a fresh record with the new backup", got)
+	}
+	if b := again.KeptBackup(); b != "" {
+		t.Fatalf("kept backup after the record was dropped = %q", b)
+	}
+	again.After(38)
+	if b := NewRecorder(dir, "1.16.0", log).KeptBackup(); b != "pre-migration-1.16.0-B.db" {
+		t.Fatalf("next start keeps %q, want the new backup", b)
+	}
+
+	// Migrations that never finished (no transaction: part of them may be in): the record fits.
+	dir = t.TempDir()
+	half := NewRecorder(dir, "1.16.0", log)
+	half.Before(37, "pre-migration-1.16.0-C.db")
+	next := NewRecorder(dir, "1.16.0", log)
+	next.Before(38, "pre-migration-1.16.0-D.db")
+	if got := read(); got.SchemaBefore != 37 || got.Backup != "pre-migration-1.16.0-C.db" {
+		t.Fatalf("start after unfinished migrations: %+v, want the first record kept", got)
+	}
+}
+
 // Without a companion the folder is missing: nothing is written, one debug line says so. A folder
 // the server cannot write to is one warning, not one per write; neither panics nor stops.
 func TestRecorderWithoutFolder(t *testing.T) {

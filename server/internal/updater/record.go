@@ -18,7 +18,10 @@ import (
 //
 // A record the same version left at an earlier start (a restart, or a crash loop under restart:
 // unless-stopped) keeps its schemaBefore and its first backup, so the updater still sees that this
-// version migrated the database and names the backup taken before the first migration.
+// version migrated the database and names the backup taken before the first migration. It counts
+// only while it fits the database found now: its migrations never finished, or the schema found
+// is the one they left. Otherwise the database was changed in between (a manual downgrade with a
+// restored backup, then the same version again), and the start records itself afresh.
 //
 // Without a companion the folder is missing: the recorder logs that once at debug level and
 // writes nothing. A write that fails is logged once as a warning. Neither stops the server.
@@ -43,7 +46,8 @@ func NewRecorder(dir, version string, log *slog.Logger) *Recorder {
 
 // KeptBackup is the pre-migration backup an earlier start of this version recorded ("" when
 // none): the store never prunes it (store.SchemaHooks.KeepBackup), because the updater names it
-// as the way back.
+// as the way back. It is asked before the schema is known, so a record that Before then drops
+// still spares its backup from the pruning of this one start; the next start no longer names it.
 func (r *Recorder) KeptBackup() string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -55,12 +59,16 @@ func (r *Recorder) KeptBackup() string {
 
 // Before records the start: version, schema version found and the pre-migration backup ("" when
 // none was taken). After an earlier start of the same version it keeps that start's schema
-// version and its backup when it named one; the fields of After are cleared until the migrations
-// of this start are through.
+// version and its backup when it named one, as long as that record fits the schema found (see
+// Recorder); a record that does not fit is dropped, and KeptBackup no longer names its backup.
+// The fields of After are cleared until the migrations of this start are through.
 func (r *Recorder) Before(schema int64, backup string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	rec := ServerRecord{Version: r.version, SchemaBefore: schema, Backup: backup, StartedAt: r.now().UTC()}
+	if p := r.previous(); p != nil && !p.MigratedAt.IsZero() && p.SchemaAfter != schema {
+		r.prev = nil // the database changed since that start: its record and backup count no more
+	}
 	if p := r.previous(); p != nil {
 		rec.SchemaBefore = p.SchemaBefore
 		if p.Backup != "" {
