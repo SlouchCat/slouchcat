@@ -358,23 +358,22 @@ func (u *Updater) run(p plan, s updater.State) {
 	// container unhealthy after about 16 s while a long migration runs; compose would give up
 	// although the server is fine. The updater waits itself, below.
 	phase(updater.PhaseRestarting)
-	cause, causeMsg := updater.CodeUnhealthy, fmt.Sprintf("version %s did not become healthy within %s", p.to, u.wait)
+	cause := updater.CodeUnhealthy
+	var causeMsg string
 	cctx, cancel = upCtx()
 	err = u.up(cctx, p.project)
 	cancel()
 	if err == nil {
 		// waiting
 		phase(updater.PhaseWaiting)
-		rec, ok, gaveUp := u.waitFor(ctx, p.to)
-		if ok {
+		rec, end := u.waitFor(ctx, p.to)
+		if end == waitOK {
 			s.Migrated = rec.Migrated()
 			s.Backup = rec.Backup
 			finish(updater.PhaseDone, "", "")
 			return
 		}
-		if gaveUp {
-			causeMsg = fmt.Sprintf("version %s stopped (exited or restarted %d times) before it became healthy", p.to, maxRestarts)
-		}
+		causeMsg = fmt.Sprintf("version %s %s", p.to, u.failCause(end))
 	} else {
 		causeMsg = fmt.Sprintf("docker compose up failed for version %s", p.to)
 	}
@@ -516,19 +515,51 @@ func (u *Updater) restoreEnv(env envFile) {
 	}
 }
 
+// waitEnd tells why waitFor ended.
+type waitEnd int
+
+const (
+	waitOK        waitEnd = iota // healthy and server.json reports the version
+	waitGaveUp                   // the container stopped for good (Container.GaveUp)
+	waitSilent                   // healthy at the last look, but server.json never reported the version
+	waitUnhealthy                // not healthy within the wait (or the wait was cut off)
+)
+
 // waitFor waits until the container is healthy and server.json reports version v. "unhealthy"
-// is not final within the wait: the server may still be migrating. gaveUp reports that the
-// container stopped for good (Container.GaveUp) before.
-func (u *Updater) waitFor(ctx context.Context, v string) (rec updater.ServerRecord, ok, gaveUp bool) {
-	ok, gaveUp = u.poll(ctx, func(c Container) bool {
-		if !c.Healthy() {
+// is not final within the wait: the server may still be migrating. A release before 1.16.0
+// runs healthy but writes no server.json: waitSilent tells that from waitUnhealthy.
+func (u *Updater) waitFor(ctx context.Context, v string) (rec updater.ServerRecord, end waitEnd) {
+	healthy := false
+	ok, gaveUp := u.poll(ctx, func(c Container) bool {
+		healthy = c.Healthy()
+		if !healthy {
 			return false
 		}
 		r, err := u.serverRecord()
 		rec = r
 		return err == nil && r.Version == v
 	})
-	return rec, ok, gaveUp
+	switch {
+	case ok:
+		return rec, waitOK
+	case gaveUp:
+		return rec, waitGaveUp
+	case healthy:
+		return rec, waitSilent
+	}
+	return rec, waitUnhealthy
+}
+
+// failCause words why the wait for version v ended without success, for the message after
+// "version v": the install says "version v <cause>".
+func (u *Updater) failCause(end waitEnd) string {
+	switch end {
+	case waitGaveUp:
+		return fmt.Sprintf("stopped (exited or restarted %d times) before it became healthy", maxRestarts)
+	case waitSilent:
+		return fmt.Sprintf("runs healthy but did not report back (server.json) within %s", u.wait)
+	}
+	return fmt.Sprintf("did not become healthy within %s", u.wait)
 }
 
 // waitHealthy waits until the container is healthy (the old server after a rollback; a release

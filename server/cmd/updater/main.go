@@ -357,22 +357,19 @@ func (u *Updater) Resume() {
 // resumeWait waits for version s.To as run does after compose up and ends the install, without a
 // rollback; s is in the phase waiting. A shutdown leaves the phase for the next start.
 func (u *Updater) resumeWait(s updater.State, interrupted updater.Phase) {
-	rec, ok, gaveUp := u.waitFor(u.ctx, s.To)
+	rec, end := u.waitFor(u.ctx, s.To)
 	if u.ctx.Err() != nil {
 		u.log.Warn("updater: stopped while waiting again; the next start takes over", "to", s.To)
 		return
 	}
 	s.FinishedAt = u.now()
-	switch {
-	case ok:
+	switch end {
+	case waitOK:
 		s.Phase, s.Message = updater.PhaseDone, ""
 		s.Migrated, s.Backup = rec.Migrated(), rec.Backup
 	default:
 		s.Phase = updater.PhaseFailed
-		cause := fmt.Sprintf("did not become healthy within %s", u.wait)
-		if gaveUp {
-			cause = fmt.Sprintf("stopped (exited or restarted %d times) before it became healthy", maxRestarts)
-		}
+		cause := u.failCause(end)
 		if rec, migrated := u.migrated(s.To); migrated && s.To != "" {
 			s.Migrated, s.Backup, s.Code = true, rec.Backup, updater.CodeMigratedNoRollback
 			s.Message = fmt.Sprintf("the updater stopped during the phase %s; version %s migrated the database and %s; back only with the backup %s",

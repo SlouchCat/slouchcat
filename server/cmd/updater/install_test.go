@@ -582,7 +582,9 @@ func TestInstallUnhealthyRollsBack(t *testing.T) {
 	h.start()
 	h.install()
 	s := h.finish()
-	if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || s.Migrated {
+	if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || s.Migrated ||
+		!strings.Contains(s.Message, "version 1.16.0 did not become healthy within") ||
+		!strings.Contains(s.Message, "version 1.15.0 runs again") {
 		t.Errorf("state = %+v", s)
 	}
 	if got := h.readEnv(); got != oldEnv {
@@ -590,6 +592,22 @@ func TestInstallUnhealthyRollsBack(t *testing.T) {
 	}
 	if got := h.fake.verbs(); !slices.Equal(got, []string{"pull", "config", "up", "up"}) {
 		t.Errorf("compose calls = %v", got)
+	}
+}
+
+// A new container that runs healthy but never writes server.json for its version (a release
+// before 1.16.0) is not called unhealthy: the message says it did not report back.
+func TestInstallHealthyButSilentRollsBack(t *testing.T) {
+	h := newHarness(t)
+	h.fake.afterUp = func(f *fakeDocker, _ int) { f.c.Health = "healthy" }
+	h.start()
+	h.install()
+	s := h.finish()
+	if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || s.Migrated ||
+		!strings.Contains(s.Message, "version 1.16.0 runs healthy but did not report back (server.json) within") ||
+		strings.Contains(s.Message, "did not become healthy") ||
+		!strings.Contains(s.Message, "version 1.15.0 runs again") {
+		t.Errorf("state = %+v", s)
 	}
 }
 
@@ -668,7 +686,7 @@ func TestInstallStopsWaitingForCrashedContainer(t *testing.T) {
 			begin := time.Now()
 			h.install()
 			s := h.finish()
-			if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || !strings.Contains(s.Message, "stopped") {
+			if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || !strings.Contains(s.Message, "version 1.16.0 stopped (exited or restarted 3 times) before it became healthy") {
 				t.Errorf("state = %+v", s)
 			}
 			if d := time.Since(begin); d > 20*time.Second {
@@ -1040,6 +1058,27 @@ func TestResumedWaitGaveUpAndShutdown(t *testing.T) {
 		h.start()
 		h.u.wg.Wait()
 		if s := h.u.State(); s.Phase != updater.PhaseFailed || s.Code != "" || !strings.Contains(s.Message, "stopped (exited") {
+			t.Errorf("state = %+v", s)
+		}
+	})
+	t.Run("unhealthy", func(t *testing.T) {
+		h := prepare(t)
+		h.fake.c.Labels[labelVersion], h.fake.c.Health = "1.16.0", "starting"
+		h.start()
+		h.u.wg.Wait()
+		if s := h.u.State(); s.Phase != updater.PhaseFailed || s.Code != "" ||
+			!strings.Contains(s.Message, "version 1.16.0 did not become healthy within") {
+			t.Errorf("state = %+v", s)
+		}
+	})
+	t.Run("silent", func(t *testing.T) {
+		h := prepare(t)
+		h.fake.c.Labels[labelVersion], h.fake.c.Health = "1.16.0", "healthy"
+		h.start()
+		h.u.wg.Wait()
+		if s := h.u.State(); s.Phase != updater.PhaseFailed || s.Code != "" ||
+			!strings.Contains(s.Message, "version 1.16.0 runs healthy but did not report back (server.json) within") ||
+			strings.Contains(s.Message, "did not become healthy") {
 			t.Errorf("state = %+v", s)
 		}
 	})
