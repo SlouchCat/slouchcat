@@ -7,8 +7,9 @@ import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard'
 // /admin/radio (concept 16, 11, variant A «Reiter») by keyboard (rule 8): arrow keys across the
 // tabs with `?tab=` in the URL, Tab through the stations table, Enter opens the editor in
 // `?item=`, Escape closes it with the focus back on the row's button, the settings rows by
-// keyboard, a running listener stopped through the confirmation; the RAM-buffer warning follows
-// the server's buffer mode; visible focus, no focus trap.
+// keyboard, «Verwerfen» with the focus on the h1 after it, Back to the page before (the tabs and
+// the editor replace their history entry); a running listener stopped through the confirmation;
+// the RAM-buffer warning follows the server's buffer mode; visible focus, no focus trap.
 
 async function stopRadio(owner: APIRequestContext): Promise<void> {
   const response = await owner.get('/api/v1/admin/radio/relays');
@@ -42,11 +43,15 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   const config = (await (await owner.get('/api/v1/admin/radio/config')).json()) as {
     bufferMode: 'tmpfs' | 'memory';
   };
-  await page.goto('/admin/radio');
+  // Reached from the overview, so Back has a page to return to.
+  await page.goto('/admin');
+  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  const navLink = page
+    .getByRole('navigation', { name: 'Verwaltung' })
+    .getByRole('link', { name: 'Radio' });
+  await navLink.click();
   await expect(page.getByRole('heading', { level: 1, name: 'Radio' })).toBeVisible();
-  await expect(
-    page.getByRole('navigation', { name: 'Verwaltung' }).getByRole('link', { name: 'Radio' }),
-  ).toHaveAttribute('aria-current', 'page');
+  await expect(navLink).toHaveAttribute('aria-current', 'page');
   // The warning without RAM disk follows the server's buffer mode (e2e runs without tmpfs).
   await expect(page.getByText('Kein RAM-Puffer', { exact: true })).toHaveCount(
     config.bufferMode === 'memory' ? 1 : 0,
@@ -104,12 +109,19 @@ test('radio administration by keyboard: tabs in the URL, stations table, editor,
   const discard = page.getByRole('button', { name: 'Verwerfen' });
   await tabTo(page, discard, 60);
   await page.keyboard.press('Enter');
-  // «Verwerfen» goes with the changes (SaveBar); the time shift is the stored one again.
+  // «Verwerfen» goes with the changes (SaveBar); the time shift is the stored one again and the
+  // focus waits on the page head (ALL-2).
   await expect(page.getByRole('button', { name: 'Verwerfen' })).toHaveCount(0);
   await expect(page.getByText('Ungespeicherte Änderungen')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: 'Radio' })).toBeFocused();
 
   await resetFocus(page);
   await expectNoFocusTrap(page);
+
+  // Back leaves the page to the overview: tabs and editor replaced their history entries.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
 });
 
 test('a running listener is stopped through the confirmation', async ({ page, owner }) => {
