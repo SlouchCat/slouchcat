@@ -57,6 +57,9 @@ export { TextField } from './TextField';
 export { TrailerDialog } from './TrailerDialog';
 // The radio's «Jetzt läuft» (concept 16, 10.3), loaded when the mini player opens it.
 export { NowPlayingDialog } from './NowPlayingDialog';
+// The radio page's filters (concept 16, 10.1): a facet with counts, the phone's sheet.
+export { FacetOptions, FacetSelect, type FacetOption } from './FacetSelect';
+export { FilterSheet } from './FilterSheet';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
 // Building blocks of the player (concept 13, 11.10).
 export { ChapterCard } from './ChapterCard';

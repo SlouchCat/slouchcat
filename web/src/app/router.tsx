@@ -15,6 +15,7 @@ import { homeQuery } from '@/features/catalog/queries';
 import { isStatsDays } from '@/features/admin/statsDays';
 import { validateLibraryParams } from '@/features/catalog/libraryParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
+import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
 import { loadSpatialNavigation } from '@/ui';
@@ -573,6 +574,16 @@ const libraryRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/catalog/LibraryPage'), 'LibraryPage'),
 });
 
+// concept 16: webradio, the station catalog with filters, search and favourites.
+const radioRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/radio',
+  // q, country, region, language, genre, kind, mood, quality, titles, fav, top, sort; anything
+  // else is dropped.
+  validateSearch: validateRadioSearch,
+  component: lazyRouteComponent(() => import('@/features/radio/RadioPage'), 'RadioPage'),
+});
+
 const picksPageRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/picks',
@@ -655,6 +666,8 @@ export const routeTree = rootRoute.addChildren([
         // concept 08
         libraryRoute,
         picksPageRoute,
+        // concept 16
+        radioRoute,
       ]),
       playRoute,
     ]),
