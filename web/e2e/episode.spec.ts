@@ -73,8 +73,17 @@ test('Tab reaches play and the next episode after the header; no focus trap @key
   page,
 }) => {
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
-  await tabTo(page, play(page), 2);
-  // Back, the download, the pen, then "Merken" and "Zu Cat's Empfehlungen" (M7).
+  // The side navigation's last stop, then for the server administrator the pen on the still
+  // (concept 15 7.4), then play.
+  await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }), 2);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    page.getByRole('button', { name: 'Metadaten bearbeiten', exact: true }),
+  );
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, play(page));
+  // Back, the download, then "Merken" and "Zu Cat's Empfehlungen" (M7).
   await tabTo(page, next(page), 8);
   await expectNoFocusTrap(page);
 });
