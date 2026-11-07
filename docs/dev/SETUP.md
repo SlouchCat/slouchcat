@@ -72,7 +72,7 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
   «Teststufen» weiter unten. Der Server-Teil heisst `task server:check:fast` (`server/Taskfile.yml`):
   `go vet` und `go test` ohne `-race` für die geänderten Pakete und ihre direkten Abnehmer.
 - `task ci:e2e:parallel` (auch in `task ci`) startet je Shard einen eigenen Server auf
-  `E2E_PORT`, `+10`, `+20` … (Standard 8097) samt den Mocks auf den acht Ports darunter, mit eigenem
+  `E2E_PORT`, `+10`, `+20` … (Standard 8097) samt den Mocks auf den neun Ports darunter, mit eigenem
   Artefaktordner (`web/node_modules/.playwright-parallel/shard-<i>/`, Protokoll `run.log`) und einer
   Kopie von `testdata/media` aus harten Links, weil Specs dort Dateien anlegen. Belegte Ports
   brechen den Lauf vor dem Start ab. Am Ende steht ein zusammengeführter HTML-Bericht in
@@ -81,6 +81,13 @@ task web:e2e:durations RUNS="<id> <id>"  # Dauertabelle der Shards aus CI-Läufe
   einziger Lauf. Gemessen am 3. November 2026 auf Marcos Rechner: 427 Tests in 7 min 56 s (die
   Shards 6,4, 7,0 und 7,9 min), vorher rund 25 min am Stück.
 - Port 8096 gehört dem eigenen Entwicklungsserver; keine der Aufgaben benutzt ihn.
+- Die e2e-Suite startet nicht `server/bin/slouchcat`, sondern `server/bin/slouchcat-e2e`, gebaut mit
+  dem Build-Tag `radiotest` (`task server:build:e2e`; `task build` und `task e2e:quick` bauen beide
+  Binaries, die CI lädt beide als Artefakt hoch). Nur dieser Build liest die Katalog-Adresse des
+  Webradios aus `SLOUCHCAT_TEST_RADIO_CATALOG_URL` und lässt das Radio die Loopback-Adresse anwählen;
+  eine Umgebungsvariable schaltet das im normalen Build nie frei (Konzept 16, Plan 3.8). Katalog und
+  Teststation liefert `web/e2e/radio-server.mjs` neun Ports unter dem App-Port (Standard 8088) aus
+  `testdata/radio/catalog.json`. Das Docker-Image und `bin/slouchcat` tragen das Tag nie.
 - `SLOUCHCAT_E2E_ARTEFACTS` und `SLOUCHCAT_E2E_MEDIA` verlegen Artefakte und Testmedien eines
   einzelnen Laufs (`web/e2e/env.ts`); `ci:e2e:parallel` setzt beide selbst.
 

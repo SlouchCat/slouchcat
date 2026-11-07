@@ -6,7 +6,7 @@
 // Usage (from web/):
 //   node e2e/parallel.mjs [--shards 3] [--base-port 8097] [-- <playwright arguments>]
 //
-// Ports: shard i uses base + 10·(i-1) for the app and seven of the eight below it for its mocks
+// Ports: shard i uses base + 10·(i-1) for the app and eight of the nine below it for its mocks
 // (env.ts; one below stays free), so 8097, 8107, 8117 by default. Every port is checked before anything
 // starts: a busy one stops the run instead of colliding with a server that runs there.
 //
@@ -57,9 +57,10 @@ const free = (port, host) =>
   });
 
 // The offsets a run really uses below its app port (env.ts, start-server.mjs): feed 2, Trakt 3,
-// SMTP 4, push 5, Telegram 6, update manifest 7, SMTP mailbox 8. One below is free on purpose:
-// 8096 next to the default 8097 is the development server, which must not stop `task ci`.
-const USED_OFFSETS = [0, 2, 3, 4, 5, 6, 7, 8];
+// SMTP 4, push 5, Telegram 6, update manifest 7, SMTP mailbox 8, radio catalog and test station 9.
+// One below is free on purpose: 8096 next to the default 8097 is the development server, which
+// must not stop `task ci`.
+const USED_OFFSETS = [0, 2, 3, 4, 5, 6, 7, 8, 9];
 
 const ports = Array.from({ length: count }, (_, index) => base + 10 * index);
 const busy = [];

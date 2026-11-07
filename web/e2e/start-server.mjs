@@ -3,7 +3,12 @@
 // and stops it after the run; the temporary directories are removed on exit. The local podcast
 // feed (feed-server.mjs, M6), the Trakt mock (trakt-server.mjs, M7) and the mocks of the
 // notification channels and the update check (smtp-, push-, telegram- and update-server.mjs, M8)
-// run in this process and stop with the server.
+// and the Radio Browser with the test station (radio-server.mjs, concept 16) run in this process
+// and stop with the server.
+//
+// The suite runs bin/slouchcat-e2e, the server built with the tag radiotest (`task build`): only
+// that build reads the catalog URL from the environment and lets the radio dial the loopback (plan
+// 3.8). The production binary bin/slouchcat never carries the tag.
 //
 // The server's output goes to the console as before and into node_modules/.playwright/server.log
 // (emptied at every start), which global-teardown.ts scans for secrets (A-9).
@@ -21,12 +26,13 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startFeedServer } from './feed-server.mjs';
 import { startPushServer } from './push-server.mjs';
+import { startRadioServer } from './radio-server.mjs';
 import { SMTP_FROM, SMTP_PASSWORD, SMTP_USER, startSmtpServer } from './smtp-server.mjs';
 import { startTelegramServer, TELEGRAM_BOT_TOKEN } from './telegram-server.mjs';
 import { startTraktServer, TRAKT_CLIENT_ID } from './trakt-server.mjs';
 import { startUpdateServer } from './update-server.mjs';
 
-const binary = fileURLToPath(new URL('../../server/bin/slouchcat', import.meta.url));
+const binary = fileURLToPath(new URL('../../server/bin/slouchcat-e2e', import.meta.url));
 // The folder browser and the rule that a new library folder lies below a browsable root (idea 02,
 // E14) default to /media, which no test machine has: the suite's libraries live in testdata/media,
 // or in the copy of it that SLOUCHCAT_E2E_MEDIA names (env.ts MEDIA_DIR, e2e/parallel.mjs).
@@ -36,7 +42,7 @@ const browseRoots =
 const port = process.env.SLOUCHCAT_E2E_PORT ?? '8097';
 
 if (!existsSync(binary)) {
-  console.error(`slouchcat binary not found at ${binary}; run \`task build\` first.`);
+  console.error(`slouchcat e2e binary not found at ${binary}; run \`task build\` first.`);
   process.exit(1);
 }
 
@@ -59,6 +65,8 @@ const smtp = await startSmtpServer({ port: below('SMTP', 4), httpPort: below('SM
 const push = await startPushServer({ port: below('PUSH', 5) });
 const telegram = await startTelegramServer({ port: below('TELEGRAM', 6) });
 const update = await startUpdateServer({ port: below('UPDATE', 7) });
+// The Radio Browser and the test station nine below the app's port (radio-server.mjs).
+const radio = await startRadioServer({ port: below('RADIO', 9) });
 
 // The artefact folder of env.ts ARTEFACTS (SLOUCHCAT_E2E_ARTEFACTS moves it, e2e/parallel.mjs).
 const logFile = process.env.SLOUCHCAT_E2E_ARTEFACTS
@@ -118,6 +126,11 @@ const server = spawn(
       SLOUCHCAT_TELEGRAM_BOT_TOKEN: TELEGRAM_BOT_TOKEN,
       SLOUCHCAT_TELEGRAM_BASE_URL: `http://127.0.0.1:${telegram.port}`,
       SLOUCHCAT_UPDATE_MANIFEST_URL: `http://127.0.0.1:${update.port}/manifest.json`,
+      // The radio catalog of the mock (read by the radiotest build only) and the relay buffers in
+      // the artefact folder: no tmpfs there, so the relays run in memory mode, which the suite
+      // accepts.
+      SLOUCHCAT_TEST_RADIO_CATALOG_URL: `http://127.0.0.1:${radio.port}`,
+      SLOUCHCAT_RADIO_DIR: join(dirname(logFile), 'radio'),
       // The spotlight stage starts at slide 0 in the suite instead of a random one (concept 08).
       SLOUCHCAT_HERO_START: '0',
       // One manual spotlight fetch every 2 s instead of every minute (discover.ts refreshSpotlight):
@@ -149,5 +162,6 @@ server.on('exit', (code) => {
     push.close(),
     telegram.close(),
     update.close(),
+    radio.close(),
   ]).finally(() => process.exit(code ?? 0));
 });

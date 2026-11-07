@@ -31,7 +31,8 @@ import (
 //   - A row whose type is not registered (after a downgrade) is skipped and stays.
 //   - At start, a type with StartDelay fires after that delay (0: at once); without one the next
 //     run of an existing row stands, so a restart does not shift the rhythm. A missing row is
-//     created from Type.Every and Type.Seed (the setting and history of the earlier poller).
+//     created from Type.Every and Type.Seed (the setting and history of the earlier poller, and
+//     a window the first run is aligned into).
 //
 // The one-off date (job_schedules.once_at, concept 14 6.7, ADR 0022) is a promise, not a rhythm:
 //
@@ -190,6 +191,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 // applies the start rule to the row.
 func (s *Scheduler) ensureSchedule(ctx context.Context, t Type, now time.Time) error {
 	every, enabled, last := t.Every, true, time.Time{}
+	var window *Window
 	if t.Seed != nil {
 		seed, err := t.Seed(ctx)
 		if err != nil {
@@ -198,22 +200,29 @@ func (s *Scheduler) ensureSchedule(ctx context.Context, t Type, now time.Time) e
 		if seed.Every > 0 {
 			every = seed.Every
 		}
-		enabled, last = seed.Enabled, seed.LastRun
+		enabled, last, window = seed.Enabled, seed.LastRun, seed.Window
 	}
 	if every < MinEvery || every > MaxEvery {
 		return fmt.Errorf("seed schedule of %s: interval %v outside %v..%v", t.Name, every, MinEvery, MaxEvery)
+	}
+	if window != nil && !window.valid() {
+		return fmt.Errorf("seed schedule of %s: invalid window %+v", t.Name, *window)
 	}
 	next := now
 	if !last.IsZero() && last.Add(every).After(now) {
 		next = last.Add(every)
 	}
+	// A seeded window holds the first run as well: Tick fires a due interval without looking at
+	// the window, so an unaligned first row would run at once, outside it.
+	next = s.align(next, window)
+	ws, we := windowColumns(window)
 	var delay sql.NullInt64
 	if t.StartDelay != nil {
 		delay = sql.NullInt64{Int64: t.StartDelay.Milliseconds(), Valid: true}
 	}
 	created, err := s.sys.InsertJobSchedule(ctx, systemq.InsertJobScheduleParams{
 		Type: t.Name, EveryMs: every.Milliseconds(), StartDelayMs: delay, Enabled: boolInt(enabled),
-		NextRunAt: next.UnixMilli(), Now: now.UnixMilli(),
+		WindowStart: ws, WindowEnd: we, NextRunAt: next.UnixMilli(), Now: now.UnixMilli(),
 	})
 	if err != nil {
 		return fmt.Errorf("insert schedule of %s: %w", t.Name, err)
