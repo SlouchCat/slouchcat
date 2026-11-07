@@ -69,11 +69,13 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
      --env-file <environment_file> -f <config_file 1> -f <config_file 2> …
      pull slouchcat
    docker compose … (dieselben Argumente)
-     up -d --no-deps --wait --wait-timeout 600 slouchcat
+     up -d --no-deps --no-build slouchcat
    ```
 
-   `--no-deps` lässt Caddy und den Updater selbst stehen; `--wait-timeout 600` gibt langen
-   Migrationen zehn Minuten. Fehlen die Labels (Start ohne Compose), lehnt der Updater ab
+   `--no-deps` lässt Caddy und den Updater selbst stehen. **Ohne `--wait`** (berichtigt beim Bau,
+   Schritt 1): Der Healthcheck des Images (5 s Abstand, 3 Versuche) meldet den Container nach rund
+   16 s `unhealthy`, während eine lange Migration noch läuft, und `--wait` gäbe dann auf. Der Updater
+   wartet selbst bis zu zehn Minuten auf `healthy` und auf `server.json` mit der neuen Version. Fehlen die Labels (Start ohne Compose), lehnt der Updater ab
    (`no_compose_labels`), und der Knopf zeigt die Anleitung.
 7. **Verbindung nur im internen Docker-Netz, mit Token.** Der Server ruft den Updater unter
    `http://slouchcat-updater:8099` auf; der Updater veröffentlicht keinen Port. Jede Anfrage trägt

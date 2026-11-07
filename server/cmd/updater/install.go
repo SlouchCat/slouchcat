@@ -355,7 +355,7 @@ func (u *Updater) run(p plan, s updater.State) {
 	}
 
 	// The new version failed. With a migration nothing is taken back (F-14): the old server
-	// would refuse the newer schema, and the way back is the backup taken before it.
+	// is not built for the newer schema, and the way back is the backup taken before it.
 	if rec, ok := u.migrated(p.to); ok {
 		s.Migrated, s.Backup = true, rec.Backup
 		finish(updater.PhaseFailed, updater.CodeMigratedNoRollback,
