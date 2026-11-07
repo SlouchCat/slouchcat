@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"syscall"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/version"
@@ -125,14 +126,30 @@ type ServerRecord struct {
 // ErrTooLarge is returned by ReadJSON for a file over MaxFileBytes.
 var ErrTooLarge = errors.New("updater: file too large")
 
+// ErrNotRegular is returned by ReadJSON for a path that is a symbolic link, a FIFO or anything
+// else but a regular file.
+var ErrNotRegular = errors.New("updater: not a regular file")
+
 // ReadJSON decodes the JSON file at path into v, reading at most MaxFileBytes. A missing file
-// returns an error that matches fs.ErrNotExist.
+// returns an error that matches fs.ErrNotExist. The other side can write the shared folder, so
+// the file is opened without following a symbolic link and without blocking (a FIFO would hang
+// the reader), and it must be a regular file.
 func ReadJSON(path string, v any) error {
-	f, err := os.Open(path) //nolint:gosec // G304: a fixed file name inside the shared updater folder
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0) //nolint:gosec // G304: a fixed file name inside the shared updater folder
+	if errors.Is(err, syscall.ELOOP) {
+		return fmt.Errorf("read %s: %w", filepath.Base(path), ErrNotRegular)
+	}
 	if err != nil {
 		return err
 	}
 	defer func() { _ = f.Close() }()
+	info, err := f.Stat()
+	if err != nil {
+		return fmt.Errorf("read %s: %w", filepath.Base(path), err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("read %s: %w", filepath.Base(path), ErrNotRegular)
+	}
 	data, err := io.ReadAll(io.LimitReader(f, MaxFileBytes+1))
 	if err != nil {
 		return fmt.Errorf("read %s: %w", filepath.Base(path), err)
@@ -147,8 +164,16 @@ func ReadJSON(path string, v any) error {
 }
 
 // WriteJSON replaces the file at path with v as JSON: temporary file with mode perm in the same
-// directory, sync, rename.
-func WriteJSON(path string, v any, perm fs.FileMode) (err error) {
+// directory, sync, rename. The file keeps the owner of the writing process.
+func WriteJSON(path string, v any, perm fs.FileMode) error {
+	return WriteJSONOwned(path, v, perm, -1, -1)
+}
+
+// WriteJSONOwned is WriteJSON with the owner uid:gid (-1 keeps the process's). Mode and owner are
+// set on the open temporary file, never by path: the folder is shared with a process that could
+// put a symbolic link where the path points, and the rename replaces such a link without
+// touching its target.
+func WriteJSONOwned(path string, v any, perm fs.FileMode, uid, gid int) (err error) {
 	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("write %s: %w", filepath.Base(path), err)
@@ -162,14 +187,21 @@ func WriteJSON(path string, v any, perm fs.FileMode) (err error) {
 			_ = os.Remove(tmp.Name())
 		}
 	}()
-	if err := tmp.Chmod(perm); err != nil {
-		return errors.Join(fmt.Errorf("write %s: %w", filepath.Base(path), err), tmp.Close())
+	steps := []func() error{
+		func() error { return tmp.Chmod(perm) },
+		func() error {
+			if uid < 0 && gid < 0 {
+				return nil
+			}
+			return tmp.Chown(uid, gid)
+		},
+		func() error { _, err := tmp.Write(data); return err },
+		tmp.Sync,
 	}
-	if _, err := tmp.Write(data); err != nil {
-		return errors.Join(fmt.Errorf("write %s: %w", filepath.Base(path), err), tmp.Close())
-	}
-	if err := tmp.Sync(); err != nil {
-		return errors.Join(fmt.Errorf("write %s: %w", filepath.Base(path), err), tmp.Close())
+	for _, step := range steps {
+		if err := step(); err != nil {
+			return errors.Join(fmt.Errorf("write %s: %w", filepath.Base(path), err), tmp.Close())
+		}
 	}
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("write %s: %w", filepath.Base(path), err)

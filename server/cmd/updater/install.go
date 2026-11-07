@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -105,14 +104,11 @@ func (u *Updater) set(s updater.State) {
 	u.persist(s)
 }
 
-// persist writes state.json (0644, owned by PUID:PGID, so the server can read it).
+// persist writes state.json (0644, owned by PUID:PGID, so the server can read it). Mode and
+// owner go on the temporary file before the rename, never on the path: the server can write the
+// folder, and a chown by path would follow a link it put there.
 func (u *Updater) persist(s updater.State) {
-	path := u.statePath()
-	err := updater.WriteJSON(path, s, 0o644)
-	if err == nil {
-		err = os.Chown(path, u.cfg.uid, u.cfg.gid) //nolint:gosec // G703: fixed file name inside the operator-configured deploy folder
-	}
-	if err != nil {
+	if err := updater.WriteJSONOwned(u.statePath(), s, 0o644, u.cfg.uid, u.cfg.gid); err != nil {
 		u.log.Error("updater: write state", "err", err)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -179,6 +180,69 @@ func TestReadJSONFails(t *testing.T) {
 	}
 	if err := ReadJSON(large, &s); !errors.Is(err, ErrTooLarge) {
 		t.Errorf("file over MaxFileBytes: %v, want ErrTooLarge", err)
+	}
+}
+
+// The other side can write the shared folder: a symbolic link, a FIFO or a folder at the path is
+// refused at once, and a FIFO does not block the reader.
+func TestReadJSONRefusesNonRegular(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.json")
+	if err := os.WriteFile(target, []byte(`{"phase":"done"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link.json")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	fifo := filepath.Join(dir, "fifo.json")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(dir, "dir.json")
+	if err := os.Mkdir(sub, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{link, fifo, sub} {
+		done := make(chan error, 1)
+		go func() {
+			var s State
+			done <- ReadJSON(path, &s)
+		}()
+		select {
+		case err := <-done:
+			if !errors.Is(err, ErrNotRegular) {
+				t.Errorf("ReadJSON(%s) = %v, want ErrNotRegular", filepath.Base(path), err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("ReadJSON(%s) blocks", filepath.Base(path))
+		}
+	}
+}
+
+// A symbolic link planted at the path is replaced by the file; its target stays as it was.
+func TestWriteJSONOwnedReplacesLink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(target, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, StateFile)
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteJSONOwned(path, State{Phase: PhaseIdle}, 0o644, os.Getuid(), os.Getgid()); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o644 {
+		t.Fatalf("state.json = %v, %v, want a regular file 0644", info, err)
+	}
+	if data, err := os.ReadFile(target); err != nil || string(data) != "keep" {
+		t.Errorf("link target = %q, %v, want it untouched", data, err)
+	}
+	if info, err := os.Stat(target); err != nil || info.Mode().Perm() != 0o600 {
+		t.Errorf("link target mode = %v, %v, want 0600 as before", info, err)
 	}
 }
 

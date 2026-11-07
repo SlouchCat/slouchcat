@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -163,13 +164,10 @@ func newUpdater(ctx context.Context, cfg settings, docker Docker, log *slog.Logg
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, nil, err
 	}
-	if err := os.Chmod(dir, 0o700); err != nil { //nolint:gosec // G302: a folder needs x; only PUID:PGID may enter it
+	if err := ownDir(dir, cfg.uid, cfg.gid); err != nil {
 		return nil, nil, err
 	}
-	if err := os.Chown(dir, cfg.uid, cfg.gid); err != nil {
-		return nil, nil, err
-	}
-	token, err := ensureToken(filepath.Join(dir, updater.TokenFile), cfg.uid, cfg.gid)
+	token, err := ensureToken(filepath.Join(dir, updater.TokenFile), cfg.uid, cfg.gid, log)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -182,21 +180,45 @@ func newUpdater(ctx context.Context, cfg settings, docker Docker, log *slog.Logg
 	return u, token, nil
 }
 
+// ownDir gives the folder mode 0700 and the owner uid:gid through its open descriptor, without
+// following a symbolic link: no chmod or chown by path in the updater (ADR 0024).
+func ownDir(dir string, uid, gid int) error {
+	d, err := os.OpenFile(dir, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0) //nolint:gosec // G304: <deploy>/updater, from the operator-configured deploy folder
+	if err != nil {
+		return err
+	}
+	err = d.Chmod(0o700) // a folder needs x; only PUID:PGID may enter it
+	if err == nil {
+		err = d.Chown(uid, gid)
+	}
+	return errors.Join(err, d.Close())
+}
+
 // ensureToken reads the token file or creates it: 32 random bytes as hex, 0600, owned by
 // PUID:PGID so that the server can read it. The token is never logged (CLAUDE.md rule 10).
-func ensureToken(path string, uid, gid int) ([]byte, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // G304: fixed file name inside the deploy folder
-	if err == nil {
-		token := []byte(strings.TrimSpace(string(data)))
-		if len(token) < 32 {
-			return nil, errors.New("token file is too short; delete it to get a new one")
+//
+// The server can write the folder. The file is therefore opened without following a symbolic
+// link and without blocking, mode and owner go through the open descriptor, and anything but a
+// regular file with one link (a symbolic link, a hard link, a FIFO) is removed, not its target,
+// and replaced by a new token.
+func ensureToken(path string, uid, gid int, log *slog.Logger) ([]byte, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0) //nolint:gosec // G304: fixed file name inside the deploy folder
+	switch {
+	case err == nil:
+		token, regular, err := readToken(f, uid, gid)
+		if regular || err != nil {
+			return token, err
 		}
-		if err := os.Chmod(path, 0o600); err != nil {
+		log.Warn("updater: token is not a regular file, replacing it", "path", path)
+		if err := os.Remove(path); err != nil {
 			return nil, err
 		}
-		return token, os.Chown(path, uid, gid)
-	}
-	if !errors.Is(err, fs.ErrNotExist) {
+	case errors.Is(err, syscall.ELOOP):
+		log.Warn("updater: token is a symbolic link, replacing it", "path", path)
+		if err := os.Remove(path); err != nil { // removes the link, not its target
+			return nil, err
+		}
+	case !errors.Is(err, fs.ErrNotExist):
 		return nil, err
 	}
 	raw := make([]byte, 32)
@@ -208,6 +230,31 @@ func ensureToken(path string, uid, gid int) ([]byte, error) {
 		return nil, fmt.Errorf("write token file: %w", err)
 	}
 	return token, nil
+}
+
+// readToken reads the open token file and gives it mode 0600 and the owner uid:gid through the
+// descriptor. regular is false (and nothing changed) when f is not a regular file with one link.
+func readToken(f *os.File, uid, gid int) (token []byte, regular bool, err error) {
+	defer func() { err = errors.Join(err, f.Close()) }()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, false, err
+	}
+	if st, ok := info.Sys().(*syscall.Stat_t); !info.Mode().IsRegular() || !ok || st.Nlink != 1 {
+		return nil, false, nil
+	}
+	data, err := io.ReadAll(io.LimitReader(f, 4096))
+	if err != nil {
+		return nil, true, err
+	}
+	token = []byte(strings.TrimSpace(string(data)))
+	if len(token) < 32 {
+		return nil, true, errors.New("token file is too short; delete it to get a new one")
+	}
+	if err := f.Chmod(0o600); err != nil {
+		return nil, true, err
+	}
+	return token, true, f.Chown(uid, gid)
 }
 
 // recover loads state.json. An install that was running when the updater stopped did not
