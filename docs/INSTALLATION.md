@@ -228,14 +228,18 @@ nur, wer Docker auf dem Rechner steuert, und wer Docker steuert (`/var/run/docke
 Root-Rechte auf dem ganzen Rechner. Darum bekommt nicht Slouchcat selbst diesen Zugang, sondern ein
 kleines eigenes Programm im Container `slouchcat-updater`:
 
-- Es hat keinen offenen Port, keine Benutzer, keine Medien und sieht `config/` nicht (weder Datenbank
-  noch Schlüssel noch Sicherungen). Slouchcat erreicht es nur im internen Docker-Netz, mit einem
-  geheimen Token aus `updater/token`.
+- Es hat keinen offenen Port, keine Benutzer, keine Medien und sieht weder `config/` (Datenbank,
+  Schlüssel, Sicherungen) noch `cache/`: `compose.updater.yaml` legt bei ihm leere, schreibgeschützte
+  Ordner darüber. Liegt einer der beiden Ordner ausserhalb des Slouchcat-Ordners, hängt der Begleiter
+  ihn gar nicht erst ein (und verdeckt ihn darum auch nicht); Docker legt dann beim Start des
+  Begleiters einen leeren Ordner `config/` oder `cache/` (Eigentümer root) im Slouchcat-Ordner an.
+  Slouchcat erreicht es nur im internen Docker-Netz, mit einem geheimen Token aus `updater/token`.
 - Es nimmt genau einen Auftrag an: «installiere die neueste Fassung». Welche das ist, liest es selbst
   aus dem Release-Manifest; es installiert nur eine neuere Fassung und prüft vor dem Neustart den
   Fingerabdruck (Digest) des heruntergeladenen Images.
-- Es ändert in `.env` nur die Zeile `SLOUCHCAT_VERSION=` und sichert die Datei vorher als
-  `.env.bak-vor-<Fassung>` (nur für dich lesbar, die letzten fünf bleiben).
+- Es ändert in `.env` nur den Wert der Zeile `SLOUCHCAT_VERSION=` (Anführungszeichen und ein
+  Kommentar dahinter bleiben) und sichert die Datei vorher als `.env.bak-vor-<Fassung>` (nur für dich
+  lesbar, die letzten fünf bleiben).
 - Es startet nur den Container `slouchcat` neu, mit genau den Compose-Dateien, mit denen er gestartet
   wurde; Caddy und sich selbst lässt es stehen.
 
@@ -253,7 +257,10 @@ echo "SLOUCHCAT_DEPLOY_DIR=$(pwd)" >> .env
 `SLOUCHCAT_DEPLOY_DIR` ist der **absolute** Pfad des Ordners mit `compose.yaml` und `.env`. Der
 Begleiter hängt ihn unter genau diesem Pfad ein, damit `./config`, `./cache` und alle anderen Pfade
 der Compose-Dateien bei ihm dasselbe bedeuten wie auf dem Rechner. Alle Compose-Dateien und `.env`
-müssen in diesem Ordner liegen, sonst lehnt der Begleiter ab.
+müssen in diesem Ordner liegen, sonst lehnt der Begleiter ab. Der Begleiter liest Variablen nur aus
+den Env-Dateien, nie aus deiner Shell: Jede Variable, die eine Compose-Datei verwendet (zum Beispiel
+`RENDER_GID` aus `compose.intel.yaml` oder `SLOUCHCAT_VERSION`), muss in `.env` stehen; nur mit
+`export` gesetzt, fehlt sie beim Update.
 
 Dann `compose.updater.yaml` **zu allen Dateien dazunehmen, die du bisher verwendest**, als letzte. Mit
 `COMPOSE_FILE` in `.env` hängst du sie hinten an, zum Beispiel:
@@ -277,7 +284,8 @@ wo er steht:
    vergleichen. Weicht er ab, setzt er `.env` zurück und startet nichts neu.
 4. Den Container `slouchcat` mit der neuen Fassung starten. Laufende Wiedergaben brechen dabei ab.
 5. Bis zu **zehn Minuten** warten, bis der neue Server gesund ist und seine Fassung meldet. So viel
-   Zeit hat auch eine lange Datenbank-Änderung.
+   Zeit hat auch eine lange Datenbank-Änderung. Stürzt der neue Container ab (dreimal neu gestartet
+   oder endgültig beendet), wartet er nicht länger.
 
 **Wenn die neue Fassung nicht startet.**
 
@@ -289,6 +297,12 @@ wo er steht:
   (`docker compose stop slouchcat`), `config/slouchcat.db` durch diese Sicherung ersetzen und
   `config/slouchcat.db-wal` und `config/slouchcat.db-shm` löschen, falls vorhanden, die alte Fassung
   in `.env` eintragen (sie steht in `.env.bak-vor-<Fassung>`) und `docker compose up -d`.
+
+**Wenn der Begleiter mitten im Update anhält** (Neustart des Rechners, `docker compose down`), macht er
+beim nächsten Start Ordnung: Vor dem Neustart des Servers setzt er `.env` aus `.env.bak-vor-<Fassung>`
+zurück und meldet einen Fehler. Danach meldet er «fertig», wenn die neue Fassung gesund läuft, sonst
+einen Fehler, ohne etwas zurückzunehmen; dann entscheidest du (Update von Hand wie oben oder die
+Sicherung).
 
 **Den Begleiter selbst aktualisieren.** Er aktualisiert sich nie selbst. Seine Fassung steht als
 `SLOUCHCAT_UPDATER_VERSION` in `.env`; heb sie von Hand, wenn die Release-Notizen es verlangen:

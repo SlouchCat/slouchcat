@@ -681,7 +681,9 @@ Vertrag (Stufe 1).
 
 **Einrichtung.** CT 190 bekommt das Profil `updater` für die Abnahme (F-15), mit seinen drei
 Compose-Dateien; die Abnahme prüft danach, dass Port und GPU wie vorher stehen.
-`docs/INSTALLATION.md` und `deploy/README.md` beschreiben das Profil als freiwillig. Neue
+`docs/INSTALLATION.md` und `deploy/README.md` beschreiben das Profil als freiwillig. (Berichtigt
+im Nachtrag unten und in ADR 0024 Punkt 3: Override-Datei `deploy/compose.updater.yaml` statt
+Profil.) Neue
 **ADR 0024** «Updater-Begleiter»; Spec A-5 wird erweitert (Hinweis **und** Installieren).
 
 > **Nachtrag Stufe 4 (7. November 2026, Schritt 0, ADR 0024):** Beim Baubeginn festgelegt:
@@ -700,6 +702,9 @@ Compose-Dateien; die Abnahme prüft danach, dass Port und GPU wie vorher stehen.
 >   `--project-directory`, `--project-name` und der Env-Datei aus den Labels des laufenden
 >   Containers (`com.docker.compose.project`, `.project.config_files`, `.project.working_dir`,
 >   `.project.environment_file`), dann `up -d --no-deps --wait --wait-timeout 600 slouchcat`.
+>   **Berichtigt beim Bau (ADR 0024 Punkt 6):** ohne `--wait`; der Updater wartet selbst bis zu
+>   zehn Minuten auf `healthy` und `server.json`, der Aufruf ist
+>   `up -d --no-deps --no-build slouchcat` mit den Dateien der Override-Datei `compose.updater.yaml`.
 > - **Verbindung:** nur im internen Docker-Netz (`http://slouchcat-updater:8099`, kein
 >   veröffentlichter Port), Kopf `Authorization: Bearer <token>`. Die Datei `deploy/updater/token`
 >   legt der Updater beim ersten Start an (`0600`, Eigentümer `PUID:PGID`, damit der Server sie

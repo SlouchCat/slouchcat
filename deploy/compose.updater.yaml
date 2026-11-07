@@ -5,9 +5,10 @@
 # Needs SLOUCHCAT_DEPLOY_DIR in .env: the absolute host path of this folder.
 #
 # The updater gets the Docker socket, which is root on the host. That is why it is a container of
-# its own: no port, no users, no media, no /config; it accepts one request (install the newest
-# release), picks the version itself from the release manifest and recreates only the service
-# slouchcat with exactly the compose files and env files the running container was started with.
+# its own: no port, no users, no media, ./config and ./cache masked; it accepts one request
+# (install the newest release), picks the version itself from the release manifest and recreates
+# only the service slouchcat with exactly the compose files and env files the running container
+# was started with.
 # It never updates itself: raise SLOUCHCAT_UPDATER_VERSION by hand when the release notes say so.
 services:
   updater:
@@ -25,6 +26,21 @@ services:
       # The same absolute path as on the host, so that ./config, ./cache and every other relative
       # path of the compose files mean the same inside the updater as they do for the host.
       - ${SLOUCHCAT_DEPLOY_DIR:?SLOUCHCAT_DEPLOY_DIR is not set, see .env.example}:${SLOUCHCAT_DEPLOY_DIR}
+      # ... except ./config (database, secret.key, backups) and ./cache: empty, read-only tmpfs
+      # over them, so the updater never sees what the server keeps there. Compose does not read
+      # bind-mount sources; the server container still gets the host folders. A config or cache
+      # folder outside deploy/ is neither mounted here nor masked (Docker then creates an empty
+      # mount point ./config or ./cache, owned by root).
+      - type: tmpfs
+        target: ${SLOUCHCAT_DEPLOY_DIR}/config
+        read_only: true
+        tmpfs:
+          size: 4096
+      - type: tmpfs
+        target: ${SLOUCHCAT_DEPLOY_DIR}/cache
+        read_only: true
+        tmpfs:
+          size: 4096
     environment:
       SLOUCHCAT_DEPLOY_DIR: ${SLOUCHCAT_DEPLOY_DIR}
       # Owner of ./updater, the token and state.json: the user the server runs as.

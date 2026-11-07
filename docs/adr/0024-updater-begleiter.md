@@ -32,8 +32,11 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
 1. **Eigenes Programm mit eigenem Image.** Der Updater ist `server/cmd/updater`, Image
    `ghcr.io/slouchcat/slouchcat-updater`, gebaut und attestiert im selben Release-Lauf wie der
    Server. Nur er bekommt `/var/run/docker.sock`. Er hat keine Webseite, keine Benutzer, keine
-   Medien und sieht `/config` nicht (weder Datenbank noch `secret.key` noch Sicherungen). Der
-   Server sieht den Docker-Socket nie.
+   Medien und sieht weder `./config` (Datenbank, `secret.key`, Sicherungen) noch `./cache`:
+   Er hängt zwar `deploy/` ein (Punkt 5), aber `compose.updater.yaml` legt über beide Pfade ein
+   leeres, schreibgeschütztes tmpfs (berichtigt im Review vom 7. November 2026). Ein
+   Konfigurations- oder Cache-Ordner ausserhalb von `deploy/` ist bei ihm weder eingehängt noch
+   verdeckt. Der Server sieht den Docker-Socket nie.
 2. **Benannte Ausnahme von Regel 3.** Der Updater ruft `docker compose` über
    `exec.CommandContext` mit Argumentliste auf, nie über eine Shell. `server/.golangci.yml` lässt
    `os/exec` (depguard) und `exec.CommandContext` (forbidigo) nur unter `server/cmd/updater` zu;
@@ -52,7 +55,10 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
    ein, weil er `server.json` schreibt (Konzept 9.3 sagte «lesend»; das ist hiermit berichtigt).
    Jede Datei hat genau einen Schreiber und wird atomar ersetzt (Temporärdatei im selben Ordner,
    dann Umbenennen): `token` und `state.json` schreibt nur der Updater, `server.json` nur der
-   Server.
+   Server. Weil der Server in den Ordner schreiben kann, setzt der Updater (Root) Modus und
+   Eigentümer nur über offene Dateideskriptoren, nie per Pfad; beide Seiten lesen mit
+   `O_NOFOLLOW|O_NONBLOCK` und nur reguläre Dateien, sodass ein untergeschobener Symlink oder eine
+   FIFO weder umgebogen wird noch den Leser blockiert.
 5. **`deploy/` unter demselben absoluten Pfad.** Der Updater hängt den Ordner `deploy/` unter dem
    Pfad ein, den er auf dem Gastgeber hat. Den Pfad gibt `SLOUCHCAT_DEPLOY_DIR` in `.env` vor;
    `compose.updater.yaml` verlangt die Variable (`${SLOUCHCAT_DEPLOY_DIR:?…}`). So stimmen
@@ -72,10 +78,16 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
      up -d --no-deps --no-build slouchcat
    ```
 
+   Das Image, dessen Digest er prüft, liest er aus `docker compose … config --format json`
+   (`services.slouchcat.image`); `config --images` listet auch die Abhängigkeit `updater`.
    `--no-deps` lässt Caddy und den Updater selbst stehen. **Ohne `--wait`** (berichtigt beim Bau,
    Schritt 1): Der Healthcheck des Images (5 s Abstand, 3 Versuche) meldet den Container nach rund
    16 s `unhealthy`, während eine lange Migration noch läuft, und `--wait` gäbe dann auf. Der Updater
-   wartet selbst bis zu zehn Minuten auf `healthy` und auf `server.json` mit der neuen Version. Fehlen die Labels (Start ohne Compose), lehnt der Updater ab
+   wartet selbst bis zu zehn Minuten auf `healthy` und auf `server.json` mit der neuen Version;
+   läuft der Container nicht mehr und ist dreimal neu gestartet oder endgültig beendet, hört er
+   früher auf. Compose interpoliert dabei nur aus den Env-Dateien der Labels, nie aus der Umgebung
+   des Updaters: Jede Variable der Compose-Dateien muss in `.env` stehen. Fehlen die Labels (Start
+   ohne Compose), lehnt der Updater ab
    (`no_compose_labels`), und der Knopf zeigt die Anleitung.
 7. **Verbindung nur im internen Docker-Netz, mit Token.** Der Server ruft den Updater unter
    `http://slouchcat-updater:8099` auf; der Updater veröffentlicht keinen Port. Jede Anfrage trägt
@@ -90,15 +102,18 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
    schreibt.
 9. **Die Version bestimmt der Updater.** Der Server sagt nur «installiere die neueste». Der
    Updater holt das Manifest selbst und prüft die Version streng: `^\d+\.\d+\.\d+$` und neuer als
-   die laufende. Eine übernommene Web-App kann so weder eine ältere Version erzwingen noch über
+   die laufende. Das Manifest holt er nur über `https`, auch bei Weiterleitungen (höchstens zehn).
+   Eine übernommene Web-App kann so weder eine ältere Version erzwingen noch über
    einen Zeilenumbruch andere Werte in `.env` schreiben. Läuft eine Version, die sich nicht lesen
    lässt (`dev`), installiert er nichts.
 10. **Image-Digest.** Das Manifest bekommt das Feld `image`
     (`ghcr.io/slouchcat/slouchcat@sha256:…`), geschrieben von `.github/workflows/release.yml`.
     Fehlt es, lehnt der Updater ab (`no_digest`); weicht der gezogene Digest ab, bricht er vor
     dem Neustart ab (`digest_mismatch`).
-11. **`.env` nur an einer Zeile.** Der Updater ändert nur `SLOUCHCAT_VERSION=` (fügt die Zeile an,
-    wenn sie fehlt) und lässt den Rest Byte für Byte stehen. Vorher sichert er die Datei als
+11. **`.env` nur an einer Zeile.** Der Updater ändert nur den Wert von `SLOUCHCAT_VERSION=` (fügt
+    die Zeile an, wenn sie fehlt) und lässt den Rest Byte für Byte stehen, auch Anführungszeichen
+    und einen Kommentar ` # …` hinter dem Wert. Ist die Env-Datei ein Symlink, ersetzt er dessen Ziel
+    in dessen Ordner. Vorher sichert er die Datei als
     `.env.bak-vor-<Version>` mit Rechten `0600`, weil sie Geheimnisse enthält; die letzten fünf
     Sicherungen bleiben.
 12. **Migration und Rücknahme (F-14).** Der Server schreibt bei jedem Start vor und nach den
@@ -114,10 +129,17 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     `state.json` und `server.json`, das atomare Lesen und Schreiben und die Versionsregel stehen im
     Paket `server/internal/updater`. Es startet keinen Prozess und kennt Docker nicht; Server und
     Updater importieren es beide.
+15. **Unterbrechung** (ergänzt im Review vom 7. November 2026). Wird der Updater angehalten
+    (SIGTERM, `stop_grace_period: 30s`), nimmt er nichts zurück und schreibt keinen Endzustand;
+    `state.json` behält die Phase. Der nächste Start schliesst ab: vor dem Neustart des Servers
+    (`checking` bis `verifying`) die Env-Datei aus `.env.bak-vor-<X>` zurück, wenn sie noch `X`
+    nennt, und `failed`; danach (`restarting`, `waiting`) `done`, wenn `X` gesund läuft und
+    `server.json` `X` nennt, sonst `failed` ohne Rücknahme, denn beim Start kann der neue Server
+    noch migrieren, und ein Neustart mitten in einer Migration wiegt schwerer als eine Meldung.
 
 ## Folgen
 
-- Vertrag **1.16.0**, additiv: `UpdateInfo` bekommt `updaterAvailable` (der Server erreicht den
+- Vertrag **1.16.0**, additiv: `UpdateState` bekommt `updaterAvailable` (der Server erreicht den
   Updater mit dem Token) und `install` (Schema `UpdateInstallStatus`, aus `state.json`); neu sind
   `POST /admin/update/install` und `GET /admin/update/status`, beide `x-visibility: admin`.
   **Keine Migration**; die Einstellung für das gemeldete Ereignis ist eine Zeile in `settings`.

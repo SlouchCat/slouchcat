@@ -233,8 +233,13 @@ die neueste Fassung, wenn ein Administrator in der Verwaltung auf «Update insta
 Werk ist er nicht dabei.
 
 **Warum getrennt.** Er braucht `/var/run/docker.sock`, und wer den Socket hat, hat Root auf dem
-Gastgeber. Darum läuft er in einem eigenen Container ohne veröffentlichten Port, ohne Benutzer, ohne
-Medien und ohne `/config`. Der Server sieht den Socket nie; er erreicht den Begleiter nur im internen
+Gastgeber. Darum läuft er in einem eigenen Container ohne veröffentlichten Port, ohne Benutzer und
+ohne Medien, und er sieht weder `./config` (Datenbank, `secret.key`, Sicherungen) noch `./cache`:
+`compose.updater.yaml` legt über beide Pfade ein leeres, schreibgeschütztes tmpfs (Compose liest die
+Quellen von Bind-Mounts nicht; der Server bekommt die Ordner des Gastgebers). Ein Konfigurations- oder
+Cache-Ordner ausserhalb von `deploy/` ist beim Begleiter weder eingehängt noch verdeckt; fehlt
+`deploy/config` oder `deploy/cache`, legt Docker den Einhängepunkt leer an (Eigentümer root). Der Server
+sieht den Socket nie; er erreicht den Begleiter nur im internen
 Netz unter `http://slouchcat-updater:8099` (`SLOUCHCAT_UPDATER_URL`) mit
 `Authorization: Bearer <token>`. Der Begleiter nimmt nur «installiere die neueste» an und bestimmt die
 Fassung selbst: Manifest lesen, Version streng `X.Y.Z` und neuer als die laufende (Label
@@ -252,7 +257,10 @@ docker compose -f compose.yaml [-f …] -f compose.updater.yaml up -d
 hinten an `COMPOSE_FILE` in `.env` (`compose.yaml:compose.intel.yaml:compose.updater.yaml`). Die Datei
 verlangt `SLOUCHCAT_DEPLOY_DIR` (`${SLOUCHCAT_DEPLOY_DIR:?…}`): Der Begleiter hängt `deploy/` unter
 genau diesem Pfad ein, damit `./config`, `./cache` und alle relativen Pfade bei ihm wie auf dem
-Gastgeber aufgelöst werden. Dem Dienst `slouchcat` gibt die Datei `./updater` unter
+Gastgeber aufgelöst werden. Der Begleiter interpoliert nur aus den Env-Dateien, nie aus der Shell:
+Jede Variable, die eine Compose-Datei verwendet (etwa `RENDER_GID` aus `compose.intel.yaml` oder
+`SLOUCHCAT_VERSION`), muss in `.env` stehen, nicht nur exportiert sein. Dem Dienst `slouchcat` gibt
+die Datei `./updater` unter
 `/run/slouchcat-updater` (lesend und schreibend), `SLOUCHCAT_UPDATER_URL` und `depends_on: updater`.
 
 **Der geteilte Ordner `deploy/updater/`** (Rechte `0700`, Eigentümer `PUID:PGID`):
@@ -274,21 +282,40 @@ Gastgeber aufgelöst werden. Dem Dienst `slouchcat` gibt die Datei `./updater` u
    `manifest_unreachable`, `no_digest`, `no_compose_labels`, `outside_deploy_dir`); läuft schon ein
    Update, 409 `busy`.
 2. Env-Datei nach `.env.bak-vor-<X>` sichern (`0600`, Eigentümer wie das Original, die neuesten fünf
-   bleiben) und nur die Zeile `SLOUCHCAT_VERSION=` setzen (fehlt sie, wird sie angehängt). Bei mehreren
-   Env-Dateien gilt die letzte, die die Zeile enthält, sonst die letzte.
+   bleiben) und nur den Wert der Zeile `SLOUCHCAT_VERSION=` setzen; Leerzeichen, Anführungszeichen
+   (`"…"`, `'…'`) und ein Kommentar ` # …` bleiben (fehlt die Zeile, wird sie angehängt). Bei mehreren
+   Env-Dateien gilt die letzte, die die Zeile enthält, sonst die letzte. Ist die Env-Datei ein Symlink,
+   ersetzt er das Ziel in dessen Ordner; der Link bleibt.
 3. `docker compose --project-name … --project-directory … --env-file … -f … pull slouchcat`, dann die
-   `RepoDigests` des Images mit dem Digest des Manifests vergleichen; bei Abweichung `.env` zurück,
+   `RepoDigests` des Images, das Compose für `slouchcat` auflöst (`config --format json`), mit dem
+   Digest des Manifests vergleichen (sie enthalten den Digest des Image-Index, mit dem
+   containerd-Image-Speicher wie mit dem klassischen); bei Abweichung `.env` zurück,
    `digest_mismatch`, kein Neustart.
 4. `docker compose … up -d --no-deps --no-build slouchcat`, **ohne `--wait`**: Der Healthcheck des
    Images (5 s Abstand, 3 Versuche) meldet `unhealthy` schon nach rund 16 s, während eine lange
    Migration noch läuft. Der Begleiter wartet selbst bis zu zehn Minuten auf `healthy` und auf
-   `server.json` mit der neuen Version; `unhealthy` innerhalb dieser Zeit ist nicht endgültig.
+   `server.json` mit der neuen Version; `unhealthy` innerhalb dieser Zeit ist nicht endgültig. Läuft
+   der Container nicht mehr und ist er dreimal neu gestartet, `dead` oder beendet ohne Neustart durch
+   seine Restart-Policy, hört er sofort auf zu warten.
 5. Scheitert der Start: Zeigt `server.json` für die neue Version eine Migration (Schema geändert oder
    Migration begonnen und nicht beendet), nimmt er nichts zurück (`failed`, `migrated_no_rollback`, mit
    dem Namen der Sicherung `pre-migration-…`). Sonst setzt er `.env` zurück, startet die alte Fassung
    und meldet `rolled_back`; kommt auch sie nicht hoch, `rollback_failed`.
 
-Stirbt der Begleiter mitten in einem Update, markiert er es beim nächsten Start als `failed`.
+**Unterbrechung.** Bei SIGTERM (`docker stop`, `stop_grace_period: 30s`) beendet der Begleiter den
+laufenden Compose-Aufruf, nimmt nichts zurück und schreibt keinen Endzustand; er wartet höchstens 25 s.
+`state.json` behält die Phase, und der nächste Start schliesst das Update ab: in `checking` bis
+`verifying` setzt er die Env-Datei aus `.env.bak-vor-<X>` zurück, wenn sie noch `X` nennt und die
+Sicherung da ist, und meldet `failed`; in `restarting` oder `waiting` meldet er `done`, wenn `X` gesund
+läuft und `server.json` `X` nennt, sonst `failed` (mit `migrated_no_rollback` bei einer Migration),
+ohne Rücknahme: Beim Start kann der neue Server noch migrieren. Compose läuft beim Start nie.
+
+**Dateien und Log.** Modus und Eigentümer von `token`, `state.json` und `deploy/updater/` setzt der
+Begleiter nur über offene Dateideskriptoren, nie per Pfad, denn der Server kann in den Ordner
+schreiben. Gelesen wird ohne Symlinks zu folgen und nur aus regulären Dateien; ein `token`, der ein
+Symlink, ein harter Link oder eine FIFO ist, wird entfernt (nicht sein Ziel) und neu angelegt. Ein
+gescheiterter Docker-Aufruf erscheint im Log mit Exit-Status und nur seiner letzten Zeile, jedes
+`KEY=value` geschwärzt.
 
 **Den Begleiter aktualisieren.** Er aktualisiert sich nie selbst. Sein Tag ist
 `SLOUCHCAT_UPDATER_VERSION` in `.env`; von Hand heben, wenn die Release-Notizen es verlangen, dann
@@ -299,7 +326,8 @@ Stirbt der Begleiter mitten in einem Update, markiert er es beim nächsten Start
 
 Umgebung des Begleiters: `SLOUCHCAT_DEPLOY_DIR` (Pflicht), `PUID`/`PGID` (Standard `1000`),
 `SLOUCHCAT_CONTAINER` (Standard `slouchcat`), `SLOUCHCAT_UPDATE_MANIFEST_URL` (Standard: das
-Manifest der Update-Prüfung; nur für Tests ändern), `SLOUCHCAT_LOG_FORMAT` (`json` oder `text`).
+Manifest der Update-Prüfung; nur `https`, auch bei Weiterleitungen, höchstens zehn; nur für Tests
+ändern), `SLOUCHCAT_LOG_FORMAT` (`json` oder `text`).
 `task deploy:build:updater` baut das Image lokal, `task deploy:config` prüft die Override-Datei mit.
 
 ## HTTPS mit Caddy (Compose-Profil `https`)
