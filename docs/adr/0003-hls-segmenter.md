@@ -66,8 +66,9 @@ beginnt in jedem Lauf mit einem Keyframe, dessen Präsentationszeit `Start(i) + 
 
 | Teil | Segment 0 | Neustart an Grenze *B* (Segment *i*) |
 |---|---|---|
-| Eingang | `-copyts -i Datei` | Transcode: `-copyts -noaccurate_seek -ss B -i Datei`; Remux: `-copyts -ss B -i Datei` |
+| Eingang | `-copyts -i Datei` | Transcode: `-copyts -noaccurate_seek -ss B -i Datei`; Remux: `-copyts -ss K -i Datei`, *K* = letzter Keyframe vor *B-m* (Nachtrag 7. November 2026) |
 | Ausgabe-Seek | – | Transcode: `-ss B -output_ts_offset B+10`; Remux: `-ss B-m -output_ts_offset B-m+10`, *m* = min(250 ms, halber Abstand zum vorherigen Keyframe) |
+| Video kopieren (Remux) | `-c:v copy -bsf:v setts=pts=PTS:dts=DTS:duration=…NEXT_DTS-DTS` (Nachtrag 7. November 2026) | gleich |
 | Keyframes (Transcode) | `-force_key_frames` mit den Grenzen | dieselben Grenzen minus *B* (Encoderzeit beginnt bei 0) |
 | Schnitte | `-segment_times` = Grenzen minus erster Keyframe (Remux) bzw. 0 | Grenzen minus *B*; plus ein unerreichbarer Wächterwert, damit nie das Standardraster von 2 s greift |
 | Toleranz | `-segment_time_delta` 0,002 s (Remux, Index in ms) bzw. 0,25 s (Transcode: Keyframes nur an erzwungenen Stellen, `-g 9999`, Szenenwechsel aus) | gleich |
@@ -153,11 +154,35 @@ Spulen im selben Film (Neustart, erstes Segment / drei Segmente): NVENC 0,41–0
 0,15–0,21 s / 0,25–0,41 s. HDR10-4K-Clip über NVENC mit CPU-Tonemapping: erstes Segment 1,05 s, etwa 5-fache
 Echtzeit. Die Kalibrierung von Kosten und Budgets (Plan 3.5) folgt in `docs/perf/M1b.md`.
 
+## Nachtrag 7. November 2026: Nähte beim Remux
+
+Bei einer Web-Release-Folge (Silo S03E09, HEVC aus MKV, EAC3 zu AAC) ruckelte die Wiedergabe etwa einmal
+pro Minute kurz. Zwei Fehler, beide an Segmentgrenzen:
+
+- **Ton-Lücke bei jedem Neustart.** Der Eingangs-Seek auf *B* landete genau auf dem Keyframe; der neue Lauf
+  las keinen Ton davor. Der alte Lauf schreibt den Ton von Segment *i-1* aber nur bis zur Dekodierzeit
+  dieses Keyframes (B-Frame-Verzögerung, hier 167 ms davor). An jeder Naht fehlten so etwa 134 ms Ton,
+  und weil `MaxAhead` ffmpeg beim normalen Schauen alle neun bis zehn Segmente beendet, rund jede
+  Minute. Die oben beschriebene Überlappung bis 250 ms trat nur ein, wo der Seek zufällig einen Keyframe
+  zu früh landete. Jetzt sucht der Eingang den letzten Keyframe vor *B-m*; der Ausgabe-Seek schneidet wie
+  bisher bei *B-m*, und der Ton überlappt die Naht (gemessen 116 ms). Das Video beginnt weiterhin am
+  Keyframe *B*, weil ffmpeg beim Kopieren erst ab einem Keyframe schreibt.
+- **Keyframe drei Frames zu früh.** In solchen Quellen dauert das Paket vor vielen Keyframes zwei Frames.
+  Der mp4-Muxer beendet ein Fragment bei Dekodierzeit plus Dauer des letzten Pakets; lag das nach der
+  Dekodierzeit des nächsten Keyframes, setzte er dessen dts auf das Fragmentende und pts gleich dts
+  («Packet duration … is out of range», «pts has no value»). Betroffen war fast jede zweite Grenze.
+  Der Bitstream-Filter `setts` setzt jetzt jede Paketdauer auf den Abstand zur nächsten Dekodierzeit;
+  pts und dts stehen ausdrücklich da, weil `setts` sonst beide auf die Dekodierzeit setzt (ffmpeg 6.1
+  und 7.1). Nachmessung an derselben Datei: keine Warnung mehr, 0 von 39 Grenzen falsch.
+
+Test: `TestHLSRemuxSeams` (Clip mit doppelten Paketdauern, AAC-Kodierung, Neustart nach zwei Segmenten).
+
 ## Konsequenzen und Grenzen
 
 - An der Naht zweier Läufe überlappt beim Remux das Audio um bis zu 250 ms (Ausgabe-Seek vor dem
-  Keyframe). Es sind dieselben Quellframes, der Player ersetzt sie beim Anhängen; beim Transcode beträgt
-  die Überlappung nur das AAC-Priming (21 ms).
+  Keyframe). Es sind dieselben Quellframes, der Player ersetzt sie beim Anhängen; wird der Ton kodiert,
+  liegt das AAC-Priming (21 ms) des neuen Laufs in dieser Überlappung. Beim Transcode beträgt die
+  Überlappung nur das AAC-Priming.
 - Remux braucht den Keyframe-Index der Quelle: Ohne ihn lehnt `NewPlan` mit `ErrNoKeyframes` ab, und der
   Aufrufer berechnet den Index zuerst (`Runner.Keyframes`) oder kodiert um. **Seit ADR 0022 (5. November 2026)
   kodiert der Aufrufer nur noch um;** der Index kommt aus dem Container oder dem Volllese-Job. Ein 4-s-Raster würde bei
