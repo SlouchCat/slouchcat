@@ -65,3 +65,51 @@ ON CONFLICT (profile_id, quarter) DO UPDATE SET
 -- name: DeleteOldRadioListenTime :execrows
 -- Listen time older than the K-5 report needs (quarter < @before_quarter).
 DELETE FROM radio_listen_time WHERE quarter < @before_quarter;
+
+-- name: SetRadioStationShowsTitles :execrows
+-- The relay saw the first real title of a station (concept 16 section 8, facet "titles").
+UPDATE radio_stations SET shows_titles = 1 WHERE id = @id AND shows_titles = 0;
+
+-- name: RecordRadioRelayAbort :one
+-- A relay of the station ended because no stream answered (7.4): one abort more; at three in a
+-- row the station is marked broken.
+UPDATE radio_stations SET
+    failures = failures + 1,
+    broken_at = CASE WHEN failures + 1 >= 3 THEN coalesce(broken_at, @now) ELSE broken_at END
+WHERE id = @id
+RETURNING failures, broken_at;
+
+-- name: ClearRadioStationBroken :execrows
+-- A relay of a broken station started to play again (S2 visibility table: success clears broken_at).
+UPDATE radio_stations SET broken_at = NULL WHERE id = @id AND broken_at IS NOT NULL;
+
+-- name: ResetRadioRelayFailures :execrows
+-- A relay ran for a minute: the aborts before no longer count.
+UPDATE radio_stations SET failures = 0 WHERE id = @id AND failures > 0;
+
+-- Station logos (concept 16 section 6, build plan S7; owner: radio, lane A). logo_state: none,
+-- queued, catalog, website, own, failed; logo_hash is the sha256 of the source image.
+
+-- name: MarkRadioLogoQueued :execrows
+-- A station without a logo, or whose chain failed before retry_before, gets the logo job.
+UPDATE radio_stations SET logo_state = 'queued'
+WHERE id = @id AND (logo_state = 'none'
+    OR (logo_state = 'failed' AND (logo_tried_at IS NULL OR logo_tried_at < @retry_before)));
+
+-- name: SetRadioLogoFetched :execrows
+-- The logo job's result (catalog, website or failed); an own upload is never replaced.
+UPDATE radio_stations SET logo_state = @logo_state, logo_hash = @logo_hash, logo_tried_at = @now
+WHERE id = @id AND logo_state <> 'own';
+
+-- name: SetRadioLogoOwn :exec
+UPDATE radio_stations SET logo_state = @logo_state, logo_hash = @logo_hash WHERE id = @id;
+
+-- name: LockRadioStationLogo :exec
+INSERT INTO radio_station_locks (station_id, field) VALUES (@station_id, 'logo') ON CONFLICT DO NOTHING;
+
+-- name: UnlockRadioStationLogo :exec
+DELETE FROM radio_station_locks WHERE station_id = @station_id AND field = 'logo';
+
+-- name: ListRecommendedRadioStationIDs :many
+-- The recommended stations, whose logos the catalog sync prefetches.
+SELECT id FROM radio_stations WHERE recommended = 1 ORDER BY id;

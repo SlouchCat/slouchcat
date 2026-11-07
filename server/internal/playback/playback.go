@@ -82,6 +82,11 @@ type Service struct {
 	activityDone bool
 	activityWG   sync.WaitGroup
 
+	// onProfileEnd hears every end of a profile's playback sessions (OnProfileEnd: the webradio
+	// ends its listen sessions too); nil = none. Guarded by hookMu.
+	hookMu       sync.Mutex
+	onProfileEnd func(ctx context.Context, profileID int64, stoppedBy string) error
+
 	// chapterSince is the end (Unix ms) of the last time span whose ended playbacks the sweep
 	// handed to the chapter images (sweepChapterImages); 0 before the first sweep.
 	chapterSince atomic.Int64

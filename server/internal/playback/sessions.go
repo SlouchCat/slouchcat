@@ -1128,7 +1128,24 @@ func (s *Service) endProfile(ctx context.Context, profileID int64, stoppedBy str
 		s.end(id, stoppedBy)
 	}
 	s.cancelProfile(profileID)
+	s.hookMu.Lock()
+	hook := s.onProfileEnd
+	s.hookMu.Unlock()
+	if hook != nil {
+		if err := hook(ctx, profileID, stoppedBy); err != nil {
+			s.log.WarnContext(ctx, "profile end hook", "profile_id", profileID, "err", err)
+		}
+	}
 	return nil
+}
+
+// OnProfileEnd sets the hook endProfile calls after it revoked a profile's playback sessions:
+// at the watch limit (limit) and when the profile is deleted (revoked). A setter, not an option,
+// because the webradio service is built after the playback service (build plan m-3).
+func (s *Service) OnProfileEnd(f func(ctx context.Context, profileID int64, stoppedBy string) error) {
+	s.hookMu.Lock()
+	s.onProfileEnd = f
+	s.hookMu.Unlock()
 }
 
 // end closes the open streams of an ended playback session, stops its HLS output, removes its

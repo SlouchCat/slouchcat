@@ -165,3 +165,41 @@ func TestStartRechecksWatchLimitAfterInsert(t *testing.T) {
 		t.Error("output still running")
 	}
 }
+
+// endProfile calls the OnProfileEnd hook after it revoked the profile's playback sessions, for a
+// deleted profile (revoked) and at the watch limit (limit), so the webradio ends its listen
+// sessions as well (concept 16, build plan m-3).
+func TestEndProfileCallsHook(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	s := New(f.DB, vistest.Logger(), WithTokenKey(testKey))
+	ctx := context.Background()
+	if err := s.EndProfile(ctx, f.P6.ID); err != nil { // no hook set: nothing happens
+		t.Fatal(err)
+	}
+	type call struct {
+		profileID int64
+		by        string
+	}
+	var calls []call
+	s.OnProfileEnd(func(_ context.Context, profileID int64, by string) error {
+		calls = append(calls, call{profileID, by})
+		return errors.New("radio unavailable") // logged, never fails the playback side
+	})
+	p, err := s.Start(ctx, browserSession(t, f, f.P6), f.Rated(0).ID, model.PlaybackRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.EndProfile(ctx, f.P6.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.endProfile(ctx, f.P12.ID, model.StoppedByLimit); err != nil {
+		t.Fatal(err)
+	}
+	if want := []call{{f.P6.ID, model.StoppedByRevoked}, {f.P12.ID, model.StoppedByLimit}}; len(calls) != 2 || calls[0] != want[0] || calls[1] != want[1] {
+		t.Fatalf("hook calls %v, want %v", calls, want)
+	}
+	if _, err := s.Authorize(ctx, SignToken(testKey, p.PlaybackSessionID, f.Rated(0).ID)); !errors.Is(err, model.ErrUnauthenticated) {
+		t.Fatalf("playback of the ended profile: %v", err)
+	}
+}
