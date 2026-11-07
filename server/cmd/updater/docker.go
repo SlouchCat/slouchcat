@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
+
+	"github.com/slouchcat/slouchcat/server/internal/logging"
 )
 
 // Docker is everything the install flow asks of Docker. The flow is tested against a fake; the
@@ -67,8 +70,9 @@ func (p Project) args() []string {
 // dockerCLI runs the docker binary of the updater image (CLAUDE.md rule 3: exec.CommandContext
 // with an argument list, never a shell; ADR 0024).
 type dockerCLI struct {
-	// output receives the combined output of a failed command (the caller logs it).
-	output func(args []string, out []byte)
+	// failed receives a failed command: its arguments, the error (exit status) and the last line
+	// of its output with every KEY=value redacted (lastLine); the caller logs it.
+	failed func(args []string, err error, last string)
 }
 
 // maxOutput caps what a command may print before it counts as failed; compose pull prints a few
@@ -88,12 +92,35 @@ func (d dockerCLI) run(ctx context.Context, args ...string) ([]byte, error) {
 		err = errors.New("output too large")
 	}
 	if err != nil {
-		if d.output != nil {
-			d.output(args, append(stdout.Bytes(), stderr.Bytes()...))
+		if d.failed != nil {
+			out := stderr.Bytes()
+			if len(bytes.TrimSpace(out)) == 0 {
+				out = stdout.Bytes()
+			}
+			d.failed(args, err, lastLine(out))
 		}
 		return nil, fmt.Errorf("docker %s: %w", args[0], err)
 	}
 	return stdout.Bytes(), nil
+}
+
+// maxLogLine caps the line lastLine returns.
+const maxLogLine = 512
+
+// assignment is KEY=value in command output; compose quotes lines of the env files in some
+// errors, and their values are often secrets (CLAUDE.md rule 10).
+var assignment = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_.-]*)=("[^"]*"?|'[^']*'?|[^\s,;]*)`)
+
+// lastLine returns the last non-empty line of out, at most maxLogLine bytes, with the value of
+// every KEY=value and of the secrets the logging package knows replaced by [REDACTED].
+func lastLine(out []byte) string {
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	line := strings.TrimSpace(lines[len(lines)-1])
+	if len(line) > maxLogLine {
+		line = line[:maxLogLine]
+	}
+	line = assignment.ReplaceAllString(line, "${1}="+logging.Redacted)
+	return logging.RedactString(strings.ToValidUTF8(line, "?"))
 }
 
 // dockerEnv is the environment of a docker call: the search path, the home folder for the CLI

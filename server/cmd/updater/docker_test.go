@@ -71,3 +71,39 @@ func TestComposeImage(t *testing.T) {
 		}
 	}
 }
+
+func TestLastLine(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"pulling\nError response from daemon: manifest unknown\n", "Error response from daemon: manifest unknown"},
+		{"a\r\nfailed to read .env: line 3: SLOUCHCAT_SMTP_PASSWORD=hunter2 unexpected character\r\n\r\n",
+			"failed to read .env: line 3: SLOUCHCAT_SMTP_PASSWORD=[redacted] unexpected character"},
+		{`invalid "TOKEN='a b c'" and KEY="x y", next=z`, `invalid "TOKEN=[redacted]" and KEY=[redacted], next=[redacted]`},
+		{"unterminated PW=\"abc def", "unterminated PW=[redacted]"},
+		{"https://example.test/m.json?token=abc", "https://example.test/m.json?token=[redacted]"},
+		{"", ""},
+		{strings.Repeat("x", 600), strings.Repeat("x", maxLogLine)},
+	} {
+		if got := lastLine([]byte(tc.in)); got != tc.want {
+			t.Errorf("lastLine(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
+
+// A failed command reports its exit status and only its redacted last line, never earlier lines.
+func TestDockerCLIFailedOutput(t *testing.T) {
+	fakeDockerBinary(t, `echo "SLOUCHCAT_TMDB_API_KEY=first-secret" >&2
+echo "line 7: SLOUCHCAT_SMTP_PASSWORD=second-secret: invalid" >&2
+exit 3`)
+	var gotErr error
+	var gotLine string
+	d := dockerCLI{failed: func(_ []string, err error, last string) { gotErr, gotLine = err, last }}
+	if err := d.Compose(t.Context(), Project{Name: "slouchcat", WorkingDir: "/srv"}, "pull", service); err == nil {
+		t.Fatal("Compose succeeded")
+	}
+	if gotErr == nil || !strings.Contains(gotErr.Error(), "exit status 3") {
+		t.Errorf("err = %v, want exit status 3", gotErr)
+	}
+	if gotLine != "line 7: SLOUCHCAT_SMTP_PASSWORD=[redacted] invalid" { // the value runs to the next space
+		t.Errorf("last line = %q", gotLine)
+	}
+}

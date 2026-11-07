@@ -73,8 +73,8 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	docker := dockerCLI{output: func(args []string, out []byte) {
-		log.Warn("updater: docker command failed", "args", strings.Join(args, " "), "output", tail(out, 4096))
+	docker := dockerCLI{failed: func(args []string, err error, last string) {
+		log.Warn("updater: docker command failed", "args", strings.Join(args, " "), "err", err, "last_line", last)
 	}}
 	u, token, err := newUpdater(ctx, cfg, docker, log)
 	if err != nil {
@@ -107,14 +107,6 @@ func run() int {
 		log.Warn("updater: install still running at exit; the next start takes over")
 	}
 	return 0
-}
-
-// tail returns the last n bytes of out as a string.
-func tail(out []byte, n int) string {
-	if len(out) > n {
-		out = out[len(out)-n:]
-	}
-	return string(out)
 }
 
 // settings is the environment of the updater.
