@@ -684,6 +684,34 @@ Compose-Dateien; die Abnahme prüft danach, dass Port und GPU wie vorher stehen.
 `docs/INSTALLATION.md` und `deploy/README.md` beschreiben das Profil als freiwillig. Neue
 **ADR 0024** «Updater-Begleiter»; Spec A-5 wird erweitert (Hinweis **und** Installieren).
 
+> **Nachtrag Stufe 4 (7. November 2026, Schritt 0, ADR 0024):** Beim Baubeginn festgelegt:
+> - **Override-Datei statt Profil.** Der Begleiter kommt mit `deploy/compose.updater.yaml`
+>   (Muster `compose.https-only.yaml`, `compose.intel.yaml`):
+>   `-f compose.yaml [-f …] -f compose.updater.yaml`. Auch der Dienst `slouchcat` braucht dann
+>   einen Mount und eine Umgebungsvariable; ein Profil in `compose.yaml` kann ihm das nicht bedingt
+>   geben. Die Datei entsteht in Schritt 1.
+> - **`deploy/updater/` im Server lesend und schreibend** unter `/run/slouchcat-updater`, weil der
+>   Server `server.json` schreibt (oben stand «lesend»). Der Server sieht `docker.sock` nie, der
+>   Updater `/config` nie.
+> - **`deploy/` unter demselben absoluten Pfad:** Den Pfad gibt `SLOUCHCAT_DEPLOY_DIR` in `.env`
+>   vor, `compose.updater.yaml` verlangt ihn. Liegt eine Compose-Datei aus den Labels ausserhalb
+>   dieses Ordners, lehnt der Updater ab.
+> - **Compose-Aufruf:** `exec.CommandContext` mit Argumentliste, mit genau den `-f`-Dateien,
+>   `--project-directory`, `--project-name` und der Env-Datei aus den Labels des laufenden
+>   Containers (`com.docker.compose.project`, `.project.config_files`, `.project.working_dir`,
+>   `.project.environment_file`), dann `up -d --no-deps --wait --wait-timeout 600 slouchcat`.
+> - **Verbindung:** nur im internen Docker-Netz (`http://slouchcat-updater:8099`, kein
+>   veröffentlichter Port), Kopf `Authorization: Bearer <token>`. Die Datei `deploy/updater/token`
+>   legt der Updater beim ersten Start an (`0600`, Eigentümer `PUID:PGID`, damit der Server sie
+>   lesen kann). Das Token erscheint nie im Log (Regel 10).
+> - **Status ohne Updater:** `GET /admin/update/status` liest `state.json` direkt aus dem
+>   eingehängten Ordner, auch wenn der Updater nicht läuft; nur `POST /admin/update/install` ruft
+>   ihn auf. Das einmalige Ereignis «Fehler» merkt sich der Server in einer eigenen Einstellung,
+>   nicht in `state.json`, die nur der Updater schreibt.
+> - **Gemeinsames Protokoll** im Paket `server/internal/updater` (Adressen, Dateinamen, Phasen,
+>   Fehlercodes, `state.json`, `server.json`, Versionsregel), ohne `os/exec` und ohne Docker.
+> - Vertrag **1.16.0** (additiv), **keine Migration**.
+
 Aufwand: rund **6 Tage** (Updater 3, Release-Lauf und Manifest 0,5, Server und Karte 1, Doku
 und Abnahme auf CT 190 1,5).
 
