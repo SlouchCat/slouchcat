@@ -1,16 +1,25 @@
 # Aktueller Stand
 
-## Release 1.16.0 (7. November 2026)
+## Release 1.16.0 (7. November 2026): veröffentlicht
 
 Release ab `main` nach PR #108 (Konzept 15, Stufe 4). Vertrag **1.16.0, additiv**, keine Migration.
 Neu ist das zweite Image `ghcr.io/slouchcat/slouchcat-updater` (Updater-Begleiter, ADR 0024).
 
 - Versionsstellen auf 1.16.0 im Zweig `claude/release-1.16.0` (`deploy/.env.example`,
-  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
-  `v1.16.0` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.16.0.txt` im
-  Wurzelordner (unversioniert).
-- Nach dem ersten Release-Lauf muss das neue Paket `slouchcat-updater` auf GitHub einmal von Hand
-  öffentlich gemacht werden (Kopf von `.github/workflows/release.yml`).
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`),
+  gemergt als **PR #109** (Merge `266415ba`).
+- Tag `v1.16.0` von Marco auf `266415ba` gesetzt (7. November 2026, Release-Notes
+  `release-notes-1.16.0.txt`). Release-Lauf `42385465442` grün, GitHub-Release um 16:18
+  veröffentlicht. Das Manifest trägt erstmals das Feld `image`
+  (`ghcr.io/slouchcat/slouchcat@sha256:84361004…`). Beide Images lassen sich ohne Anmeldung ziehen;
+  das neue Paket `slouchcat-updater` war ohne Handgriff öffentlich.
+- **CT 190 hat sich selbst auf 1.16.0 gehoben:** Updater auf sein Release-Image 1.16.0, Testdatei
+  `compose.abnahme.yaml` entfernt, dann der Auftrag an den Updater (1.15.0 hat noch keinen Knopf).
+  Echtes Manifest von GitHub, Digest geprüft, `done` nach 13 s; 1.16.0 schrieb `server.json` selbst
+  (Schema 37, keine Migration). Sicherung `.env.bak-vor-1.16.0` (→ 1.15.0). `COMPOSE_FILE` ist jetzt
+  `compose.yaml:compose.ct.yaml:compose.intel.yaml:compose.updater.yaml`; Port 8096 und GPU wie
+  vorher, 0 ERROR. Testimages, Bau- und Storybook-Ordner der Abnahme, Build-Cache (2,1 GB), Zweige
+  und Schritt-Klone der Stufe 4 sind aufgeräumt.
 
 ## Konzept 15 «Feinschliff», Stufe 4: gemergt und auf CT 190 abgenommen (7. November 2026)
 
@@ -92,8 +101,7 @@ Service Worker die Seite mitten in `metadata-editor.spec.ts:539`, und die Test-A
 (`1f9fe1fb`; CI-Teillauf 1/6 lokal 99/99). Gemergt als **PR #108** (Merge `a96e196f`, GitHub-CI 19/19
 grün auf `1f9fe1fb`).
 
-**Offen:** Release 1.16.0, danach auf CT 190 die Testteile entfernen (`compose.abnahme.yaml`,
-Test-Manifest, Images `1.14.99` und `abnahme-*`) und den Updater auf das Release-Image heben.
+Veröffentlicht als Release 1.16.0 (siehe oben).
 
 ## Release 1.15.0 (7. November 2026): veröffentlicht
 
