@@ -59,7 +59,7 @@ func (f *fakeDocker) Container(_ context.Context, name string) (Container, error
 func (f *fakeDocker) ComposeImage(_ context.Context, p Project, service string) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.calls = append(f.calls, append(p.args(), "config", "--images", service))
+	f.calls = append(f.calls, append(p.args(), "config", "--format", "json", service))
 	return "ghcr.io/slouchcat/slouchcat:1.16.0", nil
 }
 

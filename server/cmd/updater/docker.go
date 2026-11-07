@@ -138,13 +138,28 @@ func (d dockerCLI) Container(ctx context.Context, name string) (Container, error
 }
 
 func (d dockerCLI) ComposeImage(ctx context.Context, p Project, service string) (string, error) {
-	out, err := d.run(ctx, append(p.args(), "config", "--images", service)...)
+	// Not --images: it prints the image of every dependency too, one line each, and
+	// compose.updater.yaml makes the server depend on the updater.
+	out, err := d.run(ctx, append(p.args(), "config", "--format", "json", service)...)
 	if err != nil {
 		return "", err
 	}
-	ref := strings.TrimSpace(string(out))
-	if ref == "" || strings.ContainsAny(ref, " \n") {
-		return "", fmt.Errorf("compose config --images %s: unexpected output", service)
+	return composeImage(out, service)
+}
+
+// composeImage reads services.<service>.image from the output of compose config --format json.
+func composeImage(out []byte, service string) (string, error) {
+	var cfg struct {
+		Services map[string]struct {
+			Image string `json:"image"`
+		} `json:"services"`
+	}
+	if err := json.Unmarshal(out, &cfg); err != nil {
+		return "", fmt.Errorf("compose config: %w", err)
+	}
+	ref := strings.TrimSpace(cfg.Services[service].Image)
+	if ref == "" || strings.ContainsAny(ref, " \t\r\n") {
+		return "", fmt.Errorf("compose config: no image for the service %s", service)
 	}
 	return ref, nil
 }
