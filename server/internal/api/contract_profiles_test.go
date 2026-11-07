@@ -850,7 +850,45 @@ var profileRegistry = map[string]profileCall{
 				t.Errorf("reportProgress %s = %s", m.Label, rec.Body.String())
 			}
 		}},
+	// Webradio (concept 16 stage 1, contract 1.17.0): the fixture has no radio service until S8 of
+	// the build plan wires one, so the JSON operations and the image answer 501 and the live routes
+	// 401 (radioAuth without service, like streamAuth without playback). S8 replaces these entries
+	// with the real expectations (404 for hidden and excluded stations, minted live routes).
+	"listRadioStations":  {contract: "GET /radio/stations", path: "/radio/stations?country=CH&sort=popular", want: radioNotYet},
+	"getRadioFacets":     {contract: "GET /radio/facets", path: "/radio/facets?country=CH", want: radioNotYet},
+	"getRadioStation":    {contract: "GET /radio/stations/{stationId}", path: "/radio/stations/1", want: radioNotYet},
+	"listRadioFavorites": {contract: "GET /radio/favorites", path: "/radio/favorites", want: radioNotYet},
+	"setRadioFavoriteOrder": {contract: "PUT /radio/favorites", path: "/radio/favorites", body: `{"stationIds":[]}`,
+		want: radioNotYet},
+	"addRadioFavorite":    {contract: "PUT /radio/favorites/{stationId}", path: "/radio/favorites/1", want: radioNotYet},
+	"removeRadioFavorite": {contract: "DELETE /radio/favorites/{stationId}", path: "/radio/favorites/1", want: radioNotYet},
+	"startRadioListen":    {contract: "POST /radio/stations/{stationId}/listen", path: "/radio/stations/1/listen", want: radioNotYet},
+	"radioListenHeartbeat": {contract: "POST /radio/listen/{listenId}/heartbeat", path: "/radio/listen/" + radioDummyListen + "/heartbeat",
+		body: `{"playing":true}`, want: radioNotYet},
+	"endRadioListen":      {contract: "DELETE /radio/listen/{listenId}", path: "/radio/listen/" + radioDummyListen, want: radioNotYet},
+	"getRadioNow":         {contract: "GET /radio/stations/{stationId}/now", path: "/radio/stations/1/now?since=0", want: radioNotYet},
+	"getRadioPreferences": {contract: "GET /radio/preferences", path: "/radio/preferences", want: radioNotYet},
+	"setRadioPreferences": {contract: "PUT /radio/preferences", path: "/radio/preferences",
+		body: `{"defaultCountry":"CH","lastFilter":{"country":["CH"]},"lastSort":"name"}`, want: radioNotYet},
+	"getRadioImage": {contract: "GET /radio/images/{id}/{kind}/{size}", path: "/radio/images/1/logo/w256", want: radioNotYet},
+	"getRadioLivePlaylist": {contract: "GET /radio/live/{listenId}/index.m3u8", streamOnly: true,
+		path: "/radio/live/" + radioDummyListen + "/index.m3u8?rt=" + radioDummyToken, want: radioLiveNotYet},
+	"getRadioLiveInit": {contract: "GET /radio/live/{listenId}/init/{gen}", streamOnly: true,
+		path: "/radio/live/" + radioDummyListen + "/init/0?rt=" + radioDummyToken, want: radioLiveNotYet},
+	"getRadioLiveSegment": {contract: "GET /radio/live/{listenId}/seg/{n}", streamOnly: true,
+		path: "/radio/live/" + radioDummyListen + "/seg/0?rt=" + radioDummyToken, want: radioLiveNotYet},
 }
+
+// A syntactically valid listen session id and listen token for the radio entries above.
+const (
+	radioDummyListen = "01JRAD10000000000000000000"
+	radioDummyToken  = radioDummyListen + ".AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+)
+
+// radioNotYet and radioLiveNotYet are the answers of the radio operations while the fixture has
+// no radio service: 501 behind the session middleware, 401 from radioAuth.
+func radioNotYet(*vistest.Fixture, model.Profile) int     { return http.StatusNotImplemented }
+func radioLiveNotYet(*vistest.Fixture, model.Profile) int { return http.StatusUnauthorized }
 
 func send(t *testing.T, h http.Handler, method, path, token, body string, header map[string]string) *httptest.ResponseRecorder {
 	t.Helper()

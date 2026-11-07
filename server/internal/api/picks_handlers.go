@@ -233,7 +233,8 @@ var pickUpdateFields = []string{"note", "startsAt", "endsAt"}
 
 // pickUpdateNulls records which top-level fields of a PATCH /admin/picks/{id} body are JSON null:
 // the generated PickUpdate cannot tell null (clear the field) from absent (keep it). It does the
-// same for PATCH /admin/spotlight/entries/{media}/{tmdbId} (SpotlightEntryOverride, M11). Field names
+// same for PATCH /admin/spotlight/entries/{media}/{tmdbId} (SpotlightEntryOverride, M11), PATCH
+// /admin/radio/config and PATCH /admin/radio/stations/{stationId} (contract 1.17.0). Field names
 // match without regard to case, like encoding/json matches them when it decodes the body into
 // PickUpdate ({"Note": null} clears the note as {"note": null} does). The body is handed on
 // unchanged; a read error (such as a body over the size limit) reaches the decoder of the strict
@@ -241,9 +242,14 @@ var pickUpdateFields = []string{"note", "startsAt", "endsAt"}
 func pickUpdateNulls(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		names := pickUpdateFields
-		if strings.HasPrefix(r.URL.Path, BasePath+"/admin/spotlight/entries/") {
+		switch {
+		case strings.HasPrefix(r.URL.Path, BasePath+"/admin/spotlight/entries/"):
 			names = spotlightOverrideFields
-		} else if !strings.HasPrefix(r.URL.Path, BasePath+"/admin/picks/") {
+		case r.URL.Path == BasePath+"/admin/radio/config":
+			names = radioConfigNullFields
+		case strings.HasPrefix(r.URL.Path, BasePath+"/admin/radio/stations/"):
+			names = radioStationNullFields
+		case !strings.HasPrefix(r.URL.Path, BasePath+"/admin/picks/"):
 			names = nil
 		}
 		if r.Method != http.MethodPatch || r.Body == nil || names == nil {

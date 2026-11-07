@@ -3964,6 +3964,581 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/radio/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One page of radio stations, filtered, searched and sorted (contract 1.17.0)
+         * @description Since contract 1.17.0 (concept 16 stage 1). The stations of the Radio Browser catalog the
+         *     server keeps (daily sync), merged into one station per broadcaster (several streams, one stable
+         *     `id`). Filters of different parameters combine with AND, several values of one parameter with
+         *     OR. `q` searches the folded name, region and tags. `titles` keeps the stations whose stream
+         *     shows titles, `favorites` the favourites of the active profile. `sort`: `popular` (votes and
+         *     clicks of the catalog, the default), `name` (sort key of the name), `quality` (`high` first,
+         *     then bitrate), `new` (newest station first). Hidden stations, stations of a country the
+         *     administration excludes (`RadioConfig.countries`) and, while `RadioConfig.hideBroken` is on,
+         *     broken stations are never listed. Stations missing from the catalog are listed with
+         *     `state: missing` until they are removed. Before the first sync the list answers 503
+         *     `radio_catalog_loading`.
+         */
+        get: operations["listRadioStations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Counts per filter value for the current radio filter (contract 1.17.0)
+         * @description Since contract 1.17.0. The values of every filter with the number of stations each would give
+         *     under the other filters of the request: the counts of one facet ignore the selection of that
+         *     same facet, so the client can offer every value that still has hits. `titles` is the number of
+         *     stations that show titles. Same rules as `listRadioStations` for hidden, excluded and broken
+         *     stations. Before the first sync 503 `radio_catalog_loading`.
+         */
+        get: operations["getRadioFacets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/stations/{stationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One radio station (contract 1.17.0)
+         * @description Since contract 1.17.0. A broken station answers 200 with `state: broken` also while
+         *     `RadioConfig.hideBroken` hides it from the lists, so a favourite still opens.
+         */
+        get: operations["getRadioStation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The favourite stations of the active profile in its order (contract 1.17.0)
+         * @description Since contract 1.17.0. Broken and missing favourites are listed with their `state`; a hidden
+         *     station and one of an excluded country are left out. A station removed from the catalog takes
+         *     its favourite marks with it (F-18).
+         */
+        get: operations["listRadioFavorites"];
+        /**
+         * Reorder the favourite stations (contract 1.17.0)
+         * @description Since contract 1.17.0. `stationIds` is the complete new order of the profile's favourites as
+         *     `listRadioFavorites` returns them; another set (a station missing, added or twice) answers 422.
+         */
+        put: operations["setRadioFavoriteOrder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/favorites/{stationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Mark a station as favourite of the active profile (contract 1.17.0)
+         * @description Since contract 1.17.0. Idempotent; a new favourite goes to the end of the order.
+         */
+        put: operations["addRadioFavorite"];
+        post?: never;
+        /**
+         * Remove the favourite mark of a station (contract 1.17.0)
+         * @description Since contract 1.17.0. Idempotent, also for a station that is no longer reachable.
+         */
+        delete: operations["removeRadioFavorite"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/stations/{stationId}/listen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start or join the relay of a station and open a listen session (contract 1.17.0)
+         * @description Since contract 1.17.0 (concept 16 section 7). The server plays every station through its own
+         *     relay (one per station, shared by all listeners) and answers with a listen session: the HLS
+         *     playlist `playlistUrl` (fMP4 audio, authorised by the listen token `rt` in the URL, so the
+         *     native player of Safari works too), the heartbeat interval and the start offset behind the
+         *     live edge. The client sends a heartbeat every `heartbeatSeconds` and ends the session with
+         *     `endRadioListen`; a session without heartbeat and without live requests expires after the
+         *     buffer time. Radio counts to the profile's daily watch time (K-5, F-16), not to the stream
+         *     limits (F-19). A broken station may be started; a success clears its broken mark.
+         */
+        post: operations["startRadioListen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/listen/{listenId}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Keep a listen session open (contract 1.17.0)
+         * @description Since contract 1.17.0. Every `RadioListen.heartbeatSeconds` seconds while the session exists,
+         *     playing or paused; `playing: false` marks a pause (segments fetched during a pause do not count
+         *     as listen time). The answer carries the new expiry and, for a profile with a daily limit, the
+         *     remaining watch time.
+         */
+        post: operations["radioListenHeartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/listen/{listenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End a listen session (contract 1.17.0)
+         * @description Since contract 1.17.0. Idempotent for an ended session of the profile. The relay runs on for
+         *     `RadioConfig.graceSeconds` after its last listener left.
+         */
+        delete: operations["endRadioListen"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/stations/{stationId}/now": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The titles the stream of a station announced (contract 1.17.0)
+         * @description Since contract 1.17.0. The entries of the running relay's title timeline, oldest first, each
+         *     stamped with the program date-time (`at`) of the segment it arrived in, so the client shows the
+         *     entry whose `at` is the last one before its playback position. `since` (Unix ms) returns only
+         *     newer entries. `live` is false when no relay of the station runs; `entries` is then empty.
+         */
+        get: operations["getRadioNow"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Default country, last filter and sort of the active profile (contract 1.17.0)
+         * @description Since contract 1.17.0 (F-12). `defaultCountry` is the profile's choice or, while it has none,
+         *     the country of the server's time zone (fallback: the rating country of the metadata settings).
+         */
+        get: operations["getRadioPreferences"];
+        /**
+         * Store default country, last filter and sort of the active profile (contract 1.17.0)
+         * @description Since contract 1.17.0. Replaces all three; absent `lastFilter` and `lastSort` clear them.
+         */
+        put: operations["setRadioPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/live/{listenId}/index.m3u8": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * HLS live playlist of a listen session (binary, contract 1.17.0)
+         * @description Since contract 1.17.0. Implemented as an `http.Handler` (CLAUDE.md rule 6), authorised by the
+         *     listen token `rt` instead of the cookie (middleware `radioAuth`). A sliding live window of 4-s
+         *     fMP4 audio segments (HLS version 9) with `EXT-X-PROGRAM-DATE-TIME`, `EXT-X-START:TIME-OFFSET=-8`
+         *     and `EXT-X-SERVER-CONTROL:CAN-SKIP-UNTIL`; `_HLS_skip` asks for a delta playlist. Segment and init
+         *     URIs are relative and carry the token. `Cache-Control: no-store`; gzip when `Accept-Encoding`
+         *     lists it. Every request keeps the listen session alive. A token of another listen session, an
+         *     ended or expired session and a missing token answer 401.
+         */
+        get: operations["getRadioLivePlaylist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/live/{listenId}/init/{gen}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * fMP4 initialisation segment of a relay generation (binary, contract 1.17.0)
+         * @description Since contract 1.17.0. Implemented as an `http.Handler`, authorised by `rt`. `ftyp` and `moov` of
+         *     one ffmpeg generation of the relay; a reconnect that changes the stream format starts a new
+         *     generation behind an `EXT-X-DISCONTINUITY`.
+         */
+        get: operations["getRadioLiveInit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/live/{listenId}/seg/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * fMP4 audio segment of a relay (binary, contract 1.17.0)
+         * @description Since contract 1.17.0. Implemented as an `http.Handler`, authorised by `rt`. Segment numbers rise
+         *     across generations; a segment outside the buffer window answers 404. `Cache-Control: private,
+         *     immutable`. Delivered segments count as listen time of the profile (K-5) unless the last
+         *     heartbeat said `playing: false`.
+         */
+        get: operations["getRadioLiveSegment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/radio/images/{id}/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Logo of a radio station (binary, contract 1.17.0)
+         * @description Since contract 1.17.0. Implemented as an `http.Handler` behind the session middleware. `id` is
+         *     the station id. The logo comes from the catalog, the station's website or the administration
+         *     (section 6 of concept 16), scaled to a square. WebP when `Accept` lists `image/webp`, PNG otherwise
+         *     (`Vary: Accept`); `Cache-Control: private, max-age=31536000, immutable`, `v` is the content hash
+         *     (`RadioStation.logo.url` carries it). A station without a logo answers 404; the client shows
+         *     the initials. A hidden station or one of an excluded country answers 404.
+         */
+        get: operations["getRadioImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Radio settings (contract 1.17.0)
+         * @description Since contract 1.17.0 (concept 16 sections 7.3 and 11). `bufferMode` says where the relays keep
+         *     their buffer: `tmpfs` (the RAM disk of the compose file) or `memory` (no RAM disk: radio plays
+         *     live only, without time shift, and the page warns). `maxRelaysByBudget` is the number of relays
+         *     the byte budget allows at the current buffer length.
+         */
+        get: operations["getRadioConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change radio settings (contract 1.17.0)
+         * @description Since contract 1.17.0. Absent fields keep their value; `countries: null` admits every country
+         *     again. `bufferMinutes`, `budgetMb` and `maxRelays` apply to new relays only: running relays keep
+         *     their window and reservation until they stop, and a lower budget or maximum never stops a running
+         *     relay, it only refuses new ones until the running total fits. `graceSeconds`, `hideBroken` and
+         *     `countries` apply at once; open listen sessions of a station that a new `countries` excludes play
+         *     on until they end.
+         */
+        patch: operations["updateRadioConfig"];
+        trace?: never;
+    };
+    "/admin/radio/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * State of the radio catalog and its sync (contract 1.17.0)
+         * @description Since contract 1.17.0. Numbers of the last sync, the next scheduled run and a running sync job.
+         */
+        get: operations["getRadioCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/catalog/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync the radio catalog now (contract 1.17.0)
+         * @description Since contract 1.17.0. Queues the sync job with manual priority, or answers the running or queued
+         *     one (idempotent).
+         */
+        post: operations["syncRadioCatalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Radio stations for the administration (contract 1.17.0)
+         * @description Since contract 1.17.0. Unfiltered by the viewer rules: hidden, broken and excluded stations are
+         *     listed. `exceptions` (default true) keeps the stations the administration changed (a lock),
+         *     hid, recommended and the broken ones; `exceptions=false` lists every station. `state` narrows to
+         *     `reachable`, `broken` or `hidden`.
+         */
+        get: operations["listAdminRadioStations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/stations/{stationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One radio station with streams, tags, facets and locks (contract 1.17.0)
+         * @description Since contract 1.17.0. Also for hidden and excluded stations.
+         */
+        get: operations["getAdminRadioStation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change a radio station (contract 1.17.0)
+         * @description Since contract 1.17.0 (concept 16 section 5.5). Absent fields keep their value. A field that is
+         *     set locks itself (`locks` gains `name`, `region`, `genre`, `kind`, `mood` or `stream`), so the
+         *     daily sync never overwrites it; `locks` replaces the set of locks, so removing a name gives the
+         *     field back to the catalog at the next sync. `region: null` clears the region,
+         *     `preferredStreamId: null` returns to the ranking. `hidden` and `recommended` are marks, not locks.
+         */
+        patch: operations["updateAdminRadioStation"];
+        trace?: never;
+    };
+    "/admin/radio/stations/{stationId}/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a stream of a station (contract 1.17.0)
+         * @description Since contract 1.17.0. Opens the stream (`streamId`, or the best ranked one) through the guarded
+         *     dialer, reads at most 10 s and reports format, codec, bitrate, sample rate, channels, whether it
+         *     carries titles (and the first one) and the time to the first byte.
+         */
+        post: operations["probeRadioStation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/stations/{stationId}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upload an own logo for a station (binary upload, contract 1.17.0)
+         * @description Since contract 1.17.0. Implemented as an `http.Handler` (CLAUDE.md rule 6). The body is
+         *     `multipart/form-data` with the part `file`, at most 20 MB (like `uploadItemImage`); JPEG, PNG or
+         *     WebP by content, at most 50 megapixels. The logo becomes the station's logo (`logoState: own`) and
+         *     the field `logo` is locked.
+         */
+        put: operations["uploadRadioStationLogo"];
+        post?: never;
+        /**
+         * Remove the own logo of a station (contract 1.17.0)
+         * @description Since contract 1.17.0. Lifts the lock `logo`; the logo chain (catalog, website) runs again.
+         */
+        delete: operations["deleteRadioStationLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/images/{id}/{kind}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Logo of any radio station for the administration (binary, contract 1.17.0)
+         * @description Since contract 1.17.0. Implemented as an `http.Handler`; like `getRadioImage`, but also for hidden
+         *     stations and those of an excluded country. `id` is the station id.
+         */
+        get: operations["getAdminRadioImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/relays": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Running radio relays, their listeners and the server load (contract 1.17.0)
+         * @description Since contract 1.17.0 (concept 16 section 11, tab «Übersicht»).
+         */
+        get: operations["listRadioRelays"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/listeners/{listenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop the listen session of a listener (contract 1.17.0)
+         * @description Since contract 1.17.0. Ends the session (`ended_by` admin); its next live request answers 401.
+         */
+        delete: operations["stopRadioListener"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7788,6 +8363,390 @@ export interface components {
             /** @description Names that have reported nothing for seven days. */
             silent: string[];
         };
+        /**
+         * @default popular
+         * @enum {string}
+         */
+        RadioSort: "popular" | "name" | "quality" | "new";
+        /**
+         * @description Quality class of the best stream (concept 16 section 5.4): `high` from 256 kbit/s or lossless,
+         *     `good` 128 to 255 kbit/s, `basic` below 128.
+         * @enum {string}
+         */
+        RadioQuality: "high" | "good" | "basic";
+        /**
+         * @description `ok`; `broken`: no catalog entry answered at its last check or the server's own relay failed three
+         *     times in a row; `missing`: the station left the catalog and is removed at `removalAt`.
+         * @enum {string}
+         */
+        RadioStationState: "ok" | "broken" | "missing";
+        /**
+         * @description Kind of a station image; Stage 2 of concept 16 adds `cover` (additive).
+         * @enum {string}
+         */
+        RadioImageKind: "logo";
+        RadioLogo: {
+            /** @description URL of `getRadioImage` (w256) with `v` = content hash; another size replaces `w256`. */
+            url: string;
+        };
+        /** @description A radio station as the app shows it (contract 1.17.0). Not an `ItemRef`. */
+        RadioStation: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            /** @description ISO 3166-1 alpha-2. */
+            country?: string;
+            /** @description ISO 3166-2 (`CH-ZH`). */
+            region?: string;
+            /** @description ISO 639-1 codes. */
+            languages: string[];
+            /** @description Stable genre keys (texts in the app's locale files). */
+            genres: string[];
+            /** @description Stable programme kind keys. */
+            kinds: string[];
+            /** @description Stable mood keys. */
+            moods: string[];
+            quality?: components["schemas"]["RadioQuality"];
+            /** @description Codec of the best stream as the catalog names it (`MP3`, `AAC`, `AAC+`, `OGG` …). */
+            codec?: string;
+            bitrateKbps?: number;
+            /** @description The best stream is an HLS source. */
+            hls: boolean;
+            /** @description A relay of the server saw titles in the stream. */
+            showsTitles: boolean;
+            /** @description A favourite of the active profile. */
+            favorite: boolean;
+            /** @description Recommended by the administration. */
+            recommended: boolean;
+            state: components["schemas"]["RadioStationState"];
+            /**
+             * Format: int64
+             * @description Unix ms since when every catalog entry of the station is gone (`state` missing).
+             */
+            missingSince?: number;
+            /**
+             * Format: int64
+             * @description Unix ms when the server removes the missing station (`missingSince` + 7 days).
+             */
+            removalAt?: number;
+            logo?: components["schemas"]["RadioLogo"];
+            homepage?: string;
+        };
+        RadioStationPage: {
+            items: components["schemas"]["RadioStation"][];
+            total: number;
+            offset: number;
+        };
+        RadioFacetCount: {
+            value: string;
+            count: number;
+        };
+        /**
+         * @description Counts per value under the other filters of the request; the counts of a facet ignore its own
+         *     selection. `titles` is the number of stations that show titles.
+         */
+        RadioFacets: {
+            country: components["schemas"]["RadioFacetCount"][];
+            region: components["schemas"]["RadioFacetCount"][];
+            language: components["schemas"]["RadioFacetCount"][];
+            genre: components["schemas"]["RadioFacetCount"][];
+            kind: components["schemas"]["RadioFacetCount"][];
+            mood: components["schemas"]["RadioFacetCount"][];
+            quality: components["schemas"]["RadioFacetCount"][];
+            titles: number;
+        };
+        RadioFavoriteOrder: {
+            stationIds: number[];
+        };
+        /** @description A listen session (concept 16 section 7.5). */
+        RadioListen: {
+            listenId: string;
+            /** @description URL of `getRadioLivePlaylist` with the listen token `rt`. */
+            playlistUrl: string;
+            /** @description Interval of `radioListenHeartbeat` (30). */
+            heartbeatSeconds: number;
+            /** @description Start position relative to the live edge (-8), as `EXT-X-START` says. */
+            startOffsetSeconds: number;
+            station: components["schemas"]["RadioStation"];
+        };
+        RadioHeartbeatRequest: {
+            /** @description false while the client pauses. */
+            playing: boolean;
+        };
+        RadioHeartbeat: {
+            /**
+             * Format: int64
+             * @description Unix ms when the session expires without a further heartbeat or live request.
+             */
+            expiresAt: number;
+            watchTime?: components["schemas"]["WatchTime"];
+        };
+        RadioNowEntry: {
+            /**
+             * Format: int64
+             * @description Program date-time (Unix ms) of the segment the entry arrived in.
+             */
+            at: number;
+            /** @description The title text as the stream sent it. */
+            text: string;
+            /** @description Artist, when the text splits into artist and title. */
+            artist?: string;
+            title?: string;
+        };
+        RadioNow: {
+            /** @description A relay of the station runs. */
+            live: boolean;
+            entries: components["schemas"]["RadioNowEntry"][];
+        };
+        /** @description The filter parameters of `listRadioStations` as an object. */
+        RadioFilter: {
+            q?: string;
+            country?: string[];
+            region?: string[];
+            language?: string[];
+            genre?: string[];
+            kind?: string[];
+            mood?: string[];
+            quality?: components["schemas"]["RadioQuality"][];
+            titles?: boolean;
+            favorites?: boolean;
+        };
+        /** @description Radio preferences of the active profile (F-12). */
+        RadioPreferences: {
+            /** @description ISO 3166-1 alpha-2 country the radio page starts with. */
+            defaultCountry: string;
+            lastFilter?: components["schemas"]["RadioFilter"];
+            lastSort?: components["schemas"]["RadioSort"];
+        };
+        /**
+         * @description `tmpfs`: the relays buffer in the RAM disk of the compose file (time shift possible); `memory`: no
+         *     RAM disk, radio plays live only and the administration warns.
+         * @enum {string}
+         */
+        RadioBufferMode: "tmpfs" | "memory";
+        RadioConfig: {
+            /** @enum {integer} */
+            bufferMinutes: 10 | 30 | 60;
+            budgetMb: number;
+            maxRelays: number;
+            graceSeconds: number;
+            hideBroken: boolean;
+            /** @description ISO 3166-1 alpha-2 codes the viewers see; null = every country. */
+            countries: string[] | null;
+            bufferMode: components["schemas"]["RadioBufferMode"];
+            /** @description Relays the byte budget allows at the current buffer length. */
+            maxRelaysByBudget: number;
+        };
+        RadioConfigUpdate: {
+            /** @enum {integer} */
+            bufferMinutes?: 10 | 30 | 60;
+            budgetMb?: number;
+            maxRelays?: number;
+            graceSeconds?: number;
+            hideBroken?: boolean;
+            countries?: string[] | null;
+        };
+        RadioCatalogState: {
+            /**
+             * @description The catalog (Radio Browser, radio-browser.info).
+             * @enum {string}
+             */
+            source: "radio-browser";
+            /**
+             * Format: int64
+             * @description Unix ms of the last sync, successful or not; absent before the first.
+             */
+            lastSyncAt?: number;
+            /** @description Error of the last sync (redacted); absent after a successful one. */
+            lastSyncError?: string;
+            /** @description Failed syncs in a row. */
+            syncFailures: number;
+            /** @description Catalog entries of the last successful sync. */
+            entriesTotal: number;
+            entriesReachable: number;
+            /** @description Stations after merging the entries. */
+            stationsTotal: number;
+            lastAdded: number;
+            lastRemoved: number;
+            /**
+             * Format: int64
+             * @description Unix ms of the next scheduled sync.
+             */
+            nextRunAt?: number;
+            /**
+             * Format: int64
+             * @description The queued or running sync job.
+             */
+            runningJobId?: number;
+        };
+        RadioCatalogSync: {
+            /** Format: int64 */
+            jobId: number;
+        };
+        /**
+         * @description `catalog`: from Radio Browser; `own`: added by the administration (stage 2).
+         * @enum {string}
+         */
+        RadioStationSource: "catalog" | "own";
+        /**
+         * @description Where the logo comes from: `none` (not tried yet), `queued`, `catalog`, `website`, `own` (uploaded)
+         *     or `failed` (no source gave one; the app shows initials).
+         * @enum {string}
+         */
+        RadioLogoState: "none" | "queued" | "catalog" | "website" | "own" | "failed";
+        /** @enum {string} */
+        RadioLockField: "name" | "logo" | "genre" | "kind" | "mood" | "region" | "stream";
+        RadioStationFacet: {
+            /** @enum {string} */
+            facet: "genre" | "kind" | "mood";
+            value: string;
+            /** @description Set by the administration, not derived from the tags. */
+            manual: boolean;
+        };
+        RadioStream: {
+            /** Format: int64 */
+            id: number;
+            url: string;
+            urlResolved?: string;
+            codec?: string;
+            bitrateKbps?: number;
+            hls: boolean;
+            /** @description The catalog's last check of this entry succeeded. */
+            reachable: boolean;
+            /** @description Chosen by the administration (lock `stream`). */
+            preferred: boolean;
+            /** @description Position in the ranking of section 5.3, 0 = the stream the relay plays. */
+            rank: number;
+        };
+        /** @description The administration view of a station (contract 1.17.0). Not an `ItemRef`. */
+        AdminRadioStation: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            country?: string;
+            region?: string;
+            languages: string[];
+            genres: string[];
+            kinds: string[];
+            moods: string[];
+            quality?: components["schemas"]["RadioQuality"];
+            codec?: string;
+            bitrateKbps?: number;
+            hls: boolean;
+            showsTitles: boolean;
+            recommended: boolean;
+            state: components["schemas"]["RadioStationState"];
+            /** Format: int64 */
+            missingSince?: number;
+            /** Format: int64 */
+            removalAt?: number;
+            logo?: components["schemas"]["RadioLogo"];
+            homepage?: string;
+            source: components["schemas"]["RadioStationSource"];
+            hidden: boolean;
+            /** @description Relay aborts of the server in a row (three mark the station broken). */
+            failures: number;
+            /**
+             * Format: int64
+             * @description Unix ms when the server's own relay marked the station broken.
+             */
+            brokenAt?: number;
+            /** @description Raw catalog tags. */
+            tags: string[];
+            facets: components["schemas"]["RadioStationFacet"][];
+            locks: components["schemas"]["RadioLockField"][];
+            logoState: components["schemas"]["RadioLogoState"];
+            /** @description Catalog entries merged into the station. */
+            aliasCount: number;
+            /** @description The streams, best first. */
+            streams: components["schemas"]["RadioStream"][];
+            /** Format: int64 */
+            createdAt: number;
+            /** Format: int64 */
+            updatedAt: number;
+        };
+        AdminRadioStationPage: {
+            items: components["schemas"]["AdminRadioStation"][];
+            total: number;
+            offset: number;
+        };
+        AdminRadioStationPatch: {
+            name?: string;
+            region?: string | null;
+            genres?: string[];
+            kinds?: string[];
+            moods?: string[];
+            /** Format: int64 */
+            preferredStreamId?: number | null;
+            hidden?: boolean;
+            recommended?: boolean;
+            locks?: components["schemas"]["RadioLockField"][];
+        };
+        RadioProbeRequest: {
+            /**
+             * Format: int64
+             * @description The stream to check; absent = the best ranked one.
+             */
+            streamId?: number;
+        };
+        RadioProbe: {
+            /** @description Transport of the stream, for example `icy`, `http` or `hls`. */
+            format: string;
+            codec: string;
+            bitrateKbps: number;
+            sampleRate: number;
+            channels: number;
+            /** @description The stream carries titles. */
+            hasMetadata: boolean;
+            /** @description The first title seen. */
+            title?: string;
+            /** @description Time to the first byte of audio. */
+            responseMs: number;
+        };
+        /** @enum {string} */
+        RadioRelayState: "connecting" | "live" | "reconnecting" | "ending";
+        RadioRelayListener: {
+            listenId: string;
+            profileName: string;
+            accountEmail: string;
+            playing: boolean;
+            /**
+             * Format: int64
+             * @description Unix ms when the listen session started.
+             */
+            since: number;
+        };
+        RadioRelay: {
+            /** Format: int64 */
+            stationId: number;
+            name: string;
+            codec?: string;
+            bitrateKbps?: number;
+            /** @description ffmpeg encodes the audio (MP3, Ogg …); false = AAC repackaged. */
+            transcoded: boolean;
+            /** Format: int64 */
+            startedAt: number;
+            bufferSeconds: number;
+            /** Format: int64 */
+            bufferBytes: number;
+            state: components["schemas"]["RadioRelayState"];
+            listeners: components["schemas"]["RadioRelayListener"][];
+        };
+        RadioLoad: {
+            relays: number;
+            maxRelays: number;
+            /** Format: int64 */
+            bufferBytes: number;
+            /** Format: int64 */
+            budgetBytes: number;
+            /** @description Bitrate the server delivers to all listeners together. */
+            uploadKbps: number;
+            bufferMode: components["schemas"]["RadioBufferMode"];
+        };
+        RadioRelays: {
+            relays: components["schemas"]["RadioRelay"][];
+            load: components["schemas"]["RadioLoad"];
+        };
     };
     responses: {
         /** @description No valid session (`unauthenticated`). */
@@ -7908,6 +8867,49 @@ export interface components {
                 "application/problem+json": components["schemas"]["Problem"];
             };
         };
+        /**
+         * @description The radio catalog has not been synced yet (`radio_catalog_loading`); `Retry-After` names the pause
+         *     in seconds.
+         */
+        RadioCatalogLoading: {
+            headers: {
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description Unknown station, hidden, or of a country the administration excludes (`not_found`). */
+        RadioStationNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description Listen token missing, forged, of another listen session, or the session ended or expired
+         *     (`unauthenticated`).
+         */
+        RadioLiveUnauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /** @description The segment or generation is outside the buffer window (`not_found`). */
+        RadioLiveNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
     };
     parameters: {
         ProfileID: number;
@@ -7943,6 +8945,37 @@ export interface components {
         IntegrationID: number;
         ChannelName: components["schemas"]["Channel"];
         PushSubscriptionID: number;
+        /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+        RadioStationID: number;
+        /** @description Station id (`RadioStation.id`). */
+        RadioImageStationID: number;
+        RadioImageKind: components["schemas"]["RadioImageKind"];
+        /** @description Square edge in pixels. */
+        RadioImageSize: "w96" | "w256" | "w512";
+        /** @description Listen session id (ULID) from `RadioListen.listenId`. */
+        RadioListenID: string;
+        /** @description Listen token from `RadioListen.playlistUrl`. Redacted in all logs. */
+        RadioToken: string;
+        /** @description Search in the folded name, region and tags. */
+        RadioQ: string;
+        /** @description ISO 3166-1 alpha-2 codes; several are combined with OR. */
+        RadioCountry: string[];
+        /** @description ISO 3166-2 codes (`CH-ZH`); several are combined with OR. */
+        RadioRegion: string[];
+        /** @description ISO 639-1 codes; several are combined with OR. */
+        RadioLanguage: string[];
+        /** @description Genre keys as `getRadioFacets` lists them; several are combined with OR. */
+        RadioGenre: string[];
+        /** @description Programme kind keys (music, news, talk …) as `getRadioFacets` lists them; OR. */
+        RadioKind: string[];
+        /** @description Mood keys as `getRadioFacets` lists them; OR. */
+        RadioMood: string[];
+        /** @description Quality classes; OR. */
+        RadioQualityFilter: components["schemas"]["RadioQuality"][];
+        /** @description true = only stations whose stream shows titles. */
+        RadioTitles: boolean;
+        /** @description true = only the favourites of the active profile. */
+        RadioFavorites: boolean;
     };
     requestBodies: never;
     headers: never;
@@ -15611,6 +16644,1058 @@ export interface operations {
             429: {
                 headers: {
                     "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRadioStations: {
+        parameters: {
+            query?: {
+                /** @description Search in the folded name, region and tags. */
+                q?: components["parameters"]["RadioQ"];
+                /** @description ISO 3166-1 alpha-2 codes; several are combined with OR. */
+                country?: components["parameters"]["RadioCountry"];
+                /** @description ISO 3166-2 codes (`CH-ZH`); several are combined with OR. */
+                region?: components["parameters"]["RadioRegion"];
+                /** @description ISO 639-1 codes; several are combined with OR. */
+                language?: components["parameters"]["RadioLanguage"];
+                /** @description Genre keys as `getRadioFacets` lists them; several are combined with OR. */
+                genre?: components["parameters"]["RadioGenre"];
+                /** @description Programme kind keys (music, news, talk …) as `getRadioFacets` lists them; OR. */
+                kind?: components["parameters"]["RadioKind"];
+                /** @description Mood keys as `getRadioFacets` lists them; OR. */
+                mood?: components["parameters"]["RadioMood"];
+                /** @description Quality classes; OR. */
+                quality?: components["parameters"]["RadioQualityFilter"];
+                /** @description true = only stations whose stream shows titles. */
+                titles?: components["parameters"]["RadioTitles"];
+                /** @description true = only the favourites of the active profile. */
+                favorites?: components["parameters"]["RadioFavorites"];
+                sort?: components["schemas"]["RadioSort"];
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of stations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioStationPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description A parameter is outside its range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["RadioCatalogLoading"];
+        };
+    };
+    getRadioFacets: {
+        parameters: {
+            query?: {
+                /** @description Search in the folded name, region and tags. */
+                q?: components["parameters"]["RadioQ"];
+                /** @description ISO 3166-1 alpha-2 codes; several are combined with OR. */
+                country?: components["parameters"]["RadioCountry"];
+                /** @description ISO 3166-2 codes (`CH-ZH`); several are combined with OR. */
+                region?: components["parameters"]["RadioRegion"];
+                /** @description ISO 639-1 codes; several are combined with OR. */
+                language?: components["parameters"]["RadioLanguage"];
+                /** @description Genre keys as `getRadioFacets` lists them; several are combined with OR. */
+                genre?: components["parameters"]["RadioGenre"];
+                /** @description Programme kind keys (music, news, talk …) as `getRadioFacets` lists them; OR. */
+                kind?: components["parameters"]["RadioKind"];
+                /** @description Mood keys as `getRadioFacets` lists them; OR. */
+                mood?: components["parameters"]["RadioMood"];
+                /** @description Quality classes; OR. */
+                quality?: components["parameters"]["RadioQualityFilter"];
+                /** @description true = only stations whose stream shows titles. */
+                titles?: components["parameters"]["RadioTitles"];
+                /** @description true = only the favourites of the active profile. */
+                favorites?: components["parameters"]["RadioFavorites"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The facets. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioFacets"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description A parameter is outside its range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            503: components["responses"]["RadioCatalogLoading"];
+        };
+    };
+    getRadioStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The station. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioStation"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["RadioStationNotFound"];
+        };
+    };
+    listRadioFavorites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The favourites, first first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioStation"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    setRadioFavoriteOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioFavoriteOrder"];
+            };
+        };
+        responses: {
+            /** @description Stored. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description The ids are not the profile's favourites (`validation_failed`, field `stationIds`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    addRadioFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["RadioStationNotFound"];
+        };
+    };
+    removeRadioFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    startRadioListen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The listen session. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioListen"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description The profile's daily watch time is used up (`watch_limit_reached`, extensions `limitMinutes`, `usedMinutes`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            404: components["responses"]["RadioStationNotFound"];
+            /**
+             * @description The server runs as many relays as it may (`radio_capacity`, extensions `running` and `max`);
+             *     joining a running relay never fails this way.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The stream does not deliver audio (`radio_not_audio`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description No stream of the station answered (`radio_unreachable`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    radioListenHeartbeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Listen session id (ULID) from `RadioListen.listenId`. */
+                listenId: components["parameters"]["RadioListenID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioHeartbeatRequest"];
+            };
+        };
+        responses: {
+            /** @description The session is open. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioHeartbeat"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description The profile's daily watch time is used up (`watch_limit_reached`); the session ended. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unknown listen session or one of another profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The relay of the session ended (`radio_unreachable`); the client may start again. */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    endRadioListen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Listen session id (ULID) from `RadioListen.listenId`. */
+                listenId: components["parameters"]["RadioListenID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ended. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown listen session or one of another profile (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getRadioNow: {
+        parameters: {
+            query?: {
+                /** @description Unix milliseconds; only entries with a later `at`. */
+                since?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The timeline. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioNow"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["RadioStationNotFound"];
+        };
+    };
+    getRadioPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The preferences. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioPreferences"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    setRadioPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioPreferences"];
+            };
+        };
+        responses: {
+            /** @description The stored preferences. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioPreferences"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description A value is invalid (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getRadioLivePlaylist: {
+        parameters: {
+            query: {
+                /** @description Listen token from `RadioListen.playlistUrl`. Redacted in all logs. */
+                rt: components["parameters"]["RadioToken"];
+                /** @description Delta playlist request of the client (RFC 8216bis); `v2` also skips date ranges. */
+                _HLS_skip?: "YES" | "v2";
+            };
+            header?: never;
+            path: {
+                /** @description Listen session id (ULID) from `RadioListen.listenId`. */
+                listenId: components["parameters"]["RadioListenID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Live playlist. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.apple.mpegurl": string;
+                };
+            };
+            401: components["responses"]["RadioLiveUnauthenticated"];
+            404: components["responses"]["RadioLiveNotFound"];
+        };
+    };
+    getRadioLiveInit: {
+        parameters: {
+            query: {
+                /** @description Listen token from `RadioListen.playlistUrl`. Redacted in all logs. */
+                rt: components["parameters"]["RadioToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Listen session id (ULID) from `RadioListen.listenId`. */
+                listenId: components["parameters"]["RadioListenID"];
+                /** @description Generation number, from 0. */
+                gen: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Initialisation segment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mp4": string;
+                };
+            };
+            401: components["responses"]["RadioLiveUnauthenticated"];
+            404: components["responses"]["RadioLiveNotFound"];
+        };
+    };
+    getRadioLiveSegment: {
+        parameters: {
+            query: {
+                /** @description Listen token from `RadioListen.playlistUrl`. Redacted in all logs. */
+                rt: components["parameters"]["RadioToken"];
+            };
+            header?: never;
+            path: {
+                /** @description Listen session id (ULID) from `RadioListen.listenId`. */
+                listenId: components["parameters"]["RadioListenID"];
+                /** @description Segment number. */
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Media segment. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mp4": string;
+                };
+            };
+            401: components["responses"]["RadioLiveUnauthenticated"];
+            404: components["responses"]["RadioLiveNotFound"];
+        };
+    };
+    getRadioImage: {
+        parameters: {
+            query?: {
+                /** @description Content hash for cache busting; ignored by the server. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`). */
+                id: components["parameters"]["RadioImageStationID"];
+                kind: components["parameters"]["RadioImageKind"];
+                /** @description Square edge in pixels. */
+                size: components["parameters"]["RadioImageSize"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown, hidden or excluded station, or no image of this kind (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getRadioConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioConfig"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    updateRadioConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description The stored settings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioConfig"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description A value is outside its range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getRadioCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The catalog state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioCatalogState"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    syncRadioCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The sync job. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioCatalogSync"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    listAdminRadioStations: {
+        parameters: {
+            query?: {
+                q?: string;
+                country?: string;
+                genre?: string;
+                state?: "reachable" | "broken" | "hidden";
+                exceptions?: boolean;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of stations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRadioStationPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description A parameter is outside its range (`validation_failed`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminRadioStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The station. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRadioStation"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown station (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateAdminRadioStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRadioStationPatch"];
+            };
+        };
+        responses: {
+            /** @description The changed station. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRadioStation"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown station (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description A value is invalid (`validation_failed`): an unknown facet value, a stream of another station,
+             *     an unknown lock name, a name outside 1..200 characters or a region that is no ISO 3166-2 code.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    probeRadioStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RadioProbeRequest"];
+            };
+        };
+        responses: {
+            /** @description The probe. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioProbe"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown station or stream (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The stream does not deliver audio (`radio_not_audio`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description The stream did not answer (`radio_unreachable`). */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    uploadRadioStationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ItemImageUpload"];
+            };
+        };
+        responses: {
+            /** @description The station after the upload. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRadioStation"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown station (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`), field `file`: `required`, `invalid_value`, `too_large`,
+             *     `unsupported_format` or `too_many_pixels`, as for `uploadItemImage`.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteRadioStationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The station. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRadioStation"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown station (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getAdminRadioImage: {
+        parameters: {
+            query?: {
+                /** @description Content hash for cache busting; ignored by the server. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`). */
+                id: components["parameters"]["RadioImageStationID"];
+                kind: components["parameters"]["RadioImageKind"];
+                /** @description Square edge in pixels. */
+                size: components["parameters"]["RadioImageSize"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown station or no image of this kind (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listRadioRelays: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The relays. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioRelays"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    stopRadioListener: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Listen session id (ULID) from `RadioListen.listenId`. */
+                listenId: components["parameters"]["RadioListenID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown or ended listen session (`not_found`). */
+            404: {
+                headers: {
                     [name: string]: unknown;
                 };
                 content: {

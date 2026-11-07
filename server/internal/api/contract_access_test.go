@@ -365,6 +365,31 @@ var adminRegistry = map[string]adminCall{
 	"updateAnnouncement":     {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
 	"deleteAnnouncement":     {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
 	"publishAnnouncement":    {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
+	// Webradio (concept 16 stage 1, contract 1.17.0): no radio service in the fixture until S8 of
+	// the build plan, so every operation answers 501 behind the admin gate.
+	"getRadioConfig": {contract: "GET /admin/radio/config", path: "/admin/radio/config", ownerStatus: http.StatusNotImplemented},
+	"updateRadioConfig": {contract: "PATCH /admin/radio/config", path: "/admin/radio/config", body: `{"countries":null}`,
+		ownerStatus: http.StatusNotImplemented},
+	"getRadioCatalog":  {contract: "GET /admin/radio/catalog", path: "/admin/radio/catalog", ownerStatus: http.StatusNotImplemented},
+	"syncRadioCatalog": {contract: "POST /admin/radio/catalog/sync", path: "/admin/radio/catalog/sync", ownerStatus: http.StatusNotImplemented},
+	"listAdminRadioStations": {contract: "GET /admin/radio/stations", path: "/admin/radio/stations?exceptions=false",
+		ownerStatus: http.StatusNotImplemented},
+	"getAdminRadioStation": {contract: "GET /admin/radio/stations/{stationId}", path: "/admin/radio/stations/9999",
+		ownerStatus: http.StatusNotImplemented},
+	"updateAdminRadioStation": {contract: "PATCH /admin/radio/stations/{stationId}", path: "/admin/radio/stations/9999",
+		body: `{"hidden":true,"region":null}`, ownerStatus: http.StatusNotImplemented},
+	"probeRadioStation": {contract: "POST /admin/radio/stations/{stationId}/probe", path: "/admin/radio/stations/9999/probe",
+		body: `{}`, ownerStatus: http.StatusNotImplemented},
+	"uploadRadioStationLogo": {contract: "PUT /admin/radio/stations/{stationId}/logo", path: "/admin/radio/stations/9999/logo",
+		body: uploadImageBody("logo.png", "\x89PNG a PNG for the fake"), header: map[string]string{"Content-Type": uploadImageContentType},
+		ownerStatus: http.StatusNotImplemented},
+	"deleteRadioStationLogo": {contract: "DELETE /admin/radio/stations/{stationId}/logo", path: "/admin/radio/stations/9999/logo",
+		ownerStatus: http.StatusNotImplemented},
+	"getAdminRadioImage": {contract: "GET /admin/radio/images/{id}/{kind}/{size}", path: "/admin/radio/images/9999/logo/w96",
+		ownerStatus: http.StatusNotImplemented},
+	"listRadioRelays": {contract: "GET /admin/radio/relays", path: "/admin/radio/relays", ownerStatus: http.StatusNotImplemented},
+	"stopRadioListener": {contract: "DELETE /admin/radio/listeners/{listenId}", path: "/admin/radio/listeners/" + radioDummyListen,
+		ownerStatus: http.StatusNotImplemented},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).
