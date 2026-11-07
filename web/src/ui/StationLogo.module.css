@@ -1,0 +1,52 @@
+.logo {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-2);
+  color: var(--sc-color-text-primary);
+  container-type: inline-size;
+}
+
+/* Initials on the station's accent: a soft light from the top left into the darker accent. */
+.logo[data-initials] {
+  --sc-logo-shade: color-mix(in srgb, var(--sc-swatch) 40%, var(--sc-color-bg-base));
+
+  background: linear-gradient(150deg, var(--sc-swatch), var(--sc-logo-shade));
+  color: var(--sc-on-swatch);
+}
+
+.sm {
+  width: 2.5rem;
+}
+
+.md {
+  width: 4rem;
+}
+
+.lg {
+  width: 8rem;
+  border-radius: var(--sc-radius-lg);
+}
+
+.fill {
+  width: 100%;
+  border-radius: var(--sc-radius-lg);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.initials {
+  font-size: 32cqi;
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-display);
+  line-height: 1;
+  user-select: none;
+}

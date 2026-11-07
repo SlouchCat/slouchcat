@@ -37,7 +37,8 @@
     "librariesOffline": "Offline: libraries not available",
     "librariesOfflineLink": "Go to downloads",
     "hideSidebar": "Hide sidebar",
-    "showSidebar": "Show sidebar"
+    "showSidebar": "Show sidebar",
+    "radio": "Radio"
   },
   "system": {
     "server": {
@@ -157,6 +158,10 @@
       "job_not_failed": "This job has not failed.",
       "update_check_disabled": "The update check is switched off.",
       "rank_taken": "Another entry of the list already holds this place.",
+      "radio_capacity": "The server already relays as many stations as it may. Listen to a station that is already playing, or try again later.",
+      "radio_unreachable": "The station cannot be reached right now.",
+      "radio_not_audio": "This station sends no sound Slouchcat can play.",
+      "radio_catalog_loading": "The station catalog is loading. It will be ready in a moment.",
       "email_taken": "This e-mail address already belongs to another account.",
       "passphrase_required": "Enter the passphrase.",
       "passphrase_too_short": "The passphrase is too short: at least 12 characters.",
@@ -4111,6 +4116,37 @@
       "intro": "Titles Cat picked for you, in Cat's order.",
       "count_one": "{{count}} title",
       "count_other": "{{count}} titles"
+    }
+  },
+  "radio": {
+    "player": {
+      "region": "Radio playback",
+      "open": "Open now playing: {{name}}",
+      "nowPlaying": "Now playing",
+      "close": "Close now playing",
+      "play": "Play",
+      "pause": "Pause",
+      "retry": "Try again",
+      "stop": "Stop radio",
+      "live": "Live",
+      "paused": "Paused",
+      "starting": "Connecting …",
+      "toLive": "Live",
+      "artistTitle": "{{artist}} – {{title}}",
+      "programme": "Live programme",
+      "noTitles": "The station sends no titles",
+      "favorite": "{{name}} in My stations",
+      "serverHint": "Through Slouchcat, from the server's location",
+      "ended": "Playback was ended.",
+      "failed": "This station cannot be played in this browser.",
+      "kbps_one": "{{count}} kbit/s",
+      "kbps_other": "{{count}} kbit/s",
+      "facts": {
+        "quality": "Quality",
+        "genre": "Genre",
+        "kind": "Programme",
+        "language": "Language"
+      }
     }
   }
 }

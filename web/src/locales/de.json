@@ -37,7 +37,8 @@
     "librariesOffline": "Offline: Bibliotheken nicht verfügbar",
     "librariesOfflineLink": "Zu den Downloads",
     "hideSidebar": "Seitenleiste ausblenden",
-    "showSidebar": "Seitenleiste einblenden"
+    "showSidebar": "Seitenleiste einblenden",
+    "radio": "Radio"
   },
   "system": {
     "server": {
@@ -157,6 +158,10 @@
       "job_not_failed": "Dieser Job ist nicht fehlgeschlagen.",
       "update_check_disabled": "Die Update-Prüfung ist ausgeschaltet.",
       "rank_taken": "Diesen Platz hat schon ein anderer Eintrag der Liste.",
+      "radio_capacity": "Gerade laufen schon zu viele Sender über den Server. Hör einen Sender, der schon läuft, oder versuch es später nochmals.",
+      "radio_unreachable": "Der Sender ist gerade nicht erreichbar.",
+      "radio_not_audio": "Dieser Sender liefert keinen Ton, den Slouchcat abspielen kann.",
+      "radio_catalog_loading": "Der Senderkatalog wird gerade geladen. Gleich geht es los.",
       "email_taken": "Diese E-Mail-Adresse gehört schon zu einem anderen Konto.",
       "passphrase_required": "Gib die Passphrase ein.",
       "passphrase_too_short": "Die Passphrase ist zu kurz: mindestens 12 Zeichen.",
@@ -4111,6 +4116,37 @@
       "intro": "Titel, die Cat für dich ausgesucht hat, in Cats Reihenfolge.",
       "count_one": "{{count}} Titel",
       "count_other": "{{count}} Titel"
+    }
+  },
+  "radio": {
+    "player": {
+      "region": "Radio-Wiedergabe",
+      "open": "Jetzt läuft öffnen: {{name}}",
+      "nowPlaying": "Jetzt läuft",
+      "close": "Jetzt läuft schliessen",
+      "play": "Weiter abspielen",
+      "pause": "Pause",
+      "retry": "Nochmals versuchen",
+      "stop": "Radio beenden",
+      "live": "Live",
+      "paused": "Pausiert",
+      "starting": "Verbindet …",
+      "toLive": "Live",
+      "artistTitle": "{{artist}} – {{title}}",
+      "programme": "Live-Programm",
+      "noTitles": "Ohne Titelangaben vom Sender",
+      "favorite": "{{name}} in Meine Sender",
+      "serverHint": "Über Slouchcat, Standort des Servers",
+      "ended": "Die Wiedergabe wurde beendet.",
+      "failed": "Dieser Sender lässt sich in diesem Browser nicht abspielen.",
+      "kbps_one": "{{count}} kbit/s",
+      "kbps_other": "{{count}} kbit/s",
+      "facts": {
+        "quality": "Qualität",
+        "genre": "Genre",
+        "kind": "Sendeart",
+        "language": "Sprache"
+      }
     }
   }
 }

@@ -32,6 +32,8 @@ export const paths = {
   /** Discover and curation (M7). */
   search: '/search',
   watchlist: '/watchlist',
+  /** Webradio (concept 16): the station catalog with filters, search and favourites. */
+  radio: '/radio',
   /** A library with every title the active profile may see (concept 08). */
   library: (id: number) => `/libraries/${id}`,
   /** All of Cat's recommendations for the active profile (concept 08). */

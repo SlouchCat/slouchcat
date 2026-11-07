@@ -29,6 +29,7 @@ export { InboxEntry } from './InboxEntry';
 export { LetterBar } from './LetterBar';
 export { LibraryTile, type LibraryTileCover } from './LibraryTile';
 export { Logo } from './Logo';
+export { MiniPlayer, type MiniPlayerState } from './MiniPlayer';
 export { Notice } from './Notice';
 export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
 export { Page, PageNav } from './Page';
@@ -58,6 +59,7 @@ export {
   useSpatialHold,
 } from './spatial';
 export { Stack } from './Stack';
+export { StationLogo } from './StationLogo';
 export { StatusDot, type StatusDotState } from './StatusDot';
 export { Text } from './Text';
 export { TextLink } from './TextLink';

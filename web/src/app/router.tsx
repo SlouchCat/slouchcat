@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouter,
   lazyRouteComponent,
+  Outlet,
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
@@ -19,6 +20,7 @@ import { offlineSupported } from '@/features/offline/support';
 import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
 import { paths } from './paths';
+import { RadioProvider } from './radio/RadioProvider';
 import { isReturnTarget } from './returnTarget';
 import { RootError, RootLayout } from './RootLayout';
 import {
@@ -221,7 +223,11 @@ const offlinePlayRoute = createRoute({
   ),
 });
 
-/** Everything behind the login: a session, with or without a chosen profile. */
+/**
+ * Everything behind the login: a session, with or without a chosen profile. The radio player
+ * lives here (concept 16, 10.3; R-1): it plays on through the profile picker and every page and
+ * stops by its own rules; without a profile it stays idle.
+ */
 const authedRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: '_authed',
@@ -232,6 +238,11 @@ const authedRoute = createRoute({
     applyProfileAccent(session);
     return { session };
   },
+  component: () => (
+    <RadioProvider>
+      <Outlet />
+    </RadioProvider>
+  ),
 });
 
 /** The profile picker (K-4): reachable with a session and no profile chosen yet. */
