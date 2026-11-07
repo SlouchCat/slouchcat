@@ -21,3 +21,21 @@
   padding-left: var(--sidenav-width);
   outline: none;
 }
+
+/* Room under the page for the radio's mini player, so it never covers the last row. */
+.content[data-radio] {
+  padding-bottom: var(--sc-space-24);
+}
+
+/* The radio's mini player (concept 16, 10.3): over the bottom of the page, beside the column. */
+.radio {
+  position: fixed;
+  z-index: var(--sc-z-sticky);
+  right: var(--page-gutter);
+  bottom: var(--sc-space-3);
+  left: calc(var(--sidenav-width) + var(--page-gutter));
+}
+
+.radio:empty {
+  display: none;
+}

@@ -1,0 +1,122 @@
+.bar {
+  --sc-mini-ground: color-mix(in srgb, var(--sc-color-surface-2) 94%, transparent);
+
+  display: flex;
+  align-items: center;
+  gap: var(--sc-space-2);
+  min-width: 0;
+  padding: var(--sc-space-2) var(--sc-space-3) var(--sc-space-2) var(--sc-space-2);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background: var(--sc-mini-ground);
+  backdrop-filter: blur(14px);
+}
+
+.open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--sc-space-3);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-md);
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.text {
+  display: grid;
+  min-width: 0;
+}
+
+.name,
+.line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.line {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+}
+
+.bar[data-state='error'] .line {
+  color: var(--sc-color-state-warning);
+}
+
+.state {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sc-space-1);
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+  text-transform: uppercase;
+}
+
+.bar[data-state='live'] .state {
+  color: var(--sc-color-state-danger);
+}
+
+.dot {
+  width: var(--sc-space-2);
+  height: var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-danger);
+}
+
+.play,
+.icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--sc-space-10);
+  height: var(--sc-space-10);
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-full);
+  cursor: pointer;
+}
+
+.play {
+  background-color: var(--sc-color-text-primary);
+  color: var(--sc-color-bg-base);
+}
+
+.icon {
+  background-color: transparent;
+  color: var(--sc-color-text-secondary);
+}
+
+.icon:hover {
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+}
+
+/* A favourite: the heart filled in the profile's accent. */
+.icon[aria-pressed='true'] {
+  color: var(--sc-accent);
+}
+
+.icon[aria-pressed='true'] path {
+  fill: currentcolor;
+}
+
+/* A phone: the badge gives way to the station's name. */
+@media (width < 30rem) {
+  .state {
+    display: none;
+  }
+}

@@ -1,0 +1,133 @@
+.anchor {
+  display: inline-flex;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sc-space-2);
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-3) 0 var(--sc-space-4);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-1);
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.trigger:hover {
+  background-color: var(--sc-color-surface-2);
+}
+
+.trigger[data-set] {
+  border-color: var(--sc-accent);
+}
+
+.badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  padding: 0 var(--sc-space-1);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-bold);
+}
+
+.popover {
+  width: 17rem;
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-bg-elevated);
+  outline: none;
+}
+
+.dialog {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  max-height: 22rem;
+  outline: none;
+}
+
+.scroll {
+  overflow-y: auto;
+  padding: var(--sc-space-2);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sc-space-2);
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.options {
+  display: grid;
+  gap: var(--sc-space-1);
+}
+
+.option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--sc-space-3);
+  align-items: center;
+  min-height: var(--sc-control-height);
+  padding: 0 var(--sc-space-2);
+  border: 0;
+  border-radius: var(--sc-radius-md);
+  background-color: transparent;
+  color: var(--sc-color-text-primary);
+  font: inherit;
+  font-size: var(--sc-font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background-color: var(--sc-color-surface-2);
+}
+
+/* A value without stations under the other filters stays choosable, but recedes. */
+.option[data-zero] {
+  color: var(--sc-color-text-muted);
+}
+
+.check {
+  display: inline-grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-radius-sm);
+}
+
+.option[aria-pressed='true'] .check {
+  border-color: var(--sc-accent);
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+}
+
+.optionLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--sc-space-2);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}

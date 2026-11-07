@@ -472,3 +472,116 @@ export const updateLibraryMetadata = (
 
 export const applyMetadata = (body: ApplyMetadataRequest): Promise<ApplyMetadataResponse> =>
   request(api.POST('/admin/metadata/apply', { body }));
+
+// Webradio (concept 16, stage 1): the administration's radio page. Its queries share the key
+// `['admin', 'radio']`, so a change invalidates them together.
+export type AdminRadioStation = components['schemas']['AdminRadioStation'];
+export type AdminRadioStationPatch = components['schemas']['AdminRadioStationPatch'];
+export type RadioConfig = components['schemas']['RadioConfig'];
+export type RadioConfigUpdate = components['schemas']['RadioConfigUpdate'];
+export type RadioCatalogState = components['schemas']['RadioCatalogState'];
+export type RadioRelays = components['schemas']['RadioRelays'];
+export type RadioProbe = components['schemas']['RadioProbe'];
+
+/** The relays and their listeners are asked again every 5 s while «Übersicht» is open. */
+export const RADIO_RELAYS_POLL_MS = 5000;
+
+export const radioAdminKeys = { all: ['admin', 'radio'] as const };
+
+export const radioConfigQuery = queryOptions({
+  queryKey: [...radioAdminKeys.all, 'config'],
+  queryFn: ({ signal }): Promise<RadioConfig> =>
+    request(api.GET('/admin/radio/config', { signal })),
+});
+
+export const updateRadioConfig = (body: RadioConfigUpdate): Promise<RadioConfig> =>
+  request(api.PATCH('/admin/radio/config', { body }));
+
+export const radioCatalogQuery = queryOptions({
+  queryKey: [...radioAdminKeys.all, 'catalog'],
+  queryFn: ({ signal }): Promise<RadioCatalogState> =>
+    request(api.GET('/admin/radio/catalog', { signal })),
+});
+
+export const syncRadioCatalog = () => request(api.POST('/admin/radio/catalog/sync'));
+
+export const radioRelaysQuery = queryOptions({
+  queryKey: [...radioAdminKeys.all, 'relays'],
+  queryFn: ({ signal }): Promise<RadioRelays> =>
+    request(api.GET('/admin/radio/relays', { signal })),
+});
+
+export const stopRadioListener = (listenId: string) =>
+  request(api.DELETE('/admin/radio/listeners/{listenId}', { params: { path: { listenId } } }));
+
+/** The station filters of the tab «Sender»; `exceptions` lists only what the administration changed. */
+export interface AdminRadioStationFilter {
+  q?: string;
+  country?: string;
+  genre?: string;
+  state?: 'reachable' | 'broken' | 'hidden';
+  exceptions: boolean;
+}
+
+/** One page of the tab «Sender». */
+export const ADMIN_RADIO_PAGE_SIZE = 50;
+
+export const adminRadioStationsQuery = (filter: AdminRadioStationFilter) =>
+  infiniteQueryOptions({
+    queryKey: [...radioAdminKeys.all, 'stations', filter],
+    queryFn: ({ pageParam, signal }) =>
+      request(
+        api.GET('/admin/radio/stations', {
+          params: { query: { ...filter, offset: pageParam, limit: ADMIN_RADIO_PAGE_SIZE } },
+          signal,
+        }),
+      ),
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      const next = last.offset + last.items.length;
+      return last.items.length > 0 && next < last.total ? next : undefined;
+    },
+  });
+
+export const adminRadioStationQuery = (stationId: number) =>
+  queryOptions({
+    queryKey: [...radioAdminKeys.all, 'station', stationId],
+    queryFn: ({ signal }): Promise<AdminRadioStation> =>
+      request(
+        api.GET('/admin/radio/stations/{stationId}', { params: { path: { stationId } }, signal }),
+      ),
+  });
+
+export const updateAdminRadioStation = (
+  stationId: number,
+  body: AdminRadioStationPatch,
+): Promise<AdminRadioStation> =>
+  request(
+    api.PATCH('/admin/radio/stations/{stationId}', { params: { path: { stationId } }, body }),
+  );
+
+export const probeRadioStation = (stationId: number, streamId?: number): Promise<RadioProbe> =>
+  request(
+    api.POST('/admin/radio/stations/{stationId}/probe', {
+      params: { path: { stationId } },
+      body: streamId === undefined ? {} : { streamId },
+    }),
+  );
+
+export const uploadRadioLogo = (stationId: number, file: File): Promise<AdminRadioStation> => {
+  // openapi-fetch sends a FormData as it is (with the CSRF header of every call); its type
+  // knows the part only as a string.
+  const form = new FormData();
+  form.append('file', file);
+  return request(
+    api.PUT('/admin/radio/stations/{stationId}/logo', {
+      params: { path: { stationId } },
+      body: form as unknown as components['schemas']['ItemImageUpload'],
+    }),
+  );
+};
+
+export const deleteRadioLogo = (stationId: number) =>
+  request(
+    api.DELETE('/admin/radio/stations/{stationId}/logo', { params: { path: { stationId } } }),
+  );
