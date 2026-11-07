@@ -32,15 +32,12 @@ const (
 
 	manifestTimeout  = 20 * time.Second
 	maxManifestBytes = 64 << 10
-	// checkTimeout bounds the checks of POST /install, which run before it answers.
-	checkTimeout = time.Minute
-	// pullTimeout bounds docker compose pull.
-	pullTimeout = 30 * time.Minute
-	// commandTimeout bounds every other docker call.
-	commandTimeout = 5 * time.Minute
-	// waitTimeout gives the new server time for long migrations (concept 15 9.3).
-	waitTimeout  = 10 * time.Minute
-	pollInterval = 2 * time.Second
+	// The bounds of an install are shared with the server (updater.InstallWorstCase).
+	checkTimeout   = updater.CheckTimeout
+	pullTimeout    = updater.PullTimeout
+	commandTimeout = updater.CommandTimeout
+	waitTimeout    = updater.WaitTimeout
+	pollInterval   = 2 * time.Second
 )
 
 // digestRef is the form of the manifest field image: a repository with a sha256 digest.

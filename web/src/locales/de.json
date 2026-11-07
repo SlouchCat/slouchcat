@@ -2310,7 +2310,7 @@
         },
         "down": "Der Server antwortet gerade nicht. Warte auf ihn …",
         "silent": {
-          "title": "Der Server antwortet seit über 25 Minuten nicht",
+          "title": "Der Server antwortet seit über 70 Minuten nicht",
           "body": "So lange dauert kein Update. Prüfe auf dem Rechner mit docker compose ps und docker compose logs, ob der Server und der Updater-Begleiter laufen."
         },
         "done": "Update auf {{version}} installiert.",

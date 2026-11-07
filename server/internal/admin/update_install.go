@@ -52,8 +52,10 @@ const (
 	updaterInstallTimeout = 40 * time.Second
 	// installStaleAfter: a running phase in state.json this long after the start while the companion
 	// does not answer was interrupted (the companion is gone), and the server reports it as failed.
-	// It also bounds how long followInstall looks at one install.
-	installStaleAfter = 25 * time.Minute
+	// It lies above the longest install of the companion (updater.InstallWorstCase, 66 minutes) with
+	// a margin for the docker inspect calls of its waits: 70 minutes. It also bounds how long
+	// followInstall tries again to send a final result.
+	installStaleAfter = updater.InstallWorstCase + 4*time.Minute
 	// installRetryMax caps the pause between two tries to send a failed install as the event errors.
 	installRetryMax = time.Minute
 	maxTokenBytes   = 4 << 10
@@ -210,12 +212,13 @@ func (s *Service) WatchUpdateInstall(ctx context.Context) {
 	}
 }
 
-// followInstall looks at state.json every few seconds while an install runs, at most
-// installStaleAfter long, and sends a final result that failed or rolled back as the event errors.
-// A send that failed is tried again with a growing pause within the same bound.
+// followInstall looks at state.json every few seconds while an install runs, until it ended or
+// counts as interrupted (shownInstall: older than installStaleAfter while the companion does not
+// answer), and sends a final result that failed or rolled back as the event errors. A send that
+// failed is tried again with a growing pause, at most installStaleAfter after the first try.
 func (s *Service) followInstall(ctx context.Context) {
 	u := &s.ops.updater
-	deadline := s.now().Add(installStaleAfter)
+	var deadline time.Time // of the tries to send a final result; zero while the install runs
 	pause := u.watchEvery
 	for {
 		st, ok := s.installState(ctx)
@@ -224,8 +227,17 @@ func (s *Service) followInstall(ctx context.Context) {
 		}
 		delivered := s.reportInstall(ctx, st)
 		running := st.Phase.Running()
-		if (!running && delivered) || !s.now().Before(deadline) {
-			return
+		if running {
+			if shown, _ := s.shownInstall(ctx, st); !shown.Phase.Running() {
+				return // interrupted: the companion is gone
+			}
+		} else {
+			if deadline.IsZero() {
+				deadline = s.now().Add(installStaleAfter)
+			}
+			if delivered || !s.now().Before(deadline) {
+				return
+			}
 		}
 		wait := u.watchEvery
 		if !running {

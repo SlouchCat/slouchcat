@@ -147,15 +147,19 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     Neustart ansteht. Umgekehrt antworten «Neu starten», die Wiederherstellungen und das Anlegen
     einer Sicherung 409 `update_running`, solange eine Installation läuft (nicht veraltet, Punkt 17).
     Die Karte blendet «Neu starten» während einer Installation aus.
-17. **Angezeigter Zustand entscheidet der Server.** Eine laufende Phase, die älter ist als 25
+17. **Angezeigter Zustand entscheidet der Server.** Eine laufende Phase, die älter ist als 70
     Minuten (oder ohne Startzeit), während der Begleiter nicht antwortet, zeigt er als `failed`
-    (unterbrochen, ohne Code). Ein Endzustand, dessen `from` und `to` beide nicht die laufende
+    (unterbrochen, ohne Code). Die 70 Minuten liegen über dem längsten Lauf des Begleiters
+    (`updater.InstallWorstCase`, 66 Minuten: Prüfung 1, Pull 30, Digest 5, `up` 5, Warten 10,
+    Rücknahme mit `up` 5 und Warten 10), damit der Server keine Installation abschreibt, die der
+    Begleiter noch zu Ende führt. Ein Endzustand, dessen `from` und `to` beide nicht die laufende
     Version sind, gehört zu einer Installation vor einem späteren Update von Hand und wird nicht
     gezeigt.
 18. **Ereignis «Fehler» zuverlässig.** Nach einer Antwort 202 verfolgt der Server die Installation,
-    solange er läuft, und nicht nur, solange die Anfrage lebt. Ein gescheiterter oder
+    solange er läuft, und nicht nur, solange die Anfrage lebt: bis zum Endzustand oder bis sie nach
+    Punkt 17 als unterbrochen gilt, ohne eigene Frist. Ein gescheiterter oder
     zurückgenommener Endzustand wird gesendet und bei einem Fehler mit wachsender Pause
-    wiederholt, höchstens 25 Minuten, bis er zugestellt ist. Die Quelle des Ereignisses besteht
+    wiederholt, höchstens 70 Minuten, bis er zugestellt ist. Die Quelle des Ereignisses besteht
     aus Zielversion und Endzeit, damit ein späterer gescheiterter Versuch zur selben Version nicht
     als Doppel gilt.
 

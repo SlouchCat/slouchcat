@@ -391,6 +391,7 @@ func TestWatchUpdateInstallFollowsARunningInstall(t *testing.T) {
 	f.svc.WithUpdater("", dir, reports.report)
 	f.svc.ops.updater.watchEvery = 10 * time.Millisecond
 	at := time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)
+	f.svc.now = func() time.Time { return at.Add(time.Minute) } // a fresh install, not a stale one
 	writeState(t, dir, updater.State{Phase: updater.PhaseWaiting, From: "1.15.0", To: "1.16.0", StartedAt: at})
 	done := make(chan struct{})
 	go func() {
@@ -413,7 +414,91 @@ func TestWatchUpdateInstallFollowsARunningInstall(t *testing.T) {
 	}
 }
 
-// The server decides what the card shows (rule 12): a running phase older than 25 minutes while
+// The stale bound lies above the longest install of the companion (pull, wait, rollback), so the
+// server never calls an install interrupted that the companion still carries through.
+func TestInstallStaleAfterCoversTheCompanion(t *testing.T) {
+	if installStaleAfter <= updater.InstallWorstCase {
+		t.Fatalf("installStaleAfter %s, companion worst case %s", installStaleAfter, updater.InstallWorstCase)
+	}
+	if want := updater.PullTimeout + 2*updater.WaitTimeout; updater.InstallWorstCase < want {
+		t.Fatalf("worst case %s leaves out the pull and both waits (%s)", updater.InstallWorstCase, want)
+	}
+}
+
+// followInstall has no time limit of its own while an install runs: it follows past the old 25
+// minutes and, while the companion answers, past the stale bound too, until the install ends. It
+// stops once the install counts as interrupted (older than the bound, companion silent), without
+// an event.
+func TestFollowInstallUntilFinalOrStale(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	at := time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)
+	var clockMu sync.Mutex
+	clock := at.Add(30 * time.Minute)
+	setClock := func(t time.Time) { clockMu.Lock(); clock = t; clockMu.Unlock() }
+	follow := func(svc *Service) chan struct{} {
+		done := make(chan struct{})
+		go func() {
+			svc.followInstall(ctx)
+			close(done)
+		}()
+		return done
+	}
+	ended := func(done chan struct{}) bool {
+		select {
+		case <-done:
+			return true
+		case <-time.After(100 * time.Millisecond):
+			return false
+		}
+	}
+	running := updater.State{Phase: updater.PhasePulling, From: "1.15.0", To: "1.16.0", StartedAt: at}
+
+	f := newFixture(t)
+	f.svc.now = func() time.Time { clockMu.Lock(); defer clockMu.Unlock(); return clock }
+	dir := updaterDir(t, fakeUpdaterToken)
+	down := httptest.NewServer(http.NotFoundHandler())
+	downURL := down.URL
+	down.Close()
+	reports := &failedReports{}
+	f.svc.WithUpdater(downURL, dir, reports.report)
+	f.svc.ops.updater.watchEvery = 10 * time.Millisecond
+	writeState(t, dir, running)
+	done := follow(f.svc)
+	if ended(done) {
+		t.Fatal("stopped following an install 30 minutes old")
+	}
+	setClock(at.Add(installStaleAfter))
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatal("still following a stale install with the companion silent")
+	}
+	if reports.count() != 0 {
+		t.Errorf("reports = %+v, want none for an interrupted install", reports.got)
+	}
+
+	setClock(at.Add(2 * installStaleAfter))
+	fu := newFakeUpdater(t)
+	f.svc.WithUpdater(fu.URL, dir, reports.report)
+	f.svc.ops.updater.watchEvery = 10 * time.Millisecond
+	done = follow(f.svc)
+	if ended(done) {
+		t.Fatal("stopped following an old install while the companion answers")
+	}
+	writeState(t, dir, updater.State{Phase: updater.PhaseRolledBack, From: "1.15.0", To: "1.16.0", Code: updater.CodeUnhealthy,
+		StartedAt: at, FinishedAt: at.Add(2 * installStaleAfter)})
+	select {
+	case <-done:
+	case <-ctx.Done():
+		t.Fatal("the watch did not end after the install ended")
+	}
+	if reports.count() != 1 {
+		t.Errorf("reports = %+v, want the rollback once", reports.got)
+	}
+}
+
+// The server decides what the card shows (rule 12): a running phase older than installStaleAfter while
 // the companion does not answer was interrupted and is shown as failed without a code; with the
 // companion answering it still runs. A finished install that names neither from nor to as the
 // running version is old and not shown; a self-built image of the release counts as it.
@@ -429,7 +514,7 @@ func TestShownInstall(t *testing.T) {
 	down.Close()
 	f.svc.WithUpdater(downURL, dir, nil)
 
-	running := updater.State{Phase: updater.PhasePulling, From: "1.15.0", To: "1.16.0", StartedAt: now.Add(-24 * time.Minute)}
+	running := updater.State{Phase: updater.PhasePulling, From: "1.15.0", To: "1.16.0", StartedAt: now.Add(-installStaleAfter + time.Minute)}
 	writeState(t, dir, running)
 	if in, err := f.svc.InstallStatus(ctx); err != nil || in.Phase != "pulling" {
 		t.Errorf("fresh running install: %+v, %v", in, err)

@@ -2310,7 +2310,7 @@
         },
         "down": "The server does not answer right now. Waiting for it …",
         "silent": {
-          "title": "The server has not answered for more than 25 minutes",
+          "title": "The server has not answered for more than 70 minutes",
           "body": "No update takes that long. On the host, check with docker compose ps and docker compose logs whether the server and the updater companion run."
         },
         "done": "Update to {{version}} installed.",

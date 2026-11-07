@@ -6421,7 +6421,7 @@ paths:
         folder, not from the companion itself, so it answers while the companion is down and right
         after the restart. `idle` when no install was ever reported (also without a companion), when
         `state.json` does not read or names an unknown phase, and for a finished install that names
-        neither `from` nor `to` as the running version. A running phase older than 25 minutes while
+        neither `from` nor `to` as the running version. A running phase older than 70 minutes while
         the companion does not answer was interrupted: it is reported as `failed` without `code`, with
         a `message`. A refusal (422 of `installUpdate`) is not recorded there: the file keeps the
         previous install.

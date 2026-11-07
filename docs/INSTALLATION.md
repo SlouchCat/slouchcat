@@ -290,8 +290,9 @@ wo er steht:
 
 Während das Update läuft, lehnt der Server «Neu starten», eine Sicherung und eine Wiederherstellung ab
 (und die Karte blendet «Neu starten» aus); das Update selbst startet nicht, solange eine Sicherung,
-eine Wiederherstellung oder ein Neustart ansteht. Bleibt eine Installation länger als 25 Minuten
-stehen und der Begleiter antwortet nicht, zeigt die Karte sie als fehlgeschlagen.
+eine Wiederherstellung oder ein Neustart ansteht. Bleibt eine Installation länger als 70 Minuten
+stehen und der Begleiter antwortet nicht, zeigt die Karte sie als fehlgeschlagen. So lange dauert
+selbst der längste Lauf nicht (Download bis 30 Minuten, zweimal bis 10 Minuten Warten, Rücknahme).
 
 **Wenn die neue Fassung nicht startet.**
 

@@ -48,6 +48,24 @@ const (
 	MaxFileBytes = 64 << 10
 )
 
+// The bounds of an install in the updater. The server derives from them how long a running
+// install may take before it counts as interrupted.
+const (
+	// CheckTimeout bounds the checks of POST /install, which run before it answers.
+	CheckTimeout = time.Minute
+	// PullTimeout bounds docker compose pull.
+	PullTimeout = 30 * time.Minute
+	// CommandTimeout bounds every other docker call.
+	CommandTimeout = 5 * time.Minute
+	// WaitTimeout gives a new server time for long migrations (concept 15 9.3); the old server
+	// after a rollback gets as long.
+	WaitTimeout = 10 * time.Minute
+	// InstallWorstCase is the longest an install runs without an interruption: the checks, the
+	// pull, the digest check, compose up and the wait for the new server, then the rollback with
+	// compose up and the wait for the old one.
+	InstallWorstCase = CheckTimeout + PullTimeout + CommandTimeout + 2*(CommandTimeout+WaitTimeout)
+)
+
 // Phase is the step an install is in.
 type Phase string
 

@@ -1268,7 +1268,7 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
     await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1), { timeout: 8000 });
   }, 15_000);
 
-  it('a server away for more than 25 minutes: the card gives up waiting and links the guide', async () => {
+  it('a server away for more than 70 minutes: the card gives up waiting and links the guide', async () => {
     let clock = Date.parse('2026-11-07T09:00:00Z');
     // A clock that moves on a little with every look, and far when the test says so.
     vi.spyOn(Date, 'now').mockImplementation(() => (clock += 1));
@@ -1301,12 +1301,12 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
       await waitFor(() =>
         expect(state).toHaveTextContent('Der Server antwortet gerade nicht. Warte auf ihn …'),
       );
-      expect(within(state).queryByText(/seit über 25 Minuten/)).not.toBeInTheDocument();
+      expect(within(state).queryByText(/seit über 70 Minuten/)).not.toBeInTheDocument();
       expect(within(card).queryByRole('button', { name: 'Neu starten' })).not.toBeInTheDocument();
-      clock += 26 * 60_000;
+      clock += 71 * 60_000;
       expect(
         await within(state).findByText(
-          'Der Server antwortet seit über 25 Minuten nicht',
+          'Der Server antwortet seit über 70 Minuten nicht',
           {},
           { timeout: 5000 },
         ),

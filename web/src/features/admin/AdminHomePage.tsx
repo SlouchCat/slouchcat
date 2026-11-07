@@ -386,7 +386,7 @@ const MANUAL_REFUSALS: readonly string[] = ['no_compose_labels', 'outside_deploy
  * How long the card waits for the server during an install before it says that something is
  * wrong: the server reports a running install older than that as interrupted (installStaleAfter).
  */
-const INSTALL_GIVE_UP_MS = 25 * 60_000;
+const INSTALL_GIVE_UP_MS = 70 * 60_000;
 
 const refusalKey = (code: string) =>
   (REFUSALS as readonly string[]).includes(code)

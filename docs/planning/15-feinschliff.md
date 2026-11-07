@@ -722,7 +722,7 @@ Profil.) Neue
 >   `restart_pending`, solange eine Sicherung, eine Wiederherstellung oder ein Neustart ansteht;
 >   «Neu starten», die Wiederherstellungen und das Anlegen einer Sicherung antworten 409
 >   `update_running`, solange eine Installation läuft. Die Karte blendet «Neu starten» dann aus.
-> - **Angezeigter Zustand (Regel 12):** Eine laufende Phase, älter als 25 Minuten, bei
+> - **Angezeigter Zustand (Regel 12):** Eine laufende Phase, älter als 70 Minuten, bei
 >   schweigendem Begleiter wird als `failed` gezeigt (unterbrochen, ohne Code). Ein Endzustand, der
 >   weder `from` noch `to` als laufende Version nennt, wird nicht gezeigt.
 > - **`server.json`:** Ein zweiter Start derselben Version behält die erste Schema-Version vor der
@@ -731,7 +731,7 @@ Profil.) Neue
 > - **Vertrag:** `UpdateState.updaterConfigured` (Adresse gesetzt) neben `updaterAvailable`; die
 >   Karte unterscheidet «kein Updater» von «Updater antwortet nicht».
 > - **Ereignis «Fehler»:** Der Server verfolgt eine Installation nach der Antwort 202, solange er
->   läuft, und wiederholt das Senden bis zur Zustellung (höchstens 25 Minuten); die Quelle besteht
+>   läuft, und wiederholt das Senden bis zur Zustellung (höchstens 70 Minuten); die Quelle besteht
 >   aus Zielversion und Endzeit.
 > - **Unterbrechung:** Der Updater wartet nach einem unterbrochenen Neustart im Hintergrund erneut
 >   (ADR 0024 Punkt 15).
