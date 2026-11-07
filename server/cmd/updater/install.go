@@ -364,11 +364,15 @@ func (u *Updater) run(p plan, s updater.State) {
 	if err == nil {
 		// waiting
 		phase(updater.PhaseWaiting)
-		if rec, ok := u.waitFor(ctx, p.to); ok {
+		rec, ok, gaveUp := u.waitFor(ctx, p.to)
+		if ok {
 			s.Migrated = rec.SchemaAfter != rec.SchemaBefore
 			s.Backup = rec.Backup
 			finish(updater.PhaseDone, "", "")
 			return
+		}
+		if gaveUp {
+			causeMsg = fmt.Sprintf("version %s stopped (exited or restarted %d times) before it became healthy", p.to, maxRestarts)
 		}
 	} else {
 		causeMsg = fmt.Sprintf("docker compose up failed for version %s", p.to)
@@ -393,7 +397,11 @@ func (u *Updater) run(p plan, s updater.State) {
 	cctx, cancel = upCtx()
 	err = u.up(cctx, p.project)
 	cancel()
-	if err == nil && u.waitHealthy(ctx) {
+	healthy := false
+	if err == nil {
+		healthy, _ = u.waitHealthy(ctx)
+	}
+	if healthy {
 		finish(updater.PhaseRolledBack, cause, causeMsg+fmt.Sprintf("; version %s runs again", p.from))
 		return
 	}
@@ -452,10 +460,10 @@ func (u *Updater) restoreEnv(env envFile) {
 }
 
 // waitFor waits until the container is healthy and server.json reports version v. "unhealthy"
-// is not final within the wait: the server may still be migrating.
-func (u *Updater) waitFor(ctx context.Context, v string) (updater.ServerRecord, bool) {
-	var rec updater.ServerRecord
-	ok := u.poll(ctx, func(c Container) bool {
+// is not final within the wait: the server may still be migrating. gaveUp reports that the
+// container stopped for good (Container.GaveUp) before.
+func (u *Updater) waitFor(ctx context.Context, v string) (rec updater.ServerRecord, ok, gaveUp bool) {
+	ok, gaveUp = u.poll(ctx, func(c Container) bool {
 		if !c.Healthy() {
 			return false
 		}
@@ -463,31 +471,37 @@ func (u *Updater) waitFor(ctx context.Context, v string) (updater.ServerRecord, 
 		rec = r
 		return err == nil && r.Version == v
 	})
-	return rec, ok
+	return rec, ok, gaveUp
 }
 
 // waitHealthy waits until the container is healthy (the old server after a rollback; a release
 // before 1.16.0 writes no server.json).
-func (u *Updater) waitHealthy(ctx context.Context) bool {
+func (u *Updater) waitHealthy(ctx context.Context) (ok, gaveUp bool) {
 	return u.poll(ctx, Container.Healthy)
 }
 
-// poll inspects the container every u.every until done reports true or u.wait has passed.
-func (u *Updater) poll(ctx context.Context, done func(Container) bool) bool {
+// poll inspects the container every u.every until done reports true, u.wait has passed or the
+// container gave up (gaveUp: it exited for good or restarted maxRestarts times; waiting longer
+// would not help).
+func (u *Updater) poll(ctx context.Context, done func(Container) bool) (ok, gaveUp bool) {
 	deadline := time.Now().Add(u.wait)
 	for {
 		cctx, cancel := context.WithTimeout(ctx, commandTimeout)
 		c, err := u.docker.Container(cctx, u.cfg.container)
 		cancel()
 		if err == nil && done(c) {
-			return true
+			return true, false
+		}
+		if err == nil && c.GaveUp() {
+			u.log.Warn("updater: container stopped for good", "status", c.Status, "exit_code", c.ExitCode, "restarts", c.RestartCount)
+			return false, true
 		}
 		if !time.Now().Before(deadline) {
-			return false
+			return false, false
 		}
 		select {
 		case <-ctx.Done():
-			return false
+			return false, false
 		case <-time.After(u.every):
 		}
 	}

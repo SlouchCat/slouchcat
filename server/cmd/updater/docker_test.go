@@ -107,3 +107,26 @@ exit 3`)
 		t.Errorf("last line = %q", gotLine)
 	}
 }
+
+// The fields of docker container inspect the updater reads, in the places Docker puts them.
+func TestDockerCLIContainer(t *testing.T) {
+	fakeDockerBinary(t, `cat <<'JSON'
+[{"Id":"abc","RestartCount":4,
+  "State":{"Status":"restarting","Running":false,"Restarting":true,"ExitCode":1,"Health":{"Status":"unhealthy","FailingStreak":3}},
+  "Config":{"Image":"ghcr.io/slouchcat/slouchcat:1.16.0","Labels":{"org.opencontainers.image.version":"1.16.0"}},
+  "HostConfig":{"RestartPolicy":{"Name":"on-failure","MaximumRetryCount":5}}}]
+JSON`)
+	c, err := dockerCLI{}.Container(t.Context(), "slouchcat")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Container{Image: "ghcr.io/slouchcat/slouchcat:1.16.0", Labels: map[string]string{labelVersion: "1.16.0"},
+		Health: "unhealthy", Status: "restarting", ExitCode: 1, RestartCount: 4, RestartPolicy: "on-failure", MaxRetries: 5}
+	if c.Image != want.Image || c.Labels[labelVersion] != "1.16.0" || c.Running || c.Health != want.Health || c.Status != want.Status ||
+		c.ExitCode != want.ExitCode || c.RestartCount != want.RestartCount || c.RestartPolicy != want.RestartPolicy || c.MaxRetries != want.MaxRetries {
+		t.Errorf("Container = %+v\nwant %+v", c, want)
+	}
+	if !c.GaveUp() {
+		t.Error("a container restarting for the fourth time has not given up")
+	}
+}

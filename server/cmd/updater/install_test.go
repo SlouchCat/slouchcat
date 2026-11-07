@@ -513,6 +513,66 @@ func TestInstallUnhealthyAfterMigrationKeepsNewVersion(t *testing.T) {
 	}
 }
 
+// A new container that crashes for good ends the wait at once, not after u.wait.
+func TestInstallStopsWaitingForCrashedContainer(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		crash Container
+	}{
+		{"crash loop", Container{Running: false, Status: "restarting", RestartCount: 3, RestartPolicy: "unless-stopped", ExitCode: 1}},
+		{"exited without restart", Container{Running: false, Status: "exited", RestartPolicy: "no", ExitCode: 1}},
+		{"on-failure retries used up", Container{Running: false, Status: "exited", RestartCount: 2, RestartPolicy: "on-failure", MaxRetries: 2, ExitCode: 1}},
+		{"dead", Container{Running: false, Status: "dead"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			h.fake.afterUp = func(f *fakeDocker, n int) {
+				if n == 1 {
+					crash := tc.crash
+					crash.Image, crash.Labels = f.c.Image, f.c.Labels
+					f.c = crash
+					return
+				}
+				f.c.Running, f.c.Status, f.c.Health, f.c.RestartCount = true, "running", "healthy", 0
+			}
+			h.start()
+			h.u.wait = time.Minute
+			begin := time.Now()
+			h.install()
+			s := h.finish()
+			if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || !strings.Contains(s.Message, "stopped") {
+				t.Errorf("state = %+v", s)
+			}
+			if d := time.Since(begin); d > 20*time.Second {
+				t.Errorf("waited %s for a crashed container", d)
+			}
+		})
+	}
+}
+
+func TestContainerGaveUp(t *testing.T) {
+	for _, tc := range []struct {
+		c    Container
+		want bool
+	}{
+		{Container{Running: true, Status: "running", RestartCount: 5, Health: "unhealthy"}, false}, // runs: may still migrate
+		{Container{Status: "restarting", RestartCount: 2, RestartPolicy: "unless-stopped"}, false},
+		{Container{Status: "restarting", RestartCount: 3, RestartPolicy: "unless-stopped"}, true},
+		{Container{Status: "exited", RestartPolicy: "always", ExitCode: 1}, false},
+		{Container{Status: "exited", RestartPolicy: "no", ExitCode: 0}, true},
+		{Container{Status: "exited", RestartPolicy: "", ExitCode: 1}, true},
+		{Container{Status: "exited", RestartPolicy: "on-failure", ExitCode: 0}, true},
+		{Container{Status: "exited", RestartPolicy: "on-failure", ExitCode: 1, RestartCount: 1}, false},
+		{Container{Status: "exited", RestartPolicy: "on-failure", ExitCode: 1, MaxRetries: 1, RestartCount: 1}, true},
+		{Container{Status: "created"}, false},
+		{Container{Status: "dead"}, true},
+	} {
+		if got := tc.c.GaveUp(); got != tc.want {
+			t.Errorf("GaveUp(%+v) = %v, want %v", tc.c, got, tc.want)
+		}
+	}
+}
+
 func TestInstallRollbackFailed(t *testing.T) {
 	h := newHarness(t)
 	h.fake.afterUp = func(f *fakeDocker, _ int) { f.c.Health = "unhealthy" }

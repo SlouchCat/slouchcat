@@ -39,12 +39,46 @@ type Container struct {
 	// Health is State.Health.Status ("starting", "healthy", "unhealthy"); empty when the
 	// container has no health check.
 	Health string
+	// Status is State.Status ("created", "running", "restarting", "exited", "dead", …).
+	Status string
+	// ExitCode is State.ExitCode, RestartCount the restarts since the container was created.
+	ExitCode, RestartCount int
+	// RestartPolicy and MaxRetries are HostConfig.RestartPolicy.Name and .MaximumRetryCount.
+	RestartPolicy string
+	MaxRetries    int
 }
 
 // Healthy reports whether the container runs and passes its health check; a container without
 // a health check counts as healthy while it runs.
 func (c Container) Healthy() bool {
 	return c.Running && (c.Health == "" || c.Health == "healthy")
+}
+
+// maxRestarts is how often a new container may restart before the updater stops waiting for it.
+const maxRestarts = 3
+
+// GaveUp reports whether waiting for the container is pointless: it does not run, and it has
+// restarted maxRestarts times already (a crash loop), or it is dead, or it exited and its restart
+// policy will not start it again.
+func (c Container) GaveUp() bool {
+	if c.Running {
+		return false
+	}
+	if c.RestartCount >= maxRestarts || c.Status == "dead" {
+		return true
+	}
+	return c.Status == "exited" && !c.restarts()
+}
+
+// restarts reports whether the restart policy starts the exited container again.
+func (c Container) restarts() bool {
+	switch c.RestartPolicy {
+	case "always", "unless-stopped":
+		return true
+	case "on-failure":
+		return c.ExitCode != 0 && (c.MaxRetries == 0 || c.RestartCount < c.MaxRetries)
+	}
+	return false
 }
 
 // Project is the compose setup of the running server container, read from its labels.
@@ -146,8 +180,17 @@ func (d dockerCLI) Container(ctx context.Context, name string) (Container, error
 			Labels map[string]string
 		}
 		State struct {
-			Running bool
-			Health  *struct{ Status string }
+			Running  bool
+			Status   string
+			ExitCode int
+			Health   *struct{ Status string }
+		}
+		RestartCount int
+		HostConfig   struct {
+			RestartPolicy struct {
+				Name              string
+				MaximumRetryCount int
+			}
 		}
 	}
 	if err := json.Unmarshal(out, &list); err != nil {
@@ -157,7 +200,9 @@ func (d dockerCLI) Container(ctx context.Context, name string) (Container, error
 		return Container{}, fmt.Errorf("inspect %s: %d results", name, len(list))
 	}
 	c := list[0]
-	res := Container{Image: c.Config.Image, Labels: c.Config.Labels, Running: c.State.Running}
+	res := Container{Image: c.Config.Image, Labels: c.Config.Labels, Running: c.State.Running,
+		Status: c.State.Status, ExitCode: c.State.ExitCode, RestartCount: c.RestartCount,
+		RestartPolicy: c.HostConfig.RestartPolicy.Name, MaxRetries: c.HostConfig.RestartPolicy.MaximumRetryCount}
 	if c.State.Health != nil {
 		res.Health = c.State.Health.Status
 	}
