@@ -60,6 +60,9 @@ type Updater struct {
 	// ctx is the lifetime of the process; an install runs under it, not under its request.
 	ctx context.Context
 	wg  sync.WaitGroup
+	// resumeFrom is the phase (restarting, waiting) of an install recover found interrupted
+	// after its restart; Resume waits for it in the background.
+	resumeFrom updater.Phase
 
 	mu    sync.Mutex
 	state updater.State

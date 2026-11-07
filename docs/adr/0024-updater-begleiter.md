@@ -133,9 +133,11 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     (SIGTERM, `stop_grace_period: 30s`), nimmt er nichts zurück und schreibt keinen Endzustand;
     `state.json` behält die Phase. Der nächste Start schliesst ab: vor dem Neustart des Servers
     (`checking` bis `verifying`) die Env-Datei aus `.env.bak-vor-<X>` zurück, wenn sie noch `X`
-    nennt, und `failed`; danach (`restarting`, `waiting`) `done`, wenn `X` gesund läuft und
-    `server.json` `X` nennt, sonst `failed` ohne Rücknahme, denn beim Start kann der neue Server
-    noch migrieren, und ein Neustart mitten in einer Migration wiegt schwerer als eine Meldung.
+    nennt, und `failed`; danach (`restarting`, `waiting`) wartet er im Hintergrund erneut wie nach
+    `up` (zehn Minuten ab dem Start, mit dem frühen Ende für einen abgestürzten Container; Phase
+    `waiting`, `/status` antwortet, `/install` ist `busy`): `done`, wenn `X` gesund läuft und
+    `server.json` `X` nennt, sonst `failed` (`migrated_no_rollback` bei einer Migration) ohne
+    Rücknahme, denn ein Neustart mitten in einer Migration wiegt schwerer als eine Meldung.
 
 ## Folgen
 

@@ -300,7 +300,8 @@ wo er steht:
 
 **Wenn der Begleiter mitten im Update anhält** (Neustart des Rechners, `docker compose down`), macht er
 beim nächsten Start Ordnung: Vor dem Neustart des Servers setzt er `.env` aus `.env.bak-vor-<Fassung>`
-zurück und meldet einen Fehler. Danach meldet er «fertig», wenn die neue Fassung gesund läuft, sonst
+zurück und meldet einen Fehler. Danach wartet er erneut bis zu zehn Minuten auf die neue Fassung
+(die Karte zeigt so lange die Gesundheitsprüfung) und meldet «fertig», wenn sie gesund läuft, sonst
 einen Fehler, ohne etwas zurückzunehmen; dann entscheidest du (Update von Hand wie oben oder die
 Sicherung).
 

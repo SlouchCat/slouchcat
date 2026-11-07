@@ -306,9 +306,11 @@ die Datei `./updater` unter
 laufenden Compose-Aufruf, nimmt nichts zurück und schreibt keinen Endzustand; er wartet höchstens 25 s.
 `state.json` behält die Phase, und der nächste Start schliesst das Update ab: in `checking` bis
 `verifying` setzt er die Env-Datei aus `.env.bak-vor-<X>` zurück, wenn sie noch `X` nennt und die
-Sicherung da ist, und meldet `failed`; in `restarting` oder `waiting` meldet er `done`, wenn `X` gesund
-läuft und `server.json` `X` nennt, sonst `failed` (mit `migrated_no_rollback` bei einer Migration),
-ohne Rücknahme: Beim Start kann der neue Server noch migrieren. Compose läuft beim Start nie.
+Sicherung da ist, und meldet `failed`; in `restarting` oder `waiting` wartet er im Hintergrund erneut
+bis zu zehn Minuten (Phase `waiting`, `/install` ist so lange `busy`, frühes Ende bei einem
+abgestürzten Container) und meldet `done`, wenn `X` gesund läuft und `server.json` `X` nennt, sonst
+`failed` (mit `migrated_no_rollback` bei einer Migration), ohne Rücknahme: Der neue Server kann noch
+migrieren. Compose läuft beim Start nie.
 
 **Dateien und Log.** Modus und Eigentümer von `token`, `state.json` und `deploy/updater/` setzt der
 Begleiter nur über offene Dateideskriptoren, nie per Pfad, denn der Server kann in den Ordner

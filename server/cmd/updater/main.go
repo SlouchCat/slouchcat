@@ -82,6 +82,7 @@ func run() int {
 		log.Error("updater: start", "err", err)
 		return 1
 	}
+	u.Resume()
 	srv := &http.Server{
 		Addr:              updater.ListenAddr,
 		Handler:           u.handler(token),
@@ -283,11 +284,13 @@ func readToken(f *os.File, uid, gid int) (token []byte, regular bool, err error)
 //   - checking, backing_up, pulling, verifying: the old container still runs. The env file is put
 //     back from .env.bak-vor-<to> when it still names the new version and the backup exists;
 //     the install is failed.
-//   - restarting, waiting: compose up may have run. When the new version runs healthy and
-//     server.json names it, the install is done. Otherwise it is failed, with the migration of
-//     server.json when there was one, and nothing is taken back: at start-up the new server
-//     may still be starting or migrating, and a recreate in the middle of a migration is worse
-//     than a report. The administrator decides (manual update steps or the backup).
+//   - restarting, waiting: compose up may have run. The install goes on in the phase waiting, and
+//     Resume waits for the new version in the background as run does (u.wait from now, with the
+//     early end of Container.GaveUp); /status answers meanwhile and /install is busy. It ends
+//     done when the new version runs healthy and server.json names it, otherwise failed, with
+//     the migration of server.json when there was one. Nothing is taken back at start-up: the
+//     new server may be migrating, and a recreate in the middle of a migration is worse than a
+//     report. The administrator decides (manual update steps or the backup).
 func (u *Updater) recover() {
 	var s updater.State
 	err := updater.ReadJSON(u.statePath(), &s)
@@ -304,20 +307,67 @@ func (u *Updater) recover() {
 	if !s.Phase.Running() {
 		return
 	}
+	interrupted := s.Phase
+	if interrupted == updater.PhaseRestarting || interrupted == updater.PhaseWaiting {
+		s.Phase = updater.PhaseWaiting
+		u.resumeFrom = interrupted
+		u.log.Warn("updater: interrupted install, waiting for the new version again", "interrupted", interrupted, "to", s.To)
+		u.set(s)
+		return
+	}
 	ctx, cancel := context.WithTimeout(u.ctx, checkTimeout)
 	defer cancel()
-	interrupted := s.Phase
 	s.Phase, s.FinishedAt = updater.PhaseFailed, u.now()
-	switch interrupted {
-	case updater.PhaseRestarting, updater.PhaseWaiting:
-		u.recoverRestart(ctx, &s, interrupted)
-	case updater.PhaseChecking:
+	if interrupted == updater.PhaseChecking {
 		s.Message = "the updater stopped while checking the release; nothing was changed"
-	default:
+	} else {
 		s.Message = fmt.Sprintf("the updater stopped during the phase %s before the restart; ", interrupted) + u.recoverEnv(ctx, s.To)
 	}
-	u.log.Warn("updater: interrupted install ended", "interrupted", interrupted, "phase", s.Phase, "code", s.Code, "to", s.To)
+	u.log.Warn("updater: interrupted install ended", "interrupted", interrupted, "phase", s.Phase, "to", s.To)
 	u.set(s)
+}
+
+// Resume starts the background wait for an install that recover found interrupted after its
+// restart; without one it does nothing. main calls it once after newUpdater.
+func (u *Updater) Resume() {
+	if u.resumeFrom == "" {
+		return
+	}
+	s, interrupted := u.State(), u.resumeFrom
+	u.resumeFrom = ""
+	u.wg.Go(func() { u.resumeWait(s, interrupted) })
+}
+
+// resumeWait waits for version s.To as run does after compose up and ends the install, without a
+// rollback; s is in the phase waiting. A shutdown leaves the phase for the next start.
+func (u *Updater) resumeWait(s updater.State, interrupted updater.Phase) {
+	rec, ok, gaveUp := u.waitFor(u.ctx, s.To)
+	if u.ctx.Err() != nil {
+		u.log.Warn("updater: stopped while waiting again; the next start takes over", "to", s.To)
+		return
+	}
+	s.FinishedAt = u.now()
+	switch {
+	case ok:
+		s.Phase, s.Message = updater.PhaseDone, ""
+		s.Migrated, s.Backup = rec.SchemaAfter != rec.SchemaBefore, rec.Backup
+	default:
+		s.Phase = updater.PhaseFailed
+		cause := fmt.Sprintf("did not become healthy within %s", u.wait)
+		if gaveUp {
+			cause = fmt.Sprintf("stopped (exited or restarted %d times) before it became healthy", maxRestarts)
+		}
+		if rec, migrated := u.migrated(s.To); migrated && s.To != "" {
+			s.Migrated, s.Backup, s.Code = true, rec.Backup, updater.CodeMigratedNoRollback
+			s.Message = fmt.Sprintf("the updater stopped during the phase %s; version %s migrated the database and %s; back only with the backup %s",
+				interrupted, s.To, cause, rec.Backup)
+		} else {
+			s.Message = fmt.Sprintf("the updater stopped during the phase %s and version %s %s; nothing was taken back: check the server and SLOUCHCAT_VERSION in the env file",
+				interrupted, s.To, cause)
+		}
+	}
+	u.set(s)
+	u.log.Info("updater: interrupted install finished", "phase", s.Phase, "code", s.Code, "message", s.Message, "from", s.From, "to", s.To)
 }
 
 // recoverEnv puts the env file back from the backup taken before installing to, when the file
@@ -356,26 +406,6 @@ func (u *Updater) recoverEnv(ctx context.Context, to string) string {
 		return "could not put the env file back: " + check
 	}
 	return "the env file was put back from " + filepath.Base(backup)
-}
-
-// recoverRestart ends an install interrupted in the phase restarting or waiting; s is failed
-// on entry.
-func (u *Updater) recoverRestart(ctx context.Context, s *updater.State, interrupted updater.Phase) {
-	c, err := u.docker.Container(ctx, u.cfg.container)
-	rec, recErr := u.serverRecord()
-	if err == nil && c.Healthy() && runningVersion(c) == s.To && recErr == nil && rec.Version == s.To {
-		s.Phase, s.Message = updater.PhaseDone, ""
-		s.Migrated, s.Backup = rec.SchemaAfter != rec.SchemaBefore, rec.Backup
-		return
-	}
-	if rec, ok := u.migrated(s.To); ok && s.To != "" {
-		s.Migrated, s.Backup, s.Code = true, rec.Backup, updater.CodeMigratedNoRollback
-		s.Message = fmt.Sprintf("the updater stopped during the phase %s; version %s migrated the database and does not run healthy; back only with the backup %s",
-			interrupted, s.To, rec.Backup)
-		return
-	}
-	s.Message = fmt.Sprintf("the updater stopped during the phase %s and version %s does not run healthy; nothing was taken back: check the server and SLOUCHCAT_VERSION in the env file",
-		interrupted, s.To)
 }
 
 // handler serves GET /status and POST /install, both only with the token.

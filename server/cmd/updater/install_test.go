@@ -124,6 +124,7 @@ type harness struct {
 	manifest string
 	u        *Updater
 	stop     context.CancelFunc // ends the updater's process context (SIGTERM)
+	wait     time.Duration      // u.wait when set; start applies it before Resume
 	token    []byte
 	logs     *bytes.Buffer
 	srv      *httptest.Server
@@ -190,8 +191,12 @@ func (h *harness) start() {
 	h.stop = stop
 	u.client.Transport = h.srv.Client().Transport // trusts the test certificate; CheckRedirect stays
 	u.every, u.wait = 2*time.Millisecond, 150*time.Millisecond
+	if h.wait != 0 {
+		u.wait = h.wait
+	}
 	h.u, h.token = u, token
 	h.t.Cleanup(u.wg.Wait)
+	u.Resume() // as main does
 }
 
 // install posts /install with the token and returns the status and the decoded state.
@@ -797,6 +802,7 @@ func TestStartEndsInterruptedInstall(t *testing.T) {
 				h.writeServer(*tc.rec)
 			}
 			h.start()
+			h.u.wg.Wait() // a resumed wait runs in the background
 			s := h.u.State()
 			if s.Phase != tc.want || s.Code != tc.code || s.Migrated != tc.migrated || s.FinishedAt.IsZero() ||
 				!strings.Contains(s.Message, tc.message) || s.To != "1.16.0" {
@@ -816,11 +822,104 @@ func TestStartEndsInterruptedInstall(t *testing.T) {
 			}
 			// A finished state stays as it is.
 			h.start()
+			h.u.wg.Wait()
 			if again := h.u.State(); !again.FinishedAt.Equal(s.FinishedAt) {
 				t.Errorf("a second start changed the finished state: %+v", again)
 			}
 		})
 	}
+}
+
+// An install interrupted after its restart waits again in the background: the phase stays
+// waiting, /status answers, /install is busy, and the new version that becomes healthy later
+// ends it done.
+func TestStartResumesWaitingInBackground(t *testing.T) {
+	h := newHarness(t)
+	dir := filepath.Join(h.deploy, "updater")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(h.env, []byte(newEnv()), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := updater.WriteJSON(filepath.Join(dir, updater.StateFile),
+		updater.State{Phase: updater.PhaseRestarting, From: "1.15.0", To: "1.16.0", StartedAt: time.Now()}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gate := make(chan struct{})
+	h.fake.c.Labels[labelVersion], h.fake.c.Health = "1.16.0", "starting" // still migrating
+	h.fake.inspectFn = func(f *fakeDocker) error {
+		select {
+		case <-gate:
+			h.writeServer(updater.ServerRecord{Version: "1.16.0", SchemaBefore: 37, SchemaAfter: 38,
+				Backup: "pre-migration-00037.db", MigratedAt: time.Now()})
+			f.c.Health = "healthy"
+			f.inspectFn = nil
+		default:
+		}
+		return nil
+	}
+	h.wait = time.Minute
+	h.start()
+	if s := h.u.State(); s.Phase != updater.PhaseWaiting || !s.FinishedAt.IsZero() {
+		t.Fatalf("state after the start = %+v, want waiting", s)
+	}
+	if s := diskState(t, h); s.Phase != updater.PhaseWaiting {
+		t.Errorf("state.json = %+v, want waiting", s)
+	}
+	if status, s := h.request(http.MethodGet, updater.PathStatus, "Bearer "+string(h.token)); status != http.StatusOK || s.Phase != updater.PhaseWaiting {
+		t.Errorf("status = %d %+v", status, s)
+	}
+	if status, s := h.install(); status != http.StatusConflict || s.Code != updater.CodeBusy {
+		t.Errorf("install during the resumed wait = %d %+v, want 409 busy", status, s)
+	}
+	close(gate)
+	s := h.finish()
+	if s.Phase != updater.PhaseDone || !s.Migrated || s.Backup != "pre-migration-00037.db" || s.Code != "" {
+		t.Errorf("final state = %+v", s)
+	}
+	if v := h.fake.verbs(); len(v) != 0 {
+		t.Errorf("compose ran: %v", v)
+	}
+}
+
+// The resumed wait stops early for a crashed container and leaves its phase on a shutdown.
+func TestResumedWaitGaveUpAndShutdown(t *testing.T) {
+	prepare := func(t *testing.T) *harness {
+		h := newHarness(t)
+		dir := filepath.Join(h.deploy, "updater")
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := updater.WriteJSON(filepath.Join(dir, updater.StateFile),
+			updater.State{Phase: updater.PhaseWaiting, From: "1.15.0", To: "1.16.0", StartedAt: time.Now()}, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+	t.Run("crashed", func(t *testing.T) {
+		h := prepare(t)
+		h.fake.c.Labels[labelVersion] = "1.16.0"
+		h.fake.c.Running, h.fake.c.Status, h.fake.c.RestartCount, h.fake.c.RestartPolicy = false, "restarting", 3, "unless-stopped"
+		h.start()
+		h.u.wg.Wait()
+		if s := h.u.State(); s.Phase != updater.PhaseFailed || s.Code != "" || !strings.Contains(s.Message, "stopped (exited") {
+			t.Errorf("state = %+v", s)
+		}
+	})
+	t.Run("shutdown", func(t *testing.T) {
+		h := prepare(t)
+		h.fake.c.Labels[labelVersion], h.fake.c.Health = "1.16.0", "starting"
+		h.wait = time.Minute
+		h.start()
+		h.stop()
+		if !h.u.drain(5 * time.Second) {
+			t.Fatal("the resumed wait did not stop")
+		}
+		if s := diskState(t, h); s.Phase != updater.PhaseWaiting || !s.FinishedAt.IsZero() {
+			t.Errorf("state.json = %+v, want waiting kept", s)
+		}
+	})
 }
 
 func TestRunningVersion(t *testing.T) {
