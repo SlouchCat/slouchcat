@@ -19,7 +19,17 @@ func TestSetVersionByteExact(t *testing.T) {
 		{"crlf without trailing newline", "A=1\r\nSLOUCHCAT_VERSION=1.15.0", "A=1\r\nSLOUCHCAT_VERSION=1.16.0"},
 		{"mixed endings kept", "A=1\r\nSLOUCHCAT_VERSION=1.15.0\nB=2\r\n", "A=1\r\nSLOUCHCAT_VERSION=1.16.0\nB=2\r\n"},
 		{"empty value", "SLOUCHCAT_VERSION=\n", "SLOUCHCAT_VERSION=1.16.0\n"},
-		{"export and indent kept", "  export SLOUCHCAT_VERSION = 1.15.0 # pinned\n", "  export SLOUCHCAT_VERSION =1.16.0\n"},
+		{"export, indent and comment kept", "  export SLOUCHCAT_VERSION = 1.15.0 # pinned\n", "  export SLOUCHCAT_VERSION = 1.16.0 # pinned\n"},
+		{"comment without space is the value", "SLOUCHCAT_VERSION=1.15.0#x\n", "SLOUCHCAT_VERSION=1.16.0\n"},
+		{"tab before # is the value", "SLOUCHCAT_VERSION=1.15.0\t# x\n", "SLOUCHCAT_VERSION=1.16.0\n"},
+		{"hash at the start is the value", "SLOUCHCAT_VERSION= #x\n", "SLOUCHCAT_VERSION= 1.16.0\n"},
+		{"trailing spaces kept", "SLOUCHCAT_VERSION=1.15.0  \r\n", "SLOUCHCAT_VERSION=1.16.0  \r\n"},
+		{"double quotes", "SLOUCHCAT_VERSION=\"1.15.0\"\n", "SLOUCHCAT_VERSION=\"1.16.0\"\n"},
+		{"double quotes and comment", "SLOUCHCAT_VERSION=\"1.15.0\"  # pinned by hand\r\n", "SLOUCHCAT_VERSION=\"1.16.0\"  # pinned by hand\r\n"},
+		{"single quotes and comment", "SLOUCHCAT_VERSION='1.15.0' # x\n", "SLOUCHCAT_VERSION='1.16.0' # x\n"},
+		{"escaped quote inside", "SLOUCHCAT_VERSION=\"1.1\\\"5\" # x\n", "SLOUCHCAT_VERSION=\"1.16.0\" # x\n"},
+		{"empty quotes", "SLOUCHCAT_VERSION=''\n", "SLOUCHCAT_VERSION='1.16.0'\n"},
+		{"unterminated quote", "SLOUCHCAT_VERSION=\"1.15.0\n", "SLOUCHCAT_VERSION=1.16.0\n"},
 		{"every assignment", "SLOUCHCAT_VERSION=1.14.0\nSLOUCHCAT_VERSION=1.15.0\n", "SLOUCHCAT_VERSION=1.16.0\nSLOUCHCAT_VERSION=1.16.0\n"},
 		{"comment and look-alikes untouched",
 			"# SLOUCHCAT_VERSION=1.0.0\nSLOUCHCAT_VERSIONS=x\nMY_SLOUCHCAT_VERSION=1\nSLOUCHCAT_VERSION=1.15.0\n",
@@ -201,5 +211,68 @@ func TestInside(t *testing.T) {
 		if got := inside(root, tc.path); got != tc.want {
 			t.Errorf("inside(%q) = %v, want %v", tc.path, got, tc.want)
 		}
+	}
+}
+
+func TestEnvVersion(t *testing.T) {
+	for _, tc := range []struct {
+		in, want string
+		found    bool
+	}{
+		{"A=1\r\nSLOUCHCAT_VERSION=1.16.0\r\n", "1.16.0", true},
+		{"SLOUCHCAT_VERSION=\"1.16.0\" # pinned\n", "1.16.0", true},
+		{"SLOUCHCAT_VERSION=1.15.0\nSLOUCHCAT_VERSION='1.16.0'", "1.16.0", true}, // the last one wins
+		{"# SLOUCHCAT_VERSION=1.16.0\n", "", false},
+		{"", "", false},
+	} {
+		if got, found := envVersion([]byte(tc.in)); got != tc.want || found != tc.found {
+			t.Errorf("envVersion(%q) = %q, %v, want %q, %v", tc.in, got, found, tc.want, tc.found)
+		}
+	}
+}
+
+// A symbolic link as env file: the target is backed up and replaced in its own folder, the link
+// stays a link.
+func TestEnvFileSymlinkWritesTarget(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, "env"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "env", "slouchcat.env")
+	orig := "SLOUCHCAT_VERSION=1.15.0\nSECRET=x\n"
+	if err := os.WriteFile(target, []byte(orig), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, ".env")
+	if err := os.Symlink(filepath.Join("env", "slouchcat.env"), link); err != nil {
+		t.Fatal(err)
+	}
+	f, err := readEnvFile(link, os.Getuid(), os.Getgid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.backup("1.16.0"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.write(setVersion(f.data, "1.16.0")); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf(".env = %v, %v, want the link kept", info, err)
+	}
+	if got, _ := os.ReadFile(target); string(got) != "SLOUCHCAT_VERSION=1.16.0\nSECRET=x\n" {
+		t.Errorf("target = %q", got)
+	}
+	if info, _ := os.Stat(target); info.Mode().Perm() != 0o640 {
+		t.Errorf("target mode = %v, want 0640 as before", info.Mode())
+	}
+	if got, err := os.ReadFile(target + ".bak-vor-1.16.0"); err != nil || string(got) != orig {
+		t.Errorf("backup next to the target = %q, %v", got, err)
+	}
+	if err := f.restore(); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(link); string(got) != orig {
+		t.Errorf("restored through the link = %q", got)
 	}
 }

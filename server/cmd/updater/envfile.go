@@ -25,9 +25,10 @@ const keepBackups = 5
 // including "=".
 var versionLine = regexp.MustCompile(`^([ \t]*(?:export[ \t]+)?` + versionKey + `[ \t]*=)`)
 
-// setVersion returns data with every SLOUCHCAT_VERSION line set to v and all other bytes
-// unchanged, line endings included. Without such a line it appends one, with the line ending the
-// file already uses (CRLF when it has one, else LF), after closing an unterminated last line.
+// setVersion returns data with the value of every SLOUCHCAT_VERSION line set to v and all other
+// bytes unchanged: line endings, the spaces around the value, its quotes ("…" or '…') and a
+// trailing comment. Without such a line it appends one, with the line ending the file already
+// uses (CRLF when it has one, else LF), after closing an unterminated last line.
 func setVersion(data []byte, v string) []byte {
 	var out bytes.Buffer
 	found := false
@@ -46,7 +47,9 @@ func setVersion(data []byte, v string) []byte {
 		}
 		if m := versionLine.FindSubmatch(line); m != nil {
 			found = true
-			line = append(append([]byte{}, m[1]...), v...)
+			value := line[len(m[1]):]
+			start, stop := valueSpan(value)
+			line = slices.Concat(m[1], value[:start], []byte(v), value[stop:])
 		}
 		out.Write(line)
 		out.Write(end)
@@ -63,6 +66,56 @@ func setVersion(data []byte, v string) []byte {
 	}
 	out.WriteString(versionKey + "=" + v + eol)
 	return out.Bytes()
+}
+
+// valueSpan returns where the value lies in s, the part of a line after "=", as compose's dotenv
+// parser reads it: leading spaces do not count; a value in double quotes (with \" inside) or
+// single quotes is what lies between them; an unquoted value ends before " #" (a space, then the
+// comment) and before trailing spaces. An unterminated quote (a value over several lines) spans
+// the rest of the line, quote included.
+func valueSpan(s []byte) (start, stop int) {
+	i := 0
+	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
+		i++
+	}
+	if i < len(s) && (s[i] == '"' || s[i] == '\'') {
+		q := s[i]
+		for j := i + 1; j < len(s); j++ {
+			if q == '"' && s[j] == '\\' {
+				j++
+				continue
+			}
+			if s[j] == q {
+				return i + 1, j
+			}
+		}
+		return i, len(s)
+	}
+	stop = len(s)
+	for j := i + 1; j < len(s); j++ {
+		if s[j] == '#' && s[j-1] == ' ' {
+			stop = j
+			break
+		}
+	}
+	for stop > i && (s[stop-1] == ' ' || s[stop-1] == '\t') {
+		stop--
+	}
+	return i, stop
+}
+
+// envVersion returns the value of the last SLOUCHCAT_VERSION line in data.
+func envVersion(data []byte) (string, bool) {
+	v, found := "", false
+	for line := range bytes.Lines(data) {
+		line = bytes.TrimRight(line, "\r\n")
+		if m := versionLine.FindSubmatch(line); m != nil {
+			value := line[len(m[1]):]
+			start, stop := valueSpan(value)
+			v, found = string(value[start:stop]), true
+		}
+	}
+	return v, found
 }
 
 // hasVersion reports whether data assigns SLOUCHCAT_VERSION.
@@ -104,7 +157,12 @@ type envFile struct {
 }
 
 // readEnvFile reads path; a missing file is remembered as missing and gets uid:gid when written.
+// A symbolic link is followed: its target (checked to lie inside the deploy folder, see inside)
+// is what the install backs up and replaces, in the target's own folder, and the link stays.
 func readEnvFile(path string, uid, gid int) (envFile, error) {
+	if target, err := filepath.EvalSymlinks(path); err == nil {
+		path = target
+	}
 	f := envFile{path: path, mode: 0o600, uid: uid, gid: gid}
 	info, err := os.Stat(path)
 	if errors.Is(err, fs.ErrNotExist) {
