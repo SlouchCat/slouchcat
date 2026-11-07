@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math/bits"
 	"slices"
 	"sort"
@@ -20,7 +21,8 @@ import (
 // The in-memory index of the catalog (concept 16 section 5.4, M-5): every station as a compact
 // entry, so a list, the facet counts and the search run as one pass over a slice (40 000 entries,
 // no FTS5 in stage 1). It is loaded at the first use, rebuilt after every sync and reloaded per
-// station through reloadStation (the hook onStationChanged and the admin writes). The visibility
+// station through reloadStations (the hooks onStationChanged and onStationsChanged and the admin
+// writes). The visibility
 // rules of contract 1.17.0 apply per request with the current settings: hidden stations and those
 // of an excluded country never appear, broken ones only while hide_broken is off.
 
@@ -145,6 +147,8 @@ func (s *Service) index(ctx context.Context) (*stationIndex, error) {
 
 // rebuildIndex reads every station from the database and swaps the index.
 func (s *Service) rebuildIndex(ctx context.Context) (*stationIndex, error) {
+	s.cat.writeMu.Lock()
+	defer s.cat.writeMu.Unlock()
 	entries, err := loadEntries(ctx, appq.New(s.db.Read), sql.NullInt64{})
 	if err != nil {
 		return nil, err
@@ -160,43 +164,62 @@ func (s *Service) rebuildIndex(ctx context.Context) (*stationIndex, error) {
 }
 
 // reloadStation reloads one station into the index (the hook onStationChanged and the admin
-// writes); a station that is gone leaves the index. Before the first load it does nothing, the
-// load reads the row anyway.
+// writes; reloadStations).
 func (s *Service) reloadStation(ctx context.Context, id int64) {
-	s.cat.mu.RLock()
-	loaded := s.cat.idx != nil
-	s.cat.mu.RUnlock()
-	if !loaded {
+	s.reloadStations(ctx, []int64{id})
+}
+
+// reloadStations reloads stations into the index (the hook onStationsChanged) with one copy of
+// the index for all of them; a station that is gone leaves the index. Before the first load it
+// does nothing, the load reads the rows anyway. writeMu orders it with rebuildIndex and other
+// reloads: each reads its rows and swaps the index under it, so an older read never replaces the
+// entry of a newer one.
+func (s *Service) reloadStations(ctx context.Context, ids []int64) {
+	if len(ids) == 0 {
 		return
 	}
-	entries, err := loadEntries(ctx, appq.New(s.db.Read), sql.NullInt64{Int64: id, Valid: true})
-	if err != nil {
-		s.log.WarnContext(ctx, "reload radio station into the index", "station_id", id, "err", err)
+	s.cat.writeMu.Lock()
+	defer s.cat.writeMu.Unlock()
+	s.cat.mu.RLock()
+	old := s.cat.idx
+	s.cat.mu.RUnlock()
+	if old == nil {
 		return
+	}
+	fresh := make(map[int64]*indexEntry, len(ids)) // nil: the station is gone
+	for _, id := range ids {
+		entries, err := loadEntries(ctx, appq.New(s.db.Read), sql.NullInt64{Int64: id, Valid: true})
+		if err != nil {
+			s.log.WarnContext(ctx, "reload radio station into the index", "station_id", id, "err", err)
+			continue
+		}
+		fresh[id] = nil
+		if len(entries) == 1 {
+			fresh[id] = entries[0]
+		}
+	}
+	if len(fresh) == 0 {
+		return
+	}
+	// Copy on write: readers that took the old slice and map keep them unchanged.
+	idx := &stationIndex{entries: slices.Clone(old.entries), byID: maps.Clone(old.byID)}
+	for id, e := range fresh {
+		pos, found := sort.Find(len(idx.entries), func(i int) int { return cmp.Compare(id, idx.entries[i].st.ID) })
+		switch {
+		case e == nil && found:
+			idx.entries = slices.Delete(idx.entries, pos, pos+1)
+			delete(idx.byID, id)
+		case e != nil && found:
+			idx.entries[pos] = e
+			idx.byID[id] = e
+		case e != nil:
+			idx.entries = slices.Insert(idx.entries, pos, e)
+			idx.byID[id] = e
+		}
 	}
 	s.cat.mu.Lock()
-	defer s.cat.mu.Unlock()
-	old := s.cat.idx
-	idx := &stationIndex{entries: old.entries, byID: old.byID}
-	pos, found := sort.Find(len(idx.entries), func(i int) int { return cmp.Compare(id, idx.entries[i].st.ID) })
-	// Copy on write: readers that took the old slice and map keep them unchanged.
-	idx.entries = slices.Clone(old.entries)
-	idx.byID = make(map[int64]*indexEntry, len(old.byID)+1)
-	for k, v := range old.byID {
-		idx.byID[k] = v
-	}
-	switch {
-	case len(entries) == 0 && found:
-		idx.entries = slices.Delete(idx.entries, pos, pos+1)
-		delete(idx.byID, id)
-	case len(entries) == 1 && found:
-		idx.entries[pos] = entries[0]
-		idx.byID[id] = entries[0]
-	case len(entries) == 1:
-		idx.entries = slices.Insert(idx.entries, pos, entries[0])
-		idx.byID[id] = entries[0]
-	}
 	s.cat.idx = idx
+	s.cat.mu.Unlock()
 }
 
 // catalogView is the visibility of the stations under the current settings.

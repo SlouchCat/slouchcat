@@ -72,7 +72,7 @@ type relayEnv struct {
 	runner  transcode.Runner
 	clock   *fakeClock // nil: wall clock
 	watch   *fakeWatch
-	changed []int64 // onStationChanged calls
+	changed []int64 // onStationChanged calls (and the ids of onStationsChanged)
 	mu      sync.Mutex
 	tokens  map[string]string // listen tokens by listen id (fetch)
 }
@@ -116,6 +116,13 @@ func newRelayEnv(t *testing.T, eo ...envOption) *relayEnv {
 		e.changed = append(e.changed, id)
 		e.mu.Unlock()
 		reload(ctx, id)
+	}
+	reloadAll := e.s.onStationsChanged
+	e.s.onStationsChanged = func(ctx context.Context, ids []int64) {
+		e.mu.Lock()
+		e.changed = append(e.changed, ids...)
+		e.mu.Unlock()
+		reloadAll(ctx, ids)
 	}
 	t.Cleanup(e.s.stopRelays)
 	return e

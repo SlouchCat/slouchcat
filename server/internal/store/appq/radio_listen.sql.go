@@ -387,6 +387,26 @@ func (q *Queries) MarkRadioLogoQueued(ctx context.Context, arg MarkRadioLogoQueu
 	return result.RowsAffected()
 }
 
+const radioLoginSessionValid = `-- name: RadioLoginSessionValid :one
+SELECT EXISTS (
+    SELECT 1 FROM sessions WHERE id = ?1 AND revoked_at IS NULL AND expires_at > ?2
+) AS valid
+`
+
+type RadioLoginSessionValidParams struct {
+	SessionID int64
+	Now       int64
+}
+
+// The login session of a listen session still authorises: not revoked (logout, password change,
+// role demotion) and not expired.
+func (q *Queries) RadioLoginSessionValid(ctx context.Context, arg RadioLoginSessionValidParams) (bool, error) {
+	row := q.db.QueryRowContext(ctx, radioLoginSessionValid, arg.SessionID, arg.Now)
+	var valid bool
+	err := row.Scan(&valid)
+	return valid, err
+}
+
 const recordRadioRelayAbort = `-- name: RecordRadioRelayAbort :one
 UPDATE radio_stations SET
     failures = failures + 1,

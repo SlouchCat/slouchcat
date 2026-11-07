@@ -85,6 +85,8 @@ func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
 	}
 	retry := sql.NullInt64{Int64: s.now().Add(-logoRetryAfter).UnixMilli(), Valid: true}
 	q := appq.New(s.db.Write)
+	var queued []int64
+	defer func() { s.onStationsChanged(ctx, queued) }() // one index copy for the whole list
 	for _, id := range stationIDs {
 		n, err := q.MarkRadioLogoQueued(ctx, appq.MarkRadioLogoQueuedParams{ID: id, RetryBefore: retry})
 		if err != nil {
@@ -100,7 +102,7 @@ func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
 			s.log.WarnContext(ctx, "enqueue radio logo", "station_id", id, "err", err)
 			continue
 		}
-		s.onStationChanged(ctx, id)
+		queued = append(queued, id)
 	}
 }
 

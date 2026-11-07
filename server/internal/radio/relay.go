@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/oklog/ulid/v2"
+
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/netguard"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
@@ -89,6 +91,7 @@ type relay struct {
 	readyOnce sync.Once
 	healthy   bool
 	idleSince time.Time     // since when no listen session is open (guarded by relayState.mu)
+	joins     int           // Listen calls between joinRelay and their session (guarded by relayState.mu)
 	changed   chan struct{} // closed and replaced at every new segment (tests wait on it)
 }
 
@@ -101,11 +104,12 @@ type generation struct {
 	done chan struct{} // the fragment consumer ended
 }
 
-// newRelay builds a relay; run starts it.
+// newRelay builds a relay; run starts it. Its buffer directory is its own (<dir>/<station>-<ulid>),
+// so a relay that still ends never removes the files of the next relay of the station.
 func (s *Service) newRelay(st appq.RadioStation, streams []appq.RadioStream, window time.Duration, reservation int64, dir string) (*relay, error) {
 	bdir := ""
 	if dir != "" {
-		bdir = filepath.Join(dir, strconv.FormatInt(st.ID, 10))
+		bdir = filepath.Join(dir, strconv.FormatInt(st.ID, 10)+"-"+ulid.Make().String())
 	}
 	buf, err := newBuffer(bdir, window, reservation)
 	if err != nil {

@@ -20,6 +20,9 @@ type catalogState struct {
 
 	mu  sync.RWMutex
 	idx *stationIndex // nil until loaded
+	// writeMu orders the writers of idx (rebuildIndex, reloadStations): each reads its rows and
+	// swaps idx under it.
+	writeMu sync.Mutex
 
 	// syncMu keeps a second sync of the same process from running beside the first.
 	syncMu sync.Mutex

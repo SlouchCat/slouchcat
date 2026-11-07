@@ -118,6 +118,7 @@ func (s *Service) UpdateConfig(ctx context.Context, upd model.RadioConfigUpdate)
 	if err := appq.New(s.db.Write).UpdateRadioConfig(ctx, p); err != nil {
 		return model.RadioConfig{}, fmt.Errorf("update radio config: %w", err)
 	}
+	s.closeUnreachable(ctx) // stations of a country now excluded
 	return s.Config(ctx)
 }
 

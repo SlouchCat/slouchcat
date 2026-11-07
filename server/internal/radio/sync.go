@@ -70,6 +70,7 @@ type syncRun struct {
 	full     map[int64]bool // stations whose entries changed
 	created  map[int64]bool // stations this run founded (no tags, facets or locks yet)
 	added    int
+	known    int // aliases at the start of the run
 	entries  int
 	okCount  int
 	batch    []*rbStation
@@ -94,8 +95,18 @@ func (s *Service) syncCatalog(ctx context.Context) (syncStats, error) {
 	if err := run.flush(ctx); err != nil {
 		return syncStats{}, err
 	}
+	// A list with less than half of the known entries is a broken answer, not a catalog that
+	// lost half its stations: nothing is marked missing (the entries read are stored).
+	if run.known > 0 && run.entries*2 < run.known {
+		s.log.WarnContext(ctx, "radio catalog list too short, stations not marked missing",
+			"entries", run.entries, "known", run.known)
+		return syncStats{}, fmt.Errorf("%w: %d entries, %d known", errCatalogShrunk, run.entries, run.known)
+	}
 	return run.finish(ctx)
 }
+
+// errCatalogShrunk is the sync error of a station list with less than half of the known entries.
+var errCatalogShrunk = errors.New("radio browser station list shorter than half the known entries")
 
 // newSyncRun loads the alias, group, counter and lock maps once.
 func (s *Service) newSyncRun(ctx context.Context) (*syncRun, error) {
@@ -110,6 +121,7 @@ func (s *Service) newSyncRun(ctx context.Context) (*syncRun, error) {
 	for _, a := range aliases {
 		run.aliases[a.Stationuuid] = syncAlias{station: a.StationID, changed: a.CatalogChanged.String, ok: a.Lastcheckok == 1}
 	}
+	run.known = len(run.aliases)
 	stations, err := q.ListRadioStationsForSync(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list radio stations: %w", err)

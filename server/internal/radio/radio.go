@@ -8,7 +8,8 @@
 // their own files of the one package: catalogState (catalog, sync, index, admin; catalog_state.go),
 // relayState (relays, listen sessions, live HLS; relay_state.go) and logoState (logo chain;
 // logo_state.go). Cross-part calls go through the hooks onListed and onStationChanged, which New
-// sets (to no-ops until the wiring replaces them), so a caller never checks them for nil.
+// sets (to no-ops until the wiring replaces them), so a caller never checks them for nil;
+// onStationsChanged is the batch form of onStationChanged.
 package radio
 
 import (
@@ -89,13 +90,17 @@ type Service struct {
 	// broken_at, failures, shows_titles), so the catalog part reloads that row into its index
 	// (reloadStation, set in New).
 	onStationChanged func(ctx context.Context, stationID int64)
+	// onStationsChanged is onStationChanged for many stations at once, with one copy of the index
+	// (reloadStations, set in New); the logo queue of a list uses it.
+	onStationsChanged func(ctx context.Context, stationIDs []int64)
 }
 
 // New returns the radio service; log is the redacting logger.
 func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{db: db, log: log, now: time.Now,
-		onListed:         func(context.Context, []int64) {},
-		onStationChanged: func(context.Context, int64) {},
+		onListed:          func(context.Context, []int64) {},
+		onStationChanged:  func(context.Context, int64) {},
+		onStationsChanged: func(context.Context, []int64) {},
 	}
 	for _, o := range opts {
 		o(s)
@@ -107,6 +112,7 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	// the loopback there), created at the first request so a test can still swap the control.
 	s.cat.fetch.lazy = func() *http.Client { return s.netClient().http }
 	s.onStationChanged = s.reloadStation
+	s.onStationsChanged = s.reloadStations
 	s.onListed = s.queueLogos
 	return s
 }

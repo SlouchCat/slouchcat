@@ -17,7 +17,10 @@ const (
 )
 
 // playlist renders the window for the listen token; skip answers a delta update that replaces
-// the segments older than canSkipUntil before the end by EXT-X-SKIP.
+// the segments older than canSkipUntil before the end by EXT-X-SKIP. The discontinuity sequence
+// counts every discontinuity before the first segment, its own included (RFC 8216 6.2.2), so that
+// segment carries no EXT-X-DISCONTINUITY; every later one with a discontinuity does, also the first
+// after EXT-X-SKIP. A delta never skips a discontinuity: the skip stops before the next one.
 func (r *relay) playlist(token string, skip bool) []byte {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -32,12 +35,17 @@ func (r *relay) playlist(token string, skip bool) []byte {
 		return []byte(b.String())
 	}
 	fmt.Fprintf(&b, "#EXT-X-MEDIA-SEQUENCE:%d\n", segs[0].seq)
-	fmt.Fprintf(&b, "#EXT-X-DISCONTINUITY-SEQUENCE:%d\n", r.buf.discDropped)
+	dsn := r.buf.discDropped
+	if segs[0].disc {
+		dsn++
+	}
+	fmt.Fprintf(&b, "#EXT-X-DISCONTINUITY-SEQUENCE:%d\n", dsn)
 	b.WriteString("#EXT-X-INDEPENDENT-SEGMENTS\n")
 	skipped := 0
 	if skip {
 		end := segs[len(segs)-1].pdt.Add(segs[len(segs)-1].dur)
-		for skipped < len(segs)-1 && !segs[skipped].pdt.Add(segs[skipped].dur).After(end.Add(-canSkipUntil)) {
+		for skipped < len(segs)-1 && !segs[skipped].pdt.Add(segs[skipped].dur).After(end.Add(-canSkipUntil)) &&
+			(skipped == 0 || !segs[skipped].disc) {
 			skipped++
 		}
 		if skipped > 0 {
@@ -46,7 +54,7 @@ func (r *relay) playlist(token string, skip bool) []byte {
 	}
 	for i, seg := range segs[skipped:] {
 		first := i == 0
-		if seg.disc && !first {
+		if seg.disc && skipped+i > 0 {
 			b.WriteString("#EXT-X-DISCONTINUITY\n")
 		}
 		if first || seg.disc {
