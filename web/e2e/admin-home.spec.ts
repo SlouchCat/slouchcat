@@ -352,6 +352,116 @@ test('Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no fo
   await expectNoFocusTrap(page, 120);
 });
 
+test.describe('update card (concept 15 P-8)', () => {
+  // Chromium sends the page's GET requests through the service worker, where page.route does not
+  // see them; the dashboard is answered here, so the worker stays out.
+  test.use({ serviceWorkers: 'block' });
+
+  test('update card: the manual steps without companion; the install dialog and its phases @keyboard', async ({
+    page,
+  }) => {
+    // The suite's server has no updater companion and knows no newer release: the dashboard's
+    // update state gets a newer version on top of the real answer, and with `companion` the
+    // companion as well. The install and its status never reach the server.
+    let companion = false;
+    let realUpdater: unknown;
+    const notes = Array.from({ length: 60 }, (_, line) => `Zeile ${line + 1} der Release-Notizen`);
+    await page.route('**/api/v1/admin/dashboard', async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as { update: Record<string, unknown> };
+      realUpdater = body.update.updaterAvailable;
+      body.update = {
+        ...body.update,
+        available: true,
+        development: false,
+        latestVersion: '99.0.0',
+        notes: notes.join('\n'),
+        updaterAvailable: companion,
+      };
+      await route.fulfill({ response, json: body });
+    });
+    const installs: string[] = [];
+    await page.route('**/api/v1/admin/update/install', async (route) => {
+      installs.push(route.request().method());
+      await route.fulfill({
+        status: 202,
+        json: { phase: 'backing_up', from: '1.0.0', to: '99.0.0', migrated: false },
+      });
+    });
+    await page.route('**/api/v1/admin/update/status', (route) =>
+      route.fulfill({ json: { phase: 'pulling', from: '1.0.0', to: '99.0.0', migrated: false } }),
+    );
+
+    // Fallback C for real: the server says it reaches no companion.
+    await openOverview(page);
+    const server = card(page, 'Server');
+    await expect(server.getByText('SLOUCHCAT_VERSION=99.0.0')).toBeVisible();
+    expect(realUpdater).toBe(false);
+    await expect(server.getByText('docker compose pull', { exact: true })).toBeVisible();
+    await expect(server.getByText('docker compose up -d', { exact: true })).toBeVisible();
+    await expect(server.getByRole('button', { name: /installieren/ })).toHaveCount(0);
+    await resetFocus(page);
+    await tabTo(page, entry(page, 'Übersicht'));
+    // Tab walks the three copy buttons and the guide, then the card's own buttons.
+    const copies = server.getByRole('button', { name: 'Kopieren' });
+    for (let index = 0; index < 3; index += 1) {
+      await page.keyboard.press('Tab');
+      await expectFocusOn(page, copies.nth(index));
+    }
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, server.getByRole('link', { name: /Anleitung: Update per Knopf/ }));
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, server.getByRole('button', { name: 'Nach Updates suchen' }));
+
+    // With the companion: the button, its confirmation, the notes scrolled by keyboard.
+    companion = true;
+    await page.reload();
+    const install = server.getByRole('button', { name: 'Update auf 99.0.0 installieren' });
+    await expect(install).toBeVisible();
+    await resetFocus(page);
+    await tabTo(page, install);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('alertdialog', { name: 'Update auf 99.0.0 installieren?' });
+    await expect(dialog).toContainText('Der Server startet neu; laufende Wiedergaben brechen ab.');
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Installieren' }));
+    await page.keyboard.press('Shift+Tab');
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Abbrechen' }));
+    await page.keyboard.press('Shift+Tab');
+    const region = dialog.getByRole('region', { name: 'Release-Notizen' });
+    await expectFocusOn(page, region);
+    await expect(region).toContainText('Zeile 60 der Release-Notizen');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('PageDown');
+    await expect.poll(() => region.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    // Tab stays in the open dialog; Escape closes it and the focus is back on the button.
+    for (let presses = 0; presses < 3; presses += 1) await page.keyboard.press('Tab');
+    await expect(region).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expectFocusOn(page, install);
+    expect(installs).toEqual([]);
+
+    // Enter, Enter: the install starts; the card shows its steps and holds the focus.
+    await page.keyboard.press('Enter');
+    await expectFocusOn(page, dialog.getByRole('button', { name: 'Installieren' }));
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
+    const steps = server.getByRole('list', { name: 'Schritte des Updates' });
+    await expect(steps).toBeVisible();
+    await expect(steps.locator('[aria-current="step"]')).toHaveText(/^Herunterladen/);
+    await expect(server.getByText('Der Updater lädt das neue Image herunter.')).toBeVisible();
+    expect(installs).toEqual(['POST']);
+    await expect(install).toHaveCount(0);
+    await expectFocusOn(
+      page,
+      server
+        .getByRole('status')
+        .filter({ has: page.getByRole('list', { name: 'Schritte des Updates' }) }),
+    );
+    await expectNoFocusTrap(page, 120);
+  });
+});
+
 test('on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Escape returns', async ({
   page,
 }) => {
