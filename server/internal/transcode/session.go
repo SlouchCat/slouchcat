@@ -575,6 +575,31 @@ func startFFmpeg(ctx context.Context, ffmpeg string, args []string, stderr io.Wr
 	return cmd, nil
 }
 
+// startFFmpegPiped starts ffmpeg like startFFmpeg with pipes on stdin and stdout (the radio
+// packager). The caller reads stdout to its end before it calls cmd.Wait.
+func startFFmpegPiped(ctx context.Context, ffmpeg string, args []string, stderr io.Writer, log *slog.Logger) (*exec.Cmd, io.WriteCloser, io.ReadCloser, error) {
+	cmd := exec.CommandContext(ctx, ffmpeg, args...) //nolint:gosec // G204: configured binary, argument list from RadioPackagerArgs
+	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	cmd.WaitDelay = killGrace
+	cmd.Stderr = stderr
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("ffmpeg stdin: %w", err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		_ = stdin.Close()
+		return nil, nil, nil, fmt.Errorf("ffmpeg stdout: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		_ = stdin.Close()
+		_ = stdout.Close()
+		return nil, nil, nil, fmt.Errorf("start ffmpeg: %w", err)
+	}
+	deprioritize(cmd.Process.Pid, log)
+	return cmd, stdin, stdout, nil
+}
+
 // pollUntilExit waits for cmd to exit, calling poll every pollInterval meanwhile, and returns the
 // result of cmd.Wait.
 func pollUntilExit(cmd *exec.Cmd, poll func()) error {
