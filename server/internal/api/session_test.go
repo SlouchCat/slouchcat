@@ -166,6 +166,11 @@ func TestMapError(t *testing.T) {
 		code   string
 	}{
 		model.ErrNotFound:                                        {404, "not_found"},
+		model.ErrRadioCapacity:                                   {409, "radio_capacity"},
+		&model.RadioCapacityError{Running: 10, Max: 10}:          {409, "radio_capacity"},
+		model.ErrRadioUnreachable:                                {502, "radio_unreachable"},
+		model.ErrRadioNotAudio:                                   {422, "radio_not_audio"},
+		model.ErrRadioCatalogLoading:                             {503, "radio_catalog_loading"},
 		model.ErrInvalidCredentials:                              {401, "invalid_credentials"},
 		model.ErrSetupDone:                                       {409, "setup_done"},
 		model.ErrTooManyAttempts:                                 {429, "too_many_attempts"},

@@ -10,6 +10,7 @@ export {
   type HeaderSearch,
   type NavItem,
 } from './AppHeader';
+export { ActiveFilters, type ActiveFilter } from './ActiveFilters';
 export { Backdrop } from './Backdrop';
 export { LinkRouterProvider } from './AppLink';
 export { Button, ButtonLink, SpatialButton, SpatialButtonLink, type ButtonVariant } from './Button';
@@ -29,6 +30,7 @@ export { InboxEntry } from './InboxEntry';
 export { LetterBar } from './LetterBar';
 export { LibraryTile, type LibraryTileCover } from './LibraryTile';
 export { Logo } from './Logo';
+export { MiniPlayer, type MiniPlayerState } from './MiniPlayer';
 export { Notice } from './Notice';
 export { BADGE_MAX, NotificationBadge } from './NotificationBadge';
 export { Page, PageNav } from './Page';
@@ -37,7 +39,7 @@ export { dismissPosterPrepaint, PosterCard } from './PosterCard';
 export { PosterFallback } from './PosterFallback';
 export { ProfileAvatar, ProfileTile } from './ProfileTile';
 export { ProgressBar } from './ProgressBar';
-export { Row } from './Row';
+export { Row, RowList } from './Row';
 export { SearchField } from './SearchField';
 export { SelectField } from './SelectField';
 export {
@@ -58,6 +60,8 @@ export {
   useSpatialHold,
 } from './spatial';
 export { Stack } from './Stack';
+export { StationLogo } from './StationLogo';
+export { StationTile } from './StationTile';
 export { StatusDot, type StatusDotState } from './StatusDot';
 export { Text } from './Text';
 export { TextLink } from './TextLink';

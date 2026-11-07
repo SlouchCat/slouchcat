@@ -52,6 +52,15 @@ const (
 	// itemImageUploadPath takes an image the administrator uploads for a kind of a title
 	// (concept 15 7.5); multipart, larger body limit (largeBodies).
 	itemImageUploadPath = "/admin/items/{id}/images/{kind}/upload"
+	// Webradio (concept 16 stage 1, contract 1.17.0): the live HLS of a listen session, authorised
+	// by the listen token rt (radioAuth, radio_binary.go), the station images for viewers and the
+	// administration, and the logo upload (multipart, largeBodies).
+	radioLivePlaylistPath = "/radio/live/{listenId}/index.m3u8"
+	radioLiveInitPath     = "/radio/live/{listenId}/init/{gen}"
+	radioLiveSegmentPath  = "/radio/live/{listenId}/seg/{n}"
+	radioImagePath        = "/radio/images/{id}/{kind}/{size}"
+	adminRadioImagePath   = "/admin/radio/images/{id}/{kind}/{size}"
+	radioLogoUploadPath   = "/admin/radio/stations/{stationId}/logo"
 )
 
 var binaryRoutes = map[string]string{
@@ -71,6 +80,13 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + adminImagePath:       "admin",
 	"GET " + BasePath + candidatePreviewPath: "admin",
 	"PUT " + BasePath + itemImageUploadPath:  "admin",
+
+	"GET " + BasePath + radioLivePlaylistPath: "scoped",
+	"GET " + BasePath + radioLiveInitPath:     "scoped",
+	"GET " + BasePath + radioLiveSegmentPath:  "scoped",
+	"GET " + BasePath + radioImagePath:        "scoped",
+	"GET " + BasePath + adminRadioImagePath:   "admin",
+	"PUT " + BasePath + radioLogoUploadPath:   "admin",
 }
 
 // Options configure NewHandler.
@@ -91,6 +107,9 @@ type Options struct {
 	Notify   NotifyService  // In-app inbox (M7, E-8), channels and announcements (M8); nil answers 501 on them.
 	// Integrations receives the webhooks of Radarr and Sonarr (M9, I-8); nil answers 501.
 	Integrations IntegrationService
+	// Radio is the webradio (concept 16, contract 1.17.0); nil answers 501 on the JSON operations,
+	// the station images and the logo upload, and 401 on the live routes (radioAuth).
+	Radio RadioService
 
 	// TrustedProxies are the networks whose X-Forwarded-For header is believed (config
 	// SLOUCHCAT_TRUSTED_PROXIES); empty ignores the header.
@@ -155,6 +174,13 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(adminImagePath, s.getAdminItemImage)
 		r.With(authorize).Get(candidatePreviewPath, s.getItemImageCandidatePreview)
 		r.With(authorize).Put(itemImageUploadPath, s.uploadItemImage)
+		radioAuth := p.radioAuth(o.Radio)
+		r.With(radioAuth).Get(radioLivePlaylistPath, s.getRadioLivePlaylist)
+		r.With(radioAuth).Get(radioLiveInitPath, s.getRadioLiveInit)
+		r.With(radioAuth).Get(radioLiveSegmentPath, s.getRadioLiveSegment)
+		r.With(authorize).Get(radioImagePath, s.getRadioImage)
+		r.With(authorize).Get(adminRadioImagePath, s.getAdminRadioImage)
+		r.With(authorize).Put(radioLogoUploadPath, s.uploadRadioStationLogo)
 	})
 	// The catalog names the first stage title, or the first title without a stage, when it
 	// implements heroPicker (discover.Service does); the start page's app shell then carries a
@@ -177,7 +203,7 @@ var _ gen.StrictServerInterface = (*server)(nil)
 // migrated, so a response always means ready.
 func (s *server) GetHealth(context.Context, gen.GetHealthRequestObject) (gen.GetHealthResponseObject, error) {
 	return gen.GetHealth200JSONResponse{
-		Status:        gen.Ok,
+		Status:        gen.HealthStatusOk,
 		Version:       s.opts.Version,
 		UptimeSeconds: max(int64(s.opts.now().Sub(s.opts.Started).Seconds()), 0),
 	}, nil

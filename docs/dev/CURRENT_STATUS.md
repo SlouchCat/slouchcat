@@ -1,5 +1,35 @@
 # Aktueller Stand
 
+## Konzept 16 Stufe 1 «Webradio: Hören» (7. November 2026): im Pull Request
+
+Zweig `claude/webradio-stufe1` ab `main` `2bfa9979` (Release 1.16.1). **Vertrag 1.17.0 additiv,
+Migration 00038**, Frage 23, ADR 0025. Bau auf Marcos Wort vom 7. November 2026, nach Plan in drei Spuren
+(Relay, Katalog, Web) mit Kritiker-Review des Plans, Code-Review und Security-Review; alle Befunde behoben.
+
+- **Katalog:** ganzer Radio-Browser-Katalog (Daten gemeinfrei), täglicher Abgleich `radio.catalog.sync`
+  im Fenster ab 04:30, erster Lauf 10 Minuten nach dem Start bei leerem Katalog; stabile Kennung über
+  `radio_station_aliases`; Einordnung in Land, Region, Sprache, Genre, Sendeart, Stimmung und Qualität
+  über eingebettete Regeln (`server/internal/radio/rules/default.json`); Schutz gegen eine zu kurze Liste
+  eines Spiegels.
+- **Weiterleitung:** eigener Go-Leser (ICY, Shoutcast v1, HLS, Ogg-Titel) über `netguard`, ffmpeg nur
+  zwischen `pipe:0` und `pipe:1` (AAC kopiert mit `+delay_moov`, sonst AAC 96–192 kbit/s), Stücke und
+  Delta-Listen aus Go in die `tmpfs` `/run/slouchcat/radio`; ohne `tmpfs` nur live. Budget 512 MB,
+  höchstens 10 Sender, 2 Minuten Nachlauf. Hör-Sitzungen mit Token je Sender (`rt`, geschwärzt), Hörzeit
+  je Viertelstunde im Tageslimit (K-5), nicht in den Stream-Grenzen (W-8).
+- **App:** Seite `/radio` (Variante A) mit Suche, Schnellfiltern, Filtern mit Zählern, Sortierung und
+  Favoriten; Standardland je Profil aus der Zeitzone des Servers; Radio-Player auf App-Ebene mit
+  Mini-Player und «Jetzt läuft». **Verwaltung** `/admin/radio` mit Reitern Übersicht, Sender,
+  Einstellungen.
+- **Container:** `deploy/compose.yaml` bekommt die `tmpfs` für die Puffer; ältere Compose-Dateien spielen
+  nur live.
+- **Tests:** Test-Sender und Testkatalog nur im Build `bin/slouchcat-e2e` (Tag `radiotest`); drei
+  Playwright-Specs mit Tastaturprüfung; eingefrorener Stand `testdata/db/webradio.sql`.
+- **Offen für die Abnahme auf CT 190:** Messungen nach `docs/perf/radio.md` (erster Ton, Liste und
+  Suche, Abgleich, CPU und RAM je Relay), `+delay_moov` mit dem ffmpeg im Container, iPhone mit
+  gesperrtem Bildschirm, Schweizer Sender trotz «gestört» bei Radio Browser (Prüfung aus Deutschland,
+  ADR 0025 «Folgen»). Stufe 2 (Zeitversatz-Regler, Cover, Startseiten-Reihe, Regeln, eigene Sender) folgt
+  danach.
+
 ## Release 1.16.1 (7. November 2026): Ruckler beim Remux
 
 Patch ohne Vertragsänderung (Vertrag bleibt 1.16.0), keine Migration. Zweig `claude/remux-seams`.

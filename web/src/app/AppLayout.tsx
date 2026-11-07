@@ -32,6 +32,8 @@ import {
   type SideNavProps,
 } from '@/ui';
 import { paths } from './paths';
+import { RADIO_FOCUS_KEY, RadioDock } from './radio/RadioDock';
+import { useRadio } from './radio/useRadio';
 import { useActiveSession, useLogout } from './session';
 import styles from './AppLayout.module.css';
 
@@ -85,10 +87,14 @@ const MENU_ID = 'app-menu';
  * content and the content starts behind the header, so their boxes overlap and norigin's geometry
  * cannot tell them apart: up from the content or the column is the header, left from the content
  * the column (on the current page's entry), right from the column the content (where the viewer
- * left it), down from the header the content.
+ * left it), down from the header the content. The radio's mini player (concept 16) floats over
+ * the bottom of the content: down from the content, up back into it.
  */
 function shellFocus(direction: string, from: string): string | null {
-  if (from === 'content') return { up: 'header', left: 'sidenav' }[direction] ?? null;
+  if (from === 'content') {
+    return { up: 'header', left: 'sidenav', down: RADIO_FOCUS_KEY }[direction] ?? null;
+  }
+  if (from === RADIO_FOCUS_KEY) return { up: 'content', left: 'sidenav' }[direction] ?? null;
   if (from === 'sidenav') return { up: 'header', right: 'content' }[direction] ?? null;
   if (from === 'header') return direction === 'down' ? 'content' : null;
   return null;
@@ -104,6 +110,8 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const logout = useLogout();
   const navigate = useNavigate();
+  // The mini player takes room at the bottom while a station is chosen.
+  const radioShown = useRadio().state.station !== null;
   // Unread notifications for the badge (E-8), asked every 30 s; this layout only renders with an
   // active profile (router: _active).
   const inbox = useQuery(notificationsQuery);
@@ -229,6 +237,8 @@ export function AppLayout() {
       label: t('nav.watchlist'),
       current: pathname.startsWith(paths.watchlist),
     },
+    // Webradio (concept 16, 10.1).
+    { href: paths.radio, label: t('nav.radio'), current: pathname.startsWith(paths.radio) },
   ];
   // Every profile has its downloads on this device (M5), where the browser can keep them (K13).
   if (offlineSupported()) {
@@ -358,10 +368,19 @@ export function AppLayout() {
             <AdminShellNav focusCarry={adminFocus} />
           </Suspense>
         )}
-        <div id="content" tabIndex={-1} className={styles.content}>
+        <div
+          id="content"
+          tabIndex={-1}
+          className={styles.content}
+          data-radio={radioShown ? '' : undefined}
+        >
           <SpatialGroup focusKey="content">
             <Outlet />
           </SpatialGroup>
+        </div>
+        {/* After the content in the Tab order; it stays over the bottom of every page. */}
+        <div className={styles.radio}>
+          <RadioDock />
         </div>
         <SideNavMenu
           {...sideNav}

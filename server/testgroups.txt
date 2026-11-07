@@ -47,3 +47,8 @@
 4 internal/playback
 4 cmd/slouchcat
 4 internal/segments
+
+# internal/radio (concept 16, 7 November 2026): about 105 s under -race for the 50 000-entry sync
+# test alone, plus the relay tests with ffmpeg. In "rest" (366 s) it would push that bundle above
+# the api floor, so it runs as a group of its own.
+5 internal/radio

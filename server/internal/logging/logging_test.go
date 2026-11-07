@@ -163,3 +163,26 @@ func TestNewRejectsUnknownFormat(t *testing.T) {
 		t.Fatal("expected an error for format xml")
 	}
 }
+
+// The listen token of the radio's live routes (rt, concept 16, rule 10) never reaches the log;
+// the other query values and parameters that merely end in rt stay readable.
+func TestRedactRadioToken(t *testing.T) {
+	var buf bytes.Buffer
+	log, err := New(&buf, FormatText, slog.LevelDebug)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Info("http request", "path", "/api/v1/radio/live/01JZZZZZZZZZZZZZZZZZZZZZZZ/index.m3u8?rt=rt-FAKE-token&_HLS_skip=YES&start=4",
+		"err", fmt.Errorf("live: %w", errors.New(`GET "/api/v1/radio/live/1/seg/7?RT=rterr-FAKE-token": EOF`)))
+	out := buf.String()
+	for _, secret := range []string{"rt-FAKE-token", "rterr-FAKE-token"} {
+		if strings.Contains(out, secret) {
+			t.Errorf("output contains %q: %s", secret, out)
+		}
+	}
+	for _, keep := range []string{"rt=" + Redacted, "_HLS_skip=YES", "start=4", "/seg/7"} {
+		if !strings.Contains(out, keep) {
+			t.Errorf("output lost %q: %s", keep, out)
+		}
+	}
+}

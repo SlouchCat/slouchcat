@@ -240,3 +240,16 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   Medien» eingeblendet auf Platz 2, `library:2` eingeblendet, `library:1` ausgeblendet. Dann `store.Dump`. Die Pfade der
   Wurzeln bleiben die von `feinschliff.sql`. `TestFrozenStartseitenreihenStateCoversTheConcept` prüft, dass jede dieser
   Datenarten vorhanden ist; `TestMigration00035HomeRows` prüft den Schritt von `feinschliff.sql` aus.
+- `webradio.sql`: Stand nach Stufe 1 des Konzepts «Webradio» (Konzept 16; Migration 00038 mit den elf `radio_*`-Tabellen).
+  Erzeugt am 7. November 2026 aus `startseitenreihen.sql`: Stand eingespielt, mit `store.Open` migriert, dann den echten
+  Dienst `radio.Service` gegen einen lokalen Katalogserver mit `testdata/radio/catalog.json` (68 Einträge, Platzhalter
+  `{{BASE}}` = `http://radio.test`) getrieben: der Katalogabgleich (`handleCatalogSync`: 58 Sender mit 68 Aliasen und
+  Streams, Tags und abgeleiteten Facetten), zwei Favoriten-Listen mit neuer Reihenfolge (`AddFavorite`,
+  `SetFavoriteOrder`; Hauptprofil vier Sender, «Original» einer), `SetPreferences` (Hauptprofil Land `CH` mit letztem
+  Filter und Sortierung «beliebt», «Original» Land `DE`), `UpdateStation` (ein ausgeblendeter Sender, ein umbenannter und
+  empfohlener mit Sperre `name`, eine manuelle Stimmung `focus` mit Sperre `mood`) und `UpdateConfig` (60 Minuten Puffer,
+  höchstens 6 Relais, Länder `AT`, `CH`, `DE`). Nicht über den Dienst entstanden, weil ein Relais ffmpeg und einen
+  Live-Strom bräuchte, sondern per SQL: eine beendete Hörsitzung des Hauptprofils auf «SRF 3» (`ended_by` `client`),
+  `shows_titles` an diesem Sender und drei Viertelstunden Hörzeit (`AddRadioListenTime`, eine volle, eine zwei Stunden
+  früher). Dann `server/bin/slouchcat dump --config-dir <config>` (lief als `go run ./cmd/slouchcat dump`),
+  keine Pfade im Stand. `TestFrozenWebradioStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.

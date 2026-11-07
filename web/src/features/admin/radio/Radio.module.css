@@ -1,0 +1,112 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-section-gap);
+}
+
+.muted {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sc-space-2);
+}
+
+/* «Übersicht»: the relays and their listeners. */
+.relays {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  gap: var(--sc-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+  padding: var(--sc-panel-padding);
+  border: 1px solid var(--sc-color-border-subtle);
+  border-radius: var(--sc-panel-radius);
+  background-color: var(--sc-color-surface-1);
+}
+
+.relayHead {
+  display: flex;
+  align-items: center;
+  gap: var(--sc-space-2);
+}
+
+.relayName {
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.listeners {
+  display: grid;
+  gap: var(--sc-space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listener {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sc-space-2);
+}
+
+/* «Sender»: the filters above the table and its cells. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sc-space-3) var(--sc-space-4);
+}
+
+.stationCell,
+.stateCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sc-space-2);
+}
+
+/* «Einstellungen» */
+.countries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+/* The editor: each field with its lock beside it. */
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.field {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sc-space-3);
+}
+
+.fieldControl {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.logoRow {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: var(--sc-space-4);
+}

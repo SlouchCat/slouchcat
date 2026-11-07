@@ -22,7 +22,7 @@ func TestDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", LogLevel: slog.LevelInfo,
+	want := Config{Listen: ":8096", ConfigDir: "/config", CacheDir: "/cache", RadioDir: DefaultRadioDir, LogLevel: slog.LevelInfo,
 		LogFormat: logging.FormatJSON, FFmpeg: "ffmpeg", FFprobe: "ffprobe", Workers: cfg.Workers, HW: "auto", HDRTonemap: "auto", TrailerAI: "off", AniList: true,
 		DownloadBudgetGB: DefaultDownloadBudgetGB, SMTPTLS: "starttls", UpdateManifestURL: DefaultUpdateManifestURL,
 		BrowseRoots: []string{DefaultBrowseRoots}, HeroStart: -1}
@@ -67,13 +67,13 @@ func TestPrecedenceFlagsOverEnv(t *testing.T) {
 		"SLOUCHCAT_PUBLIC_URL":          "https://media.example.test/",
 		"SLOUCHCAT_HERO_START":          "2",
 	})
-	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
+	cfg, err := Load([]string{"--listen", ":7000", "--cache-dir", "rel/cache", "--radio-dir", "/dev/shm/radio", "--workers", "6", "--hw", "software", "--hdr-tonemap", "cpu",
 		"--trailer-ai", "Experimental", "--hero-start", "0"}, env)
 	if err != nil {
 		t.Fatal(err)
 	}
 	absCache, _ := filepath.Abs("rel/cache")
-	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, LogLevel: slog.LevelDebug,
+	want := Config{Listen: ":7000", ConfigDir: "/srv/config", CacheDir: absCache, RadioDir: "/dev/shm/radio", LogLevel: slog.LevelDebug,
 		LogFormat: logging.FormatText, Dev: true, FFmpeg: "ffmpeg", FFprobe: "/usr/lib/jellyfin-ffmpeg/ffprobe",
 		Workers: 6, HW: "software", HDRTonemap: "cpu", TranscodeBudget: 6.5, DownloadBudgetGB: 250,
 		TVDBAPIKey: "tvdb-key", TVDBPIN: "1234", YouTubeAPIKey: "yt-key", TrailerAI: "experimental",

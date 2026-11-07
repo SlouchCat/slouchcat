@@ -476,3 +476,53 @@ func TestRegistryValidatesAndAttachesByPool(t *testing.T) {
 		t.Errorf("Types() = %v", got)
 	}
 }
+
+// windowSeeded is a daily schedule type whose seed names the window 04:30 to 06:30 (the catalog
+// sync of the webradio, concept 16), without a start delay.
+func windowSeeded(c *counter) Type {
+	ty := scheduled(c, 24*time.Hour, nil)
+	ty.Seed = func(context.Context) (ScheduleSeed, error) {
+		return ScheduleSeed{Enabled: true, Window: &Window{Start: 270, End: 390}}, nil
+	}
+	return ty
+}
+
+// A seeded window is stored in the first row and holds its first run: the next run is the next
+// 04:30 local, not now.
+func TestSeedWindowOnFirstRow(t *testing.T) {
+	c := &counter{name: "a.window"}
+	e := newSchedEnv(t, windowSeeded(c))
+	s := e.schedule("a.window")
+	if s.Window == nil || s.Window.Start != 270 || s.Window.End != 390 {
+		t.Fatalf("window of the first row = %+v, want 270..390", s.Window)
+	}
+	if want := e.local(1, 4, 30); !s.NextRunAt.Equal(want) {
+		t.Errorf("next run = %v, want the next 04:30 local %v", s.NextRunAt, want)
+	}
+	e.tick()
+	if c.runs.Load() != 0 {
+		t.Errorf("the first tick ran a type whose window opens tomorrow: runs = %d", c.runs.Load())
+	}
+}
+
+// Start with a window seed plus a one-off date ten minutes later (the first sync of an empty
+// catalog) queues exactly one run up to eleven minutes after the start.
+func TestSeedWindowFirstStartOneRun(t *testing.T) {
+	c := &counter{name: "a.window"}
+	e := newSchedEnv(t, windowSeeded(c))
+	e.update("a.window", ScheduleUpdate{OnceLocal: wall(e.clock.Now().Add(10 * time.Minute))})
+	e.tick()
+	for range 11 {
+		e.at(time.Minute)
+	}
+	if got := c.runs.Load(); got != 1 {
+		t.Errorf("runs up to +11 min = %d, want 1", got)
+	}
+	jobs, err := e.q.ListActive(e.ctx, "a.window")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(jobs) != 1 {
+		t.Errorf("queued jobs = %d, want 1", len(jobs))
+	}
+}

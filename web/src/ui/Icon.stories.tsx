@@ -49,6 +49,8 @@ const names: IconName[] = [
   'power',
   'disk',
   'activity',
+  'radio',
+  'heart',
 ];
 
 const meta = {

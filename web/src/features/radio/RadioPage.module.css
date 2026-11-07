@@ -1,0 +1,117 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-8);
+  min-height: 100dvh;
+  padding: calc(var(--sc-size-header-height) + var(--sc-space-10)) var(--page-gutter)
+    var(--sc-space-16);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.title {
+  font-size: clamp(var(--sc-font-size-2xl), 4.5vw, var(--sc-font-size-display));
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-font-letter-spacing-display);
+}
+
+.intro {
+  color: var(--sc-color-text-secondary);
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-3);
+  max-width: var(--sc-size-content-max);
+}
+
+.quick,
+.facets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sc-space-2) var(--sc-space-4);
+}
+
+.facets {
+  gap: var(--sc-space-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sc-space-2) var(--sc-space-4);
+}
+
+.sectionTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.count {
+  flex: 1;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.hint {
+  max-width: 40rem;
+  color: var(--sc-color-text-secondary);
+}
+
+.tileCount {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+}
+
+.order {
+  display: grid;
+  gap: var(--sc-space-2);
+  max-width: 32rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sc-space-3);
+  padding: var(--sc-space-2) var(--sc-space-3);
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  gap: var(--sc-space-6) var(--sc-space-4);
+  margin: 0;
+  padding: var(--sc-space-2) 0;
+  list-style: none;
+}
+
+.cell {
+  min-width: 0;
+}
+
+@media (width >= 48rem) {
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  }
+}

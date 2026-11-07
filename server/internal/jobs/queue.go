@@ -18,7 +18,7 @@
 //     5 scan.library, download.prepare, chapters.images of a new file, a re-probe or after a playback
 //     (library, concept 13)
 //     4 metadata.match of movies and series, podcast.fetch, the match after a cleared override,
-//     library.relink
+//     library.relink, the daily radio.catalog.sync (radio)
 //     3 probe.file, metadata.match of episodes, notify.deliver
 //     2 metadata.fill, metadata.vote_backfill, image.fetch of posters, segments.detect,
 //     library.sweep, nightly trakt.refresh

@@ -1,0 +1,13 @@
+{
+  "comment": "Stream metadata that is no title (concept 16 section 8.3): case-insensitive regular expressions on the folded text (lower case, diacritics removed, spaces collapsed). Lane A of the webradio build owns this file.",
+  "patterns": [
+    "^(unknown|unbekannt|n/?a|none|null|undefined|untitled|no title|kein titel)$",
+    "^(advert|advertisement|werbung|commercial|ad break|spot)( |$)",
+    "^(jingle|station id|station identification|sender ?kennung|promo)( |$)",
+    "^(news|nachrichten|verkehr|traffic|wetter|weather)$",
+    "^(live|on air|now playing|jetzt|stream)$",
+    "^(adw_ad|adswizz|triton|spotx)",
+    "^[a-z0-9]+\\.(mp3|aac|m4a|ogg|flac|wav)$",
+    "^[0-9 :/.-]+$"
+  ]
+}

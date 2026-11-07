@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouter,
   lazyRouteComponent,
+  Outlet,
   redirect,
   type RouterHistory,
 } from '@tanstack/react-router';
@@ -14,11 +15,13 @@ import { homeQuery } from '@/features/catalog/queries';
 import { isStatsDays } from '@/features/admin/statsDays';
 import { validateLibraryParams } from '@/features/catalog/libraryParams';
 import { validateSearchParams } from '@/features/discover/searchParams';
+import { validateRadioSearch } from '@/features/radio/filters';
 import { leaveOfflineProfile, offlineChoice } from '@/features/offline/offlineSession';
 import { offlineSupported } from '@/features/offline/support';
 import { loadSpatialNavigation } from '@/ui';
 import { AppLayout } from './AppLayout';
 import { paths } from './paths';
+import { RadioProvider } from './radio/RadioProvider';
 import { isReturnTarget } from './returnTarget';
 import { RootError, RootLayout } from './RootLayout';
 import {
@@ -221,7 +224,11 @@ const offlinePlayRoute = createRoute({
   ),
 });
 
-/** Everything behind the login: a session, with or without a chosen profile. */
+/**
+ * Everything behind the login: a session, with or without a chosen profile. The radio player
+ * lives here (concept 16, 10.3; R-1): it plays on through the profile picker and every page and
+ * stops by its own rules; without a profile it stays idle.
+ */
 const authedRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: '_authed',
@@ -232,6 +239,11 @@ const authedRoute = createRoute({
     applyProfileAccent(session);
     return { session };
   },
+  component: () => (
+    <RadioProvider>
+      <Outlet />
+    </RadioProvider>
+  ),
 });
 
 /** The profile picker (K-4): reachable with a session and no profile chosen yet. */
@@ -367,6 +379,15 @@ const podcastsRoute = createRoute({
   // `?tab=` is the library filter, «all» by default (concept 12, S-14).
   validateSearch: adminSearch,
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
+});
+
+// admin concept 16: webradio, `?tab=` (uebersicht, sender, einstellungen) and `?item=` (the
+// station open in the editor).
+const adminRadioRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/radio',
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(() => import('@/features/admin/RadioAdminPage'), 'RadioAdminPage'),
 });
 
 // The "Zugriff" page became part of "Konten" (ADR 0014): the invitations sit below the account
@@ -562,6 +583,16 @@ const libraryRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/catalog/LibraryPage'), 'LibraryPage'),
 });
 
+// concept 16: webradio, the station catalog with filters, search and favourites.
+const radioRoute = createRoute({
+  getParentRoute: () => chromeRoute,
+  path: '/radio',
+  // q, country, region, language, genre, kind, mood, quality, titles, fav, top, sort; anything
+  // else is dropped.
+  validateSearch: validateRadioSearch,
+  component: lazyRouteComponent(() => import('@/features/radio/RadioPage'), 'RadioPage'),
+});
+
 const picksPageRoute = createRoute({
   getParentRoute: () => chromeRoute,
   path: '/picks',
@@ -612,6 +643,7 @@ export const routeTree = rootRoute.addChildren([
           integrationsRoute,
           librariesRoute,
           podcastsRoute,
+          adminRadioRoute,
           // admin M7
           picksRoute,
           collectionsAdminRoute,
@@ -644,6 +676,8 @@ export const routeTree = rootRoute.addChildren([
         // concept 08
         libraryRoute,
         picksPageRoute,
+        // concept 16
+        radioRoute,
       ]),
       playRoute,
     ]),

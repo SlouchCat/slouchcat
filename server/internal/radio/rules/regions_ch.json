@@ -1,0 +1,214 @@
+{
+ "CH-AG": [
+  "aargau",
+  "argovie",
+  "argovia",
+  "aarau",
+  "baden",
+  "wettingen",
+  "wohlen"
+ ],
+ "CH-AI": [
+  "appenzell innerrhoden",
+  "appenzell rhodes-interieures",
+  "appenzell rhodes-intérieures",
+  "appenzell inner rhodes",
+  "innerrhoden",
+  "appenzell"
+ ],
+ "CH-AR": [
+  "appenzell ausserrhoden",
+  "appenzell rhodes-exterieures",
+  "appenzell rhodes-extérieures",
+  "appenzell outer rhodes",
+  "ausserrhoden",
+  "herisau"
+ ],
+ "CH-BE": [
+  "bern",
+  "berne",
+  "berna",
+  "biel",
+  "bienne",
+  "biel/bienne",
+  "thun",
+  "burgdorf",
+  "langenthal",
+  "interlaken",
+  "berner oberland"
+ ],
+ "CH-BL": [
+  "basel-landschaft",
+  "basel-land",
+  "baselland",
+  "basel landschaft",
+  "bale-campagne",
+  "bâle-campagne",
+  "basilea campagna",
+  "liestal"
+ ],
+ "CH-BS": [
+  "basel-stadt",
+  "basel stadt",
+  "basel",
+  "bale",
+  "bâle",
+  "bale-ville",
+  "bâle-ville",
+  "basilea",
+  "basilea citta"
+ ],
+ "CH-FR": [
+  "fribourg",
+  "freiburg",
+  "friburgo",
+  "freiburg im uechtland",
+  "bulle"
+ ],
+ "CH-GE": [
+  "geneve",
+  "genève",
+  "geneva",
+  "genf",
+  "ginevra",
+  "carouge"
+ ],
+ "CH-GL": [
+  "glarus",
+  "glaris",
+  "glarona"
+ ],
+ "CH-GR": [
+  "graubunden",
+  "graubünden",
+  "grisons",
+  "grigioni",
+  "grischun",
+  "chur",
+  "davos",
+  "st. moritz",
+  "st moritz",
+  "sankt moritz"
+ ],
+ "CH-JU": [
+  "jura",
+  "delemont",
+  "delémont",
+  "porrentruy"
+ ],
+ "CH-LU": [
+  "luzern",
+  "lucerne",
+  "lucerna",
+  "emmen",
+  "kriens"
+ ],
+ "CH-NE": [
+  "neuchatel",
+  "neuchâtel",
+  "neuenburg",
+  "la chaux-de-fonds"
+ ],
+ "CH-NW": [
+  "nidwalden",
+  "nidwald",
+  "nidvaldo",
+  "stans"
+ ],
+ "CH-OW": [
+  "obwalden",
+  "obwald",
+  "obvaldo",
+  "sarnen"
+ ],
+ "CH-SG": [
+  "st. gallen",
+  "st gallen",
+  "sankt gallen",
+  "saint-gall",
+  "saint gall",
+  "san gallo",
+  "rapperswil",
+  "wil",
+  "rapperswil-jona"
+ ],
+ "CH-SH": [
+  "schaffhausen",
+  "schaffhouse",
+  "sciaffusa"
+ ],
+ "CH-SO": [
+  "solothurn",
+  "soleure",
+  "soletta",
+  "olten",
+  "grenchen"
+ ],
+ "CH-SZ": [
+  "schwyz",
+  "schwytz",
+  "svitto",
+  "einsiedeln"
+ ],
+ "CH-TG": [
+  "thurgau",
+  "thurgovie",
+  "turgovia",
+  "frauenfeld",
+  "kreuzlingen",
+  "arbon"
+ ],
+ "CH-TI": [
+  "ticino",
+  "tessin",
+  "lugano",
+  "locarno",
+  "bellinzona",
+  "mendrisio"
+ ],
+ "CH-UR": [
+  "uri",
+  "altdorf"
+ ],
+ "CH-VD": [
+  "vaud",
+  "waadt",
+  "lausanne",
+  "montreux",
+  "vevey",
+  "yverdon",
+  "yverdon-les-bains",
+  "nyon",
+  "morges"
+ ],
+ "CH-VS": [
+  "valais",
+  "wallis",
+  "vallese",
+  "sion",
+  "sitten",
+  "brig",
+  "visp",
+  "martigny",
+  "sierre",
+  "siders"
+ ],
+ "CH-ZG": [
+  "zug",
+  "zoug",
+  "zugo",
+  "baar"
+ ],
+ "CH-ZH": [
+  "zurich",
+  "zürich",
+  "zurigo",
+  "züri",
+  "zueri",
+  "winterthur",
+  "uster",
+  "dübendorf",
+  "dietikon",
+  "wädenswil"
+ ]
+}

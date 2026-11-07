@@ -29,3 +29,10 @@ output-options:
     - getItemImageCandidatePreview
     - getChapterImage
     - uploadItemImage
+    # Webradio (contract 1.17.0): live HLS, station images and the logo upload.
+    - getRadioLivePlaylist
+    - getRadioLiveInit
+    - getRadioLiveSegment
+    - getRadioImage
+    - getAdminRadioImage
+    - uploadRadioStationLogo

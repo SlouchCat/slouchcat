@@ -37,7 +37,8 @@
     "librariesOffline": "Offline: Bibliotheken nicht verfügbar",
     "librariesOfflineLink": "Zu den Downloads",
     "hideSidebar": "Seitenleiste ausblenden",
-    "showSidebar": "Seitenleiste einblenden"
+    "showSidebar": "Seitenleiste einblenden",
+    "radio": "Radio"
   },
   "system": {
     "server": {
@@ -157,6 +158,10 @@
       "job_not_failed": "Dieser Job ist nicht fehlgeschlagen.",
       "update_check_disabled": "Die Update-Prüfung ist ausgeschaltet.",
       "rank_taken": "Diesen Platz hat schon ein anderer Eintrag der Liste.",
+      "radio_capacity": "Gerade laufen schon zu viele Sender über den Server. Hör einen Sender, der schon läuft, oder versuch es später nochmals.",
+      "radio_unreachable": "Der Sender ist gerade nicht erreichbar.",
+      "radio_not_audio": "Dieser Sender liefert keinen Ton, den Slouchcat abspielen kann.",
+      "radio_catalog_loading": "Der Senderkatalog wird gerade geladen. Gleich geht es los.",
       "email_taken": "Diese E-Mail-Adresse gehört schon zu einem anderen Konto.",
       "passphrase_required": "Gib die Passphrase ein.",
       "passphrase_too_short": "Die Passphrase ist zu kurz: mindestens 12 Zeichen.",
@@ -951,6 +956,195 @@
     }
   },
   "admin": {
+    "radio": {
+      "title": "Radio",
+      "intro": "Senderkatalog, laufende Weiterleitungen und Einstellungen des Webradios. Die Sender sehen den Slouchcat-Server und nicht das Gerät, darum gilt der Standort des Servers. Slouchcat gibt den Ton nur an angemeldete Profile dieser Installation weiter; ob das für einen Sender zulässig ist, verantwortet der Betreiber der Installation.",
+      "strip": {
+        "label": "Zusammenfassung",
+        "catalog": "Im Katalog",
+        "catalogNote_one": "aus {{count}} Eintrag",
+        "catalogNote_other": "aus {{count}} Einträgen",
+        "reachable": "Erreichbar",
+        "reachableNote": "der Katalogeinträge",
+        "live": "Live jetzt",
+        "liveValue": "{{relays}} · {{listeners}}",
+        "liveNote": "Sender · Hörer",
+        "changed": "Von Hand geändert",
+        "changedNote": "Ausnahmen"
+      },
+      "memory": {
+        "title": "Kein RAM-Puffer",
+        "body": "Kein RAM-Puffer: Radio spielt nur live, ohne Zeitversatz. Für den Puffer braucht der Container das tmpfs aus der Compose-Datei."
+      },
+      "tabs": {
+        "label": "Bereiche",
+        "overview": "Übersicht",
+        "stations": "Sender",
+        "settings": "Einstellungen"
+      },
+      "catalog": {
+        "title": "Katalog",
+        "source": "Quelle",
+        "sourceValue": "Radio Browser (radio-browser.info)",
+        "lastSync": "Letzter Abgleich",
+        "never": "Noch nie",
+        "lastSyncValue": "{{date}}: {{entries}} Einträge, {{reachable}} erreichbar, {{added}} neu, {{removed}} entfernt",
+        "stations": "Sender nach dem Zusammenführen",
+        "error": "Fehler beim letzten Abgleich",
+        "failures_one": "{{count}} Fehlversuch in Folge",
+        "failures_other": "{{count}} Fehlversuche in Folge",
+        "nextRun": "Nächster Lauf",
+        "notPlanned": "Nicht geplant",
+        "running": "Ein Abgleich ist eingereiht oder läuft.",
+        "sync": "Jetzt abgleichen",
+        "syncQueued": "Der Abgleich ist eingereiht.",
+        "jobs": "Zu den Hintergrundjobs"
+      },
+      "relays": {
+        "title": "Live-Weiterleitungen",
+        "empty": "Gerade läuft keine Weiterleitung.",
+        "transcoded": "umgewandelt",
+        "copied": "umverpackt",
+        "buffer": "Puffer {{time}}",
+        "since": "seit {{time}}",
+        "listeners": "Hörer",
+        "noListeners": "Keine Hörer mehr, läuft noch kurz nach.",
+        "paused": "pausiert",
+        "playing": "hört",
+        "state": {
+          "connecting": "Verbindet",
+          "live": "Live",
+          "reconnecting": "Verbindet neu",
+          "ending": "Endet"
+        },
+        "stop": {
+          "label": "Hören von {{profile}} stoppen",
+          "action": "Stoppen",
+          "title": "Hören von {{profile}} stoppen?",
+          "body": "Die Wiedergabe von {{station}} endet für dieses Profil sofort.",
+          "confirm": "Stoppen"
+        },
+        "stopped": "Das Hören von {{profile}} ist gestoppt."
+      },
+      "load": {
+        "title": "Serverlast",
+        "relays": "Sender",
+        "relaysValue": "{{count}} von {{max}}",
+        "upload": "Upload",
+        "buffer": "Puffer",
+        "bufferValue": "{{used}} von {{budget}}"
+      },
+      "stations": {
+        "caption": "Sender",
+        "search": "Sender suchen",
+        "country": "Land",
+        "genre": "Genre",
+        "state": "Zustand",
+        "allCountries": "Alle Länder",
+        "allGenres": "Alle Genres",
+        "anyState": "Alle",
+        "states": {
+          "reachable": "Erreichbar",
+          "broken": "Gestört",
+          "hidden": "Ausgeblendet"
+        },
+        "exceptions": "Nur Ausnahmen",
+        "exceptionsHelp": "Von Hand geändert, ausgeblendet, empfohlen oder gestört. Eine Suche geht immer über alle Sender.",
+        "columns": {
+          "station": "Sender",
+          "place": "Land",
+          "genres": "Genre",
+          "state": "Zustand",
+          "marks": "Ausnahmen",
+          "actions": "Aktionen"
+        },
+        "stateText": {
+          "ok": "Erreichbar",
+          "broken": "Gestört",
+          "missing": "Nicht mehr im Katalog",
+          "hidden": "Ausgeblendet"
+        },
+        "locked_one": "{{count}} Feld von Hand",
+        "locked_other": "{{count}} Felder von Hand",
+        "recommended": "Empfohlen",
+        "edit": "Bearbeiten",
+        "editLabel": "{{name}} bearbeiten",
+        "hide": "Ausblenden",
+        "show": "Einblenden",
+        "hideLabel": "{{name}} ausblenden",
+        "showLabel": "{{name}} einblenden",
+        "hiddenDone": "{{name}} ist ausgeblendet.",
+        "shownDone": "{{name}} ist eingeblendet.",
+        "empty": "Keine Sender gefunden.",
+        "more": "Weitere Sender",
+        "count_one": "{{count}} Sender",
+        "count_other": "{{count}} Sender"
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "buffer": "Zeitversatz",
+        "bufferHelp": "Wie weit Hörer zurückspulen können. 60 Minuten halbieren die Zahl der Sender, wenn das Budget gleich bleibt.",
+        "minutes_one": "{{count}} Minute",
+        "minutes_other": "{{count}} Minuten",
+        "newRelays": "Gilt für neu startende Weiterleitungen.",
+        "budget": "Budget für die Puffer (MB)",
+        "budgetHelp": "Arbeitsspeicher für alle Puffer zusammen.",
+        "maxRelays": "Höchstzahl Sender",
+        "maxRelaysHelp_one": "Das Budget erlaubt beim jetzigen Zeitversatz {{count}} Sender.",
+        "maxRelaysHelp_other": "Das Budget erlaubt beim jetzigen Zeitversatz {{count}} Sender.",
+        "grace": "Nachlauf ohne Hörer (Sekunden)",
+        "graceHelp": "So lange läuft eine Weiterleitung weiter, wenn der letzte Hörer geht.",
+        "hideBroken": "Gestörte Sender ausblenden",
+        "hideBrokenHelp": "Sender, die nicht antworten, erscheinen nicht in den Listen der App. Als Favorit bleiben sie.",
+        "countries": "Länder im Katalog",
+        "countriesHelp": "Die Profile sehen nur Sender dieser Länder. Der Abgleich holt trotzdem alle.",
+        "countriesAll": "Alle Länder",
+        "countriesChosen": "Nur gewählte Länder",
+        "countriesField": "Länder (ISO-Codes, mit Komma getrennt)",
+        "rights": "Die Sender sehen den Slouchcat-Server und nicht das Gerät, darum gilt der Standort des Servers. Slouchcat gibt den Ton nur an angemeldete Profile dieser Installation weiter; ob das für einen Sender zulässig ist, verantwortet der Betreiber der Installation.",
+        "saved": "Die Einstellungen sind gespeichert."
+      },
+      "editor": {
+        "close": "Schliessen",
+        "name": "Name",
+        "logo": "Logo",
+        "logoUpload": "Eigenes Logo hochladen",
+        "logoReset": "Zurück zum Logo aus Katalog oder Website",
+        "logoTooLarge": "Die Datei ist grösser als 20 MB.",
+        "logoState": {
+          "none": "Noch nicht gesucht",
+          "queued": "Wird gesucht",
+          "catalog": "Aus dem Katalog",
+          "website": "Von der Website",
+          "own": "Eigenes Logo",
+          "failed": "Kein Logo gefunden, Initialen"
+        },
+        "genre": "Genre",
+        "kind": "Sendeart",
+        "mood": "Stimmung",
+        "region": "Region",
+        "regionHelp": "ISO-Code, zum Beispiel CH-ZH. Leer: keine Region.",
+        "stream": "Stream",
+        "streamAuto": "Automatisch (bester Stream)",
+        "unreachable": "nicht erreichbar",
+        "probe": "Stream prüfen",
+        "probeResult": "{{codec}}, {{bitrate}} kbit/s, {{sampleRate}} Hz, {{channels}} Kanäle, Antwort nach {{ms}} ms",
+        "probeTitles": "Titelangaben: ja",
+        "probeNoTitles": "Titelangaben: nein",
+        "probeTitle": "Aktueller Titel: {{title}}",
+        "recommended": "Empfohlen",
+        "recommendedHelp": "Steht in seinem Land oben (Sortierung «Beliebt»).",
+        "hidden": "Ausgeblendet",
+        "hiddenHelp": "Erscheint nirgends in der App und kommt beim Abgleich nicht zurück.",
+        "tags": "Schlagworte aus dem Katalog",
+        "lock": "Sperre {{field}}",
+        "locked": "gesperrt",
+        "free": "frei",
+        "lockHelp": "Ein gesperrtes Feld überschreibt der tägliche Abgleich nicht.",
+        "save": "Speichern",
+        "saved": "{{name}} ist gespeichert."
+      }
+    },
     "editor": {
       "close": "Schliessen",
       "openAdmin": "In der Verwaltung öffnen",
@@ -2140,6 +2334,9 @@
       }
     },
     "sections": {
+      "radio": {
+        "title": "Radio"
+      },
       "libraries": {
         "title": "Bibliotheken"
       },
@@ -3211,6 +3408,16 @@
         "overDay": "über 1 Tag"
       },
       "types": {
+        "radio_catalog_sync": {
+          "name": "Radiokatalog abgleichen",
+          "description": "Holt den Senderkatalog von Radio Browser, führt die Einträge zu Sendern zusammen und ordnet sie den Filtern zu.",
+          "trigger": "täglich ab 04:30, «Jetzt abgleichen» auf der Seite Radio, beim ersten Start ohne Katalog"
+        },
+        "radio_logo_fetch": {
+          "name": "Senderlogo holen",
+          "description": "Holt das Logo eines Senders aus dem Katalog oder von seiner Website und legt es quadratisch ab.",
+          "trigger": "Sender in einer Liste der App ohne Logo, ein zurückgesetztes Logo"
+        },
         "scan_library": {
           "name": "Bibliotheksscan",
           "description": "Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.",
@@ -4111,6 +4318,187 @@
       "intro": "Titel, die Cat für dich ausgesucht hat, in Cats Reihenfolge.",
       "count_one": "{{count}} Titel",
       "count_other": "{{count}} Titel"
+    }
+  },
+  "radio": {
+    "page": {
+      "title": "Radio",
+      "intro": "Sender aus aller Welt, über deinen Slouchcat-Server",
+      "searchLabel": "Sender suchen",
+      "searchPlaceholder": "Sender, Ort oder Genre",
+      "quick": {
+        "label": "Schnellwahl",
+        "myCountry": "Mein Land: {{country}}",
+        "favorites": "Meine Sender",
+        "popular": "Beliebt"
+      },
+      "myCountry": "Mein Land",
+      "filters": {
+        "label": "Filter",
+        "country": "Land",
+        "region": "Region",
+        "language": "Sprache",
+        "genre": "Genre",
+        "kind": "Sendeart",
+        "mood": "Stimmung",
+        "quality": "Qualität",
+        "titles": "Nur mit Titelanzeige",
+        "clear": "Auswahl löschen",
+        "done": "Fertig",
+        "none": "Keine Werte zur Auswahl",
+        "close": "Filter schliessen",
+        "show_one": "{{count}} Sender anzeigen",
+        "show_other": "{{count}} Sender anzeigen",
+        "active": "Aktive Filter",
+        "remove": "Filter {{label}} entfernen",
+        "reset": "Alle Filter zurücksetzen",
+        "search": "«{{q}}»"
+      },
+      "sort": {
+        "label": "Sortieren",
+        "popular": "Beliebt",
+        "name": "Name A–Z",
+        "quality": "Qualität",
+        "new": "Neu im Katalog"
+      },
+      "count_one": "{{count}} Sender",
+      "count_other": "{{count}} Sender",
+      "rows": {
+        "favorites": "Meine Sender",
+        "popularIn": "Beliebt in {{country}}",
+        "all": "Alle {{country}}",
+        "byGenre": "Nach Genre",
+        "byMood": "Nach Stimmung",
+        "stations_one": "{{count}} Sender",
+        "stations_other": "{{count}} Sender",
+        "noFavorites": "Noch keine Sender gemerkt. Tippe bei einem Sender auf das Herz, dann erscheint er hier, nur für dein Profil."
+      },
+      "results": "Treffer",
+      "allStations": "Alle Sender",
+      "empty": {
+        "title": "Keine Sender gefunden",
+        "body": "Zu diesen Filtern passt kein Sender. Löse einen Filter oder setze alle zurück."
+      },
+      "loading": {
+        "title": "Der Senderkatalog wird geladen",
+        "body": "Slouchcat holt die Sender gerade zum ersten Mal. Die Seite versucht es gleich wieder."
+      },
+      "more": "Weitere Sender",
+      "play": "{{name}} abspielen",
+      "pause": "{{name}} pausieren",
+      "resume": "{{name}} weiter abspielen",
+      "playing": "Läuft",
+      "paused": "Pausiert",
+      "missing": "Nicht mehr im Katalog, verschwindet am {{date}}",
+      "broken": "Gerade gestört",
+      "order": {
+        "toggle": "Reihenfolge ändern",
+        "done": "Fertig",
+        "label": "Reihenfolge von Meine Sender"
+      }
+    },
+    "genre": {
+      "pop": "Pop",
+      "rock": "Rock",
+      "jazz": "Jazz",
+      "classical": "Klassik",
+      "electronic": "Elektronisch",
+      "hiphop": "Hip-Hop",
+      "schlager": "Schlager",
+      "folk": "Volksmusik",
+      "alternative": "Alternative",
+      "oldies": "Oldies",
+      "chillout": "Chillout",
+      "world": "Weltmusik",
+      "country": "Country",
+      "metal": "Metal",
+      "mixed": "Gemischt",
+      "blues": "Blues",
+      "soul": "Soul",
+      "rnb": "R&B",
+      "latin": "Latin",
+      "reggae": "Reggae",
+      "dance": "Dance",
+      "indie": "Indie",
+      "religious": "Religiös",
+      "soundtrack": "Filmmusik",
+      "kids": "Kinder"
+    },
+    "kind": {
+      "music": "Musik",
+      "news": "News",
+      "talk": "Talk",
+      "sport": "Sport",
+      "culture": "Kultur"
+    },
+    "mood": {
+      "chill": "Chill",
+      "party": "Party",
+      "focus": "Fokus",
+      "sleep": "Schlafen",
+      "workout": "Workout"
+    },
+    "quality": {
+      "high": "Hoch",
+      "good": "Gut",
+      "basic": "Einfach"
+    },
+    "region": {
+      "CH-AG": "Aargau",
+      "CH-AI": "Appenzell Innerrhoden",
+      "CH-AR": "Appenzell Ausserrhoden",
+      "CH-BE": "Bern",
+      "CH-BL": "Basel-Landschaft",
+      "CH-BS": "Basel-Stadt",
+      "CH-FR": "Freiburg",
+      "CH-GE": "Genf",
+      "CH-GL": "Glarus",
+      "CH-GR": "Graubünden",
+      "CH-JU": "Jura",
+      "CH-LU": "Luzern",
+      "CH-NE": "Neuenburg",
+      "CH-NW": "Nidwalden",
+      "CH-OW": "Obwalden",
+      "CH-SG": "St. Gallen",
+      "CH-SH": "Schaffhausen",
+      "CH-SO": "Solothurn",
+      "CH-SZ": "Schwyz",
+      "CH-TG": "Thurgau",
+      "CH-TI": "Tessin",
+      "CH-UR": "Uri",
+      "CH-VD": "Waadt",
+      "CH-VS": "Wallis",
+      "CH-ZG": "Zug",
+      "CH-ZH": "Zürich"
+    },
+    "player": {
+      "region": "Radio-Wiedergabe",
+      "open": "Jetzt läuft öffnen: {{name}}",
+      "nowPlaying": "Jetzt läuft",
+      "close": "Jetzt läuft schliessen",
+      "play": "Weiter abspielen",
+      "pause": "Pause",
+      "retry": "Nochmals versuchen",
+      "stop": "Radio beenden",
+      "live": "Live",
+      "paused": "Pausiert",
+      "starting": "Verbindet …",
+      "toLive": "Live",
+      "artistTitle": "{{artist}} – {{title}}",
+      "programme": "Live-Programm",
+      "noTitles": "Ohne Titelangaben vom Sender",
+      "favorite": "{{name}} in Meine Sender",
+      "serverHint": "Über Slouchcat, Standort des Servers",
+      "ended": "Die Wiedergabe wurde beendet.",
+      "failed": "Dieser Sender lässt sich in diesem Browser nicht abspielen.",
+      "kbps_one": "{{count}} kbit/s",
+      "kbps_other": "{{count}} kbit/s",
+      "facts": {
+        "quality": "Qualität",
+        "genre": "Genre",
+        "kind": "Sendeart",
+        "language": "Sprache"
+      }
     }
   }
 }

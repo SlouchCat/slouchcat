@@ -1,0 +1,102 @@
+.tile {
+  position: relative;
+  min-width: 0;
+}
+
+.main {
+  display: grid;
+  gap: var(--sc-space-1);
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-lg);
+  background-color: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picture {
+  position: relative;
+  display: block;
+  margin-bottom: var(--sc-space-1);
+  transition: transform var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+}
+
+.main:hover .picture,
+.main:focus-visible .picture {
+  transform: scale(var(--sc-focus-scale));
+}
+
+/* The chosen station: a ring in the profile's accent. */
+.tile[data-state] .picture {
+  border-radius: var(--sc-radius-lg);
+  outline: 2px solid var(--sc-accent);
+  outline-offset: 2px;
+}
+
+.badge {
+  position: absolute;
+  bottom: var(--sc-space-2);
+  left: var(--sc-space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-1) var(--sc-space-2);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-scrim-strong);
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.name,
+.caption,
+.note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name {
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+.caption {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-xs);
+}
+
+.note {
+  color: var(--sc-color-state-warning);
+  font-size: var(--sc-font-size-xs);
+  white-space: normal;
+}
+
+/* The heart over the picture's top right corner. */
+.favorite {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+  display: inline-grid;
+  place-items: center;
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  padding: 0;
+  border: 0;
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-scrim-strong);
+  color: var(--sc-color-text-primary);
+  cursor: pointer;
+}
+
+.favorite[aria-pressed='true'] {
+  color: var(--sc-accent);
+}
+
+.favorite[aria-pressed='true'] path {
+  fill: currentcolor;
+}

@@ -56,9 +56,9 @@ var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorizatio
 	"listurl", "deviceid", "clientkey"}
 
 // sensitiveQuery matches the value of the query parameters api_key, apikey, key (YouTube Data API),
-// st (stream token), dt (download token, M5) and the credentials of private podcast feeds and their
+// st (stream token), dt (download token, M5), rt (radio listen token, concept 16) and the credentials of private podcast feeds and their
 // enclosures (M6): auth, token, access_token, secret, sig and signature.
-var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|apikey|key|client_key|st|dt|auth|token|access_token|secret|sig|signature)=)[^&;#\s"']*`)
+var sensitiveQuery = regexp.MustCompile(`(?i)((?:^|[?&;])(?:api_key|apikey|key|client_key|st|dt|rt|auth|token|access_token|secret|sig|signature)=)[^&;#\s"']*`)
 
 // New returns a logger that writes to w in the given format and level, with redaction applied.
 func New(w io.Writer, format Format, level slog.Leveler) (*slog.Logger, error) {

@@ -270,7 +270,10 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: slouchcat-binary
-          path: server/bin/slouchcat
+          # Both builds: the e2e suite runs slouchcat-e2e (tag radiotest, plan 3.8).
+          path: |
+            server/bin/slouchcat
+            server/bin/slouchcat-e2e
           retention-days: 1
           if-no-files-found: error
 
@@ -342,7 +345,7 @@ jobs:
       # An artefact is a zip, and a zip from upload-artifact carries no execute bit: without this
       # the server never starts and every spec of the shard fails at the first page load.
       - name: Make the binary executable again (artefacts lose the bit)
-        run: chmod +x server/bin/slouchcat
+        run: chmod +x server/bin/slouchcat server/bin/slouchcat-e2e
 
       # Every shard plans the same split (deterministic) and runs its part with --test-list.
       - run: task ci:e2e SHARD=${{ matrix.shard }}/${{ strategy.job-total }}
