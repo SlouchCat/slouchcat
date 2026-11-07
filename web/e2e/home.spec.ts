@@ -28,10 +28,14 @@ import { TRAKT_ENTRIES } from './trakt-server.mjs';
 const hero = (page: Page) => page.locator('main section[aria-roledescription]');
 /**
  * The band's poster row (concept 08, 7.2): one card per slide, a button named after its title
- * (and the year under it).
+ * (and the year under it). The administrator's pen beside each poster (concept 15 P-6) is a
+ * button of the row too, not a poster.
  */
 const strip = (page: Page) =>
-  hero(page).getByRole('list', { name: 'Spotlight-Titel' }).getByRole('button');
+  hero(page)
+    .getByRole('list', { name: 'Spotlight-Titel' })
+    .getByRole('button')
+    .and(page.locator(':not([aria-label$=": Metadaten bearbeiten"])'));
 /** The sections of the start page top to bottom: the stage (if any) and the poster rows. */
 const sections = (page: Page) =>
   page.locator('main section:is([aria-labelledby], [aria-roledescription])');
@@ -544,6 +548,83 @@ test('the band holds on keyboard focus and the pause button, not on a click (F-3
   await expect(pause).toHaveAttribute('aria-pressed', 'false');
   await expect(band).not.toHaveAttribute('data-paused');
   await expect(timer).toHaveCount(1);
+});
+
+test('the spotlight posters carry the pen: Tab poster then pen, the band holds, Escape returns (concept 15 P-6) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await waitForSpotlight(owner);
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  const band = hero(page);
+  const posters = strip(page);
+  const row = band.getByRole('list', { name: 'Spotlight-Titel' });
+  const pens = row.getByRole('button', { name: /: Metadaten bearbeiten$/ });
+  // A pen on every poster of the row (the spotlight holds films and series), none on the stage.
+  const count = await posters.count();
+  expect(count).toBeGreaterThan(1);
+  await expect(pens).toHaveCount(count);
+  await expect(band.getByRole('button', { name: /: Metadaten bearbeiten$/ })).toHaveCount(count);
+  // Each pen sits beside its poster, not in its button, and turns with it (CSS order of the item).
+  for (let index = 0; index < count; index += 1) {
+    const item = row.getByRole('listitem').nth(index);
+    await expect(item.getByRole('button')).toHaveCount(2);
+    await expect(item.locator('button button')).toHaveCount(0);
+  }
+  // Only the active poster's pen is a Tab stop (the row's roving tabindex).
+  const active = posters.and(page.locator('[aria-current="true"]'));
+  const activePen = active.locator('xpath=..').getByRole('button', {
+    name: /: Metadaten bearbeiten$/,
+  });
+  await expect(pens.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
+
+  // Tab: the active poster, then its pen; the band holds while the focus is in the row.
+  await page.getByRole('button', { name: 'Seitenleiste ausblenden' }).focus();
+  await tabTo(page, active, 6);
+  const shown = (await active.getAttribute('aria-label')) ?? (await active.textContent()) ?? '';
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, activePen);
+  await expect(band).toHaveAttribute('data-paused');
+  const title = ((await activePen.getAttribute('aria-label')) ?? '').replace(
+    /: Metadaten bearbeiten$/,
+    '',
+  );
+  expect(shown.startsWith(title)).toBe(true);
+
+  // Enter opens the editor of that title; the band stays on its slide; Escape returns to the pen.
+  await page.keyboard.press('Enter');
+  const editor = page.getByRole('dialog', { name: title });
+  await expect(editor).toBeVisible();
+  await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Escape');
+  await expect(editor).toHaveCount(0);
+  await expectFocusOn(page, activePen);
+  await expect(activePen).toHaveAccessibleName(`${title}: Metadaten bearbeiten`);
+  await expect(band).toHaveAttribute('data-paused');
+
+  // Shift+Tab back to the poster, Tab past the pen out of the band into the first poster row.
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, active);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, activePen);
+  // The arrow keys pass the pen by: right moves on to the next poster as seen.
+  await page.keyboard.press('ArrowRight');
+  expect(
+    await posters.evaluateAll((buttons) =>
+      buttons.includes(document.activeElement as HTMLButtonElement),
+    ),
+  ).toBe(true);
+  await expectVisibleFocus(page);
+  await tabTo(
+    page,
+    page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
+    3,
+  );
+  await expect(band).not.toHaveAttribute('data-paused');
+  await expectNoFocusTrap(page, 200);
 });
 
 test('the poster row is an endless band: the active poster leads, the DOM order stays (concept 15, 6.3)', async ({

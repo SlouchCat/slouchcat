@@ -1,6 +1,7 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { createProfile, loginOwner } from './accounts';
-import { CSRF, H264_COPY_TITLE, idOf, itemPath } from './catalog';
+import { CSRF, H264_COPY_TITLE, idOf, itemPath, SHOW_TITLE } from './catalog';
+import { DEFAULT_HOME_ROWS, listHomeRows, setHomeRows } from './curation';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -9,9 +10,11 @@ import {
   resetFocus,
   tabTo,
 } from './keyboard';
+import { episodeIds, itemIdByTitle } from './playback';
 
 // The metadata editor with the pen (concept 15 7.4, variant A «Dialog»; rule 8): the pen on the
-// detail page's poster and on a library cover (always shown, on phones too) opens the dialog; Tab
+// detail page's poster, on a library cover and on a start page cover (P-6; always shown, on phones
+// too) opens the dialog; Tab
 // stays inside, Escape closes it and the focus returns to the pen; the tabs Bilder (upload, back to
 // automatic), Metadaten (edit, lock, save) and Aktualisieren. The e2e server has no TMDB key: there
 // are no candidates to choose (the choice is a Vitest case of MetadataEditor.test.tsx). The film is
@@ -35,6 +38,33 @@ const dialog = (page: Page) => page.getByRole('dialog', { name: TITLE });
 const tabs = (page: Page) => dialog(page).getByRole('tablist', { name: 'Bereiche des Editors' });
 const pen = (page: Page) => page.getByRole('button', { name: PEN, exact: true });
 const PHONE = { width: 390, height: 844 };
+/** The pen of a cover on the library or the start page: named after its title. */
+const COVER_PEN = /: Metadaten bearbeiten$/;
+const recentRow = (page: Page) => page.getByRole('region', { name: 'Neu hinzugefügt' });
+
+/** The first card of a start page row that carries a pen, its pen and the title it edits. */
+async function penCell(row: Locator) {
+  const cell = row
+    .getByRole('listitem')
+    .filter({ has: row.page().getByRole('button', { name: COVER_PEN }) })
+    .first();
+  const cellPen = cell.getByRole('button', { name: COVER_PEN });
+  await expect(cellPen).toBeVisible();
+  const label = (await cellPen.getAttribute('aria-label')) ?? '';
+  return { cell, card: cell.getByRole('link'), pen: cellPen, title: label.replace(COVER_PEN, '') };
+}
+
+/** The pen lies on the top right of its card's cover, at least a 32 px touch target. */
+async function expectOnCover(card: Locator, cardPen: Locator): Promise<void> {
+  const cover = await boxOf(card.locator('span').first());
+  const button = await boxOf(cardPen);
+  expect(button.width).toBeGreaterThanOrEqual(32);
+  expect(button.height).toBeGreaterThanOrEqual(32);
+  expect(button.x).toBeGreaterThanOrEqual(cover.x + cover.width / 2);
+  expect(button.x + button.width).toBeLessThanOrEqual(cover.x + cover.width);
+  expect(button.y).toBeGreaterThanOrEqual(cover.y);
+  expect(button.y + button.height).toBeLessThanOrEqual(cover.y + cover.height / 3);
+}
 
 /** Box of `locator`, which must be laid out. */
 async function boxOf(locator: Locator) {
@@ -84,6 +114,14 @@ async function libraryId(owner: APIRequestContext): Promise<number> {
   const library = libraries.find((entry) => entry.name === LIBRARY);
   expect(library, `library "${LIBRARY}" visible`).toBeDefined();
   return library!.id;
+}
+
+/** The id of the start page row «Neu in Filme» (concept 15 P-7). */
+async function newInFilmsRow(owner: APIRequestContext): Promise<string> {
+  const films = await libraryId(owner);
+  const row = (await listHomeRows(owner)).find((entry) => entry.libraryId === films);
+  expect(row, `the row «Neu in ${LIBRARY}»`).toBeDefined();
+  return row!.id;
 }
 
 /** With the arrow keys from the selected tab to `name`. */
@@ -456,6 +494,179 @@ test('library grid: a saved title re-sorts the grid; the focus comes back to its
   }
 });
 
+test('start page: Tab reaches a card, then its pen; Enter opens, Escape returns @keyboard', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const { cell, card, pen: cardPen, title } = await penCell(recentRow(page));
+  // Shown without hover or focus, on the cover's top right.
+  await page.mouse.move(0, 0);
+  await expect(cardPen.locator('xpath=..')).toHaveCSS('opacity', '1');
+  await expectOnCover(card, cardPen);
+  // Tab: the card's link, then its pen; Shift+Tab back.
+  await resetFocus(page);
+  await card.focus();
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, cardPen);
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, card);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, cardPen);
+  // Enter opens the editor of the card's title, Escape closes it, the focus is back on the pen.
+  await page.keyboard.press('Enter');
+  const editor = page.getByRole('dialog', { name: title });
+  await expect(editor).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(editor).toHaveCount(0);
+  await expect(page).toHaveURL(/\/$/);
+  await expectFocusOn(page, cardPen);
+  // The arrow keys pass the pen by: from it they move on to the link of the card beside it.
+  const right = await cell.evaluate((li) => li.nextElementSibling !== null);
+  const neighbour = await cell.evaluate(
+    (li, next) =>
+      (next ? li.nextElementSibling : li.previousElementSibling)
+        ?.querySelector('a')
+        ?.getAttribute('href') ?? null,
+    right,
+  );
+  expect(neighbour).not.toBeNull();
+  await page.keyboard.press(right ? 'ArrowRight' : 'ArrowLeft');
+  await expect(recentRow(page).locator(`a[href="${neighbour}"]`)).toBeFocused();
+  await expectVisibleFocus(page);
+  await expectNoFocusTrap(page, 400);
+});
+
+test('start page: «Neu in …» covers carry the pen, a series card of «Weiterschauen» edits the series @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const libraryRow = await newInFilmsRow(owner);
+  const seriesId = await itemIdByTitle(owner, SHOW_TITLE);
+  const [episodeId] = await episodeIds(owner, seriesId);
+  if (!episodeId) throw new Error('the test show has no episode');
+  const episode = (await (await owner.get(`/api/v1/items/${episodeId}`)).json()) as Record<
+    string,
+    unknown
+  >;
+  const series = (await (await owner.get(`/api/v1/items/${seriesId}`)).json()) as {
+    images: unknown;
+  };
+  // «Weiterschauen» of the owner's main profile: its response only gets a started episode of the
+  // test show, shown as the series card (concept 15 P-1); the server keeps the state.
+  await page.context().route(
+    (url) => url.pathname === '/api/v1/home',
+    async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as { rows: { key: string }[] };
+      body.rows = body.rows.filter((row) => row.key !== 'continue');
+      body.rows.splice(1, 0, {
+        id: 'continue',
+        key: 'continue',
+        items: [
+          {
+            ...episode,
+            seriesRef: { id: seriesId, title: SHOW_TITLE, images: series.images },
+            progress: {
+              positionMs: 600_000,
+              durationMs: 1_800_000,
+              percent: 33,
+              completed: false,
+              updatedAt: new Date().toISOString(),
+            },
+          },
+        ],
+      } as { key: string });
+      await route.fulfill({ response, json: body });
+    },
+  );
+  try {
+    await setHomeRows(owner, ['libraries', libraryRow, ...DEFAULT_HOME_ROWS]);
+    await page.goto('/');
+    // Every cover of «Neu in Filme» has its pen; the library tiles of «Meine Medien» none.
+    const newIn = page.getByRole('region', { name: `Neu in ${LIBRARY}` });
+    await expect(newIn.getByRole('listitem').first()).toBeVisible();
+    await expect(
+      newIn.getByRole('listitem').filter({ hasNot: page.getByRole('button', { name: COVER_PEN }) }),
+    ).toHaveCount(0);
+    const mine = page.getByRole('region', { name: 'Meine Medien' });
+    await expect(mine.getByRole('link').first()).toBeVisible();
+    await expect(mine.getByRole('button', { name: COVER_PEN })).toHaveCount(0);
+    for (const name of ['Sammlungen', 'Genres']) {
+      await expect(
+        page.getByRole('region', { name }).getByRole('button', { name: COVER_PEN }),
+      ).toHaveCount(0);
+    }
+    // The series card leads to the episode, its pen edits the series.
+    const continueRow = page.getByRole('region', { name: 'Weiterschauen' });
+    const card = continueRow.getByRole('link', { name: new RegExp(`^${SHOW_TITLE}, `) });
+    await expect(card).toHaveAttribute('href', `/items/${episodeId}`);
+    const seriesPen = continueRow.getByRole('button', {
+      name: `${SHOW_TITLE}: Metadaten bearbeiten`,
+    });
+    await expectOnCover(card, seriesPen);
+    await resetFocus(page);
+    await card.focus();
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, seriesPen);
+    await page.keyboard.press('Enter');
+    const editor = page.getByRole('dialog', { name: SHOW_TITLE });
+    await expect(editor).toBeVisible();
+    await expect(editor.getByRole('link', { name: 'In der Verwaltung öffnen' })).toHaveAttribute(
+      'href',
+      `/admin/items/${encodeURIComponent(seriesId)}`,
+    );
+    await page.keyboard.press('Escape');
+    await expect(editor).toHaveCount(0);
+    await expectFocusOn(page, seriesPen);
+  } finally {
+    await page.context().unrouteAll({ behavior: 'ignoreErrors' });
+    await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  }
+});
+
+test('start page: a saved title shows on its card at once; the focus stays on the pen @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const renamed = 'E2E Startseite umbenannt';
+  // The film of this spec on the start page: its library's row «Neu in Filme» first.
+  await setHomeRows(owner, [await newInFilmsRow(owner), ...DEFAULT_HOME_ROWS]);
+  try {
+    await page.goto('/');
+    const row = page.getByRole('region', { name: `Neu in ${LIBRARY}` });
+    const card = row.getByRole('link').filter({ has: page.getByText(TITLE, { exact: true }) });
+    const cardPen = row.getByRole('button', { name: `${TITLE}: Metadaten bearbeiten` });
+    await expect(cardPen).toBeVisible();
+    await resetFocus(page);
+    await card.focus();
+    await page.keyboard.press('Tab');
+    await expectFocusOn(page, cardPen);
+    await page.keyboard.press('Enter');
+    await expect(dialog(page)).toBeVisible();
+    await selectTab(page, 'Metadaten', 1);
+    const panel = dialog(page).getByRole('tabpanel');
+    await tabTo(page, panel.getByRole('textbox', { name: 'Titel', exact: true }), 10);
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type(renamed);
+    await tabTo(page, panel.getByRole('button', { name: 'Speichern' }), 40);
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('dialog').getByRole('status')).toHaveText('Metadaten gespeichert.');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // The start page reads its rows again: the card shows the new title, its pen keeps the focus.
+    await expect(row.getByText(renamed, { exact: true })).toBeVisible();
+    await expectFocusOn(
+      page,
+      row.getByRole('button', { name: `${renamed}: Metadaten bearbeiten` }),
+    );
+  } finally {
+    const path = `/api/v1/admin/items/${id}/metadata`;
+    await owner.patch(path, { headers: CSRF, data: { title: TITLE } });
+    await owner.patch(path, { headers: CSRF, data: { unlock: ['title'] } });
+    await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  }
+});
+
 test.describe('on a phone', () => {
   test.use({ viewport: PHONE, hasTouch: true });
 
@@ -495,6 +706,17 @@ test.describe('on a phone', () => {
     await pen(page).tap();
     await expect(dialog(page)).toBeVisible();
   });
+
+  test('the start page shows the pen on its covers; a tap opens the editor', async ({ page }) => {
+    await page.goto('/');
+    const { card, pen: cardPen, title } = await penCell(recentRow(page));
+    await cardPen.scrollIntoViewIfNeeded();
+    await expectOnCover(card, cardPen);
+    const button = await boxOf(cardPen);
+    expect(button.x + button.width).toBeLessThanOrEqual(PHONE.width);
+    await cardPen.tap();
+    await expect(page.getByRole('dialog', { name: title })).toBeVisible();
+  });
 });
 
 test('a profile other than the primary one sees no pen', async ({ page, owner }) => {
@@ -511,5 +733,9 @@ test('a profile other than the primary one sees no pen', async ({ page, owner })
   await expect(pen(page)).toHaveCount(0);
   await page.goto(`/libraries/${await libraryId(owner)}`);
   await expect(page.getByRole('list', { name: LIBRARY }).getByRole('link').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Metadaten bearbeiten$/ })).toHaveCount(0);
+  // The start page neither: no pen on its covers or its spotlight posters.
+  await page.goto('/');
+  await expect(recentRow(page).getByRole('link').first()).toBeVisible();
   await expect(page.getByRole('button', { name: /Metadaten bearbeiten$/ })).toHaveCount(0);
 });
