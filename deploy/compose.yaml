@@ -6,6 +6,7 @@
 #   SLOUCHCAT_TRUSTED_PROXIES=private, any device in the home network can set X-Forwarded-For
 #   itself and so empty the limit on login attempts.
 # GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
+# Updater companion (optional, ADR 0024): add -f compose.updater.yaml last, after all other files.
 name: slouchcat
 
 services:

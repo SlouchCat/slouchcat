@@ -15,6 +15,7 @@ config
 cache
 deploy/config
 deploy/cache
+deploy/updater
 **/.env
 **/*.log
 coverage

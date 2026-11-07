@@ -1,3 +1,5 @@
 # Local runtime data of `docker compose up` in this folder.
 /config/
 /cache/
+# Shared folder of the updater companion (compose.updater.yaml): token, state.json, server.json.
+/updater/
