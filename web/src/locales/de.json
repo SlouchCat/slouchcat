@@ -956,6 +956,195 @@
     }
   },
   "admin": {
+    "radio": {
+      "title": "Radio",
+      "intro": "Senderkatalog, laufende Weiterleitungen und Einstellungen des Webradios. Die Sender sehen den Slouchcat-Server und nicht das Gerät, darum gilt der Standort des Servers. Slouchcat gibt den Ton nur an angemeldete Profile dieser Installation weiter; ob das für einen Sender zulässig ist, verantwortet der Betreiber der Installation.",
+      "strip": {
+        "label": "Zusammenfassung",
+        "catalog": "Im Katalog",
+        "catalogNote_one": "aus {{count}} Eintrag",
+        "catalogNote_other": "aus {{count}} Einträgen",
+        "reachable": "Erreichbar",
+        "reachableNote": "der Katalogeinträge",
+        "live": "Live jetzt",
+        "liveValue": "{{relays}} · {{listeners}}",
+        "liveNote": "Sender · Hörer",
+        "changed": "Von Hand geändert",
+        "changedNote": "Ausnahmen"
+      },
+      "memory": {
+        "title": "Kein RAM-Puffer",
+        "body": "Kein RAM-Puffer: Radio spielt nur live, ohne Zeitversatz. Für den Puffer braucht der Container das tmpfs aus der Compose-Datei."
+      },
+      "tabs": {
+        "label": "Bereiche",
+        "overview": "Übersicht",
+        "stations": "Sender",
+        "settings": "Einstellungen"
+      },
+      "catalog": {
+        "title": "Katalog",
+        "source": "Quelle",
+        "sourceValue": "Radio Browser (radio-browser.info)",
+        "lastSync": "Letzter Abgleich",
+        "never": "Noch nie",
+        "lastSyncValue": "{{date}}: {{entries}} Einträge, {{reachable}} erreichbar, {{added}} neu, {{removed}} entfernt",
+        "stations": "Sender nach dem Zusammenführen",
+        "error": "Fehler beim letzten Abgleich",
+        "failures_one": "{{count}} Fehlversuch in Folge",
+        "failures_other": "{{count}} Fehlversuche in Folge",
+        "nextRun": "Nächster Lauf",
+        "notPlanned": "Nicht geplant",
+        "running": "Ein Abgleich ist eingereiht oder läuft.",
+        "sync": "Jetzt abgleichen",
+        "syncQueued": "Der Abgleich ist eingereiht.",
+        "jobs": "Zu den Hintergrundjobs"
+      },
+      "relays": {
+        "title": "Live-Weiterleitungen",
+        "empty": "Gerade läuft keine Weiterleitung.",
+        "transcoded": "umgewandelt",
+        "copied": "umverpackt",
+        "buffer": "Puffer {{time}}",
+        "since": "seit {{time}}",
+        "listeners": "Hörer",
+        "noListeners": "Keine Hörer mehr, läuft noch kurz nach.",
+        "paused": "pausiert",
+        "playing": "hört",
+        "state": {
+          "connecting": "Verbindet",
+          "live": "Live",
+          "reconnecting": "Verbindet neu",
+          "ending": "Endet"
+        },
+        "stop": {
+          "label": "Hören von {{profile}} stoppen",
+          "action": "Stoppen",
+          "title": "Hören von {{profile}} stoppen?",
+          "body": "Die Wiedergabe von {{station}} endet für dieses Profil sofort.",
+          "confirm": "Stoppen"
+        },
+        "stopped": "Das Hören von {{profile}} ist gestoppt."
+      },
+      "load": {
+        "title": "Serverlast",
+        "relays": "Sender",
+        "relaysValue": "{{count}} von {{max}}",
+        "upload": "Upload",
+        "buffer": "Puffer",
+        "bufferValue": "{{used}} von {{budget}}"
+      },
+      "stations": {
+        "caption": "Sender",
+        "search": "Sender suchen",
+        "country": "Land",
+        "genre": "Genre",
+        "state": "Zustand",
+        "allCountries": "Alle Länder",
+        "allGenres": "Alle Genres",
+        "anyState": "Alle",
+        "states": {
+          "reachable": "Erreichbar",
+          "broken": "Gestört",
+          "hidden": "Ausgeblendet"
+        },
+        "exceptions": "Nur Ausnahmen",
+        "exceptionsHelp": "Von Hand geändert, ausgeblendet, empfohlen oder gestört. Eine Suche geht immer über alle Sender.",
+        "columns": {
+          "station": "Sender",
+          "place": "Land",
+          "genres": "Genre",
+          "state": "Zustand",
+          "marks": "Ausnahmen",
+          "actions": "Aktionen"
+        },
+        "stateText": {
+          "ok": "Erreichbar",
+          "broken": "Gestört",
+          "missing": "Nicht mehr im Katalog",
+          "hidden": "Ausgeblendet"
+        },
+        "locked_one": "{{count}} Feld von Hand",
+        "locked_other": "{{count}} Felder von Hand",
+        "recommended": "Empfohlen",
+        "edit": "Bearbeiten",
+        "editLabel": "{{name}} bearbeiten",
+        "hide": "Ausblenden",
+        "show": "Einblenden",
+        "hideLabel": "{{name}} ausblenden",
+        "showLabel": "{{name}} einblenden",
+        "hiddenDone": "{{name}} ist ausgeblendet.",
+        "shownDone": "{{name}} ist eingeblendet.",
+        "empty": "Keine Sender gefunden.",
+        "more": "Weitere Sender",
+        "count_one": "{{count}} Sender",
+        "count_other": "{{count}} Sender"
+      },
+      "settings": {
+        "title": "Einstellungen",
+        "buffer": "Zeitversatz",
+        "bufferHelp": "Wie weit Hörer zurückspulen können. 60 Minuten halbieren die Zahl der Sender, wenn das Budget gleich bleibt.",
+        "minutes_one": "{{count}} Minute",
+        "minutes_other": "{{count}} Minuten",
+        "newRelays": "Gilt für neu startende Weiterleitungen.",
+        "budget": "Budget für die Puffer (MB)",
+        "budgetHelp": "Arbeitsspeicher für alle Puffer zusammen.",
+        "maxRelays": "Höchstzahl Sender",
+        "maxRelaysHelp_one": "Das Budget erlaubt beim jetzigen Zeitversatz {{count}} Sender.",
+        "maxRelaysHelp_other": "Das Budget erlaubt beim jetzigen Zeitversatz {{count}} Sender.",
+        "grace": "Nachlauf ohne Hörer (Sekunden)",
+        "graceHelp": "So lange läuft eine Weiterleitung weiter, wenn der letzte Hörer geht.",
+        "hideBroken": "Gestörte Sender ausblenden",
+        "hideBrokenHelp": "Sender, die nicht antworten, erscheinen nicht in den Listen der App. Als Favorit bleiben sie.",
+        "countries": "Länder im Katalog",
+        "countriesHelp": "Die Profile sehen nur Sender dieser Länder. Der Abgleich holt trotzdem alle.",
+        "countriesAll": "Alle Länder",
+        "countriesChosen": "Nur gewählte Länder",
+        "countriesField": "Länder (ISO-Codes, mit Komma getrennt)",
+        "rights": "Die Sender sehen den Slouchcat-Server und nicht das Gerät, darum gilt der Standort des Servers. Slouchcat gibt den Ton nur an angemeldete Profile dieser Installation weiter; ob das für einen Sender zulässig ist, verantwortet der Betreiber der Installation.",
+        "saved": "Die Einstellungen sind gespeichert."
+      },
+      "editor": {
+        "close": "Schliessen",
+        "name": "Name",
+        "logo": "Logo",
+        "logoUpload": "Eigenes Logo hochladen",
+        "logoReset": "Zurück zum Logo aus Katalog oder Website",
+        "logoTooLarge": "Die Datei ist grösser als 20 MB.",
+        "logoState": {
+          "none": "Noch nicht gesucht",
+          "queued": "Wird gesucht",
+          "catalog": "Aus dem Katalog",
+          "website": "Von der Website",
+          "own": "Eigenes Logo",
+          "failed": "Kein Logo gefunden, Initialen"
+        },
+        "genre": "Genre",
+        "kind": "Sendeart",
+        "mood": "Stimmung",
+        "region": "Region",
+        "regionHelp": "ISO-Code, zum Beispiel CH-ZH. Leer: keine Region.",
+        "stream": "Stream",
+        "streamAuto": "Automatisch (bester Stream)",
+        "unreachable": "nicht erreichbar",
+        "probe": "Stream prüfen",
+        "probeResult": "{{codec}}, {{bitrate}} kbit/s, {{sampleRate}} Hz, {{channels}} Kanäle, Antwort nach {{ms}} ms",
+        "probeTitles": "Titelangaben: ja",
+        "probeNoTitles": "Titelangaben: nein",
+        "probeTitle": "Aktueller Titel: {{title}}",
+        "recommended": "Empfohlen",
+        "recommendedHelp": "Steht in seinem Land oben (Sortierung «Beliebt»).",
+        "hidden": "Ausgeblendet",
+        "hiddenHelp": "Erscheint nirgends in der App und kommt beim Abgleich nicht zurück.",
+        "tags": "Schlagworte aus dem Katalog",
+        "lock": "Sperre {{field}}",
+        "locked": "gesperrt",
+        "free": "frei",
+        "lockHelp": "Ein gesperrtes Feld überschreibt der tägliche Abgleich nicht.",
+        "save": "Speichern",
+        "saved": "{{name}} ist gespeichert."
+      }
+    },
     "editor": {
       "close": "Schliessen",
       "openAdmin": "In der Verwaltung öffnen",
@@ -2145,6 +2334,9 @@
       }
     },
     "sections": {
+      "radio": {
+        "title": "Radio"
+      },
       "libraries": {
         "title": "Bibliotheken"
       },
@@ -3216,6 +3408,16 @@
         "overDay": "über 1 Tag"
       },
       "types": {
+        "radio_catalog_sync": {
+          "name": "Radiokatalog abgleichen",
+          "description": "Holt den Senderkatalog von Radio Browser, führt die Einträge zu Sendern zusammen und ordnet sie den Filtern zu.",
+          "trigger": "täglich ab 04:30, «Jetzt abgleichen» auf der Seite Radio, beim ersten Start ohne Katalog"
+        },
+        "radio_logo_fetch": {
+          "name": "Senderlogo holen",
+          "description": "Holt das Logo eines Senders aus dem Katalog oder von seiner Website und legt es quadratisch ab.",
+          "trigger": "Sender in einer Liste der App ohne Logo, ein zurückgesetztes Logo"
+        },
         "scan_library": {
           "name": "Bibliotheksscan",
           "description": "Sucht in allen Bibliotheken neue, geänderte und fehlende Dateien.",

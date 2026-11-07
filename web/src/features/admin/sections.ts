@@ -15,6 +15,7 @@ export interface AdminSection {
   key:
     | 'libraries'
     | 'podcasts'
+    | 'radio'
     | 'maintenance'
     | 'metadata'
     | 'accounts'
@@ -40,6 +41,8 @@ export interface AdminSection {
 export const adminSections: readonly AdminSection[] = [
   { key: 'libraries', href: paths.adminLibraries, icon: 'folder', group: 'library' },
   { key: 'podcasts', href: paths.adminPodcasts, icon: 'mic', group: 'library' },
+  // Webradio (concept 16, section 11).
+  { key: 'radio', href: paths.adminRadio, icon: 'radio', group: 'library' },
   {
     key: 'maintenance',
     href: paths.adminMaintenance,

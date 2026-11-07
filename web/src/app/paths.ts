@@ -29,6 +29,8 @@ export const paths = {
   playAt: (id: string, positionMs: number) =>
     `/play/${encodeURIComponent(id)}?at=${Math.max(0, Math.round(positionMs))}`,
   adminPodcasts: '/admin/podcasts',
+  /** Webradio in the administration (concept 16, 11): catalog, relays, stations, settings. */
+  adminRadio: '/admin/radio',
   /** Discover and curation (M7). */
   search: '/search',
   watchlist: '/watchlist',

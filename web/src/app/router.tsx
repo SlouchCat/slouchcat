@@ -381,6 +381,15 @@ const podcastsRoute = createRoute({
   component: lazyRouteComponent(() => import('@/features/admin/PodcastsPage'), 'PodcastsPage'),
 });
 
+// admin concept 16: webradio, `?tab=` (uebersicht, sender, einstellungen) and `?item=` (the
+// station open in the editor).
+const adminRadioRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: '/radio',
+  validateSearch: adminSearch,
+  component: lazyRouteComponent(() => import('@/features/admin/RadioAdminPage'), 'RadioAdminPage'),
+});
+
 // The "Zugriff" page became part of "Konten" (ADR 0014): the invitations sit below the account
 // list, where the account an invitation creates is managed. Old links and bookmarks go there.
 const accessRoute = createRoute({
@@ -634,6 +643,7 @@ export const routeTree = rootRoute.addChildren([
           integrationsRoute,
           librariesRoute,
           podcastsRoute,
+          adminRadioRoute,
           // admin M7
           picksRoute,
           collectionsAdminRoute,

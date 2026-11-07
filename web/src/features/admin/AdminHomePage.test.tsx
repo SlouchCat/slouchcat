@@ -15,7 +15,7 @@ vi.mock('./restart', async (original) => ({
 }));
 
 // The administration (concept 11, A-2, A-3): the sidebar in the shell's column on every /admin
-// page (19 entries, numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet on a phone, and the
+// page (20 entries, numbers after F-7, one Tab stop, ↑ ↓ Home End), the sheet on a phone, and the
 // overview with eight equal cards asked every 5 s, the hints, the collapsed server log and the
 // restart.
 
@@ -1344,12 +1344,13 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
   });
 });
 
-/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries). */
+/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries; concept 16 adds «Radio»). */
 const SIDEBAR = [
   ['Zurück zur App', '/'],
   ['Übersicht', '/admin'],
   ['Bibliotheken', '/admin/libraries'],
   ['Podcasts', '/admin/podcasts'],
+  ['Radio', '/admin/radio'],
   ['Pflege', '/admin/maintenance'],
   ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
@@ -1373,7 +1374,7 @@ describe('admin sidebar (A-2, concept 11)', () => {
     localStorage.clear();
   });
 
-  it('stands in the column with 19 entries and their numbers; ↑ ↓ Home End move, one Tab stop', async () => {
+  it('stands in the column with 20 entries and their numbers; ↑ ↓ Home End move, one Tab stop', async () => {
     mockApi(routes({ 'GET /admin/devices': () => json([]) }));
     const { nav } = await renderAdminPage('/admin/devices');
     const links = within(nav).getAllByRole('link');
@@ -1434,7 +1435,7 @@ describe('admin sidebar (A-2, concept 11)', () => {
     await waitFor(() =>
       expect(queryClient.getQueryState(['admin', 'dashboard'])?.status).toBe('error'),
     );
-    expect(within(nav).getAllByRole('link')).toHaveLength(19);
+    expect(within(nav).getAllByRole('link')).toHaveLength(20);
     expect(within(nav).getByRole('link', { name: 'Bibliotheken' })).toHaveTextContent(
       /^Bibliotheken$/,
     );
@@ -1527,7 +1528,7 @@ describe('admin sidebar (A-2, concept 11)', () => {
     await user.click(button);
     const sheet = await screen.findByRole('dialog', { name: 'Seiten der Verwaltung' });
     const nav = within(sheet).getByRole('navigation', { name: 'Verwaltung' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(19);
+    expect(within(nav).getAllByRole('link')).toHaveLength(20);
     expect(within(nav).getByRole('link', { name: 'Geräte' })).toHaveFocus();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());

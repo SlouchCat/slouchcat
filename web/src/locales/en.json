@@ -956,6 +956,195 @@
     }
   },
   "admin": {
+    "radio": {
+      "title": "Radio",
+      "intro": "Station catalog, running relays and the settings of the web radio. Stations see the Slouchcat server, not the device, so the server's location counts. Slouchcat passes the sound only to signed-in profiles of this installation; whether that is allowed for a station is up to the operator of the installation.",
+      "strip": {
+        "label": "Summary",
+        "catalog": "In the catalog",
+        "catalogNote_one": "from {{count}} entry",
+        "catalogNote_other": "from {{count}} entries",
+        "reachable": "Reachable",
+        "reachableNote": "of the catalog entries",
+        "live": "Live now",
+        "liveValue": "{{relays}} · {{listeners}}",
+        "liveNote": "stations · listeners",
+        "changed": "Changed by hand",
+        "changedNote": "exceptions"
+      },
+      "memory": {
+        "title": "No RAM buffer",
+        "body": "No RAM buffer: radio plays live only, without time shift. The buffer needs the tmpfs of the compose file in the container."
+      },
+      "tabs": {
+        "label": "Sections",
+        "overview": "Overview",
+        "stations": "Stations",
+        "settings": "Settings"
+      },
+      "catalog": {
+        "title": "Catalog",
+        "source": "Source",
+        "sourceValue": "Radio Browser (radio-browser.info)",
+        "lastSync": "Last sync",
+        "never": "Never",
+        "lastSyncValue": "{{date}}: {{entries}} entries, {{reachable}} reachable, {{added}} new, {{removed}} removed",
+        "stations": "Stations after merging",
+        "error": "Error of the last sync",
+        "failures_one": "{{count}} failed attempt in a row",
+        "failures_other": "{{count}} failed attempts in a row",
+        "nextRun": "Next run",
+        "notPlanned": "Not planned",
+        "running": "A sync is queued or running.",
+        "sync": "Sync now",
+        "syncQueued": "The sync is queued.",
+        "jobs": "To the background jobs"
+      },
+      "relays": {
+        "title": "Live relays",
+        "empty": "No relay is running.",
+        "transcoded": "transcoded",
+        "copied": "repackaged",
+        "buffer": "Buffer {{time}}",
+        "since": "since {{time}}",
+        "listeners": "Listeners",
+        "noListeners": "No listeners left, runs on for a moment.",
+        "paused": "paused",
+        "playing": "listening",
+        "state": {
+          "connecting": "Connecting",
+          "live": "Live",
+          "reconnecting": "Reconnecting",
+          "ending": "Ending"
+        },
+        "stop": {
+          "label": "Stop {{profile}} listening",
+          "action": "Stop",
+          "title": "Stop {{profile}} listening?",
+          "body": "Playback of {{station}} ends for this profile at once.",
+          "confirm": "Stop"
+        },
+        "stopped": "{{profile}} no longer listens."
+      },
+      "load": {
+        "title": "Server load",
+        "relays": "Stations",
+        "relaysValue": "{{count}} of {{max}}",
+        "upload": "Upload",
+        "buffer": "Buffer",
+        "bufferValue": "{{used}} of {{budget}}"
+      },
+      "stations": {
+        "caption": "Stations",
+        "search": "Search stations",
+        "country": "Country",
+        "genre": "Genre",
+        "state": "State",
+        "allCountries": "All countries",
+        "allGenres": "All genres",
+        "anyState": "All",
+        "states": {
+          "reachable": "Reachable",
+          "broken": "Broken",
+          "hidden": "Hidden"
+        },
+        "exceptions": "Exceptions only",
+        "exceptionsHelp": "Changed by hand, hidden, recommended or broken. A search always covers every station.",
+        "columns": {
+          "station": "Station",
+          "place": "Country",
+          "genres": "Genre",
+          "state": "State",
+          "marks": "Exceptions",
+          "actions": "Actions"
+        },
+        "stateText": {
+          "ok": "Reachable",
+          "broken": "Broken",
+          "missing": "No longer in the catalog",
+          "hidden": "Hidden"
+        },
+        "locked_one": "{{count}} field by hand",
+        "locked_other": "{{count}} fields by hand",
+        "recommended": "Recommended",
+        "edit": "Edit",
+        "editLabel": "Edit {{name}}",
+        "hide": "Hide",
+        "show": "Show",
+        "hideLabel": "Hide {{name}}",
+        "showLabel": "Show {{name}}",
+        "hiddenDone": "{{name}} is hidden.",
+        "shownDone": "{{name}} is shown.",
+        "empty": "No stations found.",
+        "more": "More stations",
+        "count_one": "{{count}} station",
+        "count_other": "{{count}} stations"
+      },
+      "settings": {
+        "title": "Settings",
+        "buffer": "Time shift",
+        "bufferHelp": "How far listeners can go back. 60 minutes halve the number of stations while the budget stays.",
+        "minutes_one": "{{count}} minute",
+        "minutes_other": "{{count}} minutes",
+        "newRelays": "Applies to relays that start from now on.",
+        "budget": "Buffer budget (MB)",
+        "budgetHelp": "Memory for all buffers together.",
+        "maxRelays": "Maximum stations",
+        "maxRelaysHelp_one": "At the current time shift the budget allows {{count}} station.",
+        "maxRelaysHelp_other": "At the current time shift the budget allows {{count}} stations.",
+        "grace": "Run-on without listeners (seconds)",
+        "graceHelp": "How long a relay runs on after its last listener left.",
+        "hideBroken": "Hide broken stations",
+        "hideBrokenHelp": "Stations that do not answer are left out of the app's lists. As favourites they stay.",
+        "countries": "Countries in the catalog",
+        "countriesHelp": "Profiles see stations of these countries only. The sync still fetches all of them.",
+        "countriesAll": "All countries",
+        "countriesChosen": "Chosen countries only",
+        "countriesField": "Countries (ISO codes, separated by commas)",
+        "rights": "Stations see the Slouchcat server, not the device, so the server's location counts. Slouchcat passes the sound only to signed-in profiles of this installation; whether that is allowed for a station is up to the operator of the installation.",
+        "saved": "The settings are saved."
+      },
+      "editor": {
+        "close": "Close",
+        "name": "Name",
+        "logo": "Logo",
+        "logoUpload": "Upload own logo",
+        "logoReset": "Back to the logo from catalog or website",
+        "logoTooLarge": "The file is larger than 20 MB.",
+        "logoState": {
+          "none": "Not searched yet",
+          "queued": "Being searched",
+          "catalog": "From the catalog",
+          "website": "From the website",
+          "own": "Own logo",
+          "failed": "No logo found, initials"
+        },
+        "genre": "Genre",
+        "kind": "Programme",
+        "mood": "Mood",
+        "region": "Region",
+        "regionHelp": "ISO code, for example CH-ZH. Empty: no region.",
+        "stream": "Stream",
+        "streamAuto": "Automatic (best stream)",
+        "unreachable": "unreachable",
+        "probe": "Check stream",
+        "probeResult": "{{codec}}, {{bitrate}} kbit/s, {{sampleRate}} Hz, {{channels}} channels, answer after {{ms}} ms",
+        "probeTitles": "Titles: yes",
+        "probeNoTitles": "Titles: no",
+        "probeTitle": "Current title: {{title}}",
+        "recommended": "Recommended",
+        "recommendedHelp": "Comes first in its country (sort «Popular»).",
+        "hidden": "Hidden",
+        "hiddenHelp": "Shows nowhere in the app and does not come back with the sync.",
+        "tags": "Tags from the catalog",
+        "lock": "Lock {{field}}",
+        "locked": "locked",
+        "free": "free",
+        "lockHelp": "The daily sync never overwrites a locked field.",
+        "save": "Save",
+        "saved": "{{name}} is saved."
+      }
+    },
     "editor": {
       "close": "Close",
       "openAdmin": "Open in administration",
@@ -2145,6 +2334,9 @@
       }
     },
     "sections": {
+      "radio": {
+        "title": "Radio"
+      },
       "libraries": {
         "title": "Libraries"
       },
@@ -3216,6 +3408,16 @@
         "overDay": "over 1 day"
       },
       "types": {
+        "radio_catalog_sync": {
+          "name": "Sync radio catalog",
+          "description": "Fetches the station catalog from Radio Browser, merges the entries into stations and sorts them into the filters.",
+          "trigger": "daily from 04:30, «Sync now» on the Radio page, at the first start without a catalog"
+        },
+        "radio_logo_fetch": {
+          "name": "Fetch station logo",
+          "description": "Fetches a station's logo from the catalog or its website and stores it square.",
+          "trigger": "a station without logo in a list of the app, a reset logo"
+        },
         "scan_library": {
           "name": "Library scan",
           "description": "Looks for new, changed and missing files in every library.",
