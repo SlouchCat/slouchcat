@@ -490,7 +490,8 @@ Operationen bekommen einen Eintrag im Vertragstest (Regel 7).
 >
 > **Nachtrag (7. November 2026, Abnahme von Stufe 3):** Marco will den Stift **direkt auf dem
 > Cover**: auf der Detailseite oben rechts auf dem Poster statt in der Knopfzeile, im
-> Bibliotheksraster immer sichtbar, auch auf Handy und Tablet; weiterhin nur für den
+> Bibliotheksraster immer sichtbar, auch auf Handy und Tablet, und **auch auf den Covern der
+> Startseite** (Titelkarten; bei «Weiterschauen» die Serie); weiterhin nur für den
 > Server-Administrator. Entscheidungsprotokoll, Nachtrag zu Frage 22.
 
 Aufwand: rund **7,5 Tage** (Server 4: Sperren je Sprache, Sortiertitel, Hochladen; Dialog und
