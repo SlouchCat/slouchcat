@@ -500,10 +500,10 @@ func (q *Queries) ListVisibleCollectionsByID(ctx context.Context, arg ListVisibl
 
 const listVisibleGenres = `-- name: ListVisibleGenres :many
 SELECT g.name, count(*) AS item_count
-FROM item_genres AS g
-JOIN items AS i ON i.id = g.item_id
+FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
-WHERE g.lang = ?2 AND i.kind IN ('movie', 'series', 'audiobook', 'podcast')
+CROSS JOIN item_genres AS g ON g.item_id = i.id AND g.lang = ?2
+WHERE i.kind IN ('movie', 'series', 'audiobook', 'podcast')
 GROUP BY g.name
 ORDER BY item_count DESC, g.name
 LIMIT ?3
@@ -521,7 +521,9 @@ type ListVisibleGenresRow struct {
 }
 
 // Genres of the visible titles (films, series, audiobooks, podcasts) in one language, most
-// frequent first.
+// frequent first. The titles come first, from the partial index items_top_added (migration
+// 00037), so visible_items is evaluated once per title; CROSS JOIN keeps the genres after them
+// (from item_genres first it was evaluated once per genre of a title).
 func (q *Queries) ListVisibleGenres(ctx context.Context, arg ListVisibleGenresParams) ([]ListVisibleGenresRow, error) {
 	rows, err := q.db.QueryContext(ctx, listVisibleGenres, arg.ProfileID, arg.Lang, arg.LimitCount)
 	if err != nil {

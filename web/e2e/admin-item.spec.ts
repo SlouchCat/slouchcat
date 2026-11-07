@@ -89,12 +89,15 @@ test('Back from the detail page returns to the tab of the address', async ({ pag
   await expect(page.getByRole('region', { name: 'Dateien' })).toBeVisible();
 });
 
-test('the detail page links here with "Verwalten"', async ({ page }) => {
+test("the detail page links here through the pen's editor (concept 15 7.4)", async ({ page }) => {
   await page.goto(detail);
-  const manage = page.getByRole('link', { name: 'Verwalten' });
-  await tabTo(page, manage, 60);
+  await tabTo(page, page.getByRole('button', { name: 'Metadaten bearbeiten', exact: true }), 60);
+  await page.keyboard.press('Enter');
+  const link = page.getByRole('dialog').getByRole('link', { name: 'In der Verwaltung öffnen' });
+  await tabTo(page, link, 10);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`${admin}$`));
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('match dialog: the search without a key shows the provider error; Escape closes', async ({

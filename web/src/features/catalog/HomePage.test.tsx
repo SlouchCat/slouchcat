@@ -12,7 +12,7 @@ import {
   seriesIds,
   showSeriesRef,
 } from '@/test/fixtures';
-import { json, mockApi, renderApp, signedIn } from '@/test/api';
+import { json, mockApi, renderApp, session, signedIn } from '@/test/api';
 import { spatialFocusKey } from '@/ui';
 
 describe('start page', () => {
@@ -122,7 +122,8 @@ describe('start page', () => {
     };
     mockApi({
       ...signedIn,
-      'GET /home': () => json({ rows: [{ key: 'recent', items: [tinted, arrival] }] }),
+      'GET /home': () =>
+        json({ rows: [{ id: 'recent', key: 'recent', items: [tinted, arrival] }] }),
     });
     renderApp('/');
     const row = await screen.findByRole('region', { name: 'Neu hinzugefügt' });
@@ -165,7 +166,10 @@ describe('start page', () => {
     mockApi({
       ...signedIn,
       'GET /home': () =>
-        json({ heroRow: 'spotlight', rows: [{ key: 'spotlight', items: [sharp, alien] }] }),
+        json({
+          heroRow: 'spotlight',
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [sharp, alien] }],
+        }),
     });
     const { container } = renderApp('/');
     await screen.findByRole('region', { name: 'Spotlight' });
@@ -191,7 +195,7 @@ describe('start page', () => {
       'GET /home': () =>
         json({
           heroRow: 'spotlight',
-          rows: [{ key: 'spotlight', items: [heat, alien, wideOnly] }],
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [heat, alien, wideOnly] }],
         }),
     });
     const { container } = renderApp('/');
@@ -237,7 +241,7 @@ describe('start page', () => {
     }
 
     // A slide without the small size falls back to w1280 without srcset.
-    fireEvent.click(within(hero).getByRole('button', { name: /^Arrival/ }));
+    fireEvent.click(within(hero).getByRole('button', { name: /^Arrival(?!:)/ }));
     const third = images().find((image) => image.getAttribute('src')?.includes(ids.arrival));
     expect(third).toHaveAttribute(
       'src',
@@ -252,7 +256,10 @@ describe('start page', () => {
       ...alien,
       id: `${ids.alien}${index}`,
     }));
-    mockApi({ ...signedIn, 'GET /home': () => json({ rows: [{ key: 'recent', items }] }) });
+    mockApi({
+      ...signedIn,
+      'GET /home': () => json({ rows: [{ id: 'recent', key: 'recent', items }] }),
+    });
     const { container } = renderApp('/');
     await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
     const loading = [...container.querySelectorAll('img')].map((image) =>
@@ -270,8 +277,8 @@ describe('start page', () => {
       'GET /home': () =>
         json({
           rows: [
-            { key: 'recent', items: [alien, heat] },
-            { key: 'watchlist', items: [heat] },
+            { id: 'recent', key: 'recent', items: [alien, heat] },
+            { id: 'watchlist', key: 'watchlist', items: [heat] },
           ],
         }),
     });
@@ -299,7 +306,7 @@ describe('start page', () => {
       const painted = prepaint();
       mockApi({
         ...signedIn,
-        'GET /home': () => json({ rows: [{ key: 'recent', items: [alien, heat] }] }),
+        'GET /home': () => json({ rows: [{ id: 'recent', key: 'recent', items: [alien, heat] }] }),
       });
       const { container } = renderApp('/');
       await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
@@ -318,7 +325,7 @@ describe('start page', () => {
       const painted = prepaint();
       mockApi({
         ...signedIn,
-        'GET /home': () => json({ rows: [{ key: 'recent', items: [alien] }] }),
+        'GET /home': () => json({ rows: [{ id: 'recent', key: 'recent', items: [alien] }] }),
       });
       const { container } = renderApp('/');
       await screen.findByRole('heading', { name: 'Neu hinzugefügt' });
@@ -333,7 +340,13 @@ describe('start page', () => {
         ...signedIn,
         'GET /home': () =>
           json({
-            rows: [{ key: 'continue', items: [{ ...episodes.e1, seriesRef: showSeriesRef }] }],
+            rows: [
+              {
+                id: 'continue',
+                key: 'continue',
+                items: [{ ...episodes.e1, seriesRef: showSeriesRef }],
+              },
+            ],
           }),
       });
       const { container } = renderApp('/');
@@ -352,21 +365,21 @@ describe('start page', () => {
         home: {
           heroRow: 'spotlight',
           rows: [
-            { key: 'recent', items: [alien] },
-            { key: 'spotlight', items: [heat] },
+            { id: 'recent', key: 'recent', items: [alien] },
+            { id: 'spotlight', key: 'spotlight', items: [heat] },
           ],
         },
       },
       {
         first: 'a title without poster',
-        home: { rows: [{ key: 'recent', items: [{ ...alien, images: {} }] }] },
+        home: { rows: [{ id: 'recent', key: 'recent', items: [{ ...alien, images: {} }] }] },
       },
       {
         first: 'genres',
         home: {
           rows: [
-            { key: 'genres', items: [], genres: [{ name: 'Drama', count: 2 }] },
-            { key: 'recent', items: [alien] },
+            { id: 'genres', key: 'genres', items: [], genres: [{ name: 'Drama', count: 2 }] },
+            { id: 'recent', key: 'recent', items: [alien] },
           ],
         },
       },
@@ -421,7 +434,8 @@ describe('start page', () => {
     it('shows the series poster and title with "S4 · F7 · Noch 20 min" and leads to the episode', async () => {
       mockApi({
         ...signedIn,
-        'GET /home': () => json({ rows: [{ key: 'continue', items: [started, alien] }] }),
+        'GET /home': () =>
+          json({ rows: [{ id: 'continue', key: 'continue', items: [started, alien] }] }),
       });
       const { router } = renderApp('/');
       const row = await screen.findByRole('region', { name: 'Weiterschauen' });
@@ -458,7 +472,7 @@ describe('start page', () => {
     it('shows "Neu" for the next episode, a double episode as "F3–F4", without a progress bar', async () => {
       mockApi({
         ...signedIn,
-        'GET /home': () => json({ rows: [{ key: 'continue', items: [next] }] }),
+        'GET /home': () => json({ rows: [{ id: 'continue', key: 'continue', items: [next] }] }),
       });
       renderApp('/');
       const row = await screen.findByRole('region', { name: 'Weiterschauen' });
@@ -483,7 +497,7 @@ describe('start page', () => {
       };
       mockApi({
         ...signedIn,
-        'GET /home': () => json({ rows: [{ key: 'continue', items: [opened] }] }),
+        'GET /home': () => json({ rows: [{ id: 'continue', key: 'continue', items: [opened] }] }),
       });
       renderApp('/');
       const row = await screen.findByRole('region', { name: 'Weiterschauen' });
@@ -500,7 +514,7 @@ describe('start page', () => {
       let items: ItemRef[] = [alien, started];
       mockApi({
         ...signedIn,
-        'GET /home': () => json({ rows: [{ key: 'continue', items }] }),
+        'GET /home': () => json({ rows: [{ id: 'continue', key: 'continue', items }] }),
       });
       const { queryClient } = renderApp('/');
       const row = await screen.findByRole('region', { name: 'Weiterschauen' });
@@ -530,8 +544,8 @@ describe('start page', () => {
         'GET /home': () =>
           json({
             rows: [
-              { key: 'continue', items: [episodes.e1] },
-              { key: 'recent', items: [started] },
+              { id: 'continue', key: 'continue', items: [episodes.e1] },
+              { id: 'recent', key: 'recent', items: [started] },
             ],
           }),
       });
@@ -558,8 +572,8 @@ describe('start page', () => {
       'GET /home': () =>
         json({
           rows: [
-            { key: 'continue', items: [] },
-            { key: 'recent', items: [heat, alien] },
+            { id: 'continue', key: 'continue', items: [] },
+            { id: 'recent', key: 'recent', items: [heat, alien] },
           ],
         }),
     });
@@ -588,7 +602,7 @@ describe('start page', () => {
           heroRow: 'spotlight',
           heroStart: 0,
           heroIntervalSeconds: 7,
-          rows: [{ key: 'spotlight', items: [heat, arrival] }],
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [heat, arrival] }],
         }),
     });
     renderApp('/');
@@ -601,10 +615,12 @@ describe('start page', () => {
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
     // The poster row marks the active slide's poster, named after its title, with the time bar.
     const row = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
-    const arrivalPoster = within(row).getByRole('button', { name: /^Arrival/ });
+    const arrivalPoster = within(row).getByRole('button', { name: /^Arrival(?!:)/ });
     expect(arrivalPoster).toHaveAttribute('aria-current', 'true');
     expect(arrivalPoster.querySelector('[class*="timer"]')).not.toBeNull();
-    expect(within(row).getByRole('button', { name: /^Heat/ })).not.toHaveAttribute('aria-current');
+    expect(within(row).getByRole('button', { name: /^Heat(?!:)/ })).not.toHaveAttribute(
+      'aria-current',
+    );
   });
 
   it('begins with heroStart and keeps the slide when a refetch draws another (F-2)', async () => {
@@ -615,7 +631,7 @@ describe('start page', () => {
         json({
           heroRow: 'spotlight',
           heroStart: start,
-          rows: [{ key: 'spotlight', items: [heat, alien, arrival] }],
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [heat, alien, arrival] }],
         }),
     });
     const { queryClient } = renderApp('/');
@@ -637,7 +653,7 @@ describe('start page', () => {
         json({
           heroRow: 'spotlight',
           heroStart: 1,
-          rows: [{ key: 'spotlight', items: [heat, alien, arrival] }],
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [heat, alien, arrival] }],
         }),
     });
     renderApp('/');
@@ -654,9 +670,9 @@ describe('start page', () => {
       ['1', expect.stringMatching(/^Arrival/)],
     ]);
     // No room after the last poster any more (N-4 is gone for this row).
-    expect(row.querySelector('[aria-hidden="true"]')).toBeNull();
+    expect(row.querySelector(':scope > [aria-hidden="true"]')).toBeNull();
     // A click on the last poster as seen turns the row by two: Heat leads, the focus stays on it.
-    const heatPoster = within(row).getByRole('button', { name: /^Heat/ });
+    const heatPoster = within(row).getByRole('button', { name: /^Heat(?!:)/ });
     act(() => heatPoster.focus());
     fireEvent.click(heatPoster);
     expect(within(hero).getByRole('heading', { name: 'Heat' })).toBeVisible();
@@ -686,7 +702,7 @@ describe('start page', () => {
           json({
             heroRow: 'spotlight',
             heroStart: 2,
-            rows: [{ key: 'spotlight', items: [heat, alien, arrival] }],
+            rows: [{ id: 'spotlight', key: 'spotlight', items: [heat, alien, arrival] }],
           }),
       });
       const { queryClient } = renderApp('/');
@@ -709,14 +725,17 @@ describe('start page', () => {
     mockApi({
       ...signedIn,
       'GET /home': () =>
-        json({ heroRow: 'spotlight', rows: [{ key: 'spotlight', items: [heat, arrival] }] }),
+        json({
+          heroRow: 'spotlight',
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [heat, arrival] }],
+        }),
     });
     renderApp('/');
     const hero = await screen.findByRole('region', { name: 'Spotlight' });
     expect(hero).not.toHaveAttribute('data-paused');
     // Any focus in the poster row holds the band, visible or not, so a screen reader reads the row
     // in peace (concept 15, 6.3); choosing the focused poster shows its slide without navigating.
-    const poster = within(hero).getByRole('button', { name: /^Arrival/ });
+    const poster = within(hero).getByRole('button', { name: /^Arrival(?!:)/ });
     act(() => poster.focus());
     fireEvent.click(poster);
     expect(within(hero).getByRole('heading', { name: 'Arrival' })).toBeVisible();
@@ -751,7 +770,10 @@ describe('start page', () => {
     mockApi({
       ...signedIn,
       'GET /home': () =>
-        json({ heroRow: 'spotlight', rows: [{ key: 'spotlight', items: [heat, arrival] }] }),
+        json({
+          heroRow: 'spotlight',
+          rows: [{ id: 'spotlight', key: 'spotlight', items: [heat, arrival] }],
+        }),
     });
     const { router } = renderApp('/');
     const hero = await screen.findByRole('region', { name: 'Spotlight' });
@@ -791,18 +813,28 @@ describe('start page', () => {
       'GET /home': () =>
         json({
           rows: [
-            { key: 'picks', items: [{ ...heat, note: 'Unbedingt im Kino-Modus schauen.' }] },
-            { key: 'continue', items: [alien] },
-            { key: 'recent', items: [arrival] },
-            { key: 'watchlist', items: [heat] },
             {
+              id: 'picks',
+              key: 'picks',
+              items: [{ ...heat, note: 'Unbedingt im Kino-Modus schauen.' }],
+            },
+            { id: 'continue', key: 'continue', items: [alien] },
+            { id: 'recent', key: 'recent', items: [arrival] },
+            { id: 'watchlist', key: 'watchlist', items: [heat] },
+            {
+              id: 'collections',
               key: 'collections',
               items: [],
               collections: [{ id: collectionId, name: 'Alien-Reihe', count: 3, cover: alien }],
             },
-            { key: 'genres', items: [], genres: [{ name: 'Science-Fiction', count: 12 }] },
-            { key: 'spotlight', items: [arrival] },
-            { key: 'released', items: [alien] },
+            {
+              id: 'genres',
+              key: 'genres',
+              items: [],
+              genres: [{ name: 'Science-Fiction', count: 12 }],
+            },
+            { id: 'spotlight', key: 'spotlight', items: [arrival] },
+            { id: 'released', key: 'released', items: [alien] },
           ],
         }),
     });
@@ -864,9 +896,9 @@ describe('start page', () => {
       'GET /home': () =>
         json({
           rows: [
-            { key: 'collections', items: [], collections: [] },
-            { key: 'genres', items: [] },
-            { key: 'recent', items: [heat] },
+            { id: 'collections', key: 'collections', items: [], collections: [] },
+            { id: 'genres', key: 'genres', items: [] },
+            { id: 'recent', key: 'recent', items: [heat] },
           ],
         }),
     });
@@ -917,9 +949,9 @@ describe('start page', () => {
           json({
             heroRow: 'spotlight',
             rows: [
-              { key: 'spotlight', items: [arrival] },
-              { key: 'picks', items: [{ ...heat, note }] },
-              { key: 'recent', items: [alien] },
+              { id: 'spotlight', key: 'spotlight', items: [arrival] },
+              { id: 'picks', key: 'picks', items: [{ ...heat, note }] },
+              { id: 'recent', key: 'recent', items: [alien] },
             ],
           }),
       });
@@ -940,8 +972,8 @@ describe('start page', () => {
         'GET /home': () =>
           json({
             rows: [
-              { key: 'picks', items: [{ ...heat, note }] },
-              { key: 'recent', items: [alien, arrival] },
+              { id: 'picks', key: 'picks', items: [{ ...heat, note }] },
+              { id: 'recent', key: 'recent', items: [alien, arrival] },
             ],
           }),
       });
@@ -965,10 +997,10 @@ describe('start page', () => {
           json({
             heroRow: 'spotlight',
             rows: [
-              { key: 'picks', items: [heat] },
-              { key: 'recent', items: [alien] },
-              { key: 'spotlight', items: [arrival] },
-              { key: 'watchlist', items: [heat] },
+              { id: 'picks', key: 'picks', items: [heat] },
+              { id: 'recent', key: 'recent', items: [alien] },
+              { id: 'spotlight', key: 'spotlight', items: [arrival] },
+              { id: 'watchlist', key: 'watchlist', items: [heat] },
             ],
           }),
       });
@@ -1025,7 +1057,7 @@ describe('start page', () => {
       ];
       const stagePage = (first: ItemRef) => ({
         heroRow: 'spotlight',
-        rows: [{ key: 'spotlight', items: [first, arrival] }],
+        rows: [{ id: 'spotlight', key: 'spotlight', items: [first, arrival] }],
       });
 
       it.each([
@@ -1108,18 +1140,190 @@ describe('start page', () => {
         home: {
           heroRow: 'spotlight',
           rows: [
-            { key: 'recent', items: [alien] },
-            { key: 'spotlight', items: [heat] },
+            { id: 'recent', key: 'recent', items: [alien] },
+            { id: 'spotlight', key: 'spotlight', items: [heat] },
           ],
         },
       },
-      { stage: 'missing', home: { rows: [{ key: 'recent', items: [alien] }] } },
+      { stage: 'missing', home: { rows: [{ id: 'recent', key: 'recent', items: [alien] }] } },
     ])('$stage leaves no prepaint standing', async ({ home }) => {
       const painted = prepaint();
       mockApi({ ...signedIn, 'GET /home': () => json(home) });
       renderApp('/');
       await screen.findByRole('region', { name: 'Neu hinzugefügt' });
       await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+  });
+
+  describe('the library rows (concept 15 P-7)', () => {
+    afterEach(() => document.getElementById('poster-prepaint')?.remove());
+
+    const libraryHome = {
+      rows: [
+        {
+          id: 'libraries',
+          key: 'libraries',
+          items: [],
+          libraries: [
+            { id: 1, name: 'Filme', kind: 'video', itemCount: 1234, items: [alien, heat] },
+            { id: 3, name: 'Hörbücher', kind: 'audiobooks', itemCount: 1, items: [arrival] },
+          ],
+        },
+        {
+          id: 'library:1',
+          key: 'library',
+          libraryId: 1,
+          libraryName: 'Filme',
+          items: [alien, heat],
+        },
+        {
+          id: 'library:3',
+          key: 'library',
+          libraryId: 3,
+          libraryName: 'Hörbücher',
+          items: [arrival],
+        },
+      ],
+    };
+
+    it('shows «Meine Medien» with a tile per library and a row «Neu in …» per library', async () => {
+      mockApi({ ...signedIn, 'GET /home': () => json(libraryHome) });
+      renderApp('/');
+      const mine = await screen.findByRole('region', { name: 'Meine Medien' });
+      const tiles = within(mine).getAllByRole('link');
+      expect(tiles.map((tile) => tile.getAttribute('href'))).toEqual([
+        '/libraries/1',
+        '/libraries/3',
+      ]);
+      expect(tiles[0]).toHaveAccessibleName(/Filme.*1.?234 Titel/);
+      expect(tiles[1]).toHaveAccessibleName(/Hörbücher.*1 Hörbuch/);
+      expect(tiles[0]!.querySelectorAll('img')).toHaveLength(2);
+
+      const films = screen.getByRole('region', { name: 'Neu in Filme' });
+      expect(within(films).getByRole('link', { name: 'Alle anzeigen ›' })).toHaveAttribute(
+        'href',
+        '/libraries/1?sort=added',
+      );
+      expect(within(films).getByRole('link', { name: /Alien/ })).toHaveAttribute(
+        'href',
+        `/items/${ids.alien}`,
+      );
+      expect(screen.getByRole('region', { name: 'Neu in Hörbücher' })).toBeVisible();
+      // The tiles and cards are named by the row's id, so two library rows never share a key.
+      act(() => tiles[1]!.focus());
+      await waitFor(() => expect(spatialFocusKey()).toBe('libraries-3'));
+      const audio = screen.getByRole('region', { name: 'Neu in Hörbücher' });
+      act(() =>
+        within(audio)
+          .getByRole('link', { name: /Arrival/ })
+          .focus(),
+      );
+      await waitFor(() => expect(spatialFocusKey()).toBe(`library:3-${ids.arrival}`));
+    });
+
+    it("fetches the first tile's first poster with high priority and lets the prepaint go after it", async () => {
+      const painted = document.createElement('div');
+      painted.id = 'poster-prepaint';
+      document.body.append(painted);
+      mockApi({ ...signedIn, 'GET /home': () => json(libraryHome) });
+      const { container } = renderApp('/');
+      await screen.findByRole('region', { name: 'Meine Medien' });
+      const first = container.querySelector('img');
+      expect(first).toHaveAttribute('fetchpriority', 'high');
+      expect(container.querySelectorAll('img[fetchpriority="high"]')).toHaveLength(1);
+      expect(painted.dataset.done).toBeUndefined();
+      fireEvent.load(first!);
+      await waitFor(() => expect(painted.dataset.done).toBe(''));
+    });
+  });
+
+  describe('the pen on the covers (concept 15 P-6)', () => {
+    const collectionId = '01JB8Z6Q4M7N9P2R3S5T7V9C01';
+    const started: ItemRef = { ...episodes.e1, seriesRef: showSeriesRef };
+    const rows = {
+      heroRow: 'spotlight',
+      rows: [
+        { id: 'spotlight', key: 'spotlight', items: [heat, arrival] },
+        { id: 'continue', key: 'continue', items: [started, alien] },
+        { id: 'recent', key: 'recent', items: [arrival] },
+        {
+          id: 'collections',
+          key: 'collections',
+          items: [],
+          collections: [{ id: collectionId, name: 'Alien-Reihe', count: 3, cover: alien }],
+        },
+        { id: 'genres', key: 'genres', items: [], genres: [{ name: 'Horror', count: 4 }] },
+      ],
+    };
+
+    it("puts a pen beside every title's cover, the series on a series card, none elsewhere", async () => {
+      const { calls } = mockApi({ ...signedIn, 'GET /home': () => json(rows) });
+      renderApp('/');
+      const continueRow = await screen.findByRole('region', { name: 'Weiterschauen' });
+      // The series card's pen edits the series it shows, not the episode its link opens.
+      const seriesPen = within(continueRow).getByRole('button', {
+        name: 'Slouchcat Test Show: Metadaten bearbeiten',
+      });
+      const filmPen = within(continueRow).getByRole('button', {
+        name: 'Alien: Metadaten bearbeiten',
+      });
+      // Beside the card's link, not inside it; after it in the Tab order.
+      for (const pen of [seriesPen, filmPen]) {
+        expect(pen.closest('a')).toBeNull();
+        expect(pen).not.toHaveAttribute('tabindex');
+        const link = pen.closest('li')!.querySelector('a')!;
+        expect(link.compareDocumentPosition(pen) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      }
+      expect(
+        within(screen.getByRole('region', { name: 'Neu hinzugefügt' })).getByRole('button', {
+          name: 'Arrival: Metadaten bearbeiten',
+        }),
+      ).toBeVisible();
+      // No pen on a collection or a genre: they are not titles.
+      for (const name of ['Sammlungen', 'Genres']) {
+        expect(
+          within(screen.getByRole('region', { name })).queryByRole('button', {
+            name: /Metadaten bearbeiten$/,
+          }),
+        ).not.toBeInTheDocument();
+      }
+      // The spotlight row: a pen on each poster, only the active poster's pen is a Tab stop (the
+      // row's roving tabindex); none on the stage above.
+      const hero = screen.getByRole('region', { name: 'Spotlight' });
+      const strip = within(hero).getByRole('list', { name: 'Spotlight-Titel' });
+      const heatPen = within(strip).getByRole('button', { name: 'Heat: Metadaten bearbeiten' });
+      const arrivalPen = within(strip).getByRole('button', {
+        name: 'Arrival: Metadaten bearbeiten',
+      });
+      expect(heatPen).not.toHaveAttribute('tabindex');
+      expect(arrivalPen).toHaveAttribute('tabindex', '-1');
+      expect(heatPen.closest('button[aria-current]')).toBeNull();
+      expect(
+        within(hero)
+          .getAllByRole('button', { name: /Metadaten bearbeiten$/ })
+          .every((pen) => strip.contains(pen)),
+      ).toBe(true);
+
+      // A press opens the editor of the series.
+      fireEvent.click(seriesPen);
+      await waitFor(() =>
+        expect(calls.map((call) => `${call.method} ${call.path}`)).toContain(
+          `GET /admin/items/${seriesIds.show}`,
+        ),
+      );
+    });
+
+    it('shows no pen to a profile other than the primary one', async () => {
+      mockApi({
+        'GET /auth/session': () =>
+          json({ ...session, profile: { ...session.profile, isPrimary: false } }),
+        'GET /home': () => json(rows),
+      });
+      renderApp('/');
+      await screen.findByRole('region', { name: 'Weiterschauen' });
+      expect(
+        screen.queryByRole('button', { name: /Metadaten bearbeiten$/ }),
+      ).not.toBeInTheDocument();
     });
   });
 });

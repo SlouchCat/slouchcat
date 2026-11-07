@@ -199,6 +199,17 @@
   animation: timer var(--hero-interval) linear forwards;
 }
 
+/* A poster with a tool beside it (the start page's pen, concept 15 P-6): over its cover's top right. */
+.cell {
+  position: relative;
+}
+
+.tool {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+}
+
 @media (width < 768px) {
   .arrow {
     display: none;

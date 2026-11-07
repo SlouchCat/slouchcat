@@ -25,7 +25,11 @@ export interface CollectionData {
 }
 
 export interface HomeRowData {
+  /** The key, or `library:<id>` for a library row (concept 15 P-7). */
+  id: string;
   key: string;
+  libraryId?: number;
+  libraryName?: string;
   position: number;
   hidden: boolean;
 }
@@ -137,13 +141,22 @@ export async function listHomeRows(api: APIRequestContext): Promise<HomeRowData[
   return ok<HomeRowData[]>(await api.get('/api/v1/admin/home-rows'), [200]);
 }
 
-/** Stores the rows in this order; keys in `hidden` are hidden. */
+/**
+ * Stores the rows with these ids in this order; ids in `hidden` are hidden. Every other stored row
+ * («Meine Medien» and the library rows, concept 15 P-7, unless named) follows hidden.
+ */
 export async function setHomeRows(
   api: APIRequestContext,
-  keys: readonly string[],
+  ids: readonly string[],
   hidden: readonly string[] = [],
 ): Promise<void> {
-  const data = keys.map((key, position) => ({ key, position, hidden: hidden.includes(key) }));
+  const stored = await listHomeRows(api);
+  const keyOf = (id: string) => stored.find((row) => row.id === id)?.key ?? id;
+  const named = ids.map((id) => ({ id, key: keyOf(id), hidden: hidden.includes(id) }));
+  const rest = stored
+    .filter((row) => !ids.includes(row.id))
+    .map((row) => ({ id: row.id, key: row.key, hidden: true }));
+  const data = [...named, ...rest].map((row, position) => ({ ...row, position }));
   await ok(await api.put('/api/v1/admin/home-rows', { headers: CSRF, data }), [200]);
 }
 
@@ -166,8 +179,10 @@ export async function resetCuration(api: APIRequestContext): Promise<void> {
     if (collection.source === 'manual') await deleteCollection(api, collection.id);
   }
   const rows = await listHomeRows(api);
+  const fixed = rows.slice(0, DEFAULT_HOME_ROWS.length);
   const isDefault =
-    rows.every((row) => !row.hidden) &&
-    rows.map((row) => row.key).join() === DEFAULT_HOME_ROWS.join();
+    fixed.every((row) => !row.hidden) &&
+    fixed.map((row) => row.id).join() === DEFAULT_HOME_ROWS.join() &&
+    rows.slice(DEFAULT_HOME_ROWS.length).every((row) => row.hidden);
   if (!isDefault) await setHomeRows(api, DEFAULT_HOME_ROWS);
 }

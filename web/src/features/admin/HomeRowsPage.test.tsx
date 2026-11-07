@@ -21,10 +21,23 @@ const keys = [
   'genres',
 ] as const;
 const defaultRows: HomeRowSetting[] = keys.map((key, position) => ({
+  id: key,
   key,
   position,
   hidden: false,
 }));
+/** The rows of concept 15 P-7 behind the eight: «Meine Medien» and one row per library, hidden. */
+const libraryRows = (libraries: readonly string[]): HomeRowSetting[] => [
+  { id: 'libraries', key: 'libraries', position: 8, hidden: true },
+  ...libraries.map((name, index) => ({
+    id: `library:${index + 1}`,
+    key: 'library' as const,
+    libraryId: index + 1,
+    libraryName: name,
+    position: 9 + index,
+    hidden: true,
+  })),
+];
 const configured: TraktStatus = {
   configured: true,
   lastSuccess: '2026-10-20T06:00:00Z',
@@ -56,14 +69,19 @@ const previewNames = () =>
     .map((item) => item.textContent);
 
 /** A server that keeps what it is sent. */
-function storingRoutes() {
-  let stored = defaultRows;
+function storingRoutes(initial: HomeRowSetting[] = defaultRows) {
+  let stored = initial;
   return {
     ...signedIn,
     ...adminShell,
     'GET /admin/home-rows': () => json(stored),
+    // Like the server, the answer carries each library row's library and name again.
     'PUT /admin/home-rows': (call: { body: unknown }) => {
-      stored = call.body as HomeRowSetting[];
+      const before = stored;
+      stored = (call.body as HomeRowSetting[]).map((row) => ({
+        ...before.find((entry) => entry.id === row.id),
+        ...row,
+      }));
       return json(stored);
     },
   };
@@ -494,5 +512,72 @@ describe('admin start page rows (M7, E-9; concept 12)', () => {
     expect(intro).not.toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' }));
     expect(intro).toBeVisible();
+  });
+
+  it('lists «Meine Medien» and a row per library, tagged «Bibliothek», and sends them by id', async () => {
+    const { calls } = mockApi(storingRoutes([...defaultRows, ...libraryRows(['Filme', 'Serien'])]));
+    renderApp('/admin/home-rows');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    expect(rowNames()).toEqual([
+      ...names,
+      'Meine Medien',
+      'Neu in Filme Bibliothek',
+      'Neu in Serien Bibliothek',
+    ]);
+    expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName(
+      'Reihenfolge 11 Reihen',
+    );
+    // Showing one library row leaves the other one hidden: the rows differ by id, not by key.
+    await user.click(within(table()).getByRole('checkbox', { name: 'Neu in Filme ausblenden' }));
+    expect(
+      within(table()).getByRole('checkbox', { name: 'Neu in Filme ausblenden' }),
+    ).not.toBeChecked();
+    expect(
+      within(table()).getByRole('checkbox', { name: 'Neu in Serien ausblenden' }),
+    ).toBeChecked();
+    await user.selectOptions(rank('Neu in Filme'), 'Platz 1');
+
+    const filme = within(table()).getByRole('button', { name: /^Neu in Filme/ });
+    await user.click(filme);
+    const detail = document.getElementById(filme.getAttribute('aria-controls') ?? '')!;
+    expect(detail).toHaveTextContent('Die zuletzt in diese Bibliothek gekommenen Titel');
+
+    await user.click(within(saveBar()).getByRole('button', { name: 'Speichern' }));
+    expect(await screen.findByText('Die Startseite ist gespeichert.')).toBeVisible();
+    const body = calls.find((call) => call.method === 'PUT')?.body as HomeRowSetting[];
+    expect(body.map((row) => row.id)).toEqual(['library:1', ...keys, 'libraries', 'library:2']);
+    expect(body.map((row) => row.key)).toEqual(['library', ...keys, 'libraries', 'library']);
+    expect(body.filter((row) => !row.hidden).map((row) => row.id)).toEqual(['library:1', ...keys]);
+
+    await user.click(screen.getByRole('tab', { name: /^Vorschau/ }));
+    expect(previewNames()[0]).toBe('1. Neu in Filme');
+    expect(previewNames()[9]).toBe('10. Meine Medien ausgeblendet');
+  });
+
+  it('refuses a sixteenth visible row with a message (F-12)', async () => {
+    const libraries = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const rows = [...defaultRows, ...libraryRows(libraries)].map((row) =>
+      row.id === 'libraries' || ['library:8'].includes(row.id) ? row : { ...row, hidden: false },
+    );
+    mockApi(storingRoutes(rows));
+    renderApp('/admin/home-rows');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Reihen der Startseite' });
+    expect(screen.getByRole('tab', { name: 'Vorschau 15 sichtbar' })).toBeVisible();
+
+    const mine = within(table()).getByRole('checkbox', { name: 'Meine Medien ausblenden' });
+    await user.click(mine);
+    expect(mine).toBeChecked();
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Schon 15 Reihen sichtbar. Blende zuerst eine andere aus.',
+    );
+    expect(within(saveBar()).getByText('Gespeichert')).toBeVisible();
+
+    // Hiding one first makes room.
+    await user.click(within(table()).getByRole('checkbox', { name: 'Neu in A ausblenden' }));
+    await user.click(mine);
+    expect(mine).not.toBeChecked();
+    expect(screen.getByRole('tab', { name: 'Vorschau 15 sichtbar' })).toBeVisible();
   });
 });

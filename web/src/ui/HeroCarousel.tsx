@@ -76,6 +76,13 @@ interface HeroCarouselProps {
   intervalSeconds?: number;
   /** Called once the first image is on screen (loaded and painted) or has failed. */
   onArtShown?: () => void;
+  /**
+   * A control beside a poster of the row, over the top right of its cover (the start page's pen,
+   * concept 15 P-6), not inside the poster's button; `active` for the active poster, the row's one
+   * Tab stop, so the tools of the others leave the Tab order. It turns with its poster (CSS
+   * `order` of the list item); while it has the focus the band holds like on the poster.
+   */
+  tool?: (slide: HeroSlide, active: boolean) => ReactNode;
 }
 
 export const HERO_PLAY_KEY = 'hero-play';
@@ -200,6 +207,7 @@ export function HeroCarousel({
   start = 0,
   intervalSeconds = 5,
   onArtShown,
+  tool,
 }: HeroCarouselProps) {
   const { t } = useTranslation();
   const navigate = useAppNavigate();
@@ -590,7 +598,8 @@ export function HeroCarousel({
         >
           {slides.map((item, position) => {
             const active = position === current;
-            return (
+            const extra = tool?.(item, active);
+            const poster = (
               <PosterCard
                 key={item.id}
                 focusKey={stripKey(item)}
@@ -610,6 +619,14 @@ export function HeroCarousel({
                 {/* Time to the next slide; gone while the band holds, anew when it moves on. */}
                 {active && !paused && <span className={styles.timer} />}
               </PosterCard>
+            );
+            return extra ? (
+              <div key={item.id} className={styles.cell}>
+                {poster}
+                <div className={styles.tool}>{extra}</div>
+              </div>
+            ) : (
+              poster
             );
           })}
         </RowList>

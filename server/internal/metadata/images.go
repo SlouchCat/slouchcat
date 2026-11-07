@@ -161,11 +161,18 @@ var audioKinds = map[string]bool{"audiobook": true, "podcast": true, "podcast_ep
 // stems from the current original and its file exists (so a run after a deleted file or a new
 // size only fills the gap). The original is downloaded only when its row is missing, stale or its
 // file is gone. A kind without a path keeps its rows. A kind locked by the admin is never
-// fetched, but its missing sizes are scaled from the stored image (scaleLocked).
+// fetched, but its missing sizes are scaled from the stored image (scaleLocked); an upload waits
+// for the fetch of its title and the other way round.
 func (s *Service) fetchImages(ctx context.Context, itemID string) error {
 	if s.cacheE != nil {
 		return s.cacheE
 	}
+	// One image writer per title: the locks read below hold until the end (lockItemImages).
+	unlock, err := s.lockItemImages(ctx, itemID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	item, err := s.read.GetItemSystem(ctx, itemID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
@@ -360,10 +367,21 @@ func (s *Service) processKind(ctx context.Context, root *os.Root, itemID, kind s
 // (and files) of sizes the pipeline no longer produces (M1a's w500 poster). A palette failure
 // keeps the accent the poster rows had.
 func (s *Service) deriveAndPrune(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, src imageRequest, prev []systemq.Image) error {
-	produced, err := s.deriveImages(ctx, root, dir, itemID, kind, origRel, src, storedAccent(prev))
+	sc, err := s.scaleDerived(ctx, root, dir, itemID, kind, origRel, storedAccent(prev))
 	if err != nil {
 		return err
 	}
+	defer s.dropScaled(root, itemID, kind, sc)
+	produced, err := s.storeDerived(ctx, root, dir, itemID, kind, src, sc)
+	if err != nil {
+		return err
+	}
+	return s.pruneSizes(ctx, root, itemID, kind, prev, produced)
+}
+
+// pruneSizes removes the rows (and files) of kind in prev whose size and format are not among
+// produced, apart from the original.
+func (s *Service) pruneSizes(ctx context.Context, root *os.Root, itemID, kind string, prev []systemq.Image, produced map[string]bool) error {
 	for _, r := range prev {
 		if r.Size == originalSize || produced[r.Size+"/"+r.Format] {
 			continue
@@ -557,7 +575,7 @@ func (s *Service) storeOriginal(ctx context.Context, root *os.Root, dir, itemID,
 	return rel, nil
 }
 
-// derived is one scaled output of deriveImages before it is renamed into place.
+// derived is one scaled output of scaleDerived before storeDerived renames it into place.
 type derived struct {
 	size      string // w780 … w3840
 	width     int
@@ -567,24 +585,30 @@ type derived struct {
 	tmp       string // rel_path of the temporary file
 }
 
-// deriveImages scales the original at origRel into every width and format of kind in one ffmpeg
-// run, computes the accent colour for posters (prevAccent stays when the palette fails), renames
-// the files into place and upserts their rows. It returns the produced "<size>/<format>" keys.
-func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, src imageRequest, prevAccent sql.NullString) (map[string]bool, error) {
-	sourceURL := src.url
+// scaled holds the outputs of one ffmpeg run in their temporary files, until storeDerived renames
+// them into place; dropScaled removes what is left.
+type scaled struct {
+	outs   []derived
+	accent sql.NullString // the accent of a poster; invalid for the other kinds
+}
+
+// scaleDerived scales the original at origRel into every width and format of kind in one ffmpeg
+// run, to temporary files, and computes the accent colour for posters (prevAccent stays when the
+// palette fails). Nothing of the kind's rows or final files changes; on an error the temporary
+// files are gone already.
+func (s *Service) scaleDerived(ctx context.Context, root *os.Root, dir, itemID, kind, origRel string, prevAccent sql.NullString) (*scaled, error) {
 	in, err := paths.Resolve(s.cache, origRel)
 	if err != nil {
 		return nil, fmt.Errorf("resolve original: %w", err)
 	}
-	var outs []derived
-	var args []transcode.ImageOutput
+	sc := &scaled{}
+	ok := false
 	defer func() {
-		for _, o := range outs {
-			if err := root.Remove(o.tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
-				s.log.Warn("remove temporary image", "item_id", itemID, "kind", kind, "err", err)
-			}
+		if !ok {
+			s.dropScaled(root, itemID, kind, sc)
 		}
 	}()
+	var args []transcode.ImageOutput
 	for _, sz := range sizesFor(kind, s.originalWidth(root, origRel)) {
 		for _, f := range formatsOf(kind) {
 			tmp, err := tempName(dir)
@@ -595,30 +619,45 @@ func (s *Service) deriveImages(ctx context.Context, root *os.Root, dir, itemID, 
 			if err != nil {
 				return nil, fmt.Errorf("resolve temporary image: %w", err)
 			}
-			outs = append(outs, derived{size: sz.name, width: sz.width, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
+			sc.outs = append(sc.outs, derived{size: sz.name, width: sz.width, format: f.format, ext: f.ext, mediaType: f.mediaType, tmp: tmp})
 			args = append(args, transcode.ImageOutput{Path: abs, Width: sz.width, Format: f.format})
 		}
 	}
 	if err := s.runner.ScaleImage(ctx, in, args); err != nil {
 		return nil, fmt.Errorf("scale %s: %w", origRel, err)
 	}
-
-	var accent sql.NullString
 	if kind == "poster" {
-		for i, o := range outs {
+		for i, o := range sc.outs {
 			if o.width == accentSourceWidth && o.format == transcode.ImageJPEG {
-				accent = s.accent(ctx, itemID, args[i].Path)
+				sc.accent = s.accent(ctx, itemID, args[i].Path)
 			}
 		}
-		if !accent.Valid {
-			accent = prevAccent
+		if !sc.accent.Valid {
+			sc.accent = prevAccent
 		}
 	}
+	ok = true
+	return sc, nil
+}
 
+// dropScaled removes the temporary files of sc that were not renamed into place.
+func (s *Service) dropScaled(root *os.Root, itemID, kind string, sc *scaled) {
+	for _, o := range sc.outs {
+		if err := root.Remove(o.tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+			s.log.Warn("remove temporary image", "item_id", itemID, "kind", kind, "err", err)
+		}
+	}
+}
+
+// storeDerived renames the scaled files of sc into place and upserts their rows with the source
+// src. It returns the produced "<size>/<format>" keys.
+func (s *Service) storeDerived(ctx context.Context, root *os.Root, dir, itemID, kind string, src imageRequest, sc *scaled) (map[string]bool, error) {
+	sourceURL := src.url
+	accent := sc.accent
 	dims := map[int]image.Config{} // per width, from the first format of the kind (JPEG, or PNG for a logo)
 	produced := map[string]bool{}
 	first := formatsOf(kind)[0].format
-	for _, o := range outs {
+	for _, o := range sc.outs {
 		data, err := root.ReadFile(o.tmp)
 		if err != nil {
 			return nil, fmt.Errorf("read scaled image: %w", err)
@@ -1113,19 +1152,70 @@ func imageConfig(data []byte, mediaType string) (image.Config, error) {
 		cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
 		return cfg, err
 	}
+	cfg, _, err := webpConfig(data)
+	return cfg, err
+}
+
+// webpConfig reads the dimensions of a WebP and whether it is animated. A simple file (VP8 or
+// VP8L right after the header) gives the size of its bitstream. An extended file (VP8X) gives its
+// canvas, which must match the first VP8 or VP8L chunk, since that is what a decoder reads (a
+// canvas of 100×100 around an 800×600 frame is refused); an animated file (flag or ANIM/ANMF
+// chunk) has no such chunk at the top level and gives its canvas.
+func webpConfig(data []byte) (image.Config, bool, error) {
 	if len(data) < 30 || string(data[0:4]) != "RIFF" || string(data[8:12]) != "WEBP" {
-		return image.Config{}, errors.New("not a webp image")
+		return image.Config{}, false, errors.New("not a webp image")
 	}
-	le16 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 }
 	le24 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 | int(b[2])<<16 }
-	switch string(data[12:16]) {
+	if string(data[12:16]) != "VP8X" {
+		cfg, err := webpFrame(string(data[12:16]), data[20:])
+		return cfg, false, err
+	}
+	canvas := image.Config{Width: le24(data[24:]) + 1, Height: le24(data[27:]) + 1}
+	const animationFlag = 0x02
+	if data[20]&animationFlag != 0 {
+		return canvas, true, nil
+	}
+	for off := 30; off+8 <= len(data); {
+		fourCC := string(data[off : off+4])
+		size := int(uint32(data[off+4]) | uint32(data[off+5])<<8 | uint32(data[off+6])<<16 | uint32(data[off+7])<<24)
+		body := data[off+8:]
+		switch fourCC {
+		case "ANIM", "ANMF":
+			return canvas, true, nil
+		case "VP8 ", "VP8L":
+			frame, err := webpFrame(fourCC, body)
+			if err != nil {
+				return image.Config{}, false, err
+			}
+			if frame.Width != canvas.Width || frame.Height != canvas.Height {
+				return image.Config{}, false, fmt.Errorf("webp canvas %dx%d does not match its frame %dx%d",
+					canvas.Width, canvas.Height, frame.Width, frame.Height)
+			}
+			return canvas, false, nil
+		}
+		if size < 0 || size > len(body) {
+			break
+		}
+		off += 8 + size + size&1 // chunks are padded to an even size
+	}
+	return image.Config{}, false, errors.New("webp without an image chunk")
+}
+
+// webpFrame reads the dimensions from the start of a VP8 or VP8L chunk body.
+func webpFrame(fourCC string, b []byte) (image.Config, error) {
+	le16 := func(b []byte) int { return int(b[0]) | int(b[1])<<8 }
+	switch fourCC {
 	case "VP8 ":
-		return image.Config{Width: le16(data[26:]) & 0x3fff, Height: le16(data[28:]) & 0x3fff}, nil
+		if len(b) < 10 || b[3] != 0x9d || b[4] != 0x01 || b[5] != 0x2a {
+			return image.Config{}, errors.New("damaged webp vp8 header")
+		}
+		return image.Config{Width: le16(b[6:]) & 0x3fff, Height: le16(b[8:]) & 0x3fff}, nil
 	case "VP8L":
-		b := uint32(data[21]) | uint32(data[22])<<8 | uint32(data[23])<<16 | uint32(data[24])<<24
-		return image.Config{Width: int(b&0x3fff) + 1, Height: int((b>>14)&0x3fff) + 1}, nil
-	case "VP8X":
-		return image.Config{Width: le24(data[24:]) + 1, Height: le24(data[27:]) + 1}, nil
+		if len(b) < 5 || b[0] != 0x2f {
+			return image.Config{}, errors.New("damaged webp vp8l header")
+		}
+		v := uint32(b[1]) | uint32(b[2])<<8 | uint32(b[3])<<16 | uint32(b[4])<<24
+		return image.Config{Width: int(v&0x3fff) + 1, Height: int((v>>14)&0x3fff) + 1}, nil
 	}
 	return image.Config{}, errors.New("unknown webp chunk")
 }

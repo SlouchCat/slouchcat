@@ -52,6 +52,7 @@ func tmdbImageCandidates(imgs Images, defaults map[string]string) []ImageCandida
 	add("poster", imgs.Posters)
 	add("backdrop", imgs.Backdrops)
 	add("logo", imgs.Logos)
+	add("backdrop", imgs.Stills)
 	for kind, path := range defaults {
 		if path == "" {
 			continue

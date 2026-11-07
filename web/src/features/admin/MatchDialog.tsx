@@ -39,7 +39,36 @@ function parseYear(value: string): number | undefined | null {
  * Manual assignment of a title to a provider entry (B-6): search TMDB or TVDB, pick a candidate,
  * the server stores its id and refreshes the title. Shared by the maintenance and the item page.
  */
-export function MatchDialog({ itemId, title, year, kind, onClose, onMatched }: MatchDialogProps) {
+export function MatchDialog({ onClose, onMatched, ...search }: MatchDialogProps) {
+  const { t } = useTranslation();
+  return (
+    <FormDialog
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      title={t('admin.match.title')}
+      description={t('admin.match.description')}
+    >
+      <MatchSearch
+        {...search}
+        onCancel={onClose}
+        onMatched={(item) => {
+          onMatched(item);
+          onClose();
+        }}
+      />
+    </FormDialog>
+  );
+}
+
+interface MatchSearchProps extends Omit<MatchDialogProps, 'onClose'> {
+  /** «Abbrechen» next to «Suchen»; without it there is none (the tab of the metadata editor). */
+  onCancel?: () => void;
+}
+
+/** The search and the hits of the manual assignment, in MatchDialog or the metadata editor. */
+export function MatchSearch({ itemId, title, year, kind, onCancel, onMatched }: MatchSearchProps) {
   const { t } = useTranslation();
   const [provider, setProvider] = useState<MetadataProvider>('tmdb');
   const candidateTitle = (candidate: MetadataCandidate) =>
@@ -77,10 +106,7 @@ export function MatchDialog({ itemId, title, year, kind, onClose, onMatched }: M
           body: { provider: candidate.provider, providerId: candidate.providerId },
         }),
       ),
-    onSuccess: (item) => {
-      onMatched(item);
-      onClose();
-    },
+    onSuccess: (item) => onMatched(item),
   });
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -101,14 +127,7 @@ export function MatchDialog({ itemId, title, year, kind, onClose, onMatched }: M
   };
 
   return (
-    <FormDialog
-      isOpen
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
-      title={t('admin.match.title')}
-      description={t('admin.match.description')}
-    >
+    <>
       <Form className={styles.form} onSubmit={onSubmit}>
         <TextField
           name="query"
@@ -145,9 +164,11 @@ export function MatchDialog({ itemId, title, year, kind, onClose, onMatched }: M
           ]}
         />
         <div className={styles.dialogActions}>
-          <AriaButton variant="ghost" onPress={onClose}>
-            {t('common.cancel')}
-          </AriaButton>
+          {onCancel && (
+            <AriaButton variant="ghost" onPress={onCancel}>
+              {t('common.cancel')}
+            </AriaButton>
+          )}
           <AriaButton type="submit" variant="primary" isPending={results.isFetching}>
             {results.isFetching ? t('admin.match.searching') : t('admin.match.search')}
           </AriaButton>
@@ -183,6 +204,6 @@ export function MatchDialog({ itemId, title, year, kind, onClose, onMatched }: M
           </ul>
         </section>
       )}
-    </FormDialog>
+    </>
   );
 }

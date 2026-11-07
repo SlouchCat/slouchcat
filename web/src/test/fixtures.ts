@@ -65,9 +65,9 @@ export const arrival: ItemRef = {
 export const homePage: HomePage = {
   heroRow: 'spotlight',
   rows: [
-    { key: 'spotlight', items: [heat, arrival] },
-    { key: 'continue', items: [alien] },
-    { key: 'recent', items: [arrival, heat] },
+    { id: 'spotlight', key: 'spotlight', items: [heat, arrival] },
+    { id: 'continue', key: 'continue', items: [alien] },
+    { id: 'recent', key: 'recent', items: [arrival, heat] },
   ],
 };
 

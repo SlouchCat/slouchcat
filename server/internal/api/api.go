@@ -49,6 +49,9 @@ const (
 	candidatePreviewPath = "/admin/items/{id}/image-candidates/preview"
 	// chapterImagePath serves the image of a chapter of a film or an episode (concept 13 stage 3).
 	chapterImagePath = "/items/{id}/chapters/{idx}/image"
+	// itemImageUploadPath takes an image the administrator uploads for a kind of a title
+	// (concept 15 7.5); multipart, larger body limit (largeBodies).
+	itemImageUploadPath = "/admin/items/{id}/images/{kind}/upload"
 )
 
 var binaryRoutes = map[string]string{
@@ -67,6 +70,7 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + backupDownloadPath:   "admin",
 	"GET " + BasePath + adminImagePath:       "admin",
 	"GET " + BasePath + candidatePreviewPath: "admin",
+	"PUT " + BasePath + itemImageUploadPath:  "admin",
 }
 
 // Options configure NewHandler.
@@ -150,6 +154,7 @@ func NewHandler(o Options) http.Handler {
 		r.With(authorize).Get(backupDownloadPath, s.downloadBackup)
 		r.With(authorize).Get(adminImagePath, s.getAdminItemImage)
 		r.With(authorize).Get(candidatePreviewPath, s.getItemImageCandidatePreview)
+		r.With(authorize).Put(itemImageUploadPath, s.uploadItemImage)
 	})
 	// The catalog names the first stage title, or the first title without a stage, when it
 	// implements heroPicker (discover.Service does); the start page's app shell then carries a

@@ -479,6 +479,21 @@ Hinweis mit Verweis auf Verwaltung › Metadaten statt der Vorschläge.
 Keine Migration: Spalten, `locked_fields`, `images` und der Anbieter `manual` gibt es. Alle neuen
 Operationen bekommen einen Eintrag im Vertragstest (Regel 7).
 
+> **Nachtrag (6. November 2026, Bau von Stufe 3):** Doch eine kleine Migration. `sort_key` speichert
+> den Sortiertitel nur gefaltet (klein, ohne Akzente); der Dialog zeigte «herr der ringe» statt des
+> getippten Texts. `items.sort_title` passt nicht, denn der Scanner braucht es als Kennung (Wiederfinden
+> nach Titel und Jahr, Dubletten). Darum **Migration 00036** (`00036_item_text_sort_title.sql`):
+> neue, leere Spalte `item_texts.sort_title`, gesetzt nur solange `sort_title:<lang>` gesperrt ist.
+> Sortiert wird weiter nach `sort_key`. Weitere Entscheide beim Bau: «Zurück auf automatisch»
+> entfernt auch ein hochgeladenes Bild; ein freier Sortiertitel erscheint als leeres Feld mit dem
+> Titel als Platzhalter; ungespeicherte Änderungen fragen vor dem Schliessen nach.
+>
+> **Nachtrag (7. November 2026, Abnahme von Stufe 3):** Marco will den Stift **direkt auf dem
+> Cover**: auf der Detailseite oben rechts auf dem Poster statt in der Knopfzeile, im
+> Bibliotheksraster immer sichtbar, auch auf Handy und Tablet, und **auch auf den Covern der
+> Startseite** (Titelkarten; bei «Weiterschauen» die Serie); weiterhin nur für den
+> Server-Administrator. Entscheidungsprotokoll, Nachtrag zu Frage 22.
+
 Aufwand: rund **7,5 Tage** (Server 4: Sperren je Sprache, Sortiertitel, Hochladen; Dialog und
 Reiter 2,5; Tests und Storybook 1).
 
@@ -716,7 +731,7 @@ einem Hinweis auf dieses Konzept.
 |---|---|---|---|
 | **1 · Web-App und kleine Server-Fixes** | P-2 Beschreibungen, P-3 Anzeige «automatisch» und zwei Jobs einplanbar, P-4 Benachrichtigungen in der Verwaltung, P-5 Spotlight als Endlosband, Wiederholung der Update-Prüfung (9.3) | unverändert, Release 1.13.2 / keine | ≈ 3,5 Tage |
 | **2 · Weiterschauen und Zeitfenster** | P-1 mit nächster Folge, P-3 Zeitfenster je Jobart (4.3) | 1.14.0 (additiv) / 00034 (`job_types`, `jobs`) | ≈ 4 Tage |
-| **3 · Titelpflege und Startseite** | P-6 Dialog mit vier Reitern, Hochladen, Sperren je Sprache; P-7 «Meine Medien» und «Neu in …», 15 Plätze | 1.15.0 (brechend für `getHome`, `setHomeRows`) / 00035 (`home_rows`) | ≈ 11 Tage |
+| **3 · Titelpflege und Startseite** | P-6 Dialog mit vier Reitern, Hochladen, Sperren je Sprache; P-7 «Meine Medien» und «Neu in …», 15 Plätze | 1.15.0 (brechend für `getHome`, `setHomeRows`) / 00035 (`home_rows`), 00036 (`item_texts.sort_title`, Nachtrag 7.5) | ≈ 11 Tage |
 | **4 · Update installieren** | P-8 Updater-Begleiter, Manifest mit Digest, Knopf, ADR 0024, Doku, Einrichtung und Abnahme auf CT 190 | 1.16.0 (additiv) / keine | ≈ 6 Tage |
 
 - Jeder Planschritt ist ein eigener Commit mit DoD-Belegen der Stufe 1 der Teststufen

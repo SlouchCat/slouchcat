@@ -9,8 +9,11 @@ interface RowProps {
   title: string;
   children: ReactNode;
   focusKey?: string;
-  /** `chips`: items as wide as their content (genre chips) instead of one poster wide. */
-  variant?: 'cards' | 'chips';
+  /**
+   * `chips`: items as wide as their content (genre chips) instead of one poster wide; `tiles`: two
+   * posters wide (the library tiles of «Meine Medien», concept 15 P-7).
+   */
+  variant?: 'cards' | 'chips' | 'tiles';
   /** A page with all of the row's entries ("Alle anzeigen ›"), linked right of the title. */
   moreHref?: string;
   moreLabel?: string;
@@ -19,7 +22,7 @@ interface RowProps {
 interface RowListProps {
   children: ReactNode;
   focusKey?: string;
-  variant?: 'cards' | 'chips';
+  variant?: 'cards' | 'chips' | 'tiles';
   /** The scroll container, for a row that scrolls itself (the spotlight row of HeroCarousel). */
   scrollerRef?: Ref<HTMLDivElement>;
   /** Accessible name of the list, for a row without its own heading. */
@@ -68,7 +71,9 @@ export function RowList({
       >
         {Children.map(children, (child, position) => (
           <li
-            className={variant === 'chips' ? styles.chip : styles.item}
+            className={
+              variant === 'chips' ? styles.chip : variant === 'tiles' ? styles.tile : styles.item
+            }
             style={order && { order: order(position) }}
             aria-posinset={order && position + 1}
             aria-setsize={order && count}

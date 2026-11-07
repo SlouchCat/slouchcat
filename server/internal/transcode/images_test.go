@@ -2,7 +2,11 @@ package transcode
 
 import (
 	"bytes"
+	"compress/zlib"
 	"context"
+	"encoding/binary"
+	"errors"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -56,7 +60,7 @@ func TestScaleImageArgs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-i", "/c/in.jpg", "-filter_complex",
+	want := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-max_pixels", "50000000", "-i", "/c/in.jpg", "-filter_complex",
 		"[0:v]split=2[s0][s1];[s0]scale=200:-2:flags=lanczos,split=2[o0][o1];[s1]scale=400:-2:flags=lanczos,split=1[o2]",
 		"-map", "[o0]", "-frames:v", "1", "-c:v", "libwebp", "-quality", "82", "-compression_level", "4", "-f", "webp", "/c/a",
 		"-map", "[o1]", "-frames:v", "1", "-c:v", "mjpeg", "-q:v", "3", "-pix_fmt", "yuvj420p", "-f", "mjpeg", "/c/b",
@@ -131,8 +135,8 @@ func TestScaleImageErrors(t *testing.T) {
 	if err := os.WriteFile(bad, []byte("not an image"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := r.ScaleImage(context.Background(), bad, []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 10, Format: ImageJPEG}}); err == nil {
-		t.Fatal("ScaleImage accepted a broken input")
+	if err := r.ScaleImage(context.Background(), bad, []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 10, Format: ImageJPEG}}); !errors.Is(err, ErrImageExit) {
+		t.Fatalf("ScaleImage of a broken input: %v, want ErrImageExit", err)
 	}
 	if _, err := r.Palette(context.Background(), bad, 8); err == nil {
 		t.Fatal("Palette accepted a broken input")
@@ -140,8 +144,50 @@ func TestScaleImageErrors(t *testing.T) {
 	if _, err := r.Palette(context.Background(), bad, 1); err == nil {
 		t.Fatal("Palette accepted one colour")
 	}
-	if err := (Runner{}).ScaleImage(context.Background(), bad, []ImageOutput{{Path: "o", Width: 10, Format: ImageJPEG}}); err == nil {
-		t.Fatal("ScaleImage ran without an ffmpeg path")
+	if err := (Runner{}).ScaleImage(context.Background(), bad, []ImageOutput{{Path: "o", Width: 10, Format: ImageJPEG}}); err == nil || errors.Is(err, ErrImageExit) {
+		t.Fatalf("ScaleImage without an ffmpeg path: %v, want an error other than ErrImageExit", err)
+	}
+}
+
+// A frame above MaxImagePixels is refused by ffmpeg itself, whatever a header elsewhere claimed:
+// a complete 7072×7072 PNG (one bit grey, a few MB of zeros) scales without the limit.
+func TestScaleImageMaxPixels(t *testing.T) {
+	r := ffmpegRunner(t)
+	const side = 7072 // 50,013,184 pixels
+	if side*side <= MaxImagePixels {
+		t.Fatalf("%d² is not above MaxImagePixels", side)
+	}
+	chunk := func(buf *bytes.Buffer, typ string, data []byte) {
+		_ = binary.Write(buf, binary.BigEndian, uint32(len(data)))
+		body := append([]byte(typ), data...)
+		buf.Write(body)
+		_ = binary.Write(buf, binary.BigEndian, crc32.ChecksumIEEE(body))
+	}
+	var png bytes.Buffer
+	png.WriteString("\x89PNG\r\n\x1a\n")
+	ihdr := binary.BigEndian.AppendUint32(binary.BigEndian.AppendUint32(nil, side), side)
+	chunk(&png, "IHDR", append(ihdr, 1, 0, 0, 0, 0)) // 1 bit grey, no interlace
+	var idat bytes.Buffer
+	zw := zlib.NewWriter(&idat)
+	row := make([]byte, 1+(side+7)/8) // filter byte none, then the bits
+	for range side {
+		if _, err := zw.Write(row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	chunk(&png, "IDAT", idat.Bytes())
+	chunk(&png, "IEND", nil)
+	dir := t.TempDir()
+	in := filepath.Join(dir, "huge.png")
+	if err := os.WriteFile(in, png.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := r.ScaleImage(context.Background(), in, []ImageOutput{{Path: filepath.Join(dir, "o"), Width: 200, Format: ImageJPEG}})
+	if !errors.Is(err, ErrImageExit) || !strings.Contains(err.Error(), "max pixel") {
+		t.Fatalf("ScaleImage of %d×%d: %v, want ErrImageExit for the pixel limit", side, side, err)
 	}
 }
 

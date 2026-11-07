@@ -7,6 +7,7 @@ package appq
 
 import (
 	"context"
+	"database/sql"
 )
 
 const addFavorite = `-- name: AddFavorite :exec
@@ -50,22 +51,40 @@ func (q *Queries) AddWatchlist(ctx context.Context, arg AddWatchlistParams) erro
 
 const listHomeRows = `-- name: ListHomeRows :many
 
-SELECT key, position, hidden, updated_at FROM home_rows ORDER BY position, key
+SELECT h.id, h.key, h.library_id, COALESCE(l.name, '') AS library_name, h.position, h.hidden, h.updated_at
+FROM home_rows AS h
+LEFT JOIN libraries AS l ON l.id = h.library_id
+ORDER BY h.position, h.id
 `
 
-// Home rows (stream B1): the order and visibility of the start page rows (E-9). The migration
-// seeds exactly the eight keys; the administration rewrites positions 0..7 in one transaction.
-func (q *Queries) ListHomeRows(ctx context.Context) ([]HomeRow, error) {
+type ListHomeRowsRow struct {
+	ID          string
+	Key         string
+	LibraryID   sql.NullInt64
+	LibraryName string
+	Position    int64
+	Hidden      int64
+	UpdatedAt   int64
+}
+
+// Home rows (stream B1): the order and visibility of the start page rows (E-9, concept 15 P-7).
+// A row is named by its id: the key for the fixed rows, 'library:<id>' for a library row
+// (migration 00035). The administration rewrites the positions in one transaction. A library
+// row carries the name of its library (the row title "Neu in ...").
+func (q *Queries) ListHomeRows(ctx context.Context) ([]ListHomeRowsRow, error) {
 	rows, err := q.db.QueryContext(ctx, listHomeRows)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []HomeRow{}
+	items := []ListHomeRowsRow{}
 	for rows.Next() {
-		var i HomeRow
+		var i ListHomeRowsRow
 		if err := rows.Scan(
+			&i.ID,
 			&i.Key,
+			&i.LibraryID,
+			&i.LibraryName,
 			&i.Position,
 			&i.Hidden,
 			&i.UpdatedAt,
@@ -112,14 +131,14 @@ func (q *Queries) RemoveWatchlist(ctx context.Context, arg RemoveWatchlistParams
 }
 
 const setHomeRow = `-- name: SetHomeRow :execrows
-UPDATE home_rows SET position = ?1, hidden = ?2, updated_at = ?3 WHERE key = ?4
+UPDATE home_rows SET position = ?1, hidden = ?2, updated_at = ?3 WHERE id = ?4
 `
 
 type SetHomeRowParams struct {
 	Position int64
 	Hidden   int64
 	Now      int64
-	Key      string
+	ID       string
 }
 
 func (q *Queries) SetHomeRow(ctx context.Context, arg SetHomeRowParams) (int64, error) {
@@ -127,7 +146,7 @@ func (q *Queries) SetHomeRow(ctx context.Context, arg SetHomeRowParams) (int64, 
 		arg.Position,
 		arg.Hidden,
 		arg.Now,
-		arg.Key,
+		arg.ID,
 	)
 	if err != nil {
 		return 0, err

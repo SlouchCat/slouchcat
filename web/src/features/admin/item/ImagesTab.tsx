@@ -30,7 +30,7 @@ const choosable: Partial<Record<AdminItem['kind'], ImageKind[]>> = {
 /** The image kinds of the tab «Bilder»; undefined: the title has no such tab (an episode). */
 export const imageKindsOf = (item: AdminItem): ImageKind[] | undefined => choosable[item.kind];
 
-function languageLabel(t: TFunction, language: string, lang: string): string {
+export function languageLabel(t: TFunction, language: string, lang: string): string {
   if (!lang) return t('admin.metadata.images.noText');
   try {
     return new Intl.DisplayNames([language], { type: 'language' }).of(lang) ?? lang;
@@ -39,11 +39,11 @@ function languageLabel(t: TFunction, language: string, lang: string): string {
   }
 }
 
-function providerLabel(t: TFunction, provider: string): string {
+export function providerLabel(t: TFunction, provider: string): string {
   return t(`admin.item.images.provider.${provider}`, { defaultValue: provider.toUpperCase() });
 }
 
-function candidateDetail(t: TFunction, language: string, c: ImageCandidate): string {
+export function candidateDetail(t: TFunction, language: string, c: ImageCandidate): string {
   const parts: string[] = [];
   if (c.width > 0 && c.height > 0)
     parts.push(t('admin.item.images.size', { width: c.width, height: c.height }));

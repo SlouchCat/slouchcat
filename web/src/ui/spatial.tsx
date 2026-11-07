@@ -105,14 +105,43 @@ interface SpatialPageProps {
   defaultFocusKey: string;
 }
 
+/** Mounted SpatialPages and open holds (useSpatialHold): norigin runs while pages > 0 and holds = 0. */
+let pages = 0;
+let holds = 0;
+
+/**
+ * Pauses the arrow-key navigation of the page while `active` (a modal dialog over a browsing page,
+ * such as the metadata editor): the arrow keys then belong to the dialog's tabs, lists and grids,
+ * and norigin cannot move the focus to the page behind it. Afterwards the page's navigation runs
+ * again from the element it focused last.
+ */
+export function useSpatialHold(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    holds += 1;
+    nav().pause();
+    return () => {
+      holds -= 1;
+      if (holds === 0 && pages > 0) nav().resume();
+    };
+  }, [active]);
+}
+
 /** Enables arrow-key navigation while a browsing page (home, detail) is mounted. */
 export function SpatialPage({ children, defaultFocusKey }: SpatialPageProps) {
   useEffect(() => {
     const { doesFocusableExist, getCurrentFocusKey, pause, resume, setFocus } = nav();
-    resume();
+    pages += 1;
+    if (holds === 0) resume();
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!(event.key in ARROWS) || isEditable(event.target) || event.altKey || event.metaKey) {
+      if (
+        holds > 0 ||
+        !(event.key in ARROWS) ||
+        isEditable(event.target) ||
+        event.altKey ||
+        event.metaKey
+      ) {
         return;
       }
       // Arrow keys move focus here, they must not scroll the page as well.
@@ -128,6 +157,7 @@ export function SpatialPage({ children, defaultFocusKey }: SpatialPageProps) {
     window.addEventListener('keydown', onKeyDown, { capture: true });
     return () => {
       window.removeEventListener('keydown', onKeyDown, { capture: true });
+      pages -= 1;
       pause();
     };
   }, [defaultFocusKey]);

@@ -1,7 +1,7 @@
 import type { HomeRowKey } from '@slouchcat/api-client';
 import { useTranslation } from 'react-i18next';
 import { Text } from '@/ui';
-import { rowTitleKey, type HomeRow } from './rows';
+import { rowTitle, type HomeRow } from './rows';
 import styles from './HomeRows.module.css';
 
 /** How a row looks on the start page, drawn as placeholders: the stage, posters, wide tiles, pills. */
@@ -16,6 +16,8 @@ const SHAPE = {
   watchlist: 'poster',
   collections: 'wide',
   genres: 'genre',
+  libraries: 'wide',
+  library: 'poster',
 } as const satisfies Record<HomeRowKey, Shape>;
 
 /** Number of placeholders per shape. */
@@ -51,11 +53,11 @@ export function HomeRowsPreview({ rows }: { rows: readonly HomeRow[] }) {
     <div className={styles.preview}>
       <ol className={styles.frame} aria-label={t('admin.homeRows.preview.label')}>
         {rows.map((row, index) => (
-          <li key={row.key} className={`${styles.previewRow} ${row.hidden ? styles.off : ''}`}>
+          <li key={row.id} className={`${styles.previewRow} ${row.hidden ? styles.off : ''}`}>
             <span className={styles.previewName}>
               {t('admin.homeRows.preview.row', {
                 position: index + 1,
-                row: t(rowTitleKey[row.key]),
+                row: rowTitle(t, row),
               })}
               {/* The space keeps name and state apart in the spoken text. */}
               {row.hidden && ' '}

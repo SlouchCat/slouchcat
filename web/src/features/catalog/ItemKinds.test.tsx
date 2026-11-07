@@ -190,13 +190,12 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
     expect(screen.getByRole('button', { name: 'Trailer' })).toBeVisible();
   });
 
-  it('shows "Verwalten" only for the main account with its primary profile', async () => {
+  it('shows the pen only for the main account with its primary profile', async () => {
     mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienVersions) });
     const { unmount } = renderApp(`/items/${ids.alien}`);
-    expect(await screen.findByRole('link', { name: 'Verwalten' })).toHaveAttribute(
-      'href',
-      `/admin/items/${ids.alien}`,
-    );
+    expect(await screen.findByRole('button', { name: 'Metadaten bearbeiten' })).toBeVisible();
+    // A film has the editor; the link to its administration page is in the editor's head.
+    expect(screen.queryByRole('link', { name: 'Verwalten' })).not.toBeInTheDocument();
     unmount();
 
     mockApi({
@@ -206,7 +205,7 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
     });
     renderApp(`/items/${ids.alien}`);
     await screen.findByRole('heading', { level: 1, name: 'Alien' });
-    expect(screen.queryByRole('link', { name: 'Verwalten' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Metadaten bearbeiten' })).not.toBeInTheDocument();
   });
 });
 

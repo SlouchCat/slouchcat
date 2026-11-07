@@ -78,11 +78,26 @@
 }
 
 .cell {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--sc-space-2);
   align-items: stretch;
   min-width: 0;
+}
+
+/* A tool beside the card's link, over the top right of the cover (concept 15 7.4): always
+   shown, on touch screens too. A finished title's check, which sits there on other cards, moves to
+   the bottom right of the cover, where a finished title shows no progress bar. */
+.tool {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+}
+
+.cell:has(.tool) [data-watched] {
+  top: auto;
+  bottom: var(--sc-space-2);
 }
 
 .links {

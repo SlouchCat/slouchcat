@@ -30,8 +30,32 @@
   /* Only this title's accent (inline style) colours the glow, never an inherited one. */
   --sc-item-accent: initial;
 
-  display: none;
   isolation: isolate;
+}
+
+/* The pen over the top right of the poster (concept 15 7.4). */
+.posterTool {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+}
+
+/* Below 900 px the poster stays out of the layout; its pen moves to the top right of the
+   backdrop, under the header. */
+@media (width < 900px) {
+  .poster {
+    display: contents;
+  }
+
+  .poster::before,
+  .poster > :not(.posterTool) {
+    display: none;
+  }
+
+  .posterTool {
+    top: calc(var(--sc-size-header-height) + var(--sc-space-4));
+    right: var(--page-gutter);
+  }
 }
 
 /* Ambient glow in the title's accent behind the poster (the card's focus glow, at rest). */

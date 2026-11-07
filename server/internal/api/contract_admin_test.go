@@ -24,6 +24,7 @@ func (contractMetadata) Search(context.Context, string, string, string, *int) ([
 }
 func (contractMetadata) AssignMatch(context.Context, string, string, string) error { return nil }
 func (contractMetadata) Refresh(context.Context, string) error                     { return nil }
+func (contractMetadata) UnlockAll(context.Context, string) error                   { return nil }
 func (contractMetadata) AddManualTrailer(_ context.Context, _, lang, youtubeID string) (model.Trailer, error) {
 	return model.Trailer{ID: 1, Lang: lang, YouTubeID: youtubeID, Source: "manual"}, nil
 }
@@ -247,4 +248,19 @@ func (m contractMetadata) ItemImages(context.Context, string) ([]model.AdminItem
 }
 func (m contractMetadata) LocalImagePreview(context.Context, string, string) (model.StreamSource, error) {
 	return model.StreamSource{}, model.ErrNotFound
+}
+
+// The upload of concept 15 7.5: the fake takes a JPEG (by its first bytes) for a kind of
+// ChoosableImageKinds and refuses anything else like the service does.
+func (m contractMetadata) UploadItemImage(_ context.Context, _, kind string, data []byte) error {
+	if kind != "poster" && kind != "backdrop" && kind != "logo" {
+		return (&model.ValidationError{}).Add("kind", "invalid_value")
+	}
+	if len(data) < 3 || data[0] != 0xff || data[1] != 0xd8 || data[2] != 0xff {
+		return (&model.ValidationError{}).Add("file", "unsupported_format")
+	}
+	return nil
+}
+func (m contractMetadata) ChoosableImageKinds(context.Context, string) ([]string, error) {
+	return []string{"poster", "backdrop", "logo"}, nil
 }

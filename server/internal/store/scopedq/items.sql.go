@@ -546,7 +546,7 @@ func (q *Queries) ListItemProgress(ctx context.Context, arg ListItemProgressPara
 }
 
 const listItemTexts = `-- name: ListItemTexts :many
-SELECT t.item_id, t.lang, t.title, t.overview, t.tagline, t.sort_key, t.rank FROM item_texts AS t
+SELECT t.item_id, t.lang, t.title, t.overview, t.tagline, t.sort_key, t.rank, t.sort_title FROM item_texts AS t
 JOIN visible_items AS v ON v.item_id = t.item_id AND v.profile_id = ?1
 WHERE t.item_id IN (/*SLICE:item_ids*/?)
 `
@@ -584,6 +584,7 @@ func (q *Queries) ListItemTexts(ctx context.Context, arg ListItemTextsParams) ([
 			&i.Tagline,
 			&i.SortKey,
 			&i.Rank,
+			&i.SortTitle,
 		); err != nil {
 			return nil, err
 		}
@@ -688,6 +689,8 @@ type ListRecentlyAddedParams struct {
 	LimitCount int64
 }
 
+// The row recent (recently added). It walks the partial index items_top_added (migration 00037)
+// in its order; the planner takes it only while the kind term is written exactly as in the index.
 func (q *Queries) ListRecentlyAdded(ctx context.Context, arg ListRecentlyAddedParams) ([]Item, error) {
 	rows, err := q.db.QueryContext(ctx, listRecentlyAdded, arg.ProfileID, arg.LimitCount)
 	if err != nil {

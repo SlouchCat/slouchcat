@@ -57,3 +57,12 @@ const InSettingRow = () => (
 export const HiddenLabel: Story = { render: InSettingRow };
 
 export const HiddenLabelCompact: Story = { render: InSettingRow, globals: { density: 'compact' } };
+
+/** With the values the browser offers while typing (the genres of the metadata editor). */
+export const WithSuggestions: Story = {
+  args: {
+    label: 'Genre hinzufügen',
+    placeholder: undefined,
+    suggestions: ['Abenteuer', 'Drama', 'Krimi'],
+  },
+};

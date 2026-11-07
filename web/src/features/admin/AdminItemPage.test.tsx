@@ -317,6 +317,9 @@ describe('admin item page', () => {
     expect(screen.getByText('Japanisch · Quelle Von Hand (gesperrt)')).toBeVisible();
     expect(select).toHaveValue('ja');
     expect(screen.getByRole('tab', { name: 'Metadaten' })).toBeVisible();
+    // The save is done only after the reread and a frame for the focus (settle in AdminItemPage),
+    // which can come after the message: until then the button reads «Wird gespeichert …».
+    await within(panel).findByRole('button', { name: 'Speichern' });
 
     // «Aus Metadaten» lifts the lock: null, and the title is «noch nicht abgefragt» until the match.
     await user.selectOptions(select, 'metadata');

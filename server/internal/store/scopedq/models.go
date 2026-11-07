@@ -192,7 +192,9 @@ type Favorite struct {
 }
 
 type HomeRow struct {
+	ID        string
 	Key       string
+	LibraryID sql.NullInt64
 	Position  int64
 	Hidden    int64
 	UpdatedAt int64
@@ -342,13 +344,14 @@ type ItemLocalImage struct {
 }
 
 type ItemText struct {
-	ItemID   string
-	Lang     string
-	Title    string
-	Overview sql.NullString
-	Tagline  sql.NullString
-	SortKey  sql.NullString
-	Rank     int64
+	ItemID    string
+	Lang      string
+	Title     string
+	Overview  sql.NullString
+	Tagline   sql.NullString
+	SortKey   sql.NullString
+	Rank      int64
+	SortTitle sql.NullString
 }
 
 type Job struct {

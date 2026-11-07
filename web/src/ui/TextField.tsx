@@ -1,4 +1,4 @@
-import type { ReactNode, Ref } from 'react';
+import { useId, type ReactNode, type Ref } from 'react';
 import {
   FieldError,
   Input,
@@ -27,6 +27,8 @@ interface TextFieldProps extends Omit<AriaTextFieldProps, 'className' | 'childre
   selectOnFocus?: boolean;
   /** Several lines (a `<textarea>` of this many rows) for longer text such as a message. */
   rows?: number;
+  /** Values the browser offers while typing (a `<datalist>`), such as the known genres. */
+  suggestions?: readonly string[];
 }
 
 /**
@@ -42,8 +44,10 @@ export function TextField({
   inputRef,
   selectOnFocus,
   rows,
+  suggestions,
   ...rest
 }: TextFieldProps) {
+  const listId = useId();
   return (
     <AriaTextField className={styles.field} {...rest}>
       <Label className={hideLabel ? styles.hiddenLabel : styles.label}>{label}</Label>
@@ -58,8 +62,16 @@ export function TextField({
           ref={inputRef}
           className={`${styles.input} ${mono ? styles.mono : ''}`}
           placeholder={placeholder}
+          list={suggestions ? listId : undefined}
           onFocus={selectOnFocus ? (event) => event.currentTarget.select() : undefined}
         />
+      )}
+      {suggestions && !rows && (
+        <datalist id={listId}>
+          {suggestions.map((value) => (
+            <option key={value} value={value} />
+          ))}
+        </datalist>
       )}
       {description && (
         <Text slot="description" className={styles.description}>

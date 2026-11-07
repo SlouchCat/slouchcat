@@ -287,60 +287,6 @@ func TestCollections(t *testing.T) {
 	}
 }
 
-func TestHomeRows(t *testing.T) {
-	c := newCurationFixture(t)
-	rows, err := c.svc.HomeRows(c.ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	keys := func(rows []model.HomeRowSetting) []string {
-		var out []string
-		for _, r := range rows {
-			out = append(out, r.Key)
-		}
-		return out
-	}
-	if !slices.Equal(keys(rows), model.HomeRowKeys) {
-		t.Fatalf("default order %v", keys(rows))
-	}
-
-	order := []string{model.RowRecent, model.RowPicks, model.RowGenres, model.RowContinue, model.RowWatchlist,
-		model.RowCollections, model.RowReleased, model.RowSpotlight}
-	in := make([]model.HomeRowSetting, 0, len(order))
-	for i, k := range order {
-		// Positions in the request do not matter: the slice order is the display order.
-		in = append(in, model.HomeRowSetting{Key: k, Position: 7 - i, Hidden: k == model.RowGenres})
-	}
-	out, err := c.svc.SetHomeRows(c.ctx, in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(keys(out), order) {
-		t.Errorf("stored order %v, want %v", keys(out), order)
-	}
-	for i, r := range out {
-		if r.Position != i || r.Hidden != (r.Key == model.RowGenres) {
-			t.Errorf("row %+v at %d", r, i)
-		}
-	}
-	if again, err := c.svc.HomeRows(c.ctx); err != nil || !slices.Equal(keys(again), order) || !again[2].Hidden {
-		t.Errorf("read back %+v (%v)", again, err)
-	}
-
-	bad := map[string][]model.HomeRowSetting{
-		"seven":     in[1:],
-		"duplicate": append(slices.Clone(in[1:]), in[1]),
-		"unknown":   append(slices.Clone(in[1:]), model.HomeRowSetting{Key: "trailers"}),
-		"nine":      append(slices.Clone(in), in[0]),
-	}
-	for name, rows := range bad {
-		wantField(t, name, errOf(c.svc.SetHomeRows(c.ctx, rows)), "rows", "invalid_value")
-	}
-	if again, err := c.svc.HomeRows(c.ctx); err != nil || !slices.Equal(keys(again), order) {
-		t.Errorf("a refused change touched the order: %v (%v)", keys(again), err)
-	}
-}
-
 func TestSearchItems(t *testing.T) {
 	c := newCurationFixture(t)
 	f := c.f

@@ -24,9 +24,9 @@ type heroPicker interface {
 	// row and whether that row is the first row of the start page, or model.ErrNotFound when the
 	// page has no stage.
 	FirstHero(ctx context.Context, profile model.Profile) (item model.ItemSummary, start int, first bool, err error)
-	// FirstRow returns the titles of the first row when the page has no stage, or
-	// model.ErrNotFound when it has one or its first row holds no titles.
-	FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error)
+	// FirstRow returns the first row when the page has no stage, or model.ErrNotFound when it has
+	// one or its first row holds neither titles nor library tiles.
+	FirstRow(ctx context.Context, profile model.Profile) (model.HomeRow, error)
 }
 
 // Width descriptors and sizes of the hero srcset (the 4K size names its real width, heroSrcset);
@@ -54,6 +54,11 @@ const (
 // stage: the eagerly loaded cards of the first row (EAGER_POSTERS in web/src/features/catalog/
 // HomePage.tsx).
 const posterPrepaintCards = 6
+
+// tilePrepaintTiles is the number of tiles of «Meine Medien» the shell paints ahead when that row
+// comes first (concept 15 P-7): a tile is two cards wide, so they cover the width of
+// posterPrepaintCards cards (EAGER_TILES in web/src/features/catalog/HomePage.tsx).
+const tilePrepaintTiles = 3
 
 // heroMarker is the comment in web/index.html where the start page's shell receives its first
 // images: the first hero image (heroPrepaint) or, without a stage, the first cards of the first row
@@ -146,11 +151,18 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 					}
 				case errors.Is(err, model.ErrNotFound) && session.HasProfile():
 					// Without a stage the first card's poster is the page's first image: it is
-					// preloaded, and the first cards of the row are painted ahead.
-					var items []model.ItemSummary
-					if items, err = picker.FirstRow(r.Context(), session.Profile); err == nil && len(items) > 0 {
-						link = posterLink(items[0], session.Profile.ID)
-						prepaint = posterPrepaint(items, session.Profile.ID)
+					// preloaded, and the first cards of the row are painted ahead; «Meine Medien»
+					// paints its first tiles' collages (concept 15 P-7).
+					var row model.HomeRow
+					if row, err = picker.FirstRow(r.Context(), session.Profile); err == nil {
+						switch {
+						case len(row.Items) > 0:
+							link = posterLink(row.Items[0], session.Profile.ID)
+							prepaint = posterPrepaint(row.Items, session.Profile.ID)
+						case len(row.Libraries) > 0 && len(row.Libraries[0].Items) > 0:
+							link = posterLink(row.Libraries[0].Items[0], session.Profile.ID)
+							prepaint = tilePrepaint(row.Libraries, session.Profile.ID)
+						}
 					}
 				}
 				if link != "" {
@@ -245,19 +257,7 @@ func heroPrepaint(item model.ItemSummary, start int, profileID int64) string {
 func posterPrepaint(items []model.ItemSummary, profileID int64) string {
 	var b strings.Builder
 	for i, item := range items[:min(len(items), posterPrepaintCards)] {
-		var attrs string
-		id, poster, small := cardPoster(item)
-		switch {
-		case poster != nil && small != nil:
-			smallURL, largeURL := imageURL(id, *small, profileID), imageURL(id, *poster, profileID)
-			attrs = `src="` + html.EscapeString(smallURL) + `" srcset="` +
-				html.EscapeString(smallURL+" "+posterSmallWidth+", "+largeURL+" "+posterLargeWidth) +
-				`" sizes="` + posterSizes + `"`
-		case poster != nil:
-			attrs = `src="` + html.EscapeString(imageURL(id, *poster, profileID)) + `"`
-		case small != nil:
-			attrs = `src="` + html.EscapeString(imageURL(id, *small, profileID)) + `"`
-		}
+		attrs := posterAttrs(item, profileID)
 		if attrs == "" {
 			break
 		}
@@ -275,6 +275,59 @@ func posterPrepaint(items []model.ItemSummary, profileID int64) string {
 		return ""
 	}
 	return `<div id="poster-prepaint" aria-hidden="true">` + b.String() + `</div>`
+}
+
+// tilePrepaint returns the first tiles of «Meine Medien» as markup for the app shell (concept 15
+// P-7): up to tilePrepaintTiles tiles, each a span with the collage's posters (#poster-prepaint >
+// .tile in web/src/ui/global.css, the geometry of LibraryTile in a row), with the attributes of
+// LibraryTile's images (the first one with priority and sync decoding, like the preload). It stops
+// at the first tile with a title without a poster, like posterPrepaint: the tile shows an empty
+// slice there.
+func tilePrepaint(tiles []model.LibraryTile, profileID int64) string {
+	var b strings.Builder
+	first := true
+tiles:
+	for _, tile := range tiles[:min(len(tiles), tilePrepaintTiles)] {
+		if len(tile.Items) == 0 {
+			break
+		}
+		var t strings.Builder
+		for _, item := range tile.Items {
+			attrs := posterAttrs(item, profileID)
+			if attrs == "" {
+				break tiles
+			}
+			t.WriteString("<img " + attrs + ` alt="" loading="eager"`)
+			if first {
+				t.WriteString(` fetchpriority="high" decoding="sync"`)
+				first = false
+			}
+			t.WriteString(">")
+		}
+		b.WriteString(`<span class="tile">` + t.String() + `</span>`)
+	}
+	if b.Len() == 0 {
+		return ""
+	}
+	return `<div id="poster-prepaint" aria-hidden="true">` + b.String() + `</div>`
+}
+
+// posterAttrs returns the src, srcset and sizes attributes of the poster a card shows for item
+// (cardPoster), or "" when it has none.
+func posterAttrs(item model.ItemSummary, profileID int64) string {
+	id, poster, small := cardPoster(item)
+	switch {
+	case poster != nil && small != nil:
+		smallURL, largeURL := imageURL(id, *small, profileID), imageURL(id, *poster, profileID)
+		return `src="` + html.EscapeString(smallURL) + `" srcset="` +
+			html.EscapeString(smallURL+" "+posterSmallWidth+", "+largeURL+" "+posterLargeWidth) +
+			`" sizes="` + posterSizes + `"`
+	case poster != nil:
+		return `src="` + html.EscapeString(imageURL(id, *poster, profileID)) + `"`
+	case small != nil:
+		return `src="` + html.EscapeString(imageURL(id, *small, profileID)) + `"`
+	}
+	return ""
 }
 
 // cardPoster returns the title id and the w400 and w200 posters a poster card shows for item: the

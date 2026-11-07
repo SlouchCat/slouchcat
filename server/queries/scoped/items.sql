@@ -7,6 +7,8 @@ SELECT i.* FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE i.id = @item_id;
 
+-- The row recent (recently added). It walks the partial index items_top_added (migration 00037)
+-- in its order; the planner takes it only while the kind term is written exactly as in the index.
 -- name: ListRecentlyAdded :many
 SELECT i.* FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id

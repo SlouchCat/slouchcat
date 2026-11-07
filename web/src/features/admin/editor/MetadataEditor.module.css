@@ -1,0 +1,112 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  padding-top: var(--sc-space-4);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: center;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+}
+
+/* The current image of a kind beside its state and actions; under each other on phones. */
+.current {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-4);
+  align-items: flex-start;
+}
+
+.current > .stack {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0;
+}
+
+.preview {
+  flex: none;
+  width: var(--sc-size-poster-sm);
+}
+
+.preview[data-shape='landscape'] {
+  width: calc(var(--sc-size-poster-sm) * 2);
+}
+
+.muted {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+}
+
+.label {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-medium);
+}
+
+/* The fields in two columns from 768 px; titles, texts and genres take the whole row. */
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-5) var(--sc-space-6);
+}
+
+@media (width >= 768px) {
+  .fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .full {
+    grid-column: 1 / -1;
+  }
+}
+
+.fieldError {
+  margin: 0;
+  color: var(--sc-color-state-danger);
+  font-size: var(--sc-font-size-sm);
+}
+
+.fieldMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--sc-space-2);
+}
+
+.genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.genre {
+  display: inline-flex;
+  align-items: center;
+}
+
+.inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-3);
+  align-items: flex-end;
+}

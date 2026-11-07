@@ -24,7 +24,18 @@ export const homeRowTitleKey = {
   watchlist: 'home.rows.watchlist',
   collections: 'home.rows.collections',
   genres: 'home.rows.genres',
+  libraries: 'home.rows.libraries',
+  library: 'home.rows.library',
 } as const satisfies Record<HomeRowKey, string>;
+
+/**
+ * The name of a start page row: «Neu in Filme» for a library row, named by its library (concept 15
+ * P-7), the fixed name of every other row.
+ */
+export const homeRowTitle = (
+  t: TFunction,
+  row: { key: HomeRowKey; libraryName?: string },
+): string => t(homeRowTitleKey[row.key], { library: row.libraryName ?? '' });
 
 /** Audiobooks, podcasts and their episodes (M6): square covers, "gehört", the audio player. */
 export const isAudioKind = (kind: ItemRef['kind']): boolean =>

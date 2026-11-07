@@ -67,8 +67,18 @@ func (s *server) GetHome(ctx context.Context, req gen.GetHomeRequestObject) (gen
 		}
 	}
 	for _, row := range home.Rows {
-		out := gen.HomeRow{Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}
+		out := gen.HomeRow{Id: row.ID, Key: gen.HomeRowKey(row.Key), Items: toItemRefList(session.Profile.ID, row.Items)}
 		switch row.Key {
+		case model.RowLibraries: // concept 15 P-7: the tiles of «Meine Medien»
+			tiles := make([]gen.LibraryTile, 0, len(row.Libraries))
+			for _, l := range row.Libraries {
+				tiles = append(tiles, gen.LibraryTile{Id: l.ID, Name: l.Name, Kind: gen.LibraryKind(l.Kind), ItemCount: l.ItemCount,
+					Items: toItemRefList(session.Profile.ID, l.Items)})
+			}
+			out.Libraries = &tiles
+		case model.RowLibrary:
+			id, name := row.LibraryID, row.LibraryName
+			out.LibraryId, out.LibraryName = &id, &name
 		case model.RowCollections: // M7: only these two rows carry their own lists
 			cs := toCollectionRefs(session.Profile.ID, row.Collections)
 			out.Collections = &cs

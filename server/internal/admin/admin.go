@@ -141,6 +141,9 @@ type Metadata interface {
 	AssignMatch(ctx context.Context, itemID, provider, providerID string) error
 	// Refresh queues the match and the probes of the title (model.ErrNotFound).
 	Refresh(ctx context.Context, itemID string) error
+	// UnlockAll lifts every lock of the title but those of a manual match, before a refresh
+	// (concept 15 7.5; model.ErrNotFound).
+	UnlockAll(ctx context.Context, itemID string) error
 	// AddManualTrailer stores a manual trailer (model.ErrNotFound, *model.ValidationError).
 	AddManualTrailer(ctx context.Context, itemID, lang, youtubeID string) (model.Trailer, error)
 	// DeleteTrailer removes a trailer of the title (model.ErrNotFound).
@@ -169,6 +172,11 @@ type Metadata interface {
 	SetItemOriginalLanguage(ctx context.Context, itemID string, lang *string) error
 	ItemImages(ctx context.Context, itemID string) ([]model.AdminItemImage, error)
 	LocalImagePreview(ctx context.Context, itemID, source string) (model.StreamSource, error)
+	// UploadItemImage stores an uploaded image for a kind and locks the kind; ChoosableImageKinds
+	// lists the kinds that can be chosen or uploaded now (concept 15 7.5; model.ErrNotFound,
+	// *model.ValidationError).
+	UploadItemImage(ctx context.Context, itemID, kind string, data []byte) error
+	ChoosableImageKinds(ctx context.Context, itemID string) ([]string, error)
 }
 
 // ErrNotConfigured: a maintenance operation needs a collaborator that was not wired

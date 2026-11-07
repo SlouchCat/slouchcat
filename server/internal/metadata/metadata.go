@@ -70,9 +70,12 @@
 // overwrites (B-6). The names are the items columns original_title, year, release_date,
 // runtime_minutes, genres, tmdb_id, tvdb_id, imdb_id, own_rating, vote_average, original_language,
 // the text fields
-// title, overview and tagline (item_texts, both languages), the image kinds poster and backdrop,
+// title, overview and tagline (item_texts), the image kinds poster and backdrop,
 // cast (the credits of the title) and trailer (the automatic trailers). A rating whose
-// rating_source is nfo or manual is never replaced either.
+// rating_source is nfo or manual is never replaced either. The text fields and sort_title (the
+// item_texts.sort_key) are locked per language with the language after a colon (title:de,
+// overview:de, tagline:de, sort_title:de; concept 15 7.5, F-10); the older lock without language
+// (title, overview, tagline) holds every language.
 //
 // Genres: items.genres holds the provider genre names per language as a JSON object
 // {"de": ["Drama", …], "en": ["Drama", …]}; the API layer picks the profile language.
@@ -88,6 +91,7 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/paths"
 	"github.com/slouchcat/slouchcat/server/internal/ratelimit"
 	"github.com/slouchcat/slouchcat/server/internal/store"
@@ -158,6 +162,9 @@ type Service struct {
 
 	candMu    sync.Mutex
 	candCache map[string]candidateEntry // image candidates per title and kind (image_candidates.go)
+
+	imageMu    sync.Mutex
+	imageLocks map[string]*imageLock // the image writers per title at work (lockItemImages)
 
 	feeds feedFetcher // podcast feeds (podcast.go)
 }
@@ -436,6 +443,30 @@ func isULID(id string) bool {
 		}
 	}
 	return true
+}
+
+// Text fields with a lock per language (concept 15 7.5): the lock name is field:lang.
+const fieldSortTitle = "sort_title"
+
+var textLockFields = []string{"title", "overview", "tagline", fieldSortTitle}
+
+// textLockName is the lock of a text field in one language (title:de).
+func textLockName(field, lang string) string { return model.TextLockName(field, lang) }
+
+// textLocked reports whether a field is locked in lang: by its lock per language or by the lock
+// without language, which holds every language (and is the only lock of the fields without one).
+func textLocked(locked map[string]bool, field, lang string) bool {
+	return locked[field] || (lang != "" && locked[textLockName(field, lang)])
+}
+
+// langLocked reports whether any text field holds a lock per language in lang.
+func langLocked(locked map[string]bool, lang string) bool {
+	for _, f := range textLockFields {
+		if locked[textLockName(f, lang)] {
+			return true
+		}
+	}
+	return false
 }
 
 // lockedFields parses items.locked_fields; an invalid value locks nothing.

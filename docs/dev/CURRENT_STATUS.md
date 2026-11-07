@@ -1,5 +1,77 @@
 # Aktueller Stand
 
+## Konzept 15 «Feinschliff», Stufe 3: auf CT 190 abgenommen (7. November 2026)
+
+Zweig `claude/feinschliff-stufe3` ab `main` `d2361e54` (Release 1.14.0 veröffentlicht). Geplant als
+Release **1.15.0**: Vertrag **1.15.0, brechend für `getHome` und `setHomeRows`** (Web-App und Server
+kommen im selben Image), Migrationen **`00035_home_rows_libraries.sql`** und
+**`00036_item_text_sort_title.sql`** (Nachtrag in Konzept 15, 7.5) und **`00037_items_top_added.sql`**
+(Teilindex für die Startseite). Der Weg zurück auf 1.14.0 geht nur über die Datenbanksicherung vor der
+Migration.
+
+- **P-6 Metadaten bearbeiten:** Stift «Metadaten bearbeiten» auf der Detailseite von Film, Serie,
+  Staffel und Folge (ersetzt «Verwalten»; Podcasts, Hörbücher und Extras behalten «Verwalten») und
+  auf den Covern im Bibliotheksraster (zweiter Tab-Halt neben dem Link, nur mit Zeiger, nicht auf
+  Geräten ohne Hover), nur für den Server-Administrator. Dialog mit vier Reitern: **Bilder**
+  (Vorschläge mit Filter nach Anbieter und Sprache, eigenes Bild hochladen, «Zurück auf
+  automatisch» entfernt auch ein hochgeladenes Bild; Folgenbild nur mit der Einstellung
+  «Folgenbilder»), **Metadaten** (Titel, Originaltitel, Sortiertitel, Jahr, Datum, Slogan,
+  Beschreibung, Genres, Freigabe, Originalsprache, je Feld Herkunft und Schloss), **Zuordnen**
+  (bei Staffeln und Folgen ein Hinweis) und **Aktualisieren** (mit «Vorher alle Sperren aufheben»).
+  Ungespeicherte Änderungen fragen vor dem Schliessen nach.
+- **Server und Vertrag P-6:** Sperren je Sprache (`title:de`, `overview:de`, `tagline:de`,
+  `sort_title:de`; alte Sperren ohne Sprache gelten weiter für alle Sprachen, beim Aufheben bleiben
+  die anderen Sprachen gesperrt), `PATCH /admin/items/{id}/metadata`, `GET /admin/genres`,
+  `POST /admin/items/{id}/refresh` mit `{unlockAll}`, `PUT /admin/items/{id}/images/{kind}/upload`
+  (`http.Handler`, höchstens 20 MB, JPEG/PNG/WebP nach Inhalt, höchstens 50 Megapixel, ffmpeg mit
+  `-max_pixels`; erst skalieren, dann sperren), `AdminItem.metadata` und `AdminItem.imageKinds`,
+  Folgenstills von TMDB. Ein Upload wartet auf ein laufendes `image.fetch` desselben Titels.
+- **P-7 Bibliotheken auf der Startseite:** Kachelreihe «Meine Medien» und je Bibliothek «Neu in …»,
+  Kennung `id` je Reihe (`library:<id>`), höchstens **15 sichtbare** Reihen (422
+  `too_many_visible`), fehlende Zeilen behalten ihren Platz. Ab Werk ausgeblendet; neue
+  Bibliotheken bekommen ihre Reihe per Trigger. Eingefrorener Stand `testdata/db/startseitenreihen.sql`.
+- **Reviews** (OMC-Code-Reviewer, zwei Durchgänge): Server und P-7 REQUEST CHANGES (1 High: kaputtes
+  Bild nach gültigem Kopf, 1 Medium: WebP-VP8X umging die Pixelgrenze, 5 Low, Rennen mit
+  `image.fetch`), Dialog REQUEST CHANGES (1 High: Vorschau des hochgeladenen Bilds fehlte, 4 Medium,
+  11 Low). Alle behoben.
+- **Wackeltests aus `main` behoben:** `TestQueueKeyframesForDownloadWindow` (unsortierte
+  Erwartung), `TestScanbenchSmallTree` (Abbruch nach 1 ms kam unter Last zu spät),
+  `AdminItemPage.test.tsx` Originalsprache (zweiter Klick während des ersten Speicherns).
+- **Messung** `docs/perf/feinschliff.md` Abschnitt 3: Auf CT 190 brauchte `GET /home` mit 13
+  sichtbaren Reihen zuerst **p95 617 ms** (P-11: 300 ms). Ursache: «Neu hinzugefügt», «Meine Medien»
+  und die Genres durchsuchten alle rund 70 000 Einträge von `items` samt Folgen und Podcastfolgen.
+  Umbau: Teilindex `items_top_added` (Migration 00037), Genres ab den sichtbaren Titeln, «Neu in …»
+  sortiert nur die neuesten Titel, Kacheln gebündelt, Reihen nebeneinander (höchstens vier). Nachher
+  auf CT 190 (`feinschliff3-8251b6c`): **p50 63,5 ms, p95 66,4 ms**. Die Startseite liefert für alle
+  vier Profile dieselben Daten wie vorher.
+
+**Belege auf `04a6e8a8`:** `task ci` grün bis auf Storybook: 360 gleich, **9 neue Stories ohne
+Vergleichsbild** (`ui-editordialog--with-tabs`, `--landscape`, `ui-librarytile--default`,
+`--focused`, `--few-titles`, `--long-name`, `ui-locktoggle--states`, `--toggling`,
+`ui-textfield--with-suggestions`); Go alle Pakete ok, Vitest 1470, api-client 4, design-tokens 2.
+e2e `task build` + `task ci:e2e:parallel`: **505/507**; `admin-libraries.spec.ts:417` (Chromium)
+einzeln grün, `metadata-editor.spec.ts:86` (Firefox) war ein Testfehler (headless Firefox springt
+am Seitenende nicht zum Anfang) und ist mit `e9fd70f8` behoben (`task e2e:quick --
+e2e/metadata-editor.spec.ts --project=firefox` dreimal 12 passed, Chromium 8 passed).
+
+**Abnahme auf CT 190 (7. November 2026):** Marco hat drei Runden auf CT 190 geprüft und am Ende
+freigegeben. Aus der Abnahme kamen drei Änderungen (Entscheidungsprotokoll vom 7. November 2026,
+Konzept 15, 7.5):
+
+- **Stift direkt auf dem Cover:** auf der Detailseite oben rechts auf dem Poster statt in der
+  Knopfzeile, am Handy über dem Hintergrundbild. Im Bibliotheksraster ist er immer sichtbar, auch
+  auf Touch-Geräten.
+- **Stift auf den Covern der Startseite:** auf allen Titelkarten, nicht auf Kacheln «Meine Medien»,
+  Sammlungen und Genres. Auf «Weiterschauen» bearbeitet er die Serie. Alle Stifte erscheinen nur für
+  den Server-Administrator.
+- **Dialog fest 90 % der Fensterhöhe:** Die Reiter «Zuordnen» und «Aktualisieren» verschieben das
+  Fenster nicht mehr.
+
+CT 190 lief zur Abnahme auf `feinschliff3-23b2f0a`. Die GitHub-CI auf `23b2f0a4` fand einen Testfehler
+in `episode.spec.ts:72`: Der Stift ist auf der Folgenseite ein neuer Tab-Halt vor «Abspielen». Der Test
+ist angepasst wie `detail.spec.ts` (`task e2e:quick -- e2e/episode.spec.ts` 5 passed, Firefox 1
+passed).
+
 ## Release 1.14.0 (6. November 2026): veröffentlicht
 
 Release ab `main` nach PR #100 (Konzept 15, Stufe 2). Vertrag **1.14.0** (additiv), Migration

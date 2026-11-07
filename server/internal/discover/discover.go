@@ -2,11 +2,13 @@
 // It reads titles only through the visibility package and opens stored images only through the
 // paths package, relative to the cache directory.
 //
-// Start page (M7, M11, E-1, E-9, ADR 0011): the eight rows spotlight (the configured Trakt list
-// intersected with the library, with the main user's curation), picks (Cat's recommendations),
-// continue (continue watching), recent (recently added), released (by release date within twelve
-// months, a series by its newest visible episode, S-5, S-6), watchlist, collections and genres, in
-// the order the administration stored (table home_rows); hidden and empty rows are omitted, the
+// Start page (M7, M11, E-1, E-9, ADR 0011, concept 15 P-7): the rows spotlight (the configured
+// Trakt list intersected with the library, with the main user's curation), picks (Cat's
+// recommendations), continue (continue watching), recent (recently added), released (by release
+// date within twelve months, a series by its newest visible episode, S-5, S-6), watchlist,
+// collections, genres, libraries («Meine Medien», one tile per visible library) and one row
+// library («Neu in …») per library, in the order the administration stored (table home_rows, a row
+// named by its id); hidden and empty rows are omitted, the
 // spotlight row also below the configured minimum of hits, spotlight_config.min_hits (AN-3). The
 // page names the row the client draws as the stage (HomePage.HeroRow: spotlight when present, else
 // none; picks is never the stage) and carries hasTrailer for the rows spotlight and picks only (D3).
@@ -27,6 +29,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"math/rand/v2"
+	"runtime"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
@@ -49,10 +53,12 @@ const (
 	RowWatchlist   = model.RowWatchlist
 	RowCollections = model.RowCollections
 	RowGenres      = model.RowGenres
+	RowLibraries   = model.RowLibraries
+	RowLibrary     = model.RowLibrary
 )
 
-// MaxRows caps the start page (E-9; the contract's HomePage.rows maxItems).
-const MaxRows = 8
+// MaxRows caps the start page (E-9, F-12; the contract's HomePage.rows maxItems).
+const MaxRows = model.MaxVisibleHomeRows
 
 // Service implements the catalog service of the API.
 type Service struct {
@@ -62,6 +68,10 @@ type Service struct {
 	cacheDir string
 	log      *slog.Logger
 	now      func() time.Time
+
+	// loadRow loads one row of the start page for loadRows: row, replaced only by tests of the
+	// package to inject a failing or panicking row.
+	loadRow func(context.Context, visibility.Scope, model.HomeRowSetting) (model.HomeRow, error)
 
 	// The draw of the stage's first title (concept 08, F-2): rnd is not safe for concurrent use,
 	// so rndMu guards it; heroStart >= 0 replaces the draw by a fixed index (WithHeroStart).
@@ -96,6 +106,7 @@ func WithHeroStart(k int) Option {
 // relative to; log is the redacting logger.
 func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{read: appq.New(db.Read), write: appq.New(db.Write), cacheDir: cacheDir, log: log, now: time.Now, heroStart: -1}
+	s.loadRow = s.row
 	for _, o := range opts {
 		o(s)
 	}
@@ -153,22 +164,42 @@ func (s *Service) drawHeroStart(n int, start *int) int {
 }
 
 // page builds the rows of the start page and names the stage; it is the one computation behind
-// Home, FirstHero and FirstRow. With untilHero it stops once the stage row is placed: the rows
-// after it change neither the stage nor its place.
+// Home, FirstHero and FirstRow. With untilHero it ends at the spotlight row, the only row that can
+// be the stage: the rows after it change neither the stage nor its place, so they are not loaded
+// (callers with untilHero read only the stage), and without a spotlight row there is no stage and
+// the page stays empty.
+//
+// The rows are loaded side by side (loadRows) and placed in their order exactly as one after the
+// other: a row's error counts only when the page reaches that row, so a row behind the cut to
+// MaxRows (or behind the stage, with untilHero) never fails the page. Once the page is complete
+// the rows still loading are cancelled and the rows not yet started are not loaded.
 func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bool) (model.HomePage, error) {
-	keys, err := s.rowOrder(ctx)
+	order, err := s.rowOrder(ctx)
 	if err != nil {
 		return model.HomePage{}, err
 	}
-	page := model.HomePage{Rows: make([]model.HomeRow, 0, len(keys))}
-	for _, key := range keys {
-		row, err := s.row(ctx, scope, key)
-		if err != nil {
-			return model.HomePage{}, fmt.Errorf("home row %s: %w", key, err)
+	if untilHero {
+		j := slices.IndexFunc(order, func(r model.HomeRowSetting) bool { return r.Key == RowSpotlight })
+		if j < 0 {
+			return model.HomePage{}, nil
 		}
-		if len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 {
-			page.Rows = append(page.Rows, row)
-			if key == RowSpotlight {
+		order = order[:j+1]
+	}
+	ctx, cancel := context.WithCancel(ctx)
+	results, wait := s.loadRows(ctx, scope, order)
+	defer func() {
+		cancel()
+		wait()
+	}()
+	page := model.HomePage{Rows: make([]model.HomeRow, 0, min(len(order), MaxRows))}
+	for i, setting := range order {
+		r := <-results[i]
+		if r.err != nil {
+			return model.HomePage{}, fmt.Errorf("home row %s: %w", setting.ID, r.err)
+		}
+		if filled(r.row) {
+			page.Rows = append(page.Rows, r.row)
+			if r.row.Key == RowSpotlight {
 				page.HeroRow = RowSpotlight
 				if untilHero {
 					break
@@ -180,6 +211,62 @@ func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bo
 		}
 	}
 	return page, nil
+}
+
+// rowResult is one row of the start page loaded by loadRows, with its error.
+type rowResult struct {
+	row model.HomeRow
+	err error
+}
+
+// loadRows starts loading the rows of order side by side, in at most min(GOMAXPROCS, 4) goroutines
+// that take the rows in their order, and returns one channel per row that receives the row with its
+// error, and a function that waits for the goroutines. A row taken after ctx is done is not loaded
+// and receives the error of ctx; the caller cancels ctx when it needs no further row and then waits.
+// A row holds at most one connection of the read pool at a time (its statements read all rows
+// before the next one, a transaction runs only its own statements), so the goroutines never wait
+// on each other for the pool (store.Open: at least four connections). On two cores the start page
+// of the CT 190 database takes about a sixth less time (docs/perf/feinschliff.md section 3).
+func (s *Service) loadRows(ctx context.Context, scope visibility.Scope, order []model.HomeRowSetting) ([]chan rowResult, func()) {
+	results := make([]chan rowResult, len(order))
+	next := make(chan int, len(order))
+	for i := range order {
+		results[i] = make(chan rowResult, 1)
+		next <- i
+	}
+	close(next)
+	var wg sync.WaitGroup
+	for range min(runtime.GOMAXPROCS(0), 4, len(order)) {
+		wg.Go(func() {
+			for i := range next {
+				if err := ctx.Err(); err != nil {
+					results[i] <- rowResult{err: err}
+					continue
+				}
+				row, err := s.safeRow(ctx, scope, order[i])
+				results[i] <- rowResult{row: row, err: err}
+			}
+		})
+	}
+	return results, wg.Wait
+}
+
+// safeRow loads one row with loadRow and turns a panic into the row's error with its stack: a row
+// runs in a goroutine of loadRows, where the recoverer of the HTTP handler cannot catch it, so the
+// error takes its place and fails the page like any other error of a row the page reaches.
+func (s *Service) safeRow(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (row model.HomeRow, err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			row, err = model.HomeRow{}, fmt.Errorf("panic: %v\n%s", rec, debug.Stack())
+		}
+	}()
+	return s.loadRow(ctx, scope, setting)
+}
+
+// filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3), the
+// other rows their entries.
+func filled(row model.HomeRow) bool {
+	return len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Libraries) > 0
 }
 
 // markTrailers sets HasTrailer on every title of a row from one visibility query (D3).
@@ -202,30 +289,27 @@ func (s *Service) markTrailers(ctx context.Context, scope visibility.Scope, item
 	return nil
 }
 
-// rowOrder returns the keys of the visible rows in their stored order (migration 00015 stores the
-// default order; without rows the default order applies).
-func (s *Service) rowOrder(ctx context.Context) ([]string, error) {
+// rowOrder returns the rows not hidden in their stored order (migrations 00015, 00021 and 00035
+// store every row, the rows of concept 15 P-7 hidden).
+func (s *Service) rowOrder(ctx context.Context) ([]model.HomeRowSetting, error) {
 	rows, err := s.read.ListHomeRows(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list home rows: %w", err)
 	}
-	if len(rows) == 0 {
-		return model.HomeRowKeys, nil
-	}
-	keys := make([]string, 0, len(rows))
+	out := make([]model.HomeRowSetting, 0, len(rows))
 	for _, r := range rows {
 		if r.Hidden == 0 {
-			keys = append(keys, r.Key)
+			out = append(out, model.HomeRowSetting{ID: r.ID, Key: r.Key, LibraryID: r.LibraryID.Int64, LibraryName: r.LibraryName})
 		}
 	}
-	return keys, nil
+	return out, nil
 }
 
 // row loads one row of the start page; an unknown key gives an empty row.
-func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (model.HomeRow, error) {
-	row := model.HomeRow{Key: key}
+func (s *Service) row(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (model.HomeRow, error) {
+	row := model.HomeRow{ID: setting.ID, Key: setting.Key}
 	var err error
-	switch key {
+	switch setting.Key {
 	case RowPicks:
 		row.Items, err = s.vis.Picks(ctx, scope, visibility.MaxRowItems)
 	case RowContinue:
@@ -242,6 +326,11 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, key string) (
 		row.Items, err = s.vis.Released(ctx, scope, visibility.MaxRowItems)
 	case RowSpotlight:
 		row.Items, err = s.spotlightRow(ctx, scope)
+	case RowLibraries:
+		row.Libraries, err = s.vis.LibraryTiles(ctx, scope)
+	case RowLibrary:
+		row.LibraryID, row.LibraryName = setting.LibraryID, setting.LibraryName
+		row.Items, err = s.vis.LibraryNewest(ctx, scope, setting.LibraryID, visibility.MaxRowItems)
 	}
 	return row, err
 }
@@ -284,21 +373,64 @@ func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.I
 	return items[k], k, i == 0, nil
 }
 
-// FirstRow returns the titles of the first row of the start page when the page has no stage, or
+// FirstRow returns the first row of the start page when the page has no stage, or
 // model.ErrNotFound when it has one (the stage image is preloaded and painted instead, FirstHero),
-// when it has no rows, or when its first row holds collections or genres rather than titles. Those
-// titles are the first cards of a page without a stage, the images the client loads first (P-10);
-// the app shell of the start page preloads the first poster and paints the first cards ahead. It
-// derives from the same computation as Home, so it follows its rule.
-func (s *Service) FirstRow(ctx context.Context, profile model.Profile) ([]model.ItemSummary, error) {
-	page, err := s.page(ctx, visibility.Profile(profile), true)
+// when it has no rows, or when its first row holds collections or genres rather than titles or
+// library tiles. Its titles (or, for «Meine Medien», its tiles, concept 15 P-7) are the first cards
+// of a page without a stage, the images the client loads first (P-10); the app shell of the start
+// page preloads the first poster and paints the first cards ahead. It derives from the same
+// computation as Home, so it follows its rule, but it loads the rows only up to the first one on
+// the page (the prepaint of GET / waits for it): a stage further down is found from the spotlight
+// row alone while it can only land within MaxRows, else from the page up to the stage.
+func (s *Service) FirstRow(ctx context.Context, profile model.Profile) (model.HomeRow, error) {
+	scope := visibility.Profile(profile)
+	order, err := s.rowOrder(ctx)
 	if err != nil {
-		return nil, err
+		return model.HomeRow{}, err
 	}
-	if page.HeroRow != "" || len(page.Rows) == 0 || len(page.Rows[0].Items) == 0 {
-		return nil, model.ErrNotFound
+	for i, setting := range order {
+		row, err := s.row(ctx, scope, setting)
+		if err != nil {
+			return model.HomeRow{}, fmt.Errorf("home row %s: %w", setting.ID, err)
+		}
+		if !filled(row) {
+			continue
+		}
+		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Libraries) == 0) {
+			return model.HomeRow{}, model.ErrNotFound
+		}
+		stage, err := s.stageBelow(ctx, scope, order, i)
+		if err != nil {
+			return model.HomeRow{}, err
+		}
+		if stage {
+			return model.HomeRow{}, model.ErrNotFound
+		}
+		row.Items = firstRowCards(row)
+		return row, nil
 	}
-	return firstRowCards(page.Rows[0]), nil
+	return model.HomeRow{}, model.ErrNotFound
+}
+
+// stageBelow reports whether the page whose first row stands at order[first] has a stage further
+// down, as page would place it: the spotlight row after first, when it has titles and lands
+// within MaxRows. Before the MaxRows-th setting it always lands (at most that many rows precede
+// it); later only the page up to the stage tells.
+func (s *Service) stageBelow(ctx context.Context, scope visibility.Scope, order []model.HomeRowSetting, first int) (bool, error) {
+	j := slices.IndexFunc(order[first+1:], func(r model.HomeRowSetting) bool { return r.Key == RowSpotlight })
+	if j < 0 {
+		return false, nil
+	}
+	j += first + 1
+	if j >= MaxRows {
+		page, err := s.page(ctx, scope, true)
+		return page.HeroRow != "", err
+	}
+	items, err := s.spotlightRow(ctx, scope)
+	if err != nil {
+		return false, fmt.Errorf("home row %s: %w", order[j].ID, err)
+	}
+	return len(items) > 0, nil
 }
 
 // firstRowCards returns the titles of row as its cards show them: only the row continue shows an

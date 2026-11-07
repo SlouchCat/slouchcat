@@ -1,7 +1,14 @@
 import { type APIRequestContext, type Locator, type Page } from '@playwright/test';
 import { audioItemId, AUDIO_READY_MS, M4B_TITLE } from './audio';
 import { CSRF, EXTRAS_TITLE, H264_TITLE, SHOW_TITLE } from './catalog';
-import { createPick, DEFAULT_HOME_ROWS, deletePick, listPicks, setHomeRows } from './curation';
+import {
+  createPick,
+  DEFAULT_HOME_ROWS,
+  deletePick,
+  listHomeRows,
+  listPicks,
+  setHomeRows,
+} from './curation';
 import { homeRowKeys, refreshSpotlight, ROW_TITLES, traktMockStatus } from './discover';
 import { expect, test } from './fixtures';
 import {
@@ -21,10 +28,14 @@ import { TRAKT_ENTRIES } from './trakt-server.mjs';
 const hero = (page: Page) => page.locator('main section[aria-roledescription]');
 /**
  * The band's poster row (concept 08, 7.2): one card per slide, a button named after its title
- * (and the year under it).
+ * (and the year under it). The administrator's pen beside each poster (concept 15 P-6) is a
+ * button of the row too, not a poster.
  */
 const strip = (page: Page) =>
-  hero(page).getByRole('list', { name: 'Spotlight-Titel' }).getByRole('button');
+  hero(page)
+    .getByRole('list', { name: 'Spotlight-Titel' })
+    .getByRole('button')
+    .and(page.locator(':not([aria-label$=": Metadaten bearbeiten"])'));
 /** The sections of the start page top to bottom: the stage (if any) and the poster rows. */
 const sections = (page: Page) =>
   page.locator('main section:is([aria-labelledby], [aria-roledescription])');
@@ -539,6 +550,83 @@ test('the band holds on keyboard focus and the pause button, not on a click (F-3
   await expect(timer).toHaveCount(1);
 });
 
+test('the spotlight posters carry the pen: Tab poster then pen, the band holds, Escape returns (concept 15 P-6) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  test.setTimeout(90_000);
+  await waitForSpotlight(owner);
+  await page.reload();
+  await expect(hero(page)).toBeVisible();
+  await resetFocus(page);
+  const band = hero(page);
+  const posters = strip(page);
+  const row = band.getByRole('list', { name: 'Spotlight-Titel' });
+  const pens = row.getByRole('button', { name: /: Metadaten bearbeiten$/ });
+  // A pen on every poster of the row (the spotlight holds films and series), none on the stage.
+  const count = await posters.count();
+  expect(count).toBeGreaterThan(1);
+  await expect(pens).toHaveCount(count);
+  await expect(band.getByRole('button', { name: /: Metadaten bearbeiten$/ })).toHaveCount(count);
+  // Each pen sits beside its poster, not in its button, and turns with it (CSS order of the item).
+  for (let index = 0; index < count; index += 1) {
+    const item = row.getByRole('listitem').nth(index);
+    await expect(item.getByRole('button')).toHaveCount(2);
+    await expect(item.locator('button button')).toHaveCount(0);
+  }
+  // Only the active poster's pen is a Tab stop (the row's roving tabindex).
+  const active = posters.and(page.locator('[aria-current="true"]'));
+  const activePen = active.locator('xpath=..').getByRole('button', {
+    name: /: Metadaten bearbeiten$/,
+  });
+  await expect(pens.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
+
+  // Tab: the active poster, then its pen; the band holds while the focus is in the row.
+  await page.getByRole('button', { name: 'Seitenleiste ausblenden' }).focus();
+  await tabTo(page, active, 6);
+  const shown = (await active.getAttribute('aria-label')) ?? (await active.textContent()) ?? '';
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, activePen);
+  await expect(band).toHaveAttribute('data-paused');
+  const title = ((await activePen.getAttribute('aria-label')) ?? '').replace(
+    /: Metadaten bearbeiten$/,
+    '',
+  );
+  expect(shown.startsWith(title)).toBe(true);
+
+  // Enter opens the editor of that title; the band stays on its slide; Escape returns to the pen.
+  await page.keyboard.press('Enter');
+  const editor = page.getByRole('dialog', { name: title });
+  await expect(editor).toBeVisible();
+  await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Escape');
+  await expect(editor).toHaveCount(0);
+  await expectFocusOn(page, activePen);
+  await expect(activePen).toHaveAccessibleName(`${title}: Metadaten bearbeiten`);
+  await expect(band).toHaveAttribute('data-paused');
+
+  // Shift+Tab back to the poster, Tab past the pen out of the band into the first poster row.
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, active);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, activePen);
+  // The arrow keys pass the pen by: right moves on to the next poster as seen.
+  await page.keyboard.press('ArrowRight');
+  expect(
+    await posters.evaluateAll((buttons) =>
+      buttons.includes(document.activeElement as HTMLButtonElement),
+    ),
+  ).toBe(true);
+  await expectVisibleFocus(page);
+  await tabTo(
+    page,
+    page.locator('main section[aria-labelledby]').first().getByRole('link').first(),
+    3,
+  );
+  await expect(band).not.toHaveAttribute('data-paused');
+  await expectNoFocusTrap(page, 200);
+});
+
 test('the poster row is an endless band: the active poster leads, the DOM order stays (concept 15, 6.3)', async ({
   page,
   owner,
@@ -946,6 +1034,100 @@ test('"Weiterschauen" per series: the series card, arrow keys in the row, Enter 
     page,
     page.getByRole('link', { name: /^Weiterschauen ab \d{2}:\d{2}:\d{2}$/ }),
   );
+});
+
+/** The libraries the owner's main profile sees, in the order of the side navigation. */
+async function visibleLibraries(api: APIRequestContext): Promise<{ id: number; name: string }[]> {
+  const response = await api.get('/api/v1/libraries/visible');
+  expect(response.status(), await response.text()).toBe(200);
+  return (await response.json()) as { id: number; name: string }[];
+}
+
+test('«Meine Medien» and «Neu in …»: tiles by arrow keys and Tab, Enter opens the library, back returns (concept 15 P-7) @keyboard', async ({
+  page,
+  owner,
+}) => {
+  const libraries = await visibleLibraries(owner);
+  const films = libraries.find((library) => library.name === 'Filme');
+  if (!films) throw new Error('the e2e library «Filme» is missing');
+  const row = (await listHomeRows(owner)).find((entry) => entry.libraryId === films.id);
+  if (!row) throw new Error('the row «Neu in Filme» is missing');
+  try {
+    // «Meine Medien» first, «Neu in Filme» second, the spotlight band further down.
+    await setHomeRows(owner, ['libraries', row.id, ...DEFAULT_HOME_ROWS]);
+    await page.goto('/');
+    const mine = page.getByRole('region', { name: 'Meine Medien' });
+    const tiles = mine.getByRole('link');
+    await expect(sections(page).nth(0)).toHaveAccessibleName('Meine Medien');
+    await expect(sections(page).nth(1)).toHaveAccessibleName('Neu in Filme');
+    // A tile per library the profile sees, in the order of the side navigation, with its count.
+    await expect(tiles).toHaveCount(libraries.length);
+    for (const [index, library] of libraries.entries()) {
+      await expect(tiles.nth(index)).toHaveAttribute('href', `/libraries/${library.id}`);
+      await expect(tiles.nth(index)).toHaveAccessibleName(new RegExp(`^${library.name}\\s*\\d`));
+    }
+    // 16:9, two cards wide (Row.module.css .tile).
+    const box = await tiles.first().boundingBox();
+    expect(box && Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
+
+    // The page starts on the first tile (no stage on top); the arrow keys move along the tiles.
+    await resetFocus(page);
+    const inTiles = () =>
+      tiles.evaluateAll((links) => links.indexOf(document.activeElement as HTMLAnchorElement));
+    for (let presses = 0; presses < 3 && (await inTiles()) < 0; presses += 1) {
+      await page.keyboard.press('ArrowDown');
+    }
+    expect(await inTiles()).toBe(0);
+    await expectVisibleFocus(page);
+    if (libraries.length > 1) {
+      await page.keyboard.press('ArrowRight');
+      await expect.poll(inTiles).toBe(1);
+      await expectVisibleFocus(page);
+      await expect(tiles.nth(1)).toBeInViewport();
+      await page.keyboard.press('ArrowLeft');
+      await expect.poll(inTiles).toBe(0);
+    }
+    // Down into «Neu in Filme», up back to the tiles.
+    const filmCards = page.getByRole('region', { name: 'Neu in Filme' }).getByRole('link');
+    await page.keyboard.press('ArrowDown');
+    await expect
+      .poll(() =>
+        filmCards.evaluateAll((links) =>
+          links.includes(document.activeElement as HTMLAnchorElement),
+        ),
+      )
+      .toBe(true);
+    await page.keyboard.press('ArrowUp');
+    await expect.poll(inTiles).toBe(0);
+
+    // Enter opens the library page, browser back returns to the start page.
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/libraries/${libraries[0].id}$`));
+    await expect(page.getByRole('heading', { level: 1, name: libraries[0].name })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(mine).toBeVisible();
+
+    // Tab reaches the first tile after the side navigation, then «Alle anzeigen ›» of «Neu in
+    // Filme»: Enter opens the library sorted by «Zuletzt hinzugefügt».
+    await resetFocus(page);
+    await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }));
+    await tabTo(page, tiles.first(), 3);
+    const all = page
+      .getByRole('region', { name: 'Neu in Filme' })
+      .getByRole('link', { name: 'Alle anzeigen ›' });
+    await expect(all).toHaveAttribute('href', `/libraries/${films.id}?sort=added`);
+    await tabTo(page, all, libraries.length + 2);
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(new RegExp(`/libraries/${films.id}\\?sort=added$`));
+    await expect(page.getByRole('heading', { level: 1, name: 'Filme' })).toBeVisible();
+    await page.goBack();
+    await expect(mine).toBeVisible();
+    await resetFocus(page);
+    await expectNoFocusTrap(page, 160);
+  } finally {
+    await setHomeRows(owner, DEFAULT_HOME_ROWS);
+  }
 });
 
 test('arrow keys move hero → rows → header, Enter opens, back returns', async ({ page }) => {

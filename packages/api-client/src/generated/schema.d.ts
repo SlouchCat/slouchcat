@@ -501,8 +501,13 @@ export interface paths {
          *     `note` on each item), `continue`, `recent`, `released` (titles released in the last twelve
          *     months by `releaseDate`, a series by its newest visible episode), `watchlist` (E-5),
          *     `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
-         *     `items`). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
-         *     are omitted; never more than eight (E-9). `heroRow` names the row the client draws as the
+         *     `items`). Since contract 1.15.0 (concept 15 P-7; breaking: new keys, rows named by `id`):
+         *     `libraries` («Meine Medien», `libraries` instead of `items`: one tile per library the
+         *     active profile sees, in the order of `listVisibleLibraries`) and one row `library` per
+         *     library («Neu in …», `libraryId`, `libraryName`: its newest visible titles, at most 20, in
+         *     the order of `listLibraryItems` with `sort=added`; a library the profile does not see has
+         *     no row). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
+         *     are omitted; never more than fifteen (E-9, F-12). `heroRow` names the row the client draws as the
          *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
          *     a poster row. Every item passed the visibility layer of the active profile.
          *
@@ -1686,9 +1691,62 @@ export interface paths {
         /**
          * Refresh metadata, images, trailers and probes of a title
          * @description Queues `metadata.match` at high priority (which queues `image.fetch` and `trailer.find`) and a probe
-         *     of every media file of the title. Locked fields and manual trailers are kept.
+         *     of every media file of the title. Locked fields and manual trailers are kept. Since contract 1.15.0
+         *     an optional body `{"unlockAll": true}` first lifts every lock of the title (concept 15 7.5): the
+         *     field and text locks and the image choices go, so the refresh decides them again; the locks of a
+         *     manual match (`setItemMatch`) and a rating set by hand stay. Without a body as before.
          */
         post: operations["refreshItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit and lock the metadata texts and columns of a title (concept 15 7.5, P-6)
+         * @description Since contract 1.15.0. Writes the given fields of a movie, series, season or episode and locks each
+         *     of them, so `metadata.match` and `metadata.fill` keep it; `unlock` lifts the locks of the named
+         *     fields (their values stay until the next refresh). Texts (`title`, `sortTitle`, `tagline`,
+         *     `overview`) always belong to the server's metadata language (`AdminItemMetadata.lang`, F-10); they
+         *     are locked per language (`title:de`, `sort_title:de`, …), the other languages stay with the
+         *     providers. `sortTitle` is kept as typed and stored as the sort key of that language (lower-cased,
+         *     diacritics folded, no article stripped), which the library sorts by. `originalTitle`, `tagline` and `genres` exist
+         *     for movies and series only. A field the request sets loses its provenance (`fieldSources`). An
+         *     empty body changes nothing. The answer is the administration view after the change.
+         */
+        patch: operations["updateItemMetadata"];
+        trace?: never;
+    };
+    "/admin/genres": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every genre of the server's metadata language (concept 15 7.5)
+         * @description Since contract 1.15.0. The genre names of all live movies and series in the server's metadata
+         *     language, sorted without regard to case, for the suggestions of the metadata editor. Unlike
+         *     `listGenres` (scoped, at most 20) unfiltered and complete.
+         */
+        get: operations["listAdminGenres"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1775,7 +1833,8 @@ export interface paths {
          *     kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
          *     provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
          *     of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
-         *     series, poster for seasons; another kind is 422.
+         *     series, poster for seasons, backdrop (the TMDB stills) for episodes while the setting "episode
+         *     stills" is on (since contract 1.15.0, `AdminItem.imageKinds`); another kind is 422.
          */
         get: operations["listItemImageCandidates"];
         put?: never;
@@ -1828,9 +1887,40 @@ export interface paths {
         /**
          * Lift the choice and the lock of a kind
          * @description Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
-         *     for a season) decides the kind again by the language chain and queues `image.fetch`.
+         *     for a season; an episode turns pending first) decides the kind again by the language chain and
+         *     queues `image.fetch`, which also replaces an uploaded image (`uploadItemImage`).
          */
         delete: operations["clearItemImage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/items/{id}/images/{kind}/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upload an own image for a kind of a title (binary upload, concept 15 7.5)
+         * @description Implemented as an `http.Handler` (CLAUDE.md rule 6) since contract 1.15.0. The body is
+         *     `multipart/form-data` with the part `file`, at most 20 MB (the body limit of this route is
+         *     20 MB plus 1 MiB framing). The server takes the format from the content, not from the file name
+         *     or the declared type: JPEG, PNG or WebP; it reads the pixel count from the header (at most 50
+         *     megapixels) before it decodes anything. The image becomes the title's image of the kind and the
+         *     kind is locked (`lockedFields`) without a chosen source (`images` lists the kind as `locked`
+         *     without `provider`); its sizes are derived at once and delivered like every image (`scoped`).
+         *     A later refresh, match or `applyMetadata` keeps it; `clearItemImage` lifts the lock and the
+         *     provider's image replaces the upload. Kinds as in `AdminItem.imageKinds`: poster, backdrop and
+         *     logo for films and series, poster for seasons, backdrop (the episode still) for episodes while
+         *     the setting "episode stills" (`episode_still`) is on.
+         */
+        put: operations["uploadItemImage"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2580,11 +2670,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The order of the start page rows (E-9) */
+        /**
+         * The order of the start page rows (E-9)
+         * @description Every row in display order (since contract 1.15.0, concept 15 P-7): the eight fixed rows,
+         *     `libraries` («Meine Medien») and one row `library` per library, each named by its `id`. A
+         *     new library gets its row hidden at the end.
+         */
         get: operations["getHomeRows"];
         /**
          * Set the order and visibility of the start page rows (E-9)
-         * @description Every row key exactly once; the array order is the display order.
+         * @description The rows by `id` (since contract 1.15.0, breaking): the array order is the display order, and
+         *     `hidden` of each listed row is stored; `position` is ignored. A stored row the array leaves
+         *     out (for example a library added after the page was read) keeps its place in the stored order
+         *     and its `hidden` flag. At most fifteen rows may be visible (F-12); hidden rows do not count.
          */
         put: operations["setHomeRows"];
         post?: never;
@@ -4511,13 +4609,45 @@ export interface components {
             tracks?: components["schemas"]["TrackList"];
         };
         /**
-         * @description The eight rows of the start page (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
-         *     by `spotlight` and `released` (ADR 0011); removed values are never reused.
+         * @description The kinds of start page rows (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
+         *     by `spotlight` and `released` (ADR 0011); removed values are never reused. Contract 1.15.0
+         *     added `libraries` («Meine Medien») and `library` («Neu in …», one row per library, concept
+         *     15 P-7); a row is named by `HomeRowId`, the key alone no longer.
          * @enum {string}
          */
-        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres";
+        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library";
+        /**
+         * @description The identity of a start page row (since contract 1.15.0): its key for every row but
+         *     `library`, `library:<libraryId>` for a library row.
+         */
+        HomeRowId: string;
+        /**
+         * @description One tile of the row `libraries` («Meine Medien», since contract 1.15.0): a library the active
+         *     profile sees, with the number of its visible top-level titles and the newest of them for the
+         *     collage; it opens the library page.
+         */
+        LibraryTile: {
+            /** Format: int64 */
+            id: number;
+            name: string;
+            kind: components["schemas"]["LibraryKind"];
+            /** @description Visible top-level titles (films, series, audiobooks, podcasts; never episodes). */
+            itemCount: number;
+            /** @description The newest visible top-level titles (the order of `sort=added`), for the collage. */
+            items: components["schemas"]["ItemRef"][];
+        };
         HomeRow: {
+            id: components["schemas"]["HomeRowId"];
             key: components["schemas"]["HomeRowKey"];
+            /**
+             * Format: int64
+             * @description Only in a row `library`; its «Alle anzeigen» opens that library sorted by `added`.
+             */
+            libraryId?: number;
+            /** @description Only in a row `library`, the name of its library (the row title «Neu in …»). */
+            libraryName?: string;
+            /** @description Only in the row `libraries`, whose `items` stay empty. */
+            libraries?: components["schemas"]["LibraryTile"][];
             /** @description The titles of the row; empty for `collections` and `genres`. */
             items: components["schemas"]["ItemRef"][];
             /** @description Only in the row `collections` (E-6). */
@@ -5259,6 +5389,79 @@ export interface components {
             };
             /** @description The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out. */
             images?: components["schemas"]["AdminItemImage"][];
+            /**
+             * @description The kinds the administrator can choose (`listItemImageCandidates`, `setItemImage`) or upload
+             *     (`uploadItemImage`) for this title now (since contract 1.15.0, concept 15 7.5): poster,
+             *     backdrop and logo for films and series, poster for seasons, backdrop (the episode still)
+             *     for episodes; empty for an episode while the setting "episode stills" (`episode_still`) of
+             *     its library is off, and for every other kind of title.
+             */
+            imageKinds?: components["schemas"]["ImageKind"][];
+            metadata?: components["schemas"]["AdminItemMetadata"];
+        };
+        /**
+         * @description A field of the metadata editor (since contract 1.15.0, concept 15 7.5).
+         * @enum {string}
+         */
+        AdminMetadataField: "title" | "originalTitle" | "sortTitle" | "year" | "releaseDate" | "tagline" | "overview" | "genres";
+        /**
+         * @description The fields the administrator changes (since contract 1.15.0); a field left out stays as it is. Texts
+         *     belong to the server's metadata language. `""` clears `originalTitle`, `releaseDate`, `tagline` and
+         *     `overview`; an empty `genres` list clears the genres of that language.
+         */
+        ItemMetadataUpdate: {
+            title?: string;
+            originalTitle?: string;
+            sortTitle?: string;
+            year?: number;
+            /** @description `YYYY-MM-DD` or `""`. */
+            releaseDate?: string;
+            tagline?: string;
+            overview?: string;
+            genres?: string[];
+            /** @description Fields whose lock goes; for a text field its lock in the server language and an old lock without language, which the other languages with a stored text keep as their own lock (`title:<lang>`), so only the server language is freed. */
+            unlock?: components["schemas"]["AdminMetadataField"][];
+        };
+        /**
+         * @description The editable metadata of a title in the server's metadata language (since contract 1.15.0, concept 15
+         *     7.4): the current values, which of them are locked and which provider wrote them. A field without a
+         *     value is left out.
+         */
+        AdminItemMetadata: {
+            /** @description The server's metadata language (the first of its text languages), which the texts belong to. */
+            lang: string;
+            /** @description The title in that language; the parsed title while there is no text row. */
+            title: string;
+            originalTitle?: string;
+            /**
+             * @description The sort title of that language as the administrator typed it while it is locked (`sortTitle` in
+             *     `locked`); else the title, which the sort key then follows.
+             */
+            sortTitle?: string;
+            year?: number;
+            releaseDate?: string;
+            tagline?: string;
+            overview?: string;
+            genres: string[];
+            /** @description The locked fields; a text field counts as locked by its lock in that language or by an old lock without language. */
+            locked: components["schemas"]["AdminMetadataField"][];
+            /** @description Which provider wrote which field (`year` follows `releaseDate`); a field the administrator wrote has none. */
+            sources: components["schemas"]["AdminMetadataSource"][];
+        };
+        AdminMetadataSource: {
+            field: components["schemas"]["AdminMetadataField"];
+            /** @description A `MetadataProvider`, or `union` for genres. */
+            provider: string;
+        };
+        /** @description Options of `refreshItem` (since contract 1.15.0). */
+        ItemRefreshRequest: {
+            /** @description Lift every lock of the title before the refresh (not those of a manual match). */
+            unlockAll?: boolean;
+        };
+        /** @description The genres of the server's metadata language (since contract 1.15.0). */
+        AdminGenreList: {
+            lang: string;
+            genres: string[];
         };
         /** @description One image a source offers for a kind of a title (concept 10 6.4). */
         ImageCandidate: {
@@ -6103,7 +6306,15 @@ export interface components {
             itemIds: components["schemas"]["ItemID"][];
         };
         HomeRowSetting: {
+            id: components["schemas"]["HomeRowId"];
             key: components["schemas"]["HomeRowKey"];
+            /**
+             * Format: int64
+             * @description Only on a row `library` (since contract 1.15.0).
+             */
+            libraryId?: number;
+            /** @description Only on a row `library`, the name of its library; ignored in a request. */
+            libraryName?: string;
             position: number;
             hidden: boolean;
         };
@@ -7020,6 +7231,14 @@ export interface components {
             includeSecrets: boolean;
             /** Format: password */
             passphrase?: string;
+        };
+        /** @description The image of `uploadItemImage` (since contract 1.15.0). */
+        ItemImageUpload: {
+            /**
+             * Format: binary
+             * @description A JPEG, PNG or WebP image of at most 20 MB and 50 megapixels.
+             */
+            file: string;
         };
         /**
          * @description The parts in this order: `passphrase` (when the archive is encrypted), then `file`. The server
@@ -11086,7 +11305,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ItemRefreshRequest"];
+            };
+        };
         responses: {
             /** @description Jobs queued. */
             202: {
@@ -11108,6 +11331,81 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
+        };
+    };
+    updateItemMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemMetadataUpdate"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): `kind` (`invalid_value`: not a movie, series, season
+             *     or episode), a field outside its limits (`required` for an empty `title` or `sortTitle`,
+             *     `too_long`, `invalid_value` for `year`, `releaseDate`, a genre), a field for movies and series
+             *     only on another kind (`invalid_value`), or `unlock` naming a field the request also sets
+             *     (`invalid_value`).
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    listAdminGenres: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The genres. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminGenreList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
         };
     };
     createItemTrailer: {
@@ -11395,6 +11693,59 @@ export interface operations {
                 };
             };
             /** @description The kind is not chosen by hand for this title (`validation_failed`, field `kind`). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    uploadItemImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Item ID (ULID). */
+                id: components["parameters"]["ItemID"];
+                kind: components["schemas"]["ImageKind"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ItemImageUpload"];
+            };
+        };
+        responses: {
+            /** @description The administration view after the upload. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminItem"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown title (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
+             * @description Validation failed (`validation_failed`): field `kind` (`invalid_value`: not in
+             *     `AdminItem.imageKinds`), field `file` (`required`: no part `file`; `invalid_value`: no
+             *     multipart body; `too_large`: more than 20 MB; `unsupported_format`: no JPEG, PNG or WebP by
+             *     content or a damaged header; `too_many_pixels`: more than 50 megapixels).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -12798,7 +13149,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description All eight rows in display order, with the hidden flag. */
+            /** @description All rows in display order, with the hidden flag. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12835,7 +13186,11 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description Validation failed (`validation_failed`; `rows` `invalid_value` unless every key appears once). */
+            /**
+             * @description Validation failed (`validation_failed`; `rows` `invalid_value` for an unknown `id`, an `id`
+             *     twice or a `key` that does not match the row; `rows` `too_many_visible` for more than fifteen
+             *     visible rows).
+             */
             422: {
                 headers: {
                     [name: string]: unknown;

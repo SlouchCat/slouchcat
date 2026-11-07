@@ -36,6 +36,12 @@
   transform: scale(0.97);
 }
 
+.sm {
+  min-height: var(--sc-space-8);
+  padding: 0 var(--sc-space-3);
+  font-size: var(--sc-font-size-sm);
+}
+
 .lg {
   min-height: calc(var(--sc-control-height) + var(--sc-space-1));
   padding: 0 var(--sc-space-6);
@@ -129,6 +135,10 @@
 .iconOnly {
   width: var(--sc-control-height);
   padding: 0;
+}
+
+.sm.iconOnly {
+  width: var(--sc-space-8);
 }
 
 .block {

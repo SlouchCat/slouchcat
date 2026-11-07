@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.14.0
+  version: 1.15.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -1167,8 +1167,13 @@ paths:
         `note` on each item), `continue`, `recent`, `released` (titles released in the last twelve
         months by `releaseDate`, a series by its newest visible episode), `watchlist` (E-5),
         `collections` (`collections` instead of `items`, E-6) and `genres` (`genres` instead of
-        `items`). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
-        are omitted; never more than eight (E-9). `heroRow` names the row the client draws as the
+        `items`). Since contract 1.15.0 (concept 15 P-7; breaking: new keys, rows named by `id`):
+        `libraries` («Meine Medien», `libraries` instead of `items`: one tile per library the
+        active profile sees, in the order of `listVisibleLibraries`) and one row `library` per
+        library («Neu in …», `libraryId`, `libraryName`: its newest visible titles, at most 20, in
+        the order of `listLibraryItems` with `sort=added`; a library the profile does not see has
+        no row). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
+        are omitted; never more than fifteen (E-9, F-12). `heroRow` names the row the client draws as the
         stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
         a poster row. Every item passed the visibility layer of the active profile.
 
@@ -3377,11 +3382,20 @@ paths:
       summary: Refresh metadata, images, trailers and probes of a title
       description: |
         Queues `metadata.match` at high priority (which queues `image.fetch` and `trailer.find`) and a probe
-        of every media file of the title. Locked fields and manual trailers are kept.
+        of every media file of the title. Locked fields and manual trailers are kept. Since contract 1.15.0
+        an optional body `{"unlockAll": true}` first lifts every lock of the title (concept 15 7.5): the
+        field and text locks and the image choices go, so the refresh decides them again; the locks of a
+        manual match (`setItemMatch`) and a rating set by hand stay. Without a body as before.
       tags: [admin]
       x-visibility: admin
       parameters:
         - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemRefreshRequest"
       responses:
         "202":
           description: Jobs queued.
@@ -3399,6 +3413,81 @@ paths:
             application/problem+json:
               schema:
                 $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/metadata:
+    patch:
+      operationId: updateItemMetadata
+      summary: Edit and lock the metadata texts and columns of a title (concept 15 7.5, P-6)
+      description: |
+        Since contract 1.15.0. Writes the given fields of a movie, series, season or episode and locks each
+        of them, so `metadata.match` and `metadata.fill` keep it; `unlock` lifts the locks of the named
+        fields (their values stay until the next refresh). Texts (`title`, `sortTitle`, `tagline`,
+        `overview`) always belong to the server's metadata language (`AdminItemMetadata.lang`, F-10); they
+        are locked per language (`title:de`, `sort_title:de`, …), the other languages stay with the
+        providers. `sortTitle` is kept as typed and stored as the sort key of that language (lower-cased,
+        diacritics folded, no article stripped), which the library sorts by. `originalTitle`, `tagline` and `genres` exist
+        for movies and series only. A field the request sets loses its provenance (`fieldSources`). An
+        empty body changes nothing. The answer is the administration view after the change.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItemMetadataUpdate"
+      responses:
+        "200":
+          description: The administration view after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`): `kind` (`invalid_value`: not a movie, series, season
+            or episode), a field outside its limits (`required` for an empty `title` or `sortTitle`,
+            `too_long`, `invalid_value` for `year`, `releaseDate`, a genre), a field for movies and series
+            only on another kind (`invalid_value`), or `unlock` naming a field the request also sets
+            (`invalid_value`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/genres:
+    get:
+      operationId: listAdminGenres
+      summary: Every genre of the server's metadata language (concept 15 7.5)
+      description: |
+        Since contract 1.15.0. The genre names of all live movies and series in the server's metadata
+        language, sorted without regard to case, for the suggestions of the metadata editor. Unlike
+        `listGenres` (scoped, at most 20) unfiltered and complete.
+      tags: [admin]
+      x-visibility: admin
+      responses:
+        "200":
+          description: The genres.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminGenreList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
 
   /admin/items/{id}/trailers:
     post:
@@ -3541,7 +3630,8 @@ paths:
         kind; `refresh=true` asks again. A provider that fails is named in `unavailable`. `previewUrl` of a
         provider points to the provider's small size (the browser loads it directly, without referrer, 9.6);
         of a local file to `getItemImageCandidatePreview`. Kinds: poster, backdrop, logo for films and
-        series, poster for seasons; another kind is 422.
+        series, poster for seasons, backdrop (the TMDB stills) for episodes while the setting "episode
+        stills" is on (since contract 1.15.0, `AdminItem.imageKinds`); another kind is 422.
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -3677,7 +3767,8 @@ paths:
       summary: Lift the choice and the lock of a kind
       description: |
         Removes the chosen image source and the lock of the kind; a manual match of the title (of the series
-        for a season) decides the kind again by the language chain and queues `image.fetch`.
+        for a season; an episode turns pending first) decides the kind again by the language chain and
+        queues `image.fetch`, which also replaces an uploaded image (`uploadItemImage`).
       tags: [admin]
       x-visibility: admin
       parameters:
@@ -3706,6 +3797,68 @@ paths:
                 $ref: "#/components/schemas/Problem"
         "422":
           description: The kind is not chosen by hand for this title (`validation_failed`, field `kind`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+
+  /admin/items/{id}/images/{kind}/upload:
+    put:
+      operationId: uploadItemImage
+      summary: Upload an own image for a kind of a title (binary upload, concept 15 7.5)
+      description: |
+        Implemented as an `http.Handler` (CLAUDE.md rule 6) since contract 1.15.0. The body is
+        `multipart/form-data` with the part `file`, at most 20 MB (the body limit of this route is
+        20 MB plus 1 MiB framing). The server takes the format from the content, not from the file name
+        or the declared type: JPEG, PNG or WebP; it reads the pixel count from the header (at most 50
+        megapixels) before it decodes anything. The image becomes the title's image of the kind and the
+        kind is locked (`lockedFields`) without a chosen source (`images` lists the kind as `locked`
+        without `provider`); its sizes are derived at once and delivered like every image (`scoped`).
+        A later refresh, match or `applyMetadata` keeps it; `clearItemImage` lifts the lock and the
+        provider's image replaces the upload. Kinds as in `AdminItem.imageKinds`: poster, backdrop and
+        logo for films and series, poster for seasons, backdrop (the episode still) for episodes while
+        the setting "episode stills" (`episode_still`) is on.
+      tags: [admin]
+      x-visibility: admin
+      parameters:
+        - $ref: "#/components/parameters/ItemID"
+        - name: kind
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ImageKind"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ItemImageUpload"
+            encoding:
+              file:
+                contentType: image/jpeg, image/png, image/webp
+      responses:
+        "200":
+          description: The administration view after the upload.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminItem"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/AdminOnly"
+        "404":
+          description: Unknown title (`not_found`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "422":
+          description: |
+            Validation failed (`validation_failed`): field `kind` (`invalid_value`: not in
+            `AdminItem.imageKinds`), field `file` (`required`: no part `file`; `invalid_value`: no
+            multipart body; `too_large`: more than 20 MB; `unsupported_format`: no JPEG, PNG or WebP by
+            content or a damaged header; `too_many_pixels`: more than 50 megapixels).
           content:
             application/problem+json:
               schema:
@@ -5054,11 +5207,15 @@ paths:
     get:
       operationId: getHomeRows
       summary: The order of the start page rows (E-9)
+      description: |
+        Every row in display order (since contract 1.15.0, concept 15 P-7): the eight fixed rows,
+        `libraries` («Meine Medien») and one row `library` per library, each named by its `id`. A
+        new library gets its row hidden at the end.
       tags: [admin]
       x-visibility: admin
       responses:
         "200":
-          description: All eight rows in display order, with the hidden flag.
+          description: All rows in display order, with the hidden flag.
           content:
             application/json:
               schema:
@@ -5072,7 +5229,11 @@ paths:
     put:
       operationId: setHomeRows
       summary: Set the order and visibility of the start page rows (E-9)
-      description: Every row key exactly once; the array order is the display order.
+      description: |
+        The rows by `id` (since contract 1.15.0, breaking): the array order is the display order, and
+        `hidden` of each listed row is stored; `position` is ignored. A stored row the array leaves
+        out (for example a library added after the page was read) keeps its place in the stored order
+        and its `hidden` flag. At most fifteen rows may be visible (F-12); hidden rows do not count.
       tags: [admin]
       x-visibility: admin
       requestBody:
@@ -5081,8 +5242,8 @@ paths:
           application/json:
             schema:
               type: array
-              minItems: 8
-              maxItems: 8
+              minItems: 1
+              maxItems: 500
               items:
                 $ref: "#/components/schemas/HomeRowSetting"
       responses:
@@ -5099,7 +5260,10 @@ paths:
         "403":
           $ref: "#/components/responses/AdminOnly"
         "422":
-          description: Validation failed (`validation_failed`; `rows` `invalid_value` unless every key appears once).
+          description: |
+            Validation failed (`validation_failed`; `rows` `invalid_value` for an unknown `id`, an `id`
+            twice or a `key` that does not match the row; `rows` `too_many_visible` for more than fifteen
+            visible rows).
           content:
             application/problem+json:
               schema:
@@ -8547,16 +8711,66 @@ components:
     HomeRowKey:
       type: string
       description: |
-        The eight rows of the start page (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
-        by `spotlight` and `released` (ADR 0011); removed values are never reused.
-      enum: [spotlight, picks, continue, recent, released, watchlist, collections, genres]
+        The kinds of start page rows (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
+        by `spotlight` and `released` (ADR 0011); removed values are never reused. Contract 1.15.0
+        added `libraries` («Meine Medien») and `library` («Neu in …», one row per library, concept
+        15 P-7); a row is named by `HomeRowId`, the key alone no longer.
+      enum: [spotlight, picks, continue, recent, released, watchlist, collections, genres, libraries, library]
+
+    HomeRowId:
+      type: string
+      description: |
+        The identity of a start page row (since contract 1.15.0): its key for every row but
+        `library`, `library:<libraryId>` for a library row.
+      pattern: "^(spotlight|picks|continue|recent|released|watchlist|collections|genres|libraries|library:[0-9]+)$"
+      maxLength: 40
+
+    LibraryTile:
+      type: object
+      description: |
+        One tile of the row `libraries` («Meine Medien», since contract 1.15.0): a library the active
+        profile sees, with the number of its visible top-level titles and the newest of them for the
+        collage; it opens the library page.
+      required: [id, name, kind, itemCount, items]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/LibraryKind"
+        itemCount:
+          type: integer
+          minimum: 1
+          description: Visible top-level titles (films, series, audiobooks, podcasts; never episodes).
+        items:
+          type: array
+          maxItems: 4
+          description: The newest visible top-level titles (the order of `sort=added`), for the collage.
+          items:
+            $ref: "#/components/schemas/ItemRef"
 
     HomeRow:
       type: object
-      required: [key, items]
+      required: [id, key, items]
       properties:
+        id:
+          $ref: "#/components/schemas/HomeRowId"
         key:
           $ref: "#/components/schemas/HomeRowKey"
+        libraryId:
+          type: integer
+          format: int64
+          description: Only in a row `library`; its «Alle anzeigen» opens that library sorted by `added`.
+        libraryName:
+          type: string
+          description: Only in a row `library`, the name of its library (the row title «Neu in …»).
+        libraries:
+          type: array
+          description: Only in the row `libraries`, whose `items` stay empty.
+          items:
+            $ref: "#/components/schemas/LibraryTile"
         items:
           type: array
           description: The titles of the row; empty for `collections` and `genres`.
@@ -8579,7 +8793,7 @@ components:
       properties:
         rows:
           type: array
-          maxItems: 8
+          maxItems: 15
           items:
             $ref: "#/components/schemas/HomeRow"
         heroRow:
@@ -9736,6 +9950,143 @@ components:
           description: The decided image source per choosable kind (concept 10 7.3); a kind without image and lock is left out.
           items:
             $ref: "#/components/schemas/AdminItemImage"
+        imageKinds:
+          type: array
+          description: |
+            The kinds the administrator can choose (`listItemImageCandidates`, `setItemImage`) or upload
+            (`uploadItemImage`) for this title now (since contract 1.15.0, concept 15 7.5): poster,
+            backdrop and logo for films and series, poster for seasons, backdrop (the episode still)
+            for episodes; empty for an episode while the setting "episode stills" (`episode_still`) of
+            its library is off, and for every other kind of title.
+          items:
+            $ref: "#/components/schemas/ImageKind"
+        metadata:
+          $ref: "#/components/schemas/AdminItemMetadata"
+
+    AdminMetadataField:
+      type: string
+      enum: [title, originalTitle, sortTitle, year, releaseDate, tagline, overview, genres]
+      description: A field of the metadata editor (since contract 1.15.0, concept 15 7.5).
+
+    ItemMetadataUpdate:
+      type: object
+      description: |
+        The fields the administrator changes (since contract 1.15.0); a field left out stays as it is. Texts
+        belong to the server's metadata language. `""` clears `originalTitle`, `releaseDate`, `tagline` and
+        `overview`; an empty `genres` list clears the genres of that language.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+        originalTitle:
+          type: string
+          maxLength: 500
+        sortTitle:
+          type: string
+          minLength: 1
+          maxLength: 500
+        year:
+          type: integer
+          minimum: 1800
+          maximum: 2200
+        releaseDate:
+          type: string
+          description: "`YYYY-MM-DD` or `\"\"`."
+          maxLength: 10
+        tagline:
+          type: string
+          maxLength: 500
+        overview:
+          type: string
+          maxLength: 10000
+        genres:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+        unlock:
+          type: array
+          description: Fields whose lock goes; for a text field its lock in the server language and an old lock without language, which the other languages with a stored text keep as their own lock (`title:<lang>`), so only the server language is freed.
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/AdminMetadataField"
+
+    AdminItemMetadata:
+      type: object
+      description: |
+        The editable metadata of a title in the server's metadata language (since contract 1.15.0, concept 15
+        7.4): the current values, which of them are locked and which provider wrote them. A field without a
+        value is left out.
+      required: [lang, title, genres, locked, sources]
+      properties:
+        lang:
+          type: string
+          description: The server's metadata language (the first of its text languages), which the texts belong to.
+        title:
+          type: string
+          description: The title in that language; the parsed title while there is no text row.
+        originalTitle:
+          type: string
+        sortTitle:
+          type: string
+          description: |
+            The sort title of that language as the administrator typed it while it is locked (`sortTitle` in
+            `locked`); else the title, which the sort key then follows.
+        year:
+          type: integer
+        releaseDate:
+          type: string
+        tagline:
+          type: string
+        overview:
+          type: string
+        genres:
+          type: array
+          items:
+            type: string
+        locked:
+          type: array
+          description: The locked fields; a text field counts as locked by its lock in that language or by an old lock without language.
+          items:
+            $ref: "#/components/schemas/AdminMetadataField"
+        sources:
+          type: array
+          description: Which provider wrote which field (`year` follows `releaseDate`); a field the administrator wrote has none.
+          items:
+            $ref: "#/components/schemas/AdminMetadataSource"
+
+    AdminMetadataSource:
+      type: object
+      required: [field, provider]
+      properties:
+        field:
+          $ref: "#/components/schemas/AdminMetadataField"
+        provider:
+          type: string
+          description: A `MetadataProvider`, or `union` for genres.
+
+    ItemRefreshRequest:
+      type: object
+      description: Options of `refreshItem` (since contract 1.15.0).
+      properties:
+        unlockAll:
+          type: boolean
+          description: Lift every lock of the title before the refresh (not those of a manual match).
+
+    AdminGenreList:
+      type: object
+      description: The genres of the server's metadata language (since contract 1.15.0).
+      required: [lang, genres]
+      properties:
+        lang:
+          type: string
+        genres:
+          type: array
+          items:
+            type: string
 
     ImageCandidate:
       type: object
@@ -11317,14 +11668,22 @@ components:
 
     HomeRowSetting:
       type: object
-      required: [key, position, hidden]
+      required: [id, key, position, hidden]
       properties:
+        id:
+          $ref: "#/components/schemas/HomeRowId"
         key:
           $ref: "#/components/schemas/HomeRowKey"
+        libraryId:
+          type: integer
+          format: int64
+          description: Only on a row `library` (since contract 1.15.0).
+        libraryName:
+          type: string
+          description: Only on a row `library`, the name of its library; ignored in a request.
         position:
           type: integer
           minimum: 0
-          maximum: 7
         hidden:
           type: boolean
 
@@ -12836,6 +13195,16 @@ components:
           minLength: 12
           maxLength: 1024
           writeOnly: true
+
+    ItemImageUpload:
+      type: object
+      description: The image of `uploadItemImage` (since contract 1.15.0).
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: A JPEG, PNG or WebP image of at most 20 MB and 50 megapixels.
 
     RestoreUpload:
       type: object

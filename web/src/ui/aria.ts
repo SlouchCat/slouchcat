@@ -24,6 +24,7 @@ export { CheckboxGroup } from './CheckboxGroup';
 export { CodeBlock } from './CodeBlock';
 export { DataTable, type DataColumn } from './DataTable';
 export { ConfirmDialog, ConfirmInputDialog, FormDialog } from './Dialog';
+export { EditorDialog } from './EditorDialog';
 export {
   FolderList,
   contentsOf,
@@ -34,6 +35,7 @@ export {
 } from './FolderList';
 export { Form } from './Form';
 export { LinkCard } from './LinkCard';
+export { LockToggle } from './LockToggle';
 export { MenuButton } from './Menu';
 export { MessageContent, MessageDialog } from './MessageDialog';
 export { PathList, type PathItem } from './PathList';

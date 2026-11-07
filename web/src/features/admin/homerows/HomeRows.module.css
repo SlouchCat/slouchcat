@@ -8,6 +8,14 @@
   gap: var(--sc-space-3);
 }
 
+/* A library row: its name and the tag «Bibliothek» (concept 15 P-7). */
+.name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: center;
+}
+
 .hide {
   display: inline-flex;
   gap: var(--sc-space-2);

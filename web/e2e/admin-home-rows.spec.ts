@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { CSRF } from './catalog';
-import { DEFAULT_HOME_ROWS, setHomeRows, titleId } from './curation';
+import { DEFAULT_HOME_ROWS, listHomeRows, setHomeRows, titleId } from './curation';
 import { expect, test } from './fixtures';
 import {
   expectFocusOn,
@@ -15,7 +15,9 @@ import { arrowTo, resetProgress } from './playback';
 // "Neu hinzugefügt" by ↑ on its select changes the start page's order, a hidden row is gone from
 // it; a row folds out by Enter with its description; the tabs «Reihenfolge» and «Vorschau» by
 // ←/→; leaving with unsaved changes asks; the Trakt line leads to the spotlight page. ↑/↓
-// between the rows, Tab, Enter and Space, browser back, no trap.
+// between the rows, Tab, Enter and Space, browser back, no trap. Behind the eight fixed rows the
+// page lists «Meine Medien» and a row per library (concept 15 P-7), hidden; the Tab limits count
+// their stops too.
 
 /** A film the main profile has started, so its "Weiterschauen" row exists. */
 const STARTED_TITLE = 'Slouchcat Test Sidecar Subtitles';
@@ -72,7 +74,7 @@ test('start page rows by keyboard: placing and hiding change the start page @key
         .getByRole('link', { name: 'Startseite' }),
     ).toHaveAttribute('aria-current', 'page');
     const table = rowsTable(page);
-    await expect(table.getByRole('rowheader')).toHaveCount(8);
+    await expect(table.getByRole('rowheader')).toHaveCount((await listHomeRows(owner)).length);
     // No arrow buttons any more (S-16): a position to choose per row.
     await expect(table.getByRole('button', { name: /nach oben|nach unten/ })).toHaveCount(0);
 
@@ -109,7 +111,7 @@ test('start page rows by keyboard: placing and hiding change the start page @key
         (response) =>
           response.request().method() === 'PUT' && response.url().endsWith('/admin/home-rows'),
       );
-    await tabTo(page, save, 40);
+    await tabTo(page, save, 80);
     let saved = stored();
     await page.keyboard.press('Enter');
     expect((await saved).status()).toBe(200);
@@ -128,7 +130,7 @@ test('start page rows by keyboard: placing and hiding change the start page @key
     await tabTo(page, hide, 60);
     await page.keyboard.press('Space');
     await expect(hide).toBeChecked();
-    await tabTo(page, save, 40);
+    await tabTo(page, save, 80);
     saved = stored();
     await page.keyboard.press('Enter');
     expect((await saved).status()).toBe(200);
@@ -142,12 +144,14 @@ test('start page rows by keyboard: placing and hiding change the start page @key
 
 test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen» restores', async ({
   page,
+  owner,
 }) => {
   await page.goto('/admin/home-rows');
   const table = rowsTable(page);
-  await expect(table.getByRole('rowheader')).toHaveCount(8);
+  await expect(table.getByRole('rowheader')).toHaveCount((await listHomeRows(owner)).length);
   const first = await table.getByRole('rowheader').first().textContent();
-  const last = (await table.getByRole('rowheader').last().textContent()) ?? '';
+  // The last of the eight fixed rows; the rows of concept 15 P-7 follow it.
+  const last = (await table.getByRole('rowheader').nth(7).textContent()) ?? '';
 
   // ↑ on the last row's position: it moves one up, unsaved.
   await resetFocus(page);
@@ -195,13 +199,13 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(page).toHaveURL(/\/admin\/home-rows$/);
   await expect(saveBar(page).getByText('Ungespeicherte Änderungen')).toBeVisible();
   // With unsaved changes the page holds no focus trap either.
-  await expectNoFocusTrap(page, 120);
+  await expectNoFocusTrap(page, 180);
 
   // «Verwerfen» asks, starting on «Abbrechen»: Enter there keeps the changes and gives the
   // focus back to «Verwerfen»; confirmed, the saved order is back.
   const discardButton = saveBar(page).getByRole('button', { name: 'Verwerfen' });
   await resetFocus(page);
-  await tabTo(page, discardButton, 80);
+  await tabTo(page, discardButton, 140);
   await page.keyboard.press('Enter');
   const discard = page.getByRole('alertdialog', { name: 'Änderungen verwerfen?' });
   await expectFocusOn(page, discard.getByRole('button', { name: 'Abbrechen' }));
@@ -210,9 +214,9 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expectFocusOn(page, discardButton);
   await expect(table.getByRole('rowheader').nth(6)).toHaveText(last);
   // The question let the focus go: Tab runs on to the end of the page; back to «Verwerfen».
-  await expectNoFocusTrap(page, 120);
+  await expectNoFocusTrap(page, 180);
   await resetFocus(page);
-  await tabTo(page, discardButton, 80);
+  await tabTo(page, discardButton, 140);
   await page.keyboard.press('Enter');
   await expectFocusOn(page, discard.getByRole('button', { name: 'Abbrechen' }));
   await page.keyboard.press('Tab');
@@ -223,7 +227,7 @@ test('the preview by ←/→ shows the unsaved order; leaving asks, «Verwerfen�
   await expect(saveStatus(page)).toHaveText('Die Änderungen sind verworfen.');
   await expect(page.getByRole('heading', { level: 1, name: 'Startseite' })).toBeFocused();
   await expect(table.getByRole('rowheader').first()).toHaveText(first ?? '');
-  await expect(table.getByRole('rowheader').last()).toHaveText(last);
+  await expect(table.getByRole('rowheader').nth(7)).toHaveText(last);
 
   // Nothing unsaved: the sidebar link goes at once.
   await toSpotlight();
@@ -240,7 +244,7 @@ test('the Trakt line links to the spotlight page by keyboard', async ({ page }) 
 
   const link = page.getByRole('link', { name: 'Zur Seite «Spotlight»' });
   await resetFocus(page);
-  await tabTo(page, link, 80);
+  await tabTo(page, link, 140);
   await expectVisibleFocus(page);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/admin\/spotlight$/);
@@ -262,7 +266,7 @@ test('ticking «Ausblenden» leaves the columns where they are (K12-9)', async (
   await setHomeRows(owner, DEFAULT_HOME_ROWS);
   await page.goto('/admin/home-rows');
   const table = rowsTable(page);
-  await expect(table.getByRole('rowheader')).toHaveCount(8);
+  await expect(table.getByRole('rowheader')).toHaveCount((await listHomeRows(owner)).length);
   const before = await headerLefts(page);
 
   // The state of the row changes from «sichtbar» to «ausgeblendet», unsaved.

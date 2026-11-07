@@ -11,7 +11,7 @@ generate:
   # x-visibility per route at runtime.
   embedded-spec: true
 output-options:
-  # Binary endpoints (images, media streams, HLS playlists and segments, spike download, backup download) are plain
+  # Binary endpoints (images, media streams, HLS playlists and segments, spike download, backup download, image upload) are plain
   # http.Handlers mounted in internal/api (CLAUDE.md rule 6); the strict server covers JSON operations only.
   exclude-operation-ids:
     - getItemImage
@@ -28,3 +28,4 @@ output-options:
     - getAdminItemImage
     - getItemImageCandidatePreview
     - getChapterImage
+    - uploadItemImage

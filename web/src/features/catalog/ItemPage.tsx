@@ -55,6 +55,7 @@ import {
   spatialFocusKey,
   TitleOrLogo,
 } from '@/ui';
+import { EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './labels';
 import { itemQuery, podcastEpisodesQuery } from './queries';
@@ -220,7 +221,9 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
             />
           </Suspense>
         )}
-        {canManage && (
+        {/* Titles the metadata editor does not edit keep the link to their administration page;
+            the others have the pen on the poster (PosterPen). */}
+        {canManage && !EDITABLE_KINDS.has(item.kind) && (
           <SpatialButtonLink href={paths.adminItem(item.id)} variant="ghost" size="lg" icon="info">
             {t('item.manage')}
           </SpatialButtonLink>
@@ -269,6 +272,33 @@ function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
       )}
       {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
     </>
+  );
+}
+
+/**
+ * The pen on the poster (concept 15 7.4): it opens the metadata editor, for the one who manages
+ * the library. A plain button, so Tab reaches it before the actions and the arrow keys pass it
+ * by, as on the library's covers.
+ */
+function PosterPen({ item }: { item: ItemDetail }) {
+  const { t } = useTranslation();
+  const session = useActiveSession();
+  const [editing, setEditing] = useState(false);
+  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
+  if (!canManage || !EDITABLE_KINDS.has(item.kind)) return null;
+  return (
+    <div className={styles.posterTool}>
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="pen"
+        iconOnly
+        aria-label={t('item.editMetadata')}
+        title={t('item.editMetadata')}
+        onPress={() => setEditing(true)}
+      />
+      {editing && <EditMetadata itemId={item.id} onClose={() => setEditing(false)} />}
+    </div>
   );
 }
 
@@ -815,6 +845,7 @@ function ItemView({ itemId }: { itemId: string }) {
                 <PosterFallback />
               </span>
             )}
+            <PosterPen item={item} />
           </div>
 
           <div className={styles.info}>

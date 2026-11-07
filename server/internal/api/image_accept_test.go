@@ -2,11 +2,14 @@ package api
 
 import (
 	"bytes"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/slouchcat/slouchcat/server/internal/api/gen"
+	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -112,4 +115,34 @@ func containsToken(values []string, token string) bool {
 		}
 	}
 	return false
+}
+
+// The preview of an image kind in AdminItem.images (concept 15 7.4): the provider's address, the
+// candidate preview of a local source, and for a lock without choice (an upload) the stored image
+// through getAdminItemImage; nothing for a lock without a stored image.
+func TestAdminItemImagePreview(t *testing.T) {
+	t.Parallel()
+	out := toAdminItem(model.AdminItem{ID: "01ITEM", Images: []model.AdminItemImage{
+		{Kind: "poster", Provider: "tmdb", Source: "/p.jpg", PreviewURL: "https://image.tmdb.org/t/p/w300/p.jpg", Chosen: true, Locked: true},
+		{Kind: "backdrop", Provider: "local", Source: "file:b.jpg?1-1"},
+		{Kind: "logo", Locked: true, StoredSize: "w400", StoredHash: "abc"},
+	}})
+	got := map[gen.ImageKind]string{}
+	for _, img := range *out.Images {
+		if img.PreviewUrl != nil {
+			got[img.Kind] = *img.PreviewUrl
+		}
+	}
+	want := map[gen.ImageKind]string{
+		"poster":   "https://image.tmdb.org/t/p/w300/p.jpg",
+		"backdrop": candidatePreviewURL("01ITEM", "file:b.jpg?1-1"),
+		"logo":     BasePath + "/admin/items/01ITEM/images/logo/w400?v=abc",
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("previews %v, want %v", got, want)
+	}
+	none := toAdminItem(model.AdminItem{ID: "01ITEM", Images: []model.AdminItemImage{{Kind: "poster", Locked: true}}})
+	if p := (*none.Images)[0].PreviewUrl; p != nil {
+		t.Fatalf("a lock without a stored image has the preview %q", *p)
+	}
 }

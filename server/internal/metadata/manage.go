@@ -203,6 +203,68 @@ func (s *Service) Refresh(ctx context.Context, itemID string) error {
 	return nil
 }
 
+// matchLocks are the locks of a manual match (AssignMatch): they are the assignment, not a field,
+// and survive every refresh, UnlockAll included.
+var matchLocks = []string{"tmdb_id", "tvdb_id", "imdb_id"}
+
+// UnlockAll lifts every lock of a title before a refresh (refreshItem with unlockAll, concept 15
+// 7.5): the field and text locks go, and an image kind that was locked loses its decided source
+// (the item_images row, like ClearItemImage), so the next match and fill decide it again. A sort
+// title whose lock sort_title:<lang> goes follows the title again in the same transaction (sort_key
+// from the title, no typed sort title), as the editor's unlock of the field does. The locks of a
+// manual match stay, and so does a rating of source manual or nfo, which is kept by its source.
+// Errors: model.ErrNotFound.
+func (s *Service) UnlockAll(ctx context.Context, itemID string) error {
+	item, err := s.liveItem(ctx, itemID)
+	if err != nil {
+		return err
+	}
+	locked := lockedFields(item.LockedFields)
+	keep := []string{}
+	for _, n := range matchLocks {
+		if locked[n] {
+			keep = append(keep, n)
+		}
+	}
+	if len(keep) == len(locked) {
+		return nil
+	}
+	raw, err := json.Marshal(keep)
+	if err != nil {
+		return fmt.Errorf("unlock %s: %w", item.ID, err)
+	}
+	err = s.inTx(ctx, func(q *systemq.Queries) error {
+		for _, kind := range []string{"poster", "backdrop", "logo"} {
+			if !locked[kind] {
+				continue
+			}
+			if err := q.DeleteItemImage(ctx, systemq.DeleteItemImageParams{ItemID: item.ID, Kind: kind}); err != nil {
+				return err
+			}
+		}
+		texts, err := q.ListItemTextsByItem(ctx, item.ID)
+		if err != nil {
+			return err
+		}
+		for _, t := range texts {
+			if !locked[textLockName(fieldSortTitle, t.Lang)] {
+				continue
+			}
+			if err := q.EditItemText(ctx, systemq.EditItemTextParams{ItemID: item.ID, Lang: t.Lang, Title: t.Title,
+				Overview: t.Overview, Tagline: t.Tagline, Rank: t.Rank,
+				SortKey: sql.NullString{String: model.SortKey(t.Lang, t.Title), Valid: true}}); err != nil {
+				return err
+			}
+		}
+		return q.SetItemLockedFields(ctx, systemq.SetItemLockedFieldsParams{ID: item.ID, LockedFields: string(raw), Now: s.now().UnixMilli()})
+	})
+	if err != nil {
+		return fmt.Errorf("unlock %s: %w", item.ID, err)
+	}
+	s.log.Info("all locks lifted", "item_id", item.ID, "locks", len(locked)-len(keep))
+	return nil
+}
+
 // AddManualTrailer adds a trailer by hand (source manual, survives every trailer.find); a row of
 // the same language and video from a provider becomes manual. It sets trailer_state found.
 // Errors: *model.ValidationError (lang, youtubeId invalid_value), model.ErrNotFound.

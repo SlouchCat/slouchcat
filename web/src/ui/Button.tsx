@@ -17,7 +17,8 @@ export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'dang
 
 export interface ButtonLook {
   variant?: ButtonVariant;
-  size?: 'md' | 'lg';
+  /** `sm`: a small tool over a picture (the pen on a cover); 32 px, still a touch target. */
+  size?: 'sm' | 'md' | 'lg';
   icon?: IconName;
   /** Square button that shows only the icon; pass `aria-label`. */
   iconOnly?: boolean;

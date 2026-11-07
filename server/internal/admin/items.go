@@ -60,6 +60,13 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 	for _, src := range sources {
 		out.FieldSources = append(out.FieldSources, model.FieldSource{Field: src.Field, Lang: src.Lang, Provider: src.Provider})
 	}
+	lang, err := s.serverTextLang(ctx)
+	if err != nil {
+		return model.AdminItem{}, err
+	}
+	if out.Metadata, err = s.itemMetadata(ctx, it, lang, sources); err != nil {
+		return model.AdminItem{}, err
+	}
 	files, err := s.mediaFiles(ctx, []string{it.ID})
 	if err != nil {
 		return model.AdminItem{}, err
@@ -81,6 +88,9 @@ func (s *Service) GetAdminItem(ctx context.Context, itemID string) (model.AdminI
 	}
 	if out.Images, err = s.meta.ItemImages(ctx, it.ID); err != nil {
 		return model.AdminItem{}, fmt.Errorf("list item images: %w", err)
+	}
+	if out.ImageKinds, err = s.meta.ChoosableImageKinds(ctx, it.ID); err != nil {
+		return model.AdminItem{}, fmt.Errorf("list image kinds: %w", err)
 	}
 	return out, nil
 }
@@ -155,14 +165,20 @@ func (s *Service) SetItemMatch(ctx context.Context, itemID, provider, providerID
 }
 
 // RefreshItem queues the metadata match (which queues images and trailers) and the probes of every
-// file of the title; locked fields and manual trailers stay.
-func (s *Service) RefreshItem(ctx context.Context, itemID string) (model.AdminItem, error) {
+// file of the title; locked fields and manual trailers stay. With unlockAll every lock but those
+// of a manual match goes first (concept 15 7.5).
+func (s *Service) RefreshItem(ctx context.Context, itemID string, unlockAll bool) (model.AdminItem, error) {
 	defer s.ForgetDashboardCounts() // the counts of the sidebar (concept 11)
 	if s.meta == nil {
 		return model.AdminItem{}, ErrNotConfigured
 	}
 	if _, err := s.liveItem(ctx, s.sys, itemID); err != nil {
 		return model.AdminItem{}, err
+	}
+	if unlockAll {
+		if err := s.meta.UnlockAll(ctx, itemID); err != nil {
+			return model.AdminItem{}, err
+		}
 	}
 	if err := s.meta.Refresh(ctx, itemID); err != nil {
 		return model.AdminItem{}, err

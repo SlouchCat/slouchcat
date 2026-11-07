@@ -248,9 +248,18 @@ var adminRegistry = map[string]adminCall{
 	"setItemImage": {contract: "PUT /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster",
 		body: `{"provider":"tmdb","source":"/p.jpg"}`, ownerStatus: http.StatusOK},
 	"clearItemImage": {contract: "DELETE /admin/items/{id}/images/{kind}", path: "/admin/items/" + fixtureFilm6 + "/images/poster", ownerStatus: http.StatusOK},
+	// Concept 15 7.5: the upload (binary handler; the contract fake takes a JPEG by its first bytes).
+	"uploadItemImage": {contract: "PUT /admin/items/{id}/images/{kind}/upload", path: "/admin/items/" + fixtureFilm6 + "/images/poster/upload",
+		body: uploadImageBody("poster.jpg", "\xff\xd8\xff\xe0 a JPEG for the fake"), header: map[string]string{"Content-Type": uploadImageContentType},
+		ownerStatus: http.StatusOK},
 	// Concept 13 11.7: the original language by hand (the contract fake accepts every value).
 	"setItemOriginalLanguage": {contract: "PUT /admin/items/{id}/original-language", path: "/admin/items/" + fixtureFilm6 + "/original-language",
 		body: `{"language":"ja"}`, ownerStatus: http.StatusOK},
+	// Concept 15 7.5: the metadata editor writes the database, so the registry asks for an unknown
+	// title (TestItemMetadataOverHTTP covers 200, 404 and 422); the genre list leaves it unchanged.
+	"updateItemMetadata": {contract: "PATCH /admin/items/{id}/metadata", path: "/admin/items/" + unknownItemID + "/metadata",
+		body: `{"title":"Neu"}`, ownerStatus: http.StatusNotFound},
+	"listAdminGenres": {contract: "GET /admin/genres", path: "/admin/genres", ownerStatus: http.StatusOK},
 	"setItemsRating": {contract: "POST /admin/items/rating", path: "/admin/items/rating",
 		body: `{"itemIds":["` + unknownItemID + `"],"rating":12}`, ownerStatus: http.StatusOK},
 	"searchMetadata": {contract: "GET /admin/metadata/search", path: "/admin/metadata/search?provider=tvdb&kind=series&query=Show",
@@ -294,9 +303,7 @@ var adminRegistry = map[string]adminCall{
 	"setCollectionItems": {contract: "PUT /admin/collections/{id}/items", path: "/admin/collections/" + unknownItemID + "/items", body: `{"itemIds":[]}`, ownerStatus: http.StatusNotFound},
 	"getHomeRows":        {contract: "GET /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK},
 	"setHomeRows": {contract: "PUT /admin/home-rows", path: "/admin/home-rows", ownerStatus: http.StatusOK,
-		body: `[{"key":"spotlight","position":0,"hidden":false},{"key":"picks","position":1,"hidden":false},{"key":"continue","position":2,"hidden":false},` +
-			`{"key":"recent","position":3,"hidden":false},{"key":"released","position":4,"hidden":false},{"key":"watchlist","position":5,"hidden":false},` +
-			`{"key":"collections","position":6,"hidden":false},{"key":"genres","position":7,"hidden":false}]`},
+		body: `[{"id":"spotlight","key":"spotlight","position":0,"hidden":false}]`},
 	"getTraktStatus": {contract: "GET /admin/trakt", path: "/admin/trakt", ownerStatus: http.StatusOK},
 	// M11 spotlight: the fixture's list has no entry 4242, and it has no Trakt client id (422
 	// provider_not_configured).

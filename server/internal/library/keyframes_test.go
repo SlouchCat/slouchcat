@@ -460,7 +460,9 @@ func TestQueueKeyframesForDownloadWindow(t *testing.T) {
 	e.exec(`UPDATE job_types SET paused_at = NULL WHERE type = ?`, JobProbeKeyframes)
 	got := []string{claim(), claim()}
 	slices.Sort(got)
-	if want := []string{"keyframes:" + ids[1], "keyframes:" + ids[2]}; !slices.Equal(got, want) {
+	want := []string{"keyframes:" + ids[1], "keyframes:" + ids[2]}
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
 		t.Errorf("claimed %v after the pause, want the download requests %v", got, want)
 	}
 	// The plain backfill job of D waits for the window.
