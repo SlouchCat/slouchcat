@@ -15,11 +15,19 @@ import (
 
 // The updater runs as root and shares deploy/updater/ with the server, which can put a symbolic
 // link at any name there. A chmod or chown by path would follow it; the updater sets mode and
-// owner only through open descriptors.
+// owner only through open descriptors. That holds for its own package and for the protocol
+// package internal/updater, whose WriteJSONOwned it calls as root.
 func TestNoChownOrChmodByPath(t *testing.T) {
-	files, err := filepath.Glob("*.go")
-	if err != nil {
-		t.Fatal(err)
+	var files []string
+	for _, pattern := range []string{"*.go", filepath.Join("..", "..", "internal", "updater", "*.go")} {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(matches) == 0 {
+			t.Fatalf("no Go files match %s", pattern)
+		}
+		files = append(files, matches...)
 	}
 	fset := token.NewFileSet()
 	for _, name := range files {
