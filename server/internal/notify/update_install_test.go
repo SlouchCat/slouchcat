@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 )
@@ -63,5 +64,26 @@ func TestUpdateInstallTexts(t *testing.T) {
 	}
 	if got := text("en", "update_failed_body", orUnknown("en", ""), "1.16.0"); got != "The update from (unknown) to 1.16.0 failed." {
 		t.Errorf("en body = %q", got)
+	}
+}
+
+// A second failed install to the same version within the hour is a new install and reaches the
+// administration as well; the source carries the finish time (only the same install is kept out).
+func TestUpdateInstallFailedTwiceToTheSameVersion(t *testing.T) {
+	t.Parallel()
+	e := newChanEnv(t)
+	ctx := context.Background()
+	e.enable(t, e.owner(), model.ChannelEmail, model.EventErrors)
+	first := time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)
+	second := first.Add(10 * time.Minute)
+	for _, at := range []time.Time{first, second} {
+		if err := e.svc.UpdateInstallFailed(ctx, model.UpdateInstall{Phase: "rolled_back", From: "1.15.0", To: "1.16.0",
+			Code: "unhealthy", FinishedAt: &at}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e.drain(t)
+	if mails := e.mailer.sent(); len(mails) != 2 {
+		t.Fatalf("mails = %+v, want one per install", mails)
 	}
 }
