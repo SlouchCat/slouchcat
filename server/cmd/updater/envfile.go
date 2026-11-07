@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -130,10 +131,15 @@ func hasVersion(data []byte) bool {
 
 // envTarget picks the env file whose SLOUCHCAT_VERSION line is edited: the last listed file that
 // contains it (compose lets a later --env-file win), otherwise the last listed file, where the
-// line is appended. A file that does not exist counts as empty.
+// line is appended. A file that does not exist counts as empty. A symbolic link is read through
+// its target (checked by inside), and the file must be a regular one (readRegular).
 func envTarget(files []string) (string, error) {
 	for i := len(files) - 1; i >= 0; i-- {
-		data, err := os.ReadFile(files[i])
+		path := files[i]
+		if target, err := filepath.EvalSymlinks(path); err == nil {
+			path = target
+		}
+		data, _, err := readRegular(path)
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
 		}
@@ -158,20 +164,17 @@ type envFile struct {
 
 // readEnvFile reads path; a missing file is remembered as missing and gets uid:gid when written.
 // A symbolic link is followed: its target (checked to lie inside the deploy folder, see inside)
-// is what the install backs up and replaces, in the target's own folder, and the link stays.
+// is what the install backs up and replaces, in the target's own folder, and the link stays. The
+// resolved file itself is read with readRegular.
 func readEnvFile(path string, uid, gid int) (envFile, error) {
 	if target, err := filepath.EvalSymlinks(path); err == nil {
 		path = target
 	}
 	f := envFile{path: path, mode: 0o600, uid: uid, gid: gid}
-	info, err := os.Stat(path)
+	data, info, err := readRegular(path)
 	if errors.Is(err, fs.ErrNotExist) {
 		return f, nil
 	}
-	if err != nil {
-		return f, err
-	}
-	data, err := os.ReadFile(path) //nolint:gosec // G304: env file from the compose labels, checked to lie inside the deploy folder
 	if err != nil {
 		return f, err
 	}
@@ -180,6 +183,37 @@ func readEnvFile(path string, uid, gid int) (envFile, error) {
 		f.uid, f.gid = int(st.Uid), int(st.Gid)
 	}
 	return f, nil
+}
+
+// errNotRegular is returned by readRegular for a symbolic link, a FIFO or anything else but a
+// regular file.
+var errNotRegular = errors.New("not a regular file")
+
+// readRegular reads the regular file at path without following a symbolic link at its last
+// element and without blocking (a FIFO would hang the install); it returns the content and the
+// file's information from the open descriptor. The updater runs as root: an env file or a backup
+// that is not a regular file is refused, not read through.
+func readRegular(path string) ([]byte, fs.FileInfo, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0) //nolint:gosec // G304: env file or its backup from the compose labels, checked to lie inside the deploy folder
+	if errors.Is(err, syscall.ELOOP) {
+		return nil, nil, fmt.Errorf("read %s: %w", path, errNotRegular)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = f.Close() }()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, nil, fmt.Errorf("read %s: %w", path, errNotRegular)
+	}
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return nil, nil, err
+	}
+	return data, info, nil
 }
 
 // backupName is the name of the backup taken before installing v.
@@ -281,8 +315,10 @@ func writeAtomic(path string, data []byte, mode fs.FileMode, uid, gid int) (err 
 	return os.Rename(tmp.Name(), path)
 }
 
-// inside reports whether path lies inside root (both cleaned, symbolic links resolved). For a
-// path that does not exist (an env file the install will create) the folder is resolved instead.
+// inside reports whether path lies inside root (both cleaned, symbolic links resolved) and not in
+// the shared folder <root>/updater (sharedDir) or at it: the server can write there, so no compose
+// file, env file or working folder of the updater may lie there. For a path that does not exist
+// (an env file the install will create) the folder is resolved instead.
 func inside(root, path string) bool {
 	if !filepath.IsAbs(path) {
 		return false
@@ -296,6 +332,15 @@ func inside(root, path string) bool {
 	if err != nil {
 		return false
 	}
-	rel, err := filepath.Rel(root, resolved)
+	shared := filepath.Join(root, sharedDir)
+	if s, err := filepath.EvalSymlinks(shared); err == nil {
+		shared = s
+	}
+	return within(root, resolved) && !within(shared, resolved)
+}
+
+// within reports whether path is base or lies below it (both cleaned).
+func within(base, path string) bool {
+	rel, err := filepath.Rel(base, path)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

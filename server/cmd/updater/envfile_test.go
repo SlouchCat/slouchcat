@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -195,6 +197,16 @@ func TestInside(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(root, "out")); err != nil {
 		t.Fatal(err)
 	}
+	shared := filepath.Join(root, "updater")
+	if err := os.Mkdir(shared, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(shared, filepath.Join(root, "toshared")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "updaterx"), 0o700); err != nil {
+		t.Fatal(err)
+	}
 	for _, tc := range []struct {
 		path string
 		want bool
@@ -207,6 +219,12 @@ func TestInside(t *testing.T) {
 		{outside, false},
 		{"compose.yaml", false},
 		{filepath.Join(root, "missing", "deeper.yaml"), false},
+		// The shared folder, the server's to write, counts as outside, also through a link.
+		{shared, false},
+		{filepath.Join(shared, "compose.yaml"), false},
+		{filepath.Join(shared, "..", "updater", ".env"), false},
+		{filepath.Join(root, "toshared", ".env"), false},
+		{filepath.Join(root, "updaterx", ".env"), true},
 	} {
 		if got := inside(root, tc.path); got != tc.want {
 			t.Errorf("inside(%q) = %v, want %v", tc.path, got, tc.want)
@@ -274,5 +292,51 @@ func TestEnvFileSymlinkWritesTarget(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(link); string(got) != orig {
 		t.Errorf("restored through the link = %q", got)
+	}
+}
+
+// The env file and its backup are read only as regular files: a FIFO does not hang the updater
+// and is refused, also behind a symbolic link; a link at the last element is refused where it is
+// not resolved first (the backup).
+func TestReadRegularRefusesOtherFiles(t *testing.T) {
+	dir := t.TempDir()
+	fifo := filepath.Join(dir, "fifo.env")
+	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linkToFifo := filepath.Join(dir, ".env")
+	if err := os.Symlink(fifo, linkToFifo); err != nil {
+		t.Fatal(err)
+	}
+	plain := filepath.Join(dir, "plain.env")
+	if err := os.WriteFile(plain, []byte("SLOUCHCAT_VERSION=1.15.0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	linkToPlain := filepath.Join(dir, "plain.env.bak-vor-1.16.0")
+	if err := os.Symlink(plain, linkToPlain); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for _, path := range []string{fifo, linkToFifo} {
+			if _, err := readEnvFile(path, os.Getuid(), os.Getgid()); !errors.Is(err, errNotRegular) {
+				t.Errorf("readEnvFile(%s) = %v, want not a regular file", filepath.Base(path), err)
+			}
+			if _, err := envTarget([]string{path}); !errors.Is(err, errNotRegular) {
+				t.Errorf("envTarget(%s) = %v, want not a regular file", filepath.Base(path), err)
+			}
+		}
+		if _, _, err := readRegular(linkToPlain); !errors.Is(err, errNotRegular) {
+			t.Errorf("readRegular(link) = %v, want not a regular file", err)
+		}
+		if data, info, err := readRegular(plain); err != nil || string(data) != "SLOUCHCAT_VERSION=1.15.0\n" || info.Mode().Perm() != 0o600 {
+			t.Errorf("readRegular(plain) = %q, %v, %v", data, info, err)
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a FIFO blocked the read")
 	}
 }

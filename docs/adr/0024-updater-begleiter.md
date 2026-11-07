@@ -64,7 +64,12 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
    `compose.updater.yaml` verlangt die Variable (`${SLOUCHCAT_DEPLOY_DIR:?…}`). So stimmen
    `./config`, `./cache` und alle relativen Pfade der Compose-Dateien im Updater wie auf dem
    Gastgeber. Liegt eine Compose- oder Env-Datei aus den Labels des laufenden Containers ausserhalb
-   dieses Ordners, lehnt der Updater ab (`outside_deploy_dir`).
+   dieses Ordners, lehnt der Updater ab (`outside_deploy_dir`). Der geteilte Ordner
+   `deploy/updater/` zählt als ausserhalb, auch über einen symbolischen Link: Dort kann der Server
+   schreiben, also darf weder eine Compose- oder Env-Datei noch der Arbeitsordner darin liegen. Die
+   Env-Datei und ihre Sicherung `.env.bak-vor-<X>` liest der Updater nur als gewöhnliche Datei
+   (ohne einem Link am letzten Element zu folgen, ohne an einer FIFO zu blockieren); ein Link als
+   Env-Datei wird vorher aufgelöst und geprüft.
 6. **Genau die Compose-Zusammenstellung des laufenden Containers.** Der Updater liest am Container
    `slouchcat` die Labels `com.docker.compose.project`, `com.docker.compose.project.config_files`,
    `com.docker.compose.project.working_dir` und `com.docker.compose.project.environment_file` und

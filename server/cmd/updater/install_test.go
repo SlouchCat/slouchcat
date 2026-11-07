@@ -371,6 +371,31 @@ func TestInstallRefusals(t *testing.T) {
 		}, updater.CodeOutsideDeployDir},
 		{"env file outside", func(h *harness) { h.fake.c.Labels[labelEnvFile] = filepath.Join(outside, ".env") }, updater.CodeOutsideDeployDir},
 		{"working dir outside", func(h *harness) { h.fake.c.Labels[labelWorkingDir] = outside }, updater.CodeOutsideDeployDir},
+		// The shared folder deploy/updater/ is the server's to write: nothing compose reads may lie there.
+		{"config file in the shared folder", func(h *harness) {
+			planted := filepath.Join(h.deploy, "updater", "compose.yaml")
+			if err := os.WriteFile(planted, []byte("services: {}\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			h.fake.c.Labels[labelConfigFiles] += "," + planted
+		}, updater.CodeOutsideDeployDir},
+		{"env file in the shared folder", func(h *harness) {
+			h.fake.c.Labels[labelEnvFile] = filepath.Join(h.deploy, "updater", ".env")
+		}, updater.CodeOutsideDeployDir},
+		{"env file linked into the shared folder", func(h *harness) {
+			target := filepath.Join(h.deploy, "updater", "slouchcat.env")
+			if err := os.WriteFile(target, []byte(oldEnv), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			link := filepath.Join(h.deploy, "linked.env")
+			if err := os.Symlink(target, link); err != nil {
+				t.Fatal(err)
+			}
+			h.fake.c.Labels[labelEnvFile] = link
+		}, updater.CodeOutsideDeployDir},
+		{"working dir is the shared folder", func(h *harness) {
+			h.fake.c.Labels[labelWorkingDir] = filepath.Join(h.deploy, "updater")
+		}, updater.CodeOutsideDeployDir},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newHarness(t)
@@ -748,18 +773,20 @@ func TestStartEndsInterruptedInstall(t *testing.T) {
 	// No comma in a name: the temporary folder carries it, and the compose label lists files
 	// separated by commas.
 	for _, tc := range []struct {
-		name     string
-		phase    updater.Phase
-		env      string // content of .env at the start
-		backup   bool   // .env.bak-vor-1.16.0 with oldEnv exists
-		running  string // version the container runs
-		health   string
-		rec      *updater.ServerRecord
-		want     updater.Phase
-		code     updater.Code
-		migrated bool
-		wantEnv  string
-		message  string
+		name   string
+		phase  updater.Phase
+		env    string // content of .env at the start
+		backup bool   // .env.bak-vor-1.16.0 with oldEnv exists
+		// linkBackup: .env.bak-vor-1.16.0 is a symbolic link to a file with oldEnv; it is not read.
+		linkBackup bool
+		running    string // version the container runs
+		health     string
+		rec        *updater.ServerRecord
+		want       updater.Phase
+		code       updater.Code
+		migrated   bool
+		wantEnv    string
+		message    string
 	}{
 		{name: "checking", phase: updater.PhaseChecking, env: oldEnv, running: "1.15.0", health: "healthy",
 			want: updater.PhaseFailed, wantEnv: oldEnv, message: "nothing was changed"},
@@ -768,6 +795,8 @@ func TestStartEndsInterruptedInstall(t *testing.T) {
 		{name: "backing up: env not written yet", phase: updater.PhaseBackingUp, env: oldEnv, backup: true, running: "1.15.0", health: "healthy",
 			want: updater.PhaseFailed, wantEnv: oldEnv, message: "nothing to put back"},
 		{name: "verifying: no backup", phase: updater.PhaseVerifying, env: newEnv(), running: "1.15.0", health: "healthy",
+			want: updater.PhaseFailed, wantEnv: newEnv(), message: "no backup"},
+		{name: "pulling: backup is a symbolic link", phase: updater.PhasePulling, env: newEnv(), linkBackup: true, running: "1.15.0", health: "healthy",
 			want: updater.PhaseFailed, wantEnv: newEnv(), message: "no backup"},
 		{name: "waiting: new version healthy", phase: updater.PhaseWaiting, env: newEnv(), backup: true, running: "1.16.0", health: "healthy",
 			rec: migrated, want: updater.PhaseDone, migrated: true, wantEnv: newEnv()},
@@ -789,6 +818,15 @@ func TestStartEndsInterruptedInstall(t *testing.T) {
 			}
 			if tc.backup {
 				if err := os.WriteFile(h.env+".bak-vor-1.16.0", []byte(oldEnv), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if tc.linkBackup {
+				victim := filepath.Join(t.TempDir(), "secret")
+				if err := os.WriteFile(victim, []byte(oldEnv), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(victim, h.env+".bak-vor-1.16.0"); err != nil {
 					t.Fatal(err)
 				}
 			}

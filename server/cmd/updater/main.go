@@ -119,8 +119,11 @@ type settings struct {
 	container   string
 }
 
+// sharedDir is the folder in deploy/ shared with the server.
+const sharedDir = "updater"
+
 // dir is <deploy>/updater, the folder shared with the server.
-func (c settings) dir() string { return filepath.Join(c.deployDir, "updater") }
+func (c settings) dir() string { return filepath.Join(c.deployDir, sharedDir) }
 
 func loadConfig(getenv func(string) string) (settings, error) {
 	c := settings{
@@ -411,7 +414,7 @@ func (u *Updater) recoverEnv(ctx context.Context, to string) (msg string, ok boo
 		return "the env file does not name version " + to + ", nothing to put back", true
 	}
 	backup := env.backupName(to)
-	data, err := os.ReadFile(backup) //nolint:gosec // G304: backup next to the env file of the compose labels, checked to lie inside the deploy folder
+	data, _, err := readRegular(backup)
 	if err != nil {
 		return "no backup " + filepath.Base(backup) + "; " + check, false
 	}
