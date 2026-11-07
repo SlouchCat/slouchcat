@@ -16,7 +16,14 @@ func TestLocal(t *testing.T) {
 		"127.0.0.1": true, "127.8.9.10": true, "::1": true, "10.1.2.3": true, "172.16.0.1": true, "172.31.255.255": true,
 		"192.168.1.43": true, "169.254.169.254": true, "fe80::1": true, "fd00::1": true, "0.0.0.0": true, "::": true,
 		"::ffff:192.168.1.1": true, "::ffff:127.0.0.1": true,
-		"203.0.113.5": false, "8.8.8.8": false, "172.32.0.1": false, "2001:db8::1": false, "100.64.0.1": false,
+		"203.0.113.5": false, "8.8.8.8": false, "172.32.0.1": false, "2001:db8::1": false,
+		// Carrier-grade NAT and Tailscale, benchmarking, "this network", multicast.
+		"100.64.0.1": true, "100.127.255.254": true, "100.128.0.1": false, "198.18.0.1": true, "198.19.255.255": true,
+		"198.20.0.1": false, "0.1.2.3": true, "224.0.0.1": true, "239.255.255.250": true, "ff02::1": true, "ff05::2": true,
+		// IPv6 prefixes that embed an IPv4 address (NAT64, IPv4-compatible, 6to4) and site-local.
+		"64:ff9b::7f00:1": true, "64:ff9b::808:808": true, "::127.0.0.1": true, "::c0a8:101": true,
+		"2002:c0a8:101::1": true, "2002:808:808::1": true, "fec0::1": true, "feff::1": true,
+		"2a00:1450:4001::1": false, "64:ff9b:1::1": false,
 	} {
 		if got := Local(netip.MustParseAddr(addr)); got != want {
 			t.Errorf("Local(%s) = %v, want %v", addr, got, want)

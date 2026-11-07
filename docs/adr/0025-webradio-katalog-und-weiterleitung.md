@@ -149,6 +149,12 @@ Heimnetz sein.
 - Offene Prüfungen der Abnahme: HE-AAC-Kopie in Firefox und Safari (sonst wie MP3 umrechnen), Delta-Listen
   auf dem iPhone, Ton bei gesperrtem Bildschirm, ffmpeg-Verhalten von `+delay_moov` im Container
   (`TestRadioPackagerInitHasAudioSpecificConfig`).
+- Der Netzwächter (`netguard.Local`) verweigert neben Loopback, privaten und Link-local-Adressen auch
+  100.64.0.0/10 (Carrier-grade NAT, Tailscale), 198.18.0.0/15, 0.0.0.0/8, Multicast sowie die
+  IPv6-Bereiche mit eingebetteter IPv4-Adresse (64:ff9b::/96, ::/96, 2002::/16) und fec0::/10.
+  Restrisiko: Eine globale IPv6-Adresse eines Geräts im Heimnetz ist von aussen nicht von einer
+  öffentlichen zu unterscheiden; ein Sender, der darauf zeigt, erreicht dieses Gerät. Das gilt auch
+  für Podcast-Feeds und Bilder.
 - Der Standort des Servers gilt für alle Profile. Ob ein Sender das zulässt, verantwortet der Betreiber;
   die Verwaltungsseite sagt das.
 - `lastcheckok` von Radio Browser misst die Erreichbarkeit von einem Server in Deutschland aus (FAQ des
