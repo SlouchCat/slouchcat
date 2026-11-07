@@ -9,6 +9,12 @@ import { H264_TITLE, itemIdByTitle, play, player, startOf, useFreshProfile } fro
 // up; the next start answers 403 watch_limit_reached and the player shows the hint, a running
 // player stops with the hint, and the primary profile's report shows the minute.
 
+// The worker registers on the first page load and takes the page over (clientsClaim) within
+// seconds; from then on it sends every GET under /api to the network itself, where the page's
+// routes do not see it. The stopping test switches the stop watch off by aborting its GET through
+// a route, which would stop working in the middle of the test. The player needs no worker.
+test.use({ serviceWorkers: 'block' });
+
 interface ProgressAnswer {
   watchTime?: { limitMinutes: number; usedMinutes: number; remainingMinutes: number };
 }
