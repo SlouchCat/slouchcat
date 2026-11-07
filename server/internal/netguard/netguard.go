@@ -2,7 +2,7 @@
 // enclosures and its cover images (M6, ADR 0007). The feed's publisher chooses those URLs, not the
 // admin, so a fetch must not reach the household's own network: after DNS resolution (which covers
 // redirects and DNS rebinding) the dialer refuses loopback, private (RFC 1918, unique-local),
-// link-local and unspecified addresses, unless the feed URL's own host is such an address (a feed
+// link-local, multicast, unspecified and other non-public addresses (Local), unless the feed URL's own host is such an address (a feed
 // the household runs on its LAN on purpose; its enclosures and covers may then be local too).
 //
 // Feed and enclosure URLs may carry credentials in their path or query (private feeds), so fetch
@@ -26,11 +26,31 @@ import (
 // ErrRefused is the dial error of a guarded fetch whose address lies in the local network.
 var ErrRefused = errors.New("address in the local network refused")
 
+// localPrefixes are the ranges Local refuses beyond the standard library's classes: shared
+// address space of carrier-grade NAT (also Tailscale), benchmarking, "this network", the IPv6
+// prefixes that embed an IPv4 address (NAT64, IPv4-compatible, 6to4) and deprecated site-local.
+// An embedding prefix may carry a local IPv4 address the dialer cannot see, so the whole prefix
+// is refused; there are no public servers a household needs on them.
+var localPrefixes = []netip.Prefix{
+	netip.MustParsePrefix("100.64.0.0/10"),
+	netip.MustParsePrefix("198.18.0.0/15"),
+	netip.MustParsePrefix("0.0.0.0/8"),
+	netip.MustParsePrefix("64:ff9b::/96"),
+	netip.MustParsePrefix("::/96"),
+	netip.MustParsePrefix("2002::/16"),
+	netip.MustParsePrefix("fec0::/10"),
+}
+
 // Local reports whether ip is an address a guarded fetch refuses: loopback, private (10/8,
-// 172.16/12, 192.168/16, fc00::/7), link-local (169.254/16, fe80::/10) or unspecified.
+// 172.16/12, 192.168/16, fc00::/7), link-local (169.254/16, fe80::/10), multicast, unspecified
+// and the ranges of localPrefixes. A global IPv6 address of a host in the household's network
+// cannot be told from any other and is not refused (ADR 0025).
 func Local(ip netip.Addr) bool {
 	ip = ip.Unmap()
-	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified()
+	if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsMulticast() || ip.IsUnspecified() {
+		return true
+	}
+	return slices.ContainsFunc(localPrefixes, func(p netip.Prefix) bool { return p.Contains(ip) })
 }
 
 // LocalHost reports whether the host of rawURL is, or resolves to, a local address. A feed on such

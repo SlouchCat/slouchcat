@@ -7,6 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"time"
 
@@ -54,9 +57,11 @@ type listenSession struct {
 }
 
 // relayStart ends the listen sessions the last process left open (relays do not survive a
-// restart); it runs once, before the first listen session or sweep.
+// restart) and removes the buffer directories it left; it runs once, before the first listen
+// session or sweep.
 func (s *Service) relayStart(ctx context.Context) {
 	s.rel.startOnce.Do(func() {
+		s.removeStaleBuffers()
 		n, err := appq.New(s.db.Write).EndOpenRadioListenSessions(ctx, sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true})
 		if err != nil {
 			s.log.WarnContext(ctx, "end radio listen sessions of the last run", "err", err)
@@ -64,6 +69,26 @@ func (s *Service) relayStart(ctx context.Context) {
 			s.log.InfoContext(ctx, "radio listen sessions of the last run ended", "count", n)
 		}
 	})
+}
+
+// staleBuffer matches the name of a relay buffer directory (<station>-<ulid>, before: <station>).
+var staleBuffer = regexp.MustCompile(`^[0-9]+(-[0-9A-Z]{26})?$`)
+
+// removeStaleBuffers deletes the relay buffer directories below the configured directory; only
+// names a relay writes are touched.
+func (s *Service) removeStaleBuffers() {
+	if s.o.dir == "" {
+		return
+	}
+	entries, err := os.ReadDir(s.o.dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() && staleBuffer.MatchString(e.Name()) {
+			_ = os.RemoveAll(filepath.Join(s.o.dir, e.Name()))
+		}
+	}
 }
 
 // listenStation reads a station a profile may reach (S2 visibility table): hidden stations and
@@ -110,6 +135,7 @@ func (s *Service) Listen(ctx context.Context, session model.Session, stationID i
 	if err != nil {
 		return model.RadioListen{}, err
 	}
+	defer s.leaveRelay(r)
 	timer := time.NewTimer(s.rel.knobs.readyTimeout)
 	defer timer.Stop()
 	select {
@@ -196,20 +222,21 @@ func relayError(r *relay) error {
 }
 
 // joinRelay returns the running relay of the station or starts one, if the budget and the
-// maximum number of relays admit it (settings apply to new relays only).
+// maximum number of relays admit it (settings apply to new relays only). The relay counts the
+// join until leaveRelay, so the sweep never stops a relay a Listen is about to use. A relay that
+// is ending is refused with its error; after Run ended no relay starts (shutdown).
 func (s *Service) joinRelay(ctx context.Context, st appq.RadioStation, cfg appq.RadioConfig) (*relay, error) {
-	s.rel.mu.Lock()
-	defer s.rel.mu.Unlock()
-	if r := s.rel.relays[st.ID]; r != nil {
-		select {
-		case <-r.done:
-		default:
-			return r, nil
-		}
+	if r, err := s.joinRunning(st.ID); r != nil || err != nil {
+		return r, err
 	}
 	streams, err := appq.New(s.db.Read).ListRadioStreamsRanked(ctx, st.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list radio streams: %w", err)
+	}
+	s.rel.mu.Lock()
+	defer s.rel.mu.Unlock()
+	if r, err := s.joinRunningLocked(st.ID); r != nil || err != nil { // another Listen started one meanwhile
+		return r, err
 	}
 	window := time.Duration(cfg.BufferMinutes) * time.Minute
 	reservation := reservationBytes(reserveKbps(streams), window)
@@ -231,11 +258,50 @@ func (s *Service) joinRelay(ctx context.Context, st appq.RadioStation, cfg appq.
 	}
 	rctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	r.cancel = cancel
+	r.joins, r.idleSince = 1, time.Time{}
 	s.rel.relays[st.ID] = r
 	go r.run(rctx)
 	s.log.InfoContext(ctx, "radio relay started", "station_id", st.ID, "streams", len(streams),
 		"reservation_bytes", reservation, "mode", s.bufferMode())
 	return r, nil
+}
+
+// joinRunning joins the running relay of the station (nil, nil: none runs).
+func (s *Service) joinRunning(stationID int64) (*relay, error) {
+	s.rel.mu.Lock()
+	defer s.rel.mu.Unlock()
+	return s.joinRunningLocked(stationID)
+}
+
+func (s *Service) joinRunningLocked(stationID int64) (*relay, error) {
+	if s.rel.closed {
+		return nil, fmt.Errorf("%w: the server is shutting down", model.ErrRadioUnreachable)
+	}
+	r := s.rel.relays[stationID]
+	if r == nil {
+		return nil, nil
+	}
+	select {
+	case <-r.done:
+		return nil, nil
+	default:
+	}
+	r.mu.Lock()
+	ending := r.state == relayEnding
+	r.mu.Unlock()
+	if ending {
+		return nil, relayError(r)
+	}
+	r.joins++
+	r.idleSince = time.Time{}
+	return r, nil
+}
+
+// leaveRelay ends the join of a Listen call (its session is registered or it failed).
+func (s *Service) leaveRelay(r *relay) {
+	s.rel.mu.Lock()
+	r.joins--
+	s.rel.mu.Unlock()
 }
 
 // reserveKbps is the bitrate a reservation assumes for the best stream: the AAC source for copy,
@@ -502,9 +568,19 @@ func (s *Service) AuthorizeLive(ctx context.Context, listenID, token string) (mo
 		ls.touched = now
 	}
 	grant := model.RadioGrant{ListenID: listenID, StationID: ls.stationID, Profile: ls.profile}
-	expires, playing := ls.expires, ls.playing
+	expires, playing, sessionID := ls.expires, ls.playing, ls.sessionID
 	s.rel.mu.Unlock()
 	if touch {
+		// The token outlives no login session: once a minute the listen session checks that its
+		// login session still authorises (logout, password change, role demotion, expiry).
+		valid, err := appq.New(s.db.Read).RadioLoginSessionValid(ctx, appq.RadioLoginSessionValidParams{
+			SessionID: sessionID, Now: now.UnixMilli()})
+		if err != nil {
+			s.log.WarnContext(ctx, "check the login session of a radio listen session", "listen_id", listenID, "err", err)
+		} else if !valid {
+			s.endRows(ctx, []string{listenID}, model.StoppedByRevoked)
+			return model.RadioGrant{}, model.ErrUnauthenticated
+		}
 		if _, err := appq.New(s.db.Write).TouchRadioListenSession(ctx, appq.TouchRadioListenSessionParams{
 			Now: now.UnixMilli(), ExpiresAt: expires.UnixMilli(), Playing: boolInt(playing), ID: listenID,
 		}); err != nil {
@@ -616,6 +692,9 @@ func (s *Service) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			s.rel.mu.Lock()
+			s.rel.closed = true
+			s.rel.mu.Unlock()
 			s.stopRelays()
 			s.flushListenTime(context.WithoutCancel(ctx))
 			return
@@ -668,6 +747,7 @@ func (s *Service) stopIdleRelays(ctx context.Context, now time.Time) {
 		busy[ls.stationID] = true
 	}
 	for id, r := range s.rel.relays {
+		busy[id] = busy[id] || r.joins > 0 // a Listen is starting or joining it
 		switch {
 		case busy[id]:
 			r.idleSince = time.Time{}
@@ -684,6 +764,55 @@ func (s *Service) stopIdleRelays(ctx context.Context, now time.Time) {
 	s.rel.mu.Unlock()
 	for _, r := range stop {
 		r.stop()
+	}
+}
+
+// closeUnreachable ends the listen sessions and stops the relay of every station of ids (none:
+// every station with a relay or a listen session) that profiles may no longer reach, because the
+// administration hid it or excluded its country: invisible means 404, also for a running listen.
+func (s *Service) closeUnreachable(ctx context.Context, ids ...int64) {
+	if len(ids) == 0 {
+		s.rel.mu.Lock()
+		for id := range s.rel.relays {
+			ids = append(ids, id)
+		}
+		for _, ls := range s.rel.sessions {
+			ids = append(ids, ls.stationID)
+		}
+		s.rel.mu.Unlock()
+		slices.Sort(ids)
+		ids = slices.Compact(ids)
+	}
+	for _, id := range ids {
+		_, err := s.reachableEntry(ctx, id)
+		if err == nil {
+			continue
+		}
+		if !errors.Is(err, model.ErrNotFound) {
+			s.log.WarnContext(ctx, "check radio station visibility", "station_id", id, "err", err)
+			continue
+		}
+		s.closeStation(ctx, id)
+	}
+}
+
+// closeStation ends the listen sessions of a station (ended_by admin) and stops its relay.
+func (s *Service) closeStation(ctx context.Context, stationID int64) {
+	s.rel.mu.Lock()
+	r := s.rel.relays[stationID]
+	if r != nil {
+		delete(s.rel.relays, stationID)
+	}
+	s.rel.mu.Unlock()
+	ids, err := appq.New(s.db.Write).EndRadioListenSessionsOfStation(ctx, appq.EndRadioListenSessionsOfStationParams{
+		Now: s.nowMs(), EndedBy: sql.NullString{String: model.StoppedByAdmin, Valid: true}, StationID: stationID})
+	if err != nil {
+		s.log.WarnContext(ctx, "end radio listen sessions of station", "station_id", stationID, "err", err)
+	}
+	s.endLocal(ctx, ids)
+	if r != nil {
+		r.stop()
+		s.log.InfoContext(ctx, "radio relay stopped: station no longer reachable", "station_id", stationID)
 	}
 }
 

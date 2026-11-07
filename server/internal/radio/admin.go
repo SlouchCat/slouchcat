@@ -281,6 +281,7 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 		return model.AdminRadioStation{}, fmt.Errorf("update radio station: commit: %w", err)
 	}
 	s.reloadStation(ctx, stationID)
+	s.closeUnreachable(ctx, stationID)
 	return s.AdminStation(ctx, stationID)
 }
 

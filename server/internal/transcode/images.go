@@ -115,10 +115,14 @@ func (r Runner) ScaleImage(ctx context.Context, inPath string, outs []ImageOutpu
 
 // SquareImageArgs builds the ffmpeg argument list of SquareImage: like ScaleImageArgs, but every
 // width is a square: the image is scaled to fit and padded with a transparent background (the
-// station logos of the webradio, concept 16 section 6).
-func SquareImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
+// station logos of the webradio, concept 16 section 6). The source comes from a station's site,
+// so ffmpeg reads it with the named demuxer inFormat (no probing) and only from a local file.
+func SquareImageArgs(inPath, inFormat string, outs []ImageOutput) ([]string, error) {
 	if len(outs) == 0 {
 		return nil, errors.New("no image outputs")
+	}
+	if inFormat == "" {
+		return nil, errors.New("no input format")
 	}
 	var widths []int
 	perWidth := map[int][]int{} // width → indexes into outs
@@ -146,6 +150,7 @@ func SquareImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
 		}
 	}
 	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+		"-protocol_whitelist", "file", "-f", inFormat,
 		"-max_pixels", strconv.Itoa(MaxImagePixels), "-i", inPath, "-filter_complex", graph.String()}
 	for i, o := range outs {
 		enc, err := imageEncoderArgs(o.Format)
@@ -159,9 +164,10 @@ func SquareImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
 	return args, nil
 }
 
-// SquareImage writes every square output of the image at inPath in a single ffmpeg run.
-func (r Runner) SquareImage(ctx context.Context, inPath string, outs []ImageOutput) error {
-	args, err := SquareImageArgs(inPath, outs)
+// SquareImage writes every square output of the image at inPath, read with the demuxer inFormat,
+// in a single ffmpeg run.
+func (r Runner) SquareImage(ctx context.Context, inPath, inFormat string, outs []ImageOutput) error {
+	args, err := SquareImageArgs(inPath, inFormat, outs)
 	if err != nil {
 		return err
 	}

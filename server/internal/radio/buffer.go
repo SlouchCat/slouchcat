@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
@@ -12,9 +13,9 @@ import (
 )
 
 // The buffer of a relay (concept 16 sections 7.2 and 7.3, build plan S6): the segments of the
-// window, on the tmpfs below <dir>/<station>/<gen>/ (init.mp4 and <n>.m4s, written atomically), or
-// in RAM when no tmpfs is mounted (memory mode: live only, the init and the last segments). The
-// relay counts the bytes it holds and drops its oldest segments first when it would exceed its
+// window, on the tmpfs below <dir>/<station>-<ulid>/<gen>/ (init.mp4 and <n>.m4s, written
+// atomically), or in RAM when no tmpfs is mounted (memory mode: live only, the init and the last
+// segments). The relay counts the bytes it holds and drops its oldest segments first when it would exceed its
 // reservation, so all relays together never exceed the budget (hard part 3.4).
 
 const (
@@ -39,7 +40,7 @@ type segment struct {
 
 // buffer holds the window of one relay. Not safe for concurrent use (the relay's mutex).
 type buffer struct {
-	dir         string // <dir>/<station>; "" = memory mode
+	dir         string // <dir>/<station>-<ulid>; "" = memory mode
 	window      time.Duration
 	reservation int64
 
@@ -70,8 +71,14 @@ func reservationBytes(kbps int, window time.Duration) int64 {
 
 func (b *buffer) genDir(gen int) string { return filepath.Join(b.dir, strconv.Itoa(gen)) }
 
-// addInit stores the init part of generation gen.
+// addInit stores the init part of generation gen. The inits of older generations without a
+// segment in the window (a packager that failed before its first fragment) are freed.
 func (b *buffer) addInit(gen int, data []byte) error {
+	for g := range b.inits {
+		if g < gen && !slices.ContainsFunc(b.segs, func(s *segment) bool { return s.gen == g }) {
+			b.freeInit(g)
+		}
+	}
 	b.inits[gen] = data
 	b.bytes += int64(len(data))
 	if b.dir == "" {
@@ -118,11 +125,20 @@ func (b *buffer) drop() {
 		_ = os.Remove(filepath.Join(b.genDir(old.gen), strconv.FormatInt(old.seq, 10)+".m4s"))
 	}
 	if len(b.segs) > 0 && b.segs[0].gen != old.gen {
-		b.bytes -= int64(len(b.inits[old.gen]))
-		delete(b.inits, old.gen)
-		if b.dir != "" {
-			_ = os.RemoveAll(b.genDir(old.gen))
+		for g := range b.inits {
+			if g < b.segs[0].gen { // old.gen and any generation without a segment before the oldest
+				b.freeInit(g)
+			}
 		}
+	}
+}
+
+// freeInit removes the init of generation gen and its directory.
+func (b *buffer) freeInit(gen int) {
+	b.bytes -= int64(len(b.inits[gen]))
+	delete(b.inits, gen)
+	if b.dir != "" {
+		_ = os.RemoveAll(b.genDir(gen))
 	}
 }
 

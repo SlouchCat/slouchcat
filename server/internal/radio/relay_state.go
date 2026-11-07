@@ -24,6 +24,7 @@ type relayState struct {
 	mode      string // model.RadioBuffer*
 
 	mu       sync.Mutex
+	closed   bool                      // Run ended: no relay starts any more (shutdown)
 	relays   map[int64]*relay          // running relays by station
 	sessions map[string]*listenSession // open listen sessions by id
 	credits  map[creditKey]int64       // listen time in ms per profile and quarter, not yet written

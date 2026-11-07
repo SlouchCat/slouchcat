@@ -840,3 +840,58 @@ func TestConfigUpdate(t *testing.T) {
 		t.Errorf("an empty country list = %+v %v, want every country", c.Countries, err)
 	}
 }
+
+// A station list with less than half of the known entries is a broken answer: the sync fails
+// like any other, stores the failure and marks nothing missing.
+func TestSyncRefusesShrunkList(t *testing.T) {
+	e := newCatEnv(t)
+	e.sync()
+	list := catEntries(t)
+	e.setEntries(list[:len(list)/3])
+	e.clock.Advance(24 * time.Hour)
+	if err := e.s.handleCatalogSync(e.ctx, nil); !errors.Is(err, errCatalogShrunk) {
+		t.Fatalf("sync of a third of the list: %v, want errCatalogShrunk", err)
+	}
+	if n := e.count(`SELECT count(*) FROM radio_station_aliases WHERE missing_since IS NOT NULL`); n != 0 {
+		t.Errorf("%d aliases marked missing", n)
+	}
+	if n := e.count(`SELECT count(*) FROM radio_stations WHERE missing_since IS NOT NULL`); n != 0 {
+		t.Errorf("%d stations marked missing", n)
+	}
+	cs, err := e.s.CatalogState(e.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cs.SyncFailures != 1 || !strings.Contains(cs.LastSyncError, "shorter than half") {
+		t.Errorf("state after the refused sync = %+v", cs)
+	}
+	// Half of the list or more is a real change.
+	e.setEntries(list[:(len(list)+1)/2])
+	e.sync()
+	if n := e.count(`SELECT count(*) FROM radio_station_aliases WHERE missing_since IS NOT NULL`); n == 0 {
+		t.Error("a sync of half the list marked nothing missing")
+	}
+}
+
+// onStationsChanged reloads many stations with one copy of the index.
+func TestReloadStationsBatch(t *testing.T) {
+	e := newCatEnv(t)
+	e.sync()
+	a, b, gone := e.stationID("Radio 24"), e.stationID("Radio Pilatus"), e.stationID("Radio Top")
+	e.exec(`UPDATE radio_stations SET shows_titles = 1 WHERE id IN (?, ?)`, a, b)
+	e.exec(`DELETE FROM radio_stations WHERE id = ?`, gone)
+	e.s.cat.mu.RLock()
+	before := e.s.cat.idx
+	e.s.cat.mu.RUnlock()
+	e.s.onStationsChanged(e.ctx, []int64{a, b, gone})
+	got := e.list(model.RadioQuery{RadioFilter: model.RadioFilter{Titles: true}})
+	if len(got) != 2 {
+		t.Errorf("stations with titles after the batch = %v", got)
+	}
+	if _, err := e.s.Station(e.ctx, catSession(1), gone); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("deleted station after the batch: %v", err)
+	}
+	if len(before.entries) != len(before.byID) || before.byID[gone] == nil {
+		t.Error("the batch changed the index a reader holds")
+	}
+}

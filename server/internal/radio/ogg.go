@@ -16,6 +16,9 @@ const (
 	oggMaxPacket   = 64 << 10
 	oggMaxComments = 256
 	oggMaxPage     = 27 + 255 + 255*255
+	// oggMaxStreams bounds the logical streams tracked at once; a stream that opens more is
+	// hostile or broken, and the map starts over.
+	oggMaxStreams = 8
 )
 
 // oggTitles parses the Ogg pages of a stream as they arrive.
@@ -77,6 +80,9 @@ func (o *oggTitles) page(page, segs []byte) (string, bool) {
 	serial := binary.LittleEndian.Uint32(page[14:])
 	st := o.streams[serial]
 	if page[5]&0x02 != 0 || st == nil { // BOS: a new logical stream (chained streams reuse no state)
+		if st == nil && len(o.streams) >= oggMaxStreams {
+			clear(o.streams)
+		}
 		st = &oggLogical{}
 		o.streams[serial] = st
 	}

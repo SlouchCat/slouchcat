@@ -85,6 +85,8 @@ func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
 	}
 	retry := sql.NullInt64{Int64: s.now().Add(-logoRetryAfter).UnixMilli(), Valid: true}
 	q := appq.New(s.db.Write)
+	var queued []int64
+	defer func() { s.onStationsChanged(ctx, queued) }() // one index copy for the whole list
 	for _, id := range stationIDs {
 		n, err := q.MarkRadioLogoQueued(ctx, appq.MarkRadioLogoQueuedParams{ID: id, RetryBefore: retry})
 		if err != nil {
@@ -100,7 +102,7 @@ func (s *Service) queueLogos(ctx context.Context, stationIDs []int64) {
 			s.log.WarnContext(ctx, "enqueue radio logo", "station_id", id, "err", err)
 			continue
 		}
-		s.onStationChanged(ctx, id)
+		queued = append(queued, id)
 	}
 }
 
@@ -206,6 +208,9 @@ func (s *Service) logoCandidate(ctx context.Context, rawURL string) []byte {
 	return b
 }
 
+// maxManifestIcons bounds the icons read from a web manifest (each one may become a fetch).
+const maxManifestIcons = 8
+
 var (
 	tagRe  = regexp.MustCompile(`(?is)<(link|meta)\b[^>]*>`)
 	attrRe = regexp.MustCompile(`(?is)([a-z][a-z0-9_:-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+)`)
@@ -260,7 +265,7 @@ func (s *Service) homepageIcons(ctx context.Context, homepage string) []string {
 					Icons []struct{ Src, Sizes, Type string } `json:"icons"`
 				}
 				if json.Unmarshal(b, &m) == nil {
-					for _, ic := range m.Icons {
+					for _, ic := range m.Icons[:min(len(m.Icons), maxManifestIcons)] {
 						if !strings.Contains(ic.Type, "svg") {
 							if iu, err := u.Parse(ic.Src); err == nil {
 								icons = append(icons, icon{iu.String(), 2, iconSize(ic.Sizes)})
@@ -347,12 +352,31 @@ func logoSize(b []byte) (w, h int, ok bool) {
 	return cfg.Width, cfg.Height, true
 }
 
+// logoDemuxer returns the ffmpeg demuxer of a logo source by its signature (the formats logoSize
+// reads), "" for anything else: ffmpeg is told the format instead of probing the file.
+func logoDemuxer(b []byte) string {
+	switch {
+	case len(b) >= 4 && b[0] == 0 && b[1] == 0 && b[2] == 1 && b[3] == 0:
+		return "ico"
+	case len(b) >= 12 && string(b[:4]) == "RIFF" && string(b[8:12]) == "WEBP":
+		return "webp_pipe"
+	case bytes.HasPrefix(b, []byte("\x89PNG\r\n\x1a\n")):
+		return "png_pipe"
+	case bytes.HasPrefix(b, []byte{0xFF, 0xD8, 0xFF}):
+		return "jpeg_pipe"
+	case bytes.HasPrefix(b, []byte("GIF87a")) || bytes.HasPrefix(b, []byte("GIF89a")):
+		return "gif"
+	}
+	return ""
+}
+
 // renderLogo writes the square logo files of a station from src and returns the logo hash.
 func (s *Service) renderLogo(ctx context.Context, stationID int64, src []byte) (string, error) {
 	if s.o.cacheDir == "" {
 		return "", errors.New("no cache directory")
 	}
-	if w, h, ok := logoSize(src); !ok || w*h > transcode.MaxImagePixels {
+	format := logoDemuxer(src)
+	if w, h, ok := logoSize(src); !ok || w*h > transcode.MaxImagePixels || format == "" {
 		return "", errors.New("not a usable image")
 	}
 	dir := filepath.Join(s.o.cacheDir, logoDir(stationID))
@@ -370,7 +394,7 @@ func (s *Service) renderLogo(ctx context.Context, stationID int64, src []byte) (
 			outs = append(outs, transcode.ImageOutput{Path: filepath.Join(dir, logoFile(w, f)+".tmp"), Width: w, Format: f})
 		}
 	}
-	if err := s.o.runner.SquareImage(ctx, in, outs); err != nil {
+	if err := s.o.runner.SquareImage(ctx, in, format, outs); err != nil {
 		for _, o := range outs {
 			_ = os.Remove(o.Path)
 		}

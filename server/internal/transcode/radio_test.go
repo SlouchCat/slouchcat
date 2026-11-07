@@ -305,3 +305,28 @@ func readDescriptor(r *bytes.Reader) (byte, []byte, error) {
 	}
 	return tag, body, nil
 }
+
+// An ffmpeg that keeps its output open after its input closed is killed by Close instead of
+// holding the relay forever.
+func TestRadioPackagerCloseKillsHungFFmpeg(t *testing.T) {
+	fake := filepath.Join(t.TempDir(), "ffmpeg")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nexec sleep 30\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	p, err := Runner{FFmpegPath: fake}.StartRadioPackager(context.Background(), RadioInput{Format: "mp3", Codec: "mp3"},
+		RadioOutput{BitrateKbps: 128}, 2*time.Second, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.closeWait = 200 * time.Millisecond
+	start := time.Now()
+	if err := p.Close(); err == nil || !strings.Contains(err.Error(), "killed") {
+		t.Fatalf("Close = %v, want the kill reported", err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("Close took %v", d)
+	}
+	if _, err := p.Next(); err == nil {
+		t.Fatal("Next after a killed packager returned a fragment")
+	}
+}

@@ -33,11 +33,12 @@ func decodeMetaText(b []byte) string {
 func foldTitle(s string) string { return model.SortKey("", s) }
 
 // cleanTitle turns announced text into a timeline entry (At is set by the relay): spaces trimmed
-// and collapsed, artist and title split at the first " - " or " – ". ok is false when the text
+// and collapsed, cut to maxTitleRunes, artist and title split at the first " - " or " – ". ok is false when the text
 // announces no title: empty, only punctuation, the name of the station (icy-name or the catalog
 // name), or a pattern of rules/notitle.json.
 func cleanTitle(text string, stationNames ...string) (model.RadioNowEntry, bool) {
-	text = strings.Join(strings.Fields(text), " ")
+	text = strings.Join(strings.Fields(clipRunes(text, 4*maxTitleRunes)), " ")
+	text = strings.TrimSpace(clipRunes(text, maxTitleRunes))
 	if text == "" || strings.IndexFunc(text, func(r rune) bool {
 		return !unicode.IsPunct(r) && !unicode.IsSymbol(r) && !unicode.IsSpace(r)
 	}) < 0 {
@@ -63,6 +64,21 @@ func cleanTitle(text string, stationNames ...string) (model.RadioNowEntry, bool)
 		e.Artist, e.Title = strings.TrimSpace(text[:i]), strings.TrimSpace(text[i+len(sep):])
 	}
 	return e, true
+}
+
+// maxTitleRunes bounds an announced title; longer text is cut.
+const maxTitleRunes = 512
+
+// clipRunes returns the first n runes of s.
+func clipRunes(s string, n int) string {
+	i := 0
+	for j := range s {
+		if i == n {
+			return s[:j]
+		}
+		i++
+	}
+	return s
 }
 
 // joinArtistTitle builds the announced text of an ID3 or Ogg title from its parts.

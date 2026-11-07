@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -211,6 +212,12 @@ func (c *netClient) answer(ctx context.Context, u *url.URL, resp *icyResponse) (
 			return nil, nil, fmt.Errorf("%w: read playlist of %s: %w", model.ErrRadioUnreachable, site, netguard.Clean(err))
 		}
 		return c.playlistNext(ctx, u, body)
+	}
+	if v := strings.TrimSpace(resp.header.Get("icy-metaint")); v != "" {
+		if mi, err := strconv.Atoi(v); err != nil || mi < minMetaInt || mi > maxMetaInt {
+			resp.close()
+			return nil, nil, fmt.Errorf("%w: %s sends icy-metaint %q", model.ErrRadioNotAudio, site, v)
+		}
 	}
 	st := newICYStream(u.String(), ct, resp)
 	first, err := st.collect(sniffMinBytes)

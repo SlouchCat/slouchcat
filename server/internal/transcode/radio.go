@@ -50,6 +50,9 @@ const (
 	radioMaxBox = 8 << 20
 	// radioFragmentQueue is how many fragments wait for Next before the reader blocks.
 	radioFragmentQueue = 16
+	// radioCloseWait is how long Close waits for ffmpeg to flush and exit after its input closed;
+	// then it kills ffmpeg.
+	radioCloseWait = 10 * time.Second
 )
 
 // RadioOutputFor decides between copy and transcode: AAC and HE-AAC are repackaged as they are,
@@ -111,6 +114,7 @@ type RadioPackager struct {
 	done   chan struct{} // closed when the reader goroutine has read stdout to its end
 	err    error         // reader error, written before frags closes
 
+	closeWait time.Duration // radioCloseWait; tests shorten it
 	closeOnce sync.Once
 	closeErr  error
 }
@@ -127,7 +131,7 @@ func (r Runner) StartRadioPackager(ctx context.Context, in RadioInput, out Radio
 		return nil, err
 	}
 	p := &RadioPackager{ctx: ctx, cmd: cmd, stdin: stdin, stdout: stdout, stderr: stderr,
-		frags: make(chan RadioFragment, radioFragmentQueue), done: make(chan struct{})}
+		frags: make(chan RadioFragment, radioFragmentQueue), done: make(chan struct{}), closeWait: radioCloseWait}
 	go p.read()
 	return p, nil
 }
@@ -154,12 +158,26 @@ func (p *RadioPackager) Next() (RadioFragment, error) {
 }
 
 // Close closes ffmpeg's input, so it flushes its last fragment and exits, waits until its output
-// is read and returns its exit error with the stderr tail.
+// is read and returns its exit error with the stderr tail. An ffmpeg that has not ended its output
+// closeWait after its input closed is killed.
 func (p *RadioPackager) Close() error {
 	p.closeOnce.Do(func() {
 		_ = p.stdin.Close()
-		<-p.done
-		if err := p.cmd.Wait(); err != nil && p.ctx.Err() == nil {
+		t := time.NewTimer(p.closeWait)
+		defer t.Stop()
+		killed := false
+		select {
+		case <-p.done:
+		case <-t.C:
+			killed = true
+			_ = p.cmd.Process.Kill()
+			<-p.done
+		}
+		err := p.cmd.Wait()
+		switch {
+		case killed:
+			p.closeErr = fmt.Errorf("ffmpeg packager killed %v after its input closed: %s", p.closeWait, p.stderr.String())
+		case err != nil && p.ctx.Err() == nil:
 			p.closeErr = fmt.Errorf("ffmpeg packager: %w: %s", err, p.stderr.String())
 		}
 	})

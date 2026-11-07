@@ -72,7 +72,7 @@ type relayEnv struct {
 	runner  transcode.Runner
 	clock   *fakeClock // nil: wall clock
 	watch   *fakeWatch
-	changed []int64 // onStationChanged calls
+	changed []int64 // onStationChanged calls (and the ids of onStationsChanged)
 	mu      sync.Mutex
 	tokens  map[string]string // listen tokens by listen id (fetch)
 }
@@ -107,12 +107,22 @@ func newRelayEnv(t *testing.T, eo ...envOption) *relayEnv {
 	e.s = withDialControl(New(e.f.DB, testLogger(), opts...), loopbackOnly)
 	e.s.rel.tmpfs = func(string) bool { return true }
 	e.s.rel.knobs.backoff = []time.Duration{20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond}
+	// The test stations send faster than real time so the tests need not wait for the audio;
+	// TestRelayPacesFastSource checks the pacing with the default.
+	e.s.rel.knobs.paceAhead = time.Hour
 	reload := e.s.onStationChanged // the index reload of the wiring stays behind the recorder
 	e.s.onStationChanged = func(ctx context.Context, id int64) {
 		e.mu.Lock()
 		e.changed = append(e.changed, id)
 		e.mu.Unlock()
 		reload(ctx, id)
+	}
+	reloadAll := e.s.onStationsChanged
+	e.s.onStationsChanged = func(ctx context.Context, ids []int64) {
+		e.mu.Lock()
+		e.changed = append(e.changed, ids...)
+		e.mu.Unlock()
+		reloadAll(ctx, ids)
 	}
 	t.Cleanup(e.s.stopRelays)
 	return e

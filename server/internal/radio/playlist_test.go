@@ -1,6 +1,8 @@
 package radio
 
 import (
+	"errors"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -117,5 +119,56 @@ func TestBudgetEvictsOverReservation(t *testing.T) {
 	}
 	if got := maxRelaysByBudget(512, 30); got != 12 {
 		t.Fatalf("relays by budget: %d", got)
+	}
+}
+
+// The discontinuity sequence counts the discontinuity of the first listed segment, which carries
+// no tag, so the numbering stays the same when the segment before it leaves the window.
+func TestPlaylistDiscontinuityOnFirstSegment(t *testing.T) {
+	// Memory mode keeps 8 segments: generations 0 (5 segments), 1 (5), 2 (3); segments 5..12 stay.
+	r := bufferRelay(t, "", 30*time.Minute, 1<<40, 13, 4*time.Second, func(i int) int { return i / 5 })
+	pl := string(r.playlist("T", false))
+	if !strings.Contains(pl, "#EXT-X-MEDIA-SEQUENCE:5\n#EXT-X-DISCONTINUITY-SEQUENCE:1\n") ||
+		strings.Count(pl, "#EXT-X-DISCONTINUITY\n") != 1 || strings.Index(pl, "#EXT-X-DISCONTINUITY\n") > strings.Index(pl, "seg/10?") {
+		t.Fatalf("playlist:\n%s", pl)
+	}
+	// Segment 5 leaves: its discontinuity is now a dropped one, the count stays 1.
+	if err := r.buf.add(&segment{gen: 2, dur: 4 * time.Second, pdt: time.Now()}, make([]byte, 1000)); err != nil {
+		t.Fatal(err)
+	}
+	pl = string(r.playlist("T", false))
+	if !strings.Contains(pl, "#EXT-X-MEDIA-SEQUENCE:6\n#EXT-X-DISCONTINUITY-SEQUENCE:1\n") || strings.Count(pl, "#EXT-X-DISCONTINUITY\n") != 1 {
+		t.Fatalf("playlist after the drop:\n%s", pl)
+	}
+}
+
+// A delta update never skips a discontinuity: the skip stops before it, and the first listed
+// segment after EXT-X-SKIP keeps its tag.
+func TestPlaylistDeltaStopsAtDiscontinuity(t *testing.T) {
+	// 20 segments of 4 s; generation 1 from segment 8. Without it, 0..10 would be skipped.
+	r := bufferRelay(t, t.TempDir(), 30*time.Minute, 1<<40, 20, 4*time.Second, func(i int) int { return min(i/8, 1) })
+	delta := string(r.playlist("T", true))
+	if !strings.Contains(delta, "#EXT-X-DISCONTINUITY-SEQUENCE:0\n") ||
+		!strings.Contains(delta, "#EXT-X-SKIP:SKIPPED-SEGMENTS=8\n#EXT-X-DISCONTINUITY\n#EXT-X-MAP:URI=\"init/1?rt=T\"\n") ||
+		strings.Count(delta, "#EXTINF:") != 12 {
+		t.Fatalf("delta:\n%s", delta)
+	}
+}
+
+// The init of a generation that never had a segment (its packager failed at once) is freed when
+// the next generation starts.
+func TestBufferFreesInitWithoutSegments(t *testing.T) {
+	r := bufferRelay(t, t.TempDir(), 30*time.Minute, 1<<40, 3, 4*time.Second, nil)
+	before := r.buf.bytes
+	for gen := 1; gen <= 3; gen++ {
+		if err := r.buf.addInit(gen, make([]byte, 5000)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, ok := r.buf.inits[0]; !ok || len(r.buf.inits) != 2 || r.buf.bytes != before+5000 {
+		t.Fatalf("inits %d, %d bytes, want generations 0 and 3 with %d bytes", len(r.buf.inits), r.buf.bytes, before+5000)
+	}
+	if _, err := os.Stat(r.buf.genDir(1)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("directory of generation 1: %v", err)
 	}
 }

@@ -42,6 +42,13 @@ UPDATE radio_listen_sessions SET ended_at = @now, ended_by = @ended_by
 WHERE station_id = @station_id AND ended_at IS NULL
 RETURNING id;
 
+-- name: RadioLoginSessionValid :one
+-- The login session of a listen session still authorises: not revoked (logout, password change,
+-- role demotion) and not expired.
+SELECT EXISTS (
+    SELECT 1 FROM sessions WHERE id = @session_id AND revoked_at IS NULL AND expires_at > @now
+) AS valid;
+
 -- name: EndOpenRadioListenSessions :execrows
 -- At startup no relay runs, so every open session ended with the last process ('restart').
 UPDATE radio_listen_sessions SET ended_at = @now, ended_by = 'restart' WHERE ended_at IS NULL;
