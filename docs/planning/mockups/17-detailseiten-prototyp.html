@@ -236,8 +236,8 @@
   .wl:hover, .wl:focus-visible { transform: scale(1.18); background: var(--surface-3); }
   .wl.on { background: var(--accent); color: var(--on-accent); }
   .wl.sm { width: 26px; height: 26px; right: 6px; bottom: 24px; }
-  .hovermode .lc .wl:not(.on) { opacity: 0; }
-  .hovermode .lc:hover .wl, .hovermode .lc:focus-within .wl { opacity: 1; }
+  @media (hover: hover) { .hovermode .lc .wl:not(.on), .hovermode .pstwrap .wl:not(.on) { opacity: 0; }
+  .hovermode .lc:hover .wl, .hovermode .lc:focus-within .wl, .hovermode .pstwrap:hover .wl, .hovermode .pstwrap:focus-within .wl { opacity: 1; } }
   .lc .seenmark { position: absolute; left: 6px; top: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--success); color: var(--on-light); display: grid; place-items: center; z-index: 1; }
   .lc .cardbox { position: relative; transition: transform .15s ease; }
   .lc:hover .cardbox { transform: scale(1.06); }
@@ -273,7 +273,7 @@
 <div class="wrap">
   <div class="intro">
     <h1>Konzept 17: Serien- und Filmseite</h1>
-    <p>Klickbarer Prototyp mit Beispieldaten. Oben wählst du Seite, Variante, Fortschritt und Gerät. Alles Graue ist ein Platzhalter für echte Bilder (Poster, Staffelcover, Folgenbilder, Schauspielerfotos). Klicks auf Staffeln, Sammlungen und den Stift funktionieren; Abspielen zeigt nur einen Hinweis.</p>
+    <p>Klickbarer Prototyp mit Beispieldaten. Marcos Wahl (7. November 2026): Serie A, Knöpfe A mit Trailer in der Rundknopf-Reihe, Sammlung 2, Seitenleiste B, FSK überall weg, Merken-Knopf nur beim Zeigen. Oben wählst du Seite, Variante, Fortschritt und Gerät. Alles Graue ist ein Platzhalter für echte Bilder (Poster, Staffelcover, Folgenbilder, Schauspielerfotos). Klicks auf Staffeln, Sammlungen und den Stift funktionieren; Abspielen zeigt nur einen Hinweis.</p>
   </div>
   <div class="bar" id="bar"></div>
   <div class="note" id="note"></div>
@@ -282,8 +282,8 @@
 
 <script>
 (() => {
-  const S = { view: 'serie', variant: 'A', coll: 'K2', progress: 'mitte', device: 'desk', admin: true, season: 1, sub: null, menu: false, toast: '', marks: { merken: false, fav: true, cat: false }, grouped: false, wlMode: 'immer', navVariant: 'A', navRole: 'admin', libsOpen: true, wlSet: [3, 10, 25] };
-  try { const saved = JSON.parse(localStorage.getItem('k17') || 'null'); if (saved) Object.assign(S, saved, { sub: null, menu: false, toast: '' }); } catch (e) {}
+  const S = { view: 'serie', variant: 'A', coll: 'K2', progress: 'mitte', device: 'desk', admin: true, season: 1, sub: null, menu: false, toast: '', marks: { merken: false, fav: true, cat: false }, grouped: false, wlMode: 'hover', navVariant: 'B', navRole: 'admin', libsOpen: true, wlSet: [3, 10, 25] };
+  try { const saved = JSON.parse(localStorage.getItem('k17v2') || 'null'); if (saved) Object.assign(S, saved, { sub: null, menu: false, toast: '' }); } catch (e) {}
 
   const ICON = {
     play: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',
@@ -364,12 +364,12 @@
 
   const NOTES = {
     serie: {
-      A: '<b>Variante A «Staffelregal»</b> (nach Emby und Jellyfin). Kopf wie heute, aber «Zurück» wandert als Pfeil nach oben links. Ein grosser Knopf «Weiterschauen» nennt die Folge; daneben Trailer und beschriftete Rundknöpfe. Darunter die Staffeln als Reihe von <b>Staffelcovern</b> mit Fortschritt; die gewählte Staffel zeigt ihre Folgen als Liste mit Bild, Titel, Dauer und zwei Zeilen Inhalt. Alles auf einer Seite.',
+      A: '<b>Variante A «Staffelregal»</b> (nach Emby und Jellyfin). Kopf wie heute, aber «Zurück» wandert als Pfeil nach oben links. Ein grosser Knopf «Weiterschauen» nennt die Folge; darunter beschriftete Rundknöpfe, auch Trailer (Marcos Wahl). Darunter die Staffeln als Reihe von <b>Staffelcovern</b> mit Fortschritt; die gewählte Staffel zeigt ihre Folgen als Liste mit Bild, Titel, Dauer und zwei Zeilen Inhalt. Alles auf einer Seite.',
       B: '<b>Variante B «Staffelseite»</b> (nach Plex). Die Serienseite bleibt kurz: Kopf, Knöpfe als Symbole mit «⋯»-Menü, Staffelcover als Raster. Ein Klick auf eine Staffel öffnet eine <b>eigene Staffelseite</b> mit dem Staffelcover, dem Staffeltext, einem eigenen Knopf «Weiterschauen» und den Folgen. Zurück führt zur Serie.',
       C: '<b>Variante C «Staffelleiste»</b> (eigene Idee). Statt eines Knopfs steht eine <b>Karte «Als Nächstes»</b> mit Folgenbild im Kopf. Darunter links eine feste Leiste mit allen Staffeln (Mini-Cover, Fortschritt), rechts die Folgen. Das grosse Cover oben wechselt auf das <b>Cover der gewählten Staffel</b>. Auf dem Handy wird die Leiste zu einer waagrechten Reihe.'
     },
     film: {
-      A: '<b>Film in Variante A.</b> Gleicher Kopf wie die Serie: Pfeil zurück, grosser Knopf (Abspielen, Fortsetzen mit Restzeit, Nochmals ansehen), Trailer, beschriftete Rundknöpfe. Darunter Sammlung, Datei und Besetzung mit Fotos.',
+      A: '<b>Film in Variante A.</b> Gleicher Kopf wie die Serie: Pfeil zurück, grosser Knopf (Abspielen, Fortsetzen mit Restzeit, Nochmals ansehen), darunter beschriftete Rundknöpfe mit Trailer. Darunter Sammlung, Datei und Besetzung mit Fotos.',
       B: '<b>Film in Variante B.</b> Gleicher Kopf wie die Serie in B: nur Symbole mit Hinweis beim Zeigen, «Von vorne» und «Zu Cat\'s Empfehlungen» im Menü «⋯».',
       C: '<b>Film in Variante C.</b> Die Karte «Als Nächstes» zeigt beim Film die Stelle, an der du stehst, mit Restzeit. Ohne Fortschritt ist es ein normaler Abspielknopf.'
     },
@@ -378,12 +378,12 @@
       K2: ' <b>Sammlung 2 «Reihe»:</b> ein eigener Abschnitt mit allen Teilen in Reihenfolge, dieser Film markiert, gesehene mit Haken, fehlende grau.',
       K3: ' <b>Sammlung 3 «Band»:</b> ein breites Band mit Sammlungsbild, Fortschritt der Reihe und einem Knopf zum nächsten ungesehenen Teil.'
     },
-    lib: '<b>Bibliothek Filme.</b> Alle Filme auf einer Seite statt seitenweise, ohne FSK-Plakette auf dem Cover. Die Buchstabenleiste rechts bleibt; sie springt zum ersten Titel des Buchstabens und zeigt beim Scrollen, wo du bist. Leere Buchstaben sind ausgegraut. Für die Leistung zeichnet der Browser nur Karten, die sichtbar sind (<code>content-visibility</code>), Bilder laden erst kurz vor dem Sichtbarwerden. Im Prototyp sind es 1\'248 Beispielfilme. Heute filtert ein Buchstabe die Liste auf dem Server; neu springt er nur. Stift (oben rechts, nur Server-Admin) und Merken (unten rechts, jedes Profil, die eigene Merkliste) werden beim Zeigen grösser; das Cover bleibt dabei gross (heute schrumpft es, sobald die Maus auf dem Stift ist). Der Haken «gesehen» wandert nach oben links.'
+    lib: '<b>Bibliothek Filme.</b> Alle Filme auf einer Seite statt seitenweise, ohne FSK-Plakette (Marco: FSK überall weg). Die Buchstabenleiste rechts bleibt; sie springt zum ersten Titel des Buchstabens und zeigt beim Scrollen, wo du bist. Leere Buchstaben sind ausgegraut. Für die Leistung zeichnet der Browser nur Karten, die sichtbar sind (<code>content-visibility</code>), Bilder laden erst kurz vor dem Sichtbarwerden. Im Prototyp sind es 1\'248 Beispielfilme. Heute filtert ein Buchstabe die Liste auf dem Server; neu springt er nur. Stift (oben rechts, nur Server-Admin) und Merken (unten rechts, jedes Profil, die eigene Merkliste) werden beim Zeigen grösser; das Cover bleibt dabei gross (heute schrumpft es, sobald die Maus auf dem Stift ist). Der Haken «gesehen» wandert nach oben links.'
   };
 
   NOTES.nav = {
     A: '<b>Seitenleiste A «wie die Verwaltung».</b> Symbole vor jedem Eintrag, «Meine Medien» als farbiges Band mit Pfeil, Bibliotheken mit Symbol nach Art und Zahl als Kapsel. Unten, durch eine Linie getrennt, was nicht Medien ist: Wiedergabe-Einstellungen für alle; Profile nur für das Hauptprofil eines Kontos; Verwaltung mit Update-Hinweis nur für den Server-Admin. Ganz unten Abmelden.',
-    B: '<b>Seitenleiste B «mit Profilkopf».</b> Wie A, aber oben eine Karte mit dem aktiven Profil (Farbe, Name, Knopf «Wechseln»). Einstellungen und Verwaltung stehen in einem eigenen Band «Konto». Ein Zuschauerprofil sieht nur Medien, Wiedergabe und Abmelden.'
+    B: '<b>Seitenleiste B «mit Profilkopf»</b> (Marcos Wahl). Wie A, «Meine Medien» immer offen, ohne Zuklappen; oben eine Karte mit dem aktiven Profil (Farbe, Name, Knopf «Wechseln»). Einstellungen und Verwaltung stehen in einem eigenen Band «Konto». Ein Zuschauerprofil sieht nur Medien, Wiedergabe und Abmelden.'
   };
   const bar = document.getElementById('bar'), note = document.getElementById('note'), frame = document.getElementById('frame'), root = document.getElementById('scroller');
 
@@ -401,7 +401,7 @@
       + seg('Sammlung', 'coll', [['K1', '1 Hinweis'], ['K2', '2 Reihe'], ['K3', '3 Band']], S.view === 'film')
       + seg('Fortschritt', 'progress', [['neu', 'Neu'], ['mitte', 'Angefangen'], ['fertig', 'Folge fertig'], ['alles', 'Alles gesehen']], !lib)
       + seg('Raster', 'grouped', [[false, 'Durchgehend'], [true, 'Mit Buchstaben']], S.view === 'lib')
-      + seg('Merken-Knopf', 'wlMode', [['immer', 'Immer sichtbar'], ['hover', 'Beim Zeigen']], S.view === 'lib')
+      + seg('Merken-Knopf', 'wlMode', [['immer', 'Immer sichtbar'], ['hover', 'Beim Zeigen']], S.view !== 'nav')
       + seg('Gerät', 'device', [['desk', 'Desktop'], ['phone', 'Handy']])
       + seg('Rolle', 'admin', [[true, 'Server-Admin'], [false, 'Zuschauer']], !nav);
   }
@@ -429,8 +429,8 @@
     const canRestart = S.progress === 'mitte';
     if (S.variant === 'A') {
       const L = (k, on, off, onIc, offIc, t) => `<button type="button" class="${m[k] ? 'on' : ''}" data-mark="${k}" aria-pressed="${m[k]}"><span class="c">${m[k] ? onIc : offIc}</span>${m[k] ? on : t}</button>`;
-      return `<div class="actions">${playBtn(n)}<button type="button" class="pill" data-act="trailer">${ICON.trailer}Trailer</button></div>
-        <div class="actions lab">${canRestart ? `<button type="button" data-act="restart"><span class="c">${ICON.restart}</span>Von vorne</button>` : ''}
+      return `<div class="actions">${playBtn(n)}</div>
+        <div class="actions lab"><button type="button" data-act="trailer"><span class="c">${ICON.trailer}</span>Trailer</button>${canRestart ? `<button type="button" data-act="restart"><span class="c">${ICON.restart}</span>Von vorne</button>` : ''}
         ${L('merken', 'Gemerkt', '', ICON.markOn, ICON.mark, 'Merken')}
         ${L('fav', 'Favorit', '', ICON.heartOn, ICON.heart, 'Favorit')}
         ${L('cat', 'Bei Cat', '', ICON.catOn, ICON.cat, 'Cat\'s Empfehlungen')}</div>`;
@@ -464,8 +464,8 @@
       pst = poster(`Staffel ${s.no}`, SERIES.title, s.hue, `<span class="swap">Cover der Staffel</span>`);
     } else pst = poster(it.title, isS ? 'Serie' : 'Film', it.hue);
     const meta = isS
-      ? `<span class="fsk">${it.fsk}</span><span>${it.years}</span><span>·</span><span>12 Staffeln · 260 Folgen</span>`
-      : `<span class="fsk">${it.fsk}</span><span>${it.year}</span><span>·</span><span>${it.run}</span>`;
+      ? `<span>${it.years}</span><span>·</span><span>12 Staffeln · 260 Folgen</span>`
+      : `<span>${it.year}</span><span>·</span><span>${it.run}</span>`;
     const hint = !isS && S.coll === 'K1' ? `<div><button type="button" class="collhint" data-act="coll">${ICON.stack}Teil der Sammlung <b>${COLL.name}</b> · 3 Filme</button></div>` : '';
     return `<section class="hero"><div class="bd" style="background:${grad(it.hue, 20)}"></div>
       <div class="crumbs"><button type="button" class="backbtn" data-act="back" aria-label="Zurück">${ICON.back}</button><span>${isS ? 'Serien' : 'Filme'}</span></div>
@@ -604,7 +604,7 @@
       cards += `<div class="lc"${anchor}><div class="cardbox"><a href="#" data-act="openfilm"><div class="pst" style="background:${grad(h)}">${seen}${wp}<span class="big" style="font-size:.78rem">${x.t.split(' – ')[0]}</span></div></a>${pen('sm')}${wlBtn(S.wlSet.includes(i), String(i), 'sm')}</div><span class="t">${x.t}</span><span class="y">${x.y}</span></div>`;
     });
     return `<div class="libhead"><h1>Filme</h1><span>1'248 Titel</span><span class="sp"></span><span class="chip">Sortiert nach Titel</span><span class="chip">Filter</span></div>
-      <div class="libwrap ${S.wlMode === 'hover' ? 'hovermode' : ''}"><div class="lgrid" id="lgrid">${cards}</div>
+      <div class="libwrap"><div class="lgrid" id="lgrid">${cards}</div>
       <div class="az" aria-label="Buchstaben"><div>${letters.map((l) => `<button type="button" data-l="${l}" ${has.has(l) ? '' : 'disabled'} aria-label="Zu ${l === '#' ? 'Ziffern' : l}">${l}</button>`).join('')}</div></div></div>`;
   }
 
@@ -615,8 +615,9 @@
     let h = `<button type="button" class="x" aria-label="Schliessen">${ICON.x}</button>`;
     if (!A) h += `<div class="prof"><span class="av">${role === 'profil' ? 'L' : 'M'}</span><span><b>${role === 'profil' ? 'Lina' : 'Marco'}</b><span>${role === 'profil' ? 'Profil von Marco' : role === 'admin' ? 'Hauptprofil · Server-Admin' : 'Hauptprofil'}</span></span><button type="button">Wechseln</button></div>`;
     h += link(ICON.home, 'Start') + link(ICON.search, 'Suche') + link(ICON.mark, 'Merkliste', `<span class="n">12</span>`) + link(ICON.down, 'Downloads');
-    h += `<button type="button" class="band2" data-act="libs" aria-expanded="${S.libsOpen}">${ICON.film}Meine Medien<span class="chev">${ICON.chev}</span></button>`;
-    if (S.libsOpen) h += libs.map(([t, n, ic, cur]) => link(ic, t, `<span class="n">${n.toLocaleString('de-CH')}</span>`, cur)).join('');
+    h += A ? `<button type="button" class="band2" data-act="libs" aria-expanded="${S.libsOpen}">${ICON.film}Meine Medien<span class="chev">${ICON.chev}</span></button>`
+      : `<span class="band2" style="cursor:default">${ICON.film}Meine Medien</span>`;
+    if (S.libsOpen || !A) h += libs.map(([t, n, ic, cur]) => link(ic, t, `<span class="n">${n.toLocaleString('de-CH')}</span>`, cur)).join('');
     if (A) {
       h += '<span class="sp"></span><hr>';
       h += link(ICON.sliders, 'Wiedergabe');
@@ -634,9 +635,10 @@
   }
 
   function render() {
-    try { localStorage.setItem('k17', JSON.stringify({ view: S.view, variant: S.variant, coll: S.coll, progress: S.progress, device: S.device, admin: S.admin, grouped: S.grouped, wlMode: S.wlMode, navVariant: S.navVariant, navRole: S.navRole })); } catch (e) {}
+    try { localStorage.setItem('k17v2', JSON.stringify({ view: S.view, variant: S.variant, coll: S.coll, progress: S.progress, device: S.device, admin: S.admin, grouped: S.grouped, wlMode: S.wlMode, navVariant: S.navVariant, navRole: S.navRole })); } catch (e) {}
     renderBar(); renderNote();
     frame.classList.toggle('phone', S.device === 'phone');
+    frame.classList.toggle('hovermode', S.wlMode === 'hover');
     const app = `<div class="appbar"><span class="ham" aria-hidden="true"></span><span class="brand"><i></i>Slouchcat</span></div>`;
     let page;
     if (S.view === 'lib') page = pageLib();

@@ -1,7 +1,12 @@
 # Konzept: Serien- und Filmseite, Bibliotheksraster und Seitenleiste
 
-- **Status: Fassung 1 (7. November 2026), mit klickbarem Mockup.** Die Fragen **F-1 bis F-16**
-  (Abschnitt 11) sind offen. Marco hat angekündigt, dass noch mehr dazukommen kann.
+- **Status: Fassung 2 (7. November 2026), mit klickbarem Mockup.** Marco hat am 7. November 2026
+  die Fragen **F-1, F-2, F-4 bis F-10, F-12 bis F-14** beantwortet (Abschnitt 11): **Serie A**,
+  **Knöpfe A mit Trailer in der Reihe der Rundknöpfe**, **Sammlung nur als Reihe** (2),
+  **Seitenleiste B mit Profilkopf, «Meine Medien» immer offen**. Abweichend von der Empfehlung:
+  **FSK überall weg** (F-10), **Merken-Knopf nur beim Zeigen** (F-12), **Schauspielerbilder alle im
+  Voraus** (F-8). Offen sind nur **F-3, F-11, F-15, F-16** (Empfehlung angenommen, Bestätigung
+  ausstehend). Marco hat angekündigt, dass noch mehr dazukommen kann.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco hat am 7. November 2026 zwei Bildschirmfotos geschickt (Serienseite «Two and
   a Half Men», Filmseite «10 Cloverfield Lane») und ein drittes von der Seitenleiste auf dem Handy.
@@ -69,7 +74,7 @@ Für **alle drei** gilt (D-3): Film und Serie haben denselben Kopf (Pfeil zurüc
 Logo, Kennzahlen, Tagline, Knopfzeile, Inhalt) und darunter Abschnitte in derselben Reihenfolge:
 bei der Serie Staffeln und Folgen, beim Film Sammlung und Datei; bei beiden zuletzt die Besetzung.
 
-**Empfehlung: A.** Alles auf einer Seite, ein Klick weniger als B, und auf dem Handy einfacher als C.
+**Gewählt: A** (F-1). Alles auf einer Seite, ein Klick weniger als B, und auf dem Handy einfacher als C.
 Die Staffelseite aus B ist trotzdem nützlich, wenn jemand von einer Folge «hoch» navigiert; die
 Detailseite einer Staffel gibt es schon (`ItemView` mit `kind = season`) und bekommt denselben Kopf.
 
@@ -98,13 +103,14 @@ Detailseite einer Staffel gibt es schon (`ItemView` mit `kind = season`) und bek
 ### 3.2 Varianten der Knopfzeile (gehören im Mockup zu A, B, C)
 
 - **A:** grosser heller Knopf mit zwei Zeilen («Weiterschauen» / «S01E02 · Der Sockengolf-Champion ·
-  noch 12 min», Fortschrittsstrich), daneben Trailer; darunter runde Knöpfe **mit Beschriftung**:
-  Von vorne (nur bei Fortschritt), Merken, Favorit, Cat's Empfehlungen.
+  noch 12 min», Fortschrittsstrich); darunter runde Knöpfe **mit Beschriftung**: Trailer, Von vorne
+  (nur bei Fortschritt), Merken, Favorit, Cat's Empfehlungen. (Fassung 1 hatte Trailer neben dem
+  grossen Knopf; Marco will ihn ausgeschrieben mit Symbol in der Reihe von Merken.)
 - **B:** derselbe grosse Knopf, dann nur Symbole mit Hinweis beim Zeigen; «Von vorne», «Zu Cat's
   Empfehlungen» und «Metadaten bearbeiten» im Menü «⋯».
 - **C:** eine Karte «Als Nächstes» mit Folgenbild statt eines Knopfs, darunter Kapseln.
 
-**Empfehlung: A.** Beschriftung hilft auf dem Handy und mit der Fernbedienung (Tastatur-Navigation,
+**Gewählt: A** (F-2), mit Trailer in der Reihe. Beschriftung hilft auf dem Handy und mit der Fernbedienung (Tastatur-Navigation,
 Regel 8); das Menü «⋯» aus B versteckt Dinge.
 
 Download und Verwalten bleiben, wo sie gebraucht werden: Download in der Zeile der runden Knöpfe,
@@ -149,12 +155,14 @@ Server: neues Feld `ItemDetail.nextUp` (Folge als `ItemRef` mit `progress`, dazu
 - **3 «Band»:** breites Band mit Sammlungsbild, Teilen als Kapseln, Fortschritt der Reihe, Knopf
   «Sammlung öffnen».
 
-**Empfehlung: 1 und 2 zusammen.** Der Hinweis oben sagt es sofort, die Reihe darunter zeigt die
-Teile. Die Sammlungsseite bekommt denselben Kopf wie Film und Serie und zeigt Gesehen-Haken.
+**Gewählt: nur 2 «Reihe»** (F-6; Empfehlung war 1 und 2). Der Abschnitt steht direkt nach dem Kopf,
+vor «Datei»; die bisherige Reihe `CollectionCard` ganz unten fällt weg. Ein Film in zwei Sammlungen
+bekommt zwei Abschnitte. Die Sammlungsseite bekommt denselben Kopf wie Film und Serie und zeigt
+Gesehen-Haken.
 
 **Fehlende Teile** (grau, «Nicht in der Bibliothek») zeigt das Mockup als Möglichkeit. Dafür müsste
 der Server die vollständige Teileliste von TMDB speichern (neue Tabelle oder Spalte). **Empfehlung:
-nicht in diesem Konzept** (F-7).
+nicht in diesem Konzept** (F-7, so entschieden).
 
 ## 5. D-5 Bilder der Schauspieler
 
@@ -176,7 +184,9 @@ nicht in diesem Konzept** (F-7).
 4. `CastMember.image` (URL, additiv). Ohne Bild bleibt der Buchstabe.
 5. Dasselbe Muster für `collections.poster_path` (Sammlungsbild statt Poster des ersten Films).
 
-ADR 0026 hält Speicherort, Grösse und Sichtbarkeitsregel fest.
+**Entschieden (F-8): alle im Voraus**, auch für den Bestand (Empfehlung war «beim ersten Anzeigen»).
+Der Job läuft im Pool der Bild-Jobs, ist pausierbar und hat einen Knopf «Nachholen» auf der Seite
+Hintergrundjobs. ADR 0026 hält Speicherort, Grösse und Sichtbarkeitsregel fest.
 
 ## 6. D-6 Filmbibliothek: alle Filme, ohne FSK, mit Buchstaben
 
@@ -196,10 +206,13 @@ ADR 0026 hält Speicherort, Grösse und Sichtbarkeitsregel fest.
 2. **Virtualisiertes Raster:** gezeichnet werden nur die Zeilen im Bild und je eine Bildschirmhöhe
    davor und danach. Bilder laden erst kurz vor dem Sichtbarwerden (`posterSmall`). So bleiben auch
    1'795 Filme flüssig, auf dem Handy wie am Fernseher.
-3. **Buchstaben springen statt filtern:** Der Server liefert in `facets` neu die Zahl der Titel je
+3. **Buchstaben springen statt filtern** (F-9, durchgehend ohne Trenner): Der Server liefert in `facets` neu die Zahl der Titel je
    Buchstabe (additiv). Daraus rechnet die App den Versatz, lädt die Seite dort und springt hin. Die
    Leiste markiert beim Scrollen den aktuellen Buchstaben.
-4. **Keine FSK-Plakette** auf den Postern der Bibliothek. Haken und Fortschritt bleiben.
+4. **Keine FSK mehr, nirgends** (F-10): nicht auf den Postern der Bibliothek, der Startseite und der
+   Sammlungen, und nicht im Kopf der Detailseite. Haken und Fortschritt bleiben. Die Altersregel im
+   Server bleibt unverändert; nur die Anzeige fällt weg. Der Filter «bis FSK» in der Bibliothek
+   (`maxRating`) bleibt.
 5. Gilt für Film- und Serienbibliotheken, nicht für Podcasts und Hörbücher (die haben schon heute
    keine Buchstabenleiste).
 
@@ -235,6 +248,9 @@ schrumpft; der Stift selbst ändert nur die Farbe (`ui/Button.module.css:103-105
 
 - Runder Knopf **unten rechts** auf dem Cover, gleiche Grösse und dasselbe Zeigen-Verhalten wie der
   Stift; leer = nicht gemerkt, gefüllt in der Akzentfarbe = gemerkt. Für **jedes Profil**.
+- **Nur beim Zeigen** (F-12): erscheint, wenn die Maus auf dem Cover ist oder es den Tastaturfokus
+  hat. Ein gemerkter Titel zeigt den gefüllten Knopf immer. Auf Geräten ohne Maus (`hover: none`,
+  Handy und Tablet) ist er immer sichtbar, sonst wäre er dort nicht erreichbar.
 - Orte wie der Stift: Detailseite, Bibliotheksraster, Reihen der Startseite; dazu Sammlungsseite und
   Suche. Nicht bei Staffeln, Folgen und Extras (die kann man heute nicht merken).
 - Der Gesehen-Haken wandert nach **oben links**.
@@ -266,45 +282,49 @@ Wer was sieht (in beiden): **weiteres Profil:** Medien, Wiedergabe, Abmelden; **
 Kontos:** dazu Profile; **Server-Admin:** dazu Verwaltung. Das entspricht der heutigen Regel; neu ist
 nur das Aussehen.
 
-**Empfehlung: A.** Am nächsten an der Verwaltungsleiste, ohne neue Funktion. Das Wechseln des Profils
-gibt es schon im Kopf der App.
+**Gewählt: B** (F-13; Empfehlung war A). Dazu: **«Meine Medien» ist immer offen**, ohne Zuklappen;
+der Schalter und der Gerätespeicher `slouchcat.sidenav.libraries` fallen weg. «Wechseln» führt zur
+bestehenden Profilwahl. «Profile» sieht weiterhin das Hauptprofil **jedes** Kontos (F-14).
 
 ## 10. Was sich gegenüber früheren Entscheiden ändert
 
 | Früher | Neu | Frage |
 |---|---|---|
-| Konzept 08 N-2: Seitenleiste ohne Symbole | Symbole wie in der Verwaltung | F-13 |
+| Konzept 08 N-2: Seitenleiste ohne Symbole | Symbole wie in der Verwaltung, Profilkopf | F-13 |
+| Konzept 08: Gruppe «Meine Medien» zuklappbar | immer offen | F-13 |
+| FSK im Kopf der Detailseite (`ItemMeta`) | keine FSK-Anzeige mehr | F-10 |
 | Buchstabenleiste filtert (Konzept 07) | Buchstabe springt in der ganzen Liste | F-9 |
 | FSK auf jedem Poster der Bibliothek | ohne FSK | F-10 |
+| Sammlungen als Reihe ganz unten | Abschnitt «Reihe» direkt nach dem Kopf | F-6 |
 | Konzept 15 F-1/F-2: Weiterschauen-Regel nur für die Startseite | dieselbe Regel auf der Serienseite, ohne 60-Tage-Grenze | F-4 |
 | Merken nur auf der Detailseite | auch auf jedem Cover | F-12 |
 
-## 11. Fragen an Marco
+## 11. Fragen an Marco und seine Antworten (7. November 2026)
 
-| Nr. | Frage | Empfehlung |
-|---|---|---|
-| F-1 | Aufbau der Serienseite: A «Staffelregal», B «Staffelseite» oder C «Staffelleiste»? | A |
-| F-2 | Knopfzeile: A beschriftete Rundknöpfe, B nur Symbole mit «⋯», C Karte «Als Nächstes»? (unabhängig von F-1 wählbar) | A |
-| F-3 | Film gleich aufgebaut wie die Serie (gleicher Kopf, gleiche Knopfzeile)? | ja |
-| F-4 | Welche Folge nennt der Knopf? Jüngste Aktivität wie auf der Startseite, aber ohne 60-Tage-Grenze; ohne Fortschritt S01E01. | so |
-| F-5 | Bei «alles gesehen»: Knopf «Nochmals ansehen ab S01E01» oder keinen Abspielknopf? | Nochmals ansehen |
-| F-6 | Sammlung auf der Filmseite: 1 Hinweis, 2 Reihe, 3 Band, oder eine Kombination? | 1 und 2 |
-| F-7 | Fehlende Teile einer Sammlung grau zeigen (braucht die ganze Teileliste von TMDB)? | nein, später |
-| F-8 | Schauspielerbilder: laden für alle Personen, rund 450 MB geschätzt, Nachholen für den Bestand? | ja |
-| F-9 | Bibliothek: Nachladen beim Scrollen mit Sprung je Buchstabe (statt Filter)? Und durchgehend oder mit Buchstaben-Trennern? | ja; durchgehend |
-| F-10 | FSK nur im Bibliotheksraster weg, auf der Detailseite bleibt sie? Oder auch dort weg? | nur im Raster |
-| F-11 | Stift: Karte bleibt gross, Stift wächst beim Zeigen; gilt auch für die Spotlight-Reihe der Startseite? | ja |
-| F-12 | Merken-Knopf auf dem Cover: immer sichtbar (wie der Stift) oder nur beim Zeigen? Bleibt «Merken» zusätzlich in der Knopfzeile der Detailseite? | immer; ja |
-| F-13 | Seitenleiste: A «wie die Verwaltung» oder B «mit Profilkopf»? | A |
-| F-14 | «Hauptaccount sieht die Profile»: das Hauptprofil **jedes** Kontos (heute so) oder nur das Konto des Server-Admins? | jedes Konto |
-| F-15 | «Wiedergabe» (Sprachen, Untertitel) bleibt für alle Profile in der Leiste? | ja |
-| F-16 | Bau in Stufen wie in Abschnitt 12? | ja |
+| Nr. | Frage | Empfehlung | Antwort |
+|---|---|---|---|
+| F-1 | Aufbau der Serienseite: A «Staffelregal», B «Staffelseite» oder C «Staffelleiste»? | A | **A** |
+| F-2 | Knopfzeile: A beschriftete Rundknöpfe, B nur Symbole mit «⋯», C Karte «Als Nächstes»? | A | **A, Trailer ausgeschrieben mit Symbol in der Reihe von Merken** |
+| F-3 | Film gleich aufgebaut wie die Serie (gleicher Kopf, gleiche Knopfzeile)? | ja | offen (Marcos Wunsch D-3 spricht dafür) |
+| F-4 | Welche Folge nennt der Knopf? | jüngste Aktivität ohne 60-Tage-Grenze, sonst S01E01 | **wie empfohlen** |
+| F-5 | Bei «alles gesehen»? | Nochmals ansehen ab S01E01 | **wie empfohlen** |
+| F-6 | Sammlung auf der Filmseite: 1 Hinweis, 2 Reihe, 3 Band? | 1 und 2 | **nur 2 «Reihe»** |
+| F-7 | Fehlende Teile einer Sammlung grau zeigen? | nein, später | **nein, später** |
+| F-8 | Schauspielerbilder: wann laden? | beim ersten Anzeigen | **alle im Voraus, mit Nachholen** |
+| F-9 | Bibliothek: Springen oder Filtern, mit oder ohne Trenner? | Springen, durchgehend | **wie empfohlen** |
+| F-10 | FSK nur im Raster weg oder überall? | nur im Raster | **überall weg** |
+| F-11 | Stift: Karte bleibt gross, Stift wächst; auch in der Spotlight-Reihe? | ja | offen |
+| F-12 | Merken-Knopf auf dem Cover: immer oder beim Zeigen? | immer; «Merken» bleibt in der Knopfzeile | **nur beim Zeigen**; Knopfzeile behält «Merken» (Annahme, weil das Cover auf dem Handy dort fehlt) |
+| F-13 | Seitenleiste: A oder B? | A | **B mit Profilkopf, «Meine Medien» immer offen** |
+| F-14 | Wer sieht «Profile»? | Hauptprofil jedes Kontos | **wie empfohlen** |
+| F-15 | «Wiedergabe» bleibt für alle Profile in der Leiste? | ja | offen |
+| F-16 | Bau in Stufen wie in Abschnitt 12? | ja | offen |
 
 ## 12. Bauplan in Stufen (vorläufig)
 
 | Stufe | Inhalt | Vertrag | Migration |
 |---|---|---|---|
-| 1 | D-7 Stift, D-8 Seitenleiste, FSK aus dem Raster (D-6 Punkt 4) | nein | nein |
+| 1 | D-7 Stift, D-8 Seitenleiste, FSK überall weg (D-6 Punkt 4) | nein | nein |
 | 2 | D-1 bis D-4 Detailseite: Kopf, Knopfzeile, `nextUp`, Staffelcover, Folgenliste, Sammlung; D-9 Merken auf dem Cover | additiv | nein |
 | 3 | D-5 Personen- und Sammlungsbilder (ADR 0026); D-6 Nachladen, Virtualisierung, Buchstabensprung | additiv | ja |
 
@@ -315,7 +335,7 @@ Storybook-Geschichte. Texte nur aus `locales/{de,en}.json` (Regel 9).
 
 - Personenseiten mit Lebenslauf und Filmografie (Klick auf eine Person sucht weiter wie heute).
 - Empfehlungen «Ähnliche Titel» (Nicht-Ziel «algorithmische Empfehlungen»).
-- Fehlende Sammlungsteile, ausser Marco wählt es bei F-7.
+- Fehlende Sammlungsteile (F-7).
 
 ## Anhang A. Mockup
 
@@ -323,4 +343,4 @@ Privat; Marco kann es teilen. Die Kopie im Repository enthält keine Filmbilder,
 
 | Inhalt | Artefakt | Kopie im Repository |
 |---|---|---|
-| Serie (A/B/C), Film mit Sammlung 1/2/3, Staffel- und Sammlungsseite, Bibliothek mit 1'248 Beispielfilmen, Seitenleiste A/B; Fortschritt, Gerät und Rolle umschaltbar | <https://claude.ai/artifact/Pq9qcLkKG2suAi4kMUvbWZ> | `docs/planning/mockups/17-detailseiten-prototyp.html` |
+| Fassung 2 mit Marcos Wahl als Voreinstellung. Serie (A/B/C), Film mit Sammlung 1/2/3, Staffel- und Sammlungsseite, Bibliothek mit 1'248 Beispielfilmen, Seitenleiste A/B; Fortschritt, Gerät und Rolle umschaltbar | <https://claude.ai/artifact/Pq9qcLkKG2suAi4kMUvbWZ> | `docs/planning/mockups/17-detailseiten-prototyp.html` |
