@@ -16,8 +16,9 @@ import (
 )
 
 // The Radio Browser client (concept 16 section 5.1, F-14): one GET of the whole station list per
-// sync, streamed into the merge. Every request goes through the guarded dialer (no address in
-// the local network), the rate limiter of the service and the User-Agent Slouchcat/<version>.
+// sync, streamed into the merge. Every request goes through the guarded dialer of the relay part
+// (dialer.go: no address in the local network; the radiotest build allows the loopback), the rate
+// limiter of the service and the User-Agent Slouchcat/<version>.
 // The server never reports clicks or votes back.
 
 const (
@@ -63,7 +64,8 @@ type rbStation struct {
 // catalogClient fetches the station list from the base or, after a transport failure, from up to
 // catalogMaxMirrors mirrors.
 type catalogClient struct {
-	client    *http.Client
+	client    *http.Client        // nil: lazy
+	lazy      func() *http.Client // the service's guarded client (netClient)
 	limiter   *ratelimit.Limiter
 	userAgent string
 	base      string
@@ -77,34 +79,15 @@ type catalogClient struct {
 	mirrorBase func(name string) string
 }
 
-// newCatalogClient returns the client of the Radio Browser on the guarded dialer.
+// newCatalogClient returns the client of the Radio Browser. Its HTTP client is the guarded one
+// of the service (lazy); a test sets client instead.
 func newCatalogClient(userAgent string) *catalogClient {
 	base, mirrors := catalogBase()
-	d := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: netguard.RefuseLocal}
-	client := &http.Client{
-		Transport: &http.Transport{
-			Proxy:                 nil,
-			DialContext:           d.DialContext,
-			ForceAttemptHTTP2:     true,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ResponseHeaderTimeout: 30 * time.Second,
-			IdleConnTimeout:       90 * time.Second,
-		},
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 5 {
-				return errors.New("too many redirects")
-			}
-			if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-				return fmt.Errorf("redirect to scheme %q refused", req.URL.Scheme)
-			}
-			return nil
-		},
-	}
 	if userAgent == "" {
 		userAgent = "Slouchcat"
 	}
 	return &catalogClient{
-		client: client, limiter: ratelimit.New("radio-browser", 1, 1), userAgent: userAgent,
+		limiter: ratelimit.New("radio-browser", 1, 1), userAgent: userAgent,
 		base: base, mirrors: mirrors, serversURL: base + "/json/servers",
 		lookupSRV: func(ctx context.Context) ([]string, error) {
 			_, srvs, err := net.DefaultResolver.LookupSRV(ctx, "api", "tcp", "radio-browser.info")
@@ -119,6 +102,15 @@ func newCatalogClient(userAgent string) *catalogClient {
 		},
 		mirrorBase: func(name string) string { return "https://" + name },
 	}
+}
+
+// httpClient returns the client of the requests: client when a test set one, else the guarded
+// client of the service.
+func (c *catalogClient) httpClient() *http.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return c.lazy()
 }
 
 // fetch streams every station of the catalog into fn, from the base or a mirror. A mirror is only
@@ -204,7 +196,7 @@ func (c *catalogClient) get(ctx context.Context, rawURL string) (*http.Response,
 	}
 	req.Header.Set("User-Agent", c.userAgent)
 	req.Header.Set("Accept", "application/json")
-	resp, err := c.limiter.Do(ctx, c.client, req)
+	resp, err := c.limiter.Do(ctx, c.httpClient(), req)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()

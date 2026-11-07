@@ -40,6 +40,8 @@ Du hast jetzt vier Dinge nebeneinander:
 - `config/` — Datenbank, Einstellungen und Sicherungen. **Dieser Ordner muss auf einer lokalen Platte
   liegen**, nie auf einem Netzlaufwerk; der Server prüft das beim Start und bricht sonst ab.
 - `cache/` — Vorschaubilder und umgewandelte Videoabschnitte. Darf jederzeit gelöscht werden.
+- Kein Ordner, aber Arbeitsspeicher: Das Webradio puffert in einem RAM-Laufwerk (tmpfs) von 564 MB,
+  das `compose.yaml` unter `/run/slouchcat/radio` anlegt. Ohne es spielt Radio nur live.
 
 ## 3. `.env` ausfüllen
 

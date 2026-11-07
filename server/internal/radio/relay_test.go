@@ -107,10 +107,12 @@ func newRelayEnv(t *testing.T, eo ...envOption) *relayEnv {
 	e.s = withDialControl(New(e.f.DB, testLogger(), opts...), loopbackOnly)
 	e.s.rel.tmpfs = func(string) bool { return true }
 	e.s.rel.knobs.backoff = []time.Duration{20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond}
-	e.s.onStationChanged = func(_ context.Context, id int64) {
+	reload := e.s.onStationChanged // the index reload of the wiring stays behind the recorder
+	e.s.onStationChanged = func(ctx context.Context, id int64) {
 		e.mu.Lock()
 		e.changed = append(e.changed, id)
 		e.mu.Unlock()
+		reload(ctx, id)
 	}
 	t.Cleanup(e.s.stopRelays)
 	return e

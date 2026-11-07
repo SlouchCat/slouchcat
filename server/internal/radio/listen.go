@@ -81,15 +81,10 @@ func (s *Service) listenStation(ctx context.Context, stationID int64) (appq.Radi
 	if err != nil {
 		return st, cfg, fmt.Errorf("get radio config: %w", err)
 	}
-	if st.Hidden == 1 {
-		return st, cfg, model.ErrNotFound
-	}
-	if cfg.Countries.Valid {
-		var countries []string
-		if err := json.Unmarshal([]byte(cfg.Countries.String), &countries); err == nil &&
-			!slices.Contains(countries, st.Country.String) {
-			return st, cfg, model.ErrNotFound
-		}
+	// The one visibility rule of the catalog (index.go): hidden and excluded-country stations are
+	// 404; broken ones stay reachable.
+	if _, err := s.reachableEntry(ctx, stationID); err != nil {
+		return st, cfg, err
 	}
 	return st, cfg, nil
 }
@@ -154,8 +149,18 @@ func (s *Service) Listen(ctx context.Context, session model.Session, stationID i
 	r.mu.Unlock()
 	s.log.InfoContext(ctx, "radio listen started", "listen_id", ls.id, "station_id", stationID,
 		"profile_id", session.Profile.ID, "codec", in.Codec, "transcoded", !out.Copy)
+	view := stationView(st, r)
+	if e, err := s.reachableEntry(ctx, stationID); err == nil {
+		// The index view carries the facets; the relay's stream gives codec and bitrate.
+		codec, kbps, hls := view.Codec, view.BitrateKbps, view.HLS
+		view = e.st
+		view.Codec, view.BitrateKbps, view.HLS = codec, kbps, hls
+		if ids, err := s.favoriteIDs(ctx, session.Profile.ID); err == nil {
+			view.Favorite = slices.Contains(ids, stationID)
+		}
+	}
 	return model.RadioListen{ListenID: ls.id, Token: ls.token, HeartbeatSeconds: heartbeatSeconds,
-		StartOffsetSeconds: startOffsetSeconds, Station: stationView(st, r)}, nil
+		StartOffsetSeconds: startOffsetSeconds, Station: view}, nil
 }
 
 // stationView is the station of a new listen session as far as the relay part knows it; the

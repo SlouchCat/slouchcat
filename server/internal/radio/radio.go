@@ -14,6 +14,7 @@ package radio
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
@@ -81,8 +82,8 @@ type Service struct {
 	rel  *relayState   // relays, listen sessions, live HLS, listen time (lane A)
 	logo *logoState    // logo chain (lane A)
 
-	// onListed hears the station ids a list, the favourites or the sync handed out, so the logo
-	// part queues their logos. Set by the wiring; a no-op until then.
+	// onListed hears the station ids a list or the favourites handed out, so the logo part
+	// queues their logos (queueLogos, set in New).
 	onListed func(ctx context.Context, stationIDs []int64)
 	// onStationChanged hears a station row the relay or logo part wrote (logo_state, logo_hash,
 	// broken_at, failures, shows_titles), so the catalog part reloads that row into its index
@@ -100,8 +101,12 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 		o(s)
 	}
 	s.cat = newCatalogState(s.o.userAgent)
-	s.onStationChanged = s.reloadStation
 	s.rel = newRelayState()
 	s.logo = newLogoState()
+	// The catalog goes through the guarded client of the relay part (the radiotest build allows
+	// the loopback there), created at the first request so a test can still swap the control.
+	s.cat.fetch.lazy = func() *http.Client { return s.netClient().http }
+	s.onStationChanged = s.reloadStation
+	s.onListed = s.queueLogos
 	return s
 }

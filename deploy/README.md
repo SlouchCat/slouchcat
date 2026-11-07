@@ -135,6 +135,7 @@ nur, wenn ein Release neuer ist als die eingebaute Version.
 | `/config` | `./config` | SQLite-Datenbank, Einstellungen, Sicherungen, `secret.key`. **Nur lokale Platte**, nie NFS/SMB: der Server prüft das beim Start per `statfs` und bricht sonst ab |
 | `/cache` | `./cache` | Regenerierbar (Transcodes, Bilder) |
 | `/media` | `${MEDIA_DIR:-/srv/media}` | Medien, nur lesend (`:ro`); darf auf SMB/NFS liegen |
+| `/run/slouchcat/radio` | tmpfs (RAM, 564 MB) | Puffer des Webradios (Konzept 16); ohne tmpfs spielt Radio nur live, und die Verwaltung warnt |
 
 Der Container läuft als `${PUID:-1000}:${PGID:-1000}`; `./config` und `./cache` müssen diesem Benutzer
 gehören (`sudo chown -R 1000:1000 config cache`, falls Docker sie als root angelegt hat).
@@ -166,6 +167,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 |---|---|---|
 | `SLOUCHCAT_CONFIG_DIR` | `/config` | Konfigurations- und Datenbankordner |
 | `SLOUCHCAT_CACHE_DIR` | `/cache` | Cache-Ordner |
+| `SLOUCHCAT_RADIO_DIR` | `/run/slouchcat/radio` | Puffer des Webradios, ein tmpfs |
 | `SLOUCHCAT_LOG_FORMAT` | `json` | `json` oder `text` |
 | `SLOUCHCAT_LOG_LEVEL` | `info` | Log-Stufe |
 | `SLOUCHCAT_TRUSTED_PROXIES` | leer | Welche Proxys `X-Forwarded-For` setzen dürfen: leer = niemand, `private` = RFC-1918-Netze, Loopback und `fc00::/7`, sonst eine kommagetrennte CIDR-Liste. Siehe «HTTPS mit Caddy» |

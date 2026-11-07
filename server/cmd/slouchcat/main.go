@@ -46,6 +46,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/notify/telegram"
 	"github.com/slouchcat/slouchcat/server/internal/offline"
 	"github.com/slouchcat/slouchcat/server/internal/playback"
+	"github.com/slouchcat/slouchcat/server/internal/radio"
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
@@ -53,6 +54,9 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
 )
+
+// The radio service implements the API's webradio (package radio must not import api).
+var _ api.RadioService = (*radio.Service)(nil)
 
 // version is set at build time with -ldflags "-X main.version=...".
 var version = "dev"
@@ -364,16 +368,29 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// with a schedule (full scan, sweep, podcast poll, Trakt lists, update check) from
 	// job_schedules, which replaces the ticker loops the services ran until 1.4.0.
 	registry := jobs.NewRegistry(queue, log)
+	// The schedules and the job windows read the zone of the statistics: time.Local is the same
+	// clock but only named "Local", and its name reaches the admin (windowTimeZone, timeZone).
+	scheduler := jobs.NewScheduler(queue, registry, log, jobs.WithLocation(zone))
+	// The webradio (concept 16, ADR 0025): the Radio Browser catalog, relays as live HLS in the
+	// tmpfs of the compose file, listen time in the daily watch time of playback. Playback exists
+	// first, so the radio hears a profile's end through a setter instead of a constructor cycle.
+	radioSvc := radio.New(db, log, radio.WithRunner(runner), radio.WithCacheDir(cfg.CacheDir),
+		radio.WithDir(cfg.RadioDir), radio.WithTokenKey(keyring.Derive("radio-token")),
+		radio.WithWatchClock(playbackSvc), radio.WithUserAgent("Slouchcat/"+version),
+		radio.WithQueue(queue), radio.WithScheduler(scheduler))
+	playbackSvc.OnProfileEnd(radioSvc.EndProfile)
 	libSvc.RegisterTypes(registry)
 	metaSvc.RegisterTypes(registry)
 	adminSvc.RegisterTypes(registry)
 	offlineSvc.RegisterTypes(registry)
 	notifySvc.RegisterTypes(registry)
-	// The schedules and the job windows read the zone of the statistics: time.Local is the same
-	// clock but only named "Local", and its name reaches the admin (windowTimeZone, timeZone).
-	scheduler := jobs.NewScheduler(queue, registry, log, jobs.WithLocation(zone))
+	radioSvc.RegisterTypes(registry)
 	if err := scheduler.Start(ctx); err != nil {
 		return fmt.Errorf("start job scheduler: %w", err)
+	}
+	// The index of the catalog, and the first sync ten minutes ahead while it is empty (R-3).
+	if err := radioSvc.Start(ctx); err != nil {
+		return fmt.Errorf("start radio: %w", err)
 	}
 	poolCounts := poolWorkers(cfg.Workers)
 	adminSvc.WithJobControl(registry, scheduler, poolCounts)
@@ -413,6 +430,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	var sweeper sync.WaitGroup
 	sweeper.Go(func() { playbackSvc.Run(sweepCtx) })
 	sweeper.Go(func() { offlineSvc.Run(sweepCtx) })
+	// Listen sessions of the last run end, the 30-s sweep runs, and every relay stops at the end.
+	sweeper.Go(func() { radioSvc.Run(sweepCtx) })
 	defer func() {
 		stopSweep() // the sweep stops transcodes, so it ends before the manager closes
 		sweeper.Wait()
@@ -431,6 +450,7 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			Playback: playbackSvc,
 			Offline:  offlineSvc,
 			Notify:   notifySvc,
+			Radio:    radioSvc,
 
 			Integrations: integrationSvc,
 		}),

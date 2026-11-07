@@ -122,6 +122,7 @@ func TestLogoChainFavicon(t *testing.T) {
 		t.Fatalf("unknown size: %v", err)
 	}
 	e.exec(`UPDATE radio_stations SET hidden = 1 WHERE id = ?`, id)
+	e.s.reloadStation(context.Background(), id) // the index view decides visibility (M-5)
 	if _, err := e.s.Image(context.Background(), id, "logo", "w96", true, false); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("logo of a hidden station for a viewer: %v", err)
 	}

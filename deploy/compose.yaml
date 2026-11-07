@@ -30,6 +30,10 @@ services:
       - ./config:/config
       - ./cache:/cache
       - ${MEDIA_DIR:-/srv/media}:/media:ro
+    # Webradio buffer (concept 16, ADR 0025): RAM only, size = radio budget 512 MB + 10 %.
+    # Without it radio plays live only and the administration warns.
+    tmpfs:
+      - /run/slouchcat/radio:size=564m,mode=0700,uid=${PUID:-1000},gid=${PGID:-1000}
     environment:
       TZ: ${TZ:-Europe/Zurich}
       SLOUCHCAT_LOG_FORMAT: ${SLOUCHCAT_LOG_FORMAT:-json}

@@ -36,6 +36,7 @@ func (s *Service) RegisterTypes(r *jobs.Registry) {
 		Priority: catalogSyncPriority, Handler: s.handleCatalogSync, Run: s.runCatalogSync, Every: catalogSyncEvery,
 		Seed: s.catalogSeed,
 	})
+	r.Register(s.logoJobType())
 }
 
 // catalogSeed is the first schedule row: daily, on, in the window 04:30 to 06:30. No start delay:

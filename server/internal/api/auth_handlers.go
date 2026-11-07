@@ -192,6 +192,12 @@ func (s *server) Logout(ctx context.Context, _ gen.LogoutRequestObject) (gen.Log
 				return s.problem(ctx, err), nil
 			}
 		}
+		// The listen sessions of the radio end with it (concept 16, 3.7).
+		if s.opts.Radio != nil {
+			if err := s.opts.Radio.EndSession(ctx, session.ID, model.StoppedByLogout); err != nil {
+				return s.problem(ctx, err), nil
+			}
+		}
 		if err := s.opts.Auth.Logout(ctx, session.ID); err != nil {
 			return s.problem(ctx, err), nil
 		}

@@ -689,29 +689,8 @@ func (s *Service) handleCatalogSync(ctx context.Context, _ *jobs.Job) error {
 	if _, err := s.rebuildIndex(ctx); err != nil {
 		return err
 	}
-	s.prefetchLogos(ctx)
+	s.queueSyncLogos(ctx)
 	return nil
-}
-
-// prefetchLogos hands the favourites of all profiles and the recommended stations to the logo
-// part (section 6).
-func (s *Service) prefetchLogos(ctx context.Context) {
-	q := appq.New(s.db.Read)
-	fav, err := q.ListFavoriteStationIDsOfAllProfiles(ctx)
-	if err != nil {
-		s.log.WarnContext(ctx, "list radio favourites for the logos", "err", err)
-		return
-	}
-	rec, err := q.ListRecommendedRadioStationIDs(ctx)
-	if err != nil {
-		s.log.WarnContext(ctx, "list recommended radio stations for the logos", "err", err)
-		return
-	}
-	ids := append(fav, rec...)
-	slices.Sort(ids)
-	if ids = slices.Compact(ids); len(ids) > 0 {
-		s.onListed(ctx, ids)
-	}
 }
 
 // syncRetryDelays are the waits after the first, second and third failed sync in a row; later

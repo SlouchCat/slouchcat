@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 	"time"
@@ -281,4 +282,85 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	}
 	s.reloadStation(ctx, stationID)
 	return s.AdminStation(ctx, stationID)
+}
+
+// SetLogo stores an uploaded logo and locks the field logo (logo.go setOwnLogo).
+func (s *Service) SetLogo(ctx context.Context, stationID int64, r io.Reader) (model.AdminRadioStation, error) {
+	if err := s.setOwnLogo(ctx, stationID, r); err != nil {
+		return model.AdminRadioStation{}, err
+	}
+	return s.AdminStation(ctx, stationID)
+}
+
+// DeleteLogo removes an uploaded logo and lifts the lock, so the logo chain runs again.
+func (s *Service) DeleteLogo(ctx context.Context, stationID int64) (model.AdminRadioStation, error) {
+	if err := s.deleteOwnLogo(ctx, stationID); err != nil {
+		return model.AdminRadioStation{}, err
+	}
+	return s.AdminStation(ctx, stationID)
+}
+
+const (
+	// probeTimeout bounds a whole probe (contract probeRadioStation).
+	probeTimeout = 10 * time.Second
+	// probeTitleWait is how long a probe reads the stream for a first title.
+	probeTitleWait = 3 * time.Second
+)
+
+// Probe opens a stream of the station (streamID 0: the best ranked) through the guarded client
+// and reports format, codec, bitrate and the first title within probeTimeout. Hidden stations
+// may be probed (administration).
+func (s *Service) Probe(ctx context.Context, stationID, streamID int64) (model.RadioProbe, error) {
+	q := appq.New(s.db.Read)
+	if _, err := q.GetRadioStation(ctx, stationID); errors.Is(err, sql.ErrNoRows) {
+		return model.RadioProbe{}, model.ErrNotFound
+	} else if err != nil {
+		return model.RadioProbe{}, fmt.Errorf("get radio station: %w", err)
+	}
+	streams, err := q.ListRadioStreamsRanked(ctx, stationID)
+	if err != nil {
+		return model.RadioProbe{}, fmt.Errorf("list radio streams: %w", err)
+	}
+	i := 0
+	if streamID != 0 {
+		i = slices.IndexFunc(streams, func(st appq.RadioStream) bool { return st.ID == streamID })
+	}
+	if i < 0 || len(streams) == 0 {
+		return model.RadioProbe{}, model.ErrNotFound
+	}
+	target := streams[i].Url
+	if streams[i].UrlResolved.Valid && streams[i].UrlResolved.String != "" {
+		target = streams[i].UrlResolved.String
+	}
+	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+	started := time.Now()
+	st, err := s.netClient().openStream(ctx, target)
+	if err != nil {
+		if ctx.Err() != nil {
+			return model.RadioProbe{}, fmt.Errorf("%w: no answer within %v", model.ErrRadioUnreachable, probeTimeout)
+		}
+		return model.RadioProbe{}, err
+	}
+	defer func() { _ = st.Close() }()
+	info := st.Info()
+	p := model.RadioProbe{Format: info.Input.Format, Codec: info.Input.Codec, BitrateKbps: info.Input.BitrateKbps,
+		SampleRate: info.Input.SampleRate, Channels: info.Input.Channels, HasMetadata: info.MetaInt > 0,
+		Response: time.Since(started)}
+	if p.BitrateKbps == 0 {
+		p.BitrateKbps = info.ICYBitrate
+	}
+	wait, stop := context.WithTimeout(ctx, probeTitleWait)
+	defer stop()
+	for {
+		ev, err := st.Next(wait)
+		if err != nil {
+			break // the wait ended or the stream broke: the probe reports what it saw
+		}
+		if ev.TitleSet && ev.Title != "" {
+			p.Title, p.HasMetadata = ev.Title, true
+			break
+		}
+	}
+	return p, nil
 }

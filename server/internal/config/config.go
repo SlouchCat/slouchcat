@@ -28,11 +28,17 @@ import (
 // EnvPrefix is the prefix of every environment variable the server reads.
 const EnvPrefix = "SLOUCHCAT_"
 
+// DefaultRadioDir is the tmpfs of the webradio buffers in deploy/compose.yaml.
+const DefaultRadioDir = "/run/slouchcat/radio"
+
 // Config is the validated server configuration.
 type Config struct {
-	Listen    string         // TCP address of the HTTP server, for example ":8096".
-	ConfigDir string         // Absolute path of the persistent directory (database, backups).
-	CacheDir  string         // Absolute path of the regenerable cache directory.
+	Listen    string // TCP address of the HTTP server, for example ":8096".
+	ConfigDir string // Absolute path of the persistent directory (database, backups).
+	CacheDir  string // Absolute path of the regenerable cache directory.
+	// RadioDir is the directory of the webradio relay buffers (concept 16, ADR 0025): the tmpfs of
+	// the compose file; elsewhere the relays run in memory mode. A path, not a security switch.
+	RadioDir  string
 	LogLevel  slog.Level     // Minimum level that is logged.
 	LogFormat logging.Format // json or text.
 	Dev       bool           // Development mode.
@@ -184,6 +190,7 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	listen := fs.String("listen", env("LISTEN", ":8096"), "HTTP listen address (env SLOUCHCAT_LISTEN)")
 	configDir := fs.String("config-dir", env("CONFIG_DIR", "/config"), "persistent data directory (env SLOUCHCAT_CONFIG_DIR)")
 	cacheDir := fs.String("cache-dir", env("CACHE_DIR", "/cache"), "cache directory (env SLOUCHCAT_CACHE_DIR)")
+	radioDir := fs.String("radio-dir", env("RADIO_DIR", DefaultRadioDir), "webradio buffer directory, a tmpfs (env SLOUCHCAT_RADIO_DIR)")
 	logLevel := fs.String("log-level", env("LOG_LEVEL", "info"), "debug, info, warn or error (env SLOUCHCAT_LOG_LEVEL)")
 	logFormat := fs.String("log-format", env("LOG_FORMAT", string(logging.FormatJSON)), "json or text (env SLOUCHCAT_LOG_FORMAT)")
 	devDefault, err := parseBool(env("DEV", "false"))
@@ -324,6 +331,9 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	if cfg.ConfigDir == cfg.CacheDir {
 		return Config{}, errors.New("config dir and cache dir must differ")
 	}
+	if cfg.RadioDir, err = absDir("radio dir", *radioDir); err != nil {
+		return Config{}, err
+	}
 	return cfg, nil
 }
 
@@ -333,6 +343,7 @@ func (c Config) LogValue() slog.Value {
 		slog.String("listen", c.Listen),
 		slog.String("config_dir", c.ConfigDir),
 		slog.String("cache_dir", c.CacheDir),
+		slog.String("radio_dir", c.RadioDir),
 		slog.String("log_level", c.LogLevel.String()),
 		slog.String("log_format", string(c.LogFormat)),
 		slog.Bool("dev", c.Dev),
