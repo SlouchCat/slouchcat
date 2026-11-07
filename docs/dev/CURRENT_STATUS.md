@@ -13,9 +13,9 @@ Diagnose an CT 190, unabhängige Zweitmeinung und eine Messung im Browser (Firef
   Jetzt sucht der Eingang den letzten Keyframe vor dem Ausgabe-Seek; der Ton überlappt die Naht.
 - **Keyframe drei Frames zu früh** an fast jeder zweiten Grenze (mp4-Muxer, Paketdauer vor dem Keyframe
   zwei Frames): `setts` setzt die Paketdauern des kopierten Videos auf den Abstand zur nächsten
-  Dekodierzeit.
-- Test `TestHLSRemuxSeams`; Einzelheiten im Nachtrag von ADR 0003. Nachmessung mit den neuen Argumenten
-  an der Originaldatei im Container (ffmpeg 7.1.4-Jellyfin): keine Muxer-Warnung, 0 von 39 Grenzen falsch,
+  Dekodierzeit; `-copytb 1` verhindert, dass ffmpeg 6.1 die Zeitstempel dabei rundet.
+- Tests `TestHLSRemuxSeams`, `TestRemuxInputSeek`; Review APPROVE (Auflagen umgesetzt); Einzelheiten im Nachtrag von ADR 0003. Nachmessung mit den neuen Argumenten
+  an der Originaldatei im Container (ffmpeg 7.1.4-Jellyfin): keine Muxer-Warnung, 40 von 40 Grenzen exakt,
   Naht 116 ms Überlappung statt 134 ms Lücke.
 - Nebenbefund, nicht behoben: Das Herauslösen eingebetteter Text-Untertitel (`ffmpeg webvtt`) bricht bei
   grossen Dateien auf dem langsamen NAS nach 60 s ab (`signal: killed`, 500); bei Silo S03E09 fehlten so

@@ -68,7 +68,7 @@ beginnt in jedem Lauf mit einem Keyframe, dessen Präsentationszeit `Start(i) + 
 |---|---|---|
 | Eingang | `-copyts -i Datei` | Transcode: `-copyts -noaccurate_seek -ss B -i Datei`; Remux: `-copyts -ss K -i Datei`, *K* = letzter Keyframe vor *B-m* (Nachtrag 7. November 2026) |
 | Ausgabe-Seek | – | Transcode: `-ss B -output_ts_offset B+10`; Remux: `-ss B-m -output_ts_offset B-m+10`, *m* = min(250 ms, halber Abstand zum vorherigen Keyframe) |
-| Video kopieren (Remux) | `-c:v copy -bsf:v setts=pts=PTS:dts=DTS:duration=…NEXT_DTS-DTS` (Nachtrag 7. November 2026) | gleich |
+| Video kopieren (Remux) | `-c:v copy -copytb 1 -bsf:v setts=pts=PTS:dts=DTS:duration=…NEXT_DTS-DTS` (Nachtrag 7. November 2026) | gleich |
 | Keyframes (Transcode) | `-force_key_frames` mit den Grenzen | dieselben Grenzen minus *B* (Encoderzeit beginnt bei 0) |
 | Schnitte | `-segment_times` = Grenzen minus erster Keyframe (Remux) bzw. 0 | Grenzen minus *B*; plus ein unerreichbarer Wächterwert, damit nie das Standardraster von 2 s greift |
 | Toleranz | `-segment_time_delta` 0,002 s (Remux, Index in ms) bzw. 0,25 s (Transcode: Keyframes nur an erzwungenen Stellen, `-g 9999`, Szenenwechsel aus) | gleich |
@@ -161,7 +161,7 @@ pro Minute kurz. Zwei Fehler, beide an Segmentgrenzen:
 
 - **Ton-Lücke bei jedem Neustart.** Der Eingangs-Seek auf *B* landete genau auf dem Keyframe; der neue Lauf
   las keinen Ton davor. Der alte Lauf schreibt den Ton von Segment *i-1* aber nur bis zur Dekodierzeit
-  dieses Keyframes (B-Frame-Verzögerung, hier 167 ms davor). An jeder Naht fehlten so etwa 134 ms Ton,
+  dieses Keyframes (B-Frame-Verzögerung, hier 167 ms davor). An jeder Naht fehlten so 132–134 ms Ton,
   und weil `MaxAhead` ffmpeg beim normalen Schauen alle neun bis zehn Segmente beendet, rund jede
   Minute. Die oben beschriebene Überlappung bis 250 ms trat nur ein, wo der Seek zufällig einen Keyframe
   zu früh landete. Jetzt sucht der Eingang den letzten Keyframe vor *B-m*; der Ausgabe-Seek schneidet wie
@@ -173,9 +173,16 @@ pro Minute kurz. Zwei Fehler, beide an Segmentgrenzen:
   («Packet duration … is out of range», «pts has no value»). Betroffen war fast jede zweite Grenze.
   Der Bitstream-Filter `setts` setzt jetzt jede Paketdauer auf den Abstand zur nächsten Dekodierzeit;
   pts und dts stehen ausdrücklich da, weil `setts` sonst beide auf die Dekodierzeit setzt (ffmpeg 6.1
-  und 7.1). Nachmessung an derselben Datei: keine Warnung mehr, 0 von 39 Grenzen falsch.
+  und 7.1). `-copytb 1` behält die Zeitbasis des Demuxers: ffmpeg 6.1 rundet kopierte Zeitstempel
+  sonst bei jedem Bitstream-Filter auf die Codec-Zeitbasis (bei 24 fps auf 1/48 s), 7.1 nicht.
+  Nachmessung an derselben Datei mit ffmpeg 7.1.4-Jellyfin: keine Warnung mehr, alle 40 geprüften
+  Grenzen auf 2 ms genau am Plan.
 
-Test: `TestHLSRemuxSeams` (Clip mit doppelten Paketdauern, AAC-Kodierung, Neustart nach zwei Segmenten).
+Test: `TestHLSRemuxSeams` (Clip mit doppelten Paketdauern und 21 ms Startversatz, AAC-Kodierung,
+Neustart nach zwei Segmenten); er schlägt ohne jeden der beiden Fixes fehl, unter ffmpeg 6.1 auch
+ohne `-copytb 1`. Kosten: Jeder Remux-Neustart liest eine GOP mehr (bei langen GOPs und 4K bis etwa
+100 MB, rund 1 s länger bis zum ersten Segment über ein langsames Netzlaufwerk).
+
 
 ## Konsequenzen und Grenzen
 

@@ -36,7 +36,9 @@ const (
 	// that lies after the next keyframe's decode time (web releases often give the packet before a
 	// keyframe two frames), it moves the keyframe to the fragment end and sets its pts to that dts,
 	// three frames early ("Packet duration ... is out of range", "pts has no value"). pts and dts
-	// are explicit: setts's default "TS" sets both to the decode time (ffmpeg 6.1 and 7.1).
+	// are explicit: setts's default "TS" sets both to the decode time (ffmpeg 6.1 and 7.1). With a
+	// bitstream filter, ffmpeg 6.1 rounds copied timestamps to the codec time base unless -copytb 1
+	// keeps the demuxer's.
 	copyDurations = `setts=pts=PTS:dts=DTS:duration=if(eq(NEXT_DTS\,NOPTS)\,DURATION\,NEXT_DTS-DTS)`
 
 	// videoOut is the filter_complex output label of a bitmap subtitle burn-in.
@@ -123,7 +125,7 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 
 	switch {
 	case copyVideo:
-		args = append(args, "-c:v", "copy", "-bsf:v", copyDurations)
+		args = append(args, "-c:v", "copy", "-copytb", "1", "-bsf:v", copyDurations)
 		if p.Target.VideoTag != "" {
 			args = append(args, "-tag:v", p.Target.VideoTag)
 		}
@@ -238,10 +240,14 @@ func seekMargin(kf []time.Duration, b time.Duration) time.Duration {
 }
 
 // remuxInputSeek is the input seek of a remux restart whose output seek is x: the last keyframe
-// before x. A seek to the boundary itself lands on its keyframe, so the run would read no audio
-// before it; the previous run's audio ends at that keyframe's decode time, and the seam had a gap
-// of the B-frame delay (about 150 ms) instead of the overlap up to x.
+// before x (x itself without an index, the start before the first keyframe). A seek to the
+// boundary itself lands on its keyframe, so the run would read no audio before it; the previous
+// run's audio ends at that keyframe's decode time, and the seam had a gap of the B-frame delay
+// instead of the overlap up to x. Each restart reads one GOP more.
 func remuxInputSeek(kf []time.Duration, x time.Duration) time.Duration {
+	if len(kf) == 0 {
+		return x
+	}
 	i, _ := slices.BinarySearch(kf, x)
 	if i == 0 {
 		return 0
