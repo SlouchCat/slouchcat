@@ -1,0 +1,469 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/slouchcat/slouchcat/server/internal/updater"
+)
+
+const (
+	// service is the compose service of the server; the updater never touches another one, itself
+	// included (ADR 0024 point 13).
+	service = "slouchcat"
+
+	labelProject     = "com.docker.compose.project"
+	labelConfigFiles = "com.docker.compose.project.config_files"
+	labelWorkingDir  = "com.docker.compose.project.working_dir"
+	labelEnvFile     = "com.docker.compose.project.environment_file"
+	// labelVersion is set by deploy/Dockerfile from the same build argument that goes into the
+	// binary (main.version), so it is the version the server itself reports.
+	labelVersion = "org.opencontainers.image.version"
+
+	manifestTimeout  = 20 * time.Second
+	maxManifestBytes = 64 << 10
+	// checkTimeout bounds the checks of POST /install, which run before it answers.
+	checkTimeout = time.Minute
+	// pullTimeout bounds docker compose pull.
+	pullTimeout = 30 * time.Minute
+	// commandTimeout bounds every other docker call.
+	commandTimeout = 5 * time.Minute
+	// waitTimeout gives the new server time for long migrations (concept 15 9.3).
+	waitTimeout  = 10 * time.Minute
+	pollInterval = 2 * time.Second
+)
+
+// digestRef is the form of the manifest field image: a repository with a sha256 digest.
+var digestRef = regexp.MustCompile(`^[a-z0-9][a-z0-9._/:-]*@(sha256:[0-9a-f]{64})$`)
+
+// Updater runs one install at a time and keeps its state in state.json.
+type Updater struct {
+	cfg    settings
+	docker Docker
+	client *http.Client
+	log    *slog.Logger
+	now    func() time.Time
+
+	// The waits; tests shorten them.
+	every, wait time.Duration
+
+	// ctx is the lifetime of the process; an install runs under it, not under its request.
+	ctx context.Context
+	wg  sync.WaitGroup
+
+	mu    sync.Mutex
+	state updater.State
+}
+
+// plan is an accepted install.
+type plan struct {
+	from, to string
+	digest   string // sha256:… of the manifest
+	project  Project
+	env      string // the env file whose SLOUCHCAT_VERSION line is set
+}
+
+// refusal stops an install before anything changed.
+type refusal struct {
+	code     updater.Code
+	msg      string
+	from, to string
+}
+
+func (r *refusal) Error() string { return string(r.code) + ": " + r.msg }
+
+func refuse(code updater.Code, format string, args ...any) *refusal {
+	return &refusal{code: code, msg: fmt.Sprintf(format, args...)}
+}
+
+// State returns the current state.
+func (u *Updater) State() updater.State {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.state
+}
+
+// statePath is <deploy>/updater/state.json.
+func (u *Updater) statePath() string { return filepath.Join(u.cfg.dir(), updater.StateFile) }
+
+// set makes s the current state and writes it to state.json.
+func (u *Updater) set(s updater.State) {
+	u.mu.Lock()
+	u.state = s
+	u.mu.Unlock()
+	u.persist(s)
+}
+
+// persist writes state.json (0644, owned by PUID:PGID, so the server can read it).
+func (u *Updater) persist(s updater.State) {
+	path := u.statePath()
+	err := updater.WriteJSON(path, s, 0o644)
+	if err == nil {
+		err = os.Chown(path, u.cfg.uid, u.cfg.gid) //nolint:gosec // G703: fixed file name inside the operator-configured deploy folder
+	}
+	if err != nil {
+		u.log.Error("updater: write state", "err", err)
+	}
+}
+
+// Start begins an install. It runs the checks first and answers with the status code of the
+// HTTP response: 202 and the new state when the install runs, 409 while one runs already, 422
+// with a failed state (not written to state.json) when a check refused it.
+func (u *Updater) Start() (updater.State, int) {
+	u.mu.Lock()
+	if u.state.Phase.Running() {
+		s := u.state
+		u.mu.Unlock()
+		s.Code = updater.CodeBusy
+		return s, http.StatusConflict
+	}
+	prev := u.state
+	checking := updater.State{Phase: updater.PhaseChecking, StartedAt: u.now()}
+	u.state = checking
+	u.mu.Unlock()
+	u.persist(checking)
+
+	ctx, cancel := context.WithTimeout(u.ctx, checkTimeout)
+	defer cancel()
+	p, err := u.check(ctx)
+	if err != nil {
+		var r *refusal
+		if !errors.As(err, &r) {
+			r = &refusal{code: updater.CodeManifestInvalid, msg: err.Error()}
+		}
+		u.set(prev) // nothing changed: state.json keeps the last install
+		u.log.Info("updater: install refused", "code", r.code, "message", r.msg)
+		return updater.State{
+			Phase: updater.PhaseFailed, From: r.from, To: r.to, StartedAt: checking.StartedAt,
+			FinishedAt: u.now(), Code: r.code, Message: r.msg,
+		}, http.StatusUnprocessableEntity
+	}
+	s := updater.State{Phase: updater.PhaseBackingUp, From: p.from, To: p.to, StartedAt: checking.StartedAt}
+	u.set(s)
+	u.log.Info("updater: install started", "from", p.from, "to", p.to)
+	u.wg.Go(func() { u.run(p, s) })
+	return s, http.StatusAccepted
+}
+
+// check reads the manifest and the running container and returns the plan, or a refusal.
+func (u *Updater) check(ctx context.Context) (plan, error) {
+	m, err := u.fetchManifest(ctx)
+	if err != nil {
+		return plan{}, err
+	}
+	c, err := u.docker.Container(ctx, u.cfg.container)
+	if err != nil {
+		return plan{}, refuse(updater.CodeNoComposeLabels, "container %s not found", u.cfg.container)
+	}
+	from := runningVersion(c)
+	if !updater.Newer(m.Version, from) {
+		r := refuse(updater.CodeNotNewer, "release %s is not newer than the running version %s", m.Version, from)
+		r.from, r.to = from, m.Version
+		return plan{}, r
+	}
+	withVersions := func(r *refusal) error {
+		r.from, r.to = from, m.Version
+		return r
+	}
+	match := digestRef.FindStringSubmatch(m.Image)
+	if match == nil {
+		return plan{}, withVersions(refuse(updater.CodeNoDigest, "the manifest names no image digest"))
+	}
+	proj, r := u.project(c)
+	if r != nil {
+		return plan{}, withVersions(r)
+	}
+	env, err := envTarget(proj.EnvFiles)
+	if err != nil {
+		return plan{}, withVersions(refuse(updater.CodeOutsideDeployDir, "%v", err))
+	}
+	return plan{from: from, to: m.Version, digest: match[1], project: proj, env: env}, nil
+}
+
+// manifest is the part of the release manifest the updater reads.
+type manifest struct {
+	Version string `json:"version"`
+	Image   string `json:"image"`
+}
+
+func (u *Updater) fetchManifest(ctx context.Context) (manifest, error) {
+	ctx, cancel := context.WithTimeout(ctx, manifestTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.cfg.manifestURL, http.NoBody) //nolint:gosec // G704: the operator-configured manifest address
+	if err != nil {
+		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest request: %v", err)
+	}
+	resp, err := u.client.Do(req) //nolint:gosec // G704: the operator-configured manifest address
+	if err != nil {
+		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: HTTP %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxManifestBytes+1))
+	if err != nil {
+		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: %v", err)
+	}
+	if len(data) > maxManifestBytes {
+		return manifest{}, refuse(updater.CodeManifestInvalid, "manifest larger than %d bytes", maxManifestBytes)
+	}
+	var m manifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return manifest{}, refuse(updater.CodeManifestInvalid, "manifest: %v", err)
+	}
+	if !updater.ValidRelease(m.Version) {
+		return manifest{}, refuse(updater.CodeManifestInvalid, "manifest version %q is not a release", m.Version)
+	}
+	return m, nil
+}
+
+// runningVersion is the version of the running server: the image label
+// org.opencontainers.image.version, which deploy/Dockerfile fills from the build argument that
+// also goes into the binary, so it is what the server reports and its update check compares.
+// The tag is only the fallback for an image without the label: it is often not a version at all
+// ("latest", "main-b87ac59", a branch name), and a locally built image keeps the tag of the
+// release it replaced.
+func runningVersion(c Container) string {
+	if v := strings.TrimSpace(c.Labels[labelVersion]); v != "" {
+		return v
+	}
+	ref, _, _ := strings.Cut(c.Image, "@")
+	if i := strings.LastIndexByte(ref, ':'); i > strings.LastIndexByte(ref, '/') {
+		return ref[i+1:]
+	}
+	return ""
+}
+
+// project reads the compose labels of the container and checks that every file lies inside the
+// deploy folder (ADR 0024 points 5 and 6).
+func (u *Updater) project(c Container) (Project, *refusal) {
+	p := Project{Name: c.Labels[labelProject], WorkingDir: c.Labels[labelWorkingDir]}
+	for f := range strings.SplitSeq(c.Labels[labelConfigFiles], ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			p.ConfigFiles = append(p.ConfigFiles, f)
+		}
+	}
+	if p.Name == "" || p.WorkingDir == "" || len(p.ConfigFiles) == 0 {
+		return Project{}, refuse(updater.CodeNoComposeLabels, "container %s was not started by docker compose", u.cfg.container)
+	}
+	for f := range strings.SplitSeq(c.Labels[labelEnvFile], ",") {
+		if f = strings.TrimSpace(f); f != "" {
+			p.EnvFiles = append(p.EnvFiles, f)
+		}
+	}
+	if len(p.EnvFiles) == 0 {
+		// Compose reads .env in the project folder when no --env-file is given; it records no
+		// label then.
+		p.EnvFiles = []string{filepath.Join(p.WorkingDir, ".env")}
+	}
+	// The working folder counts too: relative paths of the compose files (./config, ./cache)
+	// resolve against it, and only the deploy folder is mounted at the host's path.
+	for _, f := range append(append([]string{p.WorkingDir}, p.ConfigFiles...), p.EnvFiles...) {
+		if !inside(u.cfg.deployDir, f) {
+			return Project{}, refuse(updater.CodeOutsideDeployDir, "%s lies outside SLOUCHCAT_DEPLOY_DIR %s", f, u.cfg.deployDir)
+		}
+	}
+	return p, nil
+}
+
+// run carries an accepted install through; s is its state in the phase backing_up.
+func (u *Updater) run(p plan, s updater.State) {
+	ctx := u.ctx
+	phase := func(ph updater.Phase) {
+		s.Phase = ph
+		u.set(s)
+		u.log.Info("updater: phase", "phase", ph, "to", p.to)
+	}
+	finish := func(ph updater.Phase, code updater.Code, msg string) {
+		s.Phase, s.Code, s.Message, s.FinishedAt = ph, code, msg, u.now()
+		u.set(s)
+		u.log.Info("updater: install finished", "phase", ph, "code", code, "message", msg, "from", p.from, "to", p.to)
+	}
+
+	// backing_up: save the env file, then set the one line.
+	env, err := readEnvFile(p.env, u.cfg.uid, u.cfg.gid)
+	if err == nil {
+		err = env.backup(p.to)
+	}
+	if err != nil {
+		u.log.Error("updater: back up env file", "err", err)
+		finish(updater.PhaseFailed, "", "could not back up the env file: "+err.Error())
+		return
+	}
+	if err := env.write(setVersion(env.data, p.to)); err != nil {
+		u.log.Error("updater: write env file", "err", err)
+		u.restoreEnv(env) // the rename may have happened before the error
+		finish(updater.PhaseFailed, "", "could not write the env file: "+err.Error())
+		return
+	}
+
+	// pulling
+	phase(updater.PhasePulling)
+	pullCtx, cancel := context.WithTimeout(ctx, pullTimeout)
+	err = u.docker.Compose(pullCtx, p.project, "pull", service)
+	cancel()
+	if err != nil {
+		u.restoreEnv(env)
+		finish(updater.PhaseFailed, updater.CodePullFailed, "docker compose pull failed")
+		return
+	}
+
+	// verifying: the image compose will start must carry the digest of the manifest. compose
+	// pull only warns when a service with a build section fails to pull, so a missing image ends
+	// here as well.
+	phase(updater.PhaseVerifying)
+	cctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	code, msg := u.verify(cctx, p)
+	cancel()
+	if code != "" {
+		u.restoreEnv(env)
+		finish(updater.PhaseFailed, code, msg)
+		return
+	}
+
+	// restarting: no --wait. The health check of the image (3 retries, 5 s apart) calls the
+	// container unhealthy after about 16 s while a long migration runs; compose would give up
+	// although the server is fine. The updater waits itself, below.
+	phase(updater.PhaseRestarting)
+	cause, causeMsg := updater.CodeUnhealthy, fmt.Sprintf("version %s did not become healthy within %s", p.to, u.wait)
+	cctx, cancel = context.WithTimeout(ctx, commandTimeout)
+	err = u.up(cctx, p.project)
+	cancel()
+	if err == nil {
+		// waiting
+		phase(updater.PhaseWaiting)
+		if rec, ok := u.waitFor(ctx, p.to); ok {
+			s.Migrated = rec.SchemaAfter != rec.SchemaBefore
+			s.Backup = rec.Backup
+			finish(updater.PhaseDone, "", "")
+			return
+		}
+	} else {
+		causeMsg = fmt.Sprintf("docker compose up failed for version %s", p.to)
+	}
+
+	// The new version failed. With a migration nothing is taken back (F-14): the old server
+	// would refuse the newer schema, and the way back is the backup taken before it.
+	if rec, ok := u.migrated(p.to); ok {
+		s.Migrated, s.Backup = true, rec.Backup
+		finish(updater.PhaseFailed, updater.CodeMigratedNoRollback,
+			fmt.Sprintf("version %s migrated the database and did not become healthy; back only with the backup %s", p.to, rec.Backup))
+		return
+	}
+	if err := env.restore(); err != nil {
+		u.log.Error("updater: restore env file", "err", err)
+		finish(updater.PhaseFailed, updater.CodeRollbackFailed, "could not restore the env file: "+err.Error())
+		return
+	}
+	cctx, cancel = context.WithTimeout(ctx, commandTimeout)
+	err = u.up(cctx, p.project)
+	cancel()
+	if err == nil && u.waitHealthy(ctx) {
+		finish(updater.PhaseRolledBack, cause, causeMsg+fmt.Sprintf("; version %s runs again", p.from))
+		return
+	}
+	finish(updater.PhaseFailed, updater.CodeRollbackFailed, causeMsg+fmt.Sprintf("; version %s did not come back either", p.from))
+}
+
+// verify compares the digest of the image compose resolves now with the manifest.
+func (u *Updater) verify(ctx context.Context, p plan) (updater.Code, string) {
+	ref, err := u.docker.ComposeImage(ctx, p.project, service)
+	if err != nil {
+		return updater.CodePullFailed, "could not resolve the image of the service"
+	}
+	digests, err := u.docker.RepoDigests(ctx, ref)
+	if err != nil {
+		return updater.CodePullFailed, fmt.Sprintf("image %s is not there after the pull", ref)
+	}
+	for _, d := range digests {
+		// The digest is content-addressed: equal digests are the same image, whatever the
+		// repository name (a mirror, a renamed registry).
+		if _, got, ok := strings.Cut(d, "@"); ok && got == p.digest {
+			return "", ""
+		}
+	}
+	return updater.CodeDigestMismatch, fmt.Sprintf("image %s does not carry the digest of the manifest", ref)
+}
+
+// up recreates only the server container with what is on disk now.
+func (u *Updater) up(ctx context.Context, p Project) error {
+	return u.docker.Compose(ctx, p, "up", "-d", "--no-deps", "--no-build", service)
+}
+
+// restoreEnv puts the env file back and logs a failure; used where the install stops anyway.
+func (u *Updater) restoreEnv(env envFile) {
+	if err := env.restore(); err != nil {
+		u.log.Error("updater: restore env file", "err", err)
+	}
+}
+
+// waitFor waits until the container is healthy and server.json reports version v. "unhealthy"
+// is not final within the wait: the server may still be migrating.
+func (u *Updater) waitFor(ctx context.Context, v string) (updater.ServerRecord, bool) {
+	var rec updater.ServerRecord
+	ok := u.poll(ctx, func(c Container) bool {
+		if !c.Healthy() {
+			return false
+		}
+		r, err := u.serverRecord()
+		rec = r
+		return err == nil && r.Version == v
+	})
+	return rec, ok
+}
+
+// waitHealthy waits until the container is healthy (the old server after a rollback; a release
+// before 1.16.0 writes no server.json).
+func (u *Updater) waitHealthy(ctx context.Context) bool {
+	return u.poll(ctx, Container.Healthy)
+}
+
+// poll inspects the container every u.every until done reports true or u.wait has passed.
+func (u *Updater) poll(ctx context.Context, done func(Container) bool) bool {
+	deadline := time.Now().Add(u.wait)
+	for {
+		cctx, cancel := context.WithTimeout(ctx, commandTimeout)
+		c, err := u.docker.Container(cctx, u.cfg.container)
+		cancel()
+		if err == nil && done(c) {
+			return true
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(u.every):
+		}
+	}
+}
+
+// serverRecord reads server.json.
+func (u *Updater) serverRecord() (updater.ServerRecord, error) {
+	var rec updater.ServerRecord
+	err := updater.ReadJSON(filepath.Join(u.cfg.dir(), updater.ServerFile), &rec)
+	return rec, err
+}
+
+// migrated reports whether version v ran a migration according to server.json: a record of v
+// whose schema changed, or one that started its migrations and never finished them.
+func (u *Updater) migrated(v string) (updater.ServerRecord, bool) {
+	rec, err := u.serverRecord()
+	if err != nil || rec.Version != v {
+		return rec, false
+	}
+	return rec, rec.MigratedAt.IsZero() || rec.SchemaAfter != rec.SchemaBefore
+}
