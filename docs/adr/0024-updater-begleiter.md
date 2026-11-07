@@ -121,7 +121,11 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     Migration). Daran sieht der Updater auch dann, ob eine Migration lief, wenn der neue Server nie
     gesund wird. Ohne Migration setzt er bei einem gescheiterten Start die alte Zeile zurück,
     startet die alte Version und meldet `rolled_back`. Mit Migration nimmt er nichts zurück und
-    meldet `migrated_no_rollback` mit dem Namen der Sicherung `pre-migration-…`.
+    meldet `migrated_no_rollback` mit dem Namen der Sicherung `pre-migration-…`. Startet dieselbe
+    Version ein zweites Mal (Neustart, Absturzschleife), behält `server.json` die erste
+    Schema-Version vor der Migration und den Namen der ersten Sicherung; die Felder «danach» sind
+    leer, bis die Migrationen dieses Starts durch sind. Der Store löscht diese Sicherung nie
+    (`KeepBackup`), solange der Eintrag dieser Version sie nennt.
 13. **Der Updater aktualisiert sich nicht selbst.** Sein Tag steht als
     `SLOUCHCAT_UPDATER_VERSION` in `.env`; ihn hebt man von Hand, wenn die Release-Notizen es
     verlangen.
@@ -138,15 +142,32 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     `waiting`, `/status` antwortet, `/install` ist `busy`): `done`, wenn `X` gesund läuft und
     `server.json` `X` nennt, sonst `failed` (`migrated_no_rollback` bei einer Migration) ohne
     Rücknahme, denn ein Neustart mitten in einer Migration wiegt schwerer als eine Meldung.
+16. **Gegenseitiger Ausschluss im Server** (Regel 12). `POST /admin/update/install` antwortet 409
+    `backup_busy` oder `restart_pending`, solange eine Sicherung, eine Wiederherstellung oder ein
+    Neustart ansteht. Umgekehrt antworten «Neu starten», die Wiederherstellungen und das Anlegen
+    einer Sicherung 409 `update_running`, solange eine Installation läuft (nicht veraltet, Punkt 17).
+    Die Karte blendet «Neu starten» während einer Installation aus.
+17. **Angezeigter Zustand entscheidet der Server.** Eine laufende Phase, die älter ist als 25
+    Minuten (oder ohne Startzeit), während der Begleiter nicht antwortet, zeigt er als `failed`
+    (unterbrochen, ohne Code). Ein Endzustand, dessen `from` und `to` beide nicht die laufende
+    Version sind, gehört zu einer Installation vor einem späteren Update von Hand und wird nicht
+    gezeigt.
+18. **Ereignis «Fehler» zuverlässig.** Nach einer Antwort 202 verfolgt der Server die Installation,
+    solange er läuft, und nicht nur, solange die Anfrage lebt. Ein gescheiterter oder
+    zurückgenommener Endzustand wird gesendet und bei einem Fehler mit wachsender Pause
+    wiederholt, höchstens 25 Minuten, bis er zugestellt ist. Die Quelle des Ereignisses besteht
+    aus Zielversion und Endzeit, damit ein späterer gescheiterter Versuch zur selben Version nicht
+    als Doppel gilt.
 
 ## Folgen
 
-- Vertrag **1.16.0**, additiv: `UpdateState` bekommt `updaterAvailable` (der Server erreicht den
-  Updater mit dem Token) und `install` (Schema `UpdateInstallStatus`, aus `state.json`); neu sind
+- Vertrag **1.16.0**, additiv: `UpdateState` bekommt `updaterConfigured` (`SLOUCHCAT_UPDATER_URL`
+  gesetzt), `updaterAvailable` (der Server erreicht den Updater mit dem Token) und `install` (Schema `UpdateInstallStatus`, aus `state.json`); neu sind
   `POST /admin/update/install` und `GET /admin/update/status`, beide `x-visibility: admin`.
   **Keine Migration**; die Einstellung für das gemeldete Ereignis ist eine Zeile in `settings`.
 - Ohne Begleiter bleibt alles wie bisher, und der Knopf zeigt die Befehle für das Update von Hand
-  (Rückfall C). `docs/INSTALLATION.md` und `deploy/README.md` beschreiben den Begleiter als
+  (Rückfall C). Die Karte unterscheidet «kein Updater» (`updaterConfigured` falsch) von «Updater
+  antwortet nicht» (gesetzt, `updaterAvailable` falsch). `docs/INSTALLATION.md` und `deploy/README.md` beschreiben den Begleiter als
   freiwillig.
 - Wer `compose.updater.yaml` einsetzt, gibt einem Container Root auf dem Gastgeber. Das Risiko
   bleibt auf ein Programm ohne offenen Port und ohne Benutzer begrenzt, das nur einen Auftrag

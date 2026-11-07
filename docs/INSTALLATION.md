@@ -221,7 +221,8 @@ Die Prüfung lässt sich in der Verwaltung abschalten; dann fragt der Server nir
 
 Wer das Update lieber in der Verwaltung anstösst, nimmt den **Updater-Begleiter** dazu. Dann steht auf
 der Karte «Server» der Knopf «Update auf … installieren», sobald eine neuere Fassung da ist. Ohne
-Begleiter zeigt der Knopf die zwei Befehle von oben.
+Begleiter zeigt der Knopf die zwei Befehle von oben. Ist der Begleiter eingerichtet, antwortet aber
+nicht, sagt die Karte das und zeigt dieselben Befehle.
 
 **Warum ein eigener Container.** Ein Update holt ein neues Image und startet den Container neu. Das kann
 nur, wer Docker auf dem Rechner steuert, und wer Docker steuert (`/var/run/docker.sock`), hat
@@ -286,6 +287,11 @@ wo er steht:
 5. Bis zu **zehn Minuten** warten, bis der neue Server gesund ist und seine Fassung meldet. So viel
    Zeit hat auch eine lange Datenbank-Änderung. Stürzt der neue Container ab (dreimal neu gestartet
    oder endgültig beendet), wartet er nicht länger.
+
+Während das Update läuft, lehnt der Server «Neu starten», eine Sicherung und eine Wiederherstellung ab
+(und die Karte blendet «Neu starten» aus); das Update selbst startet nicht, solange eine Sicherung,
+eine Wiederherstellung oder ein Neustart ansteht. Bleibt eine Installation länger als 25 Minuten
+stehen und der Begleiter antwortet nicht, zeigt die Karte sie als fehlgeschlagen.
 
 **Wenn die neue Fassung nicht startet.**
 

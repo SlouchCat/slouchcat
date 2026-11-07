@@ -269,7 +269,7 @@ die Datei `./updater` unter
 |---|---|---|---|
 | `token` | Begleiter, beim ersten Start | `0600`, `PUID:PGID` | 32 Zufallsbytes hex; erscheint nie im Log |
 | `state.json` | Begleiter, nach jeder Phase atomar | `0644`, `PUID:PGID` | Phase, von, nach, Ergebnis, Migration ja/nein, Sicherung, Code, Meldung |
-| `server.json` | Server, bei jedem Start vor und nach den Migrationen | Server | Version, Schema vor und nach, Name der Sicherung |
+| `server.json` | Server, bei jedem Start vor und nach den Migrationen | Server | Version, Schema vor und nach, Name der Sicherung; ein zweiter Start derselben Version behält Schema vor der Migration und erste Sicherung (die der Server nie löscht), «danach» ist leer bis zum Ende der Migrationen |
 
 **Ablauf** (`POST /install`): Phasen `checking`, `backing_up`, `pulling`, `verifying`, `restarting`,
 `waiting`, dann `done`, `rolled_back` oder `failed`.
@@ -280,7 +280,10 @@ die Datei `./updater` unter
    Compose- und Env-Datei muss nach Auflösen der Symlinks in `SLOUCHCAT_DEPLOY_DIR` liegen. Eine
    Ablehnung hier ändert nichts und kommt als HTTP 422 zurück (`not_newer`, `manifest_invalid`,
    `manifest_unreachable`, `no_digest`, `no_compose_labels`, `outside_deploy_dir`); läuft schon ein
-   Update, 409 `busy`.
+   Update, 409 `busy`. Der Server selbst lehnt die Installation mit 409 `backup_busy` oder
+   `restart_pending` ab, solange eine Sicherung, eine Wiederherstellung oder ein Neustart ansteht;
+   umgekehrt antworten Neustart, Wiederherstellung und Sicherung 409 `update_running`, solange eine
+   Installation läuft.
 2. Env-Datei nach `.env.bak-vor-<X>` sichern (`0600`, Eigentümer wie das Original, die neuesten fünf
    bleiben) und nur den Wert der Zeile `SLOUCHCAT_VERSION=` setzen; Leerzeichen, Anführungszeichen
    (`"…"`, `'…'`) und ein Kommentar ` # …` bleiben (fehlt die Zeile, wird sie angehängt). Bei mehreren

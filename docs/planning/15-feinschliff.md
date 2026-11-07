@@ -716,6 +716,25 @@ Profil.) Neue
 > - **Gemeinsames Protokoll** im Paket `server/internal/updater` (Adressen, Dateinamen, Phasen,
 >   Fehlercodes, `state.json`, `server.json`, Versionsregel), ohne `os/exec` und ohne Docker.
 > - Vertrag **1.16.0** (additiv), **keine Migration**.
+>
+> **Nachtrag zum Bau (7. November 2026, ADR 0024 Punkte 12 und 16 bis 18):**
+> - **Gegenseitiger Ausschluss im Server:** Die Installation antwortet 409 `backup_busy` oder
+>   `restart_pending`, solange eine Sicherung, eine Wiederherstellung oder ein Neustart ansteht;
+>   «Neu starten», die Wiederherstellungen und das Anlegen einer Sicherung antworten 409
+>   `update_running`, solange eine Installation läuft. Die Karte blendet «Neu starten» dann aus.
+> - **Angezeigter Zustand (Regel 12):** Eine laufende Phase, älter als 25 Minuten, bei
+>   schweigendem Begleiter wird als `failed` gezeigt (unterbrochen, ohne Code). Ein Endzustand, der
+>   weder `from` noch `to` als laufende Version nennt, wird nicht gezeigt.
+> - **`server.json`:** Ein zweiter Start derselben Version behält die erste Schema-Version vor der
+>   Migration und den Namen der ersten Sicherung; die Felder «danach» bleiben leer, bis die
+>   Migrationen dieses Starts durch sind. Der Store löscht diese Sicherung nie (`KeepBackup`).
+> - **Vertrag:** `UpdateState.updaterConfigured` (Adresse gesetzt) neben `updaterAvailable`; die
+>   Karte unterscheidet «kein Updater» von «Updater antwortet nicht».
+> - **Ereignis «Fehler»:** Der Server verfolgt eine Installation nach der Antwort 202, solange er
+>   läuft, und wiederholt das Senden bis zur Zustellung (höchstens 25 Minuten); die Quelle besteht
+>   aus Zielversion und Endzeit.
+> - **Unterbrechung:** Der Updater wartet nach einem unterbrochenen Neustart im Hintergrund erneut
+>   (ADR 0024 Punkt 15).
 
 Aufwand: rund **6 Tage** (Updater 3, Release-Lauf und Manifest 0,5, Server und Karte 1, Doku
 und Abnahme auf CT 190 1,5).
