@@ -28,7 +28,12 @@ const (
 	maxHeaderBytes = 16 << 10
 	maxHeaderLines = 100
 	maxMetaInt     = 65536
-	icyReadChunk   = 16 << 10
+	// minMetaInt is the smallest icy-metaint a stream may send: a tinier one would make every few
+	// audio bytes a metadata block (real servers send 8192 or 16000).
+	minMetaInt   = 512
+	icyReadChunk = 16 << 10
+	// maxCollectEvents bounds the events collect keeps for sniffing.
+	maxCollectEvents = 256
 )
 
 // icyResponse is the answer of one ICY request: status and header parsed, the body still on the
@@ -166,7 +171,7 @@ func newICYStream(rawURL, contentType string, resp *icyResponse) *icyStream {
 	if br, _, _ := strings.Cut(h.Get("icy-br"), ","); br != "" {
 		inf.ICYBitrate, _ = strconv.Atoi(strings.TrimSpace(br))
 	}
-	if mi, err := strconv.Atoi(strings.TrimSpace(h.Get("icy-metaint"))); err == nil && mi >= 1 && mi <= maxMetaInt {
+	if mi, err := strconv.Atoi(strings.TrimSpace(h.Get("icy-metaint"))); err == nil && mi >= minMetaInt && mi <= maxMetaInt {
 		inf.MetaInt = mi
 	}
 	return &icyStream{inf: inf, resp: resp, left: inf.MetaInt}
@@ -179,11 +184,11 @@ func (s *icyStream) Close() error {
 	return nil
 }
 
-// collect reads at least n audio bytes (less at the end of the stream) for sniffing and returns
-// them; Next hands the events out again.
+// collect reads at least n audio bytes (less at the end of the stream, or after maxCollectEvents
+// events) for sniffing and returns them; Next hands the events out again.
 func (s *icyStream) collect(n int) ([]byte, error) {
 	var audio []byte
-	for len(audio) < n {
+	for len(audio) < n && len(s.pending) < maxCollectEvents {
 		b, title, ok, err := s.read()
 		if len(b) > 0 || ok {
 			s.pending = append(s.pending, streamEvent{Audio: b, Title: title, TitleSet: ok})

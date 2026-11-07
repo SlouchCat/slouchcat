@@ -22,10 +22,14 @@ import (
 // never by their content type (TS segments come as video/mp2t, plan R-11).
 
 const (
-	maxHLSPlaylist   = 1 << 20
-	maxHLSSegment    = 16 << 20
+	maxHLSPlaylist = 1 << 20
+	// maxHLSSegment caps a media segment and the EXT-X-MAP: 10 s of 320 kbit/s audio are 400 KB.
+	maxHLSSegment    = 2 << 20
 	hlsStartSegments = 3 // the first load fetches the last three segments at once (a start burst)
-	hlsMaxBandwidth  = 320_000
+	// hlsMaxJump is the largest media sequence step a reload follows segment by segment; a longer
+	// one starts again at the end like the first load, so a source cannot queue a flood.
+	hlsMaxJump      = 10
+	hlsMaxBandwidth = 320_000
 )
 
 // hlsPlaylist is a parsed master or media playlist.
@@ -155,18 +159,20 @@ func audioOnly(codecs string) bool {
 
 // hlsStream reads an HLS media playlist as a stream.
 type hlsStream struct {
-	c       *netClient
-	media   *url.URL
-	inf     streamInfo
-	codecs  string
-	target  time.Duration
-	lastSeq int64 // media sequence of the last queued segment; -1 before the first load
-	queue   []hlsSegment
-	reload  time.Time
-	ended   bool
-	init    []byte // fMP4 initialisation (EXT-X-MAP), sent before the first segment and after a discontinuity
-	sendIni bool
-	pending *streamEvent
+	c        *netClient
+	media    *url.URL
+	inf      streamInfo
+	codecs   string
+	target   time.Duration
+	lastSeq  int64 // media sequence of the last queued segment; -1 before the first load
+	queue    []hlsSegment
+	reload   time.Time
+	fresh    time.Time     // when a reload last queued a new segment
+	minStall time.Duration // the stall limit is 3 × target, at least this (readTimeout)
+	ended    bool
+	init     []byte // fMP4 initialisation (EXT-X-MAP), sent before the first segment and after a discontinuity
+	sendIni  bool
+	pending  *streamEvent
 }
 
 // openHLS opens the HLS source at rawURL (a master or media playlist) and reads its first
@@ -193,7 +199,7 @@ func (c *netClient) openHLS(ctx context.Context, rawURL string) (stream, error) 
 		}
 		pl = parseHLS(body)
 	}
-	s := &hlsStream{c: c, media: u, codecs: codecs, lastSeq: -1,
+	s := &hlsStream{c: c, media: u, codecs: codecs, lastSeq: -1, minStall: readTimeout,
 		inf: streamInfo{URL: u.String(), ContentType: "application/vnd.apple.mpegurl", HLS: true}}
 	if err := s.apply(ctx, pl); err != nil {
 		return nil, err
@@ -217,8 +223,8 @@ func (c *netClient) openHLS(ctx context.Context, rawURL string) (stream, error) 
 func (s *hlsStream) Info() streamInfo { return s.inf }
 func (s *hlsStream) Close() error     { return nil }
 
-// apply takes a loaded media playlist: new segments are queued (on the first load the last
-// three), a media sequence gap marks a discontinuity.
+// apply takes a loaded media playlist: new segments are queued (on the first load and after a
+// jump of more than hlsMaxJump the last three), a media sequence gap marks a discontinuity.
 func (s *hlsStream) apply(ctx context.Context, pl hlsPlaylist) error {
 	if pl.key != "" && pl.key != "NONE" {
 		return fmt.Errorf("%w: encrypted HLS (%s)", model.ErrRadioNotAudio, pl.key)
@@ -244,9 +250,17 @@ func (s *hlsStream) apply(ctx context.Context, pl hlsPlaylist) error {
 		s.c.log.Info("radio hls media sequence restarted", "site", netguard.Site(s.media.String()))
 	}
 	first := s.lastSeq < 0
+	if n := len(segs); !first && n > 0 && segs[n-1].seq-s.lastSeq > hlsMaxJump {
+		s.c.log.Info("radio hls media sequence jump", "site", netguard.Site(s.media.String()),
+			"after", s.lastSeq, "last", segs[n-1].seq)
+		if n > hlsStartSegments {
+			segs = segs[n-hlsStartSegments:]
+		}
+	}
 	if first && len(segs) > hlsStartSegments {
 		segs = segs[len(segs)-hlsStartSegments:]
 	}
+	queued := len(s.queue)
 	for _, seg := range segs {
 		if !first && seg.seq <= s.lastSeq {
 			continue
@@ -260,6 +274,9 @@ func (s *hlsStream) apply(ctx context.Context, pl hlsPlaylist) error {
 		s.lastSeq = seg.seq
 		first = false
 	}
+	if len(s.queue) > queued || s.fresh.IsZero() {
+		s.fresh = time.Now()
+	}
 	return nil
 }
 
@@ -272,11 +289,17 @@ func (s *hlsStream) Next(ctx context.Context) (streamEvent, error) {
 	return s.fetchNext(ctx)
 }
 
-// fetchNext waits for the next segment (reloading the playlist as needed) and fetches it.
+// fetchNext waits for the next segment (reloading the playlist as needed) and fetches it. A
+// playlist that lists no new segment for 3 × its target duration (at least minStall) has stalled:
+// model.ErrRadioUnreachable, like a stalled stream read.
 func (s *hlsStream) fetchNext(ctx context.Context) (streamEvent, error) {
 	for len(s.queue) == 0 {
 		if s.ended {
 			return streamEvent{}, io.EOF
+		}
+		if stall := max(3*s.target, s.minStall); time.Since(s.fresh) > stall {
+			return streamEvent{}, fmt.Errorf("%w: HLS playlist of %s lists no new segment for %v", model.ErrRadioUnreachable,
+				netguard.Site(s.media.String()), stall)
 		}
 		t := time.NewTimer(time.Until(s.reload))
 		select {

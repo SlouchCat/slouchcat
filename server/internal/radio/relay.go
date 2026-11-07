@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -28,6 +29,10 @@ const (
 	relayEnding       = "ending"
 )
 
+// maxRelayTitles bounds the title timeline of a relay: a source that changes its title every
+// metadata block cannot grow it without end (the window keeps the older ones anyway).
+const maxRelayTitles = 200
+
 // relayKnobs are the timings of the relays; tests shorten them.
 type relayKnobs struct {
 	backoff      []time.Duration // waits before the reconnect attempts; after the last one the relay ends
@@ -35,6 +40,9 @@ type relayKnobs struct {
 	startPhase   time.Duration   // segments of one fragment (2 s) after the start, then of two (4 s)
 	fragment     time.Duration
 	healthyAfter time.Duration // a relay that ran this long resets the station's failures
+	// paceAhead is how far the packaged audio of a connection may run ahead of the time since
+	// connect: the start burst passes at once, a faster source is read at real time afterwards.
+	paceAhead time.Duration
 }
 
 func defaultRelayKnobs() relayKnobs {
@@ -44,6 +52,7 @@ func defaultRelayKnobs() relayKnobs {
 		startPhase:   30 * time.Second,
 		fragment:     2 * time.Second,
 		healthyAfter: time.Minute,
+		paceAhead:    10 * time.Second,
 	}
 }
 
@@ -71,7 +80,8 @@ type relay struct {
 	out       transcode.RadioOutput
 	titles    []model.RadioNowEntry
 	lastText  string
-	pend      []byte // fragments of the segment being built
+	produced  time.Duration // audio of every fragment so far (pace)
+	pend      []byte        // fragments of the segment being built
 	pendDur   time.Duration
 	pendN     int
 	pendGen   int
@@ -168,10 +178,25 @@ func (r *relay) loop(ctx context.Context) error {
 		}
 		connected = true
 		r.setState(relayLive)
+		r.mu.Lock()
+		seq0 := r.buf.nextSeq
+		r.mu.Unlock()
 		err = r.feed(ctx, st, f)
 		_ = st.Close()
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		r.mu.Lock()
+		published := r.buf.nextSeq > seq0
+		r.mu.Unlock()
+		// A connection that published a segment starts the backoff again; one that did not (the
+		// packager refused the audio, the stream broke at once) counts as a failed attempt, so a
+		// station that answers but never plays ends instead of reconnecting forever.
+		if published {
+			attempt = 0
+		}
+		if attempt >= len(knobs.backoff) {
+			return fmt.Errorf("%w: no segment after %d attempts: %w", model.ErrRadioNotAudio, attempt, err)
 		}
 		r.s.log.InfoContext(ctx, "radio stream broke, reconnecting", "station_id", r.stationID, "err", err)
 		r.setState(relayReconnecting)
@@ -182,10 +207,10 @@ func (r *relay) loop(ctx context.Context) error {
 			f.fr.reset()
 			f.checkFrame = true
 		}
-		if err := sleepCtx(ctx, knobs.backoff[0]); err != nil {
+		if err := sleepCtx(ctx, knobs.backoff[attempt]); err != nil {
 			return err
 		}
-		attempt = 1
+		attempt++
 	}
 }
 
@@ -200,8 +225,14 @@ func (r *relay) streamURL(i int) string {
 	return s.Url
 }
 
-// feed copies the audio of one connection into the packager until the connection breaks.
+// feed copies the audio of one connection into the packager until the connection or the packager
+// breaks; a packager failure is model.ErrRadioNotAudio and starts a new generation on the next
+// connection.
 func (r *relay) feed(ctx context.Context, st stream, f *feedState) error {
+	connected := time.Now()
+	r.mu.Lock()
+	base := r.produced
+	r.mu.Unlock()
 	in := st.Info().Input
 	if f.g != nil && (in.Format != f.g.in.Format || in.Codec != f.g.in.Codec ||
 		transcode.RadioOutputFor(in) != transcode.RadioOutputFor(f.g.in)) {
@@ -256,11 +287,29 @@ func (r *relay) feed(ctx context.Context, st stream, f *feedState) error {
 				return err
 			}
 		}
+		if err := r.pace(ctx, connected, base); err != nil {
+			return err
+		}
 		if _, err := f.g.pk.Write(data); err != nil {
 			r.s.log.WarnContext(ctx, "radio packager failed", "station_id", r.stationID, "err", err)
 			f.newGen = true
+			return fmt.Errorf("%w: packager: %w", model.ErrRadioNotAudio, err)
 		}
 	}
+}
+
+// pace waits while the audio packaged since connect (base: r.produced at connect) runs more than
+// knobs.paceAhead ahead of the time since connect, so a source sending faster than real time
+// cannot make the relay transcode and store at its pace. The first paceAhead (the start burst
+// that fills the first segments, concept 16 section 7.7) passes at once.
+func (r *relay) pace(ctx context.Context, connected time.Time, base time.Duration) error {
+	r.mu.Lock()
+	ahead := r.produced - base - time.Since(connected)
+	r.mu.Unlock()
+	if over := ahead - r.s.rel.knobs.paceAhead; over > 0 {
+		return sleepCtx(ctx, over)
+	}
+	return nil
 }
 
 // startGen ends the running generation (its last fragments are stored first) and starts the next.
@@ -325,6 +374,7 @@ func (r *relay) fragment(gen int, frag transcode.RadioFragment) error {
 	r.mu.Lock()
 	r.pend = append(r.pend, frag.Data...)
 	r.pendDur += frag.Duration
+	r.produced += frag.Duration
 	r.pendN++
 	r.pendGen = gen
 	full := r.pendN >= 2 || time.Since(r.started) < r.s.rel.knobs.startPhase
@@ -400,6 +450,9 @@ func (r *relay) title(ctx context.Context, text string, names []string) {
 		e.At = last.pdt.Add(last.dur)
 	}
 	r.titles = append(r.titles, e)
+	if n := len(r.titles); n > maxRelayTitles {
+		r.titles = slices.Delete(r.titles, 0, n-maxRelayTitles)
+	}
 	r.trimTitlesLocked()
 	first := !r.showsTitles
 	r.showsTitles = true

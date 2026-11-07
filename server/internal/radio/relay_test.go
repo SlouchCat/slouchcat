@@ -107,6 +107,9 @@ func newRelayEnv(t *testing.T, eo ...envOption) *relayEnv {
 	e.s = withDialControl(New(e.f.DB, testLogger(), opts...), loopbackOnly)
 	e.s.rel.tmpfs = func(string) bool { return true }
 	e.s.rel.knobs.backoff = []time.Duration{20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond, 20 * time.Millisecond}
+	// The test stations send faster than real time so the tests need not wait for the audio;
+	// TestRelayPacesFastSource checks the pacing with the default.
+	e.s.rel.knobs.paceAhead = time.Hour
 	reload := e.s.onStationChanged // the index reload of the wiring stays behind the recorder
 	e.s.onStationChanged = func(ctx context.Context, id int64) {
 		e.mu.Lock()

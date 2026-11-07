@@ -320,7 +320,7 @@ func BenchmarkImagePipelineTitle(b *testing.B) {
 }
 
 func TestSquareImageArgs(t *testing.T) {
-	got, err := SquareImageArgs("/c/in.png", []ImageOutput{
+	got, err := SquareImageArgs("/c/in.png", "png_pipe", []ImageOutput{
 		{Path: "/c/a", Width: 96, Format: ImageWebP},
 		{Path: "/c/b", Width: 96, Format: ImagePNG},
 		{Path: "/c/c", Width: 512, Format: ImagePNG},
@@ -338,8 +338,20 @@ func TestSquareImageArgs(t *testing.T) {
 	if !slices.Contains(got, "-max_pixels") || got[len(got)-1] != "/c/c" {
 		t.Fatalf("args %v", got)
 	}
-	if _, err := SquareImageArgs("/c/in.png", nil); err == nil {
+	// The source of a logo comes from a station's site: no probing, no protocol but a local file,
+	// both before the input.
+	in := slices.Index(got, "-i")
+	if w := slices.Index(got, "-protocol_whitelist"); w < 0 || w > in || got[w+1] != "file" {
+		t.Fatalf("args without -protocol_whitelist file before the input: %v", got)
+	}
+	if f := slices.Index(got, "-f"); f < 0 || f > in || got[f+1] != "png_pipe" {
+		t.Fatalf("args without the input format before the input: %v", got)
+	}
+	if _, err := SquareImageArgs("/c/in.png", "png_pipe", nil); err == nil {
 		t.Fatal("no outputs accepted")
+	}
+	if _, err := SquareImageArgs("/c/in.png", "", []ImageOutput{{Path: "/c/a", Width: 96, Format: ImagePNG}}); err == nil {
+		t.Fatal("no input format accepted")
 	}
 }
 
@@ -350,7 +362,7 @@ func TestSquareImagePads(t *testing.T) {
 	writeJPEG(t, in, 200, 100, color.NRGBA{R: 255, A: 255})
 	outs := []ImageOutput{{Path: filepath.Join(dir, "sq.png"), Width: 96, Format: ImagePNG},
 		{Path: filepath.Join(dir, "sq.webp"), Width: 256, Format: ImageWebP}}
-	if err := r.SquareImage(context.Background(), in, outs); err != nil {
+	if err := r.SquareImage(context.Background(), in, "jpeg_pipe", outs); err != nil {
 		t.Fatal(err)
 	}
 	f, err := os.Open(outs[0].Path)
