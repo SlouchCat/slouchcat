@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"syscall"
 )
@@ -212,19 +213,99 @@ func readRegular(path string) ([]byte, fs.FileInfo, error) {
 	return data, info, nil
 }
 
-// backupName is the name of the backup taken before installing v.
-func (f envFile) backupName(v string) string {
-	return f.path + ".bak-vor-" + v
+// maxBackupTries bounds the search for a free backup name.
+const maxBackupTries = 1000
+
+// backupName is the name of the n-th backup taken before installing v: <name>.bak-vor-<v> for the
+// first, <name>.bak-vor-<v>-2, -3, … for the next.
+func (f envFile) backupName(v string, n int) string {
+	name := f.path + ".bak-vor-" + v
+	if n > 1 {
+		name += "-" + strconv.Itoa(n)
+	}
+	return name
 }
 
 // backup copies the file to <name>.bak-vor-<v> (0600, owned like the original: it holds secrets)
-// and never deletes another backup: hand-made ones share the name pattern. A backup of that name
-// already there is replaced. A missing file has nothing to back up.
-func (f envFile) backup(v string) error {
+// and returns the base name it wrote. It never deletes or replaces another backup: hand-made ones
+// share the name pattern, and so does an earlier install of the same version. When the name is
+// taken it uses <name>.bak-vor-<v>-2, -3, … (the first free one). The content goes to a temporary
+// file first and is linked to its name (link fails when the name exists, even as a dangling
+// symbolic link), so a backup never shows half written. A missing file has nothing to back up
+// and returns "".
+func (f envFile) backup(v string) (string, error) {
 	if !f.exists {
-		return nil
+		return "", nil
 	}
-	return writeAtomic(f.backupName(v), f.data, 0o600, f.uid, f.gid)
+	tmp, err := writeTemp(f.path+".bak-vor-"+v, f.data, 0o600, f.uid, f.gid)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = os.Remove(tmp) }()
+	for n := 1; n <= maxBackupTries; n++ {
+		name := f.backupName(v, n)
+		err := os.Link(tmp, name)
+		if err == nil {
+			return filepath.Base(name), nil
+		}
+		if !errors.Is(err, fs.ErrExist) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("no free backup name %s.bak-vor-%s-N", filepath.Base(f.path), v)
+}
+
+// findBackup returns the path of the backup taken before installing v, next to the env file.
+// persisted is the base name the install stored in state.json ("" when it stored none). A name
+// that is not a base name of this file's backups of v is refused (errBackupName): the shared
+// folder holding state.json is writable by the server. Without a stored name it is the highest
+// numbered match (the newest one the updater wrote), the plain name counting as the first.
+func (f envFile) findBackup(v, persisted string) (string, error) {
+	re, err := regexp.Compile(`^` + regexp.QuoteMeta(filepath.Base(f.path)+".bak-vor-"+v) + `(?:-([0-9]+))?$`)
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Dir(f.path)
+	if persisted != "" {
+		if filepath.Base(persisted) != persisted || !re.MatchString(persisted) {
+			return "", fmt.Errorf("%w: %q", errBackupName, truncate(persisted, 80))
+		}
+		return filepath.Join(dir, persisted), nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", err
+	}
+	best, bestN := "", 0
+	for _, e := range entries {
+		m := re.FindStringSubmatch(e.Name())
+		if m == nil {
+			continue
+		}
+		n := 1
+		if m[1] != "" {
+			if n, err = strconv.Atoi(m[1]); err != nil {
+				continue
+			}
+		}
+		if n > bestN {
+			best, bestN = e.Name(), n
+		}
+	}
+	if best == "" {
+		return f.backupName(v, 1), nil // not there: the caller's read reports it
+	}
+	return filepath.Join(dir, best), nil
+}
+
+// errBackupName is returned by findBackup for a stored backup name that does not fit.
+var errBackupName = errors.New("backup name does not fit the env file and version")
+
+func truncate(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
 }
 
 // write replaces the file with data, keeping its mode and owner.
@@ -246,10 +327,24 @@ func (f envFile) restore() error {
 
 // writeAtomic replaces path with data: temporary file in the same folder with mode and owner,
 // sync, rename. A reader (compose) never sees half a file.
-func writeAtomic(path string, data []byte, mode fs.FileMode, uid, gid int) (err error) {
-	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
+func writeAtomic(path string, data []byte, mode fs.FileMode, uid, gid int) error {
+	tmp, err := writeTemp(path, data, mode, uid, gid)
 	if err != nil {
 		return err
+	}
+	if err := os.Rename(tmp, path); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+// writeTemp writes data to a new temporary file next to path, with mode and owner, synced, and
+// returns its name. The caller renames or links it, or removes it.
+func writeTemp(path string, data []byte, mode fs.FileMode, uid, gid int) (name string, err error) {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+"-*")
+	if err != nil {
+		return "", err
 	}
 	defer func() {
 		if err != nil {
@@ -264,13 +359,13 @@ func writeAtomic(path string, data []byte, mode fs.FileMode, uid, gid int) (err 
 	}
 	for _, step := range steps {
 		if err := step(); err != nil {
-			return errors.Join(err, tmp.Close())
+			return "", errors.Join(err, tmp.Close())
 		}
 	}
 	if err := tmp.Close(); err != nil {
-		return err
+		return "", err
 	}
-	return os.Rename(tmp.Name(), path)
+	return tmp.Name(), nil
 }
 
 // inside reports whether path lies inside root (both cleaned, symbolic links resolved) and not in

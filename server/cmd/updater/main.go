@@ -285,7 +285,7 @@ func readToken(f *os.File, uid, gid int) (token []byte, regular bool, err error)
 // finish, and the next start ends it:
 //
 //   - checking, backing_up, pulling, verifying: the old container still runs. The env file is put
-//     back from .env.bak-vor-<to> when it still names the new version and the backup exists;
+//     back from the backup the install wrote (.env.bak-vor-<to>, -2, …) when it still names the new version and the backup exists;
 //     the install is failed.
 //   - restarting, waiting: compose up may have run. The install goes on in the phase waiting, and
 //     Resume waits for the new version in the background as run does (u.wait from now, with the
@@ -332,7 +332,7 @@ func (u *Updater) recover() {
 	if interrupted == updater.PhaseChecking {
 		s.Message = "the updater stopped while checking the release; nothing was changed"
 	} else {
-		msg, _ := u.recoverEnv(ctx, s.To)
+		msg, _ := u.recoverEnv(ctx, s.To, s.EnvBackup)
 		s.Message = fmt.Sprintf("the updater stopped during the phase %s before the restart; ", interrupted) + msg
 	}
 	u.log.Warn("updater: interrupted install ended", "interrupted", interrupted, "phase", s.Phase, "to", s.To)
@@ -387,9 +387,11 @@ func (u *Updater) resumeWait(s updater.State, interrupted updater.Phase) {
 }
 
 // recoverEnv puts the env file back from the backup taken before installing to, when the file
-// still names to and the backup exists, and returns what it did for the message. ok reports that
-// the env file no longer names to (it was put back, or it named another version already).
-func (u *Updater) recoverEnv(ctx context.Context, to string) (msg string, ok bool) {
+// still names to and the backup exists, and returns what it did for the message. backup is the
+// base name the install stored in state.json ("" for none: the newest match is used, see
+// findBackup). ok reports that the env file no longer names to (it was put back, or it named
+// another version already).
+func (u *Updater) recoverEnv(ctx context.Context, to, backup string) (msg string, ok bool) {
 	const check = "check SLOUCHCAT_VERSION in the env file"
 	if !updater.ValidRelease(to) {
 		return check, false
@@ -413,16 +415,20 @@ func (u *Updater) recoverEnv(ctx context.Context, to string) (msg string, ok boo
 	if v, _ := envVersion(env.data); v != to {
 		return "the env file does not name version " + to + ", nothing to put back", true
 	}
-	backup := env.backupName(to)
-	data, _, err := readRegular(backup)
+	path, err = env.findBackup(to, backup)
 	if err != nil {
-		return "no backup " + filepath.Base(backup) + "; " + check, false
+		u.log.Error("updater: env backup", "err", err)
+		return "the stored backup name is not valid; " + check, false
+	}
+	data, _, err := readRegular(path)
+	if err != nil {
+		return "no backup " + filepath.Base(path) + "; " + check, false
 	}
 	if err := env.write(data); err != nil {
 		u.log.Error("updater: restore env file", "err", err)
 		return "could not put the env file back: " + check, false
 	}
-	return "the env file was put back from " + filepath.Base(backup), true
+	return "the env file was put back from " + filepath.Base(path), true
 }
 
 // handler serves GET /status and POST /install, both only with the token.

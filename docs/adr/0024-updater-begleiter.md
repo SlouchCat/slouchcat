@@ -120,7 +120,13 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     und einen Kommentar ` # …` hinter dem Wert. Ist die Env-Datei ein Symlink, ersetzt er dessen Ziel
     in dessen Ordner. Vorher sichert er die Datei als
     `.env.bak-vor-<Version>` mit Rechten `0600`, weil sie Geheimnisse enthält. Er löscht nie eine Sicherung, auch nicht
-    ältere: Von Hand angelegte tragen dasselbe Namensmuster.
+    ältere: Von Hand angelegte tragen dasselbe Namensmuster. Er ersetzt auch nie eine Sicherung
+    gleichen Namens (von Hand oder von einer früheren Installation derselben Fassung): Ist der Name
+    belegt, nimmt er `.env.bak-vor-<Version>-2`, `-3`, … (den ersten freien) und schreibt den
+    Basisnamen der gewählten Datei als `envBackup` in `state.json` (ein Feld nur für ihn, nicht im
+    Vertrag), damit die Wiederherstellung nach einer Unterbrechung (Punkt 15) genau diese Sicherung
+    nimmt; fehlt das Feld, nimmt sie die höchstnummerierte passende, und ein Name, der nicht zu
+    Env-Datei und Version passt (Pfadtrenner, andere Fassung), wird abgelehnt.
 12. **Migration und Rücknahme (F-14).** Der Server schreibt bei jedem Start vor und nach den
     Migrationen `server.json` (Version, Schema-Version vor und nach, Name der Sicherung vor der
     Migration). Daran sieht der Updater auch dann, ob eine Migration lief, wenn der neue Server nie

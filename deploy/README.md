@@ -285,7 +285,7 @@ die Datei `./updater` unter
    umgekehrt antworten Neustart, Wiederherstellung und Sicherung 409 `update_running`, solange eine
    Installation läuft.
 2. Env-Datei nach `.env.bak-vor-<X>` sichern (`0600`, Eigentümer wie das Original; der Updater löscht
-   nie eine Sicherung) und nur den Wert der Zeile `SLOUCHCAT_VERSION=` setzen; Leerzeichen, Anführungszeichen
+   nie eine Sicherung und ersetzt keine: ist der Name belegt, nimmt er `-2`, `-3`, …) und nur den Wert der Zeile `SLOUCHCAT_VERSION=` setzen; Leerzeichen, Anführungszeichen
    (`"…"`, `'…'`) und ein Kommentar ` # …` bleiben (fehlt die Zeile, wird sie angehängt). Bei mehreren
    Env-Dateien gilt die letzte, die die Zeile enthält, sonst die letzte. Ist die Env-Datei ein Symlink,
    ersetzt er das Ziel in dessen Ordner; der Link bleibt.
@@ -308,7 +308,7 @@ die Datei `./updater` unter
 **Unterbrechung.** Bei SIGTERM (`docker stop`, `stop_grace_period: 30s`) beendet der Begleiter den
 laufenden Compose-Aufruf, nimmt nichts zurück und schreibt keinen Endzustand; er wartet höchstens 25 s.
 `state.json` behält die Phase, und der nächste Start schliesst das Update ab: in `checking` bis
-`verifying` setzt er die Env-Datei aus `.env.bak-vor-<X>` zurück, wenn sie noch `X` nennt und die
+`verifying` setzt er die Env-Datei aus der Sicherung dieser Installation (`.env.bak-vor-<X>`, ggf. mit `-2`, `-3`, …; ihr Name steht in `state.json`) zurück, wenn sie noch `X` nennt und die
 Sicherung da ist, und meldet `failed`; in `restarting` oder `waiting` wartet er im Hintergrund erneut
 bis zu zehn Minuten (Phase `waiting`, `/install` ist so lange `busy`, frühes Ende bei einem
 abgestürzten Container) und meldet `done`, wenn `X` gesund läuft und `server.json` `X` nennt, sonst

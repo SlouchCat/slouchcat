@@ -132,6 +132,10 @@ type State struct {
 	// rollback instead of waiting for the new version. Only the updater reads it; a final state
 	// never carries it.
 	RollingBack bool `json:"rollingBack,omitempty"`
+	// EnvBackup is the base name of the env file backup this install wrote (.env.bak-vor-<To>,
+	// with -2, -3, … when the name was taken), so that a start after an interruption puts back
+	// that one. Only the updater reads it; the server does not map it into the API.
+	EnvBackup string `json:"envBackup,omitempty"`
 }
 
 // ServerRecord is the content of server.json: the server writes it at every start before and

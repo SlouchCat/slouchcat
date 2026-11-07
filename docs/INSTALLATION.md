@@ -240,7 +240,8 @@ kleines eigenes Programm im Container `slouchcat-updater`:
   Fingerabdruck (Digest) des heruntergeladenen Images.
 - Es ändert in `.env` nur den Wert der Zeile `SLOUCHCAT_VERSION=` (Anführungszeichen und ein
   Kommentar dahinter bleiben) und sichert die Datei vorher als `.env.bak-vor-<Fassung>` (nur für dich
-  lesbar). Es löscht nie eine Sicherung; räume ältere von Hand auf.
+  lesbar). Es löscht nie eine Sicherung und ersetzt keine: Gibt es den Namen schon (etwa von
+  Hand angelegt), nimmt es `.env.bak-vor-<Fassung>-2`, `-3`, …; räume ältere von Hand auf.
 - Es startet nur den Container `slouchcat` neu, mit genau den Compose-Dateien, mit denen er gestartet
   wurde; Caddy und sich selbst lässt es stehen.
 
@@ -303,7 +304,7 @@ selbst der längste Lauf nicht (Download bis 30 Minuten, zweimal bis 10 Minuten 
   angelegt hat (`config/backups/pre-migration-…`). Zurück geht es dann nur von Hand: Server anhalten
   (`docker compose stop slouchcat`), `config/slouchcat.db` durch diese Sicherung ersetzen und
   `config/slouchcat.db-wal` und `config/slouchcat.db-shm` löschen, falls vorhanden, die alte Fassung
-  in `.env` eintragen (sie steht in `.env.bak-vor-<Fassung>`) und `docker compose up -d`.
+  in `.env` eintragen (sie steht in `.env.bak-vor-<Fassung>`, bei belegtem Namen mit `-2`, `-3`, …) und `docker compose up -d`.
 
 **Wenn der Begleiter mitten im Update anhält** (Neustart des Rechners, `docker compose down`), macht er
 beim nächsten Start Ordnung: Vor dem Neustart des Servers setzt er `.env` aus `.env.bak-vor-<Fassung>`

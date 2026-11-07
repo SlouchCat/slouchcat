@@ -92,7 +92,7 @@ func TestEnvFileBackupAndRestore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.backup("1.16.0"); err != nil {
+	if _, err := f.backup("1.16.0"); err != nil {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(path + ".bak-vor-1.16.0")
@@ -118,7 +118,7 @@ func TestEnvFileBackupAndRestore(t *testing.T) {
 	if err != nil || f.exists {
 		t.Fatalf("readEnvFile(missing) = %+v, %v", f, err)
 	}
-	if err := f.backup("1.16.0"); err != nil {
+	if _, err := f.backup("1.16.0"); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.write(setVersion(nil, "1.16.0")); err != nil {
@@ -142,7 +142,7 @@ func TestBackupKeepsOtherBackups(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Backups made by hand share the name pattern; none may go, however many there are.
-	want := []string{".env.bak-vor-1.16.0"}
+	want := []string{".env.bak-vor-1.16.0", ".env.bak-vor-1.16.0-2"}
 	for i := range 20 {
 		name := fmt.Sprintf(".env.bak-vor-hand-%d", i)
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600); err != nil {
@@ -150,7 +150,7 @@ func TestBackupKeepsOtherBackups(t *testing.T) {
 		}
 		want = append(want, name)
 	}
-	// A backup of the same name is replaced.
+	// A backup of the same name stays as it is; the new one gets -2.
 	if err := os.WriteFile(path+".bak-vor-1.16.0", []byte("old"), 0o640); err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestBackupKeepsOtherBackups(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.backup("1.16.0"); err != nil {
+	if _, err := f.backup("1.16.0"); err != nil {
 		t.Fatal(err)
 	}
 	matches, err := filepath.Glob(path + ".bak-vor-*")
@@ -181,11 +181,17 @@ func TestBackupKeepsOtherBackups(t *testing.T) {
 	if _, err := os.Stat(other); err != nil {
 		t.Errorf("backup removed another file's backup: %v", err)
 	}
-	info, err := os.Stat(path + ".bak-vor-1.16.0")
+	if got, err := os.ReadFile(path + ".bak-vor-1.16.0"); err != nil || string(got) != "old" {
+		t.Errorf("existing backup = %q, %v; want it byte-identical", got, err)
+	}
+	if info, _ := os.Stat(path + ".bak-vor-1.16.0"); info == nil || info.Mode().Perm() != 0o640 {
+		t.Errorf("existing backup mode = %v, want 0640 as before", info)
+	}
+	info, err := os.Stat(path + ".bak-vor-1.16.0-2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, err := os.ReadFile(path + ".bak-vor-1.16.0"); err != nil || string(got) != "SLOUCHCAT_VERSION=1.15.0\n" {
+	if got, err := os.ReadFile(path + ".bak-vor-1.16.0-2"); err != nil || string(got) != "SLOUCHCAT_VERSION=1.15.0\n" {
 		t.Errorf("backup = %q, %v; want the env file's content", got, err)
 	}
 	if info.Mode().Perm() != 0o600 {
@@ -281,7 +287,7 @@ func TestEnvFileSymlinkWritesTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := f.backup("1.16.0"); err != nil {
+	if _, err := f.backup("1.16.0"); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.write(setVersion(f.data, "1.16.0")); err != nil {
@@ -350,5 +356,70 @@ func TestReadRegularRefusesOtherFiles(t *testing.T) {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("a FIFO blocked the read")
+	}
+}
+
+// Every backup takes the first free name, a dangling symbolic link included, and leaves no
+// temporary file behind.
+func TestBackupTakesFirstFreeName(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+	if err := os.WriteFile(path, []byte("SLOUCHCAT_VERSION=1.15.0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.Symlink(victim, path+".bak-vor-1.16.0-2"); err != nil {
+		t.Fatal(err)
+	}
+	f, err := readEnvFile(path, os.Getuid(), os.Getgid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{".env.bak-vor-1.16.0", ".env.bak-vor-1.16.0-3", ".env.bak-vor-1.16.0-4"} {
+		if got, err := f.backup("1.16.0"); err != nil || got != want {
+			t.Fatalf("backup = %q, %v, want %q", got, err, want)
+		}
+	}
+	if _, err := os.Lstat(victim); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("the link target was written: %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 5 { // .env, three backups, the link
+		t.Errorf("folder = %v, want no temporary file left", entries)
+	}
+	gone := envFile{path: filepath.Join(dir, "none.env")}
+	if got, err := gone.backup("1.16.0"); err != nil || got != "" {
+		t.Errorf("backup of a missing file = %q, %v, want none", got, err)
+	}
+}
+
+func TestFindBackup(t *testing.T) {
+	dir := t.TempDir()
+	f := envFile{path: filepath.Join(dir, ".env")}
+	for _, name := range []string{".env.bak-vor-1.16.0", ".env.bak-vor-1.16.0-2", ".env.bak-vor-1.16.0-10", ".env.bak-vor-1.16.0-x",
+		".env.bak-vor-1.17.0-3", "other.env.bak-vor-1.16.0-4"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Stored name: taken as is when it fits.
+	if got, err := f.findBackup("1.16.0", ".env.bak-vor-1.16.0-2"); err != nil || got != filepath.Join(dir, ".env.bak-vor-1.16.0-2") {
+		t.Errorf("findBackup(stored) = %q, %v", got, err)
+	}
+	// None stored: the highest number of a name that fits, the plain name counting as 1.
+	if got, err := f.findBackup("1.16.0", ""); err != nil || got != filepath.Join(dir, ".env.bak-vor-1.16.0-10") {
+		t.Errorf("findBackup(none) = %q, %v", got, err)
+	}
+	if got, err := f.findBackup("1.18.0", ""); err != nil || got != filepath.Join(dir, ".env.bak-vor-1.18.0") {
+		t.Errorf("findBackup(no match) = %q, %v, want the plain name", got, err)
+	}
+	for _, bad := range []string{"../.env.bak-vor-1.16.0", "sub/.env.bak-vor-1.16.0", "/etc/passwd", ".env.bak-vor-1.17.0",
+		".env.bak-vor-1.16.0-", ".env.bak-vor-1.16.0-2/x", "other.env.bak-vor-1.16.0", ".env.bak-vor-1.16.0\n", ".env.bak-vor-1x16x0"} {
+		if got, err := f.findBackup("1.16.0", bad); !errors.Is(err, errBackupName) {
+			t.Errorf("findBackup(%q) = %q, %v, want refused", bad, got, err)
+		}
 	}
 }

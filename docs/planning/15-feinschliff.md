@@ -737,7 +737,8 @@ Profil.) Neue
 >   (ADR 0024 Punkt 15).
 > - **Abweichung (Sicherungen der `.env`):** Der Updater behält alle Sicherungen `.env.bak-vor-*`
 >   und löscht keine, statt die neuesten fünf zu behalten, weil von Hand angelegte dasselbe
->   Namensmuster tragen. Ältere räumt man von Hand auf.
+>   Namensmuster tragen. Ältere räumt man von Hand auf. Eine Sicherung gleichen Namens ersetzt er
+>   nie: Der Updater nimmt dann `-2`, `-3`, ….
 
 Aufwand: rund **6 Tage** (Updater 3, Release-Lauf und Manifest 0,5, Server und Karte 1, Doku
 und Abnahme auf CT 190 1,5).

@@ -309,13 +309,14 @@ func (u *Updater) run(p plan, s updater.State) {
 	// backing_up: save the env file, then set the one line.
 	env, err := readEnvFile(p.env, u.cfg.uid, u.cfg.gid)
 	if err == nil {
-		err = env.backup(p.to)
+		s.EnvBackup, err = env.backup(p.to)
 	}
 	if err != nil {
 		u.log.Error("updater: back up env file", "err", err)
 		finish(updater.PhaseFailed, "", "could not back up the env file: "+err.Error())
 		return
 	}
+	u.set(s) // names the backup before the env file changes: a start after an interruption puts that one back
 	if err := env.write(setVersion(env.data, p.to)); err != nil {
 		u.log.Error("updater: write env file", "err", err)
 		u.restoreEnv(env) // the rename may have happened before the error
@@ -429,7 +430,7 @@ func (u *Updater) rollbackAfterRestart(s updater.State) {
 	}
 	cause := fmt.Sprintf("version %s did not become healthy and the updater stopped while taking it back", s.To)
 	cctx, cancel := context.WithTimeout(ctx, checkTimeout)
-	envMsg, envOK := u.recoverEnv(cctx, s.To)
+	envMsg, envOK := u.recoverEnv(cctx, s.To, s.EnvBackup)
 	cancel()
 	var proj Project
 	if envOK {

@@ -290,6 +290,9 @@ func TestInstallSuccess(t *testing.T) {
 	if got := h.readEnv(); got != newEnv() {
 		t.Errorf(".env = %q, want %q", got, newEnv())
 	}
+	if s.EnvBackup != ".env.bak-vor-1.16.0" {
+		t.Errorf("EnvBackup = %q", s.EnvBackup)
+	}
 	bak := h.env + ".bak-vor-1.16.0"
 	data, err := os.ReadFile(bak)
 	if err != nil || string(data) != oldEnv {
@@ -435,6 +438,101 @@ func TestInstallPullFailedRestoresEnv(t *testing.T) {
 	}
 	if got := h.readEnv(); got != oldEnv {
 		t.Errorf(".env = %q, want the original", got)
+	}
+}
+
+// An existing backup of the same name (made by hand, or by an earlier install of the version) is
+// never replaced: the install takes -2, -3, …, restores the env file from memory and names the
+// backup in state.json.
+func TestInstallKeepsExistingBackup(t *testing.T) {
+	h := newHarness(t)
+	handmade := h.env + ".bak-vor-1.16.0"
+	if err := os.WriteFile(handmade, []byte("by hand"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	h.fake.pullErr = errors.New("exit status 1")
+	h.start()
+	for _, want := range []string{".env.bak-vor-1.16.0-2", ".env.bak-vor-1.16.0-3"} {
+		if status, _ := h.install(); status != http.StatusAccepted {
+			t.Fatalf("install = %d", status)
+		}
+		s := h.finish()
+		if s.Phase != updater.PhaseFailed || s.EnvBackup != want {
+			t.Errorf("state = %+v, want EnvBackup %q", s, want)
+		}
+		if got := h.readEnv(); got != oldEnv {
+			t.Errorf(".env = %q, want the original", got)
+		}
+		if got, err := os.ReadFile(filepath.Join(h.deploy, want)); err != nil || string(got) != oldEnv {
+			t.Errorf("%s = %q, %v", want, got, err)
+		}
+		if got, err := os.ReadFile(handmade); err != nil || string(got) != "by hand" {
+			t.Errorf("the hand-made backup = %q, %v, want it unchanged", got, err)
+		}
+	}
+	if info, _ := os.Stat(handmade); info == nil || info.Mode().Perm() != 0o640 {
+		t.Errorf("hand-made backup mode = %v, want 0640 as before", info)
+	}
+}
+
+// A start after an interruption puts back the backup the install named in state.json, not the
+// plain name; a stored name that does not fit is refused and the env file stays as it is.
+func TestStartRecoversStoredBackup(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		stored  string
+		link    bool // stored is a symbolic link to a file with oldEnv
+		wantEnv string
+		message string
+	}{
+		{name: "stored name", stored: ".env.bak-vor-1.16.0-2", wantEnv: oldEnv, message: "put back from .env.bak-vor-1.16.0-2"},
+		{name: "no stored name: newest match", stored: "", wantEnv: oldEnv, message: "put back from .env.bak-vor-1.16.0-2"},
+		{name: "path separator", stored: "../.env.bak-vor-1.16.0-2", wantEnv: newEnv(), message: "stored backup name is not valid"},
+		{name: "absolute path", stored: "/etc/passwd", wantEnv: newEnv(), message: "stored backup name is not valid"},
+		{name: "other version", stored: ".env.bak-vor-1.17.0", wantEnv: newEnv(), message: "stored backup name is not valid"},
+		{name: "symbolic link", stored: ".env.bak-vor-1.16.0-3", link: true, wantEnv: newEnv(), message: "no backup .env.bak-vor-1.16.0-3"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			dir := filepath.Join(h.deploy, "updater")
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(h.env, []byte(newEnv()), 0o640); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(h.env+".bak-vor-1.16.0", []byte("by hand"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(h.env+".bak-vor-1.16.0-2", []byte(oldEnv), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if tc.link {
+				victim := filepath.Join(t.TempDir(), "secret")
+				if err := os.WriteFile(victim, []byte(oldEnv), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(victim, h.env+".bak-vor-1.16.0-3"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			h.fake.c.Labels[labelVersion], h.fake.c.Health = "1.15.0", "healthy"
+			if err := updater.WriteJSON(filepath.Join(dir, updater.StateFile), updater.State{Phase: updater.PhasePulling,
+				From: "1.15.0", To: "1.16.0", StartedAt: time.Now(), EnvBackup: tc.stored}, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			h.start()
+			h.u.wg.Wait()
+			if s := h.u.State(); s.Phase != updater.PhaseFailed || !strings.Contains(s.Message, tc.message) {
+				t.Errorf("state = %+v, want message containing %q", s, tc.message)
+			}
+			if got := h.readEnv(); got != tc.wantEnv {
+				t.Errorf(".env = %q, want %q", got, tc.wantEnv)
+			}
+			if got, _ := os.ReadFile(h.env + ".bak-vor-1.16.0"); string(got) != "by hand" {
+				t.Errorf("the hand-made backup = %q, want it unchanged", got)
+			}
+		})
 	}
 }
 
