@@ -7145,7 +7145,7 @@ export interface components {
              *     (`installUpdate` can start); false without a companion, which the card answers with the
              *     manual steps. Checked at most every few seconds.
              */
-            updaterAvailable?: boolean;
+            updaterAvailable: boolean;
             /**
              * @description Since contract 1.16.0. The last install the companion reported (`state.json`); absent when
              *     it never reported one.

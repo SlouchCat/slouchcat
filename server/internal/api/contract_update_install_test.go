@@ -93,7 +93,7 @@ func TestUpdateInstallOverHTTP(t *testing.T) {
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/update", "p18", "", nil)
 	var u gen.UpdateState
 	decode(t, rec, &u)
-	if rec.Code != http.StatusOK || u.UpdaterAvailable == nil || !*u.UpdaterAvailable || u.Install == nil ||
+	if rec.Code != http.StatusOK || !u.UpdaterAvailable || u.Install == nil ||
 		u.Install.Phase != gen.UpdateInstallStatusPhaseRolledBack || deref(u.Install.Code) != "unhealthy" || u.Install.Migrated {
 		t.Errorf("update state = %d %s", rec.Code, rec.Body.String())
 	}
