@@ -1,0 +1,188 @@
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import { CSRF, H264_TITLE } from './catalog';
+import { expect, test } from './fixtures';
+import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+
+// The app-level radio player (concept 16, 10.3; plan W4) against the test station of
+// radio-server.mjs: «Testradio Drei» is the Icecast AAC mount, which the relay repackages (copy
+// mode, B-1), «Testradio Eins» the MP3 mount, which it transcodes; both send ICY titles
+// («Slouchcat Testton - Titel n»). In Chromium the element must play (its time advances, no media
+// error: MSE took the init segment with its AudioSpecificConfig). Firefox runs the whole file
+// (FIREFOX_WHOLE_SPECS); its CI runner has no audio output (PR #18), so it checks state and text.
+//
+// The mini player is reached by Tab, Space pauses, Enter opens «Jetzt läuft», Escape closes it
+// with the focus back on the mini player; navigation (also into /admin) keeps playing, a title on
+// /play stops the radio and ends the listen session; a second page that starts radio pauses the
+// first; no focus trap.
+
+const AAC_STATION = 'Testradio Drei';
+const MP3_STATION = 'Testradio Eins';
+const OTHER_STATION = 'Testradio Zwei';
+/**
+ * The ICY title «Slouchcat Testton - Titel n»: the server splits it into artist and title, the mini
+ * player joins them with a dash, «Jetzt läuft» shows the title large and the artist below.
+ */
+const ICY_LINE = /^Slouchcat Testton – Titel \d+$/;
+const ICY_TITLE = /^Titel \d+$/;
+/** Relay start (ffmpeg, the first segments) plus the first title poll (10 s). */
+const LIVE_TIMEOUT_MS = 30_000;
+
+/** Ends every listen session the administration sees (the fixture knows only playback sessions). */
+async function stopRadio(owner: APIRequestContext): Promise<void> {
+  const response = await owner.get('/api/v1/admin/radio/relays');
+  if (!response.ok()) return;
+  const { relays } = (await response.json()) as { relays: { listeners: { listenId: string }[] }[] };
+  for (const listener of relays.flatMap((relay) => relay.listeners)) {
+    await owner.delete(`/api/v1/admin/radio/listeners/${listener.listenId}`, { headers: CSRF });
+  }
+}
+
+/** No stored filter: /radio opens as it does for a new profile. */
+async function resetRadioPreferences(owner: APIRequestContext): Promise<void> {
+  const response = await owner.put('/api/v1/radio/preferences', {
+    headers: CSRF,
+    data: { defaultCountry: 'CH', lastFilter: {}, lastSort: 'popular' },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+}
+
+const miniPlayer = (page: Page) => page.getByTestId('radio-mini-player');
+const miniOpen = (page: Page) => page.getByTestId('radio-mini-open');
+const audio = (page: Page) => page.getByTestId('radio-audio');
+
+/** Opens /radio on `station` and plays it from its tile. */
+async function playStation(page: Page, station: string): Promise<void> {
+  await page.goto(`/radio?q=${encodeURIComponent(station)}`);
+  const tile = page
+    .getByRole('list', { name: 'Treffer' })
+    .getByRole('button', { name: `${station} abspielen` });
+  await tile.click();
+  await expect(miniPlayer(page)).toBeVisible();
+  await expect(miniOpen(page)).toHaveAccessibleName(`Jetzt läuft öffnen: ${station}`);
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live', {
+    timeout: LIVE_TIMEOUT_MS,
+  });
+}
+
+/** The element's playback position (s) and its media error. */
+const media = (element: Locator) =>
+  element.evaluate((node: HTMLAudioElement) => ({
+    time: node.currentTime,
+    paused: node.paused,
+    error: node.error?.code ?? null,
+  }));
+
+/** Chromium only: the radio's own element plays and its position advances by `seconds`. */
+async function expectSounding(page: Page, browserName: string, seconds = 3): Promise<void> {
+  if (browserName !== 'chromium') return;
+  const start = (await media(audio(page))).time;
+  await expect
+    .poll(async () => (await media(audio(page))).time - start, { timeout: LIVE_TIMEOUT_MS })
+    .toBeGreaterThanOrEqual(seconds);
+  expect((await media(audio(page))).error).toBeNull();
+}
+
+test.beforeEach(async ({ owner }) => {
+  await stopRadio(owner);
+  await resetRadioPreferences(owner);
+});
+
+test.afterEach(async ({ owner }) => {
+  await stopRadio(owner);
+});
+
+test('AAC in copy mode plays; mini player and «Jetzt läuft» by keyboard; navigation keeps it, /play stops it @keyboard', async ({
+  page,
+  browserName,
+}) => {
+  test.setTimeout(120_000);
+  await playStation(page, AAC_STATION);
+  await expectSounding(page, browserName);
+
+  // Tab reaches the mini player; Space pauses and plays on wherever the focus is in it.
+  await resetFocus(page);
+  await tabTo(page, miniOpen(page), 80);
+  await page.keyboard.press('Space');
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'paused');
+  await expect(page.getByTestId('radio-mini-toggle')).toHaveAccessibleName('Weiter abspielen');
+  if (browserName === 'chromium')
+    await expect.poll(async () => (await media(audio(page))).paused).toBe(true);
+  // Space on the open button did not open «Jetzt läuft».
+  await expect(page.getByRole('dialog', { name: 'Jetzt läuft' })).toHaveCount(0);
+  await page.keyboard.press('Space');
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live');
+  await expectSounding(page, browserName, 1);
+
+  // Enter opens «Jetzt läuft»; Escape closes it and the focus is back on the mini player.
+  await expectFocusOn(page, miniOpen(page));
+  await page.keyboard.press('Enter');
+  const now = page.getByRole('dialog', { name: 'Jetzt läuft' });
+  await expect(now).toBeVisible();
+  await expect(now.getByTestId('radio-now-title')).toBeVisible();
+  await expect(now.getByRole('button', { name: 'Live' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(now).toHaveCount(0);
+  await expectFocusOn(page, miniOpen(page));
+  await expectNoFocusTrap(page);
+
+  // Navigation inside the app, into the administration too, keeps playing.
+  await page
+    .getByRole('navigation', { name: 'Hauptnavigation' })
+    .getByRole('link', { name: /^Verwaltung/ })
+    .click();
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live');
+  await expectSounding(page, browserName, 1);
+
+  // A title starts on /play (reached through the app: search, detail page, «Abspielen»): the
+  // radio stops and ends its listen session on the server.
+  await page.getByRole('link', { name: 'Suche öffnen' }).click();
+  await page.getByRole('searchbox', { name: 'Suchbegriff' }).fill(H264_TITLE);
+  await page
+    .getByRole('link', { name: new RegExp(H264_TITLE) })
+    .first()
+    .click();
+  await expect(page.getByRole('heading', { level: 1, name: H264_TITLE })).toBeVisible();
+  const ended = page.waitForRequest(
+    (request) => request.method() === 'DELETE' && /\/api\/v1\/radio\/listen\//.test(request.url()),
+  );
+  await page.locator('main a[href^="/play/"]').first().click();
+  await expect(page).toHaveURL(/\/play\//);
+  await ended;
+  await expect(audio(page)).toHaveCount(0);
+});
+
+test('the transcoded MP3 station shows the title of its stream', async ({ page, browserName }) => {
+  test.setTimeout(90_000);
+  await playStation(page, MP3_STATION);
+  await expectSounding(page, browserName);
+  await expect(page.getByTestId('radio-mini-line')).toHaveText(ICY_LINE, {
+    timeout: LIVE_TIMEOUT_MS,
+  });
+  await miniOpen(page).click();
+  const now = page.getByRole('dialog', { name: 'Jetzt läuft' });
+  await expect(now.getByTestId('radio-now-title')).toHaveText(ICY_TITLE);
+  await expect(now.getByText('Slouchcat Testton', { exact: true })).toBeVisible();
+  await expect(now.getByText('Über Slouchcat, Standort des Servers')).toBeVisible();
+  await page.keyboard.press('Escape');
+  // «Radio beenden» ends the session.
+  const ended = page.waitForRequest(
+    (request) => request.method() === 'DELETE' && /\/api\/v1\/radio\/listen\//.test(request.url()),
+  );
+  await page.getByTestId('radio-mini-close').click();
+  await ended;
+  await expect(miniPlayer(page)).toHaveCount(0);
+});
+
+test('a second page that starts radio pauses the first', async ({ page, context }) => {
+  test.setTimeout(90_000);
+  await playStation(page, MP3_STATION);
+  const second = await context.newPage();
+  try {
+    await playStation(second, OTHER_STATION);
+    await expect(miniPlayer(page)).toHaveAttribute('data-state', 'paused');
+    await expect(miniPlayer(second)).toHaveAttribute('data-state', 'live');
+  } finally {
+    await second.close();
+  }
+});
