@@ -49,6 +49,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
 )
@@ -235,7 +236,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			return fmt.Errorf("create directory: %w", err)
 		}
 	}
-	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log})
+	// The start record for the updater companion (ADR 0024): server.json in its shared folder
+	// before and after the migrations; without the folder nothing is written.
+	rec := updater.NewRecorder(cfg.UpdaterDir(), version, log)
+	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log,
+		Schema: store.SchemaHooks{Before: rec.Before, After: rec.After}})
 	if err != nil {
 		return err
 	}

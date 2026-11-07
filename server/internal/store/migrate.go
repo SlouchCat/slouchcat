@@ -35,7 +35,8 @@ const (
 var unsafeFileChars = regexp.MustCompile(`[^A-Za-z0-9._-]`)
 
 // migrate runs pending migrations on db. When the database file existed before and at least one
-// migration is pending, it first writes a backup with VACUUM INTO and prunes old backups.
+// migration is pending, it first writes a backup with VACUUM INTO and prunes old backups. The
+// schema hooks of opts hear the version before and after (SchemaHooks).
 func migrate(ctx context.Context, db *sql.DB, existed bool, opts Options) error {
 	provider, err := goose.NewProvider(goose.DialectSQLite3, db, migrationsFS(opts),
 		goose.WithDisableGlobalRegistry(true))
@@ -46,9 +47,16 @@ func migrate(ctx context.Context, db *sql.DB, existed bool, opts Options) error 
 	if err != nil {
 		return fmt.Errorf("check pending migrations: %w", err)
 	}
+	before, err := provider.GetDBVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("read schema version: %w", err)
+	}
 	if !pending {
+		opts.Schema.before(before, "")
+		opts.Schema.after(before)
 		return nil
 	}
+	backupName := ""
 	if existed {
 		now := time.Now
 		if opts.now != nil {
@@ -60,10 +68,12 @@ func migrate(ctx context.Context, db *sql.DB, existed bool, opts Options) error 
 			return err
 		}
 		opts.Logger.Info("database backed up before migration", "path", path)
+		backupName = filepath.Base(path)
 		if err := pruneBackups(dir, KeepBackups, isPreMigrationBackup); err != nil {
 			return err
 		}
 	}
+	opts.Schema.before(before, backupName)
 	results, err := provider.Up(ctx)
 	if err != nil {
 		return fmt.Errorf("run migrations: %w", err)
@@ -72,7 +82,27 @@ func migrate(ctx context.Context, db *sql.DB, existed bool, opts Options) error 
 		opts.Logger.Info("migration applied", "version", r.Source.Version,
 			"file", filepath.Base(r.Source.Path), "duration_ms", r.Duration.Milliseconds())
 	}
-	return checkForeignKeys(ctx, db)
+	if err := checkForeignKeys(ctx, db); err != nil {
+		return err
+	}
+	after, err := provider.GetDBVersion(ctx)
+	if err != nil {
+		return fmt.Errorf("read schema version: %w", err)
+	}
+	opts.Schema.after(after)
+	return nil
+}
+
+func (h SchemaHooks) before(schema int64, backup string) {
+	if h.Before != nil {
+		h.Before(schema, backup)
+	}
+}
+
+func (h SchemaHooks) after(schema int64) {
+	if h.After != nil {
+		h.After(schema)
+	}
 }
 
 // backup writes a consistent copy of db to dir and returns its path.
