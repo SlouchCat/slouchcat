@@ -1,6 +1,6 @@
 # Aktueller Stand
 
-## Release 1.15.0 (7. November 2026)
+## Release 1.15.0 (7. November 2026): veröffentlicht
 
 Release ab `main` nach PR #104 (Konzept 15, Stufe 3). Vertrag **1.15.0, brechend für `getHome` und
 `setHomeRows`** (Web-App und Server kommen im selben Image), Migrationen
@@ -9,11 +9,18 @@ Release ab `main` nach PR #104 (Konzept 15, Stufe 3). Vertrag **1.15.0, brechend
 der Server vor der Migration schreibt (`/config/backups/pre-migration-…`).
 
 - Versionsstellen auf 1.15.0 im Zweig `claude/release-1.15.0` (`deploy/.env.example`,
-  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
-  `v1.15.0` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.15.0.txt` im
-  Wurzelordner (unversioniert).
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`),
+  gemergt als **PR #105** (Merge `d70be9b1`).
+- Tag `v1.15.0` von Marco auf `d70be9b1` gesetzt (7. November 2026, Release-Notes
+  `release-notes-1.15.0.txt`). Release-Lauf `42358123485` grün, GitHub-Release um 10:06
+  veröffentlicht.
+- CT 190 läuft auf Image `1.15.0` (Sicherung `.env.bak-vor-1.15.0`; die Migrationen 00035 bis 00037
+  liefen dort schon bei den Testimages, DB-Sicherungen
+  `pre-migration-v1.14.0-42-g3429ef3b-20261106T225800.002Z.db` und
+  `pre-migration-v1.14.0-47-g8251b6cf-20261106T233749.740Z.db`). Zweige, Schritt-Klone und
+  Zwischen-Images der Stufe 3 sind aufgeräumt.
 
-## Konzept 15 «Feinschliff», Stufe 3: gemergt und auf CT 190 abgenommen (7. November 2026)
+## Konzept 15 «Feinschliff», Stufe 3: veröffentlicht als 1.15.0 (7. November 2026)
 
 Zweig `claude/feinschliff-stufe3` ab `main` `d2361e54` (Release 1.14.0 veröffentlicht). Geplant als
 Release **1.15.0**: Vertrag **1.15.0, brechend für `getHome` und `setHomeRows`** (Web-App und Server
