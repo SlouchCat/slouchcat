@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -157,9 +158,9 @@ func TestSchemaHooksWriteServerRecord(t *testing.T) {
 		t.Errorf("server.json after = %+v", after)
 	}
 
-	// The next start has nothing pending: server.json still carries schemaAfter (equal to
-	// schemaBefore) and migratedAt, because the updater counts a record without migratedAt or
-	// with schemaAfter != schemaBefore as migrated.
+	// The next start of the same version (a restart after a crash) has nothing pending:
+	// server.json still says that this version migrated (the updater counts a record without
+	// migratedAt or with schemaAfter != schemaBefore as migrated) and names the first backup.
 	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -174,8 +175,71 @@ func TestSchemaHooksWriteServerRecord(t *testing.T) {
 	if err := updater.ReadJSON(filepath.Join(shared, updater.ServerFile), &plain); err != nil {
 		t.Fatal(err)
 	}
+	if plain.SchemaBefore != frozen || plain.SchemaAfter != newest || plain.Backup != during.Backup || plain.MigratedAt.IsZero() {
+		t.Errorf("server.json of the second start = %+v", plain)
+	}
+
+	// Another version without a pending migration records no migration and no backup.
+	if err := reopened.Close(); err != nil {
+		t.Fatal(err)
+	}
+	opts.Version = "1.16.1"
+	rec = updater.NewRecorder(shared, "1.16.1", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	opts.Schema = SchemaHooks{Before: rec.Before, After: rec.After}
+	next, err := Open(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer next.Close()
+	plain = updater.ServerRecord{}
+	if err := updater.ReadJSON(filepath.Join(shared, updater.ServerFile), &plain); err != nil {
+		t.Fatal(err)
+	}
 	if plain.SchemaBefore != newest || plain.SchemaAfter != newest || plain.Backup != "" || plain.MigratedAt.IsZero() {
-		t.Errorf("server.json without a pending migration = %+v", plain)
+		t.Errorf("server.json of another version without a pending migration = %+v", plain)
+	}
+}
+
+// The backup the start record names (SchemaHooks.KeepBackup) is never pruned, even when a crash
+// loop of a half-migrated version took more than KeepBackups newer ones.
+func TestSchemaHooksKeepBackupIsNeverPruned(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	cfg := t.TempDir()
+	opts := testOptions(t, cfg)
+	db, err := Open(ctx, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(cfg, BackupDir)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	first := "pre-migration-1.16.0-20261001T100000.000Z.db"
+	names := []string{first}
+	for i := range KeepBackups + 1 {
+		names = append(names, fmt.Sprintf("pre-migration-1.16.0-2026100%dT100000.000Z.db", i+2))
+	}
+	for _, n := range names {
+		if err := os.WriteFile(filepath.Join(dir, n), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	opts.migrations = withSecondMigration(t)
+	opts.Schema = SchemaHooks{KeepBackup: first}
+	db, err = Open(ctx, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := os.Stat(filepath.Join(dir, first)); err != nil {
+		t.Fatalf("kept backup pruned: %v", err)
+	}
+	if got := backups(t, cfg); len(got) != KeepBackups+1 {
+		t.Fatalf("backups %v, want the kept one plus the %d newest", got, KeepBackups)
 	}
 }
 

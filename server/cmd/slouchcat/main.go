@@ -237,10 +237,11 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		}
 	}
 	// The start record for the updater companion (ADR 0024): server.json in its shared folder
-	// before and after the migrations; without the folder nothing is written.
+	// before and after the migrations; without the folder nothing is written. The pre-migration
+	// backup an earlier start of this version recorded is never pruned.
 	rec := updater.NewRecorder(cfg.UpdaterDir(), version, log)
 	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log,
-		Schema: store.SchemaHooks{Before: rec.Before, After: rec.After}})
+		Schema: store.SchemaHooks{Before: rec.Before, After: rec.After, KeepBackup: rec.KeptBackup()}})
 	if err != nil {
 		return err
 	}

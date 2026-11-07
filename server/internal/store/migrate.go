@@ -69,7 +69,8 @@ func migrate(ctx context.Context, db *sql.DB, existed bool, opts Options) error 
 		}
 		opts.Logger.Info("database backed up before migration", "path", path)
 		backupName = filepath.Base(path)
-		if err := pruneBackups(dir, KeepBackups, isPreMigrationBackup); err != nil {
+		prunable := func(n string) bool { return isPreMigrationBackup(n) && n != opts.Schema.KeepBackup }
+		if err := pruneBackups(dir, KeepBackups, prunable); err != nil {
 			return err
 		}
 	}
