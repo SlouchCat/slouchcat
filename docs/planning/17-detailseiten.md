@@ -1,6 +1,6 @@
 # Konzept: Serien- und Filmseite, Bibliotheksraster und Seitenleiste
 
-- **Status: Fassung 3 (7. November 2026), mit klickbarem Mockup.** Marco hat am 7. November 2026
+- **Status: Fassung 4 (7. November 2026), Kritiker-Review eingearbeitet (REVISE, 0 Blocker, 8 Major, 13 Minor; Abschnitt 14), mit klickbarem Mockup.** Marco hat am 7. November 2026
   alle Fragen **F-1 bis F-17** beantwortet (Abschnitt 11): **Serie A**,
   **Knöpfe A mit Trailer in der Reihe der Rundknöpfe**, **Sammlung nur als Reihe** (2),
   **Seitenleiste B mit Profilkopf, «Meine Medien» immer offen**. Abweichend von der Empfehlung:
@@ -17,8 +17,10 @@
   Frage im Entscheidungsprotokoll **22** (23 ist für Konzept 16 reserviert).
 - **Nummern:** Dieses Papier ist **Konzept 17** und reserviert **Frage 24** und **ADR 0026**
   («Personenbilder und Sammlungsbilder»). Vertrag und Migration werden beim Baubeginn vergeben, nach
-  Konzept 15 Stufe 4 und Konzept 16. Vorläufig gelten **Vertrag 1.19.0 (additiv)** und **eine
-  Migration** (Personenbilder, Abschnitt 8).
+  Konzept 15 Stufe 4 und Konzept 16 (dort vorläufig 1.17.0 und 1.18.0). Vorläufig gelten:
+  **Stufe 1 ein Patch ohne Vertrag** (1.18.1), **Stufe 2 Vertrag 1.19.0** (additiv), **Stufe 3
+  Vertrag 1.20.0** (additiv) mit **einer Migration** (Tabellen `person_images` und
+  `collection_images`, Abschnitt 5).
 - `:Zeile`-Angaben beziehen sich auf `88d03c11`; **nach Namen suchen, nicht nach Zeile.** Pfade ohne
   Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App), wo es eindeutig ist.
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
@@ -52,7 +54,7 @@
   `PosterPen` (ab 900 px klebend, darunter ausgeblendet, `ItemPage.module.css:321-332`), rechts Logo,
   `ItemMeta` (FSK-Chip, Jahr, Laufzeit, Genres), Tagline, `Actions`, `RelatedLinks`, Fortschritt,
   Inhalt; bei Serien `Seasons`; dann «Datei» (nur Film und Folge), Extras, Sammlungen, Besetzung.
-- **Staffeln** sind `ChoiceChips` mit dem Text «Staffel 1» (`Seasons`, `ItemPage.tsx:432-456`).
+- **Staffeln** sind `ChoiceChips` mit dem Text «Staffel 1» (`Seasons`, `ItemPage.tsx:458`; die Folgen lädt `SeasonEpisodes`, :432-456).
   Darunter ein Raster `EpisodeGrid` mit `EpisodeCard` (Bild, Code, Dauer, Fortschritt), **ohne
   Inhaltstext**.
 - **Staffelcover gibt es schon:** eine Staffel hat ein eigenes Poster (`itemImageKinds["season"]`,
@@ -72,7 +74,9 @@
 
 Für **alle drei** gilt (D-3): Film und Serie haben denselben Kopf (Pfeil zurück oben links, Cover,
 Logo, Kennzahlen, Tagline, Knopfzeile, Inhalt) und darunter Abschnitte in derselben Reihenfolge:
-bei der Serie Staffeln und Folgen, beim Film Sammlung und Datei; bei beiden zuletzt die Besetzung.
+bei der Serie Staffeln und Folgen, beim Film Datei; dann bei beiden Sammlungen (4.2), Extras und
+zuletzt die Besetzung. Der Startfokus der Seite liegt auf dem grossen Knopf (heute `BACK_KEY`,
+`ItemPage.tsx:799`), bei einer Serie also auf `nextUp`.
 
 **Gewählt: A** (F-1). Alles auf einer Seite, ein Klick weniger als B, und auf dem Handy einfacher als C.
 Die Staffelseite aus B ist trotzdem nützlich, wenn jemand von einer Folge «hoch» navigiert; die
@@ -80,13 +84,21 @@ Detailseite einer Staffel gibt es schon (`ItemView` mit `kind = season`) und bek
 
 ### 2.3 Was sich ändert (bei A)
 
-1. Die Chips werden zu Staffelcovern (`posterSmall`), mit «Staffel N», Jahr aus `releaseDate`,
-   `childCount` Folgen und dem Fortschritt der Staffel (neu: gesehene Folgen je Staffel im
-   `ItemRef` der Staffel, additiv).
-2. Die Folgen werden eine Liste mit Inhalt (zwei Zeilen). Dafür braucht `ItemDetail.episodes`
-   den Inhalt je Folge (`overview`, heute nur auf der Detailseite der Folge); additiv.
+1. Die Chips werden zu Staffelcovern (`posterSmall`), mit «Staffel N», Jahr, `childCount` Folgen
+   und dem Fortschritt der Staffel. Vertrag (additiv, Stufe 2):
+   - **`ItemRef.year` für Staffeln** setzt der Server aus `release_date` (heute leer; `ItemRef` hat
+     kein `releaseDate`, `openapi.yaml:8395-8498`). Ohne Datum kein Jahr.
+   - **`ItemRef.watchedCount`** (Ganzzahl, nur bei Staffeln gesetzt): gesehene sichtbare Folgen,
+     gerechnet wie `episodeStats`.
+2. Die Folgen werden eine Liste mit Inhalt (zwei Zeilen). Dafür **`ItemRef.overview`**, beschrieben
+   als «nur in `ItemDetail.episodes` gesetzt», nach dem Muster von `hasTrailer`; andere Listen lassen
+   es weg.
 3. Der Staffeltext erscheint über der Folgenliste, wenn es einen gibt.
 4. «Zurück» verlässt die Knopfzeile und wird ein runder Pfeil oben links über dem Kopf.
+5. **Staffelseite** (Detailseite einer Staffel, `kind = season`): derselbe Kopf mit Staffelcover,
+   Serientitel als Link, «Staffel N», Jahr, Folgenzahl, Staffeltext; grosser Knopf nach `nextUp`,
+   eingeschränkt auf die Staffel; Rundknöpfe ohne Merken und Favorit (Staffeln kann man nicht
+   merken); darunter die Folgenliste.
 
 ## 3. D-2 Knopfzeile und «Weiterschauen»
 
@@ -116,23 +128,30 @@ Regel 8); das Menü «⋯» aus B versteckt Dinge.
 Download und Verwalten bleiben, wo sie gebraucht werden: Download in der Zeile der runden Knöpfe,
 Verwalten als Eintrag dort nur für den Admin (wie heute nur bei nicht bearbeitbaren Arten).
 
-### 3.3 Welche Folge der Knopf nennt
+### 3.3 Welche Folge der Knopf nennt (F-4, F-5)
 
-Vorschlag, eine Regel für Serie und Startseite (Konzept 15, F-1/F-2):
+Grundlage ist die jüngste Aktivität der Serie wie bei «Weiterschauen» (Konzept 15, F-1/F-2), aber
+**ohne die 60-Tage-Grenze**. «Erste Folge» heisst: die erste **sichtbare Folge ohne Specials**
+(Staffel ≥ 1, kleinste Staffel, kleinste Nummer); gibt es nur Specials, die erste davon.
+«Nächste Folge» heisst: die nächste sichtbare Folge **nach Staffel und Nummer**, ohne Specials,
+**unabhängig davon, ob sie schon gesehen ist** (sonst kommt man beim Nochmalsehen nie über S01E01
+hinaus; die Startseite überspringt gesehene Folgen, `items.sql:36-39`).
 
-| Lage | Knopf | zweite Zeile |
-|---|---|---|
-| nichts gesehen | **Abspielen** | S01E01 · Titel |
-| eine Folge angefangen (jüngste Aktivität) | **Weiterschauen** | SxxEyy · Titel · noch N min |
-| jüngste Folge fertig, es gibt eine nächste | **Nächste Folge** | SxxEyy · Titel |
-| alles gesehen | **Nochmals ansehen** | ab S01E01 |
+| Lage | `reason` | Knopf | zweite Zeile |
+|---|---|---|---|
+| kein Fortschritt an einer Folge | `start` | **Abspielen** | S01E01 · Titel |
+| jüngste Folge angefangen | `resume` | **Weiterschauen** | SxxEyy · Titel · noch N min |
+| jüngste Folge fertig, es gibt eine nächste | `next` | **Nächste Folge** | SxxEyy · Titel |
+| jüngste Folge fertig, keine nächste, aber frühere ungesehene | `next` | **Nächste Folge** | erste ungesehene Folge nach Staffel und Nummer |
+| alles gesehen | `rewatch` | **Nochmals ansehen** | ab erster Folge |
 
 Beim Film: Abspielen (Laufzeit), Fortsetzen (Stelle und Restzeit), Nochmals ansehen.
 
-Server: neues Feld `ItemDetail.nextUp` (Folge als `ItemRef` mit `progress`, dazu `reason`:
-`start`, `resume`, `next`, `rewatch`) für Serien, berechnet mit derselben Abfrage wie
-`ListContinueWatching`, aber für **eine** Serie und **ohne** die 60-Tage-Grenze der Startseite
-(F-4). Additiv, `x-visibility: scoped`.
+Server (Stufe 2): neues Schema **`NextUp { reason: start|resume|next|rewatch, episode: ItemRef }`**
+und Feld **`ItemDetail.nextUp`** (nur bei Serien; bei Staffeln auf die Staffel eingeschränkt).
+Neue Abfrage `GetSeriesNextUp` in `queries/scoped/` (mit `visible_items`, Regel 2), die früh auf die
+eine Serie filtert, mit Rückfall auf die erste Folge; `ListContinueWatching` bleibt unverändert.
+`x-visibility: scoped`, Eintrag im Vertragstest.
 
 ## 4. D-4 Sammlung auf der Filmseite
 
@@ -144,8 +163,12 @@ Server: neues Feld `ItemDetail.nextUp` (Folge als `ItemRef` mit `progress`, dazu
   Raster mit «Mehr laden» (50 je Seite).
 - `collections.poster_path` wird gespeichert, aber nie geladen; das Cover einer Sammlung ist heute das
   Poster des ersten Films (`CollectionRef.cover`).
-- `collection_items` enthält **nur Filme aus der Bibliothek**. Welche Teile fehlen, weiss der Server
+- `collection_items` enthält **nur Titel aus der Bibliothek**: TMDB-Sammlungen Filme, manuelle
+  Sammlungen alles ausser Staffeln, Folgen und Extras (`openapi.yaml:5197-5199`). Die alte Reihe
+  zeigt Sammlungen bei jeder Art (`ItemPage.tsx:917`). Welche TMDB-Teile fehlen, weiss der Server
   nicht.
+- `CollectionRef` hat nur `id, name, count, cover` (`openapi.yaml:11290-11305`); Teile, «dieser
+  Titel» und Haken fehlen.
 
 ### 4.2 Varianten (Mockup, «Sammlung 1/2/3»)
 
@@ -155,10 +178,15 @@ Server: neues Feld `ItemDetail.nextUp` (Folge als `ItemRef` mit `progress`, dazu
 - **3 «Band»:** breites Band mit Sammlungsbild, Teilen als Kapseln, Fortschritt der Reihe, Knopf
   «Sammlung öffnen».
 
-**Gewählt: nur 2 «Reihe»** (F-6; Empfehlung war 1 und 2). Der Abschnitt steht direkt nach dem Kopf,
-vor «Datei»; die bisherige Reihe `CollectionCard` ganz unten fällt weg. Ein Film in zwei Sammlungen
-bekommt zwei Abschnitte. Die Sammlungsseite bekommt denselben Kopf wie Film und Serie und zeigt
-Gesehen-Haken.
+**Gewählt: nur 2 «Reihe»** (F-6; Empfehlung war 1 und 2). Der Abschnitt ersetzt die bisherige
+Reihe `CollectionCard` und gilt **für jede Art**, die in einer Sammlung sein kann (Film, Serie,
+Hörbuch …), nicht nur für Filme; sonst verlören Serien ihre Sammlung. Ein Titel in zwei Sammlungen
+bekommt zwei Abschnitte.
+
+Vertrag (additiv, Stufe 2): **`CollectionRef.members`**: die sichtbaren Mitglieder als `ItemRef`
+(mit `progress`) in `position`-Ordnung, höchstens 20, danach «Alle zeigen» zur Sammlungsseite. Nur in
+`ItemDetail.collections` gesetzt. Die Sammlungsseite bekommt denselben Kopf wie Film und Serie
+(Sammlungsbild, Name, Anzahl, Text; kein Abspielknopf) und zeigt Gesehen-Haken.
 
 **Fehlende Teile** (grau, «Nicht in der Bibliothek») zeigt das Mockup als Möglichkeit. Dafür müsste
 der Server die vollständige Teileliste von TMDB speichern (neue Tabelle oder Spalte). **Empfehlung:
@@ -174,19 +202,37 @@ nicht in diesem Konzept** (F-7, so entschieden).
 
 ### 5.2 Vorschlag
 
-1. Neuer Job `people.images`: lädt für jede Person mit `profile_path` das TMDB-Bild in Grösse
-   `w185` in den Bild-Speicher (wie Titelbilder), gestartet nach jedem Match und einmal als Nachholen
-   für den Bestand. Grob 15 KB je Person; bei 2'000 Titeln mit je 15 Personen rund 30'000 Personen,
-   also etwa **450 MB** (Messung beim Bau).
-2. Migration: `people.image_path` und `people.image_fetched_at`.
-3. Streaming-Endpunkt `GET /people/{id}/image` als `http.Handler` (Regel 6), `x-visibility: scoped`:
-   nur, wenn die Person in einem sichtbaren Titel vorkommt; sonst 404 (Regel 2).
-4. `CastMember.image` (URL, additiv). Ohne Bild bleibt der Buchstabe.
-5. Dasselbe Muster für `collections.poster_path` (Sammlungsbild statt Poster des ersten Films).
+- Es gibt eine **Personenseite** (`/people/$personId`, `PersonPage.tsx`, `getPerson`); das Bild gehört
+  auch in deren Kopf und in die Personentreffer der Suche.
+- Die Bildpipeline der Titel (`images`, `00029_item_images.sql`) hängt an `items` (`item_id NOT NULL
+  REFERENCES items`) und liefert WebP und JPEG mit `Vary: Accept` und `v`-Hash
+  (`openapi.yaml:1292-1302`). Personen und Sammlungen bekommen **eigene Tabellen nach diesem Muster**.
 
-**Entschieden (F-8): alle im Voraus**, auch für den Bestand (Empfehlung war «beim ersten Anzeigen»).
-Der Job läuft im Pool der Bild-Jobs, ist pausierbar und hat einen Knopf «Nachholen» auf der Seite
-Hintergrundjobs. ADR 0026 hält Speicherort, Grösse und Sichtbarkeitsregel fest.
+1. **Migration (Stufe 3):** Tabellen `person_images` und `collection_images` mit Quelle
+   (`profile_path` bzw. `poster_path`, um Änderungen zu erkennen), Format, Hash, Breite, Höhe,
+   `fetched_at`. Nach Vorlage `TEMPLATE.sql.txt`, nur vorwärts.
+2. **Job `people.images`** in der Gruppe `metadata`, Pool `general` (einen eigenen Bildpool gibt es
+   nicht, `jobs/registry.go:38-44`). **Ein Auftrag je Lauf**, der in Paketen (z. B. 200) die Personen
+   ohne aktuelles Bild abarbeitet; nach einem Match wird höchstens ein Lauf eingereiht, nicht ein
+   Auftrag je Person (sonst Tausende Einträge in der 30-Tage-Historie von Konzept 09). Pausierbar,
+   mit Zeitfenster wie in Konzept 15 (`00034_job_windows.sql`). **Nachholen** für den Bestand als
+   Knopf auf der Seite Hintergrundjobs, nach dem Muster von `keyframes.backfill`. Sammlungsbilder
+   im selben Job.
+3. **Endpunkte** `GET /people/{id}/image` und `GET /collections/{id}/image` als `http.Handler`
+   (Regel 6) mit Beschreibung in `api/openapi.yaml`, `x-visibility: scoped`, Cache-Header wie bei
+   Titelbildern. Sichtbarkeit (Regel 2): eine Person nur, wenn sie in mindestens einem sichtbaren
+   Titel vorkommt; eine Sammlung nur mit mindestens einem sichtbaren Mitglied; sonst 404.
+4. **Felder** (`ImageRef`): `CastMember.image`, `PersonRef.image`, `Person.image`,
+   `CollectionRef.image`. Ohne Bild bleibt der Buchstabe bzw. das Poster des ersten sichtbaren
+   Mitglieds; lädt ein Bild nicht (`onError`, offline), fällt die App ebenfalls darauf zurück.
+5. **Speicher:** `w185` als WebP und JPEG, grob 30 KB je Person; bei rund 30'000 Personen etwa
+   **0,9 GB** im `CacheDir`. Regenerierbar, darum nicht in der Sicherung. Messung beim Bau nach
+   `docs/perf/`.
+6. **Entschieden (F-8): alle im Voraus**, auch für den Bestand (Empfehlung war «beim ersten Anzeigen»).
+
+ADR 0026 hält Tabellen, Job, Sichtbarkeitsregel und Speicherort fest, dazu die offene Frage, ob ein
+TMDB-Sammlungsposter ein für das Profil verborgenes Mitglied zeigen darf (bis dahin: Sammlungsbild nur,
+wenn **alle** Mitglieder sichtbar sind, sonst Poster des ersten sichtbaren Mitglieds).
 
 ## 6. D-6 Filmbibliothek: alle Filme, ohne FSK, mit Buchstaben
 
@@ -201,39 +247,58 @@ Hintergrundjobs. ADR 0026 hält Speicherort, Grösse und Sichtbarkeitsregel fest
 
 ### 6.2 Vorschlag
 
-1. **Nachladen beim Scrollen** statt «Mehr laden»: die App lädt die nächste Seite, sobald das Ende
-   näher als zwei Bildschirmhöhen ist. Seitengrösse **100**.
-2. **Virtualisiertes Raster:** gezeichnet werden nur die Zeilen im Bild und je eine Bildschirmhöhe
-   davor und danach. Bilder laden erst kurz vor dem Sichtbarwerden (`posterSmall`). So bleiben auch
-   1'795 Filme flüssig, auf dem Handy wie am Fernseher.
-3. **Buchstaben springen statt filtern** (F-9, durchgehend ohne Trenner): Der Server liefert in `facets` neu die Zahl der Titel je
-   Buchstabe (additiv). Daraus rechnet die App den Versatz, lädt die Seite dort und springt hin. Die
-   Leiste markiert beim Scrollen den aktuellen Buchstaben.
-4. **Keine FSK mehr, nirgends** (F-10): nicht auf den Postern der Bibliothek, der Startseite und der
-   Sammlungen, und nicht im Kopf der Detailseite. Haken und Fortschritt bleiben. Die Altersregel im
-   Server bleibt unverändert; nur die Anzeige fällt weg. Der Filter «bis FSK» in der Bibliothek
-   (`maxRating`) bleibt.
+1. **Nachladen beim Scrollen** statt «Mehr laden»: Seitengrösse **100**. Statt `useInfiniteQuery`
+   (lädt nur fortlaufend, `queries.ts:107-121`) ein **Seitenmodell mit Lücken**: die App kennt die
+   Gesamtzahl, hält leere Plätze und lädt die Seite, in die gescrollt oder gesprungen wird, auch
+   nach oben. `PicksPage` teilt sich heute `LIBRARY_PAGE` (`queries.ts:91`) und bleibt beim alten
+   Weg.
+2. **Virtualisiertes Raster** mit **`@tanstack/react-virtual`** (Version beim Bau gepinnt, neue
+   Abhängigkeit): gezeichnet werden die Zeilen im Bild und je eine Bildschirmhöhe davor und danach;
+   Bilder (`posterSmall`) erst kurz vor dem Sichtbarwerden.
+   **Fokusregeln** (Raumnavigation mit norigin kennt nur eingehängte Elemente): am Rand des
+   gezeichneten Fensters scrollt ↓/↑ zuerst die nächste Zeile ins Bild und fokussiert dann; Tab
+   folgt derselben Regel, nach der letzten Karte verlässt er das Raster. Beim Öffnen eines Titels
+   merkt sich die App **Index und Scrollstand**; «Zurück» stellt beides her und fokussiert dann die
+   Karte (`useBackFocus` wartet heute auf eine eingehängte Karte, `useBackFocus.ts:20-26`).
+3. **Buchstaben springen statt filtern** (F-9, durchgehend ohne Trenner). Der Client kann die Stelle
+   nicht selbst rechnen: sortiert wird nach `sort_key` im Bytevergleich mit Artikelregeln
+   (`visibility/library.go:458`), Ziffern stehen vor A und andere Anfänge hinter Z, `#` ist also
+   nicht zusammenhängend; bei `order=desc` dreht alles. Darum liefert der Server bei `sort=title`
+   die Facette **`letterStarts: [{letter, offset}]`** in der aktiven Richtung und auf der
+   gefilterten Menge, mit demselben `ORDER BY`; `#` darf zweimal vorkommen. Facetten rechnet er nur
+   bei `offset=0`. Der Sprung lädt die Seite am Versatz; die Leiste markiert beim Scrollen den
+   Buchstaben, in dessen Bereich der oberste sichtbare Index liegt. Ohne `sort=title` keine Leiste
+   (wie heute).
+4. **Keine FSK-Anzeige mehr für Zuschauer** (F-10): weg aus dem Bibliotheksraster (heute der einzige
+   Ort auf Postern, `showRating` nur `LibraryPage.tsx:426`) und aus dem Kopf der Detailseite
+   (`ItemMeta`). Die Verwaltung behält sie (`AdminItemPage`, `MetadataEditor`, `RatingDialog`).
+   Die Altersregel im Server bleibt unverändert; der Filter «bis FSK» (`maxRating`), der FSK-Filter
+   der Suche und die Sortierung `age` bleiben.
 5. Gilt für Film- und Serienbibliotheken, nicht für Podcasts und Hörbücher (die haben schon heute
    keine Buchstabenleiste).
 
 Messung beim Bau nach `docs/perf/`: erste Zeile und Scrollen über 1'795 Titel auf dem Handy.
+Abnahme mit Playwright: ↓ über 300 Zeilen, Sprung auf «M» und Zurück auf Karte N, Tab aus dem Raster.
 
 ## 7. D-7 Der Stift
 
 ### 7.1 Was Marco beobachtet
 
-Die Karte im Raster wird beim Zeigen grösser (`.card:hover`, Faktor 1,06, `PosterCard.module.css:154`),
+Die Karte im Raster wird beim Zeigen grösser (`.card:hover`, Faktor 1,06, `PosterCard.module.css:159`),
 mit ihr die FSK-Plakette. Der Stift liegt **neben** der Karte über ihr (`ItemGrid tool`,
 `Discover.module.css:80-101`). Fährt die Maus auf den Stift, endet `:hover` der Karte und sie
 schrumpft; der Stift selbst ändert nur die Farbe (`ui/Button.module.css:103-105`).
 
 ### 7.2 Vorschlag
 
-- Die Vergrösserung hängt am **ganzen Feld** (Karte samt Stift und Merken-Knopf): die Karte bleibt
-  gross, solange die Maus irgendwo auf ihr ist, auch auf dem Stift.
-- Der Stift selbst wird beim Zeigen und mit Tastaturfokus grösser (Faktor 1,18) und heller.
+- Die Vergrösserung hängt am **ganzen Feld** `.cell` (Karte samt Stift und Merken-Knopf,
+  `Discover.module.css:91-95`): `.cell:hover` und `.cell:focus-within` skalieren die Karte; die
+  Werkzeuge sitzen im selben skalierten Feld. Die Karte bleibt gross, auch auf dem Stift.
+- Der Stift selbst wird beim Zeigen und mit Tastaturfokus grösser und heller; der Faktor 1,18 wird
+  ein neues Token (`--sc-tool-hover-scale`, Regel 9).
 - Überall, wo er steht: Detailseite (Cover), Bibliotheksraster, Reihen der Startseite, Spotlight-Reihe.
-  Weiterhin nur für den Server-Admin (Frage 22, Nachtrag vom 7. November 2026).
+  Weiterhin nur für den Server-Admin (Frage 22, Nachtrag vom 7. November 2026). F-11: auch in der
+  Spotlight-Reihe.
 
 ## 8. D-9 Merken direkt auf dem Cover
 
@@ -251,11 +316,22 @@ schrumpft; der Stift selbst ändert nur die Farbe (`ui/Button.module.css:103-105
 - **Nur beim Zeigen** (F-12): erscheint, wenn die Maus auf dem Cover ist oder es den Tastaturfokus
   hat. Ein gemerkter Titel zeigt den gefüllten Knopf immer. Auf Geräten ohne Maus (`hover: none`,
   Handy und Tablet) ist er immer sichtbar, sonst wäre er dort nicht erreichbar.
-- Orte wie der Stift: Detailseite, Bibliotheksraster, Reihen der Startseite; dazu Sammlungsseite und
-  Suche. Nicht bei Staffeln, Folgen und Extras (die kann man heute nicht merken).
-- Der Gesehen-Haken wandert nach **oben links**.
-- `ItemRef.inWatchlist` (additiv, nur in den Listen, die Covers mit Knopf zeigen); nach dem Klick
-  ändert die App den Zustand sofort und nimmt ihn bei einem Fehler zurück.
+- Orte: Detailseite, Bibliotheksraster, Reihen der Startseite (mit Spotlight-Reihe), Sammlungsseite,
+  Suche, Merkliste, User-Empfehlungen, Personenseite. Nicht bei Staffeln, Folgen und Extras (die kann
+  man heute nicht merken).
+- **Platz auf dem Cover:** Der Gesehen-Haken wandert nach **oben links**, die Ecke, in der heute die
+  Plakette `.badge` sitzt (`PosterCard.module.css:106-109`); sie wird mit der FSK frei. Der
+  Fortschrittsbalken (`:124-128`) endet links vom Merken-Knopf.
+- **Bedienung ohne Maus:** Der Knopf ist wie `CoverPen` per Tab erreichbar und erscheint mit dem
+  Fokus; in der Spotlight-Reihe mit `excludeFromTabOrder` (`HomePage.tsx:295`), damit die
+  Pfeiltasten-Navigation der Reihe gleich bleibt. Mit Fernbedienung bleibt «Merken» auf der
+  Detailseite der Weg.
+- **Offline** ist der Knopf gesperrt, wie der Trailer (`ItemPage.tsx:741-747`).
+- **Vertrag (Stufe 2):** `ItemRef.inWatchlist` wird in allen Listen **immer** gesetzt (eine Abfrage
+  auf den Primärschlüssel von `watchlist` je Liste, `00015_discover.sql:32-37`). Nach dem Klick
+  ändert die App den Zustand sofort in **allen** Caches per `setQueriesData` (heute erneuert
+  `useWatchlistMutation` nur `item`, `watchlist`, `home`, `discover/queries.ts:109-114`) und nimmt
+  ihn bei einem Fehler zurück; die Bibliothek wird nicht neu geladen.
 - Auf der Detailseite bleibt «Merken» zusätzlich in der Knopfzeile, weil das Cover unter 900 px
   ausgeblendet ist (F-12).
 
@@ -285,6 +361,11 @@ nur das Aussehen.
 **Gewählt: B** (F-13; Empfehlung war A). Dazu: **«Meine Medien» ist immer offen**, ohne Zuklappen;
 der Schalter und der Gerätespeicher `slouchcat.sidenav.libraries` fallen weg. «Wechseln» führt zur
 bestehenden Profilwahl. «Profile» sieht weiterhin das Hauptprofil **jedes** Kontos (F-14).
+
+Symbole je Bibliotheksart (`LibraryKind`): Film und gemischtes Video Filmstreifen, Serien Fernseher,
+Podcasts Mikrofon, Hörbücher Buch, User-Empfehlungen Stern. Kommt Konzept 16 vorher, steht
+«Radio» mit Radio-Symbol in der oberen Gruppe (`16-webradio.md:443`). Einen schmalen Zustand nur mit
+Symbolen gibt es weiterhin nicht (die Leiste wird ausgeblendet, nicht eingeklappt).
 
 ### 9.3 D-10 «User-Empfehlungen»
 
@@ -339,18 +420,54 @@ bestehenden Profilwahl. «Profile» sieht weiterhin das Hauptprofil **jedes** Ko
 
 | Stufe | Inhalt | Vertrag | Migration |
 |---|---|---|---|
-| 1 | D-7 Stift, D-8 Seitenleiste, FSK überall weg (D-6 Punkt 4), D-10 Umbenennung | nein | nein |
-| 2 | D-1 bis D-4 Detailseite: Kopf, Knopfzeile, `nextUp`, Staffelcover, Folgenliste, Sammlung; D-9 Merken auf dem Cover | additiv | nein |
-| 3 | D-5 Personen- und Sammlungsbilder (ADR 0026); D-6 Nachladen, Virtualisierung, Buchstabensprung | additiv | ja |
+| 1 | D-7 Stift, D-8 Seitenleiste, FSK weg (D-6 Punkt 4), D-10 Umbenennung; Patch (vorläufig 1.18.1) | nein | nein |
+| 2 | D-1 bis D-4 Detailseite: Kopf, Knopfzeile, `NextUp`, Staffelcover, `watchedCount`, `overview`, Sammlung mit `members`; D-9 Merken auf dem Cover mit `inWatchlist` | 1.19.0 additiv | nein |
+| 3 | D-5 Personen- und Sammlungsbilder (ADR 0026); D-6 Seitenmodell, Virtualisierung, `letterStarts` | 1.20.0 additiv | ja (`person_images`, `collection_images`) |
 
 Jede Seite bekommt ihren Playwright-Tastaturtest (Regel 8); neue Bauteile in `web/src/ui` mit
 Storybook-Geschichte. Texte nur aus `locales/{de,en}.json` (Regel 9).
 
+Betroffene Tests, die mitziehen: `e2e/library.spec.ts` (Buchstabenfilter :31-69, «Mehr laden»
+:52-54), `detail.spec.ts` (Knopf «Zurück»), `collection.spec.ts`, der Test zum Zuklappen der
+Seitenleiste, Storybook-Baselines von `PosterCard`, `CastCard`, `LetterBar`, `SideNav`.
+
+Nachzuführen beim Bau: ADR 0016 Punkt (f) und die Zeilen zum Buchstabenfilter (`0016:50,64`),
+Konzept 08 N-2 (Symbole) und die zuklappbare Gruppe, Entscheidungsprotokoll Frage 24.
+
 ## 13. Was nicht dazugehört
 
-- Personenseiten mit Lebenslauf und Filmografie (Klick auf eine Person sucht weiter wie heute).
+- Lebenslauf auf der Personenseite (die Seite gibt es; sie bekommt nur das Bild, 5.2).
 - Empfehlungen «Ähnliche Titel» (Nicht-Ziel «algorithmische Empfehlungen»).
 - Fehlende Sammlungsteile (F-7).
+
+## 14. Kritiker-Review von Fassung 3 (7. November 2026)
+
+Urteil **REVISE**, 0 Blocker, 8 Major, 13 Minor. Die Entscheide F-1 bis F-16 wurden nicht in Frage
+gestellt; alle Befunde betreffen die Machbarkeit und sind eingearbeitet.
+
+| Befund | Inhalt | Eingearbeitet in |
+|---|---|---|
+| M-1 | Buchstabensprung: `sort_key` mit Artikelregeln, `#` nicht zusammenhängend, `desc`, `useInfiniteQuery` nur fortlaufend | 6.2 Punkt 1 und 3 (`letterStarts`, Seitenmodell mit Lücken) |
+| M-2 | Virtualisierung gegen Raumnavigation, Zurück-Fokus, Tab; keine Bibliothek genannt | 6.2 Punkt 2 (`@tanstack/react-virtual`, Fokusregeln, Playwright-Abnahme) |
+| M-3 | Vertrag für die Reihe fehlt; Sammlungen nicht nur Filme | 4.1, 4.2 (`CollectionRef.members`, Reihe für jede Art) |
+| M-4 | `nextUp`-Regel unvollständig (Nochmalsehen, frühere ungesehene, Specials), Form offen | 3.3 (`NextUp`, Regeltabelle, `GetSeriesNextUp`) |
+| M-5 | Staffeljahr, gesehene Folgen je Staffel, Folgentext ohne Vertragsform | 2.3 (`year`, `watchedCount`, `overview`) |
+| M-6 | Personen- und Sammlungsbilder passen nicht zur Bildpipeline | 5.2 (`person_images`, `collection_images`, Endpunkte, `ImageRef`) |
+| M-7 | Job falsch verankert (kein Bildpool, Auftrag je Person, Fenster) | 5.2 Punkt 2 |
+| M-8 | `inWatchlist`: Bedeutung und Caches offen | 8.2 (immer gesetzt, `setQueriesData`) |
+| m-1 | Personenseite gibt es | 5.2, 13 |
+| m-2 | Zeilenangaben | 2.1, 7.1 |
+| m-3 | FSK heute nur im Raster; Verwaltung, Suche, Sortierung ausnehmen | 6.2 Punkt 4 |
+| m-4 | Überlappung Merken/Balken und Haken/Plakette | 8.2 |
+| m-5 | Vergrösserung am ganzen Feld, Token | 7.2 |
+| m-6 | Bedienung ohne Maus, Spotlight, weitere Orte | 8.2 |
+| m-7 | Nummern: Patch, 1.19.0, 1.20.0 | Kopf, 12 |
+| m-8 | ADR 0016, N-2, Radio, Symbole je Art | 9.2, 12 |
+| m-9 | betroffene Tests | 12 |
+| m-10 | Offline: Merken sperren, Bildrückfall | 5.2, 8.2 |
+| m-11 | Speicher rund 0,9 GB, `CacheDir` | 5.2 Punkt 5 |
+| m-12 | Staffel- und Sammlungsseite, Startfokus, Extras in der Reihenfolge | 2.2, 2.3 Punkt 5, 4.2 |
+| m-13 | Sammlungsposter mit verborgenem Mitglied | 5.2 (ADR 0026) |
 
 ## Anhang A. Mockup
 
