@@ -142,6 +142,12 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     `waiting`, `/status` antwortet, `/install` ist `busy`): `done`, wenn `X` gesund läuft und
     `server.json` `X` nennt, sonst `failed` (`migrated_no_rollback` bei einer Migration) ohne
     Rücknahme, denn ein Neustart mitten in einer Migration wiegt schwerer als eine Meldung.
+    Hatte die Rücknahme schon begonnen (keine Migration; vor dem Zurücksetzen der Env-Datei
+    schreibt der Updater `rollingBack: true` zur laufenden Phase in `state.json`, ein Feld nur für
+    ihn, nicht im Vertrag), führt der nächste Start sie zu Ende: Env-Datei aus
+    `.env.bak-vor-<X>` zurück, wenn sie noch `X` nennt, `up` der alten Fassung (ohne Wirkung, wenn
+    sie schon läuft), dann `rolled_back`, sobald die alte Fassung gesund läuft, sonst `failed`
+    (`rollback_failed`).
 16. **Gegenseitiger Ausschluss im Server** (Regel 12). `POST /admin/update/install` antwortet 409
     `backup_busy` oder `restart_pending`, solange eine Sicherung, eine Wiederherstellung oder ein
     Neustart ansteht. Umgekehrt antworten «Neu starten», die Wiederherstellungen und das Anlegen

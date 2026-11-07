@@ -1018,3 +1018,158 @@ func TestHTTPSRedirects(t *testing.T) {
 		t.Errorf("redirect %d followed", maxRedirects+1)
 	}
 }
+
+// A shutdown during the rollback (the env file put back, the old version starting) leaves the
+// running phase with RollingBack in state.json; the next start finishes the rollback instead of
+// waiting for the new version: rolled_back once the old version runs healthy.
+func TestShutdownDuringRollbackFinishesAtTheNextStart(t *testing.T) {
+	h := newHarness(t)
+	h.fake.afterUp = func(f *fakeDocker, n int) {
+		switch n {
+		case 1: // the new version crashes without a migration
+			f.c.Labels[labelVersion] = "1.16.0"
+			f.c.Running, f.c.Status, f.c.RestartCount, f.c.RestartPolicy = false, "restarting", 3, "unless-stopped"
+		case 2: // the old version is still starting when the updater stops
+			f.c.Labels[labelVersion] = "1.15.0"
+			f.c.Running, f.c.Status, f.c.RestartCount, f.c.Health = true, "running", 0, "starting"
+		default:
+			f.c.Health = "healthy"
+		}
+	}
+	h.wait = time.Minute
+	h.start()
+	if status, _ := h.install(); status != http.StatusAccepted {
+		t.Fatalf("install = %d", status)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		h.fake.mu.Lock()
+		ups := h.fake.ups
+		h.fake.mu.Unlock()
+		if ups == 2 && h.u.State().RollingBack {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("rollback did not start: ups %d, state %+v", ups, h.u.State())
+		}
+		time.Sleep(time.Millisecond)
+	}
+	h.stop()
+	if !h.u.drain(5 * time.Second) {
+		t.Fatal("the install did not stop")
+	}
+	if s := diskState(t, h); !s.Phase.Running() || !s.RollingBack || !s.FinishedAt.IsZero() {
+		t.Fatalf("state.json = %+v, want a running phase with RollingBack", s)
+	}
+	if got := h.readEnv(); got != oldEnv {
+		t.Fatalf(".env = %q, want the original", got)
+	}
+
+	h.start() // the updater comes back
+	s := h.finish()
+	if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || s.RollingBack ||
+		!strings.Contains(s.Message, "version 1.15.0 runs again") {
+		t.Errorf("state after the next start = %+v", s)
+	}
+	if got := h.fake.verbs(); !slices.Equal(got, []string{"pull", "config", "up", "up", "up"}) {
+		t.Errorf("compose calls = %v", got)
+	}
+}
+
+// A start that finds a rollback under way finishes it: the env file is put back when it still
+// names the new version, compose up starts the old one; rolled_back when the old version runs
+// healthy, failed when it does not come back or the env file cannot be put back; a shutdown
+// leaves the phase for the next start.
+func TestStartFinishesAnInterruptedRollback(t *testing.T) {
+	prepare := func(t *testing.T, env string, backup bool) *harness {
+		h := newHarness(t)
+		dir := filepath.Join(h.deploy, "updater")
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := updater.WriteJSON(filepath.Join(dir, updater.StateFile), updater.State{Phase: updater.PhaseWaiting,
+			From: "1.15.0", To: "1.16.0", StartedAt: time.Now(), RollingBack: true}, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(h.env, []byte(env), 0o640); err != nil {
+			t.Fatal(err)
+		}
+		if backup {
+			if err := os.WriteFile(h.env+".bak-vor-1.16.0", []byte(oldEnv), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		h.fake.c.Labels[labelVersion], h.fake.c.Health = "1.16.0", "unhealthy" // the failed new version
+		return h
+	}
+	oldComesBack := func(f *fakeDocker, _ int) { f.c.Labels[labelVersion], f.c.Health = "1.15.0", "healthy" }
+
+	t.Run("env file still new", func(t *testing.T) {
+		h := prepare(t, newEnv(), true)
+		h.fake.afterUp = oldComesBack
+		h.start()
+		s := h.finish()
+		if s.Phase != updater.PhaseRolledBack || s.Code != updater.CodeUnhealthy || s.RollingBack || s.FinishedAt.IsZero() {
+			t.Errorf("state = %+v", s)
+		}
+		if got := h.readEnv(); got != oldEnv {
+			t.Errorf(".env = %q, want the original", got)
+		}
+		if got := h.fake.verbs(); !slices.Equal(got, []string{"up"}) {
+			t.Errorf("compose calls = %v", got)
+		}
+	})
+	t.Run("old version already back", func(t *testing.T) {
+		h := prepare(t, oldEnv, true)
+		h.fake.c.Labels[labelVersion], h.fake.c.Health = "1.15.0", "healthy"
+		h.start()
+		if s := h.finish(); s.Phase != updater.PhaseRolledBack {
+			t.Errorf("state = %+v", s)
+		}
+	})
+	t.Run("healthy new version is not the old one", func(t *testing.T) {
+		h := prepare(t, oldEnv, true)
+		h.fake.c.Health = "healthy" // still 1.16.0: up did not bring the old one back
+		h.start()
+		if s := h.finish(); s.Phase != updater.PhaseFailed || s.Code != updater.CodeRollbackFailed ||
+			!strings.Contains(s.Message, "did not come back") {
+			t.Errorf("state = %+v", s)
+		}
+	})
+	t.Run("old version does not come back", func(t *testing.T) {
+		h := prepare(t, oldEnv, true)
+		h.fake.afterUp = func(f *fakeDocker, _ int) {
+			f.c.Labels[labelVersion] = "1.15.0"
+			f.c.Running, f.c.Status, f.c.RestartCount, f.c.RestartPolicy = false, "restarting", 3, "unless-stopped"
+		}
+		h.wait = time.Minute
+		h.start()
+		if s := h.finish(); s.Phase != updater.PhaseFailed || s.Code != updater.CodeRollbackFailed {
+			t.Errorf("state = %+v", s)
+		}
+	})
+	t.Run("no backup", func(t *testing.T) {
+		h := prepare(t, newEnv(), false)
+		h.start()
+		s := h.finish()
+		if s.Phase != updater.PhaseFailed || s.Code != updater.CodeRollbackFailed || !strings.Contains(s.Message, "no backup") {
+			t.Errorf("state = %+v", s)
+		}
+		if got := h.fake.verbs(); len(got) != 0 {
+			t.Errorf("compose ran: %v", got)
+		}
+	})
+	t.Run("shutdown", func(t *testing.T) {
+		h := prepare(t, oldEnv, true)
+		h.fake.afterUp = func(f *fakeDocker, _ int) { f.c.Labels[labelVersion], f.c.Health = "1.15.0", "starting" }
+		h.wait = time.Minute
+		h.start()
+		h.stop()
+		if !h.u.drain(5 * time.Second) {
+			t.Fatal("the resumed rollback did not stop")
+		}
+		if s := diskState(t, h); s.Phase != updater.PhaseWaiting || !s.RollingBack || !s.FinishedAt.IsZero() {
+			t.Errorf("state.json = %+v, want the rollback kept for the next start", s)
+		}
+	})
+}

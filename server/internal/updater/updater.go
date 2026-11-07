@@ -127,6 +127,11 @@ type State struct {
 	Backup  string `json:"backup,omitempty"`
 	Code    Code   `json:"code,omitempty"`
 	Message string `json:"message,omitempty"`
+	// RollingBack is set in a running phase once the updater takes the install back (the env file
+	// is put back and the old version started), so that a start after an interruption finishes the
+	// rollback instead of waiting for the new version. Only the updater reads it; a final state
+	// never carries it.
+	RollingBack bool `json:"rollingBack,omitempty"`
 }
 
 // ServerRecord is the content of server.json: the server writes it at every start before and

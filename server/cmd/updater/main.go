@@ -291,6 +291,9 @@ func readToken(f *os.File, uid, gid int) (token []byte, regular bool, err error)
 //     the migration of server.json when there was one. Nothing is taken back at start-up: the
 //     new server may be migrating, and a recreate in the middle of a migration is worse than a
 //     report. The administrator decides (manual update steps or the backup).
+//   - a running phase with RollingBack: the install was being taken back (no migration). Resume
+//     finishes the rollback in the background (rollbackAfterRestart): rolled_back when the old
+//     version runs healthy again, otherwise failed.
 func (u *Updater) recover() {
 	var s updater.State
 	err := updater.ReadJSON(u.statePath(), &s)
@@ -308,6 +311,11 @@ func (u *Updater) recover() {
 		return
 	}
 	interrupted := s.Phase
+	if s.RollingBack {
+		u.resumeFrom = interrupted
+		u.log.Warn("updater: interrupted rollback, taking the install back again", "interrupted", interrupted, "to", s.To)
+		return
+	}
 	if interrupted == updater.PhaseRestarting || interrupted == updater.PhaseWaiting {
 		s.Phase = updater.PhaseWaiting
 		u.resumeFrom = interrupted
@@ -321,7 +329,8 @@ func (u *Updater) recover() {
 	if interrupted == updater.PhaseChecking {
 		s.Message = "the updater stopped while checking the release; nothing was changed"
 	} else {
-		s.Message = fmt.Sprintf("the updater stopped during the phase %s before the restart; ", interrupted) + u.recoverEnv(ctx, s.To)
+		msg, _ := u.recoverEnv(ctx, s.To)
+		s.Message = fmt.Sprintf("the updater stopped during the phase %s before the restart; ", interrupted) + msg
 	}
 	u.log.Warn("updater: interrupted install ended", "interrupted", interrupted, "phase", s.Phase, "to", s.To)
 	u.set(s)
@@ -335,6 +344,10 @@ func (u *Updater) Resume() {
 	}
 	s, interrupted := u.State(), u.resumeFrom
 	u.resumeFrom = ""
+	if s.RollingBack {
+		u.wg.Go(func() { u.rollbackAfterRestart(s) })
+		return
+	}
 	u.wg.Go(func() { u.resumeWait(s, interrupted) })
 }
 
@@ -371,41 +384,42 @@ func (u *Updater) resumeWait(s updater.State, interrupted updater.Phase) {
 }
 
 // recoverEnv puts the env file back from the backup taken before installing to, when the file
-// still names to and the backup exists, and returns what it did for the message.
-func (u *Updater) recoverEnv(ctx context.Context, to string) string {
+// still names to and the backup exists, and returns what it did for the message. ok reports that
+// the env file no longer names to (it was put back, or it named another version already).
+func (u *Updater) recoverEnv(ctx context.Context, to string) (msg string, ok bool) {
 	const check = "check SLOUCHCAT_VERSION in the env file"
 	if !updater.ValidRelease(to) {
-		return check
+		return check, false
 	}
 	c, err := u.docker.Container(ctx, u.cfg.container)
 	if err != nil {
-		return check
+		return check, false
 	}
 	p, r := u.project(c)
 	if r != nil {
-		return check
+		return check, false
 	}
 	path, err := envTarget(p.EnvFiles)
 	if err != nil {
-		return check
+		return check, false
 	}
 	env, err := readEnvFile(path, u.cfg.uid, u.cfg.gid)
 	if err != nil {
-		return check
+		return check, false
 	}
 	if v, _ := envVersion(env.data); v != to {
-		return "the env file does not name version " + to + ", nothing to put back"
+		return "the env file does not name version " + to + ", nothing to put back", true
 	}
 	backup := env.backupName(to)
 	data, err := os.ReadFile(backup) //nolint:gosec // G304: backup next to the env file of the compose labels, checked to lie inside the deploy folder
 	if err != nil {
-		return "no backup " + filepath.Base(backup) + "; " + check
+		return "no backup " + filepath.Base(backup) + "; " + check, false
 	}
 	if err := env.write(data); err != nil {
 		u.log.Error("updater: restore env file", "err", err)
-		return "could not put the env file back: " + check
+		return "could not put the env file back: " + check, false
 	}
-	return "the env file was put back from " + filepath.Base(backup)
+	return "the env file was put back from " + filepath.Base(backup), true
 }
 
 // handler serves GET /status and POST /install, both only with the token.

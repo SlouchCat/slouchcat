@@ -286,7 +286,7 @@ func (u *Updater) run(p plan, s updater.State) {
 		u.log.Info("updater: phase", "phase", ph, "to", p.to)
 	}
 	finish := func(ph updater.Phase, code updater.Code, msg string) {
-		s.Phase, s.Code, s.Message, s.FinishedAt = ph, code, msg, u.now()
+		s.Phase, s.Code, s.Message, s.FinishedAt, s.RollingBack = ph, code, msg, u.now(), false
 		u.set(s)
 		u.log.Info("updater: install finished", "phase", ph, "code", code, "message", msg, "from", p.from, "to", p.to)
 	}
@@ -389,6 +389,9 @@ func (u *Updater) run(p plan, s updater.State) {
 			fmt.Sprintf("version %s migrated the database and did not become healthy; back only with the backup %s", p.to, rec.Backup))
 		return
 	}
+	// The rollback starts: from here a start after an interruption finishes it (recover).
+	s.RollingBack = true
+	u.set(s)
 	if err := env.restore(); err != nil {
 		u.log.Error("updater: restore env file", "err", err)
 		finish(updater.PhaseFailed, updater.CodeRollbackFailed, "could not restore the env file: "+err.Error())
@@ -409,6 +412,59 @@ func (u *Updater) run(p plan, s updater.State) {
 		return
 	}
 	finish(updater.PhaseFailed, updater.CodeRollbackFailed, causeMsg+fmt.Sprintf("; version %s did not come back either", p.from))
+}
+
+// rollbackAfterRestart finishes a rollback that an interruption cut off; s is in a running phase
+// with RollingBack set. The new version failed without a migration (run checked that before it
+// set RollingBack), so the old one may come back: the env file is put back when it still names
+// s.To, compose up starts what it names (nothing happens when the old version already runs), and
+// the install ends rolled_back once version s.From runs healthy, otherwise failed. A shutdown
+// leaves the phase for the next start.
+func (u *Updater) rollbackAfterRestart(s updater.State) {
+	ctx := u.ctx
+	finish := func(ph updater.Phase, code updater.Code, msg string) {
+		s.Phase, s.Code, s.Message, s.FinishedAt, s.RollingBack = ph, code, msg, u.now(), false
+		u.set(s)
+		u.log.Info("updater: interrupted rollback finished", "phase", ph, "code", code, "message", msg, "from", s.From, "to", s.To)
+	}
+	cause := fmt.Sprintf("version %s did not become healthy and the updater stopped while taking it back", s.To)
+	cctx, cancel := context.WithTimeout(ctx, checkTimeout)
+	envMsg, envOK := u.recoverEnv(cctx, s.To)
+	cancel()
+	var proj Project
+	if envOK {
+		cctx, cancel = context.WithTimeout(ctx, commandTimeout)
+		c, err := u.docker.Container(cctx, u.cfg.container)
+		cancel()
+		var r *refusal
+		if err == nil {
+			proj, r = u.project(c)
+		}
+		envOK = err == nil && r == nil
+	}
+	if !envOK {
+		if ctx.Err() != nil {
+			return
+		}
+		finish(updater.PhaseFailed, updater.CodeRollbackFailed, cause+"; "+envMsg)
+		return
+	}
+	cctx, cancel = context.WithTimeout(context.WithoutCancel(ctx), commandTimeout)
+	err := u.up(cctx, proj)
+	cancel()
+	healthy := false
+	if err == nil {
+		healthy, _ = u.poll(ctx, func(c Container) bool { return c.Healthy() && runningVersion(c) == s.From })
+	}
+	if healthy {
+		finish(updater.PhaseRolledBack, updater.CodeUnhealthy, cause+fmt.Sprintf("; version %s runs again", s.From))
+		return
+	}
+	if ctx.Err() != nil {
+		u.log.Warn("updater: stopped while taking the install back again; the next start takes over", "to", s.To)
+		return
+	}
+	finish(updater.PhaseFailed, updater.CodeRollbackFailed, cause+fmt.Sprintf("; version %s did not come back either", s.From))
 }
 
 // drain waits up to d for a running install to end once the process context is done; it reports
