@@ -1,6 +1,7 @@
 import type { components } from '@slouchcat/api-client';
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, request } from '@/api/client';
+import { useRadio } from './useRadio';
 
 // The API calls of the radio player (contract 1.17.0). Every radio query lives under the key
 // `radio`, so a profile switch (clearProfileData) forgets all of them.
@@ -71,14 +72,26 @@ export function currentRadioEntry(
   return found;
 }
 
-/** Marks a station as favourite of the active profile or removes the mark. */
+/**
+ * Marks a station as favourite of the active profile or removes the mark. The player's station
+ * takes the stored mark here and not in a callback of `mutate`: TanStack runs that one only for
+ * the latest call, so a quick second press would leave the heart of the first station stale.
+ */
 export function useRadioFavorite() {
   const queryClient = useQueryClient();
+  const { markFavorite } = useRadio();
   return useMutation({
     mutationFn: ({ stationId, favorite }: { stationId: number; favorite: boolean }) =>
       favorite
         ? request(api.PUT('/radio/favorites/{stationId}', { params: { path: { stationId } } }))
         : request(api.DELETE('/radio/favorites/{stationId}', { params: { path: { stationId } } })),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: radioKeys.all }),
+    onSuccess: (_data, { stationId, favorite }) => markFavorite(stationId, favorite),
+    // The mark changes «Meine Sender», the station lists and the counts of their filter only.
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [...radioKeys.all, 'favorites'] }),
+        queryClient.invalidateQueries({ queryKey: [...radioKeys.all, 'stations'] }),
+        queryClient.invalidateQueries({ queryKey: [...radioKeys.all, 'facets', { fav: true }] }),
+      ]),
   });
 }

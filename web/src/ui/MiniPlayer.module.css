@@ -50,8 +50,10 @@
   font-size: var(--sc-font-size-xs);
 }
 
+/* A message is read whole (the watch limit says limit and minutes): it wraps. */
 .bar[data-state='error'] .line {
   color: var(--sc-color-state-warning);
+  white-space: normal;
 }
 
 .state {

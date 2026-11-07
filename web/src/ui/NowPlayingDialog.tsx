@@ -101,12 +101,15 @@ export function NowPlayingDialog({
                   <span>{stationName}</span>
                   {place && <span className={styles.place}>{place}</span>}
                 </p>
-                {/* A new title fades in (none under prefers-reduced-motion). */}
-                <div className={styles.titles} aria-live="polite" key={`${title}\n${subtitle}`}>
-                  <p className={styles.title} data-testid="radio-now-title">
-                    {title}
-                  </p>
-                  {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+                {/* The live region stays in place, so a screen reader hears the new title; only
+                    its content is new, and fades in (none under prefers-reduced-motion). */}
+                <div aria-live="polite">
+                  <div className={styles.titles} key={`${title}\n${subtitle}`}>
+                    <p className={styles.title} data-testid="radio-now-title">
+                      {title}
+                    </p>
+                    {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
+                  </div>
                 </div>
                 <div className={styles.controls}>
                   <AriaButton

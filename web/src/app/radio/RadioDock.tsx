@@ -6,7 +6,7 @@ import { codeMessage } from '@/api/errors';
 import { MiniPlayer, SpatialGroup, type MiniPlayerState } from '@/ui';
 import type { NowPlayingDialog as NowPlayingDialogType } from '@/ui/aria';
 import { facetValueName, radioLanguageName, stationPlace } from './labels';
-import type { RadioNotice, RadioStation } from './priority';
+import { wantsSound, type RadioNotice, type RadioStation } from './priority';
 import { useRadioFavorite } from './queries';
 import { useRadio } from './useRadio';
 
@@ -29,7 +29,17 @@ export const RADIO_FOCUS_KEY = 'radio';
 function noticeText(t: TFunction, notice: RadioNotice): string {
   switch (notice.kind) {
     case 'watchLimit':
-      return t('player.watchLimit.title');
+      // Title, limit and today's minutes, as the player page says them.
+      return [
+        t('player.watchLimit.title'),
+        notice.limitMinutes === undefined
+          ? t('player.watchLimit.bodyUnknown')
+          : t('player.watchLimit.body', { count: notice.limitMinutes }),
+        notice.usedMinutes !== undefined &&
+          t('player.watchLimit.used', { count: notice.usedMinutes }),
+      ]
+        .filter(Boolean)
+        .join(' ');
     case 'ended':
       return t('radio.player.ended');
     case 'failed':
@@ -100,25 +110,17 @@ export function RadioDock() {
       ? t('radio.player.artistTitle', { artist: entry.artist, title: entry.title })
       : entry.text
     : t('radio.player.live');
+  // While the station starts the toggle already pauses (the station then opens paused).
+  const on = wantsSound(state);
   const toggle = {
-    pressed: playing,
-    label: notice
-      ? t('radio.player.retry')
-      : playing
-        ? t('radio.player.pause')
-        : t('radio.player.play'),
+    pressed: on,
+    label: notice ? t('radio.player.retry') : on ? t('radio.player.pause') : t('radio.player.play'),
     onPress: radio.toggle,
   };
   const favoriteToggle = {
     pressed: station.favorite,
     label: t('radio.player.favorite', { name: station.name }),
-    onPress: () => {
-      const next = !station.favorite;
-      favorite.mutate(
-        { stationId: station.id, favorite: next },
-        { onSuccess: () => radio.markFavorite(station.id, next) },
-      );
-    },
+    onPress: () => favorite.mutate({ stationId: station.id, favorite: !station.favorite }),
   };
   const logo = imageUrl(station.logo);
 
