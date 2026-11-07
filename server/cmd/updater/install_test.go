@@ -661,16 +661,41 @@ func TestStartCreatesTokenAndFolder(t *testing.T) {
 	}
 }
 
-func TestStartMarksInterruptedInstallFailed(t *testing.T) {
+func TestStartEndsInterruptedInstall(t *testing.T) {
+	migrating := &updater.ServerRecord{Version: "1.16.0", SchemaBefore: 37, Backup: "pre-migration-00037.db"}
+	migrated := &updater.ServerRecord{Version: "1.16.0", SchemaBefore: 37, SchemaAfter: 38, Backup: "pre-migration-00037.db", MigratedAt: time.Now()}
+	// No comma in a name: the temporary folder carries it, and the compose label lists files
+	// separated by commas.
 	for _, tc := range []struct {
 		name     string
+		phase    updater.Phase
+		env      string // content of .env at the start
+		backup   bool   // .env.bak-vor-1.16.0 with oldEnv exists
+		running  string // version the container runs
+		health   string
 		rec      *updater.ServerRecord
+		want     updater.Phase
 		code     updater.Code
 		migrated bool
+		wantEnv  string
+		message  string
 	}{
-		{"before the restart", nil, "", false},
-		{"during a migration", &updater.ServerRecord{Version: "1.16.0", SchemaBefore: 37, Backup: "pre-migration-00037.db"},
-			updater.CodeMigratedNoRollback, true},
+		{name: "checking", phase: updater.PhaseChecking, env: oldEnv, running: "1.15.0", health: "healthy",
+			want: updater.PhaseFailed, wantEnv: oldEnv, message: "nothing was changed"},
+		{name: "pulling: env names the new version", phase: updater.PhasePulling, env: newEnv(), backup: true, running: "1.15.0", health: "healthy",
+			want: updater.PhaseFailed, wantEnv: oldEnv, message: "put back from .env.bak-vor-1.16.0"},
+		{name: "backing up: env not written yet", phase: updater.PhaseBackingUp, env: oldEnv, backup: true, running: "1.15.0", health: "healthy",
+			want: updater.PhaseFailed, wantEnv: oldEnv, message: "nothing to put back"},
+		{name: "verifying: no backup", phase: updater.PhaseVerifying, env: newEnv(), running: "1.15.0", health: "healthy",
+			want: updater.PhaseFailed, wantEnv: newEnv(), message: "no backup"},
+		{name: "waiting: new version healthy", phase: updater.PhaseWaiting, env: newEnv(), backup: true, running: "1.16.0", health: "healthy",
+			rec: migrated, want: updater.PhaseDone, migrated: true, wantEnv: newEnv()},
+		{name: "restarting: new version healthy without its record", phase: updater.PhaseRestarting, env: newEnv(), backup: true, running: "1.16.0", health: "healthy",
+			want: updater.PhaseFailed, wantEnv: newEnv(), message: "nothing was taken back"},
+		{name: "waiting: migration running", phase: updater.PhaseWaiting, env: newEnv(), backup: true, running: "1.16.0", health: "unhealthy",
+			rec: migrating, want: updater.PhaseFailed, code: updater.CodeMigratedNoRollback, migrated: true, wantEnv: newEnv(), message: "pre-migration-00037.db"},
+		{name: "restarting: old version runs", phase: updater.PhaseRestarting, env: newEnv(), backup: true, running: "1.15.0", health: "healthy",
+			want: updater.PhaseFailed, wantEnv: newEnv(), message: "nothing was taken back"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newHarness(t)
@@ -678,9 +703,18 @@ func TestStartMarksInterruptedInstallFailed(t *testing.T) {
 			if err := os.MkdirAll(dir, 0o700); err != nil {
 				t.Fatal(err)
 			}
+			if err := os.WriteFile(h.env, []byte(tc.env), 0o640); err != nil {
+				t.Fatal(err)
+			}
+			if tc.backup {
+				if err := os.WriteFile(h.env+".bak-vor-1.16.0", []byte(oldEnv), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			h.fake.c.Labels[labelVersion], h.fake.c.Health = tc.running, tc.health
 			started := time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)
 			if err := updater.WriteJSON(filepath.Join(dir, updater.StateFile),
-				updater.State{Phase: updater.PhasePulling, From: "1.15.0", To: "1.16.0", StartedAt: started}, 0o644); err != nil {
+				updater.State{Phase: tc.phase, From: "1.15.0", To: "1.16.0", StartedAt: started}, 0o644); err != nil {
 				t.Fatal(err)
 			}
 			if tc.rec != nil {
@@ -688,13 +722,21 @@ func TestStartMarksInterruptedInstallFailed(t *testing.T) {
 			}
 			h.start()
 			s := h.u.State()
-			if s.Phase != updater.PhaseFailed || s.Code != tc.code || s.Migrated != tc.migrated ||
-				s.FinishedAt.IsZero() || !strings.Contains(s.Message, "pulling") || s.To != "1.16.0" {
+			if s.Phase != tc.want || s.Code != tc.code || s.Migrated != tc.migrated || s.FinishedAt.IsZero() ||
+				!strings.Contains(s.Message, tc.message) || s.To != "1.16.0" {
 				t.Errorf("state = %+v", s)
 			}
-			var disk updater.State
-			if err := updater.ReadJSON(filepath.Join(dir, updater.StateFile), &disk); err != nil || disk.Phase != updater.PhaseFailed {
-				t.Errorf("state.json = %+v, %v", disk, err)
+			if disk := diskState(t, h); disk.Phase != tc.want {
+				t.Errorf("state.json = %+v", disk)
+			}
+			if got := h.readEnv(); got != tc.wantEnv {
+				t.Errorf(".env = %q, want %q", got, tc.wantEnv)
+			}
+			if info, _ := os.Stat(h.env); info == nil || info.Mode().Perm() != 0o640 {
+				t.Errorf(".env mode = %v, want 0640 as before", info)
+			}
+			if v := h.fake.verbs(); len(v) != 0 {
+				t.Errorf("compose ran at the start: %v", v)
 			}
 			// A finished state stays as it is.
 			h.start()
