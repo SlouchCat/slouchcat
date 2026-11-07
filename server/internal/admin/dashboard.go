@@ -86,6 +86,7 @@ type opsState struct {
 	push     PushRotator
 	env      NotifyEnv
 	update   updateCheck
+	updater  updaterLink // the updater companion (update_install.go, ADR 0024)
 }
 
 // WithJobs sets the job administration and returns the receiver.

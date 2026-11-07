@@ -337,6 +337,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// for the dashboard.
 	adminSvc.WithAnnouncements(notifySvc).WithTelegram(notifySvc).WithEmailTester(notifySvc).WithPushRotator(notifySvc).WithChannels(notifySvc)
 	notifySvc.SetConfig(adminSvc)
+	// The updater companion (concept 15 P-8, ADR 0024): optional; a failed or rolled back install
+	// goes to the administration once as the event errors.
+	adminSvc.WithUpdater(cfg.UpdaterURL, cfg.UpdaterDir(), nil)
 	// Incoming Radarr/Sonarr webhooks (M9, I-8): the address shown once carries the public URL of
 	// the administration's settings, so it can be pasted into "Connect → Webhook" as it is.
 	integrationSvc := integrations.New(db, libSvc, log, integrations.WithBaseURL(func(ctx context.Context) string {
@@ -379,6 +382,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Run polls Telegram while link codes are open and prunes old deliveries.
 	workers.Go(func() { notifySvc.Run(ctx) })
 	workers.Go(func() { scheduler.Run(ctx) })
+	// The end of an install the companion reported (state.json), once, also while it still runs.
+	workers.Go(func() { adminSvc.WatchUpdateInstall(ctx) })
 	// The library watchers; the full scan at the start and every 6 h is the schedule scan.library.
 	workers.Go(func() {
 		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {

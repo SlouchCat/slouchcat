@@ -314,6 +314,11 @@ type AdminService interface {
 	UpdateState(ctx context.Context) (model.UpdateState, error)
 	CheckForUpdate(ctx context.Context) (model.UpdateState, error)
 	UpdateAvailable(ctx context.Context) *model.UpdateNotice
+	// InstallUpdate asks the updater companion to install the newest release (ADR 0024):
+	// model.ErrUpdaterUnavailable, model.ErrUpdateRunning, *model.UpdateRefusedError.
+	// InstallStatus reads its last install from state.json (idle without one).
+	InstallUpdate(ctx context.Context) (model.UpdateInstall, error)
+	InstallStatus(ctx context.Context) (model.UpdateInstall, error)
 	// ListAccounts returns the main account first, then the guests, newest first (A-2).
 	ListAccounts(ctx context.Context) ([]model.AdminAccount, error)
 	// Stats returns the statistics of the last days days: 7, 30, 90 or 365 (*model.ValidationError).

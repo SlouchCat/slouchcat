@@ -351,16 +351,20 @@ var adminRegistry = map[string]adminCall{
 		ownerStatus: http.StatusNotFound},
 	// Concept 11: the fixture's restart function is a fake (profileFixture.restarts). Its own
 	// fixture, because the scheduled restart makes the restores answer restart_pending.
-	"restartServer":       {contract: "POST /admin/server/restart", path: "/admin/server/restart", ownerStatus: http.StatusAccepted, fresh: true},
-	"getUpdateState":      {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
-	"checkForUpdate":      {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
-	"listAccounts":        {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
-	"getStats":            {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusOK},
-	"listAnnouncements":   {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusOK},
-	"createAnnouncement":  {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusCreated},
-	"updateAnnouncement":  {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
-	"deleteAnnouncement":  {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
-	"publishAnnouncement": {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
+	"restartServer":  {contract: "POST /admin/server/restart", path: "/admin/server/restart", ownerStatus: http.StatusAccepted, fresh: true},
+	"getUpdateState": {contract: "GET /admin/update", path: "/admin/update", ownerStatus: http.StatusOK},
+	"checkForUpdate": {contract: "POST /admin/update/check", path: "/admin/update/check", ownerStatus: http.StatusOK},
+	// Concept 15 P-8 (ADR 0024): the fixture has no updater companion, so the install answers 503
+	// and the status idle; TestUpdateInstallOverHTTP talks to a fake companion.
+	"installUpdate":          {contract: "POST /admin/update/install", path: "/admin/update/install", ownerStatus: http.StatusServiceUnavailable},
+	"getUpdateInstallStatus": {contract: "GET /admin/update/status", path: "/admin/update/status", ownerStatus: http.StatusOK},
+	"listAccounts":           {contract: "GET /admin/accounts", path: "/admin/accounts", ownerStatus: http.StatusOK},
+	"getStats":               {contract: "GET /admin/stats", path: "/admin/stats?days=7", ownerStatus: http.StatusOK},
+	"listAnnouncements":      {contract: "GET /admin/announcements", path: "/admin/announcements", ownerStatus: http.StatusOK},
+	"createAnnouncement":     {contract: "POST /admin/announcements", path: "/admin/announcements", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusCreated},
+	"updateAnnouncement":     {contract: "PUT /admin/announcements/{id}", path: "/admin/announcements/9999", body: `{"title":"Hallo","body":"Text"}`, ownerStatus: http.StatusNotFound},
+	"deleteAnnouncement":     {contract: "DELETE /admin/announcements/{id}", path: "/admin/announcements/9999", ownerStatus: http.StatusNotFound},
+	"publishAnnouncement":    {contract: "POST /admin/announcements/{id}/publish", path: "/admin/announcements/9999/publish", ownerStatus: http.StatusNotFound},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).
