@@ -135,24 +135,26 @@ func TestEnvFileBackupAndRestore(t *testing.T) {
 	}
 }
 
-func TestBackupRotation(t *testing.T) {
+func TestBackupKeepsOtherBackups(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env")
 	if err := os.WriteFile(path, []byte("SLOUCHCAT_VERSION=1.15.0\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	base := time.Now().Add(-time.Hour)
-	for i := range 6 {
-		p := fmt.Sprintf("%s.bak-vor-1.%d.0", path, i)
-		if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
+	// Backups made by hand share the name pattern; none may go, however many there are.
+	want := []string{".env.bak-vor-1.16.0"}
+	for i := range 20 {
+		name := fmt.Sprintf(".env.bak-vor-hand-%d", i)
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		mod := base.Add(time.Duration(i) * time.Minute)
-		if err := os.Chtimes(p, mod, mod); err != nil {
-			t.Fatal(err)
-		}
+		want = append(want, name)
 	}
-	// Another file's backups are not this file's.
+	// A backup of the same name is replaced.
+	if err := os.WriteFile(path+".bak-vor-1.16.0", []byte("old"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	// Another file's backups are not this file's, and stay as well.
 	other := filepath.Join(dir, "other.env.bak-vor-1.0.0")
 	if err := os.WriteFile(other, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
@@ -172,12 +174,22 @@ func TestBackupRotation(t *testing.T) {
 		matches[i] = filepath.Base(matches[i])
 	}
 	slices.Sort(matches)
-	want := []string{".env.bak-vor-1.16.0", ".env.bak-vor-1.2.0", ".env.bak-vor-1.3.0", ".env.bak-vor-1.4.0", ".env.bak-vor-1.5.0"}
+	slices.Sort(want)
 	if !slices.Equal(matches, want) {
 		t.Errorf("backups = %v, want %v", matches, want)
 	}
 	if _, err := os.Stat(other); err != nil {
-		t.Errorf("rotation removed another file's backup: %v", err)
+		t.Errorf("backup removed another file's backup: %v", err)
+	}
+	info, err := os.Stat(path + ".bak-vor-1.16.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(path + ".bak-vor-1.16.0"); err != nil || string(got) != "SLOUCHCAT_VERSION=1.15.0\n" {
+		t.Errorf("backup = %q, %v; want the env file's content", got, err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("backup mode = %v, want 0600", info.Mode().Perm())
 	}
 }
 

@@ -119,8 +119,8 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
     die Zeile an, wenn sie fehlt) und lässt den Rest Byte für Byte stehen, auch Anführungszeichen
     und einen Kommentar ` # …` hinter dem Wert. Ist die Env-Datei ein Symlink, ersetzt er dessen Ziel
     in dessen Ordner. Vorher sichert er die Datei als
-    `.env.bak-vor-<Version>` mit Rechten `0600`, weil sie Geheimnisse enthält; die letzten fünf
-    Sicherungen bleiben.
+    `.env.bak-vor-<Version>` mit Rechten `0600`, weil sie Geheimnisse enthält. Er löscht nie eine Sicherung, auch nicht
+    ältere: Von Hand angelegte tragen dasselbe Namensmuster.
 12. **Migration und Rücknahme (F-14).** Der Server schreibt bei jedem Start vor und nach den
     Migrationen `server.json` (Version, Schema-Version vor und nach, Name der Sicherung vor der
     Migration). Daran sieht der Updater auch dann, ob eine Migration lief, wenn der neue Server nie

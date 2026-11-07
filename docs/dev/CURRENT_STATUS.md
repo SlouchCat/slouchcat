@@ -14,7 +14,7 @@ Release **1.16.0**: Vertrag **1.16.0, additiv**, **keine Migration**. Neue **ADR
   demselben Pfad eingehängt (`SLOUCHCAT_DEPLOY_DIR`), `./config` und `./cache` sind darin mit
   schreibgeschütztem tmpfs überdeckt. Kein offener Port, Bearer-Token in `deploy/updater/token`.
   Ablauf: Manifest (nur https) prüfen, neuere Version und Digest Pflicht, `.env` sichern
-  (`.env.bak-vor-<X>`, `0600`, fünf behalten), nur den Wert `SLOUCHCAT_VERSION` ändern, Compose mit
+  (`.env.bak-vor-<X>`, `0600`, der Updater löscht nie eine Sicherung), nur den Wert `SLOUCHCAT_VERSION` ändern, Compose mit
   genau den Dateien aus den Labels des laufenden Containers (`config --format json`, `pull`,
   `up -d --no-deps --no-build`), Digest prüfen, bis 10 min selbst auf «healthy» warten (kein
   `--wait`: der Healthcheck meldet eine lange Migration nach 16 s als krank). Ohne Migration nimmt er

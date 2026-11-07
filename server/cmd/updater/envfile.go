@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -17,9 +16,6 @@ import (
 
 // versionKey is the one variable the updater writes (ADR 0024 point 11).
 const versionKey = "SLOUCHCAT_VERSION"
-
-// keepBackups is how many .env backups stay next to the env file.
-const keepBackups = 5
 
 // versionLine matches a SLOUCHCAT_VERSION assignment at the start of a line, with the optional
 // indent and "export " that compose's dotenv parser accepts. Group 1 is everything up to and
@@ -222,15 +218,13 @@ func (f envFile) backupName(v string) string {
 }
 
 // backup copies the file to <name>.bak-vor-<v> (0600, owned like the original: it holds secrets)
-// and keeps the newest keepBackups backups. A missing file has nothing to back up.
+// and never deletes another backup: hand-made ones share the name pattern. A backup of that name
+// already there is replaced. A missing file has nothing to back up.
 func (f envFile) backup(v string) error {
 	if !f.exists {
 		return nil
 	}
-	if err := writeAtomic(f.backupName(v), f.data, 0o600, f.uid, f.gid); err != nil {
-		return err
-	}
-	return rotateBackups(f.path, keepBackups)
+	return writeAtomic(f.backupName(v), f.data, 0o600, f.uid, f.gid)
 }
 
 // write replaces the file with data, keeping its mode and owner.
@@ -248,42 +242,6 @@ func (f envFile) restore() error {
 		return err
 	}
 	return f.write(f.data)
-}
-
-// rotateBackups removes all but the newest keep backups <path>.bak-vor-* (by modification time).
-func rotateBackups(path string, keep int) error {
-	matches, err := filepath.Glob(globEscape(path) + ".bak-vor-*")
-	if err != nil {
-		return err
-	}
-	type backup struct {
-		path string
-		mod  int64
-	}
-	var list []backup
-	for _, m := range matches {
-		info, err := os.Lstat(m)
-		if err != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		list = append(list, backup{m, info.ModTime().UnixNano()})
-	}
-	slices.SortFunc(list, func(a, b backup) int {
-		if c := cmp.Compare(b.mod, a.mod); c != 0 { // newest first
-			return c
-		}
-		return strings.Compare(b.path, a.path)
-	})
-	var errs []error
-	for _, b := range list[min(keep, len(list)):] {
-		errs = append(errs, os.Remove(b.path))
-	}
-	return errors.Join(errs...)
-}
-
-// globEscape quotes the glob metacharacters of a literal path.
-func globEscape(p string) string {
-	return strings.NewReplacer(`\`, `\\`, `*`, `\*`, `?`, `\?`, `[`, `\[`).Replace(p)
 }
 
 // writeAtomic replaces path with data: temporary file in the same folder with mode and owner,

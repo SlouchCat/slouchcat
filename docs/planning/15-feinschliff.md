@@ -635,7 +635,7 @@ Aufwand: rund **3,5 Tage**.
   vergleicht den gezogenen Digest damit und bricht bei Abweichung ab.
 - **`.env`:** Der Updater ändert nur die Zeile `SLOUCHCAT_VERSION=` (fügt sie an, wenn sie fehlt)
   und lässt den Rest Byte für Byte stehen. Die Sicherung `.env.bak-vor-<Version>` enthält
-  Geheimnisse (SMTP, Telegram) und bekommt Rechte `0600`; die letzten fünf bleiben.
+  Geheimnisse (SMTP, Telegram) und bekommt Rechte `0600`. Der Updater löscht nie eine Sicherung (siehe Nachtrag zum Bau).
 - **Geheimnis:** Server und Updater teilen ein Token in einem eigenen kleinen Ordner
   `deploy/updater/` (Datei `token`, `0600`), im Server lesend unter `/run/slouchcat-updater`
   eingehängt. **Nicht** in `/config`: Der Updater sieht weder Datenbank noch `secret.key` noch
@@ -735,6 +735,9 @@ Profil.) Neue
 >   aus Zielversion und Endzeit.
 > - **Unterbrechung:** Der Updater wartet nach einem unterbrochenen Neustart im Hintergrund erneut
 >   (ADR 0024 Punkt 15).
+> - **Abweichung (Sicherungen der `.env`):** Der Updater behält alle Sicherungen `.env.bak-vor-*`
+>   und löscht keine, statt die neuesten fünf zu behalten, weil von Hand angelegte dasselbe
+>   Namensmuster tragen. Ältere räumt man von Hand auf.
 
 Aufwand: rund **6 Tage** (Updater 3, Release-Lauf und Manifest 0,5, Server und Karte 1, Doku
 und Abnahme auf CT 190 1,5).

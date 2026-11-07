@@ -240,7 +240,7 @@ kleines eigenes Programm im Container `slouchcat-updater`:
   Fingerabdruck (Digest) des heruntergeladenen Images.
 - Es ändert in `.env` nur den Wert der Zeile `SLOUCHCAT_VERSION=` (Anführungszeichen und ein
   Kommentar dahinter bleiben) und sichert die Datei vorher als `.env.bak-vor-<Fassung>` (nur für dich
-  lesbar, die letzten fünf bleiben).
+  lesbar). Es löscht nie eine Sicherung; räume ältere von Hand auf.
 - Es startet nur den Container `slouchcat` neu, mit genau den Compose-Dateien, mit denen er gestartet
   wurde; Caddy und sich selbst lässt es stehen.
 

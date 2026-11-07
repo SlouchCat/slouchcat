@@ -284,8 +284,8 @@ die Datei `./updater` unter
    `restart_pending` ab, solange eine Sicherung, eine Wiederherstellung oder ein Neustart ansteht;
    umgekehrt antworten Neustart, Wiederherstellung und Sicherung 409 `update_running`, solange eine
    Installation läuft.
-2. Env-Datei nach `.env.bak-vor-<X>` sichern (`0600`, Eigentümer wie das Original, die neuesten fünf
-   bleiben) und nur den Wert der Zeile `SLOUCHCAT_VERSION=` setzen; Leerzeichen, Anführungszeichen
+2. Env-Datei nach `.env.bak-vor-<X>` sichern (`0600`, Eigentümer wie das Original; der Updater löscht
+   nie eine Sicherung) und nur den Wert der Zeile `SLOUCHCAT_VERSION=` setzen; Leerzeichen, Anführungszeichen
    (`"…"`, `'…'`) und ein Kommentar ` # …` bleiben (fehlt die Zeile, wird sie angehängt). Bei mehreren
    Env-Dateien gilt die letzte, die die Zeile enthält, sonst die letzte. Ist die Env-Datei ein Symlink,
    ersetzt er das Ziel in dessen Ordner; der Link bleibt.
