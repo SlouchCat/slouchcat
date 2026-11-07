@@ -355,6 +355,66 @@ func (q *Queries) ListOpenRadioListenSessions(ctx context.Context) ([]RadioListe
 	return items, nil
 }
 
+const listRecommendedRadioStationIDs = `-- name: ListRecommendedRadioStationIDs :many
+SELECT id FROM radio_stations WHERE recommended = 1 ORDER BY id
+`
+
+// The recommended stations, whose logos the catalog sync prefetches.
+func (q *Queries) ListRecommendedRadioStationIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listRecommendedRadioStationIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockRadioStationLogo = `-- name: LockRadioStationLogo :exec
+INSERT INTO radio_station_locks (station_id, field) VALUES (?1, 'logo') ON CONFLICT DO NOTHING
+`
+
+func (q *Queries) LockRadioStationLogo(ctx context.Context, stationID int64) error {
+	_, err := q.db.ExecContext(ctx, lockRadioStationLogo, stationID)
+	return err
+}
+
+const markRadioLogoQueued = `-- name: MarkRadioLogoQueued :execrows
+
+UPDATE radio_stations SET logo_state = 'queued'
+WHERE id = ?1 AND (logo_state = 'none'
+    OR (logo_state = 'failed' AND (logo_tried_at IS NULL OR logo_tried_at < ?2)))
+`
+
+type MarkRadioLogoQueuedParams struct {
+	ID          int64
+	RetryBefore sql.NullInt64
+}
+
+// Station logos (concept 16 section 6, build plan S7; owner: radio, lane A). logo_state: none,
+// queued, catalog, website, own, failed; logo_hash is the sha256 of the source image.
+// A station without a logo, or whose chain failed before retry_before, gets the logo job.
+func (q *Queries) MarkRadioLogoQueued(ctx context.Context, arg MarkRadioLogoQueuedParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markRadioLogoQueued, arg.ID, arg.RetryBefore)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const recordRadioRelayAbort = `-- name: RecordRadioRelayAbort :one
 UPDATE radio_stations SET
     failures = failures + 1,
@@ -395,6 +455,47 @@ func (q *Queries) ResetRadioRelayFailures(ctx context.Context, id int64) (int64,
 	return result.RowsAffected()
 }
 
+const setRadioLogoFetched = `-- name: SetRadioLogoFetched :execrows
+UPDATE radio_stations SET logo_state = ?1, logo_hash = ?2, logo_tried_at = ?3
+WHERE id = ?4 AND logo_state <> 'own'
+`
+
+type SetRadioLogoFetchedParams struct {
+	LogoState string
+	LogoHash  sql.NullString
+	Now       sql.NullInt64
+	ID        int64
+}
+
+// The logo job's result (catalog, website or failed); an own upload is never replaced.
+func (q *Queries) SetRadioLogoFetched(ctx context.Context, arg SetRadioLogoFetchedParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setRadioLogoFetched,
+		arg.LogoState,
+		arg.LogoHash,
+		arg.Now,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setRadioLogoOwn = `-- name: SetRadioLogoOwn :exec
+UPDATE radio_stations SET logo_state = ?1, logo_hash = ?2 WHERE id = ?3
+`
+
+type SetRadioLogoOwnParams struct {
+	LogoState string
+	LogoHash  sql.NullString
+	ID        int64
+}
+
+func (q *Queries) SetRadioLogoOwn(ctx context.Context, arg SetRadioLogoOwnParams) error {
+	_, err := q.db.ExecContext(ctx, setRadioLogoOwn, arg.LogoState, arg.LogoHash, arg.ID)
+	return err
+}
+
 const setRadioStationShowsTitles = `-- name: SetRadioStationShowsTitles :execrows
 UPDATE radio_stations SET shows_titles = 1 WHERE id = ?1 AND shows_titles = 0
 `
@@ -432,4 +533,13 @@ func (q *Queries) TouchRadioListenSession(ctx context.Context, arg TouchRadioLis
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const unlockRadioStationLogo = `-- name: UnlockRadioStationLogo :exec
+DELETE FROM radio_station_locks WHERE station_id = ?1 AND field = 'logo'
+`
+
+func (q *Queries) UnlockRadioStationLogo(ctx context.Context, stationID int64) error {
+	_, err := q.db.ExecContext(ctx, unlockRadioStationLogo, stationID)
+	return err
 }

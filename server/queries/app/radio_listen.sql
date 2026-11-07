@@ -86,3 +86,30 @@ UPDATE radio_stations SET broken_at = NULL WHERE id = @id AND broken_at IS NOT N
 -- name: ResetRadioRelayFailures :execrows
 -- A relay ran for a minute: the aborts before no longer count.
 UPDATE radio_stations SET failures = 0 WHERE id = @id AND failures > 0;
+
+-- Station logos (concept 16 section 6, build plan S7; owner: radio, lane A). logo_state: none,
+-- queued, catalog, website, own, failed; logo_hash is the sha256 of the source image.
+
+-- name: MarkRadioLogoQueued :execrows
+-- A station without a logo, or whose chain failed before retry_before, gets the logo job.
+UPDATE radio_stations SET logo_state = 'queued'
+WHERE id = @id AND (logo_state = 'none'
+    OR (logo_state = 'failed' AND (logo_tried_at IS NULL OR logo_tried_at < @retry_before)));
+
+-- name: SetRadioLogoFetched :execrows
+-- The logo job's result (catalog, website or failed); an own upload is never replaced.
+UPDATE radio_stations SET logo_state = @logo_state, logo_hash = @logo_hash, logo_tried_at = @now
+WHERE id = @id AND logo_state <> 'own';
+
+-- name: SetRadioLogoOwn :exec
+UPDATE radio_stations SET logo_state = @logo_state, logo_hash = @logo_hash WHERE id = @id;
+
+-- name: LockRadioStationLogo :exec
+INSERT INTO radio_station_locks (station_id, field) VALUES (@station_id, 'logo') ON CONFLICT DO NOTHING;
+
+-- name: UnlockRadioStationLogo :exec
+DELETE FROM radio_station_locks WHERE station_id = @station_id AND field = 'logo';
+
+-- name: ListRecommendedRadioStationIDs :many
+-- The recommended stations, whose logos the catalog sync prefetches.
+SELECT id FROM radio_stations WHERE recommended = 1 ORDER BY id;

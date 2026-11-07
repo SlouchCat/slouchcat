@@ -113,6 +113,62 @@ func (r Runner) ScaleImage(ctx context.Context, inPath string, outs []ImageOutpu
 	return err
 }
 
+// SquareImageArgs builds the ffmpeg argument list of SquareImage: like ScaleImageArgs, but every
+// width is a square: the image is scaled to fit and padded with a transparent background (the
+// station logos of the webradio, concept 16 section 6).
+func SquareImageArgs(inPath string, outs []ImageOutput) ([]string, error) {
+	if len(outs) == 0 {
+		return nil, errors.New("no image outputs")
+	}
+	var widths []int
+	perWidth := map[int][]int{} // width → indexes into outs
+	for i, o := range outs {
+		if o.Width <= 0 || o.Path == "" {
+			return nil, fmt.Errorf("invalid image output %+v", o)
+		}
+		if _, ok := perWidth[o.Width]; !ok {
+			widths = append(widths, o.Width)
+		}
+		perWidth[o.Width] = append(perWidth[o.Width], i)
+	}
+	var graph strings.Builder
+	graph.WriteString("[0:v]format=rgba,split=" + strconv.Itoa(len(widths)))
+	for wi := range widths {
+		graph.WriteString("[s" + strconv.Itoa(wi) + "]")
+	}
+	for wi, w := range widths {
+		ws := strconv.Itoa(w)
+		idx := perWidth[w]
+		graph.WriteString(";[s" + strconv.Itoa(wi) + "]scale=" + ws + ":" + ws + ":force_original_aspect_ratio=decrease:flags=lanczos," +
+			"pad=" + ws + ":" + ws + ":(ow-iw)/2:(oh-ih)/2:color=0x00000000,split=" + strconv.Itoa(len(idx)))
+		for _, i := range idx {
+			graph.WriteString("[o" + strconv.Itoa(i) + "]")
+		}
+	}
+	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+		"-max_pixels", strconv.Itoa(MaxImagePixels), "-i", inPath, "-filter_complex", graph.String()}
+	for i, o := range outs {
+		enc, err := imageEncoderArgs(o.Format)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, "-map", "[o"+strconv.Itoa(i)+"]", "-frames:v", "1")
+		args = append(args, enc...)
+		args = append(args, o.Path)
+	}
+	return args, nil
+}
+
+// SquareImage writes every square output of the image at inPath in a single ffmpeg run.
+func (r Runner) SquareImage(ctx context.Context, inPath string, outs []ImageOutput) error {
+	args, err := SquareImageArgs(inPath, outs)
+	if err != nil {
+		return err
+	}
+	_, err = r.runImageFFmpeg(ctx, args...)
+	return err
+}
+
 // Palette returns up to maxColors representative colours of the image at inPath, computed by
 // ffmpeg's palettegen (median cut). palettegen writes a 16x16 palette image whose first pixels are
 // the colours; the rest repeats the last colour, so duplicates are dropped.
