@@ -9,7 +9,7 @@
 //
 //	SLOUCHCAT_DEPLOY_DIR           host path of deploy/, mounted at the same path (required)
 //	PUID, PGID                     owner of deploy/updater/ and its files (default 1000)
-//	SLOUCHCAT_UPDATE_MANIFEST_URL  release manifest (default config.DefaultUpdateManifestURL)
+//	SLOUCHCAT_UPDATE_MANIFEST_URL  release manifest, https only (default config.DefaultUpdateManifestURL)
 //	SLOUCHCAT_CONTAINER            container name of the server (default slouchcat)
 //	SLOUCHCAT_LOG_FORMAT           json (default) or text
 //
@@ -28,6 +28,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -131,6 +132,9 @@ func loadConfig(getenv func(string) string) (settings, error) {
 	if c.container == "" {
 		c.container = service
 	}
+	if u, err := url.Parse(c.manifestURL); err != nil || u.Scheme != "https" || u.Host == "" {
+		return c, fmt.Errorf("SLOUCHCAT_UPDATE_MANIFEST_URL must be an https URL, got %q", c.manifestURL)
+	}
 	dir := strings.TrimSpace(getenv("SLOUCHCAT_DEPLOY_DIR"))
 	if dir == "" || !filepath.IsAbs(dir) {
 		return c, fmt.Errorf("SLOUCHCAT_DEPLOY_DIR must be an absolute path, got %q", dir)
@@ -174,11 +178,26 @@ func newUpdater(ctx context.Context, cfg settings, docker Docker, log *slog.Logg
 	}
 	u := &Updater{
 		cfg: cfg, docker: docker, log: log, now: time.Now, ctx: ctx,
-		client: &http.Client{Timeout: manifestTimeout},
+		client: &http.Client{Timeout: manifestTimeout, CheckRedirect: httpsRedirects},
 		every:  pollInterval, wait: waitTimeout,
 	}
 	u.recover()
 	return u, token, nil
+}
+
+// maxRedirects is as many redirects as the manifest request follows (the net/http default).
+const maxRedirects = 10
+
+// httpsRedirects follows a redirect of the manifest request only to https: the manifest decides
+// which image runs with the Docker socket.
+func httpsRedirects(req *http.Request, via []*http.Request) error {
+	if len(via) >= maxRedirects {
+		return fmt.Errorf("stopped after %d redirects", maxRedirects)
+	}
+	if req.URL.Scheme != "https" {
+		return fmt.Errorf("redirect to %s refused: not https", req.URL.Redacted())
+	}
+	return nil
 }
 
 // ownDir gives the folder mode 0700 and the owner uid:gid through its open descriptor, without

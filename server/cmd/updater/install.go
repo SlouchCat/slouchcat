@@ -200,6 +200,9 @@ func (u *Updater) fetchManifest(ctx context.Context) (manifest, error) {
 	if err != nil {
 		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest request: %v", err)
 	}
+	if req.URL.Scheme != "https" {
+		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest address is not https")
+	}
 	resp, err := u.client.Do(req) //nolint:gosec // G704: the operator-configured manifest address
 	if err != nil {
 		return manifest{}, refuse(updater.CodeManifestUnreachable, "manifest: %v", err)

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -157,7 +158,15 @@ func newHarness(t *testing.T) *harness {
 		},
 		digests: []string{testImage},
 	}
-	h.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	h.srv = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/loop" {
+			http.Redirect(w, r, "/loop", http.StatusFound)
+			return
+		}
+		if to := r.URL.Query().Get("redirect"); to != "" {
+			http.Redirect(w, r, to, http.StatusFound)
+			return
+		}
 		_, _ = w.Write([]byte(h.manifest))
 	}))
 	t.Cleanup(h.srv.Close)
@@ -179,7 +188,7 @@ func (h *harness) start() {
 		h.t.Fatal(err)
 	}
 	h.stop = stop
-	u.client = h.srv.Client()
+	u.client.Transport = h.srv.Client().Transport // trusts the test certificate; CheckRedirect stays
 	u.every, u.wait = 2*time.Millisecond, 150*time.Millisecond
 	h.u, h.token = u, token
 	h.t.Cleanup(u.wg.Wait)
@@ -323,6 +332,13 @@ func TestInstallRefusals(t *testing.T) {
 		{"not json", func(h *harness) { h.manifest = `<html>` }, updater.CodeManifestInvalid},
 		{"too large", func(h *harness) { h.manifest = `{"version":"1.16.0","x":"` + strings.Repeat("a", 70<<10) + `"}` }, updater.CodeManifestInvalid},
 		{"unreachable", func(h *harness) { h.srv.Close() }, updater.CodeManifestUnreachable},
+		{"http address", func(h *harness) { h.u.cfg.manifestURL = strings.Replace(h.srv.URL, "https:", "http:", 1) }, updater.CodeManifestUnreachable},
+		{"redirect to http", func(h *harness) {
+			h.u.cfg.manifestURL = h.srv.URL + "/?redirect=" + url.QueryEscape(strings.Replace(h.srv.URL, "https:", "http:", 1))
+		}, updater.CodeManifestUnreachable},
+		{"redirect loop", func(h *harness) {
+			h.u.cfg.manifestURL = h.srv.URL + "/loop"
+		}, updater.CodeManifestUnreachable},
 		{"no digest", func(h *harness) { h.manifest = `{"version":"1.16.0"}` }, updater.CodeNoDigest},
 		{"tag only", func(h *harness) { h.manifest = `{"version":"1.16.0","image":"ghcr.io/slouchcat/slouchcat:1.16.0"}` }, updater.CodeNoDigest},
 		{"no labels", func(h *harness) {
@@ -785,14 +801,16 @@ func TestLoadConfig(t *testing.T) {
 		{"SLOUCHCAT_DEPLOY_DIR": filepath.Join(dir, "missing")},
 		{"SLOUCHCAT_DEPLOY_DIR": dir, "PUID": "abc"},
 		{"SLOUCHCAT_DEPLOY_DIR": dir, "PGID": "-1"},
+		{"SLOUCHCAT_DEPLOY_DIR": dir, "SLOUCHCAT_UPDATE_MANIFEST_URL": "http://x.test/m.json"},
+		{"SLOUCHCAT_DEPLOY_DIR": dir, "SLOUCHCAT_UPDATE_MANIFEST_URL": "https:///m.json"},
 	} {
 		if _, err := loadConfig(func(k string) string { return bad[k] }); err == nil {
 			t.Errorf("loadConfig(%v) accepted", bad)
 		}
 	}
-	env = map[string]string{"SLOUCHCAT_DEPLOY_DIR": dir, "PUID": "568", "PGID": "569", "SLOUCHCAT_CONTAINER": "media", "SLOUCHCAT_UPDATE_MANIFEST_URL": "http://x.test/m.json"}
+	env = map[string]string{"SLOUCHCAT_DEPLOY_DIR": dir, "PUID": "568", "PGID": "569", "SLOUCHCAT_CONTAINER": "media", "SLOUCHCAT_UPDATE_MANIFEST_URL": "https://x.test/m.json"}
 	c, err = loadConfig(func(k string) string { return env[k] })
-	if err != nil || c.uid != 568 || c.gid != 569 || c.container != "media" || c.manifestURL != "http://x.test/m.json" {
+	if err != nil || c.uid != 568 || c.gid != 569 || c.container != "media" || c.manifestURL != "https://x.test/m.json" {
 		t.Errorf("loadConfig = %+v, %v", c, err)
 	}
 }
@@ -819,5 +837,25 @@ func TestProjectArgsWithoutEnvLabel(t *testing.T) {
 	}
 	if _, err := os.Stat(h.env + ".bak-vor-1.16.0"); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("a backup exists before any install: %v", err)
+	}
+}
+
+func TestHTTPSRedirects(t *testing.T) {
+	req := func(u string) *http.Request {
+		r, err := http.NewRequestWithContext(t.Context(), http.MethodGet, u, http.NoBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	if err := httpsRedirects(req("https://example.test/b"), []*http.Request{req("https://example.test/a")}); err != nil {
+		t.Errorf("https redirect refused: %v", err)
+	}
+	if err := httpsRedirects(req("http://example.test/b"), []*http.Request{req("https://example.test/a")}); err == nil {
+		t.Error("redirect to http followed")
+	}
+	via := make([]*http.Request, maxRedirects)
+	if err := httpsRedirects(req("https://example.test/b"), via); err == nil {
+		t.Errorf("redirect %d followed", maxRedirects+1)
 	}
 }
