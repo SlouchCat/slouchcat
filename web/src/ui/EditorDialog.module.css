@@ -9,12 +9,13 @@
   background-color: var(--sc-color-bg-overlay);
 }
 
-/* As high as its content, at most 90 % of the window; the body scrolls beyond that. */
+/* 90 % of the window whatever the tab holds, so switching tabs never moves the dialog; the body
+   scrolls beyond that. */
 .modal {
   display: flex;
   width: 100%;
   max-width: var(--sc-size-dialog-editor);
-  max-height: 90dvh;
+  height: 90dvh;
 }
 
 .dialog {

@@ -153,6 +153,15 @@ test('the pen sits on the poster, before the actions in the Tab order @keyboard'
   await expectFocusOn(page, pen(page));
 });
 
+test('the dialog keeps its place and size on every tab', async ({ page }) => {
+  await openFromDetail(page);
+  const first = await boxOf(dialog(page));
+  for (const name of ['Metadaten', 'Zuordnen', 'Aktualisieren']) {
+    await selectTab(page, name, 1);
+    expect(await boxOf(dialog(page)), name).toEqual(first);
+  }
+});
+
 test('the pen opens the dialog; Tab stays inside, Escape closes, focus back on the pen @keyboard', async ({
   page,
 }) => {
