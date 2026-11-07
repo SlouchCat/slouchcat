@@ -16,7 +16,7 @@ services:
     # update check only says that there is one. The optional updater companion
     # (compose.updater.yaml, ADR 0024) takes that step on a click in the administration.
     # `docker compose up --build` builds locally instead.
-    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.15.0}
+    image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.16.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile
