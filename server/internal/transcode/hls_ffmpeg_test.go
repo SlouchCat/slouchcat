@@ -6,10 +6,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -354,6 +357,98 @@ func TestHLSRemuxEndToEnd(t *testing.T) {
 	if s2.CPUTime() <= 0 {
 		t.Error("no CPU time recorded")
 	}
+}
+
+// Remux of a web release (Silo S03E09, 2026-11-06): the packet before many keyframes lasts two
+// frames, so the mp4 muxer saw the keyframe's decode time before the end of the previous fragment
+// and moved the keyframe three frames early; and a restart (every MaxAhead pause) began the audio
+// at the keyframe's presentation time, about 150 ms after the previous run's audio had ended. The
+// clip doubles every video packet duration and encodes the audio, as that playback did.
+func TestHLSRemuxSeams(t *testing.T) {
+	r := hlsRunner(t)
+	src := testClip(t, r)
+	path := filepath.Join(t.TempDir(), "long-durations.mkv")
+	runFFmpeg(t, r, "-i", src.Path, "-map", "0", "-c", "copy", "-bsf:v", "setts=duration=2*DURATION", path)
+	src.Path = path
+	p, err := NewPlan(src, Target{Mode: ModeRemux, VideoCopy: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := newFFmpegManager(t, r, BackendSoftware)
+	read := reader(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	s, err := m.Start(ctx, "seams", src, p, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	init := read(s.OpenInit(ctx))
+	tracks := parseInit(t, init)
+	segs := make([][]byte, len(p.Segments))
+	for i := range segs {
+		segs[i] = read(s.OpenSegment(ctx, i))
+		checkSegment(t, p, tracks, i, segs[i])
+	}
+
+	// Restart at 2 after a run that wrote 0 and 1, the seam of a MaxAhead pause.
+	s2, err := m.Start(ctx, "seams2", src, p, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read(s2.OpenSegment(ctx, 0))
+	seg1 := read(s2.OpenSegment(ctx, 1))
+	stopAndForget(t, s2, 2)
+	seg2 := read(s2.OpenSegment(ctx, 2))
+	checkSegment(t, p, tracks, 2, seg2)
+	if runs := runCount(s2); runs != 2 {
+		t.Fatalf("%d ffmpeg runs, want 2", runs)
+	}
+	_, end := audioSpan(t, r, init, seg1)
+	start, _ := audioSpan(t, r, init, seg2)
+	if gap := start - end; gap > 0.001 {
+		t.Errorf("audio of the restart starts %.1f ms after the previous run's audio ends (%.4f s, %.4f s)", gap*1000, end, start)
+	}
+	// The doubled durations cost ffmpeg's framemd5 one frame of the source itself; the seam must
+	// not cost another.
+	want := decodes(t, r, init, segs...)
+	if n := decodes(t, r, init, segs[0], seg1, seg2, segs[3], segs[4]); n != want {
+		t.Errorf("init + segments of two runs decode to %d frames, one run to %d", n, want)
+	}
+}
+
+// audioSpan returns the presentation time of the first audio sample of init+seg and the end of
+// the last one, in seconds.
+func audioSpan(t *testing.T, r Runner, init, seg []byte) (start, end float64) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "seg.mp4")
+	if err := os.WriteFile(path, slices.Concat(init, seg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, r.FFprobePath, "-v", "error", "-select_streams", "a:0",
+		"-show_entries", "packet=pts_time,duration_time", "-of", "csv=p=0", path).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	start, end = math.Inf(1), math.Inf(-1)
+	for line := range strings.Lines(string(out)) {
+		ptsText, durText, _ := strings.Cut(strings.TrimSpace(line), ",")
+		pts, err := strconv.ParseFloat(ptsText, 64)
+		if err != nil {
+			t.Fatalf("ffprobe line %q: %v", line, err)
+		}
+		dur, err := strconv.ParseFloat(durText, 64)
+		if err != nil {
+			dur = 1024.0 / 48000 // ffprobe has no duration for the last AAC frame of a fragment
+		}
+		start, end = min(start, pts), max(end, pts+dur)
+	}
+	if math.IsInf(start, 1) {
+		t.Fatal("segment has no audio")
+	}
+	return start, end
 }
 
 func TestHLSTranscodeEndToEnd(t *testing.T) {

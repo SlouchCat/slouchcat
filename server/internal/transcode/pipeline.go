@@ -31,6 +31,13 @@ const (
 	segmentList    = "list.txt"
 	movFlags       = "movflags=+empty_moov+frag_custom+default_base_moof+frag_discont+skip_trailer" +
 		":avoid_negative_ts=disabled:use_editlist=0"
+	// copyDurations sets each copied video packet's duration to the distance to the next decode
+	// time. The mp4 muxer ends a fragment at the last packet's decode time plus its duration; when
+	// that lies after the next keyframe's decode time (web releases often give the packet before a
+	// keyframe two frames), it moves the keyframe to the fragment end and sets its pts to that dts,
+	// three frames early ("Packet duration ... is out of range", "pts has no value"). pts and dts
+	// are explicit: setts's default "TS" sets both to the decode time (ffmpeg 6.1 and 7.1).
+	copyDurations = `setts=pts=PTS:dts=DTS:duration=if(eq(NEXT_DTS\,NOPTS)\,DURATION\,NEXT_DTS-DTS)`
 
 	// videoOut is the filter_complex output label of a bitmap subtitle burn-in.
 	videoOut = "[vout]"
@@ -81,10 +88,14 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 	}
 	mixed := len(src.Parts) > 0 && src.Probe.Mixed()
 	if start > 0 && !mixed {
-		if encode {
+		in := b
+		switch {
+		case encode:
 			args = append(args, "-noaccurate_seek") // the output -ss trims exactly
+		case copyVideo:
+			in = remuxInputSeek(src.Keyframes, b-seekMargin(src.Keyframes, b))
 		}
-		args = append(args, "-ss", seconds6(b))
+		args = append(args, "-ss", seconds6(in))
 	}
 	var audioGraph string
 	switch {
@@ -112,7 +123,7 @@ func ffmpegArgs(caps Capabilities, src Source, p Plan, start int, outDir string)
 
 	switch {
 	case copyVideo:
-		args = append(args, "-c:v", "copy")
+		args = append(args, "-c:v", "copy", "-bsf:v", copyDurations)
 		if p.Target.VideoTag != "" {
 			args = append(args, "-tag:v", p.Target.VideoTag)
 		}
@@ -224,6 +235,18 @@ func seekMargin(kf []time.Duration, b time.Duration) time.Duration {
 		m = min(m, (b-earlier[len(earlier)-1])/2)
 	}
 	return m
+}
+
+// remuxInputSeek is the input seek of a remux restart whose output seek is x: the last keyframe
+// before x. A seek to the boundary itself lands on its keyframe, so the run would read no audio
+// before it; the previous run's audio ends at that keyframe's decode time, and the seam had a gap
+// of the B-frame delay (about 150 ms) instead of the overlap up to x.
+func remuxInputSeek(kf []time.Duration, x time.Duration) time.Duration {
+	i, _ := slices.BinarySearch(kf, x)
+	if i == 0 {
+		return 0
+	}
+	return kf[i-1]
 }
 
 // chain is the video pipeline of a backend: body decodes, scales and tonemaps down to SDR at the
