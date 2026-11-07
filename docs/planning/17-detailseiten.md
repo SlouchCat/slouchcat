@@ -1,12 +1,11 @@
 # Konzept: Serien- und Filmseite, Bibliotheksraster und Seitenleiste
 
-- **Status: Fassung 2 (7. November 2026), mit klickbarem Mockup.** Marco hat am 7. November 2026
-  die Fragen **F-1, F-2, F-4 bis F-10, F-12 bis F-14** beantwortet (Abschnitt 11): **Serie A**,
+- **Status: Fassung 3 (7. November 2026), mit klickbarem Mockup.** Marco hat am 7. November 2026
+  alle Fragen **F-1 bis F-16** beantwortet (Abschnitt 11): **Serie A**,
   **Knöpfe A mit Trailer in der Reihe der Rundknöpfe**, **Sammlung nur als Reihe** (2),
   **Seitenleiste B mit Profilkopf, «Meine Medien» immer offen**. Abweichend von der Empfehlung:
   **FSK überall weg** (F-10), **Merken-Knopf nur beim Zeigen** (F-12), **Schauspielerbilder alle im
-  Voraus** (F-8). Offen sind nur **F-3, F-11, F-15, F-16** (Empfehlung angenommen, Bestätigung
-  ausstehend). Marco hat angekündigt, dass noch mehr dazukommen kann.
+  Voraus** (F-8). Keine Frage ist mehr offen. Marco hat angekündigt, dass noch mehr dazukommen kann.
   **Die Umsetzung beginnt erst auf Marcos ausdrückliches Wort.**
 - **Auslöser:** Marco hat am 7. November 2026 zwei Bildschirmfotos geschickt (Serienseite «Two and
   a Half Men», Filmseite «10 Cloverfield Lane») und ein drittes von der Seitenleiste auf dem Handy.
@@ -305,7 +304,7 @@ bestehenden Profilwahl. «Profile» sieht weiterhin das Hauptprofil **jedes** Ko
 |---|---|---|---|
 | F-1 | Aufbau der Serienseite: A «Staffelregal», B «Staffelseite» oder C «Staffelleiste»? | A | **A** |
 | F-2 | Knopfzeile: A beschriftete Rundknöpfe, B nur Symbole mit «⋯», C Karte «Als Nächstes»? | A | **A, Trailer ausgeschrieben mit Symbol in der Reihe von Merken** |
-| F-3 | Film gleich aufgebaut wie die Serie (gleicher Kopf, gleiche Knopfzeile)? | ja | offen (Marcos Wunsch D-3 spricht dafür) |
+| F-3 | Film gleich aufgebaut wie die Serie (gleicher Kopf, gleiche Knopfzeile)? | ja | **ja, gleich** |
 | F-4 | Welche Folge nennt der Knopf? | jüngste Aktivität ohne 60-Tage-Grenze, sonst S01E01 | **wie empfohlen** |
 | F-5 | Bei «alles gesehen»? | Nochmals ansehen ab S01E01 | **wie empfohlen** |
 | F-6 | Sammlung auf der Filmseite: 1 Hinweis, 2 Reihe, 3 Band? | 1 und 2 | **nur 2 «Reihe»** |
@@ -313,12 +312,12 @@ bestehenden Profilwahl. «Profile» sieht weiterhin das Hauptprofil **jedes** Ko
 | F-8 | Schauspielerbilder: wann laden? | beim ersten Anzeigen | **alle im Voraus, mit Nachholen** |
 | F-9 | Bibliothek: Springen oder Filtern, mit oder ohne Trenner? | Springen, durchgehend | **wie empfohlen** |
 | F-10 | FSK nur im Raster weg oder überall? | nur im Raster | **überall weg** |
-| F-11 | Stift: Karte bleibt gross, Stift wächst; auch in der Spotlight-Reihe? | ja | offen |
+| F-11 | Stift: Karte bleibt gross, Stift wächst; auch in der Spotlight-Reihe? | ja | **ja, überall** |
 | F-12 | Merken-Knopf auf dem Cover: immer oder beim Zeigen? | immer; «Merken» bleibt in der Knopfzeile | **nur beim Zeigen**; Knopfzeile behält «Merken» (Annahme, weil das Cover auf dem Handy dort fehlt) |
 | F-13 | Seitenleiste: A oder B? | A | **B mit Profilkopf, «Meine Medien» immer offen** |
 | F-14 | Wer sieht «Profile»? | Hauptprofil jedes Kontos | **wie empfohlen** |
-| F-15 | «Wiedergabe» bleibt für alle Profile in der Leiste? | ja | offen |
-| F-16 | Bau in Stufen wie in Abschnitt 12? | ja | offen |
+| F-15 | «Wiedergabe» bleibt für alle Profile in der Leiste? | ja | **ja, für alle** |
+| F-16 | Bau in Stufen wie in Abschnitt 12? | ja | **drei Stufen, je ein Release** |
 
 ## 12. Bauplan in Stufen (vorläufig)
 
