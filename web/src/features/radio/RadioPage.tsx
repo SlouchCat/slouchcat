@@ -174,17 +174,22 @@ export function RadioPage() {
 
   // The filter is stored a second after its last change.
   const filter = useMemo(() => toRadioFilter(search), [search]);
-  const stored = JSON.stringify([prefs?.lastFilter ?? {}, prefs?.lastSort ?? null]);
-  const current = JSON.stringify([filter, search.sort ?? null]);
+  // Both sides in the same form (key order, default sort), so a stored filter is not saved again.
+  const stored = JSON.stringify([
+    toRadioFilter(fromRadioFilter(prefs?.lastFilter)),
+    prefs?.lastSort ?? 'popular',
+  ]);
+  const current = JSON.stringify([filter, search.sort ?? 'popular']);
   const { mutate: save } = savePreferences;
   useEffect(() => {
     if (!prefs || !restored.current || stored === current) return;
     const timer = window.setTimeout(
       () =>
+        // The PUT replaces all three: always the whole object.
         save({
           defaultCountry: prefs.defaultCountry,
-          ...(Object.keys(filter).length > 0 ? { lastFilter: filter } : {}),
-          ...(search.sort ? { lastSort: search.sort } : {}),
+          lastFilter: filter,
+          lastSort: search.sort ?? 'popular',
         }),
       SAVE_DELAY_MS,
     );
@@ -303,8 +308,8 @@ export function RadioPage() {
     if (!prefs || code === prefs.defaultCountry) return;
     save({
       defaultCountry: code,
-      ...(prefs.lastFilter ? { lastFilter: prefs.lastFilter } : {}),
-      ...(prefs.lastSort ? { lastSort: prefs.lastSort } : {}),
+      lastFilter: prefs.lastFilter ?? {},
+      lastSort: prefs.lastSort ?? 'popular',
     });
     if (myCountryOn) go(withValues(search, 'country', [code]));
   };

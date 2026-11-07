@@ -61,6 +61,8 @@ const FIREFOX_WHOLE_SPECS = [
   'tracks',
   'versions',
   'watch-limit',
+  // webradio (concept 16): the player with copy-mode AAC, state and titles in Firefox
+  'radio-player',
   // audio
   'audio-download',
   'audio-offline',
