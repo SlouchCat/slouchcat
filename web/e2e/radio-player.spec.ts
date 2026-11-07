@@ -1,7 +1,14 @@
 import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import { CSRF, H264_TITLE } from './catalog';
 import { expect, test } from './fixtures';
-import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
+import {
+  expectFocusOn,
+  expectNoFocusTrap,
+  expectVisibleFocus,
+  focused,
+  resetFocus,
+  tabTo,
+} from './keyboard';
 
 // The app-level radio player (concept 16, 10.3; plan W4) against the test station of
 // radio-server.mjs: «Testradio Drei» is the Icecast AAC mount, which the relay repackages (copy
@@ -11,9 +18,10 @@ import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard'
 // (FIREFOX_WHOLE_SPECS); its CI runner has no audio output (PR #18), so it checks state and text.
 //
 // The mini player is reached by Tab, Space pauses, Enter opens «Jetzt läuft», Escape closes it
-// with the focus back on the mini player; navigation (also into /admin) keeps playing, a title on
-// /play stops the radio and ends the listen session; a second page that starts radio pauses the
-// first; no focus trap.
+// with the focus back on the mini player; the arrow keys lead from the page down into the mini
+// player and up back into the page (AppLayout); navigation (also into /admin) and Back keep
+// playing, a title on /play stops the radio and ends the listen session; a second page that
+// starts radio pauses the first; no focus trap.
 
 const AAC_STATION = 'Testradio Drei';
 const MP3_STATION = 'Testradio Eins';
@@ -62,6 +70,21 @@ async function playStation(page: Page, station: string): Promise<void> {
   await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live', {
     timeout: LIVE_TIMEOUT_MS,
   });
+}
+
+/** Presses `key` until the focus is inside `region`; fails after `max` presses. */
+async function arrowInto(page: Page, region: Locator, key: string, max = 10): Promise<void> {
+  for (let presses = 0; presses < max; presses += 1) {
+    await page.keyboard.press(key);
+    if (await region.evaluate((element) => element.contains(document.activeElement))) {
+      await expectVisibleFocus(page);
+      return;
+    }
+  }
+  const now = await focused(page);
+  throw new Error(
+    `${key} did not reach the region within ${max} presses (at ${now.tag}:${now.name})`,
+  );
 }
 
 /** The element's playback position (s) and its media error. */
@@ -125,12 +148,32 @@ test('AAC in copy mode plays; mini player and «Jetzt läuft» by keyboard; navi
   await expectFocusOn(page, miniOpen(page));
   await expectNoFocusTrap(page);
 
+  // Arrow keys: down from the page's last row reaches the mini player, which floats over the
+  // bottom of the content; up leads back to the tile the focus came from.
+  const tile = page
+    .getByRole('list', { name: 'Treffer' })
+    .getByRole('button', { name: `${AAC_STATION} pausieren` });
+  await resetFocus(page);
+  await tabTo(page, tile, 60);
+  await arrowInto(page, miniPlayer(page), 'ArrowDown');
+  await arrowInto(page, page.getByTestId('radio-page'), 'ArrowUp');
+  await expectFocusOn(page, tile);
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live');
+
   // Navigation inside the app, into the administration too, keeps playing.
   await page
     .getByRole('navigation', { name: 'Hauptnavigation' })
     .getByRole('link', { name: /^Verwaltung/ })
     .click();
   await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Verwaltung' })).toBeVisible();
+  await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live');
+  await expectSounding(page, browserName, 1);
+
+  // Back returns to the radio page; the station plays on.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/radio\?q=/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Radio' })).toBeVisible();
   await expect(miniPlayer(page)).toHaveAttribute('data-state', 'live');
   await expectSounding(page, browserName, 1);
 

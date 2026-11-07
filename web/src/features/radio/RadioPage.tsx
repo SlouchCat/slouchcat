@@ -14,6 +14,7 @@ import {
   regionName,
   stationPlace,
 } from '@/app/radio/labels';
+import { wantsSound } from '@/app/radio/priority';
 import { useRadioFavorite } from '@/app/radio/queries';
 import { useRadio } from '@/app/radio/useRadio';
 import { formatDate } from '@/lib/format';
@@ -181,13 +182,16 @@ export function RadioPage() {
   ]);
   const current = JSON.stringify([filter, search.sort ?? 'popular']);
   const { mutate: save } = savePreferences;
+  // The country chosen last: `prefs` has it only once the server answered, and the filter's save
+  // must not put the old one back meanwhile (a slow PUT).
+  const chosenCountry = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!prefs || !restored.current || stored === current) return;
     const timer = window.setTimeout(
       () =>
         // The PUT replaces all three: always the whole object.
         save({
-          defaultCountry: prefs.defaultCountry,
+          defaultCountry: chosenCountry.current ?? prefs.defaultCountry,
           lastFilter: filter,
           lastSort: search.sort ?? 'popular',
         }),
@@ -228,7 +232,8 @@ export function RadioPage() {
 
   const tile = (station: RadioStation, focusPrefix: string) => {
     const chosen = radio.state.phase !== 'idle' && radio.state.station?.id === station.id;
-    const state = chosen ? (radio.playing ? 'playing' : 'paused') : undefined;
+    // A station that still starts counts as playing: a press pauses it (RadioProvider.toggle).
+    const state = chosen ? (wantsSound(radio.state) ? 'playing' : 'paused') : undefined;
     return (
       <StationTile
         key={station.id}
@@ -249,13 +254,7 @@ export function RadioPage() {
         favorite={{
           pressed: station.favorite,
           label: t('radio.player.favorite', { name: station.name }),
-          onPress: () => {
-            const next = !station.favorite;
-            favorite.mutate(
-              { stationId: station.id, favorite: next },
-              { onSuccess: () => radio.markFavorite(station.id, next) },
-            );
-          },
+          onPress: () => favorite.mutate({ stationId: station.id, favorite: !station.favorite }),
         }}
         focusKey={`${focusPrefix}-${station.id}`}
       />
@@ -305,7 +304,8 @@ export function RadioPage() {
     .map((code) => ({ value: code, label: countryName(language, code) }))
     .sort((a, b) => a.label.localeCompare(b.label, language));
   const changeCountry = (code: string) => {
-    if (!prefs || code === prefs.defaultCountry) return;
+    if (!prefs || code === (chosenCountry.current ?? prefs.defaultCountry)) return;
+    chosenCountry.current = code;
     save({
       defaultCountry: code,
       lastFilter: prefs.lastFilter ?? {},

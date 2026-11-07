@@ -200,6 +200,91 @@ describe('RadioProvider', () => {
     expect(player().state.notice).toEqual({ kind: 'problem', code: 'radio_unreachable' });
   });
 
+  it.each([401, 404])(
+    'stops cleanly with «ended» when the heartbeat answers %i',
+    async (httpStatus) => {
+      const context = setup({
+        'POST /radio/listen/L1/heartbeat': () =>
+          problem(httpStatus, httpStatus === 401 ? 'unauthorized' : 'not_found'),
+      });
+      await startLive(context);
+      await act(() => vi.advanceTimersByTimeAsync(30_000));
+      await waitFor(() => expect(status()).toBe('idle/held/ended'));
+      expect(player().state.listen).toBeNull();
+      expect(player().state.station?.id).toBe(station.id);
+      // The stream is detached and the session ended once; no further beat follows.
+      expect(context.destroy).toHaveBeenCalled();
+      await act(() => vi.advanceTimersByTimeAsync(10));
+      expect(ends(context.calls)).toHaveLength(1);
+      await act(() => vi.advanceTimersByTimeAsync(60_000));
+      expect(beats(context.calls)).toHaveLength(1);
+    },
+  );
+
+  it('drops the late answer of station A after a quick switch to station B', async () => {
+    const other: RadioStation = { ...station, id: 8, name: 'Kanal K' };
+    const otherListen: RadioListen = {
+      ...listen,
+      listenId: 'L2',
+      playlistUrl: '/radio/live/L2/index.m3u8?rt=token',
+      station: other,
+    };
+    let answerA: (response: Response) => void = () => {};
+    const context = setup({
+      'POST /radio/stations/7/listen': () =>
+        new Promise<Response>((resolve) => {
+          answerA = resolve;
+        }),
+      'POST /radio/stations/8/listen': () => json(otherListen, 201),
+      'POST /radio/listen/L2/heartbeat': () => json({ expiresAt: Date.now() + 60_000 }),
+      'GET /radio/stations/8/now': () => json({ live: true, entries: [] }),
+    });
+    await screen.findByTestId('radio');
+    act(() => player().play(station));
+    await waitFor(() => expect(status()).toBe('starting/held/-'));
+    act(() => player().play(other));
+    await waitFor(() => expect(status()).toBe('live/playing/-'));
+    expect(player().state.station?.id).toBe(other.id);
+
+    // A's answer comes after B started: its session is ended at once, B plays on.
+    await act(async () => {
+      answerA(json(listen, 201));
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    await waitFor(() =>
+      expect(ends(context.calls)).toEqual([expect.objectContaining({ path: '/radio/listen/L1' })]),
+    );
+    expect(status()).toBe('live/playing/-');
+    expect(player().state.listen?.listenId).toBe('L2');
+    expect(context.engine).toHaveBeenCalledTimes(1);
+    expect(context.engine.mock.calls[0]?.[1]).toBe('/api/v1/radio/live/L2/index.m3u8?rt=token');
+  });
+
+  it('pauses a station that still starts: it opens held', async () => {
+    let answer: (response: Response) => void = () => {};
+    const context = setup({
+      'POST /radio/stations/7/listen': () =>
+        new Promise<Response>((resolve) => {
+          answer = resolve;
+        }),
+    });
+    await screen.findByTestId('radio');
+    act(() => player().play(station));
+    await waitFor(() => expect(status()).toBe('starting/held/-'));
+    act(() => player().toggle());
+    await waitFor(() => expect(player().state.holds).toEqual(['user']));
+    await act(async () => {
+      answer(json(listen, 201));
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    await waitFor(() => expect(status()).toBe('live/held/-'));
+    expect(player().state.holds).toEqual(['user']);
+    // Pressed again, it plays.
+    act(() => player().toggle());
+    await waitFor(() => expect(status()).toBe('live/playing/-'));
+    expect(ends(context.calls)).toEqual([]);
+  });
+
   it('shows the code of a start the server refused', async () => {
     setup({
       'POST /radio/stations/7/listen': () =>

@@ -163,7 +163,7 @@ function RadioAdminContent() {
           {
             id: 'einstellungen',
             label: t('admin.radio.tabs.settings'),
-            content: <SettingsTab config={config} />,
+            content: <SettingsTab config={config} titleRef={titleRef} />,
           },
         ]}
       />

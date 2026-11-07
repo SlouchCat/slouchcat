@@ -58,8 +58,15 @@ function radioApi(overrides: Parameters<typeof mockApi>[0] = {}) {
   });
 }
 
+/** jsdom has no media playback; the radio calls play() in the click. */
+const stubPlayback = () =>
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+
 describe('radio page', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
 
   it('shows the browse rows without a filter and only the grid with one', async () => {
     radioApi();
@@ -157,6 +164,100 @@ describe('radio page', () => {
       expect(
         calls.some((call) => call.method === 'PUT' && call.path === '/radio/favorites/1'),
       ).toBe(true),
+    );
+  });
+
+  it('keeps a new default country while its PUT is slow and the filter is saved', async () => {
+    const { calls } = radioApi({
+      'GET /radio/facets': () =>
+        json({
+          ...facets,
+          country: [
+            { value: 'CH', count: 3 },
+            { value: 'DE', count: 1 },
+          ],
+        }),
+      // The country's own PUT answers after the filter's save is due (1 s after the change).
+      'PUT /radio/preferences': (call) => {
+        const body = call.body as { defaultCountry: string; lastFilter: object };
+        const slow = body.defaultCountry === 'DE' && Object.keys(body.lastFilter).length === 0;
+        return slow
+          ? new Promise<Response>((resolve) => setTimeout(() => resolve(json(body)), 1500))
+          : json(body);
+      },
+    });
+    // «Mein Land» is on: choosing another country moves the filter along.
+    const { router } = renderApp('/radio?country=CH');
+    const select = await screen.findByRole('combobox', { name: 'Mein Land' });
+    await userEvent.setup().selectOptions(select, 'DE');
+    await waitFor(() => expect(router.state.location.search).toEqual({ country: 'DE' }));
+    const puts = () =>
+      calls
+        .filter((call) => call.method === 'PUT' && call.path === '/radio/preferences')
+        .map((call) => call.body as { defaultCountry: string; lastFilter: object });
+    await waitFor(
+      () =>
+        expect(puts()).toContainEqual({
+          defaultCountry: 'DE',
+          lastFilter: { country: ['DE'] },
+          lastSort: 'popular',
+        }),
+      { timeout: 4000 },
+    );
+    // From the choice on, no save sends the old country back.
+    const chosen = puts().findIndex((body) => body.defaultCountry === 'DE');
+    expect(
+      puts()
+        .slice(chosen)
+        .map((body) => body.defaultCountry),
+    ).not.toContain('CH');
+  });
+
+  it('keeps the heart of the playing station right after quick presses on two stations', async () => {
+    stubPlayback();
+    let answerFirst: (response: Response) => void = () => {};
+    radioApi({
+      // The station stays «starting»: the mini player shows it with its heart.
+      'POST /radio/stations/1/listen': () => new Promise<Response>(() => {}),
+      'PUT /radio/favorites/1': () =>
+        new Promise<Response>((resolve) => {
+          answerFirst = resolve;
+        }),
+      'DELETE /radio/favorites/2': () => new Response(null, { status: 204 }),
+    });
+    renderApp('/radio');
+    const grid = await screen.findByRole('list', { name: 'Alle Sender' });
+    const user = userEvent.setup();
+    await user.click(within(grid).getByRole('button', { name: 'Radio Swiss Pop abspielen' }));
+    const miniHeart = await screen.findByTestId('radio-mini-favorite');
+    expect(miniHeart).toHaveAttribute('aria-pressed', 'false');
+
+    // On the page, the heart of the playing station, then at once the one of another station;
+    // the first PUT answers last.
+    await user.click(within(grid).getByRole('button', { name: 'Radio Swiss Pop in Meine Sender' }));
+    await user.click(within(grid).getByRole('button', { name: 'Kanal K in Meine Sender' }));
+    answerFirst(new Response(null, { status: 204 }));
+    await waitFor(() =>
+      expect(screen.getByTestId('radio-mini-favorite')).toHaveAttribute('aria-pressed', 'true'),
+    );
+  });
+
+  it('says limit and minutes of today when the watch limit refuses the station', async () => {
+    stubPlayback();
+    radioApi({
+      'POST /radio/stations/1/listen': () =>
+        problem(403, 'watch_limit_reached', { extensions: { limitMinutes: 60, usedMinutes: 61 } }),
+    });
+    renderApp('/radio');
+    const grid = await screen.findByRole('list', { name: 'Alle Sender' });
+    await userEvent
+      .setup()
+      .click(within(grid).getByRole('button', { name: 'Radio Swiss Pop abspielen' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('radio-mini-line')).toHaveTextContent(
+        'Schauzeit für heute aufgebraucht Dieses Profil darf 60 Minuten pro Tag schauen. ' +
+          'Morgen geht es weiter. Heute geschaut: 61 Minuten.',
+      ),
     );
   });
 });

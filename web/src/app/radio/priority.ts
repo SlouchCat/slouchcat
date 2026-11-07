@@ -105,6 +105,12 @@ export function radioReducer(state: RadioState, action: RadioAction): RadioState
 /** The radio should sound: a session is open and nothing holds it. */
 export const isPlaying = (state: RadioState) => state.phase === 'live' && state.holds.length === 0;
 
+/**
+ * The radio plays or is on its way to (a station starts and nothing holds it): the play/pause
+ * toggle shows «Pause» then, and a press holds the radio, also while the station still starts.
+ */
+export const wantsSound = (state: RadioState) => state.phase !== 'idle' && state.holds.length === 0;
+
 /** What happens elsewhere in the app that concerns the radio (concept 16, table in 10.3). */
 export type RadioEvent =
   /** A film, an episode, an audiobook or a podcast starts (`/play/$itemId`). */

@@ -20,6 +20,7 @@ import {
   initialRadioState,
   isPlaying,
   radioReducer,
+  wantsSound,
   type RadioAction,
   type RadioEvent,
   type RadioNotice,
@@ -167,7 +168,8 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
       if (current.station) play(current.station);
       return;
     }
-    if (isPlaying(current)) {
+    // A pause while the station still starts holds it: it opens paused.
+    if (wantsSound(current)) {
       dispatch({ type: 'hold', by: 'user' });
     } else {
       playInGesture(current.phase === 'live');

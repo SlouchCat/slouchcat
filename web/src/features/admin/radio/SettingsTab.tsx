@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { Notice, Skeleton, Text } from '@/ui';
 import {
+  afterRender,
+  focusTitleIfLost,
   RadioGroup,
   SaveBar,
   SettingRow,
@@ -73,6 +75,8 @@ function changes(config: RadioConfig, draft: Draft): RadioConfigUpdate {
 
 interface SettingsTabProps {
   config: UseQueryResult<RadioConfig>;
+  /** The page's h1: it takes the focus when «Verwerfen» went with the changes (ALL-2). */
+  titleRef: RefObject<HTMLHeadingElement | null>;
 }
 
 /**
@@ -80,13 +84,19 @@ interface SettingsTabProps {
  * broken stations, countries. Time shift, budget and maximum apply to relays that start from now
  * on (the running ones keep theirs, S2), the others at once.
  */
-export function SettingsTab({ config }: SettingsTabProps) {
+export function SettingsTab({ config, titleRef }: SettingsTabProps) {
   if (config.isPending) return <Skeleton shape="block" />;
   if (!config.data) return null;
-  return <SettingsForm config={config.data} />;
+  return <SettingsForm config={config.data} titleRef={titleRef} />;
 }
 
-function SettingsForm({ config }: { config: RadioConfig }) {
+function SettingsForm({
+  config,
+  titleRef,
+}: {
+  config: RadioConfig;
+  titleRef: SettingsTabProps['titleRef'];
+}) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [message, setMessage] = useStatusMessage();
@@ -200,7 +210,10 @@ function SettingsForm({ config }: { config: RadioConfig }) {
         onSave={() => {
           if (dirty) save.mutate();
         }}
-        onDiscard={() => setDraft(draftOf(config))}
+        onDiscard={() => {
+          setDraft(draftOf(config));
+          void afterRender().then(() => focusTitleIfLost(titleRef));
+        }}
       />
       {save.error && <Notice tone="danger">{problemMessage(t, save.error)}</Notice>}
     </div>
