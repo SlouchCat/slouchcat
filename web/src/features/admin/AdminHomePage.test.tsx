@@ -879,6 +879,8 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
       mockApi(
         updateRoutes(installable({ install: install({ phase }) }), {
           'GET /admin/update/status': () => json(install({ phase })),
+          // The page joins the install and asks the health check as well; the old server answers.
+          'GET /healthz': () => json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
         }),
       );
       renderApp('/admin');
@@ -1128,7 +1130,7 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
       expect(alert).toHaveTextContent(text);
       expect(alert).toHaveTextContent(`companion: ${code}`);
       // No watch began: the old result stays as it was, with its date, and nobody asks the status.
-      expect(within(card).getByRole('status')).toHaveTextContent('Beendet: 01.10.2026');
+      expect(within(card).getByText(/^Beendet: 01\.10\.2026/)).toBeVisible();
       expect(calls.some((call) => call.path === '/admin/update/status')).toBe(false);
       expect(within(card).queryByText('Schritte des Updates')).not.toBeInTheDocument();
     },
@@ -1191,7 +1193,154 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
       ),
     ).toBeVisible();
     expect(within(card).getByText('SLOUCHCAT_VERSION=0.9.1')).toBeVisible();
+    expect(within(card).getByText(/^Von Hand installierst du/)).toBeVisible();
     expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
+    // The button had the focus and went away: the focus moves to the manual steps and the warning.
+    await waitFor(() =>
+      expect(document.activeElement).toContainElement(
+        within(card).getByText(
+          'Der Updater-Begleiter antwortet nicht. Installiere das Update von Hand.',
+        ),
+      ),
+    );
+  });
+
+  it('a companion that is set up but does not answer: says so, then the manual steps', async () => {
+    mockApi(updateRoutes(installable({ updaterConfigured: true, updaterAvailable: false })));
+    renderApp('/admin');
+    const card = await serverCard();
+    expect(
+      within(card).getByText(
+        'Der Updater-Begleiter antwortet nicht. Installiere das Update von Hand.',
+      ),
+    ).toBeVisible();
+    expect(within(card).getByText(/^Von Hand installierst du/)).toBeVisible();
+    expect(within(card).queryByText(/^Ohne Updater-Begleiter/)).not.toBeInTheDocument();
+    expect(within(card).getByText('SLOUCHCAT_VERSION=0.9.1')).toBeVisible();
+    expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
+  });
+
+  it.each(['no_compose_labels', 'outside_deploy_dir'])(
+    'a refusal %s that says «by hand» shows the manual steps and moves the focus there',
+    async (code) => {
+      mockApi(
+        updateRoutes(installable(), {
+          'POST /admin/update/install': () => problem(422, code, { detail: `companion: ${code}` }),
+        }),
+      );
+      renderApp('/admin');
+      const user = userEvent.setup();
+      const card = await serverCard();
+      await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'Installieren',
+        }),
+      );
+      expect(await within(card).findByRole('alert')).toHaveTextContent(
+        'Der Updater hat das Update nicht gestartet',
+      );
+      const steps = within(card).getByText(/^Von Hand installierst du/);
+      expect(steps).toBeVisible();
+      expect(within(card).getByText('SLOUCHCAT_VERSION=0.9.1')).toBeVisible();
+      expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();
+      await waitFor(() => expect(document.activeElement).toContainElement(steps));
+    },
+  );
+
+  it('a page that joins a running install (a reload) follows it and reloads for the new version', async () => {
+    let healthCalls = 0;
+    mockApi(
+      updateRoutes(installable({ install: install({ phase: 'pulling' }) }), {
+        'GET /admin/update/status': () => json(install({ phase: 'waiting' })),
+        // The old process answers first, then the new one with the new version.
+        'GET /healthz': () =>
+          healthCalls++ < 1
+            ? json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 })
+            : json({ status: 'ok', version: '0.9.1', uptimeSeconds: 0 }),
+      }),
+    );
+    renderApp('/admin');
+    const card = await serverCard();
+    expect(within(card).getByRole('status')).toHaveTextContent('Update auf 0.9.1 läuft');
+    // «Neu starten» would cut the install off: the card does not offer it meanwhile.
+    expect(within(card).queryByRole('button', { name: 'Neu starten' })).not.toBeInTheDocument();
+    await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1), { timeout: 8000 });
+  }, 15_000);
+
+  it('a server away for more than 25 minutes: the card gives up waiting and links the guide', async () => {
+    let clock = Date.parse('2026-11-07T09:00:00Z');
+    // A clock that moves on a little with every look, and far when the test says so.
+    vi.spyOn(Date, 'now').mockImplementation(() => (clock += 1));
+    let installed = false;
+    mockApi(
+      updateRoutes(installable(), {
+        'POST /admin/update/install': () => {
+          installed = true;
+          return json(install({ phase: 'restarting' }), 202);
+        },
+        'GET /admin/update/status': () => json(install({ phase: 'restarting' })),
+        'GET /healthz': () =>
+          installed
+            ? Promise.reject(new TypeError('Failed to fetch'))
+            : json({ status: 'ok', version: '0.9.0', uptimeSeconds: 99_999 }),
+      }),
+    );
+    try {
+      renderApp('/admin');
+      const user = userEvent.setup();
+      const card = await serverCard();
+      expect(within(card).getByRole('button', { name: 'Neu starten' })).toBeVisible();
+      await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
+      await user.click(
+        within(await screen.findByRole('alertdialog')).getByRole('button', {
+          name: 'Installieren',
+        }),
+      );
+      const state = await within(card).findByRole('status');
+      await waitFor(() =>
+        expect(state).toHaveTextContent('Der Server antwortet gerade nicht. Warte auf ihn …'),
+      );
+      expect(within(state).queryByText(/seit über 25 Minuten/)).not.toBeInTheDocument();
+      expect(within(card).queryByRole('button', { name: 'Neu starten' })).not.toBeInTheDocument();
+      clock += 26 * 60_000;
+      expect(
+        await within(state).findByText(
+          'Der Server antwortet seit über 25 Minuten nicht',
+          {},
+          { timeout: 5000 },
+        ),
+      ).toBeVisible();
+      expect(
+        within(state).getByRole('link', { name: /Anleitung: Update per Knopf/ }),
+      ).toBeVisible();
+      expect(reloadPage).not.toHaveBeenCalled();
+    } finally {
+      vi.mocked(Date.now).mockRestore();
+    }
+  }, 15_000);
+
+  it('an install refused because a backup runs (409 backup_busy) says so', async () => {
+    mockApi(
+      updateRoutes(installable(), {
+        'POST /admin/update/install': () => problem(409, 'backup_busy'),
+      }),
+    );
+    renderApp('/admin');
+    const user = userEvent.setup();
+    const card = await serverCard();
+    await user.click(within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Installieren' }),
+    );
+    expect(
+      await within(card).findByText(
+        'Gerade läuft eine Sicherung oder Wiederherstellung. Versuche es wieder, sobald sie fertig ist.',
+      ),
+    ).toBeVisible();
+    expect(
+      within(card).queryByRole('list', { name: 'Schritte des Updates' }),
+    ).not.toBeInTheDocument();
   });
 });
 

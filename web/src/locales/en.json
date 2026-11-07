@@ -164,7 +164,8 @@
       "backup_invalid": "This file is not a valid Slouchcat backup, or it is damaged.",
       "backup_newer_than_server": "The backup comes from a newer version of Slouchcat. Update the server first.",
       "restart_pending": "The server restarts shortly. Wait until it answers again.",
-      "backup_busy": "A backup or a restore is running. Restart the server once it is done.",
+      "backup_busy": "A backup or a restore is running. Try again once it is done.",
+      "update_running": "An update is being installed. Wait until it is done.",
       "announcement_published": "The announcement is already published and can no longer be changed.",
       "scan_running": "A scan of this library is running. Wait for it to finish, or cancel it.",
       "confirm_mismatch": "The typed path does not match the folder. Nothing was removed.",
@@ -2308,6 +2309,10 @@
           "waiting": "The updater waits until the new server is healthy (at most 10 minutes)."
         },
         "down": "The server does not answer right now. Waiting for it …",
+        "silent": {
+          "title": "The server has not answered for more than 25 minutes",
+          "body": "No update takes that long. On the host, check with docker compose ps and docker compose logs whether the server and the updater companion run."
+        },
         "done": "Update to {{version}} installed.",
         "rolledBack": "Update to {{to}} failed, version {{from}} runs again.",
         "rolledBackNoVersion": "Update failed, the previous version runs again.",
@@ -2329,6 +2334,7 @@
         "manual": {
           "unavailable": "The updater companion does not answer. Install the update by hand.",
           "intro": "Without the updater companion you install the update on the host, in the folder with compose.yaml and .env:",
+          "introByHand": "By hand you install the update on the host, in the folder with compose.yaml and .env:",
           "env": "Line in .env",
           "pull": "Pull the new image",
           "up": "Start with the new version",

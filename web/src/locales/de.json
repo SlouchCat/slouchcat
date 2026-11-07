@@ -164,7 +164,8 @@
       "backup_invalid": "Diese Datei ist keine gültige Sicherung von Slouchcat, oder sie ist beschädigt.",
       "backup_newer_than_server": "Die Sicherung stammt von einer neueren Version von Slouchcat. Aktualisiere zuerst den Server.",
       "restart_pending": "Der Server startet gleich neu. Warte, bis er wieder antwortet.",
-      "backup_busy": "Gerade läuft eine Sicherung oder Wiederherstellung. Starte den Server neu, sobald sie fertig ist.",
+      "backup_busy": "Gerade läuft eine Sicherung oder Wiederherstellung. Versuche es wieder, sobald sie fertig ist.",
+      "update_running": "Gerade wird ein Update installiert. Warte, bis es fertig ist.",
       "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.",
       "scan_running": "Ein Scan dieser Bibliothek läuft gerade. Warte, bis er fertig ist, oder brich ihn ab.",
       "confirm_mismatch": "Der abgetippte Pfad stimmt nicht mit dem Ordner überein. Nichts wurde entfernt.",
@@ -2308,6 +2309,10 @@
           "waiting": "Der Updater wartet, bis der neue Server gesund ist (höchstens 10 Minuten)."
         },
         "down": "Der Server antwortet gerade nicht. Warte auf ihn …",
+        "silent": {
+          "title": "Der Server antwortet seit über 25 Minuten nicht",
+          "body": "So lange dauert kein Update. Prüfe auf dem Rechner mit docker compose ps und docker compose logs, ob der Server und der Updater-Begleiter laufen."
+        },
         "done": "Update auf {{version}} installiert.",
         "rolledBack": "Update auf {{to}} fehlgeschlagen, Version {{from}} läuft wieder.",
         "rolledBackNoVersion": "Update fehlgeschlagen, die vorherige Version läuft wieder.",
@@ -2329,6 +2334,7 @@
         "manual": {
           "unavailable": "Der Updater-Begleiter antwortet nicht. Installiere das Update von Hand.",
           "intro": "Ohne Updater-Begleiter installierst du das Update auf dem Rechner, im Ordner mit compose.yaml und .env:",
+          "introByHand": "Von Hand installierst du das Update auf dem Rechner, im Ordner mit compose.yaml und .env:",
           "env": "Zeile in .env",
           "pull": "Neues Image holen",
           "up": "Mit der neuen Version starten",

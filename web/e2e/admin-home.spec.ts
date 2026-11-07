@@ -376,6 +376,7 @@ test.describe('update card (concept 15 P-8)', () => {
         development: false,
         latestVersion: '99.0.0',
         notes: notes.join('\n'),
+        updaterConfigured: companion,
         updaterAvailable: companion,
       };
       await route.fulfill({ response, json: body });
@@ -452,6 +453,8 @@ test.describe('update card (concept 15 P-8)', () => {
     await expect(server.getByText('Der Updater lädt das neue Image herunter.')).toBeVisible();
     expect(installs).toEqual(['POST']);
     await expect(install).toHaveCount(0);
+    // A restart would cut the install off: the card does not offer it meanwhile.
+    await expect(server.getByRole('button', { name: 'Neu starten' })).toHaveCount(0);
     await expectFocusOn(
       page,
       server

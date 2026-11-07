@@ -14,6 +14,8 @@ const problemKeys = {
   // Concept 11: restart and restore.
   restart_pending: 'errors.code.restart_pending',
   backup_busy: 'errors.code.backup_busy',
+  // Concept 15 P-8: an install of an update runs.
+  update_running: 'errors.code.update_running',
   announcement_published: 'errors.code.announcement_published',
   library_path_invalid: 'errors.code.library_path_invalid',
   // The folder browser of the library form (idea 02).

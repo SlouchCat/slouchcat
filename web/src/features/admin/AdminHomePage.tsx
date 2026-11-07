@@ -9,7 +9,7 @@ import type {
 } from '@slouchcat/api-client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TFunction } from 'i18next';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { api, isApiError, request } from '@/api/client';
 import { problemMessage } from '@/api/errors';
@@ -379,6 +379,15 @@ const REFUSALS = [
   'manifest_unreachable',
 ] as const;
 
+/** Refusals that mean the companion cannot restart this server: the card shows the manual steps. */
+const MANUAL_REFUSALS: readonly string[] = ['no_compose_labels', 'outside_deploy_dir'];
+
+/**
+ * How long the card waits for the server during an install before it says that something is
+ * wrong: the server reports a running install older than that as interrupted (installStaleAfter).
+ */
+const INSTALL_GIVE_UP_MS = 25 * 60_000;
+
 const refusalKey = (code: string) =>
   (REFUSALS as readonly string[]).includes(code)
     ? (`admin.home.install.refused.${code as (typeof REFUSALS)[number]}` as const)
@@ -488,13 +497,37 @@ function InstallResult({ install }: { install: UpdateInstallStatus }) {
   );
 }
 
-/** Fallback C (concept 15, 9.3): without the companion, the line for .env and the two commands. */
-function ManualUpdate({ version, unavailable }: { version: string; unavailable: boolean }) {
+/**
+ * Why the card shows the manual steps: no companion is set up (`none`), it is set up but does not
+ * answer (`unavailable`), or it refused because it cannot restart this server (`refused`, the
+ * refusal stands above).
+ */
+type ManualReason = 'none' | 'unavailable' | 'refused';
+
+/**
+ * Fallback C (concept 15, 9.3): the line for .env and the two commands. It takes the focus when
+ * the install button it replaces had it (`focusRef`).
+ */
+function ManualUpdate({
+  version,
+  reason,
+  focusRef,
+}: {
+  version: string;
+  reason: ManualReason;
+  focusRef: Ref<HTMLDivElement>;
+}) {
   const { t } = useTranslation();
   return (
-    <div className={styles.manual}>
-      {unavailable && <Notice tone="warning">{t('admin.home.install.manual.unavailable')}</Notice>}
-      <Text variant="caption">{t('admin.home.install.manual.intro')}</Text>
+    <div ref={focusRef} tabIndex={-1} className={styles.manual}>
+      {reason === 'unavailable' && (
+        <Notice tone="warning">{t('admin.home.install.manual.unavailable')}</Notice>
+      )}
+      <Text variant="caption">
+        {reason === 'none'
+          ? t('admin.home.install.manual.intro')
+          : t('admin.home.install.manual.introByHand')}
+      </Text>
       <Command code={`SLOUCHCAT_VERSION=${version}`} label={t('admin.home.install.manual.env')} />
       <Command code={PULL_COMMAND} label={t('admin.home.install.manual.pull')} />
       <Command code={UP_COMMAND} label={t('admin.home.install.manual.up')} />
@@ -536,6 +569,14 @@ function UpdateInstall({
   // A 422: the companion refused before it changed anything; state.json keeps the last install.
   const [refusal, setRefusal] = useState<{ code: string; detail?: string } | null>(null);
   const watching = installAt !== null || isInstalling(update.install);
+  // A page that joins a running install (a reload, a second tab) follows it like its own: the
+  // health check, and the reload once the new version answers. Once per page.
+  const joined = useRef(false);
+  useEffect(() => {
+    if (joined.current || installAt !== null || !isInstalling(update.install)) return;
+    joined.current = true;
+    onInstallAt(Date.now());
+  }, [installAt, update.install, onInstallAt]);
   // The health check of the restart panel (RestartPanel): who answers, and since when.
   const health = useQuery({
     queryKey: ['update', 'health', installAt],
@@ -546,6 +587,8 @@ function UpdateInstall({
     gcTime: 0,
   });
   const away = installAt !== null && health.isError;
+  // The server stays away far longer than an install takes: something went wrong on the host.
+  const silent = away && health.errorUpdatedAt - installAt >= INSTALL_GIVE_UP_MS;
   const status = useQuery({
     queryKey: installStatusKey,
     queryFn: ({ signal }) => request(api.GET('/admin/update/status', { signal })),
@@ -583,7 +626,9 @@ function UpdateInstall({
     },
   });
   const handled =
-    isApiError(start.error, 409) || isApiError(start.error, 422) || isApiError(start.error, 503);
+    (isApiError(start.error, 409) && start.error.code === 'update_running') ||
+    isApiError(start.error, 422) ||
+    isApiError(start.error, 503);
 
   // The page reloads once for the new server: when the new version answers the health check, or
   // when the companion reports the install done (whichever comes first).
@@ -622,7 +667,20 @@ function UpdateInstall({
   }, [running, started]);
 
   const latest = update.available ? update.latestVersion : undefined;
-  const offline = !update.updaterAvailable || unavailable;
+  const refusedForGood = refusal !== null && MANUAL_REFUSALS.includes(refusal.code);
+  const manual: ManualReason | null = refusedForGood
+    ? 'refused'
+    : unavailable || (update.updaterConfigured && !update.updaterAvailable)
+      ? 'unavailable'
+      : !update.updaterAvailable
+        ? 'none'
+        : null;
+  // A 503 or a refusal for good replaces the install button: its focus moves to the manual steps.
+  const manualBlock = useRef<HTMLDivElement>(null);
+  const replaced = unavailable || refusedForGood;
+  useEffect(() => {
+    if (replaced && document.activeElement === document.body) manualBlock.current?.focus();
+  }, [replaced]);
   if (!latest && !install && !refusal) return null;
 
   return (
@@ -642,6 +700,14 @@ function UpdateInstall({
                   ? t('admin.home.install.down')
                   : t(`admin.home.install.phase.${install.phase}`)}
               </Text>
+              {silent && (
+                <Notice tone="warning" live={false} title={t('admin.home.install.silent.title')}>
+                  <span>{t('admin.home.install.silent.body')}</span>
+                  <TextLink href={UPDATER_GUIDE} external>
+                    {t('admin.home.install.manual.docs')}
+                  </TextLink>
+                </Notice>
+              )}
             </>
           ) : (
             <InstallResult install={install} />
@@ -657,7 +723,7 @@ function UpdateInstall({
       {start.error && !handled ? (
         <Notice tone="danger">{problemMessage(t, start.error)}</Notice>
       ) : null}
-      {latest && !running && !offline && (
+      {latest && !running && manual === null && (
         <ConfirmDialog
           trigger={
             <AriaButton variant="primary" icon="download" isPending={start.isPending}>
@@ -685,7 +751,9 @@ function UpdateInstall({
           )}
         </ConfirmDialog>
       )}
-      {latest && !running && offline && <ManualUpdate version={latest} unavailable={unavailable} />}
+      {latest && !running && manual !== null && (
+        <ManualUpdate version={latest} reason={manual} focusRef={manualBlock} />
+      )}
     </div>
   );
 }
@@ -745,6 +813,9 @@ function ServerCard({
   const { update } = data;
   const streams = data.streams.length;
   const error = check.error ?? restart.error;
+  // While an install runs the companion restarts the server; the server refuses a restart
+  // (update_running) as well.
+  const installing = installAt !== null || isInstalling(update.install);
 
   return (
     <DashCard
@@ -762,26 +833,28 @@ function ServerCard({
           >
             {t('admin.home.server.check')}
           </AriaButton>
-          <ConfirmDialog
-            trigger={
-              <AriaButton variant="ghost" icon="power" isPending={restart.isPending}>
-                {t('admin.home.restart.action')}
-              </AriaButton>
-            }
-            title={t('admin.home.restart.title')}
-            body={
-              streams > 0
-                ? t('admin.home.restart.streams', { count: streams })
-                : t('admin.home.restart.idle')
-            }
-            confirmLabel={t('admin.home.restart.confirm')}
-            cancelLabel={t('common.cancel')}
-            tone="danger"
-            onConfirm={() => {
-              check.reset();
-              restart.mutate();
-            }}
-          />
+          {!installing && (
+            <ConfirmDialog
+              trigger={
+                <AriaButton variant="ghost" icon="power" isPending={restart.isPending}>
+                  {t('admin.home.restart.action')}
+                </AriaButton>
+              }
+              title={t('admin.home.restart.title')}
+              body={
+                streams > 0
+                  ? t('admin.home.restart.streams', { count: streams })
+                  : t('admin.home.restart.idle')
+              }
+              confirmLabel={t('admin.home.restart.confirm')}
+              cancelLabel={t('common.cancel')}
+              tone="danger"
+              onConfirm={() => {
+                check.reset();
+                restart.mutate();
+              }}
+            />
+          )}
         </>
       }
     >
