@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1
+#
+# Image of the updater companion (ADR 0024): server/cmd/updater on the official Docker CLI image,
+# which brings the compose plugin. Build context is the repository root:
+#   docker buildx build -f deploy/Dockerfile.updater .
+# The Go binary is cross-compiled for TARGETARCH on the build platform, as in deploy/Dockerfile.
+
+ARG GO_IMAGE=golang:1.27-trixie
+# docker:29.9.3-cli (Alpine 3.24, docker CLI with the compose and buildx plugins), pinned by the
+# digest of its image index. Raise tag and digest together:
+#   docker buildx imagetools inspect docker:<version>-cli
+ARG BASE_IMAGE=docker:29.9.3-cli@sha256:2357639ad1ea7d0194134bf3292622fd4e562483966ed674e5d7c945b5f3b28d
+
+# ---------------------------------------------------------------------------
+# Stage 1: updater binary (cross-compiled, CGO off)
+# ---------------------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS updater
+
+# No defaults: BuildKit fills them from --platform (see deploy/Dockerfile).
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=dev
+ENV GOTOOLCHAIN=local \
+    GOFLAGS=-mod=readonly
+WORKDIR /src/server
+
+COPY server/ ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    test -n "${TARGETARCH}" \
+ && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
+      -o /out/slouchcat-updater ./cmd/updater
+
+# ---------------------------------------------------------------------------
+# Stage 2: runtime image
+# ---------------------------------------------------------------------------
+FROM ${BASE_IMAGE} AS runtime
+
+COPY LICENSE /licenses/LICENSE
+COPY --from=updater /out/slouchcat-updater /usr/local/bin/slouchcat-updater
+# The compose plugin is what the updater runs; fail the build when the base image lost it.
+RUN docker compose version
+
+ARG VERSION=dev
+LABEL org.opencontainers.image.title="Slouchcat updater" \
+      org.opencontainers.image.description="Updater companion of the Slouchcat media server" \
+      org.opencontainers.image.source="https://github.com/slouchcat/slouchcat" \
+      org.opencontainers.image.licenses="AGPL-3.0-only" \
+      org.opencontainers.image.version="${VERSION}"
+
+# Root on purpose: the updater talks to /var/run/docker.sock, which belongs to root on the host.
+# It publishes no port; the server reaches it on the internal network at port 8099.
+USER root
+EXPOSE 8099
+
+# The base image's entrypoint (docker-entrypoint.sh) would treat the command as docker arguments.
+ENTRYPOINT ["/usr/local/bin/slouchcat-updater"]
