@@ -350,7 +350,7 @@ func (u *Updater) resumeWait(s updater.State, interrupted updater.Phase) {
 	switch {
 	case ok:
 		s.Phase, s.Message = updater.PhaseDone, ""
-		s.Migrated, s.Backup = rec.SchemaAfter != rec.SchemaBefore, rec.Backup
+		s.Migrated, s.Backup = rec.Migrated(), rec.Backup
 	default:
 		s.Phase = updater.PhaseFailed
 		cause := fmt.Sprintf("did not become healthy within %s", u.wait)

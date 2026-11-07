@@ -369,7 +369,7 @@ func (u *Updater) run(p plan, s updater.State) {
 		phase(updater.PhaseWaiting)
 		rec, ok, gaveUp := u.waitFor(ctx, p.to)
 		if ok {
-			s.Migrated = rec.SchemaAfter != rec.SchemaBefore
+			s.Migrated = rec.Migrated()
 			s.Backup = rec.Backup
 			finish(updater.PhaseDone, "", "")
 			return
@@ -524,5 +524,5 @@ func (u *Updater) migrated(v string) (updater.ServerRecord, bool) {
 	if err != nil || rec.Version != v {
 		return rec, false
 	}
-	return rec, rec.MigratedAt.IsZero() || rec.SchemaAfter != rec.SchemaBefore
+	return rec, rec.Migrated()
 }

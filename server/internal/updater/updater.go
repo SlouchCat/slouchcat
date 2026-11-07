@@ -123,6 +123,13 @@ type ServerRecord struct {
 	MigratedAt   time.Time `json:"migratedAt,omitzero"`
 }
 
+// Migrated reports whether the start the record describes ran a migration: its schema changed,
+// or it started its migrations and never finished them (MigratedAt zero). The updater reads it
+// to decide whether a failed install may be taken back.
+func (r ServerRecord) Migrated() bool {
+	return r.MigratedAt.IsZero() || r.SchemaAfter != r.SchemaBefore
+}
+
 // ErrTooLarge is returned by ReadJSON for a file over MaxFileBytes.
 var ErrTooLarge = errors.New("updater: file too large")
 

@@ -95,6 +95,25 @@ func TestServerRecordJSON(t *testing.T) {
 	}
 }
 
+// Migrated is the updater's reading of server.json: a changed schema, or migrations that started
+// and never finished, count as migrated; a finished start on the same schema does not.
+func TestServerRecordMigrated(t *testing.T) {
+	at := time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name string
+		rec  ServerRecord
+		want bool
+	}{
+		{"migrations not through", ServerRecord{SchemaBefore: 37}, true},
+		{"schema changed", ServerRecord{SchemaBefore: 37, SchemaAfter: 38, MigratedAt: at}, true},
+		{"same schema", ServerRecord{SchemaBefore: 38, SchemaAfter: 38, MigratedAt: at}, false},
+	} {
+		if got := tc.rec.Migrated(); got != tc.want {
+			t.Errorf("%s: Migrated() = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
 func TestWriteReadJSON(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, StateFile)

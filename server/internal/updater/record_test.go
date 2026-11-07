@@ -40,12 +40,6 @@ func TestRecorderWritesBeforeAndAfter(t *testing.T) {
 	}
 }
 
-// migratedByUpdaterRule is the updater's reading of server.json (server/cmd/updater migrated): a
-// record without migratedAt or with schemaAfter != schemaBefore counts as migrated.
-func migratedByUpdaterRule(rec ServerRecord) bool {
-	return rec.MigratedAt.IsZero() || rec.SchemaAfter != rec.SchemaBefore
-}
-
 // A second start of the same version (restart: unless-stopped after a crash) keeps what the first
 // recorded: the schema found before the first migration and its backup, so the updater still sees
 // the migration; a start that took a new backup after a half-failed migration still names the
@@ -83,11 +77,11 @@ func TestRecorderKeepsTheFirstStartOfAVersion(t *testing.T) {
 	}
 	second.Before(38, "")
 	if got := read(); got.SchemaBefore != 37 || got.Backup != "pre-migration-1.16.0-A.db" ||
-		!got.StartedAt.Equal(clock) || got.SchemaAfter != 0 || !got.MigratedAt.IsZero() || !migratedByUpdaterRule(got) {
+		!got.StartedAt.Equal(clock) || got.SchemaAfter != 0 || !got.MigratedAt.IsZero() || !got.Migrated() {
 		t.Fatalf("second start before the migrations: %+v", got)
 	}
 	second.After(38)
-	if got := read(); got.SchemaBefore != 37 || got.SchemaAfter != 38 || !got.MigratedAt.Equal(clock) || !migratedByUpdaterRule(got) {
+	if got := read(); got.SchemaBefore != 37 || got.SchemaAfter != 38 || !got.MigratedAt.Equal(clock) || !got.Migrated() {
 		t.Fatalf("second start after the migrations: %+v, want counted as migrated", got)
 	}
 
@@ -116,7 +110,7 @@ func TestRecorderKeepsTheFirstStartOfAVersion(t *testing.T) {
 	}
 	other.Before(37, "")
 	other.After(37)
-	if got := read(); got.Version != "1.15.0" || got.SchemaBefore != 37 || got.Backup != "" || migratedByUpdaterRule(got) {
+	if got := read(); got.Version != "1.15.0" || got.SchemaBefore != 37 || got.Backup != "" || got.Migrated() {
 		t.Fatalf("other version: %+v", got)
 	}
 }
