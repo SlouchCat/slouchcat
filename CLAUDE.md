@@ -51,7 +51,7 @@ sind `docs/spec/01-anforderungen-v1.md` (Spec), `docs/planning/03-plan-v1.md` (P
    Admin und Zuschauer nutzen dieselben Komponenten aus `web/src/ui`.
 10. **Keine Secrets in Logs.** Nur `slog` über den Redaction-Handler aus `internal/logging`; neue
     Schlüsselnamen mit Secrets in die Redaction-Liste und in den Test.
-11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik, Fotos, Live-TV, TV-Apps, native Apps, Plugins,
+11. **Keine Nicht-Ziele bauen** (Spec "Non-Goals": Musik (ausser Live-Webradio, Frage 23), Fotos, Live-TV, TV-Apps, native Apps, Plugins,
     algorithmische Empfehlungen, Trakt-Login, eigene Wunschverwaltung, Steuerung von Arr/Seerr, Mandanten,
     Cloud, YouTube-Downloads). Nichts aus einem späteren Meilenstein vorziehen.
 12. **Entscheid im Server, offline nur Nachschlagen.** Der Client implementiert keine Sichtbarkeits- oder

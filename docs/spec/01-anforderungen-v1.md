@@ -53,7 +53,8 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - Dokumentation auf Deutsch (Schweizer Schreibweise), Code und Bezeichner auf Englisch.
 
 ## Non-Goals
-- Musik, Fotos, Live-TV und DVR (spätere Versionen).
+- Musik, Fotos, Live-TV und DVR (spätere Versionen). Ausnahme seit 6. November 2026: Live-Webradio
+  (Frage 23 im Entscheidungsprotokoll, Konzept 16, ADR 0025); Musikbibliothek und DVR bleiben Nicht-Ziele.
 - TV-Apps (Android TV, Apple TV, webOS, Tizen) und native iOS-/Android-Apps (spätere Versionen).
 - Plugin-System oder Erweiterungs-Marktplatz.
 - Automatische, algorithmische Empfehlungen („Weil du X gesehen hast") und Interaktion zwischen Profilen (Bewertungen, Empfehlungen untereinander).
