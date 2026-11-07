@@ -105,6 +105,9 @@ type ScheduleSeed struct {
 	Every   time.Duration // 0: Type.Every
 	Enabled bool
 	LastRun time.Time // zero: never ran; else next_run_at = LastRun + Every, at least now
+	// Window is the time window of the first row (nil: none); the first run is aligned into it
+	// like every later one, so a type with a window never fires outside it at its first start.
+	Window *Window
 }
 
 // SeedOff is the Seed of a schedule type whose first row is off at its default interval: a run

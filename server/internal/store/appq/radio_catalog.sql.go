@@ -10,6 +10,123 @@ import (
 	"database/sql"
 )
 
+const clearRadioStationsMissing = `-- name: ClearRadioStationsMissing :execrows
+UPDATE radio_stations SET missing_since = NULL, updated_at = ?1
+WHERE missing_since IS NOT NULL
+  AND EXISTS (SELECT 1 FROM radio_station_aliases AS a
+              WHERE a.station_id = radio_stations.id AND a.missing_since IS NULL)
+`
+
+// Stations of which an alias came back.
+func (q *Queries) ClearRadioStationsMissing(ctx context.Context, now int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, clearRadioStationsMissing, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const countRadioStationAliases = `-- name: CountRadioStationAliases :one
+
+SELECT count(*) FROM radio_station_aliases WHERE station_id = ?1
+`
+
+// Station administration (concept 16 section 5.6, lane B).
+func (q *Queries) CountRadioStationAliases(ctx context.Context, stationID int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRadioStationAliases, stationID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countRadioStations = `-- name: CountRadioStations :one
+SELECT count(*) FROM radio_stations
+`
+
+func (q *Queries) CountRadioStations(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countRadioStations)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteMissingRadioAliases = `-- name: DeleteMissingRadioAliases :many
+DELETE FROM radio_station_aliases WHERE missing_since IS NOT NULL AND missing_since < ?1
+RETURNING station_id
+`
+
+// Aliases missing since before on surviving stations (their streams go by cascade).
+func (q *Queries) DeleteMissingRadioAliases(ctx context.Context, before sql.NullInt64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, deleteMissingRadioAliases, before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var station_id int64
+		if err := rows.Scan(&station_id); err != nil {
+			return nil, err
+		}
+		items = append(items, station_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteMissingRadioStations = `-- name: DeleteMissingRadioStations :execrows
+DELETE FROM radio_stations WHERE source = 'catalog' AND missing_since IS NOT NULL AND missing_since < ?1
+`
+
+// Catalog stations missing since before; favourites, locks and the rest go by cascade (F-18).
+// Own stations are never removed by the sync.
+func (q *Queries) DeleteMissingRadioStations(ctx context.Context, before sql.NullInt64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMissingRadioStations, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteRadioStationFacets = `-- name: DeleteRadioStationFacets :exec
+DELETE FROM radio_station_facets
+WHERE station_id = ?1 AND facet IN (SELECT j.value FROM json_each(?2) AS j)
+`
+
+type DeleteRadioStationFacetsParams struct {
+	StationID int64
+	Facets    interface{}
+}
+
+// Every value of the facets named in the JSON array facets.
+func (q *Queries) DeleteRadioStationFacets(ctx context.Context, arg DeleteRadioStationFacetsParams) error {
+	_, err := q.db.ExecContext(ctx, deleteRadioStationFacets, arg.StationID, arg.Facets)
+	return err
+}
+
+const deleteRadioStationLocks = `-- name: DeleteRadioStationLocks :exec
+DELETE FROM radio_station_locks WHERE station_id = ?1
+`
+
+func (q *Queries) DeleteRadioStationLocks(ctx context.Context, stationID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteRadioStationLocks, stationID)
+	return err
+}
+
+const deleteRadioStationTags = `-- name: DeleteRadioStationTags :exec
+DELETE FROM radio_station_tags WHERE station_id = ?1
+`
+
+func (q *Queries) DeleteRadioStationTags(ctx context.Context, stationID int64) error {
+	_, err := q.db.ExecContext(ctx, deleteRadioStationTags, stationID)
+	return err
+}
+
 const getRadioConfig = `-- name: GetRadioConfig :one
 
 SELECT id, buffer_minutes, budget_mb, max_relays, grace_seconds, hide_broken, countries, last_sync_at, last_sync_error, sync_failures, entries_total, entries_reachable, stations_total, last_added, last_removed, updated_at FROM radio_config WHERE id = 1
@@ -81,6 +198,133 @@ func (q *Queries) GetRadioStation(ctx context.Context, id int64) (RadioStation, 
 	return i, err
 }
 
+const insertRadioCatalogStation = `-- name: InsertRadioCatalogStation :one
+INSERT INTO radio_stations (source, group_key, name, sort_key, search_text, country, created_at, updated_at)
+VALUES ('catalog', ?1, ?2, ?3, ?4, ?5, ?6, ?6)
+RETURNING id
+`
+
+type InsertRadioCatalogStationParams struct {
+	GroupKey   string
+	Name       string
+	SortKey    string
+	SearchText string
+	Country    sql.NullString
+	Now        int64
+}
+
+// A new catalog station; the recompute after the entries fills the derived columns.
+func (q *Queries) InsertRadioCatalogStation(ctx context.Context, arg InsertRadioCatalogStationParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertRadioCatalogStation,
+		arg.GroupKey,
+		arg.Name,
+		arg.SortKey,
+		arg.SearchText,
+		arg.Country,
+		arg.Now,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertRadioStationFacets = `-- name: InsertRadioStationFacets :exec
+INSERT INTO radio_station_facets (station_id, facet, value, manual)
+SELECT ?1, json_extract(j.value, '$[0]'), json_extract(j.value, '$[1]'), ?2
+FROM json_each(?3) AS j WHERE true
+ON CONFLICT (station_id, facet, value) DO UPDATE SET manual = excluded.manual
+`
+
+type InsertRadioStationFacetsParams struct {
+	StationID int64
+	Manual    int64
+	Pairs     interface{}
+}
+
+// pairs is a JSON array of [facet, value] pairs.
+func (q *Queries) InsertRadioStationFacets(ctx context.Context, arg InsertRadioStationFacetsParams) error {
+	_, err := q.db.ExecContext(ctx, insertRadioStationFacets, arg.StationID, arg.Manual, arg.Pairs)
+	return err
+}
+
+const insertRadioStationLock = `-- name: InsertRadioStationLock :exec
+INSERT INTO radio_station_locks (station_id, field) VALUES (?1, ?2) ON CONFLICT DO NOTHING
+`
+
+type InsertRadioStationLockParams struct {
+	StationID int64
+	Field     string
+}
+
+func (q *Queries) InsertRadioStationLock(ctx context.Context, arg InsertRadioStationLockParams) error {
+	_, err := q.db.ExecContext(ctx, insertRadioStationLock, arg.StationID, arg.Field)
+	return err
+}
+
+const insertRadioStationTags = `-- name: InsertRadioStationTags :exec
+INSERT INTO radio_station_tags (station_id, tag)
+SELECT ?1, j.value FROM json_each(?2) AS j WHERE true
+ON CONFLICT DO NOTHING
+`
+
+type InsertRadioStationTagsParams struct {
+	StationID int64
+	Tags      interface{}
+}
+
+// tags is a JSON array of strings.
+func (q *Queries) InsertRadioStationTags(ctx context.Context, arg InsertRadioStationTagsParams) error {
+	_, err := q.db.ExecContext(ctx, insertRadioStationTags, arg.StationID, arg.Tags)
+	return err
+}
+
+const listRadioAliasesForSync = `-- name: ListRadioAliasesForSync :many
+
+SELECT a.stationuuid, a.station_id, a.catalog_changed,
+       CAST(COALESCE(st.lastcheckok, 1) AS INTEGER) AS lastcheckok
+FROM radio_station_aliases AS a
+LEFT JOIN radio_streams AS st ON st.stationuuid = a.stationuuid
+`
+
+type ListRadioAliasesForSyncRow struct {
+	Stationuuid    string
+	StationID      int64
+	CatalogChanged sql.NullString
+	Lastcheckok    int64
+}
+
+// Catalog sync (concept 16 section 5.3, lane B): the merge of the Radio Browser entries into
+// stations. An alias never moves to another station and two stations never merge.
+// Every alias with its station, the lastchangetime of its last import and the check flag of its
+// stream, loaded once per sync.
+func (q *Queries) ListRadioAliasesForSync(ctx context.Context) ([]ListRadioAliasesForSyncRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRadioAliasesForSync)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRadioAliasesForSyncRow{}
+	for rows.Next() {
+		var i ListRadioAliasesForSyncRow
+		if err := rows.Scan(
+			&i.Stationuuid,
+			&i.StationID,
+			&i.CatalogChanged,
+			&i.Lastcheckok,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRadioStationFacets = `-- name: ListRadioStationFacets :many
 SELECT station_id, facet, value, manual FROM radio_station_facets
 WHERE station_id = ?1 OR ?1 IS NULL
@@ -103,6 +347,36 @@ func (q *Queries) ListRadioStationFacets(ctx context.Context, stationID sql.Null
 			&i.Value,
 			&i.Manual,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRadioStationLockFields = `-- name: ListRadioStationLockFields :many
+SELECT station_id, field FROM radio_station_locks
+WHERE station_id = ?1 OR ?1 IS NULL
+ORDER BY station_id, field
+`
+
+// Locks of every station (station_id NULL) or of one station.
+func (q *Queries) ListRadioStationLockFields(ctx context.Context, stationID sql.NullInt64) ([]RadioStationLock, error) {
+	rows, err := q.db.QueryContext(ctx, listRadioStationLockFields, stationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RadioStationLock{}
+	for rows.Next() {
+		var i RadioStationLock
+		if err := rows.Scan(&i.StationID, &i.Field); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -278,6 +552,51 @@ func (q *Queries) ListRadioStationsForIndex(ctx context.Context, stationID sql.N
 	return items, nil
 }
 
+const listRadioStationsForSync = `-- name: ListRadioStationsForSync :many
+SELECT id, source, group_key, votes, clicks, reachable FROM radio_stations ORDER BY id
+`
+
+type ListRadioStationsForSyncRow struct {
+	ID        int64
+	Source    string
+	GroupKey  string
+	Votes     int64
+	Clicks    int64
+	Reachable int64
+}
+
+// Group key and counters of every station, oldest first (the group map keeps the oldest catalog
+// station of a key).
+func (q *Queries) ListRadioStationsForSync(ctx context.Context) ([]ListRadioStationsForSyncRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRadioStationsForSync)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRadioStationsForSyncRow{}
+	for rows.Next() {
+		var i ListRadioStationsForSyncRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Source,
+			&i.GroupKey,
+			&i.Votes,
+			&i.Clicks,
+			&i.Reachable,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRadioStreamsRanked = `-- name: ListRadioStreamsRanked :many
 SELECT st.id, st.station_id, st.stationuuid, st.url, st.url_resolved, st.codec, st.bitrate, st.hls, st.lastcheckok, st.preferred, st.updated_at FROM radio_streams AS st
 WHERE st.station_id = ?1
@@ -327,6 +646,116 @@ func (q *Queries) ListRadioStreamsRanked(ctx context.Context, stationID int64) (
 	return items, nil
 }
 
+const listRecommendedRadioStationIDs = `-- name: ListRecommendedRadioStationIDs :many
+SELECT id FROM radio_stations WHERE recommended = 1 ORDER BY id
+`
+
+// Stations the admin recommends, for the logo prefetch.
+func (q *Queries) ListRecommendedRadioStationIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, listRecommendedRadioStationIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markRadioAliasesMissing = `-- name: MarkRadioAliasesMissing :execrows
+UPDATE radio_station_aliases SET missing_since = ?1 WHERE seen_at < ?2 AND missing_since IS NULL
+`
+
+type MarkRadioAliasesMissingParams struct {
+	Now      sql.NullInt64
+	RunStart int64
+}
+
+// Aliases the sync that started at run_start did not see.
+func (q *Queries) MarkRadioAliasesMissing(ctx context.Context, arg MarkRadioAliasesMissingParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markRadioAliasesMissing, arg.Now, arg.RunStart)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const markRadioStationsMissing = `-- name: MarkRadioStationsMissing :execrows
+UPDATE radio_stations SET missing_since = ?1, updated_at = ?1
+WHERE source = 'catalog' AND missing_since IS NULL
+  AND NOT EXISTS (SELECT 1 FROM radio_station_aliases AS a
+                  WHERE a.station_id = radio_stations.id AND a.missing_since IS NULL)
+`
+
+// Catalog stations whose aliases are all missing.
+func (q *Queries) MarkRadioStationsMissing(ctx context.Context, now sql.NullInt64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markRadioStationsMissing, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setRadioStreamCheck = `-- name: SetRadioStreamCheck :exec
+UPDATE radio_streams SET lastcheckok = ?1, updated_at = ?2 WHERE stationuuid = ?3
+`
+
+type SetRadioStreamCheckParams struct {
+	Lastcheckok int64
+	Now         int64
+	Stationuuid sql.NullString
+}
+
+// The check flag of an unchanged alias's stream changed.
+func (q *Queries) SetRadioStreamCheck(ctx context.Context, arg SetRadioStreamCheckParams) error {
+	_, err := q.db.ExecContext(ctx, setRadioStreamCheck, arg.Lastcheckok, arg.Now, arg.Stationuuid)
+	return err
+}
+
+const setRadioStreamPreferred = `-- name: SetRadioStreamPreferred :exec
+UPDATE radio_streams
+SET preferred = CASE WHEN id = ?1 THEN 1 ELSE 0 END
+WHERE station_id = ?2
+`
+
+type SetRadioStreamPreferredParams struct {
+	StreamID  sql.NullInt64
+	StationID int64
+}
+
+// Marks one stream of a station as the admin's choice (stream_id NULL: none).
+func (q *Queries) SetRadioStreamPreferred(ctx context.Context, arg SetRadioStreamPreferredParams) error {
+	_, err := q.db.ExecContext(ctx, setRadioStreamPreferred, arg.StreamID, arg.StationID)
+	return err
+}
+
+const touchRadioAlias = `-- name: TouchRadioAlias :exec
+UPDATE radio_station_aliases SET seen_at = ?1, missing_since = NULL WHERE stationuuid = ?2
+`
+
+type TouchRadioAliasParams struct {
+	Now         int64
+	Stationuuid string
+}
+
+// An unchanged alias was seen again.
+func (q *Queries) TouchRadioAlias(ctx context.Context, arg TouchRadioAliasParams) error {
+	_, err := q.db.ExecContext(ctx, touchRadioAlias, arg.Now, arg.Stationuuid)
+	return err
+}
+
 const updateRadioConfig = `-- name: UpdateRadioConfig :exec
 UPDATE radio_config
 SET buffer_minutes = ?1, budget_mb = ?2, max_relays = ?3,
@@ -355,6 +784,110 @@ func (q *Queries) UpdateRadioConfig(ctx context.Context, arg UpdateRadioConfigPa
 		arg.HideBroken,
 		arg.Countries,
 		arg.Now,
+	)
+	return err
+}
+
+const updateRadioStationAdmin = `-- name: UpdateRadioStationAdmin :exec
+UPDATE radio_stations
+SET name = ?1, sort_key = ?2, search_text = ?3, region = ?4,
+    hidden = ?5, recommended = ?6, updated_at = ?7
+WHERE id = ?8
+`
+
+type UpdateRadioStationAdminParams struct {
+	Name        string
+	SortKey     string
+	SearchText  string
+	Region      sql.NullString
+	Hidden      int64
+	Recommended int64
+	Now         int64
+	ID          int64
+}
+
+func (q *Queries) UpdateRadioStationAdmin(ctx context.Context, arg UpdateRadioStationAdminParams) error {
+	_, err := q.db.ExecContext(ctx, updateRadioStationAdmin,
+		arg.Name,
+		arg.SortKey,
+		arg.SearchText,
+		arg.Region,
+		arg.Hidden,
+		arg.Recommended,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const updateRadioStationCounters = `-- name: UpdateRadioStationCounters :exec
+UPDATE radio_stations SET votes = ?1, clicks = ?2, reachable = ?3, updated_at = ?4
+WHERE id = ?5
+`
+
+type UpdateRadioStationCountersParams struct {
+	Votes     int64
+	Clicks    int64
+	Reachable int64
+	Now       int64
+	ID        int64
+}
+
+// Votes, clicks and reachability of a station whose entries are otherwise unchanged.
+func (q *Queries) UpdateRadioStationCounters(ctx context.Context, arg UpdateRadioStationCountersParams) error {
+	_, err := q.db.ExecContext(ctx, updateRadioStationCounters,
+		arg.Votes,
+		arg.Clicks,
+		arg.Reachable,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const updateRadioStationFromSync = `-- name: UpdateRadioStationFromSync :exec
+UPDATE radio_stations
+SET name = ?1, sort_key = ?2, search_text = ?3, country = ?4,
+    region = ?5, languages = ?6, homepage = ?7,
+    favicon_url = ?8, votes = ?9, clicks = ?10,
+    quality = ?11, reachable = ?12, missing_since = NULL, updated_at = ?13
+WHERE id = ?14
+`
+
+type UpdateRadioStationFromSyncParams struct {
+	Name       string
+	SortKey    string
+	SearchText string
+	Country    sql.NullString
+	Region     sql.NullString
+	Languages  string
+	Homepage   sql.NullString
+	FaviconUrl sql.NullString
+	Votes      int64
+	Clicks     int64
+	Quality    sql.NullString
+	Reachable  int64
+	Now        int64
+	ID         int64
+}
+
+// The derived columns of a station after its entries changed (locked fields are passed through).
+func (q *Queries) UpdateRadioStationFromSync(ctx context.Context, arg UpdateRadioStationFromSyncParams) error {
+	_, err := q.db.ExecContext(ctx, updateRadioStationFromSync,
+		arg.Name,
+		arg.SortKey,
+		arg.SearchText,
+		arg.Country,
+		arg.Region,
+		arg.Languages,
+		arg.Homepage,
+		arg.FaviconUrl,
+		arg.Votes,
+		arg.Clicks,
+		arg.Quality,
+		arg.Reachable,
+		arg.Now,
+		arg.ID,
 	)
 	return err
 }
@@ -391,6 +924,69 @@ func (q *Queries) UpdateRadioSyncState(ctx context.Context, arg UpdateRadioSyncS
 		arg.StationsTotal,
 		arg.LastAdded,
 		arg.LastRemoved,
+		arg.Now,
+	)
+	return err
+}
+
+const upsertRadioAlias = `-- name: UpsertRadioAlias :exec
+INSERT INTO radio_station_aliases (stationuuid, station_id, seen_at, catalog_changed)
+VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT (stationuuid) DO UPDATE SET
+    seen_at = excluded.seen_at, catalog_changed = excluded.catalog_changed, missing_since = NULL
+`
+
+type UpsertRadioAliasParams struct {
+	Stationuuid    string
+	StationID      int64
+	Now            int64
+	CatalogChanged sql.NullString
+}
+
+// A new or changed alias; the station of a known alias never changes.
+func (q *Queries) UpsertRadioAlias(ctx context.Context, arg UpsertRadioAliasParams) error {
+	_, err := q.db.ExecContext(ctx, upsertRadioAlias,
+		arg.Stationuuid,
+		arg.StationID,
+		arg.Now,
+		arg.CatalogChanged,
+	)
+	return err
+}
+
+const upsertRadioCatalogStream = `-- name: UpsertRadioCatalogStream :exec
+INSERT INTO radio_streams (station_id, stationuuid, url, url_resolved, codec, bitrate, hls, lastcheckok, updated_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6,
+        ?7, ?8, ?9)
+ON CONFLICT (stationuuid) DO UPDATE SET
+    url = excluded.url, url_resolved = excluded.url_resolved, codec = excluded.codec,
+    bitrate = excluded.bitrate, hls = excluded.hls, lastcheckok = excluded.lastcheckok,
+    updated_at = excluded.updated_at
+`
+
+type UpsertRadioCatalogStreamParams struct {
+	StationID   int64
+	Stationuuid sql.NullString
+	Url         string
+	UrlResolved sql.NullString
+	Codec       sql.NullString
+	Bitrate     sql.NullInt64
+	Hls         int64
+	Lastcheckok int64
+	Now         int64
+}
+
+// The stream of a new or changed alias; the admin's preferred flag stays.
+func (q *Queries) UpsertRadioCatalogStream(ctx context.Context, arg UpsertRadioCatalogStreamParams) error {
+	_, err := q.db.ExecContext(ctx, upsertRadioCatalogStream,
+		arg.StationID,
+		arg.Stationuuid,
+		arg.Url,
+		arg.UrlResolved,
+		arg.Codec,
+		arg.Bitrate,
+		arg.Hls,
+		arg.Lastcheckok,
 		arg.Now,
 	)
 	return err
