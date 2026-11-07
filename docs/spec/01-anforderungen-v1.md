@@ -142,7 +142,7 @@ Slouchcat ist ein selbst gehosteter, vollständig eigenständiger Media-Server f
 - [ ] A-2 Bibliotheken, Konten, Profile, Gäste, Geräte, Integrationen und Top Picks werden an einem Ort verwaltet, mit derselben Design-Sorgfalt wie die Zuschauerseite.
 - [ ] A-3 Ein Dashboard zeigt laufende Streams, Hintergrundjobs, Speicherplatz, Integrationsstatus und Fehler.
 - [ ] A-4 Datenbank und Konfiguration lassen sich per Knopf sichern und aus einer Sicherung wiederherstellen; Medien sind nie Teil der Sicherung.
-- [ ] A-5 Ein Hinweis erscheint, wenn eine neue Slouchcat-Version verfügbar ist. (Ab Konzept 15 Stufe 4, Frage 22 F-13: mit eingerichtetem Updater-Begleiter auch «Update installieren».)
+- [ ] A-5 Ein Hinweis erscheint, wenn eine neue Slouchcat-Version verfügbar ist. Ist der freiwillige Updater-Begleiter eingerichtet, installiert der Administrator sie per Knopf «Update installieren»: Sicherung von `.env`, Prüfung des Image-Digests, Rücknahme eines gescheiterten Starts ohne Migration. Ohne Begleiter zeigt der Knopf die Befehle für das Update von Hand. (Konzept 15 Abschnitt 9, Frage 22 F-13 bis F-15, ADR 0024.)
 - [ ] A-6 Benachrichtigungskanäle (E-Mail, Web-Push, Telegram) sind je Konto konfigurierbar für neue Inhalte, Beschaffungsstatus, Fehler und Einladungen.
 - [ ] A-7 Der Hauptbenutzer veröffentlicht Ankündigungen (News), die Profile beim nächsten Start sehen und die optional per E-Mail an Gastkonten gehen.
 - [ ] A-8 Statistiken zeigen meistgesehene Titel, Schauzeit je Profil, Transcoding-Anteil und Geräteverteilung.

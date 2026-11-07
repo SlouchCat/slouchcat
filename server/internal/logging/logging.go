@@ -48,7 +48,8 @@ const (
 // auth_secret) and its endpoint, a capability URL of the push service. M11 adds the address of
 // the spotlight user list (list_url): it can carry a Trakt user name (plan 8.4). Concept 10 adds
 // the personal key of Fanart.tv (client_key, also as query parameter); the keys go as headers,
-// so this is a second line of defence.
+// so this is a second line of defence. Concept 15 P-8 (ADR 0024): the token of the updater
+// companion (updater_token, authorization) is covered by "token" and "authorization".
 var sensitiveKeys = []string{"password", "pin", "token", "apikey", "authorization", "secret", "pinhash", "tokenhash", "passwordhash",
 	"youtubeapikey", "tvdbapikey", "tvdbpin", "verifier", "clientid",
 	"smtppassword", "bottoken", "passphrase", "vapidprivatekey", "p256dh", "authsecret", "endpoint",

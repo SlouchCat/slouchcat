@@ -164,7 +164,8 @@
       "backup_invalid": "Diese Datei ist keine gültige Sicherung von Slouchcat, oder sie ist beschädigt.",
       "backup_newer_than_server": "Die Sicherung stammt von einer neueren Version von Slouchcat. Aktualisiere zuerst den Server.",
       "restart_pending": "Der Server startet gleich neu. Warte, bis er wieder antwortet.",
-      "backup_busy": "Gerade läuft eine Sicherung oder Wiederherstellung. Starte den Server neu, sobald sie fertig ist.",
+      "backup_busy": "Gerade läuft eine Sicherung oder Wiederherstellung. Versuche es wieder, sobald sie fertig ist.",
+      "update_running": "Gerade wird ein Update installiert. Warte, bis es fertig ist.",
       "announcement_published": "Die Ankündigung ist schon veröffentlicht und lässt sich nicht mehr ändern.",
       "scan_running": "Ein Scan dieser Bibliothek läuft gerade. Warte, bis er fertig ist, oder brich ihn ab.",
       "confirm_mismatch": "Der abgetippte Pfad stimmt nicht mit dem Ordner überein. Nichts wurde entfernt.",
@@ -2279,6 +2280,67 @@
         "confirm": "Neu starten",
         "waitTitle": "Server startet neu",
         "waitBody": "Slouchcat fährt geordnet herunter und startet wieder. Sobald der Server antwortet, lädt die Seite neu."
+      },
+      "install": {
+        "action": "Update auf {{version}} installieren",
+        "title": "Update auf {{version}} installieren?",
+        "body": "Der Server startet neu; laufende Wiedergaben brechen ab. Vor einer Datenbankänderung sichert er die Datenbank.",
+        "notes": "Release-Notizen",
+        "confirm": "Installieren",
+        "running": "Update auf {{version}} läuft",
+        "runningNoVersion": "Update läuft",
+        "stepsLabel": "Schritte des Updates",
+        "steps": {
+          "download": "Herunterladen",
+          "restart": "Neustart",
+          "health": "Gesundheitsprüfung"
+        },
+        "stepState": {
+          "done": "erledigt",
+          "current": "läuft",
+          "pending": "ausstehend"
+        },
+        "phase": {
+          "checking": "Der Updater prüft das Release.",
+          "backing_up": "Der Updater sichert .env und trägt die neue Version ein.",
+          "pulling": "Der Updater lädt das neue Image herunter.",
+          "verifying": "Der Updater prüft den Fingerabdruck des Images.",
+          "restarting": "Der Server startet mit der neuen Version neu.",
+          "waiting": "Der Updater wartet, bis der neue Server gesund ist (höchstens 10 Minuten)."
+        },
+        "down": "Der Server antwortet gerade nicht. Warte auf ihn …",
+        "silent": {
+          "title": "Der Server antwortet seit über 70 Minuten nicht",
+          "body": "So lange dauert kein Update. Prüfe auf dem Rechner mit docker compose ps und docker compose logs, ob der Server und der Updater-Begleiter laufen."
+        },
+        "done": "Update auf {{version}} installiert.",
+        "rolledBack": "Update auf {{to}} fehlgeschlagen, Version {{from}} läuft wieder.",
+        "rolledBackNoVersion": "Update fehlgeschlagen, die vorherige Version läuft wieder.",
+        "failed": "Update auf {{version}} fehlgeschlagen",
+        "failedNoVersion": "Update fehlgeschlagen",
+        "migrated": "Migration gelaufen, zurück nur mit der Sicherung {{backup}}.",
+        "migratedNoBackup": "Migration gelaufen, zurück nur mit der Sicherung vor der Migration.",
+        "finished": "Beendet: {{date}}",
+        "refused": {
+          "title": "Der Updater hat das Update nicht gestartet",
+          "not_newer": "Die neueste Version ist nicht neuer als die laufende.",
+          "no_digest": "Das Release-Manifest nennt keinen Fingerabdruck (Digest) des Images.",
+          "no_compose_labels": "Der Server wurde nicht mit Docker Compose gestartet, darum weiss der Updater nicht, wie er ihn neu startet. Installiere das Update von Hand.",
+          "outside_deploy_dir": "Eine Compose-Datei des Servers liegt ausserhalb von SLOUCHCAT_DEPLOY_DIR.",
+          "manifest_invalid": "Das Release-Manifest ist ungültig.",
+          "manifest_unreachable": "Das Release-Manifest ist nicht erreichbar. Versuche es später noch einmal.",
+          "other": "Der Updater hat abgelehnt, ohne bekannten Grund."
+        },
+        "manual": {
+          "unavailable": "Der Updater-Begleiter antwortet nicht. Installiere das Update von Hand.",
+          "intro": "Ohne Updater-Begleiter installierst du das Update auf dem Rechner, im Ordner mit compose.yaml und .env:",
+          "introByHand": "Von Hand installierst du das Update auf dem Rechner, im Ordner mit compose.yaml und .env:",
+          "env": "Zeile in .env",
+          "pull": "Neues Image holen",
+          "up": "Mit der neuen Version starten",
+          "files": "Nimm dieselben -f-Dateien wie beim Start (zum Beispiel docker compose -f compose.yaml -f compose.intel.yaml pull), sonst fehlen sie nach dem Update.",
+          "docs": "Anleitung: Update per Knopf mit dem Updater-Begleiter"
+        }
       },
       "activity": {
         "title": "Letzte Aktivität",

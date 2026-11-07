@@ -164,7 +164,8 @@
       "backup_invalid": "This file is not a valid Slouchcat backup, or it is damaged.",
       "backup_newer_than_server": "The backup comes from a newer version of Slouchcat. Update the server first.",
       "restart_pending": "The server restarts shortly. Wait until it answers again.",
-      "backup_busy": "A backup or a restore is running. Restart the server once it is done.",
+      "backup_busy": "A backup or a restore is running. Try again once it is done.",
+      "update_running": "An update is being installed. Wait until it is done.",
       "announcement_published": "The announcement is already published and can no longer be changed.",
       "scan_running": "A scan of this library is running. Wait for it to finish, or cancel it.",
       "confirm_mismatch": "The typed path does not match the folder. Nothing was removed.",
@@ -2279,6 +2280,67 @@
         "confirm": "Restart",
         "waitTitle": "Server is restarting",
         "waitBody": "Slouchcat shuts down in order and starts again. As soon as the server answers, the page reloads."
+      },
+      "install": {
+        "action": "Install update to {{version}}",
+        "title": "Install the update to {{version}}?",
+        "body": "The server restarts; running playbacks stop. Before a database change it backs up the database.",
+        "notes": "Release notes",
+        "confirm": "Install",
+        "running": "Update to {{version}} in progress",
+        "runningNoVersion": "Update in progress",
+        "stepsLabel": "Steps of the update",
+        "steps": {
+          "download": "Download",
+          "restart": "Restart",
+          "health": "Health check"
+        },
+        "stepState": {
+          "done": "done",
+          "current": "in progress",
+          "pending": "pending"
+        },
+        "phase": {
+          "checking": "The updater checks the release.",
+          "backing_up": "The updater backs up .env and enters the new version.",
+          "pulling": "The updater downloads the new image.",
+          "verifying": "The updater checks the fingerprint of the image.",
+          "restarting": "The server restarts with the new version.",
+          "waiting": "The updater waits until the new server is healthy (at most 10 minutes)."
+        },
+        "down": "The server does not answer right now. Waiting for it …",
+        "silent": {
+          "title": "The server has not answered for more than 70 minutes",
+          "body": "No update takes that long. On the host, check with docker compose ps and docker compose logs whether the server and the updater companion run."
+        },
+        "done": "Update to {{version}} installed.",
+        "rolledBack": "Update to {{to}} failed, version {{from}} runs again.",
+        "rolledBackNoVersion": "Update failed, the previous version runs again.",
+        "failed": "Update to {{version}} failed",
+        "failedNoVersion": "Update failed",
+        "migrated": "The migration ran; going back only with the backup {{backup}}.",
+        "migratedNoBackup": "The migration ran; going back only with the backup made before it.",
+        "finished": "Finished: {{date}}",
+        "refused": {
+          "title": "The updater did not start the update",
+          "not_newer": "The newest version is not newer than the running one.",
+          "no_digest": "The release manifest names no fingerprint (digest) of the image.",
+          "no_compose_labels": "The server was not started with Docker Compose, so the updater does not know how to restart it. Install the update by hand.",
+          "outside_deploy_dir": "A Compose file of the server lies outside SLOUCHCAT_DEPLOY_DIR.",
+          "manifest_invalid": "The release manifest is invalid.",
+          "manifest_unreachable": "The release manifest cannot be reached. Try again later.",
+          "other": "The updater refused for a reason this app does not know."
+        },
+        "manual": {
+          "unavailable": "The updater companion does not answer. Install the update by hand.",
+          "intro": "Without the updater companion you install the update on the host, in the folder with compose.yaml and .env:",
+          "introByHand": "By hand you install the update on the host, in the folder with compose.yaml and .env:",
+          "env": "Line in .env",
+          "pull": "Pull the new image",
+          "up": "Start with the new version",
+          "files": "Use the same -f files as at the start (for example docker compose -f compose.yaml -f compose.intel.yaml pull), or they are missing after the update.",
+          "docs": "Guide: update at the press of a button with the updater companion"
+        }
       },
       "activity": {
         "title": "Recent activity",

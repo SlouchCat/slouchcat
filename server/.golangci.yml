@@ -1,6 +1,7 @@
 # golangci-lint v2 configuration (run with `task server:lint`). Enforces CLAUDE.md rules 2, 3
-# and 10 where a linter can: os/exec only in internal/transcode, store/systemq only in the
-# packages that may read titles unfiltered. The analyzer tools/itemsaccess covers SQL literals.
+# and 10 where a linter can: os/exec only in internal/transcode and cmd/updater (ADR 0024),
+# store/systemq only in the packages that may read titles unfiltered. The analyzer
+# tools/itemsaccess covers SQL literals.
 version: "2"
 
 run:
@@ -29,9 +30,10 @@ linters:
           files:
             - $all
             - "!**/internal/transcode/**"
+            - "!**/cmd/updater/**"
           deny:
             - pkg: os/exec
-              desc: external processes run only through internal/transcode (CLAUDE.md rule 3)
+              desc: external processes run only through internal/transcode, and docker compose only in cmd/updater (CLAUDE.md rule 3, ADR 0024)
         systemq:
           files:
             - $all
@@ -77,7 +79,7 @@ linters:
       forbid:
         - pattern: ^exec\.(Command|CommandContext|LookPath)$
           pkg: ^os/exec$
-          msg: external processes run only through internal/transcode, with exec.CommandContext and an argument list (CLAUDE.md rule 3)
+          msg: external processes run only through internal/transcode (and docker compose in cmd/updater, ADR 0024), with exec.CommandContext and an argument list (CLAUDE.md rule 3)
         - pattern: \.(EnqueueOverridingPause|RaiseQueuedJobForPlayback|EnqueueOverridingWindow)$
           msg: only a playback lifts the pause, a playback or an offline download the time window of a job type, through package library (concept 14 6.5, ADR 0022; concept 15 4.3, M-1)
     govet:
@@ -97,6 +99,12 @@ linters:
       - path: internal/transcode/
         linters:
           - forbidigo
+      # The updater companion runs docker compose (ADR 0024). Only exec.CommandContext is lifted
+      # there; exec.Command and exec.LookPath stay forbidden.
+      - path: ^cmd/updater/
+        linters:
+          - forbidigo
+        text: "^use of `exec\\.CommandContext` forbidden"
       - path: internal/(jobs|library)/
         linters:
           - forbidigo

@@ -49,6 +49,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/secrets"
 	"github.com/slouchcat/slouchcat/server/internal/store"
 	"github.com/slouchcat/slouchcat/server/internal/transcode"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/webassets"
 )
@@ -235,7 +236,12 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 			return fmt.Errorf("create directory: %w", err)
 		}
 	}
-	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log})
+	// The start record for the updater companion (ADR 0024): server.json in its shared folder
+	// before and after the migrations; without the folder nothing is written. The pre-migration
+	// backup an earlier start of this version recorded is never pruned.
+	rec := updater.NewRecorder(cfg.UpdaterDir(), version, log)
+	db, err := store.Open(ctx, store.Options{ConfigDir: cfg.ConfigDir, Version: version, Logger: log,
+		Schema: store.SchemaHooks{Before: rec.Before, After: rec.After, KeepBackup: rec.KeptBackup()}})
 	if err != nil {
 		return err
 	}
@@ -286,6 +292,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	if !cfg.Dev && cfg.TestSpotlightRefreshGap != "" {
 		log.Warn("SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP is ignored without --dev")
 	}
+	if !cfg.Dev && cfg.TestUpdaterDir != "" {
+		log.Warn("SLOUCHCAT_TEST_UPDATER_DIR is ignored without --dev")
+	}
 	// The match hands a matched title to the library, which is created after the metadata service
 	// because it takes the metadata checks; the closure reads libSvc when a match runs.
 	var libSvc *library.Service
@@ -329,6 +338,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// for the dashboard.
 	adminSvc.WithAnnouncements(notifySvc).WithTelegram(notifySvc).WithEmailTester(notifySvc).WithPushRotator(notifySvc).WithChannels(notifySvc)
 	notifySvc.SetConfig(adminSvc)
+	// The updater companion (concept 15 P-8, ADR 0024): optional; a failed or rolled back install
+	// goes to the administration once as the event errors.
+	adminSvc.WithUpdater(cfg.UpdaterURL, cfg.UpdaterDir(), notifySvc.UpdateInstallFailed)
 	// Incoming Radarr/Sonarr webhooks (M9, I-8): the address shown once carries the public URL of
 	// the administration's settings, so it can be pasted into "Connect → Webhook" as it is.
 	integrationSvc := integrations.New(db, libSvc, log, integrations.WithBaseURL(func(ctx context.Context) string {
@@ -371,6 +383,9 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Run polls Telegram while link codes are open and prunes old deliveries.
 	workers.Go(func() { notifySvc.Run(ctx) })
 	workers.Go(func() { scheduler.Run(ctx) })
+	// The end of an install the companion reported (state.json), once, also while it still runs,
+	// and of every install this server starts, until the server stops.
+	workers.Go(func() { adminSvc.WatchUpdateInstall(ctx) })
 	// The library watchers; the full scan at the start and every 6 h is the schedule scan.library.
 	workers.Go(func() {
 		if err := libSvc.Start(ctx); err != nil && ctx.Err() == nil {

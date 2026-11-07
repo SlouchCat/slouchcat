@@ -6,13 +6,16 @@
 #   SLOUCHCAT_TRUSTED_PROXIES=private, any device in the home network can set X-Forwarded-For
 #   itself and so empty the limit on login attempts.
 # GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
+# Updater companion (optional, ADR 0024): add -f compose.updater.yaml last, after all other files.
 name: slouchcat
 
 services:
   slouchcat:
     # Published with every release (ADR 0001, .github/workflows/release.yml). The tag is pinned:
     # an update is a conscious step (SLOUCHCAT_VERSION in .env, then `docker compose pull`), the
-    # update check only says that there is one. `docker compose up --build` builds locally instead.
+    # update check only says that there is one. The optional updater companion
+    # (compose.updater.yaml, ADR 0024) takes that step on a click in the administration.
+    # `docker compose up --build` builds locally instead.
     image: ghcr.io/slouchcat/slouchcat:${SLOUCHCAT_VERSION:-1.15.0}
     build:
       context: ..

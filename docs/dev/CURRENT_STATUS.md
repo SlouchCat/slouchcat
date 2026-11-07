@@ -1,5 +1,82 @@
 # Aktueller Stand
 
+## Konzept 15 «Feinschliff», Stufe 4: gebaut und auf CT 190 abgenommen (7. November 2026)
+
+Zweig `claude/feinschliff-stufe4` ab `main` `88d03c11` (Release 1.15.0 veröffentlicht). Geplant als
+Release **1.16.0**: Vertrag **1.16.0, additiv**, **keine Migration**. Neue **ADR 0024
+«Updater-Begleiter»**; Spec A-5 erweitert; `CLAUDE.md` Regel 3 mit der benannten Ausnahme
+`server/cmd/updater` (Lint erlaubt dort nur `exec.CommandContext`).
+
+- **P-8 Updater-Begleiter** `server/cmd/updater`, eigenes Image `ghcr.io/slouchcat/slouchcat-updater`
+  (`deploy/Dockerfile.updater` auf `docker:29.9.3-cli`, per Digest gepinnt), freiwillig über die
+  Override-Datei `deploy/compose.updater.yaml` (statt nur eines Profils: der Server braucht eine
+  Einhängung und eine Variable). Nur der Updater hat `/var/run/docker.sock`; `deploy/` ist unter
+  demselben Pfad eingehängt (`SLOUCHCAT_DEPLOY_DIR`), `./config` und `./cache` sind darin mit
+  schreibgeschütztem tmpfs überdeckt. Kein offener Port, Bearer-Token in `deploy/updater/token`.
+  Ablauf: Manifest (nur https) prüfen, neuere Version und Digest Pflicht, `.env` sichern
+  (`.env.bak-vor-<X>`, `0600`, der Updater löscht nie eine Sicherung), nur den Wert `SLOUCHCAT_VERSION` ändern, Compose mit
+  genau den Dateien aus den Labels des laufenden Containers (`config --format json`, `pull`,
+  `up -d --no-deps --no-build`), Digest prüfen, bis 10 min selbst auf «healthy» warten (kein
+  `--wait`: der Healthcheck meldet eine lange Migration nach 16 s als krank). Ohne Migration nimmt er
+  ein gescheitertes Update zurück, mit Migration meldet er nur die Sicherung (F-14). Nach einem
+  Stopp oder Neustart des Updaters macht er beim nächsten Start weiter, ohne zurückzunehmen.
+- **Server und Vertrag:** `SLOUCHCAT_UPDATER_URL`; `server.json` vor und nach den Migrationen
+  (Hooks in `store.Options.Schema`; ein zweiter Start derselben Version behält den ersten Stand und
+  die erste Sicherung, die nie weggeräumt wird); `UpdateState.updaterConfigured` und
+  `updaterAvailable`, `UpdateState.install` (`UpdateInstallStatus`); `POST /admin/update/install`
+  (202, 409 `update_running`/`backup_busy`/`restart_pending`, 422 mit dem Grund des Updaters, 503
+  `updater_unavailable`) und `GET /admin/update/status` (liest `state.json` direkt). Neustart,
+  Sicherung und Wiederherstellung antworten während eines Updates 409 `update_running`. Ein
+  gescheitertes oder zurückgenommenes Update meldet der Server einmal als Ereignis «Fehler»
+  (Einstellung `update_install_reported`).
+- **Karte «Server»:** «Update auf X installieren» mit Release-Notizen im Bestätigungsdialog, danach
+  die Phasen (Herunterladen, Neustart, Gesundheitsprüfung), Neuladen, sobald die neue Version
+  antwortet; Ergebnis bleibt sichtbar. Ohne Updater (oder bei `no_compose_labels`,
+  `outside_deploy_dir`) die Schritte von Hand zum Kopieren (Rückfall C).
+- **Release-Lauf:** baut, veröffentlicht und attestiert auch das Updater-Image; das Manifest bekommt
+  das Feld `image` (`ghcr.io/slouchcat/slouchcat@sha256:…`). `ci.yml` baut das Updater-Image mit.
+  Das neue Paket `slouchcat-updater` muss nach dem ersten Release einmal von Hand öffentlich
+  gemacht werden (Kopf von `release.yml`).
+- **Reviews** (OMC-Code-Reviewer und Verifier): Updater REQUEST CHANGES (2 High: `config --images`
+  listete wegen `depends_on` zwei Images, jedes Update wäre gescheitert; `chown` über einen Pfad im
+  vom Server beschreibbaren Ordner hätte einem übernommenen Server Root auf dem Gastgeber geben
+  können. 4 Medium, 9 Low); Server und Karte REQUEST CHANGES (1 High: `server.json` verlor beim
+  zweiten Start den Beweis der Migration. 5 Medium, 9 Low); Verifier: alle behoben, 6 weitere Low
+  ebenfalls behoben. Ein versehentlich mitgeschriebenes Programm `server/updater` (11 MB) wurde vor
+  dem Push aus allen Commits entfernt, `.gitignore` ergänzt.
+- **Bildspeicher geprüft:** Nach `docker compose pull` zeigt `RepoDigests` den Index-Digest des
+  Release-Laufs, mit dem containerd-Speicher und mit dem klassischen. Ein echtes Update 1.1.0 →
+  1.15.0 lief lokal mit einem eigenen https-Manifest durch (`done` nach 12 s).
+
+**Belege auf `b10945c1`** (Inhalt gleich `d1bb86ed`, vor den letzten sieben Low-Fixes): `task ci`
+grün bis auf Storybook: 371 gleich, **1 neue Story ohne Vergleichsbild**
+(`ui-confirmdialog--with-details`); Go alle Pakete ok, Vitest 1504, api-client 4, design-tokens 2.
+e2e `task build` + `task ci:e2e:parallel`: **522/523**, `admin-picks.spec.ts:98` (Firefox) einzeln
+grün. Nach den Low-Fixes (`aa3abad3`): gezielte Go-Tests, `-race -count=3 ./cmd/updater/`, Lint,
+`task check:fast`, AdminHomePage-Vitest 56/56 und `task e2e:quick -- e2e/admin-home.spec.ts` 9/9 grün.
+
+**Abnahme auf CT 190 (7. November 2026):** Vergleichsbild `ui-confirmdialog--with-details` auf CT 190
+geschossen (`66c3703f`, 367 passed). Testimage aus `66c3703f` mit der Version **1.14.99** (damit 1.15.0
+als neuer gilt) und Updater-Image `abnahme-66c3703`, eingerichtet mit `compose.updater.yaml` und einer
+Testdatei `compose.abnahme.yaml` (Test-Manifest über https mit eigener CA, Version 1.15.0 und dem echten
+Index-Digest von 1.15.0). Port 8096, `/dev/dri` und Gruppe 993 standen danach wie vorher; im Updater ist
+`config` leer und schreibgeschützt. Marco hat zweimal auf «Update auf 1.15.0 installieren» geklickt:
+
+- **Lauf 1, Rücknahme:** Herunterladen, Digest, Neustart in 2 s; 1.15.0 lief gesund, schrieb aber
+  (als Release vor 1.16) kein `server.json`. Nach 10 min nahm der Updater das Update zurück
+  (`rolled_back`), 1.14.99 lief wieder, der Server meldete einmal das Ereignis «Fehler».
+- **Lauf 2, Erfolg:** dasselbe, `server.json` für 1.15.0 von Hand geschrieben, eine Sekunde später
+  `done`; CT 190 läuft seither auf Release 1.15.0.
+- **Befunde und Fixes:** Der Updater löschte alle `.env.bak-vor-*` ausser den fünf neuesten (auf CT 190
+  rund 20 von Hand) und überschrieb eine gleichnamige Sicherung: er löscht und ersetzt jetzt keine
+  Sicherung mehr, sondern wählt `-2`, `-3`, … (`242ca4de`, `2a3a68de`). Die Meldung nach der Wartezeit
+  unterscheidet jetzt «läuft gesund, meldet sich aber nicht» von «wird nicht gesund» (`af3a6607`).
+
+Marco hat Stufe 4 am 7. November 2026 freigegeben.
+
+**Offen:** Merge, Release 1.16.0, danach auf CT 190 die Testteile entfernen (`compose.abnahme.yaml`,
+Test-Manifest, Images `1.14.99` und `abnahme-*`) und den Updater auf das Release-Image heben.
+
 ## Release 1.15.0 (7. November 2026): veröffentlicht
 
 Release ab `main` nach PR #104 (Konzept 15, Stufe 3). Vertrag **1.15.0, brechend für `getHome` und

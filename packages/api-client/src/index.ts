@@ -206,6 +206,7 @@ export type StorageInfo = components['schemas']['StorageInfo'];
 export type IntegrationStatus = components['schemas']['IntegrationStatus'];
 export type ErrorEntry = components['schemas']['ErrorEntry'];
 export type UpdateState = components['schemas']['UpdateState'];
+export type UpdateInstallStatus = components['schemas']['UpdateInstallStatus'];
 export type UpdateNotice = components['schemas']['UpdateNotice'];
 export type SettingSource = components['schemas']['SettingSource'];
 export type KeyState = components['schemas']['KeyState'];

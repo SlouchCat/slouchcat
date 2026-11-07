@@ -23,7 +23,8 @@ import (
 // with the running one and stores the result in the setting update_state. The schedule update.check
 // (concept 09) queues it 60 s after the start and then every UpdateInterval; its switch is the
 // setting update_check_enabled (one value, two doors: this page and the jobs page). The check only
-// reads the manifest; it never installs anything. A failed check of the job (the schedule or its
+// reads the manifest; installing is a separate step an administrator starts through the updater
+// companion (InstallUpdate, update_install.go, ADR 0024). A failed check of the job (the schedule or its
 // retry) is tried again after 15 min, 1 h and 6 h (updateRetryDelays) through the one-off date of
 // the schedule; after that the daily rhythm stands, and a success starts the sequence anew. A
 // failed check by hand (CheckForUpdate) records its error only. Switched off (update_check_enabled "0") there is
@@ -186,8 +187,18 @@ func (s *Service) handleUpdateCheck(ctx context.Context, _ *jobs.Job) error {
 	return err
 }
 
-// UpdateState returns the state of the update check (A-5).
+// UpdateState returns the state of the update check (A-5) with the updater companion: whether it
+// is reachable and the last install it reported (ADR 0024).
 func (s *Service) UpdateState(ctx context.Context) (model.UpdateState, error) {
+	out, err := s.checkState(ctx)
+	if err != nil {
+		return model.UpdateState{}, err
+	}
+	return s.withUpdaterState(ctx, out), nil
+}
+
+// checkState is the state of the update check alone, without asking the companion.
+func (s *Service) checkState(ctx context.Context) (model.UpdateState, error) {
 	on, err := s.updateCheckEnabled(ctx)
 	if err != nil {
 		return model.UpdateState{}, err
@@ -232,7 +243,7 @@ func (s *Service) UpdateAvailable(ctx context.Context) *model.UpdateNotice {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if !u.loaded {
-		st, err := s.UpdateState(ctx)
+		st, err := s.checkState(ctx)
 		if err != nil {
 			s.log.WarnContext(ctx, "read update state", "err", err)
 			return nil

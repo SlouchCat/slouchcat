@@ -1,0 +1,22 @@
+# BuildKit reads <Dockerfile>.dockerignore next to the Dockerfile; the build context is the
+# repository root (docker buildx build -f deploy/Dockerfile.updater .). The updater needs only
+# server/ and LICENSE; the web app is not part of it.
+**/node_modules
+.git
+.github
+.omc
+.claude
+.dev
+docs
+testdata
+web
+packages
+api
+server/bin
+server/internal/webassets/dist
+config
+cache
+deploy
+**/.env
+**/*.log
+coverage

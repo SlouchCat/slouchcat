@@ -217,6 +217,116 @@ docker compose up -d
 Beim ersten Start der neuen Fassung sichert der Server die Datenbank und wendet die Änderungen an.
 Die Prüfung lässt sich in der Verwaltung abschalten; dann fragt der Server nirgends mehr nach.
 
+### Update per Knopf: der Updater-Begleiter (freiwillig)
+
+Wer das Update lieber in der Verwaltung anstösst, nimmt den **Updater-Begleiter** dazu. Dann steht auf
+der Karte «Server» der Knopf «Update auf … installieren», sobald eine neuere Fassung da ist. Ohne
+Begleiter zeigt der Knopf die zwei Befehle von oben. Ist der Begleiter eingerichtet, antwortet aber
+nicht, sagt die Karte das und zeigt dieselben Befehle.
+
+**Warum ein eigener Container.** Ein Update holt ein neues Image und startet den Container neu. Das kann
+nur, wer Docker auf dem Rechner steuert, und wer Docker steuert (`/var/run/docker.sock`), hat
+Root-Rechte auf dem ganzen Rechner. Darum bekommt nicht Slouchcat selbst diesen Zugang, sondern ein
+kleines eigenes Programm im Container `slouchcat-updater`:
+
+- Es hat keinen offenen Port, keine Benutzer, keine Medien und sieht weder `config/` (Datenbank,
+  Schlüssel, Sicherungen) noch `cache/`: `compose.updater.yaml` legt bei ihm leere, schreibgeschützte
+  Ordner darüber. Liegt einer der beiden Ordner ausserhalb des Slouchcat-Ordners, hängt der Begleiter
+  ihn gar nicht erst ein (und verdeckt ihn darum auch nicht); Docker legt dann beim Start des
+  Begleiters einen leeren Ordner `config/` oder `cache/` (Eigentümer root) im Slouchcat-Ordner an.
+  Slouchcat erreicht es nur im internen Docker-Netz, mit einem geheimen Token aus `updater/token`.
+- Es nimmt genau einen Auftrag an: «installiere die neueste Fassung». Welche das ist, liest es selbst
+  aus dem Release-Manifest; es installiert nur eine neuere Fassung und prüft vor dem Neustart den
+  Fingerabdruck (Digest) des heruntergeladenen Images.
+- Es ändert in `.env` nur den Wert der Zeile `SLOUCHCAT_VERSION=` (Anführungszeichen und ein
+  Kommentar dahinter bleiben) und sichert die Datei vorher als `.env.bak-vor-<Fassung>` (nur für dich
+  lesbar). Es löscht nie eine Sicherung und ersetzt keine: Gibt es den Namen schon (etwa von
+  Hand angelegt), nimmt es `.env.bak-vor-<Fassung>-2`, `-3`, …; räume ältere von Hand auf.
+- Es startet nur den Container `slouchcat` neu, mit genau den Compose-Dateien, mit denen er gestartet
+  wurde; Caddy und sich selbst lässt es stehen.
+
+Wer das nicht will, lässt den Begleiter weg; alles andere bleibt gleich.
+
+**Einrichten.**
+
+```bash
+cd ~/slouchcat
+curl -fsSLO https://raw.githubusercontent.com/SlouchCat/slouchcat/v1.16.0/deploy/compose.updater.yaml
+mkdir -p updater
+echo "SLOUCHCAT_DEPLOY_DIR=$(pwd)" >> .env
+```
+
+`SLOUCHCAT_DEPLOY_DIR` ist der **absolute** Pfad des Ordners mit `compose.yaml` und `.env`. Der
+Begleiter hängt ihn unter genau diesem Pfad ein, damit `./config`, `./cache` und alle anderen Pfade
+der Compose-Dateien bei ihm dasselbe bedeuten wie auf dem Rechner. Alle Compose-Dateien und `.env`
+müssen in diesem Ordner liegen, sonst lehnt der Begleiter ab. Der Begleiter liest Variablen nur aus
+den Env-Dateien, nie aus deiner Shell: Jede Variable, die eine Compose-Datei verwendet (zum Beispiel
+`RENDER_GID` aus `compose.intel.yaml` oder `SLOUCHCAT_VERSION`), muss in `.env` stehen; nur mit
+`export` gesetzt, fehlt sie beim Update.
+
+Dann `compose.updater.yaml` **zu allen Dateien dazunehmen, die du bisher verwendest**, als letzte. Mit
+`COMPOSE_FILE` in `.env` hängst du sie hinten an, zum Beispiel:
+
+```bash
+COMPOSE_FILE=compose.yaml:compose.nvidia.yaml:compose.updater.yaml
+```
+
+Wer die Dateien mit `-f` aufzählt, schreibt sie alle auf, zum Beispiel
+`docker compose -f compose.yaml -f compose.https-only.yaml -f compose.intel.yaml -f compose.updater.yaml --profile https up -d`.
+Danach `docker compose up -d`; `docker compose ps` zeigt nun auch `slouchcat-updater`. Fehlt eine Datei
+in der Liste, fehlt sie auch nach dem Update (zum Beispiel der Grafikchip oder die Sperre von Port
+8096 hinter Caddy).
+
+**Was der Knopf tut.** Nach der Bestätigung arbeitet der Begleiter diese Schritte ab; die Karte zeigt,
+wo er steht:
+
+1. Manifest lesen und prüfen (nur eine neuere Fassung, mit Digest).
+2. `.env` sichern und `SLOUCHCAT_VERSION` setzen.
+3. Das neue Image holen (`docker compose pull slouchcat`) und seinen Digest mit dem Manifest
+   vergleichen. Weicht er ab, setzt er `.env` zurück und startet nichts neu.
+4. Den Container `slouchcat` mit der neuen Fassung starten. Laufende Wiedergaben brechen dabei ab.
+5. Bis zu **zehn Minuten** warten, bis der neue Server gesund ist und seine Fassung meldet. So viel
+   Zeit hat auch eine lange Datenbank-Änderung. Stürzt der neue Container ab (dreimal neu gestartet
+   oder endgültig beendet), wartet er nicht länger.
+
+Während das Update läuft, lehnt der Server «Neu starten», eine Sicherung und eine Wiederherstellung ab
+(und die Karte blendet «Neu starten» aus); das Update selbst startet nicht, solange eine Sicherung,
+eine Wiederherstellung oder ein Neustart ansteht. Bleibt eine Installation länger als 70 Minuten
+stehen und der Begleiter antwortet nicht, zeigt die Karte sie als fehlgeschlagen. So lange dauert
+selbst der längste Lauf nicht (Download bis 30 Minuten, zweimal bis 10 Minuten Warten, Rücknahme).
+
+**Wenn die neue Fassung nicht startet.**
+
+- **Ohne Datenbank-Änderung** nimmt der Begleiter das Update selbst zurück: alte Zeile in `.env`, alte
+  Fassung starten. Die Karte meldet «zurückgenommen».
+- **Mit Datenbank-Änderung** nimmt er nichts zurück, denn die alte Fassung ist für die geänderte
+  Datenbank nicht gebaut. Die Karte meldet das und nennt die Sicherung, die der Server vor der Änderung
+  angelegt hat (`config/backups/pre-migration-…`). Zurück geht es dann nur von Hand: Server anhalten
+  (`docker compose stop slouchcat`), `config/slouchcat.db` durch diese Sicherung ersetzen und
+  `config/slouchcat.db-wal` und `config/slouchcat.db-shm` löschen, falls vorhanden, die alte Fassung
+  in `.env` eintragen (sie steht in `.env.bak-vor-<Fassung>`, bei belegtem Namen mit `-2`, `-3`, …) und `docker compose up -d`.
+
+**Wenn der Begleiter mitten im Update anhält** (Neustart des Rechners, `docker compose down`), macht er
+beim nächsten Start Ordnung: Vor dem Neustart des Servers setzt er `.env` aus `.env.bak-vor-<Fassung>`
+zurück und meldet einen Fehler. Danach wartet er erneut bis zu zehn Minuten auf die neue Fassung
+(die Karte zeigt so lange die Gesundheitsprüfung) und meldet «fertig», wenn sie gesund läuft, sonst
+einen Fehler, ohne etwas zurückzunehmen; dann entscheidest du (Update von Hand wie oben oder die
+Sicherung).
+
+**Den Begleiter selbst aktualisieren.** Er aktualisiert sich nie selbst. Seine Fassung steht als
+`SLOUCHCAT_UPDATER_VERSION` in `.env`; heb sie von Hand, wenn die Release-Notizen es verlangen:
+
+```bash
+# SLOUCHCAT_UPDATER_VERSION in .env auf die neue Fassung setzen
+docker compose pull updater
+docker compose up -d updater
+```
+
+**Ohne Begleiter** bleibt es bei den zwei Befehlen von oben, nachdem du `SLOUCHCAT_VERSION` in `.env`
+gesetzt hast: `docker compose pull` und `docker compose up -d`. Den Begleiter wieder entfernen:
+`compose.updater.yaml` aus `COMPOSE_FILE` (oder der `-f`-Liste) streichen, dann
+`docker compose up -d --remove-orphans`.
+
 ## 9. Was nicht geprüft ist
 
 Zu einer ehrlichen Anleitung gehört, was in dieser Fassung **nicht** nachgewiesen wurde:

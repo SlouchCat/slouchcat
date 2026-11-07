@@ -121,6 +121,8 @@ Die Web-Oberfläche läuft auf <http://localhost:8096>. `compose.yaml` verweist 
 Release (`.github/workflows/release.yml`, ADR 0001). Die Fassung ist bewusst festgenagelt: eine
 Aktualisierung ist ein eigener Schritt (`SLOUCHCAT_VERSION` in `.env` ändern, dann
 `docker compose pull && docker compose up -d`), die Update-Prüfung sagt nur, dass es eine gibt.
+Diesen Schritt kann auf Knopfdruck der freiwillige Updater-Begleiter übernehmen (siehe
+«Updater-Begleiter»).
 `docker compose up --build` baut stattdessen lokal aus dem Dockerfile. Ein Image ohne
 Release-Version (`VERSION` aus `git describe` zwischen zwei Tags, ein Commit-Hash oder `dev`)
 meldet sich in der Verwaltung als Entwicklungsstand und bekommt keinen Update-Hinweis; der kommt
@@ -167,6 +169,7 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_LOG_FORMAT` | `json` | `json` oder `text` |
 | `SLOUCHCAT_LOG_LEVEL` | `info` | Log-Stufe |
 | `SLOUCHCAT_TRUSTED_PROXIES` | leer | Welche Proxys `X-Forwarded-For` setzen dürfen: leer = niemand, `private` = RFC-1918-Netze, Loopback und `fc00::/7`, sonst eine kommagetrennte CIDR-Liste. Siehe «HTTPS mit Caddy» |
+| `SLOUCHCAT_DEPLOY_DIR`, `SLOUCHCAT_UPDATER_VERSION` | (nur Compose, `.env`) | Absoluter Host-Pfad von `deploy/` und Tag des Updater-Images; nur mit `compose.updater.yaml`, siehe «Updater-Begleiter» |
 | `SLOUCHCAT_DOMAIN`, `ACME_EMAIL` | (nur Compose, `.env`) | Host-Name und ACME-Adresse für das Profil `https`; sie lesen Caddy, nicht der Server |
 | `SLOUCHCAT_TMDB_API_KEY` | leer | TMDB-Lesetoken; übersteuert den im Assistenten gespeicherten Schlüssel |
 | `SLOUCHCAT_TVDB_API_KEY`, `SLOUCHCAT_TVDB_PIN` | leer | TheTVDB (optional), siehe «Metadaten-Anbieter und Trailer» |
@@ -180,6 +183,8 @@ betroffen (gemessen: 48 s bis zur Sichtbarkeit, `docs/perf/M1a.md` 1a).
 | `SLOUCHCAT_TELEGRAM_BOT_TOKEN` | leer | Token des Telegram-Bots von @BotFather (optional, M8); übersteuert das in der Verwaltung hinterlegte Token |
 | `SLOUCHCAT_PUBLIC_URL` | leer | Öffentliche Adresse des Servers für Links in E-Mails und Nachrichten (optional, M8); übersteuert die Einstellung in der Verwaltung |
 | `SLOUCHCAT_UPDATE_MANIFEST_URL` | Release-Manifest auf GitHub | Quelle der Update-Prüfung (M8); ein anderer Wert gilt nur mit `--dev` (Tests mit Mock) |
+| `SLOUCHCAT_UPDATER_URL` | leer | Adresse des Updater-Begleiters im internen Docker-Netz, z. B. `http://slouchcat-updater:8099` (optional, Konzept 15, ADR 0024); setzt `compose.updater.yaml`. Leer: kein Begleiter, die Karte «Server» zeigt die Schritte für das Update von Hand |
+| `SLOUCHCAT_TEST_UPDATER_DIR` | leer (`/run/slouchcat-updater`) | Anderer geteilter Ordner des Updaters (`token`, `state.json`, `server.json`); gilt nur mit `--dev` (Tests), sonst Warnung im Log |
 | `SLOUCHCAT_TELEGRAM_BASE_URL` | leer | Basis-URL eines Telegram-Mocks; gilt nur mit `--dev` (Tests) |
 | `SLOUCHCAT_TEST_SPOTLIGHT_REFRESH_GAP` | leer (eine Minute) | Kürzere Sperre zwischen zwei manuellen Spotlight-Abrufen, z. B. `2s`; gilt nur mit `--dev` (e2e-Suite), sonst Warnung im Log und die Minute bleibt |
 | `TZ` | (Compose: `Europe/Zurich`) | Zeitzone |
@@ -220,6 +225,115 @@ Das Image definiert den Healthcheck selbst (`slouchcat healthcheck` ruft
 `http://127.0.0.1:8096/api/v1/healthz` auf; kein curl im Image), Compose übernimmt ihn:
 Intervall 5 s, Timeout 2 s, Startphase 1 s mit Prüfung jede Sekunde (`--start-interval`, Docker Engine
 ab 25), 3 Versuche.
+
+## Updater-Begleiter (`compose.updater.yaml`, freiwillig)
+
+Der Begleiter (`server/cmd/updater`, Image `ghcr.io/slouchcat/slouchcat-updater`, ADR 0024) installiert
+die neueste Fassung, wenn ein Administrator in der Verwaltung auf «Update installieren» drückt. Ab
+Werk ist er nicht dabei.
+
+**Warum getrennt.** Er braucht `/var/run/docker.sock`, und wer den Socket hat, hat Root auf dem
+Gastgeber. Darum läuft er in einem eigenen Container ohne veröffentlichten Port, ohne Benutzer und
+ohne Medien, und er sieht weder `./config` (Datenbank, `secret.key`, Sicherungen) noch `./cache`:
+`compose.updater.yaml` legt über beide Pfade ein leeres, schreibgeschütztes tmpfs (Compose liest die
+Quellen von Bind-Mounts nicht; der Server bekommt die Ordner des Gastgebers). Ein Konfigurations- oder
+Cache-Ordner ausserhalb von `deploy/` ist beim Begleiter weder eingehängt noch verdeckt; fehlt
+`deploy/config` oder `deploy/cache`, legt Docker den Einhängepunkt leer an (Eigentümer root). Der Server
+sieht den Socket nie; er erreicht den Begleiter nur im internen
+Netz unter `http://slouchcat-updater:8099` (`SLOUCHCAT_UPDATER_URL`) mit
+`Authorization: Bearer <token>`. Der Begleiter nimmt nur «installiere die neueste» an und bestimmt die
+Fassung selbst: Manifest lesen, Version streng `X.Y.Z` und neuer als die laufende (Label
+`org.opencontainers.image.version` des Containers), Feld `image` mit Digest Pflicht.
+
+**Einrichten** (aus `deploy/`):
+
+```bash
+mkdir -p updater
+echo "SLOUCHCAT_DEPLOY_DIR=$(pwd)" >> .env      # absoluter Host-Pfad dieses Ordners
+docker compose -f compose.yaml [-f …] -f compose.updater.yaml up -d
+```
+
+`compose.updater.yaml` kommt **zu allen bisher verwendeten `-f`-Dateien dazu**, als letzte, oder
+hinten an `COMPOSE_FILE` in `.env` (`compose.yaml:compose.intel.yaml:compose.updater.yaml`). Die Datei
+verlangt `SLOUCHCAT_DEPLOY_DIR` (`${SLOUCHCAT_DEPLOY_DIR:?…}`): Der Begleiter hängt `deploy/` unter
+genau diesem Pfad ein, damit `./config`, `./cache` und alle relativen Pfade bei ihm wie auf dem
+Gastgeber aufgelöst werden. Der Begleiter interpoliert nur aus den Env-Dateien, nie aus der Shell:
+Jede Variable, die eine Compose-Datei verwendet (etwa `RENDER_GID` aus `compose.intel.yaml` oder
+`SLOUCHCAT_VERSION`), muss in `.env` stehen, nicht nur exportiert sein. Dem Dienst `slouchcat` gibt
+die Datei `./updater` unter
+`/run/slouchcat-updater` (lesend und schreibend), `SLOUCHCAT_UPDATER_URL` und `depends_on: updater`.
+
+**Der geteilte Ordner `deploy/updater/`** (Rechte `0700`, Eigentümer `PUID:PGID`):
+
+| Datei | Schreiber | Rechte | Inhalt |
+|---|---|---|---|
+| `token` | Begleiter, beim ersten Start | `0600`, `PUID:PGID` | 32 Zufallsbytes hex; erscheint nie im Log |
+| `state.json` | Begleiter, nach jeder Phase atomar | `0644`, `PUID:PGID` | Phase, von, nach, Ergebnis, Migration ja/nein, Sicherung, Code, Meldung |
+| `server.json` | Server, bei jedem Start vor und nach den Migrationen | Server | Version, Schema vor und nach, Name der Sicherung; ein zweiter Start derselben Version behält Schema vor der Migration und erste Sicherung (die der Server nie löscht), «danach» ist leer bis zum Ende der Migrationen |
+
+**Ablauf** (`POST /install`): Phasen `checking`, `backing_up`, `pulling`, `verifying`, `restarting`,
+`waiting`, dann `done`, `rolled_back` oder `failed`.
+
+1. Manifest (20 s, höchstens 64 KiB), laufende Version, Labels des Containers `slouchcat`
+   (`com.docker.compose.project`, `.project.config_files`, `.project.working_dir`,
+   `.project.environment_file`; ohne das letzte gilt `<working_dir>/.env`). Arbeitsordner, jede
+   Compose- und Env-Datei muss nach Auflösen der Symlinks in `SLOUCHCAT_DEPLOY_DIR` liegen. Eine
+   Ablehnung hier ändert nichts und kommt als HTTP 422 zurück (`not_newer`, `manifest_invalid`,
+   `manifest_unreachable`, `no_digest`, `no_compose_labels`, `outside_deploy_dir`); läuft schon ein
+   Update, 409 `busy`. Der Server selbst lehnt die Installation mit 409 `backup_busy` oder
+   `restart_pending` ab, solange eine Sicherung, eine Wiederherstellung oder ein Neustart ansteht;
+   umgekehrt antworten Neustart, Wiederherstellung und Sicherung 409 `update_running`, solange eine
+   Installation läuft.
+2. Env-Datei nach `.env.bak-vor-<X>` sichern (`0600`, Eigentümer wie das Original; der Updater löscht
+   nie eine Sicherung und ersetzt keine: ist der Name belegt, nimmt er `-2`, `-3`, …) und nur den Wert der Zeile `SLOUCHCAT_VERSION=` setzen; Leerzeichen, Anführungszeichen
+   (`"…"`, `'…'`) und ein Kommentar ` # …` bleiben (fehlt die Zeile, wird sie angehängt). Bei mehreren
+   Env-Dateien gilt die letzte, die die Zeile enthält, sonst die letzte. Ist die Env-Datei ein Symlink,
+   ersetzt er das Ziel in dessen Ordner; der Link bleibt.
+3. `docker compose --project-name … --project-directory … --env-file … -f … pull slouchcat`, dann die
+   `RepoDigests` des Images, das Compose für `slouchcat` auflöst (`config --format json`), mit dem
+   Digest des Manifests vergleichen (sie enthalten den Digest des Image-Index, mit dem
+   containerd-Image-Speicher wie mit dem klassischen); bei Abweichung `.env` zurück,
+   `digest_mismatch`, kein Neustart.
+4. `docker compose … up -d --no-deps --no-build slouchcat`, **ohne `--wait`**: Der Healthcheck des
+   Images (5 s Abstand, 3 Versuche) meldet `unhealthy` schon nach rund 16 s, während eine lange
+   Migration noch läuft. Der Begleiter wartet selbst bis zu zehn Minuten auf `healthy` und auf
+   `server.json` mit der neuen Version; `unhealthy` innerhalb dieser Zeit ist nicht endgültig. Läuft
+   der Container nicht mehr und ist er dreimal neu gestartet, `dead` oder beendet ohne Neustart durch
+   seine Restart-Policy, hört er sofort auf zu warten.
+5. Scheitert der Start: Zeigt `server.json` für die neue Version eine Migration (Schema geändert oder
+   Migration begonnen und nicht beendet), nimmt er nichts zurück (`failed`, `migrated_no_rollback`, mit
+   dem Namen der Sicherung `pre-migration-…`). Sonst setzt er `.env` zurück, startet die alte Fassung
+   und meldet `rolled_back`; kommt auch sie nicht hoch, `rollback_failed`.
+
+**Unterbrechung.** Bei SIGTERM (`docker stop`, `stop_grace_period: 30s`) beendet der Begleiter den
+laufenden Compose-Aufruf, nimmt nichts zurück und schreibt keinen Endzustand; er wartet höchstens 25 s.
+`state.json` behält die Phase, und der nächste Start schliesst das Update ab: in `checking` bis
+`verifying` setzt er die Env-Datei aus der Sicherung dieser Installation (`.env.bak-vor-<X>`, ggf. mit `-2`, `-3`, …; ihr Name steht in `state.json`) zurück, wenn sie noch `X` nennt und die
+Sicherung da ist, und meldet `failed`; in `restarting` oder `waiting` wartet er im Hintergrund erneut
+bis zu zehn Minuten (Phase `waiting`, `/install` ist so lange `busy`, frühes Ende bei einem
+abgestürzten Container) und meldet `done`, wenn `X` gesund läuft und `server.json` `X` nennt, sonst
+`failed` (mit `migrated_no_rollback` bei einer Migration), ohne Rücknahme: Der neue Server kann noch
+migrieren. Compose läuft beim Start nie.
+
+**Dateien und Log.** Modus und Eigentümer von `token`, `state.json` und `deploy/updater/` setzt der
+Begleiter nur über offene Dateideskriptoren, nie per Pfad, denn der Server kann in den Ordner
+schreiben. Gelesen wird ohne Symlinks zu folgen und nur aus regulären Dateien; ein `token`, der ein
+Symlink, ein harter Link oder eine FIFO ist, wird entfernt (nicht sein Ziel) und neu angelegt. Ein
+gescheiterter Docker-Aufruf erscheint im Log mit Exit-Status und nur seiner letzten Zeile, jedes
+`KEY=value` geschwärzt.
+
+**Den Begleiter aktualisieren.** Er aktualisiert sich nie selbst. Sein Tag ist
+`SLOUCHCAT_UPDATER_VERSION` in `.env`; von Hand heben, wenn die Release-Notizen es verlangen, dann
+`docker compose … pull updater && docker compose … up -d updater`.
+
+**Ohne Begleiter** bleibt das Update von Hand: `SLOUCHCAT_VERSION` in `.env` setzen, dann
+`docker compose pull` und `docker compose up -d` (mit denselben `-f`-Dateien).
+
+Umgebung des Begleiters: `SLOUCHCAT_DEPLOY_DIR` (Pflicht), `PUID`/`PGID` (Standard `1000`),
+`SLOUCHCAT_CONTAINER` (Standard `slouchcat`), `SLOUCHCAT_UPDATE_MANIFEST_URL` (Standard: das
+Manifest der Update-Prüfung; nur `https`, auch bei Weiterleitungen, höchstens zehn; nur für Tests
+ändern), `SLOUCHCAT_LOG_FORMAT` (`json` oder `text`).
+`task deploy:build:updater` baut das Image lokal, `task deploy:config` prüft die Override-Datei mit.
 
 ## HTTPS mit Caddy (Compose-Profil `https`)
 

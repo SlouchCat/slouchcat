@@ -22,6 +22,10 @@ func (e serviceProblem) VisitRetryJobResponse(w http.ResponseWriter) error      
 func (e serviceProblem) VisitCancelJobResponse(w http.ResponseWriter) error      { return e.visit(w) }
 func (e serviceProblem) VisitGetUpdateStateResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitCheckForUpdateResponse(w http.ResponseWriter) error { return e.visit(w) }
+func (e serviceProblem) VisitInstallUpdateResponse(w http.ResponseWriter) error  { return e.visit(w) }
+func (e serviceProblem) VisitGetUpdateInstallStatusResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
 
 func (s *server) CheckSetupPath(ctx context.Context, req gen.CheckSetupPathRequestObject) (gen.CheckSetupPathResponseObject, error) {
 	c, err := s.opts.Admin.CheckSetupPath(model.WithClientIP(ctx, s.clientAddr(ctx)), deref(req.Body).Path)
@@ -186,6 +190,25 @@ func (s *server) CheckForUpdate(ctx context.Context, _ gen.CheckForUpdateRequest
 	return gen.CheckForUpdate200JSONResponse(toUpdateState(u)), nil
 }
 
+// InstallUpdate asks the updater companion to install the newest release (concept 15 P-8,
+// ADR 0024): 202 with its state, 409 update_running, 422 with its code, 503 updater_unavailable.
+func (s *server) InstallUpdate(ctx context.Context, _ gen.InstallUpdateRequestObject) (gen.InstallUpdateResponseObject, error) {
+	in, err := s.opts.Admin.InstallUpdate(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.InstallUpdate202JSONResponse(toUpdateInstall(in)), nil
+}
+
+// GetUpdateInstallStatus reads the last install from the companion's state.json.
+func (s *server) GetUpdateInstallStatus(ctx context.Context, _ gen.GetUpdateInstallStatusRequestObject) (gen.GetUpdateInstallStatusResponseObject, error) {
+	in, err := s.opts.Admin.InstallStatus(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.GetUpdateInstallStatus200JSONResponse(toUpdateInstall(in)), nil
+}
+
 // toSystemInfo maps the system state for getSystemInfo and the wizard (getSetupStatus.system).
 func toSystemInfo(info model.SystemInfo) gen.SystemInfo {
 	g := info.GPU
@@ -221,9 +244,23 @@ func toJobSummary(j model.JobSummary) gen.JobSummary {
 }
 
 func toUpdateState(u model.UpdateState) gen.UpdateState {
-	return gen.UpdateState{
+	out := gen.UpdateState{
 		Enabled: u.Enabled, CurrentVersion: u.CurrentVersion, LatestVersion: optString(u.LatestVersion),
 		Development: u.Development, Available: u.Available,
 		Url: optString(u.URL), Notes: optString(u.Notes), CheckedAt: utc(u.CheckedAt), Error: optString(u.Error),
+		UpdaterConfigured: u.UpdaterConfigured, UpdaterAvailable: u.UpdaterAvailable,
+	}
+	if u.Install != nil {
+		in := toUpdateInstall(*u.Install)
+		out.Install = &in
+	}
+	return out
+}
+
+func toUpdateInstall(in model.UpdateInstall) gen.UpdateInstallStatus {
+	return gen.UpdateInstallStatus{
+		Phase: gen.UpdateInstallStatusPhase(in.Phase), From: optString(in.From), To: optString(in.To),
+		StartedAt: utc(in.StartedAt), FinishedAt: utc(in.FinishedAt), Migrated: in.Migrated,
+		Backup: optString(in.Backup), Code: optString(in.Code), Message: optString(in.Message),
 	}
 }

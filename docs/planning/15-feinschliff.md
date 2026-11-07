@@ -635,7 +635,7 @@ Aufwand: rund **3,5 Tage**.
   vergleicht den gezogenen Digest damit und bricht bei Abweichung ab.
 - **`.env`:** Der Updater ändert nur die Zeile `SLOUCHCAT_VERSION=` (fügt sie an, wenn sie fehlt)
   und lässt den Rest Byte für Byte stehen. Die Sicherung `.env.bak-vor-<Version>` enthält
-  Geheimnisse (SMTP, Telegram) und bekommt Rechte `0600`; die letzten fünf bleiben.
+  Geheimnisse (SMTP, Telegram) und bekommt Rechte `0600`. Der Updater löscht nie eine Sicherung (siehe Nachtrag zum Bau).
 - **Geheimnis:** Server und Updater teilen ein Token in einem eigenen kleinen Ordner
   `deploy/updater/` (Datei `token`, `0600`), im Server lesend unter `/run/slouchcat-updater`
   eingehängt. **Nicht** in `/config`: Der Updater sieht weder Datenbank noch `secret.key` noch
@@ -681,8 +681,64 @@ Vertrag (Stufe 1).
 
 **Einrichtung.** CT 190 bekommt das Profil `updater` für die Abnahme (F-15), mit seinen drei
 Compose-Dateien; die Abnahme prüft danach, dass Port und GPU wie vorher stehen.
-`docs/INSTALLATION.md` und `deploy/README.md` beschreiben das Profil als freiwillig. Neue
+`docs/INSTALLATION.md` und `deploy/README.md` beschreiben das Profil als freiwillig. (Berichtigt
+im Nachtrag unten und in ADR 0024 Punkt 3: Override-Datei `deploy/compose.updater.yaml` statt
+Profil.) Neue
 **ADR 0024** «Updater-Begleiter»; Spec A-5 wird erweitert (Hinweis **und** Installieren).
+
+> **Nachtrag Stufe 4 (7. November 2026, Schritt 0, ADR 0024):** Beim Baubeginn festgelegt:
+> - **Override-Datei statt Profil.** Der Begleiter kommt mit `deploy/compose.updater.yaml`
+>   (Muster `compose.https-only.yaml`, `compose.intel.yaml`):
+>   `-f compose.yaml [-f …] -f compose.updater.yaml`. Auch der Dienst `slouchcat` braucht dann
+>   einen Mount und eine Umgebungsvariable; ein Profil in `compose.yaml` kann ihm das nicht bedingt
+>   geben. Die Datei entsteht in Schritt 1.
+> - **`deploy/updater/` im Server lesend und schreibend** unter `/run/slouchcat-updater`, weil der
+>   Server `server.json` schreibt (oben stand «lesend»). Der Server sieht `docker.sock` nie, der
+>   Updater `/config` nie.
+> - **`deploy/` unter demselben absoluten Pfad:** Den Pfad gibt `SLOUCHCAT_DEPLOY_DIR` in `.env`
+>   vor, `compose.updater.yaml` verlangt ihn. Liegt eine Compose-Datei aus den Labels ausserhalb
+>   dieses Ordners, lehnt der Updater ab.
+> - **Compose-Aufruf:** `exec.CommandContext` mit Argumentliste, mit genau den `-f`-Dateien,
+>   `--project-directory`, `--project-name` und der Env-Datei aus den Labels des laufenden
+>   Containers (`com.docker.compose.project`, `.project.config_files`, `.project.working_dir`,
+>   `.project.environment_file`), dann `up -d --no-deps --wait --wait-timeout 600 slouchcat`.
+>   **Berichtigt beim Bau (ADR 0024 Punkt 6):** ohne `--wait`; der Updater wartet selbst bis zu
+>   zehn Minuten auf `healthy` und `server.json`, der Aufruf ist
+>   `up -d --no-deps --no-build slouchcat` mit den Dateien der Override-Datei `compose.updater.yaml`.
+> - **Verbindung:** nur im internen Docker-Netz (`http://slouchcat-updater:8099`, kein
+>   veröffentlichter Port), Kopf `Authorization: Bearer <token>`. Die Datei `deploy/updater/token`
+>   legt der Updater beim ersten Start an (`0600`, Eigentümer `PUID:PGID`, damit der Server sie
+>   lesen kann). Das Token erscheint nie im Log (Regel 10).
+> - **Status ohne Updater:** `GET /admin/update/status` liest `state.json` direkt aus dem
+>   eingehängten Ordner, auch wenn der Updater nicht läuft; nur `POST /admin/update/install` ruft
+>   ihn auf. Das einmalige Ereignis «Fehler» merkt sich der Server in einer eigenen Einstellung,
+>   nicht in `state.json`, die nur der Updater schreibt.
+> - **Gemeinsames Protokoll** im Paket `server/internal/updater` (Adressen, Dateinamen, Phasen,
+>   Fehlercodes, `state.json`, `server.json`, Versionsregel), ohne `os/exec` und ohne Docker.
+> - Vertrag **1.16.0** (additiv), **keine Migration**.
+>
+> **Nachtrag zum Bau (7. November 2026, ADR 0024 Punkte 12 und 16 bis 18):**
+> - **Gegenseitiger Ausschluss im Server:** Die Installation antwortet 409 `backup_busy` oder
+>   `restart_pending`, solange eine Sicherung, eine Wiederherstellung oder ein Neustart ansteht;
+>   «Neu starten», die Wiederherstellungen und das Anlegen einer Sicherung antworten 409
+>   `update_running`, solange eine Installation läuft. Die Karte blendet «Neu starten» dann aus.
+> - **Angezeigter Zustand (Regel 12):** Eine laufende Phase, älter als 70 Minuten, bei
+>   schweigendem Begleiter wird als `failed` gezeigt (unterbrochen, ohne Code). Ein Endzustand, der
+>   weder `from` noch `to` als laufende Version nennt, wird nicht gezeigt.
+> - **`server.json`:** Ein zweiter Start derselben Version behält die erste Schema-Version vor der
+>   Migration und den Namen der ersten Sicherung; die Felder «danach» bleiben leer, bis die
+>   Migrationen dieses Starts durch sind. Der Store löscht diese Sicherung nie (`KeepBackup`).
+> - **Vertrag:** `UpdateState.updaterConfigured` (Adresse gesetzt) neben `updaterAvailable`; die
+>   Karte unterscheidet «kein Updater» von «Updater antwortet nicht».
+> - **Ereignis «Fehler»:** Der Server verfolgt eine Installation nach der Antwort 202, solange er
+>   läuft, und wiederholt das Senden bis zur Zustellung (höchstens 70 Minuten); die Quelle besteht
+>   aus Zielversion und Endzeit.
+> - **Unterbrechung:** Der Updater wartet nach einem unterbrochenen Neustart im Hintergrund erneut
+>   (ADR 0024 Punkt 15).
+> - **Abweichung (Sicherungen der `.env`):** Der Updater behält alle Sicherungen `.env.bak-vor-*`
+>   und löscht keine, statt die neuesten fünf zu behalten, weil von Hand angelegte dasselbe
+>   Namensmuster tragen. Ältere räumt man von Hand auf. Eine Sicherung gleichen Namens ersetzt er
+>   nie: Der Updater nimmt dann `-2`, `-3`, ….
 
 Aufwand: rund **6 Tage** (Updater 3, Release-Lauf und Manifest 0,5, Server und Karte 1, Doku
 und Abnahme auf CT 190 1,5).

@@ -27,6 +27,11 @@ interface ConfirmDialogTexts {
    * a page with unsaved input).
    */
   defaultFocus?: 'confirm' | 'cancel';
+  /**
+   * More under the body, before the buttons: what the reader may want to look at before he
+   * confirms (the release notes of an update). The body stays the one sentence of the question.
+   */
+  children?: ReactNode;
 }
 
 /** Opened by its own button; the page may still follow or set the open state. */
@@ -63,6 +68,7 @@ export function ConfirmDialog({
   tone = 'primary',
   defaultFocus = 'confirm',
   onOpenChange,
+  children,
 }: ConfirmDialogProps) {
   const density = useDensityPortalProps();
   // The default button takes the focus when it mounts (focusOnMount, not react-aria's autoFocus).
@@ -82,6 +88,7 @@ export function ConfirmDialog({
                 {title}
               </Heading>
               <p className={styles.body}>{body}</p>
+              {children}
               <div className={styles.actions}>
                 <AriaButton
                   variant="ghost"
