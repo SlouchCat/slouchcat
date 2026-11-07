@@ -33,14 +33,21 @@ RUN --mount=type=cache,target=/go/pkg/mod \
       -o /out/slouchcat-updater ./cmd/updater
 
 # ---------------------------------------------------------------------------
-# Stage 2: runtime image
+# Stage 2: the compose plugin is what the updater runs; fail the build when the base image lost
+# it. Runs on the build platform, so no stage needs QEMU; the runtime stage copies the result, which
+# makes BuildKit run this stage at all.
+# ---------------------------------------------------------------------------
+FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} AS compose-check
+RUN mkdir -p /out && docker compose version > /out/compose-version
+
+# ---------------------------------------------------------------------------
+# Stage 3: runtime image
 # ---------------------------------------------------------------------------
 FROM ${BASE_IMAGE} AS runtime
 
 COPY LICENSE /licenses/LICENSE
+COPY --from=compose-check /out/compose-version /usr/local/share/slouchcat-updater/compose-version
 COPY --from=updater /out/slouchcat-updater /usr/local/bin/slouchcat-updater
-# The compose plugin is what the updater runs; fail the build when the base image lost it.
-RUN docker compose version
 
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="Slouchcat updater" \
