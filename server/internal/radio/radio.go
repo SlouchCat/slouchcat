@@ -7,9 +7,8 @@
 // The service is split into parts with one owner each, so the lanes of the build plan work in
 // their own files of the one package: catalogState (catalog, sync, index, admin; catalog_state.go),
 // relayState (relays, listen sessions, live HLS; relay_state.go) and logoState (logo chain;
-// logo_state.go). Cross-part calls go through the hooks onListed, onStationChanged and
-// bufferMode, which New sets (to no-ops until the wiring replaces them), so a caller never checks
-// them for nil.
+// logo_state.go). Cross-part calls go through the hooks onListed and onStationChanged, which New
+// sets (to no-ops until the wiring replaces them), so a caller never checks them for nil.
 package radio
 
 import (
@@ -89,9 +88,6 @@ type Service struct {
 	// broken_at, failures, shows_titles), so the catalog part reloads that row into its index
 	// (reloadStation, set in New).
 	onStationChanged func(ctx context.Context, stationID int64)
-	// bufferMode reports the buffer mode of the relays (model.RadioBuffer*) for the settings
-	// page. Set by the wiring to the relay part's mode; model.RadioBufferMemory until then.
-	bufferMode func() string
 }
 
 // New returns the radio service; log is the redacting logger.
@@ -99,7 +95,6 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	s := &Service{db: db, log: log, now: time.Now,
 		onListed:         func(context.Context, []int64) {},
 		onStationChanged: func(context.Context, int64) {},
-		bufferMode:       func() string { return model.RadioBufferMemory },
 	}
 	for _, o := range opts {
 		o(s)

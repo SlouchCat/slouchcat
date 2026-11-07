@@ -15,19 +15,8 @@ import (
 // The radio settings (concept 16 section 7.3, table radio_config). bufferMinutes, budgetMb and
 // maxRelays apply to new relays only; hideBroken and countries apply at once to the index view.
 
-// worstKbps is the bitrate the settings page assumes per relay for maxRelaysByBudget (the highest
-// copied bitrate the best-stream rule prefers).
-const worstKbps = 320
-
 // countryCode is an ISO 3166-1 alpha-2 code.
 var countryCode = regexp.MustCompile(`^[A-Z]{2}$`)
-
-// maxRelaysByBudget is the number of relays at worstKbps whose window fits the budget, with the
-// reservation of the relay part (kbit/s × 1000 / 8 × buffer seconds × 1.03).
-func maxRelaysByBudget(budgetMB, bufferMinutes int) int {
-	per := float64(worstKbps) * 1000 / 8 * float64(bufferMinutes*60) * 1.03
-	return int(float64(budgetMB) * (1 << 20) / per)
-}
 
 // parseCountries reads radio_config.countries; nil = every country.
 func parseCountries(v sql.NullString) []string {

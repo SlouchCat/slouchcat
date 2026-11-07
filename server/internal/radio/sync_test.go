@@ -824,11 +824,11 @@ func TestConfigUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.BufferMinutes != 30 || c.BudgetMB != 512 || c.MaxRelays != 10 || c.Countries != nil || c.BufferMode != model.RadioBufferMemory ||
-		c.MaxRelaysByBudget != 7 {
+		c.MaxRelaysByBudget != 12 {
 		t.Errorf("defaults = %+v", c)
 	}
 	ten, bad := 10, 20
-	if c, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{BufferMinutes: &ten}); err != nil || c.MaxRelaysByBudget != 21 {
+	if c, err := e.s.UpdateConfig(e.ctx, model.RadioConfigUpdate{BufferMinutes: &ten}); err != nil || c.MaxRelaysByBudget != 36 {
 		t.Errorf("10 minutes: %+v %v", c, err)
 	}
 	var verr *model.ValidationError

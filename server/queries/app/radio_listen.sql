@@ -110,6 +110,3 @@ INSERT INTO radio_station_locks (station_id, field) VALUES (@station_id, 'logo')
 -- name: UnlockRadioStationLogo :exec
 DELETE FROM radio_station_locks WHERE station_id = @station_id AND field = 'logo';
 
--- name: ListRecommendedRadioStationIDs :many
--- The recommended stations, whose logos the catalog sync prefetches.
-SELECT id FROM radio_stations WHERE recommended = 1 ORDER BY id;

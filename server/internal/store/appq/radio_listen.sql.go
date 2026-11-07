@@ -355,34 +355,6 @@ func (q *Queries) ListOpenRadioListenSessions(ctx context.Context) ([]RadioListe
 	return items, nil
 }
 
-const listRecommendedRadioStationIDs = `-- name: ListRecommendedRadioStationIDs :many
-SELECT id FROM radio_stations WHERE recommended = 1 ORDER BY id
-`
-
-// The recommended stations, whose logos the catalog sync prefetches.
-func (q *Queries) ListRecommendedRadioStationIDs(ctx context.Context) ([]int64, error) {
-	rows, err := q.db.QueryContext(ctx, listRecommendedRadioStationIDs)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []int64{}
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const lockRadioStationLogo = `-- name: LockRadioStationLogo :exec
 INSERT INTO radio_station_locks (station_id, field) VALUES (?1, 'logo') ON CONFLICT DO NOTHING
 `
