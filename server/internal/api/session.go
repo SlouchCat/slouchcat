@@ -452,7 +452,7 @@ func (p problems) mapError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrRestartPending):
 		p.write(w, r, http.StatusConflict, "restart_pending", "A restart or a restore is already scheduled; the server restarts shortly.")
 	case errors.Is(err, model.ErrBackupBusy):
-		p.write(w, r, http.StatusConflict, "backup_busy", "A backup or a restore is running; restart once it is done.")
+		p.write(w, r, http.StatusConflict, "backup_busy", "A backup or a restore is running; try again once it is done.")
 	case errors.Is(err, model.ErrBackupNewerThanServer):
 		p.write(w, r, http.StatusUnprocessableEntity, "backup_newer_than_server", "The backup comes from a newer server version.")
 	case errors.Is(err, model.ErrEmailNotConfigured):

@@ -383,7 +383,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	// Run polls Telegram while link codes are open and prunes old deliveries.
 	workers.Go(func() { notifySvc.Run(ctx) })
 	workers.Go(func() { scheduler.Run(ctx) })
-	// The end of an install the companion reported (state.json), once, also while it still runs.
+	// The end of an install the companion reported (state.json), once, also while it still runs,
+	// and of every install this server starts, until the server stops.
 	workers.Go(func() { adminSvc.WatchUpdateInstall(ctx) })
 	// The library watchers; the full scan at the start and every 6 h is the schedule scan.library.
 	workers.Go(func() {

@@ -17,7 +17,8 @@ import (
 
 // Concept 15 P-8 (contract 1.16.0, ADR 0024) over HTTP: installUpdate against a fake companion
 // (202 with its state, 409 update_running, 422 with its code, 503 when it refuses the token),
-// getUpdateInstallStatus from state.json, and getUpdateState with updaterAvailable and install.
+// getUpdateInstallStatus from state.json, and getUpdateState with updaterConfigured,
+// updaterAvailable and install.
 func TestUpdateInstallOverHTTP(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -93,7 +94,7 @@ func TestUpdateInstallOverHTTP(t *testing.T) {
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/update", "p18", "", nil)
 	var u gen.UpdateState
 	decode(t, rec, &u)
-	if rec.Code != http.StatusOK || !u.UpdaterAvailable || u.Install == nil ||
+	if rec.Code != http.StatusOK || !u.UpdaterConfigured || !u.UpdaterAvailable || u.Install == nil ||
 		u.Install.Phase != gen.UpdateInstallStatusPhaseRolledBack || deref(u.Install.Code) != "unhealthy" || u.Install.Migrated {
 		t.Errorf("update state = %d %s", rec.Code, rec.Body.String())
 	}

@@ -13,12 +13,14 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
 	"github.com/slouchcat/slouchcat/server/internal/updater"
+	"github.com/slouchcat/slouchcat/server/internal/version"
 )
 
 // Installing an update through the updater companion (concept 15 9.3, ADR 0024). The server never
@@ -29,7 +31,8 @@ import (
 // carries the token from the shared folder as a bearer token, and the token never reaches a log
 // (CLAUDE.md rule 10). An install that ended rolled back or failed is reported once as the event
 // errors (reportInstall); which one was reported is the setting update_install_reported, not a
-// mark in state.json.
+// mark in state.json. While an install runs, the server neither restarts nor takes or restores a
+// backup, and the other way round (installRunning, backups.mu).
 
 // SettingUpdateInstallReported is the finish time (RFC 3339) of the last failed or rolled back
 // install that was sent as the event errors.
@@ -40,13 +43,20 @@ const (
 	// how long its answer counts, so the admin pages stay fast while the companion is down.
 	updaterProbeTimeout = 2 * time.Second
 	updaterProbeTTL     = 10 * time.Second
+	// updaterProbeWait is how long a read of the admin pages waits for a probe that runs; a slower
+	// probe answers the next read, so the dashboard poll never waits for a companion that is down.
+	updaterProbeWait = 500 * time.Millisecond
 	// updaterInstallTimeout bounds POST /install. The companion answers only after its checks: the
 	// release manifest (up to 20 s) and docker inspect of the server container, about 25 s at
 	// worst.
 	updaterInstallTimeout = 40 * time.Second
-	// installWatchLimit is how long WatchUpdateInstall looks at a running install after the start.
-	installWatchLimit = 15 * time.Minute
-	maxTokenBytes     = 4 << 10
+	// installStaleAfter: a running phase in state.json this long after the start while the companion
+	// does not answer was interrupted (the companion is gone), and the server reports it as failed.
+	// It also bounds how long followInstall looks at one install.
+	installStaleAfter = 25 * time.Minute
+	// installRetryMax caps the pause between two tries to send a failed install as the event errors.
+	installRetryMax = time.Minute
+	maxTokenBytes   = 4 << 10
 )
 
 // refusalCodes are the reasons the companion gives before it changed anything; the caller of
@@ -67,10 +77,15 @@ type updaterLink struct {
 	client     *http.Client
 	failed     func(context.Context, model.UpdateInstall) error // event errors; nil = none
 	watchEvery time.Duration
+	kick       chan struct{} // InstallUpdate started an install: WatchUpdateInstall follows it
 
-	probeMu   sync.Mutex // one probe at a time; guards probedAt and available
+	// starting is set while InstallUpdate waits for the companion's answer (it holds backups.mu).
+	starting atomic.Bool
+
+	probeMu   sync.Mutex // guards probedAt, available and probing
 	probedAt  time.Time
 	available bool
+	probing   chan struct{} // closed when the running probe ends; nil = none
 
 	stateMu  sync.Mutex
 	stateBad bool // the last read of state.json failed; logged once until it reads again
@@ -92,18 +107,35 @@ func (s *Service) WithUpdater(url, dir string, failed func(context.Context, mode
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 	u.watchEvery = 5 * time.Second
+	u.kick = make(chan struct{}, 1)
+	s.forgetUpdaterProbe() // an answer of another companion counts no more
 	return s
 }
 
 // InstallUpdate asks the companion to install the newest release and returns the state it
 // reported: model.ErrUpdaterUnavailable without a companion, when it does not answer or refuses
 // the token; model.ErrUpdateRunning while an install runs; *model.UpdateRefusedError when it
-// refused before it changed anything.
+// refused before it changed anything. Like RestartServer it answers model.ErrRestartPending while a
+// restart or restore is scheduled and model.ErrBackupBusy while a backup or restore runs, and it
+// holds that lock until the companion answered. A started install is followed by
+// WatchUpdateInstall, so a failure while this server keeps running is reported at once.
 func (s *Service) InstallUpdate(ctx context.Context) (model.UpdateInstall, error) {
 	u := &s.ops.updater
 	if u.url == "" {
 		return model.UpdateInstall{}, model.ErrUpdaterUnavailable
 	}
+	if s.backups.restartPending.Load() {
+		return model.UpdateInstall{}, model.ErrRestartPending
+	}
+	if !s.backups.mu.TryLock() {
+		return model.UpdateInstall{}, model.ErrBackupBusy
+	}
+	defer s.backups.mu.Unlock()
+	if s.backups.restartPending.Load() { // scheduled by a restore that held the lock until now
+		return model.UpdateInstall{}, model.ErrRestartPending
+	}
+	u.starting.Store(true)
+	defer u.starting.Store(false)
 	ctx, cancel := context.WithTimeout(ctx, updaterInstallTimeout)
 	defer cancel()
 	resp, err := s.callUpdater(ctx, http.MethodPost, updater.PathInstall)
@@ -117,9 +149,15 @@ func (s *Service) InstallUpdate(ctx context.Context) (model.UpdateInstall, error
 	decodeErr := decodeState(resp.Body, &st)
 	switch resp.StatusCode {
 	case http.StatusAccepted:
+		select { // WatchUpdateInstall follows the install; one waiting kick is enough
+		case u.kick <- struct{}{}:
+		default:
+		}
 		if decodeErr != nil || !knownPhase(st.Phase) {
+			// state.json may still hold the previous install (a done one would reload the page):
+			// the card shows a running install and follows state.json from there.
 			s.log.WarnContext(ctx, "updater accepted the install with an unreadable state", "err", decodeErr)
-			return s.InstallStatus(ctx)
+			return model.UpdateInstall{Phase: string(updater.PhaseChecking)}, nil
 		}
 		s.log.InfoContext(ctx, "update install started", "from", st.From, "to", st.To, "phase", string(st.Phase))
 		return installOf(st), nil
@@ -141,65 +179,163 @@ func (s *Service) InstallUpdate(ctx context.Context) (model.UpdateInstall, error
 	return model.UpdateInstall{}, model.ErrUpdaterUnavailable
 }
 
-// InstallStatus reads the state of the last install from state.json; idle when the companion
-// never wrote one (or without a companion). It also reports a failed install once (reportInstall).
+// InstallStatus reads the state of the last install from state.json as the admin pages show it
+// (shownInstall); idle when the companion never wrote one (or without a companion). It also
+// reports a failed install once (reportInstall).
 func (s *Service) InstallStatus(ctx context.Context) (model.UpdateInstall, error) {
 	st, ok := s.installState(ctx)
 	if !ok {
 		return model.UpdateInstall{Phase: string(updater.PhaseIdle)}, nil
 	}
 	s.reportInstall(ctx, st)
+	if st, ok = s.shownInstall(ctx, st); !ok {
+		return model.UpdateInstall{Phase: string(updater.PhaseIdle)}, nil
+	}
 	return installOf(st), nil
 }
 
-// WatchUpdateInstall looks at state.json at the start and reports an install that ended rolled
-// back or failed once. While an install still runs (the companion waits for this server to become
-// healthy, or brings the old one back), it looks again every few seconds, at most
-// installWatchLimit long. It returns when ctx ends.
+// WatchUpdateInstall runs while ctx lives; main starts it once. It follows the install found in
+// state.json at the start (the companion may still wait for this server to become healthy, or
+// bring the old one back) and every install this server started (InstallUpdate), and reports one
+// that ended rolled back or failed once (followInstall).
 func (s *Service) WatchUpdateInstall(ctx context.Context) {
 	u := &s.ops.updater
-	deadline := s.now().Add(installWatchLimit)
+	for {
+		s.followInstall(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-u.kick:
+		}
+	}
+}
+
+// followInstall looks at state.json every few seconds while an install runs, at most
+// installStaleAfter long, and sends a final result that failed or rolled back as the event errors.
+// A send that failed is tried again with a growing pause within the same bound.
+func (s *Service) followInstall(ctx context.Context) {
+	u := &s.ops.updater
+	deadline := s.now().Add(installStaleAfter)
+	pause := u.watchEvery
 	for {
 		st, ok := s.installState(ctx)
 		if !ok {
 			return
 		}
-		s.reportInstall(ctx, st)
-		if !st.Phase.Running() || !s.now().Before(deadline) {
+		delivered := s.reportInstall(ctx, st)
+		running := st.Phase.Running()
+		if (!running && delivered) || !s.now().Before(deadline) {
 			return
+		}
+		wait := u.watchEvery
+		if !running {
+			wait, pause = pause, min(2*pause, installRetryMax)
 		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(u.watchEvery):
+		case <-time.After(wait):
 		}
 	}
 }
 
-// withUpdaterState adds the companion to the state of the update check: whether it is reachable
-// and the last install it reported.
+// installRunning reports whether an install is under way as the admin pages show it: the server
+// waits for the companion's answer, or state.json names a running phase that is not stale. A
+// restart, a restore or a new backup would cut it off (model.ErrUpdateRunning).
+func (s *Service) installRunning(ctx context.Context) bool {
+	if s.ops.updater.starting.Load() {
+		return true
+	}
+	st, ok := s.installState(ctx)
+	if !ok {
+		return false
+	}
+	st, ok = s.shownInstall(ctx, st)
+	return ok && st.Phase.Running()
+}
+
+// shownInstall is the install as the admin pages show it; the server decides (CLAUDE.md rule 12).
+// A running phase older than installStaleAfter (or without a start) while the companion does not
+// answer was interrupted: it is shown as failed without a code. A final result that names neither
+// from nor to as the running version belongs to an install before a later manual update: ok is
+// false, nothing is shown.
+func (s *Service) shownInstall(ctx context.Context, st updater.State) (updater.State, bool) {
+	switch {
+	case st.Phase.Running():
+		if (st.StartedAt.IsZero() || s.now().Sub(st.StartedAt) >= installStaleAfter) && !s.updaterAvailable(ctx) {
+			st.Message = fmt.Sprintf("the install stopped during the phase %s and the updater companion does not answer; "+
+				"check SLOUCHCAT_VERSION in the env file", st.Phase)
+			st.Phase, st.Code = updater.PhaseFailed, ""
+		}
+	case st.Phase.Final():
+		if !s.isRunningVersion(st.From) && !s.isRunningVersion(st.To) {
+			return updater.State{}, false
+		}
+	}
+	return st, true
+}
+
+// isRunningVersion reports whether v is the running version; a self-built image of a release
+// counts as that release (package version).
+func (s *Service) isRunningVersion(v string) bool {
+	if v == "" {
+		return false
+	}
+	running := s.version()
+	c, ok := version.Compare(v, running)
+	return v == running || (ok && c == 0)
+}
+
+// withUpdaterState adds the companion to the state of the update check: whether it is configured
+// and reachable, and the last install it reported as the admin pages show it.
 func (s *Service) withUpdaterState(ctx context.Context, out model.UpdateState) model.UpdateState {
+	out.UpdaterConfigured = s.ops.updater.url != ""
 	out.UpdaterAvailable = s.updaterAvailable(ctx)
 	if st, ok := s.installState(ctx); ok {
 		s.reportInstall(ctx, st)
-		in := installOf(st)
-		out.Install = &in
+		if st, ok = s.shownInstall(ctx, st); ok {
+			in := installOf(st)
+			out.Install = &in
+		}
 	}
 	return out
 }
 
 // updaterAvailable reports whether GET /status answers 200 with the token, from a cache of
-// updaterProbeTTL.
+// updaterProbeTTL. One probe runs at a time, in the background: a caller waits for it at most
+// updaterProbeWait and otherwise gets the last answer (false before the first).
 func (s *Service) updaterAvailable(ctx context.Context) bool {
 	u := &s.ops.updater
 	if u.url == "" {
 		return false
 	}
 	u.probeMu.Lock()
-	defer u.probeMu.Unlock()
 	if !u.probedAt.IsZero() && s.now().Sub(u.probedAt) < updaterProbeTTL {
+		defer u.probeMu.Unlock()
 		return u.available
 	}
+	done := u.probing
+	if done == nil {
+		done = make(chan struct{})
+		u.probing = done
+		go s.probeUpdater(context.WithoutCancel(ctx), done)
+	}
+	u.probeMu.Unlock()
+	timer := time.NewTimer(updaterProbeWait)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	case <-ctx.Done():
+	}
+	u.probeMu.Lock()
+	defer u.probeMu.Unlock()
+	return u.available
+}
+
+// probeUpdater asks GET /status once, stores the answer and closes done.
+func (s *Service) probeUpdater(ctx context.Context, done chan struct{}) {
+	u := &s.ops.updater
 	ctx, cancel := context.WithTimeout(ctx, updaterProbeTimeout)
 	defer cancel()
 	ok := false
@@ -215,8 +351,10 @@ func (s *Service) updaterAvailable(ctx context.Context) bool {
 			s.log.DebugContext(ctx, "updater status refused", "status", resp.StatusCode)
 		}
 	}
-	u.probedAt, u.available = s.now(), ok
-	return ok
+	u.probeMu.Lock()
+	u.probedAt, u.available, u.probing = s.now(), ok, nil
+	u.probeMu.Unlock()
+	close(done)
 }
 
 // forgetUpdaterProbe makes the next updaterAvailable ask again.
@@ -296,13 +434,14 @@ func (s *Service) installState(ctx context.Context) (updater.State, bool) {
 
 // reportInstall sends an install that ended rolled back or failed (not one refused before it
 // changed anything) once as the event errors: once means its finish time is newer than the
-// setting update_install_reported, which it then becomes. A failed send is tried again at the
-// next read.
-func (s *Service) reportInstall(ctx context.Context, st updater.State) {
+// setting update_install_reported, which it then becomes. It returns false when the send failed
+// (or the setting could not be read); followInstall and the next read try again. The finish
+// time counts as reported in memory once sent, also when storing the setting fails.
+func (s *Service) reportInstall(ctx context.Context, st updater.State) bool {
 	u := &s.ops.updater
 	if u.failed == nil || st.FinishedAt.IsZero() || refusalCodes[st.Code] ||
 		(st.Phase != updater.PhaseRolledBack && st.Phase != updater.PhaseFailed) {
-		return
+		return true
 	}
 	u.reportMu.Lock()
 	defer u.reportMu.Unlock()
@@ -310,7 +449,7 @@ func (s *Service) reportInstall(ctx context.Context, st updater.State) {
 		raw, ok, err := s.setting(ctx, SettingUpdateInstallReported)
 		if err != nil {
 			s.log.WarnContext(ctx, "read the reported update install", "err", err)
-			return
+			return false
 		}
 		if ok {
 			if t, err := time.Parse(time.RFC3339Nano, raw); err == nil {
@@ -320,19 +459,19 @@ func (s *Service) reportInstall(ctx context.Context, st updater.State) {
 		u.reportLoaded = true
 	}
 	if !st.FinishedAt.After(u.reported) {
-		return
+		return true
 	}
 	if err := u.failed(ctx, installOf(st)); err != nil {
 		s.log.WarnContext(ctx, "report the failed update install", "err", err)
-		return
+		return false
 	}
+	u.reported = st.FinishedAt // sent: not again in this process, even if the setting is not stored
 	at := st.FinishedAt.UTC().Format(time.RFC3339Nano)
 	if err := s.write.UpsertSetting(ctx, appq.UpsertSettingParams{Key: SettingUpdateInstallReported, Value: at, Now: s.now().UnixMilli()}); err != nil {
 		s.log.WarnContext(ctx, "store the reported update install", "err", err)
-		return
 	}
-	u.reported = st.FinishedAt
 	s.log.InfoContext(ctx, "failed update install reported", "phase", string(st.Phase), "code", string(st.Code), "to", st.To)
+	return true
 }
 
 // decodeState decodes a State from the companion's answer, at most updater.MaxFileBytes.

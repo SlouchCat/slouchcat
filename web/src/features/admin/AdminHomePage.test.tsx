@@ -93,6 +93,7 @@ const dashboard = (overrides: Partial<Dashboard> = {}): Dashboard =>
       development: false,
       available: true,
       url: 'https://github.com/SlouchCat/slouchcat-releases/releases/tag/v0.9.1',
+      updaterConfigured: false,
       updaterAvailable: false,
     },
     counts: { titles: 1200, accounts: 3, maintenanceOpen: 4 },
@@ -121,6 +122,7 @@ const quiet = (overrides: Partial<Dashboard> = {}): Dashboard =>
       currentVersion: '0.9.0',
       development: false,
       available: false,
+      updaterConfigured: false,
       updaterAvailable: false,
     },
     counts: { titles: 1200, accounts: 3, maintenanceOpen: 0 },
@@ -369,6 +371,7 @@ describe('admin overview (concept 11, A-3)', () => {
                 development: true,
                 available: false,
                 url: 'https://github.com/SlouchCat/slouchcat/releases/tag/v1.1.0',
+                updaterConfigured: false,
                 updaterAvailable: false,
               },
             }),
@@ -745,6 +748,7 @@ const installable = (overrides: Partial<Dashboard['update']> = {}): Dashboard['u
   available: true,
   url: 'https://github.com/SlouchCat/slouchcat/releases/tag/v0.9.1',
   notes: 'Neu: Update per Knopf.\n\n<b>Behoben</b>: die Prüfung nach einem Aussetzer.',
+  updaterConfigured: true,
   updaterAvailable: true,
   ...overrides,
 });
@@ -1152,7 +1156,7 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
   });
 
   it('without a companion the card shows the manual steps with copy buttons and the guide', async () => {
-    mockApi(updateRoutes(installable({ updaterAvailable: false })));
+    mockApi(updateRoutes(installable({ updaterConfigured: false, updaterAvailable: false })));
     renderApp('/admin');
     const card = await serverCard();
     expect(within(card).queryByRole('button', { name: /installieren/ })).not.toBeInTheDocument();

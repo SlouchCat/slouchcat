@@ -24,6 +24,7 @@ export const dashboardFixture = (overrides: Partial<Dashboard> = {}): Dashboard 
     currentVersion: '0.9.0',
     development: false,
     available: false,
+    updaterConfigured: false,
     updaterAvailable: false,
   },
   attention: { abortedScans: [] },

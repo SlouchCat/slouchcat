@@ -420,6 +420,8 @@ type UpdateState struct {
 	Notes       string
 	CheckedAt   *time.Time
 	Error       string
+	// UpdaterConfigured: an address of the updater companion is set (config.UpdaterURL).
+	UpdaterConfigured bool
 	// UpdaterAvailable: the server reaches the updater companion with its token (ADR 0024).
 	UpdaterAvailable bool
 	// Install is the last install the companion reported (state.json); nil when none.

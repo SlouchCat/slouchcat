@@ -3390,8 +3390,12 @@ export interface paths {
          * State of the last install of the updater companion (A-5, ADR 0024)
          * @description Since contract 1.16.0 (concept 15 P-8). Read from the companion's `state.json` in the shared
          *     folder, not from the companion itself, so it answers while the companion is down and right
-         *     after the restart. `idle` when no install was ever reported (also without a companion). A
-         *     refusal (422 of `installUpdate`) is not recorded there: the file keeps the previous install.
+         *     after the restart. `idle` when no install was ever reported (also without a companion), when
+         *     `state.json` does not read or names an unknown phase, and for a finished install that names
+         *     neither `from` nor `to` as the running version. A running phase older than 25 minutes while
+         *     the companion does not answer was interrupted: it is reported as `failed` without `code`, with
+         *     a `message`. A refusal (422 of `installUpdate`) is not recorded there: the file keeps the
+         *     previous install.
          */
         get: operations["getUpdateInstallStatus"];
         put?: never;
@@ -7141,14 +7145,22 @@ export interface components {
             /** @description Why the last check failed. */
             error?: string;
             /**
+             * @description Since contract 1.16.0. An address of the updater companion is set (`SLOUCHCAT_UPDATER_URL`);
+             *     with `updaterAvailable` false the companion is set up but does not answer.
+             */
+            updaterConfigured: boolean;
+            /**
              * @description Since contract 1.16.0. The server reaches the updater companion with its token
              *     (`installUpdate` can start); false without a companion, which the card answers with the
-             *     manual steps. Checked at most every few seconds.
+             *     manual steps. Checked at most every few seconds; a read waits for the check at most half
+             *     a second and otherwise carries the last answer.
              */
             updaterAvailable: boolean;
             /**
-             * @description Since contract 1.16.0. The last install the companion reported (`state.json`); absent when
-             *     it never reported one.
+             * @description Since contract 1.16.0. The last install the companion reported (`state.json`), as
+             *     `getUpdateInstallStatus` reports it; absent when it never reported one, when `state.json`
+             *     does not read or names an unknown phase, and for a finished install that names neither
+             *     `from` nor `to` as the running version.
              */
             install?: components["schemas"]["UpdateInstallStatus"];
         };
@@ -14148,6 +14160,18 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
             /**
+             * @description Since contract 1.16.0: an install of an update is running (`update_running`); the updater
+             *     companion restarts the server under the backup.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /**
              * @description `passphrase_required` (secrets without a passphrase), `passphrase_too_short` (fewer than 12
              *     characters).
              */
@@ -14253,7 +14277,10 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description A restart or another restore is already scheduled (`restart_pending`). */
+            /**
+             * @description A restart or another restore is already scheduled (`restart_pending`). Since contract
+             *     1.16.0 also while an install of an update is running (`update_running`).
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14313,7 +14340,10 @@ export interface operations {
                     "application/problem+json": components["schemas"]["Problem"];
                 };
             };
-            /** @description A restart or another restore is already scheduled (`restart_pending`). */
+            /**
+             * @description A restart or another restore is already scheduled (`restart_pending`). Since contract
+             *     1.16.0 also while an install of an update is running (`update_running`).
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14358,7 +14388,8 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /**
              * @description `backup_busy` while a backup or a restore is running (the restart would cut it off),
-             *     `restart_pending` while a restart or a restore is already scheduled.
+             *     `restart_pending` while a restart or a restore is already scheduled. Since contract 1.16.0
+             *     `update_running` while an install of an update is running.
              */
             409: {
                 headers: {
@@ -14434,8 +14465,8 @@ export interface operations {
         responses: {
             /**
              * @description The install started; the state the companion reported when it took the order (normally
-             *     `backing_up` with `from` and `to`). The companion answers only after its checks, which can
-             *     take about 25 s.
+             *     `backing_up` with `from` and `to`; `checking` without `from` and `to` when its answer did not
+             *     read). The companion answers only after its checks, which can take about 25 s.
              */
             202: {
                 headers: {
@@ -14447,7 +14478,11 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["AdminOnly"];
-            /** @description An install is already running (`update_running`). */
+            /**
+             * @description An install is already running (`update_running`); a backup or a restore is running
+             *     (`backup_busy`); a restart or a restore is scheduled (`restart_pending`). While the
+             *     install runs, `restartServer`, the restores and `createBackup` answer `update_running`.
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -14460,7 +14495,8 @@ export interface operations {
              * @description The companion refused before it changed anything. `code` is its reason: `not_newer`,
              *     `manifest_unreachable`, `manifest_invalid`, `no_digest`, `no_compose_labels` (the server was
              *     not started with Compose), `outside_deploy_dir` (a Compose file lies outside
-             *     `SLOUCHCAT_DEPLOY_DIR`); `detail` carries its message.
+             *     `SLOUCHCAT_DEPLOY_DIR`); `detail` carries its message. A refusal without a readable code
+             *     answers `update_refused`.
              */
             422: {
                 headers: {

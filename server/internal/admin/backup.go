@@ -227,8 +227,14 @@ func (s *Service) CreateBackup(ctx context.Context, req model.BackupRequest) (mo
 	if s.backups.configDir == "" {
 		return model.Backup{}, ErrNotConfigured
 	}
+	if s.ops.updater.starting.Load() { // the install holds the lock until the companion answered
+		return model.Backup{}, model.ErrUpdateRunning
+	}
 	s.backups.mu.Lock()
 	defer s.backups.mu.Unlock()
+	if s.installRunning(ctx) { // the companion restarts the server under the backup
+		return model.Backup{}, model.ErrUpdateRunning
+	}
 	start := time.Now()
 	tmp, err := s.tempDir("backup-")
 	if err != nil {
@@ -555,10 +561,16 @@ func (s *Service) restore(ctx context.Context, unpack func(dir string) (backupMa
 	if s.backups.restartPending.Load() {
 		return model.RestoreResult{}, model.ErrRestartPending // checked before the upload is read
 	}
+	if s.installRunning(ctx) {
+		return model.RestoreResult{}, model.ErrUpdateRunning
+	}
 	s.backups.mu.Lock()
 	defer s.backups.mu.Unlock()
 	if s.backups.restartPending.Load() { // a restart was scheduled while this restore waited
 		return model.RestoreResult{}, model.ErrRestartPending
+	}
+	if s.installRunning(ctx) { // an install was started while this restore waited
+		return model.RestoreResult{}, model.ErrUpdateRunning
 	}
 	start := time.Now()
 	dir := filepath.Join(s.backups.configDir, store.RestoreDir)
@@ -758,8 +770,9 @@ func fileExists(path string) bool {
 // RestartServer schedules a restart of the server for the administration (concept 11, ADR 0019)
 // like a restore does: after restartDelay main shuts down in order and starts the same binary
 // again. A restart or restore already scheduled answers ErrRestartPending (checked first), a backup
-// or restore that holds the lock ErrBackupBusy (the restart would cut it off). The restart is recorded in the
-// activity log with the account that asked for it.
+// or restore that holds the lock ErrBackupBusy (the restart would cut it off), an install of an
+// update ErrUpdateRunning (installRunning). The restart is recorded in the activity log with the
+// account that asked for it.
 func (s *Service) RestartServer(ctx context.Context, accountID int64) (model.RestartAccepted, error) {
 	if s.backups.restart == nil {
 		return model.RestartAccepted{}, ErrNotConfigured // 500, like every collaborator main did not wire
@@ -768,9 +781,15 @@ func (s *Service) RestartServer(ctx context.Context, accountID int64) (model.Res
 		return model.RestartAccepted{}, model.ErrRestartPending
 	}
 	if !s.backups.mu.TryLock() {
+		if s.ops.updater.starting.Load() { // InstallUpdate holds the lock until the companion answered
+			return model.RestartAccepted{}, model.ErrUpdateRunning
+		}
 		return model.RestartAccepted{}, model.ErrBackupBusy
 	}
 	defer s.backups.mu.Unlock()
+	if s.installRunning(ctx) {
+		return model.RestartAccepted{}, model.ErrUpdateRunning
+	}
 	if !s.backups.restartPending.CompareAndSwap(false, true) {
 		return model.RestartAccepted{}, model.ErrRestartPending
 	}
