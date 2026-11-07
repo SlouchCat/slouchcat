@@ -61,7 +61,7 @@
       },
       "admin-home.spec.ts": {
         "a provoked error shows in the card and the opened server log within 10 s (A-3)": 60.7,
-        "admin sidebar: 19 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns": 1.5,
+        "admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns": 1.5,
         "every admin page is reached through the sidebar (A-2)": 3.8,
         "on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Escape returns": 1.5,
         "Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap": 2.3,
@@ -518,7 +518,7 @@
       },
       "admin-home.spec.ts": {
         "a provoked error shows in the card and the opened server log within 10 s (A-3)": 61.8,
-        "admin sidebar: 19 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns": 1.9,
+        "admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns": 1.9,
         "every admin page is reached through the sidebar (A-2)": 5.1,
         "on a phone: «Verwaltung · Übersicht» opens the sidebar as a sheet, Escape returns": 2,
         "Tab: header, sidebar, cards; the restart dialog up to «Abbrechen»; no focus trap": 2.8,

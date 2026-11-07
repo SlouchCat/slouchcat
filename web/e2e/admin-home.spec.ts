@@ -10,7 +10,7 @@ import {
 } from './keyboard';
 
 // The administration (concept 11, A-2, A-3): the app column has one entry "Verwaltung"; on every
-// /admin page the administration's sidebar stands in its place (19 entries, one Tab stop,
+// /admin page the administration's sidebar stands in its place (20 entries, one Tab stop,
 // ↑ ↓ Home End, wrapping), on a phone a button opens it as a sheet. The overview shows eight
 // cards of the real server (polled every 5 s) and the server log collapsed below them.
 
@@ -25,12 +25,13 @@ const serverLog = (page: Page) => card(page, 'Server-Protokoll');
 const errorList = (page: Page) =>
   serverLog(page).getByRole('list', { name: 'Fehler aus dem Server-Log', includeHidden: true });
 
-/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries). */
+/** Every entry of the sidebar, in its order, with its path (11.1: 19 entries; concept 16 adds «Radio»). */
 const NAV_ENTRIES = [
   ['Zurück zur App', '/'],
   ['Übersicht', '/admin'],
   ['Bibliotheken', '/admin/libraries'],
   ['Podcasts', '/admin/podcasts'],
+  ['Radio', '/admin/radio'],
   ['Pflege', '/admin/maintenance'],
   ['Metadaten', '/admin/metadata'],
   ['Konten', '/admin/accounts'],
@@ -127,7 +128,7 @@ test('the focus stays on «Übersicht» after entering the administration with E
   await expectFocusOn(page, entry(page, 'Zurück zur App'));
 });
 
-test('admin sidebar: 19 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
+test('admin sidebar: 20 entries, one Tab stop, ↑ ↓ Home End, Enter follows, Back returns', async ({
   page,
 }) => {
   await page.goto('/admin/devices');
