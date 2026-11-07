@@ -1,6 +1,19 @@
 # Aktueller Stand
 
-## Konzept 15 «Feinschliff», Stufe 3: auf CT 190 abgenommen (7. November 2026)
+## Release 1.15.0 (7. November 2026)
+
+Release ab `main` nach PR #104 (Konzept 15, Stufe 3). Vertrag **1.15.0, brechend für `getHome` und
+`setHomeRows`** (Web-App und Server kommen im selben Image), Migrationen
+**`00035_home_rows_libraries.sql`**, **`00036_item_text_sort_title.sql`** und
+**`00037_items_top_added.sql`**: der Weg zurück auf 1.14.0 geht nur über die Datenbanksicherung, die
+der Server vor der Migration schreibt (`/config/backups/pre-migration-…`).
+
+- Versionsstellen auf 1.15.0 im Zweig `claude/release-1.15.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`), Tag
+  `v1.15.0` setzt Marco auf den Merge-Commit. Release-Notes: `release-notes-1.15.0.txt` im
+  Wurzelordner (unversioniert).
+
+## Konzept 15 «Feinschliff», Stufe 3: gemergt und auf CT 190 abgenommen (7. November 2026)
 
 Zweig `claude/feinschliff-stufe3` ab `main` `d2361e54` (Release 1.14.0 veröffentlicht). Geplant als
 Release **1.15.0**: Vertrag **1.15.0, brechend für `getHome` und `setHomeRows`** (Web-App und Server
@@ -71,6 +84,8 @@ CT 190 lief zur Abnahme auf `feinschliff3-23b2f0a`. Die GitHub-CI auf `23b2f0a4`
 in `episode.spec.ts:72`: Der Stift ist auf der Folgenseite ein neuer Tab-Halt vor «Abspielen». Der Test
 ist angepasst wie `detail.spec.ts` (`task e2e:quick -- e2e/episode.spec.ts` 5 passed, Firefox 1
 passed).
+
+Gemergt als **PR #104** (Merge `69308bd7`, GitHub-CI 19/19 grün auf `c681ac6c`).
 
 ## Release 1.14.0 (6. November 2026): veröffentlicht
 
