@@ -3390,7 +3390,8 @@ export interface paths {
          * State of the last install of the updater companion (A-5, ADR 0024)
          * @description Since contract 1.16.0 (concept 15 P-8). Read from the companion's `state.json` in the shared
          *     folder, not from the companion itself, so it answers while the companion is down and right
-         *     after the restart. `idle` when no install was ever reported (also without a companion).
+         *     after the restart. `idle` when no install was ever reported (also without a companion). A
+         *     refusal (422 of `installUpdate`) is not recorded there: the file keeps the previous install.
          */
         get: operations["getUpdateInstallStatus"];
         put?: never;
@@ -7185,7 +7186,9 @@ export interface components {
              * @description Machine reason of a refused, failed or rolled back install: `busy`, `not_newer`,
              *     `manifest_unreachable`, `manifest_invalid`, `no_digest`, `no_compose_labels`,
              *     `outside_deploy_dir`, `pull_failed`, `digest_mismatch`, `unhealthy`, `rollback_failed`,
-             *     `migrated_no_rollback`. A newer companion may add codes.
+             *     `migrated_no_rollback`. A newer companion may add codes. A failed install may have no code
+             *     and only a `message` (the backup of `.env` failed, or the companion found an interrupted
+             *     install when it started).
              */
             code?: string;
             /** @description The companion's explanation (English, plain text, no secret). */
@@ -14429,7 +14432,11 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The install started; the state the companion reported when it took the order. */
+            /**
+             * @description The install started; the state the companion reported when it took the order (normally
+             *     `backing_up` with `from` and `to`). The companion answers only after its checks, which can
+             *     take about 25 s.
+             */
             202: {
                 headers: {
                     [name: string]: unknown;

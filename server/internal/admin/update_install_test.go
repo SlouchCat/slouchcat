@@ -34,13 +34,13 @@ type fakeUpdater struct {
 func newFakeUpdater(t *testing.T) *fakeUpdater {
 	t.Helper()
 	u := &fakeUpdater{statusCode: http.StatusOK, installCode: http.StatusAccepted,
-		installBody: `{"phase":"checking","from":"1.15.0","to":"1.16.0","startedAt":"2026-11-07T10:00:00Z"}`}
+		installBody: `{"phase":"backing_up","from":"1.15.0","to":"1.16.0","startedAt":"2026-11-07T10:00:00Z"}`}
 	u.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u.mu.Lock()
 		defer u.mu.Unlock()
 		u.authorization = append(u.authorization, r.Header.Get("Authorization"))
 		if r.Header.Get("Authorization") != "Bearer "+fakeUpdaterToken {
-			w.WriteHeader(http.StatusUnauthorized)
+			http.Error(w, "unauthorized", http.StatusUnauthorized) // plain text, like the companion
 			return
 		}
 		switch {
@@ -97,8 +97,12 @@ func TestInstallUpdate(t *testing.T) {
 	fu := newFakeUpdater(t)
 	f.svc.WithUpdater(fu.URL+"/", updaterDir(t, fakeUpdaterToken), nil)
 
+	// The companion answers the install after its checks, up to about 25 s.
+	if updaterInstallTimeout < 30*time.Second {
+		t.Errorf("install timeout %v, want at least 30 s", updaterInstallTimeout)
+	}
 	in, err := f.svc.InstallUpdate(ctx)
-	if err != nil || in.Phase != "checking" || in.From != "1.15.0" || in.To != "1.16.0" || in.StartedAt == nil ||
+	if err != nil || in.Phase != "backing_up" || in.From != "1.15.0" || in.To != "1.16.0" || in.StartedAt == nil ||
 		!in.StartedAt.Equal(time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)) {
 		t.Fatalf("202: %+v, %v", in, err)
 	}
@@ -309,6 +313,16 @@ func TestReportFailedInstallOnce(t *testing.T) {
 	}
 	if v, ok, err := f.svc.setting(ctx, SettingUpdateInstallReported); err != nil || !ok || v != "2026-11-07T10:03:00Z" {
 		t.Errorf("setting = %q %v %v", v, ok, err)
+	}
+
+	// A failure without a code (the .env backup failed, or the companion found an interrupted
+	// install at its start) carries only a message and is reported as well.
+	noCode := updater.State{Phase: updater.PhaseFailed, From: "1.15.0", To: "1.16.0", Message: "interrupted install found at start",
+		StartedAt: at, FinishedAt: at.Add(4 * time.Minute)}
+	writeState(t, dir, noCode)
+	f.svc.WatchUpdateInstall(ctx)
+	if reports.count() != 2 || reports.got[1].Code != "" || reports.got[1].Message != "interrupted install found at start" {
+		t.Fatalf("failure without a code: %+v", reports.got)
 	}
 
 	// The server restarts: a new service on the same database reports nothing again.

@@ -40,8 +40,10 @@ const (
 	// how long its answer counts, so the admin pages stay fast while the companion is down.
 	updaterProbeTimeout = 2 * time.Second
 	updaterProbeTTL     = 10 * time.Second
-	// updaterInstallTimeout bounds POST /install; the companion answers once it took the order.
-	updaterInstallTimeout = 15 * time.Second
+	// updaterInstallTimeout bounds POST /install. The companion answers only after its checks: the
+	// release manifest (up to 20 s) and docker inspect of the server container, about 25 s at
+	// worst.
+	updaterInstallTimeout = 40 * time.Second
 	// installWatchLimit is how long WatchUpdateInstall looks at a running install after the start.
 	installWatchLimit = 15 * time.Minute
 	maxTokenBytes     = 4 << 10

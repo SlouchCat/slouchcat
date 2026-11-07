@@ -156,6 +156,27 @@ func TestSchemaHooksWriteServerRecord(t *testing.T) {
 		!after.StartedAt.Equal(during.StartedAt) || after.MigratedAt.IsZero() {
 		t.Errorf("server.json after = %+v", after)
 	}
+
+	// The next start has nothing pending: server.json still carries schemaAfter (equal to
+	// schemaBefore) and migratedAt, because the updater counts a record without migratedAt or
+	// with schemaAfter != schemaBefore as migrated.
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	rec = updater.NewRecorder(shared, "1.16.0", slog.New(slog.NewTextHandler(io.Discard, nil)))
+	opts.Schema = SchemaHooks{Before: rec.Before, After: rec.After}
+	reopened, err := Open(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	var plain updater.ServerRecord
+	if err := updater.ReadJSON(filepath.Join(shared, updater.ServerFile), &plain); err != nil {
+		t.Fatal(err)
+	}
+	if plain.SchemaBefore != newest || plain.SchemaAfter != newest || plain.Backup != "" || plain.MigratedAt.IsZero() {
+		t.Errorf("server.json without a pending migration = %+v", plain)
+	}
 }
 
 func equalCalls(a, b []schemaCall) bool {
