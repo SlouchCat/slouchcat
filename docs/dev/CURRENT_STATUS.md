@@ -1,5 +1,30 @@
 # Aktueller Stand
 
+## Konzept 17 Stufe 1 «Stift, Seitenleiste, FSK, Name» (8. November 2026): Pull Request, Release 1.19.2
+
+Patch ohne Vertragsänderung (Vertrag bleibt 1.19.0), keine Migration. Zweig `claude/detailseiten-stufe1` ab `main`
+`75e49d71` (Release 1.19.1); Nummern und zwei Antworten von Marco im Entscheidungsprotokoll (Nachtrag zu Frage 24).
+Stufe 2 wird Vertrag 1.20.0, Stufe 3 Vertrag 1.21.0 mit Migration 00040.
+
+- **D-10 Umbenennung:** «Cat's Empfehlungen» heisst überall «User-Empfehlungen» (en «User picks»); nur Texte, Route
+  `/picks` und Reihenschlüssel `picks` bleiben.
+- **D-8 Seitenleiste B:** Profilkarte oben (Buchstabe in der Akzentfarbe, Name, Rolle, «Wechseln» zur Profilwahl),
+  Symbole vor jedem Eintrag, Band «Meine Medien» immer offen (Schalter und Gerätespeicher
+  `slouchcat.sidenav.libraries` entfallen), Bibliotheken mit Symbol nach Art und Zahl als Kapsel, Band «Konto» mit
+  Wiedergabe, Profile, Verwaltung; wer was sieht, ist unverändert. Das Profil im Kopf bleibt, die Merkliste hat
+  keine Zahl (Marcos Antworten). Nachtrag in Konzept 08 (N-2, 7.1).
+- **D-7 Stift:** Die Vergrösserung hängt an der ganzen Zelle (Karte samt Stift, `PosterCard` `tool`), die Karte
+  bleibt gross, wenn die Maus auf dem Stift ist; der Stift selbst wächst um das neue Token
+  `--sc-tool-hover-scale` (1.18) und wird heller. Raster, Startseitenreihen, Spotlight-Reihe und Detailseite.
+- **D-6 Punkt 4 / F-10 FSK weg:** keine FSK mehr auf Postern der Bibliothek und im Kopf von Detailseite und
+  Spotlight (`ItemMeta`). Verwaltung, Altersregel, Filter «bis FSK», FSK-Filter der Suche und Sortierung `age`
+  bleiben.
+- Prüfung Stufe 1: `task check:fast` grün (158 Dateien, 1607 Tests), e2e `sidenav`, `home`, `admin-home`,
+  `profiles`, `announcements`, `invite`, `admin-density`, `metadata-editor`, `library`, `detail` grün,
+  `task web:storybook:update` 412 grün (Baselines neu). Code-Review: kein Blocker, Befunde behoben.
+- Versionsstellen auf 1.19.2 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
 ## Release 1.19.1 (8. November 2026): Radiotitel mit weiteren Trennstrichen
 
 Patch ohne Vertragsänderung (Vertrag bleibt 1.19.0), keine Migration. Zweig `claude/radio-title-dash` ab `main`
