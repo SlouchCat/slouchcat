@@ -73,6 +73,10 @@ Lesen; ein Feinschliff für den Bau.
 | `-noaccurate_seek -ss` | 254 | 252 | 6,0 MB |
 | `-noaccurate_seek -ss … -fps_mode passthrough` | 6 | 4 | 0,4 MB |
 
+Derselbe Vergleich bei 2000 s und 4000 s (Paketzahlen gleich): `-skip_frame nokey` 23,5 MB (4000 s),
+ohne `-fps_mode passthrough` 9,1 MB (2000 s), mit 0,5 MB (2000 s). Daher «6 bis 23 MB je Bild» im
+Konzept 3.2.
+
 Keyframe-Abstände (ffprobe über alle Pakete): «12 Years a Slave» fest 10,42 s (773 Keyframes),
 «Ad Astra» fest 5,0 s, «24» S01E01 1 bis 10 s (Mittel 4,35 s).
 
@@ -88,7 +92,7 @@ Keyframe-Abstände (ffprobe über alle Pakete): «12 Years a Slave» fest 10,42 
 
 Ein Blatt WebP 75 bei 320 px: 295 KB (16:9) bzw. 448 KB (2,40:1, Blatt 3200 × 1340 px). Sichtprüfung
 eines Blatts: Bilder scharf genug für die Vorschau; bei festem Keyframe-Abstand über 10 s erscheinen
-benachbarte Kacheln doppelt (Grund für die Wahl des nächsten Keyframes im Konzept 5.5).
+benachbarte Kacheln doppelt (Grund für die Wahl des nächsten Keyframes im Konzept 5.4).
 
 ## 5. Bestand (für die Hochrechnung)
 
