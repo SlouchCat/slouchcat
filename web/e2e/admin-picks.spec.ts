@@ -24,7 +24,7 @@ const SUBTITLES_TITLE = 'Slouchcat Test Subtitles';
 const PGS_TITLE = 'Slouchcat Test PGS';
 const MULTI_AUDIO_TITLE = 'Slouchcat Test Multi Audio';
 
-const picksRow = (page: Page) => page.getByRole('region', { name: "User-Empfehlungen" });
+const picksRow = (page: Page) => page.getByRole('region', { name: 'User-Empfehlungen' });
 // The first card: the row's header also links its page ("Alle anzeigen ›", concept 08).
 const firstPick = (page: Page) => picksRow(page).getByRole('list').getByRole('link').first();
 
@@ -102,12 +102,12 @@ test('picks page by keyboard: add with a note, place at the top, time window in 
   test.setTimeout(120_000);
   const note = 'E2E: unbedingt mit Untertiteln schauen';
   await page.goto('/admin/picks');
-  const heading = page.getByRole('heading', { level: 1, name: "User-Empfehlungen" });
+  const heading = page.getByRole('heading', { level: 1, name: 'User-Empfehlungen' });
   await expect(heading).toBeVisible();
   await expect(
     page
       .getByRole('navigation', { name: 'Verwaltung' })
-      .getByRole('link', { name: "User-Empfehlungen" }),
+      .getByRole('link', { name: 'User-Empfehlungen' }),
   ).toHaveAttribute('aria-current', 'page');
   const tabs = page.getByRole('tablist', { name: 'Empfehlungen nach Zeitraum' });
   await expect(tabs.getByRole('tab', { selected: true })).toHaveAccessibleName(

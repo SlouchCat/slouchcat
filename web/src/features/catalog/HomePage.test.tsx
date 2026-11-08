@@ -839,7 +839,7 @@ describe('start page', () => {
         }),
     });
     renderApp('/');
-    const picks = await screen.findByRole('region', { name: "User-Empfehlungen" });
+    const picks = await screen.findByRole('region', { name: 'User-Empfehlungen' });
     expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(
       'Unbedingt im Kino-Modus schauen.',
     );
@@ -863,7 +863,7 @@ describe('start page', () => {
       .getAllByRole('heading', { level: 2 })
       .map((heading) => heading.textContent);
     expect(headings).toEqual([
-      "User-Empfehlungen",
+      'User-Empfehlungen',
       'Weiterschauen',
       'Neu hinzugefügt',
       'Merkliste',
@@ -961,7 +961,7 @@ describe('start page', () => {
       expect(within(stage).getByRole('heading', { name: 'Arrival' })).toBeVisible();
       expect(carousels()).toHaveLength(1);
 
-      const picks = screen.getByRole('region', { name: "User-Empfehlungen" });
+      const picks = screen.getByRole('region', { name: 'User-Empfehlungen' });
       expect(picks).not.toHaveAttribute('aria-roledescription');
       expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(note);
     });
@@ -978,7 +978,7 @@ describe('start page', () => {
           }),
       });
       renderApp('/');
-      const picks = await screen.findByRole('region', { name: "User-Empfehlungen" });
+      const picks = await screen.findByRole('region', { name: 'User-Empfehlungen' });
       expect(carousels()).toHaveLength(0);
       expect(within(picks).getByRole('link', { name: /Heat/ })).toHaveTextContent(note);
       expect(sections().map((section) => section.hasAttribute('aria-labelledby'))).toEqual([
@@ -1019,7 +1019,7 @@ describe('start page', () => {
       expect(screen.getByRole('region', { name: 'Merkliste' }).parentElement).toBe(rowsBlock());
 
       // Not the page's first image: the posters of the first row do not wait for the band's art.
-      const firstPoster = within(screen.getByRole('region', { name: "User-Empfehlungen" }))
+      const firstPoster = within(screen.getByRole('region', { name: 'User-Empfehlungen' }))
         .getByRole('link', { name: /Heat/ })
         .querySelector('img');
       expect(firstPoster).toHaveAttribute('loading', 'eager');

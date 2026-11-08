@@ -36,9 +36,9 @@ export const sideNavArgs: SideNavProps = {
   ],
   picks: {
     href: '#picks',
-    label: "User-Empfehlungen",
+    label: 'User-Empfehlungen',
     count: 24,
-    accessibleLabel: "User-Empfehlungen, 24 Titel",
+    accessibleLabel: 'User-Empfehlungen, 24 Titel',
   },
   librariesOffline: 'Offline: Bibliotheken nicht verfügbar',
   offlineLink: { href: '#downloads', label: 'Zu den Downloads' },

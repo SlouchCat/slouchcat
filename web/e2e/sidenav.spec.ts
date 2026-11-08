@@ -343,7 +343,7 @@ test('the prepaints lie on the band and on the first card, column shown and hidd
         else localStorage.removeItem('slouchcat.sidenav');
       }, hidden);
       await page.reload();
-      await expect(page.getByRole('region', { name: "User-Empfehlungen" })).toBeVisible();
+      await expect(page.getByRole('region', { name: 'User-Empfehlungen' })).toBeVisible();
       await expect(hero(page)).toHaveCount(0);
       await insertPrepaint(
         page,

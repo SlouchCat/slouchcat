@@ -41,5 +41,5 @@ export const Focused: Story = { tags: ['press:Tab'] };
 
 /** A row with a page of all its entries: "Alle anzeigen ›" right of the title (concept 08). */
 export const WithMoreLink: Story = {
-  args: { title: "User-Empfehlungen", moreHref: '#', moreLabel: 'Alle anzeigen ›' },
+  args: { title: 'User-Empfehlungen', moreHref: '#', moreLabel: 'Alle anzeigen ›' },
 };

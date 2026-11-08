@@ -14,7 +14,7 @@ export const TRAKT_BASE = `http://127.0.0.1:${Number(process.env.SLOUCHCAT_E2E_T
 /** Row titles of the start page (home.rows.* in the locales). */
 export const ROW_TITLES = {
   spotlight: 'Spotlight',
-  picks: "User-Empfehlungen",
+  picks: 'User-Empfehlungen',
   continue: 'Weiterschauen',
   recent: 'Neu hinzugefügt',
   released: 'Kürzlich veröffentlicht',

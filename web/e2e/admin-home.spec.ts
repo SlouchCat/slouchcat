@@ -38,7 +38,7 @@ const NAV_ENTRIES = [
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
-  ["User-Empfehlungen", '/admin/picks'],
+  ['User-Empfehlungen', '/admin/picks'],
   ['Sammlungen', '/admin/collections'],
   ['Startseite', '/admin/home-rows'],
   ['Ankündigungen', '/admin/announcements'],

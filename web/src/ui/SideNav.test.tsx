@@ -15,7 +15,7 @@ const props = (overrides: Partial<SideNavProps> = {}): SideNavProps => ({
     { href: '/libraries/1', label: 'Filme', count: 12, accessibleLabel: 'Filme, 12 Titel' },
     { href: '/libraries/2', label: 'Serien', count: 3, accessibleLabel: 'Serien, 3 Titel' },
   ],
-  picks: { href: '/picks', label: "User-Empfehlungen", count: 4 },
+  picks: { href: '/picks', label: 'User-Empfehlungen', count: 4 },
   librariesOffline: 'Offline: Bibliotheken nicht verfügbar',
   offlineLink: { href: '/downloads', label: 'Zu den Downloads' },
   footer: [{ href: '/settings/profiles', label: 'Profile' }],
@@ -41,7 +41,7 @@ describe('side navigation (concept 08)', () => {
       'Suche',
       'Filme, 12 Titel',
       'Serien, 3 Titel',
-      "User-Empfehlungen4",
+      'User-Empfehlungen4',
       'Profile',
     ]);
     expect(screen.getByRole('link', { name: 'Start' })).toHaveAttribute('aria-current', 'page');

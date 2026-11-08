@@ -37,7 +37,7 @@ const groups: AdminSideNavGroup[] = [
     icon: 'star',
     entries: [
       { href: '#spotlight', label: 'Spotlight', icon: 'spotlight' },
-      { href: '#picks', label: "User-Empfehlungen", icon: 'star' },
+      { href: '#picks', label: 'User-Empfehlungen', icon: 'star' },
       { href: '#collections', label: 'Sammlungen', icon: 'stack' },
       { href: '#home-rows', label: 'Startseite', icon: 'list' },
       { href: '#announcements', label: 'Ankündigungen', icon: 'megaphone' },

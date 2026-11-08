@@ -49,7 +49,7 @@ const meta = {
   component: HeroCarousel,
   parameters: { layout: 'fullscreen' },
   args: {
-    label: "User-Empfehlungen",
+    label: 'User-Empfehlungen',
     slides,
     playLabel: 'Abspielen',
     detailsLabel: 'Details',
