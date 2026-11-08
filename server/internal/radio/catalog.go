@@ -22,7 +22,7 @@ import (
 // The server never reports clicks or votes back.
 
 const (
-	// catalogBodyLimit caps the station list (today ~40 MB).
+	// catalogBodyLimit caps the station list (November 2026: ~63 500 entries, ~75 MB).
 	catalogBodyLimit = 200 << 20
 	// catalogTimeout bounds one whole fetch, mirrors included.
 	catalogTimeout = 10 * time.Minute
@@ -31,8 +31,9 @@ const (
 	// catalogMirrorSuffix is the host suffix a mirror must have: the wildcard certificate of
 	// all.api covers *.api.radio-browser.info, and a mirror is dialled by name, never by IP.
 	catalogMirrorSuffix = ".api.radio-browser.info"
-	// catalogStationsPath lists every station, broken ones included (the merge decides).
-	catalogStationsPath = "/json/stations?hidebroken=false"
+	// catalogStationsPath lists every station, broken ones included (the merge decides). Without
+	// limit the API answers only its first 1000 entries; the limit lies far above the catalog.
+	catalogStationsPath = "/json/stations?hidebroken=false&limit=1000000"
 )
 
 // errCatalogTransport marks a failure that a mirror may stand in for (connection, TLS, 5xx).

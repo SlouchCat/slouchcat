@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -94,6 +95,11 @@ func newCatEnv(t testing.TB, opts ...Option) *catEnv {
 		}
 		if r.URL.Path != "/json/stations" || r.URL.Query().Get("hidebroken") != "false" {
 			http.NotFound(w, r)
+			return
+		}
+		// The real API cuts a list without limit to 1000 entries: the client must ask for all.
+		if n, err := strconv.Atoi(r.URL.Query().Get("limit")); err != nil || n < 100_000 {
+			http.Error(w, "limit", http.StatusBadRequest)
 			return
 		}
 		if !strings.HasPrefix(r.Header.Get("User-Agent"), "Slouchcat/") {
