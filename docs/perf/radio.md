@@ -92,8 +92,50 @@ Marco hat die Verwaltung «Sender» und die Seite Radio der App durchgeklickt; d
 Die Ziele «Liste p95 unter 200 ms» und «Suche p95 unter 150 ms» hält schon der langsamste Einzelwert;
 ein p95 mit `measure-home.sh` folgt mit der übrigen Abnahme.
 
-### 3.3 Offen
+### 3.3 Abnahme in Chromium (8. November 2026, 1.18.2)
 
-Erster Ton je Engine (Zeit bis `playing` im Browser), iPhone mit gesperrtem Bildschirm, CPU und RAM je
-Relay, p95 von Liste und Suche mit `measure-home.sh`, Wiedergabeliste je Abruf, `+delay_moov` mit dem
-ffmpeg im Container.
+Gemessen im Browser-Pane der Claude-App (Chromium) am Entwicklungsrechner über das LAN, mit Marcos
+Sitzung; Server-Werte aus dem Log und auf CT 190.
+
+**Liste, Suche, Filter:** je 5 Aufwärmrunden und 60 Anfragen, Zeit im Browser (inklusive LAN), 0 Fehler.
+
+| Anfrage | p50 | p95 | max | Ziel |
+|---|---|---|---|---|
+| `/radio/stations?country=CH&sort=popular` | 13,4 ms | 16,6 ms | 19,0 ms | p95 unter 200 ms ✔ |
+| `/radio/stations?sort=popular&limit=60` (ganzer Katalog) | 49,9 ms | 55,3 ms | 65,8 ms | p95 unter 200 ms ✔ |
+| `/radio/stations?q=radio` (Suche) | 31,5 ms | 34,3 ms | 37,7 ms | p95 unter 150 ms ✔, FTS5 nicht nötig |
+| `/radio/facets?country=CH` | 12,8 ms | 15,6 ms | 21,8 ms | ✔ |
+| `/radio/facets` | 14,2 ms | 17,2 ms | 18,4 ms | ✔ |
+| `/admin/radio/stations?exceptions=true` (50 Einträge) | 35,7 ms | 40,6 ms | 48,0 ms | ✔ |
+
+**Erster Ton** (Klick auf «abspielen» bis Ereignis `playing`, hls.js in Chromium):
+
+| Fall | Werte | Ziel |
+|---|---|---|
+| Neues Relay, 6 Sender (MP3 umgerechnet und AAC kopiert) | 0,16 / 0,63 / 0,69 / 1,04 / 1,47 / 1,48 s | höchstens 6 s ✔ |
+| Laufendes Relay, 5 Sender | 38 / 39 / 40 / 46 / 156 ms | höchstens 2 s ✔ |
+
+Der Server braucht für den Start eines neuen Relays (`POST …/listen`) 0,12 bis 3,4 s, je nach Sender;
+bei einem laufenden 1 bis 2 ms.
+
+**CPU und Speicher je Relay** (`top` über 15 s, sieben Relays gleichzeitig):
+
+| Relay | CPU eines Kerns | RSS ffmpeg | Ziel |
+|---|---|---|---|
+| AAC kopiert (`-c:a copy`, `+delay_moov`) | 0,1 % | 16 MB | unter 2 % ✔ |
+| MP3 umgerechnet nach AAC 128 bis 192 kbit/s | 1,8 bis 3,0 % | 18 MB | unter 2 % knapp verfehlt (6 Relays, im Mittel 2,3 %) |
+
+Der Container belegte mit sieben Relays 218 MiB. Der Puffer in der `tmpfs` wächst bei 128 kbit/s um rund
+1 MB je Minute (7,1 MB nach 7 Minuten) und passt damit zur Reservierung von 29,7 MB für 30 Minuten; die
+`tmpfs` war mit sechs Puffern zu 4 % belegt.
+
+**Wiedergabeliste je Abruf:** mit `_HLS_skip=YES` und gzip 614 bis 661 Byte übertragen (20 Abrufe,
+Kopfzeilen inbegriffen) ✔; die volle Liste mit 27 Stücken hat 3014 Byte, die Delta-Liste 1274 Byte vor gzip.
+
+**`+delay_moov` mit dem ffmpeg im Container** (7.1.4-Jellyfin): das Init-Stück eines kopierten
+AAC-Senders enthält `esds`; ffprobe liest aus Init und erstem Stück `aac`, Profil LC, 44,1 kHz, Stereo,
+AudioSpecificConfig 2 Byte ✔.
+
+### 3.4 Offen
+
+Erster Ton in Firefox, iPhone (nativ) mit gesperrtem Bildschirm; beides von Hand.
