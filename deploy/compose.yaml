@@ -7,6 +7,8 @@
 #   itself and so empty the limit on login attempts.
 # GPU: add -f compose.nvidia.yaml, -f compose.intel.yaml or -f compose.amd.yaml.
 # Updater companion (optional, ADR 0024): add -f compose.updater.yaml last, after all other files.
+# The updater replaces this file on an update (a copy stays as compose.yaml.bak-vor-<version>).
+# Put your own changes into .env or into an own override file, not into this file.
 name: slouchcat
 
 services:

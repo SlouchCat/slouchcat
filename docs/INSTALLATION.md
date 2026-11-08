@@ -217,7 +217,10 @@ docker compose up -d
 ```
 
 Beim ersten Start der neuen Fassung sichert der Server die Datenbank und wendet die Änderungen an.
-Die Prüfung lässt sich in der Verwaltung abschalten; dann fragt der Server nirgends mehr nach.
+Die Prüfung lässt sich in der Verwaltung abschalten; dann fragt der Server nirgends mehr nach. Antwortet die
+Download-Adresse der Releases nicht (Netzfehler, Fehler 5xx), liest die Prüfung dieselbe Datei über die
+GitHub-API; erst wenn auch das scheitert, meldet die Karte einen Fehler. Das zuletzt bekannte Update
+bleibt dabei stehen.
 
 ### Update per Knopf: der Updater-Begleiter (freiwillig)
 
@@ -282,14 +285,19 @@ in der Liste, fehlt sie auch nach dem Update (zum Beispiel der Grafikchip oder d
 **Was der Knopf tut.** Nach der Bestätigung arbeitet der Begleiter diese Schritte ab; die Karte zeigt,
 wo er steht:
 
-1. Manifest lesen und prüfen (nur eine neuere Fassung, mit Digest).
+1. Manifest lesen und prüfen (nur eine neuere Fassung, mit Digest). Antwortet die Download-Adresse
+   nicht, liest er es über die GitHub-API.
+   Danach ersetzt er die offiziellen Compose-Dateien durch die des Releases, wenn sie abweichen; die alte
+   Datei bleibt als `<Datei>.bak-vor-<Fassung>` liegen. **Eigene Anpassungen gehören in `.env` oder in eine
+   eigene Override-Datei**, nicht in `compose.yaml` und die anderen offiziellen Dateien.
 2. `.env` sichern und `SLOUCHCAT_VERSION` setzen.
-3. Das neue Image holen (`docker compose pull slouchcat`) und seinen Digest mit dem Manifest
+3. Das neue Image holen (`docker compose pull slouchcat`, bei einem Fehler bis zu dreimal) und seinen Digest mit dem Manifest
    vergleichen. Weicht er ab, setzt er `.env` zurück und startet nichts neu.
 4. Den Container `slouchcat` mit der neuen Fassung starten. Laufende Wiedergaben brechen dabei ab.
 5. Bis zu **zehn Minuten** warten, bis der neue Server gesund ist und seine Fassung meldet. So viel
    Zeit hat auch eine lange Datenbank-Änderung. Stürzt der neue Container ab (dreimal neu gestartet
    oder endgültig beendet), wartet er nicht länger.
+6. Alte Images aufräumen: Es bleiben die laufende und die vorherige Fassung (Ziel einer Rücknahme).
 
 Während das Update läuft, lehnt der Server «Neu starten», eine Sicherung und eine Wiederherstellung ab
 (und die Karte blendet «Neu starten» aus); das Update selbst startet nicht, solange eine Sicherung,
@@ -315,8 +323,10 @@ zurück und meldet einen Fehler. Danach wartet er erneut bis zu zehn Minuten auf
 einen Fehler, ohne etwas zurückzunehmen; dann entscheidest du (Update von Hand wie oben oder die
 Sicherung).
 
-**Den Begleiter selbst aktualisieren.** Er aktualisiert sich nie selbst. Seine Fassung steht als
-`SLOUCHCAT_UPDATER_VERSION` in `.env`; heb sie von Hand, wenn die Release-Notizen es verlangen:
+**Den Begleiter selbst aktualisieren.** Ab 1.18.0 folgt er dem Server von selbst: Nach einem Update
+(und alle sechs Stunden) hebt er seine Fassung `SLOUCHCAT_UPDATER_VERSION` in `.env` auf die des Servers
+und erstellt sich neu. Ein Begleiter **vor 1.18.0** kann das noch nicht (die Karte zeigt «Updater
+veraltet»); heb ihn einmal von Hand, im deploy-Ordner:
 
 ```bash
 # SLOUCHCAT_UPDATER_VERSION in .env auf die neue Fassung setzen
