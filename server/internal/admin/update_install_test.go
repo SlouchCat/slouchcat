@@ -243,6 +243,7 @@ func TestUpdaterVersionFromStatus(t *testing.T) {
 		{http.StatusOK, `{"phase":"idle"}`, ""},
 		{http.StatusOK, `{"phase":"idle","updater":"1.18.0"}`, "1.18.0"},
 		{http.StatusOK, `{"phase":"done","updater":"1.18.0-3-gabc1234"}`, "1.18.0-3-gabc1234"},
+		{http.StatusOK, `{"phase":"idle","updater":"dev"}`, "dev"},
 		{http.StatusOK, `{"phase":"idle","updater":"<script>"}`, ""},
 		{http.StatusOK, `not json`, ""},
 		{http.StatusServiceUnavailable, `{"phase":"idle","updater":"1.18.0"}`, ""},

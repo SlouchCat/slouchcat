@@ -618,17 +618,27 @@ func (h helper) restoreEnv() error {
 	if err != nil {
 		return err
 	}
+	backupOK := false
+	if h.backup != "" {
+		re, err := regexp.Compile(`^` + regexp.QuoteMeta(filepath.Base(env.path)+".bak-vor-updater-") + `\d+\.\d+\.\d+(?:-[0-9]+)?$`)
+		if err != nil {
+			return err
+		}
+		backupOK = re.MatchString(h.backup)
+	}
 	if updater.ValidRelease(h.oldVersion) {
-		return env.write(setValue(env.data, updaterVersionKey, h.oldVersion))
+		if err := env.write(setValue(env.data, updaterVersionKey, h.oldVersion)); err != nil {
+			return err
+		}
+		if backupOK { // not needed any more; a failure that comes back would leave one every 6 h
+			_ = os.Remove(filepath.Join(filepath.Dir(env.path), h.backup))
+		}
+		return nil
 	}
 	if h.backup == "" {
 		return envFile{path: env.path}.restore() // the file did not exist before
 	}
-	re, err := regexp.Compile(`^` + regexp.QuoteMeta(filepath.Base(env.path)+".bak-vor-updater-") + `\d+\.\d+\.\d+(?:-[0-9]+)?$`)
-	if err != nil {
-		return err
-	}
-	if !re.MatchString(h.backup) {
+	if !backupOK {
 		return fmt.Errorf("%w: %q", errBackupName, truncate(h.backup, 80))
 	}
 	data, _, err := readRegular(filepath.Join(filepath.Dir(env.path), h.backup))

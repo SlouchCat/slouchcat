@@ -412,7 +412,10 @@ func TestInstallRemovesOldServerImages(t *testing.T) {
 	}
 }
 
-const ownChanges = "compose.yaml has own changes and was not replaced; compare it with the release file"
+const (
+	ownChanges = "compose.yaml has own changes and was not replaced; compare it with the release file"
+	noneKnown  = "the release names no earlier content of compose.yaml, so it was not replaced; compare it with the release file"
+)
 
 // A compose file whose content no release had (own changes), or with no valid deployKnown, stays;
 // the install goes on and names it in its final message, also when it is done.
@@ -420,14 +423,14 @@ func TestInstallKeepsComposeFileWithOwnChanges(t *testing.T) {
 	sum := hexSum([]byte(oldCompose))
 	tooMany := `{"compose.yaml":["` + strings.TrimSuffix(strings.Repeat(sum+`","`, maxKnown+1), `","`) + `"]}`
 	for _, tc := range []struct {
-		name, known, compose string
+		name, known, compose, msg string
 	}{
-		{"own changes", `{"compose.yaml":["` + sum + `"]}`, "services: {mine: {}}\n"},
-		{"no deployKnown", `null`, oldCompose},
-		{"other file known", `{"compose.intel.yaml":["` + sum + `"]}`, oldCompose},
-		{"bad hash", `{"compose.yaml":["` + strings.ToUpper(sum) + `"]}`, oldCompose},
-		{"bad name", `{"compose.yaml":["` + sum + `"],".env":["` + sum + `"]}`, oldCompose},
-		{"too many", tooMany, oldCompose},
+		{"own changes", `{"compose.yaml":["` + sum + `"]}`, "services: {mine: {}}\n", ownChanges},
+		{"no deployKnown", `null`, oldCompose, noneKnown},
+		{"other file known", `{"compose.intel.yaml":["` + sum + `"]}`, oldCompose, noneKnown},
+		{"bad hash", `{"compose.yaml":["` + strings.ToUpper(sum) + `"]}`, oldCompose, noneKnown},
+		{"bad name", `{"compose.yaml":["` + sum + `"],".env":["` + sum + `"]}`, oldCompose, noneKnown},
+		{"too many", tooMany, oldCompose, noneKnown},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := newHarness(t)
@@ -439,7 +442,7 @@ func TestInstallKeepsComposeFileWithOwnChanges(t *testing.T) {
 			h.start()
 			h.install()
 			s := h.finish()
-			if s.Phase != updater.PhaseDone || s.Message != ownChanges || s.DeployBackup != "" {
+			if s.Phase != updater.PhaseDone || s.Message != tc.msg || s.DeployBackup != "" {
 				t.Errorf("state = %+v", s)
 			}
 			if h.readFile("compose.yaml") != tc.compose || exists(t, filepath.Join(h.deploy, "compose.yaml.bak-vor-1.16.0")) {

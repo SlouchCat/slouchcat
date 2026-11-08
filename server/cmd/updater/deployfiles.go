@@ -40,7 +40,11 @@ type deployFile struct {
 func (u *Updater) replaceDeployFiles(ctx context.Context, p plan, s *updater.State) (replaced []envFile, note string, err error) {
 	files, kept, err := u.deployFiles(ctx, p)
 	for _, name := range kept {
-		note = withNote(note, name+" has own changes and was not replaced; compare it with the release file")
+		if _, known := p.known[name]; known {
+			note = withNote(note, name+" has own changes and was not replaced; compare it with the release file")
+		} else {
+			note = withNote(note, "the release names no earlier content of "+name+", so it was not replaced; compare it with the release file")
+		}
 	}
 	if err != nil || len(files) == 0 {
 		return nil, note, err

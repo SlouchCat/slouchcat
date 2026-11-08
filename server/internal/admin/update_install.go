@@ -38,6 +38,9 @@ import (
 // install that was sent as the event errors.
 const SettingUpdateInstallReported = "update_install_reported"
 
+// updaterLabel is a version or build label the card may show.
+var updaterLabel = regexp.MustCompile(`^[0-9A-Za-z][0-9A-Za-z.+_-]{0,39}$`)
+
 const (
 	// updaterProbeTimeout bounds GET /status for UpdateState.UpdaterAvailable; updaterProbeTTL is
 	// how long its answer counts, so the admin pages stay fast while the companion is down.
@@ -365,11 +368,12 @@ func (s *Service) probeUpdater(ctx context.Context, done chan struct{}) {
 	default:
 		ok = resp.StatusCode == http.StatusOK
 		if ok {
-			// The version is shown on the card; one that is no semantic version (or an answer that
-			// does not read) counts as unknown, like that of a companion before 1.18.0.
+			// The version is shown on the card as the companion reports it (a release, or the label of
+			// a development build); one with other characters, or an answer that does not read, counts
+			// as unknown, like that of a companion before 1.18.0.
 			var st updater.State
-			if err := decodeState(resp.Body, &st); err == nil && isRelease(st.Updater) {
-				ver = truncateRunes(st.Updater, 40)
+			if err := decodeState(resp.Body, &st); err == nil && updaterLabel.MatchString(st.Updater) {
+				ver = st.Updater
 			}
 		} else {
 			s.log.DebugContext(ctx, "updater status refused", "status", resp.StatusCode)
