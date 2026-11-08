@@ -37,6 +37,7 @@ type indexEntry struct {
 	hidden     bool
 	broken     bool // reachable = 0 or broken_at set
 	locked     bool // the admin changed a field (exceptions view)
+	own        bool // an own station (source own, concept 16 section 5.6)
 	popularity int64
 	createdAt  int64
 	genres     uint32 // bit i = rules.Genres[i]
@@ -88,6 +89,7 @@ func newIndexEntry(r appq.ListRadioStationsForIndexRow, facets map[string][]stri
 	}
 	return &indexEntry{
 		st: st, sortKey: r.SortKey, search: r.SearchText, hidden: r.Hidden == 1, broken: broken, locked: locked,
+		own:        r.Source == sourceOwn,
 		popularity: r.Votes + r.Clicks, createdAt: r.CreatedAt,
 		genres: facetBits(rules.FacetGenre, st.Genres), kinds: facetBits(rules.FacetKind, st.Kinds),
 		moods: facetBits(rules.FacetMood, st.Moods),
@@ -200,6 +202,7 @@ func (s *Service) rebuildIndex(ctx context.Context) (*stationIndex, error) {
 	s.cat.mu.Lock()
 	s.cat.idx = idx
 	s.cat.mu.Unlock()
+	s.cat.stationsChanged()
 	return idx, nil
 }
 
@@ -260,6 +263,7 @@ func (s *Service) reloadStations(ctx context.Context, ids []int64) {
 	s.cat.mu.Lock()
 	s.cat.idx = idx
 	s.cat.mu.Unlock()
+	s.cat.stationsChanged()
 }
 
 // catalogView is the visibility of the stations under the current settings.

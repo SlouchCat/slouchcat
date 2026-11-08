@@ -547,6 +547,10 @@ type RadioService interface {
 	// false applies the viewer rules (hidden or excluded → model.ErrNotFound); no logo is
 	// model.ErrNotFound as well.
 	Image(ctx context.Context, stationID int64, kind, size string, webp, admin bool) (model.StreamSource, error)
+	// Cover opens the cover of a title (contract 1.19.0, radio_tracks; size w96, w256 or w512) as
+	// WebP or PNG; hash is the v of the URL. An unknown, expired or missing one, or another hash,
+	// is model.ErrNotFound.
+	Cover(ctx context.Context, trackID int64, size, hash string, webp bool) (model.StreamSource, error)
 
 	// Administration (x-visibility admin).
 	Config(ctx context.Context) (model.RadioConfig, error)
@@ -570,6 +574,17 @@ type RadioService interface {
 	SetLogo(ctx context.Context, stationID int64, r io.Reader) (model.AdminRadioStation, error)
 	// DeleteLogo removes an uploaded logo and lifts the lock, so the logo chain runs again.
 	DeleteLogo(ctx context.Context, stationID int64) (model.AdminRadioStation, error)
+	// CreateStation adds an own station (contract 1.19.0). *model.ValidationError for a bad value,
+	// local_address for a stream address or homepage in the local network (F-15).
+	CreateStation(ctx context.Context, c model.AdminRadioStationCreate) (model.AdminRadioStation, error)
+	// DeleteStation deletes an own station; a catalog station is a *model.ValidationError
+	// (stationId not_own), an unknown one model.ErrNotFound.
+	DeleteStation(ctx context.Context, stationID int64) error
+	// TagRules returns the effective tag rules, the worklist and the coverage (tab «Einordnung»).
+	TagRules(ctx context.Context) (model.RadioTagRules, error)
+	// SetTagRules replaces the administration's rules and applies them to every station
+	// (*model.ValidationError on field rules).
+	SetTagRules(ctx context.Context, rules []model.RadioTagRule) (model.RadioTagRules, error)
 	Relays(ctx context.Context) (model.RadioRelays, error)
 	// StopListener ends a listen session (ended_by admin); model.ErrNotFound for an unknown or
 	// ended one.

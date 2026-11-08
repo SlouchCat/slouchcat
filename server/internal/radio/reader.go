@@ -137,12 +137,15 @@ type streamInfo struct {
 }
 
 // streamEvent is one step of a stream: audio bytes, a title the stream announced (TitleSet with
-// Title, which may be empty: the stream cleared it), or both. Discontinuity marks a source
-// discontinuity before this audio (HLS EXT-X-DISCONTINUITY or a media sequence gap).
+// Title, which may be empty: the stream cleared it), or both. StreamURL is the StreamUrl of the
+// ICY block that announced the title (an image address for some stations, concept 16 section 8).
+// Discontinuity marks a source discontinuity before this audio (HLS EXT-X-DISCONTINUITY or a
+// media sequence gap).
 type streamEvent struct {
 	Audio         []byte
 	Title         string
 	TitleSet      bool
+	StreamURL     string
 	Discontinuity bool
 }
 

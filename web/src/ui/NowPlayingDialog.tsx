@@ -1,13 +1,18 @@
+import { useState, type ComponentProps } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { AriaButton } from './AriaButton';
 import { focusOnMount } from './focusOnMount';
 import { useSpaceToggle } from './MiniPlayer';
 import styles from './NowPlayingDialog.module.css';
+import { PlayedList, type PlayedEntry } from './PlayedList';
 import { StationLogo } from './StationLogo';
+import { TimeShiftSlider } from './TimeShiftSlider';
 
-// «Jetzt läuft» (concept 16, 10.3): the running station in a full view over the page, opened from
-// the mini player. Stage 1 has no time-shift slider: «Live» jumps to the live edge. Escape closes
-// it and the focus returns to the mini player (react-aria). The texts come from the app (rule 9).
+// «Jetzt läuft» (concept 16, 10.3 and 8): the running station in a full view over the page,
+// opened from the mini player: the title's cover large and blurred behind the view, the time shift
+// slider from the oldest position to live (absent while the server keeps no buffer), «Live» and
+// «Zuvor gespielt». A new title fades in, without motion under prefers-reduced-motion. Escape
+// closes it and the focus returns to the mini player (react-aria). Texts from the app (rule 9).
 
 interface NowPlayingToggle {
   pressed: boolean;
@@ -23,6 +28,8 @@ interface NowPlayingDialogProps {
   closeLabel: string;
   stationName: string;
   logoUrl?: string;
+  /** The cover of the title that plays (w512); the logo shows while it has none or it fails. */
+  coverUrl?: string;
   /** Country and region of the station, as one line beside its name. */
   place?: string;
   /** The big line: the title, or the station's programme when it sends none. */
@@ -33,6 +40,14 @@ interface NowPlayingDialogProps {
   toggle: NowPlayingToggle;
   liveLabel: string;
   onLive: () => void;
+  /** Plays at live: «Live» shows pressed. */
+  isLive?: boolean;
+  /** The time shift slider; absent without a window (the server keeps no buffer, D-9). */
+  timeShift?: ComponentProps<typeof TimeShiftSlider>;
+  /** A note over the controls (the pause lasted longer than the window). */
+  notice?: string;
+  /** «Zuvor gespielt»; absent where the station sends no titles. */
+  played?: { heading: string; empty: string; entries: readonly PlayedEntry[] };
   favorite?: NowPlayingToggle;
   /** Quality, genre, language … as label and value. */
   facts: readonly { label: string; value: string }[];
@@ -47,12 +62,17 @@ export function NowPlayingDialog({
   closeLabel,
   stationName,
   logoUrl,
+  coverUrl,
   place,
   title,
   subtitle,
   toggle,
   liveLabel,
   onLive,
+  isLive,
+  timeShift,
+  notice,
+  played,
   favorite,
   facts,
   hint,
@@ -66,6 +86,7 @@ export function NowPlayingDialog({
       isDismissable
     >
       <Modal className={styles.modal}>
+        {coverUrl && <Blurred key={coverUrl} src={coverUrl} />}
         <Dialog className={styles.dialog} data-testid="radio-now-playing">
           <div className={styles.view} {...space}>
             <div className={styles.head}>
@@ -92,8 +113,14 @@ export function NowPlayingDialog({
               )}
             </div>
             <div className={styles.body}>
-              <div className={styles.picture}>
-                <StationLogo name={stationName} src={logoUrl} size="fill" />
+              {/* Keyed by the picture: a new cover fades in over the old place. */}
+              <div className={styles.picture} key={coverUrl ?? logoUrl ?? ''}>
+                <StationLogo
+                  name={stationName}
+                  src={coverUrl ?? logoUrl}
+                  fallbackSrc={coverUrl ? logoUrl : undefined}
+                  size="fill"
+                />
               </div>
               <div className={styles.info}>
                 <p className={styles.station}>
@@ -111,6 +138,11 @@ export function NowPlayingDialog({
                     {subtitle && <p className={styles.subtitle}>{subtitle}</p>}
                   </div>
                 </div>
+                {notice && (
+                  <p className={styles.notice} role="status" data-testid="radio-now-notice">
+                    {notice}
+                  </p>
+                )}
                 <div className={styles.controls}>
                   <AriaButton
                     variant="primary"
@@ -120,7 +152,13 @@ export function NowPlayingDialog({
                     aria-label={toggle.label}
                     onPress={toggle.onPress}
                   />
-                  <AriaButton variant="secondary" onPress={onLive}>
+                  {timeShift && <TimeShiftSlider {...timeShift} />}
+                  <AriaButton
+                    variant="secondary"
+                    aria-pressed={isLive}
+                    onPress={onLive}
+                    data-testid="radio-now-live"
+                  >
                     {liveLabel}
                   </AriaButton>
                 </div>
@@ -135,11 +173,23 @@ export function NowPlayingDialog({
                   </dl>
                 )}
                 <p className={styles.hint}>{hint}</p>
+                {played && <PlayedList {...played} stationName={stationName} logoUrl={logoUrl} />}
               </div>
             </div>
           </div>
         </Dialog>
       </Modal>
     </ModalOverlay>
+  );
+}
+
+/** The cover as the view's blurred background; gone when it does not load. */
+function Blurred({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <div className={styles.backdrop} aria-hidden="true">
+      <img src={src} alt="" decoding="async" onError={() => setFailed(true)} />
+    </div>
   );
 }

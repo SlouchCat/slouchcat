@@ -815,7 +815,7 @@ type HomePage struct {
 type HomeRow struct {
 	// ID names the row (concept 15 P-7): the key for the fixed rows, "library:<id>" for a row
 	// library; Key is its kind (spotlight, picks, continue, recent, released, watchlist,
-	// collections, genres, libraries, library).
+	// collections, genres, libraries, library, radio).
 	ID          string
 	Key         string
 	LibraryID   int64  // the library of a row library, else 0
@@ -823,7 +823,8 @@ type HomeRow struct {
 	Items       []ItemSummary
 	Collections []CollectionRef
 	Genres      []GenreRef
-	Libraries   []LibraryTile // only in the row libraries
+	Libraries   []LibraryTile      // only in the row libraries
+	Stations    []RadioHomeStation // only in the row radio («Meine Sender», concept 16 stage 2)
 }
 
 // LibraryTile is one tile of the row «Meine Medien» (concept 15 P-7): a library the profile sees
@@ -855,12 +856,13 @@ const (
 	RowGenres      = "genres"
 	RowLibraries   = "libraries" // «Meine Medien», concept 15 P-7
 	RowLibrary     = "library"   // «Neu in …», one row per library
+	RowRadio       = "radio"     // «Meine Sender», concept 16 stage 2
 )
 
 // HomeRowKeys lists every row key: the eight fixed rows in the default order, then the two kinds
-// of concept 15 P-7.
+// of concept 15 P-7 and «Meine Sender» of concept 16.
 var HomeRowKeys = []string{RowSpotlight, RowPicks, RowContinue, RowRecent, RowReleased, RowWatchlist, RowCollections, RowGenres,
-	RowLibraries, RowLibrary}
+	RowLibraries, RowLibrary, RowRadio}
 
 // Discover (M7). ---------------------------------------------------------------------------
 

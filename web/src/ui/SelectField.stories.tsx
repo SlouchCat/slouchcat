@@ -39,3 +39,41 @@ export const Default: Story = {};
 
 /** Focused by Tab: the ring sits on the select. */
 export const Focused: Story = { tags: ['press:Tab'] };
+
+const ruleOptions = [
+  { value: '', label: 'Merkmal wählen …' },
+  {
+    group: 'Genre',
+    options: [
+      { value: 'genre:pop', label: 'Genre: Pop' },
+      { value: 'genre:oldies', label: 'Genre: Oldies' },
+    ],
+  },
+  {
+    group: 'Sendeart',
+    options: [
+      { value: 'kind:news', label: 'Sendeart: News' },
+      { value: 'kind:talk', label: 'Sendeart: Talk' },
+    ],
+  },
+  { value: 'ignore', label: 'Ignorieren (kein Merkmal)' },
+];
+
+/**
+ * A select in a table row (the worklist of «Einordnung», concept 16 stage 2): the label for
+ * screen readers only, the options in groups.
+ */
+export const GroupedHiddenLabel: Story = {
+  render: function Render() {
+    const [value, setValue] = useState('');
+    return (
+      <SelectField
+        label="Merkmal für das Schlagwort 80s"
+        hideLabel
+        value={value}
+        options={ruleOptions}
+        onChange={setValue}
+      />
+    );
+  },
+};

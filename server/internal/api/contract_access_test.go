@@ -391,6 +391,15 @@ var adminRegistry = map[string]adminCall{
 	"listRadioRelays": {contract: "GET /admin/radio/relays", path: "/admin/radio/relays", ownerStatus: http.StatusOK},
 	"stopRadioListener": {contract: "DELETE /admin/radio/listeners/{listenId}", path: "/admin/radio/listeners/" + radioDummyListen,
 		ownerStatus: http.StatusNotFound},
+	// Concept 16 stage 2 (contract 1.19.0): an own station in the local network is refused (F-15),
+	// so the call creates nothing; an unknown station answers 404; a rule with an unknown value 422.
+	"createRadioStation": {contract: "POST /admin/radio/stations", path: "/admin/radio/stations",
+		body: `{"name":"Lokal","streamUrl":"http://192.168.1.10:8000/stream"}`, ownerStatus: http.StatusUnprocessableEntity},
+	"deleteRadioStation": {contract: "DELETE /admin/radio/stations/{stationId}", path: "/admin/radio/stations/9999",
+		ownerStatus: http.StatusNotFound},
+	"getRadioTagRules": {contract: "GET /admin/radio/tag-rules", path: "/admin/radio/tag-rules", ownerStatus: http.StatusOK},
+	"setRadioTagRules": {contract: "PUT /admin/radio/tag-rules", path: "/admin/radio/tag-rules",
+		body: `{"rules":[{"tag":"80s","facet":"genre","value":"no-such-genre"}]}`, ownerStatus: http.StatusUnprocessableEntity},
 }
 
 // Fixed ids of the vistest fixture (vistest.addMovie: "01J9000000000000000000R0" + label).

@@ -12,9 +12,41 @@
 }
 
 .modal {
+  position: relative;
   display: flex;
   flex: 1;
   min-width: 0;
+  isolation: isolate;
+}
+
+/* The title's cover, blurred behind the view and fading into the ground towards the bottom. */
+.backdrop {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0.55;
+  animation: fade var(--sc-motion-duration-crossfade) var(--sc-motion-easing-standard);
+}
+
+.backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(48px) saturate(1.2);
+  transform: scale(1.2);
+}
+
+.backdrop::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    0deg,
+    var(--sc-color-bg-base) 10%,
+    var(--sc-color-scrim-strong) 60%,
+    var(--sc-color-scrim-clear)
+  );
+  content: '';
 }
 
 .dialog {
@@ -71,6 +103,7 @@
 
 .picture {
   min-width: 0;
+  animation: fade var(--sc-motion-duration-crossfade) var(--sc-motion-easing-standard);
 }
 
 .info {
@@ -112,10 +145,23 @@
   font-size: var(--sc-font-size-lg);
 }
 
+.notice {
+  margin: 0;
+  color: var(--sc-color-state-warning);
+  font-size: var(--sc-font-size-sm);
+}
+
 .controls {
   display: flex;
   align-items: center;
   gap: var(--sc-space-3);
+  max-width: 40rem;
+}
+
+/* «Live» at live: the live red. */
+.controls [aria-pressed='true'] {
+  border-color: var(--sc-color-state-danger);
+  color: var(--sc-color-state-danger);
 }
 
 .facts {
@@ -175,6 +221,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .overlay[data-entering],
+  .backdrop,
+  .picture,
   .titles {
     animation: none;
   }

@@ -18,7 +18,7 @@ type relayState struct {
 	net     *netClient
 
 	knobs     relayKnobs
-	tmpfs     func(dir string) bool // isTmpfs; tests replace it
+	tmpfs     func(dir string) bool // bufferTmpfs; tests replace it
 	startOnce sync.Once             // ends the listen sessions of the last process
 	modeOnce  sync.Once
 	mode      string // model.RadioBuffer*
@@ -32,7 +32,7 @@ type relayState struct {
 }
 
 func newRelayState() *relayState {
-	return &relayState{control: controlFunc, knobs: defaultRelayKnobs(), tmpfs: isTmpfs,
+	return &relayState{control: controlFunc, knobs: defaultRelayKnobs(), tmpfs: bufferTmpfs,
 		relays: map[int64]*relay{}, sessions: map[string]*listenSession{}, credits: map[creditKey]int64{}}
 }
 

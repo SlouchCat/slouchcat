@@ -141,6 +141,14 @@
   background-color: var(--sc-color-surface-2);
 }
 
+.square {
+  flex: none;
+  width: var(--sc-space-8);
+  height: var(--sc-space-8);
+  border-radius: var(--sc-radius-sm);
+  background-color: var(--sc-color-surface-2);
+}
+
 .pill {
   flex: none;
   width: var(--sc-space-12);

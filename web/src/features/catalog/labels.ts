@@ -26,6 +26,7 @@ export const homeRowTitleKey = {
   genres: 'home.rows.genres',
   libraries: 'home.rows.libraries',
   library: 'home.rows.library',
+  radio: 'home.rows.radio',
 } as const satisfies Record<HomeRowKey, string>;
 
 /**

@@ -44,14 +44,30 @@ interface StationLogoProps {
   name: string;
   /** URL of the logo; without one (or when it fails to load) the initials show. */
   src?: string;
+  /**
+   * The picture when `src` fails to load: a title's cover gives way to the station's logo
+   * (concept 16, 8 point 6), the logo to the initials.
+   */
+  fallbackSrc?: string;
   /** `sm` 2.5 rem (lists, the mini player), `md` 4 rem, `lg` 8 rem, `fill` the container's width. */
   size?: 'sm' | 'md' | 'lg' | 'fill';
+  /** Loads at once and with high priority: the first tile of the start page (P-10). */
+  priority?: boolean;
+  /** Told once the picture is on screen (the start page's prepaint gives way then). */
+  onShown?: () => void;
 }
 
 /** Square station picture; decorative, the surrounding control names the station. */
-export function StationLogo({ name, src, size = 'md' }: StationLogoProps) {
-  const [failed, setFailed] = useState<string | null>(null);
-  const image = src && failed !== src ? src : undefined;
+export function StationLogo({
+  name,
+  src,
+  fallbackSrc,
+  size = 'md',
+  priority = false,
+  onShown,
+}: StationLogoProps) {
+  const [failed, setFailed] = useState<readonly string[]>([]);
+  const image = [src, fallbackSrc].find((url) => url !== undefined && !failed.includes(url));
   return (
     <span
       className={`${styles.logo} ${styles[size]}`}
@@ -64,9 +80,15 @@ export function StationLogo({ name, src, size = 'md' }: StationLogoProps) {
           className={styles.image}
           src={image}
           alt=""
-          loading="lazy"
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : undefined}
           decoding="async"
-          onError={() => setFailed(image)}
+          onLoad={onShown}
+          onError={() => {
+            setFailed((before) => [...before, image]);
+            // The last picture failed: the initials show, which is on screen as well.
+            if (image === (fallbackSrc ?? src)) onShown?.();
+          }}
         />
       ) : (
         <span className={styles.initials}>{stationInitials(name)}</span>

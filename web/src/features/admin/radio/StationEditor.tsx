@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { imageUrl } from '@/api/client';
-import { problemMessage } from '@/api/errors';
+import { formErrors, problemMessage } from '@/api/errors';
 import { facetValueName, stationPlace } from '@/app/radio/labels';
 import { radioQueryParams } from '@/features/radio/filters';
 import { radioFacetsQuery } from '@/features/radio/queries';
@@ -13,6 +13,7 @@ import {
   AriaButton,
   CheckboxGroup,
   EditorDialog,
+  Form,
   LockToggle,
   RadioGroup,
   StatusRegion,
@@ -31,13 +32,12 @@ import {
   type AdminRadioStation,
   type AdminRadioStationPatch,
 } from '../queries';
+import { KINDS, MOODS } from './facets';
+import { languageCodes } from './languages';
 import styles from './Radio.module.css';
 
 type LockField = components['schemas']['RadioLockField'];
 
-/** The programme kinds and moods of the rules (concept 16, 5.4). */
-const KINDS = ['music', 'news', 'talk', 'sport', 'culture'];
-const MOODS = ['chill', 'party', 'focus', 'sleep', 'workout'];
 const AUTO_STREAM = 'auto';
 
 interface Draft {
@@ -51,10 +51,19 @@ interface Draft {
   hidden: boolean;
   recommended: boolean;
   locks: LockField[];
+  /** Own stations only (contract 1.19.0): the stream address, homepage, country, languages. */
+  streamUrl: string;
+  homepage: string;
+  country: string;
+  languages: string;
 }
 
 const preferredOf = (station: AdminRadioStation) =>
   String(station.streams.find((stream) => stream.preferred)?.id ?? AUTO_STREAM);
+
+/** The stream address of an own station: its one stream, the preferred if there are more. */
+const ownStreamUrl = (station: AdminRadioStation) =>
+  (station.streams.find((stream) => stream.preferred) ?? station.streams[0])?.url ?? '';
 
 const draftOf = (station: AdminRadioStation): Draft => ({
   name: station.name,
@@ -66,6 +75,10 @@ const draftOf = (station: AdminRadioStation): Draft => ({
   hidden: station.hidden,
   recommended: station.recommended,
   locks: station.locks,
+  streamUrl: ownStreamUrl(station),
+  homepage: station.homepage ?? '',
+  country: station.country ?? '',
+  languages: station.languages.join(', '),
 });
 
 const sameSet = (a: readonly string[], b: readonly string[]) =>
@@ -104,6 +117,17 @@ function patchOf(station: AdminRadioStation, draft: Draft): AdminRadioStationPat
     patch.preferredStreamId = draft.stream === AUTO_STREAM ? null : Number(draft.stream);
     if (draft.stream !== AUTO_STREAM) locks.add('stream');
     else locks.delete('stream');
+  }
+  if (station.source === 'own') {
+    // The sync never touches an own station: these fields carry no lock.
+    const streamUrl = draft.streamUrl.trim();
+    if (streamUrl !== '' && streamUrl !== ownStreamUrl(station)) patch.streamUrl = streamUrl;
+    const homepage = draft.homepage.trim();
+    if (homepage !== (station.homepage ?? '')) patch.homepage = homepage === '' ? null : homepage;
+    const country = draft.country.trim().toUpperCase();
+    if (country !== (station.country ?? '')) patch.country = country === '' ? null : country;
+    const languages = languageCodes(draft.languages);
+    if (!sameSet(languages, station.languages)) patch.languages = languages;
   }
   if (draft.hidden !== station.hidden) patch.hidden = draft.hidden;
   if (draft.recommended !== station.recommended) patch.recommended = draft.recommended;
@@ -187,6 +211,8 @@ function EditorForm({ station }: { station: AdminRadioStation }) {
       ),
   });
   const error = save.error ?? upload.error ?? resetLogo.error;
+  // A refused stream address or homepage (`local_address`, F-15) stands at its field.
+  const saveErrors = save.error ? formErrors(t, save.error) : null;
 
   const isLocked = (field: LockField) => draft.locks.includes(field);
   const lock = (field: LockField, fieldLabel: string) => (
@@ -232,6 +258,55 @@ function EditorForm({ station }: { station: AdminRadioStation }) {
         />,
         'name',
         t('admin.radio.editor.name'),
+      )}
+
+      {station.source === 'own' && (
+        <Form
+          className={styles.editor}
+          validationErrors={saveErrors?.fields}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (dirty) save.mutate();
+          }}
+        >
+          <p className={styles.muted}>{t('admin.radio.own.editorHelp')}</p>
+          <TextField
+            name="streamUrl"
+            type="url"
+            label={t('admin.radio.own.fields.streamUrl')}
+            description={t('admin.radio.own.fields.streamUrlHelp')}
+            value={draft.streamUrl}
+            onChange={(value) => set('streamUrl', value)}
+            autoComplete="off"
+            spellCheck="false"
+            mono
+          />
+          <TextField
+            name="homepage"
+            type="url"
+            label={t('admin.radio.own.fields.homepage')}
+            description={t('admin.radio.own.fields.homepageHelp')}
+            value={draft.homepage}
+            onChange={(value) => set('homepage', value)}
+            autoComplete="off"
+            spellCheck="false"
+            mono
+          />
+          <TextField
+            name="country"
+            label={t('admin.radio.own.fields.country')}
+            description={t('admin.radio.own.fields.countryHelp')}
+            value={draft.country}
+            onChange={(value) => set('country', value)}
+          />
+          <TextField
+            name="languages"
+            label={t('admin.radio.own.fields.languages')}
+            description={t('admin.radio.own.fields.languagesHelp')}
+            value={draft.languages}
+            onChange={(value) => set('languages', value)}
+          />
+        </Form>
       )}
 
       <div className={styles.field}>

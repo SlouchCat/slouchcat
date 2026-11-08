@@ -12,21 +12,23 @@ import (
 func TestFacetsFromDefaultRules(t *testing.T) {
 	r := rules.Default()
 	for _, tc := range []struct {
-		name string
-		tags []string
-		want string
+		name        string
+		tags        []string
+		want        string
+		kindDefault bool
 	}{
-		{"Hits FM", []string{"80s hits"}, "map[genre:[pop oldies] kind:[music]]"},
-		{"Rock FM", []string{"classic rock"}, "map[genre:[rock] kind:[music]]"},
-		{"Info Radio", []string{"pop"}, "map[genre:[pop] kind:[news]]"},
-		{"Talk One", []string{"talk", "comedy"}, "map[kind:[talk]]"},
-		{"Chill Zone", []string{"Chillout", "Lounge"}, "map[genre:[chillout] kind:[music] mood:[chill]]"},
-		{"Sport Eins", nil, "map[kind:[sport]]"},
-		{"Kirche FM", []string{"Gospel", "Worship"}, "map[genre:[religious] kind:[music]]"},
-		{"Plain", []string{"unknowntag"}, "map[kind:[music]]"},
+		{"Hits FM", []string{"80s hits"}, "map[genre:[pop oldies] kind:[music]]", true},
+		{"Rock FM", []string{"classic rock"}, "map[genre:[rock] kind:[music]]", true},
+		{"Info Radio", []string{"pop"}, "map[genre:[pop] kind:[news]]", false},
+		{"Talk One", []string{"talk", "comedy"}, "map[kind:[talk]]", false},
+		{"Chill Zone", []string{"Chillout", "Lounge"}, "map[genre:[chillout] kind:[music] mood:[chill]]", true},
+		{"Sport Eins", nil, "map[kind:[sport]]", false},
+		{"Kirche FM", []string{"Gospel", "Worship"}, "map[genre:[religious] kind:[music]]", true},
+		{"Plain", []string{"unknowntag"}, "map[kind:[music]]", true},
 	} {
-		if got := fmt.Sprint(deriveFacets(r, tc.name, tc.tags)); got != tc.want {
-			t.Errorf("%s %v: %s, want %s", tc.name, tc.tags, got, tc.want)
+		got, kindDefault := deriveFacets(r, tc.name, tc.tags)
+		if fmt.Sprint(got) != tc.want || kindDefault != tc.kindDefault {
+			t.Errorf("%s %v: %v (kind default %v), want %s (%v)", tc.name, tc.tags, got, kindDefault, tc.want, tc.kindDefault)
 		}
 	}
 }

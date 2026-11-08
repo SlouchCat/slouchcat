@@ -4,8 +4,11 @@ import { Text } from '@/ui';
 import { rowTitle, type HomeRow } from './rows';
 import styles from './HomeRows.module.css';
 
-/** How a row looks on the start page, drawn as placeholders: the stage, posters, wide tiles, pills. */
-type Shape = 'stage' | 'poster' | 'wide' | 'genre';
+/**
+ * How a row looks on the start page, drawn as placeholders: the stage, posters, wide tiles, square
+ * station tiles, pills.
+ */
+type Shape = 'stage' | 'poster' | 'wide' | 'square' | 'genre';
 
 const SHAPE = {
   spotlight: 'stage',
@@ -18,10 +21,11 @@ const SHAPE = {
   genres: 'genre',
   libraries: 'wide',
   library: 'poster',
+  radio: 'square',
 } as const satisfies Record<HomeRowKey, Shape>;
 
 /** Number of placeholders per shape. */
-const COUNT: Record<Shape, number> = { stage: 4, poster: 7, wide: 4, genre: 5 };
+const COUNT: Record<Shape, number> = { stage: 4, poster: 7, wide: 4, square: 6, genre: 5 };
 
 function Placeholders({ shape }: { shape: Shape }) {
   const marks = Array.from({ length: COUNT[shape] }, (_, index) => index);
@@ -33,7 +37,13 @@ function Placeholders({ shape }: { shape: Shape }) {
           <span
             key={index}
             className={
-              shape === 'poster' ? styles.poster : shape === 'genre' ? styles.pill : styles.tile
+              shape === 'poster'
+                ? styles.poster
+                : shape === 'square'
+                  ? styles.square
+                  : shape === 'genre'
+                    ? styles.pill
+                    : styles.tile
             }
           />
         ))}

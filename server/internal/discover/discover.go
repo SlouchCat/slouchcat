@@ -6,9 +6,10 @@
 // Trakt list intersected with the library, with the main user's curation), picks (Cat's
 // recommendations), continue (continue watching), recent (recently added), released (by release
 // date within twelve months, a series by its newest visible episode, S-5, S-6), watchlist,
-// collections, genres, libraries («Meine Medien», one tile per visible library) and one row
-// library («Neu in …») per library, in the order the administration stored (table home_rows, a row
-// named by its id); hidden and empty rows are omitted, the
+// collections, genres, libraries («Meine Medien», one tile per visible library), one row
+// library («Neu in …») per library and radio («Meine Sender», the profile's favourite stations,
+// concept 16 section 10.2, through HomeRadio), in the order the administration stored (table
+// home_rows, a row named by its id); hidden and empty rows are omitted, the
 // spotlight row also below the configured minimum of hits, spotlight_config.min_hits (AN-3). The
 // page names the row the client draws as the stage (HomePage.HeroRow: spotlight when present, else
 // none; picks is never the stage) and carries hasTrailer for the rows spotlight and picks only (D3).
@@ -55,7 +56,14 @@ const (
 	RowGenres      = model.RowGenres
 	RowLibraries   = model.RowLibraries
 	RowLibrary     = model.RowLibrary
+	RowRadio       = model.RowRadio
 )
+
+// HomeRadio gives the start page row radio its tiles (radio.Service): the favourite stations the
+// profile may reach, each with the title at the live edge of a running relay.
+type HomeRadio interface {
+	HomeStations(ctx context.Context, profile model.Profile) ([]model.RadioHomeStation, error)
+}
 
 // MaxRows caps the start page (E-9, F-12; the contract's HomePage.rows maxItems).
 const MaxRows = model.MaxVisibleHomeRows
@@ -71,7 +79,9 @@ type Service struct {
 
 	// loadRow loads one row of the start page for loadRows: row, replaced only by tests of the
 	// package to inject a failing or panicking row.
-	loadRow func(context.Context, visibility.Scope, model.HomeRowSetting) (model.HomeRow, error)
+	loadRow func(context.Context, model.Profile, model.HomeRowSetting) (model.HomeRow, error)
+	// radio fills the row radio (WithRadio); nil leaves it empty, so it never appears.
+	radio HomeRadio
 
 	// The draw of the stage's first title (concept 08, F-2): rnd is not safe for concurrent use,
 	// so rndMu guards it; heroStart >= 0 replaces the draw by a fixed index (WithHeroStart).
@@ -102,6 +112,11 @@ func WithHeroStart(k int) Option {
 	return func(s *Service) { s.heroStart = k }
 }
 
+// WithRadio sets the source of the start page row radio («Meine Sender», concept 16).
+func WithRadio(r HomeRadio) Option {
+	return func(s *Service) { s.radio = r }
+}
+
 // New returns the catalog service. cacheDir is the absolute cache root that image rel_paths are
 // relative to; log is the redacting logger.
 func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Service {
@@ -128,7 +143,7 @@ func New(db *store.DB, cacheDir string, log *slog.Logger, opts ...Option) *Servi
 // HeroIntervalSeconds is spotlight_config.rotation_seconds (F-10). Without a stage both stay unset.
 func (s *Service) Home(ctx context.Context, profile model.Profile, start *int) (model.HomePage, error) {
 	scope := visibility.Profile(profile)
-	page, err := s.page(ctx, scope, false)
+	page, err := s.page(ctx, profile, false)
 	if err != nil {
 		return model.HomePage{}, err
 	}
@@ -173,7 +188,7 @@ func (s *Service) drawHeroStart(n int, start *int) int {
 // other: a row's error counts only when the page reaches that row, so a row behind the cut to
 // MaxRows (or behind the stage, with untilHero) never fails the page. Once the page is complete
 // the rows still loading are cancelled and the rows not yet started are not loaded.
-func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bool) (model.HomePage, error) {
+func (s *Service) page(ctx context.Context, profile model.Profile, untilHero bool) (model.HomePage, error) {
 	order, err := s.rowOrder(ctx)
 	if err != nil {
 		return model.HomePage{}, err
@@ -186,7 +201,7 @@ func (s *Service) page(ctx context.Context, scope visibility.Scope, untilHero bo
 		order = order[:j+1]
 	}
 	ctx, cancel := context.WithCancel(ctx)
-	results, wait := s.loadRows(ctx, scope, order)
+	results, wait := s.loadRows(ctx, profile, order)
 	defer func() {
 		cancel()
 		wait()
@@ -227,7 +242,7 @@ type rowResult struct {
 // before the next one, a transaction runs only its own statements), so the goroutines never wait
 // on each other for the pool (store.Open: at least four connections). On two cores the start page
 // of the CT 190 database takes about a sixth less time (docs/perf/feinschliff.md section 3).
-func (s *Service) loadRows(ctx context.Context, scope visibility.Scope, order []model.HomeRowSetting) ([]chan rowResult, func()) {
+func (s *Service) loadRows(ctx context.Context, profile model.Profile, order []model.HomeRowSetting) ([]chan rowResult, func()) {
 	results := make([]chan rowResult, len(order))
 	next := make(chan int, len(order))
 	for i := range order {
@@ -243,7 +258,7 @@ func (s *Service) loadRows(ctx context.Context, scope visibility.Scope, order []
 					results[i] <- rowResult{err: err}
 					continue
 				}
-				row, err := s.safeRow(ctx, scope, order[i])
+				row, err := s.safeRow(ctx, profile, order[i])
 				results[i] <- rowResult{row: row, err: err}
 			}
 		})
@@ -254,19 +269,20 @@ func (s *Service) loadRows(ctx context.Context, scope visibility.Scope, order []
 // safeRow loads one row with loadRow and turns a panic into the row's error with its stack: a row
 // runs in a goroutine of loadRows, where the recoverer of the HTTP handler cannot catch it, so the
 // error takes its place and fails the page like any other error of a row the page reaches.
-func (s *Service) safeRow(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (row model.HomeRow, err error) {
+func (s *Service) safeRow(ctx context.Context, profile model.Profile, setting model.HomeRowSetting) (row model.HomeRow, err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			row, err = model.HomeRow{}, fmt.Errorf("panic: %v\n%s", rec, debug.Stack())
 		}
 	}()
-	return s.loadRow(ctx, scope, setting)
+	return s.loadRow(ctx, profile, setting)
 }
 
-// filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3), the
-// other rows their entries.
+// filled reports whether a row goes on the page: «Meine Medien» counts its tiles (8.3), «Meine
+// Sender» its stations, the other rows their entries.
 func filled(row model.HomeRow) bool {
-	return len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Libraries) > 0
+	return len(row.Items) > 0 || len(row.Collections) > 0 || len(row.Genres) > 0 || len(row.Libraries) > 0 ||
+		len(row.Stations) > 0
 }
 
 // markTrailers sets HasTrailer on every title of a row from one visibility query (D3).
@@ -305,8 +321,10 @@ func (s *Service) rowOrder(ctx context.Context) ([]model.HomeRowSetting, error) 
 	return out, nil
 }
 
-// row loads one row of the start page; an unknown key gives an empty row.
-func (s *Service) row(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (model.HomeRow, error) {
+// row loads one row of the start page; an unknown key gives an empty row. An error of the row
+// radio is logged and leaves that row empty: the radio is no reason to lose the page (critic m-8).
+func (s *Service) row(ctx context.Context, profile model.Profile, setting model.HomeRowSetting) (model.HomeRow, error) {
+	scope := visibility.Profile(profile)
 	row := model.HomeRow{ID: setting.ID, Key: setting.Key}
 	var err error
 	switch setting.Key {
@@ -331,8 +349,25 @@ func (s *Service) row(ctx context.Context, scope visibility.Scope, setting model
 	case RowLibrary:
 		row.LibraryID, row.LibraryName = setting.LibraryID, setting.LibraryName
 		row.Items, err = s.vis.LibraryNewest(ctx, scope, setting.LibraryID, visibility.MaxRowItems)
+	case RowRadio:
+		row.Stations = s.radioRow(ctx, profile)
 	}
 	return row, err
+}
+
+// radioRow returns the tiles of the row radio, none without a radio service or on its error.
+func (s *Service) radioRow(ctx context.Context, profile model.Profile) []model.RadioHomeStation {
+	if s.radio == nil {
+		return nil
+	}
+	stations, err := s.radio.HomeStations(ctx, profile)
+	if err != nil {
+		if ctx.Err() == nil {
+			s.log.WarnContext(ctx, "home row radio left out", "err", err)
+		}
+		return nil
+	}
+	return stations
 }
 
 // spotlightRow reads the spotlight row with the configured size and omits it below the configured
@@ -360,7 +395,7 @@ func (s *Service) spotlightRow(ctx context.Context, scope visibility.Scope) ([]m
 // (P-10, plan 3.5), and hands the index on to GET /home?start=K, which repeats the draw. It derives
 // from the same computation as Home and draws like it (drawHeroStart, so WithHeroStart fixes both).
 func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.ItemSummary, int, bool, error) {
-	page, err := s.page(ctx, visibility.Profile(profile), true)
+	page, err := s.page(ctx, profile, true)
 	if err != nil {
 		return model.ItemSummary{}, 0, false, err
 	}
@@ -375,31 +410,31 @@ func (s *Service) FirstHero(ctx context.Context, profile model.Profile) (model.I
 
 // FirstRow returns the first row of the start page when the page has no stage, or
 // model.ErrNotFound when it has one (the stage image is preloaded and painted instead, FirstHero),
-// when it has no rows, or when its first row holds collections or genres rather than titles or
-// library tiles. Its titles (or, for «Meine Medien», its tiles, concept 15 P-7) are the first cards
+// when it has no rows, or when its first row holds collections or genres rather than titles,
+// library tiles or stations. Its titles (or, for «Meine Medien», its tiles, concept 15 P-7, and
+// for «Meine Sender» its stations, concept 16 section 10.2) are the first cards
 // of a page without a stage, the images the client loads first (P-10); the app shell of the start
 // page preloads the first poster and paints the first cards ahead. It derives from the same
 // computation as Home, so it follows its rule, but it loads the rows only up to the first one on
 // the page (the prepaint of GET / waits for it): a stage further down is found from the spotlight
 // row alone while it can only land within MaxRows, else from the page up to the stage.
 func (s *Service) FirstRow(ctx context.Context, profile model.Profile) (model.HomeRow, error) {
-	scope := visibility.Profile(profile)
 	order, err := s.rowOrder(ctx)
 	if err != nil {
 		return model.HomeRow{}, err
 	}
 	for i, setting := range order {
-		row, err := s.row(ctx, scope, setting)
+		row, err := s.row(ctx, profile, setting)
 		if err != nil {
 			return model.HomeRow{}, fmt.Errorf("home row %s: %w", setting.ID, err)
 		}
 		if !filled(row) {
 			continue
 		}
-		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Libraries) == 0) {
+		if row.Key == RowSpotlight || (len(row.Items) == 0 && len(row.Libraries) == 0 && len(row.Stations) == 0) {
 			return model.HomeRow{}, model.ErrNotFound
 		}
-		stage, err := s.stageBelow(ctx, scope, order, i)
+		stage, err := s.stageBelow(ctx, profile, order, i)
 		if err != nil {
 			return model.HomeRow{}, err
 		}
@@ -416,17 +451,17 @@ func (s *Service) FirstRow(ctx context.Context, profile model.Profile) (model.Ho
 // down, as page would place it: the spotlight row after first, when it has titles and lands
 // within MaxRows. Before the MaxRows-th setting it always lands (at most that many rows precede
 // it); later only the page up to the stage tells.
-func (s *Service) stageBelow(ctx context.Context, scope visibility.Scope, order []model.HomeRowSetting, first int) (bool, error) {
+func (s *Service) stageBelow(ctx context.Context, profile model.Profile, order []model.HomeRowSetting, first int) (bool, error) {
 	j := slices.IndexFunc(order[first+1:], func(r model.HomeRowSetting) bool { return r.Key == RowSpotlight })
 	if j < 0 {
 		return false, nil
 	}
 	j += first + 1
 	if j >= MaxRows {
-		page, err := s.page(ctx, scope, true)
+		page, err := s.page(ctx, profile, true)
 		return page.HeroRow != "", err
 	}
-	items, err := s.spotlightRow(ctx, scope)
+	items, err := s.spotlightRow(ctx, visibility.Profile(profile))
 	if err != nil {
 		return false, fmt.Errorf("home row %s: %w", order[j].ID, err)
 	}

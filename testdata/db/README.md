@@ -253,3 +253,12 @@ Ab M1a legt jeder Meilenstein hier einen SQL-Dump des Datenbankschemas mit Beisp
   `shows_titles` an diesem Sender und drei Viertelstunden Hörzeit (`AddRadioListenTime`, eine volle, eine zwei Stunden
   früher). Dann `server/bin/slouchcat dump --config-dir <config>` (lief als `go run ./cmd/slouchcat dump`),
   keine Pfade im Stand. `TestFrozenWebradioStateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.
+- `webradio2.sql`: Stand nach Stufe 2 des Konzepts «Webradio» (Konzept 16; Migration 00039 mit `radio_tag_rules`,
+  `radio_tracks`, den Cover-Schaltern und der Reihe `radio`). Erzeugt am 8. November 2026 aus `webradio.sql`: Stand
+  eingespielt, mit `store.Open` migriert, dann den echten Dienst `radio.Service` getrieben: `SetTagRules` (Schlagwort
+  `80s` → Genre `pop`, `news` ohne Sendeart, `fm` ignoriert), `CreateStation` (eigener Sender «Quartierradio Test» auf
+  `http://203.0.113.10/stream`, Land `CH`, Region `CH-ZH`, Sprache `de`, Genre und Sendeart von Hand mit Sperren; die
+  Prüfung des Streams durch eine Attrappe ersetzt), `AddFavorite` dieses Senders für das Hauptprofil und `UpdateConfig`
+  (iTunes-Suche aus). Per SQL: zwei Zeilen im Cover-Cache (ein Treffer, ein Fehlschlag) und die Reihe «Meine Sender»
+  eingeblendet. Dann `go run ./cmd/slouchcat dump --config-dir <config>`, keine Pfade im Stand.
+  `TestFrozenWebradio2StateCoversTheConcept` prüft, dass jede dieser Datenarten vorhanden ist.

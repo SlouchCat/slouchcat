@@ -28,9 +28,11 @@ func tagWords(t string) []string {
 }
 
 // deriveFacets returns the facet values of a station with name and (lower-cased) tags, each list
-// in the order of rules.Values.
-func deriveFacets(r rules.TagRules, name string, tags []string) map[string][]string {
+// in the order of rules.Values, and whether the kind is only the default (no tag and no name word
+// gave one; the coverage of the tab «Einordnung» does not count it, D-4).
+func deriveFacets(r rules.TagRules, name string, tags []string) (map[string][]string, bool) {
 	out := make(map[string][]string, len(facetNames))
+	kindDefault := false
 	for _, facet := range facetNames {
 		m := r.ByFacet(facet)
 		hits := map[string]bool{}
@@ -54,6 +56,7 @@ func deriveFacets(r rules.TagRules, name string, tags []string) map[string][]str
 			}
 			if len(hits) == 0 {
 				hits[rules.KindDefault] = true
+				kindDefault = true
 			}
 		}
 		for _, v := range rules.Values(facet) {
@@ -62,7 +65,7 @@ func deriveFacets(r rules.TagRules, name string, tags []string) map[string][]str
 			}
 		}
 	}
-	return out
+	return out, kindDefault
 }
 
 // knownFacetValue reports whether v is a value of facet.

@@ -9,13 +9,13 @@ import {
 } from '@tanstack/react-router';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { json, mockApi, problem, session, type Call, type Routes } from '@/test/api';
 import { sessionQuery } from '../session';
-import type { RadioEngineEvents, RadioEngineFactory } from './engine';
+import type { RadioEngine, RadioEngineEvents, RadioEngineFactory } from './engine';
 import type { RadioListen, RadioStation } from './priority';
 import { RadioProvider } from './RadioProvider';
-import { useRadio, type RadioPlayer } from './useRadio';
+import { useRadio, useRadioOffset, type RadioPlayer } from './useRadio';
 
 const station: RadioStation = {
   id: 7,
@@ -37,6 +37,7 @@ const listen: RadioListen = {
   playlistUrl: '/radio/live/L1/index.m3u8?rt=token',
   heartbeatSeconds: 30,
   startOffsetSeconds: -8,
+  timeShiftSeconds: 1800,
   station,
 };
 
@@ -58,18 +59,32 @@ class FakeChannel {
 }
 
 /** The player of the provider, as the probe last saw it. */
-const probe: { current: RadioPlayer | null } = { current: null };
+const probe: { current: RadioPlayer | null; offset: number } = { current: null, offset: 0 };
 
 function Probe() {
   const radio = useRadio();
+  const offset = useRadioOffset();
   useEffect(() => {
     probe.current = radio;
+    probe.offset = offset;
   });
   return (
     <output data-testid="radio">
       {radio.state.phase}/{radio.playing ? 'playing' : 'held'}/{radio.state.notice?.kind ?? '-'}
     </output>
   );
+}
+
+/** Renders of a page that uses the player but not its offset. */
+const pageRenders = { count: 0 };
+
+function PageConsumer() {
+  useRadio();
+  // An effect without dependencies runs after every render (committed ones).
+  useEffect(() => {
+    pageRenders.count += 1;
+  });
+  return null;
 }
 
 const player = () => {
@@ -79,14 +94,41 @@ const player = () => {
 
 const status = () => screen.getByTestId('radio').textContent;
 
-let playSpy: ReturnType<typeof vi.spyOn>;
+let playSpy: MockInstance<HTMLMediaElement['play']>;
+
+/** A fake engine with a time shift: `behind` seconds behind live, `expired` after a long pause. */
+function fakeEngine(destroy: () => void) {
+  const shift = { behind: 0, expired: false };
+  const engine = {
+    playingDate: () => null,
+    toLive: vi.fn(() => {
+      shift.behind = 0;
+    }),
+    seekTo: vi.fn((offset: number) => {
+      shift.behind = Math.min(offset, 1800);
+    }),
+    offsetSeconds: () => shift.behind,
+    seekableSeconds: () => 1800,
+    resumeAt: vi.fn(() => {
+      if (!shift.expired) return false;
+      shift.expired = false;
+      shift.behind = 1796;
+      return true;
+    }),
+    destroy,
+  } satisfies RadioEngine;
+  return { engine, shift };
+}
 
 function setup(routes: Routes = {}) {
   const engineEvents: RadioEngineEvents[] = [];
   const destroy = vi.fn();
+  const fakes: ReturnType<typeof fakeEngine>[] = [];
   const engine = vi.fn<RadioEngineFactory>((_audio, _url, events) => {
     engineEvents.push(events);
-    return Promise.resolve({ playingDate: () => null, toLive: vi.fn(), destroy });
+    const fake = fakeEngine(destroy);
+    fakes.push(fake);
+    return Promise.resolve(fake.engine);
   });
   const api = mockApi({
     'GET /auth/session': () => json(session),
@@ -102,6 +144,7 @@ function setup(routes: Routes = {}) {
     component: () => (
       <RadioProvider engine={engine}>
         <Probe />
+        <PageConsumer />
         <Outlet />
       </RadioProvider>
     ),
@@ -117,7 +160,7 @@ function setup(routes: Routes = {}) {
       <RouterProvider router={router as never} />
     </QueryClientProvider>,
   );
-  return { ...api, engine, engineEvents, destroy, queryClient, history, view };
+  return { ...api, engine, engineEvents, fakes, destroy, queryClient, history, view };
 }
 
 const ends = (calls: Call[]) =>
@@ -293,7 +336,10 @@ describe('RadioProvider', () => {
     await screen.findByTestId('radio');
     act(() => player().play(station));
     await waitFor(() => expect(status()).toBe('idle/held/problem'));
-    expect(player().state.notice).toEqual({ kind: 'problem', code: 'radio_capacity' });
+    // The probe takes the player in an effect, which may run after the DOM showed the status.
+    await waitFor(() =>
+      expect(player().state.notice).toEqual({ kind: 'problem', code: 'radio_capacity' }),
+    );
     expect(player().state.station?.id).toBe(station.id);
   });
 
@@ -384,5 +430,87 @@ describe('RadioProvider', () => {
     await startLive(context);
     act(() => context.engineEvents[0]?.onRevoked());
     await waitFor(() => expect(status()).toBe('idle/held/ended'));
+  });
+
+  it('seeks behind live and back to live with the time shift of the session', async () => {
+    const context = setup();
+    await startLive(context);
+    expect(player().timeShiftSeconds).toBe(1800);
+    expect(probe.offset).toBe(0);
+    act(() => player().seek(750));
+    expect(context.fakes[0]?.engine.seekTo).toHaveBeenCalledWith(750);
+    await waitFor(() => expect(probe.offset).toBe(750));
+    act(() => player().toLive());
+    await waitFor(() => expect(probe.offset).toBe(0));
+  });
+
+  it('plays on from the oldest position after a pause longer than the window', async () => {
+    const context = setup();
+    await startLive(context);
+    act(() => player().toggle());
+    await waitFor(() => expect(status()).toBe('live/held/-'));
+    const fake = context.fakes[0];
+    if (!fake) throw new Error('no engine');
+    // The window slid past the paused position: the engine is asked before the element plays.
+    fake.shift.expired = true;
+    playSpy.mockClear();
+    act(() => player().toggle());
+    await waitFor(() => expect(status()).toBe('live/playing/-'));
+    expect(fake.engine.resumeAt).toHaveBeenCalled();
+    const resumeOrder = fake.engine.resumeAt.mock.invocationCallOrder[0] ?? Infinity;
+    const playOrder = playSpy.mock.invocationCallOrder[0] ?? -Infinity;
+    expect(resumeOrder).toBeLessThan(playOrder);
+    await waitFor(() => expect(player().longPause).toBe(true));
+    expect(probe.offset).toBe(1796);
+    // «Live» ends the notice.
+    act(() => player().toLive());
+    await waitFor(() => expect(player().longPause).toBe(false));
+  });
+
+  it('keeps playing where it was after a short pause', async () => {
+    const context = setup();
+    await startLive(context);
+    act(() => player().toggle());
+    await waitFor(() => expect(status()).toBe('live/held/-'));
+    act(() => player().toggle());
+    await waitFor(() => expect(status()).toBe('live/playing/-'));
+    expect(context.fakes[0]?.engine.resumeAt).toHaveBeenCalled();
+    expect(player().longPause).toBe(false);
+  });
+
+  it('asks for the whole timeline, without a client-clock since, and lists the earlier ones', async () => {
+    const at = Date.now();
+    const entries = [
+      { at: at - 600_000, text: 'A - One', artist: 'A', title: 'One' },
+      { at: at - 300_000, text: 'B - Two', artist: 'B', title: 'Two' },
+      { at: at - 1_000, text: 'C - Three', artist: 'C', title: 'Three' },
+    ];
+    const context = setup({ 'GET /radio/stations/7/now': () => json({ live: true, entries }) });
+    await startLive(context);
+    await waitFor(() => expect(player().entry?.title).toBe('Three'));
+    expect(player().history.map((entry) => entry.title)).toEqual(['Two', 'One']);
+    const asked = context.fetchMock.mock.calls
+      .map(([request]) => new URL(request.url))
+      .find((url) => url.pathname.endsWith('/radio/stations/7/now'));
+    expect(asked).toBeDefined();
+    expect(asked?.searchParams.has('since')).toBe(false);
+  });
+
+  it('reads the offset every second while paused without rendering the pages again', async () => {
+    const context = setup();
+    await startLive(context);
+    act(() => player().toggle());
+    await waitFor(() => expect(status()).toBe('live/held/-'));
+    const fake = context.fakes[0];
+    if (!fake) throw new Error('no engine');
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    const before = pageRenders.count;
+    // The live edge moves on while paused: the offset grows, the pages stay as they are.
+    for (const behind of [10, 20, 30]) {
+      fake.shift.behind = behind;
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+      expect(probe.offset).toBe(behind);
+    }
+    expect(pageRenders.count).toBe(before);
   });
 });

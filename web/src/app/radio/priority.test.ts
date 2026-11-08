@@ -30,6 +30,7 @@ const listen: RadioListen = {
   playlistUrl: '/radio/live/01JC0000000000000000000000/index.m3u8?rt=token',
   heartbeatSeconds: 30,
   startOffsetSeconds: -8,
+  timeShiftSeconds: 1800,
   station,
 };
 

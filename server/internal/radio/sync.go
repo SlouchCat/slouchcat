@@ -102,7 +102,19 @@ func (s *Service) syncCatalog(ctx context.Context) (syncStats, error) {
 			"entries", run.entries, "known", run.known)
 		return syncStats{}, fmt.Errorf("%w: %d entries, %d known", errCatalogShrunk, run.entries, run.known)
 	}
-	return run.finish(ctx)
+	stats, err := run.finish(ctx)
+	if err != nil {
+		return syncStats{}, err
+	}
+	// Rules the administration stored while this run held syncMu apply to every station before it
+	// lets go (D-2, critic M-3); the job handler rebuilds the index afterwards. A failed apply
+	// keeps them pending for the sweep and does not fail the sync.
+	if s.cat.rulesDirty.Load() {
+		if err := s.applyTagRules(ctx, false); err != nil {
+			s.log.WarnContext(ctx, "apply radio tag rules after the sync", "err", err)
+		}
+	}
+	return stats, nil
 }
 
 // errCatalogShrunk is the sync error of a station list with less than half of the known entries.
@@ -110,6 +122,10 @@ var errCatalogShrunk = errors.New("radio browser station list shorter than half 
 
 // newSyncRun loads the alias, group, counter and lock maps once.
 func (s *Service) newSyncRun(ctx context.Context) (*syncRun, error) {
+	// The recompute derives with the effective rules (catalogState.rules, loaded here).
+	if _, err := s.tagRules(ctx); err != nil {
+		return nil, err
+	}
 	q := appq.New(s.db.Read)
 	run := &syncRun{s: s, now: s.now().UnixMilli(), aliases: map[string]syncAlias{}, groups: map[string]int64{},
 		stations: map[int64]syncStation{}, locks: map[int64]map[string]bool{}, metas: map[int64][]entryMeta{},
@@ -432,7 +448,8 @@ func (r *syncRun) recompute(ctx context.Context, q *appq.Queries, id int64) erro
 			open = append(open, facet)
 		}
 	}
-	if err := writeFacets(ctx, q, id, deriveFacets(r.s.cat.rules, d.name, d.tags), open, false, !fresh); err != nil {
+	values, _ := deriveFacets(r.s.cat.rules.Load().tags, d.name, d.tags)
+	if err := writeFacets(ctx, q, id, values, open, false, !fresh); err != nil {
 		return err
 	}
 	r.stations[id] = syncStation{votes: d.votes, clicks: d.clicks, reachable: d.reachable}

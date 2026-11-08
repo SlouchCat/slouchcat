@@ -446,7 +446,8 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 		Handler: api.NewHandler(api.Options{
 			Version: version, Started: started, Logger: log, Web: webassets.Handler(), Dev: cfg.Dev,
 			Auth: authSvc, Profiles: authSvc, Access: authSvc, Admin: adminSvc, TrustedProxies: cfg.TrustedProxies,
-			Catalog:  discover.New(db, cfg.CacheDir, log, discover.WithHeroStart(cfg.HeroStart)), // -1 draws (concept 08, F-2)
+			// -1 draws (concept 08, F-2); the row «Meine Sender» reads the radio (concept 16, 10.2).
+			Catalog:  discover.New(db, cfg.CacheDir, log, discover.WithHeroStart(cfg.HeroStart), discover.WithRadio(radioSvc)),
 			Playback: playbackSvc,
 			Offline:  offlineSvc,
 			Notify:   notifySvc,

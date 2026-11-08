@@ -506,7 +506,10 @@ export interface paths {
          *     active profile sees, in the order of `listVisibleLibraries`) and one row `library` per
          *     library («Neu in …», `libraryId`, `libraryName`: its newest visible titles, at most 20, in
          *     the order of `listLibraryItems` with `sort=added`; a library the profile does not see has
-         *     no row). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
+         *     no row). Since contract 1.19.0 (concept 16 stage 2; breaking: new key): `radio` («Meine
+         *     Sender», `stations` instead of `items`: the radio favourites of the active profile in their
+         *     order, without hidden, excluded and, while the setting says so, broken stations; each with the
+         *     title its running relay plays at the live edge). The spotlight row is also omitted while Trakt is unavailable. Empty and hidden rows
          *     are omitted; never more than fifteen (E-9, F-12). `heroRow` names the row the client draws as the
          *     stage (a band with backdrop and poster strip) at its place in `rows`; without it every row is
          *     a poster row. Every item passed the visibility layer of the active profile.
@@ -4170,10 +4173,12 @@ export interface paths {
         };
         /**
          * The titles the stream of a station announced (contract 1.17.0)
-         * @description Since contract 1.17.0. The entries of the running relay's title timeline, oldest first, each
-         *     stamped with the program date-time (`at`) of the segment it arrived in, so the client shows the
-         *     entry whose `at` is the last one before its playback position. `since` (Unix ms) returns only
-         *     newer entries. `live` is false when no relay of the station runs; `entries` is then empty.
+         * @description Since contract 1.17.0. The entries of the running relay's title timeline over its buffer, oldest
+         *     first, each stamped (`at`) with the program date-time of the audio it starts at, so the client
+         *     shows the entry whose `at` is the last one before its playback position and lists the earlier
+         *     ones as «Zuvor gespielt» (since contract 1.19.0, with `cover`). `since` (Unix ms) returns the
+         *     entry in force at `since` and the newer ones. `live` is false when no relay of the station
+         *     runs; `entries` is then empty.
          */
         get: operations["getRadioNow"];
         put?: never;
@@ -4305,6 +4310,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/radio/covers/{trackId}/{size}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cover of a title a station played (binary, contract 1.19.0)
+         * @description Since contract 1.19.0 (concept 16 section 8). Implemented as an `http.Handler` behind the session
+         *     middleware. `trackId` comes from `RadioNowEntry.cover.url`. The image is the cover the server
+         *     found for the title (the station's `StreamUrl`, the Cover Art Archive or the iTunes search),
+         *     scaled to a square; WebP when `Accept` lists `image/webp`, PNG otherwise (`Vary: Accept`);
+         *     `Cache-Control: private, max-age=31536000, immutable`, `v` is the content hash. A cover is
+         *     kept 30 days after it was found; an unknown or expired track answers 404 and the client shows
+         *     the station logo.
+         */
+        get: operations["getRadioCover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/radio/config": {
         parameters: {
             query?: never;
@@ -4390,11 +4421,21 @@ export interface paths {
          * @description Since contract 1.17.0. Unfiltered by the viewer rules: hidden, broken and excluded stations are
          *     listed. `exceptions` (default true) keeps the stations the administration changed (a lock),
          *     hid, recommended and the broken ones; `exceptions=false` lists every station. `state` narrows to
-         *     `reachable`, `broken` or `hidden`.
+         *     `reachable`, `broken` or `hidden`. `source` (since contract 1.19.0) narrows to catalog or own
+         *     stations (tab «Eigene Sender»); own stations count as exceptions.
          */
         get: operations["listAdminRadioStations"];
         put?: never;
-        post?: never;
+        /**
+         * Add an own radio station (contract 1.19.0)
+         * @description Since contract 1.19.0 (concept 16 section 5.6). A station the catalog lacks: name and stream
+         *     address (a direct stream or a `.pls`/`.m3u`/HLS list, resolved when it plays), optionally
+         *     homepage, country, region and facets. The sync never touches it. The stream address and the
+         *     homepage must be `http` or `https` and must not resolve to an address of the local network
+         *     (F-15): `streamUrl` or `homepage` `local_address`. The facets given lock themselves like a
+         *     `PATCH`; the logo follows the chain of section 6 (upload with `uploadRadioStationLogo`).
+         */
+        post: operations["createRadioStation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4415,7 +4456,12 @@ export interface paths {
         get: operations["getAdminRadioStation"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete an own radio station (contract 1.19.0)
+         * @description Since contract 1.19.0. Only own stations (`source` `own`); its favourites, listen sessions and
+         *     logo go with it, a running relay ends. A catalog station can only be hidden (`hidden`).
+         */
+        delete: operations["deleteRadioStation"];
         options?: never;
         head?: never;
         /**
@@ -4492,6 +4538,39 @@ export interface paths {
          */
         get: operations["getAdminRadioImage"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/radio/tag-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tag rules, worklist and coverage of the radio facets (contract 1.19.0)
+         * @description Since contract 1.19.0 (concept 16 sections 5.4 and 11, tab «Einordnung»). `rules` lists the
+         *     effective rules «tag → facet value»: the embedded defaults and the administration's rules,
+         *     which override a default per tag and facet (`value` null: the tag gives that facet nothing) or
+         *     take a tag off the worklist (`facet` `ignore`). `worklist` lists the tags of at least
+         *     `worklistMinStations` stations that no rule maps, neither as a whole nor by one of their
+         *     words, most stations first; `openTags` counts those with more than 50 stations (the status
+         *     strip). `coverage` counts the reachable, shown stations with a value per facet; a kind counts
+         *     only when a tag, the name or the administration set it, not the default «music».
+         */
+        get: operations["getRadioTagRules"];
+        /**
+         * Replace the administration's tag rules (contract 1.19.0)
+         * @description Since contract 1.19.0. The complete list of the administration's rules; a rule left out goes, so
+         *     its tag falls back to the default. The rules apply at once to every station with the tag (facets
+         *     the administration set by hand keep their values); the answer is the state after that.
+         */
+        put: operations["setRadioTagRules"];
         post?: never;
         delete?: never;
         options?: never;
@@ -5242,10 +5321,11 @@ export interface components {
          * @description The kinds of start page rows (E-9). Contract 1.1 replaced the two fixed Trakt rows of 1.0
          *     by `spotlight` and `released` (ADR 0011); removed values are never reused. Contract 1.15.0
          *     added `libraries` («Meine Medien») and `library` («Neu in …», one row per library, concept
-         *     15 P-7); a row is named by `HomeRowId`, the key alone no longer.
+         *     15 P-7); a row is named by `HomeRowId`, the key alone no longer. Contract 1.19.0 added `radio`
+         *     («Meine Sender», concept 16 stage 2).
          * @enum {string}
          */
-        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library";
+        HomeRowKey: "spotlight" | "picks" | "continue" | "recent" | "released" | "watchlist" | "collections" | "genres" | "libraries" | "library" | "radio";
         /**
          * @description The identity of a start page row (since contract 1.15.0): its key for every row but
          *     `library`, `library:<libraryId>` for a library row.
@@ -5284,6 +5364,17 @@ export interface components {
             collections?: components["schemas"]["CollectionRef"][];
             /** @description Only in the row `genres`; each links to the search filtered by that genre. */
             genres?: components["schemas"]["GenreRef"][];
+            /** @description Only in the row `radio` (since contract 1.19.0), whose `items` stay empty. */
+            stations?: components["schemas"]["RadioHomeStation"][];
+        };
+        /**
+         * @description One tile of the start page row `radio` («Meine Sender», contract 1.19.0): a favourite station
+         *     and, while a relay of the station runs, the title at its live edge (absent otherwise; nothing is
+         *     kept for a station nobody listens to). Not an `ItemRef`.
+         */
+        RadioHomeStation: {
+            station: components["schemas"]["RadioStation"];
+            now?: components["schemas"]["RadioNowEntry"];
         };
         HomePage: {
             rows: components["schemas"]["HomeRow"][];
@@ -8400,7 +8491,7 @@ export interface components {
          */
         RadioStationState: "ok" | "broken" | "missing";
         /**
-         * @description Kind of a station image; Stage 2 of concept 16 adds `cover` (additive).
+         * @description Kind of a station image. Covers of titles have their own route (`getRadioCover`).
          * @enum {string}
          */
         RadioImageKind: "logo";
@@ -8486,6 +8577,12 @@ export interface components {
             heartbeatSeconds: number;
             /** @description Start position relative to the live edge (-8), as `EXT-X-START` says. */
             startOffsetSeconds: number;
+            /**
+             * @description Since contract 1.19.0. How far behind live the listener may play: the buffer length of the
+             *     settings (600, 1800 or 3600), 0 while the server keeps no buffer (no `tmpfs`, live only).
+             *     The playlist holds at most this much; a client never offers more.
+             */
+            timeShiftSeconds: number;
             station: components["schemas"]["RadioStation"];
         };
         RadioHeartbeatRequest: {
@@ -8500,10 +8597,17 @@ export interface components {
             expiresAt: number;
             watchTime?: components["schemas"]["WatchTime"];
         };
+        RadioCover: {
+            /** @description URL of `getRadioCover` (w256) with `v` = content hash; another size replaces `w256`. */
+            url: string;
+        };
         RadioNowEntry: {
             /**
              * Format: int64
-             * @description Program date-time (Unix ms) of the segment the entry arrived in.
+             * @description Program date-time (Unix ms) of the audio the entry starts at. Since contract 1.19.0 the
+             *     relay stamps MP3 and AAC sources by the audio it passed on (frames counted), so the entry
+             *     matches the playback position within one segment also behind live; other sources keep the
+             *     stamp of the segment the entry arrived in.
              */
             at: number;
             /** @description The title text as the stream sent it. */
@@ -8511,6 +8615,13 @@ export interface components {
             /** @description Artist, when the text splits into artist and title. */
             artist?: string;
             title?: string;
+            /**
+             * @description Since contract 1.19.0. The cover of the title: the image the stream announced (`StreamUrl`),
+             *     else a hit of MusicBrainz with the Cover Art Archive, else of the iTunes search (concept 16
+             *     section 8, F-6). Absent while the lookup runs and when none was found; the client shows the
+             *     station logo then.
+             */
+            cover?: components["schemas"]["RadioCover"];
         };
         RadioNow: {
             /** @description A relay of the station runs. */
@@ -8555,6 +8666,10 @@ export interface components {
             bufferMode: components["schemas"]["RadioBufferMode"];
             /** @description Relays the byte budget allows at the current buffer length. */
             maxRelaysByBudget: number;
+            /** @description Since contract 1.19.0. Look covers up at MusicBrainz and the Cover Art Archive. */
+            coverMusicbrainz: boolean;
+            /** @description Since contract 1.19.0. Look covers up through the iTunes search (after MusicBrainz). */
+            coverItunes: boolean;
         };
         RadioConfigUpdate: {
             /** @enum {integer} */
@@ -8564,6 +8679,8 @@ export interface components {
             graceSeconds?: number;
             hideBroken?: boolean;
             countries?: string[] | null;
+            coverMusicbrainz?: boolean;
+            coverItunes?: boolean;
         };
         RadioCatalogState: {
             /**
@@ -8700,6 +8817,27 @@ export interface components {
             hidden?: boolean;
             recommended?: boolean;
             locks?: components["schemas"]["RadioLockField"][];
+            /** @description Since contract 1.19.0, own stations only. Replaces the stream address. */
+            streamUrl?: string;
+            /** @description Since contract 1.19.0, own stations only; null clears it. */
+            homepage?: string | null;
+            /** @description Since contract 1.19.0, own stations only; null clears it. */
+            country?: string | null;
+            /** @description Since contract 1.19.0, own stations only. ISO 639-1 codes; an empty list clears them. */
+            languages?: string[];
+        };
+        /** @description An own station (contract 1.19.0, concept 16 section 5.6). */
+        AdminRadioStationCreate: {
+            name: string;
+            streamUrl: string;
+            homepage?: string;
+            country?: string;
+            region?: string;
+            /** @description ISO 639-1 codes of the station's languages. */
+            languages?: string[];
+            genres?: string[];
+            kinds?: string[];
+            moods?: string[];
         };
         RadioProbeRequest: {
             /**
@@ -8721,6 +8859,50 @@ export interface components {
             title?: string;
             /** @description Time to the first byte of audio. */
             responseMs: number;
+        };
+        /**
+         * @description The facet a tag rule sets (contract 1.19.0); `ignore` takes the tag off the worklist.
+         * @enum {string}
+         */
+        RadioTagRuleFacet: "genre" | "kind" | "mood" | "ignore";
+        RadioTagRule: {
+            /** @description A raw catalog tag; compared folded (case and accents). */
+            tag: string;
+            facet: components["schemas"]["RadioTagRuleFacet"];
+            /** @description A value of the facet (`rules` of `RadioStation.genres`, `kinds`, `moods`); null = none. */
+            value?: string | null;
+        };
+        RadioTagRulesUpdate: {
+            rules: components["schemas"]["RadioTagRule"][];
+        };
+        RadioTagRuleView: {
+            tag: string;
+            facet: components["schemas"]["RadioTagRuleFacet"];
+            value?: string | null;
+            /** @enum {string} */
+            source: "default" | "admin";
+            /** @description Stations with exactly this tag. */
+            stations: number;
+        };
+        RadioTagCount: {
+            tag: string;
+            stations: number;
+        };
+        RadioCoverage: {
+            /** @enum {string} */
+            facet: "genre" | "kind" | "mood" | "region" | "language";
+            assigned: number;
+            /** @description Reachable stations the app shows (the base of every facet). */
+            total: number;
+        };
+        RadioTagRules: {
+            rules: components["schemas"]["RadioTagRuleView"][];
+            worklist: components["schemas"]["RadioTagCount"][];
+            /** @description Tags of fewer stations stay off the worklist (20). */
+            worklistMinStations: number;
+            /** @description Worklist tags with more than 50 stations. */
+            openTags: number;
+            coverage: components["schemas"]["RadioCoverage"][];
         };
         /** @enum {string} */
         RadioRelayState: "connecting" | "live" | "reconnecting" | "ending";
@@ -17264,6 +17446,44 @@ export interface operations {
             };
         };
     };
+    getRadioCover: {
+        parameters: {
+            query?: {
+                /** @description Content hash for cache busting; must match; another hash answers 404. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                trackId: number;
+                /** @description Square edge in pixels. */
+                size: components["parameters"]["RadioImageSize"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Unknown or expired track, or no cover (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getRadioConfig: {
         parameters: {
             query?: never;
@@ -17368,6 +17588,7 @@ export interface operations {
     listAdminRadioStations: {
         parameters: {
             query?: {
+                source?: components["schemas"]["RadioStationSource"];
                 q?: string;
                 country?: string;
                 genre?: string;
@@ -17404,6 +17625,45 @@ export interface operations {
             };
         };
     };
+    createRadioStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminRadioStationCreate"];
+            };
+        };
+        responses: {
+            /** @description The new station. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRadioStation"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description A value is invalid (`validation_failed`): `name` outside 1..200 characters, `streamUrl` or
+             *     `homepage` not `http`/`https` (`invalid_value`) or local (`local_address`), an unknown
+             *     country, region or facet value.
+             */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     getAdminRadioStation: {
         parameters: {
             query?: never;
@@ -17429,6 +17689,47 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description Unknown station (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    deleteRadioStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Station id (`RadioStation.id`), stable across catalog syncs. */
+                stationId: components["parameters"]["RadioStationID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /** @description Unknown station (`not_found`). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description A catalog station (`validation_failed`, `stationId` `not_own`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17476,7 +17777,9 @@ export interface operations {
             };
             /**
              * @description A value is invalid (`validation_failed`): an unknown facet value, a stream of another station,
-             *     an unknown lock name, a name outside 1..200 characters or a region that is no ISO 3166-2 code.
+             *     an unknown lock name, a name outside 1..200 characters or a region that is no ISO 3166-2 code;
+             *     since contract 1.19.0 `streamUrl`, `homepage` or `country` on a catalog station (`not_own`)
+             *     and a local stream address or homepage (`local_address`).
              */
             422: {
                 headers: {
@@ -17660,6 +17963,66 @@ export interface operations {
             403: components["responses"]["AdminOnly"];
             /** @description Unknown station or no image of this kind (`not_found`). */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    getRadioTagRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rules. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioTagRules"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+        };
+    };
+    setRadioTagRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioTagRulesUpdate"];
+            };
+        };
+        responses: {
+            /** @description The rules after the change. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioTagRules"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["AdminOnly"];
+            /**
+             * @description A rule is invalid (`validation_failed`, field `rules`): an empty tag, a tag twice for one
+             *     facet, an unknown value of its facet, a value with `ignore` (`invalid_value`).
+             */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

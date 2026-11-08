@@ -887,6 +887,9 @@ var profileRegistry = map[string]profileCall{
 	// The fixture stations have no logo.
 	"getRadioImage": {contract: "GET /radio/images/{id}/{kind}/{size}", path: "/radio/images/" + radioCH + "/logo/w256",
 		want: radioStatus(http.StatusNotFound)},
+	// Contract 1.19.0: no relay of the fixture found a cover.
+	"getRadioCover": {contract: "GET /radio/covers/{trackId}/{size}", path: "/radio/covers/9999/w256",
+		want: radioStatus(http.StatusNotFound)},
 	// Minted: a listen session of the profile on the CH station ({ls}, {rt}).
 	"getRadioLivePlaylist": {contract: "GET /radio/live/{listenId}/index.m3u8", streamOnly: true, radioMint: true,
 		path: "/radio/live/{ls}/index.m3u8?rt={rt}", want: radioStatus(http.StatusOK)},
@@ -1141,7 +1144,7 @@ func newProfileFixtureWithWeb(t *testing.T, web http.Handler) profileFixture {
 	pf.opts = Options{
 		Version: "test", Started: time.Now(), Logger: log, Web: web,
 		Auth: pa, Profiles: a, Access: a, Admin: adm,
-		Catalog:  discover.New(f.DB, f.CacheDir, log),
+		Catalog:  discover.New(f.DB, f.CacheDir, log, discover.WithRadio(pf.radio)), // «Meine Sender» (concept 16)
 		Playback: pf.pb,
 		Offline:  pf.off,
 		Notify:   pf.notifySvc,

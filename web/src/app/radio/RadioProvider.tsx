@@ -30,11 +30,12 @@ import {
 import {
   currentRadioEntry,
   endRadioListen,
+  previousRadioEntries,
   radioNowQuery,
   sendRadioHeartbeat,
   startRadioListen,
 } from './queries';
-import { RadioContext, type RadioPlayer } from './useRadio';
+import { RadioContext, RadioOffsetContext, type RadioPlayer } from './useRadio';
 
 // The radio player of the whole app (concept 16, 10.3; plan W1). It sits in the route `_authed`
 // (R-1), so it outlives the profile picker and every page with or without the app header; the
@@ -103,6 +104,10 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
   const [attached, setAttached] = useState(0);
   // Program date-time of the playback position (ms, whole seconds), null without one.
   const [position, setPosition] = useState<number | null>(null);
+  // Seconds behind live and the long pause (7.2), each for the listen session it was seen in, so
+  // a new session starts live without an effect that resets them.
+  const [shift, setShift] = useState<{ listenId?: string; offset: number }>({ offset: 0 });
+  const [longPauseOf, setLongPauseOf] = useState<string | undefined>(undefined);
 
   // The latest state for callbacks and event handlers.
   const stateRef = useRef(state);
@@ -123,14 +128,39 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
   const listenId = state.listen?.listenId;
   const playlistUrl = state.listen?.playlistUrl;
   const heartbeatSeconds = state.listen?.heartbeatSeconds;
+  const timeShiftSeconds = state.listen?.timeShiftSeconds ?? 0;
+
+  /** Reads how far the element plays behind live, for the session that plays now. */
+  const readShift = useCallback(() => {
+    const engine = engineRef.current;
+    const id = stateRef.current.listen?.listenId;
+    const offset = engine ? Math.round(engine.offsetSeconds()) : 0;
+    setShift((before) =>
+      before.listenId === id && before.offset === offset ? before : { listenId: id, offset },
+    );
+  }, []);
+
+  // Before the element plays on: a pause longer than the window lost its position, the engine
+  // jumps to the oldest one and the listener hears why (7.2, critic M-5).
+  const resumeInWindow = useCallback(() => {
+    if (engineRef.current?.resumeAt()) {
+      setLongPauseOf(stateRef.current.listen?.listenId);
+      readShift();
+    }
+  }, [readShift]);
 
   // The element must be started by the listener's own gesture (iPhone Safari): a play() right in
   // the click, before the stream is there, lets the later play() of the engine through. With a
   // stream attached the click plays it at once.
-  const playInGesture = useCallback((resume: boolean) => {
-    const audio = audioRef.current;
-    if (audio && (resume || !audio.src)) audio.play().catch(() => undefined);
-  }, []);
+  const playInGesture = useCallback(
+    (resume: boolean) => {
+      const audio = audioRef.current;
+      if (!audio || (!resume && audio.src)) return;
+      if (resume) resumeInWindow();
+      audio.play().catch(() => undefined);
+    },
+    [resumeInWindow],
+  );
 
   const play = useCallback(
     (station: RadioStation) => {
@@ -180,8 +210,18 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
   const stop = useCallback(() => dispatch({ type: 'stop' }), []);
   const toLive = useCallback(() => {
     engineRef.current?.toLive();
+    setLongPauseOf(undefined);
+    readShift();
     dispatch({ type: 'resume' });
-  }, []);
+  }, [readShift]);
+  const seek = useCallback(
+    (offset: number) => {
+      engineRef.current?.seekTo(offset);
+      setLongPauseOf(undefined);
+      readShift();
+    },
+    [readShift],
+  );
   const hold = useCallback((by: 'trailer' | 'tab') => {
     dispatch({ type: 'hold', by });
     return () => dispatch({ type: 'release', by });
@@ -282,6 +322,7 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
     const audio = audioRef.current;
     if (!audio || !engineRef.current) return;
     if (playing) {
+      if (audio.paused) resumeInWindow();
       audio.play().catch((error: unknown) => {
         // The browser wants a gesture first: the listener presses play in the mini player.
         if (error instanceof DOMException && error.name === 'NotAllowedError') {
@@ -291,7 +332,7 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
     } else if (!audio.paused) {
       audio.pause();
     }
-  }, [attached, playing]);
+  }, [attached, playing, resumeInWindow]);
 
   // A pause or play from outside the page (the media keys, the system's controls) is the
   // listener's wish. The silent pause of the load algorithm fires no event.
@@ -307,6 +348,7 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
     const onTime = () => {
       const date = engineRef.current?.playingDate();
       setPosition(date ? Math.floor(date.getTime() / 1000) * 1000 : null);
+      readShift();
     };
     audio.addEventListener('pause', onPause);
     audio.addEventListener('play', onPlay);
@@ -316,7 +358,15 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('timeupdate', onTime);
     };
-  }, [hasAudio]);
+  }, [hasAudio, readShift]);
+
+  // While paused the live edge moves on and no `timeupdate` comes: the offset is read every second
+  // (the mini player's «−12:30» grows).
+  useEffect(() => {
+    if (!attached || !playlistUrl) return;
+    const timer = window.setInterval(readShift, 1000);
+    return () => window.clearInterval(timer);
+  }, [attached, playlistUrl, readShift]);
 
   // Another tab that starts the radio pauses this one; this one says so when it plays.
   useEffect(() => {
@@ -362,21 +412,59 @@ export function RadioProvider({ children, engine = createRadioEngine }: RadioPro
       entries ? currentRadioEntry(entries, position === null ? null : new Date(position)) : null,
     [entries, position],
   );
+  const history = useMemo(
+    () => (entries ? previousRadioEntries(entries, entry) : []),
+    [entries, entry],
+  );
+  const offset = listenId !== undefined && shift.listenId === listenId ? shift.offset : 0;
+  const longPause = listenId !== undefined && longPauseOf === listenId;
 
   const value = useMemo<RadioPlayer>(
-    () => ({ state, playing, entry, play, toggle, stop, toLive, hold, markFavorite, dismiss }),
-    [state, playing, entry, play, toggle, stop, toLive, hold, markFavorite, dismiss],
+    () => ({
+      state,
+      playing,
+      entry,
+      history,
+      timeShiftSeconds,
+      longPause,
+      play,
+      toggle,
+      stop,
+      toLive,
+      seek,
+      hold,
+      markFavorite,
+      dismiss,
+    }),
+    [
+      state,
+      playing,
+      entry,
+      history,
+      timeShiftSeconds,
+      longPause,
+      play,
+      toggle,
+      stop,
+      toLive,
+      seek,
+      hold,
+      markFavorite,
+      dismiss,
+    ],
   );
 
   return (
     <RadioContext.Provider value={value}>
-      {/* The radio's own element; nothing to see, the mini player is the control. Live radio has
+      <RadioOffsetContext.Provider value={offset}>
+        {/* The radio's own element; nothing to see, the mini player is the control. Live radio has
           no caption track. */}
-      {hasAudio && (
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio ref={audioRef} preload="none" data-testid="radio-audio" hidden />
-      )}
-      {children}
+        {hasAudio && (
+          // eslint-disable-next-line jsx-a11y/media-has-caption
+          <audio ref={audioRef} preload="none" data-testid="radio-audio" hidden />
+        )}
+        {children}
+      </RadioOffsetContext.Provider>
     </RadioContext.Provider>
   );
 }

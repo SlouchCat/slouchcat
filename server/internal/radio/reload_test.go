@@ -98,7 +98,11 @@ func TestOneStationQueriesUseKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"GetRadioStationForIndex", "ListRadioStationFacetsByStation",
-		"ListRadioStationTags", "ListRadioStationLocks", "ListRadioStreamsRanked", "GetRadioStation"} {
+		"ListRadioStationTags", "ListRadioStationLocks", "ListRadioStreamsRanked", "GetRadioStation",
+		// Own stations (stage 2); the delete also through its cascades (migration 00039 indexes
+		// radio_favorites and radio_listen_sessions by station).
+		"UpdateRadioOwnStation", "UpdateRadioOwnStreamURL", "SetRadioOwnStreamProbe", "SetRadioStationQuality",
+		"DeleteRadioOwnStation"} {
 		query := oneStatement(t, src, name)
 		plan := explain(t, e, query)
 		// Every SCAN except the materialised CTE (subquery-N, the alias r of its one row) reads a
@@ -112,12 +116,29 @@ func TestOneStationQueriesUseKeys(t *testing.T) {
 			t.Errorf("%s has no keyed read:\n%s", name, plan)
 		}
 	}
+	// The daily delete of the missing catalog stations reads radio_stations as a whole by design,
+	// but its cascades go through the keys of the station.
+	plan := explain(t, e, oneStatement(t, src, "DeleteMissingRadioStations"))
+	for _, line := range strings.Split(plan, "\n") {
+		if strings.HasPrefix(line, "SCAN ") && !strings.HasPrefix(line, "SCAN radio_stations") {
+			t.Errorf("DeleteMissingRadioStations scans a table in its cascade (%s):\n%s", line, plan)
+		}
+	}
 }
 
 // explain returns the detail lines of EXPLAIN QUERY PLAN for query, its parameters bound to 1.
+// namedParam finds them.
 func explain(t *testing.T, e *catEnv, query string) string {
 	t.Helper()
-	rows, err := e.db.Read.QueryContext(e.ctx, "EXPLAIN QUERY PLAN "+query, sql.Named("station_id", 1), sql.Named("id", 1))
+	var args []any
+	seen := map[string]bool{}
+	for _, m := range namedParam.FindAllStringSubmatch(query, -1) {
+		if !seen[m[1]] {
+			seen[m[1]] = true
+			args = append(args, sql.Named(m[1], 1))
+		}
+	}
+	rows, err := e.db.Read.QueryContext(e.ctx, "EXPLAIN QUERY PLAN "+query, args...)
 	if err != nil {
 		t.Fatalf("explain: %v\n%s", err, query)
 	}
@@ -138,7 +159,7 @@ func explain(t *testing.T, e *catEnv, query string) string {
 }
 
 // oneStatement returns the statement of the named query in src without its comment lines (a
-// comment may hold a semicolon), cut at its semicolon.
+// comment may hold a semicolon), cut at its semicolon, with the sqlc macros as parameters.
 func oneStatement(t *testing.T, src []byte, name string) string {
 	t.Helper()
 	m := regexp.MustCompile(`(?s)-- name: ` + name + ` :\w+\n(.*?)(?:\n-- name: |\z)`).FindSubmatch(src)
@@ -155,8 +176,13 @@ func oneStatement(t *testing.T, src []byte, name string) string {
 	if !ok {
 		t.Fatalf("query %s has no semicolon", name)
 	}
-	return stmt
+	return sqlcArg.ReplaceAllString(stmt, "@$1")
 }
+
+var namedParam = regexp.MustCompile(`@(\w+)`)
+
+// sqlcArg is a sqlc.arg or sqlc.narg macro, which SQLite reads as the named parameter.
+var sqlcArg = regexp.MustCompile(`sqlc\.n?arg\('(\w+)'\)`)
 
 // BenchmarkAdminStationsLarge measures one page of the admin list (exceptions) over the synthetic
 // catalog of 40,000 stations, every station recommended so the page is full.

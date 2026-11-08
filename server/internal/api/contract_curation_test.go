@@ -302,10 +302,13 @@ func TestContractHomeRows(t *testing.T) {
 	if err := pf.f.DB.Read.QueryRow(`SELECT count(*) FROM libraries`).Scan(&libraries); err != nil {
 		t.Fatal(err)
 	}
-	if len(rows) != 9+libraries || rows[0].Id != "spotlight" || rows[7].Id != "genres" || rows[8].Id != "libraries" || !rows[8].Hidden {
+	// «Meine Sender» (migration 00039) follows «Meine Medien»; the libraries of the fixture came after
+	// the migration, so the trigger puts their rows behind it.
+	if len(rows) != 10+libraries || rows[0].Id != "spotlight" || rows[7].Id != "genres" || rows[8].Id != "libraries" || !rows[8].Hidden ||
+		rows[9].Id != "radio" || !rows[9].Hidden {
 		t.Fatalf("default rows %+v", rows)
 	}
-	for _, r := range rows[9:] {
+	for _, r := range rows[10:] {
 		if r.Key != "library" || !r.Hidden || r.LibraryId == nil || r.Id != fmt.Sprintf("library:%d", *r.LibraryId) ||
 			r.LibraryName == nil || *r.LibraryName == "" {
 			t.Errorf("library row %+v, want hidden with its library and name", r)
@@ -370,8 +373,9 @@ func TestContractHomeRows(t *testing.T) {
 	for _, r := range rows {
 		ids = append(ids, r.Id)
 	}
-	if want := append(slices.Clone(order), "libraries", "library:1"); !slices.Equal(ids[:len(want)], want) ||
-		!rows[0].Hidden || rows[8].Hidden || rows[9].Hidden || !rows[10].Hidden {
+	// «Meine Sender» keeps its hidden place between «Meine Medien» and the library rows.
+	if want := append(slices.Clone(order), "libraries", "radio", "library:1"); !slices.Equal(ids[:len(want)], want) ||
+		!rows[0].Hidden || rows[8].Hidden || !rows[9].Hidden || rows[10].Hidden || !rows[11].Hidden {
 		t.Errorf("short list: rows %+v, want %v first, recent hidden, the two shown", rows, want)
 	}
 	if keys := homeKeys(append(slices.Clone(order), "libraries", "library")); !slices.Contains(keys, "libraries") || !slices.Contains(keys, "library") {

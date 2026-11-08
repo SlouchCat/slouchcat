@@ -635,6 +635,8 @@ type RadioConfig struct {
 	LastAdded        int64
 	LastRemoved      int64
 	UpdatedAt        int64
+	CoverMusicbrainz int64
+	CoverItunes      int64
 }
 
 type RadioFavorite struct {
@@ -738,6 +740,25 @@ type RadioStream struct {
 	Lastcheckok int64
 	Preferred   int64
 	UpdatedAt   int64
+}
+
+type RadioTagRule struct {
+	Tag       string
+	Facet     string
+	Value     sql.NullString
+	UpdatedAt int64
+}
+
+type RadioTrack struct {
+	ID        int64
+	Key       string
+	Artist    sql.NullString
+	Title     sql.NullString
+	State     string
+	Source    sql.NullString
+	ImageHash sql.NullString
+	CheckedAt int64
+	ExpiresAt int64
 }
 
 type SearchDoc struct {

@@ -579,3 +579,50 @@ func TestTilePrepaint(t *testing.T) {
 		}
 	}
 }
+
+// radioCatalog is a catalog whose start page has no stage and the row radio first.
+type radioCatalog struct {
+	emptyCatalog
+	row model.HomeRow
+}
+
+func (c radioCatalog) FirstRow(context.Context, model.Profile) (model.HomeRow, error) {
+	return c.row, nil
+}
+
+// Concept 16 section 10.2: with «Meine Sender» first on a page without a stage, GET / preloads
+// the first station logo (w256, the StationTile's URL) and paints up to three logos ahead, each
+// in a span.station, stopping at the first station without a logo.
+func TestStartPagePreloadStations(t *testing.T) {
+	t.Parallel()
+	session := model.Session{ID: 1, Account: model.Account{ID: 1}, Profile: model.Profile{ID: 7, AccountID: 1}, ExpiresAt: time.Now().Add(time.Hour)}
+	auth := preloadAuth{sessions: map[string]model.Session{"p": session}}
+	tile := func(id int64, hash string) model.RadioHomeStation {
+		return model.RadioHomeStation{Station: model.RadioStation{ID: id, Name: "S", LogoHash: hash}}
+	}
+	row := model.HomeRow{ID: "radio", Key: model.RowRadio, Stations: []model.RadioHomeStation{tile(9002, "a+b"), tile(9001, "c"), tile(9005, "d"), tile(9006, "e")}}
+	h := NewHandler(Options{Version: "test", Started: time.Now(), Logger: vistest.Logger(), Web: shellHandler(), Auth: auth,
+		Catalog: radioCatalog{row: row}})
+	rec := getWithToken(h, "/", "p")
+	const open = `<div id="poster-prepaint" aria-hidden="true">`
+	want := open + `<span class="station"><img src="/api/v1/radio/images/9002/logo/w256?v=a%2Bb" alt="" loading="eager" fetchpriority="high" decoding="sync"></span>` +
+		`<span class="station"><img src="/api/v1/radio/images/9001/logo/w256?v=c" alt="" loading="eager"></span>` +
+		`<span class="station"><img src="/api/v1/radio/images/9005/logo/w256?v=d" alt="" loading="eager"></span></div>`
+	if rec.Code != http.StatusOK || rec.Body.String() != shellWith(want) {
+		t.Fatalf("status %d, body %q\nwant %q", rec.Code, rec.Body.String(), shellWith(want))
+	}
+	if links := rec.Header().Values("Link"); !slices.Contains(links, "</api/v1/radio/images/9002/logo/w256?v=a%2Bb>; rel=preload; as=image; fetchpriority=high") {
+		t.Errorf("Link = %q, want the first station logo", links)
+	}
+	if got := stationPrepaint([]model.RadioHomeStation{tile(1, "a"), tile(2, ""), tile(3, "c")}); got !=
+		open+`<span class="station"><img src="/api/v1/radio/images/1/logo/w256?v=a" alt="" loading="eager" fetchpriority="high" decoding="sync"></span></div>` {
+		t.Errorf("stops at a station without logo: %q", got)
+	}
+	// A first station without a logo: no image preload and nothing painted.
+	h = NewHandler(Options{Version: "test", Started: time.Now(), Logger: vistest.Logger(), Web: shellHandler(), Auth: auth,
+		Catalog: radioCatalog{row: model.HomeRow{Key: model.RowRadio, Stations: []model.RadioHomeStation{tile(1, ""), tile(2, "b")}}}})
+	rec = getWithToken(h, "/", "p")
+	if rec.Body.String() != shellWith("") || len(rec.Header().Values("Link")) != 3 {
+		t.Errorf("first station without logo: body %q, links %q", rec.Body.String(), rec.Header().Values("Link"))
+	}
+}

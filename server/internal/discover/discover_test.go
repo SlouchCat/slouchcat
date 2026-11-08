@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
-	"github.com/slouchcat/slouchcat/server/internal/visibility"
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
@@ -1007,11 +1006,11 @@ func TestHomeRowPanicFailsThePage(t *testing.T) {
 	f := vistest.New(t)
 	s := New(f.DB, f.CacheDir, vistest.Logger())
 	row := s.loadRow
-	s.loadRow = func(ctx context.Context, scope visibility.Scope, setting model.HomeRowSetting) (model.HomeRow, error) {
+	s.loadRow = func(ctx context.Context, profile model.Profile, setting model.HomeRowSetting) (model.HomeRow, error) {
 		if setting.Key == RowRecent {
 			panic("row exploded")
 		}
-		return row(ctx, scope, setting)
+		return row(ctx, profile, setting)
 	}
 	_, err := s.Home(context.Background(), f.P6, nil)
 	if err == nil || !strings.Contains(err.Error(), "home row recent: panic: row exploded") || !strings.Contains(err.Error(), "goroutine") {
@@ -1041,7 +1040,7 @@ func rowsFixture(t *testing.T, load func(ctx context.Context, i int, setting mod
 	for i, r := range order {
 		index[r.ID] = i
 	}
-	s.loadRow = func(ctx context.Context, _ visibility.Scope, setting model.HomeRowSetting) (model.HomeRow, error) {
+	s.loadRow = func(ctx context.Context, _ model.Profile, setting model.HomeRowSetting) (model.HomeRow, error) {
 		return load(ctx, index[setting.ID], setting)
 	}
 	return s, order, f
@@ -1116,7 +1115,7 @@ func TestHomeRowErrorsAroundTheCut(t *testing.T) {
 				}
 				return model.HomeRow{ID: setting.ID, Key: setting.Key, Items: []model.ItemSummary{{ID: setting.ID}}}, nil
 			})
-			page, err := s.page(context.Background(), visibility.Profile(model.Profile{}), tc.untilHero)
+			page, err := s.page(context.Background(), model.Profile{}, tc.untilHero)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("err = %v, want %q", err, tc.wantErr)
@@ -1153,7 +1152,7 @@ func TestHomeStopsLoadingBehindThePage(t *testing.T) {
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	page, err := s.page(ctx, visibility.Profile(model.Profile{}), false)
+	page, err := s.page(ctx, model.Profile{}, false)
 	if err != nil || ctx.Err() != nil {
 		t.Fatalf("page: err %v, request %v, want the rows behind the cut cancelled", err, ctx.Err())
 	}
@@ -1166,7 +1165,7 @@ func TestHomeStopsLoadingBehindThePage(t *testing.T) {
 
 	exec(t, f, `UPDATE home_rows SET hidden = 1 WHERE id = 'spotlight'`)
 	loaded.Store(0)
-	page, err = s.page(ctx, visibility.Profile(model.Profile{}), true)
+	page, err = s.page(ctx, model.Profile{}, true)
 	if err != nil || len(page.Rows) != 0 || page.HeroRow != "" || loaded.Load() != 0 {
 		t.Errorf("until the stage without spotlight: page %+v, err %v, %d rows loaded, want an empty page and no row loaded", page, err, loaded.Load())
 	}

@@ -7,6 +7,7 @@ import (
 	"html"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -25,7 +26,7 @@ type heroPicker interface {
 	// page has no stage.
 	FirstHero(ctx context.Context, profile model.Profile) (item model.ItemSummary, start int, first bool, err error)
 	// FirstRow returns the first row when the page has no stage, or model.ErrNotFound when it has
-	// one or its first row holds neither titles nor library tiles.
+	// one or its first row holds neither titles, library tiles nor stations.
 	FirstRow(ctx context.Context, profile model.Profile) (model.HomeRow, error)
 }
 
@@ -162,6 +163,10 @@ func startPagePreload(auth AuthService, picker heroPicker, log *slog.Logger) fun
 						case len(row.Libraries) > 0 && len(row.Libraries[0].Items) > 0:
 							link = posterLink(row.Libraries[0].Items[0], session.Profile.ID)
 							prepaint = tilePrepaint(row.Libraries, session.Profile.ID)
+						case len(row.Stations) > 0 && row.Stations[0].Station.LogoHash != "":
+							// «Meine Sender» (concept 16 section 10.2): the first station logos.
+							link = "<" + stationLogoURL(row.Stations[0].Station) + ">; rel=preload; as=image; fetchpriority=high"
+							prepaint = stationPrepaint(row.Stations)
 						}
 					}
 				}
@@ -305,6 +310,35 @@ tiles:
 			t.WriteString(">")
 		}
 		b.WriteString(`<span class="tile">` + t.String() + `</span>`)
+	}
+	if b.Len() == 0 {
+		return ""
+	}
+	return `<div id="poster-prepaint" aria-hidden="true">` + b.String() + `</div>`
+}
+
+// stationLogoURL is the w256 logo of a station as the client's StationTile loads it (the URL of
+// RadioStation.logo, radioLogoURL).
+func stationLogoURL(st model.RadioStation) string {
+	return BasePath + "/radio/images/" + strconv.FormatInt(st.ID, 10) + "/logo/w256?v=" + url.QueryEscape(st.LogoHash)
+}
+
+// stationPrepaint returns the first tiles of «Meine Sender» as markup for the app shell (concept
+// 16 section 10.2): up to tilePrepaintTiles station logos, each in a span (#poster-prepaint >
+// .station in web/src/ui/global.css, the geometry of the square StationTile in a row), the first
+// one with priority and sync decoding like the preload. It stops at the first station without a
+// logo, like posterPrepaint: the tile shows its lettered fallback there.
+func stationPrepaint(stations []model.RadioHomeStation) string {
+	var b strings.Builder
+	for i, h := range stations[:min(len(stations), tilePrepaintTiles)] {
+		if h.Station.LogoHash == "" {
+			break
+		}
+		b.WriteString(`<span class="station"><img src="` + html.EscapeString(stationLogoURL(h.Station)) + `" alt="" loading="eager"`)
+		if i == 0 {
+			b.WriteString(` fetchpriority="high" decoding="sync"`)
+		}
+		b.WriteString("></span>")
 	}
 	if b.Len() == 0 {
 		return ""

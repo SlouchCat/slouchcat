@@ -60,6 +60,8 @@ export { NowPlayingDialog } from './NowPlayingDialog';
 // The radio page's filters (concept 16, 10.1): a facet with counts, the phone's sheet.
 export { FacetOptions, FacetSelect, type FacetOption } from './FacetSelect';
 export { FilterSheet } from './FilterSheet';
+// The radio administration's coverage per facet (concept 16 stage 2, tab «Einordnung»).
+export { CoverageBars, type CoverageRow } from './CoverageBars';
 export { AudioPlayer, type AudioPlayerMenu } from './AudioPlayer';
 // Building blocks of the player (concept 13, 11.10).
 export { ChapterCard } from './ChapterCard';

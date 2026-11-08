@@ -51,7 +51,7 @@ type listenSession struct {
 	expires      time.Time
 	touched      time.Time // last write of last_seen_at
 	playing      bool
-	maxCounted   int64 // highest segment number credited (listentime.go)
+	counted      map[int64]struct{} // segment numbers of the window already credited (listentime.go)
 	done         chan struct{}
 	relay        *relay
 }
@@ -150,7 +150,7 @@ func (s *Service) Listen(ctx context.Context, session model.Session, stationID i
 	now := s.now()
 	ls := &listenSession{id: ulid.Make().String(), sessionID: session.ID, accountID: session.Account.ID,
 		accountEmail: session.Account.Email, profile: session.Profile, stationID: stationID, window: r.window,
-		created: now, expires: now.Add(r.window), touched: now, playing: true, maxCounted: -1,
+		created: now, expires: now.Add(r.window), touched: now, playing: true, counted: map[int64]struct{}{},
 		done: make(chan struct{}), relay: r}
 	ls.token = SignToken(s.o.tokenKey, ls.id, stationID)
 	if err := appq.New(s.db.Write).InsertRadioListenSession(ctx, appq.InsertRadioListenSessionParams{
@@ -185,8 +185,12 @@ func (s *Service) Listen(ctx context.Context, session model.Session, stationID i
 			view.Favorite = slices.Contains(ids, stationID)
 		}
 	}
+	shift := 0 // memory mode keeps only the live edge (F-4)
+	if s.bufferMode() == model.RadioBufferTmpfs {
+		shift = int(r.window / time.Second)
+	}
 	return model.RadioListen{ListenID: ls.id, Token: ls.token, HeartbeatSeconds: heartbeatSeconds,
-		StartOffsetSeconds: startOffsetSeconds, Station: view}, nil
+		StartOffsetSeconds: startOffsetSeconds, TimeShiftSeconds: shift, Station: view}, nil
 }
 
 // stationView is the station of a new listen session as far as the relay part knows it; the
@@ -634,7 +638,7 @@ func (s *Service) Segment(_ context.Context, g model.RadioGrant, n int64) ([]byt
 	if err != nil {
 		return nil, nil, err
 	}
-	s.creditSegment(ls, n, dur)
+	s.creditSegment(ls, n, dur, r.oldestSeq())
 	return data, ls.done, nil
 }
 
@@ -684,19 +688,27 @@ func (s *Service) Relays(ctx context.Context) (model.RadioRelays, error) {
 }
 
 // Run sweeps the listen sessions and relays every 30 s until ctx ends, then stops every relay
-// (started by the server next to playback.Service.Run).
+// (started by the server next to playback.Service.Run); it also runs the cover worker (cover.go)
+// and returns only after the worker has ended.
 func (s *Service) Run(ctx context.Context) {
 	s.relayStart(ctx)
+	covers := make(chan struct{})
+	go func() {
+		defer close(covers)
+		s.runCovers(ctx)
+	}()
 	t := time.NewTicker(sweepInterval)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
+			s.cat.bg.stop() // own-station probes and a background rule apply end first
 			s.rel.mu.Lock()
 			s.rel.closed = true
 			s.rel.mu.Unlock()
 			s.stopRelays()
 			s.flushListenTime(context.WithoutCancel(ctx))
+			<-covers // no lookup writes after Run returned (the database closes after it)
 			return
 		case <-t.C:
 			s.sweep(ctx)
@@ -705,7 +717,7 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 // sweep expires listen sessions past their expiry, writes the listen time, stops relays without
-// a listener for grace_seconds and deletes old listen time.
+// a listener for grace_seconds, deletes old listen time and, once a day, expired covers.
 func (s *Service) sweep(ctx context.Context) {
 	now := s.now()
 	var expired []string
@@ -719,6 +731,8 @@ func (s *Service) sweep(ctx context.Context) {
 	s.endRows(ctx, expired, model.RadioEndedExpired)
 	s.flushListenTime(ctx)
 	s.stopIdleRelays(ctx, now)
+	s.sweepCovers(ctx, now)
+	s.retryTagRulesLater()
 	s.rel.mu.Lock()
 	prune := now.Sub(s.rel.pruned) >= time.Hour
 	if prune {

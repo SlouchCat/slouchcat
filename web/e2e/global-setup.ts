@@ -210,13 +210,31 @@ async function ensureRadioCatalog(api: APIRequestContext): Promise<void> {
   }
 }
 
+/** The time shift window of the suite: 10 minutes keep the relay buffers on disk small (D-14). */
+const RADIO_BUFFER_MINUTES = 10;
+
+/** Sets the radio's time shift window to RADIO_BUFFER_MINUTES, for the relays started from now on. */
+async function ensureRadioBuffer(api: APIRequestContext): Promise<void> {
+  const config = await api.get('/api/v1/admin/radio/config');
+  if (!config.ok()) throw new Error(`GET /admin/radio/config answered ${config.status()}`);
+  if (((await config.json()) as { bufferMinutes: number }).bufferMinutes === RADIO_BUFFER_MINUTES) {
+    return;
+  }
+  const patch = await api.patch('/api/v1/admin/radio/config', {
+    data: { bufferMinutes: RADIO_BUFFER_MINUTES },
+  });
+  if (!patch.ok()) {
+    throw new Error(`PATCH /admin/radio/config answered ${patch.status()}: ${await patch.text()}`);
+  }
+}
+
 /**
  * Builds nothing and expects the server from start-server.mjs: runs the setup wizard through the
  * API (main account, the audiobook library on testdata/media/Audiobooks, no TMDB key), adds the
  * podcast library, subscribes to the local feed and notes the ids of the test books, then adds
  * the video libraries on testdata/media/Movies and testdata/media/TV and waits for their scans.
- * Then the webradio's first catalog sync (concept 16). Last, one global pick of the H264 film gives
- * the start page its carousel (M7).
+ * Then the webradio's first catalog sync and its time shift window of 10 minutes (concept 16).
+ * Last, one global pick of the H264 film gives the start page its carousel (M7).
  * The order matters: the start page's "Neu hinzugefügt" holds the 20 newest titles, and the test
  * media have exactly 20 films and series; scanned last, they fill the row in every run (titles of
  * one scan batch share their time, so the row would otherwise drop an arbitrary older title).
@@ -257,6 +275,7 @@ export default async function globalSetup(): Promise<void> {
     await ensureVideoLibraries(api);
     await waitForScan(api);
     await ensureRadioCatalog(api);
+    await ensureRadioBuffer(api);
     // Since M7 the start page has a carousel only with picks: one global pick of the H264 film.
     await ensureBaselinePick(api);
     await api.storageState({ path: STORAGE_STATE });

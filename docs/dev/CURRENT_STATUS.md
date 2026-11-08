@@ -1,5 +1,34 @@
 # Aktueller Stand
 
+## Konzept 16 Stufe 2 «Webradio: Zurück und Cover» (8. November 2026): Pull Request
+
+Zweig `claude/webradio-stufe2-09f306` ab `main` `344ebe33` (Release 1.18.2). **Vertrag 1.19.0, brechend für `getHome`
+und `setHomeRows`** (Reihen-Schlüssel `radio`), **Migration 00039**. Bau auf Marcos Wort vom 8. November 2026 nach Plan
+in drei Spuren (Relay und Cover, Regeln und eigene Sender, Web) mit Kritiker-Review des Plans (REVISE, alle Befunde
+eingearbeitet), Code-Review und Security-Review (Befunde behoben). Entscheide im Nachtrag zu Frage 23 und in ADR 0025.
+
+- **Zeitversatz:** Regler bis zur Pufferlänge (30 Minuten ab Werk) in «Jetzt läuft», Zustand «LIVE» oder «−12:30» im
+  Mini-Player, Hinweis nach einer Pause über die Pufferlänge; ohne `tmpfs` kein Regler (`RadioListen.timeShiftSeconds`).
+  Die Hörzeit (K-5) zählt jedes ausgelieferte Stück einmal, auch hinter Live.
+- **Zeitleiste nach Ton-Position:** MP3 und AAC werden nach gezählten Rahmen gestempelt (Abweichung im Test unter 3 µs,
+  Ziel 4 s); «Zuvor gespielt» aus derselben Zeitleiste.
+- **Cover:** `StreamUrl`-Bild, MusicBrainz mit Cover Art Archive, iTunes-Suche (zwei Schalter), Cache `radio_tracks`
+  (30 Tage Treffer, 24 Stunden Fehlschlag), Senderlogo als Rückfall; eigene Bildroute `getRadioCover`.
+- **Startseite:** Reihe «Meine Sender» (ab Werk ausgeblendet am Ende), Kachel mit aktuellem Titel nur, solange der
+  Sender läuft; Vorabmalerei, wenn sie zuoberst steht.
+- **Verwaltung:** Reiter «Einordnung» (Regeln, Arbeitsliste ab 20 Sendern, «Ignorieren», Abdeckung), «Eigene Sender»
+  (ohne Adressen im lokalen Netz, auch nicht über `.pls`/`.m3u`), Cover-Schalter; Radio-Hörer auf «Streams» aus
+  `listRadioRelays` (`listStreams` unverändert).
+- **Tests:** Migrations- und Stands-Test (`testdata/db/webradio2.sql`), Abnahmetest der Zeitleiste, Cover-Kette gegen
+  Attrappen, Regeln über 40 000 Sender, Playwright-Tastaturtests (`radio-player`, `home-radio`, `admin-radio`,
+  `admin-streams`), 18 neue Storybook-Baselines. Messwerte in `docs/perf/radio.md` Abschnitt 4.
+- **Prüfung:** `task ci` auf `f675dab7`: Server (39 Pakete) grün, Web 1603 Vitest-Tests, Storybook 410 Geschichten,
+  e2e in drei Shards 546 von 547 grün; der eine rote Test (`admin-folder-browser.spec.ts:151`, Fokus nach Esc, ohne
+  Bezug zum Radio) lief danach mit `--repeat-each 3` 24 von 24 grün: ein Flake unter Last. Danach Versionsstellen auf
+  1.19.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`, `deploy/README.md`,
+  `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`) und `task check:fast` grün.
+- **Offen für die Abnahme auf CT 190:** siehe `docs/perf/radio.md` Abschnitt 4; iPhone weiterhin ungetestet.
+
 ## Release 1.18.2 (8. November 2026): Radio-Verwaltung ohne Wartezeit
 
 Patch ohne Vertragsänderung (Vertrag bleibt 1.18.0), keine Migration. Zweig `claude/radio-station-reload`

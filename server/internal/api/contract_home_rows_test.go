@@ -21,8 +21,9 @@ import (
 // homeRowsCheck matches the key list of the CHECK constraint of the rebuilt home_rows table.
 var homeRowsCheck = regexp.MustCompile(`(?s)CREATE TABLE home_rows_new \(.*?\bkey\s+TEXT\s+NOT NULL CHECK \(key IN \(([^)]*)\)\)`)
 
-// E-9, ADR 0011, concept 15 P-7: the start page row keys live in three places, the HomeRowKey enum
-// of the contract, model.HomeRowKeys and the CHECK of home_rows in migration 00035. All three name
+// E-9, ADR 0011, concept 15 P-7, concept 16 stage 2: the start page row keys live in three places,
+// the HomeRowKey enum of the contract, model.HomeRowKeys and the CHECK of home_rows in the newest
+// migration that rebuilt it (00039). All three name
 // the same set, so a key cannot be accepted by one layer and refused by another.
 func TestHomeRowKeysAgree(t *testing.T) {
 	t.Parallel()
@@ -37,13 +38,13 @@ func TestHomeRowKeysAgree(t *testing.T) {
 		contract = append(contract, fmt.Sprint(v))
 	}
 
-	migration, err := os.ReadFile("../../migrations/00035_home_rows_libraries.sql")
+	migration, err := os.ReadFile("../../migrations/00039_radio_stage2.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := homeRowsCheck.FindSubmatch(migration)
 	if m == nil {
-		t.Fatal("migration 00035 has no CHECK (key IN (...)) on home_rows_new")
+		t.Fatal("migration 00039 has no CHECK (key IN (...)) on home_rows_new")
 	}
 	var check []string
 	for _, k := range strings.Split(string(m[1]), ",") {
@@ -51,10 +52,10 @@ func TestHomeRowKeysAgree(t *testing.T) {
 	}
 
 	want := slices.Sorted(slices.Values(model.HomeRowKeys))
-	if len(slices.Compact(slices.Clone(want))) != 10 {
-		t.Fatalf("model.HomeRowKeys = %v, want ten distinct keys", model.HomeRowKeys)
+	if len(slices.Compact(slices.Clone(want))) != 11 {
+		t.Fatalf("model.HomeRowKeys = %v, want eleven distinct keys", model.HomeRowKeys)
 	}
-	for place, got := range map[string][]string{"contract HomeRowKey": contract, "migration 00035 CHECK": check} {
+	for place, got := range map[string][]string{"contract HomeRowKey": contract, "migration 00039 CHECK": check} {
 		if got := slices.Sorted(slices.Values(got)); !slices.Equal(got, want) {
 			t.Errorf("%s = %v, want the keys of model.HomeRowKeys %v", place, got, want)
 		}
@@ -232,5 +233,62 @@ func TestHomeLibraryRowsOverHTTP(t *testing.T) {
 	}
 	if links := shell.Header().Values("Link"); !slices.ContainsFunc(links, func(l string) bool { return strings.HasPrefix(l, "<"+small+">; rel=preload; as=image") }) {
 		t.Errorf("Link = %q, want the first tile's first poster preloaded", links)
+	}
+}
+
+// Concept 16 section 10.2 (contract 1.19.0): the row radio «Meine Sender» carries the favourite
+// stations the profile may reach as stations (no ItemRef), a hidden favourite left out and no
+// title while no relay runs; a profile without favourites gets no row, and the row stays off the
+// page while the administration keeps it hidden (F-17, the migration's default).
+func TestContractHomeRadioRow(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	type station struct {
+		Station struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+		} `json:"station"`
+		Now *json.RawMessage `json:"now"`
+	}
+	type row struct {
+		Key      string            `json:"key"`
+		Items    []json.RawMessage `json:"items"`
+		Stations []station         `json:"stations"`
+	}
+	radioRow := func(token string) (row, bool) {
+		t.Helper()
+		var page struct {
+			Rows []row `json:"rows"`
+		}
+		rec := send(t, h, http.MethodGet, BasePath+"/home", token, "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s home: %d %s", token, rec.Code, rec.Body.String())
+		}
+		decode(t, rec, &page)
+		for _, r := range page.Rows {
+			if r.Key == model.RowRadio {
+				return r, true
+			}
+		}
+		return row{}, false
+	}
+	if _, ok := radioRow("p6"); ok {
+		t.Error("the hidden row radio is on the page")
+	}
+	exec := func(query string, args ...any) {
+		t.Helper()
+		if _, err := f.DB.Write.ExecContext(context.Background(), query, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec(`UPDATE home_rows SET hidden = 0, position = -1 WHERE id = 'radio'`)
+	exec(`INSERT INTO radio_favorites (profile_id, station_id, position, created_at) VALUES (?, ?, 1, 1), (?, ?, 2, 1)`,
+		f.P6.ID, vistest.RadioHidden, f.P6.ID, vistest.RadioExcluded)
+	r, ok := radioRow("p6")
+	if !ok || len(r.Stations) != 1 || r.Stations[0].Station.ID != vistest.RadioDE || r.Stations[0].Now != nil || len(r.Items) != 0 {
+		t.Errorf("P6 row radio = %+v (present %v), want only the favourite Fixture Radio DE without a title", r, ok)
+	}
+	if _, ok := radioRow("p0"); ok {
+		t.Error("P0 without favourites has the row radio")
 	}
 }

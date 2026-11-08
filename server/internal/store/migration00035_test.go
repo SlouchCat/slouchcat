@@ -85,8 +85,9 @@ func TestMigration00035HomeRows(t *testing.T) {
 			t.Errorf("new row %+v, want hidden behind the eight", r)
 		}
 	}
-	// feinschliff.sql has the libraries 1 «Filme» and 2 «Serien».
-	if want := []string{"libraries", "library:1", "library:2"}; !slices.Equal(ids[8:], want) {
+	// feinschliff.sql has the libraries 1 «Filme» and 2 «Serien»; «Meine Sender» of 00039 follows
+	// them (TestMigration00039RadioStage2).
+	if want := []string{"libraries", "library:1", "library:2", "radio"}; !slices.Equal(ids[8:], want) {
 		t.Errorf("rows behind the eight %v, want %v", ids[8:], want)
 	}
 
@@ -98,8 +99,8 @@ func TestMigration00035HomeRows(t *testing.T) {
 	var position, hidden int
 	var updatedAt int64
 	if err := db.Read.QueryRowContext(ctx, `SELECT id, position, hidden, updated_at FROM home_rows WHERE library_id = 7`).Scan(&id, &position, &hidden, &updatedAt); err != nil ||
-		id != "library:7" || position != 11 || hidden != 1 || updatedAt != 42 {
-		t.Errorf("row of the new library = %s at %d, hidden %d, time %d (%v); want library:7 at 11, hidden, 42", id, position, hidden, updatedAt, err)
+		id != "library:7" || position != 12 || hidden != 1 || updatedAt != 42 {
+		t.Errorf("row of the new library = %s at %d, hidden %d, time %d (%v); want library:7 at 12, hidden, 42", id, position, hidden, updatedAt, err)
 	}
 
 	for _, bad := range []string{
