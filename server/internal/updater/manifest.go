@@ -78,7 +78,7 @@ func FetchReleaseFile(ctx context.Context, client *http.Client, fileURL, userAge
 	}
 	body, ferr := fetchViaAPI(ctx, client, ref, userAgent, limit)
 	if ferr != nil {
-		return nil, fmt.Errorf("%w (API fallback: %v)", err, ferr)
+		return nil, fmt.Errorf("%w (API fallback: %w)", err, ferr) // errors.As finds the first error first
 	}
 	return body, nil
 }
