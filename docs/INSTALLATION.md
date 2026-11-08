@@ -77,10 +77,24 @@ Unterordner von `/media`, du klickst dich zum richtigen Ordner und musst den Pfa
 auswendig wissen. Aus demselben Grund darf eine neue Bibliothek nur unter `/media` liegen. Ein
 Podcast-Ordner im Layout von Audiobookshelf (ein Unterordner je Podcast mit `metadata.json`) wird
 gelesen wie ein Hörbuch-Ordner; steht in der `metadata.json` eine Feed-Adresse, abonniert Slouchcat
-den Feed gleich mit. Hast du in
-`compose.yaml` eine zweite Einhängung ergänzt, trägst du sie komma-getrennt in
-`SLOUCHCAT_BROWSE_ROOTS` ein (zum Beispiel `SLOUCHCAT_BROWSE_ROOTS=/media,/media2`). Bibliotheken, die
-es schon gibt, bleiben in jedem Fall bestehen.
+den Feed gleich mit. Brauchst du eine zweite
+Einhängung, ergänzt du sie nicht in `compose.yaml`, sondern in einer eigenen Override-Datei, zum
+Beispiel `compose.override.yaml` im selben Ordner:
+
+```yaml
+services:
+  slouchcat:
+    volumes:
+      - /mnt/usb/medien:/media2:ro
+```
+
+Ohne `COMPOSE_FILE` und ohne `-f` liest Docker Compose `compose.override.yaml` von selbst; sonst hängst
+du sie hinten an `COMPOSE_FILE` an (zum Beispiel `COMPOSE_FILE=compose.yaml:compose.override.yaml`)
+bzw. an deine `-f`-Liste. Der Grund: Ein Update ersetzt die offiziellen Compose-Dateien, die du nicht
+geändert hast; eine selbst geänderte bleibt liegen und bekommt dann keine Neuerungen. Die zweite
+Einhängung trägst du komma-getrennt in `SLOUCHCAT_BROWSE_ROOTS` ein (zum Beispiel
+`SLOUCHCAT_BROWSE_ROOTS=/media,/media2`). Bibliotheken, die es schon gibt, bleiben in jedem Fall
+bestehen.
 
 Den TMDB-Lesetoken kannst du hier eintragen (`SLOUCHCAT_TMDB_API_KEY=…`) oder beim ersten Start im
 Assistenten angeben. Beides ist gleichwertig; in `.env` bleibt er auch nach einer Wiederherstellung
@@ -287,9 +301,11 @@ wo er steht:
 
 1. Manifest lesen und prüfen (nur eine neuere Fassung, mit Digest). Antwortet die Download-Adresse
    nicht, liest er es über die GitHub-API.
-   Danach ersetzt er die offiziellen Compose-Dateien durch die des Releases, wenn sie abweichen; die alte
-   Datei bleibt als `<Datei>.bak-vor-<Fassung>` liegen. **Eigene Anpassungen gehören in `.env` oder in eine
-   eigene Override-Datei**, nicht in `compose.yaml` und die anderen offiziellen Dateien.
+   Danach ersetzt er die offiziellen Compose-Dateien, die du nicht geändert hast, durch die des
+   Releases; die alte Datei bleibt als `<Datei>.bak-vor-<Fassung>` liegen. Eine selbst geänderte Datei
+   bleibt liegen und bekommt dann keine Neuerungen. **Eigene Anpassungen gehören darum in `.env` oder
+   in eine eigene Override-Datei** (siehe Abschnitt 3), nicht in `compose.yaml` und die anderen
+   offiziellen Dateien.
 2. `.env` sichern und `SLOUCHCAT_VERSION` setzen.
 3. Das neue Image holen (`docker compose pull slouchcat`, bei einem Fehler bis zu dreimal) und seinen Digest mit dem Manifest
    vergleichen. Weicht er ab, setzt er `.env` zurück und startet nichts neu.
@@ -326,13 +342,15 @@ Sicherung).
 **Den Begleiter selbst aktualisieren.** Ab 1.18.0 folgt er dem Server von selbst: Nach einem Update
 (und alle sechs Stunden) hebt er seine Fassung `SLOUCHCAT_UPDATER_VERSION` in `.env` auf die des Servers
 und erstellt sich neu. Ein Begleiter **vor 1.18.0** kann das noch nicht (die Karte zeigt «Updater
-veraltet»); heb ihn einmal von Hand, im deploy-Ordner:
+veraltet» mit dem Befehl zum Kopieren); heb ihn einmal von Hand, mit der Fassung des Servers für
+`X`. Der Befehl setzt die Zeile in `.env` oder hängt sie an, wenn sie fehlt:
 
 ```bash
-# SLOUCHCAT_UPDATER_VERSION in .env auf die neue Fassung setzen
-docker compose pull updater
-docker compose up -d updater
+cd <deploy-ordner> && (grep -q '^SLOUCHCAT_UPDATER_VERSION=' .env && sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/SLOUCHCAT_UPDATER_VERSION=X/' .env || echo 'SLOUCHCAT_UPDATER_VERSION=X' >> .env) && docker compose up -d updater
 ```
+
+Wer die Compose-Dateien mit `-f` aufzählt statt mit `COMPOSE_FILE`, hängt dieselbe `-f`-Liste an
+(`docker compose -f compose.yaml -f compose.updater.yaml up -d updater`).
 
 **Ohne Begleiter** bleibt es bei den zwei Befehlen von oben, nachdem du `SLOUCHCAT_VERSION` in `.env`
 gesetzt hast: `docker compose pull` und `docker compose up -d`. Den Begleiter wieder entfernen:

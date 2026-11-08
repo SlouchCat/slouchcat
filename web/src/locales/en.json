@@ -2523,7 +2523,7 @@
         "migratedNoBackup": "The migration ran; going back only with the backup made before it.",
         "failure": {
           "disk_full": "The server has no space for the new image. Free some space and try again.",
-          "deploy_files": "The Compose files of the release could not be fetched or written. Nothing was changed."
+          "deploy_files": "The Compose files of the release could not be fetched or written; the update was aborted."
         },
         "finished": "Finished: {{date}}",
         "refused": {
@@ -2549,7 +2549,8 @@
         "outdated": {
           "title": "The updater is outdated; from version 1.18.0 it updates itself. Lift it by hand once:",
           "command": "Run in the deploy folder",
-          "deployDir": "<deploy-folder>"
+          "deployDir": "<deploy-folder>",
+          "files": "If you list the Compose files with -f instead of COMPOSE_FILE, append the same -f list."
         }
       },
       "activity": {

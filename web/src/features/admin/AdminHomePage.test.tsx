@@ -751,7 +751,7 @@ const installable = (overrides: Partial<Dashboard['update']> = {}): Dashboard['u
   updaterConfigured: true,
   updaterAvailable: true,
   // A companion of 1.18.0 or later reports its version and follows the server on its own.
-  updaterVersion: '0.9.0',
+  updaterVersion: '1.18.0',
   ...overrides,
 });
 
@@ -1079,7 +1079,7 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
     ],
     [
       'deploy_files',
-      'Die Compose-Dateien des Releases liessen sich nicht laden oder schreiben. Nichts wurde geändert.',
+      'Die Compose-Dateien des Releases liessen sich nicht laden oder schreiben; das Update wurde abgebrochen.',
     ],
   ])('a failed install with the code %s says why in its own words', async (code, text) => {
     mockApi(
@@ -1131,7 +1131,7 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
     mockApi(updateRoutes(installable()));
     const first = renderApp('/admin');
     let card = await serverCard();
-    await waitFor(() => expect(termsOf(card)).toContainEqual(['Updater', '0.9.0']));
+    await waitFor(() => expect(termsOf(card)).toContainEqual(['Updater', '1.18.0']));
     expect(within(card).queryByText(/Der Updater ist veraltet/)).not.toBeInTheDocument();
     first.unmount();
     mockApi(updateRoutes(installable({ updaterAvailable: false })));
@@ -1142,7 +1142,7 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
 
   it.each([
     ['without a version (before 1.18.0)', undefined],
-    ['older than the server', '0.8.2'],
+    ['with a release before 1.18.0', '1.17.0'],
   ])(
     'a companion %s: the card asks to lift it once, with the command to copy',
     async (_, updaterVersion) => {
@@ -1156,9 +1156,14 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
       ).toBeVisible();
       const command = within(card).getByRole('group', { name: 'Im deploy-Ordner ausführen' });
       expect(command).toHaveTextContent(
-        "cd <deploy-ordner> && sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/SLOUCHCAT_UPDATER_VERSION=0.9.0/' .env && docker compose up -d updater",
+        "cd <deploy-ordner> && (grep -q '^SLOUCHCAT_UPDATER_VERSION=' .env && sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/SLOUCHCAT_UPDATER_VERSION=0.9.0/' .env || echo 'SLOUCHCAT_UPDATER_VERSION=0.9.0' >> .env) && docker compose up -d updater",
       );
       expect(within(command).getByRole('button', { name: 'Kopieren' })).toBeVisible();
+      expect(
+        within(card).getByText(
+          'Wer die Compose-Dateien mit -f aufzählt statt mit COMPOSE_FILE, hängt dieselbe -f-Liste an.',
+        ),
+      ).toBeVisible();
       // The update itself stays on offer.
       expect(
         within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }),
@@ -1167,10 +1172,15 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
   );
 
   it.each([
-    ['as new as the server', { updaterVersion: '0.9.0' }],
-    ['newer than the server', { updaterVersion: '0.10.0' }],
-    ['self-built', { updaterVersion: '0.8.0-3-gabc1234' }],
-    ['next to a development build', { currentVersion: 'dev', development: true, available: false }],
+    ['of 1.18.0', { updaterVersion: '1.18.0' }],
+    ['newer than 1.18.0', { updaterVersion: '1.20.1' }],
+    // From 1.18.0 on it lifts itself shortly after the server: only the version line.
+    ['of 1.18.0 behind the server', { currentVersion: '1.19.0', updaterVersion: '1.18.0' }],
+    ['that is a development build', { updaterVersion: '1.17.0-3-gabc1234' }],
+    [
+      'next to a development build',
+      { currentVersion: 'dev', development: true, available: false, updaterVersion: undefined },
+    ],
     ['that does not answer', { updaterAvailable: false, updaterVersion: undefined }],
   ] as const)('a companion %s needs no lifting', async (_, overrides) => {
     mockApi(updateRoutes(installable(overrides)));
@@ -1186,7 +1196,6 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
         installable({
           available: false,
           currentVersion: '0.9.1',
-          updaterVersion: '0.9.1',
           install: install({ phase: 'done', finishedAt: '2026-11-07T09:05:00Z' }),
         }),
       ),

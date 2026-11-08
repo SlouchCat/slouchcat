@@ -292,10 +292,12 @@ die Datei `./updater` unter
    (`"…"`, `'…'`) und ein Kommentar ` # …` bleiben (fehlt die Zeile, wird sie angehängt). Bei mehreren
    Env-Dateien gilt die letzte, die die Zeile enthält, sonst die letzte. Ist die Env-Datei ein Symlink,
    ersetzt er das Ziel in dessen Ordner; der Link bleibt.
-   Dann ersetzt er jede offizielle Compose-Datei des Projekts, deren Inhalt vom Release abweicht
-   (Prüfsumme aus dem Manifest, Abruf ebenfalls mit Ausweichweg): die alte bleibt als
-   `<Datei>.bak-vor-<Fassung>` liegen. Eigene Anpassungen gehören darum in `.env` oder in eine eigene
-   Override-Datei; andere Dateien fasst der Begleiter nie an. Scheitert dieser Schritt, bricht die
+   Dann ersetzt er jede offizielle Compose-Datei des Projekts, die nicht selbst geändert wurde, durch
+   die des Releases (Prüfsumme aus dem Manifest, Abruf ebenfalls mit Ausweichweg): die alte bleibt als
+   `<Datei>.bak-vor-<Fassung>` liegen. Eine selbst geänderte Datei bleibt liegen und bekommt dann keine
+   Neuerungen. Eigene Anpassungen gehören darum in `.env` oder in eine eigene Override-Datei (etwa
+   `compose.override.yaml`, bei `COMPOSE_FILE` oder `-f` dort angehängt); andere Dateien fasst der
+   Begleiter nie an. Scheitert dieser Schritt, bricht die
    Installation vor dem Pull ab.
 3. `docker compose --project-name … --project-directory … --env-file … -f … pull slouchcat` (bis zu
    dreimal, wenn der Pull scheitert), dann die
@@ -334,9 +336,15 @@ gescheiterter Docker-Aufruf erscheint im Log mit Exit-Status und nur seiner letz
 **Den Begleiter aktualisieren.** Ab 1.18.0 folgt er dem Server von selbst: Läuft der Server in der
 Fassung des Manifests und ist der Begleiter älter, setzt er `SLOUCHCAT_UPDATER_VERSION` in `.env`
 (mit Sicherung wie bei `SLOUCHCAT_VERSION`) und erstellt sich neu; kommt der neue nicht hoch, stellt
-er die alte Fassung wieder her. Ein Begleiter vor 1.18.0 muss einmal von Hand gehoben werden:
-`SLOUCHCAT_UPDATER_VERSION` in `.env` auf die neue Fassung setzen, dann
-`docker compose … up -d updater` im deploy-Ordner.
+er die alte Fassung wieder her. Ein Begleiter vor 1.18.0 muss einmal von Hand gehoben werden (die
+Karte zeigt dann «Updater veraltet» mit diesem Befehl), `X` ist die Fassung des Servers; fehlt die
+Zeile in `.env`, wird sie angehängt:
+
+```bash
+cd <deploy-ordner> && (grep -q '^SLOUCHCAT_UPDATER_VERSION=' .env && sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/SLOUCHCAT_UPDATER_VERSION=X/' .env || echo 'SLOUCHCAT_UPDATER_VERSION=X' >> .env) && docker compose up -d updater
+```
+
+Wer die Compose-Dateien mit `-f` aufzählt statt mit `COMPOSE_FILE`, hängt dieselbe `-f`-Liste an.
 
 **Aufräumen.** Nach einer erfolgreichen Installation entfernt der Begleiter alte Images, ausser dem
 laufenden und dem der vorherigen Fassung (Ziel einer Rücknahme); benutzte Images bleiben.

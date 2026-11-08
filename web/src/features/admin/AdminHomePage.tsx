@@ -774,32 +774,40 @@ const plainRelease = (v: string | undefined) => {
   return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : undefined;
 };
 
+/** The first companion version that follows the server on its own. */
+const SELF_UPDATE_SINCE = [1, 18, 0] as const;
+
 /**
- * Whether the companion answers but is older than the running server or does not report its
- * version (one before 1.18.0): such a companion does not update itself and is lifted by hand once
- * (ADR 0024, addendum of 8 Nov 2026). Only between plain releases; a self-built server or
- * companion is its builder's business.
+ * Whether the companion answers but comes from before 1.18.0: it does not report its version, or
+ * reports a release older than 1.18.0. Such a companion does not update itself and is lifted by
+ * hand once (ADR 0024, addendum of 8 Nov 2026). One from 1.18.0 that lags behind the server lifts
+ * itself; a development build of the server or the companion is its builder's business.
  */
 function updaterOutdated(update: Dashboard['update']): boolean {
-  const current = plainRelease(update.currentVersion);
-  if (!update.updaterAvailable || current === undefined) return false;
+  if (!update.updaterAvailable || plainRelease(update.currentVersion) === undefined) return false;
   if (update.updaterVersion === undefined) return true;
   const companion = plainRelease(update.updaterVersion);
   if (companion === undefined) return false;
-  const diff = companion.map((n, i) => n - (current[i] ?? 0)).find((d) => d !== 0) ?? 0;
+  const diff = companion.map((n, i) => n - (SELF_UPDATE_SINCE[i] ?? 0)).find((d) => d !== 0) ?? 0;
   return diff < 0;
 }
 
 /** The hint to lift a companion that does not update itself, with the one command for it. */
 function UpdaterOutdated({ version }: { version: string }) {
   const { t } = useTranslation();
+  // The line may be missing from an .env of an older install: then it is appended.
+  const line = `SLOUCHCAT_UPDATER_VERSION=${version}`;
   const command =
     `cd ${t('admin.home.install.outdated.deployDir')} && ` +
-    `sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/SLOUCHCAT_UPDATER_VERSION=${version}/' .env && ` +
+    `(grep -q '^SLOUCHCAT_UPDATER_VERSION=' .env && ` +
+    `sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/${line}/' .env || echo '${line}' >> .env) && ` +
     'docker compose up -d updater';
   return (
     <Notice tone="warning" live={false} title={t('admin.home.install.outdated.title')}>
       <Command code={command} label={t('admin.home.install.outdated.command')} />
+      <Text tone="secondary" variant="caption">
+        {t('admin.home.install.outdated.files')}
+      </Text>
     </Notice>
   );
 }
