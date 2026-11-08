@@ -129,7 +129,7 @@ func (q *Queries) DeleteRadioStationTags(ctx context.Context, stationID int64) e
 
 const getRadioConfig = `-- name: GetRadioConfig :one
 
-SELECT id, buffer_minutes, budget_mb, max_relays, grace_seconds, hide_broken, countries, last_sync_at, last_sync_error, sync_failures, entries_total, entries_reachable, stations_total, last_added, last_removed, updated_at FROM radio_config WHERE id = 1
+SELECT id, buffer_minutes, budget_mb, max_relays, grace_seconds, hide_broken, countries, last_sync_at, last_sync_error, sync_failures, entries_total, entries_reachable, stations_total, last_added, last_removed, updated_at, cover_musicbrainz, cover_itunes FROM radio_config WHERE id = 1
 `
 
 // Webradio catalog and settings (package store/appq, concept 16 sections 5 and 7.3; owner: radio,
@@ -156,6 +156,8 @@ func (q *Queries) GetRadioConfig(ctx context.Context) (RadioConfig, error) {
 		&i.LastAdded,
 		&i.LastRemoved,
 		&i.UpdatedAt,
+		&i.CoverMusicbrainz,
+		&i.CoverItunes,
 	)
 	return i, err
 }
@@ -900,18 +902,20 @@ const updateRadioConfig = `-- name: UpdateRadioConfig :exec
 UPDATE radio_config
 SET buffer_minutes = ?1, budget_mb = ?2, max_relays = ?3,
     grace_seconds = ?4, hide_broken = ?5, countries = ?6,
-    updated_at = ?7
+    cover_musicbrainz = ?7, cover_itunes = ?8, updated_at = ?9
 WHERE id = 1
 `
 
 type UpdateRadioConfigParams struct {
-	BufferMinutes int64
-	BudgetMb      int64
-	MaxRelays     int64
-	GraceSeconds  int64
-	HideBroken    int64
-	Countries     sql.NullString
-	Now           int64
+	BufferMinutes    int64
+	BudgetMb         int64
+	MaxRelays        int64
+	GraceSeconds     int64
+	HideBroken       int64
+	Countries        sql.NullString
+	CoverMusicbrainz int64
+	CoverItunes      int64
+	Now              int64
 }
 
 // countries is a JSON array of ISO 3166-1 codes, NULL = every country.
@@ -923,6 +927,8 @@ func (q *Queries) UpdateRadioConfig(ctx context.Context, arg UpdateRadioConfigPa
 		arg.GraceSeconds,
 		arg.HideBroken,
 		arg.Countries,
+		arg.CoverMusicbrainz,
+		arg.CoverItunes,
 		arg.Now,
 	)
 	return err

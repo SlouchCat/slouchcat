@@ -25,7 +25,7 @@ func TestFrozenStartseitenreihenStateCoversTheConcept(t *testing.T) {
 		"«Meine Medien» shown second":           `SELECT count(*) FROM home_rows WHERE id = 'libraries' AND position = 1 AND hidden = 0`,
 		"a shown library row":                   `SELECT count(*) FROM home_rows WHERE id = 'library:2' AND key = 'library' AND library_id = 2 AND hidden = 0`,
 		"a hidden library row":                  `SELECT count(*) FROM home_rows WHERE id = 'library:1' AND hidden = 1`,
-		"the trigger's row, hidden at the end":  `SELECT count(*) FROM home_rows WHERE id = 'library:3' AND hidden = 1 AND position = (SELECT max(position) FROM home_rows) AND updated_at = (SELECT created_at FROM libraries WHERE id = 3)`,
+		"the trigger's row, hidden at the end":  `SELECT count(*) FROM home_rows WHERE id = 'library:3' AND hidden = 1 AND position = (SELECT max(position) FROM home_rows WHERE key <> 'radio') AND updated_at = (SELECT created_at FROM libraries WHERE id = 3)`,
 		"a row for every library":               `SELECT count(*) = (SELECT count(*) FROM libraries) FROM home_rows WHERE key = 'library'`,
 		"the trigger":                           `SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND name = 'home_rows_library_added'`,
 		"migration 00035 recorded as applied":   `SELECT count(*) FROM goose_db_version WHERE version_id = 35 AND is_applied = 1`,

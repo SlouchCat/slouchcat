@@ -11,7 +11,7 @@ SELECT * FROM radio_config WHERE id = 1;
 UPDATE radio_config
 SET buffer_minutes = @buffer_minutes, budget_mb = @budget_mb, max_relays = @max_relays,
     grace_seconds = @grace_seconds, hide_broken = @hide_broken, countries = sqlc.narg('countries'),
-    updated_at = @now
+    cover_musicbrainz = @cover_musicbrainz, cover_itunes = @cover_itunes, updated_at = @now
 WHERE id = 1;
 
 -- name: UpdateRadioSyncState :exec

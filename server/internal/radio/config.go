@@ -73,7 +73,8 @@ func (s *Service) UpdateConfig(ctx context.Context, upd model.RadioConfigUpdate)
 		return model.RadioConfig{}, fmt.Errorf("get radio config: %w", err)
 	}
 	p := appq.UpdateRadioConfigParams{BufferMinutes: cur.BufferMinutes, BudgetMb: cur.BudgetMb, MaxRelays: cur.MaxRelays,
-		GraceSeconds: cur.GraceSeconds, HideBroken: cur.HideBroken, Countries: cur.Countries, Now: s.now().UnixMilli()}
+		GraceSeconds: cur.GraceSeconds, HideBroken: cur.HideBroken, Countries: cur.Countries,
+		CoverMusicbrainz: cur.CoverMusicbrainz, CoverItunes: cur.CoverItunes, Now: s.now().UnixMilli()}
 	var verr *model.ValidationError
 	setInt := func(dst *int64, v *int, field string, ok func(int) bool) {
 		if v == nil {

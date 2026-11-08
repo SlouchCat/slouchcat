@@ -66,12 +66,13 @@ func TestFrozenStatesMigrate(t *testing.T) {
 			}
 			order := homeRowOrder(t, db)
 			// The eight rows of 00021, «Meine Medien» and one row per library (00035, concept 15
-			// P-7; TestMigration00035HomeRows checks where the migration puts them).
+			// P-7; TestMigration00035HomeRows checks where the migration puts them) and «Meine
+			// Sender» (00039, concept 16 stage 2; TestMigration00039RadioStage2).
 			var libraries int
 			if err := db.Read.QueryRow(`SELECT count(*) FROM libraries`).Scan(&libraries); err != nil {
 				t.Fatal(err)
 			}
-			want := []string{"collections", "continue", "genres", "libraries", "picks", "recent", "released", "spotlight", "watchlist"}
+			want := []string{"collections", "continue", "genres", "libraries", "picks", "radio", "recent", "released", "spotlight", "watchlist"}
 			for range libraries {
 				want = append(want, "library")
 			}

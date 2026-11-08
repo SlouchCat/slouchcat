@@ -17,8 +17,10 @@ func homeRowIDs(rows []model.HomeRowSetting) []string {
 	return out
 }
 
-// E-9, concept 15 P-7: the eight fixed rows in the default order, then «Meine Medien» and one row
-// per library, hidden; the order is set by id, the slice order is the display order.
+// E-9, concept 15 P-7: the eight fixed rows in the default order, then «Meine Medien», «Meine
+// Sender» (migration 00039, concept 16 F-17: hidden at the end of the rows the migration found) and
+// one row per library created afterwards, hidden; the order is set by id, the slice order is the
+// display order.
 func TestHomeRows(t *testing.T) {
 	c := newCurationFixture(t)
 	rows, err := c.svc.HomeRows(c.ctx)
@@ -26,15 +28,15 @@ func TestHomeRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	lib := fmt.Sprintf("library:%d", c.f.LibraryID())
-	if want := append(slices.Clone(model.HomeRowKeys[:8]), model.RowLibraries, lib); !slices.Equal(homeRowIDs(rows), want) {
+	if want := append(slices.Clone(model.HomeRowKeys[:8]), model.RowLibraries, "radio", lib); !slices.Equal(homeRowIDs(rows), want) {
 		t.Fatalf("default order %v, want %v", homeRowIDs(rows), want)
 	}
-	if r := rows[9]; r.Key != model.RowLibrary || r.LibraryID != c.f.LibraryID() || r.LibraryName != "Filme" || !r.Hidden || !rows[8].Hidden {
+	if r := rows[10]; r.Key != model.RowLibrary || r.LibraryID != c.f.LibraryID() || r.LibraryName != "Filme" || !r.Hidden || !rows[8].Hidden || !rows[9].Hidden {
 		t.Errorf("rows of P-7 %+v / %+v, want hidden, the library row with its library", rows[8], r)
 	}
 
 	order := []string{model.RowRecent, lib, model.RowPicks, model.RowGenres, model.RowContinue, model.RowWatchlist,
-		model.RowCollections, model.RowReleased, model.RowSpotlight, model.RowLibraries}
+		model.RowCollections, model.RowReleased, model.RowSpotlight, model.RowLibraries, "radio"}
 	in := make([]model.HomeRowSetting, 0, len(order))
 	for i, id := range order {
 		key := id
@@ -42,7 +44,7 @@ func TestHomeRows(t *testing.T) {
 			key = model.RowLibrary
 		}
 		// Positions in the request do not matter: the slice order is the display order.
-		in = append(in, model.HomeRowSetting{ID: id, Key: key, Position: 9 - i, Hidden: id == model.RowGenres})
+		in = append(in, model.HomeRowSetting{ID: id, Key: key, Position: 10 - i, Hidden: id == model.RowGenres})
 	}
 	out, err := c.svc.SetHomeRows(c.ctx, in)
 	if err != nil {
