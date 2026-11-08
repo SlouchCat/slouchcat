@@ -196,12 +196,15 @@ test('«Einordnung» by keyboard: a rule set to «Keins» changes the coverage, 
     await expect(row).toContainText('Vorgabe');
     const select = row.getByRole('combobox', { name: 'Genre für das Schlagwort pop' });
     await tabTo(page, select, 20);
+    // «Keins» is the last choice; the arrow keys and End only pick it, «Übernehmen» saves.
+    await page.keyboard.press('End');
+    const apply = row.getByRole('button', { name: 'Regel Genre für pop übernehmen' });
+    await tabTo(page, apply, 5);
     const saved = page.waitForResponse(
       (response) =>
         response.request().method() === 'PUT' && response.url().endsWith('/admin/radio/tag-rules'),
     );
-    // «Keins» is the last choice.
-    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
     expect((await saved).status()).toBe(200);
     await expect(
       page.getByText('Die Regel für «pop» ist gespeichert.', { exact: false }),
@@ -211,6 +214,8 @@ test('«Einordnung» by keyboard: a rule set to «Keins» changes the coverage, 
 
     // Removing the own rule asks first; the default applies again and the coverage is back.
     const remove = row.getByRole('button', { name: 'Regel Genre für pop entfernen' });
+    // Saves wait for each other: enabled once the last one settled.
+    await expect(remove).toBeEnabled();
     await tabTo(page, remove, 20);
     await page.keyboard.press('Enter');
     const confirm = page.getByRole('alertdialog', { name: 'Regel für «pop» entfernen?' });

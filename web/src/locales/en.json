@@ -1199,6 +1199,8 @@
           "admin": "Own rule"
         },
         "remove": "Remove",
+        "apply": "Apply",
+        "applyLabel": "Apply the rule {{facet}} for {{tag}}",
         "removeLabel": "Remove the rule {{facet}} for {{tag}}",
         "removeTitle": "Remove the rule for “{{tag}}”?",
         "removeBody": "“{{tag}}” falls back to the default for this facet. The stations are sorted again at once.",

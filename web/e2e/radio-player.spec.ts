@@ -210,7 +210,10 @@ test('the transcoded MP3 station shows the title of its stream', async ({ page, 
   await miniOpen(page).click();
   const now = page.getByRole('dialog', { name: 'Jetzt läuft' });
   await expect(now.getByTestId('radio-now-title')).toHaveText(ICY_TITLE);
-  await expect(now.getByText('Slouchcat Testton', { exact: true })).toBeVisible();
+  // The artist under the title (the live region); «Zuvor gespielt» may name it again below.
+  await expect(
+    now.locator('[aria-live="polite"]').getByText('Slouchcat Testton', { exact: true }),
+  ).toBeVisible();
   await expect(now.getByText('Über Slouchcat, Standort des Servers')).toBeVisible();
   await page.keyboard.press('Escape');
   // «Radio beenden» ends the session.

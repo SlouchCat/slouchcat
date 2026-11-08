@@ -11,8 +11,6 @@ export interface RadioPlayer {
   entry: RadioNowEntry | null;
   /** «Zuvor gespielt»: the entries before `entry`, newest first (7.6). */
   history: readonly RadioNowEntry[];
-  /** Whole seconds the playback lies behind live (0 at live). */
-  offset: number;
   /** How far behind live the session may play (`RadioListen.timeShiftSeconds`); 0 = live only. */
   timeShiftSeconds: number;
   /**
@@ -43,7 +41,6 @@ const idle: RadioPlayer = {
   playing: false,
   entry: null,
   history: [],
-  offset: 0,
   timeShiftSeconds: 0,
   longPause: false,
   play: () => {},
@@ -60,3 +57,13 @@ export const RadioContext = createContext<RadioPlayer>(idle);
 
 /** The radio player; outside the provider (a component rendered alone) an idle one. */
 export const useRadio = (): RadioPlayer => useContext(RadioContext);
+
+/**
+ * Whole seconds the playback lies behind live (0 at live), in a context of its own: it changes
+ * every second while paused, and only the mini player and «Jetzt läuft» show it, so the pages
+ * that use `useRadio` do not render with it.
+ */
+export const RadioOffsetContext = createContext(0);
+
+/** Seconds behind live of the radio's playback; 0 outside the provider. */
+export const useRadioOffset = (): number => useContext(RadioOffsetContext);

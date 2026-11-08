@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { initialRadioState, type RadioListen, type RadioStation } from './priority';
 import { RadioDock } from './RadioDock';
 import type { RadioNowEntry } from './queries';
-import { RadioContext, type RadioPlayer } from './useRadio';
+import { RadioContext, RadioOffsetContext, type RadioPlayer } from './useRadio';
 
 const station: RadioStation = {
   id: 7,
@@ -40,7 +40,7 @@ const entry = (at: number, artist: string, title: string, cover?: string): Radio
   ...(cover ? { cover: { url: `/radio/covers/${cover}/w256?v=${cover}` } } : {}),
 });
 
-function renderDock(overrides: Partial<RadioPlayer> = {}) {
+function renderDock({ offset = 0, ...overrides }: Partial<RadioPlayer> & { offset?: number } = {}) {
   const timeShiftSeconds = overrides.timeShiftSeconds ?? 1800;
   const player: RadioPlayer = {
     state: { ...initialRadioState, phase: 'live', station, listen: listen(timeShiftSeconds) },
@@ -50,7 +50,6 @@ function renderDock(overrides: Partial<RadioPlayer> = {}) {
       entry(Date.UTC(2026, 10, 8, 13, 26), 'Adele', 'Hello', '30'),
       entry(Date.UTC(2026, 10, 8, 13, 22), 'Miley Cyrus', 'Flowers'),
     ],
-    offset: 0,
     timeShiftSeconds,
     longPause: false,
     play: vi.fn(),
@@ -67,7 +66,9 @@ function renderDock(overrides: Partial<RadioPlayer> = {}) {
   render(
     <QueryClientProvider client={queryClient}>
       <RadioContext.Provider value={player}>
-        <RadioDock />
+        <RadioOffsetContext.Provider value={offset}>
+          <RadioDock />
+        </RadioOffsetContext.Provider>
       </RadioContext.Provider>
     </QueryClientProvider>,
   );
