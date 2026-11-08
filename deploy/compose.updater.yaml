@@ -12,7 +12,7 @@
 # It never updates itself: raise SLOUCHCAT_UPDATER_VERSION by hand when the release notes say so.
 services:
   updater:
-    image: ghcr.io/slouchcat/slouchcat-updater:${SLOUCHCAT_UPDATER_VERSION:-1.16.1}
+    image: ghcr.io/slouchcat/slouchcat-updater:${SLOUCHCAT_UPDATER_VERSION:-1.17.0}
     build:
       context: ..
       dockerfile: deploy/Dockerfile.updater

@@ -1,6 +1,18 @@
 # Aktueller Stand
 
-## Konzept 16 Stufe 1 «Webradio: Hören» (7. November 2026): im Pull Request
+## Release 1.17.0 (8. November 2026): Webradio, Stufe 1
+
+Release ab `main` nach PR #113 (Merge `a2598bea`, Konzept 16 Stufe 1). Vertrag **1.17.0, additiv**,
+**Migration 00038**. Merge und Tag auf Marcos Wort vom 8. November 2026.
+
+- Versionsstellen auf 1.17.0 im Zweig `claude/release-1.17.0` (`deploy/.env.example`,
+  `deploy/compose.yaml`, `deploy/compose.updater.yaml`, `deploy/README.md`, `docs/INSTALLATION.md`,
+  `docs/dev/HANDOVER.md`).
+- Die Compose-Datei hat neu eine `tmpfs` `/run/slouchcat/radio` (564 MB). Wer nur das Image hebt
+  (Updater), behält die alte Compose-Datei: Radio spielt dann nur live, die Verwaltung warnt. CT 190
+  bekommt die `tmpfs` von Hand.
+
+## Konzept 16 Stufe 1 «Webradio: Hören» (7. November 2026): gemergt (PR #113)
 
 Zweig `claude/webradio-stufe1` ab `main` `2bfa9979` (Release 1.16.1). **Vertrag 1.17.0 additiv,
 Migration 00038**, Frage 23, ADR 0025. Bau auf Marcos Wort vom 7. November 2026, nach Plan in drei Spuren
