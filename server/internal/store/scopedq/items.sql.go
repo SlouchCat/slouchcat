@@ -917,6 +917,7 @@ SELECT e.id, e.season_number, se.season_number AS season_season_number,
        CAST(coalesce(p.updated_at, 0) AS INTEGER) AS updated_at
 FROM items AS se
 CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode'
+JOIN visible_items AS vse ON vse.item_id = se.id AND vse.profile_id = ?1
 JOIN visible_items AS v ON v.item_id = e.id AND v.profile_id = ?1
 LEFT JOIN progress AS p ON p.profile_id = ?1 AND p.item_id = e.id
 WHERE se.parent_id = ?2 AND se.kind = 'season'
@@ -948,8 +949,9 @@ type ListSeriesNextUpEpisodesRow struct {
 // episode has none, like ListContinueWatching), the episode
 // number, the last episode of a file with several and the progress of the profile (0 without a
 // row). The seasons of the series come first from items_parent, then their episodes from
-// items_episode (CROSS JOIN fixes that order), so only the one series is read. Ordered by season,
-// number and id; episodes without a season or episode number last.
+// items_episode (CROSS JOIN fixes that order), so only the one series is read. The season must be
+// visible too, so the button never points into a season the shelf does not show. Ordered by
+// season, number and id; episodes without a season or episode number last.
 func (q *Queries) ListSeriesNextUpEpisodes(ctx context.Context, arg ListSeriesNextUpEpisodesParams) ([]ListSeriesNextUpEpisodesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listSeriesNextUpEpisodes, arg.ProfileID, arg.SeriesID, arg.SeasonID)
 	if err != nil {
