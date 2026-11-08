@@ -697,6 +697,7 @@ func (s *Service) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
+			s.cat.bg.stop() // own-station probes and a background rule apply end first
 			s.rel.mu.Lock()
 			s.rel.closed = true
 			s.rel.mu.Unlock()
@@ -725,7 +726,7 @@ func (s *Service) sweep(ctx context.Context) {
 	s.flushListenTime(ctx)
 	s.stopIdleRelays(ctx, now)
 	s.sweepCovers(ctx, now)
-	s.retryTagRules(ctx)
+	s.retryTagRulesLater()
 	s.rel.mu.Lock()
 	prune := now.Sub(s.rel.pruned) >= time.Hour
 	if prune {

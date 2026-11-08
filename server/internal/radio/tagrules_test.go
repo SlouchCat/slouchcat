@@ -340,3 +340,90 @@ func BenchmarkTagRulesLarge(b *testing.B) {
 	b.ReportMetric(float64(apply.Milliseconds())/float64(i), "settagrules-ms/op")
 	b.ReportMetric(float64(read.Milliseconds())/float64(i), "tagrules-ms/op")
 }
+
+// Rules pending at the end of a sync reach the stations that sync created, which the index does
+// not hold until the job handler rebuilds it: the apply walks the stations with tags, not the
+// index.
+func TestTagRulesReachStationsTheSyncCreated(t *testing.T) {
+	e := newCatEnv(t)
+	e.setEntries(rulesCatalog(rulesGroup{prefix: "Hits", n: 2, tags: "80s"}))
+	e.sync()
+	e.setEntries(rulesCatalog(rulesGroup{prefix: "Hits", n: 3, tags: "80s"}))
+	if _, err := e.s.syncCatalog(e.ctx); err != nil { // the sync alone: the index keeps two stations
+		t.Fatal(err)
+	}
+	if _, err := e.s.reachableEntry(e.ctx, e.stationID("Hits 3")); err == nil {
+		t.Fatal("the new station is in the index already; the test needs it missing")
+	}
+	// The administration's rules arrive after the sync derived its stations, while it holds syncMu.
+	admin, err := validateTagRules([]model.RadioTagRule{{Tag: "80s", Facet: "genre", Value: "rock"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.s.storeTagRules(e.ctx, admin); err != nil {
+		t.Fatal(err)
+	}
+	e.s.cat.rules.Store(newRuleSet(admin))
+	e.s.cat.rulesDirty.Store(true)
+	e.s.cat.syncMu.Lock()
+	err = e.s.applyTagRules(e.ctx, false) // as syncCatalog does before it lets go of syncMu
+	e.s.cat.syncMu.Unlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"Hits 1", "Hits 3"} {
+		if v := e.facetValues(name, "genre"); !slices.Equal(v, []string{"rock"}) {
+			t.Errorf("%s genres = %v, want [rock]", name, v)
+		}
+	}
+	if e.s.cat.rulesDirty.Load() {
+		t.Error("rules still pending")
+	}
+}
+
+// The sweep's retry runs the apply in the background and never starts a second one while one
+// runs or a sync holds syncMu.
+func TestTagRulesRetryLaterInBackground(t *testing.T) {
+	e := newCatEnv(t)
+	e.setEntries(rulesCatalog(rulesGroup{prefix: "Hits", n: 2, tags: "80s"}))
+	e.sync()
+	admin, err := validateTagRules([]model.RadioTagRule{{Tag: "80s", Facet: "genre", Value: "rock"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.s.storeTagRules(e.ctx, admin); err != nil {
+		t.Fatal(err)
+	}
+	e.s.cat.rules.Store(newRuleSet(admin))
+	e.s.cat.rulesDirty.Store(true)
+	e.s.cat.syncMu.Lock() // a sync runs
+	e.s.retryTagRulesLater()
+	if e.s.cat.applying.Load() || !e.s.cat.rulesDirty.Load() {
+		t.Fatalf("during a sync: applying %v, pending %v", e.s.cat.applying.Load(), e.s.cat.rulesDirty.Load())
+	}
+	e.s.cat.syncMu.Unlock()
+	e.s.cat.applying.Store(true) // an apply in flight
+	e.s.retryTagRulesLater()
+	e.s.cat.bg.wait()
+	if !e.s.cat.rulesDirty.Load() {
+		t.Fatal("a second apply started beside the one in flight")
+	}
+	e.s.cat.applying.Store(false)
+	e.s.retryTagRulesLater()
+	e.s.cat.bg.wait()
+	if v := e.facetValues("Hits 1", "genre"); !slices.Equal(v, []string{"rock"}) || e.s.cat.rulesDirty.Load() || e.s.cat.applying.Load() {
+		t.Errorf("after the background apply: genres %v, pending %v, applying %v", v, e.s.cat.rulesDirty.Load(), e.s.cat.applying.Load())
+	}
+	if !e.s.cat.syncMu.TryLock() {
+		t.Fatal("the background apply kept syncMu")
+	}
+	e.s.cat.syncMu.Unlock()
+	// After the shutdown nothing starts any more.
+	e.s.cat.bg.stop()
+	e.s.cat.rulesDirty.Store(true)
+	e.s.retryTagRulesLater()
+	if e.s.cat.applying.Load() || !e.s.cat.syncMu.TryLock() {
+		t.Fatal("a retry after the shutdown holds the apply")
+	}
+	e.s.cat.syncMu.Unlock()
+}

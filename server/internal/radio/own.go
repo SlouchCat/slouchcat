@@ -267,7 +267,7 @@ func (s *Service) CreateStation(ctx context.Context, c model.AdminRadioStationCr
 	s.log.InfoContext(ctx, "radio own station created", "station_id", id, "site", netguard.Site(streamURL))
 	s.reloadStation(ctx, id)
 	s.queueLogos(ctx, []int64{id})
-	s.probeOwnLater(ctx, id, streamURL)
+	s.probeOwnLater(id, streamURL)
 	return s.AdminStation(ctx, id)
 }
 
@@ -368,9 +368,10 @@ func writeOwnPatch(ctx context.Context, q *appq.Queries, stationID int64, op own
 	return true, nil
 }
 
-// DeleteStation deletes an own station (contract deleteRadioStation): its relay and listen
-// sessions end, the row goes with its streams, facets, locks and favourites (cascade), and its
-// logo files go.
+// DeleteStation deletes an own station (contract deleteRadioStation): the row goes with its
+// streams, facets, locks, favourites and listen sessions (cascade), the index drops it, and only
+// then its relay and open listen sessions end, so a Listen in between finds no station to start
+// a relay for (404); its logo files go.
 func (s *Service) DeleteStation(ctx context.Context, stationID int64) error {
 	row, err := appq.New(s.db.Read).GetRadioStation(ctx, stationID)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -382,7 +383,6 @@ func (s *Service) DeleteStation(ctx context.Context, stationID int64) error {
 	if row.Source != sourceOwn {
 		return (*model.ValidationError)(nil).Add("stationId", codeNotOwn)
 	}
-	s.closeStation(ctx, stationID)
 	n, err := appq.New(s.db.Write).DeleteRadioOwnStation(ctx, stationID)
 	if err != nil {
 		return fmt.Errorf("delete radio station: %w", err)
@@ -390,22 +390,33 @@ func (s *Service) DeleteStation(ctx context.Context, stationID int64) error {
 	if n == 0 {
 		return model.ErrNotFound
 	}
+	s.reloadStation(ctx, stationID)
+	// The rows of the open listen sessions went with the station, so closeStation ends none in
+	// memory: their ids are taken here.
+	var open []string
+	s.rel.mu.Lock()
+	for id, ls := range s.rel.sessions {
+		if ls.stationID == stationID {
+			open = append(open, id)
+		}
+	}
+	s.rel.mu.Unlock()
+	s.closeStation(ctx, stationID)
+	s.endLocal(ctx, open)
 	if s.o.cacheDir != "" {
 		if err := os.RemoveAll(filepath.Join(s.o.cacheDir, logoDir(stationID))); err != nil {
 			s.log.WarnContext(ctx, "remove radio logo files", "station_id", stationID, "err", err)
 		}
 	}
-	s.reloadStation(ctx, stationID)
 	s.log.InfoContext(ctx, "radio own station deleted", "station_id", stationID)
 	return nil
 }
 
-// probeOwnLater probes the stream of an own station in the background (probeTimeout) and stores
-// codec, bitrate and quality while the stream still has that address; a failed probe changes
-// nothing (the create or change stands).
-func (s *Service) probeOwnLater(ctx context.Context, stationID int64, rawURL string) {
-	ctx = context.WithoutCancel(ctx)
-	s.cat.probes.Go(func() {
+// probeOwnLater probes the stream of an own station in the background of the catalog part
+// (probeTimeout, ended by the shutdown) and stores codec, bitrate and quality while the stream
+// still has that address; a failed probe changes nothing (the create or change stands).
+func (s *Service) probeOwnLater(stationID int64, rawURL string) {
+	s.cat.bg.goFn(func(ctx context.Context) {
 		ctx, cancel := context.WithTimeout(ctx, probeTimeout)
 		defer cancel()
 		probe := s.cat.probe

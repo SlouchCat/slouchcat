@@ -158,6 +158,10 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	if err != nil {
 		return model.AdminRadioStation{}, err
 	}
+	rs, err := s.tagRules(ctx)
+	if err != nil {
+		return model.AdminRadioStation{}, err
+	}
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("update radio station: begin: %w", err)
@@ -261,6 +265,20 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	if err := writeFacets(ctx, q, stationID, values, patched, true, true); err != nil {
 		return model.AdminRadioStation{}, err
 	}
+	// No sync derives an own station again: a new name or a lifted facet lock derives its open
+	// facets here (catalog stations get them from the next sync).
+	if row.Source == sourceOwn {
+		var open []string
+		for _, facet := range facetNames {
+			if !locks[facet] {
+				open = append(open, facet)
+			}
+		}
+		derived, _ := deriveFacets(rs.tags, upd.Name, tags)
+		if err := writeFacets(ctx, q, stationID, derived, open, false, true); err != nil {
+			return model.AdminRadioStation{}, err
+		}
+	}
 	urlChanged, err := writeOwnPatch(ctx, q, stationID, own, upd.Now)
 	if err != nil {
 		return model.AdminRadioStation{}, err
@@ -294,7 +312,7 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	s.closeUnreachable(ctx, stationID)
 	if urlChanged {
 		s.closeStation(ctx, stationID) // the relay plays the old address
-		s.probeOwnLater(ctx, stationID, own.streamURL)
+		s.probeOwnLater(stationID, own.streamURL)
 	}
 	return s.AdminStation(ctx, stationID)
 }

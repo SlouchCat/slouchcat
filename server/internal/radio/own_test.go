@@ -75,7 +75,7 @@ func ownEnv(t *testing.T) (*catEnv, *atomic.Int32) {
 		}
 		return transcode.RadioInput{Format: "mp3", Codec: "mp3", BitrateKbps: 192}, false, nil
 	}
-	t.Cleanup(e.s.cat.probes.Wait)
+	t.Cleanup(e.s.cat.bg.wait)
 	return e, probes
 }
 
@@ -134,7 +134,7 @@ func TestOwnStationAddressChecks(t *testing.T) {
 			t.Errorf("%s: %v", c.StreamURL, err)
 		}
 	}
-	e.s.cat.probes.Wait()
+	e.s.cat.bg.wait()
 	if probes.Load() != 3 {
 		t.Errorf("%d probes, want 3", probes.Load())
 	}
@@ -179,7 +179,7 @@ func TestOwnStationCreate(t *testing.T) {
 	if err := e.db.Read.QueryRowContext(e.ctx, `SELECT group_key FROM radio_stations WHERE id = ?`, a.ID).Scan(&key); err != nil || !strings.HasPrefix(key, "own:") || len(key) != 30 {
 		t.Errorf("group key %q, %v", key, err)
 	}
-	e.s.cat.probes.Wait()
+	e.s.cat.bg.wait()
 	st := e.station("Mein Sender")
 	if st.Codec != "mp3" || st.BitrateKbps != 192 || st.Quality != model.RadioQualityGood {
 		t.Errorf("after the probe: codec %q bitrate %d quality %q", st.Codec, st.BitrateKbps, st.Quality)
@@ -227,7 +227,7 @@ func TestOwnStationUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e.s.cat.probes.Wait()
+	e.s.cat.bg.wait()
 	local, other := "http://lan.example/live", "http://radio.example/other"
 	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{StreamURL: &local}); fieldCode(err, "streamUrl") != codeLocalAddress {
 		t.Errorf("local stream address: %v", err)
@@ -246,14 +246,14 @@ func TestOwnStationUpdate(t *testing.T) {
 	if len(got.Streams) != 1 || got.Streams[0].URL != other || got.Country != "" || !slices.Equal(got.Languages, []string{"it"}) {
 		t.Errorf("after the patch: %+v", got)
 	}
-	e.s.cat.probes.Wait()
+	e.s.cat.bg.wait()
 	if probes.Load() != 2 {
 		t.Errorf("%d probes, want 2 (create and the new address)", probes.Load())
 	}
 	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{StreamURL: &other}); err != nil {
 		t.Fatal(err)
 	}
-	e.s.cat.probes.Wait()
+	e.s.cat.bg.wait()
 	if probes.Load() != 2 {
 		t.Errorf("an unchanged address was probed again (%d)", probes.Load())
 	}
@@ -341,5 +341,58 @@ func TestProbeStreamReadsInput(t *testing.T) {
 	in, hls, err := s.probeStream(context.Background(), st.URL("/own"))
 	if err != nil || in.Codec != "mp3" || in.BitrateKbps != 128 || hls {
 		t.Errorf("probe = %+v hls %v, %v", in, hls, err)
+	}
+}
+
+// A deleted own station is gone for a Listen at once (404): the row and the index entry go before
+// the relay stops, so no Listen in between starts a new one.
+func TestOwnStationDeleteThenListen(t *testing.T) {
+	e, _ := ownEnv(t)
+	e.sync()
+	a, err := e.s.CreateStation(e.ctx, model.AdminRadioStationCreate{Name: "Mein Sender", StreamURL: "http://radio.example/live"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.s.DeleteStation(e.ctx, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Listen(e.ctx, catSession(1), a.ID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("Listen after the delete: %v, want not found", err)
+	}
+}
+
+// No sync derives an own station again, so a new name or a lifted facet lock derives its open
+// facets at once; a locked facet keeps the admin's values.
+func TestOwnStationRederivesOpenFacets(t *testing.T) {
+	e, _ := ownEnv(t)
+	e.sync()
+	a, err := e.s.CreateStation(e.ctx, model.AdminRadioStationCreate{Name: "Mein Sender", StreamURL: "http://radio.example/live",
+		Kinds: []string{"talk"}, Genres: []string{"jazz"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := "Sport Eins"
+	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{Name: &name}); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.facetValues("Sport Eins", "kind"); !slices.Equal(v, []string{"talk"}) {
+		t.Errorf("locked kind after the rename = %v, want [talk]", v)
+	}
+	keep := []string{"name", "genre"}
+	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{Locks: &keep}); err != nil {
+		t.Fatal(err)
+	}
+	if v := e.facetValues("Sport Eins", "kind"); !slices.Equal(v, []string{"sport"}) {
+		t.Errorf("kind after lifting its lock = %v, want [sport] from the name", v)
+	}
+	if v := e.facetValues("Sport Eins", "genre"); !slices.Equal(v, []string{"jazz"}) {
+		t.Errorf("locked genre = %v, want [jazz]", v)
+	}
+	news := "Info Eins"
+	if _, err := e.s.UpdateStation(e.ctx, a.ID, model.AdminRadioStationPatch{Name: &news}); err != nil {
+		t.Fatal(err)
+	}
+	if st := e.station("Info Eins"); !slices.Equal(st.Kinds, []string{"news"}) {
+		t.Errorf("index kinds after the rename = %v, want [news]", st.Kinds)
 	}
 }

@@ -30,10 +30,14 @@ type catalogState struct {
 	tagRulesCache *tagRulesAnswer
 	// resolve looks up the host of an own station's address (own.go); nil is the system
 	// resolver. probe reads an own station's stream after a create (nil: probeStream). Tests
-	// set both; probes counts the background probes, so a test can wait for them.
+	// set both.
 	resolve func(ctx context.Context, host string) ([]netip.Addr, error)
 	probe   ownProbeFunc
-	probes  sync.WaitGroup
+	// bg runs the background work of the catalog part (own-station probes, the sweep's apply of
+	// pending tag rules) on a context Run cancels at shutdown, and Run waits for it; applying keeps
+	// a second background apply from starting while one runs.
+	bg       background
+	applying atomic.Bool
 	// zone names the server's IANA time zone (R-9: the default country of a profile).
 	zone func() string
 
@@ -48,8 +52,43 @@ type catalogState struct {
 }
 
 func newCatalogState(userAgent string) *catalogState {
-	return &catalogState{fetch: newCatalogClient(userAgent), zone: serverZone}
+	c := &catalogState{fetch: newCatalogClient(userAgent), zone: serverZone}
+	c.bg.ctx, c.bg.cancel = context.WithCancel(context.Background())
+	return c
 }
+
+// background is a set of goroutines on one context that stop ends: it cancels the context, waits
+// for the goroutines and refuses new ones, so none writes to the database after the shutdown.
+type background struct {
+	ctx    context.Context
+	cancel context.CancelFunc
+	mu     sync.Mutex // orders go with stop, so no goroutine is added once stop waits
+	closed bool
+	wg     sync.WaitGroup
+}
+
+// goFn runs fn on the background context; false after stop.
+func (b *background) goFn(fn func(ctx context.Context)) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.closed {
+		return false
+	}
+	b.wg.Go(func() { fn(b.ctx) })
+	return true
+}
+
+// stop cancels the background context and waits for the running goroutines.
+func (b *background) stop() {
+	b.mu.Lock()
+	b.closed = true
+	b.mu.Unlock()
+	b.cancel()
+	b.wg.Wait()
+}
+
+// wait waits for the running goroutines (tests).
+func (b *background) wait() { b.wg.Wait() }
 
 // serverZone returns the IANA name of the server's time zone: TZ (the compose file sets
 // Europe/Zurich), else the target of /etc/localtime; "" when neither names one.

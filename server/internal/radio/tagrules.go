@@ -3,6 +3,8 @@ package radio
 import (
 	"cmp"
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -199,8 +201,32 @@ func (s *Service) storeTagRules(ctx context.Context, admin []model.RadioTagRule)
 	return nil
 }
 
-// retryTagRules applies pending rules when no sync holds syncMu (a running sync applies them
-// itself before it ends).
+// retryTagRulesLater is the sweep's retry of pending rules: the apply (about 1.4 s over 40,000
+// stations) runs in the background of the catalog part, so the sweep never waits for it; while
+// one runs, or a sync holds syncMu (it applies them itself before it ends), it does nothing.
+func (s *Service) retryTagRulesLater() {
+	if !s.cat.rulesDirty.Load() || !s.cat.applying.CompareAndSwap(false, true) {
+		return
+	}
+	if !s.cat.syncMu.TryLock() {
+		s.cat.applying.Store(false)
+		return
+	}
+	started := s.cat.bg.goFn(func(ctx context.Context) {
+		defer s.cat.applying.Store(false)
+		defer s.cat.syncMu.Unlock()
+		if err := s.applyTagRules(ctx, true); err != nil {
+			s.log.WarnContext(ctx, "apply radio tag rules", "err", err)
+		}
+	})
+	if !started {
+		s.cat.syncMu.Unlock()
+		s.cat.applying.Store(false)
+	}
+}
+
+// retryTagRules applies pending rules at once when no sync holds syncMu (a running sync applies
+// them itself before it ends); SetTagRules answers after it.
 func (s *Service) retryTagRules(ctx context.Context) {
 	if !s.cat.rulesDirty.Load() || !s.cat.syncMu.TryLock() {
 		return
@@ -273,16 +299,23 @@ func (s *Service) applyRules(ctx context.Context) ([]int64, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Every station with a tag, from the tags rather than the index: a sync that applies pending
+	// rules at its end has created stations the index does not hold yet. A station without a tag
+	// is touched by no rule.
+	ids := slices.Sorted(maps.Keys(tags))
 	var todo []ruleChange
-	for _, e := range idx.entries {
-		t := tags[e.st.ID]
-		if len(t) == 0 {
-			continue // no tag: no rule touches the station
+	for _, id := range ids {
+		name, ok, err := ruleStationName(ctx, q, idx, id)
+		if err != nil {
+			return nil, err
 		}
-		want, _ := deriveFacets(rs.tags, e.st.Name, t)
+		if !ok {
+			continue // deleted since the pass began
+		}
+		want, _ := deriveFacets(rs.tags, name, tags[id])
 		for _, f := range facetNames {
-			if !locks[e.st.ID][f] && !sameValues(want[f], current[e.st.ID][f]) {
-				todo = append(todo, ruleChange{id: e.st.ID, values: want})
+			if !locks[id][f] && !sameValues(want[f], current[id][f]) {
+				todo = append(todo, ruleChange{id: id, values: want})
 				break
 			}
 		}
@@ -301,6 +334,22 @@ func (s *Service) applyRules(ctx context.Context) ([]int64, error) {
 		}
 	}
 	return done, nil
+}
+
+// ruleStationName returns the name of a station (its words give the kind when no tag does): from the
+// index, else, for a station the index does not hold yet, through its key.
+func ruleStationName(ctx context.Context, q *appq.Queries, idx *stationIndex, id int64) (string, bool, error) {
+	if e := idx.byID[id]; e != nil {
+		return e.st.Name, true, nil
+	}
+	row, err := q.GetRadioStation(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("get radio station: %w", err)
+	}
+	return row.Name, true, nil
 }
 
 // writeRuleBatch writes the derived facets of one batch in one transaction; the locks are read

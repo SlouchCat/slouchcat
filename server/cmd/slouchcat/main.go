@@ -432,7 +432,6 @@ func serveUntilSignal(cfg config.Config, log *slog.Logger, errRing *logging.Erro
 	sweeper.Go(func() { offlineSvc.Run(sweepCtx) })
 	// Listen sessions of the last run end, the 30-s sweep runs, and every relay stops at the end.
 	sweeper.Go(func() { radioSvc.Run(sweepCtx) })
-	// Tag rules the administration stored while a sync ran or whose apply failed (concept 16, 5.4).
 	defer func() {
 		stopSweep() // the sweep stops transcodes, so it ends before the manager closes
 		sweeper.Wait()

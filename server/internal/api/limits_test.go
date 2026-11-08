@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -134,5 +135,42 @@ func TestMaxBodyImageUploadPattern(t *testing.T) {
 			t.Errorf("%s %s with %d bytes: read error %v, want *http.MaxBytesError with limit %d",
 				tc.method, tc.path, tc.size, readErr, tc.limit)
 		}
+	}
+}
+
+// The full list of radio tag rules (setRadioTagRules, up to 5000 rules) takes
+// MaxTagRulesBodyBytes: 2000 rules, about 100 KB, pass end to end; the GET stays at the default.
+func TestRadioTagRulesBodyLimit(t *testing.T) {
+	t.Parallel()
+	if got := bodyLimit(http.MethodPut + " " + BasePath + "/admin/radio/tag-rules"); got != MaxTagRulesBodyBytes {
+		t.Fatalf("limit of PUT tag-rules = %d, want %d", got, MaxTagRulesBodyBytes)
+	}
+	rules := make([]string, 0, 2000)
+	for i := range 2000 {
+		rules = append(rules, fmt.Sprintf(`{"tag":"zz limit tag %04d","facet":"genre","value":"rock"}`, i))
+	}
+	body := `{"rules":[` + strings.Join(rules, ",") + `]}`
+	if len(body) <= MaxBodyBytes {
+		t.Fatalf("body of %d bytes does not exceed the default limit", len(body))
+	}
+	pf := newProfileFixture(t)
+	rec := send(t, pf.h, http.MethodPut, BasePath+"/admin/radio/tag-rules", "p18", body, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT 2000 rules: status %d (%s)", rec.Code, rec.Body.String()[:min(rec.Body.Len(), 300)])
+	}
+	var out struct {
+		Rules []struct {
+			Source string `json:"source"`
+		} `json:"rules"`
+	}
+	decode(t, rec, &out)
+	admin := 0
+	for _, r := range out.Rules {
+		if r.Source == "admin" {
+			admin++
+		}
+	}
+	if admin != 2000 {
+		t.Errorf("%d admin rules in the answer, want 2000", admin)
 	}
 }
