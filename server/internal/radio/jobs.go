@@ -92,11 +92,14 @@ func (s *Service) activeSyncJob(ctx context.Context) (int64, error) {
 	return list[0].ID, nil
 }
 
-// Start loads the index and, while the catalog never synced, sets the one-off date of the first
-// sync ten minutes ahead (R-3) unless a sync is queued or a date is set. Call it after the
-// scheduler started (its row must exist). No read of the app triggers a sync.
+// Start loads the index and the tag rules and, while the catalog never synced, sets the one-off
+// date of the first sync ten minutes ahead (R-3) unless a sync is queued or a date is set. Call it
+// after the scheduler started (its row must exist). No read of the app triggers a sync.
 func (s *Service) Start(ctx context.Context) error {
 	if _, err := s.index(ctx); err != nil {
+		return err
+	}
+	if _, err := s.tagRules(ctx); err != nil {
 		return err
 	}
 	cfg, err := appq.New(s.db.Read).GetRadioConfig(ctx)

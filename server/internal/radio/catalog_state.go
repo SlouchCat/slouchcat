@@ -5,8 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	"github.com/slouchcat/slouchcat/server/internal/radio/rules"
+	"sync/atomic"
 )
 
 // catalogState is the catalog part of the service (lane B): the Radio Browser sync, the merge of
@@ -14,7 +13,18 @@ import (
 // favourites and preferences of a profile and the station administration.
 type catalogState struct {
 	fetch *catalogClient
-	rules rules.TagRules
+	// rules are the effective tag rules (tagrules.go): nil until the first load, swapped by
+	// SetTagRules under rulesMu, which also orders the loads with the swaps.
+	rules   atomic.Pointer[ruleSet]
+	rulesMu sync.Mutex
+	// rulesDirty is set while stored rules wait to be applied to the stations: an apply that met
+	// a running sync (the sync applies them at its end) or failed (RunCatalog retries it).
+	rulesDirty atomic.Bool
+	// gen counts the changes the tab «Einordnung» depends on (index swaps, rule and config
+	// changes); tagRulesCache holds its answer for one generation.
+	gen           atomic.Uint64
+	tagRulesMu    sync.Mutex
+	tagRulesCache *tagRulesAnswer
 	// zone names the server's IANA time zone (R-9: the default country of a profile).
 	zone func() string
 
@@ -29,7 +39,7 @@ type catalogState struct {
 }
 
 func newCatalogState(userAgent string) *catalogState {
-	return &catalogState{fetch: newCatalogClient(userAgent), rules: rules.Default(), zone: serverZone}
+	return &catalogState{fetch: newCatalogClient(userAgent), zone: serverZone}
 }
 
 // serverZone returns the IANA name of the server's time zone: TZ (the compose file sets
@@ -47,3 +57,6 @@ func serverZone() string {
 	}
 	return ""
 }
+
+// stationsChanged marks a change of the catalog the cached answers depend on.
+func (c *catalogState) stationsChanged() { c.gen.Add(1) }

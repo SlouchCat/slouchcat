@@ -200,6 +200,7 @@ func (s *Service) rebuildIndex(ctx context.Context) (*stationIndex, error) {
 	s.cat.mu.Lock()
 	s.cat.idx = idx
 	s.cat.mu.Unlock()
+	s.cat.stationsChanged()
 	return idx, nil
 }
 
@@ -260,6 +261,7 @@ func (s *Service) reloadStations(ctx context.Context, ids []int64) {
 	s.cat.mu.Lock()
 	s.cat.idx = idx
 	s.cat.mu.Unlock()
+	s.cat.stationsChanged()
 }
 
 // catalogView is the visibility of the stations under the current settings.
