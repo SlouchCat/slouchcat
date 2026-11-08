@@ -109,7 +109,7 @@ a{color:#e8794a}a:hover{color:#f3a27f}
     <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;">
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <span style="font-size: 13px; color: #9095a3;">Filme · 412 Titel, 780 h</span>
-        <sc-for list="{{movieEst}}" as="r" hint-placeholder-count="3">
+        <sc-for list="{{movieEst}}" as="r" hint-placeholder-count="2">
           <div style="{{r.style}}">
             <span style="color: #b6b9c4;">{{r.k}}</span>
             <span style="font-weight: 600; white-space: nowrap;">{{r.v}}</span>
@@ -118,7 +118,7 @@ a{color:#e8794a}a:hover{color:#f3a27f}
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <span style="font-size: 13px; color: #9095a3;">Serien · 38 Serien, 2 950 Folgen, 2 100 h</span>
-        <sc-for list="{{seriesEst}}" as="r" hint-placeholder-count="4">
+        <sc-for list="{{seriesEst}}" as="r" hint-placeholder-count="2">
           <div style="{{r.style}}">
             <span style="color: #b6b9c4;">{{r.k}}</span>
             <span style="font-weight: 600; white-space: nowrap;">{{r.v}}</span>
@@ -183,22 +183,13 @@ class Component extends DCLogic {
     var row = function (k, v, total) {
       return { k: k, v: v, style: 'display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding: 8px 10px; border-radius: 8px; background: ' + (total ? '#e8794a1a' : '#1d2029') + '; border: 1px solid ' + (total ? '#e8794a66' : '#ffffff0f') + ';' };
     };
-    var movieEst;
-    if (st.movies === 'off') movieEst = [row('Kein Speicher', '0 MB', true)];
-    else if (st.movies === 'on_start' && !st.moviesKeep) movieEst = [row('Dauerhaft', '0 MB', true), row('Während einer Wiedergabe, pro Film', '≈ 3 MB')];
-    else if (st.movies === 'on_start') movieEst = [row('Pro geschautem Film (Ø 1 h 54)', '≈ 3 MB'), row('Bei 100 geschauten Filmen im Jahr', '≈ 300 MB'), row('Höchstens, wenn alle geschaut sind', '≈ 1,2 GB', true)];
-    else movieEst = [row('Pro Film (Ø 1 h 54)', '≈ 3 MB'), row('Ganze Bibliothek, 412 Filme', '≈ 1,2 GB', true)];
-    var seriesEst;
-    var ep = row('Pro Folge (Ø 43 min)', '≈ 1,1 MB'), season = row('Pro Staffel (Ø 10 Folgen)', '≈ 11 MB'), serie = row('Pro Serie (Ø 78 Folgen)', '≈ 85 MB');
-    if (st.series === 'off') seriesEst = [row('Kein Speicher', '0 MB', true)];
-    else if (st.series === 'on_start' && !st.seriesKeep) seriesEst = [row('Dauerhaft', '0 MB', true), row('Während einer Wiedergabe, pro Folge', '≈ 1,1 MB')];
-    else if (st.series === 'on_start') seriesEst = [row('Pro geschauter Folge (Ø 43 min)', '≈ 1,1 MB'), season, row('Höchstens, wenn alles geschaut ist', '≈ 3,2 GB', true)];
-    else if (st.series === 'series_start') {
-      if (st.scope === 'series') seriesEst = [ep, row('Pro angefangene Serie (Ø 78 Folgen)', '≈ 85 MB', true), row('Grösste Serie: Beispielserie XL, 220 Folgen', '≈ 230 MB'), row('Höchstens, alle Serien angefangen', '≈ 3,2 GB')];
-      else if (st.scope === 'season_rest') seriesEst = [ep, row('Pro angefangene Staffel (Ø 10 Folgen)', '≈ 11 MB', true), row('Grösste Staffel: Beispielserie XL S05, 24 Folgen', '≈ 26 MB'), row('Höchstens, alles angefangen', '≈ 3,2 GB')];
-      else seriesEst = [ep, row('Pro gestartete Folge (mit der nächsten)', '≈ 2,2 MB', true), row('Höchstens, alles angefangen', '≈ 3,2 GB')];
-    }
-    else seriesEst = [ep, season, serie, row('Ganze Bibliothek, 2 950 Folgen', '≈ 3,2 GB', true)];
+    var est = function (mode, keep, per, perVal, lib) {
+      if (mode === 'off') return [row(per, '0 MB'), row('Ganze Bibliothek', '0 MB', true)];
+      if (mode === 'on_start' && !keep) return [row(per + ', nur während der Wiedergabe', perVal), row('Ganze Bibliothek', '0 MB', true)];
+      return [row(per, perVal), row('Ganze Bibliothek' + (mode === 'ahead' ? '' : ', höchstens'), lib, true)];
+    };
+    var movieEst = est(st.movies, st.moviesKeep, 'Pro Film (Ø 1 h 54)', '≈ 3 MB', '≈ 1,2 GB');
+    var seriesEst = est(st.series, st.seriesKeep, 'Pro Folge (Ø 43 min)', '≈ 1,1 MB', '≈ 3,2 GB');
     return {
       movieEst: movieEst, seriesEst: seriesEst,
       movieOpts: movieOpts, seriesOpts: seriesOpts,
