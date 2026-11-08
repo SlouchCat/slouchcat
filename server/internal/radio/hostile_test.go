@@ -62,7 +62,7 @@ func TestTitleTextAndTimelineCapped(t *testing.T) {
 	r := bufferRelay(t, "", 30*time.Minute, 1<<40, 1, 4*time.Second, nil)
 	r.s, r.showsTitles = &Service{now: time.Now}, true
 	for i := range 3 * maxRelayTitles {
-		r.title(context.Background(), "Artist - Song "+strconv.Itoa(i), nil)
+		r.title(context.Background(), streamEvent{Title: "Artist - Song " + strconv.Itoa(i), TitleSet: true}, nil, &feedState{})
 	}
 	if n := len(r.titles); n != maxRelayTitles || r.titles[n-1].Title != "Song "+strconv.Itoa(3*maxRelayTitles-1) {
 		t.Fatalf("%d titles, last %+v", n, r.titles[len(r.titles)-1])

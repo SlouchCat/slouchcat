@@ -10,7 +10,7 @@ import (
 )
 
 // Listen time (concept 16 section 7.10, build plan M-2): counted from the distinct segments a
-// listen session fetched, not from heartbeats, so a locked iPhone whose timers sleep still counts.
+// listen session fetched (each once while it is in the window, also behind live), not from heartbeats, so a locked iPhone whose timers sleep still counts.
 // Each segment credits its duration to the quarter hour of its delivery (split at a quarter
 // boundary); credits are summed in memory per profile and quarter and written at most every 30 s
 // (sweep) and when a session ends. Segments fetched while the last heartbeat said paused do not
@@ -26,13 +26,21 @@ type creditKey struct {
 }
 
 // creditSegment credits segment n to the session's profile the first time the session fetches it.
-func (s *Service) creditSegment(ls *listenSession, n int64, dur time.Duration) {
+// The session keeps the numbers it credited while they are in the window (oldest: the first
+// segment of the window), not a high-water mark: a listener who seeks back fetches older segments
+// for the first time, and they count (critic B-1).
+func (s *Service) creditSegment(ls *listenSession, n int64, dur time.Duration, oldest int64) {
 	s.rel.mu.Lock()
 	defer s.rel.mu.Unlock()
-	if n <= ls.maxCounted {
+	if _, ok := ls.counted[n]; ok {
 		return
 	}
-	ls.maxCounted = n
+	for k := range ls.counted {
+		if k < oldest {
+			delete(ls.counted, k)
+		}
+	}
+	ls.counted[n] = struct{}{}
 	if !ls.playing {
 		return
 	}

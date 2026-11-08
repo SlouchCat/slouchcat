@@ -127,3 +127,66 @@ func TestWatchLimitEndsListenSessions(t *testing.T) {
 		t.Fatalf("live request after the limit: %v", err)
 	}
 }
+
+// A listener who seeks back fetches segments older than the ones it already heard at live: they
+// count, each once (critic B-1).
+func TestListenTimeCountsSegmentsBehindLive(t *testing.T) {
+	e := newRelayEnv(t, withFakeClock(time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)))
+	e.st.Set("/live", mp3Mount(t, false))
+	id := e.addStation("Test FM", "CH", "MP3", 128, e.st.URL("/live"))
+	_, l := e.listen(e.f.P18, id)
+	r := e.relay(id)
+	deadline := time.After(60 * time.Second)
+	for { // eleven minutes of audio in the window
+		r.mu.Lock()
+		total, ch := r.buf.total, r.changed
+		r.mu.Unlock()
+		if total >= 11*time.Minute {
+			break
+		}
+		select {
+		case <-ch:
+		case <-deadline:
+			t.Fatalf("%v of audio after 60 s", total)
+		}
+	}
+	segs := segments(r)
+	g := e.grant(l)
+	ctx := context.Background()
+	var want int64
+	fetch := func(s segment) {
+		t.Helper()
+		if _, _, err := e.s.Segment(ctx, g, s.seq); err != nil {
+			t.Fatal(err)
+		}
+	}
+	live := segs[len(segs)-3:]
+	for _, s := range live {
+		fetch(s)
+		want += s.dur.Milliseconds()
+	}
+	back := live[0].pdt.Add(-10 * time.Minute)
+	i := 0
+	for i < len(segs) && segs[i].pdt.Before(back) {
+		i++
+	}
+	var behind time.Duration
+	for _, s := range segs[i:] {
+		if behind >= time.Minute {
+			break
+		}
+		fetch(s)
+		behind += s.dur
+		want += s.dur.Milliseconds()
+	}
+	fetch(segs[i]) // fetched twice: counts once
+	fetch(live[0])
+	e.s.sweep(ctx)
+	var got int64
+	for _, ms := range e.listenTime(e.f.P18.ID) {
+		got += ms
+	}
+	if got != want || behind < time.Minute {
+		t.Fatalf("listen time %d ms, want %d ms (the live edge and %v from 10 min behind it)", got, want, behind)
+	}
+}

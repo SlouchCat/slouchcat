@@ -1,5 +1,7 @@
 package radio
 
+import "time"
+
 // framer cuts MP3 or ADTS audio into whole frames (build plan M-1): the packager only ever gets
 // complete frames, in copy and in transcode mode. After the start and after every connection
 // break (reset) it drops what is left of the old connection's last frame, strips a leading ID3v2
@@ -11,6 +13,7 @@ type framer struct {
 	stripID3 bool // at the start of a connection
 	last     frameHeader
 	hasLast  bool
+	pushed   time.Duration // audio of the frames the last push emitted
 }
 
 // framerMaxCarry bounds the bytes the framer keeps while it searches for a sync (an ID3 tag
@@ -30,9 +33,11 @@ func (f *framer) reset() {
 // params returns the header of the last emitted frame (ok false before the first one).
 func (f *framer) params() (frameHeader, bool) { return f.last, f.hasLast }
 
-// push adds bytes of the current connection and returns the whole frames now complete.
+// push adds bytes of the current connection and returns the whole frames now complete; their
+// audio duration is f.pushed until the next push.
 func (f *framer) push(b []byte) []byte {
 	f.carry = append(f.carry, b...)
+	f.pushed = 0
 	var out []byte
 	i := 0
 loop:
@@ -73,6 +78,7 @@ loop:
 			break loop
 		}
 		f.last, f.hasLast = h, true
+		f.pushed += h.duration()
 		out = append(out, rest[:h.length]...)
 		i += h.length
 	}

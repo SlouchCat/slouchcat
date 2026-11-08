@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math/rand/v2"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/radio/radiotest"
@@ -121,5 +122,37 @@ func TestFramerResyncNeedsTwoHeaders(t *testing.T) {
 	out := f.push(append(garbage, frames...))
 	if !bytes.HasPrefix(frames, out) || len(out) < len(frames)-2000 {
 		t.Fatalf("output does not start at the real frames (%d of %d bytes)", len(out), len(frames))
+	}
+}
+
+// Frame durations, from which the relay stamps its titles (concept 16 section 7.6).
+func TestFrameDurations(t *testing.T) {
+	adts := append([]byte(nil), testAudio(t, "tone-aac-64.aac")[:7]...)
+	adts2 := append([]byte(nil), adts...)
+	adts2[6] |= 1 // two raw data blocks
+	for _, tc := range []struct {
+		name    string
+		codec   string
+		b       []byte
+		samples int
+		dur     time.Duration
+	}{
+		{"MPEG-1 Layer III", "mp3", []byte{0xFF, 0xFB, 0x90, 0x00}, 1152, 26_122_448},
+		{"MPEG-2 Layer III", "mp3", []byte{0xFF, 0xF3, 0x90, 0x00}, 576, 26_122_448},
+		{"ADTS", "aac", adts, 1024, 23_219_954},
+		{"ADTS two blocks", "aac", adts2, 2048, 46_439_909},
+	} {
+		h, ok := parseFrameHeader(tc.codec, tc.b)
+		if !ok || h.samples != tc.samples || h.duration() != tc.dur {
+			t.Errorf("%s: ok %v, %d samples, %v, want %d and %v", tc.name, ok, h.samples, h.duration(), tc.samples, tc.dur)
+		}
+	}
+	f := newFramer("mp3")
+	file := testAudio(t, "tone-mp3-128.mp3")
+	f.push(file)
+	first := f.pushed
+	f.push(file)
+	if first < 15*time.Second || first > 17*time.Second || f.pushed < 15*time.Second {
+		t.Fatalf("framer pushed %v and %v of the 16-s tone", first, f.pushed)
 	}
 }

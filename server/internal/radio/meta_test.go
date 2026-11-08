@@ -1,7 +1,11 @@
 package radio
 
 import (
+	"bufio"
+	"bytes"
+	"context"
 	"testing"
+	"time"
 
 	"github.com/slouchcat/slouchcat/server/internal/radio/radiotest"
 )
@@ -86,4 +90,30 @@ func TestOggChainedStreamNewTitle(t *testing.T) {
 
 func radiotestOgg(t *testing.T) radiotest.Mount {
 	return radiotest.Mount{ContentType: "audio/ogg", Audio: [][]byte{testAudio(t, "tone-ogg-chained.ogg")}, Once: true}
+}
+
+// The StreamUrl of an ICY block reaches the timeline entry of its title (the cover chain reads it).
+func TestStreamURLReachesTheTimeline(t *testing.T) {
+	text := []byte("StreamTitle='Band - Song';StreamUrl='https://img.example/c.jpg';")
+	n := (len(text) + 15) / 16
+	block := append([]byte{byte(n)}, append(text, make([]byte, n*16-len(text))...)...)
+	body := append(append(make([]byte, minMetaInt), block...), make([]byte, 16)...)
+	s := &icyStream{inf: streamInfo{MetaInt: minMetaInt}, left: minMetaInt,
+		resp: &icyResponse{body: bufio.NewReader(bytes.NewReader(body))}}
+	var ev streamEvent
+	for !ev.TitleSet {
+		var err error
+		if ev, err = s.Next(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if ev.Title != "Band - Song" || ev.StreamURL != "https://img.example/c.jpg" {
+		t.Fatalf("event %+v", ev)
+	}
+	r := bufferRelay(t, "", 30*time.Minute, 1<<40, 1, 4*time.Second, nil)
+	r.s, r.showsTitles = &Service{now: time.Now}, true
+	r.title(context.Background(), ev, nil, &feedState{})
+	if len(r.titles) != 1 || r.titles[0].streamURL != ev.StreamURL || r.titles[0].Artist != "Band" {
+		t.Fatalf("timeline %+v", r.titles)
+	}
 }
