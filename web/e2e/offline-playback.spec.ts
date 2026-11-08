@@ -242,7 +242,9 @@ test('flight mode: the download plays with subtitles and the chosen audio; progr
     expect(Math.abs(item.progress!.positionMs - position)).toBeLessThanOrEqual(10_000);
     const view = await second.newPage();
     await view.goto(`/items/${itemId}`);
-    await expect(view.getByRole('link', { name: /^Weiterschauen ab 00:00:\d{2}$/ })).toBeVisible();
+    await expect(
+      view.getByRole('link', { name: /^Fortsetzen bei (0:00|0):\d{2} · noch / }),
+    ).toBeVisible();
   } finally {
     await second.close();
   }
@@ -394,7 +396,9 @@ test('O-5: from 30 s on the server, 15 s offline; a second browser has the new p
     expect(Math.abs(seen - startMs)).toBeGreaterThan(10_000);
     const view = await second.newPage();
     await view.goto(`/items/${itemId}`);
-    await expect(view.getByRole('link', { name: /^Weiterschauen ab 00:00:\d{2}$/ })).toBeVisible();
+    await expect(
+      view.getByRole('link', { name: /^Fortsetzen bei (0:00|0):\d{2} · noch / }),
+    ).toBeVisible();
   } finally {
     await second.close();
   }
