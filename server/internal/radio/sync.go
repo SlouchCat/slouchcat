@@ -132,7 +132,7 @@ func (s *Service) newSyncRun(ctx context.Context) (*syncRun, error) {
 			run.groups[st.GroupKey] = st.ID
 		}
 	}
-	locks, err := q.ListRadioStationLockFields(ctx, sql.NullInt64{})
+	locks, err := q.ListRadioStationLockFields(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list radio locks: %w", err)
 	}

@@ -198,6 +198,112 @@ func (q *Queries) GetRadioStation(ctx context.Context, id int64) (RadioStation, 
 	return i, err
 }
 
+const getRadioStationForIndex = `-- name: GetRadioStationForIndex :many
+WITH ranked AS (
+    SELECT st.station_id, st.codec, st.bitrate, st.hls,
+           row_number() OVER (
+               ORDER BY (st.preferred = 1 AND EXISTS (
+                            SELECT 1 FROM radio_station_locks AS l
+                            WHERE l.station_id = st.station_id AND l.field = 'stream')) DESC,
+                        st.lastcheckok DESC, st.bitrate <= 320 DESC, st.bitrate DESC,
+                        lower(st.codec) = 'aac' DESC, st.id
+           ) AS rn
+    FROM radio_streams AS st
+    WHERE st.station_id = ?1
+)
+SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s.languages,
+       s.homepage, s.votes, s.clicks, s.quality, s.reachable, s.failures, s.broken_at, s.hidden,
+       s.recommended, s.shows_titles, s.missing_since, s.logo_state, s.logo_hash, s.created_at,
+       s.updated_at, r.codec AS best_codec, r.bitrate AS best_bitrate,
+       CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
+FROM radio_stations AS s
+LEFT JOIN ranked AS r ON r.station_id = s.id AND r.rn = 1
+WHERE s.id = ?1
+`
+
+type GetRadioStationForIndexRow struct {
+	ID           int64
+	Source       string
+	Name         string
+	SortKey      string
+	SearchText   string
+	Country      sql.NullString
+	Region       sql.NullString
+	Languages    string
+	Homepage     sql.NullString
+	Votes        int64
+	Clicks       int64
+	Quality      sql.NullString
+	Reachable    int64
+	Failures     int64
+	BrokenAt     sql.NullInt64
+	Hidden       int64
+	Recommended  int64
+	ShowsTitles  int64
+	MissingSince sql.NullInt64
+	LogoState    string
+	LogoHash     sql.NullString
+	CreatedAt    int64
+	UpdatedAt    int64
+	BestCodec    sql.NullString
+	BestBitrate  sql.NullInt64
+	BestHls      int64
+}
+
+// The index row of one station (the reload of one entry and the administration). The station
+// filter sits inside the CTE so SQLite ranks only the streams of that station: with the filter
+// outside, or as "station_id = ? OR ? IS NULL", every reload ranked all streams of the catalog.
+// Columns and order as ListRadioStationsForIndex, no row when the station is gone.
+func (q *Queries) GetRadioStationForIndex(ctx context.Context, stationID int64) ([]GetRadioStationForIndexRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRadioStationForIndex, stationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetRadioStationForIndexRow{}
+	for rows.Next() {
+		var i GetRadioStationForIndexRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Source,
+			&i.Name,
+			&i.SortKey,
+			&i.SearchText,
+			&i.Country,
+			&i.Region,
+			&i.Languages,
+			&i.Homepage,
+			&i.Votes,
+			&i.Clicks,
+			&i.Quality,
+			&i.Reachable,
+			&i.Failures,
+			&i.BrokenAt,
+			&i.Hidden,
+			&i.Recommended,
+			&i.ShowsTitles,
+			&i.MissingSince,
+			&i.LogoState,
+			&i.LogoHash,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.BestCodec,
+			&i.BestBitrate,
+			&i.BestHls,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertRadioCatalogStation = `-- name: InsertRadioCatalogStation :one
 INSERT INTO radio_stations (source, group_key, name, sort_key, search_text, country, created_at, updated_at)
 VALUES ('catalog', ?1, ?2, ?3, ?4, ?5, ?6, ?6)
@@ -327,13 +433,12 @@ func (q *Queries) ListRadioAliasesForSync(ctx context.Context) ([]ListRadioAlias
 
 const listRadioStationFacets = `-- name: ListRadioStationFacets :many
 SELECT station_id, facet, value, manual FROM radio_station_facets
-WHERE station_id = ?1 OR ?1 IS NULL
 ORDER BY station_id, facet, value
 `
 
-// Facets of every station (station_id NULL) or of one station (the index reload of one row).
-func (q *Queries) ListRadioStationFacets(ctx context.Context, stationID sql.NullInt64) ([]RadioStationFacet, error) {
-	rows, err := q.db.QueryContext(ctx, listRadioStationFacets, stationID)
+// Facets of every station, for the index.
+func (q *Queries) ListRadioStationFacets(ctx context.Context) ([]RadioStationFacet, error) {
+	rows, err := q.db.QueryContext(ctx, listRadioStationFacets)
 	if err != nil {
 		return nil, err
 	}
@@ -360,15 +465,50 @@ func (q *Queries) ListRadioStationFacets(ctx context.Context, stationID sql.Null
 	return items, nil
 }
 
+const listRadioStationFacetsByStation = `-- name: ListRadioStationFacetsByStation :many
+SELECT facet, value, manual FROM radio_station_facets
+WHERE station_id = ?1
+ORDER BY facet, value
+`
+
+type ListRadioStationFacetsByStationRow struct {
+	Facet  string
+	Value  string
+	Manual int64
+}
+
+// Facets of one station (the reload of one entry and the administration), through the primary key.
+func (q *Queries) ListRadioStationFacetsByStation(ctx context.Context, stationID int64) ([]ListRadioStationFacetsByStationRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRadioStationFacetsByStation, stationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRadioStationFacetsByStationRow{}
+	for rows.Next() {
+		var i ListRadioStationFacetsByStationRow
+		if err := rows.Scan(&i.Facet, &i.Value, &i.Manual); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRadioStationLockFields = `-- name: ListRadioStationLockFields :many
 SELECT station_id, field FROM radio_station_locks
-WHERE station_id = ?1 OR ?1 IS NULL
 ORDER BY station_id, field
 `
 
-// Locks of every station (station_id NULL) or of one station.
-func (q *Queries) ListRadioStationLockFields(ctx context.Context, stationID sql.NullInt64) ([]RadioStationLock, error) {
-	rows, err := q.db.QueryContext(ctx, listRadioStationLockFields, stationID)
+// Locks of every station (the sync and the index); ListRadioStationLocks reads those of one.
+func (q *Queries) ListRadioStationLockFields(ctx context.Context) ([]RadioStationLock, error) {
+	rows, err := q.db.QueryContext(ctx, listRadioStationLockFields)
 	if err != nil {
 		return nil, err
 	}
@@ -418,25 +558,25 @@ func (q *Queries) ListRadioStationLocks(ctx context.Context, stationID int64) ([
 }
 
 const listRadioStationTags = `-- name: ListRadioStationTags :many
-SELECT station_id, tag FROM radio_station_tags
-WHERE station_id = ?1 OR ?1 IS NULL
-ORDER BY station_id, tag
+SELECT tag FROM radio_station_tags
+WHERE station_id = ?1
+ORDER BY tag
 `
 
-// Raw tags of every station (station_id NULL) or of one station.
-func (q *Queries) ListRadioStationTags(ctx context.Context, stationID sql.NullInt64) ([]RadioStationTag, error) {
+// Raw tags of one station, through the primary key.
+func (q *Queries) ListRadioStationTags(ctx context.Context, stationID int64) ([]string, error) {
 	rows, err := q.db.QueryContext(ctx, listRadioStationTags, stationID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []RadioStationTag{}
+	items := []string{}
 	for rows.Next() {
-		var i RadioStationTag
-		if err := rows.Scan(&i.StationID, &i.Tag); err != nil {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, tag)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -467,7 +607,6 @@ SELECT s.id, s.source, s.name, s.sort_key, s.search_text, s.country, s.region, s
        CAST(COALESCE(r.hls, 0) AS INTEGER) AS best_hls
 FROM radio_stations AS s
 LEFT JOIN ranked AS r ON r.station_id = s.id AND r.rn = 1
-WHERE s.id = ?1 OR ?1 IS NULL
 ORDER BY s.id
 `
 
@@ -501,9 +640,10 @@ type ListRadioStationsForIndexRow struct {
 }
 
 // Every station with the codec, bitrate and HLS flag of its best stream (the first row of
-// ListRadioStreamsRanked, same order), for the in-memory index.
-func (q *Queries) ListRadioStationsForIndex(ctx context.Context, stationID sql.NullInt64) ([]ListRadioStationsForIndexRow, error) {
-	rows, err := q.db.QueryContext(ctx, listRadioStationsForIndex, stationID)
+// ListRadioStreamsRanked, same order), for the in-memory index. GetRadioStationForIndex is the
+// same row for one station.
+func (q *Queries) ListRadioStationsForIndex(ctx context.Context) ([]ListRadioStationsForIndexRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRadioStationsForIndex)
 	if err != nil {
 		return nil, err
 	}

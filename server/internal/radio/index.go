@@ -96,15 +96,22 @@ func newIndexEntry(r appq.ListRadioStationsForIndexRow, facets map[string][]stri
 
 // loadEntries reads the entries of every station (id invalid) or of one.
 func loadEntries(ctx context.Context, q *appq.Queries, id sql.NullInt64) ([]*indexEntry, error) {
-	rows, err := q.ListRadioStationsForIndex(ctx, id)
+	if id.Valid {
+		e, err := loadEntry(ctx, q, id.Int64)
+		if err != nil || e == nil {
+			return nil, err
+		}
+		return []*indexEntry{e}, nil
+	}
+	rows, err := q.ListRadioStationsForIndex(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list stations for the index: %w", err)
 	}
-	facetRows, err := q.ListRadioStationFacets(ctx, id)
+	facetRows, err := q.ListRadioStationFacets(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list station facets: %w", err)
 	}
-	lockRows, err := q.ListRadioStationLockFields(ctx, id)
+	lockRows, err := q.ListRadioStationLockFields(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list station locks: %w", err)
 	}
@@ -118,10 +125,7 @@ func loadEntries(ctx context.Context, q *appq.Queries, id sql.NullInt64) ([]*ind
 		m[f.Facet] = append(m[f.Facet], f.Value)
 	}
 	for _, m := range facets {
-		for facet, vals := range m {
-			known := rules.Values(facet)
-			slices.SortFunc(vals, func(a, b string) int { return cmp.Compare(slices.Index(known, a), slices.Index(known, b)) })
-		}
+		sortFacetValues(m)
 	}
 	locked := make(map[int64]bool)
 	for _, l := range lockRows {
@@ -132,6 +136,42 @@ func loadEntries(ctx context.Context, q *appq.Queries, id sql.NullInt64) ([]*ind
 		out = append(out, newIndexEntry(r, facets[r.ID], locked[r.ID]))
 	}
 	return out, nil
+}
+
+// loadEntry reads the entry of one station through its keys (nil when the station is gone). The
+// reload after every logo and every admin write and each row of the admin list run it, so it never
+// reads the whole catalog: on CT 190 with 55,000 stations the shared query took about 300 ms per
+// station and an admin page of 50 stations 15 s.
+func loadEntry(ctx context.Context, q *appq.Queries, id int64) (*indexEntry, error) {
+	rows, err := q.GetRadioStationForIndex(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("get station for the index: %w", err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	facetRows, err := q.ListRadioStationFacetsByStation(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("list station facets: %w", err)
+	}
+	facets := map[string][]string{}
+	for _, f := range facetRows {
+		facets[f.Facet] = append(facets[f.Facet], f.Value)
+	}
+	sortFacetValues(facets)
+	locks, err := q.ListRadioStationLocks(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("list station locks: %w", err)
+	}
+	return newIndexEntry(appq.ListRadioStationsForIndexRow(rows[0]), facets, len(locks) > 0), nil
+}
+
+// sortFacetValues puts the values of each facet in the order of the rules.
+func sortFacetValues(m map[string][]string) {
+	for facet, vals := range m {
+		known := rules.Values(facet)
+		slices.SortFunc(vals, func(a, b string) int { return cmp.Compare(slices.Index(known, a), slices.Index(known, b)) })
+	}
 }
 
 // index returns the loaded index, loading it at the first call.

@@ -1,5 +1,23 @@
 # Aktueller Stand
 
+## Release 1.18.2 (8. November 2026): Radio-Verwaltung ohne Wartezeit
+
+Patch ohne Vertragsänderung (Vertrag bleibt 1.18.0), keine Migration. Zweig `claude/radio-station-reload`
+ab `main` `e2e36082` (Release 1.18.1). Fix und Versionsstellen in einem Pull Request.
+
+- Befund aus der Abnahme von Konzept 16 Stufe 1 auf CT 190 (1.18.1, 55 646 Sender): die Seite «Sender» der
+  Radio-Verwaltung brauchte 15 s, das Ändern eines Senders 0,6 s, eine Senderliste mit neuen Logos bis 20 s.
+- Ursache: das Nachladen eines einzelnen Senders in den Index nutzte die Abfragen des ganzen Katalogs
+  (`station_id = ? OR ? IS NULL`, Rangfolge über alle Streams), also rund 300 ms je Sender. Die
+  Verwaltungsliste lädt 50 Sender einzeln, die Logo-Warteschlange jeden gelisteten Sender.
+- Fix: eigene Abfragen für einen Sender über seine Schlüssel (`GetRadioStationForIndex`,
+  `ListRadioStationFacetsByStation`, `ListRadioStationTags`, `ListRadioStationLocks`). Ein Test vergleicht
+  jeden einzelnen Eintrag mit dem vollen Laden und prüft die Abfragepläne auf Tabellenscans.
+- Messung (Entwicklungsrechner, 40 000 Sender, eine Verwaltungsseite mit 50 Sendern): vorher 4,8 s,
+  nachher 13 ms (`BenchmarkAdminStationsLarge`).
+- Versionsstellen auf 1.18.2 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`,
+  `deploy/README.md`, `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`).
+
 ## Release 1.18.1 (8. November 2026): ganzer Radiokatalog
 
 Patch ohne Vertragsänderung (Vertrag bleibt 1.18.0), keine Migration. Release ab `main` nach PR #116

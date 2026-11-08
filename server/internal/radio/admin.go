@@ -107,14 +107,12 @@ func adminStation(ctx context.Context, q *appq.Queries, id int64) (model.AdminRa
 	if row.BrokenAt.Valid {
 		a.BrokenAt = time.UnixMilli(row.BrokenAt.Int64).UTC()
 	}
-	tags, err := q.ListRadioStationTags(ctx, sql.NullInt64{Int64: id, Valid: true})
+	tags, err := q.ListRadioStationTags(ctx, id)
 	if err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("list radio tags: %w", err)
 	}
-	for _, t := range tags {
-		a.Tags = append(a.Tags, t.Tag)
-	}
-	facets, err := q.ListRadioStationFacets(ctx, sql.NullInt64{Int64: id, Valid: true})
+	a.Tags = append(a.Tags, tags...)
+	facets, err := q.ListRadioStationFacetsByStation(ctx, id)
 	if err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("list radio facets: %w", err)
 	}
@@ -233,15 +231,11 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	if verr != nil {
 		return model.AdminRadioStation{}, verr
 	}
-	tags, err := q.ListRadioStationTags(ctx, sql.NullInt64{Int64: stationID, Valid: true})
+	tags, err := q.ListRadioStationTags(ctx, stationID)
 	if err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("list radio tags: %w", err)
 	}
-	tagList := make([]string, 0, len(tags))
-	for _, t := range tags {
-		tagList = append(tagList, t.Tag)
-	}
-	upd.SortKey, upd.SearchText = rules.Fold(upd.Name), searchText(upd.Name, upd.Region.String, tagList)
+	upd.SortKey, upd.SearchText = rules.Fold(upd.Name), searchText(upd.Name, upd.Region.String, tags)
 	if err := q.UpdateRadioStationAdmin(ctx, upd); err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("update radio station: %w", err)
 	}
