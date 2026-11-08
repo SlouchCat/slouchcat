@@ -35,4 +35,5 @@ output-options:
     - getRadioLiveSegment
     - getRadioImage
     - getAdminRadioImage
+    - getRadioCover
     - uploadRadioStationLogo

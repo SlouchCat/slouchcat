@@ -20,7 +20,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/visibility/vistest"
 )
 
-// Webradio contract (concept 16 stage 1, contract 1.17.0): no radio schema and no radio operation
+// Webradio contract (concept 16, contracts 1.17.0 and 1.19.0): no radio schema and no radio operation
 // refers to ItemRef, directly or through a chain of $ref (12.3: "Antworten enthalten kein ItemRef").
 // A station is not a title; an ItemRef would carry scoped title image URLs into the radio views.
 func TestRadioContractHasNoItemRef(t *testing.T) {
@@ -63,8 +63,8 @@ func TestRadioContractHasNoItemRef(t *testing.T) {
 			}
 		}
 	}
-	if radioOps != 30 {
-		t.Errorf("%d radio operations, want the 30 of contract 1.17.0", radioOps)
+	if radioOps != 35 {
+		t.Errorf("%d radio operations, want the 30 of contract 1.17.0 and the 5 of 1.19.0", radioOps)
 	}
 }
 

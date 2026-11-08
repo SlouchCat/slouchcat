@@ -887,6 +887,9 @@ var profileRegistry = map[string]profileCall{
 	// The fixture stations have no logo.
 	"getRadioImage": {contract: "GET /radio/images/{id}/{kind}/{size}", path: "/radio/images/" + radioCH + "/logo/w256",
 		want: radioStatus(http.StatusNotFound)},
+	// Contract 1.19.0: no relay of the fixture found a cover.
+	"getRadioCover": {contract: "GET /radio/covers/{trackId}/{size}", path: "/radio/covers/9999/w256",
+		want: radioStatus(http.StatusNotFound)},
 	// Minted: a listen session of the profile on the CH station ({ls}, {rt}).
 	"getRadioLivePlaylist": {contract: "GET /radio/live/{listenId}/index.m3u8", streamOnly: true, radioMint: true,
 		path: "/radio/live/{ls}/index.m3u8?rt={rt}", want: radioStatus(http.StatusOK)},

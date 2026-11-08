@@ -157,7 +157,10 @@ type RadioListen struct {
 	Token              string
 	HeartbeatSeconds   int // 30
 	StartOffsetSeconds int // -8
-	Station            RadioStation
+	// TimeShiftSeconds is how far behind live the listener may play (contract 1.19.0): the
+	// buffer of the relay, 0 in memory mode (no tmpfs, live only).
+	TimeShiftSeconds int
+	Station          RadioStation
 }
 
 // RadioHeartbeat answers a heartbeat (contract RadioHeartbeat); WatchTime is nil for a profile
@@ -167,13 +170,24 @@ type RadioHeartbeat struct {
 	WatchTime *WatchTime
 }
 
-// RadioNowEntry is one title the stream announced; At is the program date-time of the segment it
-// arrived in. Artist and Title are set when Text splits into both.
+// RadioNowEntry is one title the stream announced; At is the program date-time of the audio it
+// starts at (stage 2: frames counted for MP3 and AAC, else the segment it arrived in). Artist and
+// Title are set when Text splits into both. CoverTrackID and CoverHash name the cover found for it
+// (radio_tracks; 0 and "" while none is known).
 type RadioNowEntry struct {
-	At     time.Time
-	Text   string
-	Artist string
-	Title  string
+	At           time.Time
+	Text         string
+	Artist       string
+	Title        string
+	CoverTrackID int64
+	CoverHash    string
+}
+
+// RadioHomeStation is one tile of the start page row radio («Meine Sender», contract 1.19.0): a
+// favourite and, while its relay runs, the title at the live edge (nil otherwise).
+type RadioHomeStation struct {
+	Station RadioStation
+	Now     *RadioNowEntry
 }
 
 // RadioNow is the title timeline of a station's running relay (Live false: none runs).
@@ -242,7 +256,8 @@ type AdminRadioQuery struct {
 	Country    string
 	Genre      string
 	State      string // reachable, broken, hidden; "" = any
-	Exceptions bool   // only changed, hidden, broken and recommended stations
+	Source     string // catalog, own; "" = any (contract 1.19.0)
+	Exceptions bool   // only changed, hidden, broken, recommended and own stations
 	Offset     int
 	Limit      int
 }
@@ -269,6 +284,74 @@ type AdminRadioStationPatch struct {
 	Hidden               *bool
 	Recommended          *bool
 	Locks                *[]string
+	// Own stations only (contract 1.19.0): the stream address, the homepage and the country;
+	// ClearHomepage and ClearCountry come from a JSON null.
+	StreamURL     *string
+	Homepage      *string
+	ClearHomepage bool
+	Country       *string
+	ClearCountry  bool
+}
+
+// AdminRadioStationCreate is an own station (contract AdminRadioStationCreate, concept 16 section
+// 5.6). Empty strings and nil lists are absent.
+type AdminRadioStationCreate struct {
+	Name      string
+	StreamURL string
+	Homepage  string
+	Country   string
+	Region    string
+	Genres    []string
+	Kinds     []string
+	Moods     []string
+}
+
+// Radio tag rule facets (contract RadioTagRuleFacet): the three facets of the rules and ignore,
+// which takes a tag off the worklist.
+const RadioRuleIgnore = "ignore"
+
+// Sources of a tag rule (contract RadioTagRuleView.source).
+const (
+	RadioRuleDefault = "default"
+	RadioRuleAdmin   = "admin"
+)
+
+// RadioTagRule is one rule «tag → facet value» of the administration (table radio_tag_rules). Value
+// "" maps the tag to no value of the facet (JSON null); with Facet ignore it is always "".
+type RadioTagRule struct {
+	Tag   string
+	Facet string // genre, kind, mood, ignore
+	Value string
+}
+
+// RadioTagRuleView is an effective rule with where it comes from and the stations with its tag.
+type RadioTagRuleView struct {
+	RadioTagRule
+	Source   string // RadioRuleDefault, RadioRuleAdmin
+	Stations int
+}
+
+// RadioTagCount is a raw tag with the number of stations that carry it.
+type RadioTagCount struct {
+	Tag      string
+	Stations int
+}
+
+// RadioCoverage counts the reachable, shown stations with a value of a facet (genre, kind, mood,
+// region, language); Total is the same for every facet.
+type RadioCoverage struct {
+	Facet    string
+	Assigned int
+	Total    int
+}
+
+// RadioTagRules is the tab «Einordnung» (contract RadioTagRules).
+type RadioTagRules struct {
+	Rules               []RadioTagRuleView
+	Worklist            []RadioTagCount
+	WorklistMinStations int
+	OpenTags            int
+	Coverage            []RadioCoverage
 }
 
 // RadioProbe is the result of probing a stream (contract RadioProbe).
@@ -294,18 +377,22 @@ type RadioConfig struct {
 	Countries         []string
 	BufferMode        string // RadioBuffer*
 	MaxRelaysByBudget int
+	CoverMusicBrainz  bool // contract 1.19.0
+	CoverITunes       bool
 }
 
 // RadioConfigUpdate changes radio settings (contract RadioConfigUpdate): nil keeps a field,
 // ClearCountries (a JSON null) admits every country again.
 type RadioConfigUpdate struct {
-	BufferMinutes  *int
-	BudgetMB       *int
-	MaxRelays      *int
-	GraceSeconds   *int
-	HideBroken     *bool
-	Countries      *[]string
-	ClearCountries bool
+	BufferMinutes    *int
+	BudgetMB         *int
+	MaxRelays        *int
+	GraceSeconds     *int
+	HideBroken       *bool
+	Countries        *[]string
+	ClearCountries   bool
+	CoverMusicBrainz *bool
+	CoverITunes      *bool
 }
 
 // RadioCatalogState is the state of the catalog and its sync (contract RadioCatalogState).

@@ -35,6 +35,7 @@ func configFromRow(r appq.RadioConfig) model.RadioConfig {
 		BufferMinutes: int(r.BufferMinutes), BudgetMB: int(r.BudgetMb), MaxRelays: int(r.MaxRelays),
 		GraceSeconds: int(r.GraceSeconds), HideBroken: r.HideBroken == 1, Countries: parseCountries(r.Countries),
 		MaxRelaysByBudget: maxRelaysByBudget(int(r.BudgetMb), int(r.BufferMinutes)),
+		CoverMusicBrainz:  r.CoverMusicbrainz == 1, CoverITunes: r.CoverItunes == 1,
 	}
 }
 
@@ -92,6 +93,12 @@ func (s *Service) UpdateConfig(ctx context.Context, upd model.RadioConfigUpdate)
 	setInt(&p.GraceSeconds, upd.GraceSeconds, "graceSeconds", func(v int) bool { return v >= 0 && v <= 1800 })
 	if upd.HideBroken != nil {
 		p.HideBroken = flag01(*upd.HideBroken)
+	}
+	if upd.CoverMusicBrainz != nil {
+		p.CoverMusicbrainz = flag01(*upd.CoverMusicBrainz)
+	}
+	if upd.CoverITunes != nil {
+		p.CoverItunes = flag01(*upd.CoverITunes)
 	}
 	switch {
 	case upd.ClearCountries:

@@ -28,7 +28,7 @@ const (
 // Nullable fields of the radio PATCH bodies, by their contract names (pickUpdateNulls).
 var (
 	radioConfigNullFields  = []string{"countries"}
-	radioStationNullFields = []string{"region", "preferredStreamId"}
+	radioStationNullFields = []string{"region", "preferredStreamId", "homepage", "country"}
 )
 
 func (e serviceProblem) VisitListRadioStationsResponse(w http.ResponseWriter) error {
@@ -85,6 +85,18 @@ func (e serviceProblem) VisitDeleteRadioStationLogoResponse(w http.ResponseWrite
 }
 func (e serviceProblem) VisitListRadioRelaysResponse(w http.ResponseWriter) error { return e.visit(w) }
 func (e serviceProblem) VisitStopRadioListenerResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitCreateRadioStationResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitDeleteRadioStationResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitGetRadioTagRulesResponse(w http.ResponseWriter) error {
+	return e.visit(w)
+}
+func (e serviceProblem) VisitSetRadioTagRulesResponse(w http.ResponseWriter) error {
 	return e.visit(w)
 }
 
@@ -263,7 +275,52 @@ func toAdminRadioStation(a model.AdminRadioStation) gen.AdminRadioStation {
 func toRadioConfig(c model.RadioConfig) gen.RadioConfig {
 	return gen.RadioConfig{BufferMinutes: gen.RadioConfigBufferMinutes(c.BufferMinutes), BudgetMb: c.BudgetMB,
 		MaxRelays: c.MaxRelays, GraceSeconds: c.GraceSeconds, HideBroken: c.HideBroken, Countries: c.Countries,
-		BufferMode: gen.RadioBufferMode(c.BufferMode), MaxRelaysByBudget: c.MaxRelaysByBudget}
+		BufferMode: gen.RadioBufferMode(c.BufferMode), MaxRelaysByBudget: c.MaxRelaysByBudget,
+		CoverMusicbrainz: c.CoverMusicBrainz, CoverItunes: c.CoverITunes}
+}
+
+// radioCoverURL is the URL of getRadioCover (w256) for a title's cover, nil without one.
+func radioCoverURL(trackID int64, hash string) *gen.RadioCover {
+	if trackID == 0 || hash == "" {
+		return nil
+	}
+	return &gen.RadioCover{Url: fmt.Sprintf("%s/radio/covers/%d/w256?v=%s", BasePath, trackID, url.QueryEscape(hash))}
+}
+
+func toRadioNowEntry(e model.RadioNowEntry) gen.RadioNowEntry {
+	return gen.RadioNowEntry{At: e.At.UnixMilli(), Text: e.Text, Artist: optString(e.Artist), Title: optString(e.Title),
+		Cover: radioCoverURL(e.CoverTrackID, e.CoverHash)}
+}
+
+// toRadioHomeStations maps the tiles of the start page row radio («Meine Sender», contract 1.19.0).
+func toRadioHomeStations(list []model.RadioHomeStation) []gen.RadioHomeStation {
+	out := make([]gen.RadioHomeStation, 0, len(list))
+	for _, h := range list {
+		tile := gen.RadioHomeStation{Station: toRadioStation(h.Station)}
+		if h.Now != nil {
+			now := toRadioNowEntry(*h.Now)
+			tile.Now = &now
+		}
+		out = append(out, tile)
+	}
+	return out
+}
+
+func toRadioTagRules(r model.RadioTagRules) gen.RadioTagRules {
+	out := gen.RadioTagRules{Rules: make([]gen.RadioTagRuleView, 0, len(r.Rules)),
+		Worklist: make([]gen.RadioTagCount, 0, len(r.Worklist)), WorklistMinStations: r.WorklistMinStations,
+		OpenTags: r.OpenTags, Coverage: make([]gen.RadioCoverage, 0, len(r.Coverage))}
+	for _, v := range r.Rules {
+		out.Rules = append(out.Rules, gen.RadioTagRuleView{Tag: v.Tag, Facet: gen.RadioTagRuleFacet(v.Facet),
+			Value: optString(v.Value), Source: gen.RadioTagRuleViewSource(v.Source), Stations: v.Stations})
+	}
+	for _, c := range r.Worklist {
+		out.Worklist = append(out.Worklist, gen.RadioTagCount{Tag: c.Tag, Stations: c.Stations})
+	}
+	for _, c := range r.Coverage {
+		out.Coverage = append(out.Coverage, gen.RadioCoverage{Facet: gen.RadioCoverageFacet(c.Facet), Assigned: c.Assigned, Total: c.Total})
+	}
+	return out
 }
 
 func toRadioPreferences(p model.RadioPreferences) gen.RadioPreferences {
@@ -405,7 +462,7 @@ func (s *server) StartRadioListen(ctx context.Context, req gen.StartRadioListenR
 	}
 	playlist := BasePath + "/radio/live/" + url.PathEscape(l.ListenID) + "/index.m3u8?rt=" + url.QueryEscape(l.Token)
 	return gen.StartRadioListen201JSONResponse{ListenId: l.ListenID, PlaylistUrl: playlist, HeartbeatSeconds: l.HeartbeatSeconds,
-		StartOffsetSeconds: l.StartOffsetSeconds, Station: toRadioStation(l.Station)}, nil
+		StartOffsetSeconds: l.StartOffsetSeconds, TimeShiftSeconds: l.TimeShiftSeconds, Station: toRadioStation(l.Station)}, nil
 }
 
 func (s *server) RadioListenHeartbeat(ctx context.Context, req gen.RadioListenHeartbeatRequestObject) (gen.RadioListenHeartbeatResponseObject, error) {
@@ -461,8 +518,7 @@ func (s *server) GetRadioNow(ctx context.Context, req gen.GetRadioNowRequestObje
 	}
 	out := gen.GetRadioNow200JSONResponse{Live: now.Live, Entries: make([]gen.RadioNowEntry, 0, len(now.Entries))}
 	for _, e := range now.Entries {
-		out.Entries = append(out.Entries, gen.RadioNowEntry{At: e.At.UnixMilli(), Text: e.Text,
-			Artist: optString(e.Artist), Title: optString(e.Title)})
+		out.Entries = append(out.Entries, toRadioNowEntry(e))
 	}
 	return out, nil
 }
@@ -526,7 +582,8 @@ func (s *server) UpdateRadioConfig(ctx context.Context, req gen.UpdateRadioConfi
 	b := req.Body
 	nulls, _ := ctx.Value(pickNullsKey{}).(map[string]bool)
 	upd := model.RadioConfigUpdate{BudgetMB: b.BudgetMb, MaxRelays: b.MaxRelays, GraceSeconds: b.GraceSeconds,
-		HideBroken: b.HideBroken, Countries: b.Countries, ClearCountries: nulls["countries"]}
+		HideBroken: b.HideBroken, Countries: b.Countries, ClearCountries: nulls["countries"],
+		CoverMusicBrainz: b.CoverMusicbrainz, CoverITunes: b.CoverItunes}
 	if b.BufferMinutes != nil {
 		m := int(*b.BufferMinutes)
 		upd.BufferMinutes = &m
@@ -581,7 +638,7 @@ func (s *server) ListAdminRadioStations(ctx context.Context, req gen.ListAdminRa
 		exceptions = *p.Exceptions
 	}
 	q := model.AdminRadioQuery{Q: deref(p.Q), Country: deref(p.Country), Genre: deref(p.Genre), State: string(deref(p.State)),
-		Exceptions: exceptions, Offset: offset, Limit: limit}
+		Source: string(deref(p.Source)), Exceptions: exceptions, Offset: offset, Limit: limit}
 	page, err := s.opts.Radio.AdminStations(ctx, q)
 	if err != nil {
 		return s.problem(ctx, err), nil
@@ -616,7 +673,8 @@ func (s *server) UpdateAdminRadioStation(ctx context.Context, req gen.UpdateAdmi
 	nulls, _ := ctx.Value(pickNullsKey{}).(map[string]bool)
 	patch := model.AdminRadioStationPatch{Name: b.Name, Region: b.Region, ClearRegion: nulls["region"], Genres: b.Genres,
 		Kinds: b.Kinds, Moods: b.Moods, PreferredStreamID: b.PreferredStreamId, ClearPreferredStream: nulls["preferredStreamId"],
-		Hidden: b.Hidden, Recommended: b.Recommended}
+		Hidden: b.Hidden, Recommended: b.Recommended, StreamURL: b.StreamUrl, Homepage: b.Homepage,
+		ClearHomepage: nulls["homepage"], Country: b.Country, ClearCountry: nulls["country"]}
 	if b.Locks != nil {
 		locks := make([]string, 0, len(*b.Locks))
 		for _, l := range *b.Locks {
@@ -657,6 +715,66 @@ func (s *server) DeleteRadioStationLogo(ctx context.Context, req gen.DeleteRadio
 		return s.problem(ctx, err), nil
 	}
 	return gen.DeleteRadioStationLogo200JSONResponse(toAdminRadioStation(a)), nil
+}
+
+// CreateRadioStation adds an own station (contract 1.19.0, concept 16 section 5.6).
+func (s *server) CreateRadioStation(ctx context.Context, req gen.CreateRadioStationRequestObject) (gen.CreateRadioStationResponseObject, error) {
+	if s.opts.Radio == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
+	}
+	b := req.Body
+	c := model.AdminRadioStationCreate{Name: b.Name, StreamURL: b.StreamUrl, Homepage: deref(b.Homepage), Country: deref(b.Country),
+		Region: deref(b.Region), Genres: deref(b.Genres), Kinds: deref(b.Kinds), Moods: deref(b.Moods)}
+	a, err := s.opts.Radio.CreateStation(ctx, c)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.CreateRadioStation201JSONResponse(toAdminRadioStation(a)), nil
+}
+
+// DeleteRadioStation deletes an own station (contract 1.19.0).
+func (s *server) DeleteRadioStation(ctx context.Context, req gen.DeleteRadioStationRequestObject) (gen.DeleteRadioStationResponseObject, error) {
+	if s.opts.Radio == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if err := s.opts.Radio.DeleteStation(ctx, req.StationId); err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.DeleteRadioStation204Response{}, nil
+}
+
+// GetRadioTagRules answers the tab «Einordnung» (contract 1.19.0).
+func (s *server) GetRadioTagRules(ctx context.Context, _ gen.GetRadioTagRulesRequestObject) (gen.GetRadioTagRulesResponseObject, error) {
+	if s.opts.Radio == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	r, err := s.opts.Radio.TagRules(ctx)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.GetRadioTagRules200JSONResponse(toRadioTagRules(r)), nil
+}
+
+// SetRadioTagRules replaces the administration's tag rules (contract 1.19.0).
+func (s *server) SetRadioTagRules(ctx context.Context, req gen.SetRadioTagRulesRequestObject) (gen.SetRadioTagRulesResponseObject, error) {
+	if s.opts.Radio == nil {
+		return s.problem(ctx, model.ErrNotImplemented), nil
+	}
+	if req.Body == nil {
+		return s.problem(ctx, (&model.ValidationError{}).Add("body", "required")), nil
+	}
+	rules := make([]model.RadioTagRule, 0, len(req.Body.Rules))
+	for _, r := range req.Body.Rules {
+		rules = append(rules, model.RadioTagRule{Tag: r.Tag, Facet: string(r.Facet), Value: deref(r.Value)})
+	}
+	out, err := s.opts.Radio.SetTagRules(ctx, rules)
+	if err != nil {
+		return s.problem(ctx, err), nil
+	}
+	return gen.SetRadioTagRules200JSONResponse(toRadioTagRules(out)), nil
 }
 
 func (s *server) ListRadioRelays(ctx context.Context, _ gen.ListRadioRelaysRequestObject) (gen.ListRadioRelaysResponseObject, error) {

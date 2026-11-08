@@ -85,6 +85,9 @@ func (s *server) GetHome(ctx context.Context, req gen.GetHomeRequestObject) (gen
 		case model.RowGenres:
 			gs := toGenreRefs(row.Genres)
 			out.Genres = &gs
+		case model.RowRadio: // concept 16 stage 2: the tiles of «Meine Sender»
+			st := toRadioHomeStations(row.Stations)
+			out.Stations = &st
 		}
 		page.Rows = append(page.Rows, out)
 	}

@@ -61,6 +61,8 @@ const (
 	radioImagePath        = "/radio/images/{id}/{kind}/{size}"
 	adminRadioImagePath   = "/admin/radio/images/{id}/{kind}/{size}"
 	radioLogoUploadPath   = "/admin/radio/stations/{stationId}/logo"
+	// The cover of a title (concept 16 stage 2, contract 1.19.0).
+	radioCoverPath = "/radio/covers/{trackId}/{size}"
 )
 
 var binaryRoutes = map[string]string{
@@ -85,6 +87,7 @@ var binaryRoutes = map[string]string{
 	"GET " + BasePath + radioLiveInitPath:     "scoped",
 	"GET " + BasePath + radioLiveSegmentPath:  "scoped",
 	"GET " + BasePath + radioImagePath:        "scoped",
+	"GET " + BasePath + radioCoverPath:        "scoped",
 	"GET " + BasePath + adminRadioImagePath:   "admin",
 	"PUT " + BasePath + radioLogoUploadPath:   "admin",
 }
@@ -179,6 +182,7 @@ func NewHandler(o Options) http.Handler {
 		r.With(radioAuth).Get(radioLiveInitPath, s.getRadioLiveInit)
 		r.With(radioAuth).Get(radioLiveSegmentPath, s.getRadioLiveSegment)
 		r.With(authorize).Get(radioImagePath, s.getRadioImage)
+		r.With(authorize).Get(radioCoverPath, s.getRadioCover)
 		r.With(authorize).Get(adminRadioImagePath, s.getAdminRadioImage)
 		r.With(authorize).Put(radioLogoUploadPath, s.uploadRadioStationLogo)
 	})

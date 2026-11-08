@@ -28,7 +28,7 @@ func TestHomeRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	lib := fmt.Sprintf("library:%d", c.f.LibraryID())
-	if want := append(slices.Clone(model.HomeRowKeys[:8]), model.RowLibraries, "radio", lib); !slices.Equal(homeRowIDs(rows), want) {
+	if want := append(slices.Clone(model.HomeRowKeys[:8]), model.RowLibraries, model.RowRadio, lib); !slices.Equal(homeRowIDs(rows), want) {
 		t.Fatalf("default order %v, want %v", homeRowIDs(rows), want)
 	}
 	if r := rows[10]; r.Key != model.RowLibrary || r.LibraryID != c.f.LibraryID() || r.LibraryName != "Filme" || !r.Hidden || !rows[8].Hidden || !rows[9].Hidden {
@@ -36,7 +36,7 @@ func TestHomeRows(t *testing.T) {
 	}
 
 	order := []string{model.RowRecent, lib, model.RowPicks, model.RowGenres, model.RowContinue, model.RowWatchlist,
-		model.RowCollections, model.RowReleased, model.RowSpotlight, model.RowLibraries, "radio"}
+		model.RowCollections, model.RowReleased, model.RowSpotlight, model.RowLibraries, model.RowRadio}
 	in := make([]model.HomeRowSetting, 0, len(order))
 	for i, id := range order {
 		key := id

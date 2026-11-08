@@ -193,6 +193,31 @@ func (s *server) serveRadioImage(w http.ResponseWriter, r *http.Request, admin b
 	http.ServeContent(w, r, "", src.ModTime, src.File)
 }
 
+// getRadioCover serves the cover of a title for the active profile (contract 1.19.0): any profile
+// session may read it, a cover names no station; an unknown or expired track answers 404.
+func (s *server) getRadioCover(w http.ResponseWriter, r *http.Request) {
+	if s.opts.Radio == nil {
+		s.p.mapError(w, r, model.ErrNotImplemented)
+		return
+	}
+	raw, size := chi.URLParam(r, "trackId"), chi.URLParam(r, "size")
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || id < 1 || strconv.FormatInt(id, 10) != raw || !radioImageSizes["logo"][size] {
+		s.p.write(w, r, http.StatusNotFound, "not_found", "")
+		return
+	}
+	w.Header().Add("Vary", "Accept")
+	src, err := s.opts.Radio.Cover(r.Context(), id, size, acceptsWebP(r.Header.Values("Accept")))
+	if err != nil {
+		s.p.mapError(w, r, err)
+		return
+	}
+	defer src.File.Close()
+	w.Header().Set("Content-Type", src.MediaType)
+	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+	http.ServeContent(w, r, "", src.ModTime, src.File)
+}
+
 // uploadRadioStationLogo takes a logo the administrator uploads for a station (x-visibility admin,
 // body limit MaxImageUploadBodyBytes through largeBodies): the multipart part "file", at most
 // model.MaxImageUploadBytes, like uploadItemImage. The service checks the format by content and
