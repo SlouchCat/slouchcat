@@ -591,6 +591,9 @@ type ItemSummary struct {
 	SeriesTitle   string
 	ExtraKind     string // trailer, featurette, deleted_scene, behind_the_scenes, interview, scene, short, other
 	ChildCount    *int   // visible seasons of a series, visible episodes of a season
+	// WatchedCount is the number of visible episodes of a season the profile has completed
+	// (concept 17 section 2.3, contract 1.20.0); set on seasons only.
+	WatchedCount *int
 	// SeriesRef is the visible series of an episode with its title and images (concept 15 P-1,
 	// contract 1.14.0 ItemRef.seriesRef); nil on every other kind.
 	SeriesRef *SeriesRef

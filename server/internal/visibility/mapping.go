@@ -190,6 +190,9 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 	if it.Year.Valid {
 		y := int(it.Year.Int64)
 		s.Year = &y
+	} else if day, err := time.Parse(time.DateOnly, it.ReleaseDate.String); err == nil && it.Kind == "season" {
+		y := day.Year() // a season without a year of its own: the year of its release date (concept 17 section 2.3)
+		s.Year = &y
 	}
 	if it.RuntimeMinutes.Valid {
 		m := int(it.RuntimeMinutes.Int64)
@@ -233,6 +236,10 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 	if it.Kind == "series" || it.Kind == "season" {
 		n := ex.childCounts[it.ID]
 		s.ChildCount = &n
+	}
+	if it.Kind == "season" {
+		w := ex.watched[it.ID]
+		s.WatchedCount = &w
 	}
 	return s
 }

@@ -123,6 +123,7 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 		SeriesTitle:    ref.SeriesTitle,
 		ExtraKind:      ref.ExtraKind,
 		ChildCount:     ref.ChildCount,
+		WatchedCount:   ref.WatchedCount,
 		Author:         ref.Author,
 		PublishedAt:    ref.PublishedAt,
 		DurationMs:     ref.DurationMs,
@@ -565,6 +566,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		ref.ParentId = &it.ParentID
 	}
 	ref.SeasonNumber, ref.EpisodeNumber, ref.EpisodeEnd, ref.ChildCount = it.SeasonNumber, it.EpisodeNumber, it.EpisodeEnd, it.ChildCount
+	ref.WatchedCount = it.WatchedCount // seasons only
 	ref.SeriesTitle = optString(it.SeriesTitle)
 	if s := it.SeriesRef; s != nil { // episodes only (contract 1.14.0); the image URLs name the series
 		ref.SeriesRef = &gen.SeriesRef{Id: s.ID, Title: s.Title, Images: gen.ItemImages{

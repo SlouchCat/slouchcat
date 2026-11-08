@@ -1026,7 +1026,11 @@ const listVisibleChildCounts = `-- name: ListVisibleChildCounts :many
 SELECT i.id,
        (SELECT count(*) FROM items AS c
         JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
-        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count
+        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
+       (SELECT count(*) FROM items AS c
+        JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+        JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
+        WHERE c.parent_id = i.id AND c.kind = 'episode') AS watched_count
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season')
@@ -1038,12 +1042,15 @@ type ListVisibleChildCountsParams struct {
 }
 
 type ListVisibleChildCountsRow struct {
-	ID         string
-	ChildCount int64
+	ID           string
+	ChildCount   int64
+	WatchedCount int64
 }
 
 // Number of visible content children of visible series and seasons: seasons of a series, episodes
 // of a season (extras never count). One query with a correlated subquery over visible_items.
+// watched_count counts the visible episodes of a season the profile has completed (concept 17
+// section 2.3, like the "done" of the library's episode statistics); 0 for a series.
 func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
 	query := listVisibleChildCounts
 	var queryParams []interface{}
@@ -1064,7 +1071,7 @@ func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChi
 	items := []ListVisibleChildCountsRow{}
 	for rows.Next() {
 		var i ListVisibleChildCountsRow
-		if err := rows.Scan(&i.ID, &i.ChildCount); err != nil {
+		if err := rows.Scan(&i.ID, &i.ChildCount, &i.WatchedCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

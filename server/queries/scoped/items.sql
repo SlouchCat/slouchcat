@@ -153,11 +153,17 @@ WHERE i.id IN (sqlc.slice('item_ids'));
 
 -- Number of visible content children of visible series and seasons: seasons of a series, episodes
 -- of a season (extras never count). One query with a correlated subquery over visible_items.
+-- watched_count counts the visible episodes of a season the profile has completed (concept 17
+-- section 2.3, like the "done" of the library's episode statistics); 0 for a series.
 -- name: ListVisibleChildCounts :many
 SELECT i.id,
        (SELECT count(*) FROM items AS c
         JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
-        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count
+        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
+       (SELECT count(*) FROM items AS c
+        JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = @profile_id
+        JOIN progress AS pc ON pc.profile_id = @profile_id AND pc.item_id = c.id AND pc.completed = 1
+        WHERE c.parent_id = i.id AND c.kind = 'episode') AS watched_count
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = @profile_id
 WHERE i.id IN (sqlc.slice('item_ids')) AND i.kind IN ('series', 'season');

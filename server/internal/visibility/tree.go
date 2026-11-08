@@ -17,7 +17,7 @@ import (
 // profile may not see is absent from every list, and a person exists for the profile only through
 // the visible titles of their credits.
 
-// treeExtras fills the child counts of series and seasons, the parents the profile may see, the
+// treeExtras fills the child counts of series and seasons, the completed episodes of seasons, the parents the profile may see, the
 // series titles of seasons and episodes (the text chain of the scope, then the parsed title) and
 // the series of episodes with their images (concept 15 P-1). The series of all items are loaded
 // together: one query for their texts and, when the items hold an episode, one for their images.
@@ -28,6 +28,7 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 	}
 	for _, c := range counts {
 		out.childCounts[c.ID] = int(c.ChildCount)
+		out.watched[c.ID] = int(c.WatchedCount)
 	}
 	parents, err := r.q.ListVisibleParents(ctx, scopedq.ListVisibleParentsParams{ProfileID: pid, ItemIds: ids})
 	if err != nil {
