@@ -1,64 +1,52 @@
-import type {
-  Chapter,
-  CollectionRef,
-  ItemDetail,
-  ItemRef,
-  MediaFileInfo,
-} from '@slouchcat/api-client';
+import type { Chapter, ItemDetail, ItemRef, MediaFileInfo } from '@slouchcat/api-client';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { getRouteApi } from '@tanstack/react-router';
 import type { TFunction } from 'i18next';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { apiUrl, imageUrl, isApiError } from '@/api/client';
+import { imageUrl, isApiError } from '@/api/client';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { useFavoriteMutation, useWatchlistMutation } from '@/features/discover/queries';
-import { isDownloadable, offlineSupported } from '@/features/offline/support';
 import {
   formatBytes,
-  formatClock,
   formatDate,
   formatDuration,
   formatPlayerTime,
-  formatResolution,
   formatRuntime,
+  formatResolution,
 } from '@/lib/format';
 import { useBackKeys } from '@/lib/useBackKeys';
 import { useDocumentTitle } from '@/lib/useDocumentTitle';
 import { useGoBack } from '@/lib/useGoBack';
 import { useOnline } from '@/lib/useOnline';
 import {
-  Backdrop,
   Button,
   ButtonLink,
   CastCard,
   Chip,
   ChoiceChips,
-  CollectionCard,
-  EpisodeCard,
   EpisodeRow,
   FactList,
   Notice,
   PosterCard,
-  PosterFallback,
-  ProgressBar,
   Row,
   Skeleton,
   SpatialButton,
   SpatialButtonLink,
   SpatialGroup,
   SpatialPage,
-  itemAccentStyle,
   setSpatialFocus,
   spatialFocusKey,
-  TitleOrLogo,
 } from '@/ui';
+import { CollectionShelf } from './CollectionShelf';
+import { DetailActions, PLAY_KEY, playTarget, TRAILER_KEY } from './DetailActions';
+import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from './DetailHeader';
 import { EDITABLE_KINDS, EditMetadata } from './EditMetadata';
 import { ItemMeta } from './ItemMeta';
 import { creditCaption, episodeCode, extraKindLabel, isAudioKind } from './labels';
 import { itemQuery, podcastEpisodesQuery } from './queries';
+import { EpisodeList, SeasonShelf, seasonFacts } from './SeasonShelf';
 import styles from './ItemPage.module.css';
 
 const route = getRouteApi('/_authed/_active/_chrome/items/$itemId');
@@ -68,51 +56,15 @@ const TrailerPanel = lazy(() =>
   import('./TrailerPanel').then((module) => ({ default: module.TrailerPanel })),
 );
 
-// "Herunterladen" and the download state (M5) read the offline database: a chunk of their own,
-// loaded only where the browser can keep downloads.
-const DownloadAction = lazy(() =>
-  import('@/features/offline/DownloadAction').then((module) => ({
-    default: module.DownloadAction,
-  })),
-);
-
-const PLAY_KEY = 'detail-play';
-const BACK_KEY = 'detail-back';
-const TRAILER_KEY = 'detail-trailer';
-const DOWNLOAD_KEY = 'detail-download';
-const WATCHLIST_KEY = 'detail-watchlist';
-const FAVORITE_KEY = 'detail-favorite';
-// Rendered poster width (ItemPage.module.css, wide layout only).
-const POSTER_SIZES = 'clamp(13rem, 20vw, 18rem)';
-
-/** "36 % gesehen", or "gehört" for audio titles. */
-const progressLabel = (t: TFunction, item: ItemRef, percent: number) =>
-  t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', { percent: Math.round(percent) });
-
 const watchedProgress = (t: TFunction, item: ItemRef) =>
   item.progress && !item.progress.completed && item.progress.positionMs > 0
-    ? { percent: item.progress.percent, label: progressLabel(t, item, item.progress.percent) }
+    ? {
+        percent: item.progress.percent,
+        label: t(isAudioKind(item.kind) ? 'item.listened' : 'item.watched', {
+          percent: Math.round(item.progress.percent),
+        }),
+      }
     : undefined;
-
-/**
- * Whether the play button works: series, seasons and podcasts play through their episodes; a
- * podcast episode streams from its feed through the server; an audiobook plays all its parts;
- * any other title needs the chosen version's file.
- */
-function canPlay(item: ItemDetail, file: MediaFileInfo | undefined): boolean {
-  switch (item.kind) {
-    case 'series':
-    case 'season':
-    case 'podcast':
-      return false;
-    case 'podcast_episode':
-      return true;
-    case 'audiobook':
-      return item.mediaFiles.some((entry) => entry.available);
-    default:
-      return file?.available === true;
-  }
-}
 
 function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; language: string }) {
   const facts: [string, string][] = [[t('item.file.container'), file.container.toUpperCase()]];
@@ -136,145 +88,6 @@ function FileFacts({ file, t, language }: { file: MediaFileInfo; t: TFunction; l
   );
 }
 
-interface ActionsProps {
-  item: ItemDetail;
-  /** The version the play link starts (B-5); undefined for titles without files. */
-  file: MediaFileInfo | undefined;
-  onBack: () => void;
-  onTrailer: () => void;
-}
-
-function Actions({ item, file, onBack, onTrailer }: ActionsProps) {
-  const { t } = useTranslation();
-  const session = useActiveSession();
-  const online = useOnline();
-  // Series, seasons and podcasts play through their episodes; any other title has a play button,
-  // disabled while it cannot play.
-  const playable = item.kind !== 'series' && item.kind !== 'season' && item.kind !== 'podcast';
-  const available = canPlay(item, file);
-  const audio = isAudioKind(item.kind);
-  const resume =
-    item.progress && !item.progress.completed && item.progress.positionMs > 0
-      ? item.progress
-      : undefined;
-  const playLabel = resume
-    ? t(audio ? 'item.resumeListening' : 'item.resume', { time: formatClock(resume.positionMs) })
-    : t('item.play');
-  // Only one version: the server picks it; with several the chosen one goes along. An audiobook's
-  // files are its parts, not versions.
-  const version = !audio && item.mediaFiles.length > 1 ? file?.id : undefined;
-  const playHref = paths.play(item.id, version);
-  // A shortcut for the one who manages the library, not a visibility rule: the server answers the
-  // administration page only for that account and profile anyway.
-  const canManage = session.account.role === 'admin' && session.profile.isPrimary;
-  // Every kind but seasons and extras goes on the watchlist (E-5); series and podcasts can be
-  // favourites, which notify about new episodes (E-8).
-  const listable = item.kind !== 'season' && item.kind !== 'extra';
-  const favoritable = item.kind === 'series' || item.kind === 'podcast';
-  const watchlist = useWatchlistMutation();
-  const favorite = useFavoriteMutation();
-  const failed = watchlist.error ?? favorite.error;
-
-  return (
-    <>
-      {/* Both rows follow their order for arrows and Tab (ordered): in a wide font the actions wrap,
-          and ↓ from play must still reach the row below, not the button that wrapped under it. */}
-      <SpatialGroup ordered className={styles.actions}>
-        {playable &&
-          (available ? (
-            <SpatialButtonLink
-              focusKey={PLAY_KEY}
-              href={playHref}
-              variant="primary"
-              size="lg"
-              icon="play"
-            >
-              {playLabel}
-            </SpatialButtonLink>
-          ) : (
-            <Button variant="primary" size="lg" icon="play" isDisabled>
-              {playLabel}
-            </Button>
-          ))}
-        <SpatialButton focusKey={BACK_KEY} variant="ghost" size="lg" icon="back" onPress={onBack}>
-          {t('common.back')}
-        </SpatialButton>
-        {(item.trailerCount ?? 0) > 0 && online && (
-          <SpatialButton
-            focusKey={TRAILER_KEY}
-            variant="secondary"
-            size="lg"
-            icon="play"
-            onPress={onTrailer}
-          >
-            {t('item.trailer')}
-          </SpatialButton>
-        )}
-        {/* After play, back and trailer, so their order for arrows and Tab stays as it was. */}
-        {offlineSupported() && isDownloadable(item.kind) && (
-          <Suspense fallback={null}>
-            <DownloadAction
-              target={item}
-              mediaFileId={version}
-              available={item.kind === 'season' || available}
-              focusKey={DOWNLOAD_KEY}
-            />
-          </Suspense>
-        )}
-        {/* Titles the metadata editor does not edit keep the link to their administration page;
-            the others have the pen on the poster (PosterPen). */}
-        {canManage && !EDITABLE_KINDS.has(item.kind) && (
-          <SpatialButtonLink href={paths.adminItem(item.id)} variant="ghost" size="lg" icon="info">
-            {t('item.manage')}
-          </SpatialButtonLink>
-        )}
-      </SpatialGroup>
-      {/* A row of its own under the playback actions: that row keeps its order for arrows and
-          Tab, and ↓ from play reaches "Merken" on every kind that has it. */}
-      {listable && (
-        <SpatialGroup ordered className={styles.listActions}>
-          <SpatialButton
-            focusKey={WATCHLIST_KEY}
-            variant="secondary"
-            icon={item.inWatchlist ? 'check' : 'plus'}
-            aria-disabled={watchlist.isPending || undefined}
-            onPress={() => {
-              if (!watchlist.isPending) watchlist.mutate({ id: item.id, on: !item.inWatchlist });
-            }}
-          >
-            {item.inWatchlist ? t('item.watchlist.added') : t('item.watchlist.add')}
-          </SpatialButton>
-          {favoritable && (
-            <SpatialButton
-              focusKey={FAVORITE_KEY}
-              variant="secondary"
-              icon={item.favorite ? 'check' : 'plus'}
-              aria-pressed={item.favorite}
-              aria-description={t('item.favorite.hint')}
-              aria-disabled={favorite.isPending || undefined}
-              onPress={() => {
-                if (!favorite.isPending) favorite.mutate({ id: item.id, on: !item.favorite });
-              }}
-            >
-              {t('item.favorite.label')}
-            </SpatialButton>
-          )}
-          {canManage && (
-            <SpatialButtonLink
-              href={`${paths.adminPicks}?add=${encodeURIComponent(item.id)}`}
-              variant="ghost"
-              icon="plus"
-            >
-              {t('item.addToPicks')}
-            </SpatialButtonLink>
-          )}
-        </SpatialGroup>
-      )}
-      {failed && <Notice tone="danger" title={problemMessage(t, failed)} />}
-    </>
-  );
-}
-
 /**
  * The pen on the poster (concept 15 7.4): it opens the metadata editor, for the one who manages
  * the library. A plain button, so Tab reaches it before the actions and the arrow keys pass it
@@ -287,7 +100,7 @@ function PosterPen({ item }: { item: ItemDetail }) {
   const canManage = session.account.role === 'admin' && session.profile.isPrimary;
   if (!canManage || !EDITABLE_KINDS.has(item.kind)) return null;
   return (
-    <div className={styles.posterTool}>
+    <>
       <Button
         variant="secondary"
         size="sm"
@@ -299,39 +112,19 @@ function PosterPen({ item }: { item: ItemDetail }) {
         onPress={() => setEditing(true)}
       />
       {editing && <EditMetadata itemId={item.id} onClose={() => setEditing(false)} />}
-    </div>
-  );
-}
-
-/** The visible collections the title belongs to (E-6). */
-function Collections({ collections }: { collections: readonly CollectionRef[] }) {
-  const { t } = useTranslation();
-  if (collections.length === 0) return null;
-  return (
-    <Row title={t('item.collections')} focusKey="detail-collections">
-      {collections.map((collection) => (
-        <CollectionCard
-          key={collection.id}
-          href={paths.collection(collection.id)}
-          name={collection.name}
-          caption={t('collection.count', { count: collection.count })}
-          posterUrl={imageUrl(collection.cover?.images.poster)}
-          posterSmallUrl={imageUrl(collection.cover?.images.posterSmall)}
-          accent={collection.cover?.accent}
-        />
-      ))}
-    </Row>
+    </>
   );
 }
 
 /**
- * Links to the neighbours of an episode, season or extra: next episode, series, main title; the
- * podcast of a podcast episode.
+ * Links to the neighbours of an episode or extra: next episode, series, main title; the podcast of
+ * a podcast episode.
  */
 function RelatedLinks({ item }: { item: ItemDetail }) {
   const { t } = useTranslation();
   const next = item.kind === 'episode' ? item.nextEpisode : undefined;
-  const series = item.kind === 'episode' || item.kind === 'season' ? item.series : undefined;
+  // A season names its series as a link over its title (DetailHeader kicker, E-15).
+  const series = item.kind === 'episode' ? item.series : undefined;
   const parentId = item.kind === 'extra' ? item.parentId : undefined;
   const podcast = item.kind === 'podcast_episode' ? item.podcast : undefined;
   if (!next && !series && !parentId && !podcast) return null;
@@ -401,91 +194,6 @@ function Versions({
         <FileFacts file={file} t={t} language={i18n.language} />
       ) : (
         <Notice tone="warning">{t('item.file.none')}</Notice>
-      )}
-    </section>
-  );
-}
-
-function EpisodeGrid({ episodes }: { episodes: readonly ItemRef[] }) {
-  const { t } = useTranslation();
-  if (episodes.length === 0) return <p className={styles.muted}>{t('item.episodes.empty')}</p>;
-  return (
-    <SpatialGroup as="ul" className={styles.episodes} aria-label={t('item.episodes.title')}>
-      {episodes.map((episode) => (
-        <li key={episode.id}>
-          <EpisodeCard
-            focusKey={`episode-${episode.id}`}
-            href={paths.item(episode.id)}
-            code={episodeCode(t, episode) ?? ''}
-            title={episode.title}
-            caption={episode.runtimeMinutes ? formatRuntime(t, episode.runtimeMinutes) : undefined}
-            stillUrl={imageUrl(episode.images.backdropSmall ?? episode.images.backdrop)}
-            accent={episode.accent}
-            progress={watchedProgress(t, episode)}
-          />
-        </li>
-      ))}
-    </SpatialGroup>
-  );
-}
-
-/** The episodes of one season, fetched as the season's detail (ItemDetail.episodes). */
-function SeasonEpisodes({ seasonId }: { seasonId: string }) {
-  const { t } = useTranslation();
-  const season = useQuery(itemQuery(seasonId));
-  if (season.isPending) {
-    return (
-      <div className={styles.episodes} aria-busy="true">
-        <Skeleton shape="block" />
-      </div>
-    );
-  }
-  if (season.isError) {
-    return (
-      <Notice
-        tone="danger"
-        title={problemMessage(t, season.error)}
-        actions={
-          <Button icon="refresh" onPress={() => void season.refetch()}>
-            {t('common.retry')}
-          </Button>
-        }
-      />
-    );
-  }
-  return <EpisodeGrid episodes={season.data.episodes ?? []} />;
-}
-
-function Seasons({ seasons }: { seasons: readonly ItemRef[] }) {
-  const { t } = useTranslation();
-  const [chosen, setChosen] = useState<string | null>(null);
-  const current = seasons.find((season) => season.id === chosen) ?? seasons[0];
-  if (!current) return null;
-  return (
-    <section className={styles.block} aria-labelledby="item-seasons-heading">
-      <h2 id="item-seasons-heading" className={styles.sectionTitle}>
-        {t('item.seasons')}
-      </h2>
-      <ChoiceChips
-        label={t('item.seasonChoice')}
-        focusKey="detail-season"
-        value={current.id}
-        onChange={setChosen}
-        options={seasons.map((season) => ({ value: season.id, label: season.title }))}
-      />
-      <SeasonEpisodes seasonId={current.id} />
-      {/* Below the episodes: the arrows from the season chips still land on the episodes. */}
-      {offlineSupported() && (
-        <Suspense fallback={null}>
-          <SpatialGroup className={styles.seasonActions}>
-            <DownloadAction
-              key={current.id}
-              target={current}
-              focusKey="detail-season-download"
-              size="md"
-            />
-          </SpatialGroup>
-        </Suspense>
       )}
     </section>
   );
@@ -690,7 +398,7 @@ function documentTitle(t: TFunction, item: ItemDetail | undefined): string | und
   return item.title;
 }
 
-/** Line above the title: "S01E02 · Series" for an episode, the series for a season. */
+/** Line above the title: "S01E02 · Series" for an episode (a season links its series instead). */
 function kicker(t: TFunction, item: ItemDetail): string | undefined {
   const series = item.seriesTitle ?? item.series?.title;
   if (item.kind === 'episode') {
@@ -698,7 +406,6 @@ function kicker(t: TFunction, item: ItemDetail): string | undefined {
     if (code && series) return t('item.episodeOf', { code, series });
     return code ?? series;
   }
-  if (item.kind === 'season') return series;
   if (item.kind === 'extra') return extraKindLabel(t, item.extraKind);
   if (item.kind === 'audiobook' && item.seriesName) {
     return item.seriesIndex !== undefined
@@ -709,18 +416,27 @@ function kicker(t: TFunction, item: ItemDetail): string | undefined {
   return undefined;
 }
 
-/** "von <Autor>" and "Gelesen von <Sprecher>" under the title of an audiobook or podcast. */
-function bylines(t: TFunction, item: ItemDetail): string[] {
-  if (!isAudioKind(item.kind)) return [];
+/**
+ * Lines under the title: the original title when it differs; "von <Autor>" and "Gelesen von
+ * <Sprecher>" of an audiobook or podcast.
+ */
+function titleLines(t: TFunction, item: ItemDetail): string[] {
+  const original =
+    item.originalTitle && item.originalTitle !== item.title
+      ? t('item.originalTitle', { title: item.originalTitle })
+      : undefined;
+  if (!isAudioKind(item.kind)) return original ? [original] : [];
   return [
+    original,
     item.author ? t('item.audio.by', { author: item.author }) : undefined,
     item.narrator ? t('item.audio.narratedBy', { narrator: item.narrator }) : undefined,
   ].filter((line): line is string => line !== undefined);
 }
 
 /**
- * Detail page of a title (C-2): artwork, facts, overview, play or resume. By kind: versions and
- * extras of a film, seasons and episodes of a series, the neighbours of an episode.
+ * Detail page of a title (C-2, concept 17): one head for every kind (DetailHeader), then the
+ * collections, the seasons and episodes of a series, the chapters or episodes of an audio title or
+ * the file, the extras and the cast (E-9).
  */
 export function ItemPage() {
   const { itemId } = route.useParams();
@@ -729,7 +445,7 @@ export function ItemPage() {
 }
 
 function ItemView({ itemId }: { itemId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const query = useQuery(itemQuery(itemId));
   const goBack = useGoBack(paths.home);
   useBackKeys(goBack);
@@ -737,32 +453,32 @@ function ItemView({ itemId }: { itemId: string }) {
   const [chosenFile, setChosenFile] = useState<string | null>(null);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const online = useOnline();
+  const item = query.data;
+  // The server lists the primary version first (B-5).
+  const file = item?.mediaFiles.find((entry) => entry.id === chosenFile) ?? item?.mediaFiles[0];
+  const target = item ? playTarget(t, i18n.language, item, file) : undefined;
+  const startKey = target?.available ? PLAY_KEY : BACK_KEY;
   // Offline the trailer button and its dialog go away. The dialog stays closed afterwards (it
-  // must not come back by itself and autoplay on reconnect), and the focus moves to "Zurück"
-  // instead of getting lost on the page body.
+  // must not come back by itself and autoplay on reconnect), and the focus moves to the big button
+  // or the back arrow instead of getting lost on the page body.
   if (!online && trailerOpen) setTrailerOpen(false);
   useEffect(() => {
-    if (!online && spatialFocusKey() === TRAILER_KEY) setSpatialFocus(BACK_KEY);
-  }, [online]);
+    if (!online && spatialFocusKey() === TRAILER_KEY) setSpatialFocus(startKey);
+  }, [online, startKey]);
 
   if (query.isPending) {
     return (
       <main className={styles.detail} aria-busy="true">
-        <div className={styles.layout}>
-          <div className={styles.poster}>
-            <Skeleton shape="poster" />
-          </div>
-          <div className={styles.info}>
-            <Skeleton shape="title" />
-            <Skeleton shape="line" />
-            <Skeleton shape="block" />
-          </div>
+        <div className={styles.loading}>
+          <Skeleton shape="title" />
+          <Skeleton shape="line" />
+          <Skeleton shape="block" />
         </div>
       </main>
     );
   }
 
-  if (query.isError) {
+  if (query.isError || !item) {
     const notFound = isApiError(query.error, 404);
     return (
       <main className={`${styles.detail} ${styles.message}`}>
@@ -781,143 +497,80 @@ function ItemView({ itemId }: { itemId: string }) {
     );
   }
 
-  const item = query.data;
-  const { images } = item;
-  const episode = item.kind === 'episode';
-  const still = images.backdropSmall ?? images.backdrop;
-  const hasArt = Boolean(
-    images.backdrop ?? images.backdropSmall ?? images.backdropLarge ?? images.poster,
-  );
-  const progress = item.progress && !item.progress.completed ? item.progress : undefined;
-  const genres = item.genres.join(', ');
-  // The server lists the primary version first (B-5).
-  const file = item.mediaFiles.find((entry) => entry.id === chosenFile) ?? item.mediaFiles[0];
-  const line = kicker(t, item);
   const audio = isAudioKind(item.kind);
-  const playable = canPlay(item, file);
+  const series = item.seriesTitle ?? item.series?.title;
+  const seriesId = item.series?.id ?? item.parentId;
+  const kickerLine =
+    item.kind === 'season' && series && seriesId ? (
+      <SpatialButtonLink href={paths.item(seriesId)} variant="ghost" icon="folder">
+        {series}
+      </SpatialButtonLink>
+    ) : (
+      kicker(t, item)
+    );
+  const facts =
+    item.kind === 'season' ? (
+      <p className={styles.muted}>{seasonFacts(t, item).join(t('format.separator'))}</p>
+    ) : (
+      <ItemMeta item={item} />
+    );
 
   return (
-    <SpatialPage defaultFocusKey={playable ? PLAY_KEY : BACK_KEY}>
-      <main className={styles.detail}>
-        <Backdrop
-          url={imageUrl(images.backdrop)}
-          smallUrl={imageUrl(images.backdropSmall)}
-          largeUrl={imageUrl(images.backdropLarge)}
-          uhdUrl={imageUrl(images.backdropUhd)}
-          uhdWidth={images.backdropUhd?.width}
-          posterUrl={imageUrl(images.poster)}
+    <SpatialPage defaultFocusKey={startKey}>
+      <DetailPage>
+        <DetailHeader
+          images={item.images}
           accent={item.accent}
-        />
-
-        <div className={`${styles.layout} ${hasArt ? '' : styles.noArt}`}>
-          <div className={styles.poster} style={itemAccentStyle(item.accent)}>
-            {episode && still ? (
-              <img
-                src={apiUrl(still.url)}
-                alt=""
-                width={still.width}
-                height={still.height}
-                className={styles.stillImage}
-              />
-            ) : images.poster ? (
-              <img
-                src={apiUrl(images.poster.url)}
-                srcSet={
-                  images.posterLarge
-                    ? `${apiUrl(images.poster.url)} 400w, ${apiUrl(images.posterLarge.url)} 800w`
-                    : undefined
-                }
-                sizes={images.posterLarge ? POSTER_SIZES : undefined}
-                alt=""
-                width={400}
-                height={audio ? 400 : 600}
-                className={audio ? styles.coverImage : styles.posterImage}
-              />
-            ) : (
-              <span
-                className={
-                  episode
-                    ? styles.stillFallback
-                    : audio
-                      ? styles.coverFallback
-                      : styles.posterFallback
-                }
-              >
-                <PosterFallback />
-              </span>
-            )}
-            <PosterPen item={item} />
-          </div>
-
-          <div className={styles.info}>
-            <div className={styles.heading}>
-              {line && <p className={styles.kicker}>{line}</p>}
-              <h1 className={styles.title}>
-                <TitleOrLogo title={item.title} logoUrl={imageUrl(item.images.logo)} />
-              </h1>
-              {item.originalTitle && item.originalTitle !== item.title && (
-                <p className={styles.original}>
-                  {t('item.originalTitle', { title: item.originalTitle })}
-                </p>
-              )}
-              {bylines(t, item).map((byline) => (
-                <p key={byline} className={styles.byline}>
-                  {byline}
-                </p>
-              ))}
-            </div>
-            <div className={styles.factLines}>
-              <ItemMeta item={item} />
-              {genres && <p className={styles.genres}>{genres}</p>}
-            </div>
-            {item.tagline && <p className={styles.tagline}>{item.tagline}</p>}
-
-            <Actions
+          cover={item.kind === 'episode' ? 'still' : audio ? 'square' : 'poster'}
+          onBack={goBack}
+          coverTool={<PosterPen item={item} />}
+          kicker={kickerLine}
+          title={item.title}
+          logoUrl={imageUrl(item.images.logo)}
+          lines={titleLines(t, item)}
+          facts={facts}
+          genres={item.genres.join(', ')}
+          tagline={item.tagline}
+          actions={
+            <DetailActions
               item={item}
               file={file}
-              onBack={goBack}
+              target={target}
               onTrailer={() => setTrailerOpen(true)}
             />
-            <RelatedLinks item={item} />
+          }
+          related={<RelatedLinks item={item} />}
+          overview={item.overview}
+        />
 
-            {progress && (
-              <div className={styles.progress}>
-                <ProgressBar
-                  value={progress.percent}
-                  label={progressLabel(t, item, progress.percent)}
-                />
-                <span className={styles.progressText}>
-                  {progressLabel(t, item, progress.percent)}
-                </span>
-              </div>
-            )}
-
-            {item.overview && <p className={styles.overview}>{item.overview}</p>}
-
-            {item.kind === 'series' && <Seasons seasons={item.seasons ?? []} />}
-            {item.kind === 'season' && (
-              <section className={styles.block} aria-labelledby="item-episodes-heading">
-                <h2 id="item-episodes-heading" className={styles.sectionTitle}>
-                  {t('item.episodes.title')}
-                </h2>
-                <EpisodeGrid episodes={item.episodes ?? []} />
-              </section>
-            )}
-            {item.kind === 'audiobook' && (
-              <AudiobookChapters item={item} chapters={item.chapters ?? []} playable={playable} />
-            )}
-            {item.kind === 'podcast' && <PodcastEpisodes item={item} />}
-
-            <Versions item={item} file={file} onChange={setChosenFile} />
-          </div>
-        </div>
-
-        <div className={styles.rows}>
+        <DetailBody>
+          {/* Right after the head (F-6, E-9); an older server may leave the list out. */}
+          {(item.collections ?? []).map((collection) => (
+            <CollectionShelf key={collection.id} collection={collection} currentId={item.id} />
+          ))}
+          {item.kind === 'series' && (
+            <SeasonShelf seasons={item.seasons ?? []} nextUp={item.nextUp} />
+          )}
+          {item.kind === 'season' && (
+            <section className={styles.block} aria-labelledby="item-episodes-heading">
+              <h2 id="item-episodes-heading" className={styles.sectionTitle}>
+                {t('item.episodes.title')}
+              </h2>
+              <EpisodeList episodes={item.episodes ?? []} nextUp={item.nextUp} />
+            </section>
+          )}
+          {item.kind === 'audiobook' && (
+            <AudiobookChapters
+              item={item}
+              chapters={item.chapters ?? []}
+              playable={target?.available === true}
+            />
+          )}
+          {item.kind === 'podcast' && <PodcastEpisodes item={item} />}
+          <Versions item={item} file={file} onChange={setChosenFile} />
           <Extras extras={item.extras ?? []} />
-          {/* An older server may leave the list out; there is nothing to show then. */}
-          <Collections collections={item.collections ?? []} />
           <Cast item={item} />
-        </div>
+        </DetailBody>
 
         {trailerOpen && (
           <Suspense fallback={null}>
@@ -928,7 +581,7 @@ function ItemView({ itemId }: { itemId: string }) {
             />
           </Suspense>
         )}
-      </main>
+      </DetailPage>
     </SpatialPage>
   );
 }

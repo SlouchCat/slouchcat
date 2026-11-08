@@ -1,8 +1,17 @@
+/* The loading and error states; a loaded title is a DetailPage (DetailHeader.module.css). */
 .detail {
   position: relative;
   min-height: 100dvh;
   padding-bottom: var(--sc-space-16);
-  isolation: isolate;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  max-width: 48rem;
+  padding: calc(var(--sc-size-header-height) + clamp(var(--sc-space-16), 28vh, 18rem))
+    var(--page-gutter) 0;
 }
 
 .message {
@@ -13,178 +22,70 @@
   max-width: var(--sc-size-form-max);
 }
 
-.layout {
+/* The big button (E-10): its label, a second line and the progress stroke under them. */
+.play {
+  display: flex;
+}
+
+.playText {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--sc-space-8);
-  max-width: var(--sc-size-content-max);
-  padding: calc(var(--sc-size-header-height) + clamp(var(--sc-space-16), 28vh, 18rem))
-    var(--page-gutter) 0;
+  gap: var(--sc-space-1);
+  padding: var(--sc-space-2) 0;
+  text-align: start;
 }
 
-.noArt {
-  padding-top: calc(var(--sc-size-header-height) + var(--sc-space-12));
-}
-
-.poster {
-  /* Only this title's accent (inline style) colours the glow, never an inherited one. */
-  --sc-item-accent: initial;
-
-  isolation: isolate;
-}
-
-/* The pen over the top right of the poster (concept 15 7.4). */
-.posterTool {
-  position: absolute;
-  top: var(--sc-space-2);
-  right: var(--sc-space-2);
-}
-
-/* Below 900 px the poster stays out of the layout; its pen moves to the top right of the
-   backdrop, under the header. */
-@media (width < 900px) {
-  .poster {
-    display: contents;
-  }
-
-  .poster::before,
-  .poster > :not(.posterTool) {
-    display: none;
-  }
-
-  .posterTool {
-    top: calc(var(--sc-size-header-height) + var(--sc-space-4));
-    right: var(--page-gutter);
-  }
-}
-
-/* Ambient glow in the title's accent behind the poster (the card's focus glow, at rest). */
-.poster::before {
-  position: absolute;
-  z-index: -1;
-  inset: var(--sc-space-6) var(--sc-space-4) calc(-1 * var(--sc-space-2));
-  border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-item-accent, transparent);
-  content: '';
-  filter: blur(var(--sc-space-8));
-  opacity: 0.4;
-}
-
-.posterImage,
-.posterFallback {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-color-surface-1);
-  object-fit: cover;
-}
-
-.posterFallback {
-  display: block;
-  overflow: hidden;
-}
-
-/* Audiobooks and podcasts: a square cover (M6). */
-.coverImage,
-.coverFallback {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 1 / 1;
-  border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-color-surface-1);
-  object-fit: cover;
-}
-
-.coverFallback {
-  display: block;
-  overflow: hidden;
-}
-
-.info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-5);
-  min-width: 0;
-  max-width: 48rem;
-}
-
-.heading {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-}
-
-.title {
-  font-size: clamp(var(--sc-font-size-2xl), 4.5vw, var(--sc-font-size-display));
-  font-weight: var(--sc-font-weight-bold);
-  line-height: var(--sc-font-line-height-tight);
-  letter-spacing: var(--sc-font-letter-spacing-display);
-  text-wrap: balance;
-}
-
-.original {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
-}
-
-.factLines {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-2);
-}
-
-.genres {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
-}
-
-.tagline {
-  color: var(--sc-color-text-primary);
-  font-size: var(--sc-font-size-lg);
-  line-height: var(--sc-font-line-height-snug);
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-3);
-}
-
-/* Watchlist, favourite and "Zu Cat's Empfehlungen": smaller, in a row under the actions. */
-.listActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-2);
-}
-
-.progress {
-  display: flex;
-  gap: var(--sc-space-3);
-  align-items: center;
-  max-width: 24rem;
-}
-
-.progressText {
-  flex: none;
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-xs);
-}
-
-.overview {
-  max-width: 65ch;
-  color: var(--sc-color-text-secondary);
+.playLabel {
   font-size: var(--sc-font-size-md);
-  line-height: var(--sc-font-line-height-normal);
 }
 
-.files {
+.playDetail {
+  overflow: hidden;
+  max-width: 34ch;
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-medium);
+  text-overflow: ellipsis;
+  opacity: 0.75;
+}
+
+.playStroke {
+  display: block;
+  overflow: hidden;
+  height: 3px;
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-track);
+}
+
+.playStroke > span {
+  display: block;
+  height: 100%;
+  background-color: var(--sc-accent);
+}
+
+/* The round actions under the big button (E-11). */
+.roundActions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2);
+  align-items: flex-start;
+}
+
+.roundActions:empty {
+  display: none;
+}
+
+.related {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--sc-space-3);
-  margin-top: var(--sc-space-4);
-  padding-top: var(--sc-space-6);
-  border-top: 1px solid var(--sc-color-border-subtle);
+}
+
+.relatedDetail {
+  color: var(--sc-color-text-muted);
+  font-weight: var(--sc-font-weight-regular);
+}
+
+.gutter {
+  padding-inline: var(--page-gutter);
 }
 
 .sectionTitle {
@@ -195,6 +96,16 @@
   text-transform: uppercase;
 }
 
+/* A section under the head that is not a row (file, chapters, episodes). */
+.block,
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  max-width: 64rem;
+  padding-inline: var(--page-gutter);
+}
+
 .file {
   display: flex;
   flex-direction: column;
@@ -202,37 +113,43 @@
   align-items: flex-start;
 }
 
-.stillImage,
-.stillFallback {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--sc-radius-lg);
-  background-color: var(--sc-color-surface-1);
-  object-fit: cover;
+.muted {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
 }
 
-.stillFallback {
-  display: block;
-  overflow: hidden;
+/* A shelf (seasons, a collection): a heading in the gutter over a row of covers. */
+.shelf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
 }
 
-.byline {
-  color: var(--sc-color-text-secondary);
-  font-size: var(--sc-font-size-md);
+.season {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-4);
+  max-width: 64rem;
 }
 
-.kicker {
+.seasonHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.seasonTitle,
+.collectionTitle {
+  font-size: var(--sc-font-size-lg);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.seasonText {
+  max-width: 65ch;
   color: var(--sc-color-text-secondary);
   font-size: var(--sc-font-size-sm);
-  font-weight: var(--sc-font-weight-semibold);
-  letter-spacing: var(--sc-font-letter-spacing-caps);
-}
-
-.related {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sc-space-3);
+  line-height: var(--sc-font-line-height-normal);
 }
 
 .seasonActions {
@@ -242,29 +159,18 @@
   align-items: center;
 }
 
-.relatedDetail {
-  color: var(--sc-color-text-muted);
-  font-weight: var(--sc-font-weight-regular);
+.collectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sc-space-2) var(--sc-space-4);
+  align-items: center;
 }
 
-.block {
+/* Episodes of a season: one row each (EpisodeListItem). */
+.episodeRows {
   display: flex;
   flex-direction: column;
-  gap: var(--sc-space-4);
-  margin-top: var(--sc-space-4);
-  padding-top: var(--sc-space-6);
-  border-top: 1px solid var(--sc-color-border-subtle);
-}
-
-.muted {
-  color: var(--sc-color-text-muted);
-  font-size: var(--sc-font-size-sm);
-}
-
-.episodes {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: var(--sc-space-6) var(--sc-space-4);
+  gap: var(--sc-space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -304,30 +210,4 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sc-space-8);
-  max-width: var(--sc-size-content-max);
-  margin-top: var(--sc-space-12);
-}
-
-.rows:empty {
-  display: none;
-}
-
-@media (width >= 900px) {
-  .layout {
-    grid-template-columns: clamp(13rem, 20vw, 18rem) minmax(0, 1fr);
-    gap: var(--sc-space-12);
-    align-items: start;
-  }
-
-  .poster {
-    display: block;
-    position: sticky;
-    top: calc(var(--sc-size-header-height) + var(--sc-space-6));
-  }
 }

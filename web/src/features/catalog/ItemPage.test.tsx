@@ -1,7 +1,15 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { alienDetail, homePage, ids, season1Detail, seriesIds, showDetail } from '@/test/fixtures';
+import {
+  alienCollection,
+  alienDetail,
+  homePage,
+  ids,
+  season1Detail,
+  seriesIds,
+  showDetail,
+} from '@/test/fixtures';
 import { json, mockApi, problem, renderApp, session, signedIn } from '@/test/api';
 
 describe('detail page', () => {
@@ -16,11 +24,15 @@ describe('detail page', () => {
     expect(screen.queryByText('FSK 16')).not.toBeInTheDocument();
     expect(screen.getByText('Horror, Science-Fiction')).toBeVisible();
     expect(screen.getByText('Im Weltraum hört dich niemand schreien.')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Weiterschauen ab 00:42:13' })).toHaveAttribute(
+    // The big button (concept 17 E-10): where the profile stopped and the time left.
+    const play = screen.getByRole('link', { name: 'Fortsetzen bei 0:42:13 · noch 1 h 15 min' });
+    expect(play).toHaveAttribute('href', `/play/${ids.alien}`);
+    // While resuming, "Von vorne" starts at 0 (E-11).
+    expect(screen.getByRole('link', { name: 'Von vorne' })).toHaveAttribute(
       'href',
-      `/play/${ids.alien}`,
+      `/play/${ids.alien}?at=0`,
     );
-    expect(screen.getByRole('progressbar', { name: '36 % gesehen' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Zurück' })).toBeVisible();
     // Same original title as the title: not repeated.
     expect(screen.queryByText(/Originaltitel/)).not.toBeInTheDocument();
 
@@ -44,9 +56,55 @@ describe('detail page', () => {
         }),
     });
     renderApp(`/items/${ids.alien}`);
-    expect(await screen.findByRole('button', { name: 'Abspielen' })).toBeDisabled();
+    // Without progress the second line is the runtime; without a playable file it is disabled.
+    expect(await screen.findByRole('button', { name: 'Abspielen 1 h 57 min' })).toBeDisabled();
+    expect(screen.queryByRole('link', { name: 'Von vorne' })).not.toBeInTheDocument();
     expect(screen.getByText('nicht verfügbar')).toBeVisible();
     expect(screen.getByText('Originaltitel: Alien – Das unheimliche Wesen')).toBeVisible();
+  });
+
+  it('offers "Nochmals ansehen" from the start for a finished title', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () =>
+        json({
+          ...alienDetail,
+          progress: { ...alienDetail.progress!, completed: true, percent: 100 },
+        }),
+    });
+    renderApp(`/items/${ids.alien}`);
+    expect(
+      await screen.findByRole('link', { name: 'Nochmals ansehen Gesehen am 18.10.2026' }),
+    ).toHaveAttribute('href', `/play/${ids.alien}?at=0`);
+    expect(screen.queryByRole('link', { name: 'Von vorne' })).not.toBeInTheDocument();
+  });
+
+  it('shows its collection right after the head: members in order, this title ringed', async () => {
+    mockApi({
+      ...signedIn,
+      [`GET /items/${ids.alien}`]: () => json({ ...alienDetail, collections: [alienCollection] }),
+    });
+    renderApp(`/items/${ids.alien}`);
+    const shelf = await screen.findByRole('region', { name: 'Weltraum-Reihe' });
+    expect(within(shelf).getByText('3 Titel')).toBeVisible();
+    expect(
+      within(shelf).getByRole('link', { name: 'Alle zeigen: Weltraum-Reihe' }),
+    ).toHaveAttribute('href', `/collections/${alienCollection.id}`);
+    const list = within(shelf).getByRole('list', { name: 'Weltraum-Reihe' });
+    const cards = within(list).getAllByRole('link');
+    expect(cards.map((card) => card.getAttribute('href'))).toEqual([
+      `/items/${ids.alien}`,
+      `/items/${ids.heat}`,
+      `/items/${ids.arrival}`,
+    ]);
+    expect(cards[0]).toHaveAttribute('aria-current', 'true');
+    expect(cards[1]).not.toHaveAttribute('aria-current');
+    expect(within(cards[0]!).getByRole('progressbar', { name: '36 % gesehen' })).toBeVisible();
+    expect(within(cards[1]!).getByRole('img', { name: 'Gesehen' })).toBeVisible();
+    expect(within(cards[2]!).queryByRole('img', { name: 'Gesehen' })).not.toBeInTheDocument();
+    // Before the file section (E-9).
+    const file = screen.getByRole('region', { name: 'Datei' });
+    expect(shelf.compareDocumentPosition(file) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('tints backdrop and poster with the title accent and offers every image size', async () => {
@@ -165,11 +223,12 @@ describe('detail page', () => {
         'true',
       ),
     );
-    const collections = screen.getByRole('region', { name: 'Sammlungen' });
-    expect(within(collections).getByRole('link', { name: /Test-Sammlung/ })).toHaveAttribute(
-      'href',
-      `/collections/${collectionId}`,
-    );
+    // Without members (an older server) the shelf still names the collection and links it.
+    const collection = screen.getByRole('region', { name: 'Test-Sammlung' });
+    expect(within(collection).getByText('2 Titel')).toBeVisible();
+    expect(
+      within(collection).getByRole('link', { name: 'Alle zeigen: Test-Sammlung' }),
+    ).toHaveAttribute('href', `/collections/${collectionId}`);
   });
 
   it('links the owner to "Zu den User-Empfehlungen", never other profiles', async () => {

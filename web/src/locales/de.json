@@ -538,7 +538,6 @@
     "editMetadata": "Metadaten bearbeiten",
     "play": "Abspielen",
     "details": "Details",
-    "resume": "Weiterschauen ab {{time}}",
     "watched": "{{percent}} % gesehen",
     "originalTitle": "Originaltitel: {{title}}",
     "notFound": {
@@ -582,12 +581,10 @@
       }
     },
     "seasons": "Staffeln",
-    "seasonChoice": "Staffel wählen",
     "episodes": {
       "title": "Folgen",
       "empty": "Keine Folgen."
     },
-    "resumeListening": "Weiterhören ab {{time}}",
     "listened": "{{percent}} % gehört",
     "audio": {
       "by": "von {{author}}",
@@ -611,9 +608,40 @@
       "label": "Favorit",
       "hint": "Bei neuen Folgen benachrichtigen"
     },
-    "collections": "Sammlungen",
     "addToPicks": "Zu den User-Empfehlungen",
-    "logoAlt": "{{title}}"
+    "logoAlt": "{{title}}",
+    "action": {
+      "resume": "Fortsetzen",
+      "resumeListening": "Weiterhören",
+      "again": "Nochmals ansehen",
+      "againListening": "Nochmals anhören",
+      "resumeAt": "bei {{time}} · noch {{left}}",
+      "watchedOn": "Gesehen am {{date}}",
+      "listenedOn": "Gehört am {{date}}",
+      "restart": "Von vorne",
+      "picks": "User-Empfehlungen"
+    },
+    "nextUp": {
+      "start": "Abspielen",
+      "resume": "Weiterschauen",
+      "next": "Nächste Folge",
+      "rewatch": "Nochmals ansehen",
+      "episode": "{{code}} · {{title}}",
+      "left": "{{episode}} · noch {{left}}",
+      "rewatchFrom": "Alles gesehen · ab {{episode}}",
+      "markNext": "Als Nächstes",
+      "markResume": "Weiterschauen"
+    },
+    "season": {
+      "episodes_one": "{{count}} Folge",
+      "episodes_other": "{{count}} Folgen",
+      "watched": "{{count}} gesehen",
+      "progress": "{{count}} von {{total}} Folgen gesehen"
+    },
+    "collection": {
+      "showAll": "Alle zeigen",
+      "showAllLabel": "Alle zeigen: {{name}}"
+    }
   },
   "rating": {
     "fsk": "FSK {{age}}"
@@ -815,7 +843,13 @@
     },
     "subtitleStyle": {
       "title": "Untertitel-Stil",
-      "size": { "title": "Grösse", "s": "S", "m": "M", "l": "L", "xl": "XL" },
+      "size": {
+        "title": "Grösse",
+        "s": "S",
+        "m": "M",
+        "l": "L",
+        "xl": "XL"
+      },
       "background": {
         "title": "Hintergrund",
         "none": "Keiner",
@@ -823,8 +857,16 @@
         "translucent": "Halbtransparent",
         "box": "Box"
       },
-      "color": { "title": "Farbe", "white": "Weiss", "yellow": "Gelb" },
-      "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
+      "color": {
+        "title": "Farbe",
+        "white": "Weiss",
+        "yellow": "Gelb"
+      },
+      "position": {
+        "title": "Position",
+        "bottom": "Unten",
+        "raised": "Etwas höher"
+      },
       "offset": {
         "title": "Versatz",
         "earlier": "0,1 s früher",
@@ -877,8 +919,16 @@
       "tapBack": "−{{seconds}} s",
       "tapForward": "+{{seconds}} s"
     },
-    "tabs": { "label": "Mehr zum Titel", "next": "Als Nächstes", "info": "Info" },
-    "pauseView": { "label": "Pause", "paused": "Pausiert", "chapter": "Kapitel: {{chapter}}" },
+    "tabs": {
+      "label": "Mehr zum Titel",
+      "next": "Als Nächstes",
+      "info": "Info"
+    },
+    "pauseView": {
+      "label": "Pause",
+      "paused": "Pausiert",
+      "chapter": "Kapitel: {{chapter}}"
+    },
     "slow": {
       "label": "Langsame Verbindung",
       "text": "Verbindung langsam – auf {{quality}} wechseln?",

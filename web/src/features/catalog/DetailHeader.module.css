@@ -1,0 +1,204 @@
+.page {
+  position: relative;
+  min-height: 100dvh;
+  padding-bottom: var(--sc-space-16);
+  isolation: isolate;
+}
+
+/* Over the top left of the head, under the app header (concept 17 2.3, 4). */
+.back {
+  position: absolute;
+  z-index: 1;
+  top: calc(var(--sc-size-header-height) + var(--sc-space-4));
+  left: var(--page-gutter);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sc-space-8);
+  max-width: var(--sc-size-content-max);
+  padding: calc(var(--sc-size-header-height) + clamp(var(--sc-space-16), 28vh, 18rem))
+    var(--page-gutter) 0;
+}
+
+.noArt {
+  padding-top: calc(var(--sc-size-header-height) + var(--sc-space-16));
+}
+
+.poster {
+  /* Only this title's accent (inline style) colours the glow, never an inherited one. */
+  --sc-item-accent: initial;
+
+  position: relative;
+  isolation: isolate;
+}
+
+/* The pen over the top right of the cover (concept 15 7.4). */
+.posterTool {
+  position: absolute;
+  top: var(--sc-space-2);
+  right: var(--sc-space-2);
+}
+
+/* The watchlist button over the bottom right of the cover (concept 17 D-9). */
+.posterMark {
+  position: absolute;
+  right: var(--sc-space-2);
+  bottom: var(--sc-space-2);
+}
+
+/* Below 900 px the cover stays out of the layout; its pen moves to the top right of the
+   backdrop, under the header, across from the back arrow. */
+@media (width < 900px) {
+  .poster {
+    display: contents;
+  }
+
+  .poster::before,
+  .poster > :not(.posterTool) {
+    display: none;
+  }
+
+  .posterTool {
+    top: calc(var(--sc-size-header-height) + var(--sc-space-4));
+    right: var(--page-gutter);
+  }
+}
+
+/* Ambient glow in the title's accent behind the cover (the card's focus glow, at rest). */
+.poster::before {
+  position: absolute;
+  z-index: -1;
+  inset: var(--sc-space-6) var(--sc-space-4) calc(-1 * var(--sc-space-2));
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-item-accent, transparent);
+  content: '';
+  filter: blur(var(--sc-space-8));
+  opacity: 0.4;
+}
+
+.posterImage,
+.posterFallback {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  object-fit: cover;
+}
+
+/* Audiobooks and podcasts: a square cover (M6). */
+.coverImage,
+.coverFallback {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  object-fit: cover;
+}
+
+.stillImage,
+.stillFallback {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-lg);
+  background-color: var(--sc-color-surface-1);
+  object-fit: cover;
+}
+
+.posterFallback,
+.coverFallback,
+.stillFallback {
+  display: block;
+  overflow: hidden;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-5);
+  min-width: 0;
+  max-width: 48rem;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.kicker {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+}
+
+.kicker a {
+  color: inherit;
+}
+
+.title {
+  font-size: clamp(var(--sc-font-size-2xl), 4.5vw, var(--sc-font-size-display));
+  font-weight: var(--sc-font-weight-bold);
+  line-height: var(--sc-font-line-height-tight);
+  letter-spacing: var(--sc-font-letter-spacing-display);
+  text-wrap: balance;
+}
+
+.line {
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-md);
+}
+
+.factLines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-2);
+}
+
+.genres {
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-sm);
+}
+
+.tagline {
+  color: var(--sc-color-text-primary);
+  font-size: var(--sc-font-size-lg);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.overview {
+  max-width: 65ch;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-md);
+  line-height: var(--sc-font-line-height-normal);
+}
+
+/* Rows (ui/Row) bring their own gutter; the other sections add it themselves. */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-10);
+  max-width: var(--sc-size-content-max);
+  margin-top: var(--sc-space-12);
+}
+
+.body:empty {
+  display: none;
+}
+
+@media (width >= 900px) {
+  .layout {
+    grid-template-columns: clamp(13rem, 20vw, 18rem) minmax(0, 1fr);
+    gap: var(--sc-space-12);
+    align-items: start;
+  }
+
+  .poster {
+    display: block;
+  }
+}

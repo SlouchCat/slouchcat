@@ -7,6 +7,7 @@ import {
   audioIds,
   audiobookDetail,
   episode2Detail,
+  episodes,
   extraDetail,
   ids,
   podcastDetail,
@@ -54,12 +55,15 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
     const sd = within(versions).getByRole('button', { name: '720p' });
     // The primary version (first in the list) is chosen.
     expect(hd).toHaveAttribute('aria-pressed', 'true');
-    const play = screen.getByRole('link', { name: 'Weiterschauen ab 00:42:13' });
+    const play = screen.getByRole('link', { name: /^Fortsetzen bei 0:42:13/ });
     expect(play).toHaveAttribute('href', `/play/${ids.alien}?file=mf-1`);
+    const restart = screen.getByRole('link', { name: 'Von vorne' });
+    expect(restart).toHaveAttribute('href', `/play/${ids.alien}?at=0&file=mf-1`);
 
     await user.click(sd);
     expect(sd).toHaveAttribute('aria-pressed', 'true');
     expect(play).toHaveAttribute('href', `/play/${ids.alien}?file=mf-2`);
+    expect(restart).toHaveAttribute('href', `/play/${ids.alien}?at=0&file=mf-2`);
     const file = screen.getByRole('region', { name: 'Datei' });
     expect(within(file).getByText('1280 × 720 · 720p')).toBeVisible();
   });
@@ -143,7 +147,7 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
     expect(router.state.location.pathname).toBe(`/items/${ids.alien}`);
   });
 
-  it('offline closes an open trailer dialog for good and moves the focus to "Zurück"', async () => {
+  it('offline closes an open trailer dialog for good and moves the focus to the big button', async () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
     mockApi({
       ...signedIn,
@@ -161,7 +165,9 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
       window.dispatchEvent(new Event('offline'));
     });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Zurück' })).toHaveFocus());
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /^Fortsetzen bei/ })).toHaveFocus(),
+    );
 
     // Back online: the button returns, the dialog does not open (and play) by itself.
     online.mockReturnValue(true);
@@ -219,37 +225,99 @@ describe('detail page: series, season, episode, extra', () => {
     [`GET /items/${seriesIds.specials}`]: () => json(specialsDetail),
   };
 
-  it('series: season chips, the episodes of the chosen season, extras and cast', async () => {
+  it('series: the big button by nextUp, the season shelf, the chosen season and its episodes', async () => {
     const { calls } = mockApi(seriesRoutes);
     renderApp(`/items/${seriesIds.show}`);
     const user = userEvent.setup();
 
     await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Show' });
-    // A series has no play button of its own.
-    expect(screen.queryByRole('link', { name: /Abspielen/ })).not.toBeInTheDocument();
-    const seasons = screen.getByRole('group', { name: 'Staffel wählen' });
-    expect(within(seasons).getByRole('button', { name: 'Season 1' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    // The newest activity is the started pilot (concept 17 3.3): resume it, or start it over.
+    expect(
+      screen.getByRole('link', { name: 'Weiterschauen S01E01 · Pilot · noch 35 min' }),
+    ).toHaveAttribute('href', `/play/${seriesIds.e1}`);
+    expect(screen.getByRole('link', { name: 'Von vorne' })).toHaveAttribute(
+      'href',
+      `/play/${seriesIds.e1}?at=0`,
     );
+    expect(screen.getByRole('button', { name: 'Favorit' })).toBeVisible();
 
-    const list = await screen.findByRole('list', { name: 'Folgen' });
+    // The shelf (E-13): the season of the nextUp episode is chosen, with its watched episodes.
+    const shelf = screen.getByRole('region', { name: 'Staffeln' });
+    const season1 = within(shelf).getByRole('button', { name: /Season 1/ });
+    expect(season1).toHaveAttribute('aria-current', 'true');
+    expect(within(season1).getByText('2024 · 3 Folgen · 1 gesehen')).toBeVisible();
+    expect(
+      within(season1).getByRole('progressbar', { name: '1 von 3 Folgen gesehen' }),
+    ).toBeVisible();
+    const specials = within(shelf).getByRole('button', { name: /Specials/ });
+    expect(specials).not.toHaveAttribute('aria-current');
+    expect(specials).toHaveAttribute('tabindex', '-1');
+
+    // The chosen season: its text and the episodes as a list (E-14).
+    expect(await screen.findByText('Weber übernimmt ihren ersten Fall.')).toBeVisible();
+    const list = screen.getByRole('list', { name: 'Folgen' });
     const pilot = within(list).getByRole('link', { name: /Pilot/ });
     expect(pilot).toHaveAttribute('href', `/items/${seriesIds.e1}`);
+    expect(pilot).toHaveAccessibleDescription('Ein Anruf in der Nacht führt Weber an den Hafen.');
     expect(within(pilot).getByText('S01E01')).toBeVisible();
+    expect(within(pilot).getByText('Weiterschauen')).toBeVisible();
     expect(within(pilot).getByText('45 min')).toBeVisible();
     expect(within(pilot).getByRole('progressbar', { name: '22 % gesehen' })).toBeVisible();
-    expect(within(list).getByText('S01E03–E04')).toBeVisible();
+    const double = within(list).getByRole('link', { name: /S01E03–E04/ });
+    expect(within(double).getByRole('img', { name: 'Gesehen' })).toBeVisible();
+    expect(
+      within(list).getByRole('link', { name: /Die lange Nacht/ }),
+    ).not.toHaveAccessibleDescription();
 
-    await user.click(within(seasons).getByRole('button', { name: 'Specials' }));
+    await user.click(specials);
+    expect(specials).toHaveAttribute('aria-current', 'true');
     expect(await screen.findByText('S00E01')).toBeVisible();
     expect(calls.some((call) => call.path === `/items/${seriesIds.specials}`)).toBe(true);
+    // The nextUp episode is not in this season: no episode is marked (m-3).
+    const specialsList = screen.getByRole('list', { name: 'Folgen' });
+    expect(within(specialsList).queryByText('Weiterschauen')).not.toBeInTheDocument();
+    expect(within(specialsList).queryByText('Als Nächstes')).not.toBeInTheDocument();
 
     expect(screen.getByRole('region', { name: 'Extras' })).toBeVisible();
     const cast = screen.getByRole('region', { name: 'Besetzung' });
     expect(within(cast).getByText('als Kommissarin Weber')).toBeVisible();
     expect(within(cast).getByText('Idee')).toBeVisible();
     expect(document.title).toBe('Slouchcat Test Show · Slouchcat');
+  });
+
+  it.each([
+    ['start', 'Abspielen S01E01 · Pilot', `/play/${seriesIds.e1}`],
+    ['next', 'Nächste Folge S01E01 · Pilot', `/play/${seriesIds.e1}`],
+    ['rewatch', 'Nochmals ansehen Alles gesehen · ab S01E01', `/play/${seriesIds.e1}?at=0`],
+  ] as const)(
+    'series: nextUp %s names its episode on the big button',
+    async (reason, name, href) => {
+      mockApi({
+        ...seriesRoutes,
+        [`GET /items/${seriesIds.show}`]: () =>
+          json({
+            ...showDetail,
+            nextUp: { reason, episode: { ...episodes.e1, progress: undefined } },
+          }),
+      });
+      renderApp(`/items/${seriesIds.show}`);
+      expect(await screen.findByRole('link', { name })).toHaveAttribute('href', href);
+      // Only resuming offers "Von vorne".
+      expect(screen.queryByRole('link', { name: 'Von vorne' })).not.toBeInTheDocument();
+    },
+  );
+
+  it('series: no big button without a visible episode', async () => {
+    mockApi({
+      ...seriesRoutes,
+      [`GET /items/${seriesIds.show}`]: () => json({ ...showDetail, nextUp: undefined }),
+    });
+    renderApp(`/items/${seriesIds.show}`);
+    await screen.findByRole('heading', { level: 1, name: 'Slouchcat Test Show' });
+    expect(
+      screen.queryByRole('link', { name: /^(Abspielen|Weiterschauen)/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zurück' })).toBeVisible();
   });
 
   it('series: a season switch shows the loading state, then an error with a retry', async () => {
@@ -267,9 +335,9 @@ describe('detail page: series, season, episode, extra', () => {
     renderApp(`/items/${seriesIds.show}`);
     const user = userEvent.setup();
 
-    const seasons = await screen.findByRole('group', { name: 'Staffel wählen' });
+    const shelf = await screen.findByRole('region', { name: 'Staffeln' });
     await screen.findByRole('list', { name: 'Folgen' });
-    await user.click(within(seasons).getByRole('button', { name: 'Specials' }));
+    await user.click(within(shelf).getByRole('button', { name: /Specials/ }));
     // The episodes of the previous season do not stay on screen while the next one loads.
     expect(screen.queryByRole('list', { name: 'Folgen' })).not.toBeInTheDocument();
     expect(document.querySelector('[aria-busy="true"]')).not.toBeNull();
@@ -281,18 +349,28 @@ describe('detail page: series, season, episode, extra', () => {
     expect(await screen.findByText('S00E01')).toBeVisible();
   });
 
-  it('season: its episodes, a link to the series, the series in the tab title', async () => {
+  it('season: the series as a link over its title, facts, big button and its episodes', async () => {
     mockApi(seriesRoutes);
     renderApp(`/items/${seriesIds.season1}`);
     await screen.findByRole('heading', { level: 1, name: 'Season 1' });
-    expect(screen.getByRole('link', { name: /S01E02/ })).toHaveAttribute(
-      'href',
-      `/items/${seriesIds.e2}`,
-    );
-    expect(screen.getByRole('link', { name: 'Zur Serie' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Slouchcat Test Show' })).toHaveAttribute(
       'href',
       `/items/${seriesIds.show}`,
     );
+    expect(screen.getByText('2024 · 3 Folgen · 1 gesehen')).toBeVisible();
+    expect(screen.getByText('Weber übernimmt ihren ersten Fall.')).toBeVisible();
+    expect(
+      screen.getByRole('link', { name: 'Weiterschauen S01E01 · Pilot · noch 35 min' }),
+    ).toHaveAttribute('href', `/play/${seriesIds.e1}`);
+    // No watchlist and no favourite for a season (E-15).
+    expect(screen.queryByRole('button', { name: 'Merken' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Favorit' })).not.toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Folgen' });
+    expect(within(list).getByRole('link', { name: /S01E02/ })).toHaveAttribute(
+      'href',
+      `/items/${seriesIds.e2}`,
+    );
+    expect(within(list).getByText('Weiterschauen')).toBeVisible();
     await waitFor(() => expect(document.title).toBe('Season 1 – Slouchcat Test Show · Slouchcat'));
   });
 
@@ -301,7 +379,7 @@ describe('detail page: series, season, episode, extra', () => {
     renderApp(`/items/${seriesIds.e2}`);
     await screen.findByRole('heading', { level: 1, name: 'Die lange Nacht' });
     expect(screen.getByText('S01E02 · Slouchcat Test Show')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Abspielen' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Abspielen 45 min' })).toHaveAttribute(
       'href',
       `/play/${seriesIds.e2}`,
     );
@@ -350,11 +428,14 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
     expect(screen.getByText('1 min')).toBeVisible();
     expect(screen.queryByText('FSK 0')).not.toBeInTheDocument();
     // The book plays as a whole (no version), from where the profile stopped.
-    expect(screen.getByRole('link', { name: 'Weiterhören ab 00:00:12' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^Weiterhören bei 0:12 · noch / })).toHaveAttribute(
       'href',
       `/play/${audioIds.book}`,
     );
-    expect(screen.getByRole('progressbar', { name: '20 % gehört' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Von vorne' })).toHaveAttribute(
+      'href',
+      `/play/${audioIds.book}?at=0`,
+    );
     // A square cover, no file section (the files are the book's parts).
     expect(
       document.querySelector(`img[src*="/items/${audioIds.book}/images/poster"][height="400"]`),
@@ -477,7 +558,7 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
     expect(screen.getByText('10 s')).toBeVisible();
     expect(screen.getByText('Zweite Episode, zehn Sekunden.')).toBeVisible();
     // Without a file of its own the episode streams from its feed through the server.
-    expect(screen.getByRole('link', { name: 'Weiterhören ab 00:00:04' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^Weiterhören bei 0:04 · noch / })).toHaveAttribute(
       'href',
       `/play/${audioIds.ep2}`,
     );

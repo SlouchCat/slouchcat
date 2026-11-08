@@ -1,6 +1,7 @@
 import type {
   AdminPodcast,
   Chapter,
+  CollectionRef,
   HomePage,
   ItemDetail,
   ItemRef,
@@ -374,10 +375,18 @@ export const showSeriesRef: NonNullable<ItemRef['seriesRef']> = {
   images: images(seriesIds.show),
 };
 
+// Season 1 has one finished episode (S01E03–E04) and a started one (the pilot); the specials
+// none (concept 17 E-5, watchedCount).
 const seasons = [
-  seasonRef(seriesIds.season1, 'Season 1', 1, 3),
-  seasonRef(seriesIds.specials, 'Specials', 0, 1),
+  { ...seasonRef(seriesIds.season1, 'Season 1', 1, 3), year: 2024, watchedCount: 1 },
+  { ...seasonRef(seriesIds.specials, 'Specials', 0, 1), watchedCount: 0 },
 ];
+
+/** The newest activity of the series is the started pilot (concept 17 3.3). */
+export const showNextUp: NonNullable<ItemDetail['nextUp']> = {
+  reason: 'resume',
+  episode: episodes.e1,
+};
 
 const file = (id: string, label: string, height: number): ItemDetail['mediaFiles'][number] => ({
   id,
@@ -401,6 +410,7 @@ export const showDetail: ItemDetail = {
   collections: [],
   mediaFiles: [],
   seasons,
+  nextUp: showNextUp,
   extras: [
     {
       id: seriesIds.extra,
@@ -427,7 +437,23 @@ export const season1Detail: ItemDetail = {
   collections: [],
   mediaFiles: [],
   series: showRef,
-  episodes: [episodes.e1, episodes.e2, episodes.e34],
+  overview: 'Weber übernimmt ihren ersten Fall.',
+  nextUp: showNextUp,
+  // In a season's episodes the server sets their overview (concept 17 E-6).
+  episodes: [
+    { ...episodes.e1, overview: 'Ein Anruf in der Nacht führt Weber an den Hafen.' },
+    episodes.e2,
+    {
+      ...episodes.e34,
+      progress: {
+        positionMs: 2_700_000,
+        durationMs: 2_700_000,
+        percent: 100,
+        completed: true,
+        updatedAt: '2026-10-17T19:00:00Z',
+      },
+    },
+  ],
 };
 
 export const specialsDetail: ItemDetail = {
@@ -438,6 +464,7 @@ export const specialsDetail: ItemDetail = {
   collections: [],
   mediaFiles: [],
   series: showRef,
+  nextUp: { reason: 'start', episode: episodes.s0e1 },
   episodes: [episodes.s0e1],
 };
 
@@ -494,6 +521,31 @@ export const alienVersions: ItemDetail = {
   ],
   cast: [{ personId: 3, name: 'Sigourney Weaver', role: 'cast', character: 'Ellen Ripley' }],
   trailerCount: 2,
+};
+
+/**
+ * A collection of Alien with its members (contract 1.20.0, concept 17 E-8): Alien itself
+ * (started), Heat finished, Arrival not yet seen.
+ */
+export const alienCollection: CollectionRef = {
+  id: '01JB8Z6Q4M7N9P2R3S5T7V9C02',
+  name: 'Weltraum-Reihe',
+  count: 3,
+  cover: alien,
+  members: [
+    alien,
+    {
+      ...heat,
+      progress: {
+        positionMs: 10_200_000,
+        durationMs: 10_200_000,
+        percent: 100,
+        completed: true,
+        updatedAt: '2026-10-10T20:00:00Z',
+      },
+    },
+    arrival,
+  ],
 };
 
 // M6: an audiobook with twelve 5-s chapters (like the M4B test book), a podcast with three
