@@ -64,6 +64,7 @@ export function CoverPen({
       size="sm"
       icon="pen"
       iconOnly
+      overlay
       excludeFromTabOrder={excludeFromTabOrder}
       aria-label={t('library.editMetadata', { title: item.title })}
       title={t('item.editMetadata')}

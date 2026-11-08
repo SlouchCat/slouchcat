@@ -44,7 +44,7 @@
     "profileRole": {
       "other": "Weiteres Profil",
       "primary": "Hauptprofil",
-      "admin": "Hauptprofil · Server-Admin"
+      "admin": "Server-Admin"
     }
   },
   "system": {

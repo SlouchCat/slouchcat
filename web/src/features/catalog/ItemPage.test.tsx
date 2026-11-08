@@ -172,7 +172,7 @@ describe('detail page', () => {
     );
   });
 
-  it('links the owner to "Zu Cat\'s Empfehlungen", never other profiles', async () => {
+  it('links the owner to "Zu den User-Empfehlungen", never other profiles', async () => {
     mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienDetail) });
     const view = renderApp(`/items/${ids.alien}`);
     expect(await screen.findByRole('link', { name: 'Zu den User-Empfehlungen' })).toHaveAttribute(

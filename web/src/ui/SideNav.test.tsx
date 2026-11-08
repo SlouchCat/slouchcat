@@ -69,7 +69,7 @@ describe('side navigation (concepts 08 and 17)', () => {
     expect(screen.getByRole('link', { name: 'Start' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: 'Abmelden' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Seitenleiste ausblenden' })).toBeVisible();
-    // Every entry has its icon, hidden from screen readers.
+    // Every link after the profile card has its icon, hidden from screen readers.
     for (const link of within(nav()).getAllByRole('link').slice(1)) {
       expect(link.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     }

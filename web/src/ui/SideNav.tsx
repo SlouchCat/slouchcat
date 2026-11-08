@@ -34,7 +34,7 @@ export interface SideNavEntry extends NavItem {
 export interface SideNavProfile {
   /** The profile's name; its first letter is the avatar, on the accent of the session. */
   name: string;
-  /** What the profile is ("Hauptprofil · Server-Admin"). */
+  /** What the profile is ("Server-Admin"). */
   role: string;
   /** The profile picker. */
   href: string;

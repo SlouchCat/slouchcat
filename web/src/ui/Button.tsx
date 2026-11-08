@@ -24,6 +24,8 @@ export interface ButtonLook {
   iconOnly?: boolean;
   /** Stretch to the width of the container (forms on phones). */
   block?: boolean;
+  /** A tool over a picture (the pen on a cover): dark over the artwork, grows on hover and focus. */
+  overlay?: boolean;
 }
 
 export function buttonClass({
@@ -31,6 +33,7 @@ export function buttonClass({
   size = 'md',
   iconOnly,
   block,
+  overlay,
 }: ButtonLook): string {
   return [
     styles.button,
@@ -38,6 +41,7 @@ export function buttonClass({
     styles[size],
     iconOnly && styles.iconOnly,
     block && styles.block,
+    overlay && styles.overlay,
   ]
     .filter(Boolean)
     .join(' ');
@@ -71,6 +75,7 @@ export function Button({
   icon,
   iconOnly,
   block,
+  overlay,
   onPress,
   isDisabled,
   excludeFromTabOrder,
@@ -83,7 +88,7 @@ export function Button({
     <button
       ref={ref}
       type={type}
-      className={buttonClass({ variant, size, iconOnly, block })}
+      className={buttonClass({ variant, size, iconOnly, block, overlay })}
       disabled={isDisabled}
       tabIndex={excludeFromTabOrder ? -1 : undefined}
       onClick={onPress}
@@ -108,12 +113,17 @@ export function ButtonLink({
   icon,
   iconOnly,
   block,
+  overlay,
   children,
   ref,
   ...rest
 }: ButtonLinkProps) {
   return (
-    <AppLink ref={ref} className={buttonClass({ variant, size, iconOnly, block })} {...rest}>
+    <AppLink
+      ref={ref}
+      className={buttonClass({ variant, size, iconOnly, block, overlay })}
+      {...rest}
+    >
       <ButtonContent icon={icon}>{children}</ButtonContent>
     </AppLink>
   );

@@ -349,7 +349,7 @@
         "Tab reaches \"Zur Startseite\"; Enter goes home; no focus trap": 1.1
       },
       "picks-page.spec.ts": {
-        "Cat's recommendations by keyboard: the note, arrows, Enter, back; no focus trap": 1.6
+        "User picks by keyboard: the note, arrows, Enter, back; no focus trap": 1.6
       },
       "player.spec.ts": {
         "Backspace and browser back return to the detail page": 0.9,
@@ -802,7 +802,7 @@
         "Tab reaches \"Zur Startseite\"; Enter goes home; no focus trap": 2.2
       },
       "picks-page.spec.ts": {
-        "Cat's recommendations by keyboard: the note, arrows, Enter, back; no focus trap": 2.6
+        "User picks by keyboard: the note, arrows, Enter, back; no focus trap": 2.6
       },
       "player.spec.ts": {
         "Backspace and browser back return to the detail page": 1.5,

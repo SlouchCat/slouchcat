@@ -63,7 +63,7 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   await expect(menuButton(page)).toHaveCount(0);
 
   // The profile card: the owner's primary profile, server admin; «Wechseln» leads to the picker.
-  await expect(nav(page).getByText('Hauptprofil · Server-Admin', { exact: true })).toBeVisible();
+  await expect(nav(page).getByText('Server-Admin', { exact: true })).toBeVisible();
   await expect(switchLink(nav(page))).toHaveAttribute('href', '/profiles');
   await expect(switchLink(nav(page))).toHaveText('Wechseln');
 

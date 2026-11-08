@@ -8,9 +8,8 @@ import { SpatialGroup } from './spatial';
 /**
  * The side navigation as a modal drawer from the left (react-aria, loaded by SideNavMenu): the
  * focus moves to the first entry («Start», below the profile card), Tab and the arrow keys stay
- * inside, the page behind does not
- * scroll, Escape, the close button and a press on the scrim close it, and the focus returns to the
- * menu button that opened it.
+ * inside, the page behind does not scroll, Escape, the close button and a press on the scrim close
+ * it, and the focus returns to the menu button that opened it.
  */
 export function SideNavDrawer({
   isOpen,

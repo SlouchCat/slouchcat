@@ -26,7 +26,7 @@ const profile = (name: string, role: string): SideNavProps['profile'] => ({
 
 export const sideNavArgs: SideNavProps = {
   label: 'Hauptnavigation',
-  profile: profile('Marco', 'Hauptprofil · Server-Admin'),
+  profile: profile('Marco', 'Server-Admin'),
   primary: [
     { href: '#home', label: 'Start', icon: 'home', current: true },
     { href: '#search', label: 'Suche', icon: 'search' },

@@ -11,7 +11,6 @@ import {
   type ComponentType,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { components } from '@slouchcat/api-client';
 import { picksCountQuery, visibleLibrariesQuery } from '@/features/catalog/queries';
 import { notificationsPageQuery, notificationsQuery } from '@/features/discover/queries';
 import { Announcements } from '@/features/notifications/Announcements';
@@ -29,9 +28,9 @@ import {
   sideNavFocusKey,
   SpatialGroup,
   type SideNavEntry,
-  type IconName,
   type SideNavProps,
 } from '@/ui';
+import { libraryIcon } from './libraryIcon';
 import { paths } from './paths';
 import { RADIO_FOCUS_KEY, RadioDock } from './radio/RadioDock';
 import { useRadio } from './radio/useRadio';
@@ -78,16 +77,6 @@ function storeSideNavHidden(hidden: boolean): void {
   }
   if (hidden) document.documentElement.dataset.sidenav = 'hidden';
   else delete document.documentElement.dataset.sidenav;
-}
-
-/**
- * Icon of a library in the side navigation (concept 17, D-8): a video library that holds only
- * series folders the television, any other video library the film strip.
- */
-function libraryIcon({ kind, contents }: components['schemas']['LibraryNav']): IconName {
-  if (kind === 'audiobooks') return 'book';
-  if (kind === 'podcasts') return 'mic';
-  return contents.length > 0 && contents.every((content) => content === 'series') ? 'tv' : 'film';
 }
 
 /** Id of the drawer, named by the menu button. */

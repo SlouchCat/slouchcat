@@ -82,7 +82,14 @@ export const DangerQuietFocused: Story = {
 export const Small: Story = {
   render: () => (
     <Stack direction="row" gap={2}>
-      <Button variant="secondary" size="sm" icon="pen" iconOnly aria-label="Metadaten bearbeiten" />
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="pen"
+        iconOnly
+        overlay
+        aria-label="Metadaten bearbeiten"
+      />
       <Button variant="secondary" size="sm" icon="info">
         Details
       </Button>
@@ -97,6 +104,7 @@ export const SmallFocused: Story = {
     size: 'sm',
     icon: 'pen',
     iconOnly: true,
+    overlay: true,
     children: undefined,
     'aria-label': 'Metadaten bearbeiten',
   },

@@ -16,7 +16,7 @@ const page = (items: ItemRef[], total = items.length, offset = 0): PicksPage => 
   limit: 50,
 });
 
-describe("Cat's recommendations page", () => {
+describe('User picks page', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('lists the picks in order with the note as caption', async () => {
