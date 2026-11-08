@@ -196,6 +196,29 @@ describe('detail page: film with versions, extras, cast and trailers', () => {
     expect(screen.getByRole('button', { name: 'Trailer' })).toBeVisible();
   });
 
+  it('disables Merken and Favorit while offline (both live on the server)', async () => {
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    mockApi({ ...signedIn, [`GET /items/${seriesIds.show}`]: () => json(showDetail) });
+    renderApp(`/items/${seriesIds.show}`);
+    const watchlist = await screen.findByRole('button', { name: 'Merken' });
+    const favorite = screen.getByRole('button', { name: 'Favorit' });
+    expect(watchlist).toBeEnabled();
+    expect(favorite).toBeEnabled();
+
+    online.mockReturnValue(false);
+    act(() => {
+      window.dispatchEvent(new Event('offline'));
+    });
+    expect(watchlist).toBeDisabled();
+    expect(favorite).toBeDisabled();
+    online.mockReturnValue(true);
+    act(() => {
+      window.dispatchEvent(new Event('online'));
+    });
+    expect(watchlist).toBeEnabled();
+    expect(favorite).toBeEnabled();
+  });
+
   it('shows the pen only for the main account with its primary profile', async () => {
     mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienVersions) });
     const { unmount } = renderApp(`/items/${ids.alien}`);
@@ -306,6 +329,23 @@ describe('detail page: series, season, episode, extra', () => {
       expect(screen.queryByRole('link', { name: 'Von vorne' })).not.toBeInTheDocument();
     },
   );
+
+  it('series: a started next episode shows the time left and offers "Von vorne"', async () => {
+    mockApi({
+      ...seriesRoutes,
+      [`GET /items/${seriesIds.show}`]: () =>
+        json({ ...showDetail, nextUp: { reason: 'next', episode: episodes.e1 } }),
+    });
+    renderApp(`/items/${seriesIds.show}`);
+    // The label stays «Nächste Folge»; the episode resumes where it stopped.
+    expect(
+      await screen.findByRole('link', { name: 'Nächste Folge S01E01 · Pilot · noch 35 min' }),
+    ).toHaveAttribute('href', `/play/${seriesIds.e1}`);
+    expect(screen.getByRole('link', { name: 'Von vorne' })).toHaveAttribute(
+      'href',
+      `/play/${seriesIds.e1}?at=0`,
+    );
+  });
 
   it('series: no big button without a visible episode', async () => {
     mockApi({

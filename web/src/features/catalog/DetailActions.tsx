@@ -5,7 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { problemMessage } from '@/api/errors';
 import { paths } from '@/app/paths';
 import { useActiveSession } from '@/app/session';
-import { useFavoriteMutation, useWatchlistMutation } from '@/features/discover/queries';
+import {
+  useFavoriteMutation,
+  useWatchlistMutation,
+  useWatchlistPending,
+} from '@/features/discover/queries';
 import { isDownloadable, offlineSupported } from '@/features/offline/support';
 import { formatDate, formatDuration, formatPlayerTime, formatRuntime } from '@/lib/format';
 import { useOnline } from '@/lib/useOnline';
@@ -33,14 +37,12 @@ type NextUp = NonNullable<ItemDetail['nextUp']>;
 
 /**
  * Whether the title's own file plays: a podcast episode streams from its feed through the server;
- * an audiobook plays all its parts; any other title needs the chosen version's file. Series and
- * seasons play their next episode (nextUp), podcasts only through their episodes.
+ * an audiobook plays all its parts; any other title needs the chosen version's file. Podcasts play
+ * only through their episodes. Series and seasons do not come here: they play their next episode
+ * (nextUpTarget).
  */
 function canPlay(item: ItemDetail, file: MediaFileInfo | undefined): boolean {
   switch (item.kind) {
-    case 'series':
-    case 'season':
-      return item.nextUp !== undefined;
     case 'podcast':
       return false;
     case 'podcast_episode':
@@ -75,7 +77,8 @@ function nextUpTarget(t: TFunction, nextUp: NextUp): PlayTarget {
   const { episode, reason } = nextUp;
   const code = episodeCode(t, episode);
   const line = code ? t('item.nextUp.episode', { code, title: episode.title }) : episode.title;
-  const resume = reason === 'resume' ? started(episode.progress) : undefined;
+  // The next episode may be started already: then it resumes like "Weiterschauen".
+  const resume = reason === 'resume' || reason === 'next' ? started(episode.progress) : undefined;
   let detail = line;
   if (resume) detail = t('item.nextUp.left', { episode: line, left: timeLeft(t, resume) });
   if (reason === 'rewatch')
@@ -167,7 +170,8 @@ interface DetailActionsProps {
 /**
  * The actions of a detail page (concept 17 D-2, variant A; E-10, E-11): the big button with its
  * second line and progress stroke, under it the round actions in this order: Trailer, Von vorne,
- * Merken, Favorit, User-Empfehlungen, Download, Verwalten.
+ * Merken, Favorit, User-Empfehlungen, Download, Verwalten. Offline Merken and Favorit are disabled
+ * (both live on the server), like the cover's watchlist button.
  */
 export function DetailActions({ item, file, target, onTrailer }: DetailActionsProps) {
   const { t } = useTranslation();
@@ -183,6 +187,7 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
   const listable = item.kind !== 'season' && item.kind !== 'extra';
   const favoritable = item.kind === 'series' || item.kind === 'podcast';
   const watchlist = useWatchlistMutation();
+  const watchlistPending = useWatchlistPending(item.id);
   const favorite = useFavoriteMutation();
   const failed = watchlist.error ?? favorite.error;
 
@@ -232,7 +237,8 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
             icon="plus"
             label={item.inWatchlist ? t('item.watchlist.added') : t('item.watchlist.add')}
             pressed={item.inWatchlist}
-            busy={watchlist.isPending}
+            isDisabled={!online}
+            busy={watchlistPending}
             onPress={() => watchlist.mutate({ id: item.id, on: !item.inWatchlist })}
           />
         )}
@@ -243,6 +249,7 @@ export function DetailActions({ item, file, target, onTrailer }: DetailActionsPr
             label={t('item.favorite.label')}
             pressed={item.favorite}
             description={t('item.favorite.hint')}
+            isDisabled={!online}
             busy={favorite.isPending}
             onPress={() => favorite.mutate({ id: item.id, on: !item.favorite })}
           />
