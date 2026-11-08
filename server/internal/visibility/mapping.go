@@ -174,10 +174,12 @@ func pickAccent(rows []scopedq.Image) string {
 }
 
 func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
+	t := pickTexts(ex.texts[it.ID], lang, it.Title)
 	s := model.ItemSummary{
 		ID:            it.ID,
 		Kind:          it.Kind,
-		Title:         pickTexts(ex.texts[it.ID], lang, it.Title).title,
+		Title:         t.title,
+		Overview:      t.overview,
 		Poster:        pickImage(ex.images[it.ID], "poster", posterSize),
 		PosterSmall:   pickImage(ex.images[it.ID], "poster", posterSmallSize),
 		PosterLarge:   pickImage(ex.images[it.ID], "poster", posterLargeSize),

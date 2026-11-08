@@ -76,3 +76,27 @@ func TestSeasonYearAndWatchedCount(t *testing.T) {
 		t.Errorf("season 1 with its own year = %v, want 2005", s1.Year)
 	}
 }
+
+// Concept 17 section 2.3: summaries carry the overview in the profile language (the API passes it
+// on only for the episodes of a season).
+func TestSummaryOverviewInProfileLanguage(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	r := New(f.DB, vistest.Logger())
+	en := f.P18
+	en.Language, en.MetadataLanguage = "en", "en"
+	for _, tc := range []struct {
+		p               model.Profile
+		episode, season string
+	}{{f.P18, "Handlung E1", "Handlung SN"}, {en, "Plot E1", "Plot SN"}} {
+		d, err := r.Item(context.Background(), Profile(tc.p), f.Show.Season.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(d.Episodes) == 0 || d.Episodes[0].Overview != tc.episode || d.Overview != tc.season || d.ItemSummary.Overview != tc.season {
+			t.Fatalf("%s (%s): episodes %+v, season overview %q / %q, want %q and %q",
+				tc.p.Language, tc.p.Name, d.Episodes, d.Overview, d.ItemSummary.Overview, tc.episode, tc.season)
+		}
+	}
+}

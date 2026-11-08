@@ -611,6 +611,10 @@ type ItemSummary struct {
 	// HasTrailer says whether a trailer is stored (M11, D3); nil = not looked up (the contract's
 	// optional ItemRef.hasTrailer), filled for the rows spotlight and picks of the start page only.
 	HasTrailer *bool
+	// Overview is the overview in the profile language (concept 17 section 2.3); the contract
+	// passes it on only in the episode list of a season's detail (ItemDetail.Overview is the
+	// detail's own, the same text).
+	Overview string
 	// InWatchlist says whether the title is on the profile's watchlist (E-5); on every summary
 	// since contract 1.20.0 (concept 17 D-9, the watchlist button on the cover).
 	InWatchlist bool

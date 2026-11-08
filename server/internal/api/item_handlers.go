@@ -153,6 +153,11 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	if out.Genres == nil {
 		out.Genres = []string{}
 	}
+	if d.Kind == "season" { // the episode list of a season carries the overviews (contract 1.20.0)
+		for i, e := range d.Episodes {
+			(*out.Episodes)[i].Overview = optString(e.Overview)
+		}
+	}
 	if d.SeriesIndex != nil {
 		idx := float32(*d.SeriesIndex)
 		out.SeriesIndex = &idx
@@ -518,6 +523,8 @@ func toImageRef(itemID string, profileID int64, img *model.Image) *gen.ImageRef 
 	return &gen.ImageRef{Url: imageURL(itemID, *img, profileID), Width: img.Width, Height: img.Height}
 }
 
+// toItemRef maps a summary; its overview stays out of lists (GetItem sets it on the episodes of a
+// season only, contract 1.20.0).
 func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 	ref := gen.ItemRef{
 		Id:             it.ID,
