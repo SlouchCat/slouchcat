@@ -22,6 +22,11 @@ eingearbeitet), Code-Review und Security-Review (Befunde behoben). Entscheide im
 - **Tests:** Migrations- und Stands-Test (`testdata/db/webradio2.sql`), Abnahmetest der Zeitleiste, Cover-Kette gegen
   Attrappen, Regeln über 40 000 Sender, Playwright-Tastaturtests (`radio-player`, `home-radio`, `admin-radio`,
   `admin-streams`), 18 neue Storybook-Baselines. Messwerte in `docs/perf/radio.md` Abschnitt 4.
+- **Prüfung:** `task ci` auf `f675dab7`: Server (39 Pakete) grün, Web 1603 Vitest-Tests, Storybook 410 Geschichten,
+  e2e in drei Shards 546 von 547 grün; der eine rote Test (`admin-folder-browser.spec.ts:151`, Fokus nach Esc, ohne
+  Bezug zum Radio) lief danach mit `--repeat-each 3` 24 von 24 grün: ein Flake unter Last. Danach Versionsstellen auf
+  1.19.0 (`deploy/.env.example`, `deploy/compose.yaml`, `deploy/compose.updater.yaml`, `deploy/README.md`,
+  `docs/INSTALLATION.md`, `docs/dev/HANDOVER.md`) und `task check:fast` grün.
 - **Offen für die Abnahme auf CT 190:** siehe `docs/perf/radio.md` Abschnitt 4; iPhone weiterhin ungetestet.
 
 ## Release 1.18.2 (8. November 2026): Radio-Verwaltung ohne Wartezeit
