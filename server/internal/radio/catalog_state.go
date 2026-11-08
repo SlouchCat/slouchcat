@@ -1,6 +1,8 @@
 package radio
 
 import (
+	"context"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +27,12 @@ type catalogState struct {
 	gen           atomic.Uint64
 	tagRulesMu    sync.Mutex
 	tagRulesCache *tagRulesAnswer
+	// resolve looks up the host of an own station's address (own.go); nil is the system
+	// resolver. probe reads an own station's stream after a create (nil: probeStream). Tests
+	// set both; probes counts the background probes, so a test can wait for them.
+	resolve func(ctx context.Context, host string) ([]netip.Addr, error)
+	probe   ownProbeFunc
+	probes  sync.WaitGroup
 	// zone names the server's IANA time zone (R-9: the default country of a profile).
 	zone func() string
 

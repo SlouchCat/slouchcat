@@ -93,6 +93,19 @@ func (q *Queries) DeleteMissingRadioStations(ctx context.Context, before sql.Nul
 	return result.RowsAffected()
 }
 
+const deleteRadioOwnStation = `-- name: DeleteRadioOwnStation :execrows
+DELETE FROM radio_stations WHERE id = ?1 AND source = 'own'
+`
+
+// Streams, facets, locks, favourites and listen sessions go by cascade.
+func (q *Queries) DeleteRadioOwnStation(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteRadioOwnStation, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteRadioStationFacets = `-- name: DeleteRadioStationFacets :exec
 DELETE FROM radio_station_facets
 WHERE station_id = ?1 AND facet IN (SELECT j.value FROM json_each(?2) AS j)
@@ -334,6 +347,74 @@ func (q *Queries) InsertRadioCatalogStation(ctx context.Context, arg InsertRadio
 	var id int64
 	err := row.Scan(&id)
 	return id, err
+}
+
+const insertRadioOwnStation = `-- name: InsertRadioOwnStation :one
+
+INSERT INTO radio_stations (source, group_key, name, sort_key, search_text, country, region, languages,
+                            homepage, quality, created_at, updated_at)
+VALUES ('own', ?1, ?2, ?3, ?4, ?5, ?6, ?7,
+        ?8, ?9, ?10, ?10)
+RETURNING id
+`
+
+type InsertRadioOwnStationParams struct {
+	GroupKey   string
+	Name       string
+	SortKey    string
+	SearchText string
+	Country    sql.NullString
+	Region     sql.NullString
+	Languages  string
+	Homepage   sql.NullString
+	Quality    sql.NullString
+	Now        int64
+}
+
+// Own stations (concept 16 section 5.6, stage 2, lane B): stations the catalog lacks. Their group
+// key is 'own:' and a ULID, so the sync never groups a catalog entry into one; they have no
+// aliases, so the sync never marks, deletes or recomputes them.
+func (q *Queries) InsertRadioOwnStation(ctx context.Context, arg InsertRadioOwnStationParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertRadioOwnStation,
+		arg.GroupKey,
+		arg.Name,
+		arg.SortKey,
+		arg.SearchText,
+		arg.Country,
+		arg.Region,
+		arg.Languages,
+		arg.Homepage,
+		arg.Quality,
+		arg.Now,
+	)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
+}
+
+const insertRadioOwnStream = `-- name: InsertRadioOwnStream :exec
+INSERT INTO radio_streams (station_id, url, codec, bitrate, lastcheckok, preferred, updated_at)
+VALUES (?1, ?2, ?3, ?4, 1, 1, ?5)
+`
+
+type InsertRadioOwnStreamParams struct {
+	StationID int64
+	Url       string
+	Codec     sql.NullString
+	Bitrate   sql.NullInt64
+	Now       int64
+}
+
+// The one stream of an own station (no alias), preferred.
+func (q *Queries) InsertRadioOwnStream(ctx context.Context, arg InsertRadioOwnStreamParams) error {
+	_, err := q.db.ExecContext(ctx, insertRadioOwnStream,
+		arg.StationID,
+		arg.Url,
+		arg.Codec,
+		arg.Bitrate,
+		arg.Now,
+	)
+	return err
 }
 
 const insertRadioStationFacets = `-- name: InsertRadioStationFacets :exec
@@ -850,6 +931,52 @@ func (q *Queries) MarkRadioStationsMissing(ctx context.Context, now sql.NullInt6
 	return result.RowsAffected()
 }
 
+const setRadioOwnStreamProbe = `-- name: SetRadioOwnStreamProbe :execrows
+UPDATE radio_streams
+SET codec = ?1, bitrate = ?2, hls = ?3, updated_at = ?4
+WHERE station_id = ?5 AND url = ?6 AND stationuuid IS NULL
+`
+
+type SetRadioOwnStreamProbeParams struct {
+	Codec     sql.NullString
+	Bitrate   sql.NullInt64
+	Hls       int64
+	Now       int64
+	StationID int64
+	Url       string
+}
+
+// What the probe of an own station's stream found, while the stream still has the probed address.
+func (q *Queries) SetRadioOwnStreamProbe(ctx context.Context, arg SetRadioOwnStreamProbeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setRadioOwnStreamProbe,
+		arg.Codec,
+		arg.Bitrate,
+		arg.Hls,
+		arg.Now,
+		arg.StationID,
+		arg.Url,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setRadioStationQuality = `-- name: SetRadioStationQuality :exec
+UPDATE radio_stations SET quality = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type SetRadioStationQualityParams struct {
+	Quality sql.NullString
+	Now     int64
+	ID      int64
+}
+
+func (q *Queries) SetRadioStationQuality(ctx context.Context, arg SetRadioStationQualityParams) error {
+	_, err := q.db.ExecContext(ctx, setRadioStationQuality, arg.Quality, arg.Now, arg.ID)
+	return err
+}
+
 const setRadioStreamCheck = `-- name: SetRadioStreamCheck :exec
 UPDATE radio_streams SET lastcheckok = ?1, updated_at = ?2 WHERE stationuuid = ?3
 `
@@ -931,6 +1058,50 @@ func (q *Queries) UpdateRadioConfig(ctx context.Context, arg UpdateRadioConfigPa
 		arg.CoverItunes,
 		arg.Now,
 	)
+	return err
+}
+
+const updateRadioOwnStation = `-- name: UpdateRadioOwnStation :exec
+UPDATE radio_stations
+SET homepage = ?1, country = ?2, languages = ?3, updated_at = ?4
+WHERE id = ?5 AND source = 'own'
+`
+
+type UpdateRadioOwnStationParams struct {
+	Homepage  sql.NullString
+	Country   sql.NullString
+	Languages string
+	Now       int64
+	ID        int64
+}
+
+// The fields only an own station has the administration set: homepage, country and languages.
+func (q *Queries) UpdateRadioOwnStation(ctx context.Context, arg UpdateRadioOwnStationParams) error {
+	_, err := q.db.ExecContext(ctx, updateRadioOwnStation,
+		arg.Homepage,
+		arg.Country,
+		arg.Languages,
+		arg.Now,
+		arg.ID,
+	)
+	return err
+}
+
+const updateRadioOwnStreamURL = `-- name: UpdateRadioOwnStreamURL :exec
+UPDATE radio_streams
+SET url = ?1, url_resolved = NULL, codec = NULL, bitrate = NULL, hls = 0, lastcheckok = 1, updated_at = ?2
+WHERE station_id = ?3 AND stationuuid IS NULL
+`
+
+type UpdateRadioOwnStreamURLParams struct {
+	Url       string
+	Now       int64
+	StationID int64
+}
+
+// A new address of an own station's stream; what the probe found of the old one goes.
+func (q *Queries) UpdateRadioOwnStreamURL(ctx context.Context, arg UpdateRadioOwnStreamURLParams) error {
+	_, err := q.db.ExecContext(ctx, updateRadioOwnStreamURL, arg.Url, arg.Now, arg.StationID)
 	return err
 }
 

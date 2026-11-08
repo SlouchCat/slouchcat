@@ -31,12 +31,17 @@ const (
 )
 
 // AdminStations lists the stations for the administration; Exceptions keeps the changed (a lock),
-// hidden, broken and recommended ones.
+// hidden, broken, recommended and own ones; Source keeps the catalog or the own stations.
 func (s *Service) AdminStations(ctx context.Context, q model.AdminRadioQuery) (model.AdminRadioStationPage, error) {
 	switch q.State {
 	case "", adminStateReachable, adminStateBroken, adminStateHidden:
 	default:
 		return model.AdminRadioStationPage{}, (*model.ValidationError)(nil).Add("state", "invalid_value")
+	}
+	switch q.Source {
+	case "", sourceCatalog, sourceOwn:
+	default:
+		return model.AdminRadioStationPage{}, (*model.ValidationError)(nil).Add("source", "invalid_value")
 	}
 	idx, err := s.index(ctx)
 	if err != nil {
@@ -53,7 +58,9 @@ func (s *Service) AdminStations(ctx context.Context, q model.AdminRadioQuery) (m
 			q.State == adminStateReachable && (e.broken || e.hidden),
 			q.State == adminStateBroken && !e.broken,
 			q.State == adminStateHidden && !e.hidden,
-			q.Exceptions && !e.locked && !e.hidden && !e.broken && !e.st.Recommended:
+			q.Source == sourceOwn && !e.own,
+			q.Source == sourceCatalog && e.own,
+			q.Exceptions && !e.locked && !e.hidden && !e.broken && !e.st.Recommended && !e.own:
 			continue
 		}
 		hits = append(hits, e)
@@ -143,8 +150,14 @@ func adminStation(ctx context.Context, q *appq.Queries, id int64) (model.AdminRa
 }
 
 // UpdateStation applies a patch: a set field locks itself; Locks, when set, replaces the locks
-// before the fields of the patch add theirs.
+// before the fields of the patch add theirs. Stream address, homepage, country and languages are
+// fields of own stations only (own.go, not_own otherwise); a new stream address ends a running
+// relay of the station.
 func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.AdminRadioStationPatch) (model.AdminRadioStation, error) {
+	own, verr, err := s.checkOwnPatch(ctx, stationID, p)
+	if err != nil {
+		return model.AdminRadioStation{}, err
+	}
 	tx, err := s.db.Write.BeginTx(ctx, nil)
 	if err != nil {
 		return model.AdminRadioStation{}, fmt.Errorf("update radio station: begin: %w", err)
@@ -166,7 +179,6 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	for _, l := range curLocks {
 		locks[l] = true
 	}
-	var verr *model.ValidationError
 	if p.Locks != nil {
 		locks = map[string]bool{}
 		for _, l := range *p.Locks {
@@ -249,6 +261,10 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	if err := writeFacets(ctx, q, stationID, values, patched, true, true); err != nil {
 		return model.AdminRadioStation{}, err
 	}
+	urlChanged, err := writeOwnPatch(ctx, q, stationID, own, upd.Now)
+	if err != nil {
+		return model.AdminRadioStation{}, err
+	}
 	switch {
 	case p.ClearPreferredStream:
 		if err := q.SetRadioStreamPreferred(ctx, appq.SetRadioStreamPreferredParams{StationID: stationID}); err != nil {
@@ -276,6 +292,10 @@ func (s *Service) UpdateStation(ctx context.Context, stationID int64, p model.Ad
 	}
 	s.reloadStation(ctx, stationID)
 	s.closeUnreachable(ctx, stationID)
+	if urlChanged {
+		s.closeStation(ctx, stationID) // the relay plays the old address
+		s.probeOwnLater(ctx, stationID, own.streamURL)
+	}
 	return s.AdminStation(ctx, stationID)
 }
 

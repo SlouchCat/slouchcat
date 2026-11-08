@@ -254,3 +254,44 @@ INSERT INTO radio_station_locks (station_id, field) VALUES (@station_id, @field)
 UPDATE radio_streams
 SET preferred = CASE WHEN id = sqlc.narg('stream_id') THEN 1 ELSE 0 END
 WHERE station_id = @station_id;
+
+-- Own stations (concept 16 section 5.6, stage 2, lane B): stations the catalog lacks. Their group
+-- key is 'own:' and a ULID, so the sync never groups a catalog entry into one; they have no
+-- aliases, so the sync never marks, deletes or recomputes them.
+
+-- name: InsertRadioOwnStation :one
+INSERT INTO radio_stations (source, group_key, name, sort_key, search_text, country, region, languages,
+                            homepage, quality, created_at, updated_at)
+VALUES ('own', @group_key, @name, @sort_key, @search_text, sqlc.narg('country'), sqlc.narg('region'), @languages,
+        sqlc.narg('homepage'), sqlc.narg('quality'), @now, @now)
+RETURNING id;
+
+-- name: InsertRadioOwnStream :exec
+-- The one stream of an own station (no alias), preferred.
+INSERT INTO radio_streams (station_id, url, codec, bitrate, lastcheckok, preferred, updated_at)
+VALUES (@station_id, @url, sqlc.narg('codec'), sqlc.narg('bitrate'), 1, 1, @now);
+
+-- name: UpdateRadioOwnStation :exec
+-- The fields only an own station has the administration set: homepage, country and languages.
+UPDATE radio_stations
+SET homepage = sqlc.narg('homepage'), country = sqlc.narg('country'), languages = @languages, updated_at = @now
+WHERE id = @id AND source = 'own';
+
+-- name: UpdateRadioOwnStreamURL :exec
+-- A new address of an own station's stream; what the probe found of the old one goes.
+UPDATE radio_streams
+SET url = @url, url_resolved = NULL, codec = NULL, bitrate = NULL, hls = 0, lastcheckok = 1, updated_at = @now
+WHERE station_id = @station_id AND stationuuid IS NULL;
+
+-- name: SetRadioOwnStreamProbe :execrows
+-- What the probe of an own station's stream found, while the stream still has the probed address.
+UPDATE radio_streams
+SET codec = sqlc.narg('codec'), bitrate = sqlc.narg('bitrate'), hls = @hls, updated_at = @now
+WHERE station_id = @station_id AND url = @url AND stationuuid IS NULL;
+
+-- name: SetRadioStationQuality :exec
+UPDATE radio_stations SET quality = sqlc.narg('quality'), updated_at = @now WHERE id = @id;
+
+-- name: DeleteRadioOwnStation :execrows
+-- Streams, facets, locks, favourites and listen sessions go by cascade.
+DELETE FROM radio_stations WHERE id = @id AND source = 'own';
