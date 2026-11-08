@@ -1,5 +1,49 @@
 # Aktueller Stand
 
+## Update, das immer durchgeht (Vertrag 1.18.0, 8. November 2026)
+
+Zweig `claude/manifest-fallback` ab `main` `216ea50a` (Release 1.17.0). Vertrag **1.18.0, additiv**, keine
+Migration. Entscheide im Nachtrag vom 8. November 2026 in ADR 0024.
+
+Anlass: Am 8. November 2026 meldete die Update-Prüfung auf CT 190 «Letzte Prüfung fehlgeschlagen», weil
+GitHub die Download-Adresse der Releases stundenlang mit 504 beantwortete (auch für fremde Projekte), während
+API, Ablage der Anhänge und `ghcr.io` liefen. Marco verteilt Slouchcat weltweit und kann auf keinen Server
+zugreifen; er hat entschieden, alle Lücken des Update-Wegs in einem Zug zu schliessen. Ein Architektur-Audit
+fand dazu: Der Updater aktualisierte sich nie, Compose-Dateien reisten nie mit, nirgends gab es eine
+Wiederholung, alte Images blieben liegen, Vorabversionen konnten «latest» werden.
+
+- **Release-Dateien lesen** (`updater.FetchReleaseFile`): zwei Versuche, danach GitHub-API (latest und Tag),
+  nur Anhänge desselben Repositorys; Fehler nennt beide Wege.
+- **Selbstupdate des Updaters** über einen Hilfscontainer aus dem neuen Image; Rückkehr zur alten Version,
+  wenn der neue nicht stabil läuft; höchstens ein Versuch je Version und 6 h.
+- **Compose-Dateien reisen mit** (`deploy`, `deployKnown` im Manifest): ersetzt wird nur eine Datei, die seit
+  einem Release unverändert ist, mit Sicherung und Rücknahme; eine selbst geänderte bleibt liegen.
+- **Pull** bis dreimal, Grund in der Meldung, `disk_full`; **Aufräumen** alter Images ausser der Vorversion.
+- **Release-Lauf**: nur die höchste `vX.Y.Z` wird «latest» und `:latest`; Vorabversionen bleiben Vorabversion.
+- **Karte**: letzte erfolgreiche Prüfung, Version des Updaters, Warnung mit Befehl für Updater vor 1.18.0.
+- **Neustartschleife**: Docker meldet einen Container zwischen zwei Neustarts als `running` und
+  `restarting`; der Updater wartete deshalb die vollen 10 min. Jetzt gibt er nach drei Neustarts auf.
+
+**Prüfung:** Zwei Reviews (Architektur-Audit, Code-Review mit Nachprüfung, APPROVE). `task ci` auf
+`9c303e64`: Server grün; Web, Storybook (392), Build und e2e (537 in 3 Shards) grün; ein Radio-Test
+(`useRadio.test.tsx` «shows the code of a start the server refused») fiel einmal unter Last und lief danach
+fünfmal grün; er stammt aus dem Webradio und ist ein Flake. Danach `task check:fast` und gezielte Tests.
+
+**Abnahme auf CT 190** (8. November 2026, mit Test-Images 1.17.90–1.17.93 aus einer lokalen Registry und
+einem Test-Manifest über https mit eigener CA):
+- Lauf 1: Update 1.17.90 → 1.17.91 in 3 s `done`; `compose.yaml` und `compose.updater.yaml` ersetzt (Sicherung
+  `.bak-vor-1.17.91`), `compose.intel.yaml` gleich und unberührt; der Updater hob sich selbst auf 1.17.91, der
+  Hilfscontainer entfernte sich; Aufräumen behielt Server 1.17.91 und 1.17.90.
+- Lauf 2: eigene Änderung in `compose.yaml` blieb liegen, Meldung «has own changes»; Selbstupdate auf einen
+  absichtlich kaputten Updater 1.17.92: nach 60 s zurück auf 1.17.91, keine Schleife.
+- Lauf 3: Server 1.17.93 in der Neustartschleife → Rücknahme auf 1.17.92, `compose.yaml` wiederhergestellt;
+  zuerst nach 10 min, mit dem Fix `93d00976` nach 11 s.
+- Danach CT 190 zurück auf Release 1.17.0 mit Updater 1.16.0, Testteile entfernt; Sicherungen in
+  `/root/abnahme118` auf dem CT.
+
+**Für bestehende Installationen:** Ein Updater vor 1.18.0 hebt sich nicht selbst; einmal von Hand heben
+(Befehl auf der Karte und in `docs/INSTALLATION.md`). Danach folgt er dem Server.
+
 ## Release 1.17.0 (8. November 2026): Webradio, Stufe 1
 
 Release ab `main` nach PR #113 (Merge `a2598bea`, Konzept 16 Stufe 1). Vertrag **1.17.0, additiv**,
