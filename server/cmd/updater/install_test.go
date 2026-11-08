@@ -804,6 +804,9 @@ func TestContainerGaveUp(t *testing.T) {
 		{Container{Running: true, Status: "running", RestartCount: 5, Health: "unhealthy"}, false}, // runs: may still migrate
 		{Container{Status: "restarting", RestartCount: 2, RestartPolicy: "unless-stopped"}, false},
 		{Container{Status: "restarting", RestartCount: 3, RestartPolicy: "unless-stopped"}, true},
+		// Docker between two restarts of a crash loop: running and restarting at once.
+		{Container{Running: true, Restarting: true, Status: "restarting", RestartCount: 2, RestartPolicy: "unless-stopped"}, false},
+		{Container{Running: true, Restarting: true, Status: "restarting", RestartCount: 14, RestartPolicy: "unless-stopped", Health: "unhealthy"}, true},
 		{Container{Status: "exited", RestartPolicy: "always", ExitCode: 1}, false},
 		{Container{Status: "exited", RestartPolicy: "no", ExitCode: 0}, true},
 		{Container{Status: "exited", RestartPolicy: "", ExitCode: 1}, true},

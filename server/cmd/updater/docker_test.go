@@ -108,11 +108,12 @@ exit 3`)
 	}
 }
 
-// The fields of docker container inspect the updater reads, in the places Docker puts them.
+// The fields of docker container inspect the updater reads, in the places Docker puts them. A
+// crash loop between two restarts reads running and restarting (seen on CT 190).
 func TestDockerCLIContainer(t *testing.T) {
 	fakeDockerBinary(t, `cat <<'JSON'
 [{"Id":"abc","Image":"sha256:img","RestartCount":4,
-  "State":{"Status":"restarting","Running":false,"Restarting":true,"ExitCode":1,"Health":{"Status":"unhealthy","FailingStreak":3}},
+  "State":{"Status":"restarting","Running":true,"Restarting":true,"ExitCode":1,"Health":{"Status":"unhealthy","FailingStreak":3}},
   "Config":{"Image":"ghcr.io/slouchcat/slouchcat:1.16.0","Labels":{"org.opencontainers.image.version":"1.16.0"}},
   "HostConfig":{"RestartPolicy":{"Name":"on-failure","MaximumRetryCount":5}}}]
 JSON`)
@@ -125,7 +126,7 @@ JSON`)
 	if c.ImageID != "sha256:img" {
 		t.Errorf("ImageID = %q", c.ImageID)
 	}
-	if c.Image != want.Image || c.Labels[labelVersion] != "1.16.0" || c.Running || c.Health != want.Health || c.Status != want.Status ||
+	if c.Image != want.Image || c.Labels[labelVersion] != "1.16.0" || !c.Running || !c.Restarting || c.Health != want.Health || c.Status != want.Status ||
 		c.ExitCode != want.ExitCode || c.RestartCount != want.RestartCount || c.RestartPolicy != want.RestartPolicy || c.MaxRetries != want.MaxRetries {
 		t.Errorf("Container = %+v\nwant %+v", c, want)
 	}

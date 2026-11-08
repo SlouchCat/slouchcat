@@ -86,6 +86,10 @@ func run() int {
 	defer stop()
 
 	docker := dockerCLI{failed: func(args []string, err error, last string) {
+		if strings.Contains(last, "No such container") { // the answer to "is the helper there?"
+			log.Debug("updater: docker command failed", "args", strings.Join(args, " "), "last_line", last)
+			return
+		}
 		log.Warn("updater: docker command failed", "args", strings.Join(args, " "), "err", err, "last_line", last)
 	}}
 	u, token, err := newUpdater(ctx, cfg, docker, log)
