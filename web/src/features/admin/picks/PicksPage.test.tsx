@@ -122,7 +122,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     const { nav } = await renderAdminPage('/admin/picks');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: "Cat's Empfehlungen" }),
+      await screen.findByRole('heading', { level: 1, name: "User-Empfehlungen" }),
     ).toBeVisible();
     // The intro sits behind the help button (S-2).
     expect(screen.getByRole('button', { name: 'Hilfe zu dieser Seite' })).toBeVisible();
@@ -147,7 +147,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     expect(screen.getByText('2 Einträge')).toBeVisible();
     // No up and down buttons any more: the place is a choice in the fold-out (S-16).
     expect(screen.queryByRole('button', { name: /nach (oben|unten)$/ })).toBeNull();
-    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent("Cat's Empfehlungen");
+    expect(nav.querySelector('[aria-current="page"]')).toHaveTextContent("User-Empfehlungen");
   });
 
   it('numbers the picks, shows their posters, counts the planned ones and points to the start page', async () => {
@@ -509,7 +509,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
         endsAt: new Date('2026-11-09T22:30').toISOString(),
       },
     ]);
-    expect(screen.getByText("Alien ist in Cat's Empfehlungen.")).toBeVisible();
+    expect(screen.getByText("Alien ist in den User-Empfehlungen.")).toBeVisible();
     expect(await screen.findByRole('rowheader', { name: /Alien/ })).toBeVisible();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Hinzufügen' })).toHaveFocus());
   });
@@ -685,7 +685,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     });
     await user.click(within(leave).getByRole('button', { name: 'Auf der Seite bleiben' }));
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-    expect(screen.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" })).toBeVisible();
+    expect(screen.getByRole('heading', { level: 1, name: "User-Empfehlungen" })).toBeVisible();
 
     // «Speichern» sends only Heat, trimmed; its draft is spent, «Speichern» keeps the focus.
     await user.click(within(heat).getByRole('button', { name: 'Heat speichern' }));
@@ -787,7 +787,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     const remove = within(detail).getByRole('button', { name: 'Heat entfernen' });
     // Escape keeps the pick; the focus goes back to «Entfernen».
     await user.click(remove);
-    await screen.findByRole('alertdialog', { name: "Heat aus Cat's Empfehlungen entfernen?" });
+    await screen.findByRole('alertdialog', { name: "Heat aus den User-Empfehlungen entfernen?" });
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
     await waitFor(() => expect(remove).toHaveFocus());
@@ -795,7 +795,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
 
     await user.click(remove);
     const confirm = await screen.findByRole('alertdialog', {
-      name: "Heat aus Cat's Empfehlungen entfernen?",
+      name: "Heat aus den User-Empfehlungen entfernen?",
     });
     expect(
       within(confirm).getByText(
@@ -807,7 +807,7 @@ describe('admin picks page (M7, E-2; concept 12)', () => {
     expect(calls.some((call) => call.method === 'DELETE')).toBe(true);
     await waitFor(() => expect(screen.queryByRole('table')).not.toBeInTheDocument());
     await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: "Cat's Empfehlungen" })).toHaveFocus(),
+      expect(screen.getByRole('heading', { level: 1, name: "User-Empfehlungen" })).toHaveFocus(),
     );
   });
 

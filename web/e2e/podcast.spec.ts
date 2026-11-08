@@ -230,7 +230,7 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
     await tabTo(page, play, 2);
     await tabTo(page, download, 3);
-    // "Verwalten", then "Merken" and "Zu Cat's Empfehlungen" (M7).
+    // "Verwalten", then "Merken" and "Zu den User-Empfehlungen" (M7).
     await tabTo(page, toPodcast, 6);
     await expectNoFocusTrap(page);
 

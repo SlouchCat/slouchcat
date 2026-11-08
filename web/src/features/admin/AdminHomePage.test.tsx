@@ -1477,7 +1477,7 @@ const SIDEBAR = [
   ['Geräte', '/admin/devices'],
   ['Streams', '/admin/streams'],
   ['Spotlight', '/admin/spotlight'],
-  ["Cat's Empfehlungen", '/admin/picks'],
+  ["User-Empfehlungen", '/admin/picks'],
   ['Sammlungen', '/admin/collections'],
   ['Startseite', '/admin/home-rows'],
   ['Ankündigungen', '/admin/announcements'],

@@ -174,7 +174,7 @@ describe('detail page', () => {
   it('links the owner to "Zu Cat\'s Empfehlungen", never other profiles', async () => {
     mockApi({ ...signedIn, [`GET /items/${ids.alien}`]: () => json(alienDetail) });
     const view = renderApp(`/items/${ids.alien}`);
-    expect(await screen.findByRole('link', { name: "Zu Cat's Empfehlungen" })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: "Zu den User-Empfehlungen" })).toHaveAttribute(
       'href',
       `/admin/picks?add=${ids.alien}`,
     );
@@ -188,7 +188,7 @@ describe('detail page', () => {
     });
     renderApp(`/items/${ids.alien}`);
     await screen.findByRole('heading', { level: 1, name: 'Alien' });
-    expect(screen.queryByRole('link', { name: "Zu Cat's Empfehlungen" })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: "Zu den User-Empfehlungen" })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Merken' })).toBeVisible();
   });
 

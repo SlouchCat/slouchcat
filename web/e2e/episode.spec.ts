@@ -83,7 +83,7 @@ test('Tab reaches play and the next episode after the header; no focus trap @key
   );
   await page.keyboard.press('Tab');
   await expectFocusOn(page, play(page));
-  // Back, the download, then "Merken" and "Zu Cat's Empfehlungen" (M7).
+  // Back, the download, then "Merken" and "Zu den User-Empfehlungen" (M7).
   await tabTo(page, next(page), 8);
   await expectNoFocusTrap(page);
 });

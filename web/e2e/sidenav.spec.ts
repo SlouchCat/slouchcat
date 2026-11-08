@@ -79,7 +79,7 @@ test('the column at 1280 px: its entries, arrows between them, Enter, into the c
   }
   await expect(
     nav(page).getByRole('link', {
-      name: `Cat's Empfehlungen, ${await picksTotal(owner)} Titel`,
+      name: `User-Empfehlungen, ${await picksTotal(owner)} Titel`,
       exact: true,
     }),
   ).toHaveAttribute('href', '/picks');
@@ -343,7 +343,7 @@ test('the prepaints lie on the band and on the first card, column shown and hidd
         else localStorage.removeItem('slouchcat.sidenav');
       }, hidden);
       await page.reload();
-      await expect(page.getByRole('region', { name: "Cat's Empfehlungen" })).toBeVisible();
+      await expect(page.getByRole('region', { name: "User-Empfehlungen" })).toBeVisible();
       await expect(hero(page)).toHaveCount(0);
       await insertPrepaint(
         page,
