@@ -194,20 +194,33 @@ jobs:
           # running project when its hash differs (base names are unique across deploy/).
           deploy="$(sha256sum deploy/compose*.yaml | jq -R -s \
             'split("\n") | map(select(length > 0) | split("  ") | {key: (.[1] | split("/") | last), value: .[0]}) | from_entries')"
+          # Base name -> every sha256 the file had in an earlier release: the updater replaces only a
+          # file that is one of those (unchanged since some release), never one with own changes.
+          known='{}'
+          for f in deploy/compose*.yaml; do
+            n="$(basename "$f")"
+            hashes="$(for t in $(git tag -l 'v*.*.*'); do
+                [ "$t" = "$GITHUB_REF_NAME" ] && continue
+                if git cat-file -e "$t:deploy/$n" 2>/dev/null; then git show "$t:deploy/$n" | sha256sum | cut -d' ' -f1; fi
+              done | sort -u | jq -R -s 'split("\n") | map(select(length > 0))')"
+            known="$(jq -n --argjson k "$known" --arg n "$n" --argjson h "$hashes" '$k + {($n): $h}')"
+          done
           jq -n \
             --argjson deploy "$deploy" \
+            --argjson deployKnown "$known" \
             --arg version "${{ steps.version.outputs.version }}" \
             --arg url "${{ github.server_url }}/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
             --arg notes "$notes" \
             --arg publishedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg image "${{ steps.version.outputs.image }}@${{ steps.build.outputs.digest }}" \
             --arg updaterImage "${{ steps.version.outputs.updater_image }}@${{ steps.build-updater.outputs.digest }}" \
-            '{version: $version, url: $url, notes: $notes, publishedAt: $publishedAt, image: $image, updaterImage: $updaterImage, deploy: $deploy}' > manifest.json
+            '{version: $version, url: $url, notes: $notes, publishedAt: $publishedAt, image: $image, updaterImage: $updaterImage, deploy: $deploy, deployKnown: $deployKnown}' > manifest.json
           # The updater accepts only this form (server/cmd/updater, digestRef).
           jq -e '.image | test("^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$")' manifest.json
           jq -e '.updaterImage | test("^[a-z0-9][a-z0-9._/:-]*/slouchcat-updater@sha256:[0-9a-f]{64}$")' manifest.json
           # Names the updater may fetch and write next to the compose file; hashes are lower-case hex.
           jq -e '(.deploy | length > 0) and (.deploy | to_entries | all(.key | test("^compose[a-z0-9.-]*\\.yaml$"))) and (.deploy | all(.[]; test("^[0-9a-f]{64}$")))' manifest.json
+          jq -e '.deployKnown | to_entries | all((.key | test("^compose[a-z0-9.-]*\\.yaml$")) and (.value | length <= 200) and (.value | all(test("^[0-9a-f]{64}$"))))' manifest.json
           cat manifest.json
 
       # The written offer for the GPL source of the ffmpeg build travels with every release

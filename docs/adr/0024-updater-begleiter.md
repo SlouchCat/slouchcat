@@ -227,8 +227,11 @@ muss ohne Handarbeit durchgehen. Ein Audit des ganzen Wegs fand dazu weitere Lü
    startet den alten. Den Server fasst das Selbstupdate nie an. Updater vor 1.18.0 kennen das nicht:
    Sie hebt man einmal von Hand (Release-Notizen, Hinweis auf der Karte).
 3. **Compose-Dateien reisen mit**: Jedes Release hängt `deploy/compose*.yaml` an und nennt im Manifest
-   `deploy` (Name → sha256). Vor dem Pull ersetzt der Updater jede Compose-Datei des laufenden Projekts,
-   deren Name im Manifest steht und deren Inhalt abweicht: Abruf mit Ausweichweg, Prüfsumme, Sicherung
+   `deploy` (Name → sha256) sowie `deployKnown` (Name → alle sha256, die die Datei in früheren Releases
+   hatte). Vor dem Pull ersetzt der Updater jede Compose-Datei des laufenden Projekts (im Projektordner),
+   deren Name im Manifest steht, deren Inhalt abweicht und deren Hash in `deployKnown` steht, also seit
+   einem Release unverändert ist. Eine selbst angepasste Datei bleibt liegen; die Installation läuft
+   weiter und sagt es in `message`. Ersetzen: Abruf mit Ausweichweg, Prüfsumme, Sicherung
    `<Datei>.bak-vor-<Version>` (dieselbe Endung für alle, `State.DeployBackup`), atomares Ersetzen. Bei
    einer Rücknahme ohne Migration kommen die Sicherungen zurück. Andere Dateien (eigene Overrides, `.env`)
    fasst er nie an. Regel für die Compose-Dateien: Eigene Anpassungen gehören in `.env` oder in eine
