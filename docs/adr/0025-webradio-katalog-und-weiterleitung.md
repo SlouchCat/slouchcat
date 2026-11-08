@@ -180,3 +180,48 @@ Heimnetz sein.
 - **Player in `activeRoute`:** stirbt auf `/profiles`.
 - **Standardland aus der Sprache des Profils:** Profile haben keine Region.
 - **Klicks und Stimmen an Radio Browser melden:** verrät, was im Haushalt gehört wird (F-14).
+
+## Nachtrag 8. November 2026: Stufe 2 «Zurück und Cover» (Vertrag 1.19.0, Migration 00039)
+
+Bau auf Marcos Wort vom 8. November 2026. Die Nummern aus «Entscheid» Punkt 8 verschieben sich: 1.18.0
+ging an die Update-Robustheit, Stufe 2 trägt **Vertrag 1.19.0** (brechend für `getHome` und
+`setHomeRows`) und **Migration 00039**. Entscheide des Bauplans, wo das Konzept schweigt, und Marcos
+Antworten vom 8. November 2026 (Frage 23, Nachtrag):
+
+1. **Zeitleiste nach Ton-Position.** Bei MP3 und ADTS zählt Go die Dauer der Rahmen, die je Generation an
+   ffmpeg gehen (MP3 1152 oder 576 Samples, ADTS 1024 je Block); ein Titel wartet, bis das erste Stück
+   seiner Generation steht, und bekommt dessen `EXT-X-PROGRAM-DATE-TIME` plus die gezählte Dauer. Ogg,
+   FLAC, MPEG-TS und fMP4 behalten den Stempel von Stufe 1. Die Hörzeit (K-5) zählt jedes ausgelieferte
+   Stück einmal, auch hinter Live; vorher zählte nur ein Höchststand, und Zurückspulen wäre ungezählt
+   geblieben.
+2. **Cover-Kette in einem eigenen Arbeiter**, nicht über die Job-Queue: Warteschlange 64, gleiche Titel
+   einmal, bei voller Schlange verworfen. Reihenfolge: Bild aus `StreamUrl`, MusicBrainz mit Cover Art
+   Archive, iTunes-Suche (je ein Schalter in den Einstellungen). Jeder Abruf über `netguard` mit erneuter
+   Prüfung jeder Weiterleitung, MusicBrainz und Cover Art Archive gemeinsam höchstens eine Anfrage je
+   Sekunde, iTunes 20 je Minute, Antworten begrenzt (JSON 1 MiB, Bild 10 MiB). Treffer bleiben 30 Tage,
+   Fehlschläge 24 Stunden in `radio_tracks`; ein vorübergehender Fehler wird nicht gespeichert. An
+   MusicBrainz und Apple gehen Künstler und Titel, die gerade laufen (F-6), an Radio Browser nichts (F-14).
+   Cover haben eine eigene Bildroute `GET /radio/covers/{trackId}/{size}`, weil jeder Eintrag der
+   Zeitleiste sein eigenes Cover hat; sie antwortet nur mit dem passenden Inhalts-Hash `v`, sonst 404.
+   Gegen einen feindlichen Sender: höchstens eine Suche je Relais alle 20 Sekunden, Bilder aus `StreamUrl`
+   über eine eigene Drossel (0,2 je Sekunde), höchstens 5000 gefundene Cover im Cache (die ältesten gehen
+   zuerst), ffmpeg je Bild höchstens 30 Sekunden. Restrisiko wie bei Logos und Podcasts: Ein Sender
+   bestimmt mit `StreamUrl`, welcher öffentliche Server einen Abruf von Slouchcat sieht; eine globale
+   IPv6-Adresse eines Geräts im Heimnetz ist davon nicht zu unterscheiden («Folgen»).
+3. **Regeln des Admins** überschreiben die Vorgabe je Schlagwort und Filter (`(tag, facet, value)`, `value`
+   leer = keine Zuordnung); «Ignorieren» (`facet = 'ignore'`) nimmt ein nichtssagendes Schlagwort aus der
+   Arbeitsliste. Die Arbeitsliste nennt Schlagworte ab 20 Sendern ohne Zuordnung, die Zustandsleiste
+   solche über 50 Sendern. Die Abdeckung zählt die erreichbaren, gezeigten Sender; die Vorgabe «Musik» bei
+   der Sendeart zählt nicht als Zuordnung.
+4. **Eigene Sender:** Stream-Adresse und Webseite nur `http`/`https`; der Server löst den Namen auf und
+   weist jede Adresse im lokalen Netz ab (F-15), auch Einträge einer `.pls`/`.m3u`; beim Abspielen prüft
+   der Dialer weiterhin.
+5. **Startseiten-Reihe «Meine Sender»** (`radio`), ab Werk ausgeblendet am Ende (F-17). Eine Kachel zeigt
+   einen Titel nur, solange der Sender gerade über den Server läuft (Marco: «Nur aktueller Titel»).
+6. **Radio auf «Streams»** liest die Hörer aus `listRadioRelays`; `listStreams` bleibt unverändert, weil
+   seine Antwort eine Liste ist und ein zweites Feld einen weiteren Bruch bedeutete (Marco: «Aus
+   Radio-Liste lesen»).
+7. **Zusammenführen und Abtrennen** von Sendern bleibt draussen (Marco: «Nein, nicht jetzt»).
+8. **Testbuild:** der Build `radiotest` nimmt einen Pufferordner ohne `tmpfs` wie eine `tmpfs`, wenn
+   `SLOUCHCAT_TEST_RADIO_DISK_BUFFER=1` gesetzt ist, damit die e2e-Tests den Zeitversatz prüfen können; die
+   Produktion kennt den Schalter nicht.

@@ -142,3 +142,29 @@ AudioSpecificConfig 2 Byte ✔.
   der Ton kam ohne merkliche Wartezeit. Keine Stoppuhr-Werte; im Server-Log 0 ERROR.
 - **iPhone mit gesperrtem Bildschirm:** nicht geprüft, Marco hat kein iPhone zum Testen. Das Risiko aus
   Konzept 16 Abschnitt 16 bleibt offen, bis jemand mit einem iPhone es prüft.
+
+## 4. Stufe 2 «Zurück und Cover» (8. November 2026, Entwicklungsrechner)
+
+Vertrag 1.19.0, Migration 00039. Gleicher Rechner wie Abschnitt 1, Go aus `server/go.mod`, ohne `-race`.
+
+| Grösse | Wert | Ziel |
+|---|---|---|
+| Zeitleiste nach Ton-Position, Abweichung Titel gegen gezählte Rahmen (`relay_timeline_test.go`, MP3 und AAC, nach Wiederaufbau, Anlauf-Schwall, HLS-ID3) | höchstens 2,5 µs | höchstens ein Stück (4 s) ✔ |
+| Gepackte gegen eingespeiste Tondauer einer Generation (ffmpeg 6.1.1) | 35,786 s gegen 35,814 s, 28 ms | – |
+| Regeln anwenden über `synthCatalog(50000)` (40 000 Sender, jeder Sender ändert sich, Index neu) | 1,37 s je Änderung (`BenchmarkTagRulesLarge`) | ohne Ziel im Konzept; Einordnung in einem Zug |
+| Reiter «Einordnung» ohne Cache (ein Durchgang über alle Schlagworte) | 136 ms | – |
+| Cover-Kette gegen Attrappen (`TestCover*`) | 2,7 s für alle Fälle | – |
+
+Messweg:
+
+```
+cd server && go test ./internal/radio -run '^$' -bench BenchmarkTagRulesLarge -benchtime 3x
+cd server && go test ./internal/radio -run 'TestTimeline' -v
+```
+
+**Offen für die Abnahme auf CT 190:** Zeitversatz mit dem Regler in Chromium und Firefox (Pause über die Pufferlänge,
+Hinweis und «Live»), «Zuvor gespielt» und Cover an echten Schweizer Sendern (Trefferquote MusicBrainz und iTunes),
+Regeln anwenden auf den 55 646 Sendern von CT 190 (Dauer aus dem Server-Log), Startseiten-Reihe «Meine Sender» mit
+Vorabmalerei. Bekannte Grenze: das iPhone rechnet die Abspielzeit aus `getStartDate()` plus Position und übersieht
+Sprünge der Programmzeit nach einem Wiederaufbau; hinter Live kann dort der falsche Titel stehen (nicht geprüft,
+kein iPhone).
