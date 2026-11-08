@@ -380,8 +380,9 @@ test.describe('profile management', () => {
   test('Tab order, radios with arrows, Enter submits, Escape closes; no focus trap @keyboard', async ({
     page,
   }) => {
-    await tabTo(page, page.getByRole('link', { name: 'Verwaltung' }));
+    // The band «Konto» of the side navigation: playback, profiles, administration (concept 17).
     await tabTo(page, page.getByRole('link', { name: 'Profile', exact: true }));
+    await tabTo(page, page.getByRole('link', { name: 'Verwaltung' }));
     await tabTo(page, page.getByRole('button', { name: 'Profil hinzufügen' }));
 
     // The same order as on the page: the add button, then the actions of each card.
