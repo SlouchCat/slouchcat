@@ -201,6 +201,18 @@ im Netz, obwohl Caddy davor sein soll, und die GPU fehlte.
 - Abnahme auf CT 190 (F-15) mit seinen drei Compose-Dateien und `compose.updater.yaml`; danach
   stehen Port und GPU wie vorher.
 
+## Nachtrag 8. November 2026: Manifest über die GitHub-API
+
+Am 8. November 2026 antwortete die Download-Adresse der Releases
+(`github.com/<owner>/<repo>/releases/latest/download/manifest.json`) stundenlang mit 504, auch für fremde
+Projekte; die Update-Prüfung meldete «Letzte Prüfung fehlgeschlagen», ein Update per Knopf war nicht möglich.
+API (`api.github.com`) und Ablage der Anhänge arbeiteten normal. Server und Updater lesen das Manifest jetzt
+über `updater.FetchManifest`: Scheitert die Download-Adresse mit einem Netzfehler oder 5xx, holen beide
+dasselbe Anhangsstück über die API (neuestes Release, Anhang nach Name, nur eine Anhangsadresse desselben
+Repositorys). Eine andere Antwort (z. B. 404) oder eine andere Adresse bleibt ohne Ausweichweg; scheitert auch
+die API, gilt der Fehler der ersten Anfrage. Die API erlaubt ohne Anmeldung 60 Anfragen pro Stunde und
+Adresse; der Ausweichweg braucht zwei. Prüfung und Grenzen (64 KiB, 20 s) bleiben gleich.
+
 ## Verworfen
 
 - **Docker-Socket im Slouchcat-Container (Variante B):** Wer die Web-App übernimmt, hätte Root auf
