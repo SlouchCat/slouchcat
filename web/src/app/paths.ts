@@ -25,9 +25,14 @@ export const paths = {
   /** The player; `file` picks a version (media file) of the title (B-5). */
   play: (id: string, file?: string) =>
     `/play/${encodeURIComponent(id)}${file ? `?file=${encodeURIComponent(file)}` : ''}`,
-  /** The player from a position (ms): a chapter of an audiobook (M6). */
-  playAt: (id: string, positionMs: number) =>
-    `/play/${encodeURIComponent(id)}?at=${Math.max(0, Math.round(positionMs))}`,
+  /**
+   * The player from a position (ms): a chapter of an audiobook (M6), "Von vorne" and "Nochmals
+   * ansehen" at 0 (concept 17 D-2); `file` as in `play`.
+   */
+  playAt: (id: string, positionMs: number, file?: string) =>
+    `/play/${encodeURIComponent(id)}?at=${Math.max(0, Math.round(positionMs))}${
+      file ? `&file=${encodeURIComponent(file)}` : ''
+    }`,
   adminPodcasts: '/admin/podcasts',
   /** Webradio in the administration (concept 16, 11): catalog, relays, stations, settings. */
   adminRadio: '/admin/radio',

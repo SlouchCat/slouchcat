@@ -167,6 +167,53 @@ func TestWatchlistFavoritesAndDetail(t *testing.T) {
 	}
 }
 
+// Concept 17 D-9 (contract 1.20.0): every summary carries the watchlist mark of its own profile;
+// another profile's mark never shows, an invisible title is never listed.
+func TestWatchlistMarkOnEverySummary(t *testing.T) {
+	t.Parallel()
+	f := discoverFixture(t)
+	ctx := context.Background()
+	r := New(f.DB, vistest.Logger())
+	// P18 marks the film rated 6 too, which P6 has marked already and P12 sees unmarked.
+	exec(t, f, `INSERT INTO watchlist (profile_id, item_id, created_at) VALUES (?, ?, 40)`, f.P18.ID, f.Rated(6).ID)
+	for _, tc := range []struct {
+		p      model.Profile
+		marked []string
+	}{
+		{f.P6, []string{f.Rated(6).ID}},
+		{f.P12, nil},
+		{f.P18, []string{f.Rated(6).ID, f.Rated(18).ID}},
+	} {
+		recent, err := r.Recent(ctx, Profile(tc.p), MaxRowItems)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c, err := r.Collection(ctx, Profile(tc.p), vistest.MixedCollectionID, 0, 0)
+		if err != nil && !errors.Is(err, model.ErrNotFound) {
+			t.Fatal(err)
+		}
+		for list, items := range map[string][]model.ItemSummary{"recent": recent, "collection": c.Items} {
+			var got []string
+			for _, it := range items {
+				if it.InWatchlist {
+					got = append(got, it.ID)
+				}
+			}
+			slices.Sort(got)
+			if !slices.Equal(got, tc.marked) {
+				t.Errorf("%s %s: marked %v, want %v", tc.p.Name, list, got, tc.marked)
+			}
+		}
+		d, err := r.Item(ctx, Profile(tc.p), f.Rated(6).ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := slices.Contains(tc.marked, f.Rated(6).ID); d.InWatchlist != want {
+			t.Errorf("%s detail of the film rated 6: inWatchlist %v, want %v", tc.p.Name, d.InWatchlist, want)
+		}
+	}
+}
+
 // E-6, 10.2: a collection counts only visible members and exists only through one.
 func TestCollectionsCountVisibleMembers(t *testing.T) {
 	t.Parallel()

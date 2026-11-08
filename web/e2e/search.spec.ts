@@ -140,6 +140,17 @@ test('search by keyboard: "/", arrows, Enter, back; no focus trap @keyboard', as
     await page.keyboard.press('ArrowLeft');
     await expectFocusOn(page, cards.first());
   }
+  // Tab from a card reaches its watchlist button (concept 17 D-9); an arrow moves on from the card.
+  await page.keyboard.press('Tab');
+  await expectFocusOn(
+    page,
+    titles(page)
+      .getByRole('listitem')
+      .first()
+      .getByRole('button', { name: / merken$/ }),
+  );
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, cards.first());
 
   // Enter opens the title, the browser's back returns to the same search.
   const href = await cards.first().getAttribute('href');

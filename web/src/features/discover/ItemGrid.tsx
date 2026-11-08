@@ -5,6 +5,7 @@ import { imageUrl } from '@/api/client';
 import { paths } from '@/app/paths';
 import { isAudioKind } from '@/features/catalog/labels';
 import { PosterCard, setSpatialFocus, SpatialButton, SpatialGroup } from '@/ui';
+import { CoverWatchlist, WATCHLIST_KINDS } from './CoverWatchlist';
 import styles from './Discover.module.css';
 
 /** Focus key of a title's card in a grid. */
@@ -38,6 +39,13 @@ interface ItemGridProps {
    * the link in the Tab order, outside the arrow-key navigation (PosterCard `tool`).
    */
   tool?: (item: ItemRef) => ReactNode;
+  /**
+   * The watchlist button on each cover that can carry one (concept 17 D-9, CoverWatchlist): after
+   * the pen in the Tab order. On by default, so every grid of titles has it.
+   */
+  mark?: boolean;
+  /** Called once a title was taken off the watchlist from its cover (the watchlist page). */
+  onUnmarked?: (item: ItemRef) => void;
 }
 
 /** Titles as poster cards in a grid; arrow keys move between them (spatial navigation). */
@@ -49,6 +57,8 @@ export function ItemGrid({
   showWatched = false,
   className,
   tool,
+  mark = true,
+  onUnmarked,
 }: ItemGridProps) {
   const { t } = useTranslation();
   return (
@@ -92,6 +102,11 @@ export function ItemGrid({
                   : undefined
               }
               tool={tool?.(item)}
+              mark={
+                mark && WATCHLIST_KINDS.has(item.kind) ? (
+                  <CoverWatchlist item={item} onRemoved={onUnmarked && (() => onUnmarked(item))} />
+                ) : undefined
+              }
             />
             {below?.(item)}
           </li>

@@ -191,7 +191,7 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     await expect(page.getByRole('heading', { level: 1, name: episodeTitle(2) })).toBeVisible();
     await resetFocus(page);
     const play = page.getByRole('link', {
-      name: /^(Abspielen|Weiterhören ab \d{2}:\d{2}:\d{2})$/,
+      name: /^(Abspielen|Weiterhören|Nochmals anhören)( |$)/,
     });
     const back = page.getByRole('button', { name: 'Zurück' });
     const download = page.getByRole('button', { name: 'Herunterladen', exact: true });
@@ -200,38 +200,30 @@ test('episode page by keyboard: play, download, "Zum Podcast", back; no focus tr
     // The download button loads with the offline chunk.
     await expect(download).toBeVisible();
 
-    // Arrows: ↓ lands on play, → back and the download, ← returns, ↓ to "Zum Podcast".
+    // Arrows: ↓ lands on play, ↑ on the back arrow, ↓ returns; ↓ to the round actions ("Merken",
+    // "Zu den User-Empfehlungen", the download, concept 17 E-11), ↓ to "Zum Podcast".
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, play);
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowUp');
     await expectFocusOn(page, back);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, play);
+    await page.keyboard.press('ArrowDown');
+    await expectFocusOn(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }));
+    await page.keyboard.press('ArrowRight');
     await page.keyboard.press('ArrowRight');
     await expectFocusOn(page, download);
-    await page.keyboard.press('ArrowLeft');
-    await page.keyboard.press('ArrowLeft');
-    await expectFocusOn(page, play);
-    // The row under the actions (watchlist, M7) comes first. Beside the side navigation's column
-    // (concept 08) "Verwalten" may wrap onto a line of its own above it.
-    const remember = page.getByRole('button', { name: 'Merken' });
-    await page.keyboard.press('ArrowDown');
-    if (
-      await page
-        .getByRole('link', { name: 'Verwalten' })
-        .evaluate((e) => e === document.activeElement)
-    ) {
-      await page.keyboard.press('ArrowDown');
-    }
-    await expectFocusOn(page, remember);
     await page.keyboard.press('ArrowDown');
     await expectFocusOn(page, toPodcast);
 
-    // Tab from the top: the header, play, back, the download, then "Zum Podcast"; no trap.
+    // Tab from the top: the header, the back arrow, play, the round actions ("Merken", "Zu den
+    // User-Empfehlungen", the download, "Verwalten"), then "Zum Podcast"; no trap.
     await resetFocus(page);
     await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
+    await tabTo(page, back, 3);
     await tabTo(page, play, 2);
     await tabTo(page, download, 3);
-    // "Verwalten", then "Merken" and "Zu den User-Empfehlungen" (M7).
-    await tabTo(page, toPodcast, 6);
+    await tabTo(page, toPodcast, 3);
     await expectNoFocusTrap(page);
 
     // Enter on "Zum Podcast" opens the podcast; Backspace returns to the episode.

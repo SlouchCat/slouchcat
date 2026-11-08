@@ -909,6 +909,81 @@ func (q *Queries) ListRecentlyReleased(ctx context.Context, arg ListRecentlyRele
 	return items, nil
 }
 
+const listSeriesNextUpEpisodes = `-- name: ListSeriesNextUpEpisodes :many
+SELECT e.id, e.season_number, se.season_number AS season_season_number,
+       e.episode_number, e.episode_end,
+       CAST(coalesce(p.completed, 0) AS INTEGER) AS completed,
+       CAST(coalesce(p.position_ms, 0) AS INTEGER) AS position_ms,
+       CAST(coalesce(p.updated_at, 0) AS INTEGER) AS updated_at
+FROM items AS se
+CROSS JOIN items AS e ON e.parent_id = se.id AND e.kind = 'episode'
+JOIN visible_items AS vse ON vse.item_id = se.id AND vse.profile_id = ?1
+JOIN visible_items AS v ON v.item_id = e.id AND v.profile_id = ?1
+LEFT JOIN progress AS p ON p.profile_id = ?1 AND p.item_id = e.id
+WHERE se.parent_id = ?2 AND se.kind = 'season'
+  AND (se.id = ?3 OR ?3 = '')
+ORDER BY coalesce(e.season_number, se.season_number) IS NULL, coalesce(e.season_number, se.season_number),
+         e.episode_number IS NULL, e.episode_number, e.id
+`
+
+type ListSeriesNextUpEpisodesParams struct {
+	ProfileID int64
+	SeriesID  sql.NullString
+	SeasonID  string
+}
+
+type ListSeriesNextUpEpisodesRow struct {
+	ID                 string
+	SeasonNumber       sql.NullInt64
+	SeasonSeasonNumber sql.NullInt64
+	EpisodeNumber      sql.NullInt64
+	EpisodeEnd         sql.NullInt64
+	Completed          int64
+	PositionMs         int64
+	UpdatedAt          int64
+}
+
+// The visible episodes of one series, or of one season of it when @season_id is not empty, with
+// what the rule of NextUp (contract 1.20.0, concept 17 section 3.3, Go: visibility.nextUp) reads:
+// the season numbers of the episode and of its season (the caller takes the season's when the
+// episode has none, like ListContinueWatching), the episode number, the last episode of a file
+// with several and the progress of the profile (0 without a row). The seasons of the series come
+// first from items_parent, then their episodes from items_episode (CROSS JOIN fixes that order),
+// so only the one series is read. The season must be visible too, so the button never points into
+// a season the shelf does not show. Ordered by season, number and id; episodes without a number
+// last within their season, episodes without a season last.
+func (q *Queries) ListSeriesNextUpEpisodes(ctx context.Context, arg ListSeriesNextUpEpisodesParams) ([]ListSeriesNextUpEpisodesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSeriesNextUpEpisodes, arg.ProfileID, arg.SeriesID, arg.SeasonID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSeriesNextUpEpisodesRow{}
+	for rows.Next() {
+		var i ListSeriesNextUpEpisodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SeasonNumber,
+			&i.SeasonSeasonNumber,
+			&i.EpisodeNumber,
+			&i.EpisodeEnd,
+			&i.Completed,
+			&i.PositionMs,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTopPicks = `-- name: ListTopPicks :many
 SELECT i.id, i.kind, i.parent_id, i.library_id, i.title, i.sort_title, i.original_title, i.year, i.release_date, i.runtime_minutes, i.genres, i.tmdb_id, i.imdb_id, i.own_rating, i.effective_rating, i.min_child_rating, i.available, i.rating_source, i.enclosure_url, i.locked_fields, i.metadata_state, i.metadata_error, i.matched_at, i.added_at, i.created_at, i.updated_at, i.deleted_at, i.season_number, i.episode_number, i.episode_end, i.tvdb_id, i.extra_kind, i.tmdb_poster_path, i.tmdb_backdrop_path, i.trailer_state, i.trailer_checked_at, i.segments_state, i.segments_checked_at, i.author, i.narrator, i.series_name, i.series_index, i.explicit, i.duration_ms, i.cover_url, i.cover_path, i.feed_url, i.feed_etag, i.feed_modified, i.feed_checked_at, i.feed_error, i.guid, i.published_at, i.enclosure_type, i.enclosure_length, i.providers, i.anilist_id, i.feed_origin, i.filled_providers, i.vote_average, i.original_language, t.note, t.profile_id AS pick_profile_id
 FROM top_picks AS t
@@ -1026,7 +1101,13 @@ const listVisibleChildCounts = `-- name: ListVisibleChildCounts :many
 SELECT i.id,
        (SELECT count(*) FROM items AS c
         JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
-        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count
+        WHERE c.parent_id = i.id AND c.kind IN ('season', 'episode')) AS child_count,
+       CAST(CASE WHEN i.kind = 'season' THEN
+         (SELECT count(*) FROM items AS c
+          JOIN visible_items AS vc ON vc.item_id = c.id AND vc.profile_id = ?1
+          JOIN progress AS pc ON pc.profile_id = ?1 AND pc.item_id = c.id AND pc.completed = 1
+          WHERE c.parent_id = i.id AND c.kind = 'episode')
+       ELSE 0 END AS INTEGER) AS watched_count
 FROM items AS i
 JOIN visible_items AS v ON v.item_id = i.id AND v.profile_id = ?1
 WHERE i.id IN (/*SLICE:item_ids*/?) AND i.kind IN ('series', 'season')
@@ -1038,12 +1119,15 @@ type ListVisibleChildCountsParams struct {
 }
 
 type ListVisibleChildCountsRow struct {
-	ID         string
-	ChildCount int64
+	ID           string
+	ChildCount   int64
+	WatchedCount int64
 }
 
 // Number of visible content children of visible series and seasons: seasons of a series, episodes
 // of a season (extras never count). One query with a correlated subquery over visible_items.
+// watched_count counts the visible episodes of a season the profile has completed (concept 17
+// section 2.3, like the "done" of the library's episode statistics); 0 for a series.
 func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChildCountsParams) ([]ListVisibleChildCountsRow, error) {
 	query := listVisibleChildCounts
 	var queryParams []interface{}
@@ -1064,7 +1148,7 @@ func (q *Queries) ListVisibleChildCounts(ctx context.Context, arg ListVisibleChi
 	items := []ListVisibleChildCountsRow{}
 	for rows.Next() {
 		var i ListVisibleChildCountsRow
-		if err := rows.Scan(&i.ID, &i.ChildCount); err != nil {
+		if err := rows.Scan(&i.ID, &i.ChildCount, &i.WatchedCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -191,11 +191,17 @@ test('the pen sits on the poster, before the actions in the Tab order @keyboard'
   // Small, but a touch target.
   expect(button.width).toBeGreaterThanOrEqual(32);
   expect(button.height).toBeGreaterThanOrEqual(32);
-  // Tab reaches the pen with a ring, then moves on to play.
+  // Tab reaches the pen with a ring, then the watchlist button on the cover (concept 17 D-9),
+  // then play.
+  const mark = page.getByRole('button', { name: `${TITLE} merken`, exact: true });
   await resetFocus(page);
   await tabTo(page, pen(page), 40);
   await page.keyboard.press('Tab');
+  await expectFocusOn(page, mark);
+  await page.keyboard.press('Tab');
   await expectFocusOn(page, play);
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, mark);
   await page.keyboard.press('Shift+Tab');
   await expectFocusOn(page, pen(page));
 });
@@ -692,7 +698,7 @@ test('start page: a saved title shows on its card at once; the focus stays on th
 test.describe('on a phone', () => {
   test.use({ viewport: PHONE, hasTouch: true });
 
-  test('the grid shows the pen beside the watched check; a tap opens the editor', async ({
+  test('the grid shows the pen, the watched check and the watchlist button apart; a tap opens the editor', async ({
     page,
     owner,
   }) => {
@@ -702,18 +708,26 @@ test.describe('on a phone', () => {
     const cardPen = cell.getByRole('button', { name: `${TITLE}: Metadaten bearbeiten` });
     await expect(cardPen).toBeVisible();
     await cardPen.scrollIntoViewIfNeeded();
-    // Both on the cover: the pen at the top right, the check below it, apart.
+    // All on the cover, apart: the pen at the top right, the check at the top left (concept 17
+    // D-9) and the watchlist button at the bottom right, shown without hover on a touch screen.
     const check = cell.getByRole('img', { name: 'Gesehen' });
     await expect(check).toBeVisible();
+    const watchlist = cell.getByRole('button', { name: `${TITLE} merken`, exact: true });
+    await expect(watchlist.locator('xpath=../..')).toHaveCSS('opacity', '1');
     const cover = await boxOf(check.locator('xpath=..'));
     const button = await boxOf(cardPen);
     const mark = await boxOf(check);
+    const keep = await boxOf(watchlist);
     expect(button.width).toBeGreaterThanOrEqual(32);
     expect(button.height).toBeGreaterThanOrEqual(32);
     expect(button.x + button.width).toBeLessThanOrEqual(cover.x + cover.width);
     expect(button.y).toBeGreaterThanOrEqual(cover.y);
-    expect(mark.y).toBeGreaterThanOrEqual(button.y + button.height);
-    expect(mark.y + mark.height).toBeLessThanOrEqual(cover.y + cover.height);
+    expect(mark.x + mark.width).toBeLessThanOrEqual(button.x);
+    expect(mark.y).toBeGreaterThanOrEqual(cover.y);
+    expect(keep.width).toBeGreaterThanOrEqual(32);
+    expect(keep.y).toBeGreaterThanOrEqual(button.y + button.height);
+    expect(keep.x + keep.width).toBeLessThanOrEqual(cover.x + cover.width);
+    expect(keep.y + keep.height).toBeLessThanOrEqual(cover.y + cover.height);
     await cardPen.tap();
     await expect(dialog(page)).toBeVisible();
   });

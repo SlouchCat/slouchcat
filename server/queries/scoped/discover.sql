@@ -23,6 +23,14 @@ SELECT count(*) FROM watchlist AS w
 JOIN visible_items AS v ON v.item_id = w.item_id AND v.profile_id = w.profile_id
 WHERE w.profile_id = @profile_id AND w.item_id = @item_id;
 
+-- The titles of a list that are on the watchlist of the profile (concept 17 D-9, every ItemRef
+-- carries the mark since contract 1.20.0): one lookup per id on the primary key (profile_id,
+-- item_id); an invisible title is never marked.
+-- name: ListWatchlistMarks :many
+SELECT w.item_id FROM watchlist AS w
+JOIN visible_items AS v ON v.item_id = w.item_id AND v.profile_id = w.profile_id
+WHERE w.profile_id = @profile_id AND w.item_id IN (sqlc.slice('item_ids'));
+
 -- Favourite series and podcasts of the profile (E-8), newest first.
 -- name: ListFavorites :many
 SELECT i.* FROM favorites AS f

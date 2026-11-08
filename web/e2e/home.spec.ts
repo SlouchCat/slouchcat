@@ -28,14 +28,15 @@ import { TRAKT_ENTRIES } from './trakt-server.mjs';
 const hero = (page: Page) => page.locator('main section[aria-roledescription]');
 /**
  * The band's poster row (concept 08, 7.2): one card per slide, a button named after its title
- * (and the year under it). The administrator's pen beside each poster (concept 15 P-6) is a
- * button of the row too, not a poster.
+ * (and the year under it). The administrator's pen beside each poster (concept 15 P-6) and the
+ * watchlist button on its cover (concept 17 D-9, a toggle with `aria-pressed`) are buttons of the
+ * row too, not posters.
  */
 const strip = (page: Page) =>
   hero(page)
     .getByRole('list', { name: 'Spotlight-Titel' })
     .getByRole('button')
-    .and(page.locator(':not([aria-label$=": Metadaten bearbeiten"])'));
+    .and(page.locator(':not([aria-label$=": Metadaten bearbeiten"], [aria-pressed])'));
 /** The sections of the start page top to bottom: the stage (if any) and the poster rows. */
 const sections = (page: Page) =>
   page.locator('main section:is([aria-labelledby], [aria-roledescription])');
@@ -568,26 +569,36 @@ test('the spotlight posters carry the pen: Tab poster then pen, the band holds, 
   expect(count).toBeGreaterThan(1);
   await expect(pens).toHaveCount(count);
   await expect(band.getByRole('button', { name: /: Metadaten bearbeiten$/ })).toHaveCount(count);
-  // Each pen sits beside its poster, not in its button, and turns with it (CSS order of the item).
+  // Each pen and watchlist button (concept 17 D-9) sits beside its poster, not in its button, and
+  // turns with it (CSS order of the item).
+  const marks = row.getByRole('button', { name: / merken$/ });
+  await expect(marks).toHaveCount(count);
   for (let index = 0; index < count; index += 1) {
     const item = row.getByRole('listitem').nth(index);
-    await expect(item.getByRole('button')).toHaveCount(2);
+    await expect(item.getByRole('button')).toHaveCount(3);
     await expect(item.locator('button button')).toHaveCount(0);
   }
-  // Only the active poster's pen is a Tab stop (the row's roving tabindex).
+  // Only the active poster's pen and mark are Tab stops (the row's roving tabindex).
   const active = posters.and(page.locator('[aria-current="true"]'));
   const activePen = active.locator('xpath=..').getByRole('button', {
     name: /: Metadaten bearbeiten$/,
   });
+  const activeMark = active.locator('xpath=..').getByRole('button', { name: / merken$/ });
   await expect(pens.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
+  await expect(marks.and(page.locator(':not([tabindex="-1"])'))).toHaveCount(1);
 
-  // Tab: the active poster, then its pen; the band holds while the focus is in the row.
+  // Tab: the active poster, its pen, its mark; the band holds while the focus is in the row.
   await page.getByRole('button', { name: 'Seitenleiste ausblenden' }).focus();
   await tabTo(page, active, 6);
   const shown = (await active.getAttribute('aria-label')) ?? (await active.textContent()) ?? '';
   await page.keyboard.press('Tab');
   await expectFocusOn(page, activePen);
   await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, activeMark);
+  await expect(band).toHaveAttribute('data-paused');
+  await page.keyboard.press('Shift+Tab');
+  await expectFocusOn(page, activePen);
   const title = ((await activePen.getAttribute('aria-label')) ?? '').replace(
     /: Metadaten bearbeiten$/,
     '',
@@ -1029,11 +1040,11 @@ test('"Weiterschauen" per series: the series card, arrow keys in the row, Enter 
   await expectFocusOn(page, seriesCard);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(new RegExp(`/items/${double}$`));
+  // The big button resumes the episode (concept 17 E-10: «Fortsetzen» with the time left).
+  // Once the page stands: an arrow pressed while it still loads would find no start focus.
+  await expect(page.getByRole('link', { name: /^Fortsetzen bei / })).toBeVisible();
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(
-    page,
-    page.getByRole('link', { name: /^Weiterschauen ab \d{2}:\d{2}:\d{2}$/ }),
-  );
+  await expectFocusOn(page, page.getByRole('link', { name: /^Fortsetzen bei / }));
 });
 
 /** The libraries the owner's main profile sees, in the order of the side navigation. */

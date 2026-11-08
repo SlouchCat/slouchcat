@@ -167,7 +167,8 @@ func (r *Reader) collectionsByID(ctx context.Context, s Scope, pid int64, ids []
 	return r.collectionRefs(ctx, s, pid, refs)
 }
 
-// collectionsOf returns the collections a visible title belongs to, by name.
+// collectionsOf returns the collections a visible title belongs to, by name, each with its first
+// MaxRowItems visible members in collection order (concept 17 section 4.2, E-7).
 func (r *Reader) collectionsOf(ctx context.Context, s Scope, pid int64, itemID string) ([]model.CollectionRef, error) {
 	rows, err := r.q.ListCollectionsOfItem(ctx, scopedq.ListCollectionsOfItemParams{ProfileID: pid, ItemID: itemID})
 	if err != nil {
@@ -177,7 +178,19 @@ func (r *Reader) collectionsOf(ctx context.Context, s Scope, pid int64, itemID s
 	for _, c := range rows {
 		refs = append(refs, collectionRow(c))
 	}
-	return r.collectionRefs(ctx, s, pid, refs)
+	out, err := r.collectionRefs(ctx, s, pid, refs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range out {
+		out[i].Members, err = r.list(ctx, s, pid, "collection members")(r.q.ListVisibleCollectionItems(ctx, scopedq.ListVisibleCollectionItemsParams{
+			ProfileID: pid, CollectionID: out[i].ID, LimitCount: MaxRowItems, OffsetCount: 0,
+		}))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 // collectionRow is the common shape of the collection list queries.
@@ -335,15 +348,10 @@ func placeSpotlight(rows []scopedq.ListSpotlightRowRow) []scopedq.ListSpotlightR
 	return out
 }
 
-// discoverDetail sets the watchlist and favourite marks and the visible collections of a title on
-// its detail.
+// discoverDetail sets the favourite mark and the visible collections of a title on its detail;
+// the watchlist mark comes with the summary (extras, contract 1.20.0).
 func (r *Reader) discoverDetail(ctx context.Context, s Scope, pid int64, itemID string, d *model.ItemDetail) error {
-	n, err := r.q.GetWatchlistEntry(ctx, scopedq.GetWatchlistEntryParams{ProfileID: pid, ItemID: itemID})
-	if err != nil {
-		return fmt.Errorf("get watchlist entry: %w", err)
-	}
-	d.InWatchlist = n > 0
-	n, err = r.q.GetFavorite(ctx, scopedq.GetFavoriteParams{ProfileID: pid, ItemID: itemID})
+	n, err := r.q.GetFavorite(ctx, scopedq.GetFavoriteParams{ProfileID: pid, ItemID: itemID})
 	if err != nil {
 		return fmt.Errorf("get favorite: %w", err)
 	}

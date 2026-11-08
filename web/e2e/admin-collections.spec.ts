@@ -154,7 +154,9 @@ test('collections page by keyboard: create, fill, order, show on the start page,
       .getByRole('link', { name: /E2E Filmabend/ });
     await expect(card).toBeVisible();
     await resetFocus(page);
-    await tabTo(page, card, 80);
+    // Every poster before it has two Tab stops since concept 17 D-9: its link and the watchlist
+    // button on its cover.
+    await tabTo(page, card, 160);
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/\/collections\/[0-9A-Z]{26}$/);
     await expect(page.getByRole('heading', { level: 1, name: 'E2E Filmabend' })).toBeVisible();

@@ -46,6 +46,36 @@ describe('watchlist page', () => {
     expect(within(list).getByRole('link', { name: /Alien/ })).toBeVisible();
   });
 
+  it('takes a title off from its cover and moves the focus to the next card', async () => {
+    // Own data: on the watchlist every title is marked (concept 17 D-9).
+    let items = [heat, alien].map((item) => ({ ...item, inWatchlist: true }));
+    const { calls } = mockApi({
+      ...signedIn,
+      'GET /watchlist': () => json(page(items)),
+      'DELETE /items/*/watchlist': () => {
+        items = items.filter((item) => item.id !== ids.heat);
+        return new Response(null, { status: 204 });
+      },
+    });
+    renderApp('/watchlist');
+    const list = await screen.findByRole('list', { name: 'Merkliste' });
+    const cover = within(list).getByRole('button', { name: 'Heat von der Merkliste nehmen' });
+    expect(cover).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      within(list).getByRole('button', { name: 'Alien von der Merkliste nehmen' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.setup().click(cover);
+    const alienCard = within(list).getByRole('link', { name: /Alien/ });
+    await waitFor(() => expect(alienCard).toHaveFocus());
+    await waitFor(() =>
+      expect(within(list).queryByRole('link', { name: /Heat/ })).not.toBeInTheDocument(),
+    );
+    expect(
+      calls.some((c) => c.method === 'DELETE' && c.path === `/items/${ids.heat}/watchlist`),
+    ).toBe(true);
+  });
+
   it('shows an empty state with the way to the search', async () => {
     mockApi({ ...signedIn, 'GET /watchlist': () => json(page([])) });
     renderApp('/watchlist');

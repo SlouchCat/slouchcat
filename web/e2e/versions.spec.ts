@@ -50,7 +50,7 @@ test('choose 720p by keyboard → the player streams that file (Stream-Info)', a
   await page.keyboard.press('Enter');
   await expect(sd).toHaveAttribute('aria-pressed', 'true');
   const playLink = page.getByRole('link', {
-    name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/,
+    name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/,
   });
   const href = (await playLink.getAttribute('href')) ?? '';
   const chosen = new URL(href, 'http://x').searchParams.get('file');

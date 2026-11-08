@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Slouchcat API
-  version: 1.19.0
+  version: 1.20.0
   summary: Public API of the Slouchcat media server.
   description: |
     Contract-first API of Slouchcat. Server handlers and the web client are generated from this file.
@@ -9915,7 +9915,7 @@ components:
       description: |
         A title as it appears in lists. Every response that contains an ItemRef is `scoped`; the
         contract test enforces this.
-      required: [id, kind, title, images]
+      required: [id, kind, title, images, inWatchlist]
       properties:
         id:
           $ref: "#/components/schemas/ItemID"
@@ -9926,6 +9926,27 @@ components:
           description: Title in the profile language, fallback English, fallback parsed file name.
         year:
           type: integer
+          description: |
+            Year of the title; for a season without a year of its own the year of its release date
+            (since contract 1.20.0, concept 17 section 2.3). Absent when neither is known.
+        inWatchlist:
+          type: boolean
+          description: |
+            On the watchlist of the active profile (E-5). Set on every ItemRef in every list since
+            contract 1.20.0 (concept 17 D-9, the watchlist button on the cover); before, only on
+            `ItemDetail`. Seasons and extras are never on a watchlist.
+        overview:
+          type: string
+          description: |
+            Overview in the profile language. On `ItemDetail` the overview of the title; in lists set
+            only on the items of `ItemDetail.episodes` of a season (since contract 1.20.0, concept 17
+            section 2.3), absent everywhere else.
+        watchedCount:
+          type: integer
+          minimum: 0
+          description: |
+            Visible episodes of a season the active profile has completed (since contract 1.20.0,
+            concept 17 section 2.3); set only on seasons, next to `childCount`.
         runtimeMinutes:
           type: integer
           minimum: 0
@@ -10022,11 +10043,8 @@ components:
       allOf:
         - $ref: "#/components/schemas/ItemRef"
         - type: object
-          required: [mediaFiles, genres, inWatchlist, favorite, collections]
+          required: [mediaFiles, genres, favorite, collections]
           properties:
-            inWatchlist:
-              type: boolean
-              description: On the watchlist of the active profile (E-5).
             favorite:
               type: boolean
               description: A favourite of the active profile (E-8; series and podcasts only).
@@ -10038,8 +10056,6 @@ components:
             originalTitle:
               type: string
             tagline:
-              type: string
-            overview:
               type: string
             releaseDate:
               type: string
@@ -10106,6 +10122,12 @@ components:
             nextEpisode:
               $ref: "#/components/schemas/ItemRef"
               description: The next visible episode of the same series after this episode.
+            nextUp:
+              $ref: "#/components/schemas/NextUp"
+              description: |
+                The episode the big button of a series plays (since contract 1.20.0, concept 17
+                section 3.3); on a season the same rule over the episodes of that season only. Set
+                only on series and seasons with at least one visible episode.
             cast:
               type: array
               description: Cast and crew in provider order (B-3).
@@ -10115,6 +10137,28 @@ components:
               type: integer
               minimum: 0
               description: Trailers known for the title (`getItemTrailers`).
+
+    NextUp:
+      type: object
+      description: |
+        The episode of a series (or of one season) the detail page offers to play next (concept 17
+        section 3.3), decided by the server from the newest progress of the active profile, without
+        a time limit. `start`: no episode started yet, the first regular episode (season 1 or later;
+        a special only when there are no regular ones). `resume`: the newest activity is a started,
+        not completed episode, that episode. `next`: the newest activity is a completed episode, the
+        next regular episode after it by season and number (after the last episode of a file with
+        several), watched or not, so after a special the first regular episode; without one, or when
+        the completed episode has no season or episode number, the first regular episode not
+        completed yet. `rewatch`: every
+        regular episode is completed, the first one. Season numbers fall back to the season's number
+        when the episode has none.
+      required: [reason, episode]
+      properties:
+        reason:
+          type: string
+          enum: [start, resume, next, rewatch]
+        episode:
+          $ref: "#/components/schemas/ItemRef"
 
     ExtraKind:
       type: string
@@ -12840,6 +12884,15 @@ components:
         cover:
           $ref: "#/components/schemas/ItemRef"
           description: The first visible member; its poster represents the collection.
+        members:
+          type: array
+          maxItems: 20
+          description: |
+            The first visible members in collection order (position, then release date), at most 20,
+            with their progress (since contract 1.20.0, concept 17 section 4.2). Set only in
+            `ItemDetail.collections`; `count` says whether there are more.
+          items:
+            $ref: "#/components/schemas/ItemRef"
 
     Collection:
       type: object

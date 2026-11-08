@@ -144,7 +144,9 @@ test('flight mode: the downloaded audiobook plays with its chapters; progress sy
     expect(Math.abs(item.progress!.positionMs - position)).toBeLessThanOrEqual(10_000);
     const view = await second.newPage();
     await view.goto(`/items/${book}`);
-    await expect(view.getByRole('link', { name: /^Weiterhören ab 00:00:\d{2}$/ })).toBeVisible();
+    await expect(
+      view.getByRole('link', { name: /^Weiterhören bei (0:00|0):\d{2} · noch / }),
+    ).toBeVisible();
   } finally {
     await second.close();
   }

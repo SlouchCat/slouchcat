@@ -123,21 +123,21 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await page.goto(`/items/${m4b}`);
   await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
   await resetFocus(page);
-  const play = page.getByRole('link', { name: /^(Abspielen|Weiterhören ab \d{2}:\d{2}:\d{2})$/ });
+  const play = page.getByRole('link', { name: /^(Abspielen|Weiterhören|Nochmals anhören)( |$)/ });
   const chapters = page.getByRole('list', { name: 'Kapitel' });
   const chapter = (n: number) =>
     chapters.getByRole('link', { name: new RegExp(`^Kapitel ${n} ab 0:\\d\\d abspielen$`) });
 
-  // ↓ lands on play, → reaches back, ← returns; ↓ goes down into the chapter list.
+  // ↓ lands on play, ↑ reaches the back arrow, ↓ returns; ↓ goes down into the chapter list.
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, play);
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
-  await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, play);
-  // The row under the actions (watchlist, M7) comes first.
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Merken' }));
+  await expectFocusOn(page, play);
+  // The round actions under the big button (watchlist, M7) come first.
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }));
   await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, chapter(1));
   await page.keyboard.press('ArrowDown');
@@ -146,15 +146,16 @@ test('the book’s detail page by keyboard: arrows into the chapters, Tab, Enter
   await page.keyboard.press('ArrowUp');
   await expectFocusOn(page, chapter(2));
 
-  // Tab from the top: the header, then play and back; the chapters follow; no focus trap. A fresh
+  // Tab from the top: the header, the back arrow, then (after the pen and the watchlist button on
+  // the cover) play and the round actions; the chapters follow; no focus trap. A fresh
   // load starts the Tab sequence at the top in every browser (Firefox continues from the last
   // focused element after a blur).
   await page.goto(`/items/${m4b}`);
   await expect(page.getByRole('heading', { level: 1, name: M4B_TITLE })).toBeVisible();
   await resetFocus(page);
   await tabTo(page, page.getByRole('button', { name: 'Abmelden' }));
-  await tabTo(page, play, 2);
   await tabTo(page, page.getByRole('button', { name: 'Zurück' }), 2);
+  await tabTo(page, play, 3);
   await tabTo(page, chapter(1), 6);
   await expectNoFocusTrap(page);
 

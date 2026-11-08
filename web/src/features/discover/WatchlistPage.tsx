@@ -35,14 +35,25 @@ export function WatchlistPage() {
   const remove = useWatchlistMutation();
   const items = useMemo(() => list.data?.pages.flatMap((page) => page.items) ?? [], [list.data]);
 
+  const neighbourOf = (item: ItemRef) => {
+    const index = items.findIndex((entry) => entry.id === item.id);
+    return items[index + 1] ?? items[index - 1];
+  };
+
   const onRemove = (item: ItemRef) => {
     // The focus goes to the neighbour's button (or back) before the card disappears.
-    const index = items.findIndex((entry) => entry.id === item.id);
-    const neighbour = items[index + 1] ?? items[index - 1];
+    const neighbour = neighbourOf(item);
     remove.mutate(
       { id: item.id, on: false },
       { onSuccess: () => setSpatialFocus(neighbour ? removeKey(neighbour) : BACK_KEY) },
     );
+  };
+
+  // Taken off from its cover (concept 17 D-9): the focus goes to the neighbour's card (or back)
+  // before the card disappears, as with "Entfernen".
+  const onUnmarked = (item: ItemRef) => {
+    const neighbour = neighbourOf(item);
+    setSpatialFocus(neighbour ? cardKey(GRID_KEY, neighbour) : BACK_KEY);
   };
 
   const first = items[0];
@@ -97,6 +108,7 @@ export function WatchlistPage() {
               items={items}
               focusKey={GRID_KEY}
               label={t('watchlist.title')}
+              onUnmarked={onUnmarked}
               below={(item) => (
                 <SpatialButton
                   focusKey={removeKey(item)}

@@ -538,7 +538,6 @@
     "editMetadata": "Metadaten bearbeiten",
     "play": "Abspielen",
     "details": "Details",
-    "resume": "Weiterschauen ab {{time}}",
     "watched": "{{percent}} % gesehen",
     "originalTitle": "Originaltitel: {{title}}",
     "notFound": {
@@ -582,12 +581,10 @@
       }
     },
     "seasons": "Staffeln",
-    "seasonChoice": "Staffel wählen",
     "episodes": {
       "title": "Folgen",
       "empty": "Keine Folgen."
     },
-    "resumeListening": "Weiterhören ab {{time}}",
     "listened": "{{percent}} % gehört",
     "audio": {
       "by": "von {{author}}",
@@ -611,9 +608,40 @@
       "label": "Favorit",
       "hint": "Bei neuen Folgen benachrichtigen"
     },
-    "collections": "Sammlungen",
     "addToPicks": "Zu den User-Empfehlungen",
-    "logoAlt": "{{title}}"
+    "logoAlt": "{{title}}",
+    "action": {
+      "resume": "Fortsetzen",
+      "resumeListening": "Weiterhören",
+      "again": "Nochmals ansehen",
+      "againListening": "Nochmals anhören",
+      "resumeAt": "bei {{time}} · noch {{left}}",
+      "watchedOn": "Gesehen am {{date}}",
+      "listenedOn": "Gehört am {{date}}",
+      "restart": "Von vorne",
+      "picks": "User-Empfehlungen"
+    },
+    "nextUp": {
+      "start": "Abspielen",
+      "resume": "Weiterschauen",
+      "next": "Nächste Folge",
+      "rewatch": "Nochmals ansehen",
+      "episode": "{{code}} · {{title}}",
+      "left": "{{episode}} · noch {{left}}",
+      "rewatchFrom": "Alles gesehen · ab {{episode}}",
+      "markNext": "Als Nächstes",
+      "markResume": "Weiterschauen"
+    },
+    "season": {
+      "episodes_one": "{{count}} Folge",
+      "episodes_other": "{{count}} Folgen",
+      "watched": "{{count}} gesehen",
+      "progress": "{{count}} von {{total}} Folgen gesehen"
+    },
+    "collection": {
+      "showAll": "Alle zeigen",
+      "showAllLabel": "Alle zeigen: {{name}}"
+    }
   },
   "rating": {
     "fsk": "FSK {{age}}"
@@ -4271,6 +4299,10 @@
     "title": "Merkliste",
     "remove": "Entfernen",
     "removeLabel": "{{title}} von der Merkliste entfernen",
+    "cover": {
+      "add": "{{title}} merken",
+      "remove": "{{title}} von der Merkliste nehmen"
+    },
     "more": "Mehr laden",
     "empty": {
       "title": "Deine Merkliste ist leer",

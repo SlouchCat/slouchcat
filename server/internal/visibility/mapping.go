@@ -174,10 +174,12 @@ func pickAccent(rows []scopedq.Image) string {
 }
 
 func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
+	t := pickTexts(ex.texts[it.ID], lang, it.Title)
 	s := model.ItemSummary{
 		ID:            it.ID,
 		Kind:          it.Kind,
-		Title:         pickTexts(ex.texts[it.ID], lang, it.Title).title,
+		Title:         t.title,
+		Overview:      t.overview,
 		Poster:        pickImage(ex.images[it.ID], "poster", posterSize),
 		PosterSmall:   pickImage(ex.images[it.ID], "poster", posterSmallSize),
 		PosterLarge:   pickImage(ex.images[it.ID], "poster", posterLargeSize),
@@ -190,6 +192,12 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 	if it.Year.Valid {
 		y := int(it.Year.Int64)
 		s.Year = &y
+	} else if it.Kind == "season" {
+		// A season without a year of its own: the year of its release date (concept 17 section 2.3).
+		if day, err := time.Parse(time.DateOnly, it.ReleaseDate.String); err == nil {
+			y := day.Year()
+			s.Year = &y
+		}
 	}
 	if it.RuntimeMinutes.Valid {
 		m := int(it.RuntimeMinutes.Int64)
@@ -229,9 +237,14 @@ func summarize(it scopedq.Item, ex extras, lang langPref) model.ItemSummary {
 	s.ExtraKind = it.ExtraKind.String
 	s.SeriesTitle = ex.seriesTitles[it.ID]
 	s.SeriesRef = ex.series[it.ID] // episodes of a visible series only
+	s.InWatchlist = ex.watchlist[it.ID]
 	if it.Kind == "series" || it.Kind == "season" {
 		n := ex.childCounts[it.ID]
 		s.ChildCount = &n
+	}
+	if it.Kind == "season" {
+		w := ex.watched[it.ID]
+		s.WatchedCount = &w
 	}
 	return s
 }

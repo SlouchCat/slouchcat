@@ -142,6 +142,118 @@ export const WithToolFocused: Story = {
   tags: ['press:Tab+Tab'],
 };
 
+/** The watchlist button of a title not marked yet, as `CoverWatchlist` draws it. */
+const unmarked = (
+  <Button
+    variant="secondary"
+    size="sm"
+    icon="bookmark"
+    iconOnly
+    overlay
+    aria-pressed={false}
+    aria-label="Glut merken"
+  />
+);
+
+/** The same button of a marked title: filled in the profile's accent. */
+const marked = (
+  <Button
+    variant="secondary"
+    size="sm"
+    icon="bookmark"
+    iconOnly
+    overlay
+    aria-pressed
+    aria-label="Glut von der Merkliste nehmen"
+  />
+);
+
+/**
+ * The watchlist button over the bottom right of the cover (concept 17 D-9): a title not marked
+ * shows it only while pointed at or focused, so at rest the card looks as without it.
+ */
+export const WithMark: Story = {
+  args: {
+    title: 'Glut',
+    caption: '2019',
+    posterUrl: art.posterEmber,
+    accent: accents.ember,
+    mark: unmarked,
+  },
+};
+
+/** Tab after the card's link reaches the button: it shows with its focus and grows. */
+export const WithMarkFocused: Story = {
+  ...WithMark,
+  tags: ['press:Tab+Tab'],
+};
+
+/**
+ * A marked title shows the filled button always; the check of a finished title moves to the top
+ * left.
+ */
+export const WithMarkPressed: Story = {
+  args: {
+    title: 'Glut',
+    caption: '2019',
+    posterUrl: art.posterEmber,
+    accent: accents.ember,
+    watchedLabel: 'Gesehen',
+    mark: marked,
+  },
+};
+
+/** A started title: the progress bar ends left of the button. */
+export const WithMarkProgress: Story = {
+  args: {
+    title: 'Glut',
+    caption: 'Noch 1 h 12 min',
+    posterUrl: art.posterEmber,
+    accent: accents.ember,
+    progress: { percent: 36, label: '36 % gesehen' },
+    mark: marked,
+  },
+};
+
+/** Pen at the top right, mark at the bottom right; Tab goes link, pen, mark. */
+export const WithToolAndMark: Story = {
+  args: {
+    title: 'Glut',
+    caption: '2019',
+    posterUrl: art.posterEmber,
+    accent: accents.ember,
+    watchedLabel: 'Gesehen',
+    tool: (
+      <Button
+        variant="secondary"
+        size="sm"
+        icon="pen"
+        iconOnly
+        overlay
+        aria-label="Glut: Metadaten bearbeiten"
+      />
+    ),
+    mark: unmarked,
+  },
+};
+
+/** The third Tab stop of the cell is the mark. */
+export const WithToolAndMarkFocused: Story = {
+  ...WithToolAndMark,
+  tags: ['press:Tab+Tab+Tab'],
+};
+
+/** A square cover: the button sits on its bottom right corner, not under the title. */
+export const SquareWithMark: Story = {
+  args: {
+    title: 'Die Stunde der Dämmerung',
+    caption: 'Mara Lindqvist',
+    shape: 'square',
+    accent: accents.dusk,
+    mark: marked,
+  },
+};
+
 /**
  * Without `href` the card is a button (the spotlight row under the band, concept 08, F-5): the
  * chosen card carries a ring in the title's accent.

@@ -12,6 +12,9 @@ let detail = '';
 let extras = '';
 
 const trailerButton = (page: Page) => page.getByRole('button', { name: 'Trailer', exact: true });
+// The big button of the film (concept 17 E-10); other specs may have left progress behind.
+const bigButton = (page: Page) =>
+  page.getByRole('link', { name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/ });
 
 test.beforeEach(async ({ page, owner }) => {
   detail ||= await itemPath(page, H264_TITLE);
@@ -49,10 +52,10 @@ test.afterEach(async ({ owner }) => {
 test('arrows reach "Trailer"; Enter opens the YouTube frame; Escape closes @keyboard', async ({
   page,
 }) => {
+  // The big button first, under it the round actions, "Trailer" first (concept 17 E-11).
   await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
-  await page.keyboard.press('ArrowRight');
+  await expectFocusOn(page, bigButton(page));
+  await page.keyboard.press('ArrowDown');
   await expectFocusOn(page, trailerButton(page));
 
   await page.keyboard.press('Enter');
@@ -94,7 +97,7 @@ test("Backspace (a remote's back key) closes the dialog, the detail page stays",
   await expectFocusOn(page, trailerButton(page));
 });
 
-test('offline closes an open dialog for good; the focus moves to "Zurück"', async ({
+test('offline closes an open dialog for good; the focus moves to the big button', async ({
   page,
   context,
 }) => {
@@ -104,7 +107,7 @@ test('offline closes an open dialog for good; the focus moves to "Zurück"', asy
   await expect(dialog).toBeVisible();
   await context.setOffline(true);
   await expect(dialog).toHaveCount(0);
-  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück', exact: true }));
+  await expectFocusOn(page, bigButton(page));
   await context.setOffline(false);
   await expect(trailerButton(page)).toBeVisible();
   await expect(dialog).toHaveCount(0);

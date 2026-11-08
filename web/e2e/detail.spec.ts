@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { H264_TITLE, itemPath } from './catalog';
 import { expectFocusOn, expectNoFocusTrap, resetFocus, tabTo } from './keyboard';
 
@@ -12,24 +12,46 @@ test.beforeEach(async ({ page }) => {
   await resetFocus(page);
 });
 
-test('arrow keys land on play, move to back; facts are shown', async ({ page }) => {
-  const play = page.getByRole('link', { name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/ });
+// The big button of a film (concept 17 E-10): without progress "Abspielen" with the runtime; other
+// specs may have left progress behind ("Fortsetzen bei …", "Nochmals ansehen …").
+const play = (page: Page) =>
+  page.getByRole('link', { name: /^(Abspielen|Fortsetzen|Nochmals ansehen)( |$)/ });
+const back = (page: Page) => page.getByRole('button', { name: 'Zurück' });
+
+test('arrows: start on play, up to the back arrow, down to the round actions; facts are shown', async ({
+  page,
+}) => {
   await page.keyboard.press('ArrowDown');
-  await expectFocusOn(page, play);
+  await expectFocusOn(page, play(page));
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, back(page));
+  await page.keyboard.press('ArrowDown');
+  await expectFocusOn(page, play(page));
+  // Under the big button the round actions in their order (E-11): → walks them to "Merken".
+  await page.keyboard.press('ArrowDown');
+  const merken = page.getByRole('button', { name: /^(Merken|Gemerkt)$/ });
+  for (let presses = 0; presses < 3; presses += 1) {
+    if (await merken.evaluate((element) => element === document.activeElement)) break;
+    await page.keyboard.press('ArrowRight');
+  }
+  await expectFocusOn(page, merken);
   await page.keyboard.press('ArrowRight');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
-  await page.keyboard.press('ArrowLeft');
-  await expectFocusOn(page, play);
+  await expectFocusOn(page, page.getByRole('link', { name: 'Zu den User-Empfehlungen' }));
+  await page.keyboard.press('ArrowUp');
+  await expectFocusOn(page, play(page));
   const file = page.getByRole('region', { name: 'Datei' });
   await expect(file.getByText('MP4')).toBeVisible();
 });
 
-test('Tab reaches the pen, play and back after the header and the side navigation; no focus trap @keyboard', async ({
+test('Tab: back arrow, pen, watchlist on the cover, play, round actions; no focus trap @keyboard', async ({
   page,
 }) => {
-  // The side navigation's last stop (concept 08) comes right before the page: for the server
-  // administrator the pen on the poster first (concept 15 7.4), then play.
+  // The side navigation's last stop (concept 08) comes right before the page: the back arrow, for
+  // the server administrator the pen on the poster (concept 15 7.4), the watchlist button on the
+  // cover (concept 17 D-9), then play and the round actions.
   await tabTo(page, page.getByRole('button', { name: 'Seitenleiste ausblenden' }));
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, back(page));
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,
@@ -38,10 +60,15 @@ test('Tab reaches the pen, play and back after the header and the side navigatio
   await page.keyboard.press('Tab');
   await expectFocusOn(
     page,
-    page.getByRole('link', { name: /^(Abspielen|Weiterschauen ab \d{2}:\d{2}:\d{2})$/ }),
+    page.getByRole('button', {
+      name: new RegExp(`^${H264_TITLE} (merken|von der Merkliste nehmen)$`),
+    }),
   );
   await page.keyboard.press('Tab');
-  await expectFocusOn(page, page.getByRole('button', { name: 'Zurück' }));
+  await expectFocusOn(page, play(page));
+  await tabTo(page, page.getByRole('button', { name: /^(Merken|Gemerkt)$/ }), 3);
+  await page.keyboard.press('Tab');
+  await expectFocusOn(page, page.getByRole('link', { name: 'Zu den User-Empfehlungen' }));
   await expectNoFocusTrap(page);
 });
 

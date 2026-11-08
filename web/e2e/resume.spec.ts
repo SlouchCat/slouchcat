@@ -9,15 +9,20 @@ const RESUME_TOLERANCE_S = 10;
 const PLAY_TO_S = 3;
 
 const de = JSON.parse(readFileSync(new URL('../src/locales/de.json', import.meta.url), 'utf8')) as {
-  item: { resume: string };
+  item: { action: { resume: string; resumeAt: string } };
 };
 
-/** Resume label as the detail page renders it (`formatClock`: `hh:mm:ss`, whole seconds). */
-function resumeLabel(positionMs: number): string {
+/**
+ * The big button as the detail page renders it (concept 17 E-10): "Fortsetzen", then the position
+ * (`formatPlayerTime`: `m:ss` for the 10 s clip, whole seconds) and the time left, which this
+ * leaves open.
+ */
+function resumeLabel(positionMs: number): RegExp {
   const total = Math.floor(positionMs / 1000);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  const clock = `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
-  return de.item.resume.replace('{{time}}', clock);
+  const clock = `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  const [atPosition] = de.item.action.resumeAt.replace('{{time}}', clock).split('{{left}}');
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^${escape(`${de.item.action.resume} ${atPosition ?? ''}`)}`);
 }
 
 const progressUrl = /\/api\/v1\/items\/[^/]+\/progress$/;
