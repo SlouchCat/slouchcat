@@ -1,0 +1,86 @@
+.action {
+  display: inline-grid;
+  gap: var(--sc-space-1);
+  align-content: start;
+  justify-items: center;
+  min-width: calc(var(--sc-control-height) + var(--sc-space-6));
+  max-width: calc(var(--sc-control-height) * 2);
+  padding: var(--sc-space-1);
+  border: 0;
+  border-radius: var(--sc-radius-md);
+  background-color: transparent;
+  color: var(--sc-color-text-secondary);
+  font: inherit;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The focus ring sits on the circle, not around circle and label. */
+.action:focus-visible {
+  outline: none;
+}
+
+.circle {
+  display: inline-grid;
+  place-items: center;
+  width: var(--sc-control-height);
+  height: var(--sc-control-height);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-surface-3);
+  color: var(--sc-color-text-primary);
+  transition:
+    background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard),
+    transform var(--sc-motion-duration-fast) var(--sc-motion-easing-standard);
+}
+
+.label {
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-medium);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.on .circle {
+  background-color: var(--sc-accent);
+  color: var(--sc-on-accent);
+}
+
+.action:focus-visible .circle {
+  outline: var(--sc-focus-ring-width) solid var(--sc-color-state-focus-ring);
+  outline-offset: var(--sc-focus-ring-offset);
+  background-color: var(--sc-color-surface-2);
+}
+
+.on:focus-visible .circle {
+  background-color: var(--sc-accent);
+}
+
+.action:focus-visible,
+.action:focus-visible .label {
+  color: var(--sc-color-text-primary);
+}
+
+.action:active:not(:disabled) .circle {
+  transform: scale(0.95);
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+@media (hover: hover) {
+  .action:hover:not(:disabled) {
+    color: var(--sc-color-text-primary);
+  }
+
+  .action:hover:not(:disabled) .circle {
+    background-color: var(--sc-color-surface-2);
+  }
+
+  .on:hover:not(:disabled) .circle {
+    background-color: var(--sc-accent);
+  }
+}

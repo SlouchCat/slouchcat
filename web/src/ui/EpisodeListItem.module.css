@@ -1,0 +1,141 @@
+.row {
+  --sc-item-accent: initial;
+
+  display: grid;
+  grid-template-columns: minmax(7rem, 14rem) minmax(0, 1fr) auto;
+  gap: var(--sc-space-5);
+  align-items: center;
+  padding: var(--sc-space-2);
+  border-radius: var(--sc-radius-lg);
+  color: inherit;
+  text-decoration: none;
+  outline-offset: var(--sc-focus-ring-offset);
+  transition: background-color var(--sc-motion-duration-focus) var(--sc-motion-easing-standard);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.row:focus-visible {
+  background-color: var(--sc-color-surface-1);
+}
+
+/* The episode the big button plays. */
+.current {
+  background-color: var(--sc-color-surface-1);
+  outline: 1px solid var(--sc-color-border-subtle);
+}
+
+.frame {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--sc-radius-md);
+  background-color: var(--sc-color-surface-1);
+}
+
+/* Without a still the frame carries a tint of the accent. */
+.frame::before {
+  position: absolute;
+  inset: 0;
+  background-color: var(--sc-item-accent, var(--sc-color-surface-2));
+  content: '';
+  opacity: 0.18;
+}
+
+.image {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.progress {
+  position: absolute;
+  right: var(--sc-space-2);
+  bottom: var(--sc-space-2);
+  left: var(--sc-space-2);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sc-space-1);
+  min-width: 0;
+}
+
+.code {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--sc-space-3);
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  font-weight: var(--sc-font-weight-semibold);
+  letter-spacing: var(--sc-font-letter-spacing-caps);
+}
+
+.highlight {
+  color: var(--sc-accent);
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: var(--sc-font-size-md);
+  font-weight: var(--sc-font-weight-semibold);
+  line-height: var(--sc-font-line-height-snug);
+}
+
+.overview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--sc-color-text-secondary);
+  font-size: var(--sc-font-size-sm);
+  line-height: var(--sc-font-line-height-normal);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.side {
+  display: grid;
+  gap: var(--sc-space-2);
+  justify-items: end;
+  color: var(--sc-color-text-muted);
+  font-size: var(--sc-font-size-xs);
+  white-space: nowrap;
+}
+
+.check {
+  display: inline-grid;
+  place-items: center;
+  width: var(--sc-space-6);
+  height: var(--sc-space-6);
+  border-radius: var(--sc-radius-full);
+  background-color: var(--sc-color-state-success);
+  color: var(--sc-color-bg-base);
+}
+
+.open {
+  border: 1.5px solid var(--sc-color-text-muted);
+  background-color: transparent;
+}
+
+@media (hover: hover) {
+  .row:hover {
+    background-color: var(--sc-color-surface-1);
+  }
+}
+
+/* Phones: a smaller still, the runtime and check under the text column. */
+@media (width < 600px) {
+  .row {
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: var(--sc-space-3);
+  }
+
+  .side {
+    grid-column: 2;
+    grid-auto-flow: column;
+    justify-content: start;
+    align-items: center;
+  }
+}
