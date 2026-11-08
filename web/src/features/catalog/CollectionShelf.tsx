@@ -85,7 +85,7 @@ export function CollectionShelf({ collection, currentId, coverMark }: Collection
                       }
                     : undefined
                 }
-                tool={coverMark?.(member)}
+                mark={coverMark?.(member)}
               />
             );
           })}

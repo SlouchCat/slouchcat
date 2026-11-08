@@ -39,6 +39,7 @@ import {
   setSpatialFocus,
   spatialFocusKey,
 } from '@/ui';
+import { CoverWatchlist, WATCHLIST_KINDS } from '@/features/discover/CoverWatchlist';
 import { CollectionShelf } from './CollectionShelf';
 import { DetailActions, PLAY_KEY, playTarget, TRAILER_KEY } from './DetailActions';
 import { BACK_KEY, DetailBody, DetailHeader, DetailPage } from './DetailHeader';
@@ -433,6 +434,10 @@ function titleLines(t: TFunction, item: ItemDetail): string[] {
   ].filter((line): line is string => line !== undefined);
 }
 
+/** The watchlist button on a cover (concept 17 D-9), for the kinds that go on the watchlist. */
+const coverMark = (item: ItemRef) =>
+  WATCHLIST_KINDS.has(item.kind) ? <CoverWatchlist item={item} /> : undefined;
+
 /**
  * Detail page of a title (C-2, concept 17): one head for every kind (DetailHeader), then the
  * collections, the seasons and episodes of a series, the chapters or episodes of an audio title or
@@ -524,6 +529,7 @@ function ItemView({ itemId }: { itemId: string }) {
           cover={item.kind === 'episode' ? 'still' : audio ? 'square' : 'poster'}
           onBack={goBack}
           coverTool={<PosterPen item={item} />}
+          coverMark={coverMark(item)}
           kicker={kickerLine}
           title={item.title}
           logoUrl={imageUrl(item.images.logo)}
@@ -546,7 +552,12 @@ function ItemView({ itemId }: { itemId: string }) {
         <DetailBody>
           {/* Right after the head (F-6, E-9); an older server may leave the list out. */}
           {(item.collections ?? []).map((collection) => (
-            <CollectionShelf key={collection.id} collection={collection} currentId={item.id} />
+            <CollectionShelf
+              key={collection.id}
+              collection={collection}
+              currentId={item.id}
+              coverMark={coverMark}
+            />
           ))}
           {item.kind === 'series' && (
             <SeasonShelf seasons={item.seasons ?? []} nextUp={item.nextUp} />
