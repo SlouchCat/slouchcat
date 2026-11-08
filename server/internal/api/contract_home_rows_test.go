@@ -235,3 +235,60 @@ func TestHomeLibraryRowsOverHTTP(t *testing.T) {
 		t.Errorf("Link = %q, want the first tile's first poster preloaded", links)
 	}
 }
+
+// Concept 16 section 10.2 (contract 1.19.0): the row radio «Meine Sender» carries the favourite
+// stations the profile may reach as stations (no ItemRef), a hidden favourite left out and no
+// title while no relay runs; a profile without favourites gets no row, and the row stays off the
+// page while the administration keeps it hidden (F-17, the migration's default).
+func TestContractHomeRadioRow(t *testing.T) {
+	pf := newProfileFixture(t)
+	f, h := pf.f, pf.h
+	type station struct {
+		Station struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+		} `json:"station"`
+		Now *json.RawMessage `json:"now"`
+	}
+	type row struct {
+		Key      string            `json:"key"`
+		Items    []json.RawMessage `json:"items"`
+		Stations []station         `json:"stations"`
+	}
+	radioRow := func(token string) (row, bool) {
+		t.Helper()
+		var page struct {
+			Rows []row `json:"rows"`
+		}
+		rec := send(t, h, http.MethodGet, BasePath+"/home", token, "", nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s home: %d %s", token, rec.Code, rec.Body.String())
+		}
+		decode(t, rec, &page)
+		for _, r := range page.Rows {
+			if r.Key == model.RowRadio {
+				return r, true
+			}
+		}
+		return row{}, false
+	}
+	if _, ok := radioRow("p6"); ok {
+		t.Error("the hidden row radio is on the page")
+	}
+	exec := func(query string, args ...any) {
+		t.Helper()
+		if _, err := f.DB.Write.ExecContext(context.Background(), query, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	exec(`UPDATE home_rows SET hidden = 0, position = -1 WHERE id = 'radio'`)
+	exec(`INSERT INTO radio_favorites (profile_id, station_id, position, created_at) VALUES (?, ?, 1, 1), (?, ?, 2, 1)`,
+		f.P6.ID, vistest.RadioHidden, f.P6.ID, vistest.RadioExcluded)
+	r, ok := radioRow("p6")
+	if !ok || len(r.Stations) != 1 || r.Stations[0].Station.ID != vistest.RadioDE || r.Stations[0].Now != nil || len(r.Items) != 0 {
+		t.Errorf("P6 row radio = %+v (present %v), want only the favourite Fixture Radio DE without a title", r, ok)
+	}
+	if _, ok := radioRow("p0"); ok {
+		t.Error("P0 without favourites has the row radio")
+	}
+}
