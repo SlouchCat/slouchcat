@@ -18,7 +18,7 @@ import (
 // Concept 15 P-8 (contract 1.16.0, ADR 0024) over HTTP: installUpdate against a fake companion
 // (202 with its state, 409 update_running, 422 with its code, 503 when it refuses the token),
 // getUpdateInstallStatus from state.json, and getUpdateState with updaterConfigured,
-// updaterAvailable and install.
+// updaterAvailable, updaterVersion (contract 1.18.0) and install.
 func TestUpdateInstallOverHTTP(t *testing.T) {
 	t.Parallel()
 	pf := newProfileFixture(t)
@@ -40,7 +40,7 @@ func TestUpdateInstallOverHTTP(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.Method + " " + r.URL.Path {
 		case "GET " + updater.PathStatus:
-			_, _ = w.Write([]byte(`{"phase":"idle"}`))
+			_, _ = w.Write([]byte(`{"phase":"idle","updater":"1.18.0"}`))
 		case "POST " + updater.PathInstall:
 			w.WriteHeader(installStatus)
 			_, _ = w.Write([]byte(installBody))
@@ -94,7 +94,7 @@ func TestUpdateInstallOverHTTP(t *testing.T) {
 	rec = send(t, h, http.MethodGet, BasePath+"/admin/update", "p18", "", nil)
 	var u gen.UpdateState
 	decode(t, rec, &u)
-	if rec.Code != http.StatusOK || !u.UpdaterConfigured || !u.UpdaterAvailable || u.Install == nil ||
+	if rec.Code != http.StatusOK || !u.UpdaterConfigured || !u.UpdaterAvailable || deref(u.UpdaterVersion) != "1.18.0" || u.Install == nil ||
 		u.Install.Phase != gen.UpdateInstallStatusPhaseRolledBack || deref(u.Install.Code) != "unhealthy" || u.Install.Migrated {
 		t.Errorf("update state = %d %s", rec.Code, rec.Body.String())
 	}

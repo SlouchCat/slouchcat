@@ -2464,7 +2464,11 @@
         "updateDevelopment": "Development build",
         "updateFailed": "Last check failed",
         "updateOff": "Check switched off",
+        "updater": "Updater",
+        "updaterUnknown": "Version unknown",
+        "updaterDown": "Not answering",
         "checked": "Last checked: {{date}}",
+        "lastSuccess": "Last successful check: {{date}}",
         "check": "Check for updates",
         "checkedNow": "Checked for updates."
       },
@@ -2517,6 +2521,10 @@
         "failedNoVersion": "Update failed",
         "migrated": "The migration ran; going back only with the backup {{backup}}.",
         "migratedNoBackup": "The migration ran; going back only with the backup made before it.",
+        "failure": {
+          "disk_full": "The server has no space for the new image. Free some space and try again.",
+          "deploy_files": "The Compose files of the release could not be fetched or written. Nothing was changed."
+        },
         "finished": "Finished: {{date}}",
         "refused": {
           "title": "The updater did not start the update",
@@ -2537,6 +2545,11 @@
           "up": "Start with the new version",
           "files": "Use the same -f files as at the start (for example docker compose -f compose.yaml -f compose.intel.yaml pull), or they are missing after the update.",
           "docs": "Guide: update at the press of a button with the updater companion"
+        },
+        "outdated": {
+          "title": "The updater is outdated; from version 1.18.0 it updates itself. Lift it by hand once:",
+          "command": "Run in the deploy folder",
+          "deployDir": "<deploy-folder>"
         }
       },
       "activity": {

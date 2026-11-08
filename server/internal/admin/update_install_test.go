@@ -24,6 +24,7 @@ type fakeUpdater struct {
 	*httptest.Server
 	mu            sync.Mutex
 	statusCode    int
+	statusBody    string
 	installCode   int
 	installBody   string
 	statusCalls   int
@@ -36,7 +37,7 @@ type fakeUpdater struct {
 
 func newFakeUpdater(t *testing.T) *fakeUpdater {
 	t.Helper()
-	u := &fakeUpdater{statusCode: http.StatusOK, installCode: http.StatusAccepted,
+	u := &fakeUpdater{statusCode: http.StatusOK, statusBody: `{"phase":"idle"}`, installCode: http.StatusAccepted,
 		installBody: `{"phase":"backing_up","from":"1.15.0","to":"1.16.0","startedAt":"2026-11-07T10:00:00Z"}`}
 	u.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u.mu.Lock()
@@ -59,7 +60,7 @@ func newFakeUpdater(t *testing.T) *fakeUpdater {
 		case r.Method == http.MethodGet && r.URL.Path == updater.PathStatus:
 			u.statusCalls++
 			w.WriteHeader(u.statusCode)
-			_, _ = w.Write([]byte(`{"phase":"idle"}`))
+			_, _ = w.Write([]byte(u.statusBody))
 		case r.Method == http.MethodPost && r.URL.Path == updater.PathInstall:
 			u.installCalls++
 			w.WriteHeader(u.installCode)
@@ -223,6 +224,37 @@ func TestUpdaterAvailableIsCached(t *testing.T) {
 	_ = f.svc.UpdateAvailable(ctx)
 	if status, _ := fu.calls(); status != 2 {
 		t.Errorf("status calls = %d, want 2 (UpdateAvailable must not probe)", status)
+	}
+}
+
+// The companion's version comes from its status answer (contract 1.18.0): absent from a companion
+// before 1.18.0, one that is no version or one that does not answer.
+func TestUpdaterVersionFromStatus(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	now := time.Date(2026, 11, 8, 10, 0, 0, 0, time.UTC)
+	f.svc.now = func() time.Time { return now }
+	fu := newFakeUpdater(t)
+	f.svc.WithUpdater(fu.URL, updaterDir(t, fakeUpdaterToken), nil)
+	for _, tc := range []struct {
+		code       int
+		body, want string
+	}{
+		{http.StatusOK, `{"phase":"idle"}`, ""},
+		{http.StatusOK, `{"phase":"idle","updater":"1.18.0"}`, "1.18.0"},
+		{http.StatusOK, `{"phase":"done","updater":"1.18.0-3-gabc1234"}`, "1.18.0-3-gabc1234"},
+		{http.StatusOK, `{"phase":"idle","updater":"<script>"}`, ""},
+		{http.StatusOK, `not json`, ""},
+		{http.StatusServiceUnavailable, `{"phase":"idle","updater":"1.18.0"}`, ""},
+	} {
+		fu.mu.Lock()
+		fu.statusCode, fu.statusBody = tc.code, tc.body
+		fu.mu.Unlock()
+		now = now.Add(updaterProbeTTL)
+		st, err := f.svc.UpdateState(ctx)
+		if err != nil || st.UpdaterVersion != tc.want || st.UpdaterAvailable != (tc.code == http.StatusOK) {
+			t.Errorf("status %d %s: version %q available %v, %v; want %q", tc.code, tc.body, st.UpdaterVersion, st.UpdaterAvailable, err, tc.want)
+		}
 	}
 }
 

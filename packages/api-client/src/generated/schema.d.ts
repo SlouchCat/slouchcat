@@ -7706,7 +7706,11 @@ export interface components {
              *     administration shows the build as a development state instead.
              */
             development: boolean;
-            /** @description latestVersion is newer than the running version (never for a development build). */
+            /**
+             * @description latestVersion is newer than the running version (never for a development build). Since
+             *     contract 1.18.0 only a plain release `X.Y.Z` counts; a pre-release in the manifest is
+             *     stored but never offered.
+             */
             available: boolean;
             /**
              * Format: uri
@@ -7717,6 +7721,13 @@ export interface components {
             notes?: string;
             /** Format: date-time */
             checkedAt?: string;
+            /**
+             * Format: date-time
+             * @description Since contract 1.18.0. The last check that read the release manifest. A failed check
+             *     keeps it together with the known release (`latestVersion`, `available`), so a failure
+             *     does not hide an update.
+             */
+            lastSuccessAt?: string;
             /** @description Why the last check failed. */
             error?: string;
             /**
@@ -7731,6 +7742,12 @@ export interface components {
              *     a second and otherwise carries the last answer.
              */
             updaterAvailable: boolean;
+            /**
+             * @description Since contract 1.18.0. Version of the updater companion from its status answer; absent
+             *     when no companion answers or the companion is older than 1.18.0 and does not report it.
+             * @example 1.18.0
+             */
+            updaterVersion?: string;
             /**
              * @description Since contract 1.16.0. The last install the companion reported (`state.json`), as
              *     `getUpdateInstallStatus` reports it; absent when it never reported one, when `state.json`
@@ -7773,7 +7790,9 @@ export interface components {
              * @description Machine reason of a refused, failed or rolled back install: `busy`, `not_newer`,
              *     `manifest_unreachable`, `manifest_invalid`, `no_digest`, `no_compose_labels`,
              *     `outside_deploy_dir`, `pull_failed`, `digest_mismatch`, `unhealthy`, `rollback_failed`,
-             *     `migrated_no_rollback`. A newer companion may add codes. A failed install may have no code
+             *     `migrated_no_rollback`, `disk_full` (Docker found no space for the new image, since
+             *     contract 1.18.0), `deploy_files` (the Compose files of the release could not be fetched or
+             *     written; nothing was changed, since contract 1.18.0). A newer companion may add codes. A failed install may have no code
              *     and only a `message` (the backup of `.env` failed, or the companion found an interrupted
              *     install when it started).
              */

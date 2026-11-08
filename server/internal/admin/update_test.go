@@ -13,6 +13,7 @@ import (
 	"github.com/slouchcat/slouchcat/server/internal/jobs"
 	"github.com/slouchcat/slouchcat/server/internal/model"
 	"github.com/slouchcat/slouchcat/server/internal/store/appq"
+	"github.com/slouchcat/slouchcat/server/internal/updater"
 )
 
 func upsert(key, value string) appq.UpsertSettingParams {
@@ -58,7 +59,7 @@ func (m *manifestServer) set(body string, status int) {
 func TestUpdateCheck(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
-	srv := newManifestServer(t, `{"version":"v0.10.0","url":"https://github.com/SlouchCat/slouchcat/releases/tag/v0.10.0","notes":"Neu: Admin","publishedAt":"2026-10-21T10:00:00Z"}`)
+	srv := newManifestServer(t, `{"version":"0.10.0","url":"https://github.com/SlouchCat/slouchcat/releases/tag/v0.10.0","notes":"Neu: Admin","publishedAt":"2026-10-21T10:00:00Z"}`)
 	f.svc.WithSystem(SystemSource{Version: "0.9.0+abc1234"}).WithUpdateCheck(srv.URL+"/manifest.json", srv.Client())
 	if f.svc.UpdateAvailable(ctx) != nil {
 		t.Fatal("notice before any check")
@@ -68,11 +69,11 @@ func TestUpdateCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !st.Enabled || !st.Available || st.LatestVersion != "v0.10.0" || st.CurrentVersion != "0.9.0+abc1234" || st.Notes != "Neu: Admin" ||
-		st.CheckedAt == nil || st.Error != "" {
-		t.Fatalf("state = %+v, want v0.10.0 available", st)
+	if !st.Enabled || !st.Available || st.LatestVersion != "0.10.0" || st.CurrentVersion != "0.9.0+abc1234" || st.Notes != "Neu: Admin" ||
+		st.CheckedAt == nil || st.Error != "" || st.LastSuccessAt == nil || !st.LastSuccessAt.Equal(*st.CheckedAt) {
+		t.Fatalf("state = %+v, want 0.10.0 available", st)
 	}
-	if n := f.svc.UpdateAvailable(ctx); n == nil || n.Version != "v0.10.0" || n.URL != st.URL {
+	if n := f.svc.UpdateAvailable(ctx); n == nil || n.Version != "0.10.0" || n.URL != st.URL {
 		t.Errorf("notice = %+v", n)
 	}
 	if got := srv.agents[len(srv.agents)-1]; got != "Slouchcat/0.9.0+abc1234" {
@@ -87,10 +88,25 @@ func TestUpdateCheck(t *testing.T) {
 		t.Error("notice for the running version")
 	}
 
+	// Only a plain release X.Y.Z is offered (ADR 0024, addendum of 8 Nov 2026); a pre-release or a
+	// "v" version is stored and shown, never offered.
+	for _, v := range []string{"0.12.0-rc.1", "v0.12.0"} {
+		srv.set(`{"version":"`+v+`","url":"https://example.org/`+v+`"}`, http.StatusOK)
+		if st, err = f.svc.CheckForUpdate(ctx); err != nil || st.Available || st.LatestVersion != v || st.Error != "" {
+			t.Errorf("manifest %s: %+v, %v", v, st, err)
+		}
+		if n := f.svc.UpdateAvailable(ctx); n != nil {
+			t.Errorf("notice for %s: %+v", v, n)
+		}
+	}
+
+	f.svc.now = func() time.Time { return time.Date(2026, 11, 8, 9, 0, 0, 0, time.UTC) }
 	srv.set(`{"version":"0.11.0","url":"https://example.org/0.11.0"}`, http.StatusOK)
 	if _, err := f.svc.CheckForUpdate(ctx); err != nil {
 		t.Fatal(err)
 	}
+	success := time.Date(2026, 11, 8, 9, 0, 0, 0, time.UTC)
+	f.svc.now = func() time.Time { return success.Add(time.Hour) }
 	for name, tc := range map[string]struct {
 		body   string
 		status int
@@ -111,8 +127,9 @@ func TestUpdateCheck(t *testing.T) {
 			if !strings.Contains(st.Error, tc.want) {
 				t.Errorf("error = %q, want it to mention %q", st.Error, tc.want)
 			}
-			// The last known release stays.
-			if st.LatestVersion != "0.11.0" || !st.Available {
+			// The last known release and the last success stay.
+			if st.LatestVersion != "0.11.0" || !st.Available || st.LastSuccessAt == nil || !st.LastSuccessAt.Equal(success) ||
+				st.CheckedAt == nil || !st.CheckedAt.Equal(success.Add(time.Hour)) {
 				t.Errorf("state after a failed check = %+v", st)
 			}
 		})
@@ -330,21 +347,23 @@ func (f *fakeSchedules) fireDue(now time.Time) {
 	}
 }
 
+// The offer rule of the check (updater.Newer): only a plain release newer than the running
+// version; a self-built image counts as its release.
 func TestNewerVersion(t *testing.T) {
 	for _, tc := range []struct {
 		latest, current string
 		want            bool
 	}{
 		{"0.10.0", "0.9.0", true},
-		{"v0.9.1", "0.9.0+abc1234", true},
+		{"0.9.1", "0.9.0+abc1234", true},
+		{"v0.9.1", "0.9.0", false},
 		{"0.9.0", "v0.9.0", false},
 		{"0.9.0", "0.10.0", false},
 		{"1.0.0", "1.0.0-rc.1", true},
-		{"1.0.0-rc.2", "1.0.0-rc.1", true},
-		{"1.0.0-rc.10", "1.0.0-rc.9", true},
-		{"1.0.0-beta", "1.0.0-alpha.1", true},
-		{"1.0.0-alpha.1", "1.0.0-alpha", true},
-		{"1.0.0-alpha", "1.0.0-1", true},
+		// A pre-release is never offered (ADR 0024, addendum of 8 Nov 2026).
+		{"1.0.0-rc.2", "1.0.0-rc.1", false},
+		{"1.1.0-rc.1", "1.0.0", false},
+		{"1.0.0+build", "0.9.0", false},
 		{"1.0.0-rc.1", "1.0.0", false},
 		{"0.9.0", "dev", false},
 		{"0.9.0", "", false},
@@ -356,8 +375,8 @@ func TestNewerVersion(t *testing.T) {
 		{"1.0", "0.9.0", false},
 		{"01.0.0", "0.9.0", false},
 	} {
-		if got := newerVersion(tc.latest, tc.current); got != tc.want {
-			t.Errorf("newerVersion(%q, %q) = %v, want %v", tc.latest, tc.current, got, tc.want)
+		if got := updater.Newer(tc.latest, tc.current); got != tc.want {
+			t.Errorf("updater.Newer(%q, %q) = %v, want %v", tc.latest, tc.current, got, tc.want)
 		}
 	}
 }

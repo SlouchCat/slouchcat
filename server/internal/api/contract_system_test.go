@@ -340,7 +340,8 @@ func TestAdminSystemShapesAndUpdateNotice(t *testing.T) {
 	decode(t, rec, &u)
 	// The fixture runs as 0.0.0-test, a pre-release of 0.0.0 and so older than 0.0.1; a label
 	// that is no version at all (a bare commit id) would be a development build without a notice.
-	if rec.Code != http.StatusOK || !u.Available || u.Development || deref(u.LatestVersion) != "0.0.1" {
+	if rec.Code != http.StatusOK || !u.Available || u.Development || deref(u.LatestVersion) != "0.0.1" ||
+		u.LastSuccessAt == nil || u.CheckedAt == nil || !u.LastSuccessAt.Equal(*u.CheckedAt) {
 		t.Fatalf("check = %d %s", rec.Code, rec.Body.String())
 	}
 	for _, token := range []string{"p18", "p6", "none"} {

@@ -750,6 +750,8 @@ const installable = (overrides: Partial<Dashboard['update']> = {}): Dashboard['u
   notes: 'Neu: Update per Knopf.\n\n<b>Behoben</b>: die Prüfung nach einem Aussetzer.',
   updaterConfigured: true,
   updaterAvailable: true,
+  // A companion of 1.18.0 or later reports its version and follows the server on its own.
+  updaterVersion: '0.9.0',
   ...overrides,
 });
 
@@ -1070,12 +1072,121 @@ describe('update install on the server card (concept 15 P-8, ADR 0024)', () => {
     expect(state).not.toHaveTextContent('Migration');
   });
 
+  it.each([
+    [
+      'disk_full',
+      'Auf dem Server ist kein Platz für das neue Image. Platz schaffen und erneut versuchen.',
+    ],
+    [
+      'deploy_files',
+      'Die Compose-Dateien des Releases liessen sich nicht laden oder schreiben. Nichts wurde geändert.',
+    ],
+  ])('a failed install with the code %s says why in its own words', async (code, text) => {
+    mockApi(
+      updateRoutes(
+        installable({ install: install({ phase: 'failed', code, message: `companion: ${code}` }) }),
+      ),
+    );
+    renderApp('/admin');
+    const card = await serverCard();
+    const state = within(card).getByRole('status');
+    expect(state).toHaveTextContent('Update auf 0.9.1 fehlgeschlagen');
+    expect(state).toHaveTextContent(text);
+    expect(state).toHaveTextContent(`companion: ${code}`);
+  });
+
+  it('a failed check keeps the known update, its button and when it last succeeded', async () => {
+    mockApi(
+      updateRoutes(
+        installable({
+          checkedAt: '2026-11-08T09:00:00Z',
+          lastSuccessAt: '2026-11-07T09:00:00Z',
+          error: 'release manifest: status 504',
+        }),
+      ),
+    );
+    renderApp('/admin');
+    const card = await serverCard();
+    expect(within(card).getByText('Version 0.9.1 verfügbar')).toBeVisible();
+    expect(within(card).getByText(/^Zuletzt geprüft: 08\.11\.2026/)).toBeVisible();
+    expect(within(card).getByText(/^Zuletzt erfolgreich geprüft: 07\.11\.2026/)).toBeVisible();
+    expect(
+      within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }),
+    ).toBeVisible();
+  });
+
+  it('a check that went through shows no second date', async () => {
+    mockApi(
+      updateRoutes(
+        installable({ checkedAt: '2026-11-08T09:00:00Z', lastSuccessAt: '2026-11-08T09:00:00Z' }),
+      ),
+    );
+    renderApp('/admin');
+    const card = await serverCard();
+    expect(within(card).getByText(/^Zuletzt geprüft: 08\.11\.2026/)).toBeVisible();
+    expect(within(card).queryByText(/Zuletzt erfolgreich geprüft/)).not.toBeInTheDocument();
+  });
+
+  it('names the version of the companion; one that does not answer says so', async () => {
+    mockApi(updateRoutes(installable()));
+    const first = renderApp('/admin');
+    let card = await serverCard();
+    await waitFor(() => expect(termsOf(card)).toContainEqual(['Updater', '0.9.0']));
+    expect(within(card).queryByText(/Der Updater ist veraltet/)).not.toBeInTheDocument();
+    first.unmount();
+    mockApi(updateRoutes(installable({ updaterAvailable: false })));
+    renderApp('/admin');
+    card = await serverCard();
+    await waitFor(() => expect(termsOf(card)).toContainEqual(['Updater', 'Antwortet nicht']));
+  });
+
+  it.each([
+    ['without a version (before 1.18.0)', undefined],
+    ['older than the server', '0.8.2'],
+  ])(
+    'a companion %s: the card asks to lift it once, with the command to copy',
+    async (_, updaterVersion) => {
+      mockApi(updateRoutes(installable({ updaterVersion })));
+      renderApp('/admin');
+      const card = await serverCard();
+      expect(
+        within(card).getByText(
+          'Der Updater ist veraltet und aktualisiert sich ab Version 1.18.0 selbst. Einmal von Hand heben:',
+        ),
+      ).toBeVisible();
+      const command = within(card).getByRole('group', { name: 'Im deploy-Ordner ausführen' });
+      expect(command).toHaveTextContent(
+        "cd <deploy-ordner> && sed -i 's/^SLOUCHCAT_UPDATER_VERSION=.*/SLOUCHCAT_UPDATER_VERSION=0.9.0/' .env && docker compose up -d updater",
+      );
+      expect(within(command).getByRole('button', { name: 'Kopieren' })).toBeVisible();
+      // The update itself stays on offer.
+      expect(
+        within(card).getByRole('button', { name: 'Update auf 0.9.1 installieren' }),
+      ).toBeVisible();
+    },
+  );
+
+  it.each([
+    ['as new as the server', { updaterVersion: '0.9.0' }],
+    ['newer than the server', { updaterVersion: '0.10.0' }],
+    ['self-built', { updaterVersion: '0.8.0-3-gabc1234' }],
+    ['next to a development build', { currentVersion: 'dev', development: true, available: false }],
+    ['that does not answer', { updaterAvailable: false, updaterVersion: undefined }],
+  ] as const)('a companion %s needs no lifting', async (_, overrides) => {
+    mockApi(updateRoutes(installable(overrides)));
+    renderApp('/admin');
+    const card = await serverCard();
+    await waitFor(() => expect(termsOf(card).length).toBeGreaterThan(0));
+    expect(within(card).queryByText(/Der Updater ist veraltet/)).not.toBeInTheDocument();
+  });
+
   it('a done install is one short line', async () => {
     mockApi(
       updateRoutes(
         installable({
           available: false,
           currentVersion: '0.9.1',
+          updaterVersion: '0.9.1',
           install: install({ phase: 'done', finishedAt: '2026-11-07T09:05:00Z' }),
         }),
       ),
