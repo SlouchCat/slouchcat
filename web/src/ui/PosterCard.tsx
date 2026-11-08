@@ -58,7 +58,7 @@ interface PosterCardProps {
   posterSmallUrl?: string;
   /** The title's accent colour (`#rrggbb`, ItemRef.accent): placeholder tint and focus glow. */
   accent?: string;
-  /** Small label on the poster (the kind of an extra: "Trailer", "Featurette"; an age rating). */
+  /** Small label on the poster (the kind of an extra: "Trailer", "Featurette"). */
   badge?: string;
   /** A finished title: a check mark on the poster, with this as its spoken name ("Gesehen"). */
   watchedLabel?: string;

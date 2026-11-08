@@ -31,8 +31,6 @@ interface ItemGridProps {
   below?: (item: ItemRef) => ReactNode;
   /** The watch state on each card: a check mark when finished, else the progress (library). */
   showWatched?: boolean;
-  /** The age rating on each card that has one (library of films and series). */
-  showRating?: boolean;
   /** Extra class of the grid (the library's column count). */
   className?: string;
   /**
@@ -49,7 +47,6 @@ export function ItemGrid({
   label,
   below,
   showWatched = false,
-  showRating = false,
   className,
   tool,
 }: ItemGridProps) {
@@ -79,11 +76,6 @@ export function ItemGrid({
               posterSmallUrl={imageUrl(item.images.posterSmall)}
               accent={item.accent}
               shape={audio ? 'square' : 'poster'}
-              badge={
-                showRating && item.rating !== undefined
-                  ? t('rating.fsk', { age: item.rating })
-                  : undefined
-              }
               watchedLabel={
                 progress?.completed
                   ? t(audio ? 'library.status.heard' : 'library.status.watched')

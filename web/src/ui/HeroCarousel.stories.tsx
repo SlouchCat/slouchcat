@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Chip } from './Chip';
 import { HeroCarousel, type HeroSlide } from './HeroCarousel';
 import { accents, art } from './stories/fixtures';
 
@@ -11,12 +10,8 @@ const slides: HeroSlide[] = [
     posterUrl: art.posterDusk,
     accent: accents.dusk,
     caption: '2023',
-    meta: (
-      <>
-        <Chip tone="outline">FSK 12</Chip>
-        <span>2023 · 1 h 52 min</span>
-      </>
-    ),
+    // As the start page's hero shows it: year and runtime, no age rating (concept 17 F-10).
+    meta: <span>2023 · 1 h 52 min</span>,
     hasTrailer: true,
     playHref: '#play',
     detailsHref: '#details',

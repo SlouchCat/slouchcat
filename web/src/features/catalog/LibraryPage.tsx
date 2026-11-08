@@ -423,7 +423,6 @@ function LibraryView({ id }: { id: number | null }) {
                   label={library.name}
                   className={styles.grid}
                   showWatched
-                  showRating={library.kind === 'video'}
                   tool={
                     canManage ? (item) => <CoverPen item={item} onEdit={setEditing} /> : undefined
                   }

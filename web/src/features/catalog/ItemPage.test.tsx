@@ -12,7 +12,8 @@ describe('detail page', () => {
     renderApp(`/items/${ids.alien}`);
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Alien' })).toBeVisible();
-    expect(screen.getByText('FSK 16')).toBeVisible();
+    // The title has an age rating (16); viewers do not see it (concept 17 F-10).
+    expect(screen.queryByText('FSK 16')).not.toBeInTheDocument();
     expect(screen.getByText('Horror, Science-Fiction')).toBeVisible();
     expect(screen.getByText('Im Weltraum hört dich niemand schreien.')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Weiterschauen ab 00:42:13' })).toHaveAttribute(

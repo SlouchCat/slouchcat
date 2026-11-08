@@ -36,7 +36,8 @@ describe('start page', () => {
       'href',
       `/items/${ids.heat}`,
     );
-    expect(within(hero).getByText('FSK 16')).toBeVisible();
+    // No age rating under the title (concept 17 F-10).
+    expect(within(hero).queryByText('FSK 16')).not.toBeInTheDocument();
 
     const headings = screen
       .getAllByRole('heading', { level: 2 })

@@ -348,7 +348,7 @@ describe('detail page: audiobook, podcast, podcast episode (M6)', () => {
     expect(screen.getByText('Gelesen von Slouchcat Test Narrator')).toBeVisible();
     expect(screen.getByText('2024')).toBeVisible();
     expect(screen.getByText('1 min')).toBeVisible();
-    expect(screen.getByText('FSK 0')).toBeVisible();
+    expect(screen.queryByText('FSK 0')).not.toBeInTheDocument();
     // The book plays as a whole (no version), from where the profile stopped.
     expect(screen.getByRole('link', { name: 'Weiterhören ab 00:00:12' })).toHaveAttribute(
       'href',
