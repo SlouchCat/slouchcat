@@ -62,6 +62,17 @@ const (
 	coverSourceMB       = "musicbrainz"
 	coverSourceITunes   = "itunes"
 	coverRateLimitPause = time.Minute
+	// coverMinGap is the least time between two cover lookups of one relay: a station that
+	// changes its title every metadata block cannot make the server fetch for it (review M-1).
+	coverMinGap = 20 * time.Second
+	// coverRender bounds one ffmpeg run that scales a cover.
+	coverRender = 30 * time.Second
+	// coverMaxFound is the budget of the cache: the found covers over it, oldest first, go in the
+	// sweep (about 300 KB of files each).
+	coverMaxFound = 5000
+	// maxTrackKey is the longest key kept as text; a longer one is "h:" and its SHA-256 (the
+	// column allows 600 characters, folding can make a title longer: «ß» becomes «ss»).
+	maxTrackKey = 512
 )
 
 // coverState is the cover part of the service (lane A).
@@ -73,6 +84,11 @@ type coverState struct {
 
 	mb     *ratelimit.Limiter // MusicBrainz and the Cover Art Archive: one request a second
 	itunes *ratelimit.Limiter // the iTunes search: 20 requests a minute
+	stream *ratelimit.Limiter // the images stations name in StreamUrl: one every 5 s for all
+	// minGap is coverMinGap, render coverRender and maxFound coverMaxFound; tests change them.
+	minGap   time.Duration
+	render   time.Duration
+	maxFound int64
 
 	// The services' base URLs; tests point them at httptest servers.
 	mbBase, caaBase, itunesBase string
@@ -81,6 +97,7 @@ type coverState struct {
 func newCoverState() *coverState {
 	return &coverState{queue: make(chan coverJob, coverQueueSize), queued: map[string]bool{},
 		mb: ratelimit.New("radio-musicbrainz", 1, 1), itunes: ratelimit.New("radio-itunes", 20.0/60, 1),
+		stream: ratelimit.New("radio-stream-cover", 0.2, 2), minGap: coverMinGap, render: coverRender, maxFound: coverMaxFound,
 		mbBase: "https://musicbrainz.org", caaBase: "https://coverartarchive.org", itunesBase: "https://itunes.apple.com"}
 }
 
@@ -111,8 +128,16 @@ func searchTerm(s string) string {
 	return strings.TrimSpace(coverFeat.ReplaceAllString(coverNoise.ReplaceAllString(s, ""), ""))
 }
 
-// trackKey is the cache key of a title.
-func trackKey(artist, title string) string { return rules.Fold(artist) + "|" + rules.Fold(title) }
+// trackKey is the cache key of a title: the folded "artist|title", or "h:" and its SHA-256 when
+// that is longer than maxTrackKey bytes.
+func trackKey(artist, title string) string {
+	k := rules.Fold(artist) + "|" + rules.Fold(title)
+	if len(k) > maxTrackKey {
+		sum := sha256.Sum256([]byte(k))
+		return "h:" + hex.EncodeToString(sum[:])
+	}
+	return k
+}
 
 // imageURL reports whether a StreamUrl names an http(s) image (by the extension of its path).
 func imageURL(raw string) bool {
@@ -165,19 +190,23 @@ func (s *Service) runCovers(ctx context.Context) {
 			return
 		case j := <-s.cov.queue:
 			s.lookupCover(ctx, j)
-			s.cov.mu.Lock()
-			delete(s.cov.queued, j.key)
-			s.cov.mu.Unlock()
 		}
 	}
 }
 
 // lookupCover runs the chain of one job and puts the cover on the timeline entries of its key.
+// The key leaves the queued set before the entries are updated: an entry added after that queues
+// its own lookup (a cache hit), one added before it is updated here (review: dedupe race).
 func (s *Service) lookupCover(ctx context.Context, j coverJob) {
-	if s.o.cacheDir == "" {
-		return
+	var id int64
+	var hash string
+	var err error
+	if s.o.cacheDir != "" {
+		id, hash, err = s.coverFor(ctx, j)
 	}
-	id, hash, err := s.coverFor(ctx, j)
+	s.cov.mu.Lock()
+	delete(s.cov.queued, j.key)
+	s.cov.mu.Unlock()
 	if err != nil {
 		if ctx.Err() == nil {
 			s.log.WarnContext(ctx, "radio cover lookup", "err", err)
@@ -193,7 +222,7 @@ func (s *Service) lookupCover(ctx context.Context, j coverJob) {
 func (s *Service) coverFor(ctx context.Context, j coverJob) (int64, string, error) {
 	if j.image != "" {
 		id, hash, err := s.cachedCover(ctx, j.key, j.artist, j.title, func() coverResult {
-			return s.fetchCoverImage(ctx, nil, j.image, coverSourceStream)
+			return s.fetchCoverImage(ctx, s.cov.stream, j.image, coverSourceStream)
 		})
 		if err != nil || id != 0 || j.artist == "" {
 			return id, hash, err
@@ -538,7 +567,9 @@ func (s *Service) renderCover(ctx context.Context, src []byte) (string, error) {
 		}
 	}
 	// The square scaler names the demuxer (no probing) and reads only the local file, like logos.
-	if err := s.o.runner.SquareImage(ctx, in, format, outs); err != nil {
+	rctx, cancel := context.WithTimeout(ctx, s.cov.render)
+	defer cancel()
+	if err := s.o.runner.SquareImage(rctx, in, format, outs); err != nil {
 		return "", errors.Join(err, os.RemoveAll(dir))
 	}
 	if err := os.Remove(in); err != nil {
@@ -572,6 +603,7 @@ func (s *Service) sweepCovers(ctx context.Context, now time.Time) {
 			_ = os.RemoveAll(filepath.Join(s.o.cacheDir, coverDir(r.ID)))
 		}
 	}
+	s.trimCovers(ctx)
 	// Renders a stopped process left behind (the one worker finishes its render within minutes).
 	news, _ := filepath.Glob(filepath.Join(s.o.cacheDir, "radio", "covers", "new-*"))
 	for _, d := range news {
@@ -581,9 +613,33 @@ func (s *Service) sweepCovers(ctx context.Context, now time.Time) {
 	}
 }
 
-// Cover opens the cover of a track (size w96, w256 or w512) as WebP or PNG; an unknown or expired
-// track, or one without a cover, is model.ErrNotFound. The caller closes the file.
-func (s *Service) Cover(ctx context.Context, trackID int64, size string, webp bool) (model.StreamSource, error) {
+// trimCovers keeps the cache within its budget: the found rows over maxFound go, the oldest
+// checks first, with their files (review M-1).
+func (s *Service) trimCovers(ctx context.Context) {
+	q := appq.New(s.db.Write)
+	n, err := q.CountFoundRadioTracks(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "count radio covers", "err", err)
+		return
+	}
+	if n <= s.cov.maxFound {
+		return
+	}
+	ids, err := q.DeleteOldestFoundRadioTracks(ctx, n-s.cov.maxFound)
+	if err != nil {
+		s.log.WarnContext(ctx, "trim radio covers", "err", err)
+		return
+	}
+	for _, id := range ids {
+		_ = os.RemoveAll(filepath.Join(s.o.cacheDir, coverDir(id)))
+	}
+	s.log.InfoContext(ctx, "radio covers over the budget removed", "count", len(ids))
+}
+
+// Cover opens the cover of a track (size w96, w256 or w512) as WebP or PNG; hash is the v of the
+// URL and must be the stored image hash. An unknown or expired track, one without a cover or
+// another hash is model.ErrNotFound. The caller closes the file.
+func (s *Service) Cover(ctx context.Context, trackID int64, size, hash string, webp bool) (model.StreamSource, error) {
 	width, err := strconv.Atoi(strings.TrimPrefix(size, "w"))
 	if err != nil || !strings.HasPrefix(size, "w") || !slices.Contains(logoWidths, width) {
 		return model.StreamSource{}, model.ErrNotFound
@@ -595,7 +651,7 @@ func (s *Service) Cover(ctx context.Context, trackID int64, size string, webp bo
 	if err != nil {
 		return model.StreamSource{}, fmt.Errorf("get radio track: %w", err)
 	}
-	if row.State != trackFound || row.ExpiresAt <= s.now().UnixMilli() || s.o.cacheDir == "" {
+	if row.State != trackFound || row.ExpiresAt <= s.now().UnixMilli() || s.o.cacheDir == "" || hash != row.ImageHash.String {
 		return model.StreamSource{}, model.ErrNotFound
 	}
 	format, mediaType := transcode.ImagePNG, "image/png"

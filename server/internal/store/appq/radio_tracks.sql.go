@@ -10,6 +10,20 @@ import (
 	"database/sql"
 )
 
+const countFoundRadioTracks = `-- name: CountFoundRadioTracks :one
+
+SELECT count(*) FROM radio_tracks WHERE state = 'found'
+`
+
+// The cover budget of the daily sweep (security review M-1): the found rows over the budget, the
+// oldest checks first, go with their files. Both walk the table once a day, never per request.
+func (q *Queries) CountFoundRadioTracks(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countFoundRadioTracks)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteExpiredRadioTracks = `-- name: DeleteExpiredRadioTracks :many
 DELETE FROM radio_tracks WHERE expires_at < ?1 RETURNING id, image_hash
 `
@@ -32,6 +46,35 @@ func (q *Queries) DeleteExpiredRadioTracks(ctx context.Context, now int64) ([]De
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteOldestFoundRadioTracks = `-- name: DeleteOldestFoundRadioTracks :many
+DELETE FROM radio_tracks WHERE id IN (
+    SELECT id FROM radio_tracks WHERE state = 'found' ORDER BY checked_at, id LIMIT ?1
+) RETURNING id
+`
+
+func (q *Queries) DeleteOldestFoundRadioTracks(ctx context.Context, n int64) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, deleteOldestFoundRadioTracks, n)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

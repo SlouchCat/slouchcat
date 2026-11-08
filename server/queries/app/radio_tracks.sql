@@ -19,3 +19,14 @@ RETURNING id;
 
 -- name: DeleteExpiredRadioTracks :many
 DELETE FROM radio_tracks WHERE expires_at < @now RETURNING id, image_hash;
+
+-- The cover budget of the daily sweep (security review M-1): the found rows over the budget, the
+-- oldest checks first, go with their files. Both walk the table once a day, never per request.
+
+-- name: CountFoundRadioTracks :one
+SELECT count(*) FROM radio_tracks WHERE state = 'found';
+
+-- name: DeleteOldestFoundRadioTracks :many
+DELETE FROM radio_tracks WHERE id IN (
+    SELECT id FROM radio_tracks WHERE state = 'found' ORDER BY checked_at, id LIMIT @n
+) RETURNING id;

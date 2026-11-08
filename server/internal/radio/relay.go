@@ -83,6 +83,7 @@ type relay struct {
 	titles    []titleEntry
 	lastText  string
 	fed       time.Duration // audio fed to generation gen (MP3 and ADTS only: the framer counts it)
+	coverAt   time.Time     // when the relay last queued a cover lookup (coverMinGap)
 	pdtGen    int           // generation whose first segment is published (-1 before the first)
 	pdtStart  time.Time     // program date-time of that segment
 	produced  time.Duration // audio of every fragment so far (pace)
@@ -110,6 +111,9 @@ type titleEntry struct {
 	gen       int
 	offset    time.Duration
 	pending   bool
+	// floor marks a title of a source the relay does not frame that arrived while framed titles
+	// were pending: it waits behind them and then takes its stage-1 stamp, at least theirs.
+	floor time.Time
 }
 
 // generation is one packager run.
@@ -487,7 +491,10 @@ func (r *relay) title(ctx context.Context, ev streamEvent, names []string, f *fe
 			last := r.buf.segs[n-1]
 			te.At = last.pdt.Add(last.dur)
 		}
-		if n := len(r.titles); n > 0 && !r.titles[n-1].pending {
+		switch n := len(r.titles); {
+		case n > 0 && r.titles[n-1].pending: // stays behind the pending titles (resolveTitlesLocked)
+			te.floor, te.At, te.pending = te.At, time.Time{}, true
+		case n > 0:
 			te.At = maxTime(te.At, r.titles[n-1].At)
 		}
 	case f.g == nil:
@@ -507,6 +514,13 @@ func (r *relay) title(ctx context.Context, ev streamEvent, names []string, f *fe
 	r.trimTitlesLocked()
 	first := !r.showsTitles
 	r.showsTitles = true
+	// At most one lookup every coverMinGap per relay; an entry left out still gets the cover of
+	// its key when another lookup of that key finishes.
+	if now := r.s.now(); lookup && (r.coverAt.IsZero() || now.Sub(r.coverAt) >= r.s.cov.minGap) {
+		r.coverAt = now
+	} else {
+		lookup = false
+	}
 	r.mu.Unlock()
 	if lookup {
 		r.s.queueCover(job)
@@ -516,23 +530,28 @@ func (r *relay) title(ctx context.Context, ev streamEvent, names []string, f *fe
 	}
 }
 
-// resolveTitlesLocked gives the pending titles of every generation up to pdtGen their time: the
-// start of pdtGen plus their offset, or its start for a title of an earlier generation that
-// published nothing. The timeline stays in order.
+// resolveTitlesLocked gives the pending titles their time, in timeline order: a framed title of a
+// generation up to pdtGen gets the start of pdtGen plus its offset, or that start for a title of
+// an earlier generation that published nothing; a title with a floor gets its floor. The first
+// title that must still wait keeps every later one waiting, and At never decreases.
 func (r *relay) resolveTitlesLocked() {
-	if r.pdtGen < 0 {
-		return
-	}
 	for i := range r.titles {
 		t := &r.titles[i]
-		if !t.pending || t.gen > r.pdtGen {
+		if !t.pending {
 			continue
 		}
-		t.At = r.pdtStart
-		if t.gen == r.pdtGen {
-			t.At = t.At.Add(t.offset)
+		switch {
+		case !t.floor.IsZero():
+			t.At = t.floor
+		case r.pdtGen < 0 || t.gen > r.pdtGen:
+			return
+		default:
+			t.At = r.pdtStart
+			if t.gen == r.pdtGen {
+				t.At = t.At.Add(t.offset)
+			}
 		}
-		if i > 0 && !r.titles[i-1].pending {
+		if i > 0 {
 			t.At = maxTime(t.At, r.titles[i-1].At)
 		}
 		t.pending = false

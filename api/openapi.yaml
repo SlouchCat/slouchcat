@@ -8004,7 +8004,7 @@ paths:
         - name: v
           in: query
           required: false
-          description: Content hash for cache busting; ignored by the server.
+          description: Content hash for cache busting; must match; another hash answers 404.
           schema:
             type: string
       responses:

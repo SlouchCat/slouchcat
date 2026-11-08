@@ -275,3 +275,37 @@ func TestTimelineHLSDiscontinuity(t *testing.T) {
 		t.Fatalf("title after the discontinuity %+v, %v from the start of generation 1", c, dev)
 	}
 }
+
+// A title of an unframed source (after a stream change to Ogg, say) that arrives while framed
+// titles wait for their generation's start stays behind them, and the times never decrease.
+func TestTimelineMixedSourcesStayOrdered(t *testing.T) {
+	r := bufferRelay(t, "", 30*time.Minute, 1<<40, 1, 4*time.Second, nil)
+	r.s, r.showsTitles, r.pdtGen = New(nil, testLogger()), true, -1
+	mp3 := &feedState{fr: newFramer("mp3"), g: &generation{n: 0}}
+	r.fed = 90 * time.Second // the framed title lies 90 s into generation 0, beyond the published segment
+	r.title(context.Background(), streamEvent{Title: "Framed - One", TitleSet: true}, nil, mp3)
+	r.title(context.Background(), streamEvent{Title: "Ogg - Two", TitleSet: true}, nil, &feedState{})
+	r.mu.Lock()
+	waiting := len(r.timelineLocked())
+	r.mu.Unlock()
+	if waiting != 0 {
+		t.Fatalf("%d titles shown before the generation's start is known", waiting)
+	}
+	start := time.Date(2026, 11, 7, 10, 0, 0, 0, time.UTC)
+	r.mu.Lock()
+	r.pdtGen, r.pdtStart = 0, start
+	r.resolveTitlesLocked()
+	got := r.timelineLocked()
+	r.mu.Unlock()
+	if len(got) != 2 || got[0].Text != "Framed - One" || got[1].Text != "Ogg - Two" || got[1].At.Before(got[0].At) ||
+		!got[0].At.Equal(start.Add(90*time.Second)) {
+		t.Fatalf("timeline %+v", got)
+	}
+	r.title(context.Background(), streamEvent{Title: "Ogg - Three", TitleSet: true}, nil, &feedState{})
+	r.mu.Lock()
+	got = r.timelineLocked()
+	r.mu.Unlock()
+	if len(got) != 3 || got[2].At.Before(got[1].At) {
+		t.Fatalf("timeline %+v", got)
+	}
+}
