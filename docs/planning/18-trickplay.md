@@ -24,6 +24,12 @@
 
 > **Dieses Papier ändert keine Zeile Code.** Messskripte und Rohwerte liegen in
 > `docs/perf/18-trickplay.md` und `docs/perf/18-trickplay/`.
+>
+> **Mockup** (Fassung 4): Design-Leinwand mit drei Artboards, Player mit Vorschau und gerafft
+> entstehenden Blättern, Bibliotheksdialog mit Film- und Seriengruppe, Hintergrundjobs. Artefakt
+> (privat): https://claude.ai/artifact/Thtf5mQnDkaSH273uFPsDk; Quellen der Artboards in
+> `docs/planning/mockups/18-trickplay/` (laufen nur in der Leinwand). Die Bilder sind gezeichnete
+> Platzhalter, keine Filmbilder.
 
 ## 0. Kurz gesagt
 

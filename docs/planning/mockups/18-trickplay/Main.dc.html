@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Player mit Vorschau beim Spulen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e8794a}a:hover{color:#f3a27f}
+.tp-btn{font:inherit;cursor:pointer}
+.tp-btn:focus-visible{outline:2px solid #f3f3f5;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1280px; height: 780px; box-sizing: border-box; background: #0b0c10; color: #f3f3f5; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column;">
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: #13151b; border-bottom: 1px solid #ffffff14; flex-wrap: wrap;">
+    <span style="font-size: 13px; color: #b6b9c4; margin-right: 4px;">Szenario:</span>
+    <sc-for list="{{modes}}" as="m" hint-placeholder-count="3">
+      <button class="tp-btn" onClick="{{m.pick}}" style="{{m.style}}">{{m.label}}</button>
+    </sc-for>
+    <span style="flex-grow: 1;"></span>
+    <span style="{{statusStyle}}">{{statusText}}</span>
+  </div>
+
+  <div style="position: relative; flex-grow: 1; overflow: hidden;">
+    <div style="{{videoStyle}}"></div>
+    <div style="{{videoSunStyle}}"></div>
+    <div style="position: absolute; left: 0; right: 0; top: 0; height: 120px; background: linear-gradient(180deg, #0b0c10cc 0%, #0b0c1000 100%);"></div>
+    <div style="position: absolute; left: 32px; top: 24px; display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 22px; font-weight: 600;">Beispielfilm</span>
+      <span style="font-size: 14px; color: #b6b9c4;">{{chapterNow}}</span>
+    </div>
+    <div style="position: absolute; right: 32px; top: 28px; font-size: 12px; color: #b6b9c4; background: #0b0c10b0; padding: 6px 10px; border-radius: 6px;">Platzhalterbild, kein Filmbild</div>
+
+    <div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 120px 32px 24px; background: linear-gradient(0deg, #0b0c10f5 0%, #0b0c10cc 45%, #0b0c1000 100%); display: flex; flex-direction: column; gap: 14px;">
+
+      <div style="position: relative; height: 0;">
+        <sc-if value="{{showPreview}}" hint-placeholder-val="{{false}}">
+          <div style="{{previewBoxStyle}}">
+            <sc-if value="{{tileReady}}" hint-placeholder-val="{{true}}">
+              <div style="position: relative; width: 320px; height: 134px; overflow: hidden; border-radius: 6px;">
+                <div style="{{tileStyle}}"></div>
+                <div style="{{tileSunStyle}}"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{showChapterImage}}" hint-placeholder-val="{{false}}">
+              <div style="position: relative; width: 320px; height: 134px; overflow: hidden; border-radius: 6px;">
+                <div style="{{chapterImgStyle}}"></div>
+                <div style="{{chapterSunStyle}}"></div>
+                <span style="position: absolute; left: 8px; top: 8px; font-size: 11px; background: #0b0c10cc; color: #f3f3f5; padding: 3px 6px; border-radius: 4px;">Kapitelbild (Vorschau noch nicht da)</span>
+              </div>
+            </sc-if>
+            <div style="display: flex; justify-content: space-between; gap: 12px; padding: 8px 4px 2px; font-size: 13px;">
+              <span style="font-weight: 600;">{{previewTime}}</span>
+              <span style="color: #b6b9c4;">{{previewChapter}}</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <button class="tp-btn" aria-label="Zeitleiste" onMouseMove="{{onMove}}" onMouseLeave="{{onLeave}}" onClick="{{onSeek}}" style="position: relative; display: block; width: 100%; height: 28px; padding: 0; background: transparent; border: 0;">
+        <span style="position: absolute; left: 0; right: 0; top: 11px; height: 6px; border-radius: 3px; background: #ffffff33; display: block;"></span>
+        <span style="{{playedStyle}}"></span>
+        <span style="{{hoverLineStyle}}"></span>
+        <sc-for list="{{chapterMarks}}" as="c" hint-placeholder-count="11">
+          <span style="{{c.style}}"></span>
+        </sc-for>
+        <span style="{{knobStyle}}"></span>
+      </button>
+
+      <div style="display: flex; align-items: center; gap: 12px; font-size: 14px;">
+        <button class="tp-btn" onClick="{{back10}}" style="background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; border-radius: 22px; height: 44px; padding: 0 16px;">← 10 s</button>
+        <button class="tp-btn" onClick="{{fwd10}}" style="background: #1d2029; color: #f3f3f5; border: 1px solid #ffffff2e; border-radius: 22px; height: 44px; padding: 0 16px;">10 s →</button>
+        <span style="color: #b6b9c4;">{{posText}} / 2:00:00</span>
+        <span style="flex-grow: 1;"></span>
+        <span style="color: #9095a3; font-size: 13px;">Tastatur ←/→: Vorschau erscheint 1,5 s über der neuen Stelle</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+        <span style="font-size: 12px; color: #9095a3;">Kachelblätter (je 100 Bilder = 16:40 min). Reihenfolge: Blatt der Startposition zuerst, dann vorwärts, dann rückwärts. Diese Leiste gibt es nur im Mockup.</span>
+        <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px;">
+          <sc-for list="{{sheetList}}" as="s" hint-placeholder-count="8">
+            <div style="{{s.style}}">
+              <span style="font-weight: 600;">{{s.label}}</span>
+              <span>{{s.range}}</span>
+              <span>{{s.state}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":780}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.DUR = 7200000; this.SHEET = 1000000; this.N = 8; this.START = 2820000;
+    this.CH = ['Ankunft', 'Der Hafen', 'Nachtmarkt', 'Die Werkstatt', 'Sturm', 'Am Leuchtturm', 'Flucht', 'Die Brücke', 'Stille', 'Rückkehr', 'Das Fest', 'Abspann'];
+    this.state = { mode: 'first', posMs: this.START, hoverMs: null, kbdMs: null, sheets: this.freshSheets('first'), queueAt: 0 };
+  }
+  freshSheets(mode) {
+    var s = []; for (var i = 0; i < this.N; i++) s.push(mode === 'stored' ? 'done' : 'wait'); return s;
+  }
+  order() {
+    var start = Math.floor(this.START / this.SHEET), o = [];
+    for (var i = start; i < this.N; i++) o.push(i);
+    for (var j = start - 1; j >= 0; j--) o.push(j);
+    return o;
+  }
+  componentDidMount() { this.timer = setInterval(() => this.tick(), 1000); }
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.kbdTimer); }
+  tick() {
+    if (this.state.mode !== 'first') return;
+    var sheets = this.state.sheets.slice(), o = this.order();
+    var w = sheets.indexOf('work');
+    if (w >= 0) sheets[w] = 'done';
+    if (this.state.queueAt < 1) { this.setState({ queueAt: 1 }); return; }
+    for (var k = 0; k < o.length; k++) { if (sheets[o[k]] === 'wait') { sheets[o[k]] = 'work'; break; } }
+    this.setState({ sheets: sheets });
+  }
+  setMode(mode) {
+    this.setState({ mode: mode, sheets: this.freshSheets(mode), queueAt: 0, posMs: this.START });
+  }
+  fmt(ms) {
+    var t = Math.max(0, Math.round(ms / 1000)), h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+    return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  scene(ms) {
+    var idx = Math.floor(ms / 170000), hue = (idx * 67) % 360, phase = (ms % 170000) / 170000;
+    var sky1 = 'hsl(' + hue + ',45%,' + (22 + (idx % 3) * 8) + '%)', sky2 = 'hsl(' + ((hue + 25) % 360) + ',50%,' + (38 + (idx % 4) * 6) + '%)';
+    var g1 = 'hsl(' + ((hue + 160) % 360) + ',30%,20%)', g2 = 'hsl(' + ((hue + 160) % 360) + ',28%,11%)';
+    var horizon = 55 + (idx % 5) * 5;
+    return {
+      bg: 'position: absolute; inset: 0; background: linear-gradient(180deg, ' + sky1 + ' 0%, ' + sky2 + ' ' + horizon + '%, ' + g1 + ' ' + horizon + '%, ' + g2 + ' 100%);',
+      sun: 'position: absolute; border-radius: 50%; background: hsl(' + ((hue + 40) % 360) + ',80%,75%); width: 9%; aspect-ratio: 1; left: ' + (8 + phase * 76).toFixed(1) + '%; top: ' + (horizon - 30 + Math.sin(phase * 3.14) * -12).toFixed(1) + '%; opacity: 0.85;'
+    };
+  }
+  pointer(e) {
+    var r = e.currentTarget.getBoundingClientRect();
+    var f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    return Math.round(f * this.DUR);
+  }
+  jump(delta) {
+    var p = Math.min(this.DUR, Math.max(0, this.state.posMs + delta));
+    this.setState({ posMs: p, kbdMs: p });
+    clearTimeout(this.kbdTimer);
+    this.kbdTimer = setTimeout(() => this.setState({ kbdMs: null }), 1500);
+  }
+  renderVals() {
+    var st = this.state, self = this;
+    var pct = function (ms) { return (ms / self.DUR * 100).toFixed(3) + '%'; };
+    var previewMs = st.hoverMs !== null ? st.hoverMs : st.kbdMs;
+    var show = previewMs !== null;
+    var sheetIdx = show ? Math.min(this.N - 1, Math.floor(previewMs / this.SHEET)) : 0;
+    var tileReady = show && st.mode !== 'off' && st.sheets[sheetIdx] === 'done';
+    var point = show ? Math.floor(previewMs / 10000) * 10000 : 0;
+    var chIdx = show ? Math.min(11, Math.floor(previewMs / 600000)) : 0;
+    var tile = this.scene(point), chap = this.scene(chIdx * 600000 + 60000), vid = this.scene(st.posMs);
+    var leftPx = show ? Math.min(1216 - 330, Math.max(0, previewMs / this.DUR * 1216 - 165)) : 0;
+    var done = st.sheets.filter(function (s) { return s === 'done'; }).length;
+    var statusText, statusColor;
+    if (st.mode === 'off') { statusText = 'Vorschau aus: Zeitleiste zeigt das Kapitelbild'; statusColor = '#9095a3'; }
+    else if (done === this.N) { statusText = st.mode === 'stored' ? 'Vorschau gespeichert: sofort da' : 'Vorschau fertig und gespeichert'; statusColor = '#5fcf8f'; }
+    else if (st.queueAt < 1) { statusText = 'Vorschau eingereiht …'; statusColor = '#e8794a'; }
+    else { statusText = 'Vorschau entsteht: ' + done + ' von 8 Blättern fertig'; statusColor = '#e8794a'; }
+    var modeDefs = [['first', 'Erster Start (Vorschau entsteht)'], ['stored', 'Zweiter Start (gespeichert)'], ['off', 'Einstellung «Aus»']];
+    var modes = modeDefs.map(function (d) {
+      var on = st.mode === d[0];
+      return { label: d[1], pick: function () { self.setMode(d[0]); },
+        style: 'height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid ' + (on ? '#e8794a' : '#ffffff2e') + '; background: ' + (on ? '#e8794a33' : '#1d2029') + '; color: #f3f3f5; font-size: 13px;' };
+    });
+    var stateText = { done: 'fertig', work: 'wird erzeugt', wait: 'wartet' };
+    var stateBg = { done: '#5fcf8f26', work: '#e8794a40', wait: '#16181f' };
+    var stateBorder = { done: '#5fcf8f80', work: '#e8794a', wait: '#ffffff14' };
+    var startSheet = Math.floor(this.START / this.SHEET);
+    var sheetList = st.sheets.map(function (s, i) {
+      var a = i * self.SHEET, b = Math.min(self.DUR, a + self.SHEET);
+      var off = st.mode === 'off';
+      return { label: 'Blatt ' + (i + 1) + (i === startSheet ? ' · Start' : ''), range: self.fmt(a).replace(/^0:/, '') + '–' + self.fmt(b).replace(/^0:/, ''),
+        state: off ? '–' : stateText[s],
+        style: 'display: flex; flex-direction: column; gap: 2px; font-size: 12px; padding: 8px 10px; border-radius: 8px; background: ' + (off ? '#16181f' : stateBg[s]) + '; border: 1px solid ' + (off ? '#ffffff14' : stateBorder[s]) + '; color: ' + (off ? '#9095a3' : '#f3f3f5') + ';' };
+    });
+    var marks = [];
+    for (var c = 1; c < 12; c++) marks.push({ style: 'position: absolute; top: 9px; width: 2px; height: 10px; background: #0b0c10; left: ' + pct(c * 600000) + ';' });
+    return {
+      modes: modes,
+      statusText: statusText,
+      statusStyle: 'font-size: 13px; color: ' + statusColor + '; padding: 6px 12px; border-radius: 14px; background: #1d2029;',
+      videoStyle: vid.bg, videoSunStyle: vid.sun,
+      chapterNow: 'Kapitel ' + (Math.min(11, Math.floor(st.posMs / 600000)) + 1) + ': ' + this.CH[Math.min(11, Math.floor(st.posMs / 600000))],
+      showPreview: show, tileReady: tileReady, showChapterImage: show && !tileReady,
+      previewBoxStyle: 'position: absolute; bottom: 14px; left: ' + leftPx.toFixed(0) + 'px; width: 330px; box-sizing: border-box; padding: 5px; background: #16181f; border: 1px solid #ffffff2e; border-radius: 10px; box-shadow: 0 8px 24px #00000080;',
+      tileStyle: tile.bg, tileSunStyle: tile.sun,
+      chapterImgStyle: chap.bg + ' filter: saturate(0.5) brightness(0.8);', chapterSunStyle: chap.sun,
+      previewTime: show ? this.fmt(previewMs) : '',
+      previewChapter: show ? 'Kapitel ' + (chIdx + 1) + ': ' + this.CH[chIdx] : '',
+      playedStyle: 'position: absolute; left: 0; top: 11px; height: 6px; border-radius: 3px; background: #e8794a; display: block; width: ' + pct(st.posMs) + ';',
+      hoverLineStyle: st.hoverMs === null ? 'display: none;' : 'position: absolute; top: 6px; width: 2px; height: 16px; background: #f3f3f5; display: block; left: ' + pct(st.hoverMs) + ';',
+      knobStyle: 'position: absolute; top: 6px; width: 16px; height: 16px; margin-left: -8px; border-radius: 50%; background: #f3f3f5; display: block; left: ' + pct(st.posMs) + ';',
+      chapterMarks: marks,
+      sheetList: sheetList,
+      posText: this.fmt(st.posMs),
+      onMove: function (e) { self.setState({ hoverMs: self.pointer(e) }); },
+      onLeave: function () { self.setState({ hoverMs: null }); },
+      onSeek: function (e) { self.setState({ posMs: self.pointer(e) }); },
+      back10: function () { self.jump(-10000); },
+      fwd10: function () { self.jump(10000); }
+    };
+  }
+}
+</script>
+</body>
+</html>
