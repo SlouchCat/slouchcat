@@ -794,6 +794,7 @@ type ItemDetail struct {
 	Episodes     []ItemSummary // of a season, by number
 	Extras       []ItemSummary // of a film, series or season
 	NextEpisode  *ItemSummary  // next visible episode of the same series
+	NextUp       *NextUp       // of a series (every season) or a season (that season), concept 17 3.3
 	Cast         []CastMember
 	TrailerCount int
 
@@ -805,6 +806,13 @@ type ItemDetail struct {
 	Chapters     []Chapter
 	EpisodeCount *int
 	Podcast      *ItemSummary
+}
+
+// NextUp is the episode the big button of a series or season plays (contract 1.20.0, concept 17
+// section 3.3): Reason is start, resume, next or rewatch.
+type NextUp struct {
+	Reason  string
+	Episode ItemSummary
 }
 
 // HomeRow is one row of the start page (M7: key order from home_rows). Collections and Genres

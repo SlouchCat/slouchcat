@@ -153,6 +153,9 @@ func (s *server) GetItem(ctx context.Context, req gen.GetItemRequestObject) (gen
 	if out.Genres == nil {
 		out.Genres = []string{}
 	}
+	if n := d.NextUp; n != nil {
+		out.NextUp = &gen.NextUp{Reason: gen.NextUpReason(n.Reason), Episode: toItemRef(pid, n.Episode)}
+	}
 	if d.Kind == "season" { // the episode list of a season carries the overviews (contract 1.20.0)
 		for i, e := range d.Episodes {
 			(*out.Episodes)[i].Overview = optString(e.Overview)

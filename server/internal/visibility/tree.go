@@ -96,8 +96,8 @@ func (r *Reader) treeExtras(ctx context.Context, pid int64, lang langPref, ids [
 	return nil
 }
 
-// completeDetail adds what the detail page of each kind shows: seasons and extras of a series,
-// episodes, extras and the series of a season, the season, series and next episode of an episode,
+// completeDetail adds what the detail page of each kind shows: seasons, extras and next up of a
+// series, episodes, extras, next up and the series of a season, the season, series and next episode of an episode,
 // the extras of a film, and for every kind the cast, the number of trailers, the favourite mark
 // of the profile and the visible collections of the title (the watchlist mark is on the summary).
 func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scopedq.Item, d *model.ItemDetail) error {
@@ -106,8 +106,14 @@ func (r *Reader) completeDetail(ctx context.Context, s Scope, pid int64, it scop
 	switch it.Kind {
 	case "series":
 		d.Seasons, err = r.list(ctx, s, pid, "seasons")(r.q.ListVisibleSeasons(ctx, scopedq.ListVisibleSeasonsParams{ProfileID: pid, SeriesID: self}))
+		if err == nil {
+			err = r.nextUpOf(ctx, s, pid, self, "", d) // over every season (concept 17 section 3.3)
+		}
 	case "season":
 		d.Episodes, err = r.list(ctx, s, pid, "episodes")(r.q.ListVisibleEpisodes(ctx, scopedq.ListVisibleEpisodesParams{ProfileID: pid, SeasonID: self}))
+		if err == nil && it.ParentID.Valid {
+			err = r.nextUpOf(ctx, s, pid, it.ParentID, it.ID, d) // over this season only
+		}
 	}
 	if err != nil {
 		return err

@@ -2,6 +2,7 @@ package visibility
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -165,5 +166,75 @@ func TestCollectionMembersOnDetail(t *testing.T) {
 		if ref.Members != nil {
 			t.Errorf("collection list %s carries members %v", ref.ID, ids(ref.Members))
 		}
+	}
+}
+
+// Concept 17 section 3.3 against the database: next up of a series over every season and of a
+// season over that season only; an episode the profile may not see neither counts nor is chosen,
+// and a series it may not see has no detail.
+func TestNextUpOnDetail(t *testing.T) {
+	t.Parallel()
+	f := vistest.New(t)
+	f.AddSeries(t)
+	r := New(f.DB, vistest.Logger())
+	ctx := context.Background()
+	show := f.Show
+	next := func(p model.Profile, itemID string) (string, string) {
+		t.Helper()
+		d, err := r.Item(ctx, Profile(p), itemID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d.NextUp == nil {
+			return "", ""
+		}
+		return d.NextUp.Reason, d.NextUp.Episode.ID
+	}
+	check := func(what string, p model.Profile, itemID, reason, episode string) {
+		t.Helper()
+		if gotReason, gotEpisode := next(p, itemID); gotReason != reason || gotEpisode != episode {
+			t.Errorf("%s: %s next up = %s %s, want %s %s", what, p.Name, gotReason, gotEpisode, reason, episode)
+		}
+	}
+	check("no progress", f.P12, show.Series.ID, NextUpStart, show.E1.ID)
+	check("no progress, specials page", f.P12, show.Specials.ID, NextUpStart, show.Special.ID)
+
+	// P12 completed E1; its newer progress on E2 (own rating 16, hidden from P12) does not count,
+	// and E2 is never its next episode. P16 sees E2.
+	setProgress(t, f, f.P12, show.E1.ID, true, 1)
+	setProgress(t, f, f.P12, show.E2.ID, false, 5)
+	setProgress(t, f, f.P16, show.E1.ID, true, 1)
+	check("hidden episode", f.P12, show.Series.ID, NextUpNext, show.E3.ID)
+	check("hidden episode, season page", f.P12, show.Season.ID, NextUpNext, show.E3.ID)
+	check("visible next", f.P16, show.Series.ID, NextUpNext, show.E2.ID)
+	check("another profile's progress", f.P18, show.Series.ID, NextUpStart, show.E1.ID)
+
+	// P16 finishes the special last: the series page goes on with the first regular episode not
+	// completed; the season page of season 1 does not see the special; the specials page, all of
+	// whose episodes are completed, offers the rewatch.
+	setProgress(t, f, f.P16, show.Special.ID, true, 9)
+	check("newest is a special", f.P16, show.Series.ID, NextUpNext, show.E2.ID)
+	check("season 1 ignores the special", f.P16, show.Season.ID, NextUpNext, show.E2.ID)
+	check("specials page", f.P16, show.Specials.ID, NextUpRewatch, show.Special.ID)
+
+	// Every episode completed: rewatch from the first regular one; the episode is a full summary.
+	setProgress(t, f, f.P16, show.E2.ID, true, 10)
+	setProgress(t, f, f.P16, show.E3.ID, true, 11)
+	check("all watched", f.P16, show.Series.ID, NextUpRewatch, show.E1.ID)
+	d, err := r.Item(ctx, Profile(f.P16), show.Series.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e := d.NextUp.Episode; e.Progress == nil || !e.Progress.Completed || e.SeasonNumber == nil || *e.SeasonNumber != 1 || e.SeriesTitle == "" {
+		t.Errorf("next up episode summary = %+v", e)
+	}
+	// Films and episodes have no next up; a series the profile may not see has no detail.
+	for _, id := range []string{f.Rated(12).ID, show.E1.ID} {
+		if reason, _ := next(f.P16, id); reason != "" {
+			t.Errorf("%s carries next up %s", id, reason)
+		}
+	}
+	if _, err := r.Item(ctx, Profile(f.P6), show.Series.ID); !errors.Is(err, model.ErrNotFound) {
+		t.Errorf("P6 detail of the series rated 12: err = %v, want not found", err)
 	}
 }
