@@ -18,6 +18,7 @@ const SHAPE = {
   genres: 'genre',
   libraries: 'wide',
   library: 'poster',
+  radio: 'wide',
 } as const satisfies Record<HomeRowKey, Shape>;
 
 /** Number of placeholders per shape. */

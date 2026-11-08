@@ -433,7 +433,8 @@
       "released": "Recently released",
       "all": "Show all ›",
       "libraries": "My media",
-      "library": "New in {{library}}"
+      "library": "New in {{library}}",
+      "radio": "My stations"
     },
     "remaining": "{{time}} left",
     "continue": {
@@ -2145,7 +2146,8 @@
         "collections": "Own collections and those from TMDB.",
         "genres": "The genres of the visible titles.",
         "libraries": "One tile per library the profile sees, with the number of titles; it opens the library page.",
-        "library": "The titles that came into this library most recently; “Show all” opens the library sorted by “Recently added”."
+        "library": "The titles that came into this library most recently; “Show all” opens the library sorted by “Recently added”.",
+        "radio": "The favourite stations of the profile as tiles; a station playing through the server right now shows its current title. Without favourites the row is left out."
       },
       "pageLink": "Go to “{{page}}”",
       "moved": "{{row}} is now at position {{position}}. Save to apply it.",

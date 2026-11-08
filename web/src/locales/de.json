@@ -433,7 +433,8 @@
       "released": "Kürzlich veröffentlicht",
       "all": "Alle anzeigen ›",
       "libraries": "Meine Medien",
-      "library": "Neu in {{library}}"
+      "library": "Neu in {{library}}",
+      "radio": "Meine Sender"
     },
     "remaining": "Noch {{time}}",
     "continue": {
@@ -2145,7 +2146,8 @@
         "collections": "Eigene Sammlungen und die von TMDB.",
         "genres": "Die Genres der sichtbaren Titel.",
         "libraries": "Eine Kachel je Bibliothek, die das Profil sieht, mit der Zahl der Titel; führt zur Bibliotheksseite.",
-        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; «Alle anzeigen» führt zur Bibliothek, sortiert nach «Zuletzt hinzugefügt»."
+        "library": "Die zuletzt in diese Bibliothek gekommenen Titel; «Alle anzeigen» führt zur Bibliothek, sortiert nach «Zuletzt hinzugefügt».",
+        "radio": "Die Lieblingssender des Profils als Kacheln; läuft ein Sender gerade über den Server, mit seinem aktuellen Titel. Ohne Favoriten fehlt die Reihe."
       },
       "pageLink": "Zur Seite «{{page}}»",
       "moved": "{{row}} steht jetzt auf Platz {{position}}. Speichere, damit es gilt.",

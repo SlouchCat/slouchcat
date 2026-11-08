@@ -18,6 +18,8 @@ const config = (overrides: Partial<RadioConfig> = {}): RadioConfig => ({
   maxRelays: 10,
   graceSeconds: 120,
   hideBroken: true,
+  coverMusicbrainz: true,
+  coverItunes: true,
   countries: null,
   bufferMode: 'tmpfs',
   maxRelaysByBudget: 11,
