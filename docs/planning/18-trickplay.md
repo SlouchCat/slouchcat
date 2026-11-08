@@ -1,7 +1,7 @@
 # Konzept: Vorschau beim Spulen (Trickplay) für Filme und Serien
 
-- **Status: Fassung 1 (8. November 2026), Entwurf mit Messungen, Fragen F-1 bis F-9 offen
-  (Abschnitt 11).** Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
+- **Status: Fassung 2 (8. November 2026), Messungen und Marcos Antworten F-1 bis F-11
+  eingearbeitet (Abschnitt 11); Kritiker-Review steht aus.** Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
   Folgen, erzeugt **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange
   das dauert und ob die Bilder gespeichert werden. Grundlage ist Idee 05
   (`docs/ideas/05-trickplay.md`, aus Konzept 13 V-21, Frage 19 F-7 «später»).
@@ -11,8 +11,9 @@
   `main` **`0025`**, letzte Frage im Entscheidungsprotokoll **24**. Reserviert und nicht gebaut:
   Konzept 17 Stufe 2 (Vertrag 1.20.0) und Stufe 3 (Vertrag 1.21.0, Migration 00040, ADR 0026).
 - **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25** und **ADR 0027**
-  («Trickplay: Erzeugen beim Start, Springen an Keyframes, Ablage im Cache»). Vertrag: vorläufig
-  **1.22.0 additiv**, endgültig beim Baubeginn. **Keine Migration** (Abschnitt 8.3).
+  («Trickplay: Erzeugen beim Start, Springen an Keyframes, Modus je Bibliothek»). Vertrag:
+  vorläufig **1.22.0 additiv**, **eine Migration**, vorläufig **00041** (Spalte
+  `libraries.trickplay_mode`, Abschnitt 8.3); beide endgültig beim Baubeginn.
 - `:Zeile`-Angaben beziehen sich auf `6c05eda7`; **nach Namen suchen, nicht nach Zeile.** Pfade
   ohne Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App).
 - Massgeblich bleiben `docs/spec/01-anforderungen-v1.md`, `docs/planning/04-entscheidungen.md` und
@@ -36,9 +37,12 @@
   Ein Film belegt rund 4 MB, eine Folge 1 bis 2 MB. Selbst der ganze Bestand (rund 31 000 Stunden)
   käme auf etwa 55 GB, nur die geschauten Titel auf wenige GB. Jedes Mal neu erzeugen hiesse
   dagegen bei jedem Start wieder 1 bis 2 CPU-Minuten und einige hundert MB NAS-Lesen.
-- **Empfehlung:** erzeugen beim Start, **dauerhaft im Cache speichern** (bis sich die Datei ändert
-  oder verschwindet), Bildpunkt **am nächsten Keyframe** statt bildgenau, Nachholen für den ganzen
-  Bestand als Knopf mit ausgeschaltetem Zeitplan wie bei den Kapitelbildern.
+- **Marcos Entscheid (F-1 bis F-11):** Jede Film- und Serienbibliothek wählt
+  **«Speichern»** (ab Werk), **«Bei jedem Start erzeugen»** oder **«Aus»**. Beim Speichern entstehen
+  die Bilder beim Start, für neue Dateien und per Nachholen (Knopf und Zeitplan, Zeitplan ab Werk
+  aus), wie bei Emby. Beim Erzeugen je Start entstehen sie nur für die laufende Wiedergabe und
+  werden danach gelöscht. Bildpunkt **am nächsten Keyframe**, alle **10 s**, **320 px**, zwei
+  ffmpeg-Prozesse, alle Profile; Downloads nehmen die Vorschau mit.
 
 ## 1. Was Marco will
 
@@ -57,6 +61,7 @@
 | Frage 19, F-7: Trickplay **«später»**; Konzept 13 V-21 entfällt, Idee 05 | Trickplay wird gebaut (dieses Papier) | Marcos Auftrag vom 8. November 2026 |
 | Idee 05 Abschnitt 7: «Ein Durchlauf liest die **ganze Datei**» | Ein Durchlauf liest **nur die Keyframes an den Bildpunkten**, rund 1 MB je Bild | Messung 3.2: der Sprung kostet 0,4 bis 1 MB, nicht 6 bis 23 MB, wenn ffmpeg mit `-fps_mode passthrough` läuft |
 | Konzept 13, 11.6: Kapitelbilder **nie während der Wiedergabe**, erst 10 Minuten nach dem Ende | Trickplay läuft **während** der Wiedergabe, gleich nach dem Start (T-2) | Messung 3.4: ein QSV-Transcode daneben bleibt schneller als Echtzeit; die NAS-Last ist klein. Die Regel für Kapitelbilder bleibt unverändert |
+| Bibliotheken haben keine Einstellung zu erzeugten Bildern | Neue Einstellung **«Vorschau beim Spulen»** je Film- und Serienbibliothek (F-1, F-10) | Marco: «Parameter in den Einstellungen», «analog Emby» |
 
 ## 3. Messungen
 
@@ -169,71 +174,118 @@ Nur geschaute Titel: einige hundert im Jahr, also **unter 2 GB im Jahr**.
 ## 4. Überblick der Lösung
 
 ```
-Start einer Wiedergabe (playback.Start)
-   └─ trickplay.generate für die Mediendatei einreihen (falls noch kein fertiger Satz da ist)
-        └─ Worker im Pool «trickplay» (1 Arbeiter, 2 ffmpeg-Prozesse)
-             ├─ Bildpunkte bestimmen: alle 10 s das nächste Keyframe aus dem Keyframe-Index
-             ├─ Reihenfolge: Blatt der Startposition zuerst, dann vorwärts, dann rückwärts
-             ├─ je Bildpunkt: transcode.Runner.GrabTrickplayFrame (Sprung, ein Bild)
-             └─ je fertiges Blatt: Kacheln zu WebP fügen, ablegen, Blatt freigeben
-App: PlaybackInfo.trickplay sagt Raster und fertige Blätter; der Player fragt nach,
-     solange der Satz nicht fertig ist, und zeigt bis dahin das Kapitelbild.
+Bibliothek: trickplay_mode = store | per_start | off
+                 store                         per_start                 off
+Start           trickplay.generate  ->  dauerhaft  |  temporär         |  nichts
+Neue Datei      trickplay.generate (Prio 2)        |  nichts            |  nichts
+Nachholen       trickplay.backfill (Knopf, Plan)   |  nichts            |  nichts
+Download        Blätter mitgeben, fehlende zuerst erzeugen (in jedem Modus ausser off)
+Pflege          library.sweep: alte Versionen, verschwundene Dateien, temporäre Sätze ohne
+                Wiedergabe, gespeicherte Sätze von Bibliotheken, die nicht mehr store sind
+
+trickplay.generate (Pool «trickplay», 1 Arbeiter, 2 ffmpeg-Prozesse)
+   ├─ Bildpunkte: alle 10 s das nächste Keyframe aus dem Keyframe-Index
+   ├─ Reihenfolge: Blatt der Startposition zuerst, dann vorwärts, dann rückwärts
+   ├─ je Bildpunkt: transcode.Runner (Sprung, ein Bild)
+   └─ je fertiges Blatt: Kacheln zu WebP fügen, ablegen, freigeben
+App: PlaybackInfo.trickplay nennt Raster und fertige Blätter; der Player fragt nach, solange der
+     Satz nicht fertig ist, und zeigt bis dahin das Kapitelbild.
 ```
 
-## 5. Erzeugen beim Start (T-2)
+## 5. Erzeugen (T-2)
 
-1. **Auslöser:** `playback.Start` reiht nach dem Muster von `queueKeyframes` den Job
-   `trickplay.generate` (Payload `{"mediaFileId", "startMs"}`, Schlüssel `trickplay:<id>`) ein,
-   wenn die Datei ein Film oder eine Folge ist (`chapterKind`), einen Video-Stream hat und noch
-   kein fertiger Satz der aktuellen Version im Cache liegt. Ein schon wartender Job derselben
-   Datei wird nur angehoben. Hörbücher, Podcasts und Radio bekommen nie Trickplay.
-2. **Priorität:** über allen Hintergrundjobs ausser den Keyframe-Aufträgen für eine Wiedergabe;
-   läuft wie diese **trotz Pause** der Jobart (Muster ADR 0022, `EnqueueOverridingPause`), weil
-   der Zuschauer gerade wartet. Höchstens **ein** Trickplay-Job gleichzeitig (eigener Pool
-   `trickplay` mit einem Arbeiter), damit zwei gleichzeitige Starts den CT nicht doppelt belasten.
-   Der Job nutzt **zwei** ffmpeg-Prozesse; läuft gerade ein Transcode mit CPU-Tonemapping oder
-   ein reiner CPU-Transcode, nur **einen**.
-3. **Reihenfolge:** zuerst das Blatt, in dem die Startposition liegt, dann die folgenden Blätter,
-   zuletzt die davor. So hat ein Zuschauer, der mitten im Film weiterschaut, die Vorschau dort
-   zuerst. Ein Blatt (100 Bilder) braucht auf CT 190 rund **5 s** (WEB-DL) bis **10 s** (Bluray).
-4. **Teilergebnis:** Jedes fertige Blatt ist sofort abrufbar. Bricht der Job ab (Neustart des
-   Servers, Datei offline), bleiben fertige Blätter erhalten, und der nächste Lauf macht nur den
-   Rest.
-5. **Bildpunkte:** Für jeden 10-s-Abschnitt das **nächste** Keyframe aus dem gespeicherten
-   Keyframe-Index (`media_files.keyframes`, ADR 0022; auf CT 190 haben 3 019 von 3 106 Dateien
-   einen). Der Sprung geht dann genau auf dieses Keyframe, ffmpeg dekodiert ein Bild. Liegen zwei
-   Abschnitte auf demselben Keyframe (Abstand über 10 s), bekommt der zweite das folgende Keyframe;
-   gibt es keins im Abschnitt, wiederholt er das Bild. Ohne Index (`none`, noch ausstehend)
-   springt der Job mit `-noaccurate_seek` an den Abschnittsanfang (Keyframe davor, Messung 3.2).
-6. **Schwarze Bilder** werden behalten: Die Vorschau zeigt, was an der Stelle ist; anders als
+1. **Auslöser beim Start:** `playback.Start` reiht nach dem Muster von `queueKeyframes` den Job
+   `trickplay.generate` ein (Payload `{"mediaFileId", "startMs", "mode"}`, Schlüssel
+   `trickplay:<id>`), wenn die Bibliothek nicht `off` ist, die Datei ein Film oder eine Folge mit
+   Video-Stream ist (`chapterKind`) und kein fertiger Satz der aktuellen Version vorliegt (gespeichert
+   oder temporär). Ein wartender Job derselben Datei wird nur angehoben. Hörbücher, Podcasts und
+   Radio bekommen nie Trickplay.
+2. **Auslöser neue Datei** (nur `store`, F-5): der Probe einer Datei, die ein Scan nach einem
+   vollständigen Scan der Bibliothek hinzufügte oder änderte, reiht den Job mit **Priorität 2** ein
+   (Muster `probeJob`/`chapterImages`). Anders als bei den Kapitelbildern wartet er nicht auf das
+   Ende einer laufenden Wiedergabe der Datei.
+3. **Priorität beim Start:** über allen Hintergrundjobs ausser den Keyframe-Aufträgen für eine
+   Wiedergabe; läuft wie diese **trotz Pause** der Jobart (Muster ADR 0022,
+   `EnqueueOverridingPause`), weil der Zuschauer wartet. Höchstens **ein** Trickplay-Job
+   gleichzeitig (eigener Pool `trickplay` mit einem Arbeiter); ein Start-Auftrag überholt wartende
+   Aufträge aus Import und Nachholen. Der Job nutzt **zwei** ffmpeg-Prozesse (F-11); läuft gerade
+   ein Transcode mit CPU-Tonemapping oder ein reiner CPU-Transcode, nur **einen**.
+4. **Reihenfolge:** zuerst das Blatt, in dem die Startposition liegt, dann die folgenden Blätter,
+   zuletzt die davor. Ein Blatt (100 Bilder) braucht auf CT 190 rund **5 s** (WEB-DL) bis **10 s**
+   (Bluray). Import und Nachholen beginnen vorne.
+5. **Teilergebnis:** Jedes fertige Blatt ist sofort abrufbar. Bricht der Job ab (Neustart, Datei
+   offline), bleiben fertige Blätter erhalten, und der nächste Lauf macht nur den Rest.
+6. **Bildpunkte** (F-2 «nächstes Keyframe»): Für jeden 10-s-Abschnitt das **nächste** Keyframe aus
+   dem gespeicherten Keyframe-Index (`media_files.keyframes`, ADR 0022; auf CT 190 haben 3 019 von
+   3 106 Dateien einen). Der Sprung geht genau auf dieses Keyframe, ffmpeg dekodiert ein Bild.
+   Liegen zwei Abschnitte auf demselben Keyframe (Abstand über 10 s), bekommt der zweite das
+   folgende Keyframe; gibt es keins im Abschnitt, wiederholt er das Bild. Ohne Index (`none`, noch
+   ausstehend) springt der Job mit `-noaccurate_seek` an den Abschnittsanfang (Keyframe davor,
+   Messung 3.2).
+7. **Schwarze Bilder** werden behalten: Die Vorschau zeigt, was an der Stelle ist; anders als
    beim Kapitelbild gibt es keinen Ersatzpunkt.
-7. **HDR und Dolby Vision:** dieselbe CPU-Tonemapping-Kette wie `GrabFrameArgs` (Messung 3.5).
-8. **Fehler:** Datei nicht lesbar → Muster der Kapitelbilder (`chapterUnreadableRetry` 1 h,
+8. **HDR und Dolby Vision:** dieselbe CPU-Tonemapping-Kette wie `GrabFrameArgs` (Messung 3.5).
+9. **Fehler:** Datei nicht lesbar → Muster der Kapitelbilder (`chapterUnreadableRetry` 1 h,
    Aufgeben nach 7 Tagen); ein einzelner kaputter Bildpunkt wird schwarz gefüllt und protokolliert.
 
-## 6. Speichern oder nicht (T-4)
+## 6. Speichern oder jedes Mal erzeugen (T-4)
 
-| Variante | Was | Dauer beim Start | Speicher | NAS und CPU |
-|---|---|---|---|---|
-| **A Dauerhaft speichern** (Empfehlung) | Blätter im Cache, bis sich die Datei ändert oder verschwindet | beim **ersten** Start 20 bis 45 s (4K HDR bis 2 min), danach **sofort** | ~4 MB je Film, ~1,5 MB je Folge; nur Geschautes: unter 2 GB im Jahr | einmal je Datei |
-| **B Speichern mit Ablauf** | wie A, aber Blätter von Dateien, die N Tage nicht gespielt wurden, löscht die stündliche Pflege | beim ersten Start nach Ablauf wieder 20 bis 45 s | gedeckelt | gelegentlich wieder |
-| **C Nicht speichern** | Blätter nur für die laufende Wiedergabe (im Arbeitsspeicher oder `/tmp`), nach dem Ende gelöscht | **bei jedem Start** 20 bis 45 s ohne vollständige Vorschau | keiner | bei jedem Start 1 bis 2 CPU-Minuten und 350 bis 550 MB NAS |
+### 6.1 Abwägung
 
-**Empfehlung A.** Die Bilder sind so klein, dass Speicher kein Argument ist; C verschwendet Arbeit
-bei jeder Wiederholung und lässt jede zweite Sichtung genau dort ohne Vorschau, wo man oft spult
-(Weiterschauen). B lohnt sich erst, wenn der Cache knapp wird; der Bild-Cache von CT 190 hat
-heute 35 GB frei. Die Ablage richtet sich nach den Kapitelbildern:
+| Modus | Dauer beim Start | Speicher | NAS und CPU |
+|---|---|---|---|
+| **Speichern** (`store`, ab Werk) | beim **ersten** Start 20 bis 45 s (4K HDR bis 2 min), danach **sofort**; neue Dateien haben die Vorschau meist schon vor dem ersten Start | ~4 MB je Film, ~1,5 MB je Folge; ganzer Bestand ~55 GB | einmal je Datei |
+| **Bei jedem Start erzeugen** (`per_start`) | **bei jedem Start** 20 bis 45 s, bis dahin nur Teilvorschau | nur während der Wiedergabe | jeder Start 1 bis 2 CPU-Minuten und 350 bis 550 MB NAS |
+| **Aus** (`off`) | keine Vorschau, Zeitleiste wie heute mit Kapitelbild | keiner | keine |
+
+Marco will beides als **Einstellung je Bibliothek** (F-1, F-10), ab Werk **Speichern** (F-11).
+Gedacht ist «Bei jedem Start erzeugen» für Bibliotheken, deren Bilder nicht dauerhaft auf dem
+Server liegen sollen oder deren Cache knapp ist.
+
+### 6.2 Ablage beim Speichern
 
 - Ordner `cache/trickplay/<mediaFileId>-<probedAt>/` mit `manifest.json` (Abstand, Kachelgrösse,
-  Raster, Liste der Bildpunkte in ms) und `<blatt>.webp`. Ein neuer Probe ergibt einen neuen
-  Ordner; die stündliche `library.sweep` löscht Ordner anderer Versionen, verschwundener Dateien und
-  gelöschter Titel (Muster `sweepChapterImages`).
+  Raster, Liste der Bildpunkte in ms) und `<blatt>.webp`. Ein neuer Probe ergibt einen neuen Ordner.
 - Ein Ordner, der noch geschrieben wird, heisst `.tmp-…`; fertige Blätter werden einzeln per
   Umbenennen veröffentlicht, das Manifest zuletzt.
-- **Nachholen** für den ganzen Bestand: Jobart `trickplay.backfill` mit Knopf auf der Seite
-  «Hintergrundjobs» und Zeitplan **aus** ab Werk (Muster `chapters.images_backfill`, Priorität 1).
-  Dauer auf CT 190 bei 2 Prozessen rund **36 s je Stunde Video**, für den ganzen Bestand also gut
-  **13 Tage** Dauerlauf; darum nur auf ausdrücklichen Wunsch.
+- **Nachholen** (F-5): Jobart `trickplay.backfill` mit Knopf auf der Seite «Hintergrundjobs» und
+  Zeitplan (alle 7 Tage), **Zeitplan ab Werk aus** (F-11); reiht `trickplay.generate` mit
+  Priorität 1 für jede Datei einer `store`-Bibliothek ohne Satz ein (Muster
+  `chapters.images_backfill`). Dauer auf CT 190 bei 2 Prozessen rund **36 s je Stunde Video**, für
+  den ganzen Bestand gut **13 Tage** Dauerlauf.
+
+### 6.3 Ablage beim Erzeugen je Start
+
+- Ordner `cache/trickplay-session/<mediaFileId>-<probedAt>/`, sonst gleich aufgebaut. Laufen zwei
+  Wiedergaben derselben Datei, teilen sie den Satz.
+- Die stündliche Pflege und zusätzlich der Wiedergabe-Abschluss (Muster
+  `QueueChapterImagesAfterPlayback`) löschen einen Satz, sobald **10 Minuten** lang keine Wiedergabe
+  der Datei mehr lief (`chapterPlayingWindow`-Regel). So überlebt er einen Spur- oder
+  Qualitätswechsel und eine kurze Pause, nicht aber den Abend.
+- Es gibt kein Nachholen und keinen Import-Auftrag.
+
+### 6.4 Umstellen (F-12)
+
+Stellt der Admin eine Bibliothek von «Speichern» auf «Bei jedem Start erzeugen» oder «Aus»,
+**löscht die nächste stündliche Pflege die gespeicherten Sätze dieser Bibliothek**; wartende
+Import- und Nachhol-Aufträge enden ohne Arbeit. Von «Aus» oder «Bei jedem Start» auf
+«Speichern» entsteht nichts sofort; neue Starts und Dateien erzeugen, der Bestand kommt per
+Nachholen. Ein gerade laufender Satz einer Wiedergabe bleibt bis zu deren Ende.
+
+### 6.5 Pflege
+
+Die stündliche `library.sweep` löscht (Muster `sweepChapterImages`): Sätze anderer Versionen,
+verschwundener Dateien und gelöschter Titel, temporäre Sätze ohne Wiedergabe seit 10 Minuten,
+gespeicherte Sätze aus Bibliotheken, die nicht mehr `store` sind, und `.tmp-`-Ordner älter als
+6 Stunden.
+
+### 6.6 Downloads (F-6)
+
+Ein Download eines Films oder einer Folge nimmt die Blätter mit (rund 4 MB je Film), in jedem Modus
+ausser «Aus». Fehlt der Satz beim Vorbereiten des Downloads, reiht der Download-Job
+`trickplay.generate` ein und wartet höchstens auf dessen Ende; scheitert er, lädt der Download ohne
+Vorschau. Beim Modus «Bei jedem Start erzeugen» kommen die Blätter in den Download-Ordner, nicht in
+den Server-Cache. Die PWA legt sie mit dem Download ab und zeigt sie offline.
 
 ## 7. Datenformat
 
@@ -253,7 +305,9 @@ heute 35 GB frei. Die Ablage richtet sich nach den Kapitelbildern:
 | Paket | Änderung |
 |---|---|
 | `transcode` | `Runner.GrabTrickplayFrames` (ffmpeg-Aufruf aus 3.2, Tonemapping wie `GrabFrameArgs`), `TrickplaySheetArgs` (Kacheln zu WebP über `tile` aus den Einzelbildern); `os/exec` bleibt hier (Regel 3) |
-| `library` | `trickplay.go`: Jobarten `trickplay.generate` und `trickplay.backfill`, Bildpunkte aus dem Keyframe-Index, Ablage, Pflege in `library.sweep`, `QueueTrickplayForPlayback` |
+| `library` | `trickplay.go`: Jobarten `trickplay.generate` und `trickplay.backfill`, Bildpunkte aus dem Keyframe-Index, Ablage je Modus, Pflege in `library.sweep`, Auslöser im Probe, `QueueTrickplayForPlayback` |
+| `admin` | Bibliotheksformular: Feld `trickplayMode` lesen und schreiben |
+| `offline` | Manifest des Downloads mit den Blättern (6.6) |
 | `playback` | `Start` reiht ein (5.1), `PlaybackInfo.trickplay` aus dem Manifest |
 | `jobs` | Pool `trickplay` mit einem Arbeiter |
 | `api` | Handler für die Blätter (Regel 6) |
@@ -268,12 +322,21 @@ heute 35 GB frei. Die Ablage richtet sich nach den Kapitelbildern:
 - `GET /items/{id}/trickplay/{sheet}?mediaFileId=&v=` (`getTrickplaySheet`, `http.Handler`,
   `x-visibility: scoped`, `image/webp`): Caching wie `getChapterImage` (`immutable` mit passendem
   `v`). Unbekannter, unsichtbarer oder altersgesperrter Titel, fremde Datei, fehlendes Blatt → 404.
-- Beide Operationen im Vertragstest (`TestContractCoversEveryOperation`).
+- `Library.trickplayMode` (`store` | `per_start` | `off`) in den Admin-Operationen der
+  Bibliotheken (lesen, anlegen, ändern), nur bei `movies` und `series`.
+- Das Download-Manifest (`DownloadManifest`) bekommt optional dasselbe `trickplay` mit relativen
+  Pfaden der Blätter.
+- Beide neuen Operationen im Vertragstest (`TestContractCoversEveryOperation`).
 
 ### 8.3 Datenbank
 
-**Keine Migration.** Der Zustand steckt wie bei den Kapitelbildern im Cache-Ordner (fertig, teilweise,
-fehlt); die Version ist `probedAt`. Die Jobs nutzen die vorhandene Tabelle `jobs`.
+**Eine Migration** (vorläufig 00041, nach Vorlage, nur vorwärts):
+`ALTER TABLE libraries ADD COLUMN trickplay_mode TEXT NOT NULL DEFAULT 'store' CHECK (trickplay_mode
+IN ('store', 'per_start', 'off'))`. Bestehende Film- und Serienbibliotheken stehen damit auf
+«Speichern» (F-11); bei Hörbuch- und Podcast-Bibliotheken bleibt die Spalte ohne Wirkung. Der
+Zustand der Sätze steckt wie bei den Kapitelbildern im Cache-Ordner (fertig, teilweise, fehlt), die
+Version ist `probedAt`; die Jobs nutzen die Tabelle `jobs`. Eingefrorener DB-Stand in `testdata/db/`
+nach Regel 5.
 
 ## 9. Die App
 
@@ -285,9 +348,14 @@ fehlt); die Version ist `probedAt`. Die Jobs nutzen die vorhandene Tabelle `jobs
 - **Laden:** nur das Blatt unter dem Zeiger und das nächste; der Browser-Cache hält sie
   (`immutable`). Solange `complete` falsch ist, fragt der Player `getTrickplay` alle 10 s nach,
   höchstens 5 Minuten lang.
-- **Offline:** siehe F-6.
+- **Offline:** Die PWA speichert die Blätter mit dem Download und zeigt sie aus dem Speicher (6.6).
+- **Verwaltung, Bibliotheksformular:** neues Auswahlfeld «Vorschau beim Spulen» mit «Speichern»,
+  «Bei jedem Start erzeugen» und «Aus», darunter ein Satz zu Speicherbedarf und Dauer; nur bei Film-
+  und Serienbibliotheken. Die Seite «Hintergrundjobs» zeigt die Jobarten `trickplay.generate` und
+  `trickplay.backfill` mit Knopf und Zeitplan wie die Kapitelbilder.
 - Texte nur aus `locales`, Farben nur aus Tokens (Regel 9); keine neue Seite, also kein neuer
-  Tastaturtest, aber der bestehende Test der Abspielseite prüft die Kachel bei ←/→ (Regel 8).
+  Tastaturtest; die bestehenden Tests der Abspielseite (Kachel bei ←/→) und des
+  Bibliotheksformulars (neues Feld per Tastatur) werden erweitert (Regel 8).
 
 ## 10. Harte Regeln
 
@@ -302,33 +370,37 @@ fehlt); die Version ist `probedAt`. Die Jobs nutzen die vorhandene Tabelle `jobs
 | 11 Nicht-Ziele | berührt keins |
 | 12 Entscheid im Server | Sichtbarkeit und Version entscheidet der Server, die App zeigt nur |
 
-## 11. Fragen an Marco
+## 11. Fragen an Marco und seine Antworten (8. November 2026)
 
-| Nr. | Frage | Empfehlung |
-|---|---|---|
-| F-1 | **Speichern:** A dauerhaft, B mit Ablauf nach N Tagen ohne Wiedergabe, oder C nicht speichern? | **A** (Abschnitt 6) |
-| F-2 | **Genauigkeit:** Bild am **nächsten Keyframe** (bis zu einige Sekunden daneben, schnell) oder **bildgenau** (sechsfache CPU, Film auf CT 190 rund 3 bis 6 Minuten)? | **Keyframe** |
-| F-3 | **Abstand:** alle **10 s** (Standard bei Jellyfin und Emby) oder enger, z. B. 5 s (doppelte Zeit und Grösse)? | **10 s** |
-| F-4 | **Bildgrösse:** **320 px** (1,3 bis 1,8 MB/h) oder 480 px für grosse Bildschirme (3,3 MB/h)? | **320 px** |
-| F-5 | **Nachholen** für den ganzen Bestand: Knopf mit Zeitplan aus (rund 13 Tage Dauerlauf, ~55 GB), oder gar nicht? | **Knopf, Zeitplan aus** |
-| F-6 | **Offline:** Nimmt ein Download die Vorschau mit (rund 4 MB je Film)? | **Ja** |
-| F-7 | **Zwei ffmpeg-Prozesse** während einer Wiedergabe, oder nur einer (halbe Geschwindigkeit, halbe Last)? | **Zwei** (Messung 3.4) |
-| F-8 | **Auch für Titel ohne Wiedergabe** beim Einlesen neuer Dateien (wie Kapitelbilder)? | **Nein**, nur beim Start und per Nachholen |
-| F-9 | Sollen **alle Profile** die Vorschau sehen, auch Kinderprofile? | **Ja**, es sind Bilder aus dem Titel, den das Profil ohnehin sieht |
+| Nr. | Frage | Empfehlung | Antwort |
+|---|---|---|---|
+| F-1 | Speichern: dauerhaft, mit Ablauf oder nicht? | dauerhaft | **Einstellung**: speichern oder bei jedem Start erzeugen (6.1) |
+| F-2 | Genauigkeit: nächstes Keyframe oder bildgenau? | Keyframe | **Nächstes Keyframe** |
+| F-3 | Abstand 10 s? | 10 s | **10 s** |
+| F-4 | Bildgrösse 320 px? | 320 px | **320 px** |
+| F-5 | Nachholen für den Bestand? | Knopf, Zeitplan aus | **Beim Speichern: Knopf, Zeitplan und neue Dateien, analog Emby** |
+| F-6 | Downloads mit Vorschau? | ja | **Ja** |
+| F-7 | Zwei ffmpeg-Prozesse während einer Wiedergabe? | zwei | **Zwei** |
+| F-8 | Auch beim Einlesen neuer Dateien? | nein | **Ja, beim Speichern** (siehe F-5) |
+| F-9 | Alle Profile, auch Kinder? | ja | **Ja** |
+| F-10 | Wo liegt die Einstellung? | je Bibliothek | **Je Bibliothek** |
+| F-11 | Ab Werk? | Speichern, Zeitplan aus | **Speichern, Zeitplan aus** |
+| F-12 | Gespeicherte Bilder beim Umstellen weg «Speichern»? | löschen | **Löschen** |
 
 ## 12. Bauplan
 
-Eine Stufe, ein Release (Vertrag vorläufig 1.22.0), nach Konzept 17.
+Eine Stufe, ein Release (Vertrag vorläufig 1.22.0, Migration vorläufig 00041), nach Konzept 17.
 
 | Schritt | Inhalt | Tage |
 |---|---|---|
-| 0 | Frage 25 und ADR 0027, Idee 05 auf «beauftragt» | 0,5 |
+| 0 | Frage 25 und ADR 0027, Idee 05 auf «übernommen» | 0,5 |
 | 1 | `transcode`: Bildpunkt-Aufruf, Blatt-Aufruf, Tests mit den Testmedien (SDR, HDR, anamorph) | 1 |
-| 2 | `library`: Jobs, Bildpunkte aus dem Keyframe-Index, Ablage, Pflege, Pool `trickplay` | 1,5 |
-| 3 | Vertrag, Handler, `PlaybackInfo.trickplay`, `playback.Start`, Vertragstest | 1 |
-| 4 | App: `SeekBar` mit Kachel, Nachfragen, Storybook, Playwright | 1 |
-| 5 | Messung auf CT 190 (Start, Blattzeit, Last neben Transcode), `docs/perf/18-trickplay.md` | 0,5 |
-| | **Summe** | **5,5** |
+| 2 | Migration, `admin`: `trickplayMode` im Bibliotheksformular (Server) | 0,5 |
+| 3 | `library`: Jobs, Bildpunkte aus dem Keyframe-Index, Ablage je Modus, Auslöser Start/Import/Nachholen, Pflege, Pool `trickplay` | 2 |
+| 4 | Vertrag, Handler, `PlaybackInfo.trickplay`, `playback.Start`, Download-Manifest, Vertragstest | 1,5 |
+| 5 | App: `SeekBar` mit Kachel, Nachfragen, Offline-Ablage, Feld im Bibliotheksformular, Storybook, Playwright | 1,5 |
+| 6 | Messung auf CT 190 (Start, Blattzeit, Last neben CPU- und QSV-Transcode), `docs/perf/18-trickplay.md` | 0,5 |
+| | **Summe** | **7,5** |
 
 ## Anhang: Messskripte
 
