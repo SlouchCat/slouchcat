@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 
 	"github.com/slouchcat/slouchcat/server/internal/updater"
@@ -18,8 +19,9 @@ import (
 
 // The compose files travel with the release (ADR 0024 addendum point 3): the manifest names them
 // (deploy: base name → sha256), and an install replaces every compose file of the running project
-// whose name it lists and whose content differs, before the pull. Other files (own overrides, the
-// env files) are never touched.
+// whose name it lists and whose content is one of an earlier release (deployKnown), before the
+// pull. A compose file with own changes stays and is named in the message. Other files (own
+// overrides, the env files) are never touched.
 
 // deployFile is a compose file of the running project that the release replaces.
 type deployFile struct {
@@ -28,70 +30,94 @@ type deployFile struct {
 }
 
 // replaceDeployFiles replaces the compose files of the project that the manifest names with a
-// different content. It fetches all of them first and checks size and sha256, backs each up under
+// different content (deployFiles). It fetches all of them first and checks size and sha256, backs each up under
 // one suffix that is free for every compose file of the project (<file>.bak-vor-<to>, -2, …;
 // never over an existing backup), records the suffix in s.DeployBackup and state.json, and only
 // then replaces the files atomically, mode and owner kept. It returns the originals of what it
 // replaced, so that a later failure puts them back (putBack). On an error it puts back what it
-// replaced itself and returns none.
-func (u *Updater) replaceDeployFiles(ctx context.Context, p plan, s *updater.State) ([]envFile, error) {
-	files, err := u.deployFiles(ctx, p)
+// replaced itself and returns none. note names the files left alone for own changes, for the
+// message of the install.
+func (u *Updater) replaceDeployFiles(ctx context.Context, p plan, s *updater.State) (replaced []envFile, note string, err error) {
+	files, kept, err := u.deployFiles(ctx, p)
+	for _, name := range kept {
+		note = withNote(note, name+" has own changes and was not replaced; compare it with the release file")
+	}
 	if err != nil || len(files) == 0 {
-		return nil, err
+		return nil, note, err
 	}
 	suffix, err := freeSuffix(p.project.ConfigFiles, p.to)
 	if err != nil {
-		return nil, err
+		return nil, note, err
 	}
 	for _, f := range files {
 		if err := f.old.saveAs(f.old.path + suffix); err != nil {
-			return nil, fmt.Errorf("back up %s: %w", filepath.Base(f.old.path), err)
+			return nil, note, fmt.Errorf("back up %s: %w", filepath.Base(f.old.path), err)
 		}
 	}
 	s.DeployBackup = suffix
 	u.set(*s) // names the backups before a file changes: a start after an interruption puts them back
-	var replaced []envFile
 	for _, f := range files {
 		replaced = append(replaced, f.old) // before the write: the rename may happen before an error
 		if err := f.old.write(f.data); err != nil {
 			u.restoreDeploy(replaced)
-			return nil, fmt.Errorf("write %s: %w", filepath.Base(f.old.path), err)
+			return nil, note, fmt.Errorf("write %s: %w", filepath.Base(f.old.path), err)
 		}
 		u.log.Info("updater: compose file replaced", "file", f.old.path, "backup", filepath.Base(f.old.path+suffix))
 	}
-	return replaced, nil
+	return replaced, note, nil
 }
 
-// deployFiles returns the compose files of the project that the manifest names and whose sha256
-// differs, each with the content of the release. A file listed twice (or through a link) counts
+// deployFiles returns the compose files of the project that the manifest names and that lie in
+// the project folder itself (link resolved too), each with the content of the release. A file is
+// replaced only when its sha256 is one of an earlier release (deployKnown); one that already has
+// the new content needs nothing, and every other one has own changes (or the manifest knows no
+// earlier content): it stays, and kept names it. A file listed twice (or through a link) counts
 // once; a listed file that does not exist is left alone.
-func (u *Updater) deployFiles(ctx context.Context, p plan) ([]deployFile, error) {
-	var files []deployFile
+func (u *Updater) deployFiles(ctx context.Context, p plan) (files []deployFile, kept []string, err error) {
 	seen := map[string]bool{}
+	workDir := filepath.Clean(p.project.WorkingDir)
+	resolvedDir := workDir
+	if d, err := filepath.EvalSymlinks(workDir); err == nil {
+		resolvedDir = d
+	}
 	for _, name := range p.project.ConfigFiles {
 		base := filepath.Base(name)
 		want, ok := p.deploy[base]
 		if !ok {
 			continue
 		}
+		if filepath.Dir(filepath.Clean(name)) != workDir {
+			u.log.Info("updater: compose file not in the project folder, not replaced", "file", name)
+			continue
+		}
 		old, err := readEnvFile(name, u.cfg.uid, u.cfg.gid)
 		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", base, err)
+			return nil, kept, fmt.Errorf("read %s: %w", base, err)
 		}
 		if !old.exists || seen[old.path] {
 			continue
 		}
 		seen[old.path] = true
-		if hexSum(old.data) == want {
+		if filepath.Dir(old.path) != resolvedDir {
+			u.log.Info("updater: compose file links out of the project folder, not replaced", "file", name, "target", old.path)
+			continue
+		}
+		sum := hexSum(old.data)
+		if sum == want {
+			continue
+		}
+		if !slices.Contains(p.known[base], sum) {
+			u.log.Warn("updater: compose file has own changes, not replaced", "file", name)
+			kept = append(kept, base)
 			continue
 		}
 		data, err := u.fetchDeployFile(ctx, p.to, base, want)
 		if err != nil {
-			return nil, err
+			return nil, kept, err
 		}
 		files = append(files, deployFile{old: old, data: data})
 	}
-	return files, nil
+	return files, kept, nil
 }
 
 // fetchDeployFile reads the release file name of version and checks its size and sha256.

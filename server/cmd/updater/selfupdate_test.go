@@ -56,20 +56,23 @@ func TestSelfUpdate(t *testing.T) {
 		t.Errorf("pull = %v", c)
 	}
 	compose, upd := filepath.Join(h.deploy, "compose.yaml"), filepath.Join(h.deploy, "compose.updater.yaml")
-	want := []string{"-d", "--rm", "--name", "slouchcat-updater-self-update", "--network", "none",
-		"-v", "/var/run/docker.sock:/var/run/docker.sock", "-v", h.deploy + ":" + h.deploy,
-		"--entrypoint", "/usr/local/bin/slouchcat-updater", updImage, "self-update",
-		"--project", "slouchcat", "--workdir", h.deploy, "-f", compose, "-f", upd, "--env-file", h.env,
-		"--service", "updater", "--env", h.env, "--backup", ".env.bak-vor-updater-1.18.0", "--container", "slouchcat-updater"}
+	p, r := h.u.projectOf(*h.fake.self, defaultUpdaterContainer)
+	if r != nil {
+		t.Fatal(r)
+	}
+	want := helperArgs(h.u.cfg, p, updImage, h.env, ".env.bak-vor-updater-1.18.0", "1.17.0")
 	if len(h.fake.runs) != 1 || !slices.Equal(h.fake.runs[0], want) {
 		t.Fatalf("docker run = %q\nwant %q", h.fake.runs, want)
 	}
+	if slices.Contains(want, "--rm") || !slices.Contains(want, updImage) {
+		t.Errorf("docker run = %q", want)
+	}
 	// The helper takes these arguments back.
-	hp, err := parseHelper(want[slices.Index(want, "self-update")+1:])
-	if err != nil || hp.project.Name != "slouchcat" || hp.project.WorkingDir != h.deploy ||
+	hp, ignored, err := parseHelper(want[slices.Index(want, "self-update")+1:])
+	if err != nil || len(ignored) != 0 || hp.project.Name != "slouchcat" || hp.project.WorkingDir != h.deploy ||
 		!slices.Equal(hp.project.ConfigFiles, []string{compose, upd}) || !slices.Equal(hp.project.EnvFiles, []string{h.env}) ||
-		hp.env != h.env || hp.backup != ".env.bak-vor-updater-1.18.0" || hp.container != "slouchcat-updater" {
-		t.Errorf("parseHelper = %+v, %v", hp, err)
+		hp.env != h.env || hp.backup != ".env.bak-vor-updater-1.18.0" || hp.oldVersion != "1.17.0" || hp.container != "slouchcat-updater" {
+		t.Errorf("parseHelper = %+v, %v, ignored %v", hp, err, ignored)
 	}
 	// The helper recreates this container: /install stays busy meanwhile; state.json is untouched.
 	if status, s := h.install(); status != http.StatusConflict || s.Code != updater.CodeBusy {
@@ -104,6 +107,7 @@ func TestSelfUpdateConditions(t *testing.T) {
 			}
 		}},
 		{"own container missing", func(h *harness) { h.fake.self = nil }},
+		{"helper runs", func(h *harness) { h.fake.helper = &Container{Running: true, Status: "running"} }},
 		{"own container outside", func(h *harness) { h.fake.self.Labels[labelConfigFiles] = "/etc/compose.yaml" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -131,6 +135,10 @@ func TestSelfUpdateFailure(t *testing.T) {
 		{"pull", func(h *harness) { h.fake.pullErr = errors.New("exit status 1") }},
 		{"digest", func(h *harness) { h.fake.selfDigs = []string{"ghcr.io/slouchcat/slouchcat-updater@" + testDigest} }},
 		{"helper", func(h *harness) { h.fake.runErr = errors.New("name in use") }},
+		{"helper exits early", func(h *harness) {
+			h.fake.logs = []string{"updater self-update: arguments err=flag x needs a value"}
+			h.fake.afterRun = func(f *fakeDocker) { f.helper = &Container{Status: "exited", ExitCode: 2} }
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			h := selfHarness(t)
@@ -139,6 +147,14 @@ func TestSelfUpdateFailure(t *testing.T) {
 			h.u.selfUpdate("test", nil)
 			if h.readEnv() != oldEnv {
 				t.Errorf(".env = %q, want the original", h.readEnv())
+			}
+			if exists(t, h.env+".bak-vor-updater-1.18.0") {
+				t.Error("the backup of the failed self-update is still there")
+			}
+			if tc.name == "helper exits early" {
+				if !slices.Equal(h.fake.rmCont, []string{helperName}) || !strings.Contains(h.logs.String(), "flag x needs a value") {
+					t.Errorf("removed containers %v, log %s", h.fake.rmCont, h.logs)
+				}
 			}
 			if s := h.u.State(); s.Phase != updater.PhaseIdle {
 				t.Errorf("state = %+v", s)
@@ -155,7 +171,7 @@ func TestSelfUpdateFailure(t *testing.T) {
 				t.Errorf("tried again within 6 h: %v", h.fake.verbs())
 			}
 			h.u.now = func() time.Time { return time.Now().Add(7 * time.Hour) }
-			h.fake.pullErr, h.fake.selfDigs, h.fake.runErr = nil, []string{updImage}, nil
+			h.fake.pullErr, h.fake.selfDigs, h.fake.runErr, h.fake.afterRun = nil, []string{updImage}, nil, nil
 			h.fake.c.Labels[labelVersion] = "1.18.0"
 			h.u.selfUpdate("test", nil)
 			if len(h.fake.runs) == 0 || h.fake.runs[len(h.fake.runs)-1][len(h.fake.runs[len(h.fake.runs)-1])-1] != "slouchcat-updater" {
@@ -215,6 +231,8 @@ func TestWatch(t *testing.T) {
 
 // newHelper is the helper of a self-update to 1.18.0 against the fake: the env file names the new
 // version, its backup the old one.
+var newHelperEnv = oldEnv + "\r\nSLOUCHCAT_UPDATER_VERSION=1.18.0\r\n"
+
 func newHelper(t *testing.T) (*harness, helper) {
 	t.Helper()
 	h := selfHarness(t)
@@ -254,13 +272,49 @@ func TestHelperRecreatesUpdater(t *testing.T) {
 	if !slices.Equal(h.fake.removed, []string{repo + ":1.17.0"}) {
 		t.Errorf("removed %v", h.fake.removed)
 	}
+	if !slices.Equal(h.fake.rmCont, []string{helperName + " --force"}) {
+		t.Errorf("removed containers %v, want the helper itself", h.fake.rmCont)
+	}
 }
 
-// When the new updater does not come up the helper puts the env file back and starts the old
-// one; a backup name that does not fit stops it before that.
+// When the new updater does not come up the helper sets the old version in the env file (the
+// backup only for a dev build) and starts the old one; a backup name that does not fit stops it
+// before that. A failed helper keeps its container for the log.
 func TestHelperPutsOldUpdaterBack(t *testing.T) {
-	t.Run("not up", func(t *testing.T) {
+	crash := func(f *fakeDocker, n int) {
+		if n == 1 { // the new one crash-loops
+			f.self.Labels[labelVersion], f.self.Running, f.self.Status, f.self.RestartCount = "1.18.0", false, "restarting", 2
+		}
+	}
+	for _, tc := range []struct {
+		name, env, want string
+	}{
+		{"line set", "", strings.Replace(newHelperEnv, "1.18.0", "1.17.0", 1)},
+		{"line missing", oldEnv, oldEnv + "\r\nSLOUCHCAT_UPDATER_VERSION=1.17.0\r\n"},
+	} {
+		t.Run("old version "+tc.name, func(t *testing.T) {
+			h, hp := newHelper(t)
+			if tc.env != "" {
+				if err := os.WriteFile(h.env, []byte(tc.env), 0o640); err != nil {
+					t.Fatal(err)
+				}
+			}
+			hp.oldVersion = "1.17.0"
+			h.fake.afterUp = crash
+			if code := hp.run(t.Context()); code == 0 {
+				t.Fatal("exit code 0")
+			}
+			if got := h.readEnv(); got != tc.want {
+				t.Errorf(".env = %q, want %q", got, tc.want)
+			}
+			if got := h.fake.verbs(); !slices.Equal(got, []string{"up", "up"}) || len(h.fake.rmCont) != 0 {
+				t.Errorf("compose calls = %v, removed %v", got, h.fake.rmCont)
+			}
+		})
+	}
+	t.Run("dev build", func(t *testing.T) {
 		h, hp := newHelper(t)
+		hp.oldVersion = "dev"
 		h.fake.afterUp = func(f *fakeDocker, n int) {
 			if n == 1 { // the new one crash-loops
 				f.self.Labels[labelVersion], f.self.Running, f.self.Status, f.self.RestartCount = "1.18.0", false, "restarting", 2
@@ -308,7 +362,7 @@ func TestParseHelperRefuses(t *testing.T) {
 		{"backup path", append(slices.Clone(base), "--service", "updater", "--backup", "../x")},
 		{"extra argument", append(slices.Clone(base), "--service", "updater", "up")},
 	} {
-		if _, err := parseHelper(tc.args); err == nil {
+		if _, _, err := parseHelper(tc.args); err == nil {
 			t.Errorf("%s: parseHelper accepted %q", tc.name, tc.args)
 		}
 	}
@@ -323,5 +377,57 @@ func TestLoadConfigUpdaterContainer(t *testing.T) {
 	env["SLOUCHCAT_UPDATER_CONTAINER"] = "upd"
 	if c, err := loadConfig(func(k string) string { return env[k] }); err != nil || c.updaterContainer != "upd" {
 		t.Errorf("set = %q, %v", c.updaterContainer, err)
+	}
+}
+
+// helperArgs is a contract between an old updater and a new image: the golden file freezes it.
+// A change must stay readable for every helper since 1.18.0 (new flags only, each with a value).
+func TestHelperArgsContract(t *testing.T) {
+	cfg := settings{deployDir: "/srv/slouchcat/deploy", uid: 568, gid: 569, tz: "Europe/Zurich", updaterContainer: "slouchcat-updater"}
+	p := Project{Name: "slouchcat", WorkingDir: "/srv/slouchcat/deploy",
+		ConfigFiles: []string{"/srv/slouchcat/deploy/compose.yaml", "/srv/slouchcat/deploy/compose.updater.yaml"},
+		EnvFiles:    []string{"/srv/slouchcat/deploy/.env"}}
+	got := helperArgs(cfg, p, updImage, "/srv/slouchcat/deploy/.env", ".env.bak-vor-updater-1.18.0", "1.17.0")
+	data, err := os.ReadFile(filepath.Join("testdata", "helper-args.golden"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n"); !slices.Equal(got, want) {
+		t.Errorf("helperArgs =\n%s\nwant (testdata/helper-args.golden)\n%s", strings.Join(got, "\n"), data)
+	}
+	h, ignored, err := parseHelper(got[slices.Index(got, helperCommand)+1:])
+	if err != nil || len(ignored) != 0 || h.oldVersion != "1.17.0" || len(h.project.ConfigFiles) != 2 {
+		t.Errorf("parseHelper = %+v, %v, %v", h, ignored, err)
+	}
+}
+
+// A later updater may pass flags this helper does not know: they are ignored, with their values.
+func TestParseHelperIgnoresUnknownFlags(t *testing.T) {
+	args := []string{"--future", "x", "--project", "slouchcat", "--later=y", "--workdir", "/srv/deploy", "--flag-at-end-of-group",
+		"-f", "/srv/deploy/compose.yaml", "--env", "/srv/deploy/.env", "--service=updater", "--old-version", "1.17.0", "--last"}
+	h, ignored, err := parseHelper(args)
+	if err != nil || !slices.Equal(ignored, []string{"future", "later", "flag-at-end-of-group", "last"}) ||
+		h.project.Name != "slouchcat" || h.project.WorkingDir != "/srv/deploy" || h.oldVersion != "1.17.0" || h.env != "/srv/deploy/.env" {
+		t.Errorf("parseHelper = %+v, ignored %v, %v", h, ignored, err)
+	}
+}
+
+// /install is busy while a helper container runs; a self-update removes an ended one first, with
+// the log of a failed one.
+func TestHelperContainerBusyAndCleared(t *testing.T) {
+	h := selfHarness(t)
+	h.fake.helper = &Container{Running: true, Status: "running"}
+	h.start()
+	if status, s := h.install(); status != http.StatusConflict || s.Code != updater.CodeBusy {
+		t.Errorf("install while the helper runs = %d %+v", status, s)
+	}
+	h.fake.helper = &Container{Status: "exited", ExitCode: 1}
+	h.fake.logs = []string{"updater self-update: failed, putting the old updater back"}
+	h.u.selfUpdate("test", nil)
+	if !slices.Equal(h.fake.rmCont, []string{helperName}) || !strings.Contains(h.logs.String(), "putting the old updater back") {
+		t.Errorf("removed containers %v", h.fake.rmCont)
+	}
+	if len(h.fake.runs) != 1 {
+		t.Errorf("no self-update after the cleanup: %v", h.fake.runs)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/slouchcat/slouchcat/server/internal/logging"
@@ -33,6 +34,10 @@ type Docker interface {
 	RemoveImage(ctx context.Context, ref string) error
 	// Run runs `docker run <args>` (the helper container of a self-update).
 	Run(ctx context.Context, args ...string) error
+	// RemoveContainer runs `docker container rm [--force] name`.
+	RemoveContainer(ctx context.Context, name string, force bool) error
+	// Logs returns the last tail lines the container name printed, redacted (redactLines).
+	Logs(ctx context.Context, name string, tail int) ([]string, error)
 }
 
 // Image is one line of `docker image ls`; Tag and Digest are "<none>" when the image has none.
@@ -131,25 +136,31 @@ const maxOutput = 1 << 20
 // what the CLI needs, so compose interpolates only from the env files of the project, as it did
 // on the host, and never from the updater's own variables.
 func (d dockerCLI) run(ctx context.Context, args ...string) ([]byte, error) {
+	stdout, _, err := d.output(ctx, args...)
+	return stdout, err
+}
+
+// output is run with the standard error output too.
+func (d dockerCLI) output(ctx context.Context, args ...string) (stdout, stderr []byte, err error) {
 	cmd := exec.CommandContext(ctx, "docker", args...) //nolint:gosec // G204: fixed binary, argument list built from container labels checked against the deploy folder
 	cmd.Env = dockerEnv(os.Getenv)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	err := cmd.Run()
-	if err == nil && stdout.Len() > maxOutput {
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &outBuf, &errBuf
+	err = cmd.Run()
+	if err == nil && (outBuf.Len() > maxOutput || errBuf.Len() > maxOutput) {
 		err = errors.New("output too large")
 	}
 	if err != nil {
 		if d.failed != nil {
-			out := stderr.Bytes()
+			out := errBuf.Bytes()
 			if len(bytes.TrimSpace(out)) == 0 {
-				out = stdout.Bytes()
+				out = outBuf.Bytes()
 			}
 			d.failed(args, err, lastLine(out))
 		}
-		return nil, newCommandError(args[0], err, stderr.Bytes())
+		return nil, nil, newCommandError(args[0], err, errBuf.Bytes())
 	}
-	return stdout.Bytes(), nil
+	return outBuf.Bytes(), errBuf.Bytes(), nil
 }
 
 // maxErrorLine caps the stderr line a commandError carries; it ends up in the message of the
@@ -211,12 +222,31 @@ var assignment = regexp.MustCompile(`([A-Za-z_][A-Za-z0-9_.-]*)=("[^"]*"?|'[^']*
 // every KEY=value and of the secrets the logging package knows replaced by [REDACTED].
 func lastLine(out []byte) string {
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	line := strings.TrimSpace(lines[len(lines)-1])
+	return redactLine(lines[len(lines)-1])
+}
+
+// redactLine is one line of output as lastLine returns it.
+func redactLine(line string) string {
+	line = strings.TrimSpace(line)
 	if len(line) > maxLogLine {
 		line = line[:maxLogLine]
 	}
 	line = assignment.ReplaceAllString(line, "${1}="+logging.Redacted)
 	return logging.RedactString(strings.ToValidUTF8(line, "?"))
+}
+
+// redactLines returns the last n non-empty lines of out, each redacted as by lastLine.
+func redactLines(out []byte, n int) []string {
+	var lines []string
+	for line := range strings.SplitSeq(string(out), "\n") {
+		if strings.TrimSpace(line) != "" {
+			lines = append(lines, redactLine(line))
+		}
+	}
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return lines
 }
 
 // dockerEnv is the environment of a docker call: the search path, the home folder for the CLI
@@ -355,4 +385,22 @@ func (d dockerCLI) RemoveImage(ctx context.Context, ref string) error {
 func (d dockerCLI) Run(ctx context.Context, args ...string) error {
 	_, err := d.run(ctx, append([]string{"run"}, args...)...)
 	return err
+}
+
+func (d dockerCLI) RemoveContainer(ctx context.Context, name string, force bool) error {
+	args := []string{"container", "rm"}
+	if force {
+		args = append(args, "--force")
+	}
+	_, err := d.run(ctx, append(args, name)...)
+	return err
+}
+
+// Logs reads both streams of docker logs; the helper writes its log to the standard output.
+func (d dockerCLI) Logs(ctx context.Context, name string, tail int) ([]string, error) {
+	stdout, stderr, err := d.output(ctx, "logs", "--tail", strconv.Itoa(tail), name)
+	if err != nil {
+		return nil, err
+	}
+	return redactLines(append(stdout, stderr...), tail), nil
 }

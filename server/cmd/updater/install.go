@@ -68,6 +68,8 @@ type Updater struct {
 	// check (Watch).
 	pullPauses []time.Duration
 	selfEvery  time.Duration
+	// helperCheck is how long a self-update watches its helper container after the start.
+	helperCheck time.Duration
 
 	// ctx is the lifetime of the process; an install runs under it, not under its request.
 	ctx context.Context
@@ -90,8 +92,9 @@ type plan struct {
 	from, to string
 	digest   string // sha256:… of the manifest
 	project  Project
-	env      string            // the env file whose SLOUCHCAT_VERSION line is set
-	deploy   map[string]string // compose files of the release: base name → sha256 (manifest)
+	env      string              // the env file whose SLOUCHCAT_VERSION line is set
+	deploy   map[string]string   // compose files of the release: base name → sha256 (manifest)
+	known    map[string][]string // their sha256 in all earlier releases (manifest deployKnown)
 }
 
 // refusal stops an install before anything changed.
@@ -144,6 +147,11 @@ func (u *Updater) persist(s updater.State) {
 // self-update), 422
 // with a failed state (not written to state.json) when a check refused it.
 func (u *Updater) Start() (updater.State, int) {
+	if u.helperRunning() { // a self-update helper is recreating the updater
+		s := u.State()
+		s.Code = updater.CodeBusy
+		return s, http.StatusConflict
+	}
 	u.mu.Lock()
 	if u.busy() {
 		s := u.state
@@ -211,7 +219,7 @@ func (u *Updater) check(ctx context.Context) (plan, error) {
 	if err != nil {
 		return plan{}, withVersions(refuse(updater.CodeOutsideDeployDir, "%v", err))
 	}
-	return plan{from: from, to: m.Version, digest: match[1], project: proj, env: env, deploy: m.Deploy}, nil
+	return plan{from: from, to: m.Version, digest: match[1], project: proj, env: env, deploy: m.Deploy, known: m.DeployKnown}, nil
 }
 
 // manifest is the part of the release manifest the updater reads. UpdaterImage and Deploy came
@@ -221,7 +229,13 @@ type manifest struct {
 	Image        string            `json:"image"`
 	UpdaterImage string            `json:"updaterImage"`
 	Deploy       map[string]string `json:"deploy"`
+	// DeployKnown lists for each compose file the sha256 it had in every earlier release: only a
+	// file with one of them is replaced, a file with own changes stays.
+	DeployKnown map[string][]string `json:"deployKnown"`
 }
+
+// maxKnown bounds the earlier hashes of one file in deployKnown.
+const maxKnown = 200
 
 var (
 	// deployName is the form of a file name in the manifest field deploy: a compose file of
@@ -248,6 +262,26 @@ func (u *Updater) checkOptional(m *manifest) {
 			break
 		}
 	}
+	if !validKnown(m.DeployKnown) {
+		u.log.Warn("updater: manifest field deployKnown ignored: an entry is not a compose file with at most 200 sha256")
+		m.DeployKnown = nil // as if missing: no compose file counts as unchanged
+	}
+}
+
+// validKnown reports whether every entry of deployKnown is a compose file name with at most
+// maxKnown sha256 values.
+func validKnown(known map[string][]string) bool {
+	for name, sums := range known {
+		if !deployName.MatchString(name) || len(sums) > maxKnown {
+			return false
+		}
+		for _, sum := range sums {
+			if !sha256Hex.MatchString(sum) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // updaterRef returns the manifest field updaterImage as repository@digest (a tag dropped), or ""
@@ -360,8 +394,10 @@ func (u *Updater) run(p plan, s updater.State) {
 		u.set(s)
 		u.log.Info("updater: phase", "phase", ph, "to", p.to)
 	}
+	// note names the compose files left alone for own changes; it goes into every final message.
+	var note string
 	finish := func(ph updater.Phase, code updater.Code, msg string) {
-		s.Phase, s.Code, s.Message, s.FinishedAt, s.RollingBack = ph, code, msg, u.now(), false
+		s.Phase, s.Code, s.Message, s.FinishedAt, s.RollingBack = ph, code, withNote(msg, note), u.now(), false
 		u.set(s)
 		u.log.Info("updater: install finished", "phase", ph, "code", code, "message", msg, "from", p.from, "to", p.to)
 	}
@@ -399,7 +435,7 @@ func (u *Updater) run(p plan, s updater.State) {
 		return
 	}
 	// The compose files of the release, still before the pull (ADR 0024 addendum point 3).
-	deploy, err := u.replaceDeployFiles(ctx, p, &s)
+	deploy, note, err := u.replaceDeployFiles(ctx, p, &s)
 	if err != nil {
 		u.log.Error("updater: compose files", "err", err)
 		u.restoreEnv(env)
@@ -636,6 +672,14 @@ func (u *Updater) pull(ctx context.Context, p Project, svc string) error {
 		case <-time.After(u.pullPauses[i]):
 		}
 	}
+}
+
+// withNote appends note to msg ("; " between them).
+func withNote(msg, note string) string {
+	if note == "" || msg == "" {
+		return msg + note
+	}
+	return msg + "; " + note
 }
 
 // failedMessage is msg with the stderr line of the failed docker call, when it has one.

@@ -181,3 +181,28 @@ func TestDockerCLIImagesAndRun(t *testing.T) {
 		t.Errorf("args = %q", got)
 	}
 }
+
+// Logs reads both streams and returns the last lines, redacted; RemoveContainer forces only when
+// asked.
+func TestDockerCLILogsAndRemoveContainer(t *testing.T) {
+	home := fakeDockerBinary(t, `echo "one"; echo "two SLOUCHCAT_SMTP_PASSWORD=hunter2"; echo; echo "three" >&2`)
+	lines, err := dockerCLI{}.Logs(t.Context(), helperName, 2)
+	if err != nil || !slices.Equal(lines, []string{"two SLOUCHCAT_SMTP_PASSWORD=[redacted]", "three"}) {
+		t.Errorf("Logs = %q, %v", lines, err)
+	}
+	if got := readArgs(t, home); !slices.Equal(got, []string{"logs", "--tail", "2", helperName}) {
+		t.Errorf("args = %q", got)
+	}
+	for _, force := range []bool{false, true} {
+		if err := (dockerCLI{}).RemoveContainer(t.Context(), helperName, force); err != nil {
+			t.Fatal(err)
+		}
+		want := []string{"container", "rm", helperName}
+		if force {
+			want = []string{"container", "rm", "--force", helperName}
+		}
+		if got := readArgs(t, home); !slices.Equal(got, want) {
+			t.Errorf("args = %q, want %q", got, want)
+		}
+	}
+}

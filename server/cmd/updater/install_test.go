@@ -44,6 +44,10 @@ type fakeDocker struct {
 	removed   []string
 	runs      [][]string
 	runErr    error
+	helper    *Container          // the container slouchcat-updater-self-update; nil: not there
+	afterRun  func(f *fakeDocker) // called with the lock held after a successful Run
+	logs      []string
+	rmCont    []string      // removed containers ("name" or "name --force")
 	pullGate  chan struct{} // when set, pull waits for it
 	calls     [][]string
 	ups       int
@@ -56,6 +60,12 @@ func (f *fakeDocker) Container(_ context.Context, name string) (Container, error
 	defer f.mu.Unlock()
 	if name == defaultUpdaterContainer && f.self != nil {
 		return *f.self, nil
+	}
+	if name == helperName {
+		if f.helper == nil {
+			return Container{}, errors.New("no such container")
+		}
+		return *f.helper, nil
 	}
 	if name != "slouchcat" {
 		return Container{}, errors.New("no such container")
@@ -155,7 +165,29 @@ func (f *fakeDocker) Run(_ context.Context, args ...string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.runs = append(f.runs, args)
+	if f.runErr == nil && f.afterRun != nil {
+		f.afterRun(f)
+	}
 	return f.runErr
+}
+
+func (f *fakeDocker) RemoveContainer(_ context.Context, name string, force bool) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if force {
+		name += " --force"
+	}
+	f.rmCont = append(f.rmCont, name)
+	if strings.HasPrefix(name, helperName) {
+		f.helper = nil
+	}
+	return nil
+}
+
+func (f *fakeDocker) Logs(context.Context, string, int) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.logs, nil
 }
 
 // verbs returns the compose subcommands called, in order ("pull", "config", "up").
@@ -255,6 +287,7 @@ func (h *harness) start() {
 	u.client.Transport = h.srv.Client().Transport // trusts the test certificate; CheckRedirect stays
 	u.every, u.wait = 2*time.Millisecond, 150*time.Millisecond
 	u.pullPauses = []time.Duration{time.Millisecond, time.Millisecond}
+	u.helperCheck = 20 * time.Millisecond
 	if h.version != "" {
 		u.version = h.version
 	}

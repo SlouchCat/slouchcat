@@ -21,13 +21,18 @@ const (
 
 // withDeploy makes the release name compose.yaml with newCompose (served next to the manifest),
 // compose.intel.yaml with its current content and compose.nvidia.yaml, which the project does not
-// use.
+// use; oldCompose is a known earlier content of compose.yaml.
 func withDeploy(h *harness) {
+	withDeployKnown(h, `{"compose.yaml":["`+hexSum([]byte("an older release"))+`","`+hexSum([]byte(oldCompose))+`"]}`)
+}
+
+// withDeployKnown is withDeploy with the given deployKnown (JSON).
+func withDeployKnown(h *harness, known string) {
 	h.files = map[string]string{"/compose.yaml": newCompose}
 	h.manifest = `{"version":"1.16.0","image":"` + testImage + `","deploy":{` +
 		`"compose.yaml":"` + hexSum([]byte(newCompose)) + `",` +
 		`"compose.intel.yaml":"` + hexSum([]byte(oldCompose)) + `",` +
-		`"compose.nvidia.yaml":"` + hexSum([]byte("x")) + `"}}`
+		`"compose.nvidia.yaml":"` + hexSum([]byte("x")) + `"},"deployKnown":` + known + `}`
 }
 
 // newVersionComesUp lets the new version start healthy without a migration.
@@ -404,5 +409,108 @@ func TestInstallRemovesOldServerImages(t *testing.T) {
 	}
 	if want := []string{repo + ":1.14.0", repo + "@sha256:dd"}; !slices.Equal(h.fake.removed, want) {
 		t.Errorf("removed %v, want %v", h.fake.removed, want)
+	}
+}
+
+const ownChanges = "compose.yaml has own changes and was not replaced; compare it with the release file"
+
+// A compose file whose content no release had (own changes), or with no valid deployKnown, stays;
+// the install goes on and names it in its final message, also when it is done.
+func TestInstallKeepsComposeFileWithOwnChanges(t *testing.T) {
+	sum := hexSum([]byte(oldCompose))
+	tooMany := `{"compose.yaml":["` + strings.TrimSuffix(strings.Repeat(sum+`","`, maxKnown+1), `","`) + `"]}`
+	for _, tc := range []struct {
+		name, known, compose string
+	}{
+		{"own changes", `{"compose.yaml":["` + sum + `"]}`, "services: {mine: {}}\n"},
+		{"no deployKnown", `null`, oldCompose},
+		{"other file known", `{"compose.intel.yaml":["` + sum + `"]}`, oldCompose},
+		{"bad hash", `{"compose.yaml":["` + strings.ToUpper(sum) + `"]}`, oldCompose},
+		{"bad name", `{"compose.yaml":["` + sum + `"],".env":["` + sum + `"]}`, oldCompose},
+		{"too many", tooMany, oldCompose},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			if err := os.WriteFile(filepath.Join(h.deploy, "compose.yaml"), []byte(tc.compose), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			withDeployKnown(h, tc.known)
+			newVersionComesUp(h)
+			h.start()
+			h.install()
+			s := h.finish()
+			if s.Phase != updater.PhaseDone || s.Message != ownChanges || s.DeployBackup != "" {
+				t.Errorf("state = %+v", s)
+			}
+			if h.readFile("compose.yaml") != tc.compose || exists(t, filepath.Join(h.deploy, "compose.yaml.bak-vor-1.16.0")) {
+				t.Error("compose.yaml was touched")
+			}
+		})
+	}
+	t.Run("failed install", func(t *testing.T) {
+		h := newHarness(t)
+		if err := os.WriteFile(filepath.Join(h.deploy, "compose.yaml"), []byte("mine\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		withDeploy(h)
+		h.fake.pullErr = errors.New("exit status 1")
+		h.start()
+		h.install()
+		if s := h.finish(); s.Code != updater.CodePullFailed || s.Message != "docker compose pull failed; "+ownChanges {
+			t.Errorf("state = %+v", s)
+		}
+	})
+}
+
+// Only a compose file directly in the project folder is replaced, not one in a subfolder or one
+// that links out of it.
+func TestInstallReplacesOnlyComposeFilesInTheProjectFolder(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		setup func(t *testing.T, h *harness) string // returns the listed file
+	}{
+		{"subfolder", func(t *testing.T, h *harness) string {
+			sub := filepath.Join(h.deploy, "extra", "compose.yaml")
+			if err := os.MkdirAll(filepath.Dir(sub), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(sub, []byte(oldCompose), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return sub
+		}},
+		{"link out of the folder", func(t *testing.T, h *harness) string {
+			sub := filepath.Join(h.deploy, "extra", "real.yaml")
+			if err := os.MkdirAll(filepath.Dir(sub), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(sub, []byte(oldCompose), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			link := filepath.Join(h.deploy, "compose.yaml")
+			if err := os.Remove(link); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(sub, link); err != nil {
+				t.Fatal(err)
+			}
+			return link
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newHarness(t)
+			listed := tc.setup(t, h)
+			h.fake.c.Labels[labelConfigFiles] = listed + "," + filepath.Join(h.deploy, "compose.intel.yaml")
+			withDeploy(h)
+			newVersionComesUp(h)
+			h.start()
+			h.install()
+			if s := h.finish(); s.Phase != updater.PhaseDone || s.DeployBackup != "" || s.Message != "" {
+				t.Errorf("state = %+v", s)
+			}
+			if data, err := os.ReadFile(listed); err != nil || string(data) != oldCompose {
+				t.Errorf("%s = %q, %v", listed, data, err)
+			}
+		})
 	}
 }

@@ -131,6 +131,8 @@ type settings struct {
 	container   string
 	// updaterContainer is the updater's own container, which a self-update recreates.
 	updaterContainer string
+	// tz is TZ, passed on to the helper container of a self-update.
+	tz string
 }
 
 // sharedDir is the folder in deploy/ shared with the server.
@@ -145,6 +147,7 @@ func loadConfig(getenv func(string) string) (settings, error) {
 		container:   strings.TrimSpace(getenv("SLOUCHCAT_CONTAINER")),
 
 		updaterContainer: strings.TrimSpace(getenv("SLOUCHCAT_UPDATER_CONTAINER")),
+		tz:               strings.TrimSpace(getenv("TZ")),
 	}
 	if c.manifestURL == "" {
 		c.manifestURL = config.DefaultUpdateManifestURL // the manifest the server's update check reads
@@ -203,7 +206,7 @@ func newUpdater(ctx context.Context, cfg settings, docker Docker, log *slog.Logg
 		cfg: cfg, docker: docker, log: log, now: time.Now, ctx: ctx,
 		client: &http.Client{Timeout: manifestTimeout, CheckRedirect: httpsRedirects},
 		every:  pollInterval, wait: waitTimeout, version: version,
-		pullPauses: pullPauses, selfEvery: selfEvery,
+		pullPauses: pullPauses, selfEvery: selfEvery, helperCheck: helperCheck,
 	}
 	u.recover()
 	return u, token, nil
