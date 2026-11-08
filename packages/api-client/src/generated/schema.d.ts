@@ -5129,7 +5129,28 @@ export interface components {
             kind: components["schemas"]["ItemKind"];
             /** @description Title in the profile language, fallback English, fallback parsed file name. */
             title: string;
+            /**
+             * @description Year of the title; for a season without a year of its own the year of its release date
+             *     (since contract 1.20.0, concept 17 section 2.3). Absent when neither is known.
+             */
             year?: number;
+            /**
+             * @description On the watchlist of the active profile (E-5). Set on every ItemRef in every list since
+             *     contract 1.20.0 (concept 17 D-9, the watchlist button on the cover); before, only on
+             *     `ItemDetail`. Seasons and extras are never on a watchlist.
+             */
+            inWatchlist: boolean;
+            /**
+             * @description Overview in the profile language. On `ItemDetail` the overview of the title; in lists set
+             *     only on the items of `ItemDetail.episodes` of a season (since contract 1.20.0, concept 17
+             *     section 2.3), absent everywhere else.
+             */
+            overview?: string;
+            /**
+             * @description Visible episodes of a season the active profile has completed (since contract 1.20.0,
+             *     concept 17 section 2.3); set only on seasons, next to `childCount`.
+             */
+            watchedCount?: number;
             runtimeMinutes?: number;
             /** @description Effective FSK rating; omitted when unknown (then hidden from profiles under 18). */
             rating?: components["schemas"]["Rating"];
@@ -5199,15 +5220,12 @@ export interface components {
             images: components["schemas"]["ItemImages"];
         };
         ItemDetail: components["schemas"]["ItemRef"] & {
-            /** @description On the watchlist of the active profile (E-5). */
-            inWatchlist: boolean;
             /** @description A favourite of the active profile (E-8; series and podcasts only). */
             favorite: boolean;
             /** @description The visible collections the title belongs to (E-6). */
             collections: components["schemas"]["CollectionRef"][];
             originalTitle?: string;
             tagline?: string;
-            overview?: string;
             /** Format: date */
             releaseDate?: string;
             genres: string[];
@@ -5244,10 +5262,33 @@ export interface components {
             extras?: components["schemas"]["ItemRef"][];
             /** @description The next visible episode of the same series after this episode. */
             nextEpisode?: components["schemas"]["ItemRef"];
+            /**
+             * @description The episode the big button of a series plays (since contract 1.20.0, concept 17
+             *     section 3.3); on a season the same rule over the episodes of that season only. Set
+             *     only on series and seasons with at least one visible episode.
+             */
+            nextUp?: components["schemas"]["NextUp"];
             /** @description Cast and crew in provider order (B-3). */
             cast?: components["schemas"]["CastMember"][];
             /** @description Trailers known for the title (`getItemTrailers`). */
             trailerCount?: number;
+        };
+        /**
+         * @description The episode of a series (or of one season) the detail page offers to play next (concept 17
+         *     section 3.3), decided by the server from the newest progress of the active profile, without
+         *     a time limit. `start`: no episode started yet, the first regular episode (season 1 or later;
+         *     a special only when there are no regular ones). `resume`: the newest activity is a started,
+         *     not completed episode, that episode. `next`: the newest activity is a completed episode, the
+         *     next regular episode after it by season and number (after the last episode of a file with
+         *     several), watched or not; without one, or when the completed episode is a special or has no
+         *     season or episode number, the first regular episode not completed yet. `rewatch`: every
+         *     regular episode is completed, the first one. Season numbers fall back to the season's number
+         *     when the episode has none.
+         */
+        NextUp: {
+            /** @enum {string} */
+            reason: "start" | "resume" | "next" | "rewatch";
+            episode: components["schemas"]["ItemRef"];
         };
         /** @enum {string} */
         ExtraKind: "trailer" | "featurette" | "deleted_scene" | "behind_the_scenes" | "interview" | "scene" | "short" | "other";
@@ -6849,6 +6890,12 @@ export interface components {
             count: number;
             /** @description The first visible member; its poster represents the collection. */
             cover?: components["schemas"]["ItemRef"];
+            /**
+             * @description The first visible members in collection order (position, then release date), at most 20,
+             *     with their progress (since contract 1.20.0, concept 17 section 4.2). Set only in
+             *     `ItemDetail.collections`; `count` says whether there are more.
+             */
+            members?: components["schemas"]["ItemRef"][];
         };
         Collection: {
             id: components["schemas"]["CollectionID"];

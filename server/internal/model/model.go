@@ -608,6 +608,9 @@ type ItemSummary struct {
 	// HasTrailer says whether a trailer is stored (M11, D3); nil = not looked up (the contract's
 	// optional ItemRef.hasTrailer), filled for the rows spotlight and picks of the start page only.
 	HasTrailer *bool
+	// InWatchlist says whether the title is on the profile's watchlist (E-5); on every summary
+	// since contract 1.20.0 (concept 17 D-9, the watchlist button on the cover).
+	InWatchlist bool
 }
 
 // SeriesRef is the series of an episode as its card shows it: id, title in the profile language and
@@ -768,8 +771,8 @@ type ItemDetail struct {
 	OriginalTitle string
 	Tagline       string
 	Overview      string
-	// Discover (M7): on the watchlist / a favourite of the profile; the visible collections.
-	InWatchlist bool
+	// Discover (M7): a favourite of the profile; the visible collections (the watchlist mark is
+	// on ItemSummary since contract 1.20.0).
 	Favorite    bool
 	Collections []CollectionRef
 	ReleaseDate string // YYYY-MM-DD or empty

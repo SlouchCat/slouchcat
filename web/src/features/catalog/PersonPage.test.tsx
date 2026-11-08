@@ -15,6 +15,7 @@ const person: Person = {
         id: seriesIds.show,
         kind: 'series',
         title: 'Slouchcat Test Show',
+        inWatchlist: false,
         year: 2024,
         images: {},
       },

@@ -524,6 +524,7 @@ func toItemRef(profileID int64, it model.ItemSummary) gen.ItemRef {
 		Title:          it.Title,
 		Year:           it.Year,
 		RuntimeMinutes: it.RuntimeMinutes,
+		InWatchlist:    it.InWatchlist,
 		Images: gen.ItemImages{
 			Poster:        toImageRef(it.ID, profileID, it.Poster),
 			PosterSmall:   toImageRef(it.ID, profileID, it.PosterSmall),
