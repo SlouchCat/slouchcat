@@ -1,9 +1,12 @@
-# Konzept: Vorschau beim Spulen (Trickplay) für Filme und Serien
+# Konzept 18: Vorschau beim Spulen (Trickplay) und User-Empfehlungen
 
 - **Status: Fassung 4 (8. November 2026): Messungen, Marcos Antworten F-1 bis F-15 (Abschnitt 11),
   das Kritiker-Review von Fassung 2 (REVISE, 1 Blocker, 8 Major, 13 Minor; Abschnitt 13) und Marcos
   feinere Einstellungen je Bibliothek für Filme und Serien (F-13 bis F-15, Abschnitt 6) eingearbeitet.
-  Offen ist nur O-1 (Abschnitt 11.2). Die Änderungen von Fassung 4 hat noch kein Kritiker gesehen. Eingetragen als Frage 25 im Entscheidungsprotokoll.** Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
+  Offen ist nur O-1 (Abschnitt 11.2). Die Änderungen von Fassung 4 hat noch kein Kritiker gesehen. Eingetragen als Frage 25 im Entscheidungsprotokoll.**
+- **Fassung 5 (8. November 2026): Teil B «User-Empfehlungen von Profil zu Profil»** (Abschnitt 14)
+  kam auf Marcos Wunsch dazu, mit seinen Antworten U-F1 bis U-F8. Abschnitte 0 bis 13 sind Teil A
+  «Trickplay». Auslöser ist Marcos Auftrag vom 8. November 2026: Vorschaubilder für Filme und
   Folgen, erzeugt **sobald eine Folge oder ein Film gestartet wird**; dazu die Fragen, wie lange
   das dauert und ob die Bilder gespeichert werden. Grundlage ist Idee 05
   (`docs/ideas/05-trickplay.md`, aus Konzept 13 V-21, Frage 19 F-7 «später»).
@@ -14,8 +17,9 @@
   Konzept 17 Stufe 2 (Vertrag 1.20.0) und Stufe 3 (Vertrag 1.21.0, Migration 00040, ADR 0026).
 - **Nummern:** Dieses Papier ist **Konzept 18** und reserviert **Frage 25** und **ADR 0027**
   («Trickplay: Erzeugen beim Start, Springen an Keyframes, Einstellungen je Bibliothek»). Vertrag:
-  vorläufig **1.22.0 additiv**, **eine Migration**, vorläufig **00041** (Spalte
-  `libraries.trickplay_*`, Abschnitt 8.3); beide endgültig beim Baubeginn. ADR 0027 ändert
+  vorläufig **1.22.0**, durch Teil B **brechend** (14.8), **eine Migration**, vorläufig **00041**
+  (Spalten `libraries.trickplay_*`, Abschnitt 8.3, und Tabelle `user_picks`, 14.8); beide endgültig
+  beim Baubeginn. ADR 0027 ändert
   ADR 0022 nicht: Trickplay nimmt **nicht** an der Pausen-Ausnahme teil (5.3).
 - `:Zeile`-Angaben beziehen sich auf `6c05eda7`; **nach Namen suchen, nicht nach Zeile.** Pfade
   ohne Präfix liegen unter `server/` (Go) oder `web/src/` (Web-App).
@@ -25,8 +29,10 @@
 > **Dieses Papier ändert keine Zeile Code.** Messskripte und Rohwerte liegen in
 > `docs/perf/18-trickplay.md` und `docs/perf/18-trickplay/`.
 >
-> **Mockup** (Fassung 4): Design-Leinwand mit drei Artboards, Player mit Vorschau und gerafft
-> entstehenden Blättern, Bibliotheksdialog mit Film- und Seriengruppe, Hintergrundjobs. Artefakt
+> **Mockup** (Fassung 5): Design-Leinwand «Konzept 18» mit fünf Artboards. Teil A: Player mit
+> Vorschau und gerafft entstehenden Blättern, Bibliotheksdialog mit Film- und Seriengruppe,
+> Hintergrundjobs. Teil B: Titelseite mit Stern «Empfehlen» und Startseiten-Reihe,
+> Verwaltungsseite «User-Empfehlungen» mit Ablauf in Tagen. Artefakt
 > (privat): https://claude.ai/artifact/Thtf5mQnDkaSH273uFPsDk; Quellen der Artboards in
 > `docs/planning/mockups/18-trickplay/` (laufen nur in der Leinwand). Die Bilder sind gezeichnete
 > Platzhalter, keine Filmbilder.
@@ -54,6 +60,11 @@
   aus, im Umfang **ganze Serie** (ab Werk), **Rest der Staffel** oder **nächste Folge**. Bildpunkt
   **am nächsten Keyframe**, alle **10 s**, **320 px**, zwei ffmpeg-Prozesse, alle Profile; Downloads
   nehmen die Vorschau mit.
+- **Teil B, User-Empfehlungen (Abschnitt 14):** Jedes Profil empfiehlt Titel mit einem Klick auf den
+  Stern der Titelseite, **anonym**; jeder Titel steht **einmal** in der Liste, **neueste zuerst**,
+  für alle Profile, die ihn sehen dürfen. Nach **60 Tagen** ab der jüngsten Empfehlung fällt er
+  heraus (einstellbar). Eigene Empfehlungen lassen sich zurücknehmen. Die Admin-Pflege mit Notiz,
+  Zielprofil und Zeitfenster fällt weg; bestehende Einträge werden übernommen.
 
 ## 1. Was Marco will
 
@@ -64,6 +75,7 @@
 | T-3 | Wissen, **wie lange** das dauert. | 3 |
 | T-4 | Abwägen, ob die Bilder **gespeichert werden oder nicht**. | 6 |
 | T-5 | Messen an einem echten FullHD-Film und einer echten Folge, sauber konzipieren. | 3, Anhang |
+| T-6 | Profile empfehlen einander Titel, Ablauf nach 60 Tagen, Einstellungsseite (Teil B). | 14 |
 
 ## 2. Was sich gegenüber früheren Entscheiden ändert
 
@@ -571,18 +583,21 @@ Cache-Ordner und in `jobs`. Eingefrorener DB-Stand in `testdata/db/` nach Regel 
 
 ## 12. Bauplan
 
-Eine Stufe, ein Release (Vertrag vorläufig 1.22.0, Migration vorläufig 00041), nach Konzept 17.
+Ein Release für beide Teile (Vertrag vorläufig 1.22.0 brechend, eine Migration vorläufig 00041),
+nach Konzept 17. Teil B ist klein und kommt zuerst, damit der brechende Vertrag früh steht.
 
 | Schritt | Inhalt | Tage |
 |---|---|---|
-| 0 | Frage 25 und ADR 0027, Idee 05 auf «übernommen» | 0,5 |
+| 0 | Frage 25 und ADR 0027, Idee 05 auf «übernommen», Spec E-2 neu | 0,5 |
 | 1 | `transcode`: Bildpunkt-Aufruf, Blatt-Aufruf, `CPUHeavy`, Tests mit den Testmedien (SDR, HDR, anamorph, MP4) | 1 |
 | 2 | Migration, Vertrag (Schemas, drei Operationen, Pool-Enum), `task gen`, `admin`: `trickplay`, `visibility.MediaFileLocation` | 1 |
 | 3 | `library`: Raster, Jobs, Ablage je Einstellung, Auslöser Start/Import/Nachholen/Serienvorlauf, Abgabe an Start-Aufträge, Fehler, Platzgrenze, Pflege, Pool `trickplay` | 3 |
 | 4 | `playback.Start`, Handler, Wiedergabe-Pflege, `offline` (Kopie, Warten, Manifest), Vertragstest | 1,5 |
 | 5 | App: `SeekBar` (Kachel, Finger, Tastatur), Nachfragen, Offline-Ablage, Bibliotheksdialoge mit Film- und Seriengruppe, Storybook, Playwright | 2,5 |
 | 6 | Messung auf CT 190: Start, Blattzeit, Last neben QSV- und CPU-Transcode, **4K über NFS**, Remux neben Trickplay, gleichzeitige volle Keyframe-Lesung; `docs/perf/18-trickplay.md` | 0,5 |
-| | **Summe** | **10** |
+| 7 | Teil B Server: `user_picks`, Übernahme aus `top_picks`, Abfragen, Pflege, Operationen, Einstellung, Wiederverknüpfung | 1 |
+| 8 | Teil B App: Stern «Empfehlen»/«Empfohlen ✓», Reihe und Seite ohne Notiz, Verwaltungsseite «User-Empfehlungen», Storybook, Playwright | 1,5 |
+| | **Summe** | **12,5** |
 
 ## 13. Kritiker-Review von Fassung 2 (8. November 2026)
 
@@ -616,6 +631,136 @@ Der OMC-Kritiker hat Fassung 2 gegen Code und Regeln geprüft: **REVISE, 1 Block
 
 Offene Fragen des Kritikers: «temporären Satz beim Umstellen übernehmen» ist in 6.6 entschieden
 (umbenennen); «zwei Zuschauer» ist O-1.
+
+## 14. Teil B: User-Empfehlungen von Profil zu Profil
+
+### 14.1 Was Marco will (8. November 2026)
+
+| Nr. | Wunsch | Abschnitt |
+|---|---|---|
+| U-1 | Die ehemaligen «Cat's Empfehlungen» (seit Konzept 17 F-17 «User-Empfehlungen») so ändern, dass sich die Profile **gegenseitig Titel empfehlen**. | 14.3 |
+| U-2 | Ein Klick auf «User-Empfehlungen» bei einem Titel nimmt ihn in die Liste auf. | 14.4 |
+| U-3 | Nach **60 Tagen** fällt er wieder heraus; die Dauer steht auf einer Einstellungsseite (Mockup). | 14.5, 14.7 |
+
+### 14.2 Heute
+
+- Die Liste pflegt **nur der Admin** auf `/admin/picks` (`createTopPicks`, `reorderTopPicks`,
+  `listTopPicks`; Tabelle `top_picks` aus 00003 mit `profile_id` für ein Zielprofil, `note`,
+  `starts_at`/`ends_at` und `position`). Spec E-2: «Der Hauptbenutzer pflegt Cat's Empfehlungen …».
+- Zuschauer sehen sie als Startseiten-Reihe `picks` (`getHome`) und auf der Seite `/picks`
+  (`listPicks`); die Abfrage `ListTopPicks` in `queries/scoped/items.sql` filtert über
+  `visible_items`.
+- Der Knopf «Zu den User-Empfehlungen» auf der Detailseite (`ItemPage.tsx`) erscheint nur dem Admin
+  (`canManage`) und führt auf die Verwaltungsseite.
+
+### 14.3 Marcos Antworten
+
+| Nr. | Frage | Antwort |
+|---|---|---|
+| U-F1 | Was passiert mit der Admin-Liste (Notiz, Zielprofil, Zeitfenster, Reihenfolge)? | **Nur noch Profile.** Die Admin-Pflege fällt weg; der Admin empfiehlt wie jedes Profil über den Knopf. Bestehende Einträge werden übernommen. |
+| U-F2 | Wer sieht eine Empfehlung? | **Alle Profile**, die den Titel sehen dürfen (Altersfreigabe gilt immer). |
+| U-F3 | Was steht an einer Empfehlung? | **Anonym:** kein Name, keine Notiz. |
+| U-F4 | Mehrere Profile empfehlen denselben Titel? | **Nur einmal anzeigen, anonym.** |
+| U-F5 | Ab wann zählen die 60 Tage? | **Ab der jüngsten Empfehlung**; jede neue startet sie neu. |
+| U-F6 | Wer darf empfehlen? | **Alle Profile**, auch Kinderprofile. |
+| U-F7 | Eigene Empfehlung zurücknehmen? | **Ja.** Der Titel verschwindet nur, wenn ihn kein anderes Profil empfohlen hat; der Admin kann jeden Eintrag entfernen. |
+| U-F8 | Reihenfolge der Liste? | **Neueste zuerst.** |
+
+### 14.4 Ablauf für Zuschauer
+
+- **Detailseite** (Film, Serie, auch Hörbuch und Podcast wie heute die Reihe): Rundknopf mit Stern
+  **«Empfehlen»** in der Knopfzeile (Konzept 17, Variante A). Für alle Profile.
+  - Klick: Der Titel kommt in die Liste; der Knopf zeigt **«Empfohlen ✓»**, kurzer Hinweis
+    «Zu den User-Empfehlungen hinzugefügt. Bleibt 60 Tage.»
+  - Nochmals Klick: Die eigene Empfehlung wird zurückgenommen (U-F7); Hinweis «Empfehlung
+    zurückgenommen».
+  - Hat das Profil schon empfohlen und empfiehlt nach Ablauf nochmals, beginnt alles neu.
+- **Startseiten-Reihe «User-Empfehlungen»** und **Seite `/picks`**: jeder Titel **einmal**, ohne
+  Namen und ohne Notiz, **neueste Empfehlung zuerst** (U-F3, U-F4, U-F8). Die Reihe bleibt bei
+  20 Titeln, die Seite blättert wie heute.
+- Wer den Titel nicht sehen darf, sieht weder Eintrag noch Knopf (Regel 2: unsichtbar heisst 404).
+- Die Seitenleiste zeigt «User-Empfehlungen» weiter mit der Zahl der sichtbaren Einträge.
+
+### 14.5 Ablauf und Pflege
+
+- Eine Empfehlung ist eine Zeile **(Titel, Profil, Zeitpunkt)**. Empfiehlt dasselbe Profil denselben
+  Titel nochmals (nach dem Zurücknehmen oder Ablauf), gibt es nur eine Zeile mit neuem Zeitpunkt.
+- Ein Titel steht in der Liste, solange seine **jüngste** Empfehlung jünger als die Ablaufdauer ist
+  (U-F5). Ab Werk **60 Tage**, einstellbar von **7 bis 365 Tagen** (14.7).
+- Die stündliche Pflege löscht abgelaufene Zeilen (Muster `library.sweep`, ohne eigene Jobart). Die
+  Abfragen filtern zusätzlich nach Zeit, damit ein abgelaufener Titel nicht bis zur nächsten Pflege
+  stehen bleibt. Eine kürzere Ablaufdauer wirkt sofort.
+- Wird ein Profil oder ein Titel gelöscht, gehen seine Empfehlungen mit (Fremdschlüssel mit
+  `ON DELETE CASCADE`).
+
+### 14.6 Anonymität
+
+- Kein Zuschauer und keine Antwort an die App erfährt, **wer** empfohlen hat. Die App bekommt pro
+  Titel nur, ob er empfohlen ist und ob **das aktive Profil selbst** empfohlen hat
+  (`recommendedByMe`), damit der Knopf «Empfohlen ✓» zeigen kann.
+- Der Server speichert das Profil, weil sonst Zurücknehmen (U-F7) und die Zusammenfassung (U-F4)
+  nicht gingen.
+- Die Verwaltung zeigt je Titel die **Anzahl** der Empfehlungen und das Ablaufdatum, **keine Namen**.
+
+### 14.7 Einstellungsseite in der Verwaltung (Mockup)
+
+`/admin/picks` wird neu zur Seite **«User-Empfehlungen»** (Gruppe «Kuratierung», Symbol Stern):
+
+- **Ablauf:** Zahlenfeld «Empfehlungen bleiben … Tage» (7–365, ab Werk 60), darunter der Satz
+  «Jede neue Empfehlung desselben Titels startet die Frist neu.» Gespeichert in `settings` unter
+  `picks.retention_days`.
+- **Aktuelle Empfehlungen:** Liste mit Cover, Titel, «zuletzt empfohlen vor 3 Tagen», «läuft ab in
+  57 Tagen», Anzahl Empfehlungen, Knopf «Entfernen» (entfernt alle Empfehlungen des Titels).
+  Sortierung neueste zuerst wie bei den Zuschauern.
+- **Hinweis** oben: «Profile empfehlen selbst über den Stern auf der Titelseite. Namen bleiben
+  verborgen.»
+- Die Knöpfe für Reihenfolge, Zielprofil, Notiz und Zeitfenster der alten Seite entfallen.
+
+### 14.8 Server, Vertrag und Datenbank
+
+- **Tabelle `user_picks`** (in derselben Migration wie Teil A, vorläufig 00041):
+
+  ```sql
+  CREATE TABLE user_picks (
+      item_id    TEXT    NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+      profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (item_id, profile_id)
+  ) STRICT, WITHOUT ROWID;
+  CREATE INDEX user_picks_created ON user_picks (created_at);
+  ```
+
+- **Übernahme** (U-F1): Jeder Titel aus `top_picks` wird **einmal** übernommen, als Empfehlung des
+  Hauptprofils des Admin-Kontos mit dem Zeitpunkt der Migration; er läuft also 60 Tage nach dem
+  Update ab. Notiz, Zielprofil, Zeitfenster und Reihenfolge gehen verloren. Danach wird `top_picks`
+  gelöscht. Die Notiz an Spotlight-Einträgen (`ItemRef.note`) bleibt.
+- **Abfragen:** `ListTopPicks` wird `ListUserPicks` in `queries/scoped/items.sql`: `GROUP BY
+  item_id`, `MAX(created_at)` als Zeitpunkt, nur jünger als die Ablaufdauer, über `visible_items`,
+  sortiert neueste zuerst (Regel 2).
+- **Vertrag, brechend** (vorläufig 1.22.0 für beide Teile):
+  - neu `PUT /items/{id}/pick` und `DELETE /items/{id}/pick` (`recommendItem`, `unrecommendItem`,
+    `x-visibility: scoped`, 204; unsichtbarer Titel 404);
+  - neu `ItemDetail.recommendedByMe` (bool);
+  - `listPicks` und die Reihe `picks` von `getHome` ohne `note`; Beschreibung neu;
+  - weg `createTopPicks`, `reorderTopPicks`, `updateTopPick`, `deleteTopPick` und die Schemas `PickRequest`,
+    `AdminPick`; neu `listAdminUserPicks` (`GET /admin/picks`: Titel, Anzahl, zuletzt, läuft ab),
+    `removeAdminUserPick` (`DELETE /admin/picks/{itemId}`), `getPicksSettings` und
+    `updatePicksSettings` (`/admin/picks/settings`, `retentionDays`), alle `x-visibility: admin`;
+  - `RelinkUserData.topPicks` (Wiederverknüpfung nach Wurzelwechsel, ADR 0023) wird `userPicks`;
+    die Wiederverknüpfung nimmt `user_picks` mit.
+- **Spec und Plan:** E-2 heisst neu «Profile empfehlen einander Titel, anonym, mit einstellbarer
+  Ablaufdauer». Der Entscheid vom 25. Oktober 2026 («Cat's Empfehlungen wird nie zur Bühne») gilt
+  unverändert für die Reihe.
+- **Regel 11:** keine algorithmische Empfehlung, nur Klicks von Menschen.
+
+### 14.9 Tests
+
+- Server: Zusammenfassen und Ablauf ab der jüngsten Empfehlung, Zurücknehmen mit und ohne weitere
+  Profile, Kinderprofil sieht fremde Empfehlung eines gesperrten Titels nicht (404), Übernahme aus
+  `top_picks`, Löschkaskaden, Vertragstest für alle neuen Operationen.
+- App: Knopf «Empfehlen» und «Empfohlen ✓» in der Knopfzeile (Tastatur: Enter, sichtbarer Fokus),
+  `picks-page.spec.ts` und `admin-picks.spec.ts` neu für die Einstellungsseite (Regel 8), Storybook
+  für die Knopfzeile.
 
 ## Anhang: Messskripte
 
