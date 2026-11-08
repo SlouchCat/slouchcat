@@ -843,13 +843,7 @@
     },
     "subtitleStyle": {
       "title": "Untertitel-Stil",
-      "size": {
-        "title": "Grösse",
-        "s": "S",
-        "m": "M",
-        "l": "L",
-        "xl": "XL"
-      },
+      "size": { "title": "Grösse", "s": "S", "m": "M", "l": "L", "xl": "XL" },
       "background": {
         "title": "Hintergrund",
         "none": "Keiner",
@@ -857,16 +851,8 @@
         "translucent": "Halbtransparent",
         "box": "Box"
       },
-      "color": {
-        "title": "Farbe",
-        "white": "Weiss",
-        "yellow": "Gelb"
-      },
-      "position": {
-        "title": "Position",
-        "bottom": "Unten",
-        "raised": "Etwas höher"
-      },
+      "color": { "title": "Farbe", "white": "Weiss", "yellow": "Gelb" },
+      "position": { "title": "Position", "bottom": "Unten", "raised": "Etwas höher" },
       "offset": {
         "title": "Versatz",
         "earlier": "0,1 s früher",
@@ -919,16 +905,8 @@
       "tapBack": "−{{seconds}} s",
       "tapForward": "+{{seconds}} s"
     },
-    "tabs": {
-      "label": "Mehr zum Titel",
-      "next": "Als Nächstes",
-      "info": "Info"
-    },
-    "pauseView": {
-      "label": "Pause",
-      "paused": "Pausiert",
-      "chapter": "Kapitel: {{chapter}}"
-    },
+    "tabs": { "label": "Mehr zum Titel", "next": "Als Nächstes", "info": "Info" },
+    "pauseView": { "label": "Pause", "paused": "Pausiert", "chapter": "Kapitel: {{chapter}}" },
     "slow": {
       "label": "Langsame Verbindung",
       "text": "Verbindung langsam – auf {{quality}} wechseln?",
