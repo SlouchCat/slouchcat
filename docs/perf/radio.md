@@ -162,7 +162,29 @@ cd server && go test ./internal/radio -run '^$' -bench BenchmarkTagRulesLarge -b
 cd server && go test ./internal/radio -run 'TestTimeline' -v
 ```
 
-**Offen für die Abnahme auf CT 190:** Zeitversatz mit dem Regler in Chromium und Firefox (Pause über die Pufferlänge,
+### 4.1 Abnahme auf CT 190 (8. November 2026, Release 1.19.0)
+
+Chromium im Browser-Pane der Claude-App mit Marcos Sitzung, Werte aus der Seite und dem Server-Log. Migration 00039
+lief beim Start in 1,0 s; 0 ERROR.
+
+| Punkt | Ergebnis |
+|---|---|
+| Regler zurück (Radio Swiss Pop, AAC) | −2:20 gewählt: Titel und Cover wechseln auf das Stück von damals («Mercy», Duffy); «Zuvor gespielt» passt zur Position ✔ |
+| Regler über den Puffer hinaus | springt auf den ältesten vorhandenen Stand (−4:08 bei rund 4 min Puffer) ✔ |
+| «Live» | zurück auf 4,4 s hinter dem Rand der Wiedergabeliste, Mini-Player «LIVE» ✔ |
+| Pause 20 s, dann weiter | läuft 20 s hinter Live weiter, Regler und Mini-Player «−0:20» ✔ |
+| Pause über die Pufferlänge (30 min) mit Hinweis | nicht geprüft |
+| Regel setzen und wieder entfernen (55 646 Sender) | je 1,2 s (`PUT /admin/radio/tag-rules`); Reiter «Einordnung» ohne Cache 0,6 s, mit Cache 2 ms; Zustand danach wie vorher (0 eigene Regeln) |
+| Abdeckung ab Werk | Genre 27 591, Sendeart 15 181, Stimmung 3 099 von 54 929 Sendern; 192 offene Schlagworte in der Arbeitsliste |
+| Startseiten-Reihe «Meine Sender» | eingeblendet am Ende (Position 13), 6 Favoriten, Titel nur bei laufenden Sendern ✔; `GET /home` mit 14 Reihen p50 68 ms, max 76 ms; danach wieder ausgeblendet |
+| Cover an 8 Schweizer Sendern (rund 10 min) | 18 Einträge mit Interpret und Titel, 4 mit Cover (22 %); ein MusicBrainz-503 (Drossel) im Log |
+| Firefox | nicht geprüft; Marco hat die Abnahme hier beendet |
+
+**Befund:** Energy Zürich (NRJ) trennt Interpret und Titel mit « ˗ » (U+02D7). Die Zerlegung in
+`server/internal/radio/meta.go` kennt nur « - » und « – »; diese Titel bekommen darum kein Cover. Kandidat für einen
+Patch (weitere Striche wie U+02D7, U+2014, U+2212).
+
+**Ursprünglich offen für die Abnahme auf CT 190:** Zeitversatz mit dem Regler in Chromium und Firefox (Pause über die Pufferlänge,
 Hinweis und «Live»), «Zuvor gespielt» und Cover an echten Schweizer Sendern (Trefferquote MusicBrainz und iTunes),
 Regeln anwenden auf den 55 646 Sendern von CT 190 (Dauer aus dem Server-Log), Startseiten-Reihe «Meine Sender» mit
 Vorabmalerei. Bekannte Grenze: das iPhone rechnet die Abspielzeit aus `getStartDate()` plus Position und übersieht
