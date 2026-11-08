@@ -6,8 +6,8 @@
 //
 // The service is split into parts with one owner each, so the lanes of the build plan work in
 // their own files of the one package: catalogState (catalog, sync, index, admin; catalog_state.go),
-// relayState (relays, listen sessions, live HLS; relay_state.go) and logoState (logo chain;
-// logo_state.go). Cross-part calls go through the hooks onListed and onStationChanged, which New
+// relayState (relays, listen sessions, live HLS; relay_state.go), logoState (logo chain;
+// logo_state.go) and coverState (cover chain; cover.go). Cross-part calls go through the hooks onListed and onStationChanged, which New
 // sets (to no-ops until the wiring replaces them), so a caller never checks them for nil;
 // onStationsChanged is the batch form of onStationChanged.
 package radio
@@ -82,6 +82,7 @@ type Service struct {
 	cat  *catalogState // catalog, sync, index, favourites, preferences, admin (lane B)
 	rel  *relayState   // relays, listen sessions, live HLS, listen time (lane A)
 	logo *logoState    // logo chain (lane A)
+	cov  *coverState   // cover chain (lane A, cover.go)
 
 	// onListed hears the station ids a list or the favourites handed out, so the logo part
 	// queues their logos (queueLogos, set in New).
@@ -108,6 +109,7 @@ func New(db *store.DB, log *slog.Logger, opts ...Option) *Service {
 	s.cat = newCatalogState(s.o.userAgent)
 	s.rel = newRelayState()
 	s.logo = newLogoState()
+	s.cov = newCoverState()
 	// The catalog goes through the guarded client of the relay part (the radiotest build allows
 	// the loopback there), created at the first request so a test can still swap the control.
 	s.cat.fetch.lazy = func() *http.Client { return s.netClient().http }

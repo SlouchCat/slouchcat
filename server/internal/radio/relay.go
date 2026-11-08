@@ -80,8 +80,11 @@ type relay struct {
 	gen       int // current generation
 	in        transcode.RadioInput
 	out       transcode.RadioOutput
-	titles    []model.RadioNowEntry
+	titles    []titleEntry
 	lastText  string
+	fed       time.Duration // audio fed to generation gen (MP3 and ADTS only: the framer counts it)
+	pdtGen    int           // generation whose first segment is published (-1 before the first)
+	pdtStart  time.Time     // program date-time of that segment
 	produced  time.Duration // audio of every fragment so far (pace)
 	pend      []byte        // fragments of the segment being built
 	pendDur   time.Duration
@@ -93,6 +96,20 @@ type relay struct {
 	idleSince time.Time     // since when no listen session is open (guarded by relayState.mu)
 	joins     int           // Listen calls between joinRelay and their session (guarded by relayState.mu)
 	changed   chan struct{} // closed and replaced at every new segment (tests wait on it)
+}
+
+// titleEntry is one entry of the title timeline. A title of a framed source (MP3, ADTS) is
+// stamped by audio position (concept 16 section 7.6): offset is the audio fed to generation gen
+// before it; it stays pending until the first segment of gen is published and its program
+// date-time is known, then At = that date-time + offset. Other sources keep the stage-1 stamp
+// (the end of the last published segment, plan D-12).
+type titleEntry struct {
+	model.RadioNowEntry
+	streamURL string // StreamUrl of the ICY block (cover.go)
+	coverKey  string // key of its cover lookup (coverJobFor), "" without one
+	gen       int
+	offset    time.Duration
+	pending   bool
 }
 
 // generation is one packager run.
@@ -118,7 +135,7 @@ func (s *Service) newRelay(st appq.RadioStation, streams []appq.RadioStream, win
 	return &relay{s: s, stationID: st.ID, name: st.Name, showsTitles: st.ShowsTitles == 1, streams: streams,
 		window: window, reservation: reservation, started: time.Now(), startedAt: s.now(), idleSince: s.now(),
 		ready: make(chan struct{}), done: make(chan struct{}), state: relayConnecting, buf: buf, lastGen: -1,
-		changed: make(chan struct{})}, nil
+		pdtGen: -1, changed: make(chan struct{})}, nil
 }
 
 // run plays the station until ctx ends or no stream answers any more.
@@ -257,8 +274,8 @@ func (r *relay) feed(ctx context.Context, st stream, f *feedState) error {
 		if err != nil {
 			return err
 		}
-		if ev.TitleSet {
-			r.title(ctx, ev.Title, names)
+		if ev.TitleSet { // before the audio of the same event: the title applies to it (HLS, Ogg)
+			r.title(ctx, ev, names, f)
 		}
 		if ev.Discontinuity {
 			switch {
@@ -270,8 +287,10 @@ func (r *relay) feed(ctx context.Context, st stream, f *feedState) error {
 			}
 		}
 		data := ev.Audio
+		var dur time.Duration
 		if f.fr != nil {
 			data = f.fr.push(data)
+			dur = f.fr.pushed
 			if len(data) == 0 {
 				continue
 			}
@@ -298,6 +317,11 @@ func (r *relay) feed(ctx context.Context, st stream, f *feedState) error {
 			r.s.log.WarnContext(ctx, "radio packager failed", "station_id", r.stationID, "err", err)
 			f.newGen = true
 			return fmt.Errorf("%w: packager: %w", model.ErrRadioNotAudio, err)
+		}
+		if dur > 0 {
+			r.mu.Lock()
+			r.fed += dur
+			r.mu.Unlock()
 		}
 	}
 }
@@ -330,7 +354,7 @@ func (r *relay) startGen(ctx context.Context, f *feedState, in transcode.RadioIn
 	}
 	g := &generation{n: n, pk: pk, in: in, out: out, done: make(chan struct{})}
 	r.mu.Lock()
-	r.gen, r.in, r.out = n, in, out
+	r.gen, r.in, r.out, r.fed = n, in, out, 0
 	r.mu.Unlock()
 	go r.consume(g)
 	f.g, f.newGen = g, false
@@ -414,6 +438,10 @@ func (r *relay) flush(gen int) error {
 	}
 	err := r.buf.add(seg, data)
 	if err == nil {
+		if r.lastGen != gen { // the first segment of gen: its titles get their time
+			r.pdtGen, r.pdtStart = gen, seg.pdt
+			r.resolveTitlesLocked()
+		}
 		r.lastGen = gen
 		r.trimTitlesLocked()
 		close(r.changed)
@@ -435,10 +463,13 @@ func (r *relay) flush(gen int) error {
 	return err
 }
 
-// title adds an announced title to the timeline, stamped with the program date-time of the
-// segment being filled (hard part 3.5). Texts that announce no title are left out.
-func (r *relay) title(ctx context.Context, text string, names []string) {
-	e, ok := cleanTitle(text, names...)
+// title adds an announced title to the timeline. Texts that announce no title are left out. A
+// framed source stamps it with the audio position (titleEntry): the audio fed to the running
+// generation so far, or the start of the next one when a new generation is due (codec or stream
+// change); a new generation decided only by the audio after it (a discontinuity) leaves the
+// title at the end of the old one, at most a segment off. Other sources keep the stage-1 stamp.
+func (r *relay) title(ctx context.Context, ev streamEvent, names []string, f *feedState) {
+	e, ok := cleanTitle(ev.Title, names...)
 	if !ok {
 		return
 	}
@@ -448,21 +479,63 @@ func (r *relay) title(ctx context.Context, text string, names []string) {
 		return
 	}
 	r.lastText = e.Text
-	e.At = r.s.now()
-	if n := len(r.buf.segs); n > 0 {
-		last := r.buf.segs[n-1]
-		e.At = last.pdt.Add(last.dur)
+	te := titleEntry{RadioNowEntry: e, streamURL: ev.StreamURL}
+	switch {
+	case !framed(f):
+		te.At = r.s.now()
+		if n := len(r.buf.segs); n > 0 {
+			last := r.buf.segs[n-1]
+			te.At = last.pdt.Add(last.dur)
+		}
+		if n := len(r.titles); n > 0 && !r.titles[n-1].pending {
+			te.At = maxTime(te.At, r.titles[n-1].At)
+		}
+	case f.g == nil:
+		te.pending = true // the first generation, from its start
+	case f.newGen:
+		te.gen, te.pending = f.g.n+1, true
+	default:
+		te.gen, te.offset, te.pending = f.g.n, r.fed, true
 	}
-	r.titles = append(r.titles, e)
+	job, lookup := coverJobFor(te)
+	te.coverKey = job.key
+	r.titles = append(r.titles, te)
 	if n := len(r.titles); n > maxRelayTitles {
 		r.titles = slices.Delete(r.titles, 0, n-maxRelayTitles)
 	}
+	r.resolveTitlesLocked()
 	r.trimTitlesLocked()
 	first := !r.showsTitles
 	r.showsTitles = true
 	r.mu.Unlock()
+	if lookup {
+		r.s.queueCover(job)
+	}
 	if first {
 		r.s.stationShowsTitles(ctx, r.stationID)
+	}
+}
+
+// resolveTitlesLocked gives the pending titles of every generation up to pdtGen their time: the
+// start of pdtGen plus their offset, or its start for a title of an earlier generation that
+// published nothing. The timeline stays in order.
+func (r *relay) resolveTitlesLocked() {
+	if r.pdtGen < 0 {
+		return
+	}
+	for i := range r.titles {
+		t := &r.titles[i]
+		if !t.pending || t.gen > r.pdtGen {
+			continue
+		}
+		t.At = r.pdtStart
+		if t.gen == r.pdtGen {
+			t.At = t.At.Add(t.offset)
+		}
+		if i > 0 && !r.titles[i-1].pending {
+			t.At = maxTime(t.At, r.titles[i-1].At)
+		}
+		t.pending = false
 	}
 }
 
@@ -473,10 +546,39 @@ func (r *relay) trimTitlesLocked() {
 	}
 	start := r.buf.segs[0].pdt
 	i := 0
-	for i+1 < len(r.titles) && !r.titles[i+1].At.After(start) {
+	for i+1 < len(r.titles) && !r.titles[i+1].pending && !r.titles[i+1].At.After(start) {
 		i++
 	}
 	r.titles = r.titles[i:]
+}
+
+// timelineLocked returns the resolved entries of the timeline (never a pending one).
+func (r *relay) timelineLocked() []model.RadioNowEntry {
+	out := make([]model.RadioNowEntry, 0, len(r.titles))
+	for _, t := range r.titles {
+		if !t.pending {
+			out = append(out, t.RadioNowEntry)
+		}
+	}
+	return out
+}
+
+// liveEntry returns the title at the live edge: the last resolved entry at or before the end of
+// the last published segment (the start page row radio, plan B3). ok is false without one.
+func (r *relay) liveEntry() (model.RadioNowEntry, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n := len(r.buf.segs)
+	if n == 0 {
+		return model.RadioNowEntry{}, false
+	}
+	edge := r.buf.segs[n-1].pdt.Add(r.buf.segs[n-1].dur)
+	for i := len(r.titles) - 1; i >= 0; i-- {
+		if t := r.titles[i]; !t.pending && !t.At.After(edge) {
+			return t.RadioNowEntry, true
+		}
+	}
+	return model.RadioNowEntry{}, false
 }
 
 func (r *relay) setState(state string) {
@@ -499,6 +601,16 @@ func (r *relay) segmentData(seq int64) ([]byte, time.Duration, error) {
 	}
 	data, err := readSegment(seg, path)
 	return data, seg.dur, err
+}
+
+// oldestSeq returns the number of the first segment of the window (the next one while empty).
+func (r *relay) oldestSeq() int64 {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.buf.segs) == 0 {
+		return r.buf.nextSeq
+	}
+	return r.buf.segs[0].seq
 }
 
 // initData returns the init part of generation gen.
