@@ -108,7 +108,7 @@ func (s *Service) syncCatalog(ctx context.Context) (syncStats, error) {
 	}
 	// Rules the administration stored while this run held syncMu apply to every station before it
 	// lets go (D-2, critic M-3); the job handler rebuilds the index afterwards. A failed apply
-	// keeps them pending for RunCatalog and does not fail the sync.
+	// keeps them pending for the sweep and does not fail the sync.
 	if s.cat.rulesDirty.Load() {
 		if err := s.applyTagRules(ctx, false); err != nil {
 			s.log.WarnContext(ctx, "apply radio tag rules after the sync", "err", err)

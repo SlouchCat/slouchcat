@@ -102,6 +102,13 @@ func (s *Service) Start(ctx context.Context) error {
 	if _, err := s.tagRules(ctx); err != nil {
 		return err
 	}
+	// A restart may have cut off an apply of the admin's rules: the first sweep applies them once
+	// more, writing only the stations whose facets differ.
+	if admin, err := appq.New(s.db.Read).ListRadioTagRules(ctx); err != nil {
+		return fmt.Errorf("list radio tag rules: %w", err)
+	} else if len(admin) > 0 {
+		s.cat.rulesDirty.Store(true)
+	}
 	cfg, err := appq.New(s.db.Read).GetRadioConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("get radio config: %w", err)

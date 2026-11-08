@@ -725,6 +725,7 @@ func (s *Service) sweep(ctx context.Context) {
 	s.flushListenTime(ctx)
 	s.stopIdleRelays(ctx, now)
 	s.sweepCovers(ctx, now)
+	s.retryTagRules(ctx)
 	s.rel.mu.Lock()
 	prune := now.Sub(s.rel.pruned) >= time.Hour
 	if prune {

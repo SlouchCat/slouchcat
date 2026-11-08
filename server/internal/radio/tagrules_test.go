@@ -231,6 +231,30 @@ func TestTagRulesApplyFailureConverges(t *testing.T) {
 	}
 }
 
+// Rules stored by a process that stopped before it applied them reach the stations after a
+// restart: Start marks the stored rules pending and the next sweep applies them.
+func TestTagRulesAppliedAfterRestart(t *testing.T) {
+	e := newCatEnv(t)
+	e.setEntries(rulesCatalog(rulesGroup{prefix: "Hits", n: 3, tags: "80s"}))
+	e.sync()
+	// The rule is stored, the facets are not: the state a stop between both leaves behind.
+	e.exec(`INSERT INTO radio_tag_rules (tag, facet, value, updated_at) VALUES ('80s', 'genre', 'rock', 1)`)
+	if v := e.facetValues("Hits 1", "genre"); !slices.Equal(v, []string{"oldies"}) {
+		t.Fatalf("before the restart: genres %v, want [oldies]", v)
+	}
+	restarted := New(e.db, e.s.log, WithClock(e.s.now))
+	if err := restarted.Start(e.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !restarted.cat.rulesDirty.Load() {
+		t.Fatal("Start left the stored rules unmarked")
+	}
+	restarted.retryTagRules(e.ctx) // what the first sweep does
+	if v := e.facetValues("Hits 1", "genre"); !slices.Equal(v, []string{"rock"}) || restarted.cat.rulesDirty.Load() {
+		t.Errorf("after the restart: genres %v, pending %v; want [rock], none", v, restarted.cat.rulesDirty.Load())
+	}
+}
+
 // Rules stored while a sync holds syncMu are applied by that sync before it ends.
 func TestTagRulesDuringSyncAppliedBySync(t *testing.T) {
 	e := newCatEnv(t)

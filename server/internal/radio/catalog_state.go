@@ -20,7 +20,8 @@ type catalogState struct {
 	rules   atomic.Pointer[ruleSet]
 	rulesMu sync.Mutex
 	// rulesDirty is set while stored rules wait to be applied to the stations: an apply that met
-	// a running sync (the sync applies them at its end) or failed (RunCatalog retries it).
+	// a running sync (the sync applies them at its end) or failed (the sweep retries it; Start sets it while
+	// admin rules exist, so an apply a restart cut off still reaches every station).
 	rulesDirty atomic.Bool
 	// gen counts the changes the tab «Einordnung» depends on (index swaps, rule and config
 	// changes); tagRulesCache holds its answer for one generation.

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"time"
 	"unicode/utf8"
 
 	"github.com/slouchcat/slouchcat/server/internal/model"
@@ -37,8 +36,6 @@ const (
 	// applyRebuildAbove: an apply that changed more stations rebuilds the index instead of
 	// reloading each station.
 	applyRebuildAbove = syncBatch
-	// rulesRetryEvery is how often RunCatalog retries pending rules.
-	rulesRetryEvery = 30 * time.Second
 )
 
 // ruleSet is a set of effective tag rules.
@@ -157,7 +154,7 @@ func validateTagRules(list []model.RadioTagRule) ([]model.RadioTagRule, error) {
 // SetTagRules replaces the administration's rules (contract setRadioTagRules): the rows are stored
 // in one transaction and the effective rules swapped, then the rules apply to every station at
 // once, unless a sync runs: it holds syncMu and applies them before it ends (critic M-3). A failed
-// apply keeps them pending; RunCatalog retries it. The answer is the tab after the change.
+// apply keeps them pending; the sweep retries it. The answer is the tab after the change.
 func (s *Service) SetTagRules(ctx context.Context, list []model.RadioTagRule) (model.RadioTagRules, error) {
 	admin, err := validateTagRules(list)
 	if err != nil {
@@ -211,21 +208,6 @@ func (s *Service) retryTagRules(ctx context.Context) {
 	defer s.cat.syncMu.Unlock()
 	if err := s.applyTagRules(ctx, true); err != nil {
 		s.log.WarnContext(ctx, "apply radio tag rules", "err", err)
-	}
-}
-
-// RunCatalog retries pending tag rules every rulesRetryEvery until ctx ends: an apply that failed
-// midway converges on the next round.
-func (s *Service) RunCatalog(ctx context.Context) {
-	t := time.NewTicker(rulesRetryEvery)
-	defer t.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			s.retryTagRules(ctx)
-		}
 	}
 }
 
